@@ -578,7 +578,7 @@ export const semanticSort = async (request : CallableRequest<SemanticSortRequest
 		throw new Error('No embedding store');
 	}
 
-	if (cards.length < 2) return {cards};
+	if (cards.length < 2) return {cards, swaps:0};
 
 	//Sanity check, because this calculation will be expensive!
 	if (cards.length > MAXIMUM_SEMANTIC_SORT_CARDS) throw new Error(`Too many cards: ${cards.length}`);
@@ -603,7 +603,7 @@ export const semanticSort = async (request : CallableRequest<SemanticSortRequest
 
 	console.log(`Made ${changesMadeCounter} changes in ${counter} iterations over ${cards.length} cards`);
 
-	return {cards};
+	return {cards, swaps: changesMadeCounter};
 };
 
 //How many milliseconds of slop do we allow for last_updated check? This gets

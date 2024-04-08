@@ -221,5 +221,6 @@ export type SemanticSortRequestData = {
 
 //Replicated in `src/actions/bulk-import.ts`
 export type SemanticSortResponseData = {
-	cards: CardID[]
+	cards: CardID[],
+	swaps: number
 }

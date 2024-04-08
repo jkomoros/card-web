@@ -50,7 +50,8 @@ export type SemanticSortRequestData = {
 
 //Replicated in `functions/src/types.ts
 export type SemanticSortResponseData = {
-	cards: CardID[]
+	cards: CardID[],
+	swaps: number
 }
 
 export const openBulkImportDialog = (mode : BulkImportDialogMode) : SomeAction => ({
@@ -94,6 +95,7 @@ export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getSt
 		type: BULK_IMPORT_PENDING
 	});
 	const result = await semanticSortCallable({cards: cardIDs});
+	console.log('Number of swaps made: ', result.data.swaps);
 	dispatch({
 		type: BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 		order: result.data.cards
