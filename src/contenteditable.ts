@@ -485,9 +485,12 @@ export const exportContentForCards = (cards : ProcessedCard[]) : string => {
 		for (const child of ele.children) {
 			if (firstEle) {
 				parts.push(child.outerHTML);
-				parts.push('<ul>');
 			} else {
-				hasOtherEles = true;
+				//This is the first non-first element, so add a <ul>.
+				if (!hasOtherEles) {
+					parts.push('<ul>');
+					hasOtherEles = true;
+				}
 				parts.push('<li>' + child.outerHTML + '</li>');
 			}
 			firstEle = false;
