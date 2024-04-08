@@ -483,15 +483,17 @@ export const exportContentForCards = (cards : ProcessedCard[]) : string => {
 		let hasOtherEles = false;
 		const parts : string[] = [];
 		for (const child of ele.children) {
+			//Effectively strip <p> tags.
+			const outerHTML = child.tagName == 'P' ? child.innerHTML : child.outerHTML;
 			if (firstEle) {
-				parts.push(child.outerHTML);
+				parts.push(outerHTML);
 			} else {
 				//This is the first non-first element, so add a <ul>.
 				if (!hasOtherEles) {
 					parts.push('<ul>');
 					hasOtherEles = true;
 				}
-				parts.push('<li>' + child.outerHTML + '</li>');
+				parts.push('<li>' + outerHTML + '</li>');
 			}
 			firstEle = false;
 		}
