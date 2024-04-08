@@ -546,7 +546,25 @@ const swapIfBetter = (index: number, cards : CardID[], vectors: Record<CardID, E
 	const d = vectors[dID];
 
 	//This might happen for cards that don't have embeddings yet.
-	if (!a || !b || !c || !d) return false;
+	if (!a) {
+		console.warn(`No embedding for ${aID}`);
+		return false;
+	}
+
+	if (!b) {
+		console.warn(`No embedding for ${bID}`);
+		return false;
+	}
+
+	if (!c) {
+		console.warn(`No embedding for ${cID}`);
+		return false;
+	}
+
+	if (!d) {
+		console.warn(`No embedding for ${dID}`);
+		return false;
+	}
 
 	//b anc c will be next to each other no matter what. We're seeing which is
 	//better, similarity(a,b) + similarity(c,d) (in which case there should be
@@ -558,7 +576,11 @@ const swapIfBetter = (index: number, cards : CardID[], vectors: Record<CardID, E
 	const simAC = cosineSimilarity(a, c);
 	const simBD = cosineSimilarity(b, d);
 
+	console.log(`Comparing ${bID} and ${cID} with ${simAB} + ${simCD} (${simAB + simCD}) vs ${simAC} + ${simBD} (${simAC + simBD})`);
+
 	if (simAB + simCD >= simAC + simBD) return false;
+	
+	console.log('Swapping');
 
 	//A swap is better!
 	const temp = cards[index];
