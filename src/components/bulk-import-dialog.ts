@@ -19,6 +19,7 @@ import {
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON,
+	COPY_ALL_ICON,
 	SHUFFLE_ICON
 } from './my-icons.js';
 
@@ -136,6 +137,12 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				id='semantic-sort'
 			>${SHUFFLE_ICON}</button>
 			<label for='semantic-sort'>Semantic Sort</label>
+			<button
+				class='small'
+				id='copy'
+				@click=${this.copyExportedContent}
+			>${COPY_ALL_ICON}</button>
+			<label for='copy'>Copy</label>
 			<p>Copy this content to import it elsewhere:</p>
 			<div class='output'>
 				${unsafeHTML(this._exportContent)}
@@ -198,6 +205,14 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this._exportContent = selectBulkImportDialogExportContent(state);
 		this._aiEnabled = selectUserMayUseAI(state);
 		this.title = 'Bulk ' + (this._mode === 'import' ? 'Import' : 'Export');
+	}
+
+	copyExportedContent() {
+		navigator.clipboard.write([
+			new ClipboardItem({
+				'text/html': new Blob([this._exportContent], {type: 'text/html'}),
+			}),
+		]);
 	}
 
 }
