@@ -7,6 +7,8 @@ import {
 	CardID,
 	CardSimilarityItem,
 	EmbeddableCard,
+	SemanticSortRequestData,
+	SemanticSortResponseData,
 	SimilarCardsRequestData,
 	SimilarCardsResponseData
 } from './types.js';
@@ -475,6 +477,13 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		i++;
 	}
 	console.log('Done indexing cards');
+};
+
+export const semanticSort = async (request : CallableRequest<SemanticSortRequestData>) : Promise<SemanticSortResponseData> => {
+	//For now, we'll just reverse the cards as a distinctive no-op style.
+	const cards =[...request.data.cards];
+	cards.reverse();
+	return {cards};
 };
 
 //How many milliseconds of slop do we allow for last_updated check? This gets

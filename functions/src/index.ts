@@ -38,7 +38,8 @@ import {
 import {
 	processCardEmbedding,
 	reindexCardEmbeddings as reindexCardEmbeddingsImpl,
-	similarCards as similarCardsImpl
+	similarCards as similarCardsImpl,
+	semanticSort as semanticSortImpl
 } from './embeddings.js';
 
 import * as openaiimpl from './openai.js';
@@ -92,6 +93,8 @@ screenshotApp.get('/:id', async (req, res) => {
 	}
 	res.status(404).end();
 });
+
+export const semanticSort = onCall({}, semanticSortImpl);
 
 export const similarCards = onCall({}, similarCardsImpl);
 

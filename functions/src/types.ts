@@ -213,3 +213,11 @@ export type SimilarCardsResponseData = {
 	success: true
 	cards: CardSimilarityItem[]
 };
+
+export type SemanticSortRequestData = {
+	cards: CardID[]
+}
+
+export type SemanticSortResponseData = {
+	cards: CardID[]
+}
