@@ -1,6 +1,7 @@
 import {
 	BULK_IMPORT_DIALOG_CLOSE,
 	BULK_IMPORT_DIALOG_OPEN,
+	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SET_BODIES,
 	BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 	SomeAction
@@ -89,6 +90,9 @@ export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getSt
 	if (!selectUserMayUseAI(state)) throw new Error('User may not use AI');
 	const cards = selectActiveCollectionCards(state);
 	const cardIDs = cards.map(card => card.id);
+	dispatch({
+		type: BULK_IMPORT_PENDING
+	});
 	const result = await semanticSortCallable({cards: cardIDs});
 	dispatch({
 		type: BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,

@@ -61,7 +61,8 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 	case BULK_IMPORT_SET_OVERRIDE_CARD_ORDER:
 		return {
 			...state,
-			overrideCardOrder: action.order
+			overrideCardOrder: action.order,
+			pending: false
 		};
 	default:
 		return state;

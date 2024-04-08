@@ -104,8 +104,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	];
 
 	private innerRenderImport() {
-		return html`<div class='${this._pending ? 'pending' : ''}'>
-			<div class='scrim'></div>
+		return html`
 			${this._bodies.length ?
 		html`<p>Verify these bodies are ones you want to create!</p>
 			${this._bodies.map((body) => html`<textarea disabled .value=${body}></textarea>`)}` :
@@ -124,8 +123,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				>
 					${CHECK_CIRCLE_OUTLINE_ICON}
 				</button>
-			</div>
-		</div>`;
+			</div>`;
 	}
 
 	private innerRenderExport() {
@@ -146,15 +144,22 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	}
 
 	override innerRender() {
+		let content = html``;
 		if (!this.open) return html``;
 		switch (this._mode) {
 		case 'import':
-			return this.innerRenderImport();
+			content = this.innerRenderImport();
+			break;
 		case 'export':
-			return this.innerRenderExport();
+			content = this.innerRenderExport();
+			break;
 		default:
 			return assertUnreachable(this._mode);
 		}
+		return html`<div class='${this._pending ? 'pending' : ''}'>
+			<div class='scrim'></div>
+			${content}
+		</div>`;
 	}
 
 	_handleRawPaste(e : ClipboardEvent) {
