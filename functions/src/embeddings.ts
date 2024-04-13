@@ -481,7 +481,10 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 			]
 		},
 		with_payload: {
-			include: [PAYLOAD_CONTENT_KEY]
+			include: [
+				PAYLOAD_CONTENT_KEY,
+				PAYLOAD_CARD_ID_KEY
+			]
 		}
 	});
 
