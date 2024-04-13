@@ -41,7 +41,8 @@ import {
 	selectActiveCollection,
 	selectPendingNewCardIDToNavigateTo,
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
-	selectCollectionConstructorArguments
+	selectCollectionConstructorArguments,
+	selectExplicitlySelectedCardIDs
 } from '../selectors.js';
 
 import {
@@ -496,6 +497,16 @@ export const waitForFinalCollection = async (description : CollectionDescription
 	if (!collection) throw new Error('We somehow settled without a collection');
 
 	return collection;
+};
+
+export const toggleCardSelected = (id : CardID) : ThunkSomeAction => (dispatch, getState) => {
+	const state = getState();
+	const selected = selectExplicitlySelectedCardIDs(state);
+	if (selected[id]) {
+		dispatch(unselectCards([id]));
+	} else {
+		dispatch(doSelectCards([id]));
+	}
 };
 
 //Funky name to avoid colliding with selectCards selector

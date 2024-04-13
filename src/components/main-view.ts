@@ -111,6 +111,10 @@ import {
 	CARD_HOVERED_EVENT_NAME
 } from '../events.js';
 
+import {
+	toggleCardSelected
+} from '../actions/collection.js';
+
 @customElement('main-view')
 class MainView extends connect(store)(PageViewElement) {
 
@@ -467,9 +471,15 @@ class MainView extends connect(store)(PageViewElement) {
 			e.preventDefault();
 			store.dispatch(openFindDialog());
 			break;
+		case ' ':
+			if (!this._card) return;	
+			e.stopPropagation();
+			e.preventDefault();
+			//TODO: should we not do this if the user can't edit?
+			store.dispatch(toggleCardSelected(this._card.id));
+			break;
 		case 'ArrowDown':
 		case 'ArrowRight':
-		case ' ':
 			e.stopPropagation();
 			e.preventDefault();
 			store.dispatch(navigateToNextCard());
