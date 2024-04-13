@@ -16,7 +16,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@qdrant/js-client-rest": "^1.6.0",
+    "@qdrant/js-client-rest": "^1.8.2",
     "@types/jsdom": "^21.1.4",
     "express": "^4.17.1",
     "firebase-admin": "^11.8.0",
