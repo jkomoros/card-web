@@ -358,10 +358,11 @@ class EmbeddingStore {
 		const text = textContentForEmbeddingForCard(card);
 
 		let existingPoint : PointSummary | null = null;
-		if (cardsContent === undefined) {
-			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
-		} else {
+		if (cardsContent) {
 			existingPoint = cardsContent[card.id];
+		}
+		if (!existingPoint) {
+			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
 		}
 
 		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text) {
