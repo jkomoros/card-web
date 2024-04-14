@@ -362,6 +362,7 @@ class EmbeddingStore {
 			existingPoint = cardsContent[card.id];
 		}
 		if (!existingPoint) {
+			if (cardsContent) console.log(`No existing point for ${card.id} despite cardsContent being provided. Will fetch it from the endpoint.`);
 			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
 		}
 
