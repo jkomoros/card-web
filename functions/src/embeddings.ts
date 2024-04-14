@@ -43,6 +43,9 @@ import {
 } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
 
+//The highest number of cards there might ever be.
+const MAX_EMBEDDINGS = 100000;
+
 const DOM = new JSDOM();
 
 const QDRANT_ENABLED = openai_endpoint && QDRANT_API_KEY && QDRANT_CLUSTER_URL;
@@ -308,6 +311,7 @@ class EmbeddingStore {
 					}
 				]
 			},
+			limit: MAX_EMBEDDINGS,
 			with_vector: true
 		});
 		return Object.fromEntries(existingPoints.points.map(point => {
@@ -457,9 +461,6 @@ export const processCardEmbedding = async (event : FirestoreEvent<Change<Documen
 };
 
 const TOO_MANY_ERRORS = 5;
-
-//The highest number of cards there might ever be.
-const MAX_EMBEDDINGS = 100000;
 
 export const reindexCardEmbeddings = async () : Promise<void> => {
 	if (!EMBEDDING_STORE) {
