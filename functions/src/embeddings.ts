@@ -456,6 +456,9 @@ export const processCardEmbedding = async (event : FirestoreEvent<Change<Documen
 
 const TOO_MANY_ERRORS = 5;
 
+//The highest number of cards there might ever be.
+const MAX_EMBEDDINGS = 100000;
+
 export const reindexCardEmbeddings = async () : Promise<void> => {
 	if (!EMBEDDING_STORE) {
 		console.warn('Qdrant not enabled, skipping');
@@ -480,6 +483,7 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 				}
 			]
 		},
+		limit: MAX_EMBEDDINGS,
 		with_payload: {
 			include: [
 				PAYLOAD_CONTENT_KEY,
