@@ -3,8 +3,8 @@ export const AUTO_MARK_READ_DELAY = 5000;
 import {
 	GoogleAuthProvider,
 	signInWithCredential,
-	linkWithRedirect,
-	signInWithRedirect,
+	signInWithPopup,
+	linkWithPopup,
 	signInAnonymously,
 	signOut as firebaseSignOut,
 	getRedirectResult,
@@ -195,11 +195,11 @@ export const signIn = () : ThunkSomeAction => (dispatch, getState) => {
 			console.warn('Unexpectedly didn\'t have user');
 			return;
 		}
-		linkWithRedirect(user, provider);
+		linkWithPopup(user, provider);
 		return;
 	}
 
-	signInWithRedirect(auth, provider).catch(err => {
+	signInWithPopup(auth, provider).catch(err => {
 		dispatch({type:SIGNIN_FAILURE, error: err});
 	});
 
