@@ -314,12 +314,19 @@ class EmbeddingStore {
 			limit: MAX_EMBEDDINGS,
 			with_vector: true
 		});
-		return Object.fromEntries(existingPoints.points.map(point => {
+		const result =  Object.fromEntries(existingPoints.points.map(point => {
 			const cardID = point.payload?.card_id;
 			if (!cardID) throw new Error('No card_id as expected');
 			if (!point.vector) throw new Error('No vector as expected');
 			return [cardID, point.vector];
 		}));
+
+		if (Object.keys(result).length != cardIDs.length) {
+			const missingIDs = cardIDs.filter(cardID => !result[cardID]);
+			console.warn(`Got ${Object.keys(result).length} vectors. Missing vectors for ${missingIDs.length} cards: ${missingIDs.join(', ')}`);
+		}
+
+		return result;
 	}
 
 	//TODO: more clever typing so we can affirmatively say if the Point has a payload and/or vector fields
