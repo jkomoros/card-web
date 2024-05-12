@@ -1826,7 +1826,7 @@ export const selectBulkImportDialogExportContent = createSelector(
 	selectBulkImportDialogOpen,
 	selectBulKimportDialogMode,
 	selectBulkImportDialogOverrideCardOrder,
-	selectActiveCollectionCards,
+	selectSelectedCards,
 	(open, mode, cardOrder, cards) => {
 		if (!open || mode != 'export') return '';
 		let finalCards = cards;

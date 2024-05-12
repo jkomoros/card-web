@@ -12,10 +12,10 @@ import {
 } from '../contenteditable.js';
 
 import {
-	selectActiveCollectionCards,
 	selectBulkImportDialogBodies,
 	selectBulkImportDialogImporter,
 	selectBulkImportDialogImporterVersion,
+	selectSelectedCards,
 	selectUserMayUseAI
 } from '../selectors.js';
 
@@ -89,7 +89,7 @@ const semanticSortCallable = httpsCallable<SemanticSortRequestData, SemanticSort
 export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	if (!selectUserMayUseAI(state)) throw new Error('User may not use AI');
-	const cards = selectActiveCollectionCards(state);
+	const cards = selectSelectedCards(state);
 	const cardIDs = cards.map(card => card.id);
 	dispatch({
 		type: BULK_IMPORT_PENDING
