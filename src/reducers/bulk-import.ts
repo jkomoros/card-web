@@ -5,7 +5,8 @@ import {
 	BULK_IMPORT_SET_BODIES,
 	BULK_IMPORT_SUCCESS,
 	BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
-	SomeAction
+	SomeAction,
+	BULK_IMPORT_FAILURE
 } from '../actions.js';
 
 import {
@@ -50,6 +51,13 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 			...state,
 			pending: false,
 			open: false
+		};
+	case BULK_IMPORT_FAILURE:
+		//TODO: is it weird to have an alert here?
+		alert('Failure: ' + action.error);
+		return {
+			...state,
+			pending: false
 		};
 	case BULK_IMPORT_SET_BODIES:
 		return {

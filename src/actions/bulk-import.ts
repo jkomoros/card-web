@@ -1,6 +1,7 @@
 import {
 	BULK_IMPORT_DIALOG_CLOSE,
 	BULK_IMPORT_DIALOG_OPEN,
+	BULK_IMPORT_FAILURE,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SET_BODIES,
 	BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
@@ -94,10 +95,17 @@ export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getSt
 	dispatch({
 		type: BULK_IMPORT_PENDING
 	});
-	const result = await semanticSortCallable({cards: cardIDs});
-	console.log('Number of swaps made: ', result.data.swaps);
-	dispatch({
-		type: BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
-		order: result.data.cards
-	});
+	try {
+		const result = await semanticSortCallable({cards: cardIDs});
+		console.log('Number of swaps made: ', result.data.swaps);
+		dispatch({
+			type: BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
+			order: result.data.cards
+		});
+	} catch(e) {
+		dispatch({
+			type: BULK_IMPORT_FAILURE,
+			error: String(e)
+		});
+	}
 };

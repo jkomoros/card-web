@@ -86,6 +86,7 @@ export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
 export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
 export const BULK_IMPORT_PENDING = 'BULK_IMPORT_DIALOG_PENDING';
 export const BULK_IMPORT_SUCCESS = 'BULK_IMPORT_SUCCESS';
+export const BULK_IMPORT_FAILURE = 'BULK_IMPORT_FAILURE';
 export const BULK_IMPORT_DIALOG_CLOSE = 'BULK_IMPORT_DIAOG_CLOSE';
 export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
 export const BULK_IMPORT_SET_OVERRIDE_CARD_ORDER = 'BULK_IMPORT_SET_OVERRIDE_CARD_ORDER';
@@ -366,6 +367,11 @@ type ActionBulkImportPending = {
 type ActionBulkImportDialogSetOverrideCardOrder = {
 	type: typeof BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 	order: CardID[]
+};
+
+type ActionBulkImportFailure = {
+	type: typeof BULK_IMPORT_FAILURE,
+	error: string
 };
 
 type ActionBulkImportSuccees = {
@@ -1028,6 +1034,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportDialogOpen
 	| ActionBulkImportPending
 	| ActionBulkImportSuccees
+	| ActionBulkImportFailure
 	| ActionBulkImportDialogClose
 	| ActionBulkImportSetBodies
 	| ActionBulkImportDialogSetOverrideCardOrder
