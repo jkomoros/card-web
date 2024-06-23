@@ -300,16 +300,7 @@ export const updatePermissions = (uid : Uid) : ThunkSomeAction => async (dispatc
 		});
 		return;
 	}
-	let snapshot;
-	try {
-		snapshot = await getDoc(doc(db, PERMISSIONS_COLLECTION, uid));
-	} catch(err) {
-		dispatch({
-			type: UPDATE_USER_PERMISSIONS,
-			permissions: {},
-		});
-		return;
-	}
+	const snapshot = await getDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 	dispatch({
 		type: UPDATE_USER_PERMISSIONS,
 		//If thesnapshot doesn't exist then data() will be undefined, so always
