@@ -7,7 +7,6 @@ import {
 	linkWithPopup,
 	signInAnonymously,
 	signOut as firebaseSignOut,
-	getRedirectResult,
 	User,
 	updateProfile,
 	updateEmail,
@@ -104,35 +103,6 @@ import {
 
 let prevAnonymousMergeUser : User | null = null;
 
-getRedirectResult(auth).catch( async (err : FirebaseError) => {
-
-	if (err.code != 'auth/credential-already-in-use') {
-		alert('Couldn\'t sign in (' + err.code + '): ' + err.message);
-		return;
-	}
-
-	const doSignin = confirm('You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you\'ve starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.');
-
-	if (!doSignin) return;
-
-	//OK, they do want to proceed.
-
-	//We'll keep track of who the previous uid was, so maybe in the future we
-	//can merge the accounts. the saveUserInfo after a successful signin will
-	//notice this global is set and save it to the db.
-	prevAnonymousMergeUser = auth.currentUser;
-
-	const credential = OAuthProvider.credentialFromError(err);
-
-	if (!credential) {
-		alert('No credential provided, can\'t proceed');
-		return;
-	}
-
-	signInWithCredential(auth, credential);
-
-});
-
 export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
 
 	const state = getState();
@@ -178,7 +148,7 @@ export const showNeedSignin = () : ThunkSomeAction => (dispatch) => {
 	dispatch(signIn());
 };
 
-export const signIn = () : ThunkSomeAction => (dispatch, getState) => {
+export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -188,21 +158,38 @@ export const signIn = () : ThunkSomeAction => (dispatch, getState) => {
 
 	const provider = new GoogleAuthProvider();
 
-	if (isAnonymous) {
-		//We'll only get here if anonymous login was not disabled
-		const user = auth.currentUser;
-		if (!user) {
-			console.warn('Unexpectedly didn\'t have user');
-			return;
+	try {
+		if (isAnonymous) {
+			//We'll only get here if anonymous login was not disabled
+			const user = auth.currentUser;
+			if (!user) {
+				console.warn('Unexpectedly didn\'t have user');
+				return;
+			}
+			await linkWithPopup(user, provider);
+		} else {
+			await signInWithPopup(auth, provider);
 		}
-		linkWithPopup(user, provider);
-		return;
+	} catch (err) {
+		if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
+			const doSignin = confirm('You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you\'ve starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.');
+
+			if (!doSignin) return;
+
+			prevAnonymousMergeUser = auth.currentUser;
+
+			const credential = OAuthProvider.credentialFromError(err);
+
+			if (!credential) {
+				alert('No credential provided, can\'t proceed');
+				return;
+			}
+
+			await signInWithCredential(auth, credential);
+		} else {
+			dispatch({type:SIGNIN_FAILURE, error: err});
+		}
 	}
-
-	signInWithPopup(auth, provider).catch(err => {
-		dispatch({type:SIGNIN_FAILURE, error: err});
-	});
-
 };
 
 export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
