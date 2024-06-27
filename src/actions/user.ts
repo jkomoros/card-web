@@ -149,9 +149,7 @@ export const showNeedSignin = () : ThunkSomeAction => (dispatch) => {
 };
 
 export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
-
 	const state = getState();
-
 	const isAnonymous = selectUserIsAnonymous(state);
 
 	dispatch({type:SIGNIN_USER});
@@ -172,6 +170,10 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 		}
 	} catch (err) {
 		if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
+
+			//TODO: only show this confirmation if the old account has at least one star or a few dozen reads.
+
+			// The popup is now closed, so it's safe to show the confirmation dialog
 			const doSignin = confirm('You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you\'ve starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.');
 
 			if (!doSignin) return;
@@ -185,7 +187,11 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 				return;
 			}
 
-			await signInWithCredential(auth, credential);
+			try {
+				await signInWithCredential(auth, credential);
+			} catch (signInErr) {
+				dispatch({type:SIGNIN_FAILURE, error: signInErr});
+			}
 		} else {
 			dispatch({type:SIGNIN_FAILURE, error: err});
 		}
