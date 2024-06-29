@@ -287,7 +287,7 @@ const updateUserInfo = (firebaseUser : User) : ThunkSomeAction => (dispatch) => 
 	});
 };
 
-export const updatePermissions = (uid : Uid) : ThunkSomeAction => async (dispatch) => {
+export const updatePermissions = (uid : Uid, tryCount = 0) : ThunkSomeAction => async (dispatch) => {
 	if (!uid) {
 		//This is only trigger on e.g. logout
 		dispatch({
@@ -296,13 +296,23 @@ export const updatePermissions = (uid : Uid) : ThunkSomeAction => async (dispatc
 		});
 		return;
 	}
-	const snapshot = await getDoc(doc(db, PERMISSIONS_COLLECTION, uid));
-	dispatch({
-		type: UPDATE_USER_PERMISSIONS,
-		//If thesnapshot doesn't exist then data() will be undefined, so always
-		//return a {}.
-		permissions: snapshot.data() || {},
-	});
+	try {
+		const snapshot = await getDoc(doc(db, PERMISSIONS_COLLECTION, uid));
+		dispatch({
+			type: UPDATE_USER_PERMISSIONS,
+			//If thesnapshot doesn't exist then data() will be undefined, so always
+			//return a {}.
+			permissions: snapshot.data() || {},
+		});
+	} catch(err) {
+		//This can happen if we're stuck waiting for a very large download and the system erroneously thinks the storage is down.
+		//We'll try again in a second, up to 3 times.
+		console.warn('Error fetching permissions, count ', tryCount, err);
+		if (tryCount < 5) {
+			setTimeout(() => dispatch(updatePermissions(uid, tryCount + 1)), 1000);
+		}
+	
+	}
 };
 
 export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatch) => {
