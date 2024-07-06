@@ -304,6 +304,10 @@ export const updatePermissions = (uid : Uid, tryCount = 0) : ThunkSomeAction => 
 			//return a {}.
 			permissions: snapshot.data() || {},
 		});
+		//If we already showed a warning, show a success message too.
+		if (tryCount > 0) {
+			console.log('Permissions fetched after ', tryCount, ' tries');
+		}
 	} catch(err) {
 		//This can happen if we're stuck waiting for a very large download and the system erroneously thinks the storage is down.
 		//We'll try again in a second, up to 3 times.
