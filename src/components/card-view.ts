@@ -912,6 +912,7 @@ class CardView extends connect(store)(PageViewElement) {
 				if (!newLocation) return false;
 				if (newLocation == location) return false;
 				store.dispatch(navigatePathTo(newLocation, false));
+				return killEvent(e);
 			}
 			//If you hold Alt then e.key will not be r
 		} else if (e.code == 'KeyR') {
@@ -921,6 +922,7 @@ class CardView extends connect(store)(PageViewElement) {
 				} else {
 					store.dispatch(randomizeCollection());
 				}
+				return killEvent(e);
 			}
 		}
 	}
