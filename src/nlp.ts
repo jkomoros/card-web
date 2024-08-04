@@ -1682,37 +1682,39 @@ const cardTFIDF = (i : IDFMap, cardWordCounts : WordNumbers) : WordNumbers => {
 	return resultTFIDF;
 };
 
+//TODO: memoize
+const fingerprintForCardObj = (idfMap : IDFMap, cardObj : ProcessedCard, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
+	if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
+	const wordCounts = wordCountsForSemantics(cardObj, ngramSize, optFieldList);
+	const tfidf = cardTFIDF(idfMap, wordCounts);
+	const fingerprint = fingerprintForTFIDF(tfidf, fingerprintSize, cardObj);
+	return fingerprint;
+};
+
 export class FingerprintGenerator {
 
 	_cards : ProcessedCards;
 	_idfMap : IDFMap;
 	_fingerprintSize : number;
 	_ngramSize : number;
-	_cachedFingerprints : {
-		[id : CardID] : Fingerprint
-	};
+	_cachedFingerprints? : {[cardID : string] : Fingerprint};
 
 	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
 		this._idfMap = idfMapForCards(this._cards, this._ngramSize);
 		this._fingerprintSize = optFingerprintSize;
-		this._cachedFingerprints = {};
+	}
+
+	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[] ) : Fingerprint {
+		//A convenience method for other contexts that need to call this.
+		return fingerprintForCardObj(this._idfMap, cardObj, this._fingerprintSize, this._ngramSize, optFieldList);
 	}
 
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		const card = this._cards[cardID];
 		if (!card) return new Fingerprint();
-		return this.fingerprintForCardObj(card);
-	}
-
-	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[]) {
-		if (this._cachedFingerprints[cardObj.id]) return this._cachedFingerprints[cardObj.id];
-		if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
-		const wordCounts = wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
-		const tfidf = cardTFIDF(this._idfMap, wordCounts);
-		const fingerprint = fingerprintForTFIDF(tfidf, this._fingerprintSize, cardObj);
-		return fingerprint;
+		return fingerprintForCardObj(this._idfMap, card, this._fingerprintSize, this._ngramSize);
 	}
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {
@@ -1734,12 +1736,10 @@ export class FingerprintGenerator {
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
 	fingerprints() {
-		for (const cardID of Object.keys(this._cards)) {
-			if (!this._cachedFingerprints[cardID]) {
-				this._cachedFingerprints[cardID] = this.fingerprintForCardID(cardID);
-			}
-		}
-		return this._cachedFingerprints;
+		if (this._cachedFingerprints) return this._cachedFingerprints;
+		const fingerprints = Object.fromEntries(Object.keys(this._cards).map(cardID => [cardID, this.fingerprintForCardID(cardID)]));
+		this._cachedFingerprints = fingerprints;
+		return fingerprints;
 	}
 
 	fingerprintSize() {
