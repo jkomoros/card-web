@@ -46,7 +46,8 @@ import {
 	selectSuggestionsOpen,
 	selectCardsSelected,
 	selectActiveCollectionNotFullySelected,
-	selectActiveCollectionNotFilteredToSelected
+	selectActiveCollectionNotFilteredToSelected,
+	selectCollectionWordCloudVersion
 } from '../selectors.js';
 
 import {
@@ -57,7 +58,8 @@ import {
 	navigateToRandomCard,
 	doSelectCards,
 	unselectCards,
-	clearSelectedCards
+	clearSelectedCards,
+	incrementCollectionWordCloud
 } from '../actions/collection.js';
 
 import {
@@ -156,7 +158,8 @@ import {
 	CANCEL_ICON,
 	PLUS_ICON,
 	FILTER_ALT_ICON,
-	SAVE_ICON
+	SAVE_ICON,
+	REPEAT_ICON
 } from './my-icons.js';
 
 import {
@@ -344,6 +347,9 @@ class CardView extends connect(store)(PageViewElement) {
 		_collectionWordCloud: WordCloud | null;
 
 	@state()
+		_collectionWordCloudVersion = 0;
+
+	@state()
 		_infoExpanded: boolean;
 
 	@state()
@@ -494,7 +500,8 @@ class CardView extends connect(store)(PageViewElement) {
 				.renderOffset=${this._renderOffset}
 			>
 			<div slot='info'>
-				<word-cloud .wordCloud=${this._collectionWordCloud}></word-cloud>
+				${this._collectionWordCloud ? html`<word-cloud .wordCloud=${this._collectionWordCloud}></word-cloud>` : html``}
+				<button id='regenerate-word-cloud' class='small' title='Regenerate Word Cloud' @click=${this._handleRegenerateWordCloudClicked}>${REPEAT_ICON}</button><label for='regenerate-word-cloud'>${this._collectionWordCloud ? html`Regenerate` : html`Generate`} Word Cloud</label><br/>
 				${this._userIsAdmin ? html`
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
@@ -626,6 +633,10 @@ class CardView extends connect(store)(PageViewElement) {
 		} else {
 			store.dispatch(navigateToCardInCurrentCollection(e.detail.card));
 		}
+	}
+
+	_handleRegenerateWordCloudClicked() {
+		store.dispatch(incrementCollectionWordCloud());
 	}
 
 	_handleUpdateRenderOffset(e : UpdateRenderOffsetEvent) {
@@ -871,8 +882,13 @@ class CardView extends connect(store)(PageViewElement) {
 		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
 		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
 
-		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
-			//This is potentially EXTREMELY expensive so only fetch it if the panel is expanded
+		const lastWordCloudVersion = this._collectionWordCloudVersion;
+		this._collectionWordCloudVersion = selectCollectionWordCloudVersion(state);
+
+		if (this._cardsDrawerPanelOpen && this._infoExpanded && lastWordCloudVersion != this._collectionWordCloudVersion) {
+			//This is potentially EXTREMELY expensive so only fetch it if the
+			//panel is expanded, and we just had the 'regenerate' button
+			//clicked, which would have incremented the version.
 			this._collectionWordCloud = selectWordCloudForMainCardDrawer(state);
 		}
 
