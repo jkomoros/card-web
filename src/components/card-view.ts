@@ -125,6 +125,7 @@ import './card-drawer.js';
 import './card-stage.js';
 import './card-editor.js';
 import './tag-list.js';
+import './word-cloud.js';
 import './comments-panel.js';
 import './card-info-panel.js';
 import './suggestions-viewer.js';
@@ -487,13 +488,13 @@ class CardView extends connect(store)(PageViewElement) {
 				.highlightedCardId=${this._card ? this._card.id : ''}
 				.reorderPending=${this._drawerReorderPending}
 				.ghostCardsThatWillBeRemoved=${true}
-				.wordCloud=${this._collectionWordCloud}
 				.infoExpanded=${this._infoExpanded}
 				.infoCanBeExpanded=${true}
 				.cardTypeToAdd=${this._cardTypeToAdd}
 				.renderOffset=${this._renderOffset}
 			>
 			<div slot='info'>
+				<word-cloud .wordCloud=${this._collectionWordCloud}></word-cloud>
 				${this._userIsAdmin ? html`
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>

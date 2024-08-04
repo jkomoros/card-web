@@ -2,7 +2,6 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import './card-renderer.js';
-import './word-cloud.js';
 import './card-thumbnail-list.js';
 import './web-renderer.js';
 
@@ -26,8 +25,7 @@ import * as icons from './my-icons.js';
 
 import {
 	CardID,
-	CardType,
-	WordCloud
+	CardType
 } from '../types.js';
 
 import {
@@ -87,9 +85,6 @@ class CardDrawer extends LitElement {
 	//_showing is more complicated than whether we're open or yet.
 	@property({ type : Boolean })
 		showing: boolean;
-
-	@property({ type : Array })
-		wordCloud: WordCloud | null;
 
 	@property({ type : Boolean })
 		infoExpanded: boolean;
@@ -167,7 +162,6 @@ class CardDrawer extends LitElement {
 					<div class='label' id='count'>
 						<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
-							<word-cloud .wordCloud=${this.wordCloud}></word-cloud>
 							<slot name='info'></slot>
 						</div>
 						<div class='info-panel'>
