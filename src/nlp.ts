@@ -1658,6 +1658,30 @@ const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap 
 	return {idf, maxIDF};
 };
 
+const fingerprintForTFIDF = (tfidf : WordNumbers, fingerprintSize : number, cardOrCards : ProcessedCard | ProcessedCard[]) => {
+	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
+	const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, fingerprintSize);
+	const items = new Map(keys.map(key => [key, tfidf[key]]));
+	return new Fingerprint(items, cardOrCards);
+};
+
+const cardTFIDF = (i : IDFMap, cardWordCounts : WordNumbers) : WordNumbers => {
+	const idfMap = i.idf;
+	const maxIDF = i.maxIDF;
+	const resultTFIDF : WordNumbers = {};
+	const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
+	for (const [word, count] of TypedObject.entries(cardWordCounts)) {
+		//_idfMap should very often have all of the terms, but it can be
+		//missing one if we're using fingerprintForCardObj for a live
+		//editing card, and if it just had text added to it that inludes
+		//uni-grams or bigrams that are so distinctive that they haven't
+		//been seen before. In that case we'll use the highest IDF we've
+		//seen in this corpus.
+		resultTFIDF[word] = (count / cardWordCount) * (idfMap[word] || maxIDF);
+	}
+	return resultTFIDF;
+};
+
 export class FingerprintGenerator {
 
 	_cards : ProcessedCards;
@@ -1676,30 +1700,6 @@ export class FingerprintGenerator {
 		this._cachedFingerprints = {};
 	}
 
-	_fingerprintForTFIDF(tfidf : WordNumbers, cardOrCards : ProcessedCard | ProcessedCard[]) {
-		//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
-		const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
-		const items = new Map(keys.map(key => [key, tfidf[key]]));
-		return new Fingerprint(items, cardOrCards);
-	}
-
-	_cardTFIDF(cardWordCounts : WordNumbers) : WordNumbers {
-		const idfMap = this._idfMap.idf;
-		const maxIDF = this._idfMap.maxIDF;
-		const resultTFIDF : WordNumbers = {};
-		const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
-		for (const [word, count] of TypedObject.entries(cardWordCounts)) {
-			//_idfMap should very often have all of the terms, but it can be
-			//missing one if we're using fingerprintForCardObj for a live
-			//editing card, and if it just had text added to it that inludes
-			//uni-grams or bigrams that are so distinctive that they haven't
-			//been seen before. In that case we'll use the highest IDF we've
-			//seen in this corpus.
-			resultTFIDF[word] = (count / cardWordCount) * (idfMap[word] || maxIDF);
-		}
-		return resultTFIDF;
-	}
-
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		const card = this._cards[cardID];
 		if (!card) return new Fingerprint();
@@ -1710,8 +1710,8 @@ export class FingerprintGenerator {
 		if (this._cachedFingerprints[cardObj.id]) return this._cachedFingerprints[cardObj.id];
 		if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
 		const wordCounts = wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
-		const tfidf = this._cardTFIDF(wordCounts);
-		const fingerprint = this._fingerprintForTFIDF(tfidf, cardObj);
+		const tfidf = cardTFIDF(this._idfMap, wordCounts);
+		const fingerprint = fingerprintForTFIDF(tfidf, this._fingerprintSize, cardObj);
 		return fingerprint;
 	}
 
@@ -1729,7 +1729,7 @@ export class FingerprintGenerator {
 				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		return this._fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => cards[id]));
+		return fingerprintForTFIDF(combinedTFIDF, this._fingerprintSize, cardIDs.map(id => cards[id]));
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
