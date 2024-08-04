@@ -1683,7 +1683,7 @@ const cardTFIDF = (i : IDFMap, cardWordCounts : WordNumbers) : WordNumbers => {
 };
 
 //TODO: memoize
-const fingerprintForCardObj = (idfMap : IDFMap, cardObj : ProcessedCard, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
+const fingerprintForCardObj = (cardObj : ProcessedCard, idfMap : IDFMap, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
 	if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
 	const wordCounts = wordCountsForSemantics(cardObj, ngramSize, optFieldList);
 	const tfidf = cardTFIDF(idfMap, wordCounts);
@@ -1708,13 +1708,13 @@ export class FingerprintGenerator {
 
 	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[] ) : Fingerprint {
 		//A convenience method for other contexts that need to call this.
-		return fingerprintForCardObj(this._idfMap, cardObj, this._fingerprintSize, this._ngramSize, optFieldList);
+		return fingerprintForCardObj(cardObj, this._idfMap, this._fingerprintSize, this._ngramSize, optFieldList);
 	}
 
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		const card = this._cards[cardID];
 		if (!card) return new Fingerprint();
-		return fingerprintForCardObj(this._idfMap, card, this._fingerprintSize, this._ngramSize);
+		return fingerprintForCardObj(card, this._idfMap, this._fingerprintSize, this._ngramSize);
 	}
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {
