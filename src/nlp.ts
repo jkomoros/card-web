@@ -1658,14 +1658,14 @@ const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap 
 	return {idf, maxIDF};
 };
 
-const fingerprintForTFIDF = (tfidf : WordNumbers, fingerprintSize : number, cardOrCards : ProcessedCard | ProcessedCard[]) => {
+const fingerprintForTFIDF = (tfidf : WordNumbers, cardOrCards : ProcessedCard | ProcessedCard[], fingerprintSize : number) => {
 	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
 	const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, fingerprintSize);
 	const items = new Map(keys.map(key => [key, tfidf[key]]));
 	return new Fingerprint(items, cardOrCards);
 };
 
-const cardTFIDF = (i : IDFMap, cardWordCounts : WordNumbers) : WordNumbers => {
+const cardTFIDF = (cardWordCounts : WordNumbers, i : IDFMap) : WordNumbers => {
 	const idfMap = i.idf;
 	const maxIDF = i.maxIDF;
 	const resultTFIDF : WordNumbers = {};
@@ -1685,8 +1685,8 @@ const cardTFIDF = (i : IDFMap, cardWordCounts : WordNumbers) : WordNumbers => {
 const fingerprintForCardObj = memoizeFirstArg((cardObj : ProcessedCard, idfMap : IDFMap, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
 	if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
 	const wordCounts = wordCountsForSemantics(cardObj, ngramSize, optFieldList);
-	const tfidf = cardTFIDF(idfMap, wordCounts);
-	const fingerprint = fingerprintForTFIDF(tfidf, fingerprintSize, cardObj);
+	const tfidf = cardTFIDF(wordCounts, idfMap);
+	const fingerprint = fingerprintForTFIDF(tfidf, cardObj, fingerprintSize);
 	return fingerprint;
 });
 
@@ -1730,7 +1730,7 @@ export class FingerprintGenerator {
 				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		return fingerprintForTFIDF(combinedTFIDF, this._fingerprintSize, cardIDs.map(id => cards[id]));
+		return fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => cards[id]), this._fingerprintSize);
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
