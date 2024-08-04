@@ -1682,14 +1682,13 @@ const cardTFIDF = (i : IDFMap, cardWordCounts : WordNumbers) : WordNumbers => {
 	return resultTFIDF;
 };
 
-//TODO: memoize
-const fingerprintForCardObj = (cardObj : ProcessedCard, idfMap : IDFMap, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
+const fingerprintForCardObj = memoizeFirstArg((cardObj : ProcessedCard, idfMap : IDFMap, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
 	if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
 	const wordCounts = wordCountsForSemantics(cardObj, ngramSize, optFieldList);
 	const tfidf = cardTFIDF(idfMap, wordCounts);
 	const fingerprint = fingerprintForTFIDF(tfidf, fingerprintSize, cardObj);
 	return fingerprint;
-};
+});
 
 export class FingerprintGenerator {
 
