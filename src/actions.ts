@@ -99,6 +99,7 @@ export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
 export const CLEAR_SELECTED_CARDS = 'CLEAR_SELECTED_CARDS';
+export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WORD_CLOUD_VERSION';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -430,6 +431,10 @@ type ActionUnselectCards = {
 
 type ActionClearSelectedCards = {
 	type: typeof CLEAR_SELECTED_CARDS
+};
+
+type ActionIncrementCollectionWordCloudVersion = {
+	type: typeof INCREMENT_COLLECTION_WORD_CLOUD_VERSION
 };
 
 type ActionCommentsUpdateThreads = {
@@ -1045,6 +1050,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionSelectCards
 	| ActionUnselectCards
 	| ActionClearSelectedCards
+	| ActionIncrementCollectionWordCloudVersion
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionUpdateCards

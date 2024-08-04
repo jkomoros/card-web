@@ -74,6 +74,7 @@ import {
 
 import {
 	CLEAR_SELECTED_CARDS,
+	INCREMENT_COLLECTION_WORD_CLOUD_VERSION,
 	RANDOMIZE_SALT,
 	SELECT_CARDS,
 	SHOW_CARD,
@@ -527,5 +528,11 @@ export const unselectCards = (cards : CardID[]) : SomeAction => {
 export const clearSelectedCards = () : SomeAction => {
 	return {
 		type: CLEAR_SELECTED_CARDS
+	};
+};
+
+export const incrementCollectionWordCloud = () : SomeAction => {
+	return {
+		type: INCREMENT_COLLECTION_WORD_CLOUD_VERSION
 	};
 };

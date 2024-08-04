@@ -15,6 +15,7 @@ import {
 	SELECT_CARDS,
 	UNSELECT_CARDS,
 	CLEAR_SELECTED_CARDS,
+	INCREMENT_COLLECTION_WORD_CLOUD_VERSION,
 } from '../actions.js';
 
 import {
@@ -131,6 +132,11 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			selectedCards: {}
+		};
+	case INCREMENT_COLLECTION_WORD_CLOUD_VERSION:
+		return {
+			...state,
+			collectionWordCloudVersion: state.collectionWordCloudVersion + 1
 		};
 	default:
 		return state;

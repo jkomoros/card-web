@@ -1245,7 +1245,9 @@ export type CollectionState = {
 	activeRenderOffset: number,
 	//This is the set of cards that are currently selected. Selection state is
 	//ephemeral and not persisted.
-	selectedCards: FilterMap
+	selectedCards: FilterMap,
+	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
+	collectionWordCloudVersion: number
 }
 
 export type CommentsState = {

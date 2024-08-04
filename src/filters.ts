@@ -2084,5 +2084,6 @@ export const INITIAL_STATE : CollectionState = {
 	activeCardID: '',
 	randomSalt: randomString(16),
 	activeRenderOffset: 0,
-	selectedCards: {}
+	selectedCards: {},
+	collectionWordCloudVersion: 0
 };
