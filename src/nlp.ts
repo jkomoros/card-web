@@ -1273,7 +1273,7 @@ export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint =>
 	}
 
 	const resultMap = new Map(finalNgrams.map(ngram => [ngram, ngramBundles[ngram].scoreForBundle]));
-	return new Fingerprint(resultMap, Object.values(cards), maximumFingerprintGenerator);
+	return new Fingerprint(resultMap, Object.values(cards));
 };
 
 //suggestConceptReferencesForCard is very expensive, so memoize it.
@@ -1410,14 +1410,12 @@ const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 export class Fingerprint {
 
 	_cards : ProcessedCard[];
-	_generator : FingerprintGenerator | undefined;
 	_items : Map<string, number>;
 	_memoizedWordCloud : WordCloud | null;
 	_memoizedFullWordCloud : WordCloud | null;
 
-	constructor(items? : Map<string, number>, cardOrCards? : ProcessedCard | ProcessedCard[], generator? : FingerprintGenerator) {
+	constructor(items? : Map<string, number>, cardOrCards? : ProcessedCard | ProcessedCard[]) {
 		this._cards = Array.isArray(cardOrCards) ? cardOrCards : (cardOrCards ? [cardOrCards] : []);
-		this._generator = generator;
 		this._items = items || new Map();
 		this._memoizedWordCloud = null;
 		this._memoizedFullWordCloud = null;
@@ -1682,7 +1680,7 @@ export class FingerprintGenerator {
 		//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
 		const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
 		const items = new Map(keys.map(key => [key, tfidf[key]]));
-		return new Fingerprint(items, cardOrCards, this);
+		return new Fingerprint(items, cardOrCards);
 	}
 
 	_cardTFIDF(cardWordCounts : WordNumbers) : WordNumbers {
