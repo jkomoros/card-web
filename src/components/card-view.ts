@@ -885,6 +885,9 @@ class CardView extends connect(store)(PageViewElement) {
 		const lastWordCloudVersion = this._collectionWordCloudVersion;
 		this._collectionWordCloudVersion = selectCollectionWordCloudVersion(state);
 
+		//This ensures that when the collection changes, we don't show an old word cloud for the old collection.
+		if (this._collectionWordCloudVersion == 0) this._collectionWordCloud = null;
+
 		if (this._cardsDrawerPanelOpen && this._infoExpanded && lastWordCloudVersion != this._collectionWordCloudVersion) {
 			//This is potentially EXTREMELY expensive so only fetch it if the
 			//panel is expanded, and we just had the 'regenerate' button
