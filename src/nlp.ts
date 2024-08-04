@@ -1608,6 +1608,7 @@ let memoizedIDMapCardCount = 0;
 let memoizedIDFMapNgramSize = 0;
 
 const idfMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
+	if (!cards || Object.keys(cards).length == 0) return {idf: {}, maxIDF: 0};
 	const cardCount = Object.keys(cards).length;
 	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
 	const cardCountCloseEnough  = cardCount >= memoizedIDMapCardCount && cardCount <= memoizedIDMapCardCount * 1.1;
@@ -1620,8 +1621,6 @@ const idfMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
 };
 
 const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
-	if (!cards || Object.keys(cards).length == 0) return {idf: {}, maxIDF: 0};
-
 	//only consider cards that have a body, even if we were provided a set that included others
 	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
 
