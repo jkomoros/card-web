@@ -890,6 +890,10 @@ class CardView extends connect(store)(PageViewElement) {
 			//panel is expanded, and we just had the 'regenerate' button
 			//clicked, which would have incremented the version.
 			this._collectionWordCloud = selectWordCloudForMainCardDrawer(state);
+
+			//TODO: in a perfect world we'd render the word cloud differently if
+			//it was out of date or not, so it was more obvious if it needs to
+			//be regenerated.
 		}
 
 	}
