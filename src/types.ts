@@ -1228,7 +1228,10 @@ export type CollectionConfiguration = {
 
 export type CollectionState = {
 	active : CollectionConfiguration,
-	//If the dialog to configure the collection is open, this will be set to a thing to configure.
+	//If the dialog to configure the collection is open, this will be set to a
+	//thing to configure. This is popped out because changing parts of the
+	//active collection can be very expensive, and would make the configure
+	//collection dialog feel very unresponsive.
 	snapshot : CollectionConfiguration | null,
 	//These are the actual values of the filters in current use, reflecting all
 	//of the changes. If you want the filter set that goes along with the

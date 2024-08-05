@@ -17,6 +17,8 @@ import {
 	CLEAR_SELECTED_CARDS,
 	INCREMENT_COLLECTION_WORD_CLOUD_VERSION,
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
+	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 } from '../actions.js';
 
 import {
@@ -140,6 +142,17 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			snapshot: copyCollectionConfiguration(state.active),
+		};
+	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
+		return {
+			...state,
+			active: state.snapshot ? copyCollectionConfiguration(state.snapshot) : state.active,
+			snapshot: null,
+		};
+	case UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT:
+		return {
+			...state,
+			snapshot: action.collection
 		};
 	default:
 		return state;

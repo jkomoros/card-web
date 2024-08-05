@@ -81,6 +81,7 @@ import {
 	SomeAction,
 	UNSELECT_CARDS,
 	UPDATE_COLLECTION,
+	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	UPDATE_COLLECTION_SHAPSHOT,
 	UPDATE_RENDER_OFFSET
 } from '../actions.js';
@@ -164,6 +165,25 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 
 	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));
+};
+
+export const updateCollectionConfigurationSnapshot = (description : CollectionDescription) : SomeAction => {
+
+	//TODO: it's kind of silly that we expect a dsecription and then unpack it.
+	//It should be faster to just modify a copy of the current collection configuration snapshot.
+	//But we already have a lot of e.g. collectionDescriptionWithFilterRemoved so :shrug:
+
+	return {
+		type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+		collection: {
+			setName: description.set,
+			filterNames: description.filters,
+			sortName: description.sort,
+			sortReversed: description.sortReversed,
+			viewMode: description.viewMode,
+			viewModeExtra: description.viewModeExtra
+		}
+	};
 };
 
 export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkSomeAction => (dispatch, getState) =>{	

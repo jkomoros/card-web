@@ -9,16 +9,19 @@ import { DialogElement } from './dialog-element.js';
 
 import {
 	selectConfigureCollectionDialogOpen,
-	selectActiveCollectionDescription,
 	selectFilterDescriptions,
 	selectAuthorAndCollaboratorUserIDs,
-	selectTagInfosForCards
+	selectTagInfosForCards,
+	selectSnapshotCollectionDescription
 } from '../selectors.js';
 
 import {
 	closeConfigureCollectionDialog,
-	navigateToCollection
 } from '../actions/app.js';
+
+import {
+	updateCollectionConfigurationSnapshot,
+} from '../actions/collection.js';
 
 import {
 	collectionDescriptionWithSet,
@@ -123,36 +126,36 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleFilterModified(e : FilterModifiedEvent) {
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value)));
+		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value)));
 	}
 
 	_handleFilterRemoved(e : FilterModifiedEvent) {
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index)));
+		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index)));
 	}
 
 	_handleAddFilterClicked() {
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
+		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
 	}
 
 	_handleSetSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const set = ele.value as SetName;
-		store.dispatch(navigateToCollection(collectionDescriptionWithSet(this._collectionDescription, set)));
+		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithSet(this._collectionDescription, set)));
 	}
 
 	_handleSortSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const sort = ele.value as SortName;
-		store.dispatch(navigateToCollection(collectionDescriptionWithSort(this._collectionDescription, sort)));
+		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithSort(this._collectionDescription, sort)));
 	}
 
 	_handleSortReversedCheckboxChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const sortReversed = ele.checked;
-		store.dispatch(navigateToCollection(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed)));
+		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed)));
 	}
 
 	_handleDoneClicked() {
@@ -167,7 +170,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectConfigureCollectionDialogOpen(state);
-		this._collectionDescription = selectActiveCollectionDescription(state);
+		this._collectionDescription = selectSnapshotCollectionDescription(state);
 		this._filterDescriptions = selectFilterDescriptions(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._cardTagInfos = selectTagInfosForCards(state);

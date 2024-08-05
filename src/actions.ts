@@ -91,6 +91,7 @@ export const BULK_IMPORT_SET_OVERRIDE_CARD_ORDER = 'BULK_IMPORT_SET_OVERRIDE_CAR
 //Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
+export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
@@ -396,6 +397,11 @@ type ActionShowCard = {
 
 type ActionUpdateCollection = {
 	type: typeof UPDATE_COLLECTION,
+	collection: CollectionConfiguration
+};
+
+type ActionUpdateCollectionConfigurationSnapshot = {
+	type: typeof UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT
 	collection: CollectionConfiguration
 };
 
@@ -1037,6 +1043,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportSetBodies
 	| ActionBulkImportDialogSetOverrideCardOrder
 	| ActionUpdateCollection
+	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot
 	| ActionRandomizeSalt
