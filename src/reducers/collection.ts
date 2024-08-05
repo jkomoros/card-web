@@ -16,6 +16,7 @@ import {
 	UNSELECT_CARDS,
 	CLEAR_SELECTED_CARDS,
 	INCREMENT_COLLECTION_WORD_CLOUD_VERSION,
+	OPEN_CONFIGURE_COLLECTION_DIALOG,
 } from '../actions.js';
 
 import {
@@ -46,6 +47,7 @@ import {
 import {
 	randomString
 } from '../util.js';
+import { copyCollectionConfiguration } from '../collection_description.js';
 
 const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : CollectionState => {
 	switch (action.type) {
@@ -133,6 +135,11 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			collectionWordCloudVersion: state.collectionWordCloudVersion + 1
+		};
+	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+		return {
+			...state,
+			snapshot: copyCollectionConfiguration(state.active),
 		};
 	default:
 		return state;

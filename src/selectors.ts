@@ -231,6 +231,7 @@ export const selectImageBrowserDialogIndex = (state : State) => state.editor ? s
 
 export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
 const selectActiveCollectionConfiguration = (state : State) : CollectionConfiguration => state.collection ? state.collection.active : defaultCollectionConfiguration();
+const selectSnapshotCollectionConfiguration = (state : State) : CollectionConfiguration | null => state.collection ? state.collection.snapshot : null;
 export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
 export const selectActiveCardID = (state : State) => state.collection ? state.collection.activeCardID : '';
 export const selectExplicitlySelectedCardIDs = (state : State) => state.collection ? state.collection.selectedCards : {};
@@ -1185,6 +1186,14 @@ export const selectFilterDescriptions = createSelector(
 export const selectActiveCollectionDescription = createSelector(
 	selectActiveCollectionConfiguration,
 	(config) => CollectionDescription.withConfiguration(config)
+);
+
+export const selectSnapshotCollectionDescription = createSelector(
+	selectSnapshotCollectionConfiguration,
+	(config) => {
+		if (!config) return new CollectionDescription();
+		return CollectionDescription.withConfiguration(config);
+	}
 );
 
 //This means htat the active section is the only one showing. See also

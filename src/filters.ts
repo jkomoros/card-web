@@ -2074,6 +2074,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 
 export const INITIAL_STATE : CollectionState = {
 	active: defaultCollectionConfiguration(),
+	snapshot: null,
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,
 	requestedCard: '',
