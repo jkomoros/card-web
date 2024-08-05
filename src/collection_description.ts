@@ -271,6 +271,13 @@ export const defaultCollectionConfiguration = () : CollectionConfiguration => {
 	};
 };
 
+export const copyCollectionConfiguration = (config : CollectionConfiguration) : CollectionConfiguration => {
+	return {
+		...config,
+		filterNames: [...config.filterNames]
+	};
+};
+
 export class CollectionDescription {
 
 	_setNameExplicitlySet : boolean;
