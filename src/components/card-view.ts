@@ -81,10 +81,10 @@ import {
 } from '../actions/find.js';
 
 import {
-	navigatePathTo,
 	toggleCardsDrawerInfo,
 	openConfigureCollectionDialog,
-	navigateToCollectionWithSelected
+	navigateToCollectionWithSelected,
+	askForPathToNavigateTo
 } from '../actions/app.js';
 
 import {
@@ -931,11 +931,7 @@ class CardView extends connect(store)(PageViewElement) {
 			//modifying the URL bar in the browser, which will lead to a full
 			//refresh.
 			if (e.shiftKey) {
-				const location = window.location.pathname;
-				const newLocation = prompt('Where do you want to navigate to?', location);
-				if (!newLocation) return false;
-				if (newLocation == location) return false;
-				store.dispatch(navigatePathTo(newLocation, false));
+				store.dispatch(askForPathToNavigateTo());
 				return killEvent(e);
 			}
 			//If you hold Alt then e.key will not be r

@@ -204,6 +204,14 @@ export const refreshCommentRedirect = () : ThunkSomeAction => (dispatch, getStat
 	dispatch(navigateToComment(pageExtra));
 };
 
+export const askForPathToNavigateTo = () : ThunkSomeAction => (dispatch) => {
+	const location = window.location.pathname;
+	const newLocation = prompt('Where do you want to navigate to?', location);
+	if (!newLocation) return;
+	if (newLocation == location) return;
+	dispatch(navigatePathTo(newLocation, false));
+};
+
 export const navigateToComment = (commentId : CommentMessageID | CommentThreadID) : ThunkSomeAction => (dispatch, getState) => {
 	//commentId is either a thread or message id.
 	const state = getState();
