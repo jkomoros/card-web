@@ -20,6 +20,7 @@ import {
 	CardIdentifier,
 	CardType,
 	Cards,
+	CollectionConfiguration,
 	CommentMessageID,
 	CommentMessages,
 	CommentThreadID,
@@ -36,10 +37,8 @@ import {
 	ReferenceType,
 	SectionID,
 	Sections,
-	SetName,
 	Slug,
 	SortExtra,
-	SortName,
 	Suggestion,
 	TagID,
 	Tags,
@@ -47,8 +46,7 @@ import {
 	Uid,
 	UserInfo,
 	UserPermissions,
-	UserPermissionsMap,
-	ViewMode
+	UserPermissionsMap
 } from './types.js';
 
 //AI
@@ -398,12 +396,7 @@ type ActionShowCard = {
 
 type ActionUpdateCollection = {
 	type: typeof UPDATE_COLLECTION,
-	setName: SetName,
-	filters: string[],
-	sortName: SortName,
-	sortReversed: boolean,
-	viewMode: ViewMode,
-	viewModeExtra: string
+	collection: CollectionConfiguration
 };
 
 type ActionUpdateRenderOffset = {

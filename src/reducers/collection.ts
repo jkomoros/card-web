@@ -63,12 +63,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 	case UPDATE_COLLECTION:
 		return {
 			...state,
-			activeSetName: action.setName,
-			activeFilterNames: [...action.filters],
-			activeSortName: action.sortName,
-			activeSortReversed: action.sortReversed,
-			activeViewMode: action.viewMode,
-			activeViewModeExtra: action.viewModeExtra,
+			active: action.collection,
 			activeRenderOffset: 0,
 			collectionWordCloudVersion: 0
 		};

@@ -49,7 +49,8 @@ import {
 	UnionFilterName,
 	CardSimilarityMap,
 	ConfigurableFilterResult,
-	viewMode as viewModeSchema
+	viewMode as viewModeSchema,
+	CollectionConfiguration
 } from './types.js';
 
 import {
@@ -259,6 +260,17 @@ const collectionDescriptionWithPartReplacements = (description : CollectionDescr
 	return CollectionDescription.deserialize(replacedParts.join('/'));
 };
 
+export const defaultCollectionConfiguration = () : CollectionConfiguration => {
+	return {
+		setName: 'main',
+		filterNames: [],
+		sortName: 'default',
+		sortReversed: false,
+		viewMode: 'list',
+		viewModeExtra: ''
+	};
+};
+
 export class CollectionDescription {
 
 	_setNameExplicitlySet : boolean;
@@ -462,6 +474,10 @@ export class CollectionDescription {
 	//Arguments: {cards, sets, filters, editingCard, sections, fallbacks, startCards}
 	collection(collectionArguments : CollectionConstructorArguments) : Collection {
 		return new Collection(this, collectionArguments);
+	}
+
+	static withConfiguration(config : CollectionConfiguration) : CollectionDescription {
+		return new CollectionDescription(config.setName, config.filterNames, config.sortName, config.sortReversed, config.viewMode, config.viewModeExtra);
 	}
 
 	static deserialize(input : string) : CollectionDescription {

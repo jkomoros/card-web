@@ -1212,18 +1212,22 @@ export type AppState = {
 	suggestMissingConceptsEnabled: boolean,
 }
 
-export type CollectionState = {
-	activeSetName: SetName,
+export type CollectionConfiguration = {
+	setName: SetName,
 	//activeFilterNames is the list of named filters to apply to the default
 	//set. These names are either concrete filters, inverse filters, or union
 	//filters (i.e. they concatenate conrete or inverse filternames delimited by
 	//'+'). For the purposes of processing URLs though they can all be treated
 	//as though they're concrete filters named their literal name in this.
-	activeFilterNames: FilterName[],
-	activeSortName: SortName,
-	activeSortReversed: boolean,
-	activeViewMode: ViewMode,
-	activeViewModeExtra: string,
+	filterNames: FilterName[],
+	sortName: SortName,
+	sortReversed: boolean,
+	viewMode: ViewMode,
+	viewModeExtra: string,
+};
+
+export type CollectionState = {
+	active : CollectionConfiguration,
 	//These are the actual values of the filters in current use, reflecting all
 	//of the changes. If you want the filter set that goes along with the
 	//cardSnapshot (and doesn't update until

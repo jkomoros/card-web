@@ -178,12 +178,14 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 	dispatch(updateCollectionSnapshot());
 	dispatch({
 		type: UPDATE_COLLECTION,
-		setName,
-		filters,
-		sortName,
-		sortReversed,
-		viewMode,
-		viewModeExtra
+		collection: {
+			setName,
+			filterNames: filters,
+			sortName,
+			sortReversed,
+			viewMode,
+			viewModeExtra
+		}
 	});
 };
 

@@ -42,7 +42,8 @@ import {
 import {
 	filterSetForFilterDefinitionItem,
 	CollectionDescription,
-	makeConcreteInverseFilter
+	makeConcreteInverseFilter,
+	defaultCollectionConfiguration
 } from './collection_description.js';
 
 import {
@@ -2072,12 +2073,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 );
 
 export const INITIAL_STATE : CollectionState = {
-	activeSetName: 'main',
-	activeFilterNames: [],
-	activeSortName: 'default',
-	activeSortReversed: false,
-	activeViewMode: 'list',
-	activeViewModeExtra: '',
+	active: defaultCollectionConfiguration(),
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,
 	requestedCard: '',

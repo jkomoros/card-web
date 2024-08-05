@@ -32,6 +32,7 @@ import {
 import {
 	Collection,
 	CollectionDescription,
+	defaultCollectionConfiguration
 } from './collection_description.js';
 
 import {
@@ -153,11 +154,11 @@ import {
 	AIDialogType,
 	AIModelName,
 	SetName,
-	ViewMode,
 	ReferenceType,
 	SortExtra,
 	CardDiff,
-	Filters
+	Filters,
+	CollectionConfiguration
 } from './types.js';
 
 import {
@@ -229,12 +230,7 @@ export const selectImageBrowserDialogOpen = (state : State) => state.editor ? st
 export const selectImageBrowserDialogIndex = (state : State) => state.editor ? state.editor.imageBrowserDialogIndex : undefined;
 
 export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
-const selectActiveSetName = (state : State) : SetName => state.collection ? state.collection.activeSetName : 'main';
-const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
-const selectActiveSortName = (state : State) : SortName => state.collection ? state.collection.activeSortName : 'default';
-const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
-const selectActiveViewMode = (state : State) : ViewMode => state.collection ? state.collection.activeViewMode : 'list';
-const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
+const selectActiveCollectionConfiguration = (state : State) : CollectionConfiguration => state.collection ? state.collection.active : defaultCollectionConfiguration();
 export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
 export const selectActiveCardID = (state : State) => state.collection ? state.collection.activeCardID : '';
 export const selectExplicitlySelectedCardIDs = (state : State) => state.collection ? state.collection.selectedCards : {};
@@ -1187,13 +1183,8 @@ export const selectFilterDescriptions = createSelector(
 );
 
 export const selectActiveCollectionDescription = createSelector(
-	selectActiveSetName,
-	selectActiveFilterNames,
-	selectActiveSortName,
-	selectActiveSortReversed,
-	selectActiveViewMode,
-	selectActiveViewModeExtra,
-	(setName, filterNames, sortName, sortReversed, viewMode, viewModeExtra) => new CollectionDescription(setName, filterNames, sortName, sortReversed, viewMode, viewModeExtra)
+	selectActiveCollectionConfiguration,
+	(config) => CollectionDescription.withConfiguration(config)
 );
 
 //This means htat the active section is the only one showing. See also
