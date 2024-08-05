@@ -16,6 +16,7 @@ import {
 } from '../selectors.js';
 
 import {
+	askForPathToNavigateTo,
 	closeConfigureCollectionDialog,
 } from '../actions/app.js';
 
@@ -40,10 +41,13 @@ import {
 } from '../filters.js';
 
 import {
+	LINK_ICON,
 	PLUS_ICON
 } from './my-icons.js';
 
 import './configure-collection-filter.js';
+
+import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	TagInfos,
@@ -74,6 +78,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	static override styles = [
 		...DialogElement.styles,
+		ButtonSharedStyles,
 		css`
 			.help {
 				font-size:0.75em;
@@ -116,6 +121,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					<label for='reversed'>Sort Reversed</label>
 					<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}>
 				</div>
+				<div>
+					<label for='modify-path'>Manually modify path</label>
+					<button class='small' id='modify-path' @click=${this._handleModifyPath}>${LINK_ICON}</button>
+				</div>
 			</div>
 		`;
 	}
@@ -123,6 +132,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = 'Configure Collection';
+	}
+
+	_handleModifyPath() {
+		store.dispatch(askForPathToNavigateTo());
 	}
 
 	_handleFilterModified(e : FilterModifiedEvent) {
