@@ -542,107 +542,74 @@ const cosineSimilarity = (a : EmbeddingVector, b : EmbeddingVector) : number => 
 
 const MAXIMUM_SEMANTIC_SORT_CARDS = 500;
 
-//Will swap two items in the array if it makes the array more sorted.
-const swapIfBetter = (index: number, cards : CardID[], vectors: Record<CardID, EmbeddingVector>) : boolean => {
-	if (index < 2) return false;
-	//TODO: handle a 3-item swap if one of hte edges is off the edge.
-	if (index >= cards.length - 2) return false;
-	const aID = cards[index - 1];
-	const bID = cards[index];
-	const cID = cards[index + 1];
-	const dID = cards[index + 2];
+const POSITION_WEIGHT = 0.5; // Adjust this to balance between similarity and original order
 
-	if (!aID) throw new Error('No aID');
-	if (!bID) throw new Error('No bID');
-	if (!cID) throw new Error('No cID');
-	if (!dID) throw new Error('No dID');
-
-	const a = vectors[aID];
-	const b = vectors[bID];
-	const c = vectors[cID];
-	const d = vectors[dID];
-
-	//This might happen for cards that don't have embeddings yet.
-	if (!a) {
-		console.warn(`No embedding for ${aID}`);
-		return false;
+const calculateScore = (
+	cardIndex: number,
+	insertIndex: number,
+	newOrder: CardID[],
+	vectors: Record<CardID, EmbeddingVector>,
+	originalOrder: CardID[]
+): number => {
+	const card = originalOrder[cardIndex];
+	const cardVector = vectors[card];
+  
+	let similarityScore = 0;
+	if (insertIndex > 0) {
+		const prevCard = newOrder[insertIndex - 1];
+		similarityScore += cosineSimilarity(cardVector, vectors[prevCard]);
 	}
-
-	if (!b) {
-		console.warn(`No embedding for ${bID}`);
-		return false;
+	if (insertIndex < newOrder.length) {
+		const nextCard = newOrder[insertIndex];
+		similarityScore += cosineSimilarity(cardVector, vectors[nextCard]);
 	}
-
-	if (!c) {
-		console.warn(`No embedding for ${cID}`);
-		return false;
-	}
-
-	if (!d) {
-		console.warn(`No embedding for ${dID}`);
-		return false;
-	}
-
-	//b anc c will be next to each other no matter what. We're seeing which is
-	//better, similarity(a,b) + similarity(c,d) (in which case there should be
-	//no swap) vs similarity(a,c) + similarity(b,d) (in which case there should be a swap.
-
-	const simAB = cosineSimilarity(a, b);
-	const simCD = cosineSimilarity(c, d);
-
-	const simAC = cosineSimilarity(a, c);
-	const simBD = cosineSimilarity(b, d);
-
-	console.log(`Comparing ${bID} and ${cID} with ${simAB} + ${simCD} (${simAB + simCD}) vs ${simAC} + ${simBD} (${simAC + simBD})`);
-
-	if (simAB + simCD >= simAC + simBD) return false;
-	
-	console.log('Swapping');
-
-	//A swap is better!
-	const temp = cards[index];
-	cards[index] = cards[index + 1];
-	cards[index + 1] = temp;
-	return true;
+  
+	const positionScore = Math.abs(cardIndex - insertIndex);
+  
+	return similarityScore - POSITION_WEIGHT * positionScore;
 };
 
-//How many times to go through the list of cards while changes are being made.
-//At some point it should settle, but this is a sanity check.
-const MAX_SEMANTIC_ITERATIONS = 10;
-
-export const semanticSort = async (request : CallableRequest<SemanticSortRequestData>) : Promise<SemanticSortResponseData> => {
-	//For now, we'll just reverse the cards as a distinctive no-op style.
-	const cards =[...request.data.cards];
+export const semanticSort = async (request: CallableRequest<SemanticSortRequestData>): Promise<SemanticSortResponseData> => {
+	const originalOrder = [...request.data.cards];
 	if (!EMBEDDING_STORE) {
 		throw new Error('No embedding store');
 	}
 
-	if (cards.length < 2) return {cards, swaps:0};
+	if (originalOrder.length < 2) return { cards: originalOrder, swaps: 0 };
 
-	//Sanity check, because this calculation will be expensive!
-	if (cards.length > MAXIMUM_SEMANTIC_SORT_CARDS) throw new Error(`Too many cards: ${cards.length}`);
+	if (originalOrder.length > MAXIMUM_SEMANTIC_SORT_CARDS) throw new Error(`Too many cards: ${originalOrder.length}`);
 
-	const vectors = await EMBEDDING_STORE.getExistingPointsVectors(cards);
+	const vectors = await EMBEDDING_STORE.getExistingPointsVectors(originalOrder);
 
-	//We'll go through the list of cards a few time and continually swap pairs if swapping will give a better result.
-	let changesMade = true;
-	let counter = 0;
-	let changesMadeCounter = 0;
-	while(changesMade && counter < MAX_SEMANTIC_ITERATIONS) {
-		changesMade = false;
-		for (let i = 0; i < cards.length; i++) {
-			const localChangeMade = swapIfBetter(i, cards, vectors);
-			if (localChangeMade) {
-				changesMadeCounter++;
-			}
-			changesMade = localChangeMade || changesMade;
+	const newOrder: CardID[] = [];
+	let swaps = 0;
+
+	for (let i = 0; i < originalOrder.length; i++) {
+		const card = originalOrder[i];
+		if (!vectors[card]) {
+			console.warn(`No embedding for ${card}`);
+			newOrder.push(card);
+			continue;
 		}
-		counter++;
+
+		let bestScore = -Infinity;
+		let bestIndex = 0;
+
+		for (let j = 0; j <= newOrder.length; j++) {
+			const score = calculateScore(i, j, newOrder, vectors, originalOrder);
+			if (score > bestScore) {
+				bestScore = score;
+				bestIndex = j;
+			}
+		}
+
+		newOrder.splice(bestIndex, 0, card);
+		if (bestIndex !== newOrder.length - 1) swaps++;
 	}
 
-	console.log(`Made ${changesMadeCounter} changes in ${counter} iterations over ${cards.length} cards`);
+	console.log(`Made ${swaps} insertions over ${originalOrder.length} cards`);
 
-	return {cards, swaps: changesMadeCounter};
+	return { cards: newOrder, swaps };
 };
 
 //How many milliseconds of slop do we allow for last_updated check? This gets
