@@ -1,8 +1,19 @@
 import { deepEqual } from './util.js';
 
-const arrayEqual = (a : unknown[], b : unknown[]) : boolean => {
-	if (a.length != b.length) return false;
-	return a.every((a,index) => a === b[index]);
+const trimUndefined = (arr: unknown[]): unknown[] => {
+	let lastDefinedIndex = arr.length - 1;
+	while (lastDefinedIndex >= 0 && arr[lastDefinedIndex] === undefined) {
+		lastDefinedIndex--;
+	}
+	return arr.slice(0, lastDefinedIndex + 1);
+};
+
+//arrayEqual will return true if the arrays are equal, ignoring undefined values at the end.
+const arrayEqual = (a: unknown[], b: unknown[]): boolean => {
+	const trimmedA = trimUndefined(a);
+	const trimmedB = trimUndefined(b);
+	if (trimmedA.length !== trimmedB.length) return false;
+	return trimmedA.every((value, index) => value === trimmedB[index]);
 };
 
 //Like memoize, except the first argument is expected to be a thing that changes

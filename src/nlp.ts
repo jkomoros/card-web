@@ -1273,7 +1273,7 @@ export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint =>
 	}
 
 	const resultMap = new Map(finalNgrams.map(ngram => [ngram, ngramBundles[ngram].scoreForBundle]));
-	return new Fingerprint(resultMap, Object.values(cards), maximumFingerprintGenerator);
+	return new Fingerprint(resultMap, Object.values(cards));
 };
 
 //suggestConceptReferencesForCard is very expensive, so memoize it.
@@ -1410,14 +1410,12 @@ const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 export class Fingerprint {
 
 	_cards : ProcessedCard[];
-	_generator : FingerprintGenerator | undefined;
 	_items : Map<string, number>;
 	_memoizedWordCloud : WordCloud | null;
 	_memoizedFullWordCloud : WordCloud | null;
 
-	constructor(items? : Map<string, number>, cardOrCards? : ProcessedCard | ProcessedCard[], generator? : FingerprintGenerator) {
+	constructor(items? : Map<string, number>, cardOrCards? : ProcessedCard | ProcessedCard[]) {
 		this._cards = Array.isArray(cardOrCards) ? cardOrCards : (cardOrCards ? [cardOrCards] : []);
-		this._generator = generator;
 		this._items = items || new Map();
 		this._memoizedWordCloud = null;
 		this._memoizedFullWordCloud = null;
@@ -1600,114 +1598,121 @@ type WordNumbers = {
 	[word : string] : number
 };
 
+type IDFMap = {
+	idf: WordNumbers,
+	maxIDF: number
+};
+
+let memoizedIDFMap: IDFMap = {idf: {}, maxIDF: 0};
+let memoizedIDMapCardCount = 0;
+let memoizedIDFMapNgramSize = 0;
+
+const idfMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
+	if (!cards || Object.keys(cards).length == 0) return {idf: {}, maxIDF: 0};
+	const cardCount = Object.keys(cards).length;
+	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
+	const cardCountCloseEnough  = cardCount >= memoizedIDMapCardCount && cardCount <= memoizedIDMapCardCount * 1.1;
+	if (cardCountCloseEnough && ngramSize == memoizedIDFMapNgramSize) return memoizedIDFMap;
+	const result = calcIDFMapForCards(cards, ngramSize);
+	memoizedIDFMap = result;
+	memoizedIDFMapNgramSize = ngramSize;
+	memoizedIDMapCardCount = cardCount;
+	return result;
+};
+
+const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
+	//only consider cards that have a body, even if we were provided a set that included others
+	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
+
+	const numCards = Object.keys(cards).length;
+
+	//cardWords is a object that contains an object for each card id of
+	//words to their count in that card. This uses all words htat could be
+	//searched over, and is the input to the IDF calculation pipeline and
+	//others.
+	const cardWordCounts : {[cardID : CardID]: {[word : string] : number}} = {};
+	for (const [key, cardObj] of Object.entries(cards)) {
+		cardWordCounts[key] = wordCountsForSemantics(cardObj, ngramSize);
+	}
+
+	//corpusWords is a set of word => numCardsContainWord, that is, the
+	//number of cards that contain the term at least once. This is how idf
+	//is normally calculated; we previously used the raw count of times it
+	//showed up.
+	const corpusWords : WordNumbers = {};
+	for (const words of Object.values(cardWordCounts)) {
+		for (const word of Object.keys(words)) {
+			corpusWords[word] = (corpusWords[word] || 0) + 1;
+		}
+	}
+
+	//idf (inverse document frequency) of every word in the corpus. See
+	//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+	const idf : WordNumbers = {};
+	let maxIDF = 0;
+	for (const [word, count] of Object.entries(corpusWords)) {
+		idf[word] = Math.log10(numCards / (count + 1));
+		if (idf[word] > maxIDF) maxIDF = idf[word];
+	}
+	return {idf, maxIDF};
+};
+
+const fingerprintForTFIDF = (tfidf : WordNumbers, cardOrCards : ProcessedCard | ProcessedCard[], fingerprintSize : number) => {
+	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
+	const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, fingerprintSize);
+	const items = new Map(keys.map(key => [key, tfidf[key]]));
+	return new Fingerprint(items, cardOrCards);
+};
+
+const cardTFIDF = (cardWordCounts : WordNumbers, i : IDFMap) : WordNumbers => {
+	const idfMap = i.idf;
+	const maxIDF = i.maxIDF;
+	const resultTFIDF : WordNumbers = {};
+	const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
+	for (const [word, count] of TypedObject.entries(cardWordCounts)) {
+		//_idfMap should very often have all of the terms, but it can be
+		//missing one if we're using fingerprintForCardObj for a live
+		//editing card, and if it just had text added to it that inludes
+		//uni-grams or bigrams that are so distinctive that they haven't
+		//been seen before. In that case we'll use the highest IDF we've
+		//seen in this corpus.
+		resultTFIDF[word] = (count / cardWordCount) * (idfMap[word] || maxIDF);
+	}
+	return resultTFIDF;
+};
+
+const fingerprintForCardObj = memoizeFirstArg((cardObj : ProcessedCard, idfMap : IDFMap, fingerprintSize : number, ngramSize : number, optFieldList? : CardFieldType[]) => {
+	if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
+	const wordCounts = wordCountsForSemantics(cardObj, ngramSize, optFieldList);
+	const tfidf = cardTFIDF(wordCounts, idfMap);
+	const fingerprint = fingerprintForTFIDF(tfidf, cardObj, fingerprintSize);
+	return fingerprint;
+});
+
 export class FingerprintGenerator {
 
-	_cards? : ProcessedCards;
-	_idfMap : {
-		[ngram : string] : number
-	};
+	_cards : ProcessedCards;
+	_idfMap : IDFMap;
 	_fingerprintSize : number;
 	_ngramSize : number;
-	_maxIDF : number;
-	_fingerprints : {
-		[id : CardID] : Fingerprint
-	};
+	_cachedFingerprints? : {[cardID : string] : Fingerprint};
 
 	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
-
-		this._cards = cards;
-		this._idfMap = {};
-		this._fingerprints = {};
-		this._fingerprintSize = optFingerprintSize;
+		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
-
-		if (!cards || Object.keys(cards).length == 0) return;
-
-		//only consider cards that have a body, even if we were provided a set that included others
-		cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
-
-		const numCards = Object.keys(cards).length;
-
-		//cardWords is a object that contains an object for each card id of
-		//words to their count in that card. This uses all words htat could be
-		//searched over, and is the input to the IDF calculation pipeline and
-		//others.
-		const cardWordCounts : {[cardID : CardID]: {[word : string] : number}} = {};
-		for (const [key, cardObj] of Object.entries(cards)) {
-			cardWordCounts[key] = this._wordCountsForCardObj(cardObj);
-		}
-
-		//corpusWords is a set of word => numCardsContainWord, that is, the
-		//number of cards that contain the term at least once. This is how idf
-		//is normally calculated; we previously used the raw count of times it
-		//showed up.
-		const corpusWords : WordNumbers = {};
-		for (const words of Object.values(cardWordCounts)) {
-			for (const word of Object.keys(words)) {
-				corpusWords[word] = (corpusWords[word] || 0) + 1;
-			}
-		}
-
-		//idf (inverse document frequency) of every word in the corpus. See
-		//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
-		const idf : WordNumbers = {};
-		let maxIDF = 0;
-		for (const [word, count] of Object.entries(corpusWords)) {
-			idf[word] = Math.log10(numCards / (count + 1));
-			if (idf[word] > maxIDF) maxIDF = idf[word];
-		}
-		//This is useful often so stash it
-		this._idfMap = idf;
-		this._maxIDF = maxIDF;
-
-		//A map of cardID to the semantic fingerprint for that card.
-		const fingerprints : {[cardID : CardID] : Fingerprint} = {};
-		for (const [cardID, cardWordCount] of Object.entries(cardWordCounts)) {
-			//See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
-			//TF-IDF.
-			const tfidf = this._cardTFIDF(cardWordCount);
-			fingerprints[cardID] = this._fingerprintForTFIDF(tfidf, cards[cardID]);
-		}
-		this._fingerprints = fingerprints;
+		this._idfMap = idfMapForCards(this._cards, this._ngramSize);
+		this._fingerprintSize = optFingerprintSize;
 	}
 
-	_fingerprintForTFIDF(tfidf : WordNumbers, cardOrCards : ProcessedCard | ProcessedCard[]) {
-		//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
-		const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
-		const items = new Map(keys.map(key => [key, tfidf[key]]));
-		return new Fingerprint(items, cardOrCards, this);
-	}
-
-	_wordCountsForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[]) {
-		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
-	}
-
-	_cardTFIDF(cardWordCounts : WordNumbers) : WordNumbers {
-		const resultTFIDF : WordNumbers = {};
-		const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
-		for (const [word, count] of TypedObject.entries(cardWordCounts)) {
-			//_idfMap should very often have all of the terms, but it can be
-			//missing one if we're using fingerprintForCardObj for a live
-			//editing card, and if it just had text added to it that inludes
-			//uni-grams or bigrams that are so distinctive that they haven't
-			//been seen before. In that case we'll use the highest IDF we've
-			//seen in this corpus.
-			resultTFIDF[word] = (count / cardWordCount) * (this._idfMap[word] || this._maxIDF);
-		}
-		return resultTFIDF;
+	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[] ) : Fingerprint {
+		//A convenience method for other contexts that need to call this.
+		return fingerprintForCardObj(cardObj, this._idfMap, this._fingerprintSize, this._ngramSize, optFieldList);
 	}
 
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
-		return this.fingerprints()[cardID];
-	}
-
-	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[]) {
-		if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
-		const wordCounts = this._wordCountsForCardObj(cardObj, optFieldList);
-		const tfidf = this._cardTFIDF(wordCounts);
-		const fingerprint = this._fingerprintForTFIDF(tfidf, cardObj);
-		return fingerprint;
+		const card = this._cards[cardID];
+		if (!card) return new Fingerprint();
+		return fingerprintForCardObj(card, this._idfMap, this._fingerprintSize, this._ngramSize);
 	}
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {
@@ -1724,12 +1729,15 @@ export class FingerprintGenerator {
 				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		return this._fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => cards[id]));
+		return fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => cards[id]), this._fingerprintSize);
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
 	fingerprints() {
-		return this._fingerprints;
+		if (this._cachedFingerprints) return this._cachedFingerprints;
+		const fingerprints = Object.fromEntries(Object.keys(this._cards).map(cardID => [cardID, this.fingerprintForCardID(cardID)]));
+		this._cachedFingerprints = fingerprints;
+		return fingerprints;
 	}
 
 	fingerprintSize() {
