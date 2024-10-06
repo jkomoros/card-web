@@ -101,8 +101,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return html`
 			<label>Filters</label>
 			<ul>
-				${this._collectionDescription.filters.map((filterName, index) => html`<configure-collection-filter .value=${filterName} .index=${index} .filterDescriptions=${this._filterDescriptions} .cardTagInfos=${this._cardTagInfos} .userIDs=${this._userIDs} @filter-modified=${this._handleFilterModified} @filter-removed=${this._handleFilterRemoved}></configure-collection-filter>`)}
-				<li><button class='small' @click=${this._handleAddFilterClicked} title='Add a new filter (ANDed with other filters)'>${PLUS_ICON}</button></li>
+				${this._collectionDescription.filters.map((filterName, index) => html`
+					<configure-collection-filter
+						.value=${filterName}
+						.index=${index}
+						.filterDescriptions=${this._filterDescriptions}
+						.cardTagInfos=${this._cardTagInfos}
+						.userIDs=${this._userIDs}
+						@filter-modified=${this._handleFilterModified}
+						@filter-removed=${this._handleFilterRemoved}>
+					</configure-collection-filter>`)}
+				<li>
+					<button
+						class='small'
+						@click=${this._handleAddFilterClicked}
+						title='Add a new filter (ANDed with other filters)'
+					>
+						${PLUS_ICON}
+					</button>
+				</li>
 			</ul>
 			<div class='row'>
 				<div>
