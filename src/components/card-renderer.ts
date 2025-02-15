@@ -128,6 +128,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	@property({ type : Boolean })
 		editing: boolean;
 
+	@property({ type : Boolean })
+		cardModificationsPending: boolean;
+
 	@property({ type : Object })
 		updatedFromContentEditable: CardFieldMap;
 
@@ -631,7 +634,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 		ele.conceptReferencesHighlighted = doHighlightConcepts;
 
-		if (this.editing && !config.noContentEditable) {
+		if (this.editing && !this.cardModificationsPending && !config.noContentEditable) {
 			makeElementContentEditable(ele);
 			//Only install the content editable listeners once. Otherwise, you
 			//get serious performance regressions as observed in #452.

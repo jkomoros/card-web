@@ -53,6 +53,9 @@ export class CardStage extends LitElement {
 	@property({ type : Boolean })
 		editing: boolean;
 
+	@property({ type : Boolean })
+		cardModificationsPending: boolean;
+
 	@property({ type : Boolean})
 		hideActions: boolean;
 
@@ -208,7 +211,7 @@ export class CardStage extends LitElement {
 				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>
 			</div>
-			<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks} .suggestedConcepts=${this.suggestedConcepts}></card-renderer>
+			<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .cardModificationsPending=${this.cardModificationsPending} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks} .suggestedConcepts=${this.suggestedConcepts}></card-renderer>
 			<card-renderer id='sizing' style='position:absolute;visibility:hidden;z-index:-100;'></card-renderer>
 			<slot name='actions'></slot>
 			<slot name='tags'></slot>

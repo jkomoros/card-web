@@ -47,7 +47,8 @@ import {
 	selectCardsSelected,
 	selectActiveCollectionNotFullySelected,
 	selectActiveCollectionNotFilteredToSelected,
-	selectCollectionWordCloudVersion
+	selectCollectionWordCloudVersion,
+	selectCardModificationPending
 } from '../selectors.js';
 
 import {
@@ -225,6 +226,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_editing: boolean;
+
+	@state()
+		_cardModificationsPending: boolean;
 
 	@state()
 		_hideActions: boolean;
@@ -589,7 +593,7 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>
 		</card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -835,6 +839,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
 		this._editing = selectIsEditing(state);
+		this._cardModificationsPending = selectCardModificationPending(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
 		this._collectionNotFilteredToSelected = selectActiveCollectionNotFilteredToSelected(state);
