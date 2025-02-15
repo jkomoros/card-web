@@ -250,7 +250,7 @@ const selectBaseFilters = (state : State) => state.collection ? state.collection
 const selectBaseFiltersSnapshot = (state : State) => state.collection ? state.collection.filtersSnapshot : {};
 export const selectSections = (state : State) => state.data ? state.data.sections : {};
 export const selectTags = (state : State) => state.data ? state.data.tags : {};
-export const selectExpectedDeletions = (state : State) => state.data ? state.data.expectedDeletions : {};
+export const selectPendingDeletions = (state : State) => state.data ? state.data.pendingDeletions : {};
 export const selectCardModificationPending = (state : State) => state.data ? state.data.cardModificationPending : false;
 export const selectCardModificationError = (state : State) => state.data ? state.data.cardModificationError : null;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.

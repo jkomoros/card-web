@@ -1368,9 +1368,6 @@ export type DataState = {
 	//Keeping a snapshot helps make sure that filtering logic in the current
 	//collection doesn't change constantly
 	cardsSnapshot: Cards,
-	//a map of cardID -> true for cards that we expect to be deleted imminently,
-	//since we just issued a deletion command to the datastore.
-	expectedDeletions: CardBooleanMap,
 	//true while we're loading tweets for the current card
 	tweetsLoading: boolean,
 	//We only fetch tweets for cards that we have already viewed.
@@ -1404,6 +1401,9 @@ export type DataState = {
 	//pendingNewCardIDToNavigateTo is not yet cleared, because the navigation
 	//hasn't yet happened.
 	pendingNewCardIDToNavigateTo: CardID,
+	//a map of cardID -> true for cards that we expect to be deleted imminently,
+	//since we just issued a deletion command to the datastore.
+	pendingDeletions: CardBooleanMap,
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
 	cardSimilarity: CardSimilarityMap

@@ -75,7 +75,7 @@ import {
 	selectIsEditing,
 	selectActiveCardID,
 	getReasonUserMayNotDeleteCard,
-	selectExpectedDeletions,
+	selectPendingDeletions,
 	selectCardModificationPending,
 	getCardById,
 	selectMultiEditDialogOpen,
@@ -1365,7 +1365,7 @@ export const removeCards = (cardIDs : CardID[], unpublished : boolean) : ThunkSo
 	//cards that we weren't told were going to be deleted might show up in the
 	//other collection, so wait.
 
-	const expectedDeletions = selectExpectedDeletions(getState());
+	const expectedDeletions = selectPendingDeletions(getState());
 
 	const nonDeletions : CardID[] = [];
 	const deletions : CardID[] = [];

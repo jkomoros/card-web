@@ -45,7 +45,6 @@ const INITIAL_STATE : DataState = {
 	tags: {},
 	slugIndex: {},
 	cardsSnapshot: {},
-	expectedDeletions: {},
 	tweetsLoading: false,
 	tweets: {},
 	//We start off saying that published cards are expected to be fetched.
@@ -61,6 +60,7 @@ const INITIAL_STATE : DataState = {
 	pendingNewCardID: '',
 	pendingNewCardType: 'content',
 	pendingNewCardIDToNavigateTo: '',
+	pendingDeletions: {},
 	cardSimilarity: {}
 };
 
@@ -148,7 +148,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case EXPECT_CARD_DELETIONS:
 		return {
 			...state,
-			expectedDeletions: {...state.expectedDeletions, ...action.cards}
+			pendingDeletions: {...state.pendingDeletions, ...action.cards}
 		};
 	case UPDATE_SECTIONS:
 		return {
@@ -240,7 +240,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => {
 	const newCards = {...subState.cards};
 	const newSlugIndex = {...subState.slugIndex};
-	const newExpectedDeletions = {...subState.expectedDeletions};
+	const newExpectedDeletions = {...subState.pendingDeletions};
 	let changesMade = false;
 	for (const id of cardIDs) {
 		if (!newCards[id]) continue;
@@ -254,7 +254,7 @@ const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => 
 		changesMade = true;
 	}
 	if (!changesMade) return subState;
-	return {...subState, cards: newCards, slugIndex: newSlugIndex, expectedDeletions: newExpectedDeletions};
+	return {...subState, cards: newCards, slugIndex: newSlugIndex, pendingDeletions: newExpectedDeletions};
 };
 
 const extractSlugIndex = (cards : Cards) : {[slug : Slug]: CardID} => {
