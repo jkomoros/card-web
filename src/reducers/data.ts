@@ -112,8 +112,13 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case ENQUEUE_CARD_UPDATES:
 		return {
 			...state,
-			//TODO: also store the fetchType
-			enqueuedCards: {...state.enqueuedCards, ...action.cards},
+			enqueuedCards: {
+				...state.enqueuedCards,
+				[action.fetchType]: {
+					...state.enqueuedCards[action.fetchType],
+					...action.cards
+				}
+			}
 		};
 	case UPDATE_CARDS:
 		const result = {

@@ -1408,7 +1408,9 @@ export type DataState = {
 	//updateEnqueuedCards is called. We do this if we expect many cards in
 	//multiple batches to all land, so we don't do expensive recalculations once
 	//for each batch. See #701.
-	enqueuedCards: Cards,
+	enqueuedCards: {
+		[field in CardFetchType]+?: Cards
+	}
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
 	cardSimilarity: CardSimilarityMap
