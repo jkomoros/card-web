@@ -22,7 +22,7 @@ import {
 } from '../actions/app.js';
 
 import {
-	updateCards,
+	receiveCards,
 } from '../actions/data.js';
 
 //We need the implicit import AND the specific class CardStage.
@@ -94,7 +94,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			//waitFor the flag to raise for multiple screenshots.
 			window[WINDOW_CARD_RENDERED_VARIABLE] = false;
 			//Do this one first so that the page doesn't have to fetch the card link cards twice
-			if (cardLinkCards) store.dispatch(updateCards(cardLinkCards, 'published'));
+			if (cardLinkCards) store.dispatch(receiveCards(cardLinkCards, 'published'));
 			store.dispatch(updateFetchedCard(card));
 		};
 	}

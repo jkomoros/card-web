@@ -9,7 +9,7 @@ import {
 } from '../store.js';
 
 import {
-	updateCards,
+	receiveCards,
 	updateSections,
 	updateAuthors,
 	updateTags,
@@ -317,7 +317,7 @@ const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
 			cards[id] = card;
 		});
 
-		store.dispatch(updateCards(cards, fetchType));
+		store.dispatch(receiveCards(cards, fetchType));
 		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
 	};
 

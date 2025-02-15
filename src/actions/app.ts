@@ -50,7 +50,7 @@ import {
 } from '../firebase.js';
 
 import {
-	updateCards,
+	receiveCards
 } from './data.js';
 
 import {
@@ -395,12 +395,12 @@ export const fetchCardLinkCardsForFetchedCard = (fetchedCard : Card) : ThunkSome
 		//Dispatching updateCards, even with any empty one, is how we signal
 		//that everything is done loading, so the card viewer knows to fade it
 		//in.
-		dispatch(updateCards({}, 'published'));
+		dispatch(receiveCards({}, 'published'));
 		return;
 	}
 
 	const cards = await fetchCardLinkCardsForFetchedCardFromDb(fetchedCard);
-	dispatch(updateCards(cards, 'published'));
+	dispatch(receiveCards(cards, 'published'));
 };
 
 export const fetchCard = (cardIDOrSlug : CardIdentifier) : ThunkSomeAction => async (dispatch, getState) =>  {
