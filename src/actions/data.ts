@@ -192,6 +192,7 @@ import {
 	UPDATE_SECTIONS,
 	UPDATE_TAGS,
 	UPDATE_TWEETS,
+	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS
 } from '../actions.js';
@@ -1346,12 +1347,24 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSom
 		cardsToUpdate[card.id] = card;
 	}
 
-	dispatch({
-		type: UPDATE_CARDS,
-		cards: cardsToUpdate,
-		fetchType
-	});
+	dispatch(updateCards(cardsToUpdate, fetchType));
 	dispatch(refreshCardSelector(false));
+};
+
+const updateCards = (cards : Cards, fetchType : CardFetchType) : SomeAction => {
+	return {
+		type: UPDATE_CARDS,
+		cards,
+		fetchType
+	};
+};
+
+export const enqueueCardUpdates = (cards : Cards, fetchType : CardFetchType) : SomeAction => {
+	return {
+		type: ENQUEUE_CARD_UPDATES,
+		cards,
+		fetchType
+	};
 };
 
 //This number is used in removeCards. it should be large enough that the race

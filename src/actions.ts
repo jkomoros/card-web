@@ -105,6 +105,7 @@ export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 //Data
 export const UPDATE_CARDS = 'UPDATE_CARDS';
+export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const UPDATE_TAGS = 'UPDATE_TAGS';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
@@ -448,6 +449,12 @@ type ActionCommentsUpdateMessages = {
 
 type ActionUpdateCards = {
 	type: typeof UPDATE_CARDS,
+	cards: Cards,
+	fetchType: CardFetchType
+};
+
+type ActionEnqueueCardUpdates = {
+	type: typeof ENQUEUE_CARD_UPDATES,
 	cards: Cards,
 	fetchType: CardFetchType
 };
@@ -1056,6 +1063,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionUpdateCards
+	| ActionEnqueueCardUpdates
 	| ActionUpdateSections
 	| ActionUpdateTags
 	| ActionUpdateAuthors

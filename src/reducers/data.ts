@@ -1,5 +1,6 @@
 import { 
 	UPDATE_CARDS,
+	ENQUEUE_CARD_UPDATES,
 	UPDATE_SECTIONS,
 	UPDATE_TAGS,
 	UPDATE_AUTHORS,
@@ -107,6 +108,12 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			pendingNewCardID: '',
 			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',
+		};
+	case ENQUEUE_CARD_UPDATES:
+		return {
+			...state,
+			//TODO: also store the fetchType
+			enqueuedCards: {...state.enqueuedCards, ...action.cards},
 		};
 	case UPDATE_CARDS:
 		const result = {
