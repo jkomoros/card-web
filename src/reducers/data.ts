@@ -61,6 +61,7 @@ const INITIAL_STATE : DataState = {
 	pendingNewCardIDToNavigateTo: '',
 	pendingDeletions: {},
 	pendingReorder: false,
+	enqueuedCards: {},
 	cardSimilarity: {}
 };
 
