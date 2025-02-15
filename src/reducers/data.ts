@@ -20,6 +20,7 @@ import {
 	SomeAction,
 	UPDATE_CARD_SIMILARITY,
 	STOP_EXPECTING_FETCHED_CARDS,
+	CLEAR_ENQUEUED_CARD_UPDATES,
 } from '../actions.js';
 
 import {
@@ -119,6 +120,11 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 					...action.cards
 				}
 			}
+		};
+	case CLEAR_ENQUEUED_CARD_UPDATES:
+		return {
+			...state,
+			enqueuedCards: {}
 		};
 	case UPDATE_CARDS:
 		const result = {
