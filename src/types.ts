@@ -1386,8 +1386,10 @@ export type DataState = {
 	//we won't update the collection again.
 	alreadyCommittedModificationsWhenFullyLoaded: boolean,
 	cardModificationError: Error | null,
-	//This is 0 if there's no pending modifications, or the number of expected modifications.
-	pendingModifications: number,
+	//This is split into two because modifyCardSuccess might trigger before we
+	//receive all of the cards, but need to remember how many we're expecting.
+	pendingModifications: boolean,
+	pendingModificationCount: number,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.
 	pendingNewCardID: CardID,

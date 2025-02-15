@@ -57,7 +57,8 @@ const INITIAL_STATE : DataState = {
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
 	cardModificationError: null,
-	pendingModifications: 0,
+	pendingModifications: false,
+	pendingModificationCount: 0,
 	pendingNewCardID: '',
 	pendingNewCardType: 'content',
 	pendingNewCardIDToNavigateTo: '',
@@ -124,7 +125,8 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case CLEAR_ENQUEUED_CARD_UPDATES:
 		return {
 			...state,
-			enqueuedCards: {}
+			enqueuedCards: {},
+			pendingModificationCount: 0
 		};
 	case UPDATE_CARDS:
 		const result = {
@@ -200,18 +202,19 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case MODIFY_CARD:
 		return {
 			...state,
-			pendingModifications: action.modificationCount,
+			pendingModifications: true,
+			pendingModificationCount: action.modificationCount,
 			cardModificationError: null,
 		}; 
 	case MODIFY_CARD_SUCCESS:
 		return {
 			...state,
-			pendingModifications: 0,
+			pendingModifications: false,
 		};
 	case MODIFY_CARD_FAILURE:
 		return {
 			...state,
-			pendingModifications: 0,
+			pendingModifications: false,
 			cardModificationError: action.error
 		};
 	case REORDER_STATUS:
