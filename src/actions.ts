@@ -483,7 +483,9 @@ type ActionTweetsLoading = {
 };
 
 type ActionModifyCard = {
-	type: typeof MODIFY_CARD
+	type: typeof MODIFY_CARD,
+	//How many modifications we expect to be made.
+	modificationCount: number
 };
 
 type ActionModifyCardSuccess = {

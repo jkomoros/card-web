@@ -55,7 +55,7 @@ const INITIAL_STATE : DataState = {
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
 	cardModificationError: null,
-	pendingModifications: false,
+	pendingModifications: 0,
 	pendingNewCardID: '',
 	pendingNewCardType: 'content',
 	pendingNewCardIDToNavigateTo: '',
@@ -181,18 +181,18 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case MODIFY_CARD:
 		return {
 			...state,
-			pendingModifications: true,
+			pendingModifications: action.modificationCount,
 			cardModificationError: null,
 		}; 
 	case MODIFY_CARD_SUCCESS:
 		return {
 			...state,
-			pendingModifications: false,
+			pendingModifications: 0,
 		};
 	case MODIFY_CARD_FAILURE:
 		return {
 			...state,
-			pendingModifications: false,
+			pendingModifications: 0,
 			cardModificationError: action.error
 		};
 	case REORDER_STATUS:

@@ -257,7 +257,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		}
 	});
 
-	dispatch(modifyCardAction());
+	dispatch(modifyCardAction(Object.keys(updates).length));
 
 	const batch = new MultiBatch(db);
 	let modifiedCount = 0;
@@ -1245,9 +1245,10 @@ export const navigatedToNewCard = () : SomeAction => {
 	};
 };
 
-const modifyCardAction = () : SomeAction => {
+const modifyCardAction = (modificationCount : number) : SomeAction => {
 	return {
 		type: MODIFY_CARD,
+		modificationCount
 	};
 };
 
