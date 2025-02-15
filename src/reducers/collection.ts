@@ -212,7 +212,12 @@ const removeCardIDsFromSubState = (cardIDs : CardID[], subState : CollectionStat
 		changesMade = true;
 	}
 
-	return changesMade ? {...subState, filters: newFilters} : subState;
+	const newSelectedCards = removeCardIDsFromFilter(cardIDs, subState.selectedCards);
+	if (newSelectedCards !== subState.selectedCards) {
+		changesMade = true;
+	}
+
+	return changesMade ? {...subState, filters: newFilters, selectedCards: newSelectedCards} : subState;
 };
 
 //Returns a filter (cardID -> true) that contains none of the cardIDs. IF no
