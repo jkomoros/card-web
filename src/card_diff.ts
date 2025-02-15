@@ -491,7 +491,7 @@ export const generateFinalCardDiff = async (state : State, underlyingCard : Card
 	//Throw out any boosts that might have been applied to an old card type.
 	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
 
-	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
+	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard, diff);
 
 	const update = generateCardDiff(underlyingCard, updatedCard, true);
 

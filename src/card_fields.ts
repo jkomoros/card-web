@@ -24,7 +24,8 @@ import {
 	CardFieldTypeEditable,
 	CardFieldTypeEditableConfigurationMap,
 	CardFieldType,
-	CardFieldTypeConfiguration
+	CardFieldTypeConfiguration,
+	CardDiff
 } from './types.js';
 
 import {
@@ -778,14 +779,17 @@ export const replaceNewCardIDPlaceholder = (input : CardID, actualNewCardIDs : C
 //Returns an object with field -> boosts to set. It will return
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
 //with modifications made as appropriate leaving any untouched keys the same,
-//and any keys it modifies but sets to 0.0 deleted.
-export const fontSizeBoosts = async (card : Card) : Promise<FontSizeBoostMap> => {
+//and any keys it modifies but sets to 0.0 deleted. It checks the diff to see
+//which fields are modified, so it can avoid resizing fields that were not modified.
+export const fontSizeBoosts = async (card : Card, diff? : CardDiff) : Promise<FontSizeBoostMap> => {
 	if (!card) return {};
 	const fields = AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
 	const currentBoost = card.font_size_boost || {};
 	if (Object.keys(fields).length === 0) return currentBoost;
 	const result : FontSizeBoostMap = {...currentBoost};
 	for (const field of TypedObject.keys(fields)) {
+		//Skip fields that weren't modified.
+		if (diff && diff[field] === undefined) continue;
 		const boost = await calculateBoostForCardField(card, field);
 		if (boost == 0.0) {
 			if (result[field] !== undefined) delete result[field];
