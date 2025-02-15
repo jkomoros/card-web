@@ -1385,9 +1385,9 @@ export type DataState = {
 	//loaded already. If so, then even if refreshCardSelector gets called again,
 	//we won't update the collection again.
 	alreadyCommittedModificationsWhenFullyLoaded: boolean,
-	//Whether a card modification is pending
-	cardModificationPending: boolean,
 	cardModificationError: Error | null,
+	//Whether a card modification is pending
+	pendingModifications: boolean,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.
 	pendingNewCardID: CardID,
