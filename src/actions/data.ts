@@ -1348,15 +1348,15 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSom
 	}
 
 	dispatch(updateCards(cardsToUpdate, fetchType));
-	dispatch(refreshCardSelector(false));
 };
 
-const updateCards = (cards : Cards, fetchType : CardFetchType) : SomeAction => {
-	return {
+const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch) => {
+	dispatch({
 		type: UPDATE_CARDS,
 		cards,
 		fetchType
-	};
+	});
+	dispatch(refreshCardSelector(false));
 };
 
 export const enqueueCardUpdates = (cards : Cards, fetchType : CardFetchType) : SomeAction => {
