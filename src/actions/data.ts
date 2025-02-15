@@ -85,7 +85,9 @@ import {
 	selectActiveCollectionDescription,
 	selectRawCards,
 	getUserMayEditTag,
-	selectEditingCard
+	selectEditingCard,
+	selectEnqueuedCards,
+	selectPendincModifications
 } from '../selectors.js';
 
 import {
@@ -194,7 +196,8 @@ import {
 	UPDATE_TWEETS,
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
-	BULK_IMPORT_SUCCESS
+	BULK_IMPORT_SUCCESS,
+	CLEAR_ENQUEUED_CARD_UPDATES
 } from '../actions.js';
 
 //map of cardID => promiseResolver that's waiting
@@ -1347,7 +1350,13 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSom
 		cardsToUpdate[card.id] = card;
 	}
 
-	dispatch(updateCards(cardsToUpdate, fetchType));
+	const pendingModifications = selectPendincModifications(getState());
+	if (pendingModifications == 0) {
+		dispatch(updateCards(cardsToUpdate, fetchType));
+	}
+
+	dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
+	
 };
 
 const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch) => {
@@ -1359,12 +1368,36 @@ const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction
 	dispatch(refreshCardSelector(false));
 };
 
-export const enqueueCardUpdates = (cards : Cards, fetchType : CardFetchType) : SomeAction => {
-	return {
+const enqueueCardUpdates = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
+	dispatch({
 		type: ENQUEUE_CARD_UPDATES,
 		cards,
 		fetchType
-	};
+	});
+
+	//Check if we just added enough cards that we were expecting so we can now dispatch all updates.
+	const pendingModifications = selectPendincModifications(getState());
+	const enquedUpdates = selectEnqueuedCards(getState());
+	const count = Object.values(enquedUpdates).reduce((acc, val) => acc + Object.keys(val).length, 0);
+	if (count >= pendingModifications) {
+		dispatch(updateEnqueuedCards());
+	}
+};
+
+const updateEnqueuedCards = () : ThunkSomeAction => (dispatch, getState) => {
+	const enqueuedCards = selectEnqueuedCards(getState());
+	//Note: if there were multiple types enqueued, this would lead to extra
+	//cachce invalidation for each type. But that should be very uncommon; the
+	//most common case is when multiple cards are updated, and they'll all be
+	//hit by the same updater.
+	for (const fetchType of TypedObject.keys(enqueuedCards)) {
+		const cards = enqueuedCards[fetchType];
+		if (!cards) continue;
+		dispatch(updateCards(cards, fetchType));
+	}
+	dispatch({
+		type: CLEAR_ENQUEUED_CARD_UPDATES,
+	});
 };
 
 //This number is used in removeCards. it should be large enough that the race
