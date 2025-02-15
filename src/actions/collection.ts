@@ -219,6 +219,7 @@ export const updateCollectionSnapshot = () : SomeAction => {
 };
 
 export const updateRenderOffset = (renderOffset : number) : SomeAction => {
+	console.log('updateRenderOffset', renderOffset);
 	return {
 		type: UPDATE_RENDER_OFFSET,
 		renderOffset

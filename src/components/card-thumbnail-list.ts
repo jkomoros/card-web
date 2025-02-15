@@ -568,7 +568,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 					//OK we might need to change the offset to allow it to be seen.
 					let offset = 0;
 					while (offset <= cards.length) {
-						if (cardIndex > offset && cardIndex <= offset + this.renderLimit) {
+						if (cardIndex >= offset && cardIndex < offset + this.renderLimit) {
 							//Found it!
 							break;
 						}
