@@ -1,3 +1,4 @@
+
 import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -362,8 +363,18 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	get _labels() {
 		if (!this.collection) return null;
-		//TODO: if there is a missing label in the first position, scan forward from the beginning of the clipped index to find the last one.
-		return this.collection.finalLabels.slice(this.renderOffset, this.renderOffset + this.renderLimit);
+		const result = this.collection.finalLabels.slice(this.renderOffset, this.renderOffset + this.renderLimit);
+		//finalLabels has duplicates removed, but it's possible the first one is empty since the offset could happen in the middle of a run.
+		//If that's the case, scan backward to find the last non-empty label and copy it in.
+		if (result.length > 0 && result[0] == '') {
+			for (let i = this.renderOffset - 1; i >= 0; i--) {
+				if (this.collection.finalLabels[i] != '') {
+					result[0] = this.collection.finalLabels[i];
+					break;
+				}
+			}
+		}
+		return result;
 	}
 
 	get _cardsClipped() {
