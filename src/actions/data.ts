@@ -87,7 +87,7 @@ import {
 	getUserMayEditTag,
 	selectEditingCard,
 	selectEnqueuedCards,
-	selectPendincModifications
+	selectPendingModifications
 } from '../selectors.js';
 
 import {
@@ -1350,7 +1350,7 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSom
 		cardsToUpdate[card.id] = card;
 	}
 
-	const pendingModifications = selectPendincModifications(getState());
+	const pendingModifications = selectPendingModifications(getState());
 	if (pendingModifications == 0) {
 		dispatch(updateCards(cardsToUpdate, fetchType));
 	}
@@ -1376,7 +1376,7 @@ const enqueueCardUpdates = (cards : Cards, fetchType : CardFetchType) : ThunkSom
 	});
 
 	//Check if we just added enough cards that we were expecting so we can now dispatch all updates.
-	const pendingModifications = selectPendincModifications(getState());
+	const pendingModifications = selectPendingModifications(getState());
 	const enquedUpdates = selectEnqueuedCards(getState());
 	const count = Object.values(enquedUpdates).reduce((acc, val) => acc + Object.keys(val).length, 0);
 	if (count >= pendingModifications) {
