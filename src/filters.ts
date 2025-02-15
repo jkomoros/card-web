@@ -113,6 +113,7 @@ const DIRECT_PREFIX = 'direct-';
 
 const UPDATED_FILTER_NAME = 'updated';
 const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
+const CREATED_FILTER_NAME = 'created';
 
 const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
 const CONNECTIONS_FILTER_NAME = 'connections';
@@ -270,9 +271,10 @@ export const makeDateSection = (comparsionType : DateRangeType, dateOne : Date, 
 const dateConfigurableFilterMap : {[name : string] : CardTimestampPropertyName} = {
 	[UPDATED_FILTER_NAME] : 'updated_substantive' as CardTimestampPropertyName,
 	[LAST_TWEETED_FILTER_NAME]: 'last_tweeted' as CardTimestampPropertyName,
+	[CREATED_FILTER_NAME]: 'created' as CardTimestampPropertyName,
 };
 
-const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeof UPDATED_FILTER_NAME | typeof LAST_TWEETED_FILTER_NAME, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
+const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const cardKey = dateConfigurableFilterMap[propName] || propName as CardTimestampPropertyName;
 
@@ -821,6 +823,7 @@ const BETWEEN_FILTER_NAME : DateRangeType = 'between';
 export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[UPDATED_FILTER_NAME]: 1,
 	[LAST_TWEETED_FILTER_NAME]: 1,
+	[CREATED_FILTER_NAME]: 1,
 	[BEFORE_FILTER_NAME]: 1,
 	[AFTER_FILTER_NAME]: 1,
 	//with between, the dates can go in either order
@@ -898,6 +901,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 	[LAST_TWEETED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that had a tweet within a given date range',
+		arguments: [{
+			type: 'date',
+			description: 'Date Range',
+			default: DEFAULT_DATE_FILTER,
+		}],
+	},
+	[CREATED_FILTER_NAME]: {
+		factory: makeDateConfigurableFilter,
+		description: 'Selects cards that were created within a given date range',
 		arguments: [{
 			type: 'date',
 			description: 'Date Range',
