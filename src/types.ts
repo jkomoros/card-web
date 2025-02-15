@@ -1388,7 +1388,6 @@ export type DataState = {
 	//Whether a card modification is pending
 	cardModificationPending: boolean,
 	cardModificationError: Error | null,
-	reorderPending: boolean,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.
 	pendingNewCardID: CardID,
@@ -1404,6 +1403,7 @@ export type DataState = {
 	//a map of cardID -> true for cards that we expect to be deleted imminently,
 	//since we just issued a deletion command to the datastore.
 	pendingDeletions: CardBooleanMap,
+	pendingReorder: boolean,
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
 	cardSimilarity: CardSimilarityMap

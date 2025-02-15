@@ -56,11 +56,11 @@ const INITIAL_STATE : DataState = {
 	alreadyCommittedModificationsWhenFullyLoaded: false,
 	cardModificationPending: false,
 	cardModificationError: null,
-	reorderPending: false,
 	pendingNewCardID: '',
 	pendingNewCardType: 'content',
 	pendingNewCardIDToNavigateTo: '',
 	pendingDeletions: {},
+	pendingReorder: false,
 	cardSimilarity: {}
 };
 
@@ -82,7 +82,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			//by default we assume we need a section to load, but if it's a card
 			//without a section, that won't happen.
 			sectionsLoaded: action.noSectionChange ? true : false,
-			reorderPending: true,
+			pendingReorder: true,
 			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
 			pendingNewCardType: action.cardType,
@@ -102,7 +102,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case NAVIGATED_TO_NEW_CARD:
 		return {
 			...state,
-			reorderPending: false,
+			pendingReorder: false,
 			pendingNewCardID: '',
 			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',
@@ -138,7 +138,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case EXPECTED_NEW_CARD_FAILED:
 		return {
 			...state,
-			reorderPending: false,
+			pendingReorder: false,
 			sectionsLoaded: true,
 			loadingCardFetchTypes: {},
 			pendingNewCardID: '',
@@ -198,7 +198,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case REORDER_STATUS:
 		return {
 			...state,
-			reorderPending: action.pending
+			pendingReorder: action.pending
 		};
 	case COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED:
 		return {

@@ -872,7 +872,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
-		this._drawerReorderPending = state.data.reorderPending;
+		this._drawerReorderPending = state.data.pendingReorder;
 		this._activeSectionId = selectActiveSectionId(state);
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 		this._sectionsAndTagsLoaded = selectSectionsAndTagsLoaded(state);
