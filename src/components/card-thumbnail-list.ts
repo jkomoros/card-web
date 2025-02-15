@@ -1,4 +1,3 @@
-
 import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -361,6 +360,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		return this.collection.finalSortedCards.slice(this.renderOffset, this.renderOffset + this.renderLimit);
 	}
 
+	get _labels() {
+		if (!this.collection) return null;
+		//TODO: if there is a missing label in the first position, scan forward from the beginning of the clipped index to find the last one.
+		return this.collection.finalLabels.slice(this.renderOffset, this.renderOffset + this.renderLimit);
+	}
+
 	get _cardsClipped() {
 		//Returns true if there are cards at the end that are clipped.
 		if (!this.collection) return false;
@@ -415,11 +420,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		let ele = section.querySelector('strong');
 		if (!ele) ele = section;
 		return ele.innerText.split('\n')[0];
-	}
-
-	get _labels() {
-		if (!this.collection) return null;
-		return this.collection.finalLabels;
 	}
 
 	_handleDragEnter(e : DragEvent) {
