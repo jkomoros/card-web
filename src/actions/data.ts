@@ -87,7 +87,8 @@ import {
 	getUserMayEditTag,
 	selectEditingCard,
 	selectEnqueuedCards,
-	selectPendingModificationCount
+	selectPendingModificationCount,
+	selectCompleteModeEnabled
 } from '../selectors.js';
 
 import {
@@ -219,6 +220,11 @@ const waitingForCardToExistStoreUpdated = () => {
 		if (unsubscribeFromStore) unsubscribeFromStore();
 		unsubscribeFromStore = null;
 	}
+};
+
+export const toggleCompleteMode = () : ThunkSomeAction => (dispatch, getState) => {
+	const completeMode = selectCompleteModeEnabled(getState());
+	dispatch(turnCompleteMode(!completeMode));
 };
 
 export const turnCompleteMode = (on : boolean) : SomeAction => {
