@@ -83,5 +83,6 @@ export const ButtonSharedStyles = css`
 		font-weight:normal;
 		margin:0;
 		margin-top:1em;
+		cursor: pointer;
 	}
 `;
