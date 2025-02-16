@@ -27,7 +27,7 @@ import {
 	cardsFilter,
 	cardTypeFilter,
 	SELECTED_FILTER_NAME,
-	UNPUBLISHED_FILTER_NAME
+	PUBLISHED_FILTER_NAME
 } from './filters.js';
 
 import {
@@ -1333,13 +1333,16 @@ export const selectActiveTagId = createSelector(
 
 export const selectCardLimitReached = createSelector(
 	selectUserMayViewUnpublished,
+	selectCards,
 	selectFilters,
 	selectCompleteModeEnabled,
-	(mayViewUnpublished, filters, completeMode) => {
+	(mayViewUnpublished, cards, filters, completeMode) => {
 		if (!mayViewUnpublished) return false;
 		if (completeMode) return false;
-		const unpublishedCardIDs = filters[UNPUBLISHED_FILTER_NAME] || {};
-		const countUnpublished = Object.keys(unpublishedCardIDs).length;
+		const cardCount = Object.keys(cards).length;
+		//We can't read out filters.unpublished because it doesn't exist, it's an inverse filter.
+		const countPublished = Object.keys(filters[PUBLISHED_FILTER_NAME] || {}).length;
+		const countUnpublished = cardCount - countPublished;
 		//if there are at least the deafult number of cards in the unpublished filter, then the limit is reached.
 		return countUnpublished >= DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
 	}
