@@ -132,7 +132,6 @@ import './word-cloud.js';
 import './comments-panel.js';
 import './card-info-panel.js';
 import './suggestions-viewer.js';
-import './limit-warning.js';
 
 import {
 	TODO_ALL_INFOS
@@ -591,7 +590,6 @@ class CardView extends connect(store)(PageViewElement) {
 						</button>
 						<label for='randomize'>Randomize</label>
 				` : ''}
-				<limit-warning></limit-warning>
 			</div>
 		</card-drawer>
         <div id='center'>
