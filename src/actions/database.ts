@@ -385,21 +385,22 @@ export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(state)) return;
 	if (!selectUserMayViewUnpublished(state)) return;
 	disconnectLiveUnpublishedCardsForUser();
-	const loading = selectLoadingCardFetchTypes(state);
-	if (loading['unpublished-all']) store.dispatch(stopExpectingFetchedCards('unpublished-all'));
+	store.dispatch(stopExpectingFetchedCards('unpublished-partial'));
+	store.dispatch(stopExpectingFetchedCards('unpublished-complete'));
 	if (liveUnpublishedCardsUnsubcribe) {
 		liveUnpublishedCardsUnsubcribe();
 		liveUnpublishedCardsUnsubcribe = null;
 	}
-	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-	store.dispatch(expectUnpublishedCards('unpublished-all'));
 	const completeModeEnabled = selectCompleteModeEnabled(state);
+	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
+	store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
+
 	if (completeModeEnabled) {
-		liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-all'));
+		liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
 		return;
 	}
 	//The default is to fetch onty the most recent unpublished cards up to the limit.
-	liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-all'));
+	liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-partial'));
 
 };
 
