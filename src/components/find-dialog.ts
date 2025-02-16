@@ -191,7 +191,10 @@ class FindDialog extends connect(store)(DialogElement) {
 				</div>
 				<div class='spacer'></div>
 				<div class='limit'>
-						<limit-warning></limit-warning>
+						<limit-warning
+							.tight=${true}
+						>
+						</limit-warning>
 				</div>
 			</div>
 			<div class='row'>
