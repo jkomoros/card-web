@@ -15,7 +15,6 @@ import {
 	WARNING_ICON
 } from './my-icons.js';
 
-import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
@@ -37,7 +36,6 @@ class LimitWarning extends connect(store)(LitElement) {
 		_completeMode: boolean;
 
 	static override styles = [
-		SharedStyles,
 		ButtonSharedStyles,
 		css`
 			:host {
