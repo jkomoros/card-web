@@ -32,7 +32,8 @@ import {
 	selectUserMayViewApp,
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
-	selectCompleteModeEnabled
+	selectCompleteModeEnabled,
+	selectUserMayViewUnpublished
 } from '../selectors.js';
 
 import {
@@ -367,12 +368,13 @@ const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch,
 	}
 };
 
+//This should be called any time that whether the user can see unpublished cards
+//changes, or if the completeMode toggle changes.
 export const connectLiveUnpublishedCards = () => {
-
-	//TODO: this actually isn't called when complete mode is toggled on.
 
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
+	if (!selectUserMayViewUnpublished(state)) return;
 	disconnectLiveUnpublishedCardsForUser();
 	const loading = selectLoadingCardFetchTypes(state);
 	if (loading['unpublished-all']) store.dispatch(stopExpectingFetchedCards('unpublished-all'));
