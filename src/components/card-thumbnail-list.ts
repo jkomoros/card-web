@@ -363,18 +363,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	get _labels() {
 		if (!this.collection) return null;
-		const result = this.collection.finalLabels.slice(this.renderOffset, this.renderOffset + this.renderLimit);
-		//finalLabels has duplicates removed, but it's possible the first one is empty since the offset could happen in the middle of a run.
-		//If that's the case, scan backward to find the last non-empty label and copy it in.
-		if (result.length > 0 && result[0] == '') {
-			for (let i = this.renderOffset - 1; i >= 0; i--) {
-				if (this.collection.finalLabels[i] != '') {
-					result[0] = this.collection.finalLabels[i];
-					break;
-				}
-			}
-		}
-		return result;
+		//Note: sometimes our first label will be empty (since it was a duplicate from one before it) but it's now the first one.
+		//We had code in here to scan back looking for labels to back-fill but we removed it because in the common case of no labels at all it led to a huge number of backwards scans that could significantly slow performance.
+		return this.collection.finalLabels.slice(this.renderOffset, this.renderOffset + this.renderLimit);
 	}
 
 	get _cardsClipped() {
