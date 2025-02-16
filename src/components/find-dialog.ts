@@ -78,6 +78,7 @@ import {
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './card-drawer.js';
+import './limit-warning.js';
 
 import { 
 	newID, 
@@ -168,6 +169,10 @@ class FindDialog extends connect(store)(DialogElement) {
 				bottom: 0.5em;
 				right: 0.5em;
 			}
+
+			.spacer {
+				flex-grow: 1;
+			}
 		`
 	];
 
@@ -177,11 +182,17 @@ class FindDialog extends connect(store)(DialogElement) {
 
 		return html`
 		<form @submit=${this._handleFormSubmitted}>
-			<div>
-				${this._legalCardTypeFilters.length > 1 ? html`<span>Card type:</span>
-					${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
-				` : ''}
-				<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
+			<div class='row'>
+				<div>
+					${this._legalCardTypeFilters.length > 1 ? html`<span>Card type:</span>
+						${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
+					` : ''}
+					<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
+				</div>
+				<div class='spacer'></div>
+				<div class='limit'>
+						<limit-warning></limit-warning>
+				</div>
 			</div>
 			<div class='row'>
 				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
