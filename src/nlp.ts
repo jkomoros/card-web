@@ -1491,7 +1491,8 @@ export class Fingerprint {
 		for (const ngram of this._items.keys()) {
 			//URLs are useful in fingerprints (if there's an overlap it's very
 			//signfiicant) but are very distracting in pretty items.
-			if (skipURLs && wordIsUrl(ngram)) continue;
+			const isURL = wordIsUrl(ngram);
+			if (skipURLs && isURL) continue;
 			const originalNgrams : {[ngram : string] : number} = {};
 			if (itemsNotFromCard[ngram]) {
 				if (skipItemsNotFromCard) continue;
@@ -1531,7 +1532,7 @@ export class Fingerprint {
 				}).join(' ');
 			}
 
-			result.push(titleCase(maxOriginalNgram));
+			result.push(isURL ? maxOriginalNgram : titleCase(maxOriginalNgram));
 		}
 		return result;
 	}
