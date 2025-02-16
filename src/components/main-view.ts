@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -38,7 +38,8 @@ import {
 	selectKeyboardNavigates,
 	selectUid,
 	selectBadgeMap,
-	selectExpandedPrimaryReferenceBlocksForPreviewCard
+	selectExpandedPrimaryReferenceBlocksForPreviewCard,
+	selectCompleteModeEnabled
 } from '../selectors.js';
 
 import {
@@ -114,6 +115,7 @@ import {
 import {
 	toggleCardSelected
 } from '../actions/collection.js';
+import { loadSavedCompleteModePreference } from '../actions/data.js';
 
 @customElement('main-view')
 class MainView extends connect(store)(PageViewElement) {
@@ -162,6 +164,9 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_mayViewApp: boolean;
+
+	@state()
+		_completeMode : boolean;
 
 	@state()
 		_userPermissionsFinal: boolean;
@@ -413,6 +418,7 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
+		store.dispatch(loadSavedCompleteModePreference());
 	}
 
 	_handleResize() {
@@ -521,15 +527,13 @@ class MainView extends connect(store)(PageViewElement) {
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 		this._uid = selectUid(state);
 		this._badgeMap = selectBadgeMap(state);
+		this._completeMode = selectCompleteModeEnabled(state);
 	}
 
-	override updated(changedProps : Map<string, MainView[keyof MainView]>) {
-		if (changedProps.has('_mayViewUnpublished')) {
-			if (this._mayViewUnpublished) {
-				connectLiveUnpublishedCards();
-			} else {
-				//TODO: disconnectLiveUnpublishedCards here.
-			}
+	override updated(changedProps : PropertyValues<this>) {
+		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode')) {
+			//connectLiveUnpublishedCards will handle connecting if it needs to or not.
+			connectLiveUnpublishedCards();
 		}
 		if (changedProps.has('_uid')) {
 			connectLiveUnpublishedCardsForUser(this._uid);

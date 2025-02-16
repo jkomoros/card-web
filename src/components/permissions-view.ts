@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -104,7 +104,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		this._permissionsLoaded = selectUserPermissionsLoaded(state);
 	}
 
-	override updated(changedProps : Map<string, PermissionsView[keyof PermissionsView]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_userMayEditPermissions')) {
 			if (this._userMayEditPermissions) {
 				connectLivePermissions();

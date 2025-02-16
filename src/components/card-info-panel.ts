@@ -61,6 +61,7 @@ import './card-link.js';
 import './tag-list.js';
 import './word-cloud.js';
 import './reference-block.js';
+import './limit-warning.js';
 
 import {
 	Author,
@@ -174,6 +175,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	override render() {
 		return html`
+			<limit-warning></limit-warning>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}

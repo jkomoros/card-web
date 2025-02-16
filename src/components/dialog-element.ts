@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import { SharedStyles } from './shared-styles.js';
@@ -167,7 +167,7 @@ export class DialogElement extends LitElement {
 		if (input instanceof HTMLElement) input.focus();
 	}
 
-	override updated(changedProps : Map<string, DialogElement[keyof DialogElement]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('open') && this.open) {
 			this._focusInputOnOpen();
 		}

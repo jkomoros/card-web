@@ -87,7 +87,8 @@ import {
 	getUserMayEditTag,
 	selectEditingCard,
 	selectEnqueuedCards,
-	selectPendingModificationCount
+	selectPendingModificationCount,
+	selectCompleteModeEnabled
 } from '../selectors.js';
 
 import {
@@ -197,8 +198,13 @@ import {
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS,
-	CLEAR_ENQUEUED_CARD_UPDATES
+	CLEAR_ENQUEUED_CARD_UPDATES,
+	TURN_COMPLETE_MODE
 } from '../actions.js';
+
+import {
+	LOCAL_STORAGE_COMPLETE_MODE_KEY
+} from '../constants.js';
 
 //map of cardID => promiseResolver that's waiting
 const waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
@@ -217,6 +223,38 @@ const waitingForCardToExistStoreUpdated = () => {
 	if (itemDeleted && Object.keys(waitingForCards).length == 0) {
 		if (unsubscribeFromStore) unsubscribeFromStore();
 		unsubscribeFromStore = null;
+	}
+};
+
+export const toggleCompleteMode = () : ThunkSomeAction => (dispatch, getState) => {
+	const completeMode = selectCompleteModeEnabled(getState());
+	dispatch(turnCompleteMode(!completeMode));
+};
+
+export const turnCompleteMode = (on : boolean) : ThunkSomeAction => (dispatch, getState) => {
+
+	const state = getState();
+	const alreadyActive = selectCompleteModeEnabled(state);
+	if (on == alreadyActive) return;
+
+	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
+
+	if (!on) {
+		if (confirm('The reduced set of cards will only take effect after you refresh the page. Do you want to refresh now?')) {
+			location.reload();
+		}
+	}
+
+	dispatch({
+		type: TURN_COMPLETE_MODE,
+		on
+	});
+};
+
+export const loadSavedCompleteModePreference = () : ThunkSomeAction => (dispatch) => {
+	const value = localStorage.getItem(LOCAL_STORAGE_COMPLETE_MODE_KEY);
+	if (value == '1') {
+		dispatch(turnCompleteMode(true));
 	}
 };
 

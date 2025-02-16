@@ -31,7 +31,9 @@ import {
 import {
 	selectUserMayViewApp,
 	selectSlugIndex,
-	selectLoadingCardFetchTypes
+	selectLoadingCardFetchTypes,
+	selectCompleteModeEnabled,
+	selectUserMayViewUnpublished
 } from '../selectors.js';
 
 import {
@@ -44,7 +46,8 @@ import {
 	where,
 	query,
 	orderBy,
-	QuerySnapshot
+	QuerySnapshot,
+	limit
 } from 'firebase/firestore';
 
 import {
@@ -88,13 +91,16 @@ import {
 } from '../type_constants.js';
 
 import {
-	STOP_EXPECTING_FETCHED_CARDS,
-	SomeAction
+	STOP_EXPECTING_FETCHED_CARDS
 } from '../actions.js';
 
 import {
 	fetchTypeIsUnpublished
 } from '../util.js';
+
+import {
+	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
+} from '../constants.js';
 
 //Replicated in `functions/src/types.ts`;
 type LegalRequestData = {
@@ -330,6 +336,7 @@ export const connectLivePublishedCards = () => {
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
+let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
 
 export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
@@ -342,11 +349,18 @@ export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
 };
 
-const stopExpectingFetchedCards = (fetchType : CardFetchType) : SomeAction => {
-	return {
+const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
+
+	const state = getState();
+	const loading = selectLoadingCardFetchTypes(state);
+
+	//Nothing to do.
+	if (!loading[fetchType]) return;
+
+	dispatch({
 		type: STOP_EXPECTING_FETCHED_CARDS,
 		fetchType
-	};
+	});
 };
 
 const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch, getState) => {
@@ -363,12 +377,31 @@ const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch,
 	}
 };
 
+//This should be called any time that whether the user can see unpublished cards
+//changes, or if the completeMode toggle changes.
 export const connectLiveUnpublishedCards = () => {
-	if (!selectUserMayViewApp(store.getState() as State)) return;
+
+	const state = store.getState() as State;
+	if (!selectUserMayViewApp(state)) return;
+	if (!selectUserMayViewUnpublished(state)) return;
 	disconnectLiveUnpublishedCardsForUser();
+	store.dispatch(stopExpectingFetchedCards('unpublished-partial'));
+	store.dispatch(stopExpectingFetchedCards('unpublished-complete'));
+	if (liveUnpublishedCardsUnsubcribe) {
+		liveUnpublishedCardsUnsubcribe();
+		liveUnpublishedCardsUnsubcribe = null;
+	}
+	const completeModeEnabled = selectCompleteModeEnabled(state);
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-	store.dispatch(expectUnpublishedCards('unpublished-all'));
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-all'));
+	store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
+
+	if (completeModeEnabled) {
+		liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
+		return;
+	}
+	//The default is to fetch onty the most recent unpublished cards up to the limit.
+	liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-partial'));
+
 };
 
 export const connectLiveSections = () => {

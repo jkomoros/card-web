@@ -1,4 +1,4 @@
-import { LitElement, css, html, unsafeCSS } from 'lit';
+import { LitElement, PropertyValues, css, html, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import {GestureEventListeners} from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
@@ -716,7 +716,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		return ele;
 	}
 
-	override updated(changedProps : Map<string, CardRenderer[keyof CardRenderer]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('editing') && this.editing) {
 			//If we just started editing, focus the content editable immediately
 			//(the title if there's no title)

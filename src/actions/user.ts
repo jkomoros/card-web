@@ -101,6 +101,10 @@ import {
 	UPDATE_USER_PERMISSIONS
 } from '../actions.js';
 
+import {
+	LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY
+} from '../constants.js';
+
 let prevAnonymousMergeUser : User | null = null;
 
 export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
@@ -219,19 +223,17 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	disconnectLiveReadingList();
 };
 
-const HAS_PREVIOUS_SIGN_IN_KEY = 'hasPreviousSignIn';
-
 const flagHasPreviousSignIn = () => {
 	//Safari in private mode will throw if you try to set
 	try {
-		localStorage.setItem(HAS_PREVIOUS_SIGN_IN_KEY, '1');
+		localStorage.setItem(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY, '1');
 	} catch(err) {
 		console.warn('Couldn\'t set has previous sign in: ' + err);
 	}
 };
 
 const hasPreviousSignIn = () => {
-	return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
+	return localStorage.getItem(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
 };
 
 const ensureRichestDataForUser = (firebaseUser : User) : ThunkSomeAction => async (dispatch) => {

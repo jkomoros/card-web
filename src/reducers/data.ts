@@ -21,6 +21,7 @@ import {
 	UPDATE_CARD_SIMILARITY,
 	STOP_EXPECTING_FETCHED_CARDS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
+	TURN_COMPLETE_MODE,
 } from '../actions.js';
 
 import {
@@ -56,6 +57,7 @@ const INITIAL_STATE : DataState = {
 	sectionsLoaded: false,
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
+	completeMode: false,
 	cardModificationError: null,
 	pendingModifications: false,
 	pendingModificationCount: 0,
@@ -110,6 +112,11 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			pendingNewCardID: '',
 			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',
+		};
+	case TURN_COMPLETE_MODE:
+		return {
+			...state,
+			completeMode: action.on
 		};
 	case ENQUEUE_CARD_UPDATES:
 		return {

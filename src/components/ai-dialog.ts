@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -213,7 +213,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		this.title = this._kindConfig.title;
 	}
 
-	override updated(changedProps : Map<string, AIDialog[keyof AIDialog]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_result') && this._result) {
 			//Select the text of the textarea for easy copying when it loads.
 			const shadowRoot = this.shadowRoot;
