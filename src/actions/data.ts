@@ -239,6 +239,12 @@ export const turnCompleteMode = (on : boolean) : ThunkSomeAction => (dispatch, g
 
 	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
 
+	if (!on) {
+		if (confirm('The reduced set of cards will only take effect after you refresh the page. Do you want to refresh now?')) {
+			location.reload();
+		}
+	}
+
 	dispatch({
 		type: TURN_COMPLETE_MODE,
 		on
