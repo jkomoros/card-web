@@ -1,6 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -32,6 +32,9 @@ import {
 class LimitWarning extends connect(store)(LitElement) {
 	
 
+	@property({ type : Boolean })
+		tight: boolean;
+
 	@state()
 		_cardLimitReached: boolean;
 
@@ -53,6 +56,10 @@ class LimitWarning extends connect(store)(LitElement) {
 
 			div.container {
 				padding: 0.5em 0.5em 0;
+			}
+
+			div.container.tight {
+				padding: 0;
 			}
 
 			div.loading {
@@ -81,7 +88,8 @@ class LimitWarning extends connect(store)(LitElement) {
 			const classes = {
 				container: true,
 				loading: loadingUnpublishedComplete,
-				bold: !this._completeMode
+				bold: !this._completeMode,
+				tight: this.tight
 			};
 
 			return html`
