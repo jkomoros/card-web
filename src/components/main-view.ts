@@ -115,6 +115,7 @@ import {
 import {
 	toggleCardSelected
 } from '../actions/collection.js';
+import { loadSavedCompleteModePreference } from '../actions/data.js';
 
 @customElement('main-view')
 class MainView extends connect(store)(PageViewElement) {
@@ -417,6 +418,7 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
+		store.dispatch(loadSavedCompleteModePreference());
 	}
 
 	_handleResize() {

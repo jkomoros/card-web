@@ -227,11 +227,27 @@ export const toggleCompleteMode = () : ThunkSomeAction => (dispatch, getState) =
 	dispatch(turnCompleteMode(!completeMode));
 };
 
-export const turnCompleteMode = (on : boolean) : SomeAction => {
-	return {
+const LOCAL_STORAGE_COMPLETE_MODE_KEY = 'completeModeEnabled';
+
+export const turnCompleteMode = (on : boolean) : ThunkSomeAction => (dispatch, getState) => {
+
+	const state = getState();
+	const alreadyActive = selectCompleteModeEnabled(state);
+	if (on == alreadyActive) return;
+
+	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
+
+	dispatch({
 		type: TURN_COMPLETE_MODE,
 		on
-	};
+	});
+};
+
+export const loadSavedCompleteModePreference = () : ThunkSomeAction => (dispatch) => {
+	const value = localStorage.getItem(LOCAL_STORAGE_COMPLETE_MODE_KEY);
+	if (value == '1') {
+		dispatch(turnCompleteMode(true));
+	}
 };
 
 let unsubscribeFromStore : (() => void) | null = null;
