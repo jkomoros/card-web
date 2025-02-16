@@ -1336,7 +1336,7 @@ export const selectCardLimitReached = createSelector(
 	selectFilters,
 	selectCompleteModeEnabled,
 	(mayViewUnpublished, filters, completeMode) => {
-		if (mayViewUnpublished) return false;
+		if (!mayViewUnpublished) return false;
 		if (completeMode) return false;
 		const unpublishedCardIDs = filters[UNPUBLISHED_FILTER_NAME] || {};
 		const countUnpublished = Object.keys(unpublishedCardIDs).length;
