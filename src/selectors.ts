@@ -1335,10 +1335,8 @@ export const selectCardLimitReached = createSelector(
 	selectUserMayViewUnpublished,
 	selectCards,
 	selectFilters,
-	selectCompleteModeEnabled,
-	(mayViewUnpublished, cards, filters, completeMode) => {
+	(mayViewUnpublished, cards, filters) => {
 		if (!mayViewUnpublished) return false;
-		if (completeMode) return false;
 		const cardCount = Object.keys(cards).length;
 		//We can't read out filters.unpublished because it doesn't exist, it's an inverse filter.
 		const countPublished = Object.keys(filters[PUBLISHED_FILTER_NAME] || {}).length;
