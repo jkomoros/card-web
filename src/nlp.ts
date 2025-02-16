@@ -414,6 +414,11 @@ const normalizedWords = (str : string, originalCase = false) : string => {
 	const result = [];
 	for (const word of splitWords) {
 		for (let subWord of splitSlashNonURLs(word)) {
+			//Leave URLS totally in place.
+			if (wordIsUrl(subWord)) {
+				result.push(subWord);
+				continue;
+			}
 			subWord = subWord.replace(/^\W*/, '');
 			subWord = subWord.replace(/\W*$/, '');
 			//Pretend like em-dashes are just spaces
