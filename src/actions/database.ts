@@ -91,8 +91,7 @@ import {
 } from '../type_constants.js';
 
 import {
-	STOP_EXPECTING_FETCHED_CARDS,
-	SomeAction
+	STOP_EXPECTING_FETCHED_CARDS
 } from '../actions.js';
 
 import {
@@ -350,11 +349,18 @@ export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
 };
 
-const stopExpectingFetchedCards = (fetchType : CardFetchType) : SomeAction => {
-	return {
+const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
+
+	const state = getState();
+	const loading = selectLoadingCardFetchTypes(state);
+
+	//Nothing to do.
+	if (!loading[fetchType]) return;
+
+	dispatch({
 		type: STOP_EXPECTING_FETCHED_CARDS,
 		fetchType
-	};
+	});
 };
 
 const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch, getState) => {
