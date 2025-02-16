@@ -31,7 +31,8 @@ import {
 import {
 	selectUserMayViewApp,
 	selectSlugIndex,
-	selectLoadingCardFetchTypes
+	selectLoadingCardFetchTypes,
+	selectCompleteModeEnabled
 } from '../selectors.js';
 
 import {
@@ -44,7 +45,8 @@ import {
 	where,
 	query,
 	orderBy,
-	QuerySnapshot
+	QuerySnapshot,
+	limit
 } from 'firebase/firestore';
 
 import {
@@ -330,6 +332,7 @@ export const connectLivePublishedCards = () => {
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
+let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
 
 export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
@@ -363,12 +366,31 @@ const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch,
 	}
 };
 
+const DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT = 5000;
+
 export const connectLiveUnpublishedCards = () => {
-	if (!selectUserMayViewApp(store.getState() as State)) return;
+
+	//TODO: this actually isn't called when complete mode is toggled on.
+
+	const state = store.getState() as State;
+	if (!selectUserMayViewApp(state)) return;
 	disconnectLiveUnpublishedCardsForUser();
+	const loading = selectLoadingCardFetchTypes(state);
+	if (loading['unpublished-all']) store.dispatch(stopExpectingFetchedCards('unpublished-all'));
+	if (liveUnpublishedCardsUnsubcribe) {
+		liveUnpublishedCardsUnsubcribe();
+		liveUnpublishedCardsUnsubcribe = null;
+	}
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
 	store.dispatch(expectUnpublishedCards('unpublished-all'));
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-all'));
+	const completeModeEnabled = selectCompleteModeEnabled(state);
+	if (completeModeEnabled) {
+		liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-all'));
+		return;
+	}
+	//The default is to fetch onty the most recent unpublished cards up to the limit.
+	liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-all'));
+
 };
 
 export const connectLiveSections = () => {
