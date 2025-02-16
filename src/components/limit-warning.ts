@@ -1,6 +1,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -8,7 +9,8 @@ import { store } from '../store.js';
 
 import { 
 	selectCardLimitReached,
-	selectCompleteModeEnabled
+	selectCompleteModeEnabled,
+	selectLoadingCardFetchTypes
 } from '../selectors.js';
 
 import {
@@ -18,6 +20,7 @@ import {
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
+	CardFetchTypeMap,
 	State
 } from '../types.js';
 
@@ -35,6 +38,9 @@ class LimitWarning extends connect(store)(LitElement) {
 	@state()
 		_completeMode: boolean;
 
+	@state()
+		_loadingFetchTypes: CardFetchTypeMap;
+
 	static override styles = [
 		ButtonSharedStyles,
 		css`
@@ -48,13 +54,29 @@ class LimitWarning extends connect(store)(LitElement) {
 			div.container {
 				padding: 0.5em 0.5em 0;
 			}
+
+			div.loading {
+				font-style: italic;
+			}
 		`
 	];
 	
 	override render() {
-		if (this._cardLimitReached) {
+
+		const loadingUnpublishedComplete = this._loadingFetchTypes?.['unpublished-complete'] || false;
+
+		if (this._cardLimitReached || loadingUnpublishedComplete) {
+
+			const classes = {
+				container: true,
+				loading: loadingUnpublishedComplete
+			};
+
 			return html`
-				<div class='container' title=${this._completeMode ? 'All cards are downloaded and visible, but it is a significant number. Performance may be affected. Click to enable performance mode' : 'You are seeing only partial unpublished cards to preserve performance. If you want to see all cards, click to turn on complete mode.'}>
+				<div
+					class=${classMap(classes)}
+					title=${this._completeMode ? 'All cards are downloaded and visible, but it is a significant number. Performance may be affected. Click to enable performance mode' : 'You are seeing only partial unpublished cards to preserve performance. If you want to see all cards, click to turn on complete mode.'}
+				>
 					<button
 						class='small'
 						id='warning'
@@ -63,7 +85,7 @@ class LimitWarning extends connect(store)(LitElement) {
 						${WARNING_ICON}
 					</button>
 					<label for='warning'>
-						${this._completeMode ? 'Showing all cards (slow)' : 'Showing only recent cards'}
+						${this._completeMode ? (loadingUnpublishedComplete ? 'Fetching all cards (slow)' : 'Showing all cards (slow)') : 'Showing only recent cards'}
 					</label>
 				</div>
 			`;
@@ -74,6 +96,7 @@ class LimitWarning extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._cardLimitReached = selectCardLimitReached(state);
 		this._completeMode = selectCompleteModeEnabled(state);
+		this._loadingFetchTypes = selectLoadingCardFetchTypes(state);
 	}
 
 	_handleToggleClicked() {
