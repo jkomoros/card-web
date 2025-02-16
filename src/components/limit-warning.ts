@@ -57,7 +57,13 @@ class LimitWarning extends connect(store)(LitElement) {
 		if (this._cardLimitReached) {
 			return html`
 				<div class='container' title=${this._completeMode ? 'All cards are downloaded and visible, but it is a significant number. Performance may be affected. Click to enable performance mode' : 'You are seeing only partial unpublished cards to preserve performance. If you want to see all cards, click to turn on complete mode.'}>
-					<button class='small' id='warning'>${WARNING_ICON}</button>
+					<button
+						class='small'
+						id='warning'
+						@click=${this._handleToggleClicked}
+					>
+						${WARNING_ICON}
+					</button>
 					<label for='warning'>
 						${this._completeMode ? 'Showing all cards (slow)' : 'Showing only recent cards'}
 					</label>
