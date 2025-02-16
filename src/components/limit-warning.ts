@@ -33,7 +33,14 @@ class LimitWarning extends connect(store)(LitElement) {
 		ButtonSharedStyles,
 		css`
 			:host {
-				display:inline;
+				display:flex;
+				width: 100%;
+				flex-direction: column;
+				align-items: center;
+			}
+
+			div.container {
+				padding: 0.5em 0.5em 0;
 			}
 		`
 	];
@@ -41,8 +48,10 @@ class LimitWarning extends connect(store)(LitElement) {
 	override render() {
 		if (this._cardLimitReached) {
 			return html`
-				<button class='small' id='warning'>${WARNING_ICON}</button>
-				<label for='warning'>Card limit reached</label>
+				<div class='container'>
+					<button class='small' id='warning'>${WARNING_ICON}</button>
+					<label for='warning'>Card limit reached</label>
+				</div>
 			`;
 		}
 		return html``;
