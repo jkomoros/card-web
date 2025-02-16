@@ -95,6 +95,7 @@ import {
 } from '../actions.js';
 
 import {
+	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
 	fetchTypeIsUnpublished
 } from '../util.js';
 
@@ -365,8 +366,6 @@ const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch,
 		liveUnpublishedCardsForUserEditorUnsubscribe = null;
 	}
 };
-
-const DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT = 5000;
 
 export const connectLiveUnpublishedCards = () => {
 
