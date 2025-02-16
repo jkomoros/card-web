@@ -1,20 +1,16 @@
 {
   "indexes": [
     {
-      "collectionGroup": "tweets",
+      "collectionGroup": "cards",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "archived",
+          "fieldPath": "published",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "fake",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "engagement_last_fetched",
-          "order": "ASCENDING"
+          "fieldPath": "created",
+          "order": "DESCENDING"
         }
       ]
     },
@@ -33,6 +29,24 @@
         {
           "fieldPath": "created",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tweets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fake",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "engagement_last_fetched",
+          "order": "ASCENDING"
         }
       ]
     }
