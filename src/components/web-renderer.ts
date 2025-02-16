@@ -1,4 +1,4 @@
-import { html, LitElement, svg, css } from 'lit';
+import { html, LitElement, svg, css, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import * as d3 from 'd3';
@@ -120,7 +120,7 @@ export class WebRenderer extends LitElement {
 		this._calculatedGraph = {nodes:[], edges:[]};
 	}
 
-	override updated(changedProps : Map<string, WebRenderer[keyof WebRenderer]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('webInfo')) {
 			this._calculatedGraph = this._recalcGraph();
 		}

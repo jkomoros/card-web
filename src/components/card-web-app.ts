@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { setPassiveTouchGestures } from '@polymer/polymer/lib/utils/settings.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -163,7 +163,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.addEventListener('blur', this._handleBlur.bind(this));
 	}
 
-	override updated(changedProps : Map<string, CardWebApp[keyof CardWebApp]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_card') && this._card) {
 			const pageTitle = (this._card.title ? this._card.title + ' - ' : '') + this.appTitle ;
 			updateMetadata({

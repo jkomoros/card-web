@@ -1,5 +1,5 @@
 
-import { LitElement, html, css, TemplateResult } from 'lit';
+import { LitElement, html, css, TemplateResult, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -590,7 +590,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._cardsSelected = selectCardsSelected(state);
 	}
 
-	override updated(changedProps : Map<string, CardThumbnailList[keyof CardThumbnailList]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if(changedProps.has('highlightedCardId') && this.highlightedCardId) {
 			this._scrollHighlightedThumbnailIntoView(true);
 		}

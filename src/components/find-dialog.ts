@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -334,7 +334,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		return 'Search';
 	}
 
-	override updated(changedProps : Map<string, FindDialog[keyof FindDialog]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('open') && this.open) {
 			//When first opened, select the text in query, so if the starter
 			//query is wrong as you long keep typing it will be no cost

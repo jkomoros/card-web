@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -952,14 +952,14 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 	}
 
-	_changedPropsAffectCanvasSize(changedProps : Map<string, unknown>) {
+	_changedPropsAffectCanvasSize(changedProps : PropertyValues<this>) {
 		const sizeProps = [
 			'_headerPanelOpen',
 			'_commentsAndInfoPanelOpen',
 			'_cardsDrawerPanelShowing',
 			'_editing',
 			'_editorMinimized'
-		];
+		] as const;
 		for (const item of sizeProps) {
 			if (changedProps.has(item)) return true;
 		}
@@ -976,7 +976,7 @@ class CardView extends connect(store)(PageViewElement) {
 		stage.resizeCard();
 	}
 
-	override updated(changedProps : Map<keyof CardView, CardView[keyof CardView]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));

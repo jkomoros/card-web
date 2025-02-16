@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -884,7 +884,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._fieldValidationErrors = selectFieldValidationErrorsForEditingCard(state);
 	}
 
-	override updated(changedProps : Map<keyof CardEditor, CardEditor[keyof CardEditor]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
