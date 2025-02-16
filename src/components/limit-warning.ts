@@ -58,6 +58,17 @@ class LimitWarning extends connect(store)(LitElement) {
 			div.loading {
 				font-style: italic;
 			}
+
+			.bold, div.bold label, div.bold button svg {
+				color: var(--app-primary-color);
+				fill: var(--app-primary-color);
+			}
+
+			.bold:hover, div.bold:hover label, div.bold:hover button svg {
+				color: var(--app-primary-color-light);
+				fill: var(--app-primary-color-light);
+			}
+
 		`
 	];
 	
@@ -69,7 +80,8 @@ class LimitWarning extends connect(store)(LitElement) {
 
 			const classes = {
 				container: true,
-				loading: loadingUnpublishedComplete
+				loading: loadingUnpublishedComplete,
+				bold: !this._completeMode
 			};
 
 			return html`
@@ -85,7 +97,7 @@ class LimitWarning extends connect(store)(LitElement) {
 						${WARNING_ICON}
 					</button>
 					<label for='warning'>
-						${this._completeMode ? (loadingUnpublishedComplete ? 'Fetching all cards (slow)' : 'Showing all cards (slow)') : 'Showing only recent cards'}
+						${this._completeMode ? (loadingUnpublishedComplete ? html`Fetching all cards <span class="bold">(slow)</span>` : html`Showing all cards <span class="bold">(slow)</span>`) : 'Showing only recent cards'}
 					</label>
 				</div>
 			`;
