@@ -38,7 +38,8 @@ import {
 	selectKeyboardNavigates,
 	selectUid,
 	selectBadgeMap,
-	selectExpandedPrimaryReferenceBlocksForPreviewCard
+	selectExpandedPrimaryReferenceBlocksForPreviewCard,
+	selectCompleteModeEnabled
 } from '../selectors.js';
 
 import {
@@ -162,6 +163,9 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_mayViewApp: boolean;
+
+	@state()
+		_completeMode : boolean;
 
 	@state()
 		_userPermissionsFinal: boolean;
@@ -521,15 +525,13 @@ class MainView extends connect(store)(PageViewElement) {
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 		this._uid = selectUid(state);
 		this._badgeMap = selectBadgeMap(state);
+		this._completeMode = selectCompleteModeEnabled(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('_mayViewUnpublished')) {
-			if (this._mayViewUnpublished) {
-				connectLiveUnpublishedCards();
-			} else {
-				//TODO: disconnectLiveUnpublishedCards here.
-			}
+		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode')) {
+			//connectLiveUnpublishedCards will handle connecting if it needs to or not.
+			connectLiveUnpublishedCards();
 		}
 		if (changedProps.has('_uid')) {
 			connectLiveUnpublishedCardsForUser(this._uid);
