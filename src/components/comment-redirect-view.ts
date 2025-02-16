@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -43,7 +43,7 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 		this._pageExtra = state.app.pageExtra;
 	}
 
-	override updated(changedProps : Map<string, CommentRedirectView[keyof CommentRedirectView]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(navigateToComment(this._pageExtra));

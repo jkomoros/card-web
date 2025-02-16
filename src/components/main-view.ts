@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -523,7 +523,7 @@ class MainView extends connect(store)(PageViewElement) {
 		this._badgeMap = selectBadgeMap(state);
 	}
 
-	override updated(changedProps : Map<string, MainView[keyof MainView]>) {
+	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_mayViewUnpublished')) {
 			if (this._mayViewUnpublished) {
 				connectLiveUnpublishedCards();
