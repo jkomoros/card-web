@@ -58,8 +58,6 @@ import {
 	TypedObject
 } from './typed_object.js';
 
-export const DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT = 5000;
-
 export const assertUnreachable = (x : never) : never => {
 	throw new Error('Exhaustiveness check failed: ' + String(x));
 };

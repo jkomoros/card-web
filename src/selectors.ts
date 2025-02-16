@@ -98,8 +98,11 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
-	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
 } from './util.js';
+
+import {
+	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
+} from './constants.js';
 
 import {
 	nextMaintenanceTaskName

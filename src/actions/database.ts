@@ -96,9 +96,12 @@ import {
 } from '../actions.js';
 
 import {
-	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
 	fetchTypeIsUnpublished
 } from '../util.js';
+
+import {
+	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
+} from '../constants.js';
 
 //Replicated in `functions/src/types.ts`;
 type LegalRequestData = {
