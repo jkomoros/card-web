@@ -202,6 +202,10 @@ import {
 	TURN_COMPLETE_MODE
 } from '../actions.js';
 
+import {
+	LOCAL_STORAGE_COMPLETE_MODE_KEY
+} from '../constants.js';
+
 //map of cardID => promiseResolver that's waiting
 const waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
 
@@ -226,8 +230,6 @@ export const toggleCompleteMode = () : ThunkSomeAction => (dispatch, getState) =
 	const completeMode = selectCompleteModeEnabled(getState());
 	dispatch(turnCompleteMode(!completeMode));
 };
-
-const LOCAL_STORAGE_COMPLETE_MODE_KEY = 'completeModeEnabled';
 
 export const turnCompleteMode = (on : boolean) : ThunkSomeAction => (dispatch, getState) => {
 

@@ -101,6 +101,10 @@ import {
 	UPDATE_USER_PERMISSIONS
 } from '../actions.js';
 
+import {
+	HAS_PREVIOUS_SIGN_IN_KEY
+} from '../constants.js';
+
 let prevAnonymousMergeUser : User | null = null;
 
 export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
@@ -218,8 +222,6 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	disconnectLiveReads();
 	disconnectLiveReadingList();
 };
-
-const HAS_PREVIOUS_SIGN_IN_KEY = 'hasPreviousSignIn';
 
 const flagHasPreviousSignIn = () => {
 	//Safari in private mode will throw if you try to set
