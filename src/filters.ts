@@ -129,6 +129,8 @@ export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_
 export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
 const AUTHOR_FILTER_NAME = 'author';
 const CARDS_FILTER_NAME = 'cards';
+export const UNPUBLISHED_FILTER_NAME = 'unpublished';
+export const PUBLISHED_FILTER_NAME = 'published';
 export const EXCLUDE_FILTER_NAME = 'exclude';
 export const COMBINE_FILTER_NAME = 'combine';
 const EXPAND_FILTER_NAME = 'expand';
@@ -1761,7 +1763,7 @@ const CARD_FILTER_AUTO_TODO_CONFIGS : CardFilterConfigMapAutoTODO = {
 		description: 'Whether the card has any tags'
 	},
 	'published': {
-		filterNames: ['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'],
+		filterNames: [PUBLISHED_FILTER_NAME, UNPUBLISHED_FILTER_NAME, 'does-not-need-to-be-published', 'needs-to-be-published'],
 		test: (card : Card) => card.published,
 		type: TODO_TYPE_AUTO_CONTENT,
 		weight: 0.5,

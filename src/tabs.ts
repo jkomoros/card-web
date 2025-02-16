@@ -30,7 +30,11 @@ import {
 	randomizeCollection,
 	RANDOM_CARD_COLLECTION
 } from './actions/collection.js';
-import { cardTypeFilter } from './filters.js';
+
+import {
+	cardTypeFilter,
+	UNPUBLISHED_FILTER_NAME
+} from './filters.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
@@ -188,7 +192,7 @@ const EXPANSION_ITEMS : {[name in Exclude<TabConfigName, 'sections' | 'hidden_se
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
-			collection: new CollectionDescription('everything', [cardTypeFilter('working-notes'), 'unpublished'], 'recent', false),
+			collection: new CollectionDescription('everything', [cardTypeFilter('working-notes'), UNPUBLISHED_FILTER_NAME], 'recent', false),
 			count:true,
 			hideIfEmpty: true,
 		}
