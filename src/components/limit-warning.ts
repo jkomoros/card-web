@@ -14,6 +14,9 @@ import {
 	WARNING_ICON
 } from './my-icons.js';
 
+import { SharedStyles } from './shared-styles.js';
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 import {
 	State
 } from '../types.js';
@@ -26,6 +29,8 @@ class LimitWarning extends connect(store)(LitElement) {
 		_cardLimitReached: boolean;
 
 	static override styles = [
+		SharedStyles,
+		ButtonSharedStyles,
 		css`
 			:host {
 				display:inline;
@@ -36,8 +41,8 @@ class LimitWarning extends connect(store)(LitElement) {
 	override render() {
 		if (this._cardLimitReached) {
 			return html`
-				${WARNING_ICON}
-				<span>Card limit reached</span>
+				<button class='small' id='warning'>${WARNING_ICON}</button>
+				<label for='warning'>Card limit reached</label>
 			`;
 		}
 		return html``;
