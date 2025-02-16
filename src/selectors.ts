@@ -26,7 +26,8 @@ import {
 	excludeFilter,
 	cardsFilter,
 	cardTypeFilter,
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	UNPUBLISHED_FILTER_NAME
 } from './filters.js';
 
 import {
@@ -97,6 +98,7 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
+	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
 } from './util.js';
 
 import {
@@ -1326,6 +1328,20 @@ export const selectActiveTagId = createSelector(
 		if( collectionDescription.set != 'main') return '';
 		if (collectionDescription.filters.length != 1) return '';
 		return tags[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
+	}
+);
+
+export const selectCardLimitReached = createSelector(
+	selectUserMayViewUnpublished,
+	selectFilters,
+	selectCompleteModeEnabled,
+	(mayViewUnpublished, filters, completeMode) => {
+		if (mayViewUnpublished) return false;
+		if (completeMode) return false;
+		const unpublishedCardIDs = filters[UNPUBLISHED_FILTER_NAME] || {};
+		const countUnpublished = Object.keys(unpublishedCardIDs).length;
+		//if there are at least the deafult number of cards in the unpublished filter, then the limit is reached.
+		return countUnpublished >= DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
 	}
 );
 
