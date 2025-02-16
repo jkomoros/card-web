@@ -1609,6 +1609,61 @@ type IDFMap = {
 	maxIDF: number
 };
 
+let memoizedSpellcheckMap: WordNumbers = {};
+let memoizedSpellcheckMapCardCount = 0;
+
+const spellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
+	if (!cards || Object.keys(cards).length == 0) return {};
+	const cardCount = Object.keys(cards).length;
+	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
+	const cardCountCloseEnough  = cardCount >= memoizedSpellcheckMapCardCount && cardCount <= memoizedSpellcheckMapCardCount * 1.1;
+	if (cardCountCloseEnough) return memoizedSpellcheckMap;
+	const result = calcSpellcheckMapForCards(cards);
+	memoizedSpellcheckMap = result;
+	memoizedSpellcheckMapCardCount = cardCount;
+	return result;
+};
+
+const skipWordForSpellchecking = (word : string) : boolean => {
+	if (wordIsUrl(word)) return true;
+	if (!isNaN(parseInt(word))) return true;
+	return false;
+};
+
+const wordCountsForSpellchecking = memoizeFirstArg((card : ProcessedCard) : WordNumbers => {
+	const result : WordNumbers = {};
+	for (const field of TypedObject.keys(card.nlp)) {
+		const config = TEXT_FIELD_CONFIGURATION[field];
+		if (config.skipIndexing) continue;
+		if (config.derivedForCardTypes && config.derivedForCardTypes[card.card_type]) continue;
+		for (const run of card.nlp[field]) {
+			for (const word of run.normalized.split(' ')) {
+				if (skipWordForSpellchecking(word)) continue;
+				result[word] = (result[word] || 0) + 1;
+			}
+		}
+	}
+	return result;
+});
+
+const calcSpellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
+
+	//only consider cards that have a body, even if we were provided a set that included others
+	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
+
+	const result : WordNumbers = {};
+
+	for (const cardObj of Object.values(cards)) {
+		const counts = wordCountsForSpellchecking(cardObj);
+		for (const [word, count] of Object.entries(counts)) {
+			result[word] = (result[word] || 0) + count;
+		}
+	}
+
+	return result;
+
+};
+
 let memoizedIDFMap: IDFMap = {idf: {}, maxIDF: 0};
 let memoizedIDMapCardCount = 0;
 let memoizedIDFMapNgramSize = 0;
@@ -1699,6 +1754,7 @@ export class FingerprintGenerator {
 
 	_cards : ProcessedCards;
 	_idfMap : IDFMap;
+	_spellcheckMap : WordNumbers;
 	_fingerprintSize : number;
 	_ngramSize : number;
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
@@ -1707,6 +1763,18 @@ export class FingerprintGenerator {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
 		this._idfMap = idfMapForCards(this._cards, this._ngramSize);
+		this._spellcheckMap = spellcheckMapForCards(this._cards);
+
+		/* Debug printing
+
+		//Sort keys in spellcheck map by how big the value for each word is
+		//const words = Object.keys(this._spellcheckMap).sort((a, b) => this._spellcheckMap[a] - this._spellcheckMap[b]);
+		const words = Object.fromEntries(Object.entries(this._spellcheckMap).filter(entry => entry[1] < 2));
+		const randomSubsetOfWords = Object.fromEntries(Object.entries(words).sort(() => Math.random() - 0.5).slice(0, 200));
+		console.log('random words', randomSubsetOfWords);
+
+		*/
+	
 		this._fingerprintSize = optFingerprintSize;
 	}
 
