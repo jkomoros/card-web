@@ -197,7 +197,8 @@ import {
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS,
-	CLEAR_ENQUEUED_CARD_UPDATES
+	CLEAR_ENQUEUED_CARD_UPDATES,
+	TURN_COMPLETE_MODE
 } from '../actions.js';
 
 //map of cardID => promiseResolver that's waiting
@@ -218,6 +219,13 @@ const waitingForCardToExistStoreUpdated = () => {
 		if (unsubscribeFromStore) unsubscribeFromStore();
 		unsubscribeFromStore = null;
 	}
+};
+
+export const turnCompleteMode = (on : boolean) : SomeAction => {
+	return {
+		type: TURN_COMPLETE_MODE,
+		on
+	};
 };
 
 let unsubscribeFromStore : (() => void) | null = null;

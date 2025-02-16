@@ -1381,6 +1381,9 @@ export type DataState = {
 	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.
 	sectionsLoaded: boolean,
 	tagsLoaded: boolean,
+	//If true, the user has expliclitly requested that all unpublished card data
+	//be loaded, even if it's very large.
+	completeMode: boolean,
 	//keeps track of whether we committed any pending collections on being fully
 	//loaded already. If so, then even if refreshCardSelector gets called again,
 	//we won't update the collection again.

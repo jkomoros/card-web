@@ -56,6 +56,7 @@ const INITIAL_STATE : DataState = {
 	sectionsLoaded: false,
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
+	completeMode: false,
 	cardModificationError: null,
 	pendingModifications: false,
 	pendingModificationCount: 0,
