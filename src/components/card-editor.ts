@@ -673,7 +673,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div class='row'>
 					<div>
-						<label>Possible Mispellings</label>
+						<label>Possible Mispellings ${help('These are words that are uncommon in the reset of the collection, so might turn out to be misspelled. If there is one that is correctly spelled, you can x it out to never show that as a possible misspelling again.')}</label>
 						<tag-list
 							.tags=${this._possibleMispellings}
 							.tapEvents=${true}
