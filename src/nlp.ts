@@ -1609,10 +1609,20 @@ type IDFMap = {
 	maxIDF: number
 };
 
+//If the word is in this many or fewer cards in the whole corpus it's considered
+//a possible misspelling.
+const SPELLCHECK_MISSPELLING_THRESHOLD = 2;
 
-export const misspellingsForCard = (_card : Card | null, _spellcheckMap : WordNumbers) : string[] => {
+export const misspellingsForCard = (card : ProcessedCard | null, spellcheckMap : WordNumbers) : string[] => {
 	const result : string[] = [];
-	//TODO: actually implement something.
+	if (!card) return result;
+	const words = wordCountsForSpellchecking(card);
+	for (const word of Object.keys(words)) {
+		const count = spellcheckMap[word] || 0;
+		if (count <= SPELLCHECK_MISSPELLING_THRESHOLD) {
+			result.push(word);
+		}
+	}
 	return result;
 };
 
