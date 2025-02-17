@@ -1216,7 +1216,7 @@ export const selectActiveSectionId = createSelector(
 		//is precisely one filter who is also a set.
 		if(collectionDescription.set != 'main') return '';
 		if (collectionDescription.filters.length != 1) return '';
-		return sections[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
+		return sections[collectionDescription.filters[0] || ''] ? (collectionDescription.filters[0] || '') : '';
 	}
 );
 
