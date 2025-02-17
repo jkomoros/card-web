@@ -676,6 +676,7 @@ class CardEditor extends connect(store)(LitElement) {
 						<label>Possible Mispellings</label>
 						<tag-list
 							.tags=${this._possibleMispellings}
+							.tapEvents=${true}
 							.editing=${false}>
 						</tag-list>
 					</div>
