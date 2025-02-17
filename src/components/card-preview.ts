@@ -23,7 +23,7 @@ import {
 class CardPreview extends LitElement {
 
 	@property({ type : Object })
-		card: Card | ProcessedCard;
+		card: Card | ProcessedCard | null;
 
 	@property({ type : Object })
 		badgeMap: BadgeMap;

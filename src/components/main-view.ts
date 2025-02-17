@@ -148,7 +148,7 @@ class MainView extends connect(store)(PageViewElement) {
 		_keyboardNavigates: boolean;
 
 	@state()
-		_activePreviewCard: Card;
+		_activePreviewCard: Card | null;
 
 	@state()
 		_previewCardX : number;

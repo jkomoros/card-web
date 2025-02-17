@@ -118,7 +118,7 @@ export const cardBadgesStyles = css`
 //need to embed cardBadgeStyles at least once If selectTarget is passed, then it
 //will render a checkbox that will have that method called with the ven ton
 //change. If not provided, it will not render a select checkbox.
-export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap, selectTarget? : (e : MouseEvent) => void) => {
+export const cardBadges = (light : boolean, card : OptionalFieldsCard | null, badgeMap : BadgeMap, selectTarget? : (e : MouseEvent) => void) => {
 	if (!badgeMap) badgeMap = {
 		stars: {},
 		reads: {},
@@ -126,6 +126,7 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 		readingList: {},
 		selected: {}
 	};
+	if (!card) return html``;
 	const starMap = badgeMap.stars || {};
 	const readMap = badgeMap.reads || {};
 	const todoMap = badgeMap.todos || {};
