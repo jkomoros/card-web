@@ -576,7 +576,7 @@ export const selectUserMayEdit = createSelector(
 );
 
 //if the user may edit ANY cards
-const selectUserMayEditCards = createSelector(
+export const selectUserMayEditCards = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
 	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD] || false

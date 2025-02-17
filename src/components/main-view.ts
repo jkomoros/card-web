@@ -39,7 +39,8 @@ import {
 	selectUid,
 	selectBadgeMap,
 	selectExpandedPrimaryReferenceBlocksForPreviewCard,
-	selectCompleteModeEnabled
+	selectCompleteModeEnabled,
+	selectUserMayEditCards
 } from '../selectors.js';
 
 import {
@@ -51,6 +52,7 @@ import {
 	connectLiveThreads,
 	connectLiveMessages,
 	connectLiveUnpublishedCardsForUser,
+	connectLiveDictionaryOverrides,
 } from '../actions/database.js';
 
 import {
@@ -164,6 +166,9 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_mayViewApp: boolean;
+
+	@state()
+		_mayEditCards: boolean;
 
 	@state()
 		_completeMode : boolean;
@@ -524,6 +529,7 @@ class MainView extends connect(store)(PageViewElement) {
 		this._previewCardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForPreviewCard(state);
 		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
 		this._mayViewApp = selectUserMayViewApp(state);
+		this._mayEditCards = selectUserMayEditCards(state);
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 		this._uid = selectUid(state);
 		this._badgeMap = selectBadgeMap(state);
@@ -537,6 +543,9 @@ class MainView extends connect(store)(PageViewElement) {
 		}
 		if (changedProps.has('_uid')) {
 			connectLiveUnpublishedCardsForUser(this._uid);
+		}
+		if (changedProps.has('_mayEditCards')) {
+			connectLiveDictionaryOverrides();
 		}
 		if (changedProps.has('_mayViewApp')) {
 			if (this._mayViewApp) {
