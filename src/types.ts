@@ -1019,6 +1019,20 @@ export type ProcessedDictionaryOverrides = {
 	incorrect?: ProcessedDictionaryOverridesMap
 };
 
+export type WordNumbers = {
+	[word : string] : number
+};
+
+export type IDFMap = {
+	idf: WordNumbers,
+	maxIDF: number
+};
+
+export type SpellingDictionary = {
+	words : WordNumbers,
+	overrides: ProcessedDictionaryOverrides
+};
+
 const commitActionType = z.enum([
 	'CONSOLE_LOG',
 	'EDIT_MESSAGE',

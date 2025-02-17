@@ -48,8 +48,12 @@ import {
 	FilterMap,
 	SortExtra,
 	cardFieldTypeSchema,
-	ProcessedDictionaryOverrides
+	ProcessedDictionaryOverrides,
+	WordNumbers,
+	IDFMap,
+	SpellingDictionary
 } from './types.js';
+
 import { innerTextForHTML } from './util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -1600,20 +1604,6 @@ export class Fingerprint {
 	}
 
 }
-
-type WordNumbers = {
-	[word : string] : number
-};
-
-type IDFMap = {
-	idf: WordNumbers,
-	maxIDF: number
-};
-
-type SpellingDictionary = {
-	words : WordNumbers,
-	overrides: ProcessedDictionaryOverrides
-};
 
 //If the word is in this many or fewer cards in the whole corpus it's considered
 //a possible misspelling.
