@@ -975,7 +975,7 @@ const selectProcessedDictionaryOverrides = createSelector(
 	selectDictionaryOverrides,
 	(overrides) => {
 		const result : ProcessedDictionaryOverrides = {};
-		for (const [cardID, override] of Object.entries(overrides)) {
+		for (const [overrideID, override] of Object.entries(overrides)) {
 			let typ : keyof ProcessedDictionaryOverrides = 'correct';
 			if (override.misspelled) {
 				typ = 'incorrect';
@@ -986,7 +986,7 @@ const selectProcessedDictionaryOverrides = createSelector(
 			const dict = result[typ];
 			//Convince typescript it's definitely not empty.
 			if (!dict) throw new Error('We just set dict but it wasnt set');
-			dict[cardID] = override.word;
+			dict[override.word] = overrideID;
 		}
 		return result;
 	}
