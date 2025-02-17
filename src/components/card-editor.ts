@@ -684,6 +684,7 @@ class CardEditor extends connect(store)(LitElement) {
 							.tapEvents=${true}
 							.disableAdd=${true}
 							.disableNew=${true}
+							.overrideTypeName=${'Mispelling'}
 							.editing=${this._userMayModifyDictionary}
 							@tag-removed=${this._handleMispellingRemoved}>
 						</tag-list>
