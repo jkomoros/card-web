@@ -1613,7 +1613,7 @@ type IDFMap = {
 //a possible misspelling.
 const SPELLCHECK_MISSPELLING_THRESHOLD = 2;
 
-export const misspellingsForCard = (card : ProcessedCard | null, spellcheckMap : WordNumbers) : string[] => {
+export const possibleMisspellingsForCard = (card : ProcessedCard | null, spellcheckMap : WordNumbers) : string[] => {
 	const result : string[] = [];
 	if (!card) return result;
 	const words = wordCountsForSpellchecking(card);

@@ -68,7 +68,7 @@ import {
 	possibleMissingConcepts,
 	synonymMap,
 	spellcheckMapForCards,
-	misspellingsForCard
+	possibleMisspellingsForCard
 } from './nlp.js';
 
 import {
@@ -967,10 +967,10 @@ const selectSpellcheckMap = createSelector(
 	(cards) => spellcheckMapForCards(cards)
 );
 
-export const selectEditingCardMisspellings = createSelector(
+export const selectEditingCardPossibleMisspellings = createSelector(
 	selectEditingCardwithDelayedNormalizedProperties,
 	selectSpellcheckMap,
-	(card, spellcheckMap) => misspellingsForCard(card, spellcheckMap)
+	(card, spellcheckMap) => possibleMisspellingsForCard(card, spellcheckMap)
 );
 
 //Selects the set of all cards the current user can see (which even includes
