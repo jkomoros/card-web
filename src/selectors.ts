@@ -67,7 +67,7 @@ import {
 	conceptCardsFromCards,
 	possibleMissingConcepts,
 	synonymMap,
-	spellcheckMapForCards,
+	spellingDictionaryForCards,
 	possibleMisspellingsForCard
 } from './nlp.js';
 
@@ -962,15 +962,15 @@ export const selectWordCloudForActiveCard = createSelector(
 	}
 );
 
-const selectSpellcheckMap = createSelector(
+const selectSpellingDictionary = createSelector(
 	selectCards,
-	(cards) => spellcheckMapForCards(cards)
+	(cards) => spellingDictionaryForCards(cards)
 );
 
 export const selectEditingCardPossibleMisspellings = createSelector(
 	selectEditingCardwithDelayedNormalizedProperties,
-	selectSpellcheckMap,
-	(card, spellcheckMap) => possibleMisspellingsForCard(card, spellcheckMap)
+	selectSpellingDictionary,
+	(card, dictionary) => possibleMisspellingsForCard(card, dictionary)
 );
 
 //Selects the set of all cards the current user can see (which even includes
