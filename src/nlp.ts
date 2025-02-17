@@ -1624,9 +1624,15 @@ export const possibleMisspellingsForCard = (card : ProcessedCard | null, diction
 	if (!card) return result;
 	const words = wordCountsForSpellchecking(card);
 	for (const word of Object.keys(words)) {
+		if (dictionary.overrides.correct && dictionary.overrides.correct[word]) continue;
+		if (dictionary.overrides.incorrect && dictionary.overrides.incorrect[word]) {
+			result.push(word);
+			continue;
+		}
 		const count = dictionary.words[word] || 0;
 		if (count <= SPELLCHECK_MISSPELLING_THRESHOLD) {
 			result.push(word);
+			continue;
 		}
 	}
 	return result;
