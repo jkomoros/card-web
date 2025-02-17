@@ -167,7 +167,8 @@ import {
 	CardDiff,
 	Filters,
 	CollectionConfiguration,
-	ProcessedDictionaryOverrides
+	ProcessedDictionaryOverrides,
+	SpellingDictionary
 } from './types.js';
 
 import {
@@ -990,7 +991,12 @@ const selectProcessedDictionaryOverrides = createSelector(
 const selectSpellingDictionary = createSelector(
 	selectCards,
 	selectProcessedDictionaryOverrides,
-	(cards, overrides) => spellingDictionaryForCards(cards, overrides)
+	(cards, overrides) : SpellingDictionary => {
+		return {
+			words: spellingDictionaryForCards(cards),
+			overrides
+		};	
+	}
 );
 
 export const selectEditingCardPossibleMisspellings = createSelector(
