@@ -161,9 +161,35 @@ export const legalUid = (uid : Uid) => {
 	return true;
 };
 
-export const normalizeFirestoreID = (input : string) : string => {
-	//Removes any characters that are not legal in Firestore IDs
-	return input.replace(/[^a-zA-Z0-9-_]/g, '');
+export const normalizeFirestoreID = (input: string): string => {
+	//Takes an input and ensures it is a valid firestore document ID.
+
+
+	//Documentation: https://firebase.google.com/docs/firestore/quotas#collections_documents_and_fields
+
+	// Check if input is empty
+	if (!input) return input;
+    
+	// Remove forward slashes
+	let result = input.replace(/\//g, '-');
+    
+	// Handle special cases
+	if (result === '.' || result === '..') {
+		return '_' + result;
+	}
+    
+	// Handle double underscore pattern
+	if (result.match(/^__.*__$/)) {
+		return 'u' + result;
+	}
+    
+	// Ensure the string is not too long (1500 bytes)
+	const encoder = new TextEncoder();
+	while (encoder.encode(result).length > 1500) {
+		result = result.slice(0, -1);
+	}
+    
+	return result;
 };
 
 //normalizes a mostly-OK slug, returning '' if it wasn't legal. If you want to
