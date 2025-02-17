@@ -976,12 +976,7 @@ const selectProcessedDictionaryOverrides = createSelector(
 	(overrides) => {
 		const result : ProcessedDictionaryOverrides = {};
 		for (const [overrideID, override] of Object.entries(overrides)) {
-			let typ : keyof ProcessedDictionaryOverrides = 'correct';
-			if (override.misspelled) {
-				typ = 'incorrect';
-			} else {
-				typ = 'correct';
-			}
+			const typ : keyof ProcessedDictionaryOverrides = override.misspelled ? 'incorrect' : 'correct';
 			if (!result[typ]) result[typ] = {};
 			const dict = result[typ];
 			//Convince typescript it's definitely not empty.
