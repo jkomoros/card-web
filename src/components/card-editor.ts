@@ -9,6 +9,7 @@ import { store } from '../store.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
+	addDictionaryOverride,
 	addSlug,
 	createTag,
 	deleteCard,
@@ -38,7 +39,8 @@ import {
 	selectUserMayUseAI,
 	selectIsEditing,
 	selectFieldValidationErrorsForEditingCard,
-	selectEditingCardPossibleMisspellings
+	selectEditingCardPossibleMisspellings,
+	selectUserMayModifyDictionary
 } from '../selectors.js';
 
 import {
@@ -194,6 +196,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_userMayChangeEditingCardSection: boolean;
+
+	@state()
+		_userMayModifyDictionary: boolean;
 
 	@state()
 		_userMayUseAI: boolean;
@@ -677,7 +682,10 @@ class CardEditor extends connect(store)(LitElement) {
 						<tag-list
 							.tags=${this._possibleMispellings}
 							.tapEvents=${true}
-							.editing=${false}>
+							.disableAdd=${true}
+							.disableNew=${true}
+							.editing=${this._userMayModifyDictionary}
+							@tag-removed=${this._handleMispellingRemoved}>
 						</tag-list>
 					</div>
 				</div>
@@ -875,6 +883,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._active = selectIsEditing(state);
 		this._minimized = selectEditorMinimized(state);
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
+		this._userMayModifyDictionary = selectUserMayModifyDictionary(state);
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
@@ -1016,6 +1025,12 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleDeleteClicked() {
 		if (!this._card) throw new Error('No card');
 		store.dispatch(deleteCard(this._card));
+	}
+
+	_handleMispellingRemoved(e : TagEvent) {
+		const normalizedWord = e.detail.tag;
+		if (!confirm(`Are you sure want to permanently add ${normalizedWord} to the dictionary as a correctly spelled word, for all cards?`)) return;
+		addDictionaryOverride(normalizedWord, false);
 	}
 
 	_handleAddReference(e : Event) {

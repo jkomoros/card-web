@@ -279,7 +279,7 @@ export const waitForCardToExist = (cardID : CardID) => {
 	return promise;
 };
 
-export const addDictionaryOverride = (normalizedWord : string, misspelled: true) => {
+export const addDictionaryOverride = (normalizedWord : string, misspelled: boolean) => {
 	//TODO: verify word is normalized (unless caseSensitive is true)
 
 	//TODO: verify we don't already have a word that matches.
