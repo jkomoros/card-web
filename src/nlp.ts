@@ -1609,10 +1609,17 @@ type IDFMap = {
 	maxIDF: number
 };
 
+
+export const misspellingsForCard = (_card : Card | null, _spellcheckMap : WordNumbers) : string[] => {
+	const result : string[] = [];
+	//TODO: actually implement something.
+	return result;
+};
+
 let memoizedSpellcheckMap: WordNumbers = {};
 let memoizedSpellcheckMapCardCount = 0;
 
-const spellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
+export const spellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
 	if (!cards || Object.keys(cards).length == 0) return {};
 	const cardCount = Object.keys(cards).length;
 	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
@@ -1754,7 +1761,6 @@ export class FingerprintGenerator {
 
 	_cards : ProcessedCards;
 	_idfMap : IDFMap;
-	_spellcheckMap : WordNumbers;
 	_fingerprintSize : number;
 	_ngramSize : number;
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
@@ -1763,18 +1769,6 @@ export class FingerprintGenerator {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
 		this._idfMap = idfMapForCards(this._cards, this._ngramSize);
-		this._spellcheckMap = spellcheckMapForCards(this._cards);
-
-		/* Debug printing
-
-		//Sort keys in spellcheck map by how big the value for each word is
-		//const words = Object.keys(this._spellcheckMap).sort((a, b) => this._spellcheckMap[a] - this._spellcheckMap[b]);
-		const words = Object.fromEntries(Object.entries(this._spellcheckMap).filter(entry => entry[1] < 2));
-		const randomSubsetOfWords = Object.fromEntries(Object.entries(words).sort(() => Math.random() - 0.5).slice(0, 200));
-		console.log('random words', randomSubsetOfWords);
-
-		*/
-	
 		this._fingerprintSize = optFingerprintSize;
 	}
 
