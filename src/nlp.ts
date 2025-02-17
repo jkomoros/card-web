@@ -1606,7 +1606,7 @@ export class Fingerprint {
 
 //If the word is in this many or fewer cards in the whole corpus it's considered
 //a possible misspelling.
-const SPELLCHECK_MISSPELLING_THRESHOLD = 2;
+const SPELLCHECK_MISSPELLING_THRESHOLD = 1;
 
 export const possibleMisspellingsForCard = (card : ProcessedCard | null, dictionary : SpellingDictionary) : string[] => {
 	const result : string[] = [];
