@@ -311,7 +311,7 @@ const loadPage = (pathname : string, query : string) : ThunkSomeAction => (dispa
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
 	const pieces = pathname.split('/');
 
-	let page = pieces[0];
+	let page = pieces[0] || '';
 	let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join('/');
 
 	if (query) pageExtra += query;
@@ -358,7 +358,7 @@ const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) : Promise<Document
 	//Cards are more likely to be fetched via slug, so try that first
 	const cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
 	if (cards && !cards.empty) {
-		return cards.docs[0];
+		return cards.docs[0] || null;
 	}
 	const card = await getDoc(doc(db, CARDS_COLLECTION, cardIDOrSlug));
 	if (card && card.exists()) {

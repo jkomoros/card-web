@@ -97,13 +97,13 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 	let forceUpdateCollection = false;
 
 	if (queryParts.length > 1) {
-		const queryParams = queryParts[1].split('&');
+		const queryParams = (queryParts[1] || '').split('&');
 		for (const param of queryParams) {
 			if (param == FORCE_COLLECTION_URL_PARAM) forceUpdateCollection = true;
 		}
 	}
 
-	const path = queryParts[0].toLowerCase();
+	const path = (queryParts[0] || '').toLowerCase();
 	let [description, cardIdOrSlug] = CollectionDescription.deserializeWithExtra(path);
 
 	//If the requestedCard is actually "" we'll pretend throughout the pipeline
@@ -357,7 +357,9 @@ const cardIdForPlaceholder = (requestedCard : CardID, collection : Card[]) : Car
 	if (!cardIdIsPlaceholder(requestedCard)) return '';
 	if (!collection || !collection.length) return '';
 	//TODO: support random, _popular, _recent, etc.
-	return collection[0].id;
+	const item = collection[0];
+	if (!item) return '';
+	return item.id;
 };
 
 export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispatch, getState) => {
