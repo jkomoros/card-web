@@ -67,7 +67,7 @@ import {
 	conceptCardsFromCards,
 	possibleMissingConcepts,
 	synonymMap,
-	spellingDictionaryForCards,
+	spellingMapForCards,
 	possibleMisspellingsForCard
 } from './nlp.js';
 
@@ -993,7 +993,7 @@ const selectSpellingDictionary = createSelector(
 	selectProcessedDictionaryOverrides,
 	(cards, overrides) : SpellingDictionary => {
 		return {
-			words: spellingDictionaryForCards(cards),
+			words: spellingMapForCards(cards),
 			overrides
 		};	
 	}

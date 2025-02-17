@@ -1627,18 +1627,18 @@ export const possibleMisspellingsForCard = (card : ProcessedCard | null, diction
 	return result;
 };
 
-let memoizedSpellcheckDictionary: WordNumbers = {};
-let memoizedSpellcheckDictionaryCardCount = 0;
+let memoizedSpellcheckMap: WordNumbers = {};
+let memoizedSpellcheckMapCardCount = 0;
 
-export const spellingDictionaryForCards = (cards : ProcessedCards) : WordNumbers => {
+export const spellingMapForCards = (cards : ProcessedCards) : WordNumbers => {
 	if (!cards || Object.keys(cards).length == 0) return {};
 	const cardCount = Object.keys(cards).length;
 	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
-	const cardCountCloseEnough  = cardCount >= memoizedSpellcheckDictionaryCardCount && cardCount <= memoizedSpellcheckDictionaryCardCount * 1.1;
-	if (cardCountCloseEnough) return memoizedSpellcheckDictionary;
-	const result = calcSpellingDictionaryForCards(cards);
-	memoizedSpellcheckDictionary = result;
-	memoizedSpellcheckDictionaryCardCount = cardCount;
+	const cardCountCloseEnough  = cardCount >= memoizedSpellcheckMapCardCount && cardCount <= memoizedSpellcheckMapCardCount * 1.1;
+	if (cardCountCloseEnough) return memoizedSpellcheckMap;
+	const result = calcSpellingMapForCards(cards);
+	memoizedSpellcheckMap = result;
+	memoizedSpellcheckMapCardCount = cardCount;
 	return result;
 };
 
@@ -1664,7 +1664,7 @@ const wordCountsForSpellchecking = memoizeFirstArg((card : ProcessedCard) : Word
 	return result;
 });
 
-const calcSpellingDictionaryForCards = (cards : ProcessedCards) : WordNumbers => {
+const calcSpellingMapForCards = (cards : ProcessedCards) : WordNumbers => {
 
 	//only consider cards that have a body, even if we were provided a set that included others
 	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
