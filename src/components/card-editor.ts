@@ -1030,7 +1030,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleMispellingRemoved(e : TagEvent) {
 		const normalizedWord = e.detail.tag;
-		if (!confirm(`Are you sure want to permanently add ${normalizedWord} to the dictionary as a correctly spelled word, for all cards?`)) return;
+		if (!confirm(`Are you sure want to permanently add '${normalizedWord}' to the dictionary as a correctly spelled word, for all cards?`)) return;
 		addDictionaryOverride(normalizedWord, false);
 	}
 
