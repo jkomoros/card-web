@@ -996,12 +996,10 @@ export type UserPermissionsMap = {
 };
 
 export const dictionaryOverride = z.object({
-	//The normalized word (capitalization is allowed if caseSensitive is true)
+	//The normalized word
 	word: z.string(),
 	//Whether this entry communicates that the word is affirmatively spelled correctly or affirmatively spelled incorrectly.
 	misspelled: z.boolean(),
-	//Whether the word should be considered spelled correctly or misspelled if it doesn't PRECISELY match the capitalization.
-	case_sensitive: z.boolean()
 });
 
 export type DictionaryOverride = z.infer<typeof dictionaryOverride>;
@@ -1019,8 +1017,6 @@ type ProcessedDictionaryOverridesMap = {
 export type ProcessedDictionaryOverrides = {
 	correct?: ProcessedDictionaryOverridesMap,
 	incorrect?: ProcessedDictionaryOverridesMap
-	correctCaseSensitive?: ProcessedDictionaryOverridesMap,
-	incorrectCaseSensitive?: ProcessedDictionaryOverridesMap	
 };
 
 const commitActionType = z.enum([

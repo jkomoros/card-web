@@ -978,9 +978,9 @@ const selectProcessedDictionaryOverrides = createSelector(
 		for (const [cardID, override] of Object.entries(overrides)) {
 			let typ : keyof ProcessedDictionaryOverrides = 'correct';
 			if (override.misspelled) {
-				typ = override.case_sensitive ? 'incorrect' : 'incorrectCaseSensitive';
+				typ = 'incorrect';
 			} else {
-				typ = override.case_sensitive ? 'correct' : 'correctCaseSensitive';
+				typ = 'correct';
 			}
 			if (!result[typ]) result[typ] = {};
 			const dict = result[typ];

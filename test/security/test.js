@@ -173,8 +173,7 @@ async function setupDatabase() {
 	});
 	await db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId).set({
 		word: 'foo',
-		misspelled: true,
-		case_sensitive: false
+		misspelled: true
 	});
 	await db.collection(READING_LISTS_COLLECTION).doc(anonUid).set({
 		owner: anonUid,
