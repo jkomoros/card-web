@@ -144,7 +144,8 @@ export const toTitleCase = (str : string) => {
 	//Based on https://gomakethings.com/converting-a-string-to-title-case-with-vanilla-javascript/
 	const parts = str.toLowerCase().split(' ');
 	for (let i = 0; i < parts.length; i++) {
-		parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].slice(1);
+		const thePart = parts[i] || '';
+		parts[i] = thePart.charAt(0).toUpperCase() + thePart.slice(1);
 	}
 	return parts.join(' ');
 };
@@ -251,7 +252,7 @@ const cardPlainContentImpl = (card : Card) : string => {
 	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body', 'commentary'];
 	for (const field of fieldsInOrder) {
 		//Skip derived fields
-		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
+		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType]?.[field]) continue;
 		const rawContent = card[field] || '';
 		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
 		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
@@ -327,7 +328,7 @@ export const htmlIsEquivalent = (a : string, b: string) : boolean => {
 export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : CardType) => {
 	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
 	if (!legalInboundReferenceTypes) return '' + proposedCardType + ' is not a legal card type';
-	const legalOutboundRefrenceTypes = LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
+	const legalOutboundRefrenceTypes = LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType] || {};
 
 	//Because this is INBOUND references, the changes we might be making to
 	//the card won't have touched it.
@@ -690,6 +691,7 @@ testTriStateMapDiff();
 
 //items is an array
 export function setRemove(obj : {[name : string] : true}, items : string[]) : {[name : string] : true} {
+	if (!obj) return {};
 	const result : {[name : string] : true } = {...obj};
 	for (const item of items) {
 		delete result[item];
@@ -874,8 +876,10 @@ export const pageRank = (cards : Cards) => {
 	//inboundLinks is now set, so we can set the inDegree.
 	for (const id of Object.keys(nodes)) {
 		const inboundLinks = inboundLinksMap[id] || [];
-		nodes[id].inDegree = inboundLinks.length;
-		nodes[id].inboundLinks = inboundLinks;
+		const node = nodes[id];
+		if (!node) continue;
+		node.inDegree = inboundLinks.length;
+		node.inboundLinks = inboundLinks;
 	}
 
 	//how much the overall graph changed from last time
@@ -893,7 +897,9 @@ export const pageRank = (cards : Cards) => {
 				for (const linkID of node.inboundLinks) {
 					const otherNode = nodes[linkID];
 					if (!otherNode) continue;
-					currentRank += nodes[linkID].previousRank / nodes[linkID].outDegree;
+					const linkNode = nodes[linkID];
+					if (!linkNode) continue;
+					currentRank += linkNode.previousRank / linkNode.outDegree;
 				}
 				node.rank = currentRank * jumpProbability;
 				totalDistributedRank += node.rank;
@@ -967,7 +973,7 @@ export const deepEqual = (a : unknown, b : unknown, objectChecker : ((object: un
 //Similar to card_diff.ts:estFirebaseValueOnObj but with different semantics.
 export const setValueOnObj = (obj : {[field : string]: unknown}, fieldParts : string[], value : unknown) : void => {
 	//Obj is an object it's OK to modify
-	const firstFieldPart = fieldParts[0];
+	const firstFieldPart = fieldParts[0] || '';
 	//Modifies obj in place.
 	if (fieldParts.length == 1) {
 		//Base case, operate in place.x
