@@ -26,6 +26,7 @@ const READS_COLLECTION = 'reads';
 const TWEETS_COLLECTION = 'tweets';
 const READING_LISTS_COLLECTION = 'reading_lists';
 const UPDATES_COLLECTION = 'updates';
+const DICTIONARY_OVERRIDES_COLLECTION = 'dictionary_overrides';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -169,6 +170,11 @@ async function setupDatabase() {
 	await db.collection(READS_COLLECTION).doc(starId).set({
 		owner: anonUid,
 		card: cardId,
+	});
+	await db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId).set({
+		word: 'foo',
+		misspelled: true,
+		caseSensitive: false
 	});
 	await db.collection(READING_LISTS_COLLECTION).doc(anonUid).set({
 		owner: anonUid,
@@ -947,6 +953,57 @@ describe('Compendium Rules', () => {
 		const db = authedApp(bobAuth);
 		const tweet = db.collection(TWEETS_COLLECTION).doc(messageId);
 		await firebase.assertFails(tweet.update({card: cardId + 'new'}));
+	});
+
+	it('disallows people without edit access to read dictionary overrides', async() => {
+		const db = authedApp(sallyAuth);
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId);
+		await firebase.assertFails(override.get());
+	});
+
+	it('allows people with edit access to read dictionary overrides', async() => {
+		const db = authedApp(jerryAuth);
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(override.get());
+	});
+
+	it('disallows people without modifyDictionary permission to create dictionary overrides', async() => {
+		const db = authedApp(jerryAuth);
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc('foo');
+		await firebase.assertFails(override.set({foo:4}));
+	});
+
+	it('allows people with modifyDictionary permission to create dictionary overrides', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'modifyDictionary');
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc('foo');
+		await firebase.assertSucceeds(override.set({foo:4}));
+	});
+
+	it('disallow people without modifyDictionary permission to update dictionary overrides', async() => {
+		const db = authedApp(jerryAuth);
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId);
+		await firebase.assertFails(override.update({foo:4}));
+	});
+
+	it('allows people with modifyDictionary permission to update dictionary overrides', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'modifyDictionary');
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(override.update({foo:4}));
+	});
+
+	it('disallow people without modifyDictionary permission to delete dictionary overrides', async() => {
+		const db = authedApp(jerryAuth);
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId);
+		await firebase.assertFails(override.delete());
+	});
+
+	it('disallow people without modifyDictionary permission to delete dictionary overrides', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'modifyDictionary');
+		const override = db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(override.delete());
 	});
 
 	it('allows any user to create a reading-list they own', async() => {

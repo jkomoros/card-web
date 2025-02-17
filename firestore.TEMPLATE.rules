@@ -109,6 +109,10 @@ service cloud.firestore {
       return userIsAdmin() || getPermission('modifyReadingList');
     }
 
+    function userMayModifyDictionary() {
+      return userIsAdmin() || getPermission('modifyDictionary');
+    }
+
     function editDoesNotAffectAdminKey() {
       return !request.resource.data.diff(resource == null || resource.data == null ? {} : resource.data).affectedKeys().hasAny(['admin']);
     }
@@ -293,6 +297,14 @@ service cloud.firestore {
       allow update: if userMayMarkRead() && updateIsOwner();
       allow delete: if userMayMarkRead() && updateIsOwner();
       allow read: if updateIsOwner();
+    }
+
+    match /dictionary_overrides/{override} {
+      allow create: if userMayModifyDictionary();
+      allow update: if userMayModifyDictionary();
+      allow delete: if userMayModifyDictionary();
+      //A bogus cardID will basically return if the user can edit any cards.
+      allow read: if userMayEditCard('');
     }
 
     match /tweets/{tweet} {
