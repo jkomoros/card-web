@@ -102,5 +102,6 @@ export type UserPermissionsCore = {
 	star? : boolean,
 	markRead? : boolean,
 	modifyReadingList? : boolean,
+	modifyDictionary?: boolean,
 	remoteAI?: boolean
 }

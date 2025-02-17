@@ -95,7 +95,8 @@ import {
 	PERMISSION_MARK_READ,
 	PERMISSION_MODIFY_READING_LIST,
 	PERMISSION_EDIT_CARD,
-	PERMISSION_REMOTE_AI
+	PERMISSION_REMOTE_AI,
+	PERMISSION_MODIFY_DICTIONARY
 } from './permissions.js';
 
 import {
@@ -579,6 +580,12 @@ const selectUserMayEditCards = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
 	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD] || false
+);
+
+export const selectUserMayModifyDictionary = createSelector(
+	selectUserIsAdmin,
+	selectComposedPermissions,
+	(admin, permissions) => admin || permissions[PERMISSION_MODIFY_DICTIONARY] || false
 );
 
 export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = createObjectSelector(

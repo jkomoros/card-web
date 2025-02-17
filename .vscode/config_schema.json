@@ -62,9 +62,12 @@
                 "EDIT_ICON",
                 "FAVORITE_ICON",
                 "FILE_COPY_ICON",
+                "FILTER_ALT_ICON",
+                "FORMAT_QUOTE_ICON",
                 "FORUM_ICON",
                 "FULL_SCREEN_ICON",
                 "HELP_ICON",
+                "HIGHLIGHT_ICON",
                 "HIGHLIGHT_OFF_ICON",
                 "INFO_ICON",
                 "INSERT_DRIVE_FILE_ICON",
@@ -79,6 +82,7 @@
                 "PLAYLIST_ADD_ICON",
                 "PLAYLIST_PLAY_ICON",
                 "PLUS_ICON",
+                "PSYCHOLOGY_ICON",
                 "RECEIPT_ICON",
                 "REPEAT_ICON",
                 "REPLY_ICON",
@@ -357,6 +361,9 @@
                                 "markRead": {
                                     "type": "boolean"
                                 },
+                                "modifyDictionary": {
+                                    "type": "boolean"
+                                },
                                 "modifyReadingList": {
                                     "type": "boolean"
                                 },
@@ -400,6 +407,9 @@
                                     "type": "boolean"
                                 },
                                 "markRead": {
+                                    "type": "boolean"
+                                },
+                                "modifyDictionary": {
                                     "type": "boolean"
                                 },
                                 "modifyReadingList": {
@@ -447,6 +457,9 @@
                                 "markRead": {
                                     "type": "boolean"
                                 },
+                                "modifyDictionary": {
+                                    "type": "boolean"
+                                },
                                 "modifyReadingList": {
                                     "type": "boolean"
                                 },
@@ -490,6 +503,9 @@
                                     "type": "boolean"
                                 },
                                 "markRead": {
+                                    "type": "boolean"
+                                },
+                                "modifyDictionary": {
                                     "type": "boolean"
                                 },
                                 "modifyReadingList": {
@@ -690,6 +706,9 @@
                                 "markRead": {
                                     "type": "boolean"
                                 },
+                                "modifyDictionary": {
+                                    "type": "boolean"
+                                },
                                 "modifyReadingList": {
                                     "type": "boolean"
                                 },
@@ -733,6 +752,9 @@
                                     "type": "boolean"
                                 },
                                 "markRead": {
+                                    "type": "boolean"
+                                },
+                                "modifyDictionary": {
                                     "type": "boolean"
                                 },
                                 "modifyReadingList": {
@@ -780,6 +802,9 @@
                                 "markRead": {
                                     "type": "boolean"
                                 },
+                                "modifyDictionary": {
+                                    "type": "boolean"
+                                },
                                 "modifyReadingList": {
                                     "type": "boolean"
                                 },
@@ -823,6 +848,9 @@
                                     "type": "boolean"
                                 },
                                 "markRead": {
+                                    "type": "boolean"
+                                },
+                                "modifyDictionary": {
                                     "type": "boolean"
                                 },
                                 "modifyReadingList": {
@@ -1023,6 +1051,9 @@
                                 "markRead": {
                                     "type": "boolean"
                                 },
+                                "modifyDictionary": {
+                                    "type": "boolean"
+                                },
                                 "modifyReadingList": {
                                     "type": "boolean"
                                 },
@@ -1066,6 +1097,9 @@
                                     "type": "boolean"
                                 },
                                 "markRead": {
+                                    "type": "boolean"
+                                },
+                                "modifyDictionary": {
                                     "type": "boolean"
                                 },
                                 "modifyReadingList": {
@@ -1113,6 +1147,9 @@
                                 "markRead": {
                                     "type": "boolean"
                                 },
+                                "modifyDictionary": {
+                                    "type": "boolean"
+                                },
                                 "modifyReadingList": {
                                     "type": "boolean"
                                 },
@@ -1156,6 +1193,9 @@
                                     "type": "boolean"
                                 },
                                 "markRead": {
+                                    "type": "boolean"
+                                },
+                                "modifyDictionary": {
                                     "type": "boolean"
                                 },
                                 "modifyReadingList": {

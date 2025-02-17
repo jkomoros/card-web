@@ -15,6 +15,7 @@ export const PERMISSION_COMMENT = 'comment';
 export const PERMISSION_STAR = 'star';
 export const PERMISSION_MARK_READ = 'markRead';
 export const PERMISSION_MODIFY_READING_LIST = 'modifyReadingList';
+export const PERMISSION_MODIFY_DICTIONARY = 'modifyDictionary';
 export const PERMISSION_REMOTE_AI = 'remoteAI';
 
 import {
@@ -81,6 +82,10 @@ export const PERMISSIONS_INFO : PermissionInfoCollection = {
 	[PERMISSION_MODIFY_READING_LIST]: {
 		displayName: 'Modify Reading List',
 		description: 'whether the user may add to or remove from their reading list',
+	},
+	[PERMISSION_MODIFY_DICTIONARY]: {
+		displayName: 'Modify Dictionary',
+		description: 'whether the user may modify the spelling dictionary',
 	},
 	[PERMISSION_REMOTE_AI]: {
 		displayName: 'Use Remote AI Calls',
