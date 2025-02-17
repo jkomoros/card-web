@@ -15,6 +15,7 @@ import {
 	updateTags,
 	removeCards,
 	expectUnpublishedCards,
+	updateDictionaryOverrides,
 } from './data.js';
 
 import {
@@ -76,6 +77,8 @@ import {
 	Tags,
 	Section,
 	CardFetchType,
+	DictionaryOverrides,
+	dictionaryOverride,
 } from '../types.js';
 
 import {
@@ -87,7 +90,8 @@ import {
 	AUTHORS_COLLECTION,
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
-	TAGS_COLLECTION
+	TAGS_COLLECTION,
+	DICTIONARY_OVERRIDES_COLLECTION
 } from '../type_constants.js';
 
 import {
@@ -438,6 +442,26 @@ export const connectLiveTags = () => {
 		});
 
 		store.dispatch(updateTags(tags));
+
+	});
+};
+
+export const connectLiveDictionaryOverrides = () => {
+	if (!selectUserMayViewApp(store.getState() as State)) return;
+	onSnapshot(collection(db, DICTIONARY_OVERRIDES_COLLECTION), snapshot => {
+
+		const overrides : DictionaryOverrides = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			const doc = change.doc;
+			const id = doc.id;
+			const data = {...doc.data(), id};
+			const override = dictionaryOverride.parse(data);
+			overrides[id] = override;
+		});
+
+		store.dispatch(updateDictionaryOverrides(overrides));
 
 	});
 };

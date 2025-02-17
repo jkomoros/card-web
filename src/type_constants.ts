@@ -15,6 +15,7 @@ export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
 export const SECTIONS_COLLECTION = 'sections';
 export const TAGS_COLLECTION = 'tags';
+export const DICTIONARY_OVERRIDES_COLLECTION = 'dictionary_overrides';
 export const TAG_UPDATES_COLLECTION = 'updates';
 export const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 export const AUTHORS_COLLECTION = 'authors';
