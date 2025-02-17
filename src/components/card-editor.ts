@@ -713,7 +713,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div>
 						<select @change=${this._handleAddReference}>
 							<option value=''><em>Add a reference to a card type...</option>
-							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[card.card_type][entry[0]]}>${entry[1].name}</option>`)}
+							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[card.card_type]?.[entry[0]]}>${entry[1].name}</option>`)}
 						</select>
 					</div>
 				</div>
@@ -821,7 +821,7 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='tags'>
 				<select @change=${this._handleAddReference} style='max-width:10em'>
 					<option value=''><em>Add reference...</em></option>
-					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[card.card_type][entry[0]]}>${entry[1].name}</option>`)}
+					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[card.card_type]?.[entry[0]]}>${entry[1].name}</option>`)}
 				</select>
 			</div>
 		` :
@@ -921,7 +921,7 @@ class CardEditor extends connect(store)(LitElement) {
 					let overlayChanged = false;
 					const overlay = Object.fromEntries(TypedObject.entries(refs).map(entry => {
 						const [cardID, value] = entry;
-						let info = baseInfos[cardID] || {};
+						let info = baseInfos[cardID] || {title: '', id: ''};
 						if (value) {
 							//This is the meat of overriding the tagInfo based on references.
 							info = {

@@ -509,7 +509,7 @@ export const REFERENCE_TYPES_EQUIVALENCE_CLASSES = TEMP_REFERENCE_TYPES_EQUIVALE
 //you can check if there are any inbound references to the card that should not
 //be allowed.
 export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
-export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
+export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = TypedObject.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
 const TITLE_ALTERNATE_DELIMITER = ',';
 const TITLE_ALTERNATE_NEGATION = '-';

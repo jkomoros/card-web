@@ -752,7 +752,7 @@ export const selectAuthorsForTagList = createSelector(
 export const selectCollaboratorInfosForActiveCard = createSelector(
 	selectActiveCard,
 	selectAuthors,
-	(card, authors) => card ? card.collaborators.map((uid : Uid) => (authors || {})[uid]) : []
+	(card, authors) => card ? card.collaborators.map((uid : Uid) => (authors || {})[uid]).filter(author => author) : []
 );
 
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
