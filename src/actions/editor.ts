@@ -713,7 +713,10 @@ export const addImageWithURL = (src : string, uploadPath = '', index = 0) : Thun
 	images = getImagesFromCard(selectEditingCard(getState()));
 	let actualIndex = -1;
 	for (let i = 0; i < images.length; i++) {
-		if (images[i].src == src) {
+		const img = images[i];
+		//Make typescript happy that there is an object
+		if (!img) continue;
+		if (img.src == src) {
 			actualIndex = i;
 			break;
 		}

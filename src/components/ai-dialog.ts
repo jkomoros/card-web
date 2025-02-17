@@ -138,7 +138,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		if (!result || result.length == 0) result = [''];
 		switch(this._kindConfig.resultType) {
 		case 'text-block':
-			return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
+			return html`<textarea readonly id='result' .value=${result[0] || ''}></textarea>`;
 		case 'multi-line':
 			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${String(index)} id=${'result-' + index} .checked=${this._selectedIndex == index} @change=${this._selectedIndexChanged}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
 		case 'tag-list':

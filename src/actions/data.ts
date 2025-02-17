@@ -214,7 +214,9 @@ const waitingForCardToExistStoreUpdated = () => {
 	for (const cardID of Object.keys(waitingForCards)) {
 		const card = getCardById(store.getState() as State, cardID);
 		if (!card) continue;
-		for (const promiseResolver of waitingForCards[cardID]) {
+		const resolvers = waitingForCards[cardID];
+		if (!resolvers) continue;
+		for (const promiseResolver of resolvers) {
 			promiseResolver(card);
 		}
 		delete waitingForCards[cardID];
@@ -267,7 +269,9 @@ export const waitForCardToExist = (cardID : CardID) => {
 	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
 	if (!unsubscribeFromStore) unsubscribeFromStore = store.subscribe(waitingForCardToExistStoreUpdated);
 	const promise = new Promise<Card>((resolve) => {
-		waitingForCards[cardID].push(resolve);
+		const arr = waitingForCards[cardID];
+		if (!arr) throw new Error('No array');
+		arr.push(resolve);
 	});
 	return promise;
 };
@@ -515,6 +519,8 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 
 	const cards = selectCards(state);
 	const card = cards[cardID];
+
+	if (!card) throw new Error('No card');
 
 	modifyCardWithBatch(state, card, update, false, batch);
 
@@ -797,7 +803,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	}
 
-	const firstID = ids[0];
+	const firstID = ids[0] || '';
 
 	//Tell card-view to expect a new card to be loaded, so the machinery to wait
 	//for the new cards works.
@@ -1335,7 +1341,7 @@ export const updateSections = (sections : Sections) : ThunkSomeAction => (dispat
 	//If the update is a single section updating and it's the one currently
 	//visible then we should update collections. This could happen for example
 	//if a new card is added, or if cards are reordered.
-	const currentSectionId = selectActiveSectionId(getState());
+	const currentSectionId = selectActiveSectionId(getState()) || '';
 	const force = Object.keys(sections).length == 1 && sections[currentSectionId] !== undefined;
 
 	dispatch(refreshCardSelector(force));
