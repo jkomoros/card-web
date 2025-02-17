@@ -23,7 +23,9 @@ import {
 	arrayUnion,
 	arrayRemove,
 	serverTimestamp,
-	Timestamp
+	Timestamp,
+	setDoc,
+	deleteDoc
 } from 'firebase/firestore';
 
 import {
@@ -47,6 +49,7 @@ import {
 	idWasVended,
 	normalizeSlug,
 	createSlugFromArbitraryString,
+	randomString,
 } from '../util.js';
 
 import {
@@ -124,7 +127,8 @@ import {
 	TAGS_COLLECTION,
 	TAG_UPDATES_COLLECTION,
 	TWEETS_COLLECTION,
-	COLORS
+	COLORS,
+	DICTIONARY_OVERRIDES_COLLECTION
 } from '../type_constants.js';
 
 import {
@@ -174,6 +178,7 @@ import {
 	CardFetchType,
 	CardFlags,
 	DictionaryOverrides,
+	DictionaryOverride,
 } from '../types.js';
 
 import {
@@ -272,6 +277,29 @@ export const waitForCardToExist = (cardID : CardID) => {
 		waitingForCards[cardID].push(resolve);
 	});
 	return promise;
+};
+
+export const addDictionaryOverride = (normalizedWord : string, misspelled: true) => {
+	//TODO: verify word is normalized (unless caseSensitive is true)
+
+	//TODO: verify we don't already have a word that matches.
+
+	//The id space can be pretty small because we won't have a ton of these.
+	const id = randomString(8);
+
+	const ref = doc(db, DICTIONARY_OVERRIDES_COLLECTION, id);
+
+	const obj : DictionaryOverride = {
+		word: normalizedWord,
+		misspelled
+	};
+
+	return setDoc(ref, obj);
+};
+
+export const deleteDictionaryOverride = (id : string) => {
+	const ref = doc(db, DICTIONARY_OVERRIDES_COLLECTION, id);
+	return deleteDoc(ref);
 };
 
 //When a new tag is created, it is randomly assigned one of these values.
