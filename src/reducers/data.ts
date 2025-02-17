@@ -22,6 +22,7 @@ import {
 	STOP_EXPECTING_FETCHED_CARDS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	TURN_COMPLETE_MODE,
+	UPDATE_DICTIONARY_OVERRIDES,
 } from '../actions.js';
 
 import {
@@ -67,7 +68,8 @@ const INITIAL_STATE : DataState = {
 	pendingDeletions: {},
 	pendingReorder: false,
 	enqueuedCards: {},
-	cardSimilarity: {}
+	cardSimilarity: {},
+	dictionaryOverrides: {}
 };
 
 const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState => {
@@ -189,6 +191,11 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			tags: {...state.tags, ...action.tags},
 			tagsLoaded: true,
+		};
+	case UPDATE_DICTIONARY_OVERRIDES:
+		return {
+			...state,
+			dictionaryOverrides: {...state.dictionaryOverrides, ...action.overrides},
 		};
 	case UPDATE_AUTHORS:
 		return {

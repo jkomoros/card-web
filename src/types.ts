@@ -1435,7 +1435,8 @@ export type DataState = {
 	}
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
-	cardSimilarity: CardSimilarityMap
+	cardSimilarity: CardSimilarityMap,
+	dictionaryOverrides: DictionaryOverrides,
 }
 
 export type EditorState = {

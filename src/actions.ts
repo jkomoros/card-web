@@ -26,6 +26,7 @@ import {
 	CommentThreadID,
 	CommentThreads,
 	CommitActionType,
+	DictionaryOverrides,
 	EditorContentTab,
 	EditorTab,
 	ImageInfoProperty,
@@ -110,6 +111,7 @@ export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
 export const CLEAR_ENQUEUED_CARD_UPDATES = 'CLEAR_ENQUEUED_CARD_UPDATES';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const UPDATE_TAGS = 'UPDATE_TAGS';
+export const UPDATE_DICTIONARY_OVERRIDES = 'UPDATE_DICTIONARY_OVERRIDES';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
 export const UPDATE_TWEETS = 'UPDATE_TWEETS';
 export const REMOVE_CARDS = 'REMOVE_CARDS';
@@ -479,6 +481,11 @@ type ActionUpdateTags = {
 	type: typeof UPDATE_TAGS,
 	tags: Tags
 };
+
+type ActionUpdateDictionaryOverrides = {
+	type: typeof UPDATE_DICTIONARY_OVERRIDES,
+	overrides: DictionaryOverrides
+}
 
 type ActionUpdateAuthors = {
 	type: typeof UPDATE_AUTHORS,
@@ -1079,6 +1086,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionClearEnqueuedCardUpdates
 	| ActionUpdateSections
 	| ActionUpdateTags
+	| ActionUpdateDictionaryOverrides
 	| ActionUpdateAuthors
 	| ActionUpdateTweets
 	| ActionRemoveCards

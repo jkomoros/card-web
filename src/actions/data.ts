@@ -173,6 +173,7 @@ import {
 	TweetMap,
 	CardFetchType,
 	CardFlags,
+	DictionaryOverrides,
 } from '../types.js';
 
 import {
@@ -199,7 +200,8 @@ import {
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
-	TURN_COMPLETE_MODE
+	TURN_COMPLETE_MODE,
+	UPDATE_DICTIONARY_OVERRIDES
 } from '../actions.js';
 
 import {
@@ -1377,6 +1379,13 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 		tags,
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+export const updateDictionaryOverrides = (overrides : DictionaryOverrides) : SomeAction => {
+	return {
+		type: UPDATE_DICTIONARY_OVERRIDES,
+		overrides
+	};
 };
 
 export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
