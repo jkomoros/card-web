@@ -995,6 +995,22 @@ export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
 };
 
+export const dictionaryOverride = z.object({
+	//The normalized word (capitalization is allowed if caseSensitive is true)
+	word: z.string(),
+	//Whether this entry communicates that the word is affirmatively spelled correctly or affirmatively spelled incorrectly.
+	misspelled: z.boolean(),
+	//Whether the word should be considered spelled correctly or misspelled if it doesn't PRECISELY match the capitalization.
+	caseSensitive: z.boolean()
+});
+
+export type DictionaryOverride = z.infer<typeof dictionaryOverride>;
+
+export type DictionaryOverrides = {
+	//id is a distinctive short random string.
+	[id : string]: DictionaryOverride
+}
+
 const commitActionType = z.enum([
 	'CONSOLE_LOG',
 	'EDIT_MESSAGE',
