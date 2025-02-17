@@ -12,7 +12,8 @@ import {
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
 	selectOvershadowedUnderlyingCardChangesDiff,
-	selectOvershadowedUnderlyingCardChangesDiffDescription
+	selectOvershadowedUnderlyingCardChangesDiffDescription,
+	selectEditingCardPossibleMisspellings
 } from '../selectors.js';
 
 import {
@@ -287,6 +288,12 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 
 	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
+	}
+
+	const possibleMisspellings = selectEditingCardPossibleMisspellings(state);
+
+	if (possibleMisspellings.length > 0) {
+		if (!confirm('The card has possible misspellings:\n' + possibleMisspellings.join(', ') + '\nDo you want to proceed?')) return;
 	}
 
 	const underlyingDiffDescription = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
