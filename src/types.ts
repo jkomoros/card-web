@@ -1001,7 +1001,7 @@ export const dictionaryOverride = z.object({
 	//Whether this entry communicates that the word is affirmatively spelled correctly or affirmatively spelled incorrectly.
 	misspelled: z.boolean(),
 	//Whether the word should be considered spelled correctly or misspelled if it doesn't PRECISELY match the capitalization.
-	caseSensitive: z.boolean()
+	case_sensitive: z.boolean()
 });
 
 export type DictionaryOverride = z.infer<typeof dictionaryOverride>;

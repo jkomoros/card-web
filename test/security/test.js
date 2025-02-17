@@ -174,7 +174,7 @@ async function setupDatabase() {
 	await db.collection(DICTIONARY_OVERRIDES_COLLECTION).doc(starId).set({
 		word: 'foo',
 		misspelled: true,
-		caseSensitive: false
+		case_sensitive: false
 	});
 	await db.collection(READING_LISTS_COLLECTION).doc(anonUid).set({
 		owner: anonUid,
