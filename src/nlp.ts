@@ -1609,16 +1609,20 @@ type IDFMap = {
 	maxIDF: number
 };
 
+type SpellingDictionary = {
+	words : WordNumbers
+};
+
 //If the word is in this many or fewer cards in the whole corpus it's considered
 //a possible misspelling.
 const SPELLCHECK_MISSPELLING_THRESHOLD = 2;
 
-export const possibleMisspellingsForCard = (card : ProcessedCard | null, spellcheckMap : WordNumbers) : string[] => {
+export const possibleMisspellingsForCard = (card : ProcessedCard | null, dictionary : SpellingDictionary) : string[] => {
 	const result : string[] = [];
 	if (!card) return result;
 	const words = wordCountsForSpellchecking(card);
 	for (const word of Object.keys(words)) {
-		const count = spellcheckMap[word] || 0;
+		const count = dictionary.words[word] || 0;
 		if (count <= SPELLCHECK_MISSPELLING_THRESHOLD) {
 			result.push(word);
 		}
@@ -1626,11 +1630,11 @@ export const possibleMisspellingsForCard = (card : ProcessedCard | null, spellch
 	return result;
 };
 
-let memoizedSpellcheckMap: WordNumbers = {};
+let memoizedSpellcheckMap: SpellingDictionary = {words: {}};
 let memoizedSpellcheckMapCardCount = 0;
 
-export const spellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
-	if (!cards || Object.keys(cards).length == 0) return {};
+export const spellcheckMapForCards = (cards : ProcessedCards) : SpellingDictionary => {
+	if (!cards || Object.keys(cards).length == 0) return {words: {}};
 	const cardCount = Object.keys(cards).length;
 	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
 	const cardCountCloseEnough  = cardCount >= memoizedSpellcheckMapCardCount && cardCount <= memoizedSpellcheckMapCardCount * 1.1;
@@ -1663,7 +1667,7 @@ const wordCountsForSpellchecking = memoizeFirstArg((card : ProcessedCard) : Word
 	return result;
 });
 
-const calcSpellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
+const calcSpellcheckMapForCards = (cards : ProcessedCards) : SpellingDictionary => {
 
 	//only consider cards that have a body, even if we were provided a set that included others
 	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
@@ -1677,7 +1681,9 @@ const calcSpellcheckMapForCards = (cards : ProcessedCards) : WordNumbers => {
 		}
 	}
 
-	return result;
+	return {
+		words: result
+	};
 
 };
 
