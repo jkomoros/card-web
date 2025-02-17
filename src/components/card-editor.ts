@@ -37,7 +37,8 @@ import {
 	selectEditorMinimized,
 	selectUserMayUseAI,
 	selectIsEditing,
-	selectFieldValidationErrorsForEditingCard
+	selectFieldValidationErrorsForEditingCard,
+	selectEditingCardPossibleMisspellings
 } from '../selectors.js';
 
 import {
@@ -247,6 +248,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_suggestedConcepts: CardID[];
+
+	@state()
+		_possibleMispellings : string[];
 
 	@state()
 		_underlyingCardDifferences: string;
@@ -669,6 +673,15 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div class='row'>
 					<div>
+						<label>Possible Mispellings</label>
+						<tag-list
+							.tags=${this._possibleMispellings}
+							.editing=${false}>
+						</tag-list>
+					</div>
+				</div>
+				<div class='row'>
+					<div>
 						<label>Editors ${help('Editors are people who should be able to edit this card.')}</label>
 						<tag-list
 							.overrideTypeName=${'Editor'}
@@ -871,6 +884,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
 		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._possibleMispellings = selectEditingCardPossibleMisspellings(state);
 		//skip the expensive selectors if we're not active
 		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
 		this._suggestedConcepts = this._active ? selectEditingCardSuggestedConceptReferences(state) : [];
