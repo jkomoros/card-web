@@ -851,10 +851,18 @@ const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined 
 export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 	selectEditingCard,
 	selectEditingNormalizedCard,
-	(editing, normalized) => {
-		if (!editing) return editing;
-		if (!normalized) return editing;
-		return {...editing, nlp:normalized.nlp};
+	selectCards,
+	(editing, normalized, cards) : ProcessedCard | null => {
+		if (!editing) return null;
+		const effectiveNormalized = normalized || cards[editing.id] || null;
+		if (!effectiveNormalized) return null;
+		return {
+			...editing,
+			fallbackText: effectiveNormalized.fallbackText,
+			synonymMap: effectiveNormalized.synonymMap,
+			importantNgrams: effectiveNormalized.importantNgrams,
+			nlp: effectiveNormalized.nlp
+		};
 	}
 );
 
