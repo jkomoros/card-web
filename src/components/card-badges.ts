@@ -139,9 +139,9 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard | null, ba
 	  <div class="badges-container ${light ? 'light' : ''}">
 		<div class='top-right'>
 			${badge('star-count', STAR_ICON, nonBlankCard?.star_count || 0, starMap[id])}
-			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, todoMap[id])}
+			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, todoMap[id] || false)}
 		</div>
-		${badge('read', VISIBILITY_ICON, readMap[id])}
+		${badge('read', VISIBILITY_ICON, readMap[id] || false)}
 		<div class='bottom-right'>
 			${badge('thread-count', FORUM_ICON, nonBlankCard?.thread_count || 0)}
 			${badge('duplicate', COPY_ALL_ICON, isDupe, true)}
@@ -149,12 +149,12 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard | null, ba
 		<div class='bottom-left'>
 			${selectTarget ? html`<input
 				type='checkbox'
-				.checked=${badgeMap.selected[id]}
+				.checked=${badgeMap.selected[id] || false}
 				@change=${selectTarget}
 				data-card-id=${id}
 				></input>
 			` : ''}
-			${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
+			${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id] || false)}
 		</div>
 	</div>
     `;
