@@ -250,11 +250,11 @@ export const queryFilter = (queryText : string, strict = false) : ConfigurableFi
 
 export const parseDateSection = (str : string) : [dateType : DateRangeType, firstDate : Date, secondDate : Date] => {
 	let pieces = str.split('/');
-	const targetLength = CONFIGURABLE_FILTER_URL_PARTS[pieces[0]] + 1;
+	const targetLength = (CONFIGURABLE_FILTER_URL_PARTS[pieces[0] || ''] || 0) + 1;
 	pieces = pieces.slice(0, targetLength);
 	let firstDate = new Date();
 	let secondDate = new Date();
-	if (pieces.length > 1) firstDate = new Date(pieces[1]);
+	if (pieces.length > 1) firstDate = new Date(pieces[1] || '');
 	//make sure there's always a second date, defaulting to now.
 	if (pieces.length > 2) secondDate = pieces[2] ? new Date(pieces[2]) : new Date();
 	return [pieces[0] as DateRangeType, firstDate, secondDate];
@@ -326,7 +326,9 @@ function unionSet<T>(...sets : {[name : string] : T}[]) : {[name : string] : T} 
 	for (const set of sets) {
 		if (!set) continue;
 		for (const key of Object.keys(set)) {
-			result[key] = set[key];
+			const item = set[key];
+			if (!item) continue;
+			result[key] = item;
 		}
 	}
 	return result;
@@ -352,7 +354,7 @@ export const parseKeyCardID = (cardID : string) : [id : CardID, includeKeyCard :
 		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
 	}
 	const ids = cardID.split(UNION_FILTER_DELIMITER);
-	return [ids[0], includeKeyCard, ids];
+	return [ids[0] || '', includeKeyCard, ids];
 };
 
 export const keyCardID = (cardID : CardID | CardID[], includeKeyCard? : boolean) : CardID => {
@@ -488,7 +490,7 @@ const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptS
 		if (card.id == conceptCardID) {
 			return {matches: true, sortExtra: 1};
 		}
-		return {matches: matchingCards[card.id], sortExtra: 0};
+		return {matches: matchingCards[card.id] || false, sortExtra: 0};
 	};
 	return [func, false];
 };
@@ -576,7 +578,8 @@ const makeExcludeConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 		//good way to figure out if it will be reversed early enough to say
 		//whether the function's results should be reversed. The current
 		//approach works, it just requires a bit more memory.
-		return {matches: reversed ? !filterSet[id] : filterSet[id]};
+		const filterMembership = filterSet[id] || false;
+		return {matches: reversed ? !filterMembership : filterMembership};
 	};
 	//The true is the whole business end of this configurable filter,
 	//reversing the filter it operates on.
@@ -621,7 +624,7 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 			}
 		} else {
 			//Must be a link style secondary filter
-			const bfs = cardBFSMaker(expandFilterPieces[0], expandFilterPieces[1], expandFilterPieces[2], expandFilterPieces[3], filterMembershipMain);
+			const bfs = cardBFSMaker(expandFilterPieces[0] || '', expandFilterPieces[1] || '', expandFilterPieces[2] || '', expandFilterPieces[3] || '', filterMembershipMain);
 
 			if (bfs == INVALID_FILTER_NAME_SENTINEL) {
 				console.warn('Invalid links filter for second part: ' + expandFilter);
@@ -637,7 +640,7 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 	
 	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const filterSet = generator(extras);
-		return {matches: filterSet[card.id]};
+		return {matches: filterSet[card.id] || false};
 	};
 
 	return [func, false];
@@ -672,7 +675,7 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 	
 	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const filterSet = generator(extras);
-		return {matches: filterSet[card.id]};
+		return {matches: filterSet[card.id] || false};
 	};
 
 	return [func, false];
@@ -684,7 +687,7 @@ const configurableFilterIsQuery = (filterName : string) : boolean => {
 
 export const queryTextFromQueryFilter = (queryFilter : ConfigurableFilterName) : string => {
 	if (!configurableFilterIsQuery(queryFilter)) return '';
-	const rawQueryString = queryFilter.split('/')[1];
+	const rawQueryString = queryFilter.split('/')[1] || '';
 	return decodeURIComponent(rawQueryString).split('+').join(' ');
 };
 
@@ -765,9 +768,10 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
 			if (cardSimilarity[cardID]) {
-				if (Object.keys(similarity[cardID]).length) {
+				const sim = similarity[cardID] || {};
+				if (Object.keys(sim).length) {
 					//TODO: merge in fingerprint cards for the ones not in top amount
-					return {map: new Map(Object.entries(similarity[cardID])), preview: false};
+					return {map: new Map(Object.entries(sim)), preview: false};
 				}
 				//If there are no keys, that's how the backend signals that it's a final error.
 			} else {
@@ -1274,15 +1278,16 @@ const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : Configura
 export const makeConfigurableFilter = (name : ConfigurableFilterName) : ConfigurableFilterFuncFactoryResult => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
-		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
-		memoizedConfigurableFilters[name] = func(parts[0], ...parts.slice(1));
+		const info = CONFIGURABLE_FILTER_INFO[parts[0] || ''];
+		const func = info ? info.factory : makeNoOpConfigurableFilter;
+		memoizedConfigurableFilters[name] = func(parts[0] || '', ...parts.slice(1));
 	}
 	return memoizedConfigurableFilters[name];
 };
 
 export const splitCompoundFilter = (fullFilterName : ConfigurableFilterName) : [firstPart : ConfigurableFilterType, rest: ConfigurableFilterRest] => {
 	const filterParts = fullFilterName.split('/');
-	const firstFilterPart = filterParts[0];
+	const firstFilterPart = filterParts[0] || '';
 	const restFilter = filterParts.slice(1).join('/');
 	return [firstFilterPart, restFilter];
 };
@@ -1320,7 +1325,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			pieceIndex += 2;
 			if (subPieces[0] == BETWEEN_FILTER_NAME) {
 				//one more
-				subPieces.push(pieces[pieceIndex]);
+				subPieces.push(pieces[pieceIndex] || '');
 				pieceIndex++;
 			}
 			result.push({
@@ -1332,7 +1337,8 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 		case 'sub-filter':
 		case 'expand-filter':
 			//consume the pices for this first subfilter
-			const [nextSubFilter] = extractSubFilters(pieces.slice(pieceIndex));
+			const nextFilters =  extractSubFilters(pieces.slice(pieceIndex));
+			const nextSubFilter = nextFilters[0] || '';
 			result.push({
 				controlType,
 				description: arg.description,
@@ -1352,7 +1358,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
-				value: pieces[pieceIndex],
+				value: pieces[pieceIndex] || '',
 			});
 			pieceIndex++;
 			break;
@@ -1394,9 +1400,10 @@ export const SORTS : SortConfigurationMap = {
 			//Pick whatever is the first key stored, which will be the first
 			//configurable filter that emitted sortValues from left to right in
 			//the URL
-			const key = Object.keys(sortExtra)[0];
+			const key = Object.keys(sortExtra)[0] || '';
 			const values = sortExtra[key];
 			const config = CONFIGURABLE_FILTER_INFO[key];
+			if (!values || !config) return [0, sectionNameForCard(card, sections)];
 			const value = values[card.id] || 0.0;
 			//You might want to flip the sort order while having the displayed
 			//order be the same. For example, any of the link-degree
@@ -1410,7 +1417,7 @@ export const SORTS : SortConfigurationMap = {
 			//Pick whatever is the first key stored, which will be the first
 			//configurable filter that emitted sortValues from left to right in
 			//the URL
-			const key = Object.keys(sortExtra)[0];
+			const key = Object.keys(sortExtra)[0] || '';
 			const config = CONFIGURABLE_FILTER_INFO[key];
 			return config && config.labelName ? config.labelName : 'Section';
 		},
@@ -1489,7 +1496,7 @@ export const SORTS : SortConfigurationMap = {
 	},
 	'todo-difficulty': {
 		extractor: (card : ProcessedCard) => {
-			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
+			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key] || 0).reduce((prev, curr) => prev + curr, 0.0);
 			return [result, '' + result];
 		},
 		description: 'In ascending order of how difficult remaining TODOs are',
@@ -1960,7 +1967,7 @@ export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(
 export const TODO_ALL_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.isTODO).map(entry => [entry[0], {id: entry[0], suppressLink: true, description: entry[1].description, title: toTitleCase(entry[0].split('-').join(' ')), warnOnSave: entry[1].warnOnSave || false}]));
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos as options to enable or disable.
-export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]].type.autoApply));
+export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]]?.type.autoApply));
 
 const TODO_DIFFICULTY_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[0], entry[1].weight]));
 const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry => entry[1]).reduce((prev, curr) => prev + curr, 0.0);
@@ -1980,6 +1987,7 @@ export const cardTODOConfigKeys = (card : Card | null, onlyNonOverrides  = false
 
 	for (const configKey of Object.keys(CARD_FILTER_CONFIGS)) {
 		const config = CARD_FILTER_CONFIGS[configKey];
+		if (!config) continue;
 		const todoConfig = config.type;
 		if (!todoConfig.isTODO) continue;
 		const todoKey = todoType.parse(configKey);
