@@ -49,7 +49,7 @@ import {
 	idWasVended,
 	normalizeSlug,
 	createSlugFromArbitraryString,
-	randomString,
+	normalizeFirestoreID
 } from '../util.js';
 
 import {
@@ -285,7 +285,7 @@ export const addDictionaryOverride = (normalizedWord : string, misspelled: boole
 	//TODO: verify we don't already have a word that matches.
 
 	//The id space can be pretty small because we won't have a ton of these.
-	const id = randomString(8);
+	const id = normalizeFirestoreID(normalizedWord);
 
 	const ref = doc(db, DICTIONARY_OVERRIDES_COLLECTION, id);
 
@@ -293,11 +293,12 @@ export const addDictionaryOverride = (normalizedWord : string, misspelled: boole
 		word: normalizedWord,
 		misspelled
 	};
-
-	return setDoc(ref, obj);
+	//We setDoc with a merge just in case it already exists, becauase that's fine.
+	return setDoc(ref, obj, {merge: true});
 };
 
-export const deleteDictionaryOverride = (id : string) => {
+export const deleteDictionaryOverride = (normalizedWord : string) => {
+	const id = normalizeFirestoreID(normalizedWord);
 	const ref = doc(db, DICTIONARY_OVERRIDES_COLLECTION, id);
 	return deleteDoc(ref);
 };

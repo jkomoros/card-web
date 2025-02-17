@@ -167,8 +167,9 @@ import {
 	CardDiff,
 	Filters,
 	CollectionConfiguration,
+	SpellingDictionary,
 	ProcessedDictionaryOverrides,
-	SpellingDictionary
+	DictionaryOverrideType
 } from './types.js';
 
 import {
@@ -976,13 +977,9 @@ const selectProcessedDictionaryOverrides = createSelector(
 	selectDictionaryOverrides,
 	(overrides) => {
 		const result : ProcessedDictionaryOverrides = {};
-		for (const [overrideID, override] of Object.entries(overrides)) {
-			const typ : keyof ProcessedDictionaryOverrides = override.misspelled ? 'incorrect' : 'correct';
-			if (!result[typ]) result[typ] = {};
-			const dict = result[typ];
-			//Convince typescript it's definitely not empty.
-			if (!dict) throw new Error('We just set dict but it wasnt set');
-			dict[override.word] = overrideID;
+		for (const override of Object.values(overrides)) {
+			const typ : DictionaryOverrideType = override.misspelled ? 'incorrect' : 'correct';
+			result[override.word] = typ;
 		}
 		return result;
 	}

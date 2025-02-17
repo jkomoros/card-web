@@ -161,6 +161,11 @@ export const legalUid = (uid : Uid) => {
 	return true;
 };
 
+export const normalizeFirestoreID = (input : string) : string => {
+	//Removes any characters that are not legal in Firestore IDs
+	return input.replace(/[^a-zA-Z0-9-_]/g, '');
+};
+
 //normalizes a mostly-OK slug, returning '' if it wasn't legal. If you want to
 //generate a good one given an arbitrary string that may contain illegal
 //characters to strip, see createSlugFromArbitraryString

@@ -53,7 +53,7 @@ import {
 	SpellingDictionary
 } from './types.js';
 
-import { innerTextForHTML } from './util.js';
+import { assertUnreachable, innerTextForHTML } from './util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
@@ -1613,10 +1613,17 @@ export const possibleMisspellingsForCard = (card : ProcessedCard | null, diction
 	if (!card) return result;
 	const words = wordCountsForSpellchecking(card);
 	for (const word of Object.keys(words)) {
-		if (dictionary.overrides.correct && dictionary.overrides.correct[word]) continue;
-		if (dictionary.overrides.incorrect && dictionary.overrides.incorrect[word]) {
-			result.push(word);
-			continue;
+		const override = dictionary.overrides[word];
+		if (override) {
+			switch (override) {
+			case 'correct':
+				continue;
+			case 'incorrect':
+				result.push(word);
+				continue;
+			default:
+				assertUnreachable(override);
+			}
 		}
 		const count = dictionary.words[word] || 0;
 		if (count <= SPELLCHECK_MISSPELLING_THRESHOLD) {

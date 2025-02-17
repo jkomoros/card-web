@@ -996,7 +996,7 @@ export type UserPermissionsMap = {
 };
 
 export const dictionaryOverride = z.object({
-	//The normalized word
+	//The normalized word. We store it because the id might be normalized differently to be a valid firestore id.
 	word: z.string(),
 	//Whether this entry communicates that the word is affirmatively spelled correctly or affirmatively spelled incorrectly.
 	misspelled: z.boolean(),
@@ -1005,19 +1005,18 @@ export const dictionaryOverride = z.object({
 export type DictionaryOverride = z.infer<typeof dictionaryOverride>;
 
 export type DictionaryOverrides = {
-	//id is a distinctive short random string.
-	[id : string]: DictionaryOverride
+	//id is the word, normalized by normalizeFirestoreID. This makes it easier
+	//to see which words are which at a glance, and also makes it unncessesary
+	//to check ahead of saving.
+	[wordNormalizedFirestoreID : string]: DictionaryOverride
 }
 
-type ProcessedDictionaryOverridesMap = {
-	//normalized word to id
-	[word : string] : string
-}
+export type DictionaryOverrideType = 'correct' | 'incorrect';
 
 export type ProcessedDictionaryOverrides = {
-	correct?: ProcessedDictionaryOverridesMap,
-	incorrect?: ProcessedDictionaryOverridesMap
-};
+	//normalized word to whether it's correct or incorrect
+	[word : string] : DictionaryOverrideType;
+}
 
 export type WordNumbers = {
 	[word : string] : number
