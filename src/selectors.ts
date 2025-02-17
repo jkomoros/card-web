@@ -166,7 +166,8 @@ import {
 	SortExtra,
 	CardDiff,
 	Filters,
-	CollectionConfiguration
+	CollectionConfiguration,
+	ProcessedDictionaryOverrides
 } from './types.js';
 
 import {
@@ -259,6 +260,7 @@ const selectBaseFiltersSnapshot = (state : State) => state.collection ? state.co
 export const selectSections = (state : State) => state.data ? state.data.sections : {};
 export const selectTags = (state : State) => state.data ? state.data.tags : {};
 export const selectPendingDeletions = (state : State) => state.data ? state.data.pendingDeletions : {};
+const selectDictionaryOverrides = (state : State) => state.data ? state.data.dictionaryOverrides : {};
 export const selectEnqueuedCards = (state : State) => state.data ? state.data.enqueuedCards : {};
 export const selectPendingModificationCount = (state : State) => state.data ? state.data.pendingModificationCount : 0;
 export const selectCardModificationPending = (state : State) => state.data ? state.data.pendingModifications : false;
@@ -969,9 +971,31 @@ export const selectWordCloudForActiveCard = createSelector(
 	}
 );
 
+const selectProcessedDictionaryOverrides = createSelector(
+	selectDictionaryOverrides,
+	(overrides) => {
+		const result : ProcessedDictionaryOverrides = {};
+		for (const [cardID, override] of Object.entries(overrides)) {
+			let typ : keyof ProcessedDictionaryOverrides = 'correct';
+			if (override.misspelled) {
+				typ = override.case_sensitive ? 'incorrect' : 'incorrectCaseSensitive';
+			} else {
+				typ = override.case_sensitive ? 'correct' : 'correctCaseSensitive';
+			}
+			if (!result[typ]) result[typ] = {};
+			const dict = result[typ];
+			//Convince typescript it's definitely not empty.
+			if (!dict) throw new Error('We just set dict but it wasnt set');
+			dict[cardID] = override.word;
+		}
+		return result;
+	}
+);
+
 const selectSpellingDictionary = createSelector(
 	selectCards,
-	(cards) => spellingDictionaryForCards(cards)
+	selectProcessedDictionaryOverrides,
+	(cards, overrides) => spellingDictionaryForCards(cards, overrides)
 );
 
 export const selectEditingCardPossibleMisspellings = createSelector(

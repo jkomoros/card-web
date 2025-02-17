@@ -1011,6 +1011,18 @@ export type DictionaryOverrides = {
 	[id : string]: DictionaryOverride
 }
 
+type ProcessedDictionaryOverridesMap = {
+	//normalized word to id
+	[word : string] : string
+}
+
+export type ProcessedDictionaryOverrides = {
+	correct?: ProcessedDictionaryOverridesMap,
+	incorrect?: ProcessedDictionaryOverridesMap
+	correctCaseSensitive?: ProcessedDictionaryOverridesMap,
+	incorrectCaseSensitive?: ProcessedDictionaryOverridesMap	
+};
+
 const commitActionType = z.enum([
 	'CONSOLE_LOG',
 	'EDIT_MESSAGE',

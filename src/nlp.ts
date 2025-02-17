@@ -47,7 +47,8 @@ import {
 	ReferencesInfoMap,
 	FilterMap,
 	SortExtra,
-	cardFieldTypeSchema
+	cardFieldTypeSchema,
+	ProcessedDictionaryOverrides
 } from './types.js';
 import { innerTextForHTML } from './util.js';
 
@@ -1610,7 +1611,8 @@ type IDFMap = {
 };
 
 type SpellingDictionary = {
-	words : WordNumbers
+	words : WordNumbers,
+	overrides: ProcessedDictionaryOverrides
 };
 
 //If the word is in this many or fewer cards in the whole corpus it's considered
@@ -1630,16 +1632,17 @@ export const possibleMisspellingsForCard = (card : ProcessedCard | null, diction
 	return result;
 };
 
-let memoizedSpellcheckDictionary: SpellingDictionary = {words: {}};
+let memoizedSpellcheckDictionary: SpellingDictionary = {words: {}, overrides: {}};
 let memoizedSpellcheckDictionaryCardCount = 0;
 
-export const spellingDictionaryForCards = (cards : ProcessedCards) : SpellingDictionary => {
-	if (!cards || Object.keys(cards).length == 0) return {words: {}};
+export const spellingDictionaryForCards = (cards : ProcessedCards, overrides? : ProcessedDictionaryOverrides) : SpellingDictionary => {
+	if (!overrides) overrides = {};
+	if (!cards || Object.keys(cards).length == 0) return {words: {}, overrides};
 	const cardCount = Object.keys(cards).length;
 	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
 	const cardCountCloseEnough  = cardCount >= memoizedSpellcheckDictionaryCardCount && cardCount <= memoizedSpellcheckDictionaryCardCount * 1.1;
 	if (cardCountCloseEnough) return memoizedSpellcheckDictionary;
-	const result = calcSpellingDictionaryForCards(cards);
+	const result = calcSpellingDictionaryForCards(cards, overrides);
 	memoizedSpellcheckDictionary = result;
 	memoizedSpellcheckDictionaryCardCount = cardCount;
 	return result;
@@ -1667,7 +1670,7 @@ const wordCountsForSpellchecking = memoizeFirstArg((card : ProcessedCard) : Word
 	return result;
 });
 
-const calcSpellingDictionaryForCards = (cards : ProcessedCards) : SpellingDictionary => {
+const calcSpellingDictionaryForCards = (cards : ProcessedCards, overrides : ProcessedDictionaryOverrides) : SpellingDictionary => {
 
 	//only consider cards that have a body, even if we were provided a set that included others
 	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
@@ -1682,7 +1685,8 @@ const calcSpellingDictionaryForCards = (cards : ProcessedCards) : SpellingDictio
 	}
 
 	return {
-		words: result
+		words: result,
+		overrides
 	};
 
 };
