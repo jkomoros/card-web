@@ -421,7 +421,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		section.innerHTML = card.body;
 		let ele = section.querySelector('strong');
 		if (!ele) ele = section;
-		return ele.innerText.split('\n')[0];
+		return ele.innerText.split('\n')[0] || '';
 	}
 
 	_handleDragEnter(e : DragEvent) {

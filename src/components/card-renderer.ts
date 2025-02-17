@@ -518,7 +518,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		// Gesture is ending.
-		const startTimestamp = startGestureTimestamps[key];
+		const startTimestamp = startGestureTimestamps[key] || 0;
 		delete startGestureTimestamps[key];
 		const gestureDuration = currentTimestamp - startTimestamp;
 

@@ -163,7 +163,8 @@ import {
 	SortExtra,
 	CardDiff,
 	Filters,
-	CollectionConfiguration
+	CollectionConfiguration,
+	BadgeMap
 } from './types.js';
 
 import {
@@ -752,7 +753,7 @@ export const selectAuthorsForTagList = createSelector(
 export const selectCollaboratorInfosForActiveCard = createSelector(
 	selectActiveCard,
 	selectAuthors,
-	(card, authors) => card ? card.collaborators.map((uid : Uid) => (authors || {})[uid]).filter(author => author) : []
+	(card, authors) : Author[] => card ? card.collaborators.map((uid : Uid) => (authors || {})[uid]).filter(author => author) : []
 );
 
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
@@ -1032,7 +1033,7 @@ export const getSection = (state : State, sectionId : SectionID) : Section | nul
 const selectCardTodosMapForCurrentUser = createSelector(
 	selectUserIsAdmin,
 	selectFilters,
-	(isAdmin, filters) => isAdmin ? filters[TODO_COMBINED_FILTER_NAME] : {}
+	(isAdmin, filters) => isAdmin ? filters[TODO_COMBINED_FILTER_NAME] || {} : {}
 );
 
 export const selectUserReadingListMap = createSelector(
@@ -1047,7 +1048,7 @@ export const selectBadgeMap = createSelector(
 	selectCardTodosMapForCurrentUser,
 	selectUserReadingListMap,
 	selectExplicitlySelectedCardIDs,
-	(stars, reads, todos, readingList, selected) => ({stars, reads, todos, readingList, selected})
+	(stars, reads, todos, readingList, selected) : BadgeMap => ({stars, reads, todos, readingList, selected})
 );
 
 //TODO: once factoring the composed threads selctors into this file, refactor
