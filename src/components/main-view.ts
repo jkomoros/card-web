@@ -49,8 +49,7 @@ import {
 	connectLiveTags,
 	connectLiveAuthors,
 	connectLiveThreads,
-	connectLiveMessages,
-	connectLiveUnpublishedCardsForUser,
+	connectLiveMessages
 } from '../actions/database.js';
 
 import {
@@ -531,12 +530,9 @@ class MainView extends connect(store)(PageViewElement) {
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode')) {
+		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode') || changedProps.has('_uid')) {
 			//connectLiveUnpublishedCards will handle connecting if it needs to or not.
 			connectLiveUnpublishedCards();
-		}
-		if (changedProps.has('_uid')) {
-			connectLiveUnpublishedCardsForUser(this._uid);
 		}
 		if (changedProps.has('_mayViewApp')) {
 			if (this._mayViewApp) {

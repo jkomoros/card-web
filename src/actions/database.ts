@@ -33,7 +33,8 @@ import {
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
 	selectCompleteModeEnabled,
-	selectUserMayViewUnpublished
+	selectUserMayViewUnpublished,
+	selectUid
 } from '../selectors.js';
 
 import {
@@ -101,6 +102,7 @@ import {
 import {
 	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
 } from '../constants.js';
+import { TypedObject } from '../typed_object.js';
 
 //Replicated in `functions/src/types.ts`;
 type LegalRequestData = {
@@ -338,17 +340,6 @@ let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
 
-export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
-	if (!selectUserMayViewApp(store.getState() as State)) return;
-	disconnectLiveUnpublishedCardsForUser();
-	if (!uid) return;
-	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-	store.dispatch(expectUnpublishedCards('unpublished-author'));
-	liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
-	store.dispatch(expectUnpublishedCards('unpublished-editor'));
-	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
-};
-
 const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
@@ -363,10 +354,11 @@ const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction 
 	});
 };
 
-const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch, getState) => {
-	const loading = selectLoadingCardFetchTypes(getState());
-	if (loading['unpublished-author']) dispatch(stopExpectingFetchedCards('unpublished-author'));
-	if (loading['unpublished-editor']) dispatch(stopExpectingFetchedCards('unpublished-editor'));
+const disconnectLiveUnpublishedCards = () => {
+	const loading = selectLoadingCardFetchTypes(store.getState() as State);
+	for (const key of TypedObject.keys(loading)) {
+		store.dispatch(stopExpectingFetchedCards(key));
+	}
 	if (liveUnpublishedCardsForUserAuthorUnsubscribe) {
 		liveUnpublishedCardsForUserAuthorUnsubscribe();
 		liveUnpublishedCardsForUserAuthorUnsubscribe = null;
@@ -374,6 +366,10 @@ const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch,
 	if (liveUnpublishedCardsForUserEditorUnsubscribe) {
 		liveUnpublishedCardsForUserEditorUnsubscribe();
 		liveUnpublishedCardsForUserEditorUnsubscribe = null;
+	}
+	if (liveUnpublishedCardsUnsubcribe) {
+		liveUnpublishedCardsUnsubcribe();
+		liveUnpublishedCardsUnsubcribe = null;
 	}
 };
 
@@ -383,24 +379,43 @@ export const connectLiveUnpublishedCards = () => {
 
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
-	if (!selectUserMayViewUnpublished(state)) return;
-	disconnectLiveUnpublishedCardsForUser();
-	store.dispatch(stopExpectingFetchedCards('unpublished-partial'));
-	store.dispatch(stopExpectingFetchedCards('unpublished-complete'));
-	if (liveUnpublishedCardsUnsubcribe) {
-		liveUnpublishedCardsUnsubcribe();
-		liveUnpublishedCardsUnsubcribe = null;
-	}
-	const completeModeEnabled = selectCompleteModeEnabled(state);
-	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-	store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
+	disconnectLiveUnpublishedCards();
 
-	if (completeModeEnabled) {
-		liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
+
+	const userMayViewUnpublished = selectUserMayViewUnpublished(state);
+	const uid = selectUid(state);
+	const completeModeEnabled = selectCompleteModeEnabled(state);
+
+	if (userMayViewUnpublished) {
+
+		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
+		store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
+
+		if (completeModeEnabled) {
+			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
+		} else {
+			//The default is to fetch onty the most recent unpublished cards up to the limit.
+			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-partial'));
+		}
 		return;
 	}
-	//The default is to fetch onty the most recent unpublished cards up to the limit.
-	liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-partial'));
+
+	if (uid) {
+		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
+		
+		//TODO: also have unpublished-{author,editor}-{complete,partial} like above?
+		store.dispatch(expectUnpublishedCards('unpublished-author'));
+		store.dispatch(expectUnpublishedCards('unpublished-editor'));
+
+		if (completeModeEnabled) {
+			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
+			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
+		} else {
+			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-author'));
+			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-editor'));
+		}
+
+	}
 
 };
 
