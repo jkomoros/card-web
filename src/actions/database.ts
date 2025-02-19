@@ -386,6 +386,8 @@ export const connectLiveUnpublishedCards = () => {
 	const uid = selectUid(state);
 	const completeModeEnabled = selectCompleteModeEnabled(state);
 
+	//Note: this logic is largely recreated in a different form in cullExtraCompleteModeCards.
+
 	if (userMayViewUnpublished) {
 
 		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet

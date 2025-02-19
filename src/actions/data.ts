@@ -203,6 +203,7 @@ import {
 } from '../actions.js';
 
 import {
+	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
 	LOCAL_STORAGE_COMPLETE_MODE_KEY
 } from '../constants.js';
 
@@ -239,16 +240,39 @@ export const turnCompleteMode = (on : boolean) : ThunkSomeAction => (dispatch, g
 
 	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
 
-	if (!on) {
-		if (confirm('The reduced set of cards will only take effect after you refresh the page. Do you want to refresh now?')) {
-			location.reload();
-		}
-	}
-
 	dispatch({
 		type: TURN_COMPLETE_MODE,
 		on
 	});
+
+	if (!on) {
+		//If we're turning off complete mode, we need to cull any cards that are
+		//in complete mode that shouldn	't be.
+		dispatch(cullExtraCompleteModeCards());
+	}
+};
+
+const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) => {
+	//This logic should approximate the selection logic in connectLiveUnpublishedCards.
+
+	const state = getState();
+	const cards = selectRawCards(state);
+	const completeMode = selectCompleteModeEnabled(state);
+	
+	//No cards to cull because  we're in complete mode.
+	if (completeMode) return;
+
+	const limit = DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
+
+	const unpublishedCardIDs = Object.values(cards).filter(card => !card.published).sort((a, b) => b.created.seconds - a.created.seconds).map(card => card.id);
+
+	if (unpublishedCardIDs.length <= limit) return;
+
+	const cardsToCull = unpublishedCardIDs.slice(limit);
+
+	dispatch(cullCards(cardsToCull));
+	dispatch(refreshCardSelector(true));
+
 };
 
 export const loadSavedCompleteModePreference = () : ThunkSomeAction => (dispatch) => {
@@ -1500,10 +1524,15 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkS
 	//empty, and no more work is necessary.
 	if (!filteredCardIDs.length) return;
 
-	dispatch({
+	dispatch(cullCards(filteredCardIDs));
+};
+
+//This simply culls any cards with matching IDs from the state.
+const cullCards = (cardIDs : CardID[]) : SomeAction => {
+	return {
 		type: REMOVE_CARDS,
-		cardIDs: filteredCardIDs,
-	});
+		cardIDs
+	};
 };
 
 export const fetchTweets = (card : Card) : ThunkSomeAction => async (dispatch) => {
