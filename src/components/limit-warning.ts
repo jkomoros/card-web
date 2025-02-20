@@ -9,6 +9,7 @@ import { store } from '../store.js';
 
 import { 
 	selectCardLimitReached,
+	selectCompleteModeEffectiveCardLimit,
 	selectCompleteModeEnabled,
 	selectLoadingCardFetchTypes
 } from '../selectors.js';
@@ -25,6 +26,7 @@ import {
 } from '../types.js';
 
 import {
+	modifyCompleteModeCardLimit,
 	toggleCompleteMode
 } from '../actions/data.js';
 
@@ -34,6 +36,9 @@ class LimitWarning extends connect(store)(LitElement) {
 
 	@property({ type : Boolean })
 		tight: boolean;
+
+	@state()
+		_effectiveCardLimit : number;
 
 	@state()
 		_cardLimitReached: boolean;
@@ -95,7 +100,7 @@ class LimitWarning extends connect(store)(LitElement) {
 			return html`
 				<div
 					class=${classMap(classes)}
-					title=${this._completeMode ? 'All cards are downloaded and visible, but it is a significant number. Performance may be affected. Click to enable performance mode' : 'You are seeing only partial unpublished cards to preserve performance. If you want to see all cards, click to turn on complete mode.'}
+					title=${this._completeMode ? 'All cards are downloaded and visible, but it is a significant number. Performance may be affected. Click to enable performance mode' : 'You are seeing only partial unpublished cards (roughly ' + this._effectiveCardLimit + ') to preserve performance. If you want to see all cards, click to turn on complete mode. Ctrl-click to change the limit.'}
 				>
 					<button
 						class='small'
@@ -117,9 +122,18 @@ class LimitWarning extends connect(store)(LitElement) {
 		this._cardLimitReached = selectCardLimitReached(state);
 		this._completeMode = selectCompleteModeEnabled(state);
 		this._loadingFetchTypes = selectLoadingCardFetchTypes(state);
+		this._effectiveCardLimit = selectCompleteModeEffectiveCardLimit(state);
 	}
 
-	_handleToggleClicked() {
+	_handleToggleClicked(e : MouseEvent) {
+		//if Ctrl or Command is clicked
+		if (e.ctrlKey || e.metaKey) {
+			e.preventDefault();
+			const newLimit = parseInt(prompt('Enter new limit', this._effectiveCardLimit + '') || '0');
+			if (isNaN(newLimit)) return;
+			store.dispatch(modifyCompleteModeCardLimit(newLimit));
+			return;
+		}
 		store.dispatch(toggleCompleteMode());
 	}
 

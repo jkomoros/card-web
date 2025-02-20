@@ -275,6 +275,7 @@ export const selectThreadsLoaded = (state : State) => state.comments ? state.com
 export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state : State) => state.data ? state.data.alreadyCommittedModificationsWhenFullyLoaded : false;
 export const selectSlugIndex = (state : State) => state.data ? state.data.slugIndex : {};
 export const selectCompleteModeEnabled = (state : State) => state.data ? state.data.completeMode : false;
+export const selectCompleteModeRawCardLimit = (state : State) => state.data ? state.data.completeModeCardLimit : 0;
 export const selectMessages = (state : State) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state : State) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : {};
@@ -1334,18 +1335,24 @@ export const selectActiveTagId = createSelector(
 	}
 );
 
+export const selectCompleteModeEffectiveCardLimit = createSelector(
+	selectCompleteModeRawCardLimit,
+	(rawLimit) => rawLimit || DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT
+);
+
 export const selectCardLimitReached = createSelector(
 	selectUserMayViewUnpublished,
 	selectCards,
 	selectFilters,
-	(mayViewUnpublished, cards, filters) => {
+	selectCompleteModeEffectiveCardLimit,
+	(mayViewUnpublished, cards, filters, effectiveLimit) => {
 		if (!mayViewUnpublished) return false;
 		const cardCount = Object.keys(cards).length;
 		//We can't read out filters.unpublished because it doesn't exist, it's an inverse filter.
 		const countPublished = Object.keys(filters[PUBLISHED_FILTER_NAME] || {}).length;
 		const countUnpublished = cardCount - countPublished;
 		//if there are at least the deafult number of cards in the unpublished filter, then the limit is reached.
-		return countUnpublished >= DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
+		return countUnpublished >= effectiveLimit;
 	}
 );
 

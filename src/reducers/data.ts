@@ -58,6 +58,8 @@ const INITIAL_STATE : DataState = {
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
 	completeMode: false,
+	//0 means 'default'
+	completeModeCardLimit: 0,
 	cardModificationError: null,
 	pendingModifications: false,
 	pendingModificationCount: 0,
@@ -116,7 +118,8 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case TURN_COMPLETE_MODE:
 		return {
 			...state,
-			completeMode: action.on
+			completeMode: action.on,
+			completeModeCardLimit: action.limit
 		};
 	case ENQUEUE_CARD_UPDATES:
 		return {

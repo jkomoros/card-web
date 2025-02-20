@@ -88,7 +88,9 @@ import {
 	selectEditingCard,
 	selectEnqueuedCards,
 	selectPendingModificationCount,
-	selectCompleteModeEnabled
+	selectCompleteModeEnabled,
+	selectCompleteModeRawCardLimit,
+	selectCompleteModeEffectiveCardLimit
 } from '../selectors.js';
 
 import {
@@ -204,7 +206,8 @@ import {
 
 import {
 	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
-	LOCAL_STORAGE_COMPLETE_MODE_KEY
+	LOCAL_STORAGE_COMPLETE_MODE_KEY,
+	LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY
 } from '../constants.js';
 
 //map of cardID => promiseResolver that's waiting
@@ -229,27 +232,43 @@ const waitingForCardToExistStoreUpdated = () => {
 
 export const toggleCompleteMode = () : ThunkSomeAction => (dispatch, getState) => {
 	const completeMode = selectCompleteModeEnabled(getState());
-	dispatch(turnCompleteMode(!completeMode));
+	const limit = selectCompleteModeRawCardLimit(getState());
+	dispatch(turnCompleteMode(!completeMode, limit));
 };
 
-export const turnCompleteMode = (on : boolean) : ThunkSomeAction => (dispatch, getState) => {
+export const modifyCompleteModeCardLimit = (limit : number) : ThunkSomeAction => (dispatch, getState) => {
+	const currentLimit = selectCompleteModeRawCardLimit(getState());
+	if (limit == currentLimit) return;
+	const completeMode = selectCompleteModeEnabled(getState());
+	dispatch(turnCompleteMode(completeMode, limit));
+};
+
+export const turnCompleteMode = (on : boolean, limit : number) : ThunkSomeAction => (dispatch, getState) => {
+
+	//Limit of 0 means 'default'
 
 	const state = getState();
 	const alreadyActive = selectCompleteModeEnabled(state);
-	if (on == alreadyActive) return;
+	if (limit > 0 && limit < DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT) limit = DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
+	if (limit == DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT) limit = 0;
+	const activeLimit = selectCompleteModeRawCardLimit(state);
+	if (limit < 0) limit = 0;
+	if (on == alreadyActive && limit == activeLimit) return;
 
 	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
+	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY, '' + limit);
 
 	dispatch({
 		type: TURN_COMPLETE_MODE,
-		on
+		on,
+		limit
 	});
 
-	if (!on) {
-		//If we're turning off complete mode, we need to cull any cards that are
-		//in complete mode that shouldn	't be.
-		dispatch(cullExtraCompleteModeCards());
-	}
+
+	//If we're turning off complete mode, we need to cull any cards that are
+	//in complete mode that shouldn	't be. This will be a no-op if complete mode is on.
+	dispatch(cullExtraCompleteModeCards());
+
 };
 
 const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) => {
@@ -262,7 +281,7 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 	//No cards to cull because  we're in complete mode.
 	if (completeMode) return;
 
-	const limit = DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
+	const limit = selectCompleteModeEffectiveCardLimit(state);
 
 	const unpublishedCardIDs = Object.values(cards).filter(card => !card.published).sort((a, b) => b.created.seconds - a.created.seconds).map(card => card.id);
 
@@ -277,8 +296,11 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 
 export const loadSavedCompleteModePreference = () : ThunkSomeAction => (dispatch) => {
 	const value = localStorage.getItem(LOCAL_STORAGE_COMPLETE_MODE_KEY);
-	if (value == '1') {
-		dispatch(turnCompleteMode(true));
+	let limit = parseInt(localStorage.getItem(LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY) || '0');
+	if (isNaN(limit)) limit = 0;
+	if (limit < 0) limit = 0;
+	if (value == '1' || limit > 0) {
+		dispatch(turnCompleteMode(value == '1', limit));
 	}
 };
 

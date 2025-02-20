@@ -34,7 +34,8 @@ import {
 	selectLoadingCardFetchTypes,
 	selectCompleteModeEnabled,
 	selectUserMayViewUnpublished,
-	selectUid
+	selectUid,
+	selectCompleteModeEffectiveCardLimit
 } from '../selectors.js';
 
 import {
@@ -99,9 +100,6 @@ import {
 	fetchTypeIsUnpublished
 } from '../util.js';
 
-import {
-	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
-} from '../constants.js';
 import { TypedObject } from '../typed_object.js';
 
 //Replicated in `functions/src/types.ts`;
@@ -386,6 +384,8 @@ export const connectLiveUnpublishedCards = () => {
 	const uid = selectUid(state);
 	const completeModeEnabled = selectCompleteModeEnabled(state);
 
+	const effectiveLimit = selectCompleteModeEffectiveCardLimit(state);
+
 	//Note: this logic is largely recreated in a different form in cullExtraCompleteModeCards.
 
 	if (userMayViewUnpublished) {
@@ -397,7 +397,7 @@ export const connectLiveUnpublishedCards = () => {
 			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
 		} else {
 			//The default is to fetch onty the most recent unpublished cards up to the limit.
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-partial'));
+			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-partial'));
 		}
 		return;
 	}
@@ -413,8 +413,8 @@ export const connectLiveUnpublishedCards = () => {
 			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
 			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
 		} else {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false), orderBy('created', 'desc'), limit(DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT)), cardSnapshotReceiver('unpublished-editor'));
+			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-author'));
+			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-editor'));
 		}
 
 	}

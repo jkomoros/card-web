@@ -39,7 +39,8 @@ import {
 	selectUid,
 	selectBadgeMap,
 	selectExpandedPrimaryReferenceBlocksForPreviewCard,
-	selectCompleteModeEnabled
+	selectCompleteModeEnabled,
+	selectCompleteModeEffectiveCardLimit
 } from '../selectors.js';
 
 import {
@@ -166,6 +167,9 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_completeMode : boolean;
+
+	@state()
+		_effectiveCardLimit : number;
 
 	@state()
 		_userPermissionsFinal: boolean;
@@ -527,10 +531,11 @@ class MainView extends connect(store)(PageViewElement) {
 		this._uid = selectUid(state);
 		this._badgeMap = selectBadgeMap(state);
 		this._completeMode = selectCompleteModeEnabled(state);
+		this._effectiveCardLimit = selectCompleteModeEffectiveCardLimit(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode') || changedProps.has('_uid')) {
+		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode') || changedProps.has('_uid') || changedProps.has('_effectiveCardLimit')) {
 			//connectLiveUnpublishedCards will handle connecting if it needs to or not.
 			connectLiveUnpublishedCards();
 		}

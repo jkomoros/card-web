@@ -360,7 +360,8 @@ type ActionTurnSuggestedMissingConcepts = {
 
 type ActionTurnCompleteMode = {
 	type: typeof TURN_COMPLETE_MODE,
-	on: boolean
+	on: boolean,
+	limit: number
 };
 
 type ActionBulkImportDialogOpen = {
