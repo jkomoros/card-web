@@ -97,15 +97,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			//We'll be modifying them in the next few lines
 			loadingCardFetchTypes: {...state.loadingCardFetchTypes}
 		};
-		//Which collection do we expect to be updated when the card is loaded?
-		if (action.published) {
-			newState.loadingCardFetchTypes.published = true;
-		} else {
-			//Some users might get the update via unpublished-all, but some
-			//won't. All users who can create it will get it via
-			//unpublished-author channel, so we'll flag to wait for that one.
-			newState.loadingCardFetchTypes['unpublished-author'] = true;
-		}
+		newState.loadingCardFetchTypes[action.cardLoadingChannel] = true;
 		return newState;
 	case NAVIGATED_TO_NEW_CARD:
 		return {

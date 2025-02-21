@@ -163,7 +163,8 @@ import {
 	SortExtra,
 	CardDiff,
 	Filters,
-	CollectionConfiguration
+	CollectionConfiguration,
+	CardFetchType
 } from './types.js';
 
 import {
@@ -1353,6 +1354,16 @@ export const selectCardLimitReached = createSelector(
 		const countUnpublished = cardCount - countPublished;
 		//if there are at least the deafult number of cards in the unpublished filter, then the limit is reached.
 		return countUnpublished >= effectiveLimit;
+	}
+);
+
+export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
+	selectUserMayViewUnpublished,
+	selectCompleteModeEnabled,
+	(mayViewUnpublished, completeModeEnabled) : CardFetchType => {
+		if (mayViewUnpublished) return completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial';
+		//Technically this is only true if we have a uid, but otheriwse there's nothing to fetch anyway.
+		return 'unpublished-author';
 	}
 );
 

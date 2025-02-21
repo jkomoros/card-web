@@ -90,7 +90,8 @@ import {
 	selectPendingModificationCount,
 	selectCompleteModeEnabled,
 	selectCompleteModeRawCardLimit,
-	selectCompleteModeEffectiveCardLimit
+	selectCompleteModeEffectiveCardLimit,
+	selectExpectedCardFetchTypeForNewUnpublishedCard
 } from '../selectors.js';
 
 import {
@@ -855,7 +856,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		cardType: 'working-notes',
 		navigate: false,
 		noSectionChange: true,
-		published: false,
+		cardLoadingChannel: selectExpectedCardFetchTypeForNewUnpublishedCard(state)
 	});
 
 	await batch.commit();
@@ -1011,7 +1012,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		cardType: cardType,
 		navigate: !noNavigate,
 		noSectionChange: !section,
-		published: obj.published,
+		cardLoadingChannel: obj.published ? 'published' : selectExpectedCardFetchTypeForNewUnpublishedCard(state)
 	});
 
 	if (idFromOpts && !idWasVended(id)) {
@@ -1214,7 +1215,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		cardType: cardType,
 		navigate: true,
 		noSectionChange: !section,
-		published: newCard.published
+		cardLoadingChannel: newCard.published ? 'published' : selectExpectedCardFetchTypeForNewUnpublishedCard(state)
 	});
 
 	const batch = new MultiBatch(db);

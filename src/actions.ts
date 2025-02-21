@@ -532,7 +532,8 @@ type ActionExpectNewCard = {
 	cardType: CardType,
 	navigate: boolean,
 	noSectionChange: boolean,
-	published: boolean
+	//Which channel to expect to hear the card on.
+	cardLoadingChannel: CardFetchType
 };
 
 type ActionExpectedNewCardFailed = {

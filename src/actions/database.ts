@@ -388,6 +388,8 @@ export const connectLiveUnpublishedCards = () => {
 
 	//Note: this logic is largely recreated in a different form in cullExtraCompleteModeCards.
 
+	//Note: the logic of which fetchType channel to expect a new unpublished card to come in on is duplicated in selectExpectedCardFetchTypeForNewUnpublishedCard
+
 	if (userMayViewUnpublished) {
 
 		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
