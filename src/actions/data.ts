@@ -207,6 +207,7 @@ import {
 
 import {
 	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
+	FIRESTORE_MAXIMUM_LIMIT_CLAUSE,
 	LOCAL_STORAGE_COMPLETE_MODE_KEY,
 	LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY
 } from '../constants.js';
@@ -252,8 +253,9 @@ export const turnCompleteMode = (on : boolean, limit : number) : ThunkSomeAction
 	const alreadyActive = selectCompleteModeEnabled(state);
 	if (limit > 0 && limit < DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT) limit = DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
 	if (limit == DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT) limit = 0;
-	const activeLimit = selectCompleteModeRawCardLimit(state);
+	if (limit > FIRESTORE_MAXIMUM_LIMIT_CLAUSE) limit = FIRESTORE_MAXIMUM_LIMIT_CLAUSE;
 	if (limit < 0) limit = 0;
+	const activeLimit = selectCompleteModeRawCardLimit(state);
 	if (on == alreadyActive && limit == activeLimit) return;
 
 	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
