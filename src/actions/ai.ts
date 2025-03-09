@@ -45,7 +45,8 @@ import {
 	AIModelName,
 	StringCardMap,
 	CardType,
-	OpenAIModelName
+	OpenAIModelName,
+	AnthropicModelName
 } from '../types.js';
 
 import {
@@ -120,7 +121,7 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-type modelProvider = 'openai';
+type modelProvider = 'openai' | 'anthropic';
 
 type modelInfo = {
 	maxTokens: number,
@@ -131,8 +132,14 @@ const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 	'gpt-4o': {
 		maxTokens: 128000,
 		provider: 'openai'
+	},
+	'claude-3-7-sonnet-latest': {
+		maxTokens: 200000,
+		provider: 'anthropic'
 	}
 };
+
+const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
 
 export const DEFAULT_MODEL : AIModelName = 'gpt-4o';
 
@@ -166,12 +173,19 @@ const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName
 	return result.choices[0].message.content || '';
 };
 
+const anthropicCompletion = async (_prompt: string, _uid: Uid, _model: AnthropicModelName = DEFAULT_ANTHROPIC_MODEL) : Promise<string> => {
+	//TODO: implement
+	throw new Error('Not implemented');
+};
+
 const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
 	const modelInfo = MODEL_INFO[model];
 	if (!modelInfo) throw new Error('Unknown model: ' + model);
 	switch(modelInfo.provider) {
 	case 'openai':
 		return openAICompletion(prompt, uid, model as OpenAIModelName);
+	case 'anthropic':
+		return anthropicCompletion(prompt, uid, model as AnthropicModelName);
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
@@ -201,9 +215,16 @@ const computeTokenCount = async (text : string | string[], model : AIModelName) 
 	switch(modelInfo.provider) {
 	case 'openai':
 		return openAIComputeTokenCount(text);
+	case 'anthropic':
+		return anthropicComputeTokenCount(text);
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
+};
+
+const anthropicComputeTokenCount = async (_text : string | string[]) : Promise<number> => {
+	//TODO: implement, using a conservative clientside estimate.
+	throw new Error('Not implemented');
 };
 
 //NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.

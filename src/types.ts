@@ -1502,7 +1502,9 @@ export type MultiEditState = {
 
 export type OpenAIModelName = 'gpt-4o';
 
-export type AIModelName = OpenAIModelName;
+export type AnthropicModelName = 'claude-3-7-sonnet-latest'
+
+export type AIModelName = OpenAIModelName | AnthropicModelName;
 
 const aiDialogType = z.enum([
 	'summary',
