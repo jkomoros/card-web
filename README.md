@@ -497,13 +497,19 @@ Then once you have the model to get a completed bit of content, run `openai api 
 
 You can also do an export appropriate for importing into https://github.com/dglazkov/polymath via the `export-polymath-data` action.
 
-## OpenAI AI Features
+## AI Features
+
+### OpenAI
 
 In `config.SECRET.json` add a key called `openai_api_key`. This will allow users with the proper permissions to do OpenAI API calls with your budget.
 
 The features show up in two places currently:
  - **Summarize a collection of cards** - In the zippy in the cards collection, a button will show up to Summarize Cards with AI. This will attempt to summarize as many cards as fit in the context window into text that could be used for a new card.
  - **Suggest a card title** - When editing a card, flip to the content tab and hit the AI button next to the title field to suggest a title for the card based on the card's body.
+
+### Claude/Anthropic
+
+In `config.SECRET.json` add a key called `anthropic_api_key`. This will allow the application to use Claude models for AI features.
 
  ## Embedding Similarity
 
@@ -520,7 +526,8 @@ The features show up in two places currently:
   //...other configuration
 
   //openai_api_key must also be set
-  "openai_api_key": "${YOUR_OPENAI_API_KEY}"
+  "openai_api_key": "${YOUR_OPENAI_API_KEY}",
+  "anthropic_api_key": "${YOUR_ANTHROPIC_API_KEY}"
   "qdrant": {
 	"cluster_url": "https://${YOUR_CLUSTER_ID}.us-east4-0.gcp.cloud.qdrant.io",
 	"api_key": "${YOUR_QDRANT_API_KEY}"

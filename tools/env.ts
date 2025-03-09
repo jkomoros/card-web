@@ -11,6 +11,7 @@ import {
 
 //The values of these are duplicated in functions/src/common.ts
 const OPENAI_API_KEY_VAR = 'OPENAI_API_KEY';
+const ANTHROPIC_API_KEY_VAR = 'ANTHROPIC_API_KEY';
 const SITE_DOMAIN_VAR = 'SITE_DOMAIN';
 const LAST_DEPLOY_AFFECTING_RENDERING_VAR = 'LAST_DEPLOY_AFFECTING_RENDERING';
 const TWITTER_ACCESS_TOKEN_SECRET_VAR = 'TWITTER_ACCESS_TOKEN_SECRET';
@@ -35,6 +36,7 @@ const generateModeEnv = (config : ExpandedModeConfig) : void => {
 	const lines : string[] = [];
 
 	lines.push(envLine(OPENAI_API_KEY_VAR, config.openai_api_key));
+	lines.push(envLine(ANTHROPIC_API_KEY_VAR, config.anthropic_api_key));
 	lines.push(envLine(SITE_DOMAIN_VAR, config.site_domain));
 	lines.push(envLine(LAST_DEPLOY_AFFECTING_RENDERING_VAR, config.last_deploy_affecting_rendering));
 	lines.push(envLine(TWITTER_ACCESS_TOKEN_SECRET_VAR, config.twitter?.access_token_secret));

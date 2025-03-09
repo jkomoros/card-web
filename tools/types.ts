@@ -24,6 +24,7 @@ export type ModeConfig = {
 	disable_twitter? : boolean;
 	twitter_handle? : string;
 	openai_api_key? : string;
+	anthropic_api_key? : string;
 	qdrant?: {
 		cluster_url: string,
 		api_key: string

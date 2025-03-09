@@ -280,6 +280,9 @@
         "base": {
             "additionalProperties": false,
             "properties": {
+                "anthropic_api_key": {
+                    "type": "string"
+                },
                 "app_description": {
                     "type": "string"
                 },
@@ -613,6 +616,9 @@
         "dev": {
             "additionalProperties": false,
             "properties": {
+                "anthropic_api_key": {
+                    "type": "string"
+                },
                 "app_description": {
                     "type": "string"
                 },
@@ -946,6 +952,9 @@
         "prod": {
             "additionalProperties": false,
             "properties": {
+                "anthropic_api_key": {
+                    "type": "string"
+                },
                 "app_description": {
                     "type": "string"
                 },

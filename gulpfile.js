@@ -66,6 +66,10 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
+const ANTHROPIC_API_KEY = projectConfig.anthropic_api_key || '';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ANTHROPIC_ENABLED = ANTHROPIC_API_KEY != '';
+
 const SEO_ENABLED = projectConfig.seo;
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
@@ -439,11 +443,11 @@ gulp.task(ASK_BACKUP_MESSAGE, async (cb) => {
 	cb();
 });
 
-gulp.task(CONFIGURE_API_KEYS, makeExecutor('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY));
+gulp.task(CONFIGURE_API_KEYS, makeExecutor('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY + ' anthropic.api_key=' + ANTHROPIC_API_KEY));
 
 gulp.task(CONFIGURE_API_KEYS_IF_SET, (cb) => {
 	const task = gulp.task(CONFIGURE_API_KEYS);
-	if (!OPENAI_API_KEY) {
+	if (!OPENAI_API_KEY && !ANTHROPIC_API_KEY) {
 		console.log('Skipping uploading of api keys because they weren\'t set');
 		cb();
 		return;
