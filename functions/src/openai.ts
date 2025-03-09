@@ -31,7 +31,6 @@ const mayUseAI = (permissions : UserPermissions | null) => {
 };
 
 const ALLOWED_ENDPOINTS = {
-	'createCompletion': true,
 	'createChatCompletion': true
 };
 
