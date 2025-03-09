@@ -1,0 +1,15 @@
+{
+  "name": "card-web-shared",
+  "version": "1.0.0",
+  "description": "Shared code for card-web",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.9.0"
+  }
+}

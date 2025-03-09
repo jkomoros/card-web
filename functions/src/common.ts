@@ -39,20 +39,22 @@ const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 
-//Duplicated from tools/src.ts;
-const OPENAI_API_KEY_VAR = 'OPENAI_API_KEY';
-const ANTHROPIC_API_KEY_VAR = 'ANTHROPIC_API_KEY';
-const SITE_DOMAIN_VAR = 'SITE_DOMAIN';
-const LAST_DEPLOY_AFFECTING_RENDERING_VAR = 'LAST_DEPLOY_AFFECTING_RENDERING';
-const TWITTER_ACCESS_TOKEN_SECRET_VAR = 'TWITTER_ACCESS_TOKEN_SECRET';
-const TWITTER_CONSUMER_SECRET_VAR = 'TWITTER_CONSUMER_SECRET';
-const TWITTER_ACCESS_TOKEN_KEY_VAR = 'TWITTER_ACCESS_TOKEN_KEY';
-const TWITTER_CONSUMER_KEY_VAR = 'TWITTER_CONSUMER_KEY';
-const EMAIL_POSTMARK_KEY_VAR = 'EMAIL_POSTMARK_KEY';
-const EMAIL_TO_ADDRESS_VAR = 'EMAIL_TO_ADDRESS';
-const EMAIL_FROM_ADDRESS_VAR = 'EMAIL_FROM_ADDRESS';
-const QDRANT_CLUSTER_URL_VAR = 'QDRANT_CLUSTER_URL';
-const QDRANT_API_KEY_VAR = 'QDRANT_API_KEY';
+// Import shared constants instead of duplicating them
+import {
+	OPENAI_API_KEY_VAR,
+	ANTHROPIC_API_KEY_VAR,
+	SITE_DOMAIN_VAR,
+	LAST_DEPLOY_AFFECTING_RENDERING_VAR,
+	TWITTER_ACCESS_TOKEN_SECRET_VAR,
+	TWITTER_CONSUMER_SECRET_VAR,
+	TWITTER_ACCESS_TOKEN_KEY_VAR,
+	TWITTER_CONSUMER_KEY_VAR,
+	EMAIL_POSTMARK_KEY_VAR,
+	EMAIL_TO_ADDRESS_VAR,
+	EMAIL_FROM_ADDRESS_VAR,
+	QDRANT_CLUSTER_URL_VAR,
+	QDRANT_API_KEY_VAR
+} from '../../shared/env-constants.js';
 
 //These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];
@@ -84,11 +86,21 @@ export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 //Note: screenshot.js also uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
 export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
-//duplicated from src/card_fields.js;
-export const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
-export const REFERENCES_INFO_INBOUND_CARD_PROPERTY = 'references_info_inbound';
-export const REFERENCES_CARD_PROPERTY = 'references';
-export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
+// Import shared card field constants
+import {
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY
+} from '../../shared/card-fields.js';
+
+// Re-export for usage in this module
+export {
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY
+};
 
 export const userPermissions = async (uid : Uid) : Promise<UserPermissions | null> => {
 	const user = await db.collection('permissions').doc(uid).get();
