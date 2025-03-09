@@ -41,7 +41,7 @@
     "firebase": "^10.11.0",
     "gpt-tok": "^0.0.1",
     "lit": "^2.2.4",
-    "openai": "^3.2.1",
+    "openai": "^4.86.2",
     "pwa-helpers": "^0.9.1",
     "redux": "^4.0.5",
     "redux-thunk": "^2.3.0",
