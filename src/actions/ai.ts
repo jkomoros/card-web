@@ -172,7 +172,7 @@ const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
 
-export const DEFAULT_MODEL : AIModelName = DEFAULT_OPENAI_MODEL;
+export const DEFAULT_MODEL : AIModelName = DEFAULT_ANTHROPIC_MODEL;
 
 const COMPLETION_CACHE : {[hash : string] : string} = {};
 
