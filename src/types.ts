@@ -1500,7 +1500,9 @@ export type MultiEditState = {
 	addTODODisablements: AutoTODOType[]
 };
 
-export type AIModelName = 'gpt-4o';
+export type OpenAIModelName = 'gpt-4o';
+
+export type AIModelName = OpenAIModelName;
 
 const aiDialogType = z.enum([
 	'summary',

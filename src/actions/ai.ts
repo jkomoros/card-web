@@ -30,6 +30,7 @@ import {
 } from '../selectors.js';
 
 import {
+	assertUnreachable,
 	cardPlainContent,
 	innerTextForHTML,
 	stringHash
@@ -43,7 +44,8 @@ import {
 	State,
 	AIModelName,
 	StringCardMap,
-	CardType
+	CardType,
+	OpenAIModelName
 } from '../types.js';
 
 import {
@@ -118,13 +120,17 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
+type modelProvider = 'openai';
+
 type modelInfo = {
-	maxTokens: number
+	maxTokens: number,
+	provider: modelProvider
 };
 
 const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 	'gpt-4o': {
-		maxTokens: 128000
+		maxTokens: 128000,
+		provider: 'openai'
 	}
 };
 
@@ -141,7 +147,7 @@ export const cachedCompletion = async (prompt : string, uid: Uid, model : AIMode
 	return result;
 };
 
-const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
+const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
 		model,
 		messages: [
@@ -158,6 +164,17 @@ const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT
 	if (!result.choices[0]) throw new Error('no result choice');
 	if (!result.choices[0].message) throw new Error('No choices message');
 	return result.choices[0].message.content || '';
+};
+
+const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
+	const modelInfo = MODEL_INFO[model];
+	if (!modelInfo) throw new Error('Unknown model: ' + model);
+	switch(modelInfo.provider) {
+	case 'openai':
+		return openAICompletion(prompt, uid, model as OpenAIModelName);
+	default:
+		return assertUnreachable(modelInfo.provider);
+	}
 };
 
 type FitPromptArguments = {
