@@ -1,6 +1,7 @@
 build/
 seo/
 node_modules/
+dist/
 test/integration/screenshots-current/
 _site/
 .DS_Store
