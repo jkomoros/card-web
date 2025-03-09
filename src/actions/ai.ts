@@ -99,6 +99,7 @@ type OpenAIRemoteResult = ChatCompletion;
 
 class OpenAIProxy {
 
+	//TODO: this should be chat.completions.create to mtach the new style
 	createChatCompletion(request: ChatCompletionCreateParams): Promise<ChatCompletion> {
 		return this._bridge({
 			endpoint: 'chat.completions.create',
