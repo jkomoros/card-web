@@ -66,6 +66,9 @@ import {
 	SetName,
 	SortName,
 	ViewMode,
+} from '../../shared/types.js';
+
+import {
 	CardID,
 	Card,
 	State,

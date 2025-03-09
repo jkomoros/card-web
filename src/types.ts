@@ -32,6 +32,13 @@ import {
 	CardIdentifier as CardIdentifierType
 } from './types_simple.js';
 
+import {
+	CollectionConfiguration,
+	SortName,
+	SetName,
+	ConcreteFilterName
+} from '../shared/types.js';
+
 export type Uid = string;
 
 export type CardID = CardIDType;
@@ -1004,49 +1011,10 @@ const commitActionType = z.enum([
 
 export type CommitActionType = z.infer<typeof commitActionType>;
 
-const setNameSchema = z.enum([
-	//The default set
-	'main',
-	//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
-	//order matters and is customizable by the user. Every other collection starts
-	//from the `all` set and then filters and then maybe sorts, but reading-list
-	//lets a custom order.
-	'reading-list',
-	'everything'
-]);
 
-export type SetName = z.infer<typeof setNameSchema>;
-
-const sortName = z.enum([
-	'default',
-	'recent',
-	'stars',
-	'original-order',
-	'link-count',
-	'updated',
-	'created',
-	'commented',
-	'last-tweeted',
-	'tweet-count',
-	'tweet-order',
-	'todo-difficulty',
-	'random',
-	'card-rank'
-]);
-
-export type SortName = z.infer<typeof sortName>;
 
 //A part of a URL in a collection description. These pieces are delimited by '/' in the URL.
 export type URLPart = string;
-
-//A filtername that is a concrete filter (or inverse filter name)
-export type ConcreteFilterName = string;
-
-//A filtername that is a union of multiple concerte filter names, separated by '+'
-export type UnionFilterName = string;
-
-//The full defininiton of a ConfigurableFilter, including ConfigurableFilterType + '/' + ConfigurableFilterRest
-export type ConfigurableFilterName = string;
 
 //The first part of a ConfigurableFilterName, that determines what type of filter factory to use.
 export type ConfigurableFilterType = string;
@@ -1055,15 +1023,6 @@ export type ConfigurableFilterType = string;
 //by '/'. The lenght and contents are specific to the ConfigurableFilterType.
 export type ConfigurableFilterRest = string;
 
-//A full description of one filter
-export type FilterName = ConcreteFilterName | UnionFilterName | ConfigurableFilterName;
-
-export const viewMode = z.enum([
-	'list',
-	'web'
-]);
-
-export type ViewMode = z.infer<typeof viewMode>;
 
 export type SectionID = string;
 
@@ -1212,19 +1171,6 @@ export type AppState = {
 	suggestMissingConceptsEnabled: boolean,
 }
 
-export type CollectionConfiguration = {
-	setName: SetName,
-	//activeFilterNames is the list of named filters to apply to the default
-	//set. These names are either concrete filters, inverse filters, or union
-	//filters (i.e. they concatenate conrete or inverse filternames delimited by
-	//'+'). For the purposes of processing URLs though they can all be treated
-	//as though they're concrete filters named their literal name in this.
-	filterNames: FilterName[],
-	sortName: SortName,
-	sortReversed: boolean,
-	viewMode: ViewMode,
-	viewModeExtra: string,
-};
 
 export type CollectionState = {
 	active : CollectionConfiguration,
@@ -1628,7 +1574,6 @@ export type State = {
 //The following are convenience functions for when you have a given enum that
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
-export const setName = (input : SetName) => setNameSchema.parse(input);
 export const cardType = (input : CardType) => cardTypeSchema.parse(input);
 export const referenceType = (input : ReferenceType) => referenceTypeSchema.parse(input);
 export const cardFieldType = (input : CardFieldType) => cardFieldTypeSchema.parse(input);

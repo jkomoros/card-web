@@ -23,6 +23,17 @@ import {
 } from './typed_object.js';
 
 import {
+	SetName,
+	SortName,
+	ViewMode,
+	FilterName,
+	ConfigurableFilterName,
+	UnionFilterName,
+	CollectionConfiguration,
+	viewMode as viewModeSchema
+} from '../shared/types.js';
+
+import {
 	CardID,
 	ProcessedCard,
 	ProcessedCards,
@@ -33,24 +44,16 @@ import {
 	SortExtractorResult,
 	Filters,
 	Sections,
-	SetName,
 	Sets,
-	SortName,
-	ViewMode,
 	Uid,
 	WebInfo,
 	FilterMap,
 	FilterExtras,
 	CardIDMap,
 	CardBooleanMap,
-	FilterName,
 	URLPart,
-	ConfigurableFilterName,
-	UnionFilterName,
 	CardSimilarityMap,
-	ConfigurableFilterResult,
-	viewMode as viewModeSchema,
-	CollectionConfiguration
+	ConfigurableFilterResult
 } from './types.js';
 
 import {

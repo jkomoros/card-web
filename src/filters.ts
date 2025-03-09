@@ -51,6 +51,15 @@ import {
 } from './memoize.js';
 
 import {
+	SetName,
+	ViewMode,
+	FilterName,
+	ConcreteFilterName,
+	UnionFilterName,
+	ConfigurableFilterName
+} from '../shared/types.js';
+
+import {
 	SortConfigurationMap,
 	ProcessedCard,
 	ProcessedCards,
@@ -68,25 +77,18 @@ import {
 	SortExtra,
 	TODOType,
 	StringCardMap,
-	ViewMode,
 	DateRangeType,
 	CardIdentifier,
 	CardTestFunc,
 	CardTimestampPropertyName,
 	ConfigurableFilterControlPiece,
 	Cards,
-	ConfigurableFilterName,
 	ConfigurableFilterType,
 	URLPart,
-	FilterName,
 	ConfigurableFilterRest,
-	UnionFilterName,
-	ConcreteFilterName,
 	CardSimilarityMap,
 	FilterFuncResult,
 	ConfigurableFilterResult,
-	SetName,
-	setName,
 	referenceType,
 	AutoTODOType,
 	todoType,
@@ -1878,7 +1880,7 @@ const CARD_FILTER_NON_TODO_CONFIGS : CardFilterConfigMapNonTODO = {
 		weight: 0.0,
 		description: 'Whether the card has any tweets from the bot'
 	},
-	[setName('everything')]: {
+	['everything']: {
 		filterNames: defaultNonTodoCardFilterName(SET_INFOS['everything'].filterEquivalent),
 		test: () => true,
 		type: TODO_TYPE_NA,

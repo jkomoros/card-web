@@ -124,6 +124,12 @@ import {
 } from './config.GENERATED.SECRET.js';
 
 import {
+	SetName,
+	SortName,
+	CollectionConfiguration
+} from '../shared/types.js';
+
+import {
 	State,
 	Cards,
 	CommentMessageID,
@@ -156,15 +162,12 @@ import {
 	WordCloud,
 	CollectionConstructorArguments,
 	ExpandedTabConfig,
-	SortName,
 	AIDialogType,
 	AIModelName,
-	SetName,
 	ReferenceType,
 	SortExtra,
 	CardDiff,
 	Filters,
-	CollectionConfiguration,
 	CardFetchType
 } from './types.js';
 

@@ -6,6 +6,10 @@ import {
 } from './type_constants.js';
 
 import {
+	CollectionConfiguration
+} from '../shared/types.js';
+
+import {
 	AIDialogType,
 	AIModelName,
 	AuthorsMap,
@@ -20,7 +24,6 @@ import {
 	CardIdentifier,
 	CardType,
 	Cards,
-	CollectionConfiguration,
 	CommentMessageID,
 	CommentMessages,
 	CommentThreadID,
