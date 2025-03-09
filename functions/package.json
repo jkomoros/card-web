@@ -16,6 +16,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@qdrant/js-client-rest": "^1.8.2",
     "@types/jsdom": "^21.1.4",
     "express": "^4.17.1",

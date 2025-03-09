@@ -22,6 +22,11 @@ import {
 	UserPermissions
 } from './types';
 
+import {
+	CallableRequest,
+	HttpsError
+} from 'firebase-functions/v2/https';
+
 initializeApp();
 
 //We use this so often we might as well make it more common
@@ -132,4 +137,25 @@ export const getCardName = async (cardId : CardID) => {
 
 export const prettyCardURL = (card : Card) => {
 	return 'https://' + DOMAIN + '/' +  PAGE_DEFAULT + '/' + card.name;
+};
+
+//The server-side analogue of selectUserMayUseAI
+export const mayUseAI = (permissions : UserPermissions | null) => {
+	if (!permissions) return false;
+	if (permissions.admin) return true;
+	if (permissions.remoteAI) return true;
+	//TODO: also allow it if the ai permission is true.
+	return false;
+};
+
+export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>) : Promise<void> => {
+	if (!request.auth) {
+		throw new HttpsError('unauthenticated', 'A valid user authentication must be passed');
+	}
+
+	const permissions = await userPermissions(request.auth.uid);
+
+	if (!mayUseAI(permissions)) {
+		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');
+	}
 };
