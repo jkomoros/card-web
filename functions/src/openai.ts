@@ -1,7 +1,4 @@
-import {
-	Configuration,
-	OpenAIApi
-} from 'openai';
+import OpenAI from 'openai';
 
 import {
 	OPENAI_API_KEY,
@@ -17,9 +14,9 @@ import {
 	HttpsError
 } from 'firebase-functions/v2/https';
 
-export const openai_endpoint = OPENAI_API_KEY ? new OpenAIApi(new Configuration({
+export const openai_endpoint = OPENAI_API_KEY ? new OpenAI({
 	apiKey: OPENAI_API_KEY,
-})) : null;
+}) : null;
 
 //The server-side analogue of selectUserMayUseAI
 const mayUseAI = (permissions : UserPermissions | null) => {
@@ -30,14 +27,9 @@ const mayUseAI = (permissions : UserPermissions | null) => {
 	return false;
 };
 
-const ALLOWED_ENDPOINTS = {
-	'createCompletion': true,
-	'createChatCompletion': true
-};
-
 type OpenAIData = {
-	endpoint: keyof (typeof ALLOWED_ENDPOINTS)
-	payload: unknown
+	endpoint: 'chat.completions.create',
+	payload: OpenAI.Chat.ChatCompletionCreateParams
 };
 
 export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>) : Promise<void> => {
@@ -75,14 +67,13 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 		throw new HttpsError('invalid-argument', 'payload must be provided');
 	}
 
-	if (!ALLOWED_ENDPOINTS[data.endpoint]) {
+	if (data.endpoint != 'chat.completions.create') {
 		throw new HttpsError('invalid-argument', 'endpoint must be set to an allowed endpoint type');
 	}
 
 	try {
-		//eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const result = await openai_endpoint[data.endpoint](data.payload as any);
-		return result.data;
+		const result = await openai_endpoint.chat.completions.create(data.payload);
+		return result;
 	} catch(err) {
 		if (!err || typeof err != 'object') throw new HttpsError('unknown', String(err));
 		//err is either an err.response.statusText/status or err.message

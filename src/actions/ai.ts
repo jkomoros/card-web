@@ -12,9 +12,9 @@ import {
 } from '../firebase.js';
 
 import {
-	CreateChatCompletionRequest,
-	CreateChatCompletionResponse
-} from 'openai';
+	ChatCompletionCreateParams,
+	ChatCompletion
+} from 'openai/resources/chat/completions';
 
 import {
 	selectAIDialogKind,
@@ -89,19 +89,20 @@ const commitTitleSuggestion  = () : ThunkSomeAction => (dispatch, getState) => {
 const openaiCallable = httpsCallable(functions, 'openai');
 
 type OpenAIRemoteCallCreateChatCompletion = {
-	endpoint: 'createChatCompletion',
-	payload: CreateChatCompletionRequest
+	endpoint: 'chat.completions.create',
+	payload: ChatCompletionCreateParams
 };
 
 type OpenAIRemoteCall = OpenAIRemoteCallCreateChatCompletion;
 
-type OpenAIRemoteResult = CreateChatCompletionResponse;
+type OpenAIRemoteResult = ChatCompletion;
 
 class OpenAIProxy {
 
-	createChatCompletion(request: CreateChatCompletionRequest): Promise<CreateChatCompletionResponse> {
+	//TODO: this should be chat.completions.create to mtach the new style
+	createChatCompletion(request: ChatCompletionCreateParams): Promise<ChatCompletion> {
 		return this._bridge({
-			endpoint: 'createChatCompletion',
+			endpoint: 'chat.completions.create',
 			payload: request
 		});
 	}
@@ -173,7 +174,7 @@ const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT
 	if (!result.choices) throw new Error('no result choices');
 	if (!result.choices[0]) throw new Error('no result choice');
 	if (!result.choices[0].message) throw new Error('No choices message');
-	return result.choices[0].message.content;
+	return result.choices[0].message.content || '';
 };
 
 type FitPromptArguments = {
