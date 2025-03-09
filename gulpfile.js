@@ -362,7 +362,39 @@ gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? ',functions:openai,functions:updateCardEmbedding,functions:reindexCardEmbeddings,functions:similarCards,functions:semanticSort' : '') + (ANTHROPIC_ENABLED ? ',functions:anthropic' : '')));
+gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
+	// Default functions to deploy
+	const baseFunctions = [
+		'emailAdminOnMessage',
+		'emailAdminOnStar', 
+		'legal'
+	];
+
+	// AI model specific functions
+	if (OPENAI_ENABLED) {
+		baseFunctions.push(
+			'openai',
+			'updateCardEmbedding',
+			'reindexCardEmbeddings',
+			'similarCards',
+			'semanticSort'
+		);
+	}
+
+	if (ANTHROPIC_ENABLED) {
+		baseFunctions.push('anthropic');
+	}
+
+	// If Twitter is enabled, deploy everything
+	if (ENABLE_TWITTER) {
+		makeExecutor('firebase deploy')(cb);
+		return;
+	}
+
+	// Otherwise, only deploy specific services and functions
+	const deployCmd = 'firebase deploy --only hosting,storage,firestore,functions:' + baseFunctions.join(',functions:');
+	makeExecutor(deployCmd)(cb);
+});
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, async (cb) => {
 	const projectID = await selectedProjectID();
