@@ -89,7 +89,7 @@ const commitTitleSuggestion  = () : ThunkSomeAction => (dispatch, getState) => {
 const openaiCallable = httpsCallable(functions, 'openai');
 
 type OpenAIRemoteCallCreateChatCompletion = {
-	endpoint: 'createChatCompletion',
+	endpoint: 'chat.completions.create',
 	payload: CreateChatCompletionRequest
 };
 
@@ -101,7 +101,7 @@ class OpenAIProxy {
 
 	createChatCompletion(request: CreateChatCompletionRequest): Promise<CreateChatCompletionResponse> {
 		return this._bridge({
-			endpoint: 'createChatCompletion',
+			endpoint: 'chat.completions.create',
 			payload: request
 		});
 	}

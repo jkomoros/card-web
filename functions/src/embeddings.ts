@@ -189,12 +189,12 @@ const embeddingForContent = async (cardContent : string) : Promise<Embedding> =>
 	if (!openai_endpoint) throw new Error('No openai_endpoint');
 
 	//TODO: try/catch
-	const result = await openai_endpoint.createEmbedding({
+	const result = await openai_endpoint.embeddings.create({
 		model: DEFAULT_EMBEDDING_TYPE_INFO.model,
 		input: cardContent
 	});
 
-	const vector = result.data.data[0].embedding;
+	const vector = result.data[0].embedding;
 
 	return new Embedding(DEFAULT_EMBEDDING_TYPE, vector);
 };
