@@ -90,6 +90,7 @@ const commitTitleSuggestion  = () : ThunkSomeAction => (dispatch, getState) => {
 };
 
 const openaiCallable = httpsCallable(functions, 'openai');
+const anthropicCallable = httpsCallable(functions, 'anthropic');
 
 type OpenAIRemoteCallCreateChatCompletion = {
 	endpoint: 'chat.completions.create',
@@ -99,6 +100,20 @@ type OpenAIRemoteCallCreateChatCompletion = {
 type OpenAIRemoteCall = OpenAIRemoteCallCreateChatCompletion;
 
 type OpenAIRemoteResult = ChatCompletion;
+
+// Import types from Anthropic SDK
+import {
+	Messages
+} from '@anthropic-ai/sdk/resources/messages/messages';
+
+type AnthropicRemoteCallCreateMessage = {
+	endpoint: 'messages.create',
+	payload: Messages.MessageCreateParams 
+};
+
+type AnthropicRemoteCall = AnthropicRemoteCallCreateMessage;
+
+type AnthropicRemoteResult = Messages.Message;
 
 class OpenAIProxy {
 
@@ -117,7 +132,22 @@ class OpenAIProxy {
 	}
 }
 
+class AnthropicProxy {
+	createMessage(request: Messages.MessageCreateParams): Promise<Messages.Message> {
+		return this._bridge({
+			endpoint: 'messages.create',
+			payload: request
+		});
+	}
+
+	async _bridge(data: AnthropicRemoteCall): Promise<AnthropicRemoteResult> {
+		const result = await anthropicCallable(data);
+		return result.data as AnthropicRemoteResult;
+	}
+}
+
 const openai = new OpenAIProxy();
+const anthropic = new AnthropicProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
@@ -139,9 +169,10 @@ const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 	}
 };
 
+const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
 
-export const DEFAULT_MODEL : AIModelName = 'gpt-4o';
+export const DEFAULT_MODEL : AIModelName = DEFAULT_OPENAI_MODEL;
 
 const COMPLETION_CACHE : {[hash : string] : string} = {};
 
@@ -153,7 +184,7 @@ export const cachedCompletion = async (prompt : string, uid: Uid, model : AIMode
 	return result;
 };
 
-const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName = DEFAULT_MODEL) : Promise<string> => {
+const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName = DEFAULT_OPENAI_MODEL) : Promise<string> => {
 	if (!OPENAI_ENABLED) throw new Error('OpenAI not enabled');
 	
 	const result = await openai.createChatCompletion({
@@ -174,11 +205,34 @@ const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName
 	return result.choices[0].message.content || '';
 };
 
-const anthropicCompletion = async (_prompt: string, _uid: Uid, _model: AnthropicModelName = DEFAULT_ANTHROPIC_MODEL) : Promise<string> => {
+const anthropicCompletion = async (prompt: string, uid: Uid, model: AnthropicModelName = DEFAULT_ANTHROPIC_MODEL) : Promise<string> => {
 	if (!ANTHROPIC_ENABLED) throw new Error('Anthropic not enabled');
 	
-	//TODO: implement
-	throw new Error('Not implemented');
+	const result = await anthropic.createMessage({
+		model,
+		messages: [
+			{
+				role: 'user',
+				content: prompt
+			},
+		],
+		max_tokens: 16000,
+		metadata: {
+			user_id: uid
+		}
+	});
+	
+	if (!result) throw new Error('no result');
+	if (!result.content) throw new Error('no content in result');
+	if (result.content.length === 0) throw new Error('empty content array');
+	
+	// Extract text from content blocks
+	const textContent = result.content
+		.filter(block => block.type === 'text')
+		.map(block => (block as {type: 'text', text: string}).text)
+		.join('');
+		
+	return textContent;
 };
 
 const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
