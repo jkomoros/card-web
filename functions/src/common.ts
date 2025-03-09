@@ -22,6 +22,11 @@ import {
 	UserPermissions
 } from './types';
 
+import {
+	CallableRequest,
+	HttpsError
+} from 'firebase-functions/v2/https';
+
 initializeApp();
 
 //We use this so often we might as well make it more common
@@ -36,6 +41,7 @@ export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('
 
 //Duplicated from tools/src.ts;
 const OPENAI_API_KEY_VAR = 'OPENAI_API_KEY';
+const ANTHROPIC_API_KEY_VAR = 'ANTHROPIC_API_KEY';
 const SITE_DOMAIN_VAR = 'SITE_DOMAIN';
 const LAST_DEPLOY_AFFECTING_RENDERING_VAR = 'LAST_DEPLOY_AFFECTING_RENDERING';
 const TWITTER_ACCESS_TOKEN_SECRET_VAR = 'TWITTER_ACCESS_TOKEN_SECRET';
@@ -53,6 +59,9 @@ export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];
 export const EMAIL_FROM_ADDRESS = process.env[EMAIL_FROM_ADDRESS_VAR];
 export const EMAIL_TO_ADDRESS = process.env[EMAIL_TO_ADDRESS_VAR];
 export const OPENAI_API_KEY = process.env[OPENAI_API_KEY_VAR];
+export const ANTHROPIC_API_KEY = process.env[ANTHROPIC_API_KEY_VAR];
+export const OPENAI_ENABLED = !!OPENAI_API_KEY;
+export const ANTHROPIC_ENABLED = !!ANTHROPIC_API_KEY;
 export const TWITTER_ACCESS_TOKEN_SECRET = process.env[TWITTER_ACCESS_TOKEN_SECRET_VAR];
 export const TWITTER_CONSUMER_SECRET = process.env[TWITTER_CONSUMER_SECRET_VAR];
 export const TWITTER_ACCESS_TOKEN_KEY = process.env[TWITTER_ACCESS_TOKEN_KEY_VAR];
@@ -128,4 +137,25 @@ export const getCardName = async (cardId : CardID) => {
 
 export const prettyCardURL = (card : Card) => {
 	return 'https://' + DOMAIN + '/' +  PAGE_DEFAULT + '/' + card.name;
+};
+
+//The server-side analogue of selectUserMayUseAI
+export const mayUseAI = (permissions : UserPermissions | null) => {
+	if (!permissions) return false;
+	if (permissions.admin) return true;
+	if (permissions.remoteAI) return true;
+	//TODO: also allow it if the ai permission is true.
+	return false;
+};
+
+export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>) : Promise<void> => {
+	if (!request.auth) {
+		throw new HttpsError('unauthenticated', 'A valid user authentication must be passed');
+	}
+
+	const permissions = await userPermissions(request.auth.uid);
+
+	if (!mayUseAI(permissions)) {
+		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');
+	}
 };

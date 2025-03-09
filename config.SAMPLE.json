@@ -13,6 +13,7 @@
 		"twitter_handle": "CHANGE-ME",
 		"disable_twitter": false,
 		"openai_api_key": "CHANGE-ME",
+		"anthropic_api_key": "CHANGE-ME",
 		"backup_bucket_name": "CHANGE-ME",
 		"qdrant": {
 			"cluster_url": "CHANGE-ME",

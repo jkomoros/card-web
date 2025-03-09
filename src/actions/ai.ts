@@ -45,7 +45,8 @@ import {
 	AIModelName,
 	StringCardMap,
 	CardType,
-	OpenAIModelName
+	OpenAIModelName,
+	AnthropicModelName
 } from '../types.js';
 
 import {
@@ -69,7 +70,7 @@ import {
 	AI_SHOW_ERROR,
 	SomeAction
 } from '../actions.js';
-import { OPENAI_ENABLED } from '../config.GENERATED.SECRET.js';
+import { OPENAI_ENABLED, ANTHROPIC_ENABLED } from '../config.GENERATED.SECRET.js';
 
 export type AIDialogTypeConfiguration = {
 	title: string;
@@ -89,6 +90,7 @@ const commitTitleSuggestion  = () : ThunkSomeAction => (dispatch, getState) => {
 };
 
 const openaiCallable = httpsCallable(functions, 'openai');
+const anthropicCallable = httpsCallable(functions, 'anthropic');
 
 type OpenAIRemoteCallCreateChatCompletion = {
 	endpoint: 'chat.completions.create',
@@ -98,6 +100,20 @@ type OpenAIRemoteCallCreateChatCompletion = {
 type OpenAIRemoteCall = OpenAIRemoteCallCreateChatCompletion;
 
 type OpenAIRemoteResult = ChatCompletion;
+
+// Import types from Anthropic SDK
+import {
+	Messages
+} from '@anthropic-ai/sdk/resources/messages/messages';
+
+type AnthropicRemoteCallCreateMessage = {
+	endpoint: 'messages.create',
+	payload: Messages.MessageCreateParams 
+};
+
+type AnthropicRemoteCall = AnthropicRemoteCallCreateMessage;
+
+type AnthropicRemoteResult = Messages.Message;
 
 class OpenAIProxy {
 
@@ -116,11 +132,26 @@ class OpenAIProxy {
 	}
 }
 
+class AnthropicProxy {
+	createMessage(request: Messages.MessageCreateParams): Promise<Messages.Message> {
+		return this._bridge({
+			endpoint: 'messages.create',
+			payload: request
+		});
+	}
+
+	async _bridge(data: AnthropicRemoteCall): Promise<AnthropicRemoteResult> {
+		const result = await anthropicCallable(data);
+		return result.data as AnthropicRemoteResult;
+	}
+}
+
 const openai = new OpenAIProxy();
+const anthropic = new AnthropicProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-type modelProvider = 'openai';
+type modelProvider = 'openai' | 'anthropic';
 
 type modelInfo = {
 	maxTokens: number,
@@ -131,15 +162,21 @@ const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 	'gpt-4o': {
 		maxTokens: 128000,
 		provider: 'openai'
+	},
+	'claude-3-7-sonnet-latest': {
+		maxTokens: 200000,
+		provider: 'anthropic'
 	}
 };
 
-export const DEFAULT_MODEL : AIModelName = 'gpt-4o';
+const DEFAULT_OPENAI_MODEL = 'gpt-4o';
+const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
+
+export const DEFAULT_MODEL : AIModelName = DEFAULT_ANTHROPIC_MODEL;
 
 const COMPLETION_CACHE : {[hash : string] : string} = {};
 
 export const cachedCompletion = async (prompt : string, uid: Uid, model : AIModelName = DEFAULT_MODEL) : Promise<string> => {
-	if (!OPENAI_ENABLED) throw new Error('AI not enabled');
 	const key = stringHash(model + prompt);
 	if (COMPLETION_CACHE[key]) return COMPLETION_CACHE[key];
 	const result = await completion(prompt, uid, model);
@@ -147,7 +184,9 @@ export const cachedCompletion = async (prompt : string, uid: Uid, model : AIMode
 	return result;
 };
 
-const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName = DEFAULT_MODEL) : Promise<string> => {
+const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName = DEFAULT_OPENAI_MODEL) : Promise<string> => {
+	if (!OPENAI_ENABLED) throw new Error('OpenAI not enabled');
+	
 	const result = await openai.createChatCompletion({
 		model,
 		messages: [
@@ -166,12 +205,44 @@ const openAICompletion = async (prompt: string, uid: Uid, model: OpenAIModelName
 	return result.choices[0].message.content || '';
 };
 
+const anthropicCompletion = async (prompt: string, uid: Uid, model: AnthropicModelName = DEFAULT_ANTHROPIC_MODEL) : Promise<string> => {
+	if (!ANTHROPIC_ENABLED) throw new Error('Anthropic not enabled');
+	
+	const result = await anthropic.createMessage({
+		model,
+		messages: [
+			{
+				role: 'user',
+				content: prompt
+			},
+		],
+		max_tokens: 16000,
+		metadata: {
+			user_id: uid
+		}
+	});
+	
+	if (!result) throw new Error('no result');
+	if (!result.content) throw new Error('no content in result');
+	if (result.content.length === 0) throw new Error('empty content array');
+	
+	// Extract text from content blocks
+	const textContent = result.content
+		.filter(block => block.type === 'text')
+		.map(block => (block as {type: 'text', text: string}).text)
+		.join('');
+		
+	return textContent;
+};
+
 const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
 	const modelInfo = MODEL_INFO[model];
 	if (!modelInfo) throw new Error('Unknown model: ' + model);
 	switch(modelInfo.provider) {
 	case 'openai':
 		return openAICompletion(prompt, uid, model as OpenAIModelName);
+	case 'anthropic':
+		return anthropicCompletion(prompt, uid, model as AnthropicModelName);
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
@@ -201,9 +272,57 @@ const computeTokenCount = async (text : string | string[], model : AIModelName) 
 	switch(modelInfo.provider) {
 	case 'openai':
 		return openAIComputeTokenCount(text);
+	case 'anthropic':
+		return anthropicComputeTokenCount(text);
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
+};
+
+const anthropicComputeTokenCount = async (text : string | string[]) : Promise<number> => {
+	// A more accurate conservative client-side estimate for Anthropic token count
+	// Claude's tokenizer (based on BPE) is similar to OpenAI's but with some differences
+	// This method uses the following heuristics for a conservative estimate:
+	// - Whitespace and punctuation are usually 1 token each
+	// - Common English words are often 1 token
+	// - Longer words are typically broken into multiple tokens
+	// - Non-ASCII characters often consume more tokens
+	// - The ratio is typically 0.4 tokens per character for English text (higher than OpenAI's 0.25-0.3)
+	// - We'll use 0.5 tokens per character as a conservative estimate
+	
+	if (typeof text === 'string') text = [text];
+	
+	let totalTokens = 0;
+	
+	for (const str of text) {
+		// Count characters
+		const charCount = str.length;
+
+		// Count whitespace (spaces, tabs, newlines)
+		const whitespaceCount = (str.match(/\s/g) || []).length;
+
+		// Count punctuation
+		const punctuationCount = (str.match(/[.,!?;:'"()[\]{}]/g) || []).length;
+
+		// Count non-ASCII characters (which typically use more tokens)
+		// eslint-disable-next-line no-control-regex
+		const nonAsciiCount = (str.match(/[^\x00-\x7F]/g) || []).length;
+		
+		// Base token estimate: characters * 0.5 (conservative ratio for English text)
+		let tokenEstimate = charCount * 0.5;
+		
+		// Add extra for non-ASCII characters (they often use more tokens)
+		tokenEstimate += nonAsciiCount * 0.5;
+		
+		// Ensure we count at least one token per whitespace/punctuation
+		// (this helps account for token boundaries at these points)
+		tokenEstimate = Math.max(tokenEstimate, whitespaceCount + punctuationCount);
+		
+		totalTokens += Math.ceil(tokenEstimate);
+	}
+	
+	// Add a 10% safety margin for any edge cases
+	return Math.ceil(totalTokens * 1.1);
 };
 
 //NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.

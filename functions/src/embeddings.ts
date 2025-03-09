@@ -1,5 +1,5 @@
 import {
-	openai_endpoint, throwIfUserMayNotUseAI
+	openai_endpoint,
 } from './openai.js';
 
 import {
@@ -21,7 +21,8 @@ import {
 	db,
 	DEV_MODE,
 	QDRANT_API_KEY,
-	QDRANT_CLUSTER_URL
+	QDRANT_CLUSTER_URL,
+	throwIfUserMayNotUseAI
 } from './common.js';
 
 import {

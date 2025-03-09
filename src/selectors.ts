@@ -119,7 +119,8 @@ import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION,
 	TAB_OVERRIDES_CONFIGURATION,
-	OPENAI_ENABLED
+	OPENAI_ENABLED,
+	ANTHROPIC_ENABLED
 } from './config.GENERATED.SECRET.js';
 
 import {
@@ -565,7 +566,8 @@ export const selectUserIsAdmin = createSelector(
 export const selectUserMayUseAI = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => OPENAI_ENABLED && (admin || permissions[PERMISSION_REMOTE_AI] || false)
+	//TODO: note this logic is technically wrong; some uses of this selector use it to see if they can rely on semantic embeddings, which is only OPENAI, not anthropic.
+	(admin, permissions) => (OPENAI_ENABLED || ANTHROPIC_ENABLED) && (admin || permissions[PERMISSION_REMOTE_AI] || false)
 );
 
 export const selectUserMayEdit = createSelector(

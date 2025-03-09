@@ -66,6 +66,10 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
+const ANTHROPIC_API_KEY = projectConfig.anthropic_api_key || '';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ANTHROPIC_ENABLED = ANTHROPIC_API_KEY != '';
+
 const SEO_ENABLED = projectConfig.seo;
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
@@ -358,7 +362,39 @@ gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? ',functions:openai,functions:updateCardEmbedding,functions:reindexCardEmbeddings,functions:similarCards,functions:semanticSort' : '')));
+gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
+	// Default functions to deploy
+	const baseFunctions = [
+		'emailAdminOnMessage',
+		'emailAdminOnStar', 
+		'legal'
+	];
+
+	// AI model specific functions
+	if (OPENAI_ENABLED) {
+		baseFunctions.push(
+			'openai',
+			'updateCardEmbedding',
+			'reindexCardEmbeddings',
+			'similarCards',
+			'semanticSort'
+		);
+	}
+
+	if (ANTHROPIC_ENABLED) {
+		baseFunctions.push('anthropic');
+	}
+
+	// If Twitter is enabled, deploy everything
+	if (ENABLE_TWITTER) {
+		makeExecutor('firebase deploy')(cb);
+		return;
+	}
+
+	// Otherwise, only deploy specific services and functions
+	const deployCmd = 'firebase deploy --only hosting,storage,firestore,functions:' + baseFunctions.join(',functions:');
+	makeExecutor(deployCmd)(cb);
+});
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, async (cb) => {
 	const projectID = await selectedProjectID();
@@ -439,11 +475,11 @@ gulp.task(ASK_BACKUP_MESSAGE, async (cb) => {
 	cb();
 });
 
-gulp.task(CONFIGURE_API_KEYS, makeExecutor('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY));
+gulp.task(CONFIGURE_API_KEYS, makeExecutor('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY + ' anthropic.api_key=' + ANTHROPIC_API_KEY));
 
 gulp.task(CONFIGURE_API_KEYS_IF_SET, (cb) => {
 	const task = gulp.task(CONFIGURE_API_KEYS);
-	if (!OPENAI_API_KEY) {
+	if (!OPENAI_API_KEY && !ANTHROPIC_API_KEY) {
 		console.log('Skipping uploading of api keys because they weren\'t set');
 		cb();
 		return;

@@ -1,7 +1,7 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 import {
-	OPENAI_API_KEY,
+	ANTHROPIC_API_KEY,
 	throwIfUserMayNotUseAI
 } from './common.js';
 
@@ -10,22 +10,22 @@ import {
 	HttpsError
 } from 'firebase-functions/v2/https';
 
-export const openai_endpoint = OPENAI_API_KEY ? new OpenAI({
-	apiKey: OPENAI_API_KEY,
+export const anthropic_endpoint = ANTHROPIC_API_KEY ? new Anthropic({
+	apiKey: ANTHROPIC_API_KEY,
 }) : null;
 
-type OpenAIData = {
-	endpoint: 'chat.completions.create',
-	payload: OpenAI.Chat.ChatCompletionCreateParams
+type AnthropicData = {
+	endpoint: 'messages.create',
+	payload: Anthropic.Messages.MessageCreateParams
 };
 
 //data should have endpoint and payload
-export const handler = async (request : CallableRequest<OpenAIData>) => {
+export const handler = async (request : CallableRequest<AnthropicData>) => {
 
 	const data = request.data;
 
-	if (!openai_endpoint) {
-		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
+	if (!anthropic_endpoint) {
+		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
 	}
 
 	await throwIfUserMayNotUseAI(request);
@@ -42,12 +42,12 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 		throw new HttpsError('invalid-argument', 'payload must be provided');
 	}
 
-	if (data.endpoint != 'chat.completions.create') {
+	if (data.endpoint != 'messages.create') {
 		throw new HttpsError('invalid-argument', 'endpoint must be set to an allowed endpoint type');
 	}
 
 	try {
-		const result = await openai_endpoint.chat.completions.create(data.payload);
+		const result = await anthropic_endpoint.messages.create(data.payload);
 		return result;
 	} catch(err) {
 		if (!err || typeof err != 'object') throw new HttpsError('unknown', String(err));
