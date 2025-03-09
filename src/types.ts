@@ -1500,7 +1500,7 @@ export type MultiEditState = {
 	addTODODisablements: AutoTODOType[]
 };
 
-export type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
+export type AIModelName = 'gpt-4o';
 
 const aiDialogType = z.enum([
 	'summary',

@@ -1,5 +1,5 @@
 import {
-	DEFAULT_LONG_MODEL,
+	DEFAULT_MODEL,
 	cachedCompletion
 } from '../actions/ai.js';
 
@@ -118,7 +118,7 @@ export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : stri
 //If a or b is a Card, then it will extract the content. If it's a string, it
 //assumes it's already the cardPlainContent.
 const chooseBetterCardWithAI = async (a : Card, b : Card, uid : string, logger : Logger) : Promise<AIComparisonResult> => {
-	const model = DEFAULT_LONG_MODEL;
+	const model = DEFAULT_MODEL;
 	//TODO: use function calling?
 	const prompt = `The following are two essays:
 	Essay A:

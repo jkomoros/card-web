@@ -1,5 +1,5 @@
 import {
-	DEFAULT_LONG_MODEL,
+	DEFAULT_MODEL,
 	cachedCompletion, fitPrompt
 } from '../actions/ai.js';
 
@@ -52,7 +52,7 @@ export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestio
 		return [];
 	}
 	try {
-		const model = DEFAULT_LONG_MODEL;
+		const model = DEFAULT_MODEL;
 		const [prompt] = await fitPrompt({
 			prefix: 'Here is an essay with some duplication:\n----',
 			items: cliqueCards.map(card => cardPlainContent(card)),

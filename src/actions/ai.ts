@@ -123,29 +123,12 @@ type modelInfo = {
 };
 
 const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
-	'gpt-3.5-turbo': {
-		maxTokens: 4096
-	},
-	'gpt-3.5-turbo-16k': {
-		//According to https://platform.openai.com/docs/models/gpt-3-5
-		maxTokens: 16384
-	},
-	'gpt-4': {
-		maxTokens: 8192
-	},
-	'gpt-4-32k': {
-		maxTokens: 32768
+	'gpt-4o': {
+		maxTokens: 128000
 	}
 };
 
-const USE_HIGH_FIDELITY_MODEL = false;
-
-const DEFAULT_HIGH_FIDELITY_MODEL = 'gpt-4';
-
-export const DEFAULT_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
-
-//gpt-4-32k is limited access
-export const DEFAULT_LONG_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
+export const DEFAULT_MODEL : AIModelName = 'gpt-4o';
 
 const COMPLETION_CACHE : {[hash : string] : string} = {};
 
@@ -364,7 +347,7 @@ export const summarizeCardsWithAI = () : ThunkSomeAction => async (dispatch, get
 	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	const model = DEFAULT_LONG_MODEL;
+	const model = DEFAULT_MODEL;
 	dispatch(aiRequestStarted('summary', model));
 
 	const [prompt, ids] = await cardsAISummaryPrompt(cards, model);
@@ -405,7 +388,7 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	const model = DEFAULT_HIGH_FIDELITY_MODEL;
+	const model = DEFAULT_MODEL;
 	dispatch(aiRequestStarted('concepts', model));
 
 	const reversedConcepts = selectConcepts(state);
