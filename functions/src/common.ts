@@ -56,6 +56,12 @@ import {
 	QDRANT_API_KEY_VAR
 } from '../../shared/env-constants.js';
 
+// Import shared collection constants
+import {
+	CARDS_COLLECTION,
+	PERMISSIONS_COLLECTION
+} from '../../shared/collection-constants.js';
+
 //These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];
 export const EMAIL_FROM_ADDRESS = process.env[EMAIL_FROM_ADDRESS_VAR];
@@ -103,7 +109,7 @@ export {
 };
 
 export const userPermissions = async (uid : Uid) : Promise<UserPermissions | null> => {
-	const user = await db.collection('permissions').doc(uid).get();
+	const user = await db.collection(PERMISSIONS_COLLECTION).doc(uid).get();
 	if (!user) return null;
 	if (!user.exists) return null;
 	return user.data() || null;
@@ -116,12 +122,12 @@ export const urlForBasicCard = (idOrSlug : CardIdentifier) => {
 };
 
 export const getCardByIDOrSlug = async (idOrSlug : CardIdentifier) : Promise<Card | null> => {
-	let card = await db.collection('cards').doc(idOrSlug).get();
+	let card = await db.collection(CARDS_COLLECTION).doc(idOrSlug).get();
 	if (card && card.exists) {
 		return Object.assign({id: card.id}, card.data()) as Card;
 	}
 	//Try fetching by slug
-	const cards = await db.collection('cards').where('slugs', 'array-contains', idOrSlug).limit(1).get();
+	const cards = await db.collection(CARDS_COLLECTION).where('slugs', 'array-contains', idOrSlug).limit(1).get();
 	if (cards && !cards.empty) {
 		card = cards.docs[0];
 		return Object.assign({id: card.id}, card.data()) as Card;
@@ -131,7 +137,7 @@ export const getCardByIDOrSlug = async (idOrSlug : CardIdentifier) : Promise<Car
 
 export const getCardLinkCardsForCard = async (card : Card) : Promise<Record<CardID, Card>> => {
 	//orderBy is effectively a filter down to only cards that have 'references.CARD_ID' set.
-	const rawQuery =  await db.collection('cards').where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
+	const rawQuery =  await db.collection(CARDS_COLLECTION).where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
 	if (rawQuery.empty) return {};
 	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, Object.assign({id: doc.id}, doc.data())])) as Record<CardID, Card>;
 };
@@ -142,8 +148,7 @@ export const getUserDisplayName = async (uid : Uid) => {
 };
 
 export const getCardName = async (cardId : CardID) => {
-	//TODO: use the actual constants for cards collection (see #134)
-	const card = await db.collection('cards').doc(cardId).get();
+	const card = await db.collection(CARDS_COLLECTION).doc(cardId).get();
 	return card.data()?.name || cardId;
 };
 

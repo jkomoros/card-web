@@ -26,6 +26,10 @@ import {
 } from './common.js';
 
 import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+import {
 	QdrantClient
 } from '@qdrant/js-client-rest';
 
@@ -475,7 +479,7 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		console.warn('Qdrant not enabled, skipping');
 		return;
 	}
-	const rawCards = await db.collection('cards').get();
+	const rawCards = await db.collection(CARDS_COLLECTION).get();
 	const cards : Card[] = rawCards.docs.map(snapshot => {
 		return {
 			...snapshot.data(),

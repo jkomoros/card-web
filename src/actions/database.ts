@@ -90,7 +90,7 @@ import {
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
 
 import {
 	STOP_EXPECTING_FETCHED_CARDS

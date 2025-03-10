@@ -127,6 +127,9 @@ import {
 	TAGS_COLLECTION,
 	TAG_UPDATES_COLLECTION,
 	TWEETS_COLLECTION,
+} from '../../shared/collection-constants.js';
+
+import {
 	COLORS
 } from '../type_constants.js';
 

@@ -1,4 +1,3 @@
-
 import {
 	db,
 	prettyCardURL,
@@ -8,6 +7,12 @@ import {
 	TWITTER_CONSUMER_KEY,
 	TWITTER_CONSUMER_SECRET
 } from './common.js';
+
+import {
+	CARDS_COLLECTION,
+	SECTIONS_COLLECTION,
+	TWEETS_COLLECTION
+} from '../../shared/collection-constants.js';
 
 import {
 	FieldValue
@@ -134,8 +139,8 @@ const sendTweet = async (message : string, image : Buffer | null) : Promise<Twit
 
 const selectCardToTweet = async () => {
 	//Tweet card selects a tweet to send and sends it.
-	const rawCards = await db.collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
-	const rawSections = await db.collection('sections').orderBy('order').get();
+	const rawCards = await db.collection(CARDS_COLLECTION).where('published', '==', true).where('card_type', '==', 'content').get();
+	const rawSections = await db.collection(SECTIONS_COLLECTION).orderBy('order').get();
 
 	const sectionsMap = Object.fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()])) as Sections;
 	const cardsMap = Object.fromEntries(rawCards.docs.map(snapshot => [snapshot.id, Object.assign({id: snapshot.id}, snapshot.data())])) as Record<CardID, Card>;
@@ -200,8 +205,8 @@ const markCardTweeted = async (card : Card, tweetInfo : Twitter.ResponseData | n
 	//even bother pretending one did).
 	if (!tweetInfo) return;
 
-	const cardRef = db.collection('cards').doc(card.id);
-	const tweetRef = db.collection('tweets').doc(tweetInfo.id);
+	const cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
+	const tweetRef = db.collection(TWEETS_COLLECTION).doc(tweetInfo.id);
 
 	const batch = db.batch();
 
@@ -237,7 +242,7 @@ export const fetchTweetEngagement = async() => {
 		return;
 	}
 
-	const tweets = await db.collection('tweets').where('fake', '==', false).where('archived', '==', false).orderBy('engagement_last_fetched', 'asc').limit(MAX_TWEETS_TO_FETCH).get();
+	const tweets = await db.collection(TWEETS_COLLECTION).where('fake', '==', false).where('archived', '==', false).orderBy('engagement_last_fetched', 'asc').limit(MAX_TWEETS_TO_FETCH).get();
 	const tweetIDs = tweets.docs.map(doc => doc.id);
 	if (tweetIDs.length === 0) {
 		console.log('No tweets to fetch');
@@ -263,7 +268,7 @@ export const fetchTweetEngagement = async() => {
 	for (const entry of Object.entries(tweetInfos)) {
 		const tweetInfo = entry[1];
 		const tweetID = entry[0];
-		const tweetRef = db.collection('tweets').doc(tweetID);
+		const tweetRef = db.collection(TWEETS_COLLECTION).doc(tweetID);
 
 		//Note: because we sent map:true to the twitter API, tweets that no
 		//longer exist will be null tweetInfo. If that happens, archive them so
@@ -299,7 +304,7 @@ export const fetchTweetEngagement = async() => {
 				tweetDocUpdate.favorite_count = favorite_count;
 
 				const cardID = tweetDocData.card;
-				const cardRef = db.collection('cards').doc(cardID);
+				const cardRef = db.collection(CARDS_COLLECTION).doc(cardID);
 				const cardDoc = await transaction.get(cardRef);
 				if (!cardDoc.exists) {
 					throw new Error('Card with ID ' + cardID + ' doesn\'t exist!');

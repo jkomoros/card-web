@@ -63,9 +63,12 @@ import {
 } from './prompt.js';
 
 import {
-	REFERENCES_INBOUND_CARD_PROPERTY,
-	CARDS_COLLECTION
+	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../type_constants.js';
+
+import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
 
 import {
 	references,
