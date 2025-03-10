@@ -9,7 +9,13 @@ import {
 	z
 } from 'zod';
 
-export type Uid = string;
+import {
+	Uid	
+} from '../../shared/types.js';
+
+export {
+	Uid
+};
 
 export type CardID = string;
 export type Slug = string;

@@ -2,6 +2,8 @@ import {
 	z
 } from 'zod';
 
+export type Uid = string;
+
 // SetName type
 const setNameSchema = z.enum([
 	// The default set

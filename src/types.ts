@@ -36,10 +36,14 @@ import {
 	CollectionConfiguration,
 	SortName,
 	SetName,
-	ConcreteFilterName
+	ConcreteFilterName,
+	Uid
 } from '../shared/types.js';
 
-export type Uid = string;
+//Reexport
+export {
+	Uid
+};
 
 export type CardID = CardIDType;
 export type Slug = SlugType;
