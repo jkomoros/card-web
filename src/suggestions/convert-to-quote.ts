@@ -19,12 +19,9 @@ import {
 	ReferencesEntriesDiff,
 	Suggestion,
 	SuggestionDiff,
-	SuggestionDiffCreateCard
-} from '../types.js';
-
-import {
+	SuggestionDiffCreateCard,
 	CardID
-} from '../types_simple.js';
+} from '../types.js';
 
 import {
 	cardPlainContent,

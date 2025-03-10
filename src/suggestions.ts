@@ -24,12 +24,9 @@ import {
 	SuggestionType,
 	TagInfo,
 	TagInfos,
-	Uid
-} from './types.js';
-
-import {
+	Uid,
 	CardID
-} from './types_simple.js';
+} from './types.js';
 
 import {
 	TypedObject

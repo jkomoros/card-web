@@ -5,12 +5,12 @@ import {
 	z
 } from 'zod';
 
+import {
+	CardIdentifier
+} from '../shared/types.js';
+
 //Ugh doesn't this import kind of ruin the point?
 import * as icons from './components/my-icons.js';
-
-export type CardID = string;
-export type Slug = string;
-export type CardIdentifier = CardID | Slug;
 
 const tabConfigName = z.enum([
 	'default_tabs',

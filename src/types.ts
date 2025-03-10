@@ -26,10 +26,7 @@ import {
 	TabConfigItemInput,
 	TabConfigName,
 	IconName,
-	UserPermissionsCore,
-	CardID as CardIDType,
-	Slug as SlugType,
-	CardIdentifier as CardIdentifierType
+	UserPermissionsCore
 } from './types_simple.js';
 
 import {
@@ -37,17 +34,19 @@ import {
 	SortName,
 	SetName,
 	ConcreteFilterName,
-	Uid
+	Uid,
+	CardID,
+	Slug,
+	CardIdentifier
 } from '../shared/types.js';
 
 //Reexport
 export {
-	Uid
+	Uid,
+	CardID,
+	Slug,
+	CardIdentifier
 };
-
-export type CardID = CardIDType;
-export type Slug = SlugType;
-export type CardIdentifier = CardIdentifierType;
 
 type CardPermissionType = PermissionType;
 

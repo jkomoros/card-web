@@ -25,7 +25,8 @@ import {
 	CardFieldTypeEditableConfigurationMap,
 	CardFieldType,
 	CardFieldTypeConfiguration,
-	CardDiff
+	CardDiff,
+	CardID
 } from './types.js';
 
 import {
@@ -41,7 +42,6 @@ import {
 } from 'firebase/firestore';
 
 import {
-	CardID,
 	IconName
 } from './types_simple.js';
 

@@ -10,16 +10,19 @@ import {
 } from 'zod';
 
 import {
-	Uid	
+	Uid,
+	CardID,
+	Slug,
+	CardIdentifier
 } from '../../shared/types.js';
 
 export {
-	Uid
+	Uid,
+	CardID,
+	Slug,
+	CardIdentifier
 };
 
-export type CardID = string;
-export type Slug = string;
-export type CardIdentifier = CardID | Slug;
 export type SectionID = string;
 export type TagID = string;
 

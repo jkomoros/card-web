@@ -41,12 +41,9 @@ import {
 	CreateCardOpts,
 	ReferencesEntriesDiffItem,
 	Suggestion,
-	SuggestionDiff
-} from '../types.js';
-
-import {
+	SuggestionDiff,
 	CardID
-} from '../types_simple.js';
+} from '../types.js';
 
 import {
 	assertUnreachable, newID

@@ -34,7 +34,8 @@ import {
 	ProcessedCard,
 	State,
 	Suggestion,
-	TagInfos
+	TagInfos,
+	CardID
 } from '../types.js';
 
 import {
@@ -60,10 +61,6 @@ import {
 import {
 	TagEvent
 } from '../events.js';
-
-import {
-	CardID
-} from '../types_simple.js';
 
 import {
 	descriptionForSuggestion, largestNewCardIndex

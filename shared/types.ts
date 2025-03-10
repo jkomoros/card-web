@@ -4,6 +4,10 @@ import {
 
 export type Uid = string;
 
+export type CardID = string;
+export type Slug = string;
+export type CardIdentifier = CardID | Slug;
+
 // SetName type
 const setNameSchema = z.enum([
 	// The default set

@@ -33,16 +33,13 @@ import {
 } from '../store.js';
 
 import {
-	BulkImportDialogMode
+	BulkImportDialogMode,
+	CardID
 } from '../types.js';
 
 import {
 	bulkCreateWorkingNotes
 } from './data.js';
-
-import {
-	CardID
-} from '../types_simple.js';
 
 //Replicated in `functions/src/types.ts`
 export type SemanticSortRequestData = {

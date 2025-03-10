@@ -24,10 +24,7 @@ import {
 } from '../store.js';
 
 import {
-	CardID
-} from '../types_simple.js';
-
-import {
+	CardID,
 	Card,
 	State
 } from '../types.js';
