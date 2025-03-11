@@ -11,7 +11,9 @@ import {
 	Slug,
 	CardIdentifier,
 	CardType,
-	cardTypeSchema
+	cardTypeSchema,
+	ReferenceType,
+	referenceTypeSchema
 } from '../../shared/types.js';
 
 export {
@@ -20,7 +22,9 @@ export {
 	Slug,
 	CardIdentifier,
 	CardType,
-	cardTypeSchema
+	cardTypeSchema,
+	ReferenceType,
+	referenceTypeSchema
 };
 
 export type SectionID = string;
@@ -30,8 +34,7 @@ export type Section = {
 	cards: CardID[]
 };
 
-//Just pretned it's a string for simplicity
-export type ReferenceType = string;
+// ReferenceType now imported from shared/types.js
 
 export type Sections = Record<SectionID, Section>;
 

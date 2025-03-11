@@ -38,7 +38,9 @@ import {
 	Slug,
 	CardIdentifier,
 	CardType,
-	cardTypeSchema
+	cardTypeSchema,
+	ReferenceType,
+	referenceTypeSchema
 } from '../shared/types.js';
 
 import {
@@ -52,7 +54,9 @@ export {
 	Slug,
 	CardIdentifier,
 	CardType,
-	cardTypeSchema
+	cardTypeSchema,
+	ReferenceType,
+	referenceTypeSchema
 };
 
 type CardPermissionType = PermissionType;
@@ -247,50 +251,7 @@ type TODOOverrides = {
 	[name in AutoTODOType]+?: boolean
 }
 
-export const referenceTypeSchema = z.enum([
-	//For card-links within body content
-	//NOTE: duplicated in tweet-helpers.js
-	'link',
-	//For cards that are dupes of another card
-	'dupe-of',
-	//For cards that want to acknowledge another card (e.g. to get the 'missing
-	//reciprocal links' to go away) without actually doing a more substantive
-	//reference. These references typically shouldn't 'count' in many cases.
-	'ack',
-	//For references that aren't any of the other types
-	'generic',
-	//For cards that were forked from another--that is, whose content started as a
-	//direct copy of the other card at some point
-	'fork-of',
-	//For cards that want to express they are based on insights 'mined' from the
-	//other card--typically a working-notes card.
-	'mined-from',
-	//For cards that want to say you should also see a related card that is similar,
-	//a kind of peer.
-	'see-also',
-	//For saying that the card that is pointing from uses the concept pointed to at
-	//the other card. The other card may only be a concept card.
-	'concept',
-	//For concept cards that are synonym of another concept card. Conceptually a
-	//sub-type of the concept reference type.
-	'synonym',
-	//For concept cards that are the antonym of another concept card. Conceptually a
-	//sub-type of the concept reference type.
-	'opposite-of',
-	//For concept cards that are not strict synonyms of another card, but have a
-	//parallel to them. Conceptually a sub-type of the concept reference type.
-	'parallel-to',
-	//For cards that are an example of a more generic concept that is pointed to.
-	//Conceptually a sub-type of the concept reference type.
-	'example-of',
-	//For cards that are a metaphor for a concept. Conceptually a sub-type of the
-	//concept reference type.
-	'metaphor-for',
-	'citation',
-	'citation-person'
-]);
-
-export type ReferenceType = z.infer<typeof referenceTypeSchema>;
+// ReferenceType now imported from shared/types.js
 
 export type ReferencesInfoMap = {
 	[id : CardID]: {
