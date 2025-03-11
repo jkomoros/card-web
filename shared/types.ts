@@ -23,6 +23,7 @@ const setNameSchema = z.enum([
 export type SetName = z.infer<typeof setNameSchema>;
 
 // SortName type
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const sortNameSchema = z.enum([
 	'default',
 	'recent',
