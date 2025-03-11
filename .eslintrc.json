@@ -15,7 +15,8 @@
     ],
     "parserOptions": {
         "ecmaVersion": 2022,
-        "sourceType": "module"
+        "sourceType": "module",
+        "project": "./tsconfig.json"
     },
     "rules": {
         "indent": [
@@ -46,7 +47,8 @@
             "error",
             {
                 "varsIgnorePattern": "^_",
-                "argsIgnorePattern": "^_"
+                "argsIgnorePattern": "^_",
+                "ignoreRestSiblings": true
             }
         ]
     }
