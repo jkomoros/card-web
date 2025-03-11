@@ -41,7 +41,8 @@ import {
 	cardTypeSchema,
 	ReferenceType,
 	referenceTypeSchema,
-	ReferencesInfoMap
+	ReferencesInfoMap,
+	CardBooleanMap
 } from '../shared/types.js';
 
 import {
@@ -58,7 +59,8 @@ export {
 	cardTypeSchema,
 	ReferenceType,
 	referenceTypeSchema,
-	ReferencesInfoMap
+	ReferencesInfoMap,
+	CardBooleanMap
 };
 
 type CardPermissionType = PermissionType;
@@ -1040,9 +1042,7 @@ export type FilterExtras = {
 	editingCardSimilarity: SortExtra | null
 };
 
-export type CardBooleanMap = {
-	[id : CardID] : boolean
-}
+// CardBooleanMap now imported from shared/types.js
 
 export type FilterMap = {
 	[id : CardID] : true

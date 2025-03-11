@@ -14,7 +14,8 @@ import {
 	cardTypeSchema,
 	ReferenceType,
 	referenceTypeSchema,
-	ReferencesInfoMap
+	ReferencesInfoMap,
+	CardBooleanMap
 } from '../../shared/types.js';
 
 export {
@@ -26,7 +27,8 @@ export {
 	cardTypeSchema,
 	ReferenceType,
 	referenceTypeSchema,
-	ReferencesInfoMap
+	ReferencesInfoMap,
+	CardBooleanMap
 };
 
 export type SectionID = string;
@@ -92,8 +94,8 @@ export interface Card {
 	//modified, these s are automatically mirrored basd on the value
 	//of references. They're popped out primarily so that you can do
 	//firestore qureies on them to find cards that link to another.
-	references: unknown,
-	references_inbound: unknown,
+	references: CardBooleanMap,
+	references_inbound: CardBooleanMap,
 	//images is an imagesBlock. See src/images.js for a definition.
 	images: unknown[],
 

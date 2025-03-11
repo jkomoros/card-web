@@ -72,6 +72,10 @@ export type ReferencesInfoMap = {
 	}
 };
 
+export type CardBooleanMap = {
+	[id : CardID] : boolean
+};
+
 // SetName type
 const setNameSchema = z.enum([
 	// The default set
