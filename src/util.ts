@@ -44,7 +44,7 @@ import {
 
 import {
 	Timestamp
-} from 'firebase/firestore';
+} from '../shared/timestamp.js';
 
 import {
 	DERIVED_FIELDS_FOR_CARD_TYPE
