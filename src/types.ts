@@ -68,7 +68,7 @@ export const cardFieldTypeEditableSchema = z.enum([
 	'external_link'
 ]);
 
-const cardFieldTypeNonEditableSchema = z.enum([
+const _cardFieldTypeNonEditableSchema = z.enum([
 	'references_info_inbound',
 	'non_link_references',
 	'concept_references'
@@ -76,11 +76,11 @@ const cardFieldTypeNonEditableSchema = z.enum([
 
 export type CardFieldTypeEditable = z.infer<typeof cardFieldTypeEditableSchema>;
 
-export type CardFieldTypeNonEditable = z.infer<typeof cardFieldTypeNonEditableSchema>;
+export type CardFieldTypeNonEditable = z.infer<typeof _cardFieldTypeNonEditableSchema>;
 
 export const cardFieldTypeSchema = z.union([
 	cardFieldTypeEditableSchema,
-	cardFieldTypeNonEditableSchema
+	_cardFieldTypeNonEditableSchema
 ]);
 
 export type CardFieldType = z.infer<typeof cardFieldTypeSchema>;
@@ -109,7 +109,7 @@ export type CreateCardOpts = {
 }
 
 //duplicated in functions/src/type.ts
-const cardTypeSchema = z.enum([
+const _cardTypeSchema = z.enum([
 	'content',
 	'section-head',
 	'working-notes',
@@ -119,7 +119,7 @@ const cardTypeSchema = z.enum([
 	'quote'
 ]);
 
-export type CardType = z.infer<typeof cardTypeSchema>;
+export type CardType = z.infer<typeof _cardTypeSchema>;
 
 type CSSPartString = string;
 
@@ -143,7 +143,7 @@ export type WordCloud = [
 //Inspired by https://stackoverflow.com/a/54520829
 type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
 
-const imagePositionType = z.enum([
+const _imagePositionType = z.enum([
 	//Will position left. Multiple images will go to the right of the one
 	//immediatebly before them.
 	'top-left',
@@ -158,7 +158,7 @@ const imagePositionType = z.enum([
 	'right'
 ]);
 
-export type ImagePositionType = z.infer<typeof imagePositionType>;
+export type ImagePositionType = z.infer<typeof _imagePositionType>;
 
 //Note: images.ts:isImagePositionTypeProperty relies on position being the only
 //key for ImagePositionType
@@ -471,7 +471,7 @@ export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc
 
 type ConfigurableFilterFuncFactory = (filterType : ConfigurableFilterType, ...parts : URLPart[]) => ConfigurableFilterFuncFactoryResult;
 
-const configurableFilterFuncURLPart = z.enum([
+const _configurableFilterFuncURLPart = z.enum([
 	'date',
 	'text',
 	'key-card',
@@ -486,7 +486,7 @@ const configurableFilterFuncURLPart = z.enum([
 	'expand-filter'
 ]);
 
-type ConfigurableFilterFuncURLPart = z.infer<typeof configurableFilterFuncURLPart>;
+type ConfigurableFilterFuncURLPart = z.infer<typeof _configurableFilterFuncURLPart>;
 
 type ConfigurableFilterFuncArgument = {
 	type : ConfigurableFilterFuncURLPart,
@@ -507,21 +507,21 @@ export type ConfigurableFilterConfigurationMap = {
 
 //TODO: this name is confusing, in the state this is just called tab
 
-const editorTabSchema = z.enum([
+const _editorTabSchema = z.enum([
 	'content',
 	'config'
 ]);
 
-export type EditorTab = z.infer<typeof editorTabSchema>;
+export type EditorTab = z.infer<typeof _editorTabSchema>;
 
-const editorContentTabSchema = z.enum([
+const _editorContentTabSchema = z.enum([
 	'content',
 	'notes',
 	'todo'
 ]);
 
 //TODO: this name is confusing, in the state this is called editorTab
-export type EditorContentTab = z.infer<typeof editorContentTabSchema>;
+export type EditorContentTab = z.infer<typeof _editorContentTabSchema>;
 
 export type UserInfo = {
 	uid: Uid,
@@ -1005,14 +1005,14 @@ export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
 };
 
-const commitActionType = z.enum([
+const _commitActionType = z.enum([
 	'CONSOLE_LOG',
 	'EDIT_MESSAGE',
 	'ADD_MESSAGE',
 	'CREATE_THREAD'
 ]);
 
-export type CommitActionType = z.infer<typeof commitActionType>;
+export type CommitActionType = z.infer<typeof _commitActionType>;
 
 
 
@@ -1296,7 +1296,7 @@ export type Suggestion = {
 	rejection?: SuggestionDiff
 };
 
-const cardFetchTypeSchema = z.enum([
+const _cardFetchTypeSchema = z.enum([
 	'published',
 	'unpublished-partial',
 	'unpublished-complete',
@@ -1304,7 +1304,7 @@ const cardFetchTypeSchema = z.enum([
 	'unpublished-author'
 ]);
 
-export type CardFetchType = z.infer<typeof cardFetchTypeSchema>;
+export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;
 
 export type CardFetchTypeMap = {[type in CardFetchType]+?: true};
 
@@ -1455,13 +1455,13 @@ export type AnthropicModelName = 'claude-3-7-sonnet-latest'
 
 export type AIModelName = OpenAIModelName | AnthropicModelName;
 
-const aiDialogType = z.enum([
+const _aiDialogType = z.enum([
 	'summary',
 	'title',
 	'concepts'
 ]);
 
-export type AIDialogType = z.infer<typeof aiDialogType>;
+export type AIDialogType = z.infer<typeof _aiDialogType>;
 
 export type AIState = {
 	open: boolean;
@@ -1577,8 +1577,8 @@ export type State = {
 //The following are convenience functions for when you have a given enum that
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
-export const cardType = (input : CardType) => cardTypeSchema.parse(input);
+export const cardType = (input : CardType) => _cardTypeSchema.parse(input);
 export const referenceType = (input : ReferenceType) => referenceTypeSchema.parse(input);
 export const cardFieldType = (input : CardFieldType) => cardFieldTypeSchema.parse(input);
-export const editorTab = (input : EditorTab) => editorTabSchema.parse(input);
-export const editorContentTab = (input : EditorContentTab) => editorContentTabSchema.parse(input);
+export const editorTab = (input : EditorTab) => _editorTabSchema.parse(input);
+export const editorContentTab = (input : EditorContentTab) => _editorContentTabSchema.parse(input);
