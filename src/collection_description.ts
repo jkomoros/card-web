@@ -322,9 +322,9 @@ export class CollectionDescription {
 		}
 
 		this._setNameExplicitlySet = setNameExplicitlySet;
-		this._set = setName,
-		this._filters = filterNames,
-		this._sort = sortName,
+		this._set = setName;
+		this._filters = filterNames;
+		this._sort = sortName;
 		this._sortReversed = sortReversed;
 		this._viewMode = viewMode;
 		this._viewModeExtra = viewModeExtra;
