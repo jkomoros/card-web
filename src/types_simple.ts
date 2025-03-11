@@ -12,6 +12,7 @@ import {
 //Ugh doesn't this import kind of ruin the point?
 import * as icons from './components/my-icons.js';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const tabConfigName = z.enum([
 	'default_tabs',
 	'default_end_tabs',
