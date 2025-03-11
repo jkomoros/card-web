@@ -6,21 +6,21 @@ import {
 } from 'firebase-admin/firestore';
 
 import {
-	z
-} from 'zod';
-
-import {
 	Uid,
 	CardID,
 	Slug,
-	CardIdentifier
+	CardIdentifier,
+	CardType,
+	cardTypeSchema
 } from '../../shared/types.js';
 
 export {
 	Uid,
 	CardID,
 	Slug,
-	CardIdentifier
+	CardIdentifier,
+	CardType,
+	cardTypeSchema
 };
 
 export type SectionID = string;
@@ -32,18 +32,6 @@ export type Section = {
 
 //Just pretned it's a string for simplicity
 export type ReferenceType = string;
-
-//duplicated in src/types.ts
-export const cardType = z.enum([
-	'content',
-	'section-head',
-	'working-notes',
-	'concept',
-	'work',
-	'person'
-]);
-
-export type CardType = '' | z.infer<typeof cardType>;
 
 export type Sections = Record<SectionID, Section>;
 

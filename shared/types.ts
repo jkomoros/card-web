@@ -8,6 +8,19 @@ export type CardID = string;
 export type Slug = string;
 export type CardIdentifier = CardID | Slug;
 
+// CardType - duplicated from src/types.ts
+export const cardTypeSchema = z.enum([
+	'content',
+	'section-head',
+	'working-notes',
+	'concept',
+	'work',
+	'person',
+	'quote'
+]);
+
+export type CardType = z.infer<typeof cardTypeSchema>;
+
 // SetName type
 const setNameSchema = z.enum([
 	// The default set

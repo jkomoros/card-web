@@ -36,7 +36,9 @@ import {
 	Uid,
 	CardID,
 	Slug,
-	CardIdentifier
+	CardIdentifier,
+	CardType,
+	cardTypeSchema
 } from '../shared/types.js';
 
 import {
@@ -48,7 +50,9 @@ export {
 	Uid,
 	CardID,
 	Slug,
-	CardIdentifier
+	CardIdentifier,
+	CardType,
+	cardTypeSchema
 };
 
 type CardPermissionType = PermissionType;
@@ -111,18 +115,7 @@ export type CreateCardOpts = {
 	body? : string;
 }
 
-//duplicated in functions/src/type.ts
-const _cardTypeSchema = z.enum([
-	'content',
-	'section-head',
-	'working-notes',
-	'concept',
-	'work',
-	'person',
-	'quote'
-]);
-
-export type CardType = z.infer<typeof _cardTypeSchema>;
+// CardType now imported from shared/types.js
 
 type CSSPartString = string;
 
@@ -1580,7 +1573,7 @@ export type State = {
 //The following are convenience functions for when you have a given enum that
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
-export const cardType = (input : CardType) => _cardTypeSchema.parse(input);
+export const cardType = (input : CardType) => cardTypeSchema.parse(input);
 export const referenceType = (input : ReferenceType) => referenceTypeSchema.parse(input);
 export const cardFieldType = (input : CardFieldType) => cardFieldTypeSchema.parse(input);
 export const editorTab = (input : EditorTab) => _editorTabSchema.parse(input);
