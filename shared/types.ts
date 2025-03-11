@@ -66,6 +66,12 @@ export const referenceTypeSchema = z.enum([
 
 export type ReferenceType = z.infer<typeof referenceTypeSchema>;
 
+export type ReferencesInfoMap = {
+	[id : CardID]: {
+		[typ in ReferenceType]+?: string
+	}
+};
+
 // SetName type
 const setNameSchema = z.enum([
 	// The default set

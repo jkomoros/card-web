@@ -13,7 +13,8 @@ import {
 	CardType,
 	cardTypeSchema,
 	ReferenceType,
-	referenceTypeSchema
+	referenceTypeSchema,
+	ReferencesInfoMap
 } from '../../shared/types.js';
 
 export {
@@ -24,7 +25,8 @@ export {
 	CardType,
 	cardTypeSchema,
 	ReferenceType,
-	referenceTypeSchema
+	referenceTypeSchema,
+	ReferencesInfoMap
 };
 
 export type SectionID = string;
@@ -83,8 +85,8 @@ export interface Card {
 
 	//See the documentation for these two string contants in card_fields.js
 	//for information on the shape of these fields.
-	references_info: unknown,
-	references_info_inbound: unknown,
+	references_info: ReferencesInfoMap,
+	references_info_inbound: ReferencesInfoMap,
 	// version are like the normal properties, but where it's a map
 	//of cardID to true if there's ANY kind of refernce. Whenever a card is
 	//modified, these s are automatically mirrored basd on the value

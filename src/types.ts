@@ -40,7 +40,8 @@ import {
 	CardType,
 	cardTypeSchema,
 	ReferenceType,
-	referenceTypeSchema
+	referenceTypeSchema,
+	ReferencesInfoMap
 } from '../shared/types.js';
 
 import {
@@ -56,7 +57,8 @@ export {
 	CardType,
 	cardTypeSchema,
 	ReferenceType,
-	referenceTypeSchema
+	referenceTypeSchema,
+	ReferencesInfoMap
 };
 
 type CardPermissionType = PermissionType;
@@ -251,13 +253,7 @@ type TODOOverrides = {
 	[name in AutoTODOType]+?: boolean
 }
 
-// ReferenceType now imported from shared/types.js
-
-export type ReferencesInfoMap = {
-	[id : CardID]: {
-		[typ in ReferenceType]+?: string
-	}
-}
+// ReferenceType and ReferencesInfoMap now imported from shared/types.js
 
 export type ReferencesInfoMapByType = {
 	[typ in ReferenceType]+?: {
