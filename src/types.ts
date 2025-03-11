@@ -3,8 +3,7 @@ import {
 } from 'zod';
 
 import {
-	FieldValue,
-	Timestamp
+	FieldValue
 } from 'firebase/firestore';
 
 import {
@@ -39,6 +38,10 @@ import {
 	Slug,
 	CardIdentifier
 } from '../shared/types.js';
+
+import {
+	Timestamp
+} from '../shared/timestamp.js';
 
 //Reexport
 export {
