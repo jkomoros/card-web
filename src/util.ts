@@ -302,7 +302,7 @@ export const isURL = (str: string) : boolean => {
 	try {
 		new URL(str);
 		return true;
-	} catch (e) {
+	} catch (_e) {
 		return false;
 	}
 };

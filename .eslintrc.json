@@ -48,6 +48,7 @@
             {
                 "varsIgnorePattern": "^_",
                 "argsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_",
                 "ignoreRestSiblings": true
             }
         ]
