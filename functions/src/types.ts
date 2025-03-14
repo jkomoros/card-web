@@ -23,7 +23,10 @@ import {
 	SectionID,
 	TagID,
 	SectionCore,
-	Sections as SharedSections
+	Sections as SharedSections,
+	UserPermissionsCore,
+	PermissionType,
+	CardPermissions
 } from '../../shared/types.js';
 
 export {
@@ -44,7 +47,10 @@ export {
 	SectionID,
 	TagID,
 	SectionCore,
-	SharedSections
+	SharedSections,
+	UserPermissionsCore,
+	PermissionType,
+	CardPermissions
 };
 
 // SectionID and TagID now imported from shared/types.js
@@ -57,10 +63,11 @@ export type Section = SectionCore;
 // Use the shared Sections type with our specific Section interface
 export type Sections = SharedSections<Section>;
 
-export interface UserPermissions {
+// Extending the shared UserPermissionsCore with just what functions need
+export interface UserPermissions extends Partial<UserPermissionsCore> {
 	//This is a cut-down version that only has the fields we need
-	admin?: boolean,
-	remoteAI?: boolean
+	admin?: boolean;
+	remoteAI?: boolean;
 }
 
 export interface Card {
@@ -72,7 +79,7 @@ export interface Card {
 
 	author: Uid,
 	collaborators: Uid[],
-	permissions: unknown,
+	permissions: CardPermissions,
 
 	//A number that is compared to other cards to give the default sort
 	//order. Higher numbers will show up first in the default sort order.

@@ -102,6 +102,31 @@ export interface SectionCore {
 	cards: CardID[];
 }
 
+// UserPermissionsCore defines the base permission types
+export interface UserPermissionsCore {
+	admin?: boolean;
+	viewApp?: boolean;
+	edit?: boolean;
+	editSection?: boolean;
+	editTag?: boolean;
+	editCard?: boolean;
+	createCard?: boolean;
+	viewUnpublished?: boolean;
+	comment?: boolean;
+	star?: boolean;
+	markRead?: boolean;
+	modifyReadingList?: boolean;
+	remoteAI?: boolean;
+}
+
+// PermissionType is used for permission checks
+export type PermissionType = '' | keyof UserPermissionsCore;
+
+// CardPermissions maps permission types to arrays of user IDs
+export type CardPermissions = {
+	[name in PermissionType]+?: Uid[]
+};
+
 // Generic Sections type that works with any Section type that extends SectionCore
 export type Sections<T extends SectionCore = SectionCore> = {
 	[sectionName: SectionID]: T

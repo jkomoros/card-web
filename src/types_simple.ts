@@ -6,11 +6,14 @@ import {
 } from 'zod';
 
 import {
-	CardIdentifier
+	CardIdentifier,
+	UserPermissionsCore
 } from '../shared/types.js';
 
 //Ugh doesn't this import kind of ruin the point?
 import * as icons from './components/my-icons.js';
+
+export { UserPermissionsCore };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const tabConfigName = z.enum([
@@ -88,20 +91,4 @@ export type TabConfigOverrides = {
 	}
 }
 
-//This is the the type that PermissionType is driven off of.
-//functions/types/ts:UserPermissions is also based on this
-export type UserPermissionsCore = {
-	admin? : boolean,
-	viewApp? : boolean,
-	edit? : boolean,
-	editSection? : boolean,
-	editTag? : boolean,
-	editCard? : boolean,
-	createCard? : boolean,
-	viewUnpublished? : boolean,
-	comment? : boolean,
-	star? : boolean,
-	markRead? : boolean,
-	modifyReadingList? : boolean,
-	remoteAI?: boolean
-}
+// UserPermissionsCore now imported from shared/types.js

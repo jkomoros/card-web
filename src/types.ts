@@ -24,8 +24,7 @@ import {
 import {
 	TabConfigItemInput,
 	TabConfigName,
-	IconName,
-	UserPermissionsCore
+	IconName
 } from './types_simple.js';
 
 import {
@@ -50,7 +49,10 @@ import {
 	SectionID,
 	TagID,
 	SectionCore,
-	Sections as SharedSections
+	Sections as SharedSections,
+	UserPermissionsCore,
+	PermissionType,
+	CardPermissions
 } from '../shared/types.js';
 
 import {
@@ -80,14 +82,13 @@ export {
 	ConcreteFilterName,
 	SetName,
 	SortName,
-	CollectionConfiguration
+	CollectionConfiguration,
+	UserPermissionsCore,
+	PermissionType,
+	CardPermissions
 };
 
-type CardPermissionType = PermissionType;
-
-type CardPermissions = {
-	[name in CardPermissionType]+?: Uid[]
-}
+// PermissionType and CardPermissions now imported from shared/types.js
 
 //CardFieldType and EditableCardFieldType is driven off of these keys. Note the
 //membership in each object need to be consistent with
@@ -942,7 +943,7 @@ export type ProcessedCards = {
 	[id: CardID]: ProcessedCard
 }
 
-export type PermissionType = '' | keyof UserPermissionsCore;
+// PermissionType now imported from shared/types.js
 
 export interface PermissionInfo {
 	displayName : string,
