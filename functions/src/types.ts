@@ -15,9 +15,15 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
+	ReferencesInfoMapByType,
+	ReferencesArrayByType,
 	CardBooleanMap,
+	FilterMap,
+	Filters,
 	SectionID,
-	TagID
+	TagID,
+	SectionCore,
+	Sections as SharedSections
 } from '../../shared/types.js';
 
 export {
@@ -30,20 +36,26 @@ export {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
+	ReferencesInfoMapByType,
+	ReferencesArrayByType,
 	CardBooleanMap,
+	FilterMap,
+	Filters,
 	SectionID,
-	TagID
+	TagID,
+	SectionCore,
+	SharedSections
 };
 
 // SectionID and TagID now imported from shared/types.js
 
-export type Section = {
-	cards: CardID[]
-};
+// Simple Section type for functions, extending the core definition
+export type Section = SectionCore;
 
 // ReferenceType now imported from shared/types.js
 
-export type Sections = Record<SectionID, Section>;
+// Use the shared Sections type with our specific Section interface
+export type Sections = SharedSections<Section>;
 
 export interface UserPermissions {
 	//This is a cut-down version that only has the fields we need

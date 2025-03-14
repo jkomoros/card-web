@@ -42,9 +42,15 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
+	ReferencesInfoMapByType,
+	ReferencesArrayByType,
 	CardBooleanMap,
+	FilterMap,
+	Filters,
 	SectionID,
-	TagID
+	TagID,
+	SectionCore,
+	Sections as SharedSections
 } from '../shared/types.js';
 
 import {
@@ -62,9 +68,19 @@ export {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
+	ReferencesInfoMapByType,
+	ReferencesArrayByType,
 	CardBooleanMap,
+	FilterMap,
+	Filters,
 	SectionID,
-	TagID
+	TagID,
+	SectionCore,
+	SharedSections,
+	ConcreteFilterName,
+	SetName,
+	SortName,
+	CollectionConfiguration
 };
 
 type CardPermissionType = PermissionType;
@@ -259,17 +275,7 @@ type TODOOverrides = {
 	[name in AutoTODOType]+?: boolean
 }
 
-// ReferenceType and ReferencesInfoMap now imported from shared/types.js
-
-export type ReferencesInfoMapByType = {
-	[typ in ReferenceType]+?: {
-		[id : CardID]: string
-	}
-}
-
-export type ReferencesArrayByType = {
-	[typ in ReferenceType]+?: CardID[]
-}
+// ReferenceType, ReferencesInfoMap, ReferencesInfoMapByType, and ReferencesArrayByType now imported from shared/types.js
 
 export interface TweetInfo {
 	id : string
@@ -989,10 +995,9 @@ export type ConfigurableFilterRest = string;
 // SectionID and TagID now imported from shared/types.js
 
 //See also SectionUpdate
-export type Section = {
+export interface Section extends SectionCore {
 	start_cards : CardID[],
 	order : number,
-	cards : CardID[],
 	title : string,
 	subtitle? : string,
 	updated : Timestamp,
@@ -1025,8 +1030,9 @@ export type TagInfos = {
 	[name : string]: TagInfo
 }
 
+// Based on the shared Sections type but using our specific Section interface
 export type Sections = {
-	[sectionName : SectionID]: Section
+	[sectionName: SectionID]: Section
 }
 
 export type Sets = {
@@ -1044,15 +1050,7 @@ export type FilterExtras = {
 	editingCardSimilarity: SortExtra | null
 };
 
-// CardBooleanMap now imported from shared/types.js
-
-export type FilterMap = {
-	[id : CardID] : true
-};
-
-export type Filters = {
-	[filterName : ConcreteFilterName] : FilterMap
-}
+// CardBooleanMap, FilterMap, and Filters now imported from shared/types.js
 
 export type SerializedDescriptionToCardList = {
 	[serializedDescription: string] : CardID[],

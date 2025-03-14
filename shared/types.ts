@@ -72,12 +72,40 @@ export type ReferencesInfoMap = {
 	}
 };
 
+export type ReferencesInfoMapByType = {
+	[typ in ReferenceType]+?: {
+		[id : CardID]: string
+	}
+};
+
+export type ReferencesArrayByType = {
+	[typ in ReferenceType]+?: CardID[]
+};
+
 export type CardBooleanMap = {
 	[id : CardID] : boolean
 };
 
+export type FilterMap = {
+	[id : CardID] : true
+};
+
+export type Filters = {
+	[filterName : ConcreteFilterName] : FilterMap
+};
+
 export type SectionID = string;
 export type TagID = string;
+
+// Core fields for Section that both client and server need
+export interface SectionCore {
+	cards: CardID[];
+}
+
+// Generic Sections type that works with any Section type that extends SectionCore
+export type Sections<T extends SectionCore = SectionCore> = {
+	[sectionName: SectionID]: T
+};
 
 // SetName type
 const setNameSchema = z.enum([
