@@ -61,7 +61,11 @@ import {
 	ImageInfoImagePositionTypeProperty,
 	ImageInfoProperty,
 	ImageInfoPropertyValue,
-	ImageBlock
+	ImageBlock,
+	ImporterType,
+	SuggestionType,
+	CardFlags,
+	CardFlagsRemovals
 } from '../shared/types.js';
 
 import {
@@ -103,7 +107,11 @@ export {
 	ImageInfoImagePositionTypeProperty,
 	ImageInfoProperty,
 	ImageInfoPropertyValue,
-	ImageBlock
+	ImageBlock,
+	ImporterType,
+	SuggestionType,
+	CardFlags,
+	CardFlagsRemovals
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
@@ -673,20 +681,7 @@ export type ReferenceTypeConfigurationMap = {
 
 export type CardTestFunc = (card : Card) => boolean;
 
-export type ImporterType = 'google-docs-bulleted' | 'google-docs-flat';
-
-//A set of extra little metadata
-export type CardFlags = {
-	created_by_suggestor? : SuggestionType
-	//The version the suggestor was that created the card. Helps trace quality errors.
-	created_by_suggestor_version? : number,
-	converted_by_suggestor? : SuggestionType,
-	converted_by_suggestor_version? : number,
-	importer? : ImporterType,
-	importer_version? : number
-};
-
-export type CardFlagsRemovals = Partial<Record<keyof CardFlags, true>>;
+// ImporterType, SuggestionType, CardFlags, and CardFlagsRemovals now imported from shared/types.js
 
 //When adding a field here, consider whether it should also be in CardDiff.
 export interface Card {
@@ -1204,13 +1199,7 @@ export type SuggestionDiff = {
 	supportingCards: CardDiff
 };
 
-export type SuggestionType = 'add-see-also'
-	| 'add-dupe-of'
-	| 'synthesize-cluster'
-	| 'remove-priority'
-	| 'add-concept'
-	| 'convert-to-quote'
-	| 'convert-markdown';
+// SuggestionType now imported from shared/types.js
 
 export type Suggestion = {
 	type: SuggestionType,

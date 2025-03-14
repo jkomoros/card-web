@@ -28,7 +28,8 @@ import {
 	PermissionType,
 	CardPermissions,
 	ImageInfo,
-	ImageBlock
+	ImageBlock,
+	CardFlags
 } from '../../shared/types.js';
 
 export {
@@ -54,7 +55,8 @@ export {
 	PermissionType,
 	CardPermissions,
 	ImageInfo,
-	ImageBlock
+	ImageBlock,
+	CardFlags
 };
 
 // SectionID and TagID now imported from shared/types.js
@@ -96,8 +98,7 @@ export interface Card {
 	tags: TagID[],
 
 	//A spot for stashing various flags and metadata.
-	//TODO: add better typing like what client has
-	flags? : Record<string, unknown>,
+	flags? : CardFlags,
 
 	published: boolean,
 	//TODO: we should have this explicitly set on all cards, but in practice only some do.
