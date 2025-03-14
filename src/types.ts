@@ -52,7 +52,16 @@ import {
 	Sections as SharedSections,
 	UserPermissionsCore,
 	PermissionType,
-	CardPermissions
+	CardPermissions,
+	CSSColorString,
+	ImagePositionType,
+	ImageInfo,
+	ImageInfoStringProperty,
+	ImageInfoNumberProperty,
+	ImageInfoImagePositionTypeProperty,
+	ImageInfoProperty,
+	ImageInfoPropertyValue,
+	ImageBlock
 } from '../shared/types.js';
 
 import {
@@ -85,7 +94,16 @@ export {
 	CollectionConfiguration,
 	UserPermissionsCore,
 	PermissionType,
-	CardPermissions
+	CardPermissions,
+	CSSColorString,
+	ImagePositionType,
+	ImageInfo,
+	ImageInfoStringProperty,
+	ImageInfoNumberProperty,
+	ImageInfoImagePositionTypeProperty,
+	ImageInfoProperty,
+	ImageInfoPropertyValue,
+	ImageBlock
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
@@ -165,52 +183,7 @@ export type WordCloud = [
 	WordCloudItemInfos
 ];
 
-//Inspired by https://stackoverflow.com/a/54520829
-type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
-
-const _imagePositionType = z.enum([
-	//Will position left. Multiple images will go to the right of the one
-	//immediatebly before them.
-	'top-left',
-	//Like top-left, but images after the first will stack below the ones before
-	//them. For the first image, equivalent to top-left.
-	'left',
-	//Will position right. Multiple images will go to the left of the one
-	//immediately before them.
-	'top-right',
-	//Like top-right, but images after the first will stack below the ones before
-	//them. For the first image, equivalent to top-right.
-	'right'
-]);
-
-export type ImagePositionType = z.infer<typeof _imagePositionType>;
-
-//Note: images.ts:isImagePositionTypeProperty relies on position being the only
-//key for ImagePositionType
-export interface ImageInfo {
-	//Must always be set to a fully resolved url
-	src: string,
-	//Natural height and width in pixels
-	height: number,
-	width: number,
-	//Size, in ems, for the width of the image as rendered. (The height will maintain aspect ratio)
-	emSize: number,
-	//If the file is an uload, the path in the upload bucket. This is usef
-	uploadPath: string,
-	//If set, the location where the original was found, for citations, etc.
-	original: string,
-	alt: string,
-	//Must be one of the values in LEGAL_IMAGE_POSITIONS
-	position: ImagePositionType,
-	//number in ems
-	margin: number,
-}
-
-export type ImageInfoStringProperty = KeysMatching<ImageInfo,string>;
-export type ImageInfoNumberProperty = KeysMatching<ImageInfo,number>;
-export type ImageInfoImagePositionTypeProperty = KeysMatching<ImageInfo,ImagePositionType>;
-export type ImageInfoProperty = ImageInfoStringProperty | ImageInfoNumberProperty | ImageInfoImagePositionTypeProperty;
-export type ImageInfoPropertyValue = string | number | ImagePositionType;
+// ImagePositionType, ImageInfo, and related types now imported from shared/types.js
 
 export type ExpandedReferenceKey = string;
 export type ExpandedReferenceObject = {
@@ -240,7 +213,7 @@ export type ReferencesDiff = [ReferencesDiffItem, ReferencesDiffItem, References
 
 export type ReferencesCardsDiff = [additionsOrModifications : CardBooleanMap, deletions : CardBooleanMap];
 
-export type ImageBlock = ImageInfo[];
+// ImageBlock now imported from shared/types.js
 
 export const autoTODOType = z.enum([
 	'citations',
@@ -656,7 +629,7 @@ export type CardFieldTypeEditableConfigurationMap = {
 	[typ in CardFieldTypeEditable]: CardFieldTypeConfiguration
 }
 
-export type CSSColorString = string;
+// CSSColorString now imported from shared/types.js
 
 export type ReferenceTypeConfigurationMap = {
 	[type in ReferenceType]: {
@@ -806,6 +779,9 @@ export interface Card {
 	tweet_count: number,
 
 }
+
+//Redefining KeysMatching locally as it's used here but now defined in shared/types.ts
+type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
 
 export type CardTimestampPropertyName = KeysMatching<Card,Timestamp>;
 

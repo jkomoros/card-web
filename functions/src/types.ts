@@ -26,7 +26,9 @@ import {
 	Sections as SharedSections,
 	UserPermissionsCore,
 	PermissionType,
-	CardPermissions
+	CardPermissions,
+	ImageInfo,
+	ImageBlock
 } from '../../shared/types.js';
 
 export {
@@ -50,7 +52,9 @@ export {
 	SharedSections,
 	UserPermissionsCore,
 	PermissionType,
-	CardPermissions
+	CardPermissions,
+	ImageInfo,
+	ImageBlock
 };
 
 // SectionID and TagID now imported from shared/types.js
@@ -119,7 +123,7 @@ export interface Card {
 	references: CardBooleanMap,
 	references_inbound: CardBooleanMap,
 	//images is an imagesBlock. See src/images.js for a definition.
-	images: unknown[],
+	images: ImageBlock,
 
 	created: Timestamp,
 	updated: Timestamp,
