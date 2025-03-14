@@ -15,7 +15,9 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
-	CardBooleanMap
+	CardBooleanMap,
+	SectionID,
+	TagID
 } from '../../shared/types.js';
 
 export {
@@ -28,11 +30,12 @@ export {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
-	CardBooleanMap
+	CardBooleanMap,
+	SectionID,
+	TagID
 };
 
-export type SectionID = string;
-export type TagID = string;
+// SectionID and TagID now imported from shared/types.js
 
 export type Section = {
 	cards: CardID[]

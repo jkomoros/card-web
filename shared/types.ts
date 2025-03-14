@@ -76,6 +76,9 @@ export type CardBooleanMap = {
 	[id : CardID] : boolean
 };
 
+export type SectionID = string;
+export type TagID = string;
+
 // SetName type
 const setNameSchema = z.enum([
 	// The default set

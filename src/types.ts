@@ -42,7 +42,9 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
-	CardBooleanMap
+	CardBooleanMap,
+	SectionID,
+	TagID
 } from '../shared/types.js';
 
 import {
@@ -60,7 +62,9 @@ export {
 	ReferenceType,
 	referenceTypeSchema,
 	ReferencesInfoMap,
-	CardBooleanMap
+	CardBooleanMap,
+	SectionID,
+	TagID
 };
 
 type CardPermissionType = PermissionType;
@@ -982,9 +986,7 @@ export type ConfigurableFilterType = string;
 export type ConfigurableFilterRest = string;
 
 
-export type SectionID = string;
-
-export type TagID = string;
+// SectionID and TagID now imported from shared/types.js
 
 //See also SectionUpdate
 export type Section = {
