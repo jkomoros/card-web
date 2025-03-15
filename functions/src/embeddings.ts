@@ -46,7 +46,6 @@ import {
 import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
-import { Timestamp } from 'firebase-admin/firestore';
 
 //The highest number of cards there might ever be.
 const MAX_EMBEDDINGS = 100000;
@@ -160,8 +159,13 @@ const formatDate = (date :  Date) : string => {
 	return `${year}/${month}/${day}`;
 };
 
+type SimpleTimestamp = {
+	seconds: number;
+	nanoseconds: number;
+};
+
 //Gets the date when it might be a literal Timestamp or just an object with {seconds, nanoseconds}
-const toDate = (time : Timestamp) : Date => {
+const toDate = (time : SimpleTimestamp) : Date => {
 	if ('toDate' in time && typeof time.toDate == 'function') return time.toDate();
 	if ('seconds' in time) return new Date(time.seconds * 1000);
 	console.warn(`No time, using now: ${time}`);
