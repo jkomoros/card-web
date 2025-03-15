@@ -41,7 +41,9 @@ import {
 	FontSizeBoostMap,
 	AutoTODOType,
 	TODOType,
-	TODOOverrides
+	TODOOverrides,
+	NonAutoMergeableCardDiff,
+	CardDiff
 } from '../../shared/types.js';
 
 export {
@@ -80,7 +82,9 @@ export {
 	FontSizeBoostMap,
 	AutoTODOType,
 	TODOType,
-	TODOOverrides
+	TODOOverrides,
+	NonAutoMergeableCardDiff,
+	CardDiff
 };
 
 // SectionID and TagID now imported from shared/types.js

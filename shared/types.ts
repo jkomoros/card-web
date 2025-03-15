@@ -377,3 +377,49 @@ export const autoTODOTypeArray = z.array(autoTODOType);
 export type TODOOverrides = {
 	[name in AutoTODOType]+?: boolean
 };
+
+// CardDiff related types
+export interface NonAutoMergeableCardDiff {
+	//Note: if you add or remove something here, also modify src/card_diff.ts:NON_AUTOMATIC_MERGE_FIELDS
+
+	//Freeform text fields
+	title?: string;
+	title_alternates?: string;
+	body?: string;
+	subtitle?: string;
+	commentary?: string;
+	todo?: string;
+	notes?: string;
+	external_link?: string;
+
+	//Special sub-object that doesn't have diffing yet.
+	images?: ImageBlock;
+}
+
+//Every field in here (or NonAutoMergeableCardDiff) has to be known how to be handled in various functions in card_diff.ts
+export interface CardDiff extends NonAutoMergeableCardDiff {
+	//Every field directly on here (and not in NonAutoMergeableCardDiff) can
+	//safely be auto-merged.
+
+	name?: string;
+	section?: SectionID;
+	full_bleed?: boolean;
+	sort_order?: number;
+	published?: boolean;
+	card_type?: CardType;
+
+	font_size_boost?: FontSizeBoostMap;
+	references_diff?: ReferencesEntriesDiff;
+
+	auto_todo_overrides_enablements?: AutoTODOType[];
+	auto_todo_overrides_disablements?: AutoTODOType[];
+	auto_todo_overrides_removals?: AutoTODOType[];
+	set_flags?: CardFlags;
+	remove_flags?: CardFlagsRemovals;
+	add_editors?: Uid[];
+	remove_editors?: Uid[];
+	add_collaborators?: Uid[];
+	remove_collaborators?: Uid[];
+	add_tags?: TagID[];
+	remove_tags?: TagID[];
+}
