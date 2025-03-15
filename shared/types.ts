@@ -278,3 +278,31 @@ export type CardFlags = {
 };
 
 export type CardFlagsRemovals = Partial<Record<keyof CardFlags, true>>;
+
+export type ExpandedReferenceKey = string;
+export type ExpandedReferenceObject = {
+	cardID : CardID,
+	referenceType : ReferenceType,
+	value : string
+}
+export type ExpandedReferenceDelete = {
+	cardID : CardID,
+	referenceType : ReferenceType,
+	delete : true
+}
+
+export type ReferencesEntriesDiffItem = ExpandedReferenceObject | ExpandedReferenceDelete;
+
+export type ReferencesEntriesDiff = ReferencesEntriesDiffItem[];
+
+type ReferencesDiffItem = {
+	[propName : string] : string
+}
+
+type ReferencesDiffItemDelete = {
+	[propName : string] : boolean
+}
+
+export type ReferencesDiff = [ReferencesDiffItem, ReferencesDiffItem, ReferencesDiffItemDelete, ReferencesDiffItemDelete];
+
+export type ReferencesCardsDiff = [additionsOrModifications : CardBooleanMap, deletions : CardBooleanMap];

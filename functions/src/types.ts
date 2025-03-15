@@ -29,7 +29,14 @@ import {
 	CardPermissions,
 	ImageInfo,
 	ImageBlock,
-	CardFlags
+	CardFlags,
+	ExpandedReferenceKey,
+	ExpandedReferenceObject,
+	ExpandedReferenceDelete,
+	ReferencesEntriesDiffItem,
+	ReferencesEntriesDiff,
+	ReferencesDiff,
+	ReferencesCardsDiff
 } from '../../shared/types.js';
 
 export {
@@ -56,7 +63,14 @@ export {
 	CardPermissions,
 	ImageInfo,
 	ImageBlock,
-	CardFlags
+	CardFlags,
+	ExpandedReferenceKey,
+	ExpandedReferenceObject,
+	ExpandedReferenceDelete,
+	ReferencesEntriesDiffItem,
+	ReferencesEntriesDiff,
+	ReferencesDiff,
+	ReferencesCardsDiff
 };
 
 // SectionID and TagID now imported from shared/types.js
