@@ -79,7 +79,15 @@ import {
 	CardFieldTypeNonEditable,
 	cardFieldTypeSchema,
 	CardFieldType,
-	FontSizeBoostMap
+	FontSizeBoostMap,
+	autoTODOType,
+	freeformTODOKey,
+	todoType,
+	AutoTODOType,
+	FreeformTODOKey,
+	TODOType,
+	autoTODOTypeArray,
+	TODOOverrides
 } from '../shared/types.js';
 
 import {
@@ -139,7 +147,15 @@ export {
 	CardFieldTypeNonEditable,
 	cardFieldTypeSchema,
 	CardFieldType,
-	FontSizeBoostMap
+	FontSizeBoostMap,
+	autoTODOType,
+	freeformTODOKey,
+	todoType,
+	AutoTODOType,
+	FreeformTODOKey,
+	TODOType,
+	autoTODOTypeArray,
+	TODOOverrides
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
@@ -194,39 +210,7 @@ export type WordCloud = [
 
 // ImageBlock now imported from shared/types.js
 
-export const autoTODOType = z.enum([
-	'citations',
-	'content',
-	'content-mined',
-	'diagram',
-	'inbound-links',
-	'links',
-	'prioritized',
-	'prose',
-	'published',
-	'reciprocal-links',
-	'slug',
-	'substantive-content',
-	'tags',
-	'author-citation',
-	'quote-citation'
-]);
-
-export type AutoTODOType = z.infer<typeof autoTODOType>;
-
-const freeformTODOKey = z.literal('freeform-todo');
-
-export type FreeformTODOKey = z.infer<typeof freeformTODOKey>;
-
-export const todoType = autoTODOType.or(freeformTODOKey);
-
-export type TODOType = z.infer<typeof todoType>;
-
-export const autoTODOTypeArray = z.array(autoTODOType);
-
-type TODOOverrides = {
-	[name in AutoTODOType]+?: boolean
-}
+// AutoTODOType, FreeformTODOKey, TODOType, autoTODOTypeArray, and TODOOverrides now imported from shared/types.js
 
 // ReferenceType, ReferencesInfoMap, ReferencesInfoMapByType, and ReferencesArrayByType now imported from shared/types.js
 

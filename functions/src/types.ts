@@ -38,7 +38,10 @@ import {
 	ReferencesDiff,
 	ReferencesCardsDiff,
 	CardFieldType,
-	FontSizeBoostMap
+	FontSizeBoostMap,
+	AutoTODOType,
+	TODOType,
+	TODOOverrides
 } from '../../shared/types.js';
 
 export {
@@ -74,7 +77,10 @@ export {
 	ReferencesDiff,
 	ReferencesCardsDiff,
 	CardFieldType,
-	FontSizeBoostMap
+	FontSizeBoostMap,
+	AutoTODOType,
+	TODOType,
+	TODOOverrides
 };
 
 // SectionID and TagID now imported from shared/types.js
@@ -143,6 +149,10 @@ export interface Card {
 	references_inbound: CardBooleanMap,
 	//images is an imagesBlock. See src/images.js for a definition.
 	images: ImageBlock,
+	//auto_todo_overrides is a map of key -> true or false, for each kind of TODO.
+	//A value of true means that the TODO is overridden to the "done" state,
+	//A false means it is overridden to the "not done" state.
+	auto_todo_overrides: TODOOverrides,
 
 	created: Timestamp,
 	updated: Timestamp,

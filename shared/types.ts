@@ -342,3 +342,38 @@ export type CardFieldType = z.infer<typeof cardFieldTypeSchema>;
 export type FontSizeBoostMap = {
 	[name in CardFieldType]+?: number
 };
+
+// TODO-related types for Card
+export const autoTODOType = z.enum([
+	'citations',
+	'content',
+	'content-mined',
+	'diagram',
+	'inbound-links',
+	'links',
+	'prioritized',
+	'prose',
+	'published',
+	'reciprocal-links',
+	'slug',
+	'substantive-content',
+	'tags',
+	'author-citation',
+	'quote-citation'
+]);
+
+export type AutoTODOType = z.infer<typeof autoTODOType>;
+
+export const freeformTODOKey = z.literal('freeform-todo');
+
+export type FreeformTODOKey = z.infer<typeof freeformTODOKey>;
+
+export const todoType = autoTODOType.or(freeformTODOKey);
+
+export type TODOType = z.infer<typeof todoType>;
+
+export const autoTODOTypeArray = z.array(autoTODOType);
+
+export type TODOOverrides = {
+	[name in AutoTODOType]+?: boolean
+};
