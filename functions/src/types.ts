@@ -36,7 +36,9 @@ import {
 	ReferencesEntriesDiffItem,
 	ReferencesEntriesDiff,
 	ReferencesDiff,
-	ReferencesCardsDiff
+	ReferencesCardsDiff,
+	CardFieldType,
+	FontSizeBoostMap
 } from '../../shared/types.js';
 
 export {
@@ -70,7 +72,9 @@ export {
 	ReferencesEntriesDiffItem,
 	ReferencesEntriesDiff,
 	ReferencesDiff,
-	ReferencesCardsDiff
+	ReferencesCardsDiff,
+	CardFieldType,
+	FontSizeBoostMap
 };
 
 // SectionID and TagID now imported from shared/types.js

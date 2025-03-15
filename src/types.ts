@@ -72,7 +72,14 @@ import {
 	ReferencesEntriesDiffItem,
 	ReferencesEntriesDiff,
 	ReferencesDiff,
-	ReferencesCardsDiff
+	ReferencesCardsDiff,
+	cardFieldTypeEditableSchema,
+	cardFieldTypeNonEditableSchema,
+	CardFieldTypeEditable,
+	CardFieldTypeNonEditable,
+	cardFieldTypeSchema,
+	CardFieldType,
+	FontSizeBoostMap
 } from '../shared/types.js';
 
 import {
@@ -125,41 +132,19 @@ export {
 	ReferencesEntriesDiffItem,
 	ReferencesEntriesDiff,
 	ReferencesDiff,
-	ReferencesCardsDiff
+	ReferencesCardsDiff,
+	cardFieldTypeEditableSchema,
+	cardFieldTypeNonEditableSchema,
+	CardFieldTypeEditable,
+	CardFieldTypeNonEditable,
+	cardFieldTypeSchema,
+	CardFieldType,
+	FontSizeBoostMap
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
 
-//CardFieldType and EditableCardFieldType is driven off of these keys. Note the
-//membership in each object need to be consistent with
-//TEXT_fIELD_CONIGURATION.readOnly
-
-export const cardFieldTypeEditableSchema = z.enum([
-	'body',
-	'commentary',
-	'title',
-	'subtitle',
-	//Also duplicated in card-renderer styles
-	'title_alternates',
-	'external_link'
-]);
-
-const _cardFieldTypeNonEditableSchema = z.enum([
-	'references_info_inbound',
-	'non_link_references',
-	'concept_references'
-]);
-
-export type CardFieldTypeEditable = z.infer<typeof cardFieldTypeEditableSchema>;
-
-export type CardFieldTypeNonEditable = z.infer<typeof _cardFieldTypeNonEditableSchema>;
-
-export const cardFieldTypeSchema = z.union([
-	cardFieldTypeEditableSchema,
-	_cardFieldTypeNonEditableSchema
-]);
-
-export type CardFieldType = z.infer<typeof cardFieldTypeSchema>;
+// CardFieldType and related types now imported from shared/types.js
 
 export const dateRangeType = z.enum([
 	'before',
@@ -169,9 +154,7 @@ export const dateRangeType = z.enum([
 
 export type DateRangeType = z.infer<typeof dateRangeType>;
 
-export type FontSizeBoostMap = {
-	[name in CardFieldType]+?: number
-}
+// FontSizeBoostMap now imported from shared/types.js
 
 export type CreateCardOpts = {
 	cardType? : CardType;

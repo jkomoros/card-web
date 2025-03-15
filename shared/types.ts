@@ -306,3 +306,39 @@ type ReferencesDiffItemDelete = {
 export type ReferencesDiff = [ReferencesDiffItem, ReferencesDiffItem, ReferencesDiffItemDelete, ReferencesDiffItemDelete];
 
 export type ReferencesCardsDiff = [additionsOrModifications : CardBooleanMap, deletions : CardBooleanMap];
+
+//CardFieldType and EditableCardFieldType is driven off of these keys. Note the
+//membership in each object need to be consistent with
+//TEXT_fIELD_CONIGURATION.readOnly
+
+// Field-related types for Card
+export const cardFieldTypeEditableSchema = z.enum([
+	'body',
+	'commentary',
+	'title',
+	'subtitle',
+	//Also duplicated in card-renderer styles
+	'title_alternates',
+	'external_link'
+]);
+
+export const cardFieldTypeNonEditableSchema = z.enum([
+	'references_info_inbound',
+	'non_link_references',
+	'concept_references'
+]);
+
+export type CardFieldTypeEditable = z.infer<typeof cardFieldTypeEditableSchema>;
+
+export type CardFieldTypeNonEditable = z.infer<typeof cardFieldTypeNonEditableSchema>;
+
+export const cardFieldTypeSchema = z.union([
+	cardFieldTypeEditableSchema,
+	cardFieldTypeNonEditableSchema
+]);
+
+export type CardFieldType = z.infer<typeof cardFieldTypeSchema>;
+
+export type FontSizeBoostMap = {
+	[name in CardFieldType]+?: number
+};
