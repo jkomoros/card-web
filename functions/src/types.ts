@@ -43,7 +43,8 @@ import {
 	TODOType,
 	TODOOverrides,
 	NonAutoMergeableCardDiff,
-	CardDiff
+	CardDiff,
+	Card
 } from '../../shared/types.js';
 
 export {
@@ -84,7 +85,8 @@ export {
 	TODOType,
 	TODOOverrides,
 	NonAutoMergeableCardDiff,
-	CardDiff
+	CardDiff,
+	Card
 };
 
 // SectionID and TagID now imported from shared/types.js
@@ -102,83 +104,6 @@ export interface UserPermissions extends Partial<UserPermissionsCore> {
 	//This is a cut-down version that only has the fields we need
 	admin?: boolean;
 	remoteAI?: boolean;
-}
-
-export interface Card {
-	//This is a cut-down version that only has the fields we need
-	id: CardID,
-
-	slugs: Slug[],
-	name: CardIdentifier,
-
-	author: Uid,
-	collaborators: Uid[],
-	permissions: CardPermissions,
-
-	//A number that is compared to other cards to give the default sort
-	//order. Higher numbers will show up first in the default sort order.
-	//Before saving the card for the first time, you should set this to a
-	//reasonable value, typically DEFAULT_SORT_ORDER_INCREMENT smaller than
-	//every card already known to exist.
-	sort_order: number,
-	card_type: CardType,
-	section: SectionID,
-	tags: TagID[],
-
-	//A spot for stashing various flags and metadata.
-	flags? : CardFlags,
-
-	published: boolean,
-	//TODO: we should have this explicitly set on all cards, but in practice only some do.
-	full_bleed? : boolean,
-
-	title: string,
-	subtitle? : string,
-	title_alternates? : string,
-	body: string,
-	commentary? : string,
-	notes: string,
-	todo: string,
-
-	//See the documentation for these two string contants in card_fields.js
-	//for information on the shape of these fields.
-	references_info: ReferencesInfoMap,
-	references_info_inbound: ReferencesInfoMap,
-	// version are like the normal properties, but where it's a map
-	//of cardID to true if there's ANY kind of refernce. Whenever a card is
-	//modified, these s are automatically mirrored basd on the value
-	//of references. They're popped out primarily so that you can do
-	//firestore qureies on them to find cards that link to another.
-	references: CardBooleanMap,
-	references_inbound: CardBooleanMap,
-	//images is an imagesBlock. See src/images.js for a definition.
-	images: ImageBlock,
-	//auto_todo_overrides is a map of key -> true or false, for each kind of TODO.
-	//A value of true means that the TODO is overridden to the "done" state,
-	//A false means it is overridden to the "not done" state.
-	auto_todo_overrides: TODOOverrides,
-
-	created: Timestamp,
-	updated: Timestamp,
-	updated_substantive: Timestamp,
-	updated_message: Timestamp,
-
-	//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
-	star_count: number,
-	//star_count_manual is the count of stars in the stars collection (as
-	//opposed to faux stars that are tweet enagement actions)
-	star_count_manual: number,
-	//The sum of favorite counts for all tweets for this card
-	tweet_favorite_count: number,
-	//The sum of retweet counts for all tweets for this card
-	tweet_retweet_count: number,
-
-	thread_count: number,
-	thread_resolved_count: number,
-
-	//Defaul to epoch 1970 for things not yet tweeted
-	last_tweeted: Timestamp,
-	tweet_count: number,
 }
 
 export type Cards = Record<CardID, Card>;
