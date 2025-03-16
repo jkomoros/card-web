@@ -4,14 +4,14 @@ import {
 
 import {
 	Card,
-	CardID,
-	CardSimilarityItem,
-	EmbeddableCard,
-	SimilarCardsRequestData,
-	SimilarCardsResponseData
+	CardID
 } from './types.js';
 
 import {
+	CardSimilarityItem,
+	EmbeddableCard,
+	SimilarCardsRequestData,
+	SimilarCardsResponseData,
 	SemanticSortRequestData,
 	SemanticSortResponseData
 } from '../../shared/types.js';

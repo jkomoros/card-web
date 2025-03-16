@@ -618,3 +618,47 @@ export type LegalResponseData = {
 	legal: boolean,
 	reason: string
 };
+
+/**
+ * Type representing milliseconds since epoch, used for timestamps
+ */
+export type MillisecondsSinceEpoch = number;
+
+/**
+ * Embeddable subset of a Card with only the fields needed for embedding
+ */
+export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'commentary' | 'subtitle' | 'card_type' | 'created' | 'id'>;
+
+/**
+ * A tuple of [CardID, similarity score]
+ */
+export type CardSimilarityItem = [CardID, number];
+
+/**
+ * Request data for fetching similar cards
+ */
+export type SimilarCardsRequestData = {
+	card_id: CardID
+
+	// timestamp in milliseconds since epoch. If provided, results will only be
+	// provided if the Vector point has a last-updated since then, otherwise
+	// error of 'stale'.
+	last_updated?: MillisecondsSinceEpoch
+
+	// If card is provided, it will be used to get the content to embed, live.
+	// The user must have AI permission or it will fail.
+	// The card provided should match the card_id
+	card?: EmbeddableCard
+};
+
+/**
+ * Response data for similar cards request
+ */
+export type SimilarCardsResponseData = {
+	success: false,
+	code: 'qdrant-disabled' | 'insufficient-permissions' | 'no-embedding' | 'stale-embedding' | 'unknown'
+	error: string
+} | {
+	success: true
+	cards: CardSimilarityItem[]
+};

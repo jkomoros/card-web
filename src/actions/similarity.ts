@@ -30,44 +30,15 @@ import {
 } from '../types.js';
 
 import {
+	MillisecondsSinceEpoch,
+	EmbeddableCard,
+	SimilarCardsRequestData,
+	SimilarCardsResponseData
+} from '../../shared/types.js';
+
+import {
 	functions
 } from '../firebase.js';
-
-//Replicated in src/actions/similarity.ts
-type EmbeddableCard = Pick<Card, 'body' | 'title' | 'commentary' | 'subtitle' | 'card_type' | 'created' | 'id'>;
-
-//Replicated in src/actions/similarity.ts
-type MillisecondsSinceEpoch = number;
-
-//Replicated in `src/actions/similarity.ts`
-type SimilarCardsRequestData = {
-	card_id: CardID
-
-	//timestamp in milliseconds since epoch. If provided, results will only be
-	//provided if the Vector point has a last-updated since then, otherwise
-	//error of `stale`.
-	last_updated? : MillisecondsSinceEpoch
-
-	//TODO: include a limit
-
-	//If card is provided, it will be used to get the content to embed, live.
-	//The user must have AI permission or it will fail.
-	//The card provided should match the card_id
-	card?: EmbeddableCard
-};
-
-//Replicated in `functions/src/types.ts`
-type CardSimilarityItem = [CardID, number];
-
-//Replicated in `functions/src/types.ts`
-type SimilarCardsResponseData = {
-	success: false,
-	code: 'qdrant-disabled' | 'insufficient-permissions' | 'no-embedding' | 'stale-embedding' | 'unknown'
-	error: string
-} | {
-	success: true
-	cards: CardSimilarityItem[]
-};
 
 //Extracts only the properties necessary for EmbeddableCard, which for example
 //is useful when transmitting to similarCards endpoint.

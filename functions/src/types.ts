@@ -153,43 +153,8 @@ type ArrayToFieldValueUnion<Type> = {
 	[Property in keyof Type]: Type[Property] extends unknown[] ? Type[Property] | FieldValue : Type[Property]
 }
 
-//Replicated in src/actions/similarity.ts
-export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'commentary' | 'subtitle' | 'card_type' | 'created' | 'id'>;
-
 export type CardUpdate = Partial<NumberToFieldValue<ArrayToFieldValueUnion<TimestampToFieldValue<Card>>>>;
 
 export type CardLike = Card | CardUpdate;
 
 export type TweetInfoUpdate = Partial<TimestampToFieldValue<TweetInfo>>;
-
-type MillisecondsSinceEpoch = number;
-
-//Replicated in `src/actions/similarity.ts`
-export type SimilarCardsRequestData = {
-	card_id: CardID
-
-	//timestamp in milliseconds since epoch. If provided, results will only be
-	//provided if the Vector point has a last-updated since then, otherwise
-	//error of `stale`.
-	last_updated? : MillisecondsSinceEpoch
-
-	//TODO: include a limit
-
-	//If card is provided, it will be used to get the content to embed, live.
-	//The user must have AI permission or it will fail.
-	//The card provided should match the card_id
-	card?: EmbeddableCard
-};
-
-//Replicated in `src/actions/similarity.ts`
-export type CardSimilarityItem = [CardID, number];
-
-//Replicated in `src/actions/similarity.ts`
-export type SimilarCardsResponseData = {
-	success: false,
-	code: 'qdrant-disabled' | 'insufficient-permissions' | 'no-embedding' | 'stale-embedding' | 'unknown'
-	error: string
-} | {
-	success: true
-	cards: CardSimilarityItem[]
-};
