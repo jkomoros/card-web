@@ -29,7 +29,8 @@ import {
 } from '../../shared/types.js';
 
 import {
-	navigatePathTo
+	navigatePathTo,
+	PAGE_CHAT
 } from './app.js';
 
 // Default model to use for chats
@@ -81,7 +82,7 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 		const data = result.data;
 		if (data.success) {
 			// Navigate to the new chat
-			dispatch(navigatePathTo(`/chat/${data.chat}`));
+			dispatch(navigatePathTo(`/${PAGE_CHAT}/${data.chat}`));
 		} else {
 			console.error('Failed to create chat:', data.error);
 		}
