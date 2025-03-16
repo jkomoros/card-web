@@ -27,6 +27,8 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		};
 	}
 
+	//TODO: confirm the model is valid.
+
 	//TOOD: actually create the thread.
 
 	return { 
