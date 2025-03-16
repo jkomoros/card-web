@@ -585,3 +585,18 @@ export type OpenAIModelName = 'gpt-4o';
 export type AnthropicModelName = 'claude-3-7-sonnet-latest';
 
 export type AIModelName = OpenAIModelName | AnthropicModelName;
+
+/**
+ * Request data for semantic sorting of cards
+ */
+export type SemanticSortRequestData = {
+	cards: CardID[]
+}
+
+/**
+ * Response data for semantic sorting of cards
+ */
+export type SemanticSortResponseData = {
+	cards: CardID[],
+	swaps: number
+}

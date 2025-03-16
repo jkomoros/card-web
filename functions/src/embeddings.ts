@@ -7,11 +7,14 @@ import {
 	CardID,
 	CardSimilarityItem,
 	EmbeddableCard,
-	SemanticSortRequestData,
-	SemanticSortResponseData,
 	SimilarCardsRequestData,
 	SimilarCardsResponseData
 } from './types.js';
+
+import {
+	SemanticSortRequestData,
+	SemanticSortResponseData
+} from '../../shared/types.js';
 
 import {
 	JSDOM
