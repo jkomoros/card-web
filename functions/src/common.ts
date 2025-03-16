@@ -20,24 +20,12 @@ import {
 	CardIdentifier,
 	Uid,
 	UserPermissions
-} from './types';
+} from './types.js';
 
 import {
 	CallableRequest,
 	HttpsError
 } from 'firebase-functions/v2/https';
-
-initializeApp();
-
-//We use this so often we might as well make it more common
-export const db = getFirestore();
-export const auth = getAuth();
-export const storage = getStorage();
-
-const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
-
-//DEV_MODE is true if the project name contains 'dev-' or '-dev'
-export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 
 // Import shared constants instead of duplicating them
 import {
@@ -61,6 +49,26 @@ import {
 	CARDS_COLLECTION,
 	PERMISSIONS_COLLECTION
 } from '../../shared/collection-constants.js';
+
+// Import shared card field constants
+import {
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY
+} from '../../shared/card-fields.js';
+
+initializeApp();
+
+//We use this so often we might as well make it more common
+export const db = getFirestore();
+export const auth = getAuth();
+export const storage = getStorage();
+
+const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
+
+//DEV_MODE is true if the project name contains 'dev-' or '-dev'
+export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 
 //These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];
@@ -91,14 +99,6 @@ const PAGE_BASIC_CARD = 'basic-card';
 export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 //Note: screenshot.js also uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
 export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
-
-// Import shared card field constants
-import {
-	REFERENCES_INFO_CARD_PROPERTY,
-	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
-	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY
-} from '../../shared/card-fields.js';
 
 // Re-export for usage in this module
 export {

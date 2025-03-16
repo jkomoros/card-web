@@ -5,11 +5,11 @@ import {
 import {
 	CreateChatRequestData,
 	CreateChatResponseData
-} from '../../shared/types';
+} from '../../shared/types.js';
 
 import {
 	throwIfUserMayNotUseAI
-} from './common';
+} from './common.js';
 
 export const createChat = async (request : CallableRequest<CreateChatRequestData>) : Promise<CreateChatResponseData> => {
 	const { auth } = request;

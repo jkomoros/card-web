@@ -1,21 +1,23 @@
 {
   "name": "functions",
+  "type": "module",
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
-    "build": "npm run lint && cd ../shared && npm run build && cd ../functions && tsc",
+    "build": "npm run lint && cd ../shared && npm run build && cd ../functions && tsc && npm run copy-shared",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "deploy:skipLint": "cd ../shared && npm run build && cd ../functions && tsc && firebase deploy --only functions",
+    "deploy:skipLint": "cd ../shared && npm run build && cd ../functions && tsc && npm run copy-shared && firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "gcp-build": "node node_modules/puppeteer/install.js"
+    "gcp-build": "node node_modules/puppeteer/install.js",
+    "copy-shared": "mkdir -p lib/shared && cp -R ../shared/dist/* lib/shared/"
   },
   "engines": {
     "node": "20"
   },
-  "main": "lib/index.js",
+  "main": "lib/functions/src/index.js",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@qdrant/js-client-rest": "^1.8.2",
