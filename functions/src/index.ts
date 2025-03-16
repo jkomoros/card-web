@@ -45,7 +45,7 @@ import {
 import * as openaiimpl from './openai.js';
 import * as anthropicimpl from './anthropic.js';
 import * as chat from './chat.js';
-import { LegalRequestData, LegalResponseData } from './types.js';
+import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 
 //Runs every three hours
 export const fetchTweetEngagement = onSchedule({

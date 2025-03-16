@@ -162,20 +162,6 @@ export type CardLike = Card | CardUpdate;
 
 export type TweetInfoUpdate = Partial<TimestampToFieldValue<TweetInfo>>;
 
-//Replicated in `src/actions/database.ts`
-export type LegalRequestData = {
-	type: 'warmup'
-} | {
-	type: 'slug',
-	value: string
-};
-
-//Replicated in `src/actions/database.ts`
-export type LegalResponseData = {
-	legal: boolean,
-	reason: string
-};
-
 type MillisecondsSinceEpoch = number;
 
 //Replicated in `src/actions/similarity.ts`

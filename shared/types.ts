@@ -600,3 +600,21 @@ export type SemanticSortResponseData = {
 	cards: CardID[],
 	swaps: number
 }
+
+/**
+ * Request data for checking if a slug is legal
+ */
+export type LegalRequestData = {
+	type: 'warmup'
+} | {
+	type: 'slug',
+	value: string
+};
+
+/**
+ * Response data for checking if a slug is legal
+ */
+export type LegalResponseData = {
+	legal: boolean,
+	reason: string
+};

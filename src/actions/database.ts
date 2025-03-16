@@ -77,8 +77,13 @@ import {
 	Sections,
 	Tags,
 	Section,
-	CardFetchType,
+	CardFetchType
 } from '../types.js';
+
+import {
+	LegalRequestData,
+	LegalResponseData,
+} from '../../shared/types.js';
 
 import {
 	MESSAGES_COLLECTION,
@@ -102,19 +107,6 @@ import {
 
 import { TypedObject } from '../typed_object.js';
 
-//Replicated in `functions/src/types.ts`;
-type LegalRequestData = {
-	type: 'warmup'
-} | {
-	type: 'slug',
-	value: string
-};
-
-//Replicated in `functions/src/types.ts`;
-type LegalResponseData = {
-	legal: boolean,
-	reason: string
-};
 
 const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');
 
