@@ -513,3 +513,48 @@ export interface Card {
 	last_tweeted: Timestamp,
 	tweet_count: number,
 }
+
+export type ChatID = string;
+export type ChatMessageID = string;
+
+export type Chat = {
+	id: ChatID,
+	owner: Uid,
+	//In the future we'll have ACLs for view to allow people without admin to see chats they are ACLd into
+	last_updated: Timestamp
+	created: Timestamp,
+	//The number of tokens of length to target for the initial background (that is, the card content that is passed in)
+	background_length: number,
+	collection: {
+		//serialized collection description path
+		description: string,
+		configuration: CollectionConfiguration
+	},
+	//The card ids that are actually included in the system prompt.
+	cards: CardID[]
+	title: string
+};
+
+export type ChatMessage = {
+	id: ChatMessageID,
+	chat: ChatID,
+	//A monotincally increasing message inddex for sorting
+	message_index: number,
+	//System is for the innitial snapshot of all of the cards that are selected;
+	//we snapshot it at thread creation time so later calls to the API for new
+	//messages can simply select all of the messages, in order, with the right
+	//chat_id, instead of also having to do an expensive set of fetches for the
+	//cards. No user should be able to read back the system prompt object
+	//locally, it's just used in the server to concatenate the whole
+	//conversation history for api requests.
+	role: 'system' | 'assistant' | 'user',
+	//True while a response is still streaming. Once the response is complete
+	//streaming is set to false. The client has a live updater that queries for
+	//streaming:false, to make sure it doesn't constantly get updates as they
+	//are written (using the incomding stream tokens) and then gets the final
+	//result once it's done.
+	streaming: true,
+	timestamp: Timestamp
+	//Markdown text
+	content: string
+};
