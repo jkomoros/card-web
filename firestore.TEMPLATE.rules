@@ -299,6 +299,19 @@ service cloud.firestore {
       allow read: if userMayViewApp();
     }
 
+    match /chats/{chat} {
+      // Chats can't be written by anyone, but can be read by their owner
+      allow read: if loggedIn() && request.auth.uid == resource.data.owner;
+      allow write: if false;
+    }
+
+    match /chat_messages/{message} {
+      // ChatMessages can't be written by anyone, but can be read by the owner of their associated Chat
+      allow read: if loggedIn() && exists(/databases/$(database)/documents/chats/$(resource.data.chat)) && 
+                   request.auth.uid == get(/databases/$(database)/documents/chats/$(resource.data.chat)).data.owner;
+      allow write: if false;
+    }
+
     match /reading_lists/{list_id} {
       allow create: if userMayModifyReadingList() && createIsOwner();
       allow update: if userMayModifyReadingList() && updateIsOwner();

@@ -26,6 +26,8 @@ const READS_COLLECTION = 'reads';
 const TWEETS_COLLECTION = 'tweets';
 const READING_LISTS_COLLECTION = 'reading_lists';
 const UPDATES_COLLECTION = 'updates';
+const CHATS_COLLECTION = 'chats';
+const CHAT_MESSAGES_COLLECTION = 'chat_messages';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -180,6 +182,37 @@ async function setupDatabase() {
 
 	await db.collection(TWEETS_COLLECTION).doc(messageId).set({
 		card: cardId,
+	});
+
+	// Setup chats and chat_messages
+	await db.collection(CHATS_COLLECTION).doc(messageId).set({
+		owner: bobUid,
+		last_updated: firebase.firestore.FieldValue.serverTimestamp(),
+		created: firebase.firestore.FieldValue.serverTimestamp(),
+		title: 'Test Chat',
+		background_length: 100,
+		collection: {
+			description: 'test-description',
+			configuration: {
+				setName: 'main',
+				filterNames: [],
+				sortName: 'default',
+				sortReversed: false,
+				viewMode: 'list',
+				viewModeExtra: ''
+			}
+		},
+		cards: [cardId]
+	});
+
+	await db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId).set({
+		id: messageId,
+		chat: messageId,
+		message_index: 0,
+		role: 'user',
+		streaming: true,
+		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+		content: 'Test message'
 	});
 }
 
@@ -1155,4 +1188,65 @@ describe('Compendium Rules', () => {
 		}));
 	});
 
+	// Chat collection tests
+	it('allows the owner to read their chat', async() => {
+		const db = authedApp(bobAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(chat.get());
+	});
+
+	it('disallows non-owners from reading chats', async() => {
+		const db = authedApp(sallyAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.get());
+	});
+
+	it('disallows unauthenticated users from reading chats', async() => {
+		const db = authedApp(null);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.get());
+	});
+
+	it('disallows any user from writing to chats, even owners', async() => {
+		const db = authedApp(bobAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.update({ title: 'New Title' }));
+	});
+
+	it('disallows admins from writing to chats', async() => {
+		const db = authedApp(adminAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.update({ title: 'New Title' }));
+	});
+
+	// ChatMessage collection tests
+	it('allows the chat owner to read chat messages from their chat', async() => {
+		const db = authedApp(bobAuth);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(chatMessage.get());
+	});
+
+	it('disallows non-owners from reading chat messages', async() => {
+		const db = authedApp(sallyAuth);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertFails(chatMessage.get());
+	});
+
+	it('disallows unauthenticated users from reading chat messages', async() => {
+		const db = authedApp(null);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertFails(chatMessage.get());
+	});
+
+	it('disallows any user from writing to chat messages, even owners', async() => {
+		const db = authedApp(bobAuth);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertFails(chatMessage.update({ content: 'New Content' }));
+	});
+
+	it('disallows admins from writing to chat messages', async() => {
+		const db = authedApp(adminAuth);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertFails(chatMessage.update({ content: 'New Content' }));
+	});
 });
