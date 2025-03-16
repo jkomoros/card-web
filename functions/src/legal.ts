@@ -7,22 +7,12 @@ import {
 } from '../../shared/collection-constants.js';
 
 import {
+	normalizeSlug
+} from '../../shared/util.js';
+
+import {
 	Slug
 } from './types.js';
-
-//note: these are from util.js
-const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
-
-const normalizeSlug = (slug : Slug) => {
-	slug = slug.trim();
-	slug = slug.toLowerCase();
-	slug = slug.split(' ').join('-');
-	slug = slug.split('_').join('-');
-
-	if (!slugRegularExpression.test(slug)) slug = '';
-
-	return slug;
-};
 
 //returns a reason why the slug is not legal, or '' if it is legal.
 export const slug = async (newSlug : Slug) : Promise<string> => {

@@ -149,8 +149,6 @@ export const toTitleCase = (str : string) => {
 	return parts.join(' ');
 };
 
-//note: these are recreated in functions/legal.js
-
 const slugIllegalPartExpression = /[^a-zA-Z0-9-_ ]/g;
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
@@ -161,19 +159,9 @@ export const legalUid = (uid : Uid) => {
 	return true;
 };
 
-//normalizes a mostly-OK slug, returning '' if it wasn't legal. If you want to
-//generate a good one given an arbitrary string that may contain illegal
-//characters to strip, see createSlugFromArbitraryString
-export const normalizeSlug = (slug : Slug) : Slug => {
-	slug = slug.trim();
-	slug = slug.toLowerCase();
-	slug = slug.split(' ').join('-');
-	slug = slug.split('_').join('-');
-
-	if (!slugRegularExpression.test(slug)) slug = '';
-
-	return slug;
-};
+// Import and re-export from shared to maintain backward compatibility
+import { normalizeSlug } from '../shared/util.js';
+export { normalizeSlug };
 
 export const createSlugFromArbitraryString = (str : string) : Slug => {
 	str = str.replace(slugIllegalPartExpression, '');
