@@ -44,6 +44,7 @@ import {
 
 import * as openaiimpl from './openai.js';
 import * as anthropicimpl from './anthropic.js';
+import * as chat from './chat.js';
 import { LegalRequestData, LegalResponseData } from './types.js';
 
 //Runs every three hours
@@ -126,3 +127,5 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 
 export const openai = onCall({}, openaiimpl.handler);
 export const anthropic = onCall({}, anthropicimpl.handler);
+
+export const createChat = onCall({}, chat.createChat);

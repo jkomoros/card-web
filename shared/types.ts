@@ -558,3 +558,22 @@ export type ChatMessage = {
 	//Markdown text
 	content: string
 };
+
+export type CreateChatRequestData = {
+	owner: Uid,
+	cards: CardID[],
+	initialMessage: string,
+	backgroundLength: number,
+	collection: {
+		description: string,
+		configuration: CollectionConfiguration
+	}
+};
+
+export type CreateChatResponseData = {
+	success: false;
+	error: string;
+} | {
+	success: true,
+	chat: ChatID
+};
