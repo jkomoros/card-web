@@ -218,6 +218,10 @@ import {
 	openBulkImportDialog
 } from '../actions/bulk-import.js';
 
+import {
+	createChatWithCurentCollection
+} from '../actions/chat.js';
+
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
 
@@ -512,7 +516,8 @@ class CardView extends connect(store)(PageViewElement) {
 				` : ''}
 				${this._userMayUseAI ? html`
 				<button id ='ai-assistant-summary' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-summary'>Summarize Cards</label><br/>
-				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>` : ''}
+				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>
+				<button id ='ai-chat-with-collection' class='small' title='Chat with these cards' @click=${this._handleAIAssistantChatWithCollection}>${FORUM_ICON}</button><label for='ai-chat-with-collection'>Chat with Cards</label><br/>` : ''}
 				${this._userMayCreateCard ? html`
 					<button
 						id='bulk-import'
@@ -707,6 +712,12 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleAIAssistantConceptsClicked() {
 		store.dispatch(missingConceptsWithAI());
+	}
+
+	_handleAIAssistantChatWithCollection() {
+		const message = prompt('What would you like to ask about these cards?');
+		if (!message) return;
+		store.dispatch(createChatWithCurentCollection(message));
 	}
 
 	_handleSuggestMissingConceptsChanged(e : Event) {
