@@ -520,6 +520,7 @@ export type ChatMessageID = string;
 export type Chat = {
 	id: ChatID,
 	owner: Uid,
+	model: AIModelName,
 	//In the future we'll have ACLs for view to allow people without admin to see chats they are ACLd into
 	last_updated: Timestamp
 	created: Timestamp,
@@ -562,6 +563,7 @@ export type ChatMessage = {
 export type CreateChatRequestData = {
 	owner: Uid,
 	cards: CardID[],
+	model: AIModelName,
 	initialMessage: string,
 	backgroundLength: number,
 	collection: {
