@@ -90,7 +90,10 @@ import {
 	TODOOverrides,
 	NonAutoMergeableCardDiff,
 	CardDiff,
-	Card
+	Card,
+	OpenAIModelName,
+	AnthropicModelName,
+	AIModelName
 } from '../shared/types.js';
 
 import {
@@ -161,7 +164,10 @@ export {
 	TODOOverrides,
 	NonAutoMergeableCardDiff,
 	CardDiff,
-	Card
+	Card,
+	OpenAIModelName,
+	AnthropicModelName,
+	AIModelName
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
@@ -1191,11 +1197,6 @@ export type MultiEditState = {
 	addTODODisablements: AutoTODOType[]
 };
 
-export type OpenAIModelName = 'gpt-4o';
-
-export type AnthropicModelName = 'claude-3-7-sonnet-latest'
-
-export type AIModelName = OpenAIModelName | AnthropicModelName;
 
 const _aiDialogType = z.enum([
 	'summary',

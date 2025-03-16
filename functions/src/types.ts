@@ -44,7 +44,10 @@ import {
 	TODOOverrides,
 	NonAutoMergeableCardDiff,
 	CardDiff,
-	Card
+	Card,
+	OpenAIModelName,
+	AnthropicModelName,
+	AIModelName
 } from '../../shared/types.js';
 
 export {
@@ -86,7 +89,10 @@ export {
 	TODOOverrides,
 	NonAutoMergeableCardDiff,
 	CardDiff,
-	Card
+	Card,
+	OpenAIModelName,
+	AnthropicModelName,
+	AIModelName
 };
 
 // SectionID and TagID now imported from shared/types.js
