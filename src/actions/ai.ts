@@ -70,7 +70,17 @@ import {
 	AI_SHOW_ERROR,
 	SomeAction
 } from '../actions.js';
-import { OPENAI_ENABLED, ANTHROPIC_ENABLED } from '../config.GENERATED.SECRET.js';
+
+import {
+	OPENAI_ENABLED,
+	ANTHROPIC_ENABLED
+} from '../config.GENERATED.SECRET.js';
+
+import {
+	MODEL_INFO,
+	DEFAULT_OPENAI_MODEL,
+	DEFAULT_ANTHROPIC_MODEL
+} from '../../shared/ai.js';
 
 export type AIDialogTypeConfiguration = {
 	title: string;
@@ -150,27 +160,6 @@ const openai = new OpenAIProxy();
 const anthropic = new AnthropicProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
-
-type modelProvider = 'openai' | 'anthropic';
-
-type modelInfo = {
-	maxTokens: number,
-	provider: modelProvider
-};
-
-const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
-	'gpt-4o': {
-		maxTokens: 128000,
-		provider: 'openai'
-	},
-	'claude-3-7-sonnet-latest': {
-		maxTokens: 200000,
-		provider: 'anthropic'
-	}
-};
-
-const DEFAULT_OPENAI_MODEL = 'gpt-4o';
-const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
 
 export const DEFAULT_MODEL : AIModelName = DEFAULT_ANTHROPIC_MODEL;
 
