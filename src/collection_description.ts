@@ -388,6 +388,17 @@ export class CollectionDescription {
 		return this._offset;
 	}
 
+	get configuration() : CollectionConfiguration {
+		return {
+			setName: this.set,
+			filterNames: this.filters,
+			sortName: this.sort,
+			sortReversed: this.sortReversed,
+			viewMode: this.viewMode,
+			viewModeExtra: this.viewModeExtra
+		};
+	}
+
 	serialize() {
 		return this._serialized;
 	}
