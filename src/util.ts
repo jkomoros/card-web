@@ -108,17 +108,9 @@ export const hash = (str : string) : number => {
 
 export const stringHash = (s : string) : string => Math.abs(hash(s)).toString(16);
 
-const randomCharSetNumbers = '0123456789';
-const randomCharSetLetters = 'abcdef';
-const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
-
-export const randomString = (length : number, charSet = randomCharSet) => {
-	let text = '';
-	for (let i = 0; i < length; i++) {
-		text += charSet.charAt(Math.floor(Math.random() * charSet.length));
-	}
-	return text;
-};
+// Import and re-export from shared to maintain backward compatibility
+import { randomString, randomCharSet, randomCharSetNumbers, randomCharSetLetters } from '../shared/util.js';
+export { randomString, randomCharSet, randomCharSetNumbers, randomCharSetLetters };
 
 //TODO: consider renaming this, because we also use it in selectFullDataNeeded.
 export const pageRequiresMainView = (pageName : string) => {

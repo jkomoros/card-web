@@ -19,3 +19,18 @@ export const normalizeSlug = (slug : Slug) : Slug => {
 
 	return slug;
 };
+
+export const randomCharSetNumbers = '0123456789';
+export const randomCharSetLetters = 'abcdef';
+export const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
+
+/**
+ * Generates a random string of specified length using the provided character set
+ */
+export const randomString = (length : number, charSet = randomCharSet) : string => {
+	let text = '';
+	for (let i = 0; i < length; i++) {
+		text += charSet.charAt(Math.floor(Math.random() * charSet.length));
+	}
+	return text;
+};
