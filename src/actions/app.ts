@@ -18,6 +18,7 @@ export const PAGE_BASIC_CARD = _PAGE_BASIC_CARD;
 export const PAGE_COMMENT = 'comment';
 export const PAGE_MAINTENANCE = 'maintenance';
 export const PAGE_PERMISSIONS = 'permissions';
+export const PAGE_CHAT = 'chat';
 export const PAGE_404 = 'view404';
 
 import {
@@ -339,6 +340,9 @@ const loadPage = (pathname : string, query : string) : ThunkSomeAction => (dispa
 		break;
 	case PAGE_PERMISSIONS:
 		import('../components/permissions-view.js');
+		break;
+	case PAGE_CHAT:
+		import('../components/chat-view.js');
 		break;
 	default:
 		page = PAGE_404;
