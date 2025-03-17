@@ -15,7 +15,7 @@ import {
 let config;
 try {
 	config = devProdConfig();
-} catch(err) {
+} catch(_err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
