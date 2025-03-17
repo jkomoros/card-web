@@ -522,7 +522,7 @@ export type Chat = {
 	owner: Uid,
 	model: AIModelName,
 	//In the future we'll have ACLs for view to allow people without admin to see chats they are ACLd into
-	last_updated: Timestamp
+	updated: Timestamp
 	created: Timestamp,
 	//The number of tokens of length to target for the initial background (that is, the card content that is passed in)
 	background_length: number,
@@ -554,7 +554,7 @@ export type ChatMessage = {
 	//streaming:false, to make sure it doesn't constantly get updates as they
 	//are written (using the incomding stream tokens) and then gets the final
 	//result once it's done.
-	streaming: true,
+	streaming: boolean,
 	timestamp: Timestamp
 	//Markdown text
 	content: string
