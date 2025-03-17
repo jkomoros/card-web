@@ -61,6 +61,6 @@
       }
     ]
   },
-  "include": ["src/**/*.ts", "tools/**/*.ts"],
+  "include": ["src/**/*.ts", "tools/**/*.ts", "gulpfile.mjs"],
   "exclude": []
 }
