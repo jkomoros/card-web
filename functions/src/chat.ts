@@ -129,6 +129,8 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		// Commit the batch
 		await batch.commit();
 
+		//TODO: actually kick off the LLM completion for the next chat message, without awaiting.
+
 		return { 
 			success: true,
 			chat: id
