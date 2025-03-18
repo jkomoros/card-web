@@ -22,6 +22,11 @@ import {
 	ChatID
 } from '../../shared/types.js';
 
+import chat from '../reducers/chat.js';
+store.addReducers({
+	chat
+});
+
 @customElement('chat-view')
 class ChatView extends connect(store)(PageViewElement) {
 

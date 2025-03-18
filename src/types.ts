@@ -93,7 +93,11 @@ import {
 	Card,
 	OpenAIModelName,
 	AnthropicModelName,
-	AIModelName
+	AIModelName,
+	ChatMessage,
+	Chat,
+	ChatID,
+	ChatMessageID
 } from '../shared/types.js';
 
 import {
@@ -969,6 +973,19 @@ export type CommentsState = {
 	threadsLoaded: boolean,
 }
 
+export type Chats = {
+	[id: ChatID]: Chat
+};
+
+export type ChatMessages = {
+	[id: ChatMessageID]: ChatMessage
+};
+
+export type ChatState = {
+	messages: ChatMessages,
+	chats: Chats
+}
+
 export type TweetMap = {
 	[tweetID : string]: TweetInfo
 }
@@ -1310,6 +1327,7 @@ export type State = {
 	collection? : CollectionState,
 	prompt? : PromptState,
 	comments? : CommentsState,
+	chat? : ChatState,
 	maintenance? : MaintenanceState,
 	multiedit? : MultiEditState,
 	permissions? : PermissionsState,

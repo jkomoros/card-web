@@ -14,6 +14,8 @@ import {
 } from '../store';
 
 import {
+	ChatMessages,
+	Chats,
 	State
 } from '../types';
 
@@ -32,6 +34,7 @@ import {
 	navigatePathTo,
 	PAGE_CHAT
 } from './app.js';
+import { CHAT_UPDATE_CHATS, CHAT_UPDATE_MESSAGES } from '../actions';
 
 // Default model to use for chats
 const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
@@ -89,4 +92,18 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	} catch (err) {
 		console.error('Error creating chat:', err);
 	}
+};
+
+export const updateChats = (chats : Chats) : ThunkSomeAction => (dispatch) => {
+	dispatch({
+		type: CHAT_UPDATE_CHATS,
+		chats
+	});
+};
+
+export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction => (dispatch) => {
+	dispatch({
+		type: CHAT_UPDATE_MESSAGES,
+		messages
+	});
 };

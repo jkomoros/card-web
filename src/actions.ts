@@ -24,6 +24,8 @@ import {
 	CardIdentifier,
 	CardType,
 	Cards,
+	ChatMessages,
+	Chats,
 	CommentMessageID,
 	CommentMessages,
 	CommentThreadID,
@@ -107,6 +109,9 @@ export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WOR
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
+//Chat
+export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
+export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
 //Data
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
@@ -456,6 +461,16 @@ type ActionCommentsUpdateThreads = {
 type ActionCommentsUpdateMessages = {
 	type: typeof COMMENTS_UPDATE_MESSAGES,
 	messages: CommentMessages
+};
+
+type ActionChatUpdateChats = {
+	type: typeof CHAT_UPDATE_CHATS,
+	chats: Chats
+};
+
+type ActionChatUpdateMessages = {
+	type: typeof CHAT_UPDATE_MESSAGES,
+	messages: ChatMessages
 };
 
 type ActionUpdateCards = {
@@ -1079,6 +1094,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionIncrementCollectionWordCloudVersion
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
+	| ActionChatUpdateChats
+	| ActionChatUpdateMessages
 	| ActionUpdateCards
 	| ActionEnqueueCardUpdates
 	| ActionClearEnqueuedCardUpdates
