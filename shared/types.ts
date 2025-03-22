@@ -731,6 +731,9 @@ export type CardFieldTypeEditableConfigurationMap = {
 	[typ in CardFieldTypeEditable]: CardFieldTypeConfiguration
 }
 
+export type SelectorStyleMap = {
+	[selector : string]: string[]
+}
 
 export type ChatID = string;
 export type ChatMessageID = string;

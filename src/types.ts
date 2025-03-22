@@ -269,11 +269,6 @@ export interface TweetInfo {
 	engagement_last_changed : Timestamp
 }
 
-
-export type SelectorStyleMap = {
-	[selector : string]: string[]
-}
-
 // backportTitleExtractor: if defined, a function taking (rawCard, referenceType,
 //  allRawCards) that should return the string to be used for backporting text. If
 // not defined, will just use card.title.
