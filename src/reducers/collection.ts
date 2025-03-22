@@ -48,8 +48,11 @@ import {
 
 import {
 	randomString
-} from '../util.js';
-import { copyCollectionConfiguration } from '../collection_description.js';
+} from '../../shared/util.js';
+
+import {
+	copyCollectionConfiguration
+} from '../collection_description.js';
 
 const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : CollectionState => {
 	switch (action.type) {

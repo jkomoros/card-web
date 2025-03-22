@@ -46,10 +46,17 @@ import {
 } from './types_simple.js';
 
 import {
-	innerTextForHTML,
 	isURL
 } from './util.js';
-import { elementForHTML, validateTopLevelNodes } from './contenteditable.js';
+
+import {
+	innerTextForHTML,
+} from '../shared/util.js';
+
+import {
+	elementForHTML,
+	validateTopLevelNodes
+} from './contenteditable.js';
 
 export const EMPTY_CARD_ID = '?EMPTY-CARD?';
 

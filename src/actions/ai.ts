@@ -32,9 +32,12 @@ import {
 import {
 	assertUnreachable,
 	cardPlainContent,
-	innerTextForHTML,
 	stringHash
 } from '../util.js';
+
+import {
+	innerTextForHTML
+} from '../../shared/util.js';
 
 import {
 	Card,

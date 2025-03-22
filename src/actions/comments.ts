@@ -28,7 +28,7 @@ import {
 
 import {
 	randomString
-} from '../util.js';
+} from '../../shared/util.js';
 
 import {
 	refreshCommentRedirect

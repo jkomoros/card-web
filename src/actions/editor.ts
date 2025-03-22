@@ -41,9 +41,12 @@ import {
 } from '../references.js';
 
 import {
-	cardHasContent,
-	randomString,
+	cardHasContent
 } from '../util.js';
+
+import {
+	randomString
+} from '../../shared/util.js';
 
 import {
 	normalizeBodyHTML

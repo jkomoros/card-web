@@ -4,10 +4,13 @@
 const FIRESTORE_BATCH_LIMIT = 500;
 
 import {
-	randomString,
 	getObjectPath,
 	objectPathToValue,
 } from './util.js';
+
+import {
+	randomString
+} from '../shared/util.js';
 
 import {
 	installServerTimestamps

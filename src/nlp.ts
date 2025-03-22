@@ -49,7 +49,10 @@ import {
 	SortExtra,
 	cardFieldTypeSchema
 } from './types.js';
-import { innerTextForHTML } from './util.js';
+
+import {
+	innerTextForHTML
+} from '../shared/util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {

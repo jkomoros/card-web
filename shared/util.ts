@@ -34,3 +34,55 @@ export const randomString = (length : number, charSet = randomCharSet) : string 
 	}
 	return text;
 };
+
+import {
+	getDocument
+} from './document.js';
+
+// Import from src/contenteditable.ts
+const DEFAULT_LEGAL_TOP_LEVEL_NODES = {
+	'p': true,
+	'ol': true,
+	'ul': true,
+	'h1': true,
+	'h2': true,
+	'h3': true,
+	'h4': true,
+	'blockquote': true
+};
+
+// Import from src/contenteditable.ts
+export const normalizeLineBreaks = (html : string, legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+	if (!html) return html;
+	//Remove all line breaks. We'll put them back in.
+	html = html.split('\n').join('');
+
+	//Add in line breaks
+	for (const key of Object.keys(legalTopLevelNodes)) {
+		const closeTag = '</' + key + '>';
+		html = html.split(closeTag).join(closeTag + '\n');
+	}
+
+	html = html.split('<ul>').join('<ul>\n');
+	html = html.split('<ol>').join('<ol>\n');
+	html = html.split('<li>').join('\t<li>');
+	html = html.split('</li>').join('</li>\n');
+	return html;
+};
+
+/**
+ * Extracts text content from HTML
+ * This shouldn't be an XSS vulnerability even though body is supplied by
+ * users and thus untrusted, because the temporary element is never actually
+ * appended into the DOM
+ */
+export const innerTextForHTML = (body : string) : string => {
+	const document = getDocument();
+	if (!document) throw new Error('missing document');
+	const ele = document.createElement('section');
+	// makes sure line breaks are in the right place after each legal block level element
+	body = normalizeLineBreaks(body);
+	ele.innerHTML = body;
+	//textContent would return things like style and script contents, but those shouldn't be included anyway.
+	return ele.textContent || '';
+};

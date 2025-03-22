@@ -5,9 +5,12 @@ import {
 	arrayUnionUtil,
 	diffCardFlags,
 	extractCardLinksFromBody,
-	innerTextForHTML,
 	reasonCardTypeNotLegalForCard,
 } from './util.js';
+
+import {
+	innerTextForHTML
+} from '../shared/util.js';
 
 import {
 	getUserMayEditSection,

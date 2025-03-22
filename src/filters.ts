@@ -6,7 +6,6 @@ import {
 	toTitleCase,
 	cardMissingReciprocalLinks,
 	cardHasSubstantiveContent,
-	randomString,
 	hash,
 	cardBFS,
 	pageRank,
@@ -14,6 +13,10 @@ import {
 	normalizeCardSlugOrIDList,
 	assertUnreachable
 } from './util.js';
+
+import {
+	randomString
+} from '../shared/util.js';
 
 import {
 	tweetOrderExtractor,

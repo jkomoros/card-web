@@ -36,7 +36,7 @@ import {
 
 import {
 	getDocument
-} from './document.js';
+} from '../shared/document.js';
 
 import {
 	getImagesFromCard
@@ -50,9 +50,6 @@ import {
 	DERIVED_FIELDS_FOR_CARD_TYPE
 } from './card_fields.js';
 
-import {
-	normalizeLineBreaks,
-} from './contenteditable.js';
 
 import {
 	TypedObject
@@ -108,9 +105,12 @@ export const hash = (str : string) : number => {
 
 export const stringHash = (s : string) : string => Math.abs(hash(s)).toString(16);
 
-// Import and re-export from shared to maintain backward compatibility
-import { randomString, randomCharSet, randomCharSetNumbers, randomCharSetLetters } from '../shared/util.js';
-export { randomString, randomCharSet, randomCharSetNumbers, randomCharSetLetters };
+import { 
+	randomString, 
+	randomCharSetNumbers, 
+	randomCharSetLetters,
+	innerTextForHTML
+} from '../shared/util.js';
 
 //TODO: consider renaming this, because we also use it in selectFullDataNeeded.
 export const pageRequiresMainView = (pageName : string) => {
@@ -205,21 +205,6 @@ export const cardHasTodo = (card : Card | null) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
-};
-
-//Recreated in functions/src/embeddings.ts
-export const innerTextForHTML = (body : string) : string => {
-	//This shouldn't be an XSS vulnerability even though body is supplied by
-	//users and thus untrusted, because the temporary element is never actually
-	//appended into the DOM
-	const document = getDocument();
-	if (!document) throw new Error('missing document');
-	const ele = document.createElement('section');
-	// makes sure line breaks are in the right place after each legal block level element
-	body = normalizeLineBreaks(body);
-	ele.innerHTML = body;
-	//textContent would return things like style and script contents, but those shouldn't be included anyway.
-	return ele.textContent || '';
 };
 
 const plainContentCache = new WeakMap<Card, string>();
