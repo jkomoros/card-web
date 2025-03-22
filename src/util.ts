@@ -28,7 +28,7 @@ import {
 	IMAGE_CARD_TYPES,
 	TEXT_FIELD_CONFIGURATION,
 	DERIVED_FIELDS_FOR_CARD_TYPE
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	getCardTitleForBackporting

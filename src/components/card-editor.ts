@@ -112,7 +112,7 @@ import {
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	references,
@@ -151,7 +151,7 @@ import {
 import {
 	COLOR_LIGHT_FIRE_BRICK,
 	COLORS
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	TagEvent

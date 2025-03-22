@@ -14,7 +14,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 	editableFieldsForCardType
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	references,

@@ -7,7 +7,7 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	TITLE_ALTERNATE_DELIMITER,
 	TITLE_ALTERNATE_NEGATION
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	Card,

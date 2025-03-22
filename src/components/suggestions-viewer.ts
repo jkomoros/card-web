@@ -40,7 +40,7 @@ import {
 
 import {
 	COLORS
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	CANCEL_ICON,
@@ -68,7 +68,7 @@ import {
 
 import {
 	newCardIDPlaceholder
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import './suggestions-summary.js';
 import './tag-list.js';

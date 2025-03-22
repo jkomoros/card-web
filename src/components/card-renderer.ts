@@ -32,7 +32,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	editableFieldsForCardType,
 	IMAGES_TEXT_FIELD
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	EMPTY_PROCESSED_CARD,

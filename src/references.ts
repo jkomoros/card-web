@@ -29,13 +29,13 @@ import {
 import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	getCardType,

@@ -7,7 +7,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	COLORS
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	tagInfosForSuggestions

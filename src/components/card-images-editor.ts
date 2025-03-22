@@ -12,7 +12,7 @@ import {
 
 import {
 	IMAGE_CARD_TYPES
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	EMPTY_CARD
@@ -36,7 +36,7 @@ import {
 
 import {
 	COLORS
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	TagEvent

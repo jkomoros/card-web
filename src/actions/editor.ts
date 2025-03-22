@@ -34,7 +34,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	REFERENCE_TYPES,
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	referencesNonModifying

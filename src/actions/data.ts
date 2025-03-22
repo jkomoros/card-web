@@ -116,7 +116,7 @@ import {
 	isNewCardIDPlaceholder,
 	DEFAULT_SORT_ORDER_INCREMENT,
 	COLORS
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	CARDS_COLLECTION,

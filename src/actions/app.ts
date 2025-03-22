@@ -65,7 +65,7 @@ import {
 
 import {
 	REFERENCES_INBOUND_CARD_PROPERTY
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	CARDS_COLLECTION

@@ -3,7 +3,7 @@ import {
 	FIND_CARD_TO_LINK as LINK,
 	FIND_CARD_TO_PERMISSION as PERMISSION,
 	FIND_CARD_TO_REFERENCE as REFRENCE
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	ChatID,

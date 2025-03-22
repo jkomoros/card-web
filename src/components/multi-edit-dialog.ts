@@ -55,7 +55,7 @@ import {
 
 import {
 	REFERENCE_TYPES,
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	referencesNonModifying,

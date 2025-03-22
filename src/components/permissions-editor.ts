@@ -46,7 +46,7 @@ import {
 
 import {
 	COLORS
-} from '../../shared/card-fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	TagEvent

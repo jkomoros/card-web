@@ -11,7 +11,7 @@ import {
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
 	FIND_CARD_OPEN
-} from '../shared/card-fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	CollectionDescription
