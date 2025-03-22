@@ -8,16 +8,19 @@ import {
 
 import {
 	Card,
+	CardType,
+	ReferenceType,
+	CardFieldType,
+	CardID
+} from '../shared/types.js';
+
+import {
 	ProcessedCard,
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
 	CardFieldTypeConfigurationMap,
 	SelectorStyleMap,
-	CardType,
-	ReferenceType,
 	CardFieldTypeEditableConfigurationMap,
-	CardFieldType,
-	CardID
 } from './types.js';
 
 import {
