@@ -3,6 +3,7 @@ import {
 } from 'firebase-functions/v2/https';
 
 import {
+	AIModelName,
 	Chat,
 	ChatMessage,
 	CreateChatRequestData,
@@ -146,7 +147,9 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		// Commit the batch
 		await batch.commit();
 
-		//TODO: actually kick off the LLM completion for the next chat message, without awaiting.
+		//Start the assistant message, but DON'T await it; will complete in the
+		//background and write to the database when done.
+		fetchAssistantMessage(id);
 
 		return { 
 			success: true,
@@ -159,4 +162,63 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 			error: 'Failed to create chat: ' + String(error)
 		};
 	}
+};
+
+//Will fetch the next assistant message for the given chatID, and write it into the database.
+//Typically you don't actually await this, and instead just get the result on the client when it's done.
+const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | null> => {
+
+	//TODO: do streaming and write streaming tokens to the database as they come in.
+
+	//TODO: if there's an error, automatically retry at some point (perhaps if the user views the chat again).
+
+	const chatSnapshot = await db.collection(CHATS_COLLECTION).doc(chatID).get();
+	if (!chatSnapshot.exists) {
+		throw new Error('Chat not found for ID: ' + chatID);
+	}
+	const chat = chatSnapshot.data() as Chat;
+
+	const model = chat.model;
+
+	//Fetch all messages with chat = chatID sorted by message_index
+	const messagesSnapshot = await db.collection(CHAT_MESSAGES_COLLECTION)
+		.where('chat', '==', chatID)
+		.orderBy('message_index')
+		.get();
+
+	if (messagesSnapshot.empty) {
+		throw new Error('No messages found for chat ID: ' + chatID);
+	}
+
+	const messages : ChatMessage[] = messagesSnapshot.docs.map(doc => ({
+		id: doc.id,
+		...doc.data()
+	} as ChatMessage));
+
+	const assistantMessage = await assitantMessageForThread(model, messages);
+
+	const messageIndex = messages.length; // Next message index to use for the assistant message
+	const assistantMessageData : ChatMessage = {
+		id: randomString(16),
+		chat: chatID,
+		message_index: messageIndex,
+		role: 'assistant',
+		content: assistantMessage,
+		timestamp: timestamp(),
+		streaming: false
+	};
+
+	// Write the assistant message to Firestore
+	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
+	await assistantMessageRef.set(assistantMessageData);
+	return assistantMessageData;
+};
+
+const assitantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
+	const lastMessage = thread[thread.length - 1];
+	if (lastMessage.role !== 'user') {
+		throw new Error('Last message is not a user message, cannot fetch assistant message');
+	}
+
+	throw new Error('Not yet implemented');
 };
