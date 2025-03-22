@@ -29,16 +29,12 @@ import {
 } from 'jsdom';
 
 import {
-	db,
 	DEV_MODE,
+	getCards,
 	QDRANT_API_KEY,
 	QDRANT_CLUSTER_URL,
 	throwIfUserMayNotUseAI
 } from './common.js';
-
-import {
-	CARDS_COLLECTION
-} from '../../shared/collection-constants.js';
 
 import {
 	QdrantClient
@@ -456,13 +452,8 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		console.warn('Qdrant not enabled, skipping');
 		return;
 	}
-	const rawCards = await db.collection(CARDS_COLLECTION).get();
-	const cards : Card[] = rawCards.docs.map(snapshot => {
-		return {
-			...snapshot.data(),
-			id: snapshot.id
-		} as Card;
-	});
+
+	const cards = await getCards();
 
 	const indexedCardInfoResult = await EMBEDDING_STORE._qdrant.scroll(QDRANT_COLLECTION_NAME, {
 		filter: {

@@ -18,6 +18,7 @@ import {
 	Card,
 	CardID,
 	CardIdentifier,
+	Cards,
 	Uid,
 	UserPermissions
 } from './types.js';
@@ -175,4 +176,19 @@ export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>)
 	if (!mayUseAI(permissions)) {
 		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');
 	}
+};
+
+//Returns the cards with the given IDs. If not provided, returns all cards.
+export const getCards = async (cardIDs? : CardID[]) : Promise<Card[]> => {
+	//TODO: if cardIDs is provided, only fetch the cards with those IDs in batches.
+	const rawCards = await db.collection(CARDS_COLLECTION).get();
+	const cards : Cards = Object.fromEntries(rawCards.docs.map(snapshot => {
+		const card = {
+			...snapshot.data(),
+			id: snapshot.id
+		} as Card;
+		return [snapshot.id, card];
+	}));
+	if (!cardIDs) return Object.values(cards);
+	return cardIDs.map(id => cards[id]).filter(card => !!card);
 };
