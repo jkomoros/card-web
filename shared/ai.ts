@@ -23,3 +23,5 @@ export const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
+
+export const CARD_SEPARATOR = '\n-----\n';

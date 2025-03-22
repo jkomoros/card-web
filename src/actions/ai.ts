@@ -82,7 +82,8 @@ import {
 import {
 	MODEL_INFO,
 	DEFAULT_OPENAI_MODEL,
-	DEFAULT_ANTHROPIC_MODEL
+	DEFAULT_ANTHROPIC_MODEL,
+	CARD_SEPARATOR
 } from '../../shared/ai.js';
 
 export type AIDialogTypeConfiguration = {
@@ -161,8 +162,6 @@ class AnthropicProxy {
 
 const openai = new OpenAIProxy();
 const anthropic = new AnthropicProxy();
-
-const CARD_SEPARATOR = '\n-----\n';
 
 export const DEFAULT_MODEL : AIModelName = DEFAULT_ANTHROPIC_MODEL;
 
