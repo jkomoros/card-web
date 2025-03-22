@@ -46,14 +46,14 @@ const aiComparisonResultSchema = z.object({
 	better_written: comparsionItem,
 });
 
-const comparisonResultSchema = aiComparisonResultSchema.partial().extend({
+const _comparisonResultSchema = aiComparisonResultSchema.partial().extend({
 	more_recent: z.optional(comparsionItem),
 	prioritized: z.optional(triStateComparisonItem)
 });
 
 type AIComparisonResult = z.infer<typeof aiComparisonResultSchema>;
 
-type ComparisonResult = z.infer<typeof comparisonResultSchema>;
+type ComparisonResult = z.infer<typeof _comparisonResultSchema>;
 
 const COMPARISON_RESULT_SCORES : Record<keyof ComparisonResult, number> = {
 	more_recent: 0.3,
