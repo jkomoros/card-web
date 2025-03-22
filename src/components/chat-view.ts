@@ -16,11 +16,13 @@ import {
 
 import {
 	selectCurrentChatID,
+	selectCurrentComposedChat,
 	selectPageExtra
 } from '../selectors.js';
 
 import {
-	ChatID
+	ChatID,
+	ComposedChat
 } from '../../shared/types.js';
 
 import {
@@ -41,6 +43,9 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	@state()
 		_chatID: ChatID;
+
+	@state()
+		_composedChat : ComposedChat | null;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -70,6 +75,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		// pageExtra will contain the chat ID from the URL
 		this._pageExtra = selectPageExtra(state);
 		this._chatID = selectCurrentChatID(state);
+		this._composedChat = selectCurrentComposedChat(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

@@ -1907,3 +1907,9 @@ export const selectComposedChats = createSelector(
 		return result;
 	}
 );
+
+export const selectCurrentComposedChat = createSelector(
+	selectCurrentChatID,
+	selectComposedChats,
+	(id , chats) => id ? chats[id] : null
+);
