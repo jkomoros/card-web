@@ -24,10 +24,12 @@ import {
 } from '../types.js';
 
 import {
-	cardPlainContent,
 	isURL
 } from '../util.js';
 
+import {
+	cardPlainContent
+} from '../../shared/util.js';
 
 const CONVERT_TO_QUOTE_SUGGESTOR_VERSION = 0;
 

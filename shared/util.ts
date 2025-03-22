@@ -1,4 +1,6 @@
 import {
+	Card,
+	CardFieldTypeEditable,
 	Slug
 } from './types.js';
 
@@ -38,6 +40,12 @@ export const randomString = (length : number, charSet = randomCharSet) : string 
 import {
 	getDocument
 } from './document.js';
+
+import {
+	BODY_CARD_TYPES,
+	DERIVED_FIELDS_FOR_CARD_TYPE,
+	TEXT_FIELD_CONFIGURATION
+} from './card_fields.js';
 
 // Import from src/contenteditable.ts
 const DEFAULT_LEGAL_TOP_LEVEL_NODES = {
@@ -85,4 +93,35 @@ export const innerTextForHTML = (body : string) : string => {
 	ele.innerHTML = body;
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
 	return ele.textContent || '';
+};
+
+const plainContentCache = new WeakMap<Card, string>();
+
+const cardPlainContentImpl = (card : Card) : string => {
+	const cardType = card.card_type;
+	if (!BODY_CARD_TYPES[cardType]) return '';
+	const result : string[] = [];
+	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body', 'commentary'];
+	for (const field of fieldsInOrder) {
+		//Skip derived fields
+		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
+		const rawContent = card[field] || '';
+		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
+		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
+		if (!content) continue;
+		result.push(content.trim());
+	}
+	return result.join('\n');
+};
+
+//Extracts the user-provided title and body from the card, without HTML
+//formatting.
+export const cardPlainContent = (card : Card) : string => {
+	const currentContent = plainContentCache.get(card);
+	if (currentContent == undefined) {
+		const value = cardPlainContentImpl(card);
+		plainContentCache.set(card, value);
+		return value;
+	}
+	return currentContent;
 };

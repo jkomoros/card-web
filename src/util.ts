@@ -13,7 +13,6 @@ import {
 	ReferencesInfoMap,
 	TweetInfo,
 	ReferenceType,
-	CardFieldTypeEditable,
 	CardFlags,
 	CardFlagsRemovals,
 	CardFetchType
@@ -25,9 +24,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
-	IMAGE_CARD_TYPES,
-	TEXT_FIELD_CONFIGURATION,
-	DERIVED_FIELDS_FOR_CARD_TYPE
+	IMAGE_CARD_TYPES
 } from '../shared/card_fields.js';
 
 import {
@@ -108,7 +105,6 @@ import {
 	randomString, 
 	randomCharSetNumbers, 
 	randomCharSetLetters,
-	innerTextForHTML
 } from '../shared/util.js';
 
 //TODO: consider renaming this, because we also use it in selectFullDataNeeded.
@@ -204,37 +200,6 @@ export const cardHasTodo = (card : Card | null) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
-};
-
-const plainContentCache = new WeakMap<Card, string>();
-
-const cardPlainContentImpl = (card : Card) : string => {
-	const cardType = card.card_type;
-	if (!BODY_CARD_TYPES[cardType]) return '';
-	const result : string[] = [];
-	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body', 'commentary'];
-	for (const field of fieldsInOrder) {
-		//Skip derived fields
-		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
-		const rawContent = card[field] || '';
-		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
-		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
-		if (!content) continue;
-		result.push(content.trim());
-	}
-	return result.join('\n');
-};
-
-//Extracts the user-provided title and body from the card, without HTML
-//formatting.
-export const cardPlainContent = (card : Card) : string => {
-	const currentContent = plainContentCache.get(card);
-	if (currentContent == undefined) {
-		const value = cardPlainContentImpl(card);
-		plainContentCache.set(card, value);
-		return value;
-	}
-	return currentContent;
 };
 
 export const cardHasContent = (card : Card | null) => {

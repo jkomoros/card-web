@@ -21,9 +21,12 @@ import {
 } from '../types.js';
 
 import {
-	cardPlainContent, 
 	wrapPlainContent
 } from '../util.js';
+
+import {
+	cardPlainContent
+} from '../../shared/util.js';
 
 //Increment this when substantively changing the implementation/quality of this prompt.
 const CURRENT_VERSION = 0;

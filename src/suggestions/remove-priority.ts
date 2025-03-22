@@ -28,9 +28,12 @@ import {
 
 import {
 	assertUnreachable,
-	cardIsPrioritized,
-	cardPlainContent
+	cardIsPrioritized
 } from '../util.js';
+
+import {
+	cardPlainContent
+} from '../../shared/util.js';
 
 import {
 	z
