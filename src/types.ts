@@ -97,7 +97,11 @@ import {
 	ChatMessage,
 	Chat,
 	ChatID,
-	ChatMessageID
+	ChatMessageID,
+	ProcessedCard,
+	StringCardMap,
+	SynonymMap,
+	isProcessedCard
 } from '../shared/types.js';
 
 import {
@@ -171,7 +175,11 @@ export {
 	Card,
 	OpenAIModelName,
 	AnthropicModelName,
-	AIModelName
+	AIModelName,
+	ProcessedCard,
+	StringCardMap,
+	SynonymMap,
+	isProcessedCard
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
@@ -702,44 +710,8 @@ export type CardUpdate = CardUpdateIntermediate & DottedCardUpdate;
 
 export type CardLike = Card | CardUpdate;
 
-// CardDiff and NonAutoMergeableCardDiff now imported from shared/types.js
-
-export type SynonymMap = {
-	[input : string]: string[]
-}
-
-//TODO: is there a better way to do this since ProcessRun just flat out exists in nlp.js?
-export interface ProcessedRunInterface {
-	normalized : string,
-	original : string,
-	stemmed : string,
-	withoutStopWords : string,
-	readonly empty : boolean
-}
-
-type NLPInfo = {
-	[field in CardFieldType]: ProcessedRunInterface[]
-}
-
 export interface CardWithOptionalFallbackText extends Card {
 	fallbackText?: ReferencesInfoMap,
-}
-
-export interface StringCardMap {
-	[ngram : string] : CardID
-}
-
-export function isProcessedCard(card : Card | ProcessedCard) : card is ProcessedCard {
-	return (card as {nlp : unknown}).nlp !== undefined;
-}
-
-export interface ProcessedCard extends Card {
-	//this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
-	fallbackText: ReferencesInfoMap,
-	//agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
-	importantNgrams: StringCardMap,
-	synonymMap: SynonymMap,
-	nlp: NLPInfo,
 }
 
 export type Cards = {

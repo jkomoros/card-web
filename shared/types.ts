@@ -514,6 +514,40 @@ export interface Card {
 	tweet_count: number,
 }
 
+export interface StringCardMap {
+	[ngram : string] : CardID
+}
+
+export type SynonymMap = {
+	[input : string]: string[]
+}
+
+export function isProcessedCard(card : Card | ProcessedCard) : card is ProcessedCard {
+	return (card as {nlp : unknown}).nlp !== undefined;
+}
+
+//TODO: is there a better way to do this since ProcessRun just flat out exists in nlp.js?
+export interface ProcessedRunInterface {
+	normalized : string,
+	original : string,
+	stemmed : string,
+	withoutStopWords : string,
+	readonly empty : boolean
+}
+
+type NLPInfo = {
+	[field in CardFieldType]: ProcessedRunInterface[]
+}
+
+export interface ProcessedCard extends Card {
+	//this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
+	fallbackText: ReferencesInfoMap,
+	//agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
+	importantNgrams: StringCardMap,
+	synonymMap: SynonymMap,
+	nlp: NLPInfo,
+}
+
 export type ChatID = string;
 export type ChatMessageID = string;
 

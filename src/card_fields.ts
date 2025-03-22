@@ -11,11 +11,11 @@ import {
 	CardType,
 	ReferenceType,
 	CardFieldType,
-	CardID
+	CardID,
+	ProcessedCard
 } from '../shared/types.js';
 
 import {
-	ProcessedCard,
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
 	CardFieldTypeConfigurationMap,
