@@ -783,6 +783,16 @@ export type ChatMessage = {
 	content: string
 };
 
+export type AssistantThreadMessage = {
+	role: 'assistant' | 'user',
+	content: string
+};
+
+export type AssistantThread = {
+	system?: string,
+	messages: AssistantThreadMessage[];
+};
+
 export type ComposedChat = Chat & {
 	messages: ChatMessage[]
 };

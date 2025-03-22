@@ -15,7 +15,7 @@ import {
 } from './types.js';
 
 import {
-	ChatMessage
+	AssistantThread
 } from '../../shared/types.js';
 
 export const openai_endpoint = OPENAI_API_KEY ? new OpenAI({
@@ -72,6 +72,6 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 	}
 };
 
-export const assistantMessageForThreadOpenAI = async (_model : OpenAIModelName, _thread : ChatMessage[]) : Promise<string> => {
+export const assistantMessageForThreadOpenAI = async (_model : OpenAIModelName, _thread : AssistantThread) : Promise<string> => {
 	throw new Error('assistantMessageForThreadOpenAI is not implemented yet');
 };

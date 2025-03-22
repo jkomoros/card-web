@@ -5,6 +5,8 @@ import {
 import {
 	AIModelName,
 	AnthropicModelName,
+	AssistantThread,
+	AssistantThreadMessage,
 	Chat,
 	ChatMessage,
 	CreateChatRequestData,
@@ -225,6 +227,29 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 	return assistantMessageData;
 };
 
+const makeAssistantThread = (thread : ChatMessage[]) : AssistantThread => {
+	if (!thread || thread.length === 0) {
+		throw new Error('Thread is empty or undefined');
+	}
+	//Remove extraneous fields and convert it to a form that has a system message.
+	const system : string[] = [];
+	const messages : AssistantThreadMessage[] = [];
+	for (const message of thread) {
+		if (message.role === 'system') {
+			system.push(message.content);
+		} else {
+			messages.push({
+				role: message.role,
+				content: message.content,
+			});
+		}
+	}
+	return {
+		system: system.join('\n\n'),
+		messages: messages
+	};
+};
+
 const assistantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
 	const lastMessage = thread[thread.length - 1];
 	if (lastMessage.role !== 'user') {
@@ -239,11 +264,13 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 		throw new Error('Invalid model provided: ' + model);
 	}
 
+	const assistantThread = makeAssistantThread(thread);
+
 	switch(modelInfo.provider) {
 	case 'openai':
-		return await assistantMessageForThreadOpenAI(model as OpenAIModelName, thread);
+		return await assistantMessageForThreadOpenAI(model as OpenAIModelName, assistantThread);
 	case 'anthropic':
-		return await assistantMessageForThreadAnthropic(model as AnthropicModelName, thread);
+		return await assistantMessageForThreadAnthropic(model as AnthropicModelName, assistantThread);
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}

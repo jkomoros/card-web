@@ -15,7 +15,7 @@ import {
 } from './types.js';
 
 import {
-	ChatMessage
+	AssistantThread
 } from '../../shared/types.js';
 
 export const anthropic_endpoint = ANTHROPIC_API_KEY ? new Anthropic({
@@ -72,6 +72,6 @@ export const handler = async (request : CallableRequest<AnthropicData>) => {
 	}
 };
 
-export const assistantMessageForThreadAnthropic = async (_model : AnthropicModelName, _thread : ChatMessage[]) : Promise<string> => {
+export const assistantMessageForThreadAnthropic = async (_model : AnthropicModelName, _thread : AssistantThread) : Promise<string> => {
 	throw new Error('assistantMessageForThreadAnthropic is not implemented yet');
 };
