@@ -148,6 +148,7 @@ const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	//Every time this function is updated, CURRENT_EMBEDDING_VERSION should be incremented.
 
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
+	//This is now possible because cardPlainContent is now in shared/util.ts.
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
