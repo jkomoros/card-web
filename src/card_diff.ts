@@ -24,9 +24,12 @@ import {
 import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
-	fontSizeBoosts,
 	newCardIDPlaceholder
 } from './card_fields.js';
+
+import {
+	fontSizeBoosts
+} from './card_methods.js';
 
 import {
 	REFERENCES_INFO_CARD_PROPERTY,

@@ -1,4 +1,7 @@
 import {
+	CARD_TYPE_CONFIGURATION,
+	EMPTY_PROCESSED_CARD,
+	TEXT_FIELD_CONFIGURATION,
 	TITLE_ALTERNATE_DELIMITER,
 	TITLE_ALTERNATE_NEGATION
 } from './card_fields.js';
@@ -12,7 +15,11 @@ import {
 	Cards,
 	CardType,
 	CardTypeBackportTitleExtractor,
-	ReferenceType
+	ReferenceType,
+	ProcessedCard,
+	FontSizeBoostMap,
+	CardFieldTypeEditable,
+	CardDiff,
 } from './types.js';
 
 import {
@@ -35,6 +42,14 @@ import {
 import {
 	references
 } from './references.js';
+
+import {
+	CardRenderer
+} from './components/card-renderer.js';
+
+import {
+	TypedObject
+} from './typed_object.js';
 
 export type CardFieldHTMLFormatterConfigurationMap = {
 	[typ in CardFieldType]+?: CardFieldHTMLFormatter
@@ -135,4 +150,113 @@ export const getCardTitleForBackporting = (rawCard : Card, referenceType : Refer
 		return backporter(rawCard, referenceType, rawCards);
 	}
 	return rawCard.title;
+};
+
+const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[fieldType in CardFieldTypeEditable]+?: true}} = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].autoFontSizeBoostForCardTypes ? entry[1].autoFontSizeBoostForCardTypes[typ] : false).map(entry => [entry[0], true]))];
+}));
+
+//Returns an object with field -> boosts to set. It will return
+//card.font_size_boosts if no change, or an object like font_size_boosts, but
+//with modifications made as appropriate leaving any untouched keys the same,
+//and any keys it modifies but sets to 0.0 deleted. It checks the diff to see
+//which fields are modified, so it can avoid resizing fields that were not modified.
+export const fontSizeBoosts = async (card : Card, diff? : CardDiff) : Promise<FontSizeBoostMap> => {
+	if (!card) return {};
+	const fields = AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
+	const currentBoost = card.font_size_boost || {};
+	if (Object.keys(fields).length === 0) return currentBoost;
+	const result : FontSizeBoostMap = {...currentBoost};
+	for (const field of TypedObject.keys(fields)) {
+		//Skip fields that weren't modified.
+		if (diff && diff[field] === undefined) continue;
+		const boost = await calculateBoostForCardField(card, field);
+		if (boost == 0.0) {
+			if (result[field] !== undefined) delete result[field];
+			continue;
+		}
+		result[field] = boost;
+	}
+	return result;
+};
+
+type CardRendererProvider = {
+	sizingCardRenderer : CardRenderer
+}
+
+let cardRendererProvider : CardRendererProvider | null = null;
+
+//Custom elements that have a sizing card-renderer should all this to offer
+//themselves up. This module can't create its own card-renderer because a)
+//importing card-renderer leads to a circular dependency, but also because the
+//card-renderer has to be within the main web app to get the right css vars so
+//it can size accurately. provider should hae a sizingCardRenderer property we
+//can fetch an instance of card-renderer from that we may inject our own card
+//into.
+export const setFontSizingCardRendererProvider = (provider : CardRendererProvider) => {
+	if (!cardRendererProvider) cardRendererProvider = provider;
+};
+
+const MAX_FONT_BOOST_BISECT_STEPS = 3;
+
+//calculateBoostForCardField is an expensive method because it repeatedly
+//changes layout and then reads it back. But even with that, it typically takes
+//less than 15ms or so on a normal computer.
+const calculateBoostForCardField = async (card : Card, field : CardFieldTypeEditable) : Promise<number> => {
+
+	const config = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes;
+
+	if (!config) throw new Error('no config');
+
+	const max = config[card.card_type] || 0;
+	let low = 0.0;
+	let high = max;
+	let alwaysLow = true;
+	let alwaysHigh = true;
+
+	let middle = ((high - low) / 2) + low;
+	let count = 0;
+	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
+		const overflows = await cardOverflowsFieldForBoost(card, field, middle);
+		if (overflows) {
+			high = middle;
+			alwaysHigh = false;
+		} else {
+			low = middle;
+			alwaysLow = false;
+		}
+		middle = ((high - low) / 2) + low;
+		count++;
+	}
+	//No matter where we stopped, the value of middle might now overflow (even
+	//if there had been no overflows yet). Check one more time. If it does
+	//overflow, round down.
+	const overflows = await cardOverflowsFieldForBoost(card, field, middle);
+	if (overflows) {
+		middle = low;
+		alwaysHigh = false;
+	}
+
+	//Check if it should return the extremes
+	if (alwaysHigh && !await cardOverflowsFieldForBoost(card, field, max)) return max;
+	if (alwaysLow && await cardOverflowsFieldForBoost(card, field, 0.0)) return 0.0;
+
+	return middle;
+};
+
+const cardOverflowsFieldForBoost = async (card : Card, field : CardFieldTypeEditable, proposedBoost : number) : Promise<boolean> => {
+	if (!cardRendererProvider) {
+		console.warn('No card renderer provider provided');
+		return false;
+	}
+	const ele = cardRendererProvider.sizingCardRenderer;
+	if (!ele) {
+		console.warn('No active card renderer');
+		return false;
+	}
+	const tempCard : ProcessedCard = {...EMPTY_PROCESSED_CARD, ...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
+	ele.card = tempCard;
+	await ele.updateComplete;
+	const isOverflowing = ele.isOverflowing();
+	return isOverflowing;
 };

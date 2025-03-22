@@ -19,7 +19,7 @@ import {
 
 import {
 	setFontSizingCardRendererProvider
-} from '../card_fields.js';
+} from '../card_methods.js';
 
 import {
 	ProcessedCard,

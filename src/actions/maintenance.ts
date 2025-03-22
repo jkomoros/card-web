@@ -55,12 +55,15 @@ import {
 } from '../tabs.js';
 
 import {
-	fontSizeBoosts,
 	MAX_SORT_ORDER_VALUE,
 	MIN_SORT_ORDER_VALUE,
 	DEFAULT_SORT_ORDER_INCREMENT,
 	TEXT_FIELD_CONFIGURATION
 } from '../card_fields.js';
+
+import {
+	fontSizeBoosts
+} from '../card_methods.js';
 
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
