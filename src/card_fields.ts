@@ -14,12 +14,12 @@ import {
 	CardID,
 	ProcessedCard,
 	CardTypeConfigurationMap,
+	ReferenceTypeConfigurationMap
 } from '../shared/types.js';
 
 //TODO: this is the punchlist of types that have to be moved to shared/types.js
 //to move card fields into shared.
 import {
-	ReferenceTypeConfigurationMap,
 	CardFieldTypeConfigurationMap,
 	SelectorStyleMap,
 	CardFieldTypeEditableConfigurationMap,
