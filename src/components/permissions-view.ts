@@ -25,7 +25,7 @@ import {
 
 import {
 	PLUS_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	COMPOSED_USER_TYPE_ALL_PERMISSIONS,

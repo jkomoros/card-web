@@ -33,7 +33,7 @@ import {
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	selectMultiEditDialogOpen,

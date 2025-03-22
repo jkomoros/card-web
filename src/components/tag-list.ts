@@ -6,7 +6,7 @@ import './tag-chip.js';
 
 import {
 	PLUS_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 

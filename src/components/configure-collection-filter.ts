@@ -7,7 +7,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import {
 	DELETE_FOREVER_ICON,
 	PLUS_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	help,

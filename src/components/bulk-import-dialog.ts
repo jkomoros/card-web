@@ -21,7 +21,7 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON,
 	COPY_ALL_ICON,
 	SHUFFLE_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	selectBulKimportDialogMode,

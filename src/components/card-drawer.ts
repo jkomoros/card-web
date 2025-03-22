@@ -10,7 +10,7 @@ import {
 	INSERT_DRIVE_FILE_ICON,
 	ARROW_DOWN_ICON,
 	ARROW_RIGHT_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
@@ -21,7 +21,7 @@ import {
 	DEFAULT_CARD_TYPE
 } from '../card_fields.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 import {
 	CardID,

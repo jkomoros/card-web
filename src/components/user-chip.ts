@@ -14,7 +14,7 @@ store.addReducers({
 
 import {
 	PERSON_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	signIn,

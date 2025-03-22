@@ -62,7 +62,7 @@ import {
 	LINK_ICON,
 	LINK_OFF_ICON,
 	OPEN_IN_BROWSER_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	REFERENCE_TYPES,

@@ -2,7 +2,7 @@ import {
 	CollectionDescription
 } from './collection_description.js';
 
-import * as icons from './components/my-icons.js';
+import * as icons from './../shared/icons.js';
 
 import {
 	TWITTER_HANDLE

@@ -40,7 +40,7 @@ import {
 	highlightConceptReferences
 } from '../nlp.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 import {
 	makeElementContentEditable,

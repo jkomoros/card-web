@@ -161,7 +161,7 @@ import {
 	FILTER_ALT_ICON,
 	SAVE_ICON,
 	REPEAT_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	reorderCard

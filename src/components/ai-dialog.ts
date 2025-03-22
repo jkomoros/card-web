@@ -25,7 +25,7 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON,
 	CANCEL_ICON,
 	CASINO_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	selectAIDialogOpen,

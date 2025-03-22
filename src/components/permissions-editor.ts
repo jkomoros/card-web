@@ -15,7 +15,7 @@ import {
 import {
 	EDIT_ICON,
 	DELETE_FOREVER_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	updateUserNote,

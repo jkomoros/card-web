@@ -81,7 +81,7 @@ import {
 	HIGHLIGHT_OFF_ICON,
 	MERGE_TYPE_ICON,
 	AUTO_AWESOME_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	killEvent, 
@@ -164,7 +164,7 @@ import {
 import {
 	ARROW_UP_ICON,
 	ARROW_RIGHT_ICON
-} from './my-icons';
+} from '../../shared/icons.js';
 
 import {
 	titleForEditingCardWithAI

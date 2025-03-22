@@ -982,7 +982,7 @@ export type TabConfigItem = Omit<TabConfigItemInput, 'icon' | 'collection'> & {
 	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
 	//or an href. If it's a string, remember it should start with a setname, e/g. 'everything/working-notes'
 	collection?: string | CollectionDescription,
-	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
+	//Can be either a string naming an ICON constant in src/../shared/icons.js, or an actual Icon template.
 	//If provided, will render that instead of the display_name text.
 	icon?: IconName | TemplateResult,
 }

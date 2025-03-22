@@ -33,7 +33,7 @@ import {
 	EDIT_ICON,
 	ARROW_BACK_ICON,
 	ARROW_FORWARD_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	Card,

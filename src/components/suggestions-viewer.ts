@@ -48,7 +48,7 @@ import {
 	REPEAT_ICON,
 	PSYCHOLOGY_ICON,
 	HIGHLIGHT_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	applySuggestion,

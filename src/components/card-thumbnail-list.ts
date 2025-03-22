@@ -23,7 +23,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 } from '../card_fields.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 import { cancelHoverTimeout } from '../actions/app.js';
 
@@ -36,7 +36,7 @@ import {
 import {
 	ARROW_UPWARD_ICON,
 	ARROW_DOWNWARD_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 

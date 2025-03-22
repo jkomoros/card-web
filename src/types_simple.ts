@@ -11,7 +11,7 @@ import {
 } from '../shared/types.js';
 
 //Ugh doesn't this import kind of ruin the point?
-import * as icons from './components/my-icons.js';
+import * as icons from './../shared/icons.js';
 
 export { UserPermissionsCore };
 
@@ -52,7 +52,7 @@ export interface TabConfigItemInput {
 	collection?: string,
 	//If set, the item will render an <a href='href' target='_blank'>
 	href?: string,
-	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
+	//Can be either a string naming an ICON constant in src/../shared/icons.js, or an actual Icon template.
 	//If provided, will render that instead of the display_name text.
 	icon?: IconName,
 	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.

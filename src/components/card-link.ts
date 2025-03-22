@@ -24,7 +24,7 @@ import {
 	CARD_TYPE_CONFIGURATION
 } from '../card_fields.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 import {
 	CardBooleanMap,

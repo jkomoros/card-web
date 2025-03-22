@@ -24,7 +24,7 @@ import {
 	COLORS
 } from '../../shared/card-fields.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 @customElement('tag-chip')
 class TagChip  extends LitElement {

@@ -7,7 +7,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	CANCEL_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	makeDialogShouldCloseEvent

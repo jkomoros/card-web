@@ -12,7 +12,7 @@ import {
 
 import {
 	OPEN_IN_BROWSER_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import './card-link.js';
 import { ExpandedReferenceBlock } from '../reference_blocks.js';

@@ -43,7 +43,7 @@ import {
 import {
 	LINK_ICON,
 	PLUS_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import './configure-collection-filter.js';
 

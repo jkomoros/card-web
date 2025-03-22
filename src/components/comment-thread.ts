@@ -10,7 +10,7 @@ import {
 	ARROW_RIGHT_ICON,
 	ARROW_DOWN_ICON,
 	CHECK_CIRCLE_OUTLINE_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import { 
 	ComposedCommentThread

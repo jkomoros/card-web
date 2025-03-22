@@ -5,7 +5,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { ADD_COMMENT_ICON } from './my-icons.js';
+import { ADD_COMMENT_ICON } from '../../shared/icons.js';
 
 import './comment-thread.js';
 

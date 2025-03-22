@@ -9,7 +9,7 @@ import {
 	EDIT_ICON,
 	DELETE_FOREVER_ICON,
 	BASELINK_LINK_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	prettyTime,
