@@ -4,10 +4,12 @@ import {
 
 import {
 	AIModelName,
+	AnthropicModelName,
 	Chat,
 	ChatMessage,
 	CreateChatRequestData,
-	CreateChatResponseData
+	CreateChatResponseData,
+	OpenAIModelName
 } from '../../shared/types.js';
 
 import {
@@ -22,6 +24,7 @@ import {
 } from './common.js';
 
 import {
+	assertUnreachable,
 	cardPlainContent,
 	randomString
 } from '../../shared/util.js';
@@ -38,6 +41,14 @@ import {
 import type {
 	Timestamp
 } from '../../shared/timestamp.js';
+
+import {
+	assistantMessageForThreadOpenAI
+} from './openai.js';
+
+import {
+	assistantMessageForThreadAnthropic
+} from './anthropic.js';
 
 // Helper function to adapt Firebase Admin Timestamp to the shared Timestamp interface
 const timestamp = (): Timestamp => {
@@ -195,7 +206,7 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 		...doc.data()
 	} as ChatMessage));
 
-	const assistantMessage = await assitantMessageForThread(model, messages);
+	const assistantMessage = await assistantMessageForThread(model, messages);
 
 	const messageIndex = messages.length; // Next message index to use for the assistant message
 	const assistantMessageData : ChatMessage = {
@@ -214,11 +225,26 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 	return assistantMessageData;
 };
 
-const assitantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
+const assistantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
 	const lastMessage = thread[thread.length - 1];
 	if (lastMessage.role !== 'user') {
 		throw new Error('Last message is not a user message, cannot fetch assistant message');
 	}
 
-	throw new Error('Not yet implemented');
+	//Note: we assume that we've alraedy checked if the user is allowed to use AI and that they are.
+
+	const modelInfo = MODEL_INFO[model];
+
+	if (!modelInfo) {
+		throw new Error('Invalid model provided: ' + model);
+	}
+
+	switch(modelInfo.provider) {
+	case 'openai':
+		return await assistantMessageForThreadOpenAI(model as OpenAIModelName, thread);
+	case 'anthropic':
+		return await assistantMessageForThreadAnthropic(model as AnthropicModelName, thread);
+	default:
+		return assertUnreachable(modelInfo.provider);
+	}
 };

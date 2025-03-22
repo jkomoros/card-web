@@ -10,6 +10,14 @@ import {
 	HttpsError
 } from 'firebase-functions/v2/https';
 
+import {
+	AnthropicModelName
+} from './types.js';
+
+import {
+	ChatMessage
+} from '../../shared/types.js';
+
 export const anthropic_endpoint = ANTHROPIC_API_KEY ? new Anthropic({
 	apiKey: ANTHROPIC_API_KEY,
 }) : null;
@@ -62,4 +70,8 @@ export const handler = async (request : CallableRequest<AnthropicData>) => {
 		const errAsError = err as Error;
 		throw new HttpsError('unknown', errAsError.message);
 	}
+};
+
+export const assistantMessageForThreadAnthropic = async (_model : AnthropicModelName, _thread : ChatMessage[]) : Promise<string> => {
+	throw new Error('assistantMessageForThreadAnthropic is not implemented yet');
 };

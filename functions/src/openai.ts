@@ -10,6 +10,14 @@ import {
 	HttpsError
 } from 'firebase-functions/v2/https';
 
+import {
+	OpenAIModelName
+} from './types.js';
+
+import {
+	ChatMessage
+} from '../../shared/types.js';
+
 export const openai_endpoint = OPENAI_API_KEY ? new OpenAI({
 	apiKey: OPENAI_API_KEY,
 }) : null;
@@ -62,4 +70,8 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 		const errAsError = err as Error;
 		throw new HttpsError('unknown', errAsError.message);
 	}
+};
+
+export const assistantMessageForThreadOpenAI = async (_model : OpenAIModelName, _thread : ChatMessage[]) : Promise<string> => {
+	throw new Error('assistantMessageForThreadOpenAI is not implemented yet');
 };
