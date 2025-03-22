@@ -22,7 +22,7 @@ import {
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card-fields.js';
 
 import * as icons from './my-icons.js';
 

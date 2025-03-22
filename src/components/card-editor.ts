@@ -151,7 +151,7 @@ import {
 import {
 	COLOR_LIGHT_FIRE_BRICK,
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card-fields.js';
 
 import {
 	TagEvent

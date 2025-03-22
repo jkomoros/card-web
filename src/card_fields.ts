@@ -4,7 +4,7 @@ import {
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	COLORS
-} from './type_constants.js';
+} from '../shared/card-fields.js';
 
 import {
 	Card,

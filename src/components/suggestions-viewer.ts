@@ -40,7 +40,7 @@ import {
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card-fields.js';
 
 import {
 	CANCEL_ICON,
