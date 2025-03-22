@@ -18,7 +18,6 @@ import {
 	Card,
 	CardID,
 	CardIdentifier,
-	Cards,
 	Uid,
 	UserPermissions
 } from './types.js';
@@ -180,15 +179,38 @@ export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>)
 
 //Returns the cards with the given IDs. If not provided, returns all cards.
 export const getCards = async (cardIDs? : CardID[]) : Promise<Card[]> => {
-	//TODO: if cardIDs is provided, only fetch the cards with those IDs in batches.
-	const rawCards = await db.collection(CARDS_COLLECTION).get();
-	const cards : Cards = Object.fromEntries(rawCards.docs.map(snapshot => {
-		const card = {
-			...snapshot.data(),
-			id: snapshot.id
-		} as Card;
-		return [snapshot.id, card];
+	if (!cardIDs) {
+		const rawCards = await db.collection(CARDS_COLLECTION).get();
+		return rawCards.docs.map(snapshot => {
+			return {
+				...snapshot.data(),
+				id: snapshot.id
+			} as Card;
+		});
+	}
+	
+	// Fetch cards in batches of 10 to avoid hitting Firestore limits
+	const batchSize = 10;
+	const batches = [];
+	
+	for (let i = 0; i < cardIDs.length; i += batchSize) {
+		const batch = cardIDs.slice(i, i + batchSize);
+		batches.push(batch);
+	}
+	
+	const results = await Promise.all(batches.map(async batch => {
+		const batchResults = await Promise.all(batch.map(id => 
+			db.collection(CARDS_COLLECTION).doc(id).get()
+		));
+		
+		return batchResults.map(snapshot => {
+			if (!snapshot.exists) return null;
+			return {
+				...snapshot.data(),
+				id: snapshot.id
+			} as Card;
+		});
 	}));
-	if (!cardIDs) return Object.values(cards);
-	return cardIDs.map(id => cards[id]).filter(card => !!card);
+	
+	return results.flat().filter(card => !!card) as Card[];
 };
