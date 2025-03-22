@@ -552,6 +552,49 @@ export interface ProcessedCard extends Card {
 	nlp: NLPInfo,
 }
 
+export type AutoSlugConfig = false | 'primary' | 'prefixed';
+
+export type CardTypeConfigurationMap = {
+	[typ in CardType]: {
+		//invertContentPublishWarning: if true, then the 'There's content but unpublished,
+		//are you sure?' will not trigger... unelss you try to publish in which case it
+		//will ask for confirmation.
+		invertContentPublishWarning? : true,
+		// orphanedByDefault: if true, then the confirmation of 'You're about to make this
+		// card orphaned' will be flipped, and the natural location of them will be
+		// orphaned.
+		orphanedByDefault? : true,
+		// publishedByDefault: if true, then createCard will by default create a card that
+		// is published. This is useful for example for concept cards, where the primary
+		// content is the reference list. If this is true, then trying to save the card if
+		// it's not published will always warn.
+		publishedByDefault? : true,
+		// styleBlock: if provided, will be rendered as the style block in the card
+		// renderer when this card type is selected. A string that will be run through css
+		// tag. This isn't an css tag to avoid having heavyweight imports so this can be
+		// included in tests. You should use styleBlockForCardType to generate the string,
+		// so that the right selector guards and indentation are added.
+		styleBlock? : string,
+		// dark: if true, the card is considered dark, and styles for e.g. thumbnails,
+		// including badge color, will swap.
+		dark? : true,
+		// iconName: a reference from icons to show in front of the title everywhere it
+		// shows up. A string that indexes into icons. This isn't an html tag to avoid
+		// having heavyweight imports so this can be included in tests.
+		iconName? : IconName,
+		// autoSlug: if set, then when a new card is created, it will try to
+		// automatically add a name to the card that is
+		// `CARD_TYPE-NORMALIZED-TITLE`. If it's primary it will prefer the non
+		// card-type prefixed title if it is available.
+		autoSlug? : AutoSlugConfig,
+		// defaultBody: if set, then when a card of this type is created, it will have this
+		// string.
+		defaultBody? : string,
+		// description: the string describing what the card type is, for UI helptext.
+		description : string
+	}
+}
+
 export type ChatID = string;
 export type ChatMessageID = string;
 
