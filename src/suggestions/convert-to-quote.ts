@@ -1,6 +1,6 @@
 import {
 	newCardIDPlaceholder
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import {
 	PreparedQuery

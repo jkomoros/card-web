@@ -69,7 +69,7 @@ import {
 	DEFAULT_CARD_TYPE,
 	editableFieldsForCardType,
 	CARD_TYPE_CONFIGURATION,
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import {
 	UNION_FILTER_DELIMITER

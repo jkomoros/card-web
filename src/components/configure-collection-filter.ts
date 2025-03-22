@@ -28,7 +28,7 @@ import {
 
 import {
 	REFERENCE_TYPES
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';

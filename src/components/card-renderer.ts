@@ -31,7 +31,10 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	CARD_TYPE_CONFIGURATION,
 	editableFieldsForCardType,
-	IMAGES_TEXT_FIELD,
+	IMAGES_TEXT_FIELD
+} from '../../shared/card-fields.js';
+
+import {
 	EMPTY_PROCESSED_CARD,
 	EMPTY_CARD_ID
 } from '../card_fields.js';

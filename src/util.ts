@@ -26,8 +26,9 @@ import {
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
 	IMAGE_CARD_TYPES,
-	TEXT_FIELD_CONFIGURATION
-} from './card_fields.js';
+	TEXT_FIELD_CONFIGURATION,
+	DERIVED_FIELDS_FOR_CARD_TYPE
+} from '../shared/card-fields.js';
 
 import {
 	getCardTitleForBackporting
@@ -48,11 +49,6 @@ import {
 import {
 	Timestamp
 } from '../shared/timestamp.js';
-
-import {
-	DERIVED_FIELDS_FOR_CARD_TYPE
-} from './card_fields.js';
-
 
 import {
 	TypedObject

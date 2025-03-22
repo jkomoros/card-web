@@ -113,11 +113,10 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	editableFieldsForCardType,
 	sortOrderIsDangerous,
-	EMPTY_CARD_ID,
 	isNewCardIDPlaceholder,
 	DEFAULT_SORT_ORDER_INCREMENT,
-
-} from '../card_fields.js';
+	COLORS
+} from '../../shared/card-fields.js';
 
 import {
 	CARDS_COLLECTION,
@@ -130,8 +129,8 @@ import {
 } from '../../shared/collection-constants.js';
 
 import {
-	COLORS
-} from '../../shared/card-fields.js';
+	EMPTY_CARD_ID
+} from '../card_fields.js';
 
 import {
 	cardDiffHasChanges,

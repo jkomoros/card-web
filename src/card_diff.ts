@@ -25,7 +25,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	newCardIDPlaceholder
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	fontSizeBoosts

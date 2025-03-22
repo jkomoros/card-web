@@ -11,7 +11,10 @@ import {
 } from '../selectors.js';
 
 import {
-	IMAGE_CARD_TYPES,
+	IMAGE_CARD_TYPES
+} from '../../shared/card-fields.js';
+
+import {
 	EMPTY_CARD
 } from '../card_fields.js';
 

@@ -58,7 +58,7 @@ import {
 
 import {
 	KEY_CARD_ID_PLACEHOLDER	
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	memoize

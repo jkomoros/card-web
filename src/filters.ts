@@ -27,7 +27,7 @@ import {
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
 	KEY_CARD_ID_PLACEHOLDER,
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	references

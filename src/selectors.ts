@@ -48,7 +48,7 @@ import {
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE,
 	editableFieldsForCardType
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	references,

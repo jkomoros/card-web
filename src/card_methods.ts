@@ -1,10 +1,13 @@
 import {
+	EMPTY_PROCESSED_CARD
+} from './card_fields.js';
+
+import {
 	CARD_TYPE_CONFIGURATION,
-	EMPTY_PROCESSED_CARD,
 	TEXT_FIELD_CONFIGURATION,
 	TITLE_ALTERNATE_DELIMITER,
 	TITLE_ALTERNATE_NEGATION
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	Card,

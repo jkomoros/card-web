@@ -47,7 +47,7 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import {
 	navigatedToNewCard,

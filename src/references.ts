@@ -29,7 +29,7 @@ import {
 import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	REFERENCES_INFO_CARD_PROPERTY,

@@ -1,7 +1,7 @@
 import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-} from './card_fields.js';
+} from '../shared/card-fields.js';
 
 import {
 	Collection,

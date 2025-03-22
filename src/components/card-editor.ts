@@ -112,7 +112,7 @@ import {
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import {
 	references,

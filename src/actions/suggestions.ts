@@ -14,7 +14,7 @@ import {
 import {
 	isNewCardIDPlaceholder,
 	replaceNewCardIDPlaceholder
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import {
 	selectActiveCard,

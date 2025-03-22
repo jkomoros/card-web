@@ -19,7 +19,7 @@ import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 import {
 	CARD_TYPE_CONFIGURATION,
 	DEFAULT_CARD_TYPE
-} from '../card_fields.js';
+} from '../../shared/card-fields.js';
 
 import * as icons from '../../shared/icons.js';
 
