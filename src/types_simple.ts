@@ -7,11 +7,9 @@ import {
 
 import {
 	CardIdentifier,
-	UserPermissionsCore
+	UserPermissionsCore,
+	IconName
 } from '../shared/types.js';
-
-//Ugh doesn't this import kind of ruin the point?
-import * as icons from './../shared/icons.js';
 
 export { UserPermissionsCore };
 
@@ -35,8 +33,6 @@ const tabConfigName = z.enum([
 ]);
 
 export type TabConfigName = z.infer<typeof tabConfigName>;
-
-export type IconName = keyof(typeof icons);
 
 //If a TabConfigName is given, then it will be treated as though it were {expand:"<NAME>"}
 export type TabConfigInput = (TabConfigName | TabConfigItemInput)[];

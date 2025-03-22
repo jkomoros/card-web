@@ -6,6 +6,10 @@ import {
 	Timestamp
 } from './timestamp.js';
 
+import * as icons from './../shared/icons.js';
+
+export type IconName = keyof(typeof icons);
+
 export type Uid = string;
 
 export type CardID = string;

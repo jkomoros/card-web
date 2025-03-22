@@ -32,16 +32,13 @@ import {
 	CardID,
 	Cards,
 	FilterMap,
-	State
+	State,
+	IconName
 } from '../types.js';
 
 import {
 	makeCardHoveredEvent
 } from '../events.js';
-
-import {
-	IconName
-} from '../types_simple.js';
 
 @customElement('card-link')
 class CardLink extends connect(store)(LitElement) {

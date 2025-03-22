@@ -23,8 +23,7 @@ import {
 
 import {
 	TabConfigItemInput,
-	TabConfigName,
-	IconName
+	TabConfigName
 } from './types_simple.js';
 
 import {
@@ -101,7 +100,8 @@ import {
 	ProcessedCard,
 	StringCardMap,
 	SynonymMap,
-	isProcessedCard
+	isProcessedCard,
+	IconName
 } from '../shared/types.js';
 
 import {
@@ -179,7 +179,8 @@ export {
 	ProcessedCard,
 	StringCardMap,
 	SynonymMap,
-	isProcessedCard
+	isProcessedCard,
+	IconName
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js

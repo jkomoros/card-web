@@ -20,11 +20,8 @@ import {
 	FontSizeBoostMap,
 	CardFieldTypeEditable,
 	CardDiff,
-} from './types.js';
-
-import {
 	IconName
-} from './types_simple.js';
+} from './types.js';
 
 import {
 	innerTextForHTML,
