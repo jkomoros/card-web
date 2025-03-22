@@ -6,10 +6,12 @@ import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
 	selectUid,
-	selectUserMayUseAI
+	selectUserMayUseAI,
+	selectUserMayViewApp
 } from '../selectors';
 
 import {
+	store,
 	ThunkSomeAction
 } from '../store';
 
@@ -20,12 +22,16 @@ import {
 } from '../types';
 
 import {
+	db,
 	functions
 } from '../firebase.js';
 
 import {
 	AIModelName,
 	CardID,
+	Chat,
+	ChatID,
+	ChatMessage,
 	CreateChatRequestData,
 	CreateChatResponseData,
 } from '../../shared/types.js';
@@ -34,7 +40,23 @@ import {
 	navigatePathTo,
 	PAGE_CHAT
 } from './app.js';
-import { CHAT_UPDATE_CHATS, CHAT_UPDATE_MESSAGES } from '../actions';
+
+import {
+	CHAT_UPDATE_CHATS,
+	CHAT_UPDATE_MESSAGES
+} from '../actions';
+
+import {
+	CHAT_MESSAGES_COLLECTION,
+	CHATS_COLLECTION
+} from '../../shared/collection-constants';
+
+import {
+	collection,
+	onSnapshot,
+	query,
+	where
+} from 'firebase/firestore';
 
 // Default model to use for chats
 const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
@@ -92,6 +114,49 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	} catch (err) {
 		console.error('Error creating chat:', err);
 	}
+};
+
+export const connectLiveChat = (id : ChatID) => {
+	const state = store.getState() as State;
+	if (!selectUserMayViewApp(state)) return;
+	const uid = selectUid(state);
+	if (!uid) return;
+
+	//TODO: is there a bettter way to fetch precisely the chat in a live way?
+	//TODO: if we do just a doc.get, how do we make sure it passes the firestore rrules?
+	onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('owner', '==', uid)), snapshot => {
+
+		const chats : Chats = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			const doc = change.doc;
+			const id = doc.id;
+			const chat = {...doc.data(), id} as Chat;
+			chats[id] = chat;
+		});
+
+		store.dispatch(updateChats(chats));
+
+	});
+
+	//TODO: will this pass the firestore security rules, since it doesnt'
+	//include a where condition for the message's chat being owned by this owner
+	//uid?
+	onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system'), where('streaming', '==', false)), snapshot => {
+		const messages : ChatMessages = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			const doc = change.doc;
+			const id = doc.id;
+			const message = {...doc.data(), id} as ChatMessage;
+			messages[id] = message;
+		});
+
+		store.dispatch(updateChatMessages(messages));
+
+	});
 };
 
 export const updateChats = (chats : Chats) : ThunkSomeAction => (dispatch) => {
