@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -21,6 +21,10 @@ import {
 import {
 	ChatID
 } from '../../shared/types.js';
+
+import {
+	connectLiveChat
+} from '../actions/chat.js';
 
 import chat from '../reducers/chat.js';
 store.addReducers({
@@ -60,6 +64,13 @@ class ChatView extends connect(store)(PageViewElement) {
 	override stateChanged(state: State) {
 		// pageExtra will contain the chat ID from the URL
 		this._chatID = selectPageExtra(state);
+	}
+
+	override updated(changedProps : PropertyValues<this>) {
+		if (changedProps.has('_chatID')) {
+			//Start fetching the data necessary to render this chat.
+			connectLiveChat(this._chatID);
+		}
 	}
 }
 
