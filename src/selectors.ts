@@ -233,6 +233,9 @@ export const selectAIModel = (state : State) : AIModelName => state.ai ? state.a
 
 export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
+export const selectChats = (state : State) => state.chat ? state.chat.chats : {};
+export const selectChatMessages = (state : State) => state.chat ? state.chat.messages : {};
+
 export const selectImagePropertiesDialogOpen = (state : State) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
 export const selectImagePropertiesDialogIndex = (state : State) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;
 export const selectImageBrowserDialogOpen = (state : State) => state.editor ? state.editor.imageBrowserDialogOpen : false;
