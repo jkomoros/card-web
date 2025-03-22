@@ -46,8 +46,12 @@ import {
 } from '../types.js';
 
 import {
-	assertUnreachable, newID
+	newID
 } from '../util.js';
+
+import {
+	assertUnreachable
+} from '../../shared/util.js';
 
 import {
 	createCard,

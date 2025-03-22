@@ -27,11 +27,11 @@ import {
 } from '../types.js';
 
 import {
-	assertUnreachable,
 	cardIsPrioritized
 } from '../util.js';
 
 import {
+	assertUnreachable,
 	cardPlainContent
 } from '../../shared/util.js';
 

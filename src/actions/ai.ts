@@ -30,11 +30,11 @@ import {
 } from '../selectors.js';
 
 import {
-	assertUnreachable,	
 	stringHash
 } from '../util.js';
 
 import {
+	assertUnreachable,	
 	innerTextForHTML,
 	cardPlainContent
 } from '../../shared/util.js';

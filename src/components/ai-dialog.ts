@@ -54,7 +54,7 @@ import {
 
 import {
 	assertUnreachable
-} from '../util.js';
+} from '../../shared/util.js';
 
 import './tag-list.js';
 

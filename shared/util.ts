@@ -4,6 +4,10 @@ import {
 	Slug
 } from './types.js';
 
+export const assertUnreachable = (x : never) : never => {
+	throw new Error('Exhaustiveness check failed: ' + String(x));
+};
+
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
 /**

@@ -20,9 +20,12 @@ import {
 } from '../reference_blocks.js';
 
 import {
-	assertUnreachable,
 	cardIsPrioritized
 } from '../util.js';
+
+import {
+	assertUnreachable
+} from '../../shared/util.js';
 
 import {
 	Suggestion

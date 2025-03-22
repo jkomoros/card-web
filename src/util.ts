@@ -51,9 +51,9 @@ import {
 	TypedObject
 } from '../shared/typed_object.js';
 
-export const assertUnreachable = (x : never) : never => {
-	throw new Error('Exhaustiveness check failed: ' + String(x));
-};
+import {
+	assertUnreachable
+} from '../shared/util.js';
 
 export const fetchTypeIsUnpublished = (fetchType : CardFetchType) : boolean => {
 	//We'll do a switch so we can do an exhaustivness check so we never forget to update this logic.

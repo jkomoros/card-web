@@ -35,7 +35,7 @@ import {
 
 import {
 	assertUnreachable
-} from '../util.js';
+} from '../../shared/util.js';
 
 export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) : SomeAction => {
 	if (!associatedId) associatedId = '';

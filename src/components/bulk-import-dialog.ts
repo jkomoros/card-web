@@ -39,7 +39,7 @@ import {
 
 import {
 	assertUnreachable
-} from '../util.js';
+} from '../../shared/util.js';
 
 import bulkImport from '../reducers/bulk-import.js';
 store.addReducers({

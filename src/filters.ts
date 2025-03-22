@@ -10,8 +10,7 @@ import {
 	cardBFS,
 	pageRank,
 	createSlugFromArbitraryString,
-	normalizeCardSlugOrIDList,
-	assertUnreachable
+	normalizeCardSlugOrIDList
 } from './util.js';
 
 import {
@@ -106,6 +105,10 @@ import {
 import {
 	TypedObject
 } from '../shared/typed_object.js';
+
+import {
+	assertUnreachable
+} from '../shared/util.js';
 
 import {
 	fetchSimilarCardsForCardIfEnabled,
