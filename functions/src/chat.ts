@@ -10,15 +10,18 @@ import {
 } from '../../shared/types.js';
 
 import {
+	CARD_SEPARATOR,
 	MODEL_INFO
 } from '../../shared/ai.js';
 
 import {
 	db,
+	getCards,
 	throwIfUserMayNotUseAI
 } from './common.js';
 
 import {
+	cardPlainContent,
 	randomString
 } from '../../shared/util.js';
 
@@ -80,6 +83,16 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 	//TODO: select the cards that are most relevant to the initial message, if possible.
 	const cardsToInclude = data.cards.slice(0, 100);
 
+	const cards = await getCards(cardsToInclude);
+	if (!cards || cards.length === 0) {
+		return {
+			success: false,
+			error: 'No valid cards found for the provided IDs'
+		};
+	}
+
+	const systemMessageContent = cards.map(card => cardPlainContent(card)).join(CARD_SEPARATOR);
+
 	const chat : Chat = {
 		id,
 		owner: auth.uid,
@@ -93,9 +106,6 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		created: timestamp(),
 		updated: timestamp(),
 	};
-
-	//TODO: actually calculate the system message content based on how many cards in the set will fit.
-	const systemMessageContent = '';
 
 	const systemMessage : ChatMessage = {
 		id: randomString(16),
