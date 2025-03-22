@@ -76,6 +76,10 @@ import {
 	TypedObject
 } from '../typed_object.js';
 
+import {
+	HTML_FORMATTERS
+} from '../card_methods.js';
+
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
 export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
@@ -594,7 +598,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 			htmlToSet = value;
 		}
-		if (value && config.htmlFormatter) htmlToSet = config.htmlFormatter(value);
+		const htmlFormatter = HTML_FORMATTERS[field];
+		if (value && htmlFormatter) htmlToSet = htmlFormatter(value);
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
 		if (!value && !this.editing) {
 			if (this._card.full_bleed) {

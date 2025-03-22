@@ -42,10 +42,6 @@ import {
 } from 'firebase/firestore';
 
 import {
-	IconName
-} from './types_simple.js';
-
-import {
 	isURL
 } from './util.js';
 
@@ -518,44 +514,14 @@ export const REFERENCE_TYPES_EQUIVALENCE_CLASSES = TEMP_REFERENCE_TYPES_EQUIVALE
 export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
-const TITLE_ALTERNATE_DELIMITER = ',';
-const TITLE_ALTERNATE_NEGATION = '-';
-
-/*
-
-This approach of allowing 'opposites' of cards to be represented in
-title_alternates with a special prefix makes it so all of the other downstream
-text processing works, while still making it clear that the term is the opposite of the primary term.
-
-*/
-const titleAlternatesHTMLFormatter = (value : string) : string => {
-	if (!value) return value;
-	const synonyms : string[] = [];
-	const antonyms : string[] = [];
-	for (const str of value.split(TITLE_ALTERNATE_DELIMITER)) {
-		const trimmedStr = str.trim();
-		if (!trimmedStr) continue;
-		if (trimmedStr[0] == TITLE_ALTERNATE_NEGATION) {
-			//Replace the first instance of the negator only, leaving the rest of whitespace intact
-			antonyms.push(str.replace(TITLE_ALTERNATE_NEGATION, ''));
-		} else {
-			synonyms.push(str);
-		}
-	}
-	let result = '';
-	if (synonyms.length) result += '<span>Also known as</span> ' + synonyms.join(TITLE_ALTERNATE_DELIMITER);
-	if (synonyms.length && antonyms.length) result += ' ';
-	if (antonyms.length) result += '<span>In contrast to</span> ' + antonyms.join(TITLE_ALTERNATE_DELIMITER);
-	return result;
-};
+export const TITLE_ALTERNATE_DELIMITER = ',';
+export const TITLE_ALTERNATE_NEGATION = '-';
 
 //The field that images will be inserted into
 export const IMAGES_TEXT_FIELD : CardFieldType = 'body';
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
-//Use typechecking to catch errors
-const LINK_ICON_NAME : IconName = 'LINK_ICON';
 
 const bodyValidator = (body : string, cardType : CardType, config : CardFieldTypeConfiguration) : string => {
 	if (cardType != 'quote') return '';
@@ -610,7 +576,6 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		matchWeight:0.95,
 		noContentEditable: true,
 		hideIfEmpty: true,
-		htmlFormatter: titleAlternatesHTMLFormatter,
 		extraRunDelimiter: TITLE_ALTERNATE_DELIMITER,
 		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \'' + TITLE_ALTERNATE_DELIMITER + '\' separates multiple ones, and ones that start with \'' +  TITLE_ALTERNATE_NEGATION + '\' will render as antonyms.' 
 	},
@@ -665,9 +630,6 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		nonScrollable: true,
 		hideIfEmpty: true,
 		noContentEditable: true,
-		htmlFormatter(input) {
-			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">External Link</card-link>`;
-		},
 		validator(input) {
 			return !input || isURL(input) ? '' : `${input} is not a valid url`;
 		},

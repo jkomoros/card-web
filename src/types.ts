@@ -509,6 +509,12 @@ type CardTypeMap = {
 	[typ in CardType]+?: boolean
 }
 
+// htmlFormatter: if provided, is a function that takes the raw value and returns
+// html to set, or '' to use the raw value. For the common case of just a prefix,
+// use displayPrefix. Should be combined with noContentEditable otherwise the
+// formated HTML will get mixed into the underlying value.
+export type CardFieldHTMLFormatter = (input : string) => string;
+
 export type CardFieldTypeConfiguration = {
 	// html: whether or not the field allows html. NOTE: currently it's only supported
 	// for a single field to be marked as html, and it must be called 'body'. See #345
@@ -539,11 +545,6 @@ export type CardFieldTypeConfiguration = {
 	// given prefix. noContentEditable should also be true, otherwise you'll get the
 	// prefix weirdly mixed in. Sort of sugar for htmlFormatter.
 	displayPrefix? : string,
-	// htmlFormatter: if provided, is a function that takes the raw value and returns
-	// html to set, or '' to use the raw value. For the common case of just a prefix,
-	// use displayPrefix. Should be combined with noContentEditable otherwise the
-	// formated HTML will get mixed into the underlying value.
-	htmlFormatter? : (input : string) => string,
 	//Validator takes the proposed stirng and returns an error string or '' if
 	//no problem. If it is provided and returns a non-empty string, then edits
 	//to that field will not be allowed to be saved. This is conceptually
