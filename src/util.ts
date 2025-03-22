@@ -26,9 +26,12 @@ import {
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
 	IMAGE_CARD_TYPES,
-	getCardTitleForBackporting,
 	TEXT_FIELD_CONFIGURATION
 } from './card_fields.js';
+
+import {
+	getCardTitleForBackporting
+} from './card_methods.js';
 
 import {
 	references

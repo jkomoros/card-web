@@ -1,8 +1,4 @@
 import {
-	references
-} from './references.js';
-
-import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
@@ -12,7 +8,6 @@ import {
 
 import {
 	Card,
-	Cards,
 	ProcessedCard,
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
@@ -245,16 +240,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		//with useful concepts (e.g. 'Situated Software') that we'd rather not
 		//have squat on that slug.
 		autoSlug: 'prefixed',
-		defaultBody: WORK_DEFAULT_BODY,
-		backportTitleExtractor : (rawCard, _, rawCards) => {
-			const authors : string[] = [];
-			for (const otherID of (references(rawCard).byTypeArray()['citation-person'] || [])) {
-				const otherCard = rawCards[otherID];
-				if (!otherCard) continue;
-				authors.push(getCardTitleForBackporting(otherCard, 'citation-person', rawCards));
-			}
-			return rawCard.title + '\n' + authors.join('\n');
-		}
+		defaultBody: WORK_DEFAULT_BODY
 	},
 	'quote': {
 		description: 'A quote from an external source',
@@ -806,15 +792,4 @@ const cardOverflowsFieldForBoost = async (card : Card, field : CardFieldTypeEdit
 	await ele.updateComplete;
 	const isOverflowing = ele.isOverflowing();
 	return isOverflowing;
-};
-
-export const getCardTitleForBackporting = (rawCard : Card, referenceType : ReferenceType, rawCards : Cards) : string => {
-	const config = CARD_TYPE_CONFIGURATION[rawCard.card_type];
-	if (config) {
-		const f = config.backportTitleExtractor;
-		if (f) {
-			return f(rawCard, referenceType, rawCards);
-		}
-	}
-	return rawCard.title;
 };

@@ -4,11 +4,15 @@ import {
 } from './card_fields.js';
 
 import {
+	Card,
 	CardFieldHTMLFormatter,
 	CardFieldType,
 	CardFieldTypeConfiguration,
 	CardFieldValidator,
-	CardType
+	Cards,
+	CardType,
+	CardTypeBackportTitleExtractor,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -28,12 +32,20 @@ import {
 	isURL
 } from './util.js';
 
+import {
+	references
+} from './references.js';
+
 export type CardFieldHTMLFormatterConfigurationMap = {
 	[typ in CardFieldType]+?: CardFieldHTMLFormatter
 }
 
 export type CardFieldValidatorConfigurationMap = {
 	[typ in CardFieldType]+?: CardFieldValidator
+}
+
+export type CardTypeBackportTitleExtractorConfigurationMap = {
+	[typ in CardType]+?: CardTypeBackportTitleExtractor
 }
 
 /*
@@ -98,10 +110,29 @@ const bodyValidator = (body : string, cardType : CardType, config : CardFieldTyp
 	return '';
 };
 
-
 export const FIELD_VALIDATORS : CardFieldValidatorConfigurationMap = {
 	'body': bodyValidator,
 	'external_link': (input) => {
 		return !input || isURL(input) ? '' : `${input} is not a valid url`;
 	},
+};
+
+export const BACKPORT_TITLE_EXTRACTORS : CardTypeBackportTitleExtractorConfigurationMap = {
+	'work': (rawCard, _, rawCards) => {
+		const authors : string[] = [];
+		for (const otherID of (references(rawCard).byTypeArray()['citation-person'] || [])) {
+			const otherCard = rawCards[otherID];
+			if (!otherCard) continue;
+			authors.push(getCardTitleForBackporting(otherCard, 'citation-person', rawCards));
+		}
+		return rawCard.title + '\n' + authors.join('\n');
+	}
+};
+
+export const getCardTitleForBackporting = (rawCard : Card, referenceType : ReferenceType, rawCards : Cards) : string => {
+	const backporter = BACKPORT_TITLE_EXTRACTORS[rawCard.card_type];
+	if (backporter) {
+		return backporter(rawCard, referenceType, rawCards);
+	}
+	return rawCard.title;
 };

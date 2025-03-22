@@ -262,6 +262,11 @@ export type SelectorStyleMap = {
 
 type AutoSlugConfig = false | 'primary' | 'prefixed';
 
+// backportTitleExtractor: if defined, a function taking (rawCard, referenceType,
+//  allRawCards) that should return the string to be used for backporting text. If
+// not defined, will just use card.title.
+export type CardTypeBackportTitleExtractor = ( card : Card, referenceType : ReferenceType, allRawCards : Cards) => string;
+
 export type CardTypeConfigurationMap = {
 	[typ in CardType]: {
 		//invertContentPublishWarning: if true, then the 'There's content but unpublished,
@@ -299,11 +304,7 @@ export type CardTypeConfigurationMap = {
 		// string.
 		defaultBody? : string,
 		// description: the string describing what the card type is, for UI helptext.
-		description : string,
-		// backportTitleExtractor: if defined, a function taking (rawCard, referenceType,
-		//  allRawCards) that should return the string to be used for backporting text. If
-		// not defined, will just use card.title.
-		backportTitleExtractor? : ( card : Card, referenceType : ReferenceType, allRawCards : Cards) => string
+		description : string
 	}
 }
 
