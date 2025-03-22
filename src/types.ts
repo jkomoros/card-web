@@ -103,7 +103,8 @@ import {
 	isProcessedCard,
 	IconName,
 	CardTypeConfigurationMap,
-	AutoSlugConfig
+	AutoSlugConfig,
+	CardFieldTypeConfiguration
 } from '../shared/types.js';
 
 import {
@@ -183,7 +184,8 @@ export {
 	SynonymMap,
 	isProcessedCard,
 	IconName,
-	CardTypeConfigurationMap
+	CardTypeConfigurationMap,
+	CardFieldTypeConfiguration
 };
 
 // PermissionType and CardPermissions now imported from shared/types.js
@@ -471,14 +473,6 @@ export type CommentThreads = {
 	[id : CommentThreadID]: CommentThread
 }
 
-export type HTMLTagName = 'div' | 'p' | 'ol' | 'ul' | 'li' | 'h1' | 'h2' | 'h3'| 'h4' | 'h5' | 'section' | 'blockquote';
-
-export type HTMLTagMap = {[tag in HTMLTagName]+?: true};
-
-type CardTypeMap = {
-	[typ in CardType]+?: boolean
-}
-
 // htmlFormatter: if provided, is a function that takes the raw value and returns
 // html to set, or '' to use the raw value. For the common case of just a prefix,
 // use displayPrefix. Should be combined with noContentEditable otherwise the
@@ -491,94 +485,6 @@ export type CardFieldHTMLFormatter = (input : string) => string;
 //similar to a cardFinisher, which can throw an error if a card doesn't
 //validate... but it's on the field level.
 export type CardFieldValidator = (input : string | undefined, cardType : CardType, config : CardFieldTypeConfiguration) => string;
-
-export type CardFieldTypeConfiguration = {
-	// html: whether or not the field allows html. NOTE: currently it's only supported
-	// for a single field to be marked as html, and it must be called 'body'. See #345
-	// for fixing that.
-	html? : boolean,
-	//These are the types of nodes that will be allowed for that card type.
-	//Illegal nodes will be hoisted into the first one.
-	overrideLegalTopLevelNodes? : {
-		[typ in CardType]+?: HTMLTagMap
-	}
-	// container: the type of container element the field should be printed out into
-	// (the actual card custom element will decide whether to print it out in the first
-	// place)
-	container? : HTMLTagName,
-	// legalCardTypes: a map of CARD_TYPE constant to true for cards it is legal on. If
-	// this field is null, it signals it's legal on all card types.
-	legalCardTypes? : CardTypeMap | null,
-	// derivedForCardTypes: a map of CARD_TYPE constant to true for card types for
-	// which the field is fully derived based on OTHER enumrated fields. Derived fields
-	// are already "counted" so should be skipped when extracting normalized card
-	// details for example in indexes.
-	derivedForCardTypes? : CardTypeMap,
-	// noContentEditable: if true, even if the form field is editable, it won't be made
-	// editable on card renderer, the only way to modify it will be in the edit text
-	// field in the content tab of editor.
-	noContentEditable? : boolean,
-	// displayPrefix: If set, then if the value is not empty then it will prefix the
-	// given prefix. noContentEditable should also be true, otherwise you'll get the
-	// prefix weirdly mixed in. Sort of sugar for htmlFormatter.
-	displayPrefix? : string,
-	// extraRunDelimiter: if provided, then when deciding where to break runs, that
-	// character will also be considered as a run break (in addition to the default
-	// `\n`)
-	extraRunDelimiter? : string,
-	// hideIfEmpty: If true, then it will be hidden if there's no content.
-	hideIfEmpty? : boolean,
-	// description: If not empty, will show a help description next to that field in
-	// editor.
-	description? : string,
-	// nonScrollable: If true, then it will be printed out in order in the
-	// non-scrollable top region, before the scrollable portions are printed out in
-	// order.
-	nonScrollable? : boolean,
-	//If true and nonScrollable is false, will print out at the very bottom
-	//below any other items.
-	footer?: boolean,
-	// readOnly: if true, a form field to edit this won't be printed out in
-	// cardEditor. Note: if you flip this value, you need to also change the
-	// boolean value in TEXT_FIELD_TYPES in type_constants.ts
-	readOnly? : boolean,
-	// matchWeight: if a match is found when searching in that field, how much weight
-	// should it receive?
-	matchWeight? : number,
-	// autoFontSizeBoostForCardTypes: For any card type that has a key, fontSizeBoosts
-	// will auto-set the font size for that field, with the value for that field being
-	// used as the max value that the boost can legally be for that field. NOTE: card
-	// types that define reference blocks will interfere with auto-sizing currently.
-	// #407 tracks fixing that.
-	autoFontSizeBoostForCardTypes? : {
-		[typ in CardType]+?: number
-	},
-	//if true, then the nlp pipeline will act like the content is empty.
-	skipIndexing? : boolean,
-	// overrideExtractor: boolean. If true, then nlp.js will expect there to be an
-	// override extractor defined in nlp.js. That is, instead of literally just
-	// fetching a field with that name from card, it will instead rely on an extractor
-	// function. (Those override extractors often require references, which would
-	// pollute the clean imports for this file, so they're defined there)
-	overrideExtractor? : boolean,
-	// extraIndexingCount: if a number greater than zero, then when counting words from
-	// that text field, the wordCountForSemantics will pretend like all of the text run
-	// showed up that many times. So undefined or 0 would count as one, and 2 would
-	// triple count.
-	extraIndexingCount? : number,
-	// indexFullRun: if true, then the full normalized text string of each run will be
-	// indexed as though it were an ngram (even if the number of words is too high to
-	// be counted as an ngram). In addition, it will count full (not 1/wordCount).
-	indexFullRun? : boolean
-};
-
-export type CardFieldTypeConfigurationMap = {
-	[typ in CardFieldType]: CardFieldTypeConfiguration
-}
-
-export type CardFieldTypeEditableConfigurationMap = {
-	[typ in CardFieldTypeEditable]: CardFieldTypeConfiguration
-}
 
 // CSSColorString now imported from shared/types.js
 

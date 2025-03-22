@@ -11,7 +11,7 @@ import {
 	HTMLTagMap,
 	HTMLTagName,
 	ProcessedCard
-} from './types.js';
+} from '../shared/types.js';
 
 import {
 	TypedObject
