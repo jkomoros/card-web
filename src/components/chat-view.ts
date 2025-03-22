@@ -87,6 +87,7 @@ class ChatView extends connect(store)(PageViewElement) {
 					<p><label>${this._composedChat.model}</label></p>
 					<tag-list
 						.tags=${this._composedChat.cards}
+						.previousTags=${this._composedChat.requested_cards}
 						.tagInfos=${this._cardTagInfos}
 					></tag-list>
 					<div class='messages'>
