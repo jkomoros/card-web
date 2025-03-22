@@ -56,7 +56,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 export const assertUnreachable = (x : never) : never => {
 	throw new Error('Exhaustiveness check failed: ' + String(x));

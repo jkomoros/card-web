@@ -105,7 +105,7 @@ import {
 	fetchTypeIsUnpublished
 } from '../util.js';
 
-import { TypedObject } from '../typed_object.js';
+import { TypedObject } from '../../shared/typed_object.js';
 
 
 const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');

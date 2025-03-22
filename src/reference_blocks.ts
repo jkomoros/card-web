@@ -38,7 +38,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 export interface ReferenceBlock {
     // collectionDescription: a collection description, possibly using KEY_CARD_ID_PLACEHOLDER as a placeholder

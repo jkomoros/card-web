@@ -159,7 +159,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	ARROW_UP_ICON,

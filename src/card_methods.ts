@@ -49,7 +49,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 export type CardFieldHTMLFormatterConfigurationMap = {
 	[typ in CardFieldType]+?: CardFieldHTMLFormatter
