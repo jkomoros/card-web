@@ -61,7 +61,7 @@ const hrefToCardAttribute = (cardLink : HTMLElement) => {
 	let prefix = 'http://localhost:8081/';
 	try {
 		prefix = window.location.origin + '/';
-	} catch(err) {
+	} catch(_err) {
 		//This must be in a unit test. That's OK.
 	}
 	if (href.startsWith(prefix)) href = href.slice(prefix.length);
