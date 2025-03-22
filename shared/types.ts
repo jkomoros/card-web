@@ -531,6 +531,8 @@ export type Chat = {
 		description: string,
 		configuration: CollectionConfiguration
 	},
+	//The cards that were requested. cards is a subset of this set.
+	requested_cards: CardID[],
 	//The card ids that are actually included in the system prompt.
 	cards: CardID[]
 	title: string

@@ -75,13 +75,20 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const id = randomString(16);
 
+	//Take the first 100 cards.
+	//TODO: select the cards based on how many will actually fit in the model's context window and token size.
+	//TODO: select the cards that are most relevant to the initial message, if possible.
+	const cardsToInclude = data.cards.slice(0, 100);
+
 	const chat : Chat = {
 		id,
 		owner: auth.uid,
 		model: data.model,
 		collection: data.collection,
-		cards: data.cards,
+		requested_cards: data.cards,
+		cards: cardsToInclude,
 		background_length: data.backgroundLength,
+		//TODO: set a title based on an LLM summary of the chat.
 		title: data.initialMessage.substring(0, 64) || 'Chat',
 		created: timestamp(),
 		updated: timestamp(),
