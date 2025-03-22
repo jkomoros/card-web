@@ -25,6 +25,7 @@ import {
 
 import {
 	ChatID,
+	ChatMessage,
 	ComposedChat
 } from '../../shared/types.js';
 
@@ -34,6 +35,7 @@ import {
 } from '../actions/chat.js';
 
 import chat from '../reducers/chat.js';
+import { prettyTime } from '../util.js';
 store.addReducers({
 	chat
 });
@@ -68,6 +70,14 @@ class ChatView extends connect(store)(PageViewElement) {
 		`
 	];
 
+	renderMessage(message : ChatMessage) {
+		//TODO: render the content as santized markdown.
+		return html`<div class='message'>
+			<p><strong>${message.role}</strong>: ${message.content}</p>
+			<p><small>${prettyTime(message.timestamp)}</small></p>
+		</div>`;
+	}
+
 	override render() {
 		return html`
 			<section>
@@ -79,6 +89,9 @@ class ChatView extends connect(store)(PageViewElement) {
 						.tags=${this._composedChat.cards}
 						.tagInfos=${this._cardTagInfos}
 					></tag-list>
+					<div class='messages'>
+						${this._composedChat.messages.map(message => this.renderMessage(message))}
+					</div>
 				` : html`<p>No chat data available.</p>`}
 			</section>
 		`;
