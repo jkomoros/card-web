@@ -24,7 +24,6 @@ import {
 	CardFieldTypeEditable,
 	CardFieldTypeEditableConfigurationMap,
 	CardFieldType,
-	CardFieldTypeConfiguration,
 	CardDiff,
 	CardID
 } from './types.js';
@@ -40,19 +39,6 @@ import {
 import {
 	Timestamp
 } from 'firebase/firestore';
-
-import {
-	isURL
-} from './util.js';
-
-import {
-	innerTextForHTML,
-} from '../shared/util.js';
-
-import {
-	elementForHTML,
-	validateTopLevelNodes
-} from './contenteditable.js';
 
 export const EMPTY_CARD_ID = '?EMPTY-CARD?';
 
@@ -523,30 +509,6 @@ export const IMAGES_TEXT_FIELD : CardFieldType = 'body';
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
 
-const bodyValidator = (body : string, cardType : CardType, config : CardFieldTypeConfiguration) : string => {
-	if (cardType != 'quote') return '';
-	const plainContent = innerTextForHTML(body).trim();
-	if (plainContent.startsWith('"') || plainContent.startsWith('\'')) {
-		return 'Quote cards should not contain their quoted content in quotes.';
-	}
-	const ele = elementForHTML(body);
-	const err = validateTopLevelNodes(ele, config.overrideLegalTopLevelNodes?.[cardType], true);
-	if (err) return err;
-	if (config.overrideLegalTopLevelNodes && config.overrideLegalTopLevelNodes[cardType]) {
-		//TODO: really this behavior is just hyper-specialized for validating
-		//body-for-quote cards. Should it be a separate config line?
-
-		//Verify that all of the content within the blockquote is also wrapped in paragraphs.
-		for (const child of ele.children) {
-			if (!(child instanceof HTMLElement)) continue;
-			const err = validateTopLevelNodes(child, undefined, true);
-			if (err) return err;
-		}
-	}
-
-	return '';
-};
-
 export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	'title': {
 		html: false,
@@ -599,8 +561,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		autoFontSizeBoostForCardTypes: {
 			'working-notes': DEFAULT_MAX_FONT_BOOST
 		},
-		matchWeight:0.5,
-		validator: bodyValidator
+		matchWeight:0.5
 	},
 	'commentary': {
 		container: 'section',
@@ -630,9 +591,6 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		nonScrollable: true,
 		hideIfEmpty: true,
 		noContentEditable: true,
-		validator(input) {
-			return !input || isURL(input) ? '' : `${input} is not a valid url`;
-		},
 		skipIndexing: true
 	},
 	'references_info_inbound': {

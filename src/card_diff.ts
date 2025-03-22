@@ -111,6 +111,7 @@ import {
 //descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
 import './components/tag-list.js';
 import { TODO_ALL_INFOS, cardTODOConfigKeys } from './filters.js';
+import { FIELD_VALIDATORS } from './card_methods.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
@@ -666,11 +667,12 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 	for (const field of cardFieldTypeEditableSchema.options) {
 		if (diff[field] === undefined) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
+		const validator = FIELD_VALIDATORS[field];
 		//TODO: consider running this in confirmationsForCardDiff instead. Here,
 		//it's more a "this is a required thing to fix." There it's more a "are
 		//you sure you meant to do this?"
-		if (!config.validator) continue;
-		const err = config.validator(diff[field], diff.card_type || underlyingCard.card_type, config);
+		if (!validator) continue;
+		const err = validator(diff[field], diff.card_type || underlyingCard.card_type, config);
 		if (!err) continue;
 		throw new Error(`Field ${field} didn't pass the validator: ${err}`);
 	}

@@ -515,6 +515,13 @@ type CardTypeMap = {
 // formated HTML will get mixed into the underlying value.
 export type CardFieldHTMLFormatter = (input : string) => string;
 
+//Validator takes the proposed stirng and returns an error string or '' if
+//no problem. If it is provided and returns a non-empty string, then edits
+//to that field will not be allowed to be saved. This is conceptually
+//similar to a cardFinisher, which can throw an error if a card doesn't
+//validate... but it's on the field level.
+export type CardFieldValidator = (input : string | undefined, cardType : CardType, config : CardFieldTypeConfiguration) => string;
+
 export type CardFieldTypeConfiguration = {
 	// html: whether or not the field allows html. NOTE: currently it's only supported
 	// for a single field to be marked as html, and it must be called 'body'. See #345
@@ -545,12 +552,6 @@ export type CardFieldTypeConfiguration = {
 	// given prefix. noContentEditable should also be true, otherwise you'll get the
 	// prefix weirdly mixed in. Sort of sugar for htmlFormatter.
 	displayPrefix? : string,
-	//Validator takes the proposed stirng and returns an error string or '' if
-	//no problem. If it is provided and returns a non-empty string, then edits
-	//to that field will not be allowed to be saved. This is conceptually
-	//similar to a cardFinisher, which can throw an error if a card doesn't
-	//validate... but it's on the field level.
-	validator? : (input : string | undefined, cardType : CardType, config : CardFieldTypeConfiguration) => string,
 	// extraRunDelimiter: if provided, then when deciding where to break runs, that
 	// character will also be considered as a run break (in addition to the default
 	// `\n`)

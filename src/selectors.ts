@@ -184,6 +184,10 @@ import {
 	Timestamp
 } from 'firebase/firestore';
 
+import {
+	FIELD_VALIDATORS
+} from './card_methods.js';
+
 const selectState = (state : State) : State => state;
 
 export const selectPage = (state : State) => state.app.page;
@@ -1586,8 +1590,9 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 		const result : {[field in CardFieldType]+?: string} = {};
 		if (!card) return result;
 		for (const [field, config] of TypedObject.entries(editableFieldsForCardType(card.card_type))) {
-			if (!config.validator) continue;
-			result[field] = config.validator(card[field], card.card_type, config);
+			const validator = FIELD_VALIDATORS[field];
+			if (!validator) continue;
+			result[field] = validator(card[field], card.card_type, config);
 		}
 		return result;
 	}
