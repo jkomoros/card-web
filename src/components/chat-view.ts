@@ -9,15 +9,18 @@ import { store } from '../store.js';
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
+import './tag-list.js';
 
 import {
 	State,
+	TagInfos,
 } from '../types.js';
 
 import {
 	selectCurrentChatID,
 	selectCurrentComposedChat,
-	selectPageExtra
+	selectPageExtra,
+	selectTagInfosForCards
 } from '../selectors.js';
 
 import {
@@ -47,6 +50,9 @@ class ChatView extends connect(store)(PageViewElement) {
 	@state()
 		_composedChat : ComposedChat | null;
 
+	@state()
+		_cardTagInfos: TagInfos;
+
 	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
@@ -66,7 +72,14 @@ class ChatView extends connect(store)(PageViewElement) {
 		return html`
 			<section>
 				<h2>Chat</h2>
-				<p>This page is for viewing chat ID: ${this._chatID}</p>
+				${this._composedChat ? html`
+					<h3>${this._composedChat.title}</h3>
+					<p><label>${this._composedChat.model}</label></p>
+					<tag-list
+						.tags=${this._composedChat.cards}
+						.tagInfos=${this._cardTagInfos}
+					></tag-list>
+				` : html`<p>No chat data available.</p>`}
 			</section>
 		`;
 	}
@@ -76,6 +89,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		this._pageExtra = selectPageExtra(state);
 		this._chatID = selectCurrentChatID(state);
 		this._composedChat = selectCurrentComposedChat(state);
+		this._cardTagInfos = selectTagInfosForCards(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
