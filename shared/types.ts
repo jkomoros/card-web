@@ -560,6 +560,14 @@ export type ChatMessage = {
 	content: string
 };
 
+export type ComposedChat = Chat & {
+	messages: ChatMessage[]
+};
+
+export type ComposedChats = {
+	[chatID: ChatID]: ComposedChat
+};
+
 export type CreateChatRequestData = {
 	owner: Uid,
 	cards: CardID[],

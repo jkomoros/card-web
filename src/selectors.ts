@@ -126,7 +126,8 @@ import {
 import {
 	SetName,
 	SortName,
-	CollectionConfiguration
+	CollectionConfiguration,
+	ComposedChats
 } from '../shared/types.js';
 
 import {
@@ -1885,5 +1886,23 @@ export const selectBulkImportDialogExportContent = createSelector(
 			finalCards = cardOrder.map(id => allCards[id]);
 		}
 		return exportContentForCards(finalCards);
+	}
+);
+
+export const selectComposedChats = createSelector(
+	selectChats,
+	selectChatMessages,
+	(chats, messages) : ComposedChats => {
+		if (!chats || !messages) return {};
+		const result : ComposedChats = {};
+		for (const [chatID, chat] of Object.entries(chats)) {
+			const messageArray = Object.values(messages).filter(message => message.chat == chatID);
+			messageArray.sort((a, b) => a.message_index - b.message_index);
+			result[chatID] = {
+				...chat,
+				messages: messageArray
+			};
+		}
+		return result;
 	}
 );
