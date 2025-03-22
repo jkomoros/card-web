@@ -6,6 +6,7 @@ import {
 } from './type_constants.js';
 
 import {
+	ChatID,
 	CollectionConfiguration
 } from '../shared/types.js';
 
@@ -112,6 +113,7 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 //Chat
 export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
 export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
+export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
 //Data
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
@@ -471,6 +473,11 @@ type ActionChatUpdateChats = {
 type ActionChatUpdateMessages = {
 	type: typeof CHAT_UPDATE_MESSAGES,
 	messages: ChatMessages
+};
+
+type ActionChatUpdateCurrentChat = {
+	type: typeof CHAT_UPDATE_CURRENT_CHAT
+	currentChat: ChatID
 };
 
 type ActionUpdateCards = {
@@ -1096,6 +1103,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats
 	| ActionChatUpdateMessages
+	| ActionChatUpdateCurrentChat
 	| ActionUpdateCards
 	| ActionEnqueueCardUpdates
 	| ActionClearEnqueuedCardUpdates

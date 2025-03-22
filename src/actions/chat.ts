@@ -43,7 +43,9 @@ import {
 
 import {
 	CHAT_UPDATE_CHATS,
-	CHAT_UPDATE_MESSAGES
+	CHAT_UPDATE_CURRENT_CHAT,
+	CHAT_UPDATE_MESSAGES,
+	SomeAction
 } from '../actions';
 
 import {
@@ -172,3 +174,8 @@ export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction =>
 		messages
 	});
 };
+
+export const updateCurrentChat = (id: ChatID) : SomeAction => ({
+	type: CHAT_UPDATE_CURRENT_CHAT,
+	currentChat: id
+});

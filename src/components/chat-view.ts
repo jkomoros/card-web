@@ -15,6 +15,7 @@ import {
 } from '../types.js';
 
 import {
+	selectCurrentChatID,
 	selectPageExtra
 } from '../selectors.js';
 
@@ -23,7 +24,8 @@ import {
 } from '../../shared/types.js';
 
 import {
-	connectLiveChat
+	connectLiveChat,
+	updateCurrentChat
 } from '../actions/chat.js';
 
 import chat from '../reducers/chat.js';
@@ -33,6 +35,9 @@ store.addReducers({
 
 @customElement('chat-view')
 class ChatView extends connect(store)(PageViewElement) {
+
+	@state()
+		_pageExtra : string;
 
 	@state()
 		_chatID: ChatID;
@@ -63,10 +68,14 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	override stateChanged(state: State) {
 		// pageExtra will contain the chat ID from the URL
-		this._chatID = selectPageExtra(state);
+		this._pageExtra = selectPageExtra(state);
+		this._chatID = selectCurrentChatID(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
+		if (changedProps.has('_pageExtra')) {
+			store.dispatch(updateCurrentChat(this._pageExtra));
+		}
 		if (changedProps.has('_chatID')) {
 			//Start fetching the data necessary to render this chat.
 			connectLiveChat(this._chatID);
