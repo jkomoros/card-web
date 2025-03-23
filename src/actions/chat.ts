@@ -65,8 +65,10 @@ import {
 import {
 	collection,
 	doc,
+	DocumentData,
 	onSnapshot,
 	query,
+	QuerySnapshot,
 	updateDoc,
 	where
 } from 'firebase/firestore';
@@ -195,29 +197,34 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 
 };
 
+const receiveChats = (snapshot: QuerySnapshot<DocumentData, DocumentData>) => {
+
+	const chats : Chats = {};
+
+	snapshot.docChanges().forEach(change => {
+		if (change.type === 'removed') return;
+		const doc = change.doc;
+		const id = doc.id;
+		const chat = {...doc.data(), id} as Chat;
+		chats[id] = chat;
+	});
+
+	store.dispatch(updateChats(chats));
+
+};
+
 export const connectLiveChat = (id : ChatID) => {
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
 	const uid = selectUid(state);
 	if (!uid) return;
 
-	//TODO: is there a bettter way to fetch precisely the chat in a live way?
-	//TODO: if we do just a doc.get, how do we make sure it passes the firestore rrules?
-	onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('owner', '==', uid)), snapshot => {
-
-		const chats : Chats = {};
-
-		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') return;
-			const doc = change.doc;
-			const id = doc.id;
-			const chat = {...doc.data(), id} as Chat;
-			chats[id] = chat;
-		});
-
-		store.dispatch(updateChats(chats));
-
-	});
+	//There are two possibilities: the chat is not published and owned by us, or
+	//it's published. Construct two disjoint queries to get both cases. Note
+	//that this also handles the case where you toggle published; technically a
+	//whole new chat is received.
+	onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('owner', '==', uid), where('published', '==', false)), receiveChats);
+	onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('published', '==', true)), receiveChats);
 
 	//TODO: will this pass the firestore security rules, since it doesnt'
 	//include a where condition for the message's chat being owned by this owner
