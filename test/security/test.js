@@ -202,7 +202,8 @@ async function setupDatabase() {
 				viewModeExtra: ''
 			}
 		},
-		cards: [cardId]
+		cards: [cardId],
+		published: false
 	});
 
 	await db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId).set({
@@ -213,6 +214,40 @@ async function setupDatabase() {
 		streaming: true,
 		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 		content: 'Test message'
+	});
+	
+	// Setup a published chat
+	const publishedChatId = 'published-chat';
+	await db.collection(CHATS_COLLECTION).doc(publishedChatId).set({
+		owner: bobUid,
+		last_updated: firebase.firestore.FieldValue.serverTimestamp(),
+		created: firebase.firestore.FieldValue.serverTimestamp(),
+		title: 'Published Chat',
+		background_length: 100,
+		collection: {
+			description: 'test-description',
+			configuration: {
+				setName: 'main',
+				filterNames: [],
+				sortName: 'default',
+				sortReversed: false,
+				viewMode: 'list',
+				viewModeExtra: ''
+			}
+		},
+		cards: [cardId],
+		published: true
+	});
+	
+	// Add a message to the published chat
+	await db.collection(CHAT_MESSAGES_COLLECTION).doc(publishedChatId).set({
+		id: publishedChatId,
+		chat: publishedChatId,
+		message_index: 0,
+		role: 'user',
+		streaming: true,
+		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+		content: 'Public message'
 	});
 }
 
@@ -1248,5 +1283,61 @@ describe('Compendium Rules', () => {
 		const db = authedApp(adminAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
 		await firebase.assertFails(chatMessage.update({ content: 'New Content' }));
+	});
+
+	// Published chat tests
+	it('allows anyone to read a published chat', async() => {
+		const db = authedApp(null);
+		const chat = db.collection(CHATS_COLLECTION).doc('published-chat');
+		await firebase.assertSucceeds(chat.get());
+	});
+
+	it('allows the owner to read chat messages from their published chat', async() => {
+		const db = authedApp(bobAuth);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat');
+		await firebase.assertSucceeds(chatMessage.get());
+	});
+
+	it('allows any user to read chat messages from a published chat', async() => {
+		const db = authedApp(sallyAuth);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat');
+		await firebase.assertSucceeds(chatMessage.get());
+	});
+
+	it('allows unauthenticated users to read chat messages from a published chat', async() => {
+		const db = authedApp(null);
+		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat');
+		await firebase.assertSucceeds(chatMessage.get());
+	});
+
+	// Published status toggle tests
+	it('allows the owner to toggle a chat to published', async() => {
+		const db = authedApp(bobAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(chat.update({ published: true }));
+	});
+
+	it('allows the owner to toggle a published chat to unpublished', async() => {
+		const db = authedApp(bobAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc('published-chat');
+		await firebase.assertSucceeds(chat.update({ published: false }));
+	});
+
+	it('disallows non-owners from toggling published status', async() => {
+		const db = authedApp(sallyAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.update({ published: true }));
+	});
+
+	it('disallows owners from updating published along with other fields', async() => {
+		const db = authedApp(bobAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.update({ published: true, title: 'New Title' }));
+	});
+
+	it('disallows admins from toggling published status of chats they don\'t own', async() => {
+		const db = authedApp(adminAuth);
+		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
+		await firebase.assertFails(chat.update({ published: true }));
 	});
 });
