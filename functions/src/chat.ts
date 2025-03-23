@@ -205,7 +205,9 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 
 	//TODO: if there's an error, automatically retry at some point (perhaps if the user views the chat again).
 
-	const chatSnapshot = await db.collection(CHATS_COLLECTION).doc(chatID).get();
+	const chatRef = db.collection(CHATS_COLLECTION).doc(chatID);
+
+	const chatSnapshot = await chatRef.get();
 	if (!chatSnapshot.exists) {
 		throw new Error('Chat not found for ID: ' + chatID);
 	}
@@ -249,6 +251,9 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 	await assistantMessageRef.update({
 		content: assistantMessage,
 		streaming: false
+	});
+	await chatRef.update({
+		updated: timestamp()
 	});
 	return assistantMessageData;
 };
@@ -327,7 +332,9 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 		};
 	}
 
-	const chat = await db.collection(CHATS_COLLECTION).doc(data.chat).get();
+	const chatRef = db.collection(CHATS_COLLECTION).doc(data.chat);
+
+	const chat = await chatRef.get();
 
 	if (!chat.exists) {
 		return {
@@ -380,6 +387,9 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 	// Write the new user message to Firestore
 	const newMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(newMessage.id);
 	await newMessageRef.set(newMessage);
+	await chatRef.update({
+		updated: timestamp()
+	});
 
 	//Fetch the assistant message for this chat. Do NOT await, since it will write to the database when done.
 	fetchAssistantMessage(data.chat);
