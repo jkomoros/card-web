@@ -105,6 +105,15 @@ class ChatView extends connect(store)(PageViewElement) {
 				max-width: 80%;
 			}
 
+			.message strong.interface {
+				font-size: 0.8rem;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				margin-bottom: 0.5rem;
+				display: block;
+				color: var(--app-dark-text-color);
+			}
+
 			.message[data-role="user"] {
 				align-self: flex-end;
 				background-color: var(--app-primary-color);
@@ -217,10 +226,12 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	renderMessage(message : ChatMessage) {
 		return html`<div class='message' data-role='${message.role}'>
-			<strong>${message.role}</strong>
-			${message.streaming ? 
+			<strong class='interface'>${message.role}</strong>
+			<div class='content'>
+				${message.streaming ? 
 		html`<em class='loading'>Thinking...</em>` : 
 		markdownElement(message.content)}
+			</div>
 		</div>`;
 	}
 
