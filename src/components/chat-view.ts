@@ -39,7 +39,7 @@ import {
 } from '../actions/chat.js';
 
 import {
-	CHECK_CIRCLE_OUTLINE_ICON
+	SEND_ICON
 } from '../../shared/icons.js';
 
 import {
@@ -124,7 +124,7 @@ class ChatView extends connect(store)(PageViewElement) {
 					<div class='compose'>
 						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated}></textarea>
 						<div class='buttons'>
-							<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+							<button class='round' @click='${this._handleDoneClicked}'>${SEND_ICON}</button>
 						</div>
 					</div>
 				` : html`<p>No chat data available.</p>`}
