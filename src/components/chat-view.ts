@@ -128,7 +128,7 @@ class ChatView extends connect(store)(PageViewElement) {
 					<div class='compose'>
 						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated} @keydown=${this._handleKeyDown} ?disabled=${!this._userMayChatInCurrentChat || this._sending}></textarea>
 						<div class='buttons'>
-							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${!this._userMayChatInCurrentChat || !this._composingMessage || this._sending}>${SEND_ICON}</button>
+							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${this._sendingButtonDisabled}>${SEND_ICON}</button>
 						</div>
 					</div>
 				` : html`<p>No chat data available.</p>`}
@@ -147,14 +147,17 @@ class ChatView extends connect(store)(PageViewElement) {
 		store.dispatch(updateComposingMessage(value));
 	}
 
+	get _sendingButtonDisabled() : boolean {
+		return !this._userMayChatInCurrentChat || !this._composingMessage || this._sending;
+	}
+
 	_handleKeyDown(event: KeyboardEvent) {
 		// If Enter but not Shift+Enter is pressed, send the message
 		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
 			// Only trigger if the send button is enabled
-			if (this._userMayChatInCurrentChat && this._composingMessage && !this._sending) {
-				this._handleDoneClicked();
-			}
+			if (this._sendingButtonDisabled) return;
+			event.preventDefault();
+			this._handleDoneClicked();
 		}
 	}
 
