@@ -126,7 +126,7 @@ class ChatView extends connect(store)(PageViewElement) {
 						${this._composedChat.messages.map(message => this.renderMessage(message))}
 					</div>
 					<div class='compose'>
-						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated} ?disabled=${!this._userMayChatInCurrentChat || this._sending}></textarea>
+						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated} @keydown=${this._handleKeyDown} ?disabled=${!this._userMayChatInCurrentChat || this._sending}></textarea>
 						<div class='buttons'>
 							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${!this._userMayChatInCurrentChat || !this._composingMessage || this._sending}>${SEND_ICON}</button>
 						</div>
@@ -145,6 +145,17 @@ class ChatView extends connect(store)(PageViewElement) {
 		if (!(target instanceof HTMLTextAreaElement)) return;
 		const value = target.value;
 		store.dispatch(updateComposingMessage(value));
+	}
+
+	_handleKeyDown(event: KeyboardEvent) {
+		// If Enter but not Shift+Enter is pressed, send the message
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault();
+			// Only trigger if the send button is enabled
+			if (this._userMayChatInCurrentChat && this._composingMessage && !this._sending) {
+				this._handleDoneClicked();
+			}
+		}
 	}
 
 	override stateChanged(state: State) {
