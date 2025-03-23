@@ -110,7 +110,6 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const targetBackgroundLength = backgroundPercentage * modelInfo.maxTokens;
 
-
 	let cardIDs = data.cards;
 	
 	//Sort by cards that are most related to the initial message.
@@ -127,11 +126,6 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		const vector = embedding.vector;
 
 		const points = await EMBEDDING_STORE.similarPoints('', vector, 10000);
-
-		//Sort points by similarity to the initial message
-		points.sort((a, b) => {
-			return b[1] - a[1]; // Sort in descending order
-		});
 
 		console.log('Found similar points:', points.slice(0, 10), points.length);
 
