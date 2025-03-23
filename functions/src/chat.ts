@@ -17,7 +17,7 @@ import {
 } from '../../shared/types.js';
 
 import {
-	CARD_SEPARATOR,
+	fitPrompt,
 	MODEL_INFO
 } from '../../shared/ai.js';
 
@@ -94,21 +94,6 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const id = randomString(16);
 
-	//Take the first 100 cards.
-	//TODO: select the cards based on how many will actually fit in the model's context window and token size.
-	//TODO: select the cards that are most relevant to the initial message, if possible.
-	const cardsToInclude = data.cards.slice(0, 100);
-
-	const cards = await getCards(cardsToInclude);
-	if (!cards || cards.length === 0) {
-		return {
-			success: false,
-			error: 'No valid cards found for the provided IDs'
-		};
-	}
-
-	const systemMessageContent = cards.map(card => cardPlainContent(card)).join(CARD_SEPARATOR);
-
 	const backgroundPercentage = data.backgroundPercentage;
 
 	if (backgroundPercentage < 0 || backgroundPercentage > 1.0) {
@@ -118,13 +103,37 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		};
 	}
 
+	const targetBackgroundLength = backgroundPercentage * modelInfo.maxTokens;
+
+	//TODO: select the cards that are most relevant to the initial message, if possible.
+
+	const cardIDs = data.cards;
+
+	const cards = await getCards(cardIDs);
+	if (!cards || cards.length === 0) {
+		return {
+			success: false,
+			error: 'No valid cards found for the provided IDs'
+		};
+	}
+
+	const cardsContent = cards.map(card => cardPlainContent(card));
+	
+	const [systemMessageContent, maxCardIndex] = await fitPrompt({
+		modelName: data.model,
+		prefix: 'Here is background information for this chat:',
+		items: cardsContent,
+		maxTokenLength: targetBackgroundLength,
+	});
+
 	const chat : Chat = {
 		id,
 		owner: auth.uid,
 		model: data.model,
 		collection: data.collection,
 		requested_cards: data.cards,
-		cards: cardsToInclude,
+		//TODO: is this off by one?
+		cards: cardIDs.slice(0, maxCardIndex + 1),
 		background_percentage: backgroundPercentage,
 		//TODO: set a title based on an LLM summary of the chat.
 		title: data.initialMessage.substring(0, 64) || 'Chat',
