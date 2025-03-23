@@ -124,7 +124,7 @@ class ChatView extends connect(store)(PageViewElement) {
 					<div class='compose'>
 						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated}></textarea>
 						<div class='buttons'>
-							<button class='round' @click='${this._handleDoneClicked}'>${SEND_ICON}</button>
+							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${!this._userMayChatInCurrentChat || !this._composingMessage}>${SEND_ICON}</button>
 						</div>
 					</div>
 				` : html`<p>No chat data available.</p>`}
