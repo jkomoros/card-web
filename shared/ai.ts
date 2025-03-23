@@ -32,8 +32,44 @@ type providerInfo = {
 export const PROVIDER_INFO: {[provider in modelProvider]: providerInfo} = {
 	'openai': {
 		tokenizer: {
-			computeTokens: async (_text: string | string[]) => {
-				throw new Error('OpenAI tokenizer not installed. The way to install it in browser and server is different.');
+			computeTokens: async (text: string | string[]) => {
+				// Conservative token estimation for OpenAI models
+				// Using a character-based heuristic that errs on the side of overestimation
+				// OpenAI tokenizers typically yield about 0.25-0.30 tokens per character for English text
+				// We'll use 0.4 tokens per character as a conservative estimate
+				
+				if (typeof text === 'string') text = [text];
+				
+				let totalTokens = 0;
+				
+				for (const str of text) {
+					// Count characters
+					const charCount = str.length;
+
+					// Count whitespace (spaces, tabs, newlines)
+					const whitespaceCount = (str.match(/\s/g) || []).length;
+
+					// Count punctuation
+					const punctuationCount = (str.match(/[.,!?;:'"()[\]{}]/g) || []).length;
+
+					// Count non-ASCII characters (which typically use more tokens)
+					// eslint-disable-next-line no-control-regex
+					const nonAsciiCount = (str.match(/[^\x00-\x7F]/g) || []).length;
+					
+					// Base token estimate: characters * 0.4 (conservative ratio for English text)
+					let tokenEstimate = charCount * 0.4;
+					
+					// Add extra for non-ASCII characters (they often use more tokens)
+					tokenEstimate += nonAsciiCount * 0.5;
+					
+					// Ensure we count at least one token per whitespace/punctuation
+					tokenEstimate = Math.max(tokenEstimate, whitespaceCount + punctuationCount);
+					
+					totalTokens += Math.ceil(tokenEstimate);
+				}
+				
+				// Add a 15% safety margin (OpenAI's tokenizer can vary more than Anthropic's)
+				return Math.ceil(totalTokens * 1.15);
 			}
 		}
 	},
