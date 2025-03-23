@@ -17,6 +17,7 @@ import {
 } from '../../shared/types.js';
 
 import {
+	DEFAULT_MODEL,
 	fitPrompt,
 	MODEL_INFO
 } from '../../shared/ai.js';
@@ -234,6 +235,8 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		//background and write to the database when done.
 		fetchAssistantMessage(id);
 
+		setChatTitle(id, data.initialMessage);
+
 		return { 
 			success: true,
 			chat: id
@@ -245,6 +248,22 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 			error: 'Failed to create chat: ' + String(error)
 		};
 	}
+};
+
+const setChatTitle = async (chatID : string, initalMesasge : string) : Promise<void> => {
+
+	const suggestedTitle = await assistantMessage(`Help name a chat thread that starts with the following message:\n\n${initalMesasge}\n\nRespond with a title of no more than 7 words. Respond with only the title, nothing else. The title should be something the user might have chosen themselves to title the question they asked.`);
+
+	if (!suggestedTitle || suggestedTitle.trim() === '') {
+		throw new Error('Failed to generate a title for the chat');
+	}
+
+	const chatRef = db.collection(CHATS_COLLECTION).doc(chatID);
+
+	await chatRef.update({
+		title: suggestedTitle.trim()
+	});
+
 };
 
 //Will fetch the next assistant message for the given chatID, and write it into the database.
@@ -329,6 +348,19 @@ const makeAssistantThread = (thread : ChatMessage[]) : AssistantThread => {
 		system: system.join('\n\n'),
 		messages: messages
 	};
+};
+
+const assistantMessage = async (message : string, model : AIModelName = DEFAULT_MODEL) : Promise<string> => {
+	const thread : ChatMessage[] = [{
+		id: randomString(16),
+		chat: randomString(16), // Dummy chat ID, not used in this context
+		message_index: 0, // Dummy message index, not used in this context
+		role: 'user',
+		content: message,
+		streaming: false,
+		timestamp: timestamp()
+	}];
+	return await assistantMessageForThread(model, thread);
 };
 
 const assistantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
