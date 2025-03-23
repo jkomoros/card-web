@@ -43,10 +43,6 @@ import {
 	SEND_ICON
 } from '../../shared/icons.js';
 
-import {
-	prettyTime
-} from '../util.js';
-
 import chat from '../reducers/chat.js';
 store.addReducers({
 	chat
@@ -106,8 +102,12 @@ class ChatView extends connect(store)(PageViewElement) {
 		//TODO: render the content as santized markdown.
 		//TODO: the thinking text should be subtly animated.
 		return html`<div class='message'>
-			<p><strong>${message.role}</strong>: ${message.streaming ? html`<em class='loading'>Thinking...</em>` : message.content}</p>
-			<p><small>${prettyTime(message.timestamp)}</small></p>
+			<p>
+				<strong>${message.role}</strong>:
+				${message.streaming ? 
+		html`<em class='loading'>Thinking...</em>` : 
+		message.content}
+			</p>
 		</div>`;
 	}
 
