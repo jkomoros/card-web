@@ -72,6 +72,30 @@ export const handler = async (request : CallableRequest<AnthropicData>) => {
 	}
 };
 
-export const assistantMessageForThreadAnthropic = async (_model : AnthropicModelName, _thread : AssistantThread) : Promise<string> => {
-	throw new Error('assistantMessageForThreadAnthropic is not implemented yet');
+export const assistantMessageForThreadAnthropic = async (model : AnthropicModelName, thread : AssistantThread) : Promise<string> => {
+	if (!anthropic_endpoint) {
+		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
+	}
+	const result = await anthropic_endpoint.messages.create({
+		model,
+		system: thread.system ? thread.system : undefined,
+		messages: thread.messages,
+		max_tokens: 8192
+	});
+
+	if (!result || !result.content) {
+		throw new HttpsError('unknown', 'No content returned from Anthropic');
+	}
+	
+	if (result.content.length === 0) {
+		throw new HttpsError('unknown', 'Empty content array returned from Anthropic');
+	}
+
+	// Extract text from content blocks
+	const textContent = result.content
+		.filter(block => block.type === 'text')
+		.map(block => (block as {type: 'text', text: string}).text)
+		.join('');
+		
+	return textContent;
 };

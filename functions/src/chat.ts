@@ -256,6 +256,8 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 		throw new Error('Last message is not a user message, cannot fetch assistant message');
 	}
 
+	//TODO: wire through uid to the completion endpoint for abuse tracking.
+
 	//Note: we assume that we've alraedy checked if the user is allowed to use AI and that they are.
 
 	const modelInfo = MODEL_INFO[model];
