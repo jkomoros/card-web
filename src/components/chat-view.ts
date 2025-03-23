@@ -95,12 +95,21 @@ class ChatView extends connect(store)(PageViewElement) {
 				flex-grow: 1;
 				height: 5em;
 			}
+
+			.loading {
+				/* animate opacity subtly */
+				animation: fade 1s infinite alternate;
+			}
+
+			@keyframes fade {
+				0% { opacity: 1.0; }
+				100% { opacity: 0.5; }
+			}
 		`
 	];
 
 	renderMessage(message : ChatMessage) {
 		//TODO: render the content as santized markdown.
-		//TODO: the thinking text should be subtly animated.
 		return html`<div class='message'>
 			<p>
 				<strong>${message.role}</strong>:
