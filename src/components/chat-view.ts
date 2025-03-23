@@ -35,12 +35,15 @@ import {
 import {
 	connectLiveChat,
 	postMessageInCurrentChat,
+	togglePublishedForCurrentChat,
 	updateComposingMessage,
 	updateCurrentChat
 } from '../actions/chat.js';
 
 import {
-	SEND_ICON
+	SEND_ICON,
+	VISIBILITY_ICON,
+	VISIBILITY_OFF_ICON
 } from '../../shared/icons.js';
 
 import {
@@ -243,6 +246,16 @@ class ChatView extends connect(store)(PageViewElement) {
 						<h2>${this._composedChat.title}</h2>
 						<div>
 							<label>${this._composedChat.model}</label>
+							<button
+								class='small'
+								@click=${this._handlePublishClicked}
+								id='publish'
+								title='${this._composedChat.published ? 'Unpublish' : 'Publish'} this chat'
+								?disabled=${!this._userMayChatInCurrentChat}
+							>
+								${this._composedChat.published ? VISIBILITY_ICON : VISIBILITY_OFF_ICON}
+							</button>
+							<label for='publish'>${this._composedChat.published ? 'Published' : 'Unpublished'}</label>
 							<details>
 								<summary>Based on ${this._composedChat.cards.length} out of ${this._composedChat.requested_cards.length} cards</summary>
 								<tag-list
@@ -271,6 +284,10 @@ class ChatView extends connect(store)(PageViewElement) {
 				` : html`<p>No chat data available.</p>`}
 			</section>
 		`;
+	}
+
+	_handlePublishClicked() {
+		store.dispatch(togglePublishedForCurrentChat());
 	}
 
 	_handleDoneClicked() {
