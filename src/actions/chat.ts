@@ -72,7 +72,7 @@ import {
 const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 
 // Default background length
-const DEFAULT_BACKGROUND_LENGTH = 5000;
+const DEFAULT_BACKGROUND_PERCENTAGE = 0.5;
 
 const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
 const postMessageInChatCallable = httpsCallable<PostMessageInChatRequestData, PostMessageInChaResponseData>(functions, 'postMessageInChat');
@@ -102,13 +102,15 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	const cards = selectActiveCollectionCards(state);
 	const cardIDs: CardID[] = cards.map(card => card.id);
 	
+	const model = DEFAULT_MODEL;
+
 	try {
 		const result = await createChatCallable({
 			owner: uid,
 			cards: cardIDs,
 			initialMessage,
-			backgroundLength: DEFAULT_BACKGROUND_LENGTH,
-			model: DEFAULT_MODEL,
+			backgroundPercentage: DEFAULT_BACKGROUND_PERCENTAGE,
+			model,
 			collection: {
 				description: collection.description.serialize(),
 				configuration: collection.description.configuration

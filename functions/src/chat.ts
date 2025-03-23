@@ -109,6 +109,15 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const systemMessageContent = cards.map(card => cardPlainContent(card)).join(CARD_SEPARATOR);
 
+	const backgroundPercentage = data.backgroundPercentage;
+
+	if (backgroundPercentage < 0 || backgroundPercentage > 1.0) {
+		return {
+			success: false,
+			error: 'Background percentage must be between 0 and 1'
+		};
+	}
+
 	const chat : Chat = {
 		id,
 		owner: auth.uid,
@@ -116,7 +125,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		collection: data.collection,
 		requested_cards: data.cards,
 		cards: cardsToInclude,
-		background_length: data.backgroundLength,
+		background_percentage: backgroundPercentage,
 		//TODO: set a title based on an LLM summary of the chat.
 		title: data.initialMessage.substring(0, 64) || 'Chat',
 		created: timestamp(),

@@ -745,8 +745,9 @@ export type Chat = {
 	//In the future we'll have ACLs for view to allow people without admin to see chats they are ACLd into
 	updated: Timestamp
 	created: Timestamp,
-	//The number of tokens of length to target for the initial background (that is, the card content that is passed in)
-	background_length: number,
+	//The percentage of max_tokens for this model to target for the initial
+	//background (that is, the card content that is passed in)
+	background_percentage: number,
 	collection: {
 		//serialized collection description path
 		description: string,
@@ -806,7 +807,7 @@ export type CreateChatRequestData = {
 	cards: CardID[],
 	model: AIModelName,
 	initialMessage: string,
-	backgroundLength: number,
+	backgroundPercentage: number,
 	collection: {
 		description: string,
 		configuration: CollectionConfiguration
