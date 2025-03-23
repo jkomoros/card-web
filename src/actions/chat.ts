@@ -5,8 +5,8 @@ import {
 import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
-	selectChats,
 	selectUid,
+	selectUserMayChatInCurrentChat,
 	selectUserMayUseAI,
 	selectUserMayViewApp
 } from '../selectors';
@@ -125,31 +125,10 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 export const postMessageInChat = (chatID : ChatID, message : string) : ThunkSomeAction => async (_, getState) => {
 	const state = getState() as State;
 	
-	const mayUseAI = selectUserMayUseAI(state);
-	if (!mayUseAI) {
-		console.warn('User does not have permission to use AI');
-		return;
-	}
-	
-	const uid = selectUid(state);
-	if (!uid) {
-		console.warn('User is not logged in');
-		return;
-	}
+	const mayChat = selectUserMayChatInCurrentChat(state);
 
-	if (!chatID) {
-		console.warn('No chat ID provided');
-		return;
-	}
-
-	const chats = selectChats(state);
-	const chat = chats[chatID];
-	if (!chat) {
-		console.warn('Chat not found for ID:', chatID);
-		return;
-	}
-	if (chat.owner !== uid) {
-		console.warn('User is not the owner of this chat');
+	if (!mayChat) {
+		console.warn('User does not have permission to chat in this chat');
 		return;
 	}
 	if (!message) {
