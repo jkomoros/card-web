@@ -84,7 +84,8 @@ import {
 	DEFAULT_OPENAI_MODEL,
 	DEFAULT_ANTHROPIC_MODEL,
 	CARD_SEPARATOR,
-	PROVIDER_INFO
+	PROVIDER_INFO,
+	fitPrompt
 } from '../../shared/ai.js';
 
 //NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.
@@ -251,57 +252,6 @@ const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
-};
-
-type FitPromptArguments = {
-	prefix?: string,
-	delimiter?: string,
-	items?: string[],
-	suffix?: string,
-	//if this is not defined but modelName is, will use the type for modelName.
-	maxTokenLength?: number,
-	modelName? : AIModelName
-};
-
-const DEFAULT_FIT_PROMPT : Required<Omit<FitPromptArguments, 'maxTokenLength'>> = {
-	prefix: '',
-	delimiter: CARD_SEPARATOR,
-	items: [],
-	suffix: '',
-	modelName: DEFAULT_MODEL,
-};
-
-const computeTokenCount = async (text : string | string[], model : AIModelName) : Promise<number> => {
-	const modelInfo = MODEL_INFO[model];
-	if (!modelInfo) throw new Error('Unknown model: ' + model);
-	const providerInfo = PROVIDER_INFO[modelInfo.provider];
-	if (!providerInfo) throw new Error('Unknown provider: ' + modelInfo.provider);
-	return providerInfo.tokenizer.computeTokens(text);
-};
-
-export const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, maxItemIndex : number]> => {
-	const options = {
-		...DEFAULT_FIT_PROMPT,
-		...args
-	};
-	if (options.maxTokenLength === undefined) {
-		options.maxTokenLength = options.modelName ? MODEL_INFO[options.modelName].maxTokens : 4000;
-	}
-	const modelName = options.modelName || DEFAULT_MODEL;
-	const nonItemsTokenCount = await computeTokenCount([options.prefix, options.suffix, options.delimiter], modelName);
-	let itemsTokenCount = 0;
-	let result = options.prefix + options.delimiter;
-	let i = 0;
-	while ((itemsTokenCount + nonItemsTokenCount) < options.maxTokenLength) {
-		if (options.items.length <= i) break;
-		const item = options.items[i];
-		itemsTokenCount += await computeTokenCount([item, options.delimiter], modelName);
-		if ((itemsTokenCount + nonItemsTokenCount) >= options.maxTokenLength) break;
-		result += item + options.delimiter;
-		i++;
-	}
-	result += options.suffix;
-	return [result, i];
 };
 
 const cardsAISummaryPrompt = async (cards : Card[], model : AIModelName) : Promise<[prompt : string, ids : CardID[]]> => {

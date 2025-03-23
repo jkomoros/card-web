@@ -33,7 +33,7 @@ export const PROVIDER_INFO: {[provider in modelProvider]: providerInfo} = {
 	'openai': {
 		tokenizer: {
 			computeTokens: async (_text: string | string[]) => {
-				throw new Error('OpenAI tokenizer not installed.');
+				throw new Error('OpenAI tokenizer not installed. The way to install it in browser and server is different.');
 			}
 		}
 	},
@@ -88,8 +88,59 @@ export const PROVIDER_INFO: {[provider in modelProvider]: providerInfo} = {
 	}
 };
 
-
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
+export const DEFAULT_MODEL = DEFAULT_ANTHROPIC_MODEL;
 
 export const CARD_SEPARATOR = '\n-----\n';
+
+type FitPromptArguments = {
+	prefix?: string,
+	delimiter?: string,
+	items?: string[],
+	suffix?: string,
+	//if this is not defined but modelName is, will use the type for modelName.
+	maxTokenLength?: number,
+	modelName? : AIModelName
+};
+
+const DEFAULT_FIT_PROMPT : Required<Omit<FitPromptArguments, 'maxTokenLength'>> = {
+	prefix: '',
+	delimiter: CARD_SEPARATOR,
+	items: [],
+	suffix: '',
+	modelName: DEFAULT_MODEL,
+};
+
+const computeTokenCount = async (text : string | string[], model : AIModelName) : Promise<number> => {
+	const modelInfo = MODEL_INFO[model];
+	if (!modelInfo) throw new Error('Unknown model: ' + model);
+	const providerInfo = PROVIDER_INFO[modelInfo.provider];
+	if (!providerInfo) throw new Error('Unknown provider: ' + modelInfo.provider);
+	return providerInfo.tokenizer.computeTokens(text);
+};
+
+export const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, maxItemIndex : number]> => {
+	const options = {
+		...DEFAULT_FIT_PROMPT,
+		...args
+	};
+	if (options.maxTokenLength === undefined) {
+		options.maxTokenLength = options.modelName ? MODEL_INFO[options.modelName].maxTokens : 4000;
+	}
+	const modelName = options.modelName || DEFAULT_MODEL;
+	const nonItemsTokenCount = await computeTokenCount([options.prefix, options.suffix, options.delimiter], modelName);
+	let itemsTokenCount = 0;
+	let result = options.prefix + options.delimiter;
+	let i = 0;
+	while ((itemsTokenCount + nonItemsTokenCount) < options.maxTokenLength) {
+		if (options.items.length <= i) break;
+		const item = options.items[i];
+		itemsTokenCount += await computeTokenCount([item, options.delimiter], modelName);
+		if ((itemsTokenCount + nonItemsTokenCount) >= options.maxTokenLength) break;
+		result += item + options.delimiter;
+		i++;
+	}
+	result += options.suffix;
+	return [result, i];
+};

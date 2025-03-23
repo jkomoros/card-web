@@ -1,7 +1,11 @@
 import {
 	DEFAULT_MODEL,
-	cachedCompletion, fitPrompt
+	cachedCompletion,
 } from '../actions/ai.js';
+
+import {
+	fitPrompt
+} from '../../shared/ai.js';
 
 import {
 	newCardIDPlaceholder
