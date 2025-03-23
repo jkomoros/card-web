@@ -11,7 +11,9 @@ import {
 	ChatMessage,
 	CreateChatRequestData,
 	CreateChatResponseData,
-	OpenAIModelName
+	OpenAIModelName,
+	PostMessageInChaResponseData,
+	PostMessageInChatRequestData
 } from '../../shared/types.js';
 
 import {
@@ -276,4 +278,11 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
+};
+
+export const postMessageInChat = async (_request : CallableRequest<PostMessageInChatRequestData>) : Promise<PostMessageInChaResponseData> => {
+	return {
+		success: false,
+		error: 'Not implemented'
+	};
 };

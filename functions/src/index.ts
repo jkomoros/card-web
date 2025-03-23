@@ -129,3 +129,4 @@ export const openai = onCall({}, openaiimpl.handler);
 export const anthropic = onCall({}, anthropicimpl.handler);
 
 export const createChat = onCall({}, chat.createChat);
+export const postMessageInChat = onCall({}, chat.postMessageInChat);

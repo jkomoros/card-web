@@ -385,6 +385,11 @@ gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
 		baseFunctions.push('anthropic');
 	}
 
+	if (OPENAI_ENABLED || ANTHROPIC_ENABLED) {
+		baseFunctions.push('createChat');
+		baseFunctions.push('postMessageInChat');
+	}
+
 	// If Twitter is enabled, deploy everything
 	if (ENABLE_TWITTER) {
 		makeExecutor('firebase deploy')(cb);

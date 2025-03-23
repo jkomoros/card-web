@@ -821,6 +821,18 @@ export type CreateChatResponseData = {
 	chat: ChatID
 };
 
+export type PostMessageInChatRequestData = {
+	chat: ChatID,
+	message: string
+};
+
+export type PostMessageInChaResponseData = {
+	success: false;
+	error: string;
+} | {
+	success: true
+};
+
 export type OpenAIModelName = 'gpt-4o';
 
 export type AnthropicModelName = 'claude-3-7-sonnet-latest';
