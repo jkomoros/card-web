@@ -17,10 +17,12 @@ import {
 } from '../types.js';
 
 import {
+	selectChatComposingMessage,
 	selectCurrentChatID,
 	selectCurrentComposedChat,
 	selectPageExtra,
-	selectTagInfosForCards
+	selectTagInfosForCards,
+	selectUserMayChatInCurrentChat
 } from '../selectors.js';
 
 import {
@@ -31,11 +33,20 @@ import {
 
 import {
 	connectLiveChat,
+	postMessageInCurrentChat,
+	updateComposingMessage,
 	updateCurrentChat
 } from '../actions/chat.js';
 
+import {
+	CHECK_CIRCLE_OUTLINE_ICON
+} from '../../shared/icons.js';
+
+import {
+	prettyTime
+} from '../util.js';
+
 import chat from '../reducers/chat.js';
-import { prettyTime } from '../util.js';
 store.addReducers({
 	chat
 });
@@ -54,6 +65,12 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	@state()
 		_cardTagInfos: TagInfos;
+
+	@state()
+		_userMayChatInCurrentChat : boolean;
+
+	@state()
+		_composingMessage : string;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -93,9 +110,26 @@ class ChatView extends connect(store)(PageViewElement) {
 					<div class='messages'>
 						${this._composedChat.messages.map(message => this.renderMessage(message))}
 					</div>
+					<div class='compose'>
+						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated}></textarea>
+						<div class='buttons'>
+							<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+						</div>
+					</div>
 				` : html`<p>No chat data available.</p>`}
 			</section>
 		`;
+	}
+
+	_handleDoneClicked() {
+		store.dispatch(postMessageInCurrentChat(this._composingMessage));
+	}
+
+	_handleContentUpdated(event: Event) {
+		const target = event.target;
+		if (!(target instanceof HTMLTextAreaElement)) return;
+		const value = target.value;
+		store.dispatch(updateComposingMessage(value));
 	}
 
 	override stateChanged(state: State) {
@@ -104,6 +138,8 @@ class ChatView extends connect(store)(PageViewElement) {
 		this._chatID = selectCurrentChatID(state);
 		this._composedChat = selectCurrentComposedChat(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._userMayChatInCurrentChat = selectUserMayChatInCurrentChat(state);
+		this._composingMessage = selectChatComposingMessage(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
