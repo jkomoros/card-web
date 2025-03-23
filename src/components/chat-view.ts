@@ -43,6 +43,10 @@ import {
 	SEND_ICON
 } from '../../shared/icons.js';
 
+import {
+	markdownElement
+} from '../util.js';
+
 import chat from '../reducers/chat.js';
 store.addReducers({
 	chat
@@ -105,17 +109,25 @@ class ChatView extends connect(store)(PageViewElement) {
 				0% { opacity: 1.0; }
 				100% { opacity: 0.5; }
 			}
+
+			.meessage h1, .message h2, .message h3, .message h4, .message h5, .message h6 {
+				text-align: left;
+				margin: 0;
+			}
+
+			.message ul, .message ol {
+				margin: 0;
+			}
 		`
 	];
 
 	renderMessage(message : ChatMessage) {
-		//TODO: render the content as santized markdown.
 		return html`<div class='message'>
 			<p>
 				<strong>${message.role}</strong>:
 				${message.streaming ? 
 		html`<em class='loading'>Thinking...</em>` : 
-		message.content}
+		markdownElement(message.content)}
 			</p>
 		</div>`;
 	}
