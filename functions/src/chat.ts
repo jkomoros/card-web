@@ -210,22 +210,28 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 		...doc.data()
 	} as ChatMessage));
 
-	const assistantMessage = await assistantMessageForThread(model, messages);
-
 	const messageIndex = messages.length; // Next message index to use for the assistant message
 	const assistantMessageData : ChatMessage = {
 		id: randomString(16),
 		chat: chatID,
 		message_index: messageIndex,
 		role: 'assistant',
-		content: assistantMessage,
+		content: '',
 		timestamp: timestamp(),
-		streaming: false
+		streaming: true
 	};
 
-	// Write the assistant message to Firestore
+	//Write a stub message so the client can render loadding UI.
 	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
 	await assistantMessageRef.set(assistantMessageData);
+
+	const assistantMessage = await assistantMessageForThread(model, messages);
+
+	//Write the final assistant message to the database.
+	await assistantMessageRef.update({
+		content: assistantMessage,
+		streaming: false
+	});
 	return assistantMessageData;
 };
 

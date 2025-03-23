@@ -202,7 +202,7 @@ export const connectLiveChat = (id : ChatID) => {
 	//TODO: will this pass the firestore security rules, since it doesnt'
 	//include a where condition for the message's chat being owned by this owner
 	//uid?
-	onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system'), where('streaming', '==', false)), snapshot => {
+	onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system')), snapshot => {
 		const messages : ChatMessages = {};
 
 		snapshot.docChanges().forEach(change => {

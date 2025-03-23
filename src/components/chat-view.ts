@@ -104,8 +104,9 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	renderMessage(message : ChatMessage) {
 		//TODO: render the content as santized markdown.
+		//TODO: the thinking text should be subtly animated.
 		return html`<div class='message'>
-			<p><strong>${message.role}</strong>: ${message.content}</p>
+			<p><strong>${message.role}</strong>: ${message.streaming ? html`<em class='loading'>Thinking...</em>` : message.content}</p>
 			<p><small>${prettyTime(message.timestamp)}</small></p>
 		</div>`;
 	}

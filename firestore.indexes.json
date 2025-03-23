@@ -73,10 +73,6 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "streaming",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "role",
           "order": "ASCENDING"
         }
