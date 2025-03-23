@@ -1918,3 +1918,15 @@ export const selectCurrentComposedChat = createSelector(
 	selectComposedChats,
 	(id , chats) => id ? chats[id] : null
 );
+
+export const selectUserMayChatInCurrentChat = createSelector(
+	selectCurrentComposedChat,
+	selectUserMayUseAI,
+	selectUid,
+	(chat, mayUseAI, uid) => {
+		if (!chat) return false;
+		if (!mayUseAI) return false;
+		if (chat.owner != uid) return false;
+		return true;
+	}
+);
