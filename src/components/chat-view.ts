@@ -139,11 +139,14 @@ class ChatView extends connect(store)(PageViewElement) {
 				${this._composedChat ? html`
 					<h3>${this._composedChat.title}</h3>
 					<p><label>${this._composedChat.model}</label></p>
-					<tag-list
-						.tags=${this._composedChat.cards}
-						.previousTags=${this._composedChat.requested_cards}
-						.tagInfos=${this._cardTagInfos}
-					></tag-list>
+					<details>
+						<summary>Based on ${this._composedChat.cards.length} out of ${this._composedChat.requested_cards.length} cards.</summary>
+						<tag-list
+							.tags=${this._composedChat.cards}
+							.previousTags=${this._composedChat.requested_cards}
+							.tagInfos=${this._cardTagInfos}
+						></tag-list>
+					</details>
 					<div class='messages'>
 						${this._composedChat.messages.map(message => this.renderMessage(message))}
 					</div>
