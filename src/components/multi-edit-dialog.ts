@@ -33,7 +33,7 @@ import {
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	selectMultiEditDialogOpen,
@@ -55,7 +55,7 @@ import {
 
 import {
 	REFERENCE_TYPES,
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	referencesNonModifying,
@@ -92,7 +92,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	descriptionForCardDiff

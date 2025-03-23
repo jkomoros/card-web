@@ -6,5 +6,19 @@
             ],
             "url": ".vscode/config_schema.json"
         }
+    ],
+    "eslint.workingDirectories": [
+        {
+            "directory": "functions",
+            "changeProcessCWD": true
+        },
+        {
+            "directory": ".",
+            "changeProcessCWD": true
+        },
+        {
+            "directory": "shared",
+            "changeProcessCWD": true
+        }
     ]
 }

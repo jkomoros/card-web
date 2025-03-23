@@ -55,23 +55,26 @@ import {
 } from '../tabs.js';
 
 import {
-	fontSizeBoosts,
+	fontSizeBoosts
+} from '../card_methods.js';
+
+import {
 	MAX_SORT_ORDER_VALUE,
 	MIN_SORT_ORDER_VALUE,
 	DEFAULT_SORT_ORDER_INCREMENT,
-	TEXT_FIELD_CONFIGURATION
-} from '../card_fields.js';
-
-import {
+	TEXT_FIELD_CONFIGURATION,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
+} from '../../shared/card_fields.js';
+
+import {
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
 	MAINTENANCE_COLLECTION,
 	TWEETS_COLLECTION,
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
 
 import {
 	onSnapshot,
@@ -108,7 +111,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	SomeAction,

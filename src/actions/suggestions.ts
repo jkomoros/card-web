@@ -14,7 +14,7 @@ import {
 import {
 	isNewCardIDPlaceholder,
 	replaceNewCardIDPlaceholder
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	selectActiveCard,
@@ -41,16 +41,17 @@ import {
 	CreateCardOpts,
 	ReferencesEntriesDiffItem,
 	Suggestion,
-	SuggestionDiff
+	SuggestionDiff,
+	CardID
 } from '../types.js';
 
 import {
-	CardID
-} from '../types_simple.js';
+	newID
+} from '../util.js';
 
 import {
-	assertUnreachable, newID
-} from '../util.js';
+	assertUnreachable
+} from '../../shared/util.js';
 
 import {
 	createCard,

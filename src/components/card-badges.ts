@@ -7,7 +7,7 @@ import {
 	ASSIGNMENT_TURNED_IN_ICON,
 	STAR_ICON,
 	COPY_ALL_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	references

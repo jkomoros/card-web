@@ -4,7 +4,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 import {
 	TEXT_FIELD_CONFIGURATION,
@@ -14,7 +14,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 	editableFieldsForCardType
-} from './card_fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	references,
@@ -49,7 +49,10 @@ import {
 	SortExtra,
 	cardFieldTypeSchema
 } from './types.js';
-import { innerTextForHTML } from './util.js';
+
+import {
+	innerTextForHTML
+} from '../shared/util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {

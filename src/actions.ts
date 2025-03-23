@@ -3,7 +3,12 @@ import {
 	FIND_CARD_TO_LINK as LINK,
 	FIND_CARD_TO_PERMISSION as PERMISSION,
 	FIND_CARD_TO_REFERENCE as REFRENCE
-} from './type_constants.js';
+} from '../shared/card_fields.js';
+
+import {
+	ChatID,
+	CollectionConfiguration
+} from '../shared/types.js';
 
 import {
 	AIDialogType,
@@ -20,7 +25,8 @@ import {
 	CardIdentifier,
 	CardType,
 	Cards,
-	CollectionConfiguration,
+	ChatMessages,
+	Chats,
 	CommentMessageID,
 	CommentMessages,
 	CommentThreadID,
@@ -104,6 +110,14 @@ export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WOR
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
+//Chat
+export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
+export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
+export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
+export const CHAT_SEND_MESSAGE = 'CHAT_SEND_MESSAGE';
+export const CHAT_UPDATE_COMPOSING_MESSAGE = 'CHAT_UPDATE_COMPOSING_MESSAGE';
+export const CHAT_SEND_MESSAGE_SUCCESS = 'CHAT_SEND_MESSAGE_SUCCESS';
+export const CHAT_SEND_MESSAGE_FAILURE = 'CHAT_SEND_MESSAGE_FAILURE';
 //Data
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
@@ -453,6 +467,39 @@ type ActionCommentsUpdateThreads = {
 type ActionCommentsUpdateMessages = {
 	type: typeof COMMENTS_UPDATE_MESSAGES,
 	messages: CommentMessages
+};
+
+type ActionChatUpdateChats = {
+	type: typeof CHAT_UPDATE_CHATS,
+	chats: Chats
+};
+
+type ActionChatUpdateMessages = {
+	type: typeof CHAT_UPDATE_MESSAGES,
+	messages: ChatMessages
+};
+
+type ActionChatUpdateCurrentChat = {
+	type: typeof CHAT_UPDATE_CURRENT_CHAT
+	currentChat: ChatID
+};
+
+type ActionChatSendMessage = {
+	type: typeof CHAT_SEND_MESSAGE,
+};
+
+type ActionChatSendMessageSuccess = {
+	type: typeof CHAT_SEND_MESSAGE_SUCCESS
+};
+
+type ActionChatSendMessageFailure = {
+	type: typeof CHAT_SEND_MESSAGE_FAILURE,
+	error : Error
+};
+
+type ActionChatUpdateComposingMessage = {
+	type: typeof CHAT_UPDATE_COMPOSING_MESSAGE,
+	composingMessage: string
 };
 
 type ActionUpdateCards = {
@@ -1076,6 +1123,13 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionIncrementCollectionWordCloudVersion
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
+	| ActionChatUpdateChats
+	| ActionChatUpdateMessages
+	| ActionChatUpdateCurrentChat
+	| ActionChatSendMessage
+	| ActionChatSendMessageSuccess
+	| ActionChatSendMessageFailure
+	| ActionChatUpdateComposingMessage
 	| ActionUpdateCards
 	| ActionEnqueueCardUpdates
 	| ActionClearEnqueuedCardUpdates

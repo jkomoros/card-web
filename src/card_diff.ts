@@ -5,9 +5,12 @@ import {
 	arrayUnionUtil,
 	diffCardFlags,
 	extractCardLinksFromBody,
-	innerTextForHTML,
 	reasonCardTypeNotLegalForCard,
 } from './util.js';
+
+import {
+	innerTextForHTML
+} from '../shared/util.js';
 
 import {
 	getUserMayEditSection,
@@ -21,16 +24,19 @@ import {
 import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
-	fontSizeBoosts,
 	newCardIDPlaceholder
-} from './card_fields.js';
+} from '../shared/card_fields.js';
+
+import {
+	fontSizeBoosts
+} from './card_methods.js';
 
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY
-} from './type_constants.js';
+} from '../shared/card_fields.js';
 
 import {
 	normalizeBodyHTML
@@ -94,7 +100,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 import {
 	TemplateResult,
@@ -108,6 +114,7 @@ import {
 //descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
 import './components/tag-list.js';
 import { TODO_ALL_INFOS, cardTODOConfigKeys } from './filters.js';
+import { FIELD_VALIDATORS } from './card_methods.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
@@ -663,11 +670,12 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 	for (const field of cardFieldTypeEditableSchema.options) {
 		if (diff[field] === undefined) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
+		const validator = FIELD_VALIDATORS[field];
 		//TODO: consider running this in confirmationsForCardDiff instead. Here,
 		//it's more a "this is a required thing to fix." There it's more a "are
 		//you sure you meant to do this?"
-		if (!config.validator) continue;
-		const err = config.validator(diff[field], diff.card_type || underlyingCard.card_type, config);
+		if (!validator) continue;
+		const err = validator(diff[field], diff.card_type || underlyingCard.card_type, config);
 		if (!err) continue;
 		throw new Error(`Field ${field} didn't pass the validator: ${err}`);
 	}

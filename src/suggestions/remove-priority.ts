@@ -18,7 +18,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	Card,
@@ -27,10 +27,13 @@ import {
 } from '../types.js';
 
 import {
-	assertUnreachable,
-	cardIsPrioritized,
-	cardPlainContent
+	cardIsPrioritized
 } from '../util.js';
+
+import {
+	assertUnreachable,
+	cardPlainContent
+} from '../../shared/util.js';
 
 import {
 	z
@@ -46,14 +49,14 @@ const aiComparisonResultSchema = z.object({
 	better_written: comparsionItem,
 });
 
-const comparisonResultSchema = aiComparisonResultSchema.partial().extend({
+const _comparisonResultSchema = aiComparisonResultSchema.partial().extend({
 	more_recent: z.optional(comparsionItem),
 	prioritized: z.optional(triStateComparisonItem)
 });
 
 type AIComparisonResult = z.infer<typeof aiComparisonResultSchema>;
 
-type ComparisonResult = z.infer<typeof comparisonResultSchema>;
+type ComparisonResult = z.infer<typeof _comparisonResultSchema>;
 
 const COMPARISON_RESULT_SCORES : Record<keyof ComparisonResult, number> = {
 	more_recent: 0.3,

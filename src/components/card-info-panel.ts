@@ -11,7 +11,7 @@ import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 import {
 	REPEAT_ICON,
 	FAVORITE_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	sectionTitle,

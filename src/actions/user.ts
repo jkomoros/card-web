@@ -86,7 +86,7 @@ import {
 	READING_LISTS_COLLECTION,
 	READING_LISTS_UPDATES_COLLECTION,
 	PERMISSIONS_COLLECTION
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
 
 import {
 	AUTO_MARK_READ_PENDING_CHANGED,

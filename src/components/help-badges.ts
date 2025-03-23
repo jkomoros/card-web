@@ -4,7 +4,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import {
 	WARNING_ICON,
 	HELP_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 //if you use help, also print out helpStyles
 export const help = (message : string, isAlert? : boolean, isStrong? : boolean) => {

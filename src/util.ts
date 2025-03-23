@@ -13,7 +13,6 @@ import {
 	ReferencesInfoMap,
 	TweetInfo,
 	ReferenceType,
-	CardFieldTypeEditable,
 	CardFlags,
 	CardFlagsRemovals,
 	CardFetchType
@@ -25,10 +24,12 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
-	IMAGE_CARD_TYPES,
-	getCardTitleForBackporting,
-	TEXT_FIELD_CONFIGURATION
-} from './card_fields.js';
+	IMAGE_CARD_TYPES
+} from '../shared/card_fields.js';
+
+import {
+	getCardTitleForBackporting
+} from './card_methods.js';
 
 import {
 	references
@@ -36,7 +37,7 @@ import {
 
 import {
 	getDocument
-} from './document.js';
+} from '../shared/document.js';
 
 import {
 	getImagesFromCard
@@ -44,23 +45,15 @@ import {
 
 import {
 	Timestamp
-} from 'firebase/firestore';
-
-import {
-	DERIVED_FIELDS_FOR_CARD_TYPE
-} from './card_fields.js';
-
-import {
-	normalizeLineBreaks,
-} from './contenteditable.js';
+} from '../shared/timestamp.js';
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
-export const assertUnreachable = (x : never) : never => {
-	throw new Error('Exhaustiveness check failed: ' + String(x));
-};
+import {
+	assertUnreachable
+} from '../shared/util.js';
 
 export const fetchTypeIsUnpublished = (fetchType : CardFetchType) : boolean => {
 	//We'll do a switch so we can do an exhaustivness check so we never forget to update this logic.
@@ -108,17 +101,11 @@ export const hash = (str : string) : number => {
 
 export const stringHash = (s : string) : string => Math.abs(hash(s)).toString(16);
 
-const randomCharSetNumbers = '0123456789';
-const randomCharSetLetters = 'abcdef';
-const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
-
-export const randomString = (length : number, charSet = randomCharSet) => {
-	let text = '';
-	for (let i = 0; i < length; i++) {
-		text += charSet.charAt(Math.floor(Math.random() * charSet.length));
-	}
-	return text;
-};
+import { 
+	randomString, 
+	randomCharSetNumbers, 
+	randomCharSetLetters,
+} from '../shared/util.js';
 
 //TODO: consider renaming this, because we also use it in selectFullDataNeeded.
 export const pageRequiresMainView = (pageName : string) => {
@@ -149,8 +136,6 @@ export const toTitleCase = (str : string) => {
 	return parts.join(' ');
 };
 
-//note: these are recreated in functions/legal.js
-
 const slugIllegalPartExpression = /[^a-zA-Z0-9-_ ]/g;
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
@@ -161,19 +146,9 @@ export const legalUid = (uid : Uid) => {
 	return true;
 };
 
-//normalizes a mostly-OK slug, returning '' if it wasn't legal. If you want to
-//generate a good one given an arbitrary string that may contain illegal
-//characters to strip, see createSlugFromArbitraryString
-export const normalizeSlug = (slug : Slug) : Slug => {
-	slug = slug.trim();
-	slug = slug.toLowerCase();
-	slug = slug.split(' ').join('-');
-	slug = slug.split('_').join('-');
-
-	if (!slugRegularExpression.test(slug)) slug = '';
-
-	return slug;
-};
+// Import and re-export from shared to maintain backward compatibility
+import { normalizeSlug } from '../shared/util.js';
+export { normalizeSlug };
 
 export const createSlugFromArbitraryString = (str : string) : Slug => {
 	str = str.replace(slugIllegalPartExpression, '');
@@ -227,52 +202,6 @@ export const cardHasTodo = (card : Card | null) => {
 	return content ? true : false;
 };
 
-//Recreated in functions/src/embeddings.ts
-export const innerTextForHTML = (body : string) : string => {
-	//This shouldn't be an XSS vulnerability even though body is supplied by
-	//users and thus untrusted, because the temporary element is never actually
-	//appended into the DOM
-	const document = getDocument();
-	if (!document) throw new Error('missing document');
-	const ele = document.createElement('section');
-	// makes sure line breaks are in the right place after each legal block level element
-	body = normalizeLineBreaks(body);
-	ele.innerHTML = body;
-	//textContent would return things like style and script contents, but those shouldn't be included anyway.
-	return ele.textContent || '';
-};
-
-const plainContentCache = new WeakMap<Card, string>();
-
-const cardPlainContentImpl = (card : Card) : string => {
-	const cardType = card.card_type;
-	if (!BODY_CARD_TYPES[cardType]) return '';
-	const result : string[] = [];
-	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body', 'commentary'];
-	for (const field of fieldsInOrder) {
-		//Skip derived fields
-		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
-		const rawContent = card[field] || '';
-		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
-		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
-		if (!content) continue;
-		result.push(content.trim());
-	}
-	return result.join('\n');
-};
-
-//Extracts the user-provided title and body from the card, without HTML
-//formatting.
-export const cardPlainContent = (card : Card) : string => {
-	const currentContent = plainContentCache.get(card);
-	if (currentContent == undefined) {
-		const value = cardPlainContentImpl(card);
-		plainContentCache.set(card, value);
-		return value;
-	}
-	return currentContent;
-};
-
 export const cardHasContent = (card : Card | null) => {
 	if (!card) return false;
 	//We treat all non-body-card cards as having content, since the main reason
@@ -302,7 +231,7 @@ export const isURL = (str: string) : boolean => {
 	try {
 		new URL(str);
 		return true;
-	} catch (e) {
+	} catch (_e) {
 		return false;
 	}
 };

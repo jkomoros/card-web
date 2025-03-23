@@ -34,16 +34,19 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	REFERENCE_TYPES,
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	referencesNonModifying
 } from '../references.js';
 
 import {
-	cardHasContent,
-	randomString,
+	cardHasContent
 } from '../util.js';
+
+import {
+	randomString
+} from '../../shared/util.js';
 
 import {
 	normalizeBodyHTML
@@ -102,7 +105,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	EDITING_ADD_IMAGE_URL,

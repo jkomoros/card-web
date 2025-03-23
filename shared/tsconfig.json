@@ -9,7 +9,8 @@
     "esModuleInterop": true
   },
   "include": [
-    "*.ts"
+    "*.ts",
+    "**/*.ts"
   ],
   "exclude": [
     "node_modules",

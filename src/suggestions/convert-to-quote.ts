@@ -1,6 +1,6 @@
 import {
 	newCardIDPlaceholder
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	PreparedQuery
@@ -12,25 +12,24 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	CardDiff,
 	ReferencesEntriesDiff,
 	Suggestion,
 	SuggestionDiff,
-	SuggestionDiffCreateCard
+	SuggestionDiffCreateCard,
+	CardID
 } from '../types.js';
 
 import {
-	CardID
-} from '../types_simple.js';
-
-import {
-	cardPlainContent,
 	isURL
 } from '../util.js';
 
+import {
+	cardPlainContent
+} from '../../shared/util.js';
 
 const CONVERT_TO_QUOTE_SUGGESTOR_VERSION = 0;
 

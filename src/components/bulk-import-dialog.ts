@@ -21,7 +21,7 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON,
 	COPY_ALL_ICON,
 	SHUFFLE_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	selectBulKimportDialogMode,
@@ -39,7 +39,7 @@ import {
 
 import {
 	assertUnreachable
-} from '../util.js';
+} from '../../shared/util.js';
 
 import bulkImport from '../reducers/bulk-import.js';
 store.addReducers({

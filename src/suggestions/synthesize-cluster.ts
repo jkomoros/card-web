@@ -1,11 +1,15 @@
 import {
 	DEFAULT_MODEL,
-	cachedCompletion, fitPrompt
+	cachedCompletion,
 } from '../actions/ai.js';
 
 import {
+	fitPrompt
+} from '../../shared/ai.js';
+
+import {
 	newCardIDPlaceholder
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	collectionDescription,
@@ -21,9 +25,12 @@ import {
 } from '../types.js';
 
 import {
-	cardPlainContent, 
 	wrapPlainContent
 } from '../util.js';
+
+import {
+	cardPlainContent
+} from '../../shared/util.js';
 
 //Increment this when substantively changing the implementation/quality of this prompt.
 const CURRENT_VERSION = 0;

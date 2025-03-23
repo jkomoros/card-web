@@ -34,12 +34,13 @@ import {
 	ProcessedCard,
 	State,
 	Suggestion,
-	TagInfos
+	TagInfos,
+	CardID
 } from '../types.js';
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card_fields.js';
 
 import {
 	CANCEL_ICON,
@@ -47,7 +48,7 @@ import {
 	REPEAT_ICON,
 	PSYCHOLOGY_ICON,
 	HIGHLIGHT_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	applySuggestion,
@@ -62,16 +63,12 @@ import {
 } from '../events.js';
 
 import {
-	CardID
-} from '../types_simple.js';
-
-import {
 	descriptionForSuggestion, largestNewCardIndex
 } from '../card_diff.js';
 
 import {
 	newCardIDPlaceholder
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import './suggestions-summary.js';
 import './tag-list.js';

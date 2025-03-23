@@ -25,7 +25,7 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON,
 	CANCEL_ICON,
 	CASINO_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	selectAIDialogOpen,
@@ -50,11 +50,11 @@ import {
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card_fields.js';
 
 import {
 	assertUnreachable
-} from '../util.js';
+} from '../../shared/util.js';
 
 import './tag-list.js';
 

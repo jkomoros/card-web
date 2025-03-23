@@ -37,23 +37,13 @@ import {
 } from '../types.js';
 
 import {
-	bulkCreateWorkingNotes
-} from './data.js';
+	SemanticSortRequestData,
+	SemanticSortResponseData
+} from '../../shared/types.js';
 
 import {
-	CardID
-} from '../types_simple.js';
-
-//Replicated in `functions/src/types.ts`
-export type SemanticSortRequestData = {
-	cards: CardID[]
-}
-
-//Replicated in `functions/src/types.ts
-export type SemanticSortResponseData = {
-	cards: CardID[],
-	swaps: number
-}
+	bulkCreateWorkingNotes
+} from './data.js';
 
 export const openBulkImportDialog = (mode : BulkImportDialogMode) : SomeAction => ({
 	type : BULK_IMPORT_DIALOG_OPEN,

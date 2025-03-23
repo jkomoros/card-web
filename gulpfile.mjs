@@ -15,7 +15,7 @@ import {
 let config;
 try {
 	config = devProdConfig();
-} catch(err) {
+} catch(_err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
@@ -383,6 +383,11 @@ gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
 
 	if (ANTHROPIC_ENABLED) {
 		baseFunctions.push('anthropic');
+	}
+
+	if (OPENAI_ENABLED || ANTHROPIC_ENABLED) {
+		baseFunctions.push('createChat');
+		baseFunctions.push('postMessageInChat');
 	}
 
 	// If Twitter is enabled, deploy everything

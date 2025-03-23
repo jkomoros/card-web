@@ -22,9 +22,9 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 import {
 	CardBooleanMap,
@@ -32,16 +32,13 @@ import {
 	CardID,
 	Cards,
 	FilterMap,
-	State
+	State,
+	IconName
 } from '../types.js';
 
 import {
 	makeCardHoveredEvent
 } from '../events.js';
-
-import {
-	IconName
-} from '../types_simple.js';
 
 @customElement('card-link')
 class CardLink extends connect(store)(LitElement) {

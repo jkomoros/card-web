@@ -77,8 +77,13 @@ import {
 	Sections,
 	Tags,
 	Section,
-	CardFetchType,
+	CardFetchType
 } from '../types.js';
+
+import {
+	LegalRequestData,
+	LegalResponseData,
+} from '../../shared/types.js';
 
 import {
 	MESSAGES_COLLECTION,
@@ -90,7 +95,7 @@ import {
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
 
 import {
 	STOP_EXPECTING_FETCHED_CARDS
@@ -100,21 +105,8 @@ import {
 	fetchTypeIsUnpublished
 } from '../util.js';
 
-import { TypedObject } from '../typed_object.js';
+import { TypedObject } from '../../shared/typed_object.js';
 
-//Replicated in `functions/src/types.ts`;
-type LegalRequestData = {
-	type: 'warmup'
-} | {
-	type: 'slug',
-	value: string
-};
-
-//Replicated in `functions/src/types.ts`;
-type LegalResponseData = {
-	legal: boolean,
-	reason: string
-};
 
 const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');
 

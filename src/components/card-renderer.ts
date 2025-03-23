@@ -31,7 +31,10 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	CARD_TYPE_CONFIGURATION,
 	editableFieldsForCardType,
-	IMAGES_TEXT_FIELD,
+	IMAGES_TEXT_FIELD
+} from '../../shared/card_fields.js';
+
+import {
 	EMPTY_PROCESSED_CARD,
 	EMPTY_CARD_ID
 } from '../card_fields.js';
@@ -40,7 +43,7 @@ import {
 	highlightConceptReferences
 } from '../nlp.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 import {
 	makeElementContentEditable,
@@ -74,7 +77,11 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
+
+import {
+	HTML_FORMATTERS
+} from '../card_methods.js';
 
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
@@ -594,7 +601,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 			htmlToSet = value;
 		}
-		if (value && config.htmlFormatter) htmlToSet = config.htmlFormatter(value);
+		const htmlFormatter = HTML_FORMATTERS[field];
+		if (value && htmlFormatter) htmlToSet = htmlFormatter(value);
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
 		if (!value && !this.editing) {
 			if (this._card.full_bleed) {

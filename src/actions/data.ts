@@ -4,7 +4,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	db,
@@ -113,11 +113,10 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	editableFieldsForCardType,
 	sortOrderIsDangerous,
-	EMPTY_CARD_ID,
 	isNewCardIDPlaceholder,
 	DEFAULT_SORT_ORDER_INCREMENT,
-
-} from '../card_fields.js';
+	COLORS
+} from '../../shared/card_fields.js';
 
 import {
 	CARDS_COLLECTION,
@@ -127,8 +126,11 @@ import {
 	TAGS_COLLECTION,
 	TAG_UPDATES_COLLECTION,
 	TWEETS_COLLECTION,
-	COLORS
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
+
+import {
+	EMPTY_CARD_ID
+} from '../card_fields.js';
 
 import {
 	cardDiffHasChanges,

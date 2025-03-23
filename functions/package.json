@@ -1,20 +1,23 @@
 {
   "name": "functions",
+  "type": "module",
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
-    "build": "npm run lint && cd ../shared && npm run build && cd ../functions && tsc",
+    "build": "npm run lint && cd ../shared && npm run build && cd ../functions && tsc && npm run copy-shared",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
+    "deploy:skipLint": "cd ../shared && npm run build && cd ../functions && tsc && npm run copy-shared && firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "gcp-build": "node node_modules/puppeteer/install.js"
+    "gcp-build": "node node_modules/puppeteer/install.js",
+    "copy-shared": "mkdir -p lib/shared && cp -R ../shared/dist/* lib/shared/"
   },
   "engines": {
     "node": "20"
   },
-  "main": "lib/index.js",
+  "main": "lib/functions/src/index.js",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@qdrant/js-client-rest": "^1.8.2",
@@ -39,9 +42,9 @@
     "@types/nodemailer": "^6.4.13",
     "@types/twitter": "^1.7.3",
     "@types/uuid": "^9.0.6",
-    "@typescript-eslint/eslint-plugin": "^5.12.0",
-    "@typescript-eslint/parser": "^5.12.0",
-    "eslint": "^8.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
+    "eslint": "^8.17.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
     "eslint-plugin-promise": "^6.1.1",

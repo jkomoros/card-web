@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 
 import {
 	EDIT_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	parseKeyCardID,

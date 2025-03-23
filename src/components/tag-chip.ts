@@ -22,9 +22,9 @@ import {
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card_fields.js';
 
-import * as icons from './my-icons.js';
+import * as icons from '../../shared/icons.js';
 
 @customElement('tag-chip')
 class TagChip  extends LitElement {

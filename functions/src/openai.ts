@@ -10,6 +10,14 @@ import {
 	HttpsError
 } from 'firebase-functions/v2/https';
 
+import {
+	OpenAIModelName
+} from './types.js';
+
+import {
+	AssistantThread
+} from '../../shared/types.js';
+
 export const openai_endpoint = OPENAI_API_KEY ? new OpenAI({
 	apiKey: OPENAI_API_KEY,
 }) : null;
@@ -62,4 +70,19 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 		const errAsError = err as Error;
 		throw new HttpsError('unknown', errAsError.message);
 	}
+};
+
+export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, thread : AssistantThread) : Promise<string> => {
+	if (!openai_endpoint) {
+		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
+	}
+	const result = await openai_endpoint.chat.completions.create({
+		model,
+		messages: thread.system ? [{role: 'system', content: thread.system}, ...thread.messages] : thread.messages
+	});
+
+	if (!result.choices || !result.choices.length) {
+		throw new HttpsError('unknown', 'No choices returned from OpenAI');
+	}
+	return result.choices[0].message.content || '';
 };

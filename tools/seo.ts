@@ -27,7 +27,7 @@ import {
 
 import {
 	CARDS_COLLECTION
-} from '../src/type_constants.js';
+} from '../shared/collection-constants.js';
 
 import {
 	getActiveConfig

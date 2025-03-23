@@ -1,7 +1,7 @@
 import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-} from './card_fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	Collection,
@@ -38,7 +38,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 export interface ReferenceBlock {
     // collectionDescription: a collection description, possibly using KEY_CARD_ID_PLACEHOLDER as a placeholder

@@ -5,13 +5,15 @@ import {
 	z
 } from 'zod';
 
-//Ugh doesn't this import kind of ruin the point?
-import * as icons from './components/my-icons.js';
+import {
+	CardIdentifier,
+	UserPermissionsCore,
+	IconName
+} from '../shared/types.js';
 
-export type CardID = string;
-export type Slug = string;
-export type CardIdentifier = CardID | Slug;
+export { UserPermissionsCore };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const tabConfigName = z.enum([
 	'default_tabs',
 	'default_end_tabs',
@@ -32,8 +34,6 @@ const tabConfigName = z.enum([
 
 export type TabConfigName = z.infer<typeof tabConfigName>;
 
-export type IconName = keyof(typeof icons);
-
 //If a TabConfigName is given, then it will be treated as though it were {expand:"<NAME>"}
 export type TabConfigInput = (TabConfigName | TabConfigItemInput)[];
 
@@ -48,7 +48,7 @@ export interface TabConfigItemInput {
 	collection?: string,
 	//If set, the item will render an <a href='href' target='_blank'>
 	href?: string,
-	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
+	//Can be either a string naming an ICON constant in src/../shared/icons.js, or an actual Icon template.
 	//If provided, will render that instead of the display_name text.
 	icon?: IconName,
 	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.
@@ -87,20 +87,4 @@ export type TabConfigOverrides = {
 	}
 }
 
-//This is the the type that PermissionType is driven off of.
-//functions/types/ts:UserPermissions is also based on this
-export type UserPermissionsCore = {
-	admin? : boolean,
-	viewApp? : boolean,
-	edit? : boolean,
-	editSection? : boolean,
-	editTag? : boolean,
-	editCard? : boolean,
-	createCard? : boolean,
-	viewUnpublished? : boolean,
-	comment? : boolean,
-	star? : boolean,
-	markRead? : boolean,
-	modifyReadingList? : boolean,
-	remoteAI?: boolean
-}
+// UserPermissionsCore now imported from shared/types.js

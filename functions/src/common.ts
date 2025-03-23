@@ -20,24 +20,12 @@ import {
 	CardIdentifier,
 	Uid,
 	UserPermissions
-} from './types';
+} from './types.js';
 
 import {
 	CallableRequest,
 	HttpsError
 } from 'firebase-functions/v2/https';
-
-initializeApp();
-
-//We use this so often we might as well make it more common
-export const db = getFirestore();
-export const auth = getAuth();
-export const storage = getStorage();
-
-const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
-
-//DEV_MODE is true if the project name contains 'dev-' or '-dev'
-export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 
 // Import shared constants instead of duplicating them
 import {
@@ -55,6 +43,32 @@ import {
 	QDRANT_CLUSTER_URL_VAR,
 	QDRANT_API_KEY_VAR
 } from '../../shared/env-constants.js';
+
+// Import shared collection constants
+import {
+	CARDS_COLLECTION,
+	PERMISSIONS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+// Import shared card field constants
+import {
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY
+} from '../../shared/card_fields.js';
+
+initializeApp();
+
+//We use this so often we might as well make it more common
+export const db = getFirestore();
+export const auth = getAuth();
+export const storage = getStorage();
+
+const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
+
+//DEV_MODE is true if the project name contains 'dev-' or '-dev'
+export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 
 //These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];
@@ -86,14 +100,6 @@ export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 //Note: screenshot.js also uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
 export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
-// Import shared card field constants
-import {
-	REFERENCES_INFO_CARD_PROPERTY,
-	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
-	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY
-} from '../../shared/card-fields.js';
-
 // Re-export for usage in this module
 export {
 	REFERENCES_INFO_CARD_PROPERTY,
@@ -103,7 +109,7 @@ export {
 };
 
 export const userPermissions = async (uid : Uid) : Promise<UserPermissions | null> => {
-	const user = await db.collection('permissions').doc(uid).get();
+	const user = await db.collection(PERMISSIONS_COLLECTION).doc(uid).get();
 	if (!user) return null;
 	if (!user.exists) return null;
 	return user.data() || null;
@@ -116,12 +122,12 @@ export const urlForBasicCard = (idOrSlug : CardIdentifier) => {
 };
 
 export const getCardByIDOrSlug = async (idOrSlug : CardIdentifier) : Promise<Card | null> => {
-	let card = await db.collection('cards').doc(idOrSlug).get();
+	let card = await db.collection(CARDS_COLLECTION).doc(idOrSlug).get();
 	if (card && card.exists) {
 		return Object.assign({id: card.id}, card.data()) as Card;
 	}
 	//Try fetching by slug
-	const cards = await db.collection('cards').where('slugs', 'array-contains', idOrSlug).limit(1).get();
+	const cards = await db.collection(CARDS_COLLECTION).where('slugs', 'array-contains', idOrSlug).limit(1).get();
 	if (cards && !cards.empty) {
 		card = cards.docs[0];
 		return Object.assign({id: card.id}, card.data()) as Card;
@@ -131,7 +137,7 @@ export const getCardByIDOrSlug = async (idOrSlug : CardIdentifier) : Promise<Car
 
 export const getCardLinkCardsForCard = async (card : Card) : Promise<Record<CardID, Card>> => {
 	//orderBy is effectively a filter down to only cards that have 'references.CARD_ID' set.
-	const rawQuery =  await db.collection('cards').where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
+	const rawQuery =  await db.collection(CARDS_COLLECTION).where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
 	if (rawQuery.empty) return {};
 	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, Object.assign({id: doc.id}, doc.data())])) as Record<CardID, Card>;
 };
@@ -142,8 +148,7 @@ export const getUserDisplayName = async (uid : Uid) => {
 };
 
 export const getCardName = async (cardId : CardID) => {
-	//TODO: use the actual constants for cards collection (see #134)
-	const card = await db.collection('cards').doc(cardId).get();
+	const card = await db.collection(CARDS_COLLECTION).doc(cardId).get();
 	return card.data()?.name || cardId;
 };
 
@@ -170,4 +175,56 @@ export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>)
 	if (!mayUseAI(permissions)) {
 		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');
 	}
+};
+
+export const userMayViewCard = (permissions : UserPermissions | null, card : Card, uid : Uid) : boolean => {
+	//The rough equivalent of userMayViewUnpublished from the security rules
+	if (!card) return true;
+	if (card.published) return true;
+	if (!permissions) return false;
+	if (permissions.admin) return true;
+	if (permissions.edit) return true;
+	if (permissions.editCard) return true;
+	if (permissions.viewUnpublished) return true;
+	if (card.author == uid) return true;
+	if (card.permissions.editCard && card.permissions.editCard.includes(uid)) return true;
+	return false;
+};
+
+//Returns the cards with the given IDs. If not provided, returns all cards.
+export const getCards = async (cardIDs? : CardID[]) : Promise<Card[]> => {
+	if (!cardIDs) {
+		const rawCards = await db.collection(CARDS_COLLECTION).get();
+		return rawCards.docs.map(snapshot => {
+			return {
+				...snapshot.data(),
+				id: snapshot.id
+			} as Card;
+		});
+	}
+	
+	// Fetch cards in batches of 10 to avoid hitting Firestore limits
+	const batchSize = 10;
+	const batches = [];
+	
+	for (let i = 0; i < cardIDs.length; i += batchSize) {
+		const batch = cardIDs.slice(i, i + batchSize);
+		batches.push(batch);
+	}
+	
+	const results = await Promise.all(batches.map(async batch => {
+		const batchResults = await Promise.all(batch.map(id => 
+			db.collection(CARDS_COLLECTION).doc(id).get()
+		));
+		
+		return batchResults.map(snapshot => {
+			if (!snapshot.exists) return null;
+			return {
+				...snapshot.data(),
+				id: snapshot.id
+			} as Card;
+		});
+	}));
+	
+	return results.flat().filter(card => !!card) as Card[];
 };

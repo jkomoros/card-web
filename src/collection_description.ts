@@ -20,7 +20,18 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
+
+import {
+	SetName,
+	SortName,
+	ViewMode,
+	FilterName,
+	ConfigurableFilterName,
+	UnionFilterName,
+	CollectionConfiguration,
+	viewMode as viewModeSchema
+} from '../shared/types.js';
 
 import {
 	CardID,
@@ -33,29 +44,21 @@ import {
 	SortExtractorResult,
 	Filters,
 	Sections,
-	SetName,
 	Sets,
-	SortName,
-	ViewMode,
 	Uid,
 	WebInfo,
 	FilterMap,
 	FilterExtras,
 	CardIDMap,
 	CardBooleanMap,
-	FilterName,
 	URLPart,
-	ConfigurableFilterName,
-	UnionFilterName,
 	CardSimilarityMap,
-	ConfigurableFilterResult,
-	viewMode as viewModeSchema,
-	CollectionConfiguration
+	ConfigurableFilterResult
 } from './types.js';
 
 import {
 	KEY_CARD_ID_PLACEHOLDER	
-} from './card_fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	memoize
@@ -319,9 +322,9 @@ export class CollectionDescription {
 		}
 
 		this._setNameExplicitlySet = setNameExplicitlySet;
-		this._set = setName,
-		this._filters = filterNames,
-		this._sort = sortName,
+		this._set = setName;
+		this._filters = filterNames;
+		this._sort = sortName;
 		this._sortReversed = sortReversed;
 		this._viewMode = viewMode;
 		this._viewModeExtra = viewModeExtra;
@@ -383,6 +386,17 @@ export class CollectionDescription {
 	//the front.
 	get offset() {
 		return this._offset;
+	}
+
+	get configuration() : CollectionConfiguration {
+		return {
+			setName: this.set,
+			filterNames: this.filters,
+			sortName: this.sort,
+			sortReversed: this.sortReversed,
+			viewMode: this.viewMode,
+			viewModeExtra: this.viewModeExtra
+		};
 	}
 
 	serialize() {

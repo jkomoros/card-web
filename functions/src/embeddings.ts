@@ -4,22 +4,33 @@ import {
 
 import {
 	Card,
-	CardID,
+	CardID
+} from './types.js';
+
+import {
 	CardSimilarityItem,
 	EmbeddableCard,
-	SemanticSortRequestData,
-	SemanticSortResponseData,
 	SimilarCardsRequestData,
-	SimilarCardsResponseData
-} from './types.js';
+	SimilarCardsResponseData,
+	SemanticSortRequestData,
+	SemanticSortResponseData
+} from '../../shared/types.js';
+
+import {
+	innerTextForHTML
+} from '../../shared/util.js';
+
+import {
+	overrideDocument
+} from '../../shared/document.js';
 
 import {
 	JSDOM
 } from 'jsdom';
 
 import {
-	db,
 	DEV_MODE,
+	getCards,
 	QDRANT_API_KEY,
 	QDRANT_CLUSTER_URL,
 	throwIfUserMayNotUseAI
@@ -42,12 +53,12 @@ import {
 import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
-import { Timestamp } from 'firebase-admin/firestore';
 
 //The highest number of cards there might ever be.
 const MAX_EMBEDDINGS = 100000;
 
 const DOM = new JSDOM();
+overrideDocument(DOM.window.document);
 
 const QDRANT_ENABLED = openai_endpoint && QDRANT_API_KEY && QDRANT_CLUSTER_URL;
 
@@ -107,46 +118,6 @@ class Embedding {
 	}
 }
 
-//Recreated from src/contenteditable.ts
-const DEFAULT_LEGAL_TOP_LEVEL_NODES = {
-	'p': true,
-	'ol': true,
-	'ul': true,
-	'h1': true,
-	'h2': true,
-	'h3': true,
-	'h4': true,
-	'blockquote': true
-};
-
-//Recreated from src/contenteditable.ts
-const normalizeLineBreaks = (html : string, legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
-	if (!html) return html;
-	//Remove all line breaks. We'll put them back in.
-	html = html.split('\n').join('');
-
-	//Add in line breaks
-	for (const key of Object.keys(legalTopLevelNodes)) {
-		const closeTag = '</' + key + '>';
-		html = html.split(closeTag).join(closeTag + '\n');
-	}
-
-	html = html.split('<ul>').join('<ul>\n');
-	html = html.split('<ol>').join('<ol>\n');
-	html = html.split('<li>').join('\t<li>');
-	html = html.split('</li>').join('</li>\n');
-	return html;
-};
-
-//Recreated from src/util.ts
-const innerTextForHTML = (body : string) : string => {
-	const ele = DOM.window.document.createElement('section');
-	ele.innerHTML = body;
-	// makes sure line breaks are in the right place after each legal block level element
-	body = normalizeLineBreaks(body);
-	//textContent would return things like style and script contents, but those shouldn't be included anyway.
-	return ele.textContent || '';
-};
 
 const formatDate = (date :  Date) : string => {
 	const year = date.getFullYear();
@@ -156,18 +127,24 @@ const formatDate = (date :  Date) : string => {
 	return `${year}/${month}/${day}`;
 };
 
+type SimpleTimestamp = {
+	seconds: number;
+	nanoseconds: number;
+};
+
 //Gets the date when it might be a literal Timestamp or just an object with {seconds, nanoseconds}
-const toDate = (time : Timestamp) : Date => {
+const toDate = (time : SimpleTimestamp) : Date => {
 	if ('toDate' in time && typeof time.toDate == 'function') return time.toDate();
 	if ('seconds' in time) return new Date(time.seconds * 1000);
 	console.warn(`No time, using now: ${time}`);
 	return new Date();
 };
 
-const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
+export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	//Every time this function is updated, CURRENT_EMBEDDING_VERSION should be incremented.
 
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
+	//This is now possible because cardPlainContent is now in shared/util.ts.
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
@@ -183,7 +160,7 @@ const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	return parts.join('\n') + suffix;
 };
 
-const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
+export const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
 
 	if (DEFAULT_EMBEDDING_TYPE_INFO.provider != 'openai.com') throw new Error(`Unsupported provider: ${DEFAULT_EMBEDDING_TYPE_INFO.provider}`);
 
@@ -437,7 +414,7 @@ class EmbeddingStore {
 	}
 }
 
-const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
+export const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
 
 export const processCardEmbedding = async (event : FirestoreEvent<Change<DocumentSnapshot> | undefined, {cardID: string;}>) => {
 
@@ -475,13 +452,8 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		console.warn('Qdrant not enabled, skipping');
 		return;
 	}
-	const rawCards = await db.collection('cards').get();
-	const cards : Card[] = rawCards.docs.map(snapshot => {
-		return {
-			...snapshot.data(),
-			id: snapshot.id
-		} as Card;
-	});
+
+	const cards = await getCards();
 
 	const indexedCardInfoResult = await EMBEDDING_STORE._qdrant.scroll(QDRANT_COLLECTION_NAME, {
 		filter: {

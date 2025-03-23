@@ -12,7 +12,7 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 const DEFAULT_IMAGE_POSITION : ImagePositionType = 'top-left';
 

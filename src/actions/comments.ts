@@ -3,7 +3,7 @@ import {
 	THREADS_COLLECTION,
 	MESSAGES_COLLECTION,
 	CARDS_COLLECTION,
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
 
 import {
 	doc,
@@ -28,7 +28,7 @@ import {
 
 import {
 	randomString
-} from '../util.js';
+} from '../../shared/util.js';
 
 import {
 	refreshCommentRedirect

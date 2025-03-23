@@ -24,16 +24,13 @@ import {
 	SuggestionType,
 	TagInfo,
 	TagInfos,
-	Uid
+	Uid,
+	CardID
 } from './types.js';
 
 import {
-	CardID
-} from './types_simple.js';
-
-import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 import {
 	memoize
@@ -41,7 +38,7 @@ import {
 
 import {
 	COLORS
-} from './type_constants.js';
+} from '../shared/card_fields.js';
 
 import {
 	suggestMissingSeeAlso

@@ -43,18 +43,21 @@ import {
 import {
 	LINK_ICON,
 	PLUS_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import './configure-collection-filter.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	TagInfos,
-	State,
-	Uid,
 	SetName,
 	SortName
+} from '../../shared/types.js';
+
+import {
+	TagInfos,
+	State,
+	Uid
 } from '../types.js';
 
 import {

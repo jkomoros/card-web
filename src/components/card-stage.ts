@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 
 import {
 	SCREEN_ROTATION_ICON,
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
@@ -19,7 +19,7 @@ import {
 
 import {
 	setFontSizingCardRendererProvider
-} from '../card_fields.js';
+} from '../card_methods.js';
 
 import {
 	ProcessedCard,

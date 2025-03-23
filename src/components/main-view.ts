@@ -72,7 +72,8 @@ import {
 	PAGE_COMMENT,
 	PAGE_MAINTENANCE,
 	PAGE_404,
-	PAGE_PERMISSIONS
+	PAGE_PERMISSIONS,
+	PAGE_CHAT
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -378,6 +379,7 @@ class MainView extends connect(store)(PageViewElement) {
 				<my-view404 class="page" ?active="${this._page === PAGE_404}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === PAGE_MAINTENANCE}"></maintenance-view>
 				<permissions-view class='page' ?active="${this._page === PAGE_PERMISSIONS}"></permissions-view>
+				<chat-view class='page' ?active="${this._page === PAGE_CHAT}"></chat-view>
 				<div id='may-view-warning'>
 					<div ?hidden=${!this._userPermissionsFinal}> 
 						<h2>Log in required</h2>

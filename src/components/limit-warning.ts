@@ -16,7 +16,7 @@ import {
 
 import {
 	WARNING_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 

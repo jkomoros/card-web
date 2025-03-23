@@ -15,8 +15,20 @@
     ],
     "parserOptions": {
         "ecmaVersion": 2022,
-        "sourceType": "module"
+        "sourceType": "module",
+        "project": ["./tsconfig.json", "shared/tsconfig.json"]
     },
+    "overrides": [
+        {
+            "files": ["test/**/*.js"],
+            "parserOptions": {
+                "project": null
+            },
+            "rules": {
+                "@typescript-eslint/no-explicit-any": "off"
+            }
+        }
+    ],
     "rules": {
         "indent": [
             "error",
@@ -46,7 +58,9 @@
             "error",
             {
                 "varsIgnorePattern": "^_",
-                "argsIgnorePattern": "^_"
+                "argsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_",
+                "ignoreRestSiblings": true
             }
         ]
     }

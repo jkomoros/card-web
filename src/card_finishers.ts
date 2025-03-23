@@ -13,9 +13,12 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
-	clipTitle,
-	innerTextForHTML
+	clipTitle
 } from './util.js';
+
+import {
+	innerTextForHTML
+} from '../shared/util.js';
 
 import {
 	Card,

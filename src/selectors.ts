@@ -48,7 +48,7 @@ import {
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE,
 	editableFieldsForCardType
-} from './card_fields.js';
+} from '../shared/card_fields.js';
 
 import {
 	references,
@@ -124,6 +124,13 @@ import {
 } from './config.GENERATED.SECRET.js';
 
 import {
+	SetName,
+	SortName,
+	CollectionConfiguration,
+	ComposedChats
+} from '../shared/types.js';
+
+import {
 	State,
 	Cards,
 	CommentMessageID,
@@ -156,15 +163,12 @@ import {
 	WordCloud,
 	CollectionConstructorArguments,
 	ExpandedTabConfig,
-	SortName,
 	AIDialogType,
 	AIModelName,
-	SetName,
 	ReferenceType,
 	SortExtra,
 	CardDiff,
 	Filters,
-	CollectionConfiguration,
 	CardFetchType
 } from './types.js';
 
@@ -174,11 +178,15 @@ import {
 
 import {
 	TypedObject
-} from './typed_object.js';
+} from '../shared/typed_object.js';
 
 import {
 	Timestamp
 } from 'firebase/firestore';
+
+import {
+	FIELD_VALIDATORS
+} from './card_methods.js';
 
 const selectState = (state : State) : State => state;
 
@@ -229,6 +237,13 @@ export const selectAIFilteredCards = (state : State) => state.ai ? state.ai.filt
 export const selectAIModel = (state : State) : AIModelName => state.ai ? state.ai.model : 'gpt-4o';
 
 export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
+
+export const selectChats = (state : State) => state.chat ? state.chat.chats : {};
+export const selectChatMessages = (state : State) => state.chat ? state.chat.messages : {};
+export const selectCurrentChatID = (state : State) => state.chat ? state.chat.currentChat : '';
+export const selectChatComposingMessage = (state : State) => state.chat ? state.chat.composingMessage : '';
+export const selectChatSending = (state : State) => state.chat ? state.chat.sending : false;
+export const selectChatSendFailure = (state : State) => state.chat ? state.chat.sendFailure : null;
 
 export const selectImagePropertiesDialogOpen = (state : State) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
 export const selectImagePropertiesDialogIndex = (state : State) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;
@@ -1578,8 +1593,9 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 		const result : {[field in CardFieldType]+?: string} = {};
 		if (!card) return result;
 		for (const [field, config] of TypedObject.entries(editableFieldsForCardType(card.card_type))) {
-			if (!config.validator) continue;
-			result[field] = config.validator(card[field], card.card_type, config);
+			const validator = FIELD_VALIDATORS[field];
+			if (!validator) continue;
+			result[field] = validator(card[field], card.card_type, config);
 		}
 		return result;
 	}
@@ -1879,5 +1895,41 @@ export const selectBulkImportDialogExportContent = createSelector(
 			finalCards = cardOrder.map(id => allCards[id]);
 		}
 		return exportContentForCards(finalCards);
+	}
+);
+
+export const selectComposedChats = createSelector(
+	selectChats,
+	selectChatMessages,
+	(chats, messages) : ComposedChats => {
+		if (!chats || !messages) return {};
+		const result : ComposedChats = {};
+		for (const [chatID, chat] of Object.entries(chats)) {
+			const messageArray = Object.values(messages).filter(message => message.chat == chatID);
+			messageArray.sort((a, b) => a.message_index - b.message_index);
+			result[chatID] = {
+				...chat,
+				messages: messageArray
+			};
+		}
+		return result;
+	}
+);
+
+export const selectCurrentComposedChat = createSelector(
+	selectCurrentChatID,
+	selectComposedChats,
+	(id , chats) => id ? chats[id] : null
+);
+
+export const selectUserMayChatInCurrentChat = createSelector(
+	selectCurrentComposedChat,
+	selectUserMayUseAI,
+	selectUid,
+	(chat, mayUseAI, uid) => {
+		if (!chat) return false;
+		if (!mayUseAI) return false;
+		if (chat.owner != uid) return false;
+		return true;
 	}
 );

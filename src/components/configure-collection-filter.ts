@@ -7,7 +7,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import {
 	DELETE_FOREVER_ICON,
 	PLUS_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	help,
@@ -28,7 +28,7 @@ import {
 
 import {
 	REFERENCE_TYPES
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';

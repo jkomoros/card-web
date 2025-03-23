@@ -30,11 +30,14 @@ import {
 } from '../selectors.js';
 
 import {
-	assertUnreachable,
-	cardPlainContent,
-	innerTextForHTML,
 	stringHash
 } from '../util.js';
+
+import {
+	assertUnreachable,	
+	innerTextForHTML,
+	cardPlainContent
+} from '../../shared/util.js';
 
 import {
 	Card,
@@ -70,7 +73,33 @@ import {
 	AI_SHOW_ERROR,
 	SomeAction
 } from '../actions.js';
-import { OPENAI_ENABLED, ANTHROPIC_ENABLED } from '../config.GENERATED.SECRET.js';
+
+import {
+	OPENAI_ENABLED,
+	ANTHROPIC_ENABLED
+} from '../config.GENERATED.SECRET.js';
+
+import {
+	MODEL_INFO,
+	DEFAULT_OPENAI_MODEL,
+	DEFAULT_ANTHROPIC_MODEL,
+	CARD_SEPARATOR,
+	PROVIDER_INFO,
+	fitPrompt
+} from '../../shared/ai.js';
+
+//NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.
+const openAIComputeTokenCount = async (text : string | string[]) : Promise<number> => {
+	//Note: the types are declared in src/gpt-tok.d.ts, which is set to not be visible in VSCode.
+	const {default: module } = await import('gpt-tok');
+	if (typeof text == 'string') text = [text];
+	const counts = text.map(str => module.encode(str).length);
+	return counts.reduce((a, b) => a + b, 0);
+};
+//Inject openai tokenizer
+PROVIDER_INFO.openai.tokenizer = {
+	computeTokens: openAIComputeTokenCount
+};
 
 export type AIDialogTypeConfiguration = {
 	title: string;
@@ -149,29 +178,6 @@ class AnthropicProxy {
 const openai = new OpenAIProxy();
 const anthropic = new AnthropicProxy();
 
-const CARD_SEPARATOR = '\n-----\n';
-
-type modelProvider = 'openai' | 'anthropic';
-
-type modelInfo = {
-	maxTokens: number,
-	provider: modelProvider
-};
-
-const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
-	'gpt-4o': {
-		maxTokens: 128000,
-		provider: 'openai'
-	},
-	'claude-3-7-sonnet-latest': {
-		maxTokens: 200000,
-		provider: 'anthropic'
-	}
-};
-
-const DEFAULT_OPENAI_MODEL = 'gpt-4o';
-const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
-
 export const DEFAULT_MODEL : AIModelName = DEFAULT_ANTHROPIC_MODEL;
 
 const COMPLETION_CACHE : {[hash : string] : string} = {};
@@ -246,117 +252,6 @@ const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT
 	default:
 		return assertUnreachable(modelInfo.provider);
 	}
-};
-
-type FitPromptArguments = {
-	prefix?: string,
-	delimiter?: string,
-	items?: string[],
-	suffix?: string,
-	//if this is not defined but modelName is, will use the type for modelName.
-	maxTokenLength?: number,
-	modelName? : AIModelName
-};
-
-const DEFAULT_FIT_PROMPT : Required<Omit<FitPromptArguments, 'maxTokenLength'>> = {
-	prefix: '',
-	delimiter: CARD_SEPARATOR,
-	items: [],
-	suffix: '',
-	modelName: DEFAULT_MODEL,
-};
-
-const computeTokenCount = async (text : string | string[], model : AIModelName) : Promise<number> => {
-	const modelInfo = MODEL_INFO[model];
-	if (!modelInfo) throw new Error('Unknown model: ' + model);
-	switch(modelInfo.provider) {
-	case 'openai':
-		return openAIComputeTokenCount(text);
-	case 'anthropic':
-		return anthropicComputeTokenCount(text);
-	default:
-		return assertUnreachable(modelInfo.provider);
-	}
-};
-
-const anthropicComputeTokenCount = async (text : string | string[]) : Promise<number> => {
-	// A more accurate conservative client-side estimate for Anthropic token count
-	// Claude's tokenizer (based on BPE) is similar to OpenAI's but with some differences
-	// This method uses the following heuristics for a conservative estimate:
-	// - Whitespace and punctuation are usually 1 token each
-	// - Common English words are often 1 token
-	// - Longer words are typically broken into multiple tokens
-	// - Non-ASCII characters often consume more tokens
-	// - The ratio is typically 0.4 tokens per character for English text (higher than OpenAI's 0.25-0.3)
-	// - We'll use 0.5 tokens per character as a conservative estimate
-	
-	if (typeof text === 'string') text = [text];
-	
-	let totalTokens = 0;
-	
-	for (const str of text) {
-		// Count characters
-		const charCount = str.length;
-
-		// Count whitespace (spaces, tabs, newlines)
-		const whitespaceCount = (str.match(/\s/g) || []).length;
-
-		// Count punctuation
-		const punctuationCount = (str.match(/[.,!?;:'"()[\]{}]/g) || []).length;
-
-		// Count non-ASCII characters (which typically use more tokens)
-		// eslint-disable-next-line no-control-regex
-		const nonAsciiCount = (str.match(/[^\x00-\x7F]/g) || []).length;
-		
-		// Base token estimate: characters * 0.5 (conservative ratio for English text)
-		let tokenEstimate = charCount * 0.5;
-		
-		// Add extra for non-ASCII characters (they often use more tokens)
-		tokenEstimate += nonAsciiCount * 0.5;
-		
-		// Ensure we count at least one token per whitespace/punctuation
-		// (this helps account for token boundaries at these points)
-		tokenEstimate = Math.max(tokenEstimate, whitespaceCount + punctuationCount);
-		
-		totalTokens += Math.ceil(tokenEstimate);
-	}
-	
-	// Add a 10% safety margin for any edge cases
-	return Math.ceil(totalTokens * 1.1);
-};
-
-//NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.
-const openAIComputeTokenCount = async (text : string | string[]) : Promise<number> => {
-	//Note: the types are declared in src/gpt-tok.d.ts, which is set to not be visible in VSCode.
-	const {default: module } = await import('gpt-tok');
-	if (typeof text == 'string') text = [text];
-	const counts = text.map(str => module.encode(str).length);
-	return counts.reduce((a, b) => a + b, 0);
-};
-
-export const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, maxItemIndex : number]> => {
-	const options = {
-		...DEFAULT_FIT_PROMPT,
-		...args
-	};
-	if (options.maxTokenLength === undefined) {
-		options.maxTokenLength = options.modelName ? MODEL_INFO[options.modelName].maxTokens : 4000;
-	}
-	const modelName = options.modelName || DEFAULT_MODEL;
-	const nonItemsTokenCount = await computeTokenCount([options.prefix, options.suffix, options.delimiter], modelName);
-	let itemsTokenCount = 0;
-	let result = options.prefix + options.delimiter;
-	let i = 0;
-	while ((itemsTokenCount + nonItemsTokenCount) < options.maxTokenLength) {
-		if (options.items.length <= i) break;
-		const item = options.items[i];
-		itemsTokenCount += await computeTokenCount([item, options.delimiter], modelName);
-		if ((itemsTokenCount + nonItemsTokenCount) >= options.maxTokenLength) break;
-		result += item + options.delimiter;
-		i++;
-	}
-	result += options.suffix;
-	return [result, i];
 };
 
 const cardsAISummaryPrompt = async (cards : Card[], model : AIModelName) : Promise<[prompt : string, ids : CardID[]]> => {

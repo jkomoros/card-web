@@ -11,7 +11,10 @@ import {
 } from '../selectors.js';
 
 import {
-	IMAGE_CARD_TYPES,
+	IMAGE_CARD_TYPES
+} from '../../shared/card_fields.js';
+
+import {
 	EMPTY_CARD
 } from '../card_fields.js';
 
@@ -33,7 +36,7 @@ import {
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card_fields.js';
 
 import {
 	TagEvent

@@ -81,7 +81,7 @@ import {
 	HIGHLIGHT_OFF_ICON,
 	MERGE_TYPE_ICON,
 	AUTO_AWESOME_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	killEvent, 
@@ -112,7 +112,7 @@ import {
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	references,
@@ -151,7 +151,7 @@ import {
 import {
 	COLOR_LIGHT_FIRE_BRICK,
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card_fields.js';
 
 import {
 	TagEvent
@@ -159,12 +159,12 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	ARROW_UP_ICON,
 	ARROW_RIGHT_ICON
-} from './my-icons';
+} from '../../shared/icons.js';
 
 import {
 	titleForEditingCardWithAI

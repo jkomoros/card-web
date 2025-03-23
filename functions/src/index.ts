@@ -44,7 +44,8 @@ import {
 
 import * as openaiimpl from './openai.js';
 import * as anthropicimpl from './anthropic.js';
-import { LegalRequestData, LegalResponseData } from './types.js';
+import * as chat from './chat.js';
+import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 
 //Runs every three hours
 export const fetchTweetEngagement = onSchedule({
@@ -126,3 +127,13 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 
 export const openai = onCall({}, openaiimpl.handler);
 export const anthropic = onCall({}, anthropicimpl.handler);
+
+export const createChat = onCall({
+	memory: '1GiB',
+	timeoutSeconds: 300
+}, chat.createChat);
+
+export const postMessageInChat = onCall({
+	memory: '1GiB',
+	timeoutSeconds: 300
+}, chat.postMessageInChat);

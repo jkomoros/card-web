@@ -62,14 +62,14 @@ import {
 	LINK_ICON,
 	LINK_OFF_ICON,
 	OPEN_IN_BROWSER_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	REFERENCE_TYPES,
 	DEFAULT_CARD_TYPE,
 	editableFieldsForCardType,
 	CARD_TYPE_CONFIGURATION,
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	UNION_FILTER_DELIMITER

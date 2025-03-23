@@ -12,7 +12,7 @@ import {
 import {
 	TEXT_FIELD_CONFIGURATION,
 	editableFieldsForCardType
-} from '../card_fields.js';
+} from '../../shared/card_fields.js';
 
 import {
 	cardDiffHasChanges
@@ -20,7 +20,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 import {
 	htmlIsEquivalent

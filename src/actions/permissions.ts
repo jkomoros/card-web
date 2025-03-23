@@ -12,7 +12,7 @@ import {
 
 import {
 	PERMISSIONS_COLLECTION
-} from '../type_constants.js';
+} from '../../shared/collection-constants.js';
 
 import {
 	db,

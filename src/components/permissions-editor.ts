@@ -15,7 +15,7 @@ import {
 import {
 	EDIT_ICON,
 	DELETE_FOREVER_ICON
-} from './my-icons.js';
+} from '../../shared/icons.js';
 
 import {
 	updateUserNote,
@@ -46,7 +46,7 @@ import {
 
 import {
 	COLORS
-} from '../type_constants.js';
+} from '../../shared/card_fields.js';
 
 import {
 	TagEvent
@@ -54,7 +54,7 @@ import {
 
 import {
 	TypedObject
-} from '../typed_object.js';
+} from '../../shared/typed_object.js';
 
 const ALL_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName, suppressLink:true}]));
 const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => !entry[1].locked));
