@@ -22,7 +22,8 @@ import {
 	PROVIDER_INFO
 } from '../../shared/ai.js';
 
-import {encode} from 'gpt-tok';
+import pkg from 'gpt-tok';
+const { encode } = pkg;
 
 // Register the server implementation
 PROVIDER_INFO.openai.tokenizer = {
