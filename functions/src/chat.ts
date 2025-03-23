@@ -24,7 +24,9 @@ import {
 import {
 	db,
 	getCards,
-	throwIfUserMayNotUseAI
+	throwIfUserMayNotUseAI,
+	userMayViewCard,
+	userPermissions
 } from './common.js';
 
 import {
@@ -97,6 +99,8 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		};
 	}
 
+	const permissions = await userPermissions(auth.uid);
+
 	const id = randomString(16);
 
 	const backgroundPercentage = data.backgroundPercentage;
@@ -155,7 +159,10 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		};
 	}
 
-	const cardsContent = cards.map(card => cardPlainContent(card));
+	//Keep only cards the user is allowed to view.
+	const viewableCards = cards.filter(card => userMayViewCard(permissions, card, auth.uid));
+
+	const cardsContent = viewableCards.map(card => cardPlainContent(card));
 	
 	const [systemMessageContent, maxCardIndex] = await fitPrompt({
 		modelName: data.model,
@@ -171,7 +178,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		collection: data.collection,
 		requested_cards: data.cards,
 		//TODO: is this off by one?
-		cards: cardIDs.slice(0, maxCardIndex + 1),
+		cards: viewableCards.map(card => card.id).slice(0, maxCardIndex + 1),
 		background_percentage: backgroundPercentage,
 		//TODO: set a title based on an LLM summary of the chat.
 		title: data.initialMessage.substring(0, 64) || 'Chat',

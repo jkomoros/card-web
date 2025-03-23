@@ -177,6 +177,20 @@ export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>)
 	}
 };
 
+export const userMayViewCard = (permissions : UserPermissions | null, card : Card, uid : Uid) : boolean => {
+	//The rough equivalent of userMayViewUnpublished from the security rules
+	if (!card) return true;
+	if (card.published) return true;
+	if (!permissions) return false;
+	if (permissions.admin) return true;
+	if (permissions.edit) return true;
+	if (permissions.editCard) return true;
+	if (permissions.viewUnpublished) return true;
+	if (card.author == uid) return true;
+	if (card.permissions.editCard && card.permissions.editCard.includes(uid)) return true;
+	return false;
+};
+
 //Returns the cards with the given IDs. If not provided, returns all cards.
 export const getCards = async (cardIDs? : CardID[]) : Promise<Card[]> => {
 	if (!cardIDs) {
