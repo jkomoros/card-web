@@ -59,6 +59,20 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "message_index",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chat_messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chat",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "streaming",
           "order": "ASCENDING"
         },
