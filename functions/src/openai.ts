@@ -18,6 +18,21 @@ import {
 	AssistantThread
 } from '../../shared/types.js';
 
+import {
+	PROVIDER_INFO
+} from '../../shared/ai.js';
+
+import {encode} from 'gpt-tok';
+
+// Register the server implementation
+PROVIDER_INFO.openai.tokenizer = {
+	computeTokens: async (text: string | string[]) => {
+		if (typeof text == 'string') text = [text];
+		const counts = text.map(str => encode(str).length);
+		return counts.reduce((a, b) => a + b, 0);
+	}
+};
+
 export const openai_endpoint = OPENAI_API_KEY ? new OpenAI({
 	apiKey: OPENAI_API_KEY,
 }) : null;
