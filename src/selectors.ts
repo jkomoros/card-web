@@ -241,6 +241,7 @@ export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? sta
 export const selectChats = (state : State) => state.chat ? state.chat.chats : {};
 export const selectChatMessages = (state : State) => state.chat ? state.chat.messages : {};
 export const selectCurrentChatID = (state : State) => state.chat ? state.chat.currentChat : '';
+export const selectChatComposingMessage = (state : State) => state.chat ? state.chat.composingMessage : '';
 
 export const selectImagePropertiesDialogOpen = (state : State) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
 export const selectImagePropertiesDialogIndex = (state : State) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;

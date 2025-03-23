@@ -781,7 +781,8 @@ export type ChatMessages = {
 export type ChatState = {
 	currentChat: ChatID,
 	messages: ChatMessages,
-	chats: Chats
+	chats: Chats,
+	composingMessage: string
 }
 
 export type TweetMap = {

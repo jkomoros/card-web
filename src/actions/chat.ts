@@ -46,7 +46,9 @@ import {
 } from './app.js';
 
 import {
+	CHAT_SEND_MESSAGE,
 	CHAT_UPDATE_CHATS,
+	CHAT_UPDATE_COMPOSING_MESSAGE,
 	CHAT_UPDATE_CURRENT_CHAT,
 	CHAT_UPDATE_MESSAGES,
 	SomeAction
@@ -123,7 +125,7 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	}
 };
 
-export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => async (_, getState) => {
+export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState() as State;
 	
 	const mayChat = selectUserMayChatInCurrentChat(state);
@@ -152,6 +154,10 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 	} catch (err) {
 		console.error('Error posting message:', err);
 	}
+
+	dispatch({
+		type: CHAT_SEND_MESSAGE
+	});
 
 };
 
@@ -215,4 +221,9 @@ export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction =>
 export const updateCurrentChat = (id: ChatID) : SomeAction => ({
 	type: CHAT_UPDATE_CURRENT_CHAT,
 	currentChat: id
+});
+
+export const updateComposingMessage = (message: string) : SomeAction => ({
+	type: CHAT_UPDATE_COMPOSING_MESSAGE,
+	composingMessage: message
 });

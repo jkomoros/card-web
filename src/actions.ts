@@ -114,6 +114,8 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
 export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
 export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
+export const CHAT_SEND_MESSAGE = 'CHAT_SEND_MESSAGE';
+export const CHAT_UPDATE_COMPOSING_MESSAGE = 'CHAT_UPDATE_COMPOSING_MESSAGE';
 //Data
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
@@ -478,6 +480,15 @@ type ActionChatUpdateMessages = {
 type ActionChatUpdateCurrentChat = {
 	type: typeof CHAT_UPDATE_CURRENT_CHAT
 	currentChat: ChatID
+};
+
+type ActionChatSendMessage = {
+	type: typeof CHAT_SEND_MESSAGE,
+};
+
+type ActionChatUpdateComposingMessage = {
+	type: typeof CHAT_UPDATE_COMPOSING_MESSAGE,
+	composingMessage: string
 };
 
 type ActionUpdateCards = {
@@ -1104,6 +1115,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionChatUpdateChats
 	| ActionChatUpdateMessages
 	| ActionChatUpdateCurrentChat
+	| ActionChatSendMessage
+	| ActionChatUpdateComposingMessage
 	| ActionUpdateCards
 	| ActionEnqueueCardUpdates
 	| ActionClearEnqueuedCardUpdates

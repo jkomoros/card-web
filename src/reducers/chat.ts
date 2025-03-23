@@ -1,5 +1,7 @@
 import { 
+	CHAT_SEND_MESSAGE,
 	CHAT_UPDATE_CHATS,
+	CHAT_UPDATE_COMPOSING_MESSAGE,
 	CHAT_UPDATE_CURRENT_CHAT,
 	CHAT_UPDATE_MESSAGES,
 	SomeAction
@@ -13,6 +15,7 @@ const INITIAL_STATE : ChatState = {
 	currentChat: '',
 	chats: {},
 	messages: {},
+	composingMessage: ''
 };
 
 const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState => {
@@ -31,6 +34,16 @@ const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState
 		return {
 			...state,
 			currentChat: action.currentChat,
+		};
+	case CHAT_SEND_MESSAGE:
+		return {
+			...state,
+			composingMessage: ''
+		};
+	case CHAT_UPDATE_COMPOSING_MESSAGE:
+		return {
+			...state,
+			composingMessage: action.composingMessage
 		};
 	default:
 		return state;
