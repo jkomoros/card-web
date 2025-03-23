@@ -6,6 +6,7 @@ import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
 	selectCurrentChatID,
+	selectCurrentComposedChat,
 	selectUid,
 	selectUserMayChatInCurrentChat,
 	selectUserMayUseAI,
@@ -63,8 +64,10 @@ import {
 
 import {
 	collection,
+	doc,
 	onSnapshot,
 	query,
+	updateDoc,
 	where
 } from 'firebase/firestore';
 
@@ -258,3 +261,26 @@ export const updateComposingMessage = (message: string) : SomeAction => ({
 	type: CHAT_UPDATE_COMPOSING_MESSAGE,
 	composingMessage: message
 });
+
+export const togglePublishedForCurrentChat = () : ThunkSomeAction => async (_, getState) => {
+	const state = getState() as State;
+	const currentchat = selectCurrentComposedChat(state);
+	if (!currentchat) return;
+
+	const chatRef = doc(db, CHATS_COLLECTION, currentchat.id);
+
+	const uid = selectUid(state);
+
+	if (!uid || currentchat.owner !== uid) {
+		console.warn('User does not have permission to update this chat');
+		return;
+	}
+
+	await updateDoc(chatRef, {
+		published: !currentchat.published
+	});
+
+	//The live update should take care of updating the state.
+	return;
+
+};
