@@ -5,6 +5,7 @@ import {
 import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
+	selectCurrentChatID,
 	selectUid,
 	selectUserMayChatInCurrentChat,
 	selectUserMayUseAI,
@@ -122,7 +123,7 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	}
 };
 
-export const postMessageInChat = (chatID : ChatID, message : string) : ThunkSomeAction => async (_, getState) => {
+export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => async (_, getState) => {
 	const state = getState() as State;
 	
 	const mayChat = selectUserMayChatInCurrentChat(state);
@@ -135,6 +136,9 @@ export const postMessageInChat = (chatID : ChatID, message : string) : ThunkSome
 		console.warn('No message provided');
 		return;
 	}
+
+	const chatID = selectCurrentChatID(state);
+
 	try {
 		const result = await postMessageInChatCallable({
 			chat: chatID,
