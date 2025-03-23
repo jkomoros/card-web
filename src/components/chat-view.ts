@@ -84,6 +84,17 @@ class ChatView extends connect(store)(PageViewElement) {
 			section {
 				margin: 1em;
 			}
+
+			.compose {
+				display: flex;
+				flex-direction: row;
+				align-items: center;
+			}
+
+			.compose textarea {
+				flex-grow: 1;
+				height: 5em;
+			}
 		`
 	];
 
