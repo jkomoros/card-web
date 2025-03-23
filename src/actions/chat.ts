@@ -5,6 +5,7 @@ import {
 import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
+	selectChats,
 	selectUid,
 	selectUserMayUseAI,
 	selectUserMayViewApp
@@ -34,6 +35,8 @@ import {
 	ChatMessage,
 	CreateChatRequestData,
 	CreateChatResponseData,
+	PostMessageInChaResponseData,
+	PostMessageInChatRequestData,
 } from '../../shared/types.js';
 
 import {
@@ -67,6 +70,7 @@ const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 const DEFAULT_BACKGROUND_LENGTH = 5000;
 
 const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
+const postMessageInChatCallable = httpsCallable<PostMessageInChatRequestData, PostMessageInChaResponseData>(functions, 'postMessageInChat');
 
 export const createChatWithCurentCollection = (initialMessage : string): ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState() as State;
@@ -116,6 +120,56 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	} catch (err) {
 		console.error('Error creating chat:', err);
 	}
+};
+
+export const postMessageInChat = (chatID : ChatID, message : string) : ThunkSomeAction => async (_, getState) => {
+	const state = getState() as State;
+	
+	const mayUseAI = selectUserMayUseAI(state);
+	if (!mayUseAI) {
+		console.warn('User does not have permission to use AI');
+		return;
+	}
+	
+	const uid = selectUid(state);
+	if (!uid) {
+		console.warn('User is not logged in');
+		return;
+	}
+
+	if (!chatID) {
+		console.warn('No chat ID provided');
+		return;
+	}
+
+	const chats = selectChats(state);
+	const chat = chats[chatID];
+	if (!chat) {
+		console.warn('Chat not found for ID:', chatID);
+		return;
+	}
+	if (chat.owner !== uid) {
+		console.warn('User is not the owner of this chat');
+		return;
+	}
+	if (!message) {
+		console.warn('No message provided');
+		return;
+	}
+	try {
+		const result = await postMessageInChatCallable({
+			chat: chatID,
+			message
+		});
+		
+		const data = result.data;
+		if (!data.success) {
+			console.error('Failed to post message:', data.error);
+		}
+	} catch (err) {
+		console.error('Error posting message:', err);
+	}
+
 };
 
 export const connectLiveChat = (id : ChatID) => {
