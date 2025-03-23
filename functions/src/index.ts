@@ -128,5 +128,12 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 export const openai = onCall({}, openaiimpl.handler);
 export const anthropic = onCall({}, anthropicimpl.handler);
 
-export const createChat = onCall({}, chat.createChat);
-export const postMessageInChat = onCall({}, chat.postMessageInChat);
+export const createChat = onCall({
+	memory: '1GiB',
+	timeoutSeconds: 300
+}, chat.createChat);
+
+export const postMessageInChat = onCall({
+	memory: '1GiB',
+	timeoutSeconds: 300
+}, chat.postMessageInChat);
