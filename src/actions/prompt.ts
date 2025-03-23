@@ -37,6 +37,10 @@ import {
 	assertUnreachable
 } from '../../shared/util.js';
 
+import {
+	createChatWithCurentCollection
+} from './chat.js';
+
 export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) : SomeAction => {
 	if (!associatedId) associatedId = '';
 	return {
@@ -102,6 +106,9 @@ const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitAct
 		return;
 	case 'CREATE_THREAD':
 		dispatch(createThread(content));
+		return;
+	case 'CREATE_CHAT':
+		dispatch(createChatWithCurentCollection(content));
 		return;
 	default:
 		assertUnreachable(action);

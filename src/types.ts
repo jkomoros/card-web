@@ -576,7 +576,8 @@ const _commitActionType = z.enum([
 	'CONSOLE_LOG',
 	'EDIT_MESSAGE',
 	'ADD_MESSAGE',
-	'CREATE_THREAD'
+	'CREATE_THREAD',
+	'CREATE_CHAT'
 ]);
 
 export type CommitActionType = z.infer<typeof _commitActionType>;

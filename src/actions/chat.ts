@@ -68,6 +68,11 @@ import {
 	where
 } from 'firebase/firestore';
 
+import {
+	composeShow,
+	configureCommitAction
+} from './prompt.js';
+
 // Default model to use for chats
 const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 
@@ -77,9 +82,19 @@ const DEFAULT_BACKGROUND_PERCENTAGE = 0.5;
 const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
 const postMessageInChatCallable = httpsCallable<PostMessageInChatRequestData, PostMessageInChaResponseData>(functions, 'postMessageInChat');
 
+export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
+	dispatch(configureCommitAction('CREATE_CHAT'));
+	dispatch(composeShow('What would you like to ask about these cards?', ''));
+};
+
 export const createChatWithCurentCollection = (initialMessage : string): ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState() as State;
 	
+	if (!initialMessage) {
+		console.warn('No initial message provided');
+		return;
+	}
+
 	const mayUseAI = selectUserMayUseAI(state);
 	if (!mayUseAI) {
 		console.warn('User does not have permission to use AI');

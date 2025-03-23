@@ -219,7 +219,7 @@ import {
 } from '../actions/bulk-import.js';
 
 import {
-	createChatWithCurentCollection
+	showCreateChatPrompt
 } from '../actions/chat.js';
 
 @customElement('card-view')
@@ -715,9 +715,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAIAssistantChatWithCollection() {
-		const message = prompt('What would you like to ask about these cards?');
-		if (!message) return;
-		store.dispatch(createChatWithCurentCollection(message));
+		store.dispatch(showCreateChatPrompt());
 	}
 
 	_handleSuggestMissingConceptsChanged(e : Event) {
