@@ -54,6 +54,11 @@ import {
 	assistantMessageForThreadAnthropic
 } from './anthropic.js';
 
+import {
+	EMBEDDING_STORE,
+	embeddingForContent
+} from './embeddings.js';
+
 // Helper function to adapt Firebase Admin Timestamp to the shared Timestamp interface
 const timestamp = (): Timestamp => {
 	// The Firebase Admin Timestamp already conforms to the shared Timestamp interface
@@ -105,9 +110,48 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const targetBackgroundLength = backgroundPercentage * modelInfo.maxTokens;
 
-	//TODO: select the cards that are most relevant to the initial message, if possible.
 
-	const cardIDs = data.cards;
+	let cardIDs = data.cards;
+	
+	//Sort by cards that are most related to the initial message.
+	if (EMBEDDING_STORE) {
+		console.log('Using embedding store to sort cards by similarity to initial message');
+
+		//We do NOT use the normal card embedding text content, because in
+		//practice it attends too strongly to dates and working-notes.
+		const content = data.initialMessage;
+
+		console.log('Computing embedding for initial message:', content);
+
+		const embedding = await embeddingForContent(content);
+		const vector = embedding.vector;
+
+		const points = await EMBEDDING_STORE.similarPoints('', vector, 10000);
+
+		//Sort points by similarity to the initial message
+		points.sort((a, b) => {
+			return b[1] - a[1]; // Sort in descending order
+		});
+
+		console.log('Found similar points:', points.slice(0, 10), points.length);
+
+		console.log('Previous cardIDs: ', cardIDs.slice(0, 50),cardIDs.length);
+
+		const cardsToIncludeMap = Object.fromEntries(cardIDs.map(id => [id, true]));
+
+		cardIDs = [];
+
+		for (const point of points) {
+			const cardID = point[0];
+			if (cardID && cardsToIncludeMap[cardID]) {
+				cardIDs.push(cardID);
+			}
+		}
+
+		console.log('New cardIDs after sorting by similarity:', cardIDs.slice(0, 50));
+	} else {
+		console.log('No embedding store available, using provided cardIDs in original order');
+	}
 
 	const cards = await getCards(cardIDs);
 	if (!cards || cards.length === 0) {

@@ -140,7 +140,7 @@ const toDate = (time : SimpleTimestamp) : Date => {
 	return new Date();
 };
 
-const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
+export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	//Every time this function is updated, CURRENT_EMBEDDING_VERSION should be incremented.
 
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
@@ -160,7 +160,7 @@ const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	return parts.join('\n') + suffix;
 };
 
-const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
+export const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
 
 	if (DEFAULT_EMBEDDING_TYPE_INFO.provider != 'openai.com') throw new Error(`Unsupported provider: ${DEFAULT_EMBEDDING_TYPE_INFO.provider}`);
 
@@ -414,7 +414,7 @@ class EmbeddingStore {
 	}
 }
 
-const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
+export const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
 
 export const processCardEmbedding = async (event : FirestoreEvent<Change<DocumentSnapshot> | undefined, {cardID: string;}>) => {
 
