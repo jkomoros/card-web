@@ -760,6 +760,10 @@ export type Chat = {
 	title: string,
 	//The version number of the prompt prefix used in the system prompt.
 	prompt_version: number,
+	//If published is true, then the chat (and all associated ChatMessages) is
+	//visible to all users with viewApp. If false, it and its messages are only
+	//visible to the owner.
+	published: boolean
 };
 
 export type ChatMessage = {

@@ -190,6 +190,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		title: data.initialMessage.substring(0, 64) || 'Chat',
 		created: timestamp(),
 		updated: timestamp(),
+		published: false
 	};
 
 	const systemMessage : ChatMessage = {
