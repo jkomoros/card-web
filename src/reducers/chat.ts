@@ -1,5 +1,6 @@
 import { 
 	CHAT_SEND_MESSAGE,
+	CHAT_SEND_MESSAGE_SUCCESS,
 	CHAT_UPDATE_CHATS,
 	CHAT_UPDATE_COMPOSING_MESSAGE,
 	CHAT_UPDATE_CURRENT_CHAT,
@@ -15,7 +16,9 @@ const INITIAL_STATE : ChatState = {
 	currentChat: '',
 	chats: {},
 	messages: {},
-	composingMessage: ''
+	composingMessage: '',
+	sending: false,
+	sendFailure: null
 };
 
 const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState => {
@@ -38,6 +41,13 @@ const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState
 	case CHAT_SEND_MESSAGE:
 		return {
 			...state,
+			sending: true,
+		};
+	case CHAT_SEND_MESSAGE_SUCCESS:
+		return {
+			...state,
+			sending: false,
+			sendFailure: null,
 			composingMessage: ''
 		};
 	case CHAT_UPDATE_COMPOSING_MESSAGE:

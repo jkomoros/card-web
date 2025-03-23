@@ -782,6 +782,8 @@ export type ChatState = {
 	currentChat: ChatID,
 	messages: ChatMessages,
 	chats: Chats,
+	sending: boolean,
+	sendFailure: Error | null,
 	composingMessage: string
 }
 

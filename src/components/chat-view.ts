@@ -18,6 +18,7 @@ import {
 
 import {
 	selectChatComposingMessage,
+	selectChatSending,
 	selectCurrentChatID,
 	selectCurrentComposedChat,
 	selectPageExtra,
@@ -72,6 +73,9 @@ class ChatView extends connect(store)(PageViewElement) {
 	@state()
 		_composingMessage : string;
 
+	@state()
+		_sending : boolean;
+
 	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
@@ -122,9 +126,9 @@ class ChatView extends connect(store)(PageViewElement) {
 						${this._composedChat.messages.map(message => this.renderMessage(message))}
 					</div>
 					<div class='compose'>
-						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated}></textarea>
+						<textarea .value=${this._composingMessage} @input=${this._handleContentUpdated} ?disabled=${!this._userMayChatInCurrentChat || this._sending}></textarea>
 						<div class='buttons'>
-							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${!this._userMayChatInCurrentChat || !this._composingMessage}>${SEND_ICON}</button>
+							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${!this._userMayChatInCurrentChat || !this._composingMessage || this._sending}>${SEND_ICON}</button>
 						</div>
 					</div>
 				` : html`<p>No chat data available.</p>`}
@@ -151,6 +155,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._userMayChatInCurrentChat = selectUserMayChatInCurrentChat(state);
 		this._composingMessage = selectChatComposingMessage(state);
+		this._sending = selectChatSending(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

@@ -116,6 +116,8 @@ export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
 export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
 export const CHAT_SEND_MESSAGE = 'CHAT_SEND_MESSAGE';
 export const CHAT_UPDATE_COMPOSING_MESSAGE = 'CHAT_UPDATE_COMPOSING_MESSAGE';
+export const CHAT_SEND_MESSAGE_SUCCESS = 'CHAT_SEND_MESSAGE_SUCCESS';
+export const CHAT_SEND_MESSAGE_FAILURE = 'CHAT_SEND_MESSAGE_FAILURE';
 //Data
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const ENQUEUE_CARD_UPDATES = 'ENQUEUE_CARD_UPDATES';
@@ -484,6 +486,15 @@ type ActionChatUpdateCurrentChat = {
 
 type ActionChatSendMessage = {
 	type: typeof CHAT_SEND_MESSAGE,
+};
+
+type ActionChatSendMessageSuccess = {
+	type: typeof CHAT_SEND_MESSAGE_SUCCESS
+};
+
+type ActionChatSendMessageFailure = {
+	type: typeof CHAT_SEND_MESSAGE_FAILURE,
+	error : Error
 };
 
 type ActionChatUpdateComposingMessage = {
@@ -1116,6 +1127,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionChatUpdateMessages
 	| ActionChatUpdateCurrentChat
 	| ActionChatSendMessage
+	| ActionChatSendMessageSuccess
+	| ActionChatSendMessageFailure
 	| ActionChatUpdateComposingMessage
 	| ActionUpdateCards
 	| ActionEnqueueCardUpdates

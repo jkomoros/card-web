@@ -47,6 +47,8 @@ import {
 
 import {
 	CHAT_SEND_MESSAGE,
+	CHAT_SEND_MESSAGE_FAILURE,
+	CHAT_SEND_MESSAGE_SUCCESS,
 	CHAT_UPDATE_CHATS,
 	CHAT_UPDATE_COMPOSING_MESSAGE,
 	CHAT_UPDATE_CURRENT_CHAT,
@@ -141,6 +143,10 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 
 	const chatID = selectCurrentChatID(state);
 
+	dispatch({
+		type: CHAT_SEND_MESSAGE
+	});
+
 	try {
 		const result = await postMessageInChatCallable({
 			chat: chatID,
@@ -150,14 +156,22 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 		const data = result.data;
 		if (!data.success) {
 			console.error('Failed to post message:', data.error);
+			dispatch({
+				type: CHAT_SEND_MESSAGE_FAILURE,
+				error: new Error(data.error)
+			});
+			return;
 		}
+		dispatch({
+			type: CHAT_SEND_MESSAGE_SUCCESS
+		});
 	} catch (err) {
 		console.error('Error posting message:', err);
+		dispatch({
+			type: CHAT_SEND_MESSAGE_FAILURE,
+			error: err
+		});
 	}
-
-	dispatch({
-		type: CHAT_SEND_MESSAGE
-	});
 
 };
 
