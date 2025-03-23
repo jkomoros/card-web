@@ -154,6 +154,7 @@ class ChatView extends connect(store)(PageViewElement) {
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
+		//TODO: focus the textarea when it first shows up.
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(updateCurrentChat(this._pageExtra));
 		}
