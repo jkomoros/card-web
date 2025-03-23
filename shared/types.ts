@@ -757,7 +757,9 @@ export type Chat = {
 	requested_cards: CardID[],
 	//The card ids that are actually included in the system prompt.
 	cards: CardID[]
-	title: string
+	title: string,
+	//The version number of the prompt prefix used in the system prompt.
+	prompt_version: number,
 };
 
 export type ChatMessage = {

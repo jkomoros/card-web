@@ -68,6 +68,10 @@ const timestamp = (): Timestamp => {
 	return FirestoreTimestamp.now() as unknown as Timestamp;
 };
 
+//Every time you change this prompt, you should increment the version number too.
+const SYSTEM_PROMPT = 'You should answer the user\'s question, primarily based on the information included within this background:';
+const SYSTEM_PROMPT_VERSION = 0;
+
 export const createChat = async (request : CallableRequest<CreateChatRequestData>) : Promise<CreateChatResponseData> => {
 	const { data, auth } = request;
 
@@ -166,7 +170,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 	
 	const [systemMessageContent, maxCardIndex] = await fitPrompt({
 		modelName: data.model,
-		prefix: 'Here is background information for this chat:',
+		prefix: SYSTEM_PROMPT,
 		items: cardsContent,
 		maxTokenLength: targetBackgroundLength,
 	});
@@ -177,6 +181,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		model: data.model,
 		collection: data.collection,
 		requested_cards: data.cards,
+		prompt_version: SYSTEM_PROMPT_VERSION,
 		//TODO: is this off by one?
 		cards: viewableCards.map(card => card.id).slice(0, maxCardIndex + 1),
 		background_percentage: backgroundPercentage,
