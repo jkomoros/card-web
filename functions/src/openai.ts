@@ -72,6 +72,17 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 	}
 };
 
-export const assistantMessageForThreadOpenAI = async (_model : OpenAIModelName, _thread : AssistantThread) : Promise<string> => {
-	throw new Error('assistantMessageForThreadOpenAI is not implemented yet');
+export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, thread : AssistantThread) : Promise<string> => {
+	if (!openai_endpoint) {
+		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
+	}
+	const result = await openai_endpoint.chat.completions.create({
+		model,
+		messages: thread.system ? [{role: 'system', content: thread.system}, ...thread.messages] : thread.messages
+	});
+
+	if (!result.choices || !result.choices.length) {
+		throw new HttpsError('unknown', 'No choices returned from OpenAI');
+	}
+	return result.choices[0].message.content || '';
 };
