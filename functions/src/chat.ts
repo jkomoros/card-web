@@ -280,9 +280,87 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 	}
 };
 
-export const postMessageInChat = async (_request : CallableRequest<PostMessageInChatRequestData>) : Promise<PostMessageInChaResponseData> => {
-	return {
-		success: false,
-		error: 'Not implemented'
+export const postMessageInChat = async (request : CallableRequest<PostMessageInChatRequestData>) : Promise<PostMessageInChaResponseData> => {
+	const { data, auth } = request;
+
+	if (!auth || !auth.uid) {
+		throw new Error('Unauthorized request');
+	}
+
+	try {
+		await throwIfUserMayNotUseAI(request);
+	} catch(err) {
+		return {
+			success: false,
+			error: String(err)
+		};
+	}
+
+	if (!data || !data.chat || !data.message) {
+		return {
+			success: false,
+			error: 'No data provided'
+		};
+	}
+
+	const chat = await db.collection(CHATS_COLLECTION).doc(data.chat).get();
+
+	if (!chat.exists) {
+		return {
+			success: false,
+			error: 'Chat not found for ID: ' + data.chat
+		};
+	}
+
+	const chatData = chat.data() as Chat;
+
+	if (chatData.owner !== auth.uid) {
+		return {
+			success: false,
+			error: 'User is not the owner of this chat'
+		};
+	}
+	
+	//TODO: figure out how to not fetch the messages twice
+	//(fetchAssistantMessage also does it. Maybe fetchAssistantMessage should
+	//also take the most recent userMessage to write?)
+
+	const existingMessagesSnapshot = await db.collection(CHAT_MESSAGES_COLLECTION)
+		.where('chat', '==', data.chat)
+		.orderBy('message_index', 'asc')
+		.get();
+
+	if (existingMessagesSnapshot.empty) {
+		return {
+			success: false,
+			error: 'No messages found for chat ID: ' + data.chat
+		};
+	}
+
+	const existingMessages : ChatMessage[] = existingMessagesSnapshot.docs.map(doc => ({
+		id: doc.id,
+		...doc.data()
+	} as ChatMessage));
+
+	const messageIndex = existingMessages.length; // Next message index to use for the new message
+
+	const newMessage : ChatMessage = {
+		id: randomString(16),
+		chat: data.chat,
+		message_index: messageIndex,
+		role: 'user',
+		content: data.message,
+		timestamp: timestamp(),
+		streaming: false
 	};
+	// Write the new user message to Firestore
+	const newMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(newMessage.id);
+	await newMessageRef.set(newMessage);
+
+	//Fetch the assistant message for this chat. Do NOT await, since it will write to the database when done.
+	fetchAssistantMessage(data.chat);
+	return {
+		success: true,
+	};
+
 };
