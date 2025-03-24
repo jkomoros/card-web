@@ -779,12 +779,14 @@ export type ChatMessage = {
 	//locally, it's just used in the server to concatenate the whole
 	//conversation history for api requests.
 	role: 'system' | 'assistant' | 'user',
-	//True while a response is still streaming. Once the response is complete
-	//streaming is set to false. The client has a live updater that queries for
-	//streaming:false, to make sure it doesn't constantly get updates as they
+	//Streaming while a response is still streaming. Once the response is complete
+	//status is set to 'complete'. The client has a live updater that queries for
+	//status != 'streaming', to make sure it doesn't constantly get updates as they
 	//are written (using the incomding stream tokens) and then gets the final
 	//result once it's done.
-	streaming: boolean,
+	status: 'complete' | 'streaming' | 'failed',
+	//If status is 'failed', then this contain the error message
+	error?: string,
 	timestamp: Timestamp
 	//Markdown text
 	content: string

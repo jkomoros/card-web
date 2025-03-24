@@ -228,10 +228,11 @@ class ChatView extends connect(store)(PageViewElement) {
 	];
 
 	renderMessage(message : ChatMessage) {
+		//TODO: render an error if message.status is 'failed'
 		return html`<div class='message' data-role='${message.role}'>
 			<strong class='interface'>${message.role}</strong>
 			<div class='content'>
-				${message.streaming ? 
+				${message.status === 'streaming' ? 
 		html`<em class='loading'>Thinking...</em>` : 
 		markdownElement(message.content)}
 			</div>

@@ -200,7 +200,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		role: 'system',
 		content: systemMessageContent,
 		timestamp: timestamp(),
-		streaming: false
+		status: 'complete'
 	};
 
 	const initialMessage : ChatMessage = {
@@ -210,7 +210,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 		role: 'user',
 		content: data.initialMessage,
 		timestamp: timestamp(),
-		streaming: false
+		status: 'complete'
 	};
 
 	// Write Chat and ChatMessages to Firestore using a batch
@@ -308,23 +308,40 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 		role: 'assistant',
 		content: '',
 		timestamp: timestamp(),
-		streaming: true
+		status: 'streaming'
 	};
 
 	//Write a stub message so the client can render loadding UI.
 	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
 	await assistantMessageRef.set(assistantMessageData);
 
-	const assistantMessage = await assistantMessageForThread(model, messages);
+	let assistantMessage : string = '';
+
+	try {
+		assistantMessage = await assistantMessageForThread(model, messages);
+	} catch(err) {
+		console.error('Error fetching assistant message:', err);
+		//If there's an error, write the error to the database and return null.
+		const update : Partial<ChatMessage> = {
+			status: 'failed',
+			error: String(err)
+		};
+		await assistantMessageRef.update(update);
+		return null;
+	}
 
 	//Write the final assistant message to the database.
-	await assistantMessageRef.update({
+
+	const messageUpdate : Partial<ChatMessage> = {
 		content: assistantMessage,
-		streaming: false
-	});
-	await chatRef.update({
+		status: 'complete'
+	};
+	await assistantMessageRef.update(messageUpdate);
+
+	const chatUpdate : Partial<Chat> = {
 		updated: timestamp()
-	});
+	};
+	await chatRef.update(chatUpdate);
 	return assistantMessageData;
 };
 
@@ -358,7 +375,7 @@ const assistantMessage = async (message : string, model : AIModelName = DEFAULT_
 		message_index: 0, // Dummy message index, not used in this context
 		role: 'user',
 		content: message,
-		streaming: false,
+		status: 'streaming',
 		timestamp: timestamp()
 	}];
 	return await assistantMessageForThread(model, thread);
@@ -465,14 +482,16 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 		role: 'user',
 		content: data.message,
 		timestamp: timestamp(),
-		streaming: false
+		status: 'complete'
 	};
 	// Write the new user message to Firestore
 	const newMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(newMessage.id);
 	await newMessageRef.set(newMessage);
-	await chatRef.update({
+
+	const chatUpdate : Partial<Chat> = {
 		updated: timestamp()
-	});
+	};
+	await chatRef.update(chatUpdate);
 
 	//Fetch the assistant message for this chat. Do NOT await, since it will write to the database when done.
 	fetchAssistantMessage(data.chat);
