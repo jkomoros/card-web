@@ -1,4 +1,4 @@
-import { html, css, PropertyValues } from 'lit';
+import { html, css, PropertyValues, TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -133,6 +133,10 @@ class ChatView extends connect(store)(PageViewElement) {
 				border: 1px solid var(--app-divider-color, #e0e0e0);
 			}
 
+			.message[data-status="failed"] {
+				background-color: var(--app-warning-color);
+			}
+
 			.compose {
 				display: flex;
 				flex-direction: row;
@@ -228,13 +232,18 @@ class ChatView extends connect(store)(PageViewElement) {
 	];
 
 	renderMessage(message : ChatMessage) {
-		//TODO: render an error if message.status is 'failed'
-		return html`<div class='message' data-role='${message.role}'>
+
+		let ele : TemplateResult | HTMLElement = html`<em class='loading'>Thinking...</em>`;
+		if (message.status === 'failed') {
+			ele = html`<em class='error' title=${message.error || ''}>Message failed</em>`;
+		} else if (message.status === 'complete') {
+			ele = markdownElement(message.content) || html`<span></span>`;
+		}
+
+		return html`<div class='message' data-role='${message.role}' data-status='${message.status}'>
 			<strong class='interface'>${message.role}</strong>
 			<div class='content'>
-				${message.status === 'streaming' ? 
-		html`<em class='loading'>Thinking...</em>` : 
-		markdownElement(message.content)}
+				${ele}
 			</div>
 		</div>`;
 	}
