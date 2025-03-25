@@ -70,6 +70,7 @@ import {
 	onSnapshot,
 	query,
 	QuerySnapshot,
+	Unsubscribe,
 	updateDoc,
 	where
 } from 'firebase/firestore';
@@ -222,6 +223,8 @@ export const connectLiveOwnedChats = () => {
 	onSnapshot(query(collection(db, CHATS_COLLECTION), where('owner', '==', uid)), receiveChats);
 };
 
+const chatMessageUnsubscribes = new Map<ChatID, Unsubscribe>();
+
 export const connectLiveChat = (id : ChatID) => {
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
@@ -238,23 +241,26 @@ export const connectLiveChat = (id : ChatID) => {
 		onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('published', '==', true), where('owner','!=', uid)), receiveChats);
 	}
 
-	//TODO: if the chat's messages are already being downloaded, don't install
-	//again. This could happen if we navigate to a chat, then navigate back to
-	//the list, then back to a chat.
-	onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system')), snapshot => {
-		const messages : ChatMessages = {};
+	//Install a listener for the chat messages if we don't already have one.
+	//We could already have it if we have already visited this chat before in this session.
+	if (!chatMessageUnsubscribes.has(id)) {
+		const unsubscribe = onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system')), snapshot => {
+			const messages : ChatMessages = {};
 
-		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') return;
-			const doc = change.doc;
-			const id = doc.id;
-			const message = {...doc.data(), id} as ChatMessage;
-			messages[id] = message;
+			snapshot.docChanges().forEach(change => {
+				if (change.type === 'removed') return;
+				const doc = change.doc;
+				const id = doc.id;
+				const message = {...doc.data(), id} as ChatMessage;
+				messages[id] = message;
+			});
+
+			store.dispatch(updateChatMessages(messages));
+
 		});
 
-		store.dispatch(updateChatMessages(messages));
-
-	});
+		chatMessageUnsubscribes.set(id, unsubscribe);
+	}
 };
 
 export const updateChats = (chats : Chats) : ThunkSomeAction => (dispatch) => {
