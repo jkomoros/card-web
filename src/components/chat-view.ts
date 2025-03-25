@@ -100,21 +100,66 @@ class ChatView extends connect(store)(PageViewElement) {
 			}
 
 			section {
-				margin: 1em;
-				max-width: 800px;
-				margin: 0 auto;
-				padding: 1em;
-				display:flex;
+				height: 100%;
+				display: flex;
 				flex-direction: row;
+				position: relative;
 			}
 
 			.chats-sidebar {
-				width: 200px;
-				overflow: hidden;
+				width: 240px;
+				height: 100%;
+				background-color: var(--app-section-even-color, #f7f7f7);
+				border-right: 1px solid var(--app-divider-color, #e0e0e0);
+				padding: 1.5rem 0;
+				overflow-y: auto;
 			}
 
 			.chats-sidebar.closed {
 				width: 0;
+				padding: 0;
+				border-right: none;
+			}
+			
+			.chats-sidebar h3 {
+				padding: 0 1.5rem;
+				margin-top: 0;
+				margin-bottom: 1.5rem;
+				color: var(--app-dark-text-color);
+				font-size: 1.2rem;
+			}
+			
+			.chats-sidebar ul {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			
+			.chats-sidebar li {
+				margin: 0;
+			}
+			
+			.chats-sidebar a {
+				display: block;
+				padding: 0.75rem 1.5rem;
+				color: var(--app-dark-text-color);
+				text-decoration: none;
+				transition: background-color 0.2s, color 0.2s;
+				border-left: 3px solid transparent;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			
+			.chats-sidebar a:hover {
+				background-color: rgba(0, 0, 0, 0.05);
+			}
+			
+			.chats-sidebar a.active {
+				background-color: rgba(var(--app-primary-rgb, 0, 120, 212), 0.1);
+				color: var(--app-primary-color);
+				border-left-color: var(--app-primary-color);
+				font-weight: 500;
 			}
 
 			.chat {
@@ -122,6 +167,12 @@ class ChatView extends connect(store)(PageViewElement) {
 				display: flex;
 				flex-direction: column;
 				gap: 1rem;
+				padding: 1.5rem;
+				max-width: 800px;
+				margin: 0 auto;
+				width: 100%;
+				height: 100%;
+				overflow-y: auto;
 			}
 
 			.messages {
