@@ -19,6 +19,7 @@ import {
 import {
 	selectChatComposingMessage,
 	selectChatSending,
+	selectChatsInOrder,
 	selectCurrentChatID,
 	selectCurrentComposedChat,
 	selectPageExtra,
@@ -28,6 +29,7 @@ import {
 } from '../selectors.js';
 
 import {
+	Chat,
 	ChatID,
 	ChatMessage,
 	ComposedChat,
@@ -77,6 +79,9 @@ class ChatView extends connect(store)(PageViewElement) {
 		_userMayChatInCurrentChat : boolean;
 
 	@state()
+		_chats : Chat[] = [];
+
+	@state()
 		_uid : Uid;
 
 	@state()
@@ -99,6 +104,24 @@ class ChatView extends connect(store)(PageViewElement) {
 				max-width: 800px;
 				margin: 0 auto;
 				padding: 1em;
+				display:flex;
+				flex-direction: row;
+			}
+
+			.chats-sidebar {
+				width: 200px;
+				overflow: hidden;
+			}
+
+			.chats-sidebar.closed {
+				width: 0;
+			}
+
+			.chat {
+				flex-grow: 1;
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
 			}
 
 			.messages {
@@ -258,6 +281,19 @@ class ChatView extends connect(store)(PageViewElement) {
 	override render() {
 		return html`
 			<section>
+				<div class='chats-sidebar ${this._chats.length > 1 ? 'open' : 'closed'}'>
+					<h3>Chats</h3>
+					<ul>
+						${this._chats.map(chat => html`
+							<li>
+								<a href='/chat/${chat.id}' class='${this._chatID === chat.id ? 'active' : ''}'>
+									${chat.title || chat.id}
+								</a>
+							</li>
+						`)}
+					</ul>
+				</div>
+				<div class='chat'>
 				${this._composedChat ? html`
 					<div class="metadata">
 						<h2>${this._composedChat.title}</h2>
@@ -299,6 +335,7 @@ class ChatView extends connect(store)(PageViewElement) {
 						</div>
 					</div>
 				` : html`<p>No chat data available.</p>`}
+				</div>
 			</section>
 		`;
 	}
@@ -342,6 +379,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		this._composingMessage = selectChatComposingMessage(state);
 		this._sending = selectChatSending(state);
 		this._uid = selectUid(state);
+		this._chats = selectChatsInOrder(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

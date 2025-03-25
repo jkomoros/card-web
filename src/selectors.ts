@@ -1922,6 +1922,16 @@ export const selectCurrentComposedChat = createSelector(
 	(id , chats) => id ? chats[id] : null
 );
 
+export const selectChatsInOrder = createSelector(
+	selectChats,
+	(chats) => {
+		if (!chats) return [];
+		const chatArray = Object.values(chats);
+		chatArray.sort((a, b) => b.updated.seconds - a.updated.seconds);
+		return chatArray;
+	}
+);
+
 export const selectUserMayChatInCurrentChat = createSelector(
 	selectCurrentComposedChat,
 	selectUserMayUseAI,
