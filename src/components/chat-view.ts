@@ -134,6 +134,7 @@ class ChatView extends connect(store)(PageViewElement) {
 			}
 
 			.message[data-status="failed"] {
+				color: white;
 				background-color: var(--app-warning-color);
 			}
 
