@@ -23,17 +23,20 @@ import {
 	selectCurrentComposedChat,
 	selectPageExtra,
 	selectTagInfosForCards,
+	selectUid,
 	selectUserMayChatInCurrentChat
 } from '../selectors.js';
 
 import {
 	ChatID,
 	ChatMessage,
-	ComposedChat
+	ComposedChat,
+	Uid
 } from '../../shared/types.js';
 
 import {
 	connectLiveChat,
+	connectLiveOwnedChats,
 	postMessageInCurrentChat,
 	togglePublishedForCurrentChat,
 	updateComposingMessage,
@@ -72,6 +75,9 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	@state()
 		_userMayChatInCurrentChat : boolean;
+
+	@state()
+		_uid : Uid;
 
 	@state()
 		_composingMessage : string;
@@ -335,6 +341,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		this._userMayChatInCurrentChat = selectUserMayChatInCurrentChat(state);
 		this._composingMessage = selectChatComposingMessage(state);
 		this._sending = selectChatSending(state);
+		this._uid = selectUid(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
@@ -344,6 +351,10 @@ class ChatView extends connect(store)(PageViewElement) {
 		if (changedProps.has('_chatID')) {
 			//Start fetching the data necessary to render this chat.
 			connectLiveChat(this._chatID);
+		}
+		if (changedProps.has('_uid') && this._uid) {
+			// Ensure we are connected to the chat data for the current user
+			connectLiveOwnedChats();
 		}
 		if (changedProps.has('_composedChat') && this._composedChat) {
 			// Focus the textarea when chat first shows up

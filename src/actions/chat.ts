@@ -5,6 +5,7 @@ import {
 import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
+	selectChats,
 	selectCurrentChatID,
 	selectCurrentComposedChat,
 	selectUid,
@@ -213,22 +214,33 @@ const receiveChats = (snapshot: QuerySnapshot<DocumentData, DocumentData>) => {
 
 };
 
+export const connectLiveOwnedChats = () => {
+	const state = store.getState() as State;
+	if (!selectUserMayViewApp(state)) return;
+	const uid = selectUid(state);
+	if (!uid) return;
+	onSnapshot(query(collection(db, CHATS_COLLECTION), where('owner', '==', uid)), receiveChats);
+};
+
 export const connectLiveChat = (id : ChatID) => {
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
 	const uid = selectUid(state);
 	if (!uid) return;
 
-	//There are two possibilities: the chat is not published and owned by us, or
-	//it's published. Construct two disjoint queries to get both cases. Note
-	//that this also handles the case where you toggle published; technically a
-	//whole new chat is received.
-	onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('owner', '==', uid), where('published', '==', false)), receiveChats);
-	onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('published', '==', true)), receiveChats);
+	const existingChats = selectChats(state);
 
-	//TODO: will this pass the firestore security rules, since it doesnt'
-	//include a where condition for the message's chat being owned by this owner
-	//uid?
+	if (!existingChats[id]) { 
+		//We don't yet have the primary chat, so download it.
+		//If it were a chat we owned, we would have already downloaded it.
+		//So that must mean it's a published chat that we don't own.
+		//We explictly check that we don't own it to make sure it passes firestore security rules.
+		onSnapshot(query(collection(db, CHATS_COLLECTION), where('id', '==', id), where('published', '==', true), where('owner','!=', uid)), receiveChats);
+	}
+
+	//TODO: if the chat's messages are already being downloaded, don't install
+	//again. This could happen if we navigate to a chat, then navigate back to
+	//the list, then back to a chat.
 	onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system')), snapshot => {
 		const messages : ChatMessages = {};
 
