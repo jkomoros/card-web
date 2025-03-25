@@ -337,7 +337,7 @@ class ChatView extends connect(store)(PageViewElement) {
 					<ul>
 						${this._chats.map(chat => html`
 							<li>
-								<a href='/chat/${chat.id}' class='${this._chatID === chat.id ? 'active' : ''}'>
+								<a href='/chat/${chat.id}' class='${this._chatID === chat.id ? 'active' : ''}' title=${chat.title || chat.id}>
 									${chat.title || chat.id}
 								</a>
 							</li>
