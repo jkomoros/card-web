@@ -217,9 +217,15 @@ const receiveChats = (snapshot: QuerySnapshot<DocumentData, DocumentData>) => {
 
 export const connectLiveOwnedChats = () => {
 	const state = store.getState() as State;
-	if (!selectUserMayViewApp(state)) return;
+	if (!selectUserMayViewApp(state)) {
+		console.log('User does not have permission to view app');
+		return;
+	}
 	const uid = selectUid(state);
-	if (!uid) return;
+	if (!uid) {
+		console.warn('User is not logged in');
+		return;
+	}
 	onSnapshot(query(collection(db, CHATS_COLLECTION), where('owner', '==', uid)), receiveChats);
 };
 
