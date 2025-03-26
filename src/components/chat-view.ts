@@ -442,7 +442,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(updateCurrentChat(this._pageExtra));
 		}
-		if (changedProps.has('_chatID')) {
+		if (changedProps.has('_chatID') || changedProps.has('_uid')) {
 			//Start fetching the data necessary to render this chat.
 			connectLiveChat(this._chatID);
 		}
