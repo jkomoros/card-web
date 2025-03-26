@@ -330,9 +330,14 @@ class ChatView extends connect(store)(PageViewElement) {
 	}
 
 	override render() {
+
+		//Show the sidebar if the user has access to more than one downloaded
+		//chat or any of the downloaded chat are theirs.
+		const showSidebar = this._chats.length > 1 || this._chats.map(chat => chat.owner).includes(this._uid);
+
 		return html`
 			<section>
-				<div class='chats-sidebar ${this._chats.length > 1 ? 'open' : 'closed'}'>
+				<div class='chats-sidebar ${showSidebar ? 'open' : 'closed'}'>
 					<h3>Chats</h3>
 					<ul>
 						${this._chats.map(chat => html`
