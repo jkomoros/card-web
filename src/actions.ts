@@ -113,6 +113,8 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 //Chat
 export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
 export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
+export const CHAT_EXPECT_CHATS = 'CHAT_EXPECT_CHATS';
+export const CHAT_EXPECT_CHAT_MESSAGES = 'CHAT_EXPECT_CHAT_MESSAGES';
 export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
 export const CHAT_SEND_MESSAGE = 'CHAT_SEND_MESSAGE';
 export const CHAT_UPDATE_COMPOSING_MESSAGE = 'CHAT_UPDATE_COMPOSING_MESSAGE';
@@ -477,6 +479,14 @@ type ActionChatUpdateChats = {
 type ActionChatUpdateMessages = {
 	type: typeof CHAT_UPDATE_MESSAGES,
 	messages: ChatMessages
+};
+
+type ActionChatExpectChats = {
+	type: typeof CHAT_EXPECT_CHATS
+};
+
+type ActionChatExpectChatMessages = {
+	type: typeof CHAT_EXPECT_CHAT_MESSAGES
 };
 
 type ActionChatUpdateCurrentChat = {
@@ -1125,6 +1135,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats
 	| ActionChatUpdateMessages
+	| ActionChatExpectChats
+	| ActionChatExpectChatMessages
 	| ActionChatUpdateCurrentChat
 	| ActionChatSendMessage
 	| ActionChatSendMessageSuccess

@@ -783,6 +783,8 @@ export type ChatState = {
 	currentChat: ChatID,
 	messages: ChatMessages,
 	chats: Chats,
+	chatsLoading : boolean,
+	chatMessagesLoading: boolean,
 	sending: boolean,
 	sendFailure: Error | null,
 	composingMessage: string

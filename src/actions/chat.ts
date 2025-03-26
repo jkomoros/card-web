@@ -48,6 +48,8 @@ import {
 } from './app.js';
 
 import {
+	CHAT_EXPECT_CHAT_MESSAGES,
+	CHAT_EXPECT_CHATS,
 	CHAT_SEND_MESSAGE,
 	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
@@ -240,6 +242,8 @@ export const connectLiveChat = (id : ChatID) => {
 	const existingChats = selectChats(state);
 
 	if (!existingChats[id]) { 
+		//TODO: should this be a ThunkActionCreator since we're using store?
+		store.dispatch({type: CHAT_EXPECT_CHATS});
 		//We don't yet have the primary chat, so download it.
 		//If it were a chat we owned, we would have already downloaded it.
 		//So that must mean it's a published chat that we don't own.
@@ -250,6 +254,7 @@ export const connectLiveChat = (id : ChatID) => {
 	//Install a listener for the chat messages if we don't already have one.
 	//We could already have it if we have already visited this chat before in this session.
 	if (!chatMessageUnsubscribes.has(id)) {
+		store.dispatch({type: CHAT_EXPECT_CHAT_MESSAGES});
 		const unsubscribe = onSnapshot(query(collection(db, CHAT_MESSAGES_COLLECTION), where('chat', '==', id), where('role', '!=', 'system')), snapshot => {
 			const messages : ChatMessages = {};
 

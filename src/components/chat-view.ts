@@ -18,8 +18,10 @@ import {
 
 import {
 	selectChatComposingMessage,
+	selectChatMessagesLoading,
 	selectChatSending,
 	selectChatsInOrder,
+	selectChatsLoading,
 	selectCurrentChatID,
 	selectCurrentComposedChat,
 	selectPageExtra,
@@ -89,6 +91,12 @@ class ChatView extends connect(store)(PageViewElement) {
 
 	@state()
 		_sending : boolean;
+
+	@state()
+		_chatsLoading : boolean;
+
+	@state()
+		_chatMessagesLoading : boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -376,7 +384,8 @@ class ChatView extends connect(store)(PageViewElement) {
 						</div>
 					</div>
 					<div class='messages'>
-						${this._composedChat.messages.map(message => this.renderMessage(message))}
+						${this._composedChat.messages.length === 0 ? (this._chatMessagesLoading ? html`<div class='loading'>Loading...</div>` : html`<p>No messages loaded.</p>`) :
+		this._composedChat.messages.map(message => this.renderMessage(message))}
 					</div>
 					<div class='compose'>
 						<textarea 
@@ -390,7 +399,10 @@ class ChatView extends connect(store)(PageViewElement) {
 							<button class='round primary' @click='${this._handleDoneClicked}' title='Send Message' ?disabled=${this._sendingButtonDisabled}>${SEND_ICON}</button>
 						</div>
 					</div>
-				` : html`<p>No chat data available.</p>`}
+				` : (this._chatsLoading ? html`
+					<div class='loading'>
+						Loading chat...
+					</div>` : html`<p>No chats to view.</p>`)}
 				</div>
 			</section>
 		`;
@@ -436,6 +448,8 @@ class ChatView extends connect(store)(PageViewElement) {
 		this._sending = selectChatSending(state);
 		this._uid = selectUid(state);
 		this._chats = selectChatsInOrder(state);
+		this._chatsLoading = selectChatsLoading(state);
+		this._chatMessagesLoading = selectChatMessagesLoading(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

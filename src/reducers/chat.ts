@@ -1,5 +1,8 @@
 import { 
+	CHAT_EXPECT_CHAT_MESSAGES,
+	CHAT_EXPECT_CHATS,
 	CHAT_SEND_MESSAGE,
+	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
 	CHAT_UPDATE_CHATS,
 	CHAT_UPDATE_COMPOSING_MESSAGE,
@@ -16,6 +19,8 @@ const INITIAL_STATE : ChatState = {
 	currentChat: '',
 	chats: {},
 	messages: {},
+	chatMessagesLoading: true,
+	chatsLoading: true,
 	composingMessage: '',
 	sending: false,
 	sendFailure: null
@@ -27,11 +32,23 @@ const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState
 		return {
 			...state,
 			messages: {...state.messages, ...action.messages},
+			chatMessagesLoading: false,
 		};
 	case CHAT_UPDATE_CHATS: 
 		return {
 			...state,
 			chats: {...state.chats, ...action.chats},
+			chatsLoading: false
+		};
+	case CHAT_EXPECT_CHATS:
+		return {
+			...state,
+			chatsLoading: true
+		};
+	case CHAT_EXPECT_CHAT_MESSAGES:
+		return {
+			...state,
+			chatMessagesLoading: true
 		};
 	case CHAT_UPDATE_CURRENT_CHAT:
 		return {
@@ -49,6 +66,12 @@ const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState
 			sending: false,
 			sendFailure: null,
 			composingMessage: ''
+		};
+	case CHAT_SEND_MESSAGE_FAILURE:
+		return {
+			...state,
+			sending: false,
+			sendFailure: action.error
 		};
 	case CHAT_UPDATE_COMPOSING_MESSAGE:
 		return {
