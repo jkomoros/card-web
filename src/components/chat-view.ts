@@ -50,12 +50,31 @@ import {
 import {
 	SEND_ICON,
 	VISIBILITY_ICON,
-	VISIBILITY_OFF_ICON
+	VISIBILITY_OFF_ICON,
+	OPEN_IN_BROWSER_ICON
 } from '../../shared/icons.js';
 
 import {
 	markdownElement
 } from '../util.js';
+
+import {
+	HelpStyles
+} from './help-badges.js';
+
+import {
+	CollectionDescription,
+	collectionDescriptionWithFilterAppended
+} from '../collection_description.js';
+
+import {
+	urlForCollection
+} from '../actions/app.js';
+
+import {
+	cardsFilter,
+	unionFilter
+} from '../filters.js';
 
 import chat from '../reducers/chat.js';
 store.addReducers({
@@ -101,6 +120,7 @@ class ChatView extends connect(store)(PageViewElement) {
 	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
+		HelpStyles,
 		css`
 			:host {
 				height: 100%;
@@ -343,6 +363,17 @@ class ChatView extends connect(store)(PageViewElement) {
 		//chat or any of the downloaded chat are theirs.
 		const showSidebar = this._chats.length > 1 || this._chats.map(chat => chat.owner).includes(this._uid);
 
+		//Calculate the precise collectionURL that shows the cards actually selected to show.
+		//This allows a workflow of exporting those cards (selected by embeddings) into a Google Doc or something.
+		let collectionURL : string = '';
+		if (this._composedChat) {
+			const collection = CollectionDescription.deserialize(this._composedChat.collection.description);
+			const cardFilter = cardsFilter(unionFilter(...this._composedChat.cards));
+			const extended = collectionDescriptionWithFilterAppended(collection, cardFilter);
+			//This URL could get extremely long!
+			collectionURL = urlForCollection(extended);
+		}
+
 		return html`
 			<section>
 				<div class='chats-sidebar ${showSidebar ? 'open' : 'closed'}'>
@@ -375,6 +406,7 @@ class ChatView extends connect(store)(PageViewElement) {
 							<label for='publish'>${this._composedChat.published ? 'Published' : 'Unpublished'}</label>
 							<details>
 								<summary>Based on ${this._composedChat.cards.length} out of ${this._composedChat.requested_cards.length} cards</summary>
+								<a title='Navigate to this collection' href=${collectionURL} class='help'>${OPEN_IN_BROWSER_ICON}</a>
 								<tag-list
 									.tags=${this._composedChat.cards}
 									.previousTags=${this._composedChat.requested_cards}
