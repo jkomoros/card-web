@@ -188,6 +188,10 @@ import {
 	FIELD_VALIDATORS
 } from './card_methods.js';
 
+import {
+	PAGE_DEFAULT
+} from './actions/app.js';
+
 const selectState = (state : State) : State => state;
 
 export const selectPage = (state : State) => state.app.page;
@@ -471,7 +475,8 @@ export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
 	selectComposeOpen,
-	(editing, find, compose) => !editing && !find && !compose
+	selectPage,
+	(editing, find, compose, page) => !editing && !find && !compose && page == PAGE_DEFAULT
 );
 
 export const selectFilters = createSelector(
