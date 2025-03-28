@@ -10,6 +10,7 @@ import {
 
 import {
 	AutoTODOType,
+	BooleanDiffValue,
 	CardID,
 	ReferenceType,
 	TagID
@@ -26,9 +27,13 @@ import {
 	MULTI_EDIT_DIALOG_REMOVE_TAG,
 	MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
 	MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
+	MULTI_EDIT_DIALOG_SET_PUBLISHED,
 	SomeAction
 } from '../actions.js';
-import { modifyCards } from './data.js';
+
+import {
+	modifyCards
+} from './data.js';
 
 export const openMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
 
@@ -123,5 +128,12 @@ export const removeTODODisablement = (todo: AutoTODOType) : SomeAction => {
 	return {
 		type: MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
 		todo
+	};
+};
+
+export const setPublished = (published : BooleanDiffValue) : SomeAction => {
+	return {
+		type: MULTI_EDIT_DIALOG_SET_PUBLISHED,
+		published
 	};
 };

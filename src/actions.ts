@@ -15,6 +15,7 @@ import {
 	AIModelName,
 	AuthorsMap,
 	AutoTODOType,
+	BooleanDiffValue,
 	BulkImportDialogMode,
 	Card,
 	CardBooleanMap,
@@ -209,6 +210,7 @@ export const MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT = 'MULTI_EDIT_DIALOG_ADD_TODO
 export const MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT = 'MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT';
 export const MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT = 'MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT';
 export const MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT = 'MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT';
+export const MULTI_EDIT_DIALOG_SET_PUBLISHED = 'MULTI_EDIT_DIALOG_SET_PUBLISHED';
 //Permissions
 export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
@@ -945,6 +947,11 @@ type ActionMultiEditDialogRemoveTODODisablement = {
 	todo: AutoTODOType
 };
 
+type ActionMultiEditDialogSetPublished = {
+	type: typeof MULTI_EDIT_DIALOG_SET_PUBLISHED,
+	published: BooleanDiffValue
+};
+
 type ActionPermissionsUpdatePermissions = {
 	type: typeof PERMISSIONS_UPDATE_PERMISSIONS,
 	permissionsToAdd: UserPermissionsMap,
@@ -1226,6 +1233,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionMultiEditDialogRemoveTODOEnablement
 	| ActionMultiEditDialogAddTODODisablement
 	| ActionMultiEditDialogRemoveTODODisablement
+	| ActionMultiEditDialogSetPublished
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard

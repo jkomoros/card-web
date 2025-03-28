@@ -221,6 +221,7 @@ export const selectMultiEditAddTags = (state : State) => state.multiedit ? state
 export const selectMultiEditRemoveTags = (state : State) => state.multiedit ? state.multiedit.removeTags : [];
 export const selectMultiEditAddTODOEnablements = (state : State) => state.multiedit ? state.multiedit.addTODOEnablements : [];
 export const selectMultiEditAddTODODisablements = (state : State) => state.multiedit ? state.multiedit.addTODODisablements : [];
+export const selectMultiEditPublished = (state : State) => state.multiedit ? state.multiedit.published : null;
 
 export const selectBulkImportDialogOpen = (state : State) => state.bulkImport ? state.bulkImport.open : false;
 export const selectBulKimportDialogMode = (state : State) => state.bulkImport ? state.bulkImport.mode : 'import';
@@ -1878,13 +1879,15 @@ export const selectMultiEditCardDiff = createSelector(
 	selectMultiEditRemoveTags,
 	selectMultiEditAddTODOEnablements,
 	selectMultiEditAddTODODisablements,
-	(referencesDiff, addTags, removeTags, todoEnablements, todoDisablements) => {
+	selectMultiEditPublished,
+	(referencesDiff, addTags, removeTags, todoEnablements, todoDisablements, published) => {
 		const result : CardDiff = {};
 		if (referencesDiff.length) result.references_diff = referencesDiff;
 		if (addTags.length) result.add_tags = addTags;
 		if (removeTags.length) result.remove_tags = removeTags;
 		if (todoEnablements.length) result.auto_todo_overrides_enablements = todoEnablements;
 		if (todoDisablements.length) result.auto_todo_overrides_disablements = todoDisablements;
+		if (published !== null) result.published = published;
 		return result;
 	}
 );

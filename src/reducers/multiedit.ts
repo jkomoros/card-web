@@ -8,7 +8,8 @@ import {
 	MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT,
 	MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
 	MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT,
-	MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT
+	MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
+	MULTI_EDIT_DIALOG_SET_PUBLISHED
 } from '../actions.js';
 
 import {
@@ -30,7 +31,8 @@ const INITIAL_STATE : MultiEditState = {
 	addTags: [],
 	removeTags: [],
 	addTODOEnablements: [],
-	addTODODisablements: []
+	addTODODisablements: [],
+	published: null
 };
 
 const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : MultiEditState => {
@@ -103,6 +105,11 @@ const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : Mult
 		return {
 			...state,
 			addTODODisablements: state.addTODODisablements.filter(todo => todo !== action.todo)
+		};
+	case MULTI_EDIT_DIALOG_SET_PUBLISHED:
+		return {
+			...state,
+			published: action.published
 		};
 	default:
 		return state;

@@ -1009,13 +1009,17 @@ export type MaintenanceState = {
 	taskActive: boolean,
 }
 
+//Null signals 'no change'.
+export type BooleanDiffValue = boolean | null;
+
 export type MultiEditState = {
 	open: boolean,
 	referencesDiff: ReferencesEntriesDiff,
 	addTags: TagID[],
 	removeTags: TagID[],
 	addTODOEnablements: AutoTODOType[]
-	addTODODisablements: AutoTODOType[]
+	addTODODisablements: AutoTODOType[],
+	published: BooleanDiffValue
 };
 
 

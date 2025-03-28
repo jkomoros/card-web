@@ -24,7 +24,8 @@ import {
 	addTODOEnablement,
 	addTODODisablement,
 	removeTODOEnablement,
-	removeTODODisablement
+	removeTODODisablement,
+	setPublished
 } from '../actions/multiedit.js';
 
 import {
@@ -50,7 +51,8 @@ import {
 	selectSelectedCardsTagsIntersection,
 	selectTags,
 	selectMultiEditAddTODOEnablements,
-	selectMultiEditAddTODODisablements
+	selectMultiEditAddTODODisablements,
+	selectMultiEditPublished
 } from '../selectors.js';
 
 import {
@@ -75,6 +77,7 @@ import './card-link.js';
 
 import {
 	AutoTODOType,
+	BooleanDiffValue,
 	Card,
 	CardDiff,
 	CardLike,
@@ -97,7 +100,10 @@ import {
 import {
 	descriptionForCardDiff
 } from '../card_diff.js';
-import { TODO_AUTO_INFOS } from '../filters.js';
+
+import {
+	TODO_AUTO_INFOS
+} from '../filters.js';
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -134,6 +140,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_todoDisablements : AutoTODOType[];
+
+	@state()
+		_published : BooleanDiffValue;
 
 	@state()
 		_diff : CardDiff;
@@ -251,6 +260,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				@tag-added=${this._handleAddTODOEnablement}
 				@tag-removed=${this._handleRemoveTODOEnablement}>
 			></tag-list>
+			<label>Published</label>
+			<div>
+				<select @change=${this._handlePublishedChanged} .value=${String(this._published)}>
+					<option value='null' .selected=${this._published === null}>No change</option>
+					<option value='true' .selected=${this._published === true}>Published</option>
+					<option value='false' .selected=${this._published === false}>Unpublished</option>
+				</select>
+			</div>
 			${Object.values(this._diff).length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
 				${descriptionForCardDiff(this._diff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
@@ -350,6 +367,17 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(removeReference(e.detail.tag, refType));
 	}
 
+	_handlePublishedChanged(e : Event) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
+		const value = ele.value;
+		if (value === 'null') {
+			store.dispatch(setPublished(null));
+		} else {
+			store.dispatch(setPublished(value === 'true'));
+		}
+	}
+
 	_handleTagTagTapped(e : TagEvent) {
 		//Only add it if not all cards already have it
 		if (!e.detail.subtle) return;
@@ -396,6 +424,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._intersectionTags = this.open ? selectSelectedCardsTagsIntersection(state) : [];
 		this._todoEnablements = selectMultiEditAddTODOEnablements(state);
 		this._todoDisablements = selectMultiEditAddTODODisablements(state);
+		this._published = selectMultiEditPublished(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._diff = selectMultiEditCardDiff(state);
