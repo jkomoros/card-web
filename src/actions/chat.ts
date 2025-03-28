@@ -86,7 +86,7 @@ import {
 const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 
 // Default background length
-const DEFAULT_BACKGROUND_PERCENTAGE = 0.5;
+const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 
 const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
 const postMessageInChatCallable = httpsCallable<PostMessageInChatRequestData, PostMessageInChaResponseData>(functions, 'postMessageInChat');
