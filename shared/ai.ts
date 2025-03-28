@@ -128,7 +128,7 @@ export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
 export const DEFAULT_MODEL = DEFAULT_ANTHROPIC_MODEL;
 
-export const CARD_SEPARATOR = '\n-----\n';
+export const CARD_SEPARATOR = '\n---\n';
 
 type FitPromptArguments = {
 	prefix?: string,
