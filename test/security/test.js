@@ -1340,4 +1340,81 @@ describe('Compendium Rules', () => {
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
 		await firebase.assertFails(chat.update({ published: true }));
 	});
+
+	// Chat streaming tests
+	const streamingChunkId = 'chunk1';
+
+	// Setup streaming chunks in the database with correct structure
+	beforeEach(async () => {
+		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
+		
+		// Create streaming chunks for both messages with proper schema
+		await adminDb.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
+			.collection('streaming').doc(streamingChunkId).set({
+				chat: messageId,          // Reference to parent chat
+				message: messageId,        // Reference to parent message
+				chunk_index: 0,
+				content: 'Partial streaming content'
+			});
+		
+		await adminDb.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat')
+			.collection('streaming').doc(streamingChunkId).set({
+				chat: 'published-chat',   // Reference to parent chat
+				message: 'published-chat', // Reference to parent message
+				chunk_index: 0,
+				content: 'Public streaming content'
+			});
+	});
+
+	it('allows the chat owner to read streaming chunks from their chat message', async() => {
+		const db = authedApp(bobAuth);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertSucceeds(streamingChunk.get());
+	});
+
+	it('disallows non-owners from reading streaming chunks from unpublished chats', async() => {
+		const db = authedApp(sallyAuth);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertFails(streamingChunk.get());
+	});
+
+	it('disallows unauthenticated users from reading streaming chunks from unpublished chats', async() => {
+		const db = authedApp(null);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertFails(streamingChunk.get());
+	});
+
+	it('allows any user to read streaming chunks from a published chat', async() => {
+		const db = authedApp(sallyAuth);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat')
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertSucceeds(streamingChunk.get());
+	});
+
+	it('allows unauthenticated users to read streaming chunks from a published chat', async() => {
+		const db = authedApp(null);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat')
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertSucceeds(streamingChunk.get());
+	});
+	
+	// Each streaming chunk has its own chat field which is used by the security rules
+	// to determine access permissions
+
+	it('disallows any user from writing to streaming chunks, even owners', async() => {
+		const db = authedApp(bobAuth);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertFails(streamingChunk.update({ content: 'Modified streaming content' }));
+	});
+
+	it('disallows admins from writing to streaming chunks', async() => {
+		const db = authedApp(adminAuth);
+		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
+			.collection('streaming').doc(streamingChunkId);
+		await firebase.assertFails(streamingChunk.update({ content: 'Modified streaming content' }));
+	});
 });

@@ -314,11 +314,23 @@ service cloud.firestore {
     }
 
     match /chat_messages/{message} {
-      // ChatMessages can be read by the owner of their associated Chat or by anyone if the chat is published
-      allow read: if exists(/databases/$(database)/documents/chats/$(resource.data.chat)) && 
-                  (get(/databases/$(database)/documents/chats/$(resource.data.chat)).data.published == true && userMayViewApp() || 
-                   loggedIn() && request.auth.uid == get(/databases/$(database)/documents/chats/$(resource.data.chat)).data.owner);
+      // Define a function to check if the user can read this message
+      function canReadMessage() {
+        // ChatMessages can be read by the owner of their associated Chat or by anyone if the chat is published
+        let chatDoc = get(/databases/$(database)/documents/chats/$(resource.data.chat));
+        return exists(/databases/$(database)/documents/chats/$(resource.data.chat)) && 
+              (chatDoc.data.published == true && userMayViewApp() || 
+              loggedIn() && request.auth.uid == chatDoc.data.owner);
+      }
+
+      allow read: if canReadMessage();
       allow write: if false;
+      
+      match /streaming/{chunkid} {
+        // Streaming chunks inherit the same read permissions as their parent chat_message
+        allow read: if canReadMessage();
+        allow write: if false;
+      }
     }
 
     match /reading_lists/{list_id} {
