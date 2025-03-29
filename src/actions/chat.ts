@@ -37,6 +37,8 @@ import {
 	Chat,
 	ChatID,
 	ChatMessage,
+	ChatMessageChunk,
+	ChatMessageID,
 	CreateChatRequestData,
 	CreateChatResponseData,
 	PostMessageInChaResponseData,
@@ -63,6 +65,7 @@ import {
 } from '../actions';
 
 import {
+	CHAT_MESSAGE_CHUNKS_COLLECTION,
 	CHAT_MESSAGES_COLLECTION,
 	CHATS_COLLECTION
 } from '../../shared/collection-constants';
@@ -266,6 +269,12 @@ export const connectLiveChat = (id : ChatID) => {
 				const id = doc.id;
 				const message = {...doc.data(), id} as ChatMessage;
 				messages[id] = message;
+				if (message.status === 'streaming') {
+					connectLiveMessageChunks(id);
+				} else {
+					//Ensure we aren't listening for those chunks.
+					disconnectLiveMessageChunks(id);
+				}
 			});
 
 			store.dispatch(updateChatMessages(messages));
@@ -274,6 +283,40 @@ export const connectLiveChat = (id : ChatID) => {
 
 		chatMessageUnsubscribes.set(id, unsubscribe);
 	}
+};
+
+const chatMessageChunksUnsubscribes = new Map<ChatMessageID, Unsubscribe>();
+
+const connectLiveMessageChunks = (messageID : ChatMessageID) => {
+	if (chatMessageChunksUnsubscribes.has(messageID)) {
+		// Already connected
+		return;
+	}
+	const state = store.getState() as State;
+	const uid = selectUid(state);
+	const unsubscribe = onSnapshot(query(collection(db, CHAT_MESSAGE_CHUNKS_COLLECTION), where('message', '==', messageID), where('owner', '==', uid)), snapshot => {
+
+		const chunks : ChatMessageChunks = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			const doc = change.doc;
+			const id = doc.id;
+			const chunk = {...doc.data()} as ChatMessageChunk;
+			chunks[id] = chunk;
+		});
+	
+		store.dispatch(updateChatMessageChunks(chunks));
+	});
+
+	chatMessageChunksUnsubscribes.set(messageID, unsubscribe);
+};
+
+const disconnectLiveMessageChunks = (messageID : ChatMessageID) => {
+	const unsubscribe = chatMessageChunksUnsubscribes.get(messageID);
+	if (!unsubscribe) return;
+	unsubscribe();
+	chatMessageChunksUnsubscribes.delete(messageID);
 };
 
 export const updateChats = (chats : Chats) : ThunkSomeAction => (dispatch) => {
