@@ -792,6 +792,15 @@ export type ChatMessage = {
 	content: string
 };
 
+export type ChatMessageChunk = {
+	chat: ChatID,
+	message: ChatMessageID,
+	//A monotonically increasing index for each chunk in the message, in order.
+	chunk_index: number,
+	//Just the token of this chunk.
+	content: string
+};
+
 export type AssistantThreadMessage = {
 	role: 'assistant' | 'user',
 	content: string
