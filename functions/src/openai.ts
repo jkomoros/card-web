@@ -78,9 +78,29 @@ export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, t
 	if (!openai_endpoint) {
 		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
 	}
+	
 	if (streamer && ENABLE_STREAMING) {
-		throw new Error('Streaming is not supported for OpenAI at this time.');
+		const stream = await openai_endpoint.chat.completions.create({
+			model,
+			messages: thread.system ? [{role: 'system', content: thread.system}, ...thread.messages] : thread.messages,
+			stream: true
+		});
+
+		let message = '';
+
+		for await (const chunk of stream) {
+			const content = chunk.choices[0]?.delta?.content || '';
+			if (content) {
+				message += content;
+				await streamer.receiveChunk(content);
+			}
+		}
+
+		await streamer.finished();
+
+		return message;
 	}
+	
 	const result = await openai_endpoint.chat.completions.create({
 		model,
 		messages: thread.system ? [{role: 'system', content: thread.system}, ...thread.messages] : thread.messages
