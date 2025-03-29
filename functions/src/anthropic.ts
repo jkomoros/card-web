@@ -11,7 +11,8 @@ import {
 } from 'firebase-functions/v2/https';
 
 import {
-	AnthropicModelName
+	AnthropicModelName,
+	MessageStreamer
 } from './types.js';
 
 import {
@@ -72,7 +73,7 @@ export const handler = async (request : CallableRequest<AnthropicData>) => {
 	}
 };
 
-export const assistantMessageForThreadAnthropic = async (model : AnthropicModelName, thread : AssistantThread) : Promise<string> => {
+export const assistantMessageForThreadAnthropic = async (model : AnthropicModelName, thread : AssistantThread, streamer? : MessageStreamer) : Promise<string> => {
 	if (!anthropic_endpoint) {
 		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
 	}
@@ -96,6 +97,10 @@ export const assistantMessageForThreadAnthropic = async (model : AnthropicModelN
 		.filter(block => block.type === 'text')
 		.map(block => (block as {type: 'text', text: string}).text)
 		.join('');
-		
+	
+	if (streamer) {
+		await streamer.receiveChunk(textContent);
+		await streamer.finished();
+	}
 	return textContent;
 };

@@ -62,6 +62,10 @@ import {
 	embeddingForContent
 } from './embeddings.js';
 
+import {
+	MessageStreamer
+} from './types.js';
+
 // Helper function to adapt Firebase Admin Timestamp to the shared Timestamp interface
 const timestamp = (): Timestamp => {
 	// The Firebase Admin Timestamp already conforms to the shared Timestamp interface
@@ -269,7 +273,7 @@ const setChatTitle = async (chatID : string, initalMesasge : string) : Promise<v
 
 //Will fetch the next assistant message for the given chatID, and write it into the database.
 //Typically you don't actually await this, and instead just get the result on the client when it's done.
-const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | null> => {
+const fetchAssistantMessage = async (chatID : string) : Promise<void> => {
 
 	//TODO: do streaming and write streaming tokens to the database as they come in.
 
@@ -315,34 +319,9 @@ const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | nu
 	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
 	await assistantMessageRef.set(assistantMessageData);
 
-	let assistantMessage : string = '';
+	const streamer = makeFirestoreStreamerForMessage(chat, assistantMessageData);
 
-	try {
-		assistantMessage = await assistantMessageForThread(model, messages);
-	} catch(err) {
-		console.error('Error fetching assistant message:', err);
-		//If there's an error, write the error to the database and return null.
-		const update : Partial<ChatMessage> = {
-			status: 'failed',
-			error: String(err)
-		};
-		await assistantMessageRef.update(update);
-		return null;
-	}
-
-	//Write the final assistant message to the database.
-
-	const messageUpdate : Partial<ChatMessage> = {
-		content: assistantMessage,
-		status: 'complete'
-	};
-	await assistantMessageRef.update(messageUpdate);
-
-	const chatUpdate : Partial<Chat> = {
-		updated: timestamp()
-	};
-	await chatRef.update(chatUpdate);
-	return assistantMessageData;
+	await assistantMessageForThread(model, messages, streamer);
 };
 
 const makeAssistantThread = (thread : ChatMessage[]) : AssistantThread => {
@@ -381,7 +360,7 @@ const assistantMessage = async (message : string, model : AIModelName = DEFAULT_
 	return await assistantMessageForThread(model, thread);
 };
 
-const assistantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
+const assistantMessageForThread = async (model : AIModelName, thread : ChatMessage[], streamer? : MessageStreamer) : Promise<string> => {
 	const lastMessage = thread[thread.length - 1];
 	if (lastMessage.role !== 'user') {
 		throw new Error('Last message is not a user message, cannot fetch assistant message');
@@ -399,14 +378,29 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 
 	const assistantThread = makeAssistantThread(thread);
 
-	switch(modelInfo.provider) {
-	case 'openai':
-		return await assistantMessageForThreadOpenAI(model as OpenAIModelName, assistantThread);
-	case 'anthropic':
-		return await assistantMessageForThreadAnthropic(model as AnthropicModelName, assistantThread);
-	default:
-		return assertUnreachable(modelInfo.provider);
+	let content : string = '';
+
+	try {
+		switch(modelInfo.provider) {
+		case 'openai':
+			content = await assistantMessageForThreadOpenAI(model as OpenAIModelName, assistantThread, streamer);
+			break;
+		case 'anthropic':
+			content = await assistantMessageForThreadAnthropic(model as AnthropicModelName, assistantThread, streamer);
+			break;
+		default:
+			assertUnreachable(modelInfo.provider);
+		}
+	} catch (err) {
+		if (streamer) {
+			await streamer.errored(err as Error);
+		}
+		//Rethrow if we have a streamer or not
+		throw err;
 	}
+
+	return content;
+
 };
 
 export const postMessageInChat = async (request : CallableRequest<PostMessageInChatRequestData>) : Promise<PostMessageInChaResponseData> => {
@@ -497,6 +491,46 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 	fetchAssistantMessage(data.chat);
 	return {
 		success: true,
+	};
+
+};
+
+
+const makeFirestoreStreamerForMessage = (chat : Chat, message: ChatMessage) : MessageStreamer => {
+
+	let assistantMessage : string = '';
+
+	const chatRef = db.collection(CHATS_COLLECTION).doc(chat.id);
+	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(message.id);
+	
+	return {
+		getMessage() : string {
+			return assistantMessage; // Return the current message content
+		},
+		receiveChunk: async (chunk : string) => {
+			assistantMessage += chunk;
+			//TODO: when streaming is enabled, stream chunks here too.
+		},
+		finished: async () => {
+			// Finalize the message
+			const messageUpdate : Partial<ChatMessage> = {
+				content: assistantMessage,
+				status: 'complete'
+			};
+			await assistantMessageRef.update(messageUpdate);
+		
+			const chatUpdate : Partial<Chat> = {
+				updated: timestamp()
+			};
+			await chatRef.update(chatUpdate);
+		},
+		errored: async (error : Error) => {
+			console.error('Error during message streaming:', error);
+			await assistantMessageRef.update({
+				status: 'failed',
+				error: String(error)
+			});
+		}
 	};
 
 };

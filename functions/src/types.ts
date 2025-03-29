@@ -158,3 +158,10 @@ export type CardUpdate = Partial<NumberToFieldValue<ArrayToFieldValueUnion<Times
 export type CardLike = Card | CardUpdate;
 
 export type TweetInfoUpdate = Partial<TimestampToFieldValue<TweetInfo>>;
+
+export type MessageStreamer = {
+	getMessage() : string,
+	receiveChunk : (chunk : string) => Promise<void>;
+	finished : () => Promise<void>;
+	errored : (error : Error) => Promise<void>;
+};

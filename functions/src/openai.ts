@@ -11,6 +11,7 @@ import {
 } from 'firebase-functions/v2/https';
 
 import {
+	MessageStreamer,
 	OpenAIModelName
 } from './types.js';
 
@@ -72,7 +73,7 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 	}
 };
 
-export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, thread : AssistantThread) : Promise<string> => {
+export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, thread : AssistantThread, streamer? : MessageStreamer) : Promise<string> => {
 	if (!openai_endpoint) {
 		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
 	}
@@ -84,5 +85,11 @@ export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, t
 	if (!result.choices || !result.choices.length) {
 		throw new HttpsError('unknown', 'No choices returned from OpenAI');
 	}
-	return result.choices[0].message.content || '';
+	const content = result.choices[0].message.content || '';
+
+	if (streamer) {
+		await streamer.receiveChunk(content);
+		await streamer.finished();
+	}
+	return content;
 };
