@@ -514,7 +514,7 @@ const makeFirestoreStreamerForMessage = (chat : Chat, message: ChatMessage) : Me
 		receiveChunk: async (chunk : string) => {
 			assistantMessage += chunk;
 			if (ENABLE_STREAMING) {
-				const chunkID = message.id + chunkCounter;
+				const chunkID = message.id + '-' + chunkCounter;
 				const chunkRef = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(chunkID);
 				const chunkData : ChatMessageChunk = {
 					owner: chat.owner,
