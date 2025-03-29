@@ -325,12 +325,12 @@ service cloud.firestore {
 
       allow read: if canReadMessage();
       allow write: if false;
-      
-      match /streaming/{chunkid} {
-        // Streaming chunks inherit the same read permissions as their parent chat_message
-        allow read: if canReadMessage();
-        allow write: if false;
-      }
+    }
+    
+    match /chat_message_chunks/{chunk} {
+      // Chat message chunks can only be read by the owner
+      allow read: if loggedIn() && request.auth.uid == resource.data.owner;
+      allow write: if false;
     }
 
     match /reading_lists/{list_id} {

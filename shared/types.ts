@@ -793,6 +793,8 @@ export type ChatMessage = {
 };
 
 export type ChatMessageChunk = {
+	//We include the owner uid to simplify security checks for this ephemeral data.
+	owner: Uid,
 	chat: ChatID,
 	message: ChatMessageID,
 	//A monotonically increasing index for each chunk in the message, in order.

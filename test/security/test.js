@@ -28,6 +28,7 @@ const READING_LISTS_COLLECTION = 'reading_lists';
 const UPDATES_COLLECTION = 'updates';
 const CHATS_COLLECTION = 'chats';
 const CHAT_MESSAGES_COLLECTION = 'chat_messages';
+const CHAT_MESSAGE_CHUNKS_COLLECTION = 'chat_message_chunks';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -1341,80 +1342,72 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(chat.update({ published: true }));
 	});
 
-	// Chat streaming tests
-	const streamingChunkId = 'chunk1';
+	// Chat message chunks tests
 
-	// Setup streaming chunks in the database with correct structure
+	// Setup chat message chunks in the database with correct structure
 	beforeEach(async () => {
 		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
 		
-		// Create streaming chunks for both messages with proper schema
-		await adminDb.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
-			.collection('streaming').doc(streamingChunkId).set({
-				chat: messageId,          // Reference to parent chat
-				message: messageId,        // Reference to parent message
-				chunk_index: 0,
-				content: 'Partial streaming content'
-			});
+		// Create chat message chunks with proper schema
+		await adminDb.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(messageId + '-chunk').set({
+			owner: bobUid,          // Owner of the chunk (Bob)
+			chat: messageId,        // Reference to parent chat
+			message: messageId,     // Reference to parent message
+			chunk_index: 0,
+			content: 'Bob\'s streaming content'
+		});
 		
-		await adminDb.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat')
-			.collection('streaming').doc(streamingChunkId).set({
-				chat: 'published-chat',   // Reference to parent chat
-				message: 'published-chat', // Reference to parent message
-				chunk_index: 0,
-				content: 'Public streaming content'
-			});
+		await adminDb.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc('published-chat-chunk').set({
+			owner: bobUid,             // Owner of the chunk (Bob)
+			chat: 'published-chat',    // Reference to parent chat
+			message: 'published-chat', // Reference to parent message
+			chunk_index: 0,
+			content: 'Public streaming content'
+		});
+		
+		// Create a chunk owned by Sally for testing
+		await adminDb.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc('sally-chunk').set({
+			owner: sallyUid,        // Owned by Sally
+			chat: messageId,        // Reference to parent chat
+			message: messageId,     // Reference to parent message
+			chunk_index: 1,
+			content: 'Sally\'s streaming content'
+		});
 	});
 
-	it('allows the chat owner to read streaming chunks from their chat message', async() => {
+	it('allows a user to read a chat message chunk they own', async() => {
 		const db = authedApp(bobAuth);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertSucceeds(streamingChunk.get());
+		const chunk = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(messageId + '-chunk');
+		await firebase.assertSucceeds(chunk.get());
 	});
 
-	it('disallows non-owners from reading streaming chunks from unpublished chats', async() => {
+	it('disallows a user from reading a chat message chunk they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertFails(streamingChunk.get());
+		const chunk = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(messageId + '-chunk');
+		await firebase.assertFails(chunk.get());
 	});
 
-	it('disallows unauthenticated users from reading streaming chunks from unpublished chats', async() => {
+	it('disallows unauthenticated users from reading any chat message chunks', async() => {
 		const db = authedApp(null);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertFails(streamingChunk.get());
+		const chunk = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(messageId + '-chunk');
+		await firebase.assertFails(chunk.get());
 	});
 
-	it('allows any user to read streaming chunks from a published chat', async() => {
+	it('allows a different user to read their own chat message chunks', async() => {
 		const db = authedApp(sallyAuth);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat')
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertSucceeds(streamingChunk.get());
+		const chunk = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc('sally-chunk');
+		await firebase.assertSucceeds(chunk.get());
 	});
 
-	it('allows unauthenticated users to read streaming chunks from a published chat', async() => {
-		const db = authedApp(null);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat')
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertSucceeds(streamingChunk.get());
-	});
-	
-	// Each streaming chunk has its own chat field which is used by the security rules
-	// to determine access permissions
-
-	it('disallows any user from writing to streaming chunks, even owners', async() => {
+	it('disallows a user from writing to chat message chunks, even if they own them', async() => {
 		const db = authedApp(bobAuth);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertFails(streamingChunk.update({ content: 'Modified streaming content' }));
+		const chunk = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(messageId + '-chunk');
+		await firebase.assertFails(chunk.update({ content: 'Modified streaming content' }));
 	});
 
-	it('disallows admins from writing to streaming chunks', async() => {
+	it('disallows admins from writing to chat message chunks', async() => {
 		const db = authedApp(adminAuth);
-		const streamingChunk = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId)
-			.collection('streaming').doc(streamingChunkId);
-		await firebase.assertFails(streamingChunk.update({ content: 'Modified streaming content' }));
+		const chunk = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(messageId + '-chunk');
+		await firebase.assertFails(chunk.update({ content: 'Modified streaming content' }));
 	});
 });
