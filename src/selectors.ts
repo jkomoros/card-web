@@ -127,7 +127,9 @@ import {
 	SetName,
 	SortName,
 	CollectionConfiguration,
-	ComposedChats
+	ComposedChats,
+	ChatMessageID,
+	ChatMessageChunk
 } from '../shared/types.js';
 
 import {
@@ -169,7 +171,8 @@ import {
 	SortExtra,
 	CardDiff,
 	Filters,
-	CardFetchType
+	CardFetchType,
+	ChatMessages
 } from './types.js';
 
 import {
@@ -1909,9 +1912,48 @@ export const selectBulkImportDialogExportContent = createSelector(
 	}
 );
 
+const selectChatMessageChunksByMessage = createSelector(
+	selectChatMessageChunks,
+	(chunks) => {
+		const chunksByMessage : {[messageID : ChatMessageID]: ChatMessageChunk[]} = {};
+		for (const chunk of Object.values(chunks)) {
+			if (!chunksByMessage[chunk.message]) {
+				chunksByMessage[chunk.message] = [];
+			}
+			chunksByMessage[chunk.message].push(chunk);
+		}
+		for (const chunkList of Object.values(chunksByMessage)) {
+			//Sort the chunks by their index.
+			chunkList.sort((a, b) => a.chunk_index - b.chunk_index);
+		}
+		return Object.fromEntries(Object.entries(chunksByMessage).map(entry => [entry[0], entry[1].map(chunk => chunk.content).join('')]));
+	}
+);
+
+const selectComposedChatMessages = createSelector(
+	selectChatMessages,
+	selectChatMessageChunksByMessage,
+	(messages, chunks) => {
+		const result : ChatMessages = {};
+		for (const [messageID, message] of Object.entries(messages)) {
+			let content = message.content;
+			
+			if (message.status === 'streaming' && chunks[messageID]) {
+				content = chunks[messageID];
+			}
+
+			result[messageID] = {
+				...message,
+				content
+			};
+		}
+		return result;
+	}
+);
+
 export const selectComposedChats = createSelector(
 	selectChats,
-	selectChatMessages,
+	selectComposedChatMessages,
 	(chats, messages) : ComposedChats => {
 		if (!chats || !messages) return {};
 		const result : ComposedChats = {};
