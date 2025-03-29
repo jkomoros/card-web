@@ -512,6 +512,7 @@ const makeFirestoreStreamerForMessage = (chat : Chat, message: ChatMessage) : Me
 			return assistantMessage; // Return the current message content
 		},
 		receiveChunk: async (chunk : string) => {
+			//TODO: if this is too write intensive, we could buffer the chunks and only write after some number of them are received.
 			assistantMessage += chunk;
 			if (ENABLE_STREAMING) {
 				const chunkID = message.id + '-' + chunkCounter;
