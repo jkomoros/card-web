@@ -80,7 +80,29 @@ export const assistantMessageForThreadAnthropic = async (model : AnthropicModelN
 	}
 
 	if (streamer && ENABLE_STREAMING) {
-		throw new Error('Streaming is not supported for Anthropic at this time.');
+
+		const stream = await anthropic_endpoint.messages.stream({
+			model,
+			system: thread.system ? thread.system : undefined,
+			messages: thread.messages,
+			max_tokens: 8192
+		});
+
+		let message = '';
+
+		for await (const chunk of stream) {
+			if (chunk.type === 'content_block_delta') {
+				if (chunk.delta.type === 'text_delta') {
+					const text = chunk.delta.text;
+					message += text;
+					await streamer.receiveChunk(text);
+				}
+			}
+		}
+
+		await streamer.finished();
+
+		return message;
 	}
 
 	const result = await anthropic_endpoint.messages.create({
@@ -104,6 +126,7 @@ export const assistantMessageForThreadAnthropic = async (model : AnthropicModelN
 		.map(block => (block as {type: 'text', text: string}).text)
 		.join('');
 	
+	//This can be removed once ENABLE_STREAMING is removed because it's always on.
 	if (streamer) {
 		await streamer.receiveChunk(textContent);
 		await streamer.finished();
