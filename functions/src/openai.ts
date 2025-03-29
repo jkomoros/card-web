@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 
 import {
+	ENABLE_STREAMING,
 	OPENAI_API_KEY,
 	throwIfUserMayNotUseAI
 } from './common.js';
@@ -76,6 +77,9 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, thread : AssistantThread, streamer? : MessageStreamer) : Promise<string> => {
 	if (!openai_endpoint) {
 		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
+	}
+	if (streamer && ENABLE_STREAMING) {
+		throw new Error('Streaming is not supported for OpenAI at this time.');
 	}
 	const result = await openai_endpoint.chat.completions.create({
 		model,

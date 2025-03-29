@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import {
 	ANTHROPIC_API_KEY,
+	ENABLE_STREAMING,
 	throwIfUserMayNotUseAI
 } from './common.js';
 
@@ -77,6 +78,11 @@ export const assistantMessageForThreadAnthropic = async (model : AnthropicModelN
 	if (!anthropic_endpoint) {
 		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
 	}
+
+	if (streamer && ENABLE_STREAMING) {
+		throw new Error('Streaming is not supported for Anthropic at this time.');
+	}
+
 	const result = await anthropic_endpoint.messages.create({
 		model,
 		system: thread.system ? thread.system : undefined,
