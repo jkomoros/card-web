@@ -104,7 +104,9 @@ import {
 	IconName,
 	CardTypeConfigurationMap,
 	AutoSlugConfig,
-	CardFieldTypeConfiguration
+	CardFieldTypeConfiguration,
+	ChatMessageChunkID,
+	ChatMessageChunk
 } from '../shared/types.js';
 
 import {
@@ -779,10 +781,15 @@ export type ChatMessages = {
 	[id: ChatMessageID]: ChatMessage
 };
 
+export type ChatMessageChunks = {
+	[id : ChatMessageChunkID] : ChatMessageChunk
+};
+
 export type ChatState = {
 	currentChat: ChatID,
 	messages: ChatMessages,
 	chats: Chats,
+	chunks: ChatMessageChunks,
 	chatsLoading : boolean,
 	chatMessagesLoading: boolean,
 	sending: boolean,

@@ -737,6 +737,7 @@ export type SelectorStyleMap = {
 
 export type ChatID = string;
 export type ChatMessageID = string;
+export type ChatMessageChunkID = string;
 
 export type Chat = {
 	id: ChatID,

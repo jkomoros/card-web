@@ -5,6 +5,7 @@ import {
 	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
 	CHAT_UPDATE_CHATS,
+	CHAT_UPDATE_CHUNKS,
 	CHAT_UPDATE_COMPOSING_MESSAGE,
 	CHAT_UPDATE_CURRENT_CHAT,
 	CHAT_UPDATE_MESSAGES,
@@ -19,6 +20,7 @@ const INITIAL_STATE : ChatState = {
 	currentChat: '',
 	chats: {},
 	messages: {},
+	chunks: {},
 	chatMessagesLoading: true,
 	chatsLoading: true,
 	composingMessage: '',
@@ -39,6 +41,11 @@ const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState
 			...state,
 			chats: {...state.chats, ...action.chats},
 			chatsLoading: false
+		};
+	case CHAT_UPDATE_CHUNKS:
+		return {
+			...state,
+			chunks: {...state.chunks, ...action.chunks}
 		};
 	case CHAT_EXPECT_CHATS:
 		return {

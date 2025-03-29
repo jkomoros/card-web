@@ -26,6 +26,7 @@ import {
 	CardIdentifier,
 	CardType,
 	Cards,
+	ChatMessageChunks,
 	ChatMessages,
 	Chats,
 	CommentMessageID,
@@ -114,6 +115,7 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 //Chat
 export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
 export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
+export const CHAT_UPDATE_CHUNKS = 'CHAT_UPDATE_CHUNKS';
 export const CHAT_EXPECT_CHATS = 'CHAT_EXPECT_CHATS';
 export const CHAT_EXPECT_CHAT_MESSAGES = 'CHAT_EXPECT_CHAT_MESSAGES';
 export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
@@ -482,6 +484,11 @@ type ActionChatUpdateMessages = {
 	type: typeof CHAT_UPDATE_MESSAGES,
 	messages: ChatMessages
 };
+
+type ActionChatUpdateChunks = {
+	type: typeof CHAT_UPDATE_CHUNKS,
+	chunks: ChatMessageChunks
+}
 
 type ActionChatExpectChats = {
 	type: typeof CHAT_EXPECT_CHATS
@@ -1142,6 +1149,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats
 	| ActionChatUpdateMessages
+	| ActionChatUpdateChunks
 	| ActionChatExpectChats
 	| ActionChatExpectChatMessages
 	| ActionChatUpdateCurrentChat

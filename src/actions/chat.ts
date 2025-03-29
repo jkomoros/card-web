@@ -20,6 +20,7 @@ import {
 } from '../store';
 
 import {
+	ChatMessageChunks,
 	ChatMessages,
 	Chats,
 	State
@@ -54,6 +55,7 @@ import {
 	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
 	CHAT_UPDATE_CHATS,
+	CHAT_UPDATE_CHUNKS,
 	CHAT_UPDATE_COMPOSING_MESSAGE,
 	CHAT_UPDATE_CURRENT_CHAT,
 	CHAT_UPDATE_MESSAGES,
@@ -285,6 +287,13 @@ export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction =>
 	dispatch({
 		type: CHAT_UPDATE_MESSAGES,
 		messages
+	});
+};
+
+export const updateChatMessageChunks = (chunks : ChatMessageChunks) : ThunkSomeAction => (dispatch) => {
+	dispatch({
+		type: CHAT_UPDATE_CHUNKS,
+		chunks
 	});
 };
 
