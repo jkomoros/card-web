@@ -23,3 +23,4 @@ export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 export const CHATS_COLLECTION = 'chats';
 export const CHAT_MESSAGES_COLLECTION = 'chat_messages';
+export const CHAT_MESSAGE_CHUNKS_COLLECTION = 'chat_message_chunks';

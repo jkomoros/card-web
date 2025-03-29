@@ -87,6 +87,9 @@ export const QDRANT_CLUSTER_URL = process.env[QDRANT_CLUSTER_URL_VAR];
 export const LAST_DEPLOY_AFFECTING_RENDERING = process.env[LAST_DEPLOY_AFFECTING_RENDERING_VAR] || 'deploy-not-set';
 const SITE_DOMAIN = process.env[SITE_DOMAIN_VAR];
 
+//Whether to stream messages for chats or not.
+export const ENABLE_STREAMING = false;
+
 //firebaseapp.com is whitelisted automatically in auth, but '*.web.app' isn't
 export const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
 export const DOMAIN =  SITE_DOMAIN || HOSTING_DOMAIN;

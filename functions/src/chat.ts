@@ -9,6 +9,7 @@ import {
 	AssistantThreadMessage,
 	Chat,
 	ChatMessage,
+	ChatMessageChunk,
 	CreateChatRequestData,
 	CreateChatResponseData,
 	OpenAIModelName,
@@ -24,6 +25,7 @@ import {
 
 import {
 	db,
+	ENABLE_STREAMING,
 	getCards,
 	throwIfUserMayNotUseAI,
 	userMayViewCard,
@@ -42,7 +44,8 @@ import {
 
 import {
 	CHATS_COLLECTION,
-	CHAT_MESSAGES_COLLECTION
+	CHAT_MESSAGES_COLLECTION,
+	CHAT_MESSAGE_CHUNKS_COLLECTION
 } from '../../shared/collection-constants.js';
 
 import type {
@@ -499,6 +502,7 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 const makeFirestoreStreamerForMessage = (chat : Chat, message: ChatMessage) : MessageStreamer => {
 
 	let assistantMessage : string = '';
+	let chunkCounter = 0;
 
 	const chatRef = db.collection(CHATS_COLLECTION).doc(chat.id);
 	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(message.id);
@@ -509,7 +513,19 @@ const makeFirestoreStreamerForMessage = (chat : Chat, message: ChatMessage) : Me
 		},
 		receiveChunk: async (chunk : string) => {
 			assistantMessage += chunk;
-			//TODO: when streaming is enabled, stream chunks here too.
+			if (ENABLE_STREAMING) {
+				const chunkID = message.id + chunkCounter;
+				const chunkRef = db.collection(CHAT_MESSAGE_CHUNKS_COLLECTION).doc(chunkID);
+				const chunkData : ChatMessageChunk = {
+					owner: chat.owner,
+					chat: chat.id,
+					message: message.id,
+					chunk_index: chunkCounter,
+					content: chunk
+				};
+				await chunkRef.set(chunkData);
+				chunkCounter++;
+			}
 		},
 		finished: async () => {
 			// Finalize the message
@@ -523,6 +539,8 @@ const makeFirestoreStreamerForMessage = (chat : Chat, message: ChatMessage) : Me
 				updated: timestamp()
 			};
 			await chatRef.update(chatUpdate);
+
+			//TODO: clean up old chunks by deleting htem (ideally after waiting 5 seconds or so for the client to fetch them)
 		},
 		errored: async (error : Error) => {
 			console.error('Error during message streaming:', error);
