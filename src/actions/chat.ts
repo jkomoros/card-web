@@ -26,6 +26,7 @@ import {
 } from '../types';
 
 import {
+	authenticatedFetch,
 	db,
 	functions
 } from '../firebase.js';
@@ -41,6 +42,10 @@ import {
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
 } from '../../shared/types.js';
+
+import {
+	FIREBASE_REGION
+} from '../config.GENERATED.SECRET.js';
 
 import {
 	navigatePathTo,
@@ -89,7 +94,11 @@ const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 
 const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
-const postMessageInChatCallable = httpsCallable<PostMessageInChatRequestData, PostMessageInChaResponseData>(functions, 'postMessageInChat');
+
+// Using direct URL for the HTTP endpoint instead of callable
+const projectId = functions.app.options.projectId;
+const chatURL = `https://${FIREBASE_REGION}-${projectId}.cloudfunctions.net/chat`;
+const postMessageInChatURL = chatURL + '/postMessage';
 
 export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(configureCommitAction('CREATE_CHAT'));
@@ -174,20 +183,25 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 	});
 
 	try {
-		const result = await postMessageInChatCallable({
-			chat: chatID,
-			message
-		});
+		// Use the authenticatedFetch helper with the appropriate type parameters
+		const data = await authenticatedFetch<PostMessageInChatRequestData, PostMessageInChaResponseData>(
+			postMessageInChatURL, 
+			{
+				chat: chatID,
+				message
+			}
+		);
 		
-		const data = result.data;
+		// Check success flag in the response
 		if (!data.success) {
-			console.error('Failed to post message:', data.error);
+			console.error('Failed to post message:', data.error || 'Unknown error');
 			dispatch({
 				type: CHAT_SEND_MESSAGE_FAILURE,
-				error: new Error(data.error)
+				error: new Error(data.error || 'Request failed')
 			});
 			return;
 		}
+		
 		dispatch({
 			type: CHAT_SEND_MESSAGE_SUCCESS
 		});

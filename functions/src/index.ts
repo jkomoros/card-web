@@ -23,6 +23,7 @@ import 'firebase-functions/logger/compat';
 //collections.
 
 import express from 'express';
+import cors from 'cors';
 
 import * as email from './email.js';
 import * as twitter from './twitter.js';
@@ -44,7 +45,7 @@ import {
 
 import * as openaiimpl from './openai.js';
 import * as anthropicimpl from './anthropic.js';
-import * as chat from './chat.js';
+import * as chatImpl from './chat.js';
 import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 
 //Runs every three hours
@@ -131,9 +132,17 @@ export const anthropic = onCall({}, anthropicimpl.handler);
 export const createChat = onCall({
 	memory: '1GiB',
 	timeoutSeconds: 300
-}, chat.createChat);
+}, chatImpl.createChat);
 
-export const postMessageInChat = onCall({
+// Create Express app for postMessageInChat
+const chatApp = express();
+// Configure CORS middleware
+chatApp.use(cors({ origin: true }));
+// Configure middleware to parse JSON
+chatApp.use(express.json());
+chatApp.post('/postMessage', chatImpl.postMessageInChatHandler);
+
+export const chat = onRequest({
 	memory: '1GiB',
 	timeoutSeconds: 300
-}, chat.postMessageInChat);
+}, chatApp);

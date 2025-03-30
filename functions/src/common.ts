@@ -168,7 +168,7 @@ export const mayUseAI = (permissions : UserPermissions | null) => {
 	return false;
 };
 
-export const throwIfUserMayNotUseAI = async (uid? : Uid) : Promise<void> => {
+export const throwIfUserMayNotUseAI = async (uid? : Uid | null) : Promise<void> => {
 	if (!uid) {
 		throw new HttpsError('unauthenticated', 'A valid user authentication must be passed');
 	}
@@ -184,17 +184,21 @@ type AuthData = {
 	uid?: Uid
 };
 
-export const authFromRequest = async (req: ExpressRequest): Promise<AuthData | null> => {
+export const authFromRequest = async (req: ExpressRequest): Promise<AuthData> => {
 	// Check for the authorization header which should contain a Firebase ID token
 	const authHeader = req.headers.authorization;
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
-		return null;
+		return {
+			uid: undefined
+		};
 	}
 	
 	// Extract the token
 	const idToken = authHeader.split('Bearer ')[1];
 	if (!idToken) {
-		return null;
+		return {
+			uid: undefined
+		};
 	}
 	
 	try {
@@ -203,7 +207,9 @@ export const authFromRequest = async (req: ExpressRequest): Promise<AuthData | n
 		return { uid: decodedToken.uid };
 	} catch (error) {
 		console.error('Error verifying auth token:', error);
-		return null;
+		return {
+			uid: undefined
+		};
 	}
 };
 

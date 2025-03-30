@@ -3,6 +3,11 @@ import {
 } from 'firebase-functions/v2/https';
 
 import {
+	Request,
+	Response
+} from 'express';
+
+import {
 	AIModelName,
 	AnthropicModelName,
 	AssistantThread,
@@ -23,6 +28,7 @@ import {
 } from '../../shared/ai.js';
 
 import {
+	authFromRequest,
 	db,
 	getCards,
 	throwIfUserMayNotUseAI,
@@ -409,47 +415,51 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 	}
 };
 
-export const postMessageInChat = async (request : CallableRequest<PostMessageInChatRequestData>) : Promise<PostMessageInChaResponseData> => {
-	const { data, auth } = request;
-
-	if (!auth || !auth.uid) {
-		throw new Error('Unauthorized request');
-	}
+// Express onRequest handler for postMessageInChat
+export const postMessageInChatHandler = async (req: Request, res: Response) => {
+	// Get auth data from request
+	const authData = await authFromRequest(req);
 
 	try {
-		await throwIfUserMayNotUseAI(request.auth?.uid);
+		await throwIfUserMayNotUseAI(authData?.uid);
 	} catch(err) {
-		return {
+		res.status(403).json({
 			success: false,
 			error: String(err)
-		};
+		} as PostMessageInChaResponseData);
+		return;
 	}
 
+	// Get request body data
+	const data = req.body as PostMessageInChatRequestData;
+
 	if (!data || !data.chat || !data.message) {
-		return {
+		res.status(400).json({
 			success: false,
 			error: 'No data provided'
-		};
+		} as PostMessageInChaResponseData);
+		return;
 	}
 
 	const chatRef = db.collection(CHATS_COLLECTION).doc(data.chat);
-
 	const chat = await chatRef.get();
 
 	if (!chat.exists) {
-		return {
+		res.status(404).json({
 			success: false,
 			error: 'Chat not found for ID: ' + data.chat
-		};
+		} as PostMessageInChaResponseData);
+		return;
 	}
 
 	const chatData = chat.data() as Chat;
 
-	if (chatData.owner !== auth.uid) {
-		return {
+	if (chatData.owner !== authData.uid) {
+		res.status(403).json({
 			success: false,
 			error: 'User is not the owner of this chat'
-		};
+		} as PostMessageInChaResponseData);
+		return;
 	}
 	
 	//TODO: figure out how to not fetch the messages twice
@@ -462,10 +472,11 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 		.get();
 
 	if (existingMessagesSnapshot.empty) {
-		return {
+		res.status(404).json({
 			success: false,
 			error: 'No messages found for chat ID: ' + data.chat
-		};
+		} as PostMessageInChaResponseData);
+		return;
 	}
 
 	const existingMessages : ChatMessage[] = existingMessagesSnapshot.docs.map(doc => ({
@@ -484,6 +495,7 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 		timestamp: timestamp(),
 		status: 'complete'
 	};
+
 	// Write the new user message to Firestore
 	const newMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(newMessage.id);
 	await newMessageRef.set(newMessage);
@@ -495,8 +507,8 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 
 	//Fetch the assistant message for this chat. Do NOT await, since it will write to the database when done.
 	fetchAssistantMessage(data.chat);
-	return {
+	
+	res.status(200).json({
 		success: true,
-	};
-
+	} as PostMessageInChaResponseData);
 };
