@@ -496,6 +496,23 @@ export const postMessageInChatHandler = async (req: Request, res: Response) => {
 		...doc.data()
 	} as ChatMessage));
 
+	if (existingMessages.length === 0) {
+		res.status(404).json({
+			success: false,
+			error: 'No messages found for chat ID: ' + data.chat
+		} as PostMessageInChaResponseData);
+		return;
+	}
+
+	const lastMessage = existingMessages[existingMessages.length - 1];
+	if (lastMessage.role !== 'assistant') {
+		res.status(403).json({
+			success: false,
+			error: 'Last message in chat is not an assistant message'
+		} as PostMessageInChaResponseData);
+		return;
+	}
+
 	const messageIndex = existingMessages.length; // Next message index to use for the new message
 
 	const newMessage : ChatMessage = {
