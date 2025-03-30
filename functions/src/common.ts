@@ -23,7 +23,6 @@ import {
 } from './types.js';
 
 import {
-	CallableRequest,
 	HttpsError
 } from 'firebase-functions/v2/https';
 
@@ -165,12 +164,12 @@ export const mayUseAI = (permissions : UserPermissions | null) => {
 	return false;
 };
 
-export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>) : Promise<void> => {
-	if (!request.auth) {
+export const throwIfUserMayNotUseAI = async (uid? : Uid) : Promise<void> => {
+	if (!uid) {
 		throw new HttpsError('unauthenticated', 'A valid user authentication must be passed');
 	}
 
-	const permissions = await userPermissions(request.auth.uid);
+	const permissions = await userPermissions(uid);
 
 	if (!mayUseAI(permissions)) {
 		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');

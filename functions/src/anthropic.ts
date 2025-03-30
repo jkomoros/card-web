@@ -36,7 +36,7 @@ export const handler = async (request : CallableRequest<AnthropicData>) => {
 		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
 	}
 
-	await throwIfUserMayNotUseAI(request);
+	await throwIfUserMayNotUseAI(request.auth?.uid);
 
 	if (!data || typeof data !== 'object') {
 		throw new HttpsError('invalid-argument', 'data must be an object');

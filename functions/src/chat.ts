@@ -81,7 +81,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 	}
 
 	try {
-		await throwIfUserMayNotUseAI(request);
+		await throwIfUserMayNotUseAI(request.auth?.uid);
 	} catch(err) {
 		return {
 			success: false,
@@ -417,7 +417,7 @@ export const postMessageInChat = async (request : CallableRequest<PostMessageInC
 	}
 
 	try {
-		await throwIfUserMayNotUseAI(request);
+		await throwIfUserMayNotUseAI(request.auth?.uid);
 	} catch(err) {
 		return {
 			success: false,
