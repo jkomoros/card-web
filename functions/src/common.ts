@@ -26,6 +26,10 @@ import {
 	HttpsError
 } from 'firebase-functions/v2/https';
 
+import {
+	Request as ExpressRequest
+} from 'express';
+
 // Import shared constants instead of duplicating them
 import {
 	OPENAI_API_KEY_VAR,
@@ -173,6 +177,33 @@ export const throwIfUserMayNotUseAI = async (uid? : Uid) : Promise<void> => {
 
 	if (!mayUseAI(permissions)) {
 		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');
+	}
+};
+
+type AuthData = {
+	uid?: Uid
+};
+
+export const authFromRequest = async (req: ExpressRequest): Promise<AuthData | null> => {
+	// Check for the authorization header which should contain a Firebase ID token
+	const authHeader = req.headers.authorization;
+	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+		return null;
+	}
+	
+	// Extract the token
+	const idToken = authHeader.split('Bearer ')[1];
+	if (!idToken) {
+		return null;
+	}
+	
+	try {
+		// Verify the token with Firebase Auth
+		const decodedToken = await auth.verifyIdToken(idToken);
+		return { uid: decodedToken.uid };
+	} catch (error) {
+		console.error('Error verifying auth token:', error);
+		return null;
 	}
 };
 
