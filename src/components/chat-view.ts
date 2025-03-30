@@ -366,7 +366,7 @@ class ChatView extends connect(store)(PageViewElement) {
 
 		//Calculate the precise collectionURL that shows the cards actually selected to show.
 		//This allows a workflow of exporting those cards (selected by embeddings) into a Google Doc or something.
-		let collectionURL : string = '';
+		let collectionURL = '';
 		if (this._composedChat) {
 			const collection = CollectionDescription.deserialize(this._composedChat.collection.description);
 			const cardFilter = cardsFilter(unionFilter(...this._composedChat.cards));
