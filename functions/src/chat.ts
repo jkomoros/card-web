@@ -1,8 +1,4 @@
 import {
-	CallableRequest
-} from 'firebase-functions/v2/https';
-
-import {
 	Request,
 	Response
 } from 'express';
@@ -79,48 +75,61 @@ const timestamp = (): Timestamp => {
 const SYSTEM_PROMPT = 'You should answer the user\'s question, primarily based on the information included within this background:';
 const SYSTEM_PROMPT_VERSION = 0;
 
-export const createChat = async (request : CallableRequest<CreateChatRequestData>) : Promise<CreateChatResponseData> => {
-	const { data, auth } = request;
+// Express onRequest handler for createChat
+export const createChatHandler = async (req: Request, res: Response) => {
+	// Get auth data from request
+	const authData = await authFromRequest(req);
 
-	if (!auth || !auth.uid) {
-		throw new Error('Unauthorized request');
+	if (!authData || !authData.uid) {
+		res.status(401).json({
+			success: false,
+			error: 'Unauthorized request'
+		} as CreateChatResponseData);
+		return;
 	}
 
 	try {
-		await throwIfUserMayNotUseAI(request.auth?.uid);
+		await throwIfUserMayNotUseAI(authData.uid);
 	} catch(err) {
-		return {
+		res.status(403).json({
 			success: false,
 			error: String(err)
-		};
+		} as CreateChatResponseData);
+		return;
 	}
 
+	// Get request body data
+	const data = req.body as CreateChatRequestData;
+
 	if (!data) {
-		return {
+		res.status(400).json({
 			success: false,
 			error: 'No data provided'
-		};
+		} as CreateChatResponseData);
+		return;
 	}
 
 	const modelInfo = MODEL_INFO[data.model];
 	if (!modelInfo) {
-		return {
+		res.status(400).json({
 			success: false,
 			error: 'Invalid model provided'
-		};
+		} as CreateChatResponseData);
+		return;
 	}
 
-	const permissions = await userPermissions(auth.uid);
+	const permissions = await userPermissions(authData.uid);
 
 	const id = randomString(16);
 
 	const backgroundPercentage = data.backgroundPercentage;
 
 	if (backgroundPercentage < 0 || backgroundPercentage > 1.0) {
-		return {
+		res.status(400).json({
 			success: false,
 			error: 'Background percentage must be between 0 and 1'
-		};
+		} as CreateChatResponseData);
+		return;
 	}
 
 	const targetBackgroundLength = backgroundPercentage * modelInfo.maxTokens;
@@ -164,14 +173,15 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const cards = await getCards(cardIDs);
 	if (!cards || cards.length === 0) {
-		return {
+		res.status(400).json({
 			success: false,
 			error: 'No valid cards found for the provided IDs'
-		};
+		} as CreateChatResponseData);
+		return;
 	}
 
 	//Keep only cards the user is allowed to view.
-	const viewableCards = cards.filter(card => userMayViewCard(permissions, card, auth.uid));
+	const viewableCards = cards.filter(card => userMayViewCard(permissions, card, authData.uid));
 
 	const cardsContent = viewableCards.map(card => cardPlainContent(card));
 	
@@ -184,7 +194,7 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 	const chat : Chat = {
 		id,
-		owner: auth.uid,
+		owner: authData.uid,
 		model: data.model,
 		collection: data.collection,
 		requested_cards: data.cards,
@@ -244,16 +254,18 @@ export const createChat = async (request : CallableRequest<CreateChatRequestData
 
 		setChatTitle(id, data.initialMessage);
 
-		return { 
+		res.status(200).json({ 
 			success: true,
 			chat: id
-		};
+		} as CreateChatResponseData);
+
 	} catch (error) {
 		console.error('Error creating chat:', error);
-		return {
+		res.status(500).json({
 			success: false,
 			error: 'Failed to create chat: ' + String(error)
-		};
+		} as CreateChatResponseData);
+		return;
 	}
 };
 

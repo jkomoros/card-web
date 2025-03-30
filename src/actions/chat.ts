@@ -1,8 +1,4 @@
 import {
-	httpsCallable
-} from 'firebase/functions';
-
-import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
 	selectChats,
@@ -93,12 +89,11 @@ const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 // Default background length
 const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 
-const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
-
-// Using direct URL for the HTTP endpoint instead of callable
+// Using direct URL for the HTTP endpoints instead of callable
 const projectId = functions.app.options.projectId;
 const chatURL = `https://${FIREBASE_REGION}-${projectId}.cloudfunctions.net/chat`;
 const postMessageInChatURL = chatURL + '/postMessage';
+const createChatURL = chatURL + '/create';
 
 export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(configureCommitAction('CREATE_CHAT'));
@@ -138,19 +133,22 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	const model = DEFAULT_MODEL;
 
 	try {
-		const result = await createChatCallable({
-			owner: uid,
-			cards: cardIDs,
-			initialMessage,
-			backgroundPercentage: DEFAULT_BACKGROUND_PERCENTAGE,
-			model,
-			collection: {
-				description: collection.description.serialize(),
-				configuration: collection.description.configuration
+		// Use authenticated fetch instead of callable
+		const data = await authenticatedFetch<CreateChatRequestData, CreateChatResponseData>(
+			createChatURL,
+			{
+				owner: uid,
+				cards: cardIDs,
+				initialMessage,
+				backgroundPercentage: DEFAULT_BACKGROUND_PERCENTAGE,
+				model,
+				collection: {
+					description: collection.description.serialize(),
+					configuration: collection.description.configuration
+				}
 			}
-		});
+		);
 		
-		const data = result.data;
 		if (data.success) {
 			// Navigate to the new chat
 			dispatch(navigatePathTo(`/${PAGE_CHAT}/${data.chat}`));

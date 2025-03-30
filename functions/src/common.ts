@@ -213,10 +213,11 @@ export const authFromRequest = async (req: ExpressRequest): Promise<AuthData> =>
 	}
 };
 
-export const userMayViewCard = (permissions : UserPermissions | null, card : Card, uid : Uid) : boolean => {
+export const userMayViewCard = (permissions : UserPermissions | null, card : Card, uid? : Uid) : boolean => {
 	//The rough equivalent of userMayViewUnpublished from the security rules
 	if (!card) return true;
 	if (card.published) return true;
+	if (!uid) return false;
 	if (!permissions) return false;
 	if (permissions.admin) return true;
 	if (permissions.edit) return true;

@@ -129,18 +129,14 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 export const openai = onCall({}, openaiimpl.handler);
 export const anthropic = onCall({}, anthropicimpl.handler);
 
-export const createChat = onCall({
-	memory: '1GiB',
-	timeoutSeconds: 300
-}, chatImpl.createChat);
-
-// Create Express app for postMessageInChat
+// Create Express app for chat endpoints
 const chatApp = express();
 // Configure CORS middleware
 chatApp.use(cors({ origin: true }));
 // Configure middleware to parse JSON
 chatApp.use(express.json());
 chatApp.post('/postMessage', chatImpl.postMessageInChatHandler);
+chatApp.post('/create', chatImpl.createChatHandler);
 
 export const chat = onRequest({
 	memory: '1GiB',
