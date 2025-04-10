@@ -137,6 +137,7 @@ chatApp.use(cors({ origin: true }));
 chatApp.use(express.json());
 chatApp.post('/postMessage', chatImpl.postMessageInChatHandler);
 chatApp.post('/create', chatImpl.createChatHandler);
+chatApp.post('/streamMessage', chatImpl.streamMessageHandler);
 
 export const chat = onRequest({
 	memory: '1GiB',

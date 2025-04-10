@@ -37,6 +37,7 @@ import {
 	CreateChatResponseData,
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
+	StreamMessageRequestData,
 } from '../../shared/types.js';
 
 import {
@@ -92,8 +93,10 @@ const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 // Using direct URL for the HTTP endpoints instead of callable
 const projectId = functions.app.options.projectId;
 const chatURL = `https://${FIREBASE_REGION}-${projectId}.cloudfunctions.net/chat`;
+//TODO: these should be shared constants between client and server
 const postMessageInChatURL = chatURL + '/postMessage';
 const createChatURL = chatURL + '/create';
+const streamMessageURL = chatURL + '/streamMessage';
 
 export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(configureCommitAction('CREATE_CHAT'));
@@ -213,6 +216,18 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 
 };
 
+const streamMessage = async (chatID : ChatID) : Promise<void> => {
+	//TODO: actually stream messages
+
+	//We just need to tickle the function to start streaming; we'll receive it when it's done through updateChatMessages.
+	await authenticatedFetch<StreamMessageRequestData, PostMessageInChaResponseData>(
+		streamMessageURL,
+		{
+			chat: chatID
+		}
+	);
+};
+
 const receiveChats = (snapshot: QuerySnapshot<DocumentData, DocumentData>) => {
 
 	const chats : Chats = {};
@@ -294,6 +309,15 @@ export const updateChats = (chats : Chats) : ThunkSomeAction => (dispatch) => {
 };
 
 export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction => (dispatch) => {
+
+	//Every time we notice a message that's ready to start streaming, stream it.
+	for (const rawMessage of Object.values(messages)) {
+		const message = rawMessage as ChatMessage;
+		if (message.status == 'ready') {
+			streamMessage(message.chat);
+		}
+	}
+
 	dispatch({
 		type: CHAT_UPDATE_MESSAGES,
 		messages

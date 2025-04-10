@@ -10,11 +10,13 @@ import {
 	AssistantThreadMessage,
 	Chat,
 	ChatMessage,
+	ChatMessageID,
 	CreateChatRequestData,
 	CreateChatResponseData,
 	OpenAIModelName,
 	PostMessageInChaResponseData,
-	PostMessageInChatRequestData
+	PostMessageInChatRequestData,
+	StreamMessageRequestData
 } from '../../shared/types.js';
 
 import {
@@ -76,7 +78,7 @@ const SYSTEM_PROMPT = 'You should answer the user\'s question, primarily based o
 const SYSTEM_PROMPT_VERSION = 0;
 
 // Express onRequest handler for createChat
-export const createChatHandler = async (req: Request, res: Response) => {
+export const createChatHandler = async (req: Request, res: Response) : Promise<void> => {
 	// Get auth data from request
 	const authData = await authFromRequest(req);
 
@@ -248,9 +250,7 @@ export const createChatHandler = async (req: Request, res: Response) => {
 		// Commit the batch
 		await batch.commit();
 
-		//Start the assistant message, but DON'T await it; will complete in the
-		//background and write to the database when done.
-		fetchAssistantMessage(id);
+		await createStubAssistantMessage(id, 2);
 
 		setChatTitle(id, data.initialMessage);
 
@@ -287,80 +287,26 @@ const setChatTitle = async (chatID : string, initalMesasge : string) : Promise<v
 
 //Will fetch the next assistant message for the given chatID, and write it into the database.
 //Typically you don't actually await this, and instead just get the result on the client when it's done.
-const fetchAssistantMessage = async (chatID : string) : Promise<ChatMessage | null> => {
-
-	//TODO: do streaming and write streaming tokens to the database as they come in.
+const createStubAssistantMessage = async (chatID : string, nextMessageIndex : number) : Promise<ChatMessageID | null> => {
 
 	//TODO: if there's an error, automatically retry at some point (perhaps if the user views the chat again).
 
-	const chatRef = db.collection(CHATS_COLLECTION).doc(chatID);
-
-	const chatSnapshot = await chatRef.get();
-	if (!chatSnapshot.exists) {
-		throw new Error('Chat not found for ID: ' + chatID);
-	}
-	const chat = chatSnapshot.data() as Chat;
-
-	const model = chat.model;
-
-	//Fetch all messages with chat = chatID sorted by message_index
-	const messagesSnapshot = await db.collection(CHAT_MESSAGES_COLLECTION)
-		.where('chat', '==', chatID)
-		.orderBy('message_index')
-		.get();
-
-	if (messagesSnapshot.empty) {
-		throw new Error('No messages found for chat ID: ' + chatID);
-	}
-
-	const messages : ChatMessage[] = messagesSnapshot.docs.map(doc => ({
-		id: doc.id,
-		...doc.data()
-	} as ChatMessage));
-
-	const messageIndex = messages.length; // Next message index to use for the assistant message
 	const assistantMessageData : ChatMessage = {
 		id: randomString(16),
 		chat: chatID,
-		message_index: messageIndex,
+		message_index: nextMessageIndex,
 		role: 'assistant',
 		content: '',
 		timestamp: timestamp(),
-		status: 'streaming'
+		status: 'ready'
 	};
 
 	//Write a stub message so the client can render loadding UI.
 	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
 	await assistantMessageRef.set(assistantMessageData);
 
-	let assistantMessage : string = '';
+	return assistantMessageData.id;
 
-	try {
-		assistantMessage = await assistantMessageForThread(model, messages);
-	} catch(err) {
-		console.error('Error fetching assistant message:', err);
-		//If there's an error, write the error to the database and return null.
-		const update : Partial<ChatMessage> = {
-			status: 'failed',
-			error: String(err)
-		};
-		await assistantMessageRef.update(update);
-		return null;
-	}
-
-	//Write the final assistant message to the database.
-
-	const messageUpdate : Partial<ChatMessage> = {
-		content: assistantMessage,
-		status: 'complete'
-	};
-	await assistantMessageRef.update(messageUpdate);
-
-	const chatUpdate : Partial<Chat> = {
-		updated: timestamp()
-	};
-	await chatRef.update(chatUpdate);
-	return assistantMessageData;
 };
 
 const makeAssistantThread = (thread : ChatMessage[]) : AssistantThread => {
@@ -427,8 +373,130 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 	}
 };
 
+export const streamMessageHandler = async (req: Request, res: Response) : Promise<void> => {
+
+	const authData = await authFromRequest(req);
+
+	//TODO: make this stream responses.
+
+	try {
+		await throwIfUserMayNotUseAI(authData?.uid);
+	} catch(err) {
+		res.status(403).json({
+			success: false,
+			error: String(err)
+		} as PostMessageInChaResponseData);
+		return;
+	}
+
+	const data = req.body as StreamMessageRequestData;
+
+	if (!data|| !data.chat) {
+		res.status(400).json({
+			success: false,
+			error: 'No data provided'
+		} as PostMessageInChaResponseData);
+		return;
+	}
+
+	const chatID = data.chat;
+
+	const chatRef = db.collection(CHATS_COLLECTION).doc(chatID);
+
+	const chatSnapshot = await chatRef.get();
+	if (!chatSnapshot.exists) {
+		throw new Error('Chat not found for ID: ' + chatID);
+	}
+	const chat = chatSnapshot.data() as Chat;
+
+	const model = chat.model;
+
+	//Fetch all messages with chat = chatID sorted by message_index
+	const messagesSnapshot = await db.collection(CHAT_MESSAGES_COLLECTION)
+		.where('chat', '==', chatID)
+		.orderBy('message_index')
+		.get();
+
+	if (messagesSnapshot.empty) {
+		throw new Error('No messages found for chat ID: ' + chatID);
+	}
+
+	const messages : ChatMessage[] = messagesSnapshot.docs.map(doc => ({
+		id: doc.id,
+		...doc.data()
+	} as ChatMessage));
+
+	const assistantMessageData = messages[messages.length - 1];
+
+	if (assistantMessageData.role !== 'assistant') {
+		res.status(500).json({
+			success: false,
+			error: 'Last message is not an assistant message'
+		} as PostMessageInChaResponseData);
+	}
+
+	if (assistantMessageData.status !== 'ready') {
+		res.status(500).json({
+			success: false,
+			error: 'Assistant message is not ready to stream'
+		} as PostMessageInChaResponseData);
+	}
+
+	//Immediately claim streaming for this.
+
+	//Write a stub message so the client can render loadding UI.
+	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
+	const assistantMessageUpdate : Partial<ChatMessage> = {
+		status: 'streaming'
+	};
+	await assistantMessageRef.update(assistantMessageUpdate);
+
+	let assistantMessage : string = '';
+
+	//We ahve to pass the messages without the last assistant message, because
+	//this is the precise thread that will be sent to the assistant, and it
+	//should respond with an asssitant message, and the current one is empty.
+	const messagesWithoutLastAsssistantMessage = messages.slice(0, messages.length - 1);
+
+	try {
+		//TODO: actually stream the message.
+		assistantMessage = await assistantMessageForThread(model, messagesWithoutLastAsssistantMessage);
+	} catch(err) {
+		console.error('Error fetching assistant message:', err);
+		//If there's an error, write the error to the database and return null.
+		const update : Partial<ChatMessage> = {
+			status: 'failed',
+			error: String(err)
+		};
+		await assistantMessageRef.update(update);
+		res.status(500).json({
+			success: false,
+			error: String(err)
+		} as PostMessageInChaResponseData);
+		return;
+	}
+
+	//Write the final assistant message to the database.
+
+	const messageUpdate : Partial<ChatMessage> = {
+		content: assistantMessage,
+		status: 'complete'
+	};
+	await assistantMessageRef.update(messageUpdate);
+
+	const chatUpdate : Partial<Chat> = {
+		updated: timestamp()
+	};
+	await chatRef.update(chatUpdate);
+	res.status(200).json({
+		success: true,
+		assistantMessage
+	} as PostMessageInChaResponseData);
+	return;
+};
+
 // Express onRequest handler for postMessageInChat
-export const postMessageInChatHandler = async (req: Request, res: Response) => {
+export const postMessageInChatHandler = async (req: Request, res: Response) : Promise<void> => {
 	// Get auth data from request
 	const authData = await authFromRequest(req);
 
@@ -474,10 +542,6 @@ export const postMessageInChatHandler = async (req: Request, res: Response) => {
 		return;
 	}
 	
-	//TODO: figure out how to not fetch the messages twice
-	//(fetchAssistantMessage also does it. Maybe fetchAssistantMessage should
-	//also take the most recent userMessage to write?)
-
 	const existingMessagesSnapshot = await db.collection(CHAT_MESSAGES_COLLECTION)
 		.where('chat', '==', data.chat)
 		.orderBy('message_index', 'asc')
@@ -513,6 +577,14 @@ export const postMessageInChatHandler = async (req: Request, res: Response) => {
 		return;
 	}
 
+	if (lastMessage.status !== 'complete') {
+		res.status(403).json({
+			success: false,
+			error: 'Last message in chat is not complete'
+		} as PostMessageInChaResponseData);
+		return;
+	}
+
 	const messageIndex = existingMessages.length; // Next message index to use for the new message
 
 	const newMessage : ChatMessage = {
@@ -534,8 +606,7 @@ export const postMessageInChatHandler = async (req: Request, res: Response) => {
 	};
 	await chatRef.update(chatUpdate);
 
-	//Fetch the assistant message for this chat. Do NOT await, since it will write to the database when done.
-	fetchAssistantMessage(data.chat);
+	await createStubAssistantMessage(data.chat, messageIndex + 1);
 	
 	res.status(200).json({
 		success: true,
