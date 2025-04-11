@@ -1,6 +1,7 @@
 import { 
 	CHAT_EXPECT_CHAT_MESSAGES,
 	CHAT_EXPECT_CHATS,
+	CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN,
 	CHAT_SEND_MESSAGE,
 	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
@@ -39,6 +40,20 @@ const app = (state : ChatState = INITIAL_STATE, action : SomeAction) : ChatState
 			...state,
 			chats: {...state.chats, ...action.chats},
 			chatsLoading: false
+		};
+	case CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN:
+		const existingMessage = state.messages[action.messageID];
+		if (!existingMessage) return state;
+		if (existingMessage.status !== 'streaming') return state;
+		return {
+			...state,
+			messages: {
+				...state.messages,
+				[action.messageID]: {
+					...existingMessage,
+					content: existingMessage.content + action.chunk
+				}
+			}
 		};
 	case CHAT_EXPECT_CHATS:
 		return {

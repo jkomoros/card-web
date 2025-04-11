@@ -34,6 +34,7 @@ import {
 	Chat,
 	ChatID,
 	ChatMessage,
+	ChatMessageID,
 	CreateChatRequestData,
 	CreateChatResponseData,
 	PostMessageInChaResponseData,
@@ -54,6 +55,7 @@ import {
 import {
 	CHAT_EXPECT_CHAT_MESSAGES,
 	CHAT_EXPECT_CHATS,
+	CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN,
 	CHAT_SEND_MESSAGE,
 	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
@@ -294,15 +296,18 @@ async function* streamResponse<T>(url: string, requestData: T): AsyncGenerator<s
 	}
 }
 
-const streamMessage = async (chatID : ChatID) : Promise<void> => {
+const streamMessage = async (chatID : ChatID, messageID : ChatMessageID) : Promise<void> => {
 	try {
 		// Use the generic streamResponse helper
 		for await (const chunk of streamResponse(
 			streamMessageURL,
 			{ chat: chatID } as StreamMessageRequestData
 		)) {
-			// Log each chunk as it arrives
-			console.log('Received chunk:', chunk);
+			store.dispatch({
+				type: CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN,
+				messageID,
+				chunk
+			});
 		}
 		console.log('Stream completed');
 	} catch (error) {
@@ -396,7 +401,7 @@ export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction =>
 	for (const rawMessage of Object.values(messages)) {
 		const message = rawMessage as ChatMessage;
 		if (message.status == 'ready') {
-			streamMessage(message.chat);
+			streamMessage(message.chat, message.id);
 		}
 	}
 

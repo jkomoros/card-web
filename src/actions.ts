@@ -7,6 +7,7 @@ import {
 
 import {
 	ChatID,
+	ChatMessageID,
 	CollectionConfiguration
 } from '../shared/types.js';
 
@@ -114,6 +115,7 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 //Chat
 export const CHAT_UPDATE_CHATS = 'CHAT_UPDATE_CHATS';
 export const CHAT_UPDATE_MESSAGES = 'CHAT_UPDATE_MESSAGES';
+export const CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN = 'CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN';
 export const CHAT_EXPECT_CHATS = 'CHAT_EXPECT_CHATS';
 export const CHAT_EXPECT_CHAT_MESSAGES = 'CHAT_EXPECT_CHAT_MESSAGES';
 export const CHAT_UPDATE_CURRENT_CHAT = 'CHAT_UPDATE_CURRENT_CHAT';
@@ -481,6 +483,12 @@ type ActionChatUpdateChats = {
 type ActionChatUpdateMessages = {
 	type: typeof CHAT_UPDATE_MESSAGES,
 	messages: ChatMessages
+};
+
+type ActionChatReceiveStreamingMessageToken = {
+	type: typeof CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN,
+	messageID: ChatMessageID,
+	chunk: string
 };
 
 type ActionChatExpectChats = {
@@ -1142,6 +1150,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats
 	| ActionChatUpdateMessages
+	| ActionChatReceiveStreamingMessageToken
 	| ActionChatExpectChats
 	| ActionChatExpectChatMessages
 	| ActionChatUpdateCurrentChat
