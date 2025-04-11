@@ -24,7 +24,8 @@ import {
 import {
 	authenticatedFetch,
 	db,
-	functions
+	functions,
+	getIDToken
 } from '../firebase.js';
 
 import {
@@ -37,6 +38,7 @@ import {
 	CreateChatResponseData,
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
+	StreamingMessageData,
 	StreamMessageRequestData,
 } from '../../shared/types.js';
 
@@ -216,16 +218,96 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 
 };
 
-const streamMessage = async (chatID : ChatID) : Promise<void> => {
-	//TODO: actually stream messages
+/**
+ * Generic helper to handle streaming SSE responses
+ * @param url The URL to send the request to
+ * @param requestData The request data to send
+ * @returns AsyncGenerator that yields each chunk of text as it arrives
+ */
+async function* streamResponse<T>(url: string, requestData: T): AsyncGenerator<string> {
+	// Get the authentication token from the shared function
+	const token = await getIDToken();
 
-	//We just need to tickle the function to start streaming; we'll receive it when it's done through updateChatMessages.
-	await authenticatedFetch<StreamMessageRequestData, PostMessageInChaResponseData>(
-		streamMessageURL,
-		{
-			chat: chatID
+	// Create the request with authentication
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${token}`
+		},
+		body: JSON.stringify(requestData)
+	});
+
+	if (!response.ok) {
+		throw new Error(`Stream response not OK: ${response.status} ${response.statusText}`);
+	}
+
+	// Create a reader for the response body stream
+	const reader = response.body?.getReader();
+	if (!reader) {
+		throw new Error('Failed to get stream reader');
+	}
+
+	// Process the stream
+	const decoder = new TextDecoder();
+	let buffer = '';
+	let streamActive = true;
+
+	while (streamActive) {
+		const { done, value } = await reader.read();
+		if (done) {
+			streamActive = false;
+			break;
 		}
-	);
+
+		// Decode the chunk and add it to our buffer
+		buffer += decoder.decode(value, { stream: true });
+
+		// Process complete events from the buffer
+		const lines = buffer.split('\n\n');
+		buffer = lines.pop() || ''; // Keep the last incomplete chunk in the buffer
+
+		for (const line of lines) {
+			if (line.startsWith('data: ')) {
+				try {
+					const data = JSON.parse(line.substring(6)) as StreamingMessageData;
+					
+					// Check if it's a StreamingMessageErrorChunk
+					if ('error' in data) {
+						throw new Error(`Stream error: ${data.error}`);
+					}
+
+					// Check if it's a StreamingMessageDataChunk
+					if ('chunk' in data) {
+						yield data.chunk;
+					}
+
+					// Check if it's a StreamingMessageDataDone
+					if ('done' in data) {
+						return;
+					}
+				} catch (error) {
+					throw new Error(`Error parsing SSE data: ${error}`);
+				}
+			}
+		}
+	}
+}
+
+const streamMessage = async (chatID : ChatID) : Promise<void> => {
+	try {
+		// Use the generic streamResponse helper
+		for await (const chunk of streamResponse(
+			streamMessageURL,
+			{ chat: chatID } as StreamMessageRequestData
+		)) {
+			// Log each chunk as it arrives
+			console.log('Received chunk:', chunk);
+		}
+		console.log('Stream completed');
+	} catch (error) {
+		console.error('Error in streaming:', error);
+	}
 };
 
 const receiveChats = (snapshot: QuerySnapshot<DocumentData, DocumentData>) => {

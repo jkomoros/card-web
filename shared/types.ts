@@ -842,6 +842,20 @@ export type PostMessageInChaResponseData = {
 	success: true
 };
 
+export type StreamingMessageDataDone = {
+	done: true
+};
+
+export type StreamingMessageDataChunk = {
+	chunk: string
+};
+
+export type StreamingMessageErrorChunk = {
+	error: string
+};
+
+export type StreamingMessageData = StreamingMessageDataDone | StreamingMessageDataChunk | StreamingMessageErrorChunk;
+
 export type StreamMessageRequestData = {
 	chat: ChatID
 };

@@ -16,6 +16,9 @@ import {
 	OpenAIModelName,
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
+	StreamingMessageDataChunk,
+	StreamingMessageDataDone,
+	StreamingMessageErrorChunk,
 	StreamMessageRequestData
 } from '../../shared/types.js';
 
@@ -54,11 +57,13 @@ import type {
 } from '../../shared/timestamp.js';
 
 import {
-	assistantMessageForThreadOpenAI
+	assistantMessageForThreadOpenAI,
+	assistantMessageForThreadOpenAIStreaming
 } from './openai.js';
 
 import {
-	assistantMessageForThreadAnthropic
+	assistantMessageForThreadAnthropic,
+	assistantMessageForThreadAnthropicStreaming
 } from './anthropic.js';
 
 import {
@@ -345,6 +350,34 @@ const assistantMessage = async (message : string, model : AIModelName = DEFAULT_
 	return await assistantMessageForThread(model, thread);
 };
 
+async function* assistantMessageForThreadStreaming(model: AIModelName, thread: ChatMessage[]): AsyncGenerator<string> {
+	const lastMessage = thread[thread.length - 1];
+	if (lastMessage.role !== 'user') {
+		throw new Error('Last message is not a user message, cannot fetch assistant message');
+	}
+
+	//Note: we assume that we've already checked if the user is allowed to use AI and that they are.
+
+	const modelInfo = MODEL_INFO[model];
+
+	if (!modelInfo) {
+		throw new Error('Invalid model provided: ' + model);
+	}
+
+	const assistantThread = makeAssistantThread(thread);
+
+	switch(modelInfo.provider) {
+	case 'openai':
+		yield* assistantMessageForThreadOpenAIStreaming(model as OpenAIModelName, assistantThread);
+		break;
+	case 'anthropic':
+		yield* assistantMessageForThreadAnthropicStreaming(model as AnthropicModelName, assistantThread);
+		break;
+	default:
+		return assertUnreachable(modelInfo.provider);
+	}
+}
+
 const assistantMessageForThread = async (model : AIModelName, thread : ChatMessage[]) : Promise<string> => {
 	const lastMessage = thread[thread.length - 1];
 	if (lastMessage.role !== 'user') {
@@ -376,8 +409,6 @@ const assistantMessageForThread = async (model : AIModelName, thread : ChatMessa
 export const streamMessageHandler = async (req: Request, res: Response) : Promise<void> => {
 
 	const authData = await authFromRequest(req);
-
-	//TODO: make this stream responses.
 
 	try {
 		await throwIfUserMayNotUseAI(authData?.uid);
@@ -433,6 +464,7 @@ export const streamMessageHandler = async (req: Request, res: Response) : Promis
 			success: false,
 			error: 'Last message is not an assistant message'
 		} as PostMessageInChaResponseData);
+		return;
 	}
 
 	if (assistantMessageData.status !== 'ready') {
@@ -440,59 +472,65 @@ export const streamMessageHandler = async (req: Request, res: Response) : Promis
 			success: false,
 			error: 'Assistant message is not ready to stream'
 		} as PostMessageInChaResponseData);
+		return;
 	}
 
-	//Immediately claim streaming for this.
+	// Set up SSE headers
+	res.setHeader('Content-Type', 'text/event-stream');
+	res.setHeader('Cache-Control', 'no-cache');
+	res.setHeader('Connection', 'keep-alive');
+	res.flushHeaders();
 
-	//Write a stub message so the client can render loadding UI.
+	//Immediately claim streaming for this.
 	const assistantMessageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(assistantMessageData.id);
 	const assistantMessageUpdate : Partial<ChatMessage> = {
 		status: 'streaming'
 	};
 	await assistantMessageRef.update(assistantMessageUpdate);
 
-	let assistantMessage : string = '';
-
-	//We ahve to pass the messages without the last assistant message, because
+	//We have to pass the messages without the last assistant message, because
 	//this is the precise thread that will be sent to the assistant, and it
-	//should respond with an asssitant message, and the current one is empty.
+	//should respond with an assistant message, and the current one is empty.
 	const messagesWithoutLastAsssistantMessage = messages.slice(0, messages.length - 1);
 
+	let fullContent = '';
+
 	try {
-		//TODO: actually stream the message.
-		assistantMessage = await assistantMessageForThread(model, messagesWithoutLastAsssistantMessage);
+		for await (const chunk of assistantMessageForThreadStreaming(model, messagesWithoutLastAsssistantMessage)) {
+			// Send chunk to client
+			res.write(`data: ${JSON.stringify({ chunk } as StreamingMessageDataChunk)}\n\n`);
+			fullContent += chunk;
+		}
+		
+		// Send completion event
+		res.write(`data: ${JSON.stringify({ done: true } as StreamingMessageDataDone)}\n\n`);
+		
+		// Write the final assistant message to the database
+		const messageUpdate : Partial<ChatMessage> = {
+			content: fullContent,
+			status: 'complete'
+		};
+		await assistantMessageRef.update(messageUpdate);
+
+		const chatUpdate : Partial<Chat> = {
+			updated: timestamp()
+		};
+		await chatRef.update(chatUpdate);
+		
+		res.end();
 	} catch(err) {
-		console.error('Error fetching assistant message:', err);
-		//If there's an error, write the error to the database and return null.
+		console.error('Error streaming assistant message:', err);
+		//If there's an error, write the error to the database
 		const update : Partial<ChatMessage> = {
 			status: 'failed',
 			error: String(err)
 		};
 		await assistantMessageRef.update(update);
-		res.status(500).json({
-			success: false,
-			error: String(err)
-		} as PostMessageInChaResponseData);
-		return;
+		
+		// Send error event
+		res.write(`data: ${JSON.stringify({ error: String(err) } as StreamingMessageErrorChunk)}\n\n`);
+		res.end();
 	}
-
-	//Write the final assistant message to the database.
-
-	const messageUpdate : Partial<ChatMessage> = {
-		content: assistantMessage,
-		status: 'complete'
-	};
-	await assistantMessageRef.update(messageUpdate);
-
-	const chatUpdate : Partial<Chat> = {
-		updated: timestamp()
-	};
-	await chatRef.update(chatUpdate);
-	res.status(200).json({
-		success: true,
-		assistantMessage
-	} as PostMessageInChaResponseData);
-	return;
 };
 
 // Express onRequest handler for postMessageInChat

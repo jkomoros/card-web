@@ -86,3 +86,22 @@ export const assistantMessageForThreadOpenAI = async (model : OpenAIModelName, t
 	}
 	return result.choices[0].message.content || '';
 };
+
+export async function* assistantMessageForThreadOpenAIStreaming(model: OpenAIModelName, thread: AssistantThread): AsyncGenerator<string> {
+	if (!openai_endpoint) {
+		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
+	}
+
+	const stream = await openai_endpoint.chat.completions.create({
+		model,
+		messages: thread.system ? [{role: 'system', content: thread.system}, ...thread.messages] : thread.messages,
+		stream: true
+	});
+
+	for await (const chunk of stream) {
+		const content = chunk.choices[0]?.delta?.content || '';
+		if (content) {
+			yield content;
+		}
+	}
+}
