@@ -1,8 +1,4 @@
 import {
-	httpsCallable
-} from 'firebase/functions';
-
-import {
 	selectActiveCollection,
 	selectActiveCollectionCards,
 	selectChats,
@@ -26,8 +22,10 @@ import {
 } from '../types';
 
 import {
+	authenticatedFetch,
 	db,
-	functions
+	functions,
+	getIDToken
 } from '../firebase.js';
 
 import {
@@ -36,11 +34,18 @@ import {
 	Chat,
 	ChatID,
 	ChatMessage,
+	ChatMessageID,
 	CreateChatRequestData,
 	CreateChatResponseData,
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
+	StreamingMessageData,
+	StreamMessageRequestData,
 } from '../../shared/types.js';
+
+import {
+	FIREBASE_REGION
+} from '../config.GENERATED.SECRET.js';
 
 import {
 	navigatePathTo,
@@ -50,6 +55,7 @@ import {
 import {
 	CHAT_EXPECT_CHAT_MESSAGES,
 	CHAT_EXPECT_CHATS,
+	CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN,
 	CHAT_SEND_MESSAGE,
 	CHAT_SEND_MESSAGE_FAILURE,
 	CHAT_SEND_MESSAGE_SUCCESS,
@@ -88,8 +94,13 @@ const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 // Default background length
 const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 
-const createChatCallable = httpsCallable<CreateChatRequestData, CreateChatResponseData>(functions, 'createChat');
-const postMessageInChatCallable = httpsCallable<PostMessageInChatRequestData, PostMessageInChaResponseData>(functions, 'postMessageInChat');
+// Using direct URL for the HTTP endpoints instead of callable
+const projectId = functions.app.options.projectId;
+const chatURL = `https://${FIREBASE_REGION}-${projectId}.cloudfunctions.net/chat`;
+//TODO: these should be shared constants between client and server
+const postMessageInChatURL = chatURL + '/postMessage';
+const createChatURL = chatURL + '/create';
+const streamMessageURL = chatURL + '/streamMessage';
 
 export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(configureCommitAction('CREATE_CHAT'));
@@ -129,19 +140,22 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 	const model = DEFAULT_MODEL;
 
 	try {
-		const result = await createChatCallable({
-			owner: uid,
-			cards: cardIDs,
-			initialMessage,
-			backgroundPercentage: DEFAULT_BACKGROUND_PERCENTAGE,
-			model,
-			collection: {
-				description: collection.description.serialize(),
-				configuration: collection.description.configuration
+		// Use authenticated fetch instead of callable
+		const data = await authenticatedFetch<CreateChatRequestData, CreateChatResponseData>(
+			createChatURL,
+			{
+				owner: uid,
+				cards: cardIDs,
+				initialMessage,
+				backgroundPercentage: DEFAULT_BACKGROUND_PERCENTAGE,
+				model,
+				collection: {
+					description: collection.description.serialize(),
+					configuration: collection.description.configuration
+				}
 			}
-		});
+		);
 		
-		const data = result.data;
 		if (data.success) {
 			// Navigate to the new chat
 			dispatch(navigatePathTo(`/${PAGE_CHAT}/${data.chat}`));
@@ -174,20 +188,25 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 	});
 
 	try {
-		const result = await postMessageInChatCallable({
-			chat: chatID,
-			message
-		});
+		// Use the authenticatedFetch helper with the appropriate type parameters
+		const data = await authenticatedFetch<PostMessageInChatRequestData, PostMessageInChaResponseData>(
+			postMessageInChatURL, 
+			{
+				chat: chatID,
+				message
+			}
+		);
 		
-		const data = result.data;
+		// Check success flag in the response
 		if (!data.success) {
-			console.error('Failed to post message:', data.error);
+			console.error('Failed to post message:', data.error || 'Unknown error');
 			dispatch({
 				type: CHAT_SEND_MESSAGE_FAILURE,
-				error: new Error(data.error)
+				error: new Error(data.error || 'Request failed')
 			});
 			return;
 		}
+		
 		dispatch({
 			type: CHAT_SEND_MESSAGE_SUCCESS
 		});
@@ -199,6 +218,101 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 		});
 	}
 
+};
+
+/**
+ * Generic helper to handle streaming SSE responses
+ * @param url The URL to send the request to
+ * @param requestData The request data to send
+ * @returns AsyncGenerator that yields each chunk of text as it arrives
+ */
+async function* streamResponse<T>(url: string, requestData: T): AsyncGenerator<string> {
+	// Get the authentication token from the shared function
+	const token = await getIDToken();
+
+	// Create the request with authentication
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${token}`
+		},
+		body: JSON.stringify(requestData)
+	});
+
+	if (!response.ok) {
+		throw new Error(`Stream response not OK: ${response.status} ${response.statusText}`);
+	}
+
+	// Create a reader for the response body stream
+	const reader = response.body?.getReader();
+	if (!reader) {
+		throw new Error('Failed to get stream reader');
+	}
+
+	// Process the stream
+	const decoder = new TextDecoder();
+	let buffer = '';
+	let streamActive = true;
+
+	while (streamActive) {
+		const { done, value } = await reader.read();
+		if (done) {
+			streamActive = false;
+			break;
+		}
+
+		// Decode the chunk and add it to our buffer
+		buffer += decoder.decode(value, { stream: true });
+
+		// Process complete events from the buffer
+		const lines = buffer.split('\n\n');
+		buffer = lines.pop() || ''; // Keep the last incomplete chunk in the buffer
+
+		for (const line of lines) {
+			if (line.startsWith('data: ')) {
+				try {
+					const data = JSON.parse(line.substring(6)) as StreamingMessageData;
+					
+					// Check if it's a StreamingMessageErrorChunk
+					if ('error' in data) {
+						throw new Error(`Stream error: ${data.error}`);
+					}
+
+					// Check if it's a StreamingMessageDataChunk
+					if ('chunk' in data) {
+						yield data.chunk;
+					}
+
+					// Check if it's a StreamingMessageDataDone
+					if ('done' in data) {
+						return;
+					}
+				} catch (error) {
+					throw new Error(`Error parsing SSE data: ${error}`);
+				}
+			}
+		}
+	}
+}
+
+const streamMessage = async (chatID : ChatID, messageID : ChatMessageID) : Promise<void> => {
+	try {
+		// Use the generic streamResponse helper
+		for await (const chunk of streamResponse(
+			streamMessageURL,
+			{ chat: chatID } as StreamMessageRequestData
+		)) {
+			store.dispatch({
+				type: CHAT_RECEIVE_STREAMING_MESSAGE_TOKEN,
+				messageID,
+				chunk
+			});
+		}
+		console.log('Stream completed');
+	} catch (error) {
+		console.error('Error in streaming:', error);
+	}
 };
 
 const receiveChats = (snapshot: QuerySnapshot<DocumentData, DocumentData>) => {
@@ -282,6 +396,15 @@ export const updateChats = (chats : Chats) : ThunkSomeAction => (dispatch) => {
 };
 
 export const updateChatMessages = (messages : ChatMessages) : ThunkSomeAction => (dispatch) => {
+
+	//Every time we notice a message that's ready to start streaming, stream it.
+	for (const rawMessage of Object.values(messages)) {
+		const message = rawMessage as ChatMessage;
+		if (message.status == 'ready') {
+			streamMessage(message.chat, message.id);
+		}
+	}
+
 	dispatch({
 		type: CHAT_UPDATE_MESSAGES,
 		messages

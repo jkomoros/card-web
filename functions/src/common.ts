@@ -23,9 +23,12 @@ import {
 } from './types.js';
 
 import {
-	CallableRequest,
 	HttpsError
 } from 'firebase-functions/v2/https';
+
+import {
+	Request as ExpressRequest
+} from 'express';
 
 // Import shared constants instead of duplicating them
 import {
@@ -165,22 +168,56 @@ export const mayUseAI = (permissions : UserPermissions | null) => {
 	return false;
 };
 
-export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>) : Promise<void> => {
-	if (!request.auth) {
+export const throwIfUserMayNotUseAI = async (uid? : Uid | null) : Promise<void> => {
+	if (!uid) {
 		throw new HttpsError('unauthenticated', 'A valid user authentication must be passed');
 	}
 
-	const permissions = await userPermissions(request.auth.uid);
+	const permissions = await userPermissions(uid);
 
 	if (!mayUseAI(permissions)) {
 		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perform this action');
 	}
 };
 
-export const userMayViewCard = (permissions : UserPermissions | null, card : Card, uid : Uid) : boolean => {
+type AuthData = {
+	uid?: Uid
+};
+
+export const authFromRequest = async (req: ExpressRequest): Promise<AuthData> => {
+	// Check for the authorization header which should contain a Firebase ID token
+	const authHeader = req.headers.authorization;
+	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+		return {
+			uid: undefined
+		};
+	}
+	
+	// Extract the token
+	const idToken = authHeader.split('Bearer ')[1];
+	if (!idToken) {
+		return {
+			uid: undefined
+		};
+	}
+	
+	try {
+		// Verify the token with Firebase Auth
+		const decodedToken = await auth.verifyIdToken(idToken);
+		return { uid: decodedToken.uid };
+	} catch (error) {
+		console.error('Error verifying auth token:', error);
+		return {
+			uid: undefined
+		};
+	}
+};
+
+export const userMayViewCard = (permissions : UserPermissions | null, card : Card, uid? : Uid) : boolean => {
 	//The rough equivalent of userMayViewUnpublished from the security rules
 	if (!card) return true;
 	if (card.published) return true;
+	if (!uid) return false;
 	if (!permissions) return false;
 	if (permissions.admin) return true;
 	if (permissions.edit) return true;

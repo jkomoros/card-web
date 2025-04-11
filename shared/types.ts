@@ -779,12 +779,12 @@ export type ChatMessage = {
 	//locally, it's just used in the server to concatenate the whole
 	//conversation history for api requests.
 	role: 'system' | 'assistant' | 'user',
-	//Streaming while a response is still streaming. Once the response is complete
-	//status is set to 'complete'. The client has a live updater that queries for
-	//status != 'streaming', to make sure it doesn't constantly get updates as they
-	//are written (using the incomding stream tokens) and then gets the final
-	//result once it's done.
-	status: 'complete' | 'streaming' | 'failed',
+	//The status of the message.
+	// complete - finished with final value. If this is a user message, it is always in this state
+	// ready - a message that is ready to start streaming when a user requests it via streamMessage.
+	// streaming - actively being stramed by one client.
+	// failed - The message failed to stream. If failed is true, error field will be set.
+	status: 'ready' | 'complete' | 'streaming' | 'failed',
 	//If status is 'failed', then this contain the error message
 	error?: string,
 	timestamp: Timestamp
@@ -840,6 +840,24 @@ export type PostMessageInChaResponseData = {
 	error: string;
 } | {
 	success: true
+};
+
+export type StreamingMessageDataDone = {
+	done: true
+};
+
+export type StreamingMessageDataChunk = {
+	chunk: string
+};
+
+export type StreamingMessageErrorChunk = {
+	error: string
+};
+
+export type StreamingMessageData = StreamingMessageDataDone | StreamingMessageDataChunk | StreamingMessageErrorChunk;
+
+export type StreamMessageRequestData = {
+	chat: ChatID
 };
 
 export type OpenAIModelName = 'gpt-4o';

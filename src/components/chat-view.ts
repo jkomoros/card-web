@@ -345,7 +345,7 @@ class ChatView extends connect(store)(PageViewElement) {
 		let ele : TemplateResult | HTMLElement = html`<em class='loading'>Thinking...</em>`;
 		if (message.status === 'failed') {
 			ele = html`<em class='error' title=${message.error || ''}>Message failed</em>`;
-		} else if (message.status === 'complete') {
+		} else if (message.status === 'complete' || message.content != '') {
 			ele = markdownElement(message.content) || html`<span></span>`;
 		}
 

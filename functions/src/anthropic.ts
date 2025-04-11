@@ -36,7 +36,7 @@ export const handler = async (request : CallableRequest<AnthropicData>) => {
 		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
 	}
 
-	await throwIfUserMayNotUseAI(request);
+	await throwIfUserMayNotUseAI(request.auth?.uid);
 
 	if (!data || typeof data !== 'object') {
 		throw new HttpsError('invalid-argument', 'data must be an object');
@@ -99,3 +99,26 @@ export const assistantMessageForThreadAnthropic = async (model : AnthropicModelN
 		
 	return textContent;
 };
+
+export async function* assistantMessageForThreadAnthropicStreaming(model: AnthropicModelName, thread: AssistantThread): AsyncGenerator<string> {
+	if (!anthropic_endpoint) {
+		throw new HttpsError('failed-precondition', 'ANTHROPIC_API_KEY not set');
+	}
+
+	const stream = await anthropic_endpoint.messages.create({
+		model,
+		system: thread.system ? thread.system : undefined,
+		messages: thread.messages,
+		max_tokens: 8192,
+		stream: true
+	});
+
+	for await (const chunk of stream) {
+		if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+			const textDelta = chunk.delta.text;
+			if (textDelta) {
+				yield textDelta;
+			}
+		}
+	}
+}

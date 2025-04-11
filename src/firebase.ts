@@ -123,3 +123,39 @@ export const serverTimestampSentinel = () : Timestamp => {
 export const isFirestoreTimestamp = (value : FirestoreLeafValue) : boolean => value instanceof Timestamp;
 
 export const deepEqualIgnoringTimestamps = (a : unknown, b : unknown) : boolean => deepEqual(a, b, isFirestoreTimestamp);
+
+// Helper to get the current user's ID token
+export const getIDToken = async (): Promise<string> => {
+	const user = auth.currentUser;
+	if (!user) throw new Error('User not authenticated');
+	return await user.getIdToken();
+};
+
+/**
+ * Makes an authenticated fetch request to a Firebase function endpoint
+ * @param url The endpoint URL to fetch from
+ * @param data The request data to send (will be JSON stringified)
+ * @returns Promise that resolves to the JSON response
+ */
+export const authenticatedFetch = async <RequestData, ResponseData>(
+	url: string, 
+	data: RequestData
+): Promise<ResponseData> => {
+	// Get Firebase auth token
+	const token = await getIDToken();
+	
+	// Make the authenticated fetch request
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${token}`
+		},
+		body: JSON.stringify(data)
+	});
+	
+	// Parse the JSON response
+	const responseData = await response.json() as ResponseData;
+		
+	return responseData;
+};

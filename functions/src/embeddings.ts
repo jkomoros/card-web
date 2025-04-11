@@ -607,7 +607,7 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 	if (data.card) {
 		//We will hit the openai endpoint, so verify we're allowed.
 		try {
-			await throwIfUserMayNotUseAI(request);
+			await throwIfUserMayNotUseAI(request.auth?.uid);
 		} catch(err) {
 			return {
 				success: false,
