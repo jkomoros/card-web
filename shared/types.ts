@@ -860,6 +860,17 @@ export type StreamMessageRequestData = {
 	chat: ChatID
 };
 
+export type RetryMessageRequestData = {
+	message: ChatMessageID
+}
+
+export type RetryMessageResponseData = {
+	success: false,
+	error: string
+} | {
+	success: true
+};
+
 export type OpenAIModelName = 'gpt-4o';
 
 export type AnthropicModelName = 'claude-3-7-sonnet-latest';

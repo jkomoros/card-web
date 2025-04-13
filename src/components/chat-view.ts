@@ -34,6 +34,7 @@ import {
 	Chat,
 	ChatID,
 	ChatMessage,
+	ChatMessageID,
 	ComposedChat,
 	Uid
 } from '../../shared/types.js';
@@ -42,6 +43,7 @@ import {
 	connectLiveChat,
 	connectLiveOwnedChats,
 	postMessageInCurrentChat,
+	retryMessage,
 	togglePublishedForCurrentChat,
 	updateComposingMessage,
 	updateCurrentChat
@@ -51,7 +53,8 @@ import {
 	SEND_ICON,
 	VISIBILITY_ICON,
 	VISIBILITY_OFF_ICON,
-	OPEN_IN_BROWSER_ICON
+	OPEN_IN_BROWSER_ICON,
+	REPEAT_ICON
 } from '../../shared/icons.js';
 
 import {
@@ -241,8 +244,9 @@ class ChatView extends connect(store)(PageViewElement) {
 				border: 1px solid var(--app-divider-color, #e0e0e0);
 			}
 
-			.message[data-status="failed"] {
+			.message[data-status="failed"], .message[data-status="failed"] svg {
 				color: white;
+				fill: white;
 				background-color: var(--app-warning-color);
 			}
 
@@ -344,17 +348,35 @@ class ChatView extends connect(store)(PageViewElement) {
 
 		let ele : TemplateResult | HTMLElement = html`<em class='loading'>Thinking...</em>`;
 		if (message.status === 'failed') {
-			ele = html`<em class='error' title=${message.error || ''}>Message failed</em>`;
+			ele = html`<em class='error' title=${message.error || ''}>Message failed</em> <button class='small' @click=${this._handleRetryMessage} title='Retry'>${REPEAT_ICON}</button>`;
 		} else if (message.status === 'complete' || message.content != '') {
 			ele = markdownElement(message.content) || html`<span></span>`;
 		}
 
-		return html`<div class='message' data-role='${message.role}' data-status='${message.status}'>
+		return html`<div class='message' data-role='${message.role}' data-status='${message.status}' data-message-id='${message.id}'>
 			<strong class='interface'>${message.role}</strong>
 			<div class='content'>
 				${ele}
 			</div>
 		</div>`;
+	}
+
+	_handleRetryMessage(event : Event) {
+		let target = event.target;
+		//Walk up the DOM to find the message id in the data-message-id attribute.
+		let messageID : ChatMessageID = '';
+		while (target) {
+			if (target instanceof HTMLElement) {
+				messageID = target.dataset.messageId || '';
+				if (messageID) break;
+			}
+			//Check that it's an HTMLElement or an SVGElement
+			//and not a text node or something else.
+			if (!(target instanceof HTMLElement || target instanceof SVGElement)) break;
+			target = target.parentElement;
+		}
+		if (!messageID) return;
+		retryMessage(messageID);
 	}
 
 	override render() {

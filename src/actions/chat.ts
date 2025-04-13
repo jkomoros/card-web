@@ -39,6 +39,8 @@ import {
 	CreateChatResponseData,
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
+	RetryMessageRequestData,
+	RetryMessageResponseData,
 	StreamingMessageData,
 	StreamMessageRequestData,
 } from '../../shared/types.js';
@@ -91,6 +93,7 @@ import {
 import {
 	CHAT_CREATE_MESSAGE_ROUTE,
 	CHAT_POST_MESSAGE_ROUTE,
+	CHAT_RETRY_MESSAGE_ROUTE,
 	CHAT_STREAM_MESSAGE_ROUTE
 } from '../../shared/env-constants.js';
 
@@ -109,6 +112,7 @@ const chatURL = `https://${FIREBASE_REGION}-${projectId}.cloudfunctions.net/chat
 const postMessageInChatURL = chatURL + CHAT_POST_MESSAGE_ROUTE;
 const createChatURL = chatURL + CHAT_CREATE_MESSAGE_ROUTE;
 const streamMessageURL = chatURL + CHAT_STREAM_MESSAGE_ROUTE;
+const retryMessageURL = chatURL + CHAT_RETRY_MESSAGE_ROUTE;
 
 export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(configureCommitAction('CREATE_CHAT'));
@@ -226,6 +230,19 @@ export const postMessageInCurrentChat = (message : string) : ThunkSomeAction => 
 		});
 	}
 
+};
+
+export const retryMessage = async (messageID : ChatMessageID) : Promise<void> => {
+	const data = await authenticatedFetch<RetryMessageRequestData, RetryMessageResponseData>(
+		retryMessageURL,
+		{
+			message: messageID
+		}
+	);
+	if (!data.success) {
+		console.error('Failed to retry message:', data.error || 'Unknown error');
+		return;
+	}
 };
 
 /**

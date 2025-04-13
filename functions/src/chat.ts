@@ -16,6 +16,8 @@ import {
 	OpenAIModelName,
 	PostMessageInChaResponseData,
 	PostMessageInChatRequestData,
+	RetryMessageRequestData,
+	RetryMessageResponseData,
 	StreamingMessageDataChunk,
 	StreamingMessageDataDone,
 	StreamingMessageErrorChunk,
@@ -531,6 +533,100 @@ export const streamMessageHandler = async (req: Request, res: Response) : Promis
 		res.write(`data: ${JSON.stringify({ error: String(err) } as StreamingMessageErrorChunk)}\n\n`);
 		res.end();
 	}
+};
+
+export const retryMessageHandler = async (req: Request, res: Response) : Promise<void> => {
+	// Get auth data from request
+	const authData = await authFromRequest(req);
+
+	if (!authData || !authData.uid) {
+		res.status(401).json({
+			success: false,
+			error: 'Unauthorized request'
+		} as RetryMessageResponseData);
+		return;
+	}
+
+	try {
+		await throwIfUserMayNotUseAI(authData.uid);
+	} catch(err) {
+		res.status(403).json({
+			success: false,
+			error: String(err)
+		} as RetryMessageResponseData);
+		return;
+	}
+
+	// Get request body data
+	const data = req.body as RetryMessageRequestData;
+
+	if (!data) {
+		res.status(400).json({
+			success: false,
+			error: 'No data provided'
+		} as RetryMessageResponseData);
+		return;
+	}
+
+	if (!data.message) {
+		res.status(400).json({
+			success: false,
+			error: 'No message ID provided'
+		} as RetryMessageResponseData);
+		return;
+	}
+
+	const messageRef = db.collection(CHAT_MESSAGES_COLLECTION).doc(data.message);
+	const messageSnapshot = await messageRef.get();
+	if (!messageSnapshot.exists) {
+		res.status(404).json({
+			success: false,
+			error: 'Message not found for ID: ' + data.message
+		} as RetryMessageResponseData);
+		return;
+	}
+	const message = messageSnapshot.data() as ChatMessage;
+	if (message.role !== 'assistant') {
+		res.status(403).json({
+			success: false,
+			error: 'Message is not an assistant message'
+		} as RetryMessageResponseData);
+		return;
+	}
+	if (message.status !== 'failed') {
+		res.status(403).json({
+			success: false,
+			error: 'Message is not failed'
+		} as RetryMessageResponseData);
+		return;
+	}
+
+	const chatRef = db.collection(CHATS_COLLECTION).doc(message.chat);
+	const chatSnapshot = await chatRef.get();
+	if (!chatSnapshot.exists) {
+		res.status(404).json({
+			success: false,
+			error: 'Chat not found for ID: ' + message.chat
+		} as RetryMessageResponseData);
+		return;
+	}
+	const chat = chatSnapshot.data() as Chat;
+	if (chat.owner !== authData.uid) {
+		res.status(403).json({
+			success: false,
+			error: 'User is not the owner of this chat'
+		} as RetryMessageResponseData);
+		return;
+	}
+	//UPdate the message to mark it from failed to ready.
+	const messageUpdate : Partial<ChatMessage> = {
+		status: 'ready'
+	};
+	await messageRef.update(messageUpdate);
+	res.status(200).json({
+		success: true,
+	} as RetryMessageResponseData);
+
 };
 
 // Express onRequest handler for postMessageInChat

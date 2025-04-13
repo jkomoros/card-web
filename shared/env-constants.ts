@@ -17,3 +17,4 @@ export const QDRANT_API_KEY_VAR = 'QDRANT_API_KEY';
 export const CHAT_POST_MESSAGE_ROUTE = '/postMessage';
 export const CHAT_CREATE_MESSAGE_ROUTE = '/create';
 export const CHAT_STREAM_MESSAGE_ROUTE = '/streamMessage';
+export const CHAT_RETRY_MESSAGE_ROUTE = '/retry';

@@ -51,6 +51,7 @@ import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 import {
 	CHAT_CREATE_MESSAGE_ROUTE,
 	CHAT_POST_MESSAGE_ROUTE,
+	CHAT_RETRY_MESSAGE_ROUTE,
 	CHAT_STREAM_MESSAGE_ROUTE
 } from '../../shared/env-constants.js';
 
@@ -144,6 +145,7 @@ chatApp.use(express.json());
 chatApp.post(CHAT_POST_MESSAGE_ROUTE, chatImpl.postMessageInChatHandler);
 chatApp.post(CHAT_CREATE_MESSAGE_ROUTE, chatImpl.createChatHandler);
 chatApp.post(CHAT_STREAM_MESSAGE_ROUTE, chatImpl.streamMessageHandler);
+chatApp.post(CHAT_RETRY_MESSAGE_ROUTE, chatImpl.retryMessageHandler);
 
 export const chat = onRequest({
 	memory: '1GiB',
