@@ -13,3 +13,7 @@ export const EMAIL_TO_ADDRESS_VAR = 'EMAIL_TO_ADDRESS';
 export const EMAIL_FROM_ADDRESS_VAR = 'EMAIL_FROM_ADDRESS';
 export const QDRANT_CLUSTER_URL_VAR = 'QDRANT_CLUSTER_URL';
 export const QDRANT_API_KEY_VAR = 'QDRANT_API_KEY';
+
+export const CHAT_POST_MESSAGE_ROUTE = '/postMessage';
+export const CHAT_CREATE_MESSAGE_ROUTE = '/create';
+export const CHAT_STREAM_MESSAGE_ROUTE = '/streamMessage';

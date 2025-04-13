@@ -48,6 +48,12 @@ import * as anthropicimpl from './anthropic.js';
 import * as chatImpl from './chat.js';
 import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 
+import {
+	CHAT_CREATE_MESSAGE_ROUTE,
+	CHAT_POST_MESSAGE_ROUTE,
+	CHAT_STREAM_MESSAGE_ROUTE
+} from '../../shared/env-constants.js';
+
 //Runs every three hours
 export const fetchTweetEngagement = onSchedule({
 	schedule: '0 */3 * * *',
@@ -135,9 +141,9 @@ const chatApp = express();
 chatApp.use(cors({ origin: true }));
 // Configure middleware to parse JSON
 chatApp.use(express.json());
-chatApp.post('/postMessage', chatImpl.postMessageInChatHandler);
-chatApp.post('/create', chatImpl.createChatHandler);
-chatApp.post('/streamMessage', chatImpl.streamMessageHandler);
+chatApp.post(CHAT_POST_MESSAGE_ROUTE, chatImpl.postMessageInChatHandler);
+chatApp.post(CHAT_CREATE_MESSAGE_ROUTE, chatImpl.createChatHandler);
+chatApp.post(CHAT_STREAM_MESSAGE_ROUTE, chatImpl.streamMessageHandler);
 
 export const chat = onRequest({
 	memory: '1GiB',

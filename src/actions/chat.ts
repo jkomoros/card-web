@@ -88,6 +88,12 @@ import {
 	configureCommitAction
 } from './prompt.js';
 
+import {
+	CHAT_CREATE_MESSAGE_ROUTE,
+	CHAT_POST_MESSAGE_ROUTE,
+	CHAT_STREAM_MESSAGE_ROUTE
+} from '../../shared/env-constants.js';
+
 // Default model to use for chats
 const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
 
@@ -98,9 +104,11 @@ const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 const projectId = functions.app.options.projectId;
 const chatURL = `https://${FIREBASE_REGION}-${projectId}.cloudfunctions.net/chat`;
 //TODO: these should be shared constants between client and server
-const postMessageInChatURL = chatURL + '/postMessage';
-const createChatURL = chatURL + '/create';
-const streamMessageURL = chatURL + '/streamMessage';
+
+
+const postMessageInChatURL = chatURL + CHAT_POST_MESSAGE_ROUTE;
+const createChatURL = chatURL + CHAT_CREATE_MESSAGE_ROUTE;
+const streamMessageURL = chatURL + CHAT_STREAM_MESSAGE_ROUTE;
 
 export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(configureCommitAction('CREATE_CHAT'));
