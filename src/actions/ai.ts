@@ -135,6 +135,7 @@ type OpenAIRemoteResult = ChatCompletion;
 import {
 	Messages
 } from '@anthropic-ai/sdk/resources/messages/messages';
+import { TypedObject } from '../../shared/typed_object.js';
 
 type AnthropicRemoteCallCreateMessage = {
 	endpoint: 'messages.create',
@@ -514,7 +515,34 @@ export const closeAIDialog = (commit : boolean) : ThunkSomeAction => (dispatch, 
 	}
 };
 
-export const updateAIModel = (model : AIModelName) : SomeAction => ({
-	type: AI_UPDATE_MODEL,
-	model
-});
+export const enabledAIModels = () : AIModelName[] => {
+	const models : AIModelName[] = [];
+	//TODO: there should be a map of enabled flags for each provider that can be consulted directly.
+	for (const [model, info] of TypedObject.entries(MODEL_INFO)) {
+		switch (info.provider) {
+		case 'openai':
+			if (OPENAI_ENABLED) {
+				models.push(model as AIModelName);
+			}
+			break;
+		case 'anthropic':
+			if (ANTHROPIC_ENABLED) {
+				models.push(model as AIModelName);
+			}
+			break;
+		default:
+			assertUnreachable(info.provider);
+		}
+	}
+	return models;
+};
+
+export const updateAIModel = (model : AIModelName) : SomeAction => {
+	if (!enabledAIModels().includes(model)) {
+		throw new Error('Model not enabled: ' + model);
+	}
+	return {
+		type: AI_UPDATE_MODEL,
+		model
+	};
+};

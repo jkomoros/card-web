@@ -26,16 +26,13 @@ import {
 } from '../../shared/icons.js';
 
 import {
-	MODEL_INFO
-} from '../../shared/ai.js';
-
-import {
 	AIModelName,
 	CommitActionType,
 	State
 } from '../types.js';
 
 import {
+	enabledAIModels,
 	updateAIModel
 } from '../actions/ai.js';
 
@@ -73,6 +70,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
 	];
 
 	override innerRender() {
+		const models = enabledAIModels();
 		return html`
 			<h3>${this._message}</h3>
 			<textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
@@ -80,7 +78,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
 				${this._action === 'CREATE_CHAT' ? html`
 					<label for='model'>Model</label>
 					<select id='model' @change=${this._handleModelChanged} .value=${this._model}>
-						${Object.keys(MODEL_INFO).map((model) => html`<option value=${model} ?selected=${this._model === model}>${model}</option>`)}
+						${models.map((model) => html`<option value=${model} ?selected=${this._model === model}>${model}</option>`)}
 					</select>
 						` : html``}
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
@@ -107,7 +105,6 @@ class ComposeDialog extends connect(store)(DialogElement) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const model = ele.value as AIModelName;
-		if (!MODEL_INFO[model]) throw new Error('unknown model: ' + model);
 		store.dispatch(updateAIModel(model));
 	}
 
