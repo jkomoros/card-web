@@ -71,6 +71,7 @@ import {
 	AI_SELECT_RESULT_INDEX,
 	AI_SET_ACTIVE_CARDS,
 	AI_SHOW_ERROR,
+	AI_UPDATE_MODEL,
 	SomeAction
 } from '../actions.js';
 
@@ -512,3 +513,8 @@ export const closeAIDialog = (commit : boolean) : ThunkSomeAction => (dispatch, 
 		if (config.commitAction) dispatch(config.commitAction());
 	}
 };
+
+export const updateAIModel = (model : AIModelName) : SomeAction => ({
+	type: AI_UPDATE_MODEL,
+	model
+});

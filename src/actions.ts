@@ -64,6 +64,7 @@ export const AI_SELECT_RESULT_INDEX = 'AI_SELECT_RESULT_INDEX';
 export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
 export const AI_SET_ACTIVE_CARDS = 'AI_SET_ACTIVE_CARDS';
 export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
+export const AI_UPDATE_MODEL = 'AI_UPDATE_MODEL';
 //App
 export const UPDATE_PAGE = 'UPDATE_PAGE';
 export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
@@ -274,6 +275,11 @@ type ActionAISetActiveCards = {
 type ActionAIShowError = {
 	type: typeof AI_SHOW_ERROR,
 	error: string
+};
+
+type ActionAIUpdateModel = {
+	type: typeof AI_UPDATE_MODEL,
+	model: AIModelName
 };
 
 type ActionUpdatePage = {
@@ -1105,6 +1111,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionAIDialogClose
 	| ActionAISetActiveCards
 	| ActionAIShowError
+	| ActionAIUpdateModel
 	| ActionUpdatePage
 	| ActionUpdateOffline
 	| ActionOpenSnackbar

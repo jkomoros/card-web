@@ -97,9 +97,6 @@ import {
 	CHAT_STREAM_MESSAGE_ROUTE
 } from '../../shared/env-constants.js';
 
-// Default model to use for chats
-const DEFAULT_MODEL: AIModelName = 'claude-3-7-sonnet-latest';
-
 // Default background length
 const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 
@@ -119,7 +116,7 @@ export const showCreateChatPrompt = () : ThunkSomeAction => (dispatch) => {
 	dispatch(composeShow('What would you like to ask about these cards?', ''));
 };
 
-export const createChatWithCurentCollection = (initialMessage : string): ThunkSomeAction => async (dispatch, getState) => {
+export const createChatWithCurentCollection = (initialMessage : string, model : AIModelName): ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState() as State;
 	
 	if (!initialMessage) {
@@ -148,8 +145,6 @@ export const createChatWithCurentCollection = (initialMessage : string): ThunkSo
 
 	const cards = selectActiveCollectionCards(state);
 	const cardIDs: CardID[] = cards.map(card => card.id);
-	
-	const model = DEFAULT_MODEL;
 
 	try {
 		// Use authenticated fetch instead of callable

@@ -4,6 +4,7 @@ import {
 	selectPromptAssociatedId,
 	getMessageById,
 	getThreadById,
+	selectAIModel,
 } from '../selectors.js';
 
 import {
@@ -108,7 +109,7 @@ const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitAct
 		dispatch(createThread(content));
 		return;
 	case 'CREATE_CHAT':
-		dispatch(createChatWithCurentCollection(content));
+		dispatch(createChatWithCurentCollection(content, selectAIModel(state)));
 		return;
 	default:
 		assertUnreachable(action);

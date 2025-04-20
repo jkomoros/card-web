@@ -5,7 +5,8 @@ import {
 	AI_SET_ACTIVE_CARDS,
 	AI_SHOW_ERROR,
 	AI_SELECT_RESULT_INDEX,
-	SomeAction
+	SomeAction,
+	AI_UPDATE_MODEL
 } from '../actions.js';
 
 import {
@@ -14,7 +15,7 @@ import {
 
 import {
 	DEFAULT_MODEL
-} from '../actions/ai.js';
+} from '../../shared/ai.js';
 
 const INITIAL_STATE : AIState = {
 	open: false,
@@ -68,6 +69,11 @@ const app = (state : AIState = INITIAL_STATE, action : SomeAction) : AIState => 
 			...state,
 			allCards: action.allCards,
 			filteredCards: action.filteredCards
+		};
+	case AI_UPDATE_MODEL:
+		return {
+			...state,
+			model: action.model
 		};
 	default:
 		return state;

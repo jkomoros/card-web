@@ -8,7 +8,9 @@ import { store } from '../store.js';
 import { DialogElement } from './dialog-element.js';
 
 import {
+	selectAIModel,
 	selectComposeOpen,
+	selectPromptAction,
 	selectPromptContent,
 	selectPromptMessage,
 } from '../selectors.js';
@@ -24,8 +26,18 @@ import {
 } from '../../shared/icons.js';
 
 import {
+	MODEL_INFO
+} from '../../shared/ai.js';
+
+import {
+	AIModelName,
+	CommitActionType,
 	State
 } from '../types.js';
+
+import {
+	updateAIModel
+} from '../actions/ai.js';
 
 @customElement('compose-dialog')
 class ComposeDialog extends connect(store)(DialogElement) {
@@ -35,6 +47,12 @@ class ComposeDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_message: string;
+
+	@state()
+		_action: CommitActionType;
+
+	@state()
+		_model: AIModelName;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -59,6 +77,12 @@ class ComposeDialog extends connect(store)(DialogElement) {
 			<h3>${this._message}</h3>
 			<textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
 			<div class='buttons'>
+				${this._action === 'CREATE_CHAT' ? html`
+					<label for='model'>Model</label>
+					<select id='model' @change=${this._handleModelChanged} .value=${this._model}>
+						${Object.keys(MODEL_INFO).map((model) => html`<option value=${model} ?selected=${this._model === model}>${model}</option>`)}
+					</select>
+						` : html``}
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		`;
@@ -79,6 +103,14 @@ class ComposeDialog extends connect(store)(DialogElement) {
 		store.dispatch(composeCommit());
 	}
 
+	_handleModelChanged(e : InputEvent) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
+		const model = ele.value as AIModelName;
+		if (!MODEL_INFO[model]) throw new Error('unknown model: ' + model);
+		store.dispatch(updateAIModel(model));
+	}
+
 	override _shouldClose() {
 		//Override base class.
 		store.dispatch(composeCancel());
@@ -89,6 +121,8 @@ class ComposeDialog extends connect(store)(DialogElement) {
 		this.open = selectComposeOpen(state);
 		this._content = selectPromptContent(state);
 		this._message = selectPromptMessage(state);
+		this._action = selectPromptAction(state);
+		this._model = selectAIModel(state);
 	}
 
 }
