@@ -15,6 +15,14 @@ export const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 		maxTokens: 128000,
 		provider: 'openai'
 	},
+	'o3': {
+		maxTokens: 200000,
+		provider: 'openai'
+	},
+	'o4-mini': {
+		maxTokens: 200000,
+		provider: 'openai'
+	},
 	'claude-3-7-sonnet-latest': {
 		maxTokens: 200000,
 		provider: 'anthropic'
