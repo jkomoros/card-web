@@ -479,7 +479,7 @@ You can opt into this behavior by adding "seo": true in your `config.SECRET.json
 
 It's possible to export your cards in a way suitable for fine-tuning an OpenAI model. The results aren't great. The results sound superficially like you but are mostly vapid, and regress to the mean of corporate speak in a way that almost feels like it cheapens your actual cards.
 
-Conceptually waht it does is take all of the content and working-notes cards in your collection. It generates a prompt that is the most disctintive words in each card (the fingerprint, the TF-IDF), and then a 'completion' of the body of the card. Then, to generate a new card you can hand it just a few distinctive words and it will generate content.
+Conceptually what it does is take all of the content and working-notes cards in your collection. It generates a prompt that is the most disctintive words in each card (the fingerprint, the TF-IDF), and then a 'completion' of the body of the card. Then, to generate a new card you can hand it just a few distinctive words and it will generate content.
 
 The general instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
 
