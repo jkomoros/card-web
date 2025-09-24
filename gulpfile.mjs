@@ -160,6 +160,7 @@ const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 const GSUTIL_RSYNC_UPLOADS = 'gsutil-rsync-uploads';
 const REINDEX_CARD_EMBEDDINGS = 'reindex-card-embeddings';
+const CLEANUP_OLD_EMBEDDINGS = 'cleanup-old-embeddings';
 
 const WARN_MAINTENANCE_TASKS = 'warn-maintenance-tasks';
 
@@ -358,6 +359,27 @@ gulp.task(REINDEX_CARD_EMBEDDINGS, async (cb) => {
 	task(cb);
 });
 
+gulp.task(CLEANUP_OLD_EMBEDDINGS, async (cb) => {
+
+	if (!qdrantEnabled(projectConfig)) {
+		console.log('Skipping cleanup old embeddings because qdrant is not enabled');
+		cb();
+		return;
+	}
+
+	const projectId = await selectedProjectID();
+
+	// Get versions to delete from environment variable, default to [0]
+	const versionsToDelete = process.env.VERSIONS_TO_DELETE ? process.env.VERSIONS_TO_DELETE.split(',').map(v => parseInt(v.trim())) : [0];
+	console.log(`Will delete embedding versions: ${versionsToDelete.join(', ')}`);
+
+	const url = 'https://' + REGION + '-' + projectId + '.cloudfunctions.net/cleanupOldEmbeddings';
+	console.log('Running in the background: ' + url);
+	const data = JSON.stringify({ versions: versionsToDelete });
+	const task = makeBackgroundExecutor(`curl -X POST -H "Content-Type: application/json" -d '${data}' ${url}`);
+	task(cb);
+});
+
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
@@ -376,6 +398,7 @@ gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
 			'openai',
 			'updateCardEmbedding',
 			'reindexCardEmbeddings',
+			'cleanupOldEmbeddings',
 			'similarCards',
 			'semanticSort'
 		);

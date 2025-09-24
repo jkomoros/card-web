@@ -39,6 +39,7 @@ import {
 import {
 	processCardEmbedding,
 	reindexCardEmbeddings as reindexCardEmbeddingsImpl,
+	cleanupOldEmbeddings as cleanupOldEmbeddingsImpl,
 	similarCards as similarCardsImpl,
 	semanticSort as semanticSortImpl
 } from './embeddings.js';
@@ -94,6 +95,26 @@ export const reindexCardEmbeddings = onRequest({
 	memory: '1GiB',
 	timeoutSeconds: 3600
 }, reindexCardEmbeddingsApp);
+
+const cleanupOldEmbeddingsApp = express();
+cleanupOldEmbeddingsApp.post('/', async(req, res) => {
+	try{
+		const versions = req.body?.versions || [0]; // versions to delete
+		if (!Array.isArray(versions) || versions.length === 0) {
+			res.status(400).send('Invalid versions array provided');
+			return;
+		}
+		await cleanupOldEmbeddingsImpl(versions);
+		res.status(200).send(`Successfully cleaned up versions: ${versions.join(', ')}`);
+	} catch(err) {
+		res.status(500).send(String(err));
+	}
+});
+
+export const cleanupOldEmbeddings = onRequest({
+	memory: '1GiB',
+	timeoutSeconds: 3600
+}, cleanupOldEmbeddingsApp);
 
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {

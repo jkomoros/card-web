@@ -497,6 +497,41 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	console.log('Done indexing cards');
 };
 
+export const cleanupOldEmbeddings = async (versionsToDelete: EmbeddingVersion[]) : Promise<void> => {
+	if (!EMBEDDING_STORE) {
+		console.warn('Qdrant not enabled, skipping');
+		return;
+	}
+
+	console.log(`Cleaning up embedding versions: ${versionsToDelete.join(', ')}`);
+
+	const client = EMBEDDING_STORE._qdrant;
+
+	for (const version of versionsToDelete) {
+		console.log(`Deleting embeddings for version ${version}...`);
+
+		try {
+			const result = await client.delete(QDRANT_COLLECTION_NAME, {
+				filter: {
+					must: [{
+						key: PAYLOAD_VERSION_KEY,
+						match: {
+							value: version
+						}
+					}]
+				}
+			});
+
+			console.log(`Successfully deleted embeddings for version ${version}, operation: ${result.operation_id}`);
+		} catch (error) {
+			console.error(`Failed to delete embeddings for version ${version}:`, error);
+			throw error;
+		}
+	}
+
+	console.log('Done cleaning up old embeddings');
+};
+
 //Higher cosineSimilarity means more similar
 const cosineSimilarity = (a : EmbeddingVector, b : EmbeddingVector) : number => {
 	if (a.length != b.length) throw new Error(`Vectors are different lengths: ${a.length} and ${b.length}`);
