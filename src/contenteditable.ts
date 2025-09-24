@@ -469,6 +469,35 @@ export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' |
 	return result;
 };
 
+const convertCardLinksToAnchorTags = (html : string) : string => {
+	const doc = getDocument();
+	if (!doc) throw new Error('No document');
+	const tempDiv = doc.createElement('div');
+	tempDiv.innerHTML = html;
+
+	// Find all card-link elements
+	const cardLinks = tempDiv.querySelectorAll('card-link');
+	cardLinks.forEach(cardLink => {
+		// Handle href attribute (external links only)
+		const href = cardLink.getAttribute('href');
+		if (href) {
+			const anchor = doc.createElement('a');
+			anchor.textContent = cardLink.textContent;
+			anchor.href = href;
+			anchor.target = '_blank';
+			// Replace card-link with anchor
+			cardLink.parentNode?.replaceChild(anchor, cardLink);
+		} else {
+			// Handle card attribute (internal card links) - convert to plain text
+			const textNode = doc.createTextNode(cardLink.textContent || '');
+			// Replace card-link with plain text
+			cardLink.parentNode?.replaceChild(textNode, cardLink);
+		}
+	});
+
+	return tempDiv.innerHTML;
+};
+
 export const exportContentForCards = (cards : ProcessedCard[]) : string => {
 	const doc = getDocument();
 	if (!doc) throw new Error('No document');
@@ -484,7 +513,9 @@ export const exportContentForCards = (cards : ProcessedCard[]) : string => {
 		const parts : string[] = [];
 		for (const child of ele.children) {
 			//Effectively strip <p> tags.
-			const outerHTML = child.tagName == 'P' ? child.innerHTML : child.outerHTML;
+			let outerHTML = child.tagName == 'P' ? child.innerHTML : child.outerHTML;
+			// Convert card-link elements to anchor tags
+			outerHTML = convertCardLinksToAnchorTags(outerHTML);
 			if (firstEle) {
 				parts.push(outerHTML);
 			} else {
@@ -498,7 +529,9 @@ export const exportContentForCards = (cards : ProcessedCard[]) : string => {
 			firstEle = false;
 		}
 		if (hasOtherEles) parts.push('</ul>');
-		result.push('<li>' + parts.join('\n') + '</li>');
+		result.push('<li>' + convertCardLinksToAnchorTags(parts.join('\n')) + '</li>');
 	}
-	return  dompurify.sanitize('<ul>' + result.join('\n') + '</ul>');
+	return  dompurify.sanitize('<ul>' + result.join('\n') + '</ul>', {
+		ADD_ATTR: ['href', 'target'],
+	});
 };
