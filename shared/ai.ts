@@ -23,7 +23,35 @@ export const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 		maxTokens: 200000,
 		provider: 'openai'
 	},
+	'gpt-5': {
+		maxTokens: 400000,
+		provider: 'openai'
+	},
+	'gpt-4.1': {
+		maxTokens: 1000000,
+		provider: 'openai'
+	},
+	'gpt-4.1-mini': {
+		maxTokens: 1000000,
+		provider: 'openai'
+	},
+	'gpt-4.1-nano': {
+		maxTokens: 1000000,
+		provider: 'openai'
+	},
 	'claude-3-7-sonnet-latest': {
+		maxTokens: 200000,
+		provider: 'anthropic'
+	},
+	'claude-4-opus': {
+		maxTokens: 200000,
+		provider: 'anthropic'
+	},
+	'claude-4-sonnet': {
+		maxTokens: 1000000,
+		provider: 'anthropic'
+	},
+	'claude-3-7-sonnet': {
 		maxTokens: 200000,
 		provider: 'anthropic'
 	}
@@ -132,8 +160,8 @@ export const PROVIDER_INFO: {[provider in modelProvider]: providerInfo} = {
 	}
 };
 
-export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-3-7-sonnet-latest';
+export const DEFAULT_OPENAI_MODEL = 'gpt-5';
+export const DEFAULT_ANTHROPIC_MODEL = 'claude-4-sonnet';
 export const DEFAULT_MODEL = DEFAULT_ANTHROPIC_MODEL;
 
 export const CARD_SEPARATOR = '\n---\n';

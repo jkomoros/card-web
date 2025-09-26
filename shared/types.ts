@@ -871,9 +871,9 @@ export type RetryMessageResponseData = {
 	success: true
 };
 
-export type OpenAIModelName = 'gpt-4o' | 'o3' | 'o4-mini';
+export type OpenAIModelName = 'gpt-4o' | 'o3' | 'o4-mini' | 'gpt-5' | 'gpt-4.1' | 'gpt-4.1-mini' | 'gpt-4.1-nano';
 
-export type AnthropicModelName = 'claude-3-7-sonnet-latest';
+export type AnthropicModelName = 'claude-3-7-sonnet-latest' | 'claude-4-opus' | 'claude-4-sonnet' | 'claude-3-7-sonnet';
 
 export type AIModelName = OpenAIModelName | AnthropicModelName;
 
