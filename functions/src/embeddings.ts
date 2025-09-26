@@ -80,8 +80,8 @@ const EMBEDDING_TYPES = {
 //Note there's currently no tool to remove the old embeddings, although it
 //should be pretty simple to do one by looking at getExistingPoint and using
 //client.delete() with the filter condition for the old version.
-type EmbeddingVersion = 0;
-const CURRENT_EMBEDDING_VERSION : EmbeddingVersion = 0;
+type EmbeddingVersion = 0 | 1;
+const CURRENT_EMBEDDING_VERSION : EmbeddingVersion = 1;
 
 type EmbeddingType = keyof typeof EMBEDDING_TYPES;
 type EmbeddingVector = number[];
@@ -150,9 +150,9 @@ export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string =
 	//computed. No other field for any card-type is computed yet.
 	const title = card.card_type != 'working-notes' ? (card.title || '') : '';
 	if (title) parts.push(title);
-	const body = innerTextForHTML(card.body);
+	const body = innerTextForHTML(card.body, true);
 	if (body) parts.push(body);
-	const commentary = innerTextForHTML(card.commentary || '');
+	const commentary = innerTextForHTML(card.commentary || '', true);
 	if (commentary) parts.push(commentary);
 	if (parts.length == 0) return '';
 	const created = toDate(card.created);

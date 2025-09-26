@@ -88,12 +88,42 @@ export const normalizeLineBreaks = (html : string, legalTopLevelNodes = DEFAULT_
  * users and thus untrusted, because the temporary element is never actually
  * appended into the DOM
  */
-export const innerTextForHTML = (body : string) : string => {
+const convertCardLinksForPlainText = (html : string) : string => {
+	const document = getDocument();
+	if (!document) throw new Error('missing document');
+	const tempDiv = document.createElement('div');
+	tempDiv.innerHTML = html;
+
+	// Find all card-link elements
+	const cardLinks = tempDiv.querySelectorAll('card-link');
+	cardLinks.forEach(cardLink => {
+		const textContent = cardLink.textContent || '';
+
+		// Handle href attribute (external links) - add URL in parentheses
+		const href = cardLink.getAttribute('href');
+		if (href) {
+			const textWithUrl = `${textContent} (${href})`;
+			const textNode = document.createTextNode(textWithUrl);
+			cardLink.parentNode?.replaceChild(textNode, cardLink);
+		} else {
+			// Handle card attribute (internal card links) - convert to plain text only
+			const textNode = document.createTextNode(textContent);
+			cardLink.parentNode?.replaceChild(textNode, cardLink);
+		}
+	});
+
+	return tempDiv.innerHTML;
+};
+
+export const innerTextForHTML = (body : string, preserveLinks = false) : string => {
 	const document = getDocument();
 	if (!document) throw new Error('missing document');
 	const ele = document.createElement('section');
 	// makes sure line breaks are in the right place after each legal block level element
 	body = normalizeLineBreaks(body);
+	if (preserveLinks) {
+		body = convertCardLinksForPlainText(body);
+	}
 	ele.innerHTML = body;
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
 	return ele.textContent || '';
