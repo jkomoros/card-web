@@ -398,7 +398,6 @@ gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
 			'openai',
 			'updateCardEmbedding',
 			'reindexCardEmbeddings',
-			'cleanupOldEmbeddings',
 			'similarCards',
 			'semanticSort'
 		);
@@ -406,6 +405,11 @@ gulp.task(FIREBASE_DEPLOY_TASK, (cb) => {
 
 	if (ANTHROPIC_ENABLED) {
 		baseFunctions.push('anthropic');
+	}
+
+	// Embedding functions that work with any AI provider
+	if (OPENAI_ENABLED || ANTHROPIC_ENABLED) {
+		baseFunctions.push('cleanupOldEmbeddings');
 	}
 
 	if (OPENAI_ENABLED || ANTHROPIC_ENABLED) {
