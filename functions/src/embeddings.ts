@@ -205,8 +205,10 @@ type Point = {
 type PointSummary = {
 	id: string,
 	payload?: {
-		content: string
-	}
+		content: string,
+		extraction_version?: EmbeddingVersion
+	},
+	vector?: EmbeddingVector
 };
 
 type GetPointsOptions = {
@@ -402,10 +404,10 @@ class EmbeddingStore {
 			return;
 		}
 
-		let embedding : EmbeddingResponse;
+		let embedding : Embedding;
 		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text && existingPoint.vector) {
 			//Content is the same but extraction version is different, reuse the existing vector
-			embedding = { vector: existingPoint.vector };
+			embedding = new Embedding(DEFAULT_EMBEDDING_TYPE, existingPoint.vector);
 			console.log(`Reused existing embedding for ${card.id} because content unchanged, updating extraction version`);
 		} else {
 			//Content changed or no existing embedding, generate new one
