@@ -379,7 +379,7 @@ class EmbeddingStore {
 		}
 		if (!existingPoint) {
 			if (cardsContent) console.log(`No existing point for ${card.id} despite cardsContent being provided. Will fetch it from the endpoint.`);
-			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
+			existingPoint = await this.getExistingPointAnyVersion(card.id, {includePayload: true, includeVector: true});
 		}
 
 		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text && existingPoint.payload.extraction_version === CURRENT_EMBEDDING_VERSION) {
@@ -402,7 +402,15 @@ class EmbeddingStore {
 			return;
 		}
 
-		const embedding = await embeddingForContent(text);
+		let embedding : EmbeddingResponse;
+		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text && existingPoint.vector) {
+			//Content is the same but extraction version is different, reuse the existing vector
+			embedding = { vector: existingPoint.vector };
+			console.log(`Reused existing embedding for ${card.id} because content unchanged, updating extraction version`);
+		} else {
+			//Content changed or no existing embedding, generate new one
+			embedding = await embeddingForContent(text);
+		}
 	
 		//Qdrant requires either an integer key or a literal UUID
 		//We want to reuse the id to upsert if we can.
