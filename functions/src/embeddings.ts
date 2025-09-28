@@ -341,6 +341,33 @@ class EmbeddingStore {
 		};
 	}
 
+	async getExistingPointAnyVersion(cardID : CardID, opts : GetPointsOptions = {}) : Promise<Point | null> {
+		const defaultOpts : Required<GetPointsOptions> = {includePayload: false, includeVector: false};
+		const finalOpts : Required<GetPointsOptions> = {...defaultOpts, ...opts};
+
+		const existingPoints = await this._qdrant.scroll(QDRANT_COLLECTION_NAME, {
+			filter: {
+				must: [
+					{
+						key: PAYLOAD_CARD_ID_KEY,
+						match: {
+							value: cardID
+						}
+					}
+				]
+			},
+			with_vector: finalOpts.includeVector,
+			with_payload: finalOpts.includePayload
+		});
+		if (existingPoints.points.length == 0) return null;
+		const existingPoint = existingPoints.points[0];
+		return {
+			id: existingPoint.id as string,
+			vector: existingPoint.vector ? existingPoint.vector as EmbeddingVector : undefined,
+			payload: existingPoint.payload as PointPayload
+		};
+	}
+
 	//cardInfo if provided will be consulted instead of going out to hit the endpoint.
 	async updateCard(card : Card, cardsContent? : Record<CardID, PointSummary>) : Promise<void> {
 
@@ -355,7 +382,7 @@ class EmbeddingStore {
 			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
 		}
 
-		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text) {
+		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text && existingPoint.payload.extraction_version === CURRENT_EMBEDDING_VERSION) {
 			//The embedding exists and is up to date, no need to recompute the
 			//embedding. We do still want to update the timestamp in the vector
 			//store though, so in the future last_updated will note that it's
@@ -456,26 +483,17 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	const cards = await getCards();
 
 	const indexedCardInfoResult = await EMBEDDING_STORE._qdrant.scroll(QDRANT_COLLECTION_NAME, {
-		filter: {
-			must: [
-				{
-					key: PAYLOAD_VERSION_KEY,
-					match: {
-						value: CURRENT_EMBEDDING_VERSION
-					}
-				}
-			]
-		},
 		limit: MAX_EMBEDDINGS,
 		with_payload: {
 			include: [
 				PAYLOAD_CONTENT_KEY,
-				PAYLOAD_CARD_ID_KEY
+				PAYLOAD_CARD_ID_KEY,
+				PAYLOAD_VERSION_KEY
 			]
 		}
 	});
 
-	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, {id: point.id, payload: {content: point.payload?.content}}])) as Record<CardID, PointSummary>;
+	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, {id: point.id, payload: {content: point.payload?.content, extraction_version: point.payload?.extraction_version}}])) as Record<CardID, PointSummary>;
 
 	let i = 1;
 	let errCount = 0;
