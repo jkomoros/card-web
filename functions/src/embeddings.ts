@@ -160,6 +160,7 @@ export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string =
 	return parts.join('\n') + suffix;
 };
 
+
 export const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
 
 	if (DEFAULT_EMBEDDING_TYPE_INFO.provider != 'openai.com') throw new Error(`Unsupported provider: ${DEFAULT_EMBEDDING_TYPE_INFO.provider}`);
@@ -400,15 +401,15 @@ class EmbeddingStore {
 				}
 			});
 
-			console.log(`Updated the metadata for ${card.id} (${existingPoint.id}) because its embedding had not changed`);
+			console.log(`Updated the metadata for ${card.id} (${existingPoint.id}) because its embedding had not changed (version ${existingPoint.payload.extraction_version})`);
 			return;
 		}
 
 		let embedding : Embedding;
 		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text && existingPoint.vector) {
-			//Content is the same but extraction version is different, reuse the existing vector
+			//Content is the same, reuse the existing vector
 			embedding = new Embedding(DEFAULT_EMBEDDING_TYPE, existingPoint.vector);
-			console.log(`Reused existing embedding for ${card.id} because content unchanged, updating extraction version`);
+			console.log(`Reused existing embedding for ${card.id} because content unchanged, updating from version ${existingPoint.payload.extraction_version} to ${CURRENT_EMBEDDING_VERSION}`);
 		} else {
 			//Content changed or no existing embedding, generate new one
 			embedding = await embeddingForContent(text);
@@ -500,10 +501,11 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 				PAYLOAD_CARD_ID_KEY,
 				PAYLOAD_VERSION_KEY
 			]
-		}
+		},
+		with_vector: true
 	});
 
-	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, {id: point.id, payload: {content: point.payload?.content, extraction_version: point.payload?.extraction_version}}])) as Record<CardID, PointSummary>;
+	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, {id: point.id, payload: {content: point.payload?.content, extraction_version: point.payload?.extraction_version || 0}, vector: point.vector}])) as Record<CardID, PointSummary>;
 
 	let i = 1;
 	let errCount = 0;
