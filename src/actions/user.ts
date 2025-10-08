@@ -23,7 +23,9 @@ import {
 	connectLiveReads,
 	disconnectLiveReads,
 	connectLiveReadingList,
-	disconnectLiveReadingList
+	disconnectLiveReadingList,
+	connectLivePermissions,
+	disconnectLivePermissions
 } from './database.js';
 
 import {
@@ -37,7 +39,6 @@ import {
 
 import {
 	doc,
-	getDoc,
 	arrayUnion,
 	arrayRemove,
 	serverTimestamp,
@@ -66,8 +67,7 @@ import {
 import {
 	UserInfo,
 	Card,
-	CardID,
-	Uid
+	CardID
 } from '../types.js';
 
 import {
@@ -84,8 +84,7 @@ import {
 	READS_COLLECTION,
 	USERS_COLLECTION,
 	READING_LISTS_COLLECTION,
-	READING_LISTS_UPDATES_COLLECTION,
-	PERMISSIONS_COLLECTION
+	READING_LISTS_UPDATES_COLLECTION
 } from '../../shared/collection-constants.js';
 
 import {
@@ -97,8 +96,7 @@ import {
 	SIGNOUT_USER,
 	UPDATE_READING_LIST,
 	UPDATE_READS,
-	UPDATE_STARS,
-	UPDATE_USER_PERMISSIONS
+	UPDATE_STARS
 } from '../actions.js';
 
 import {
@@ -221,6 +219,7 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	disconnectLiveStars();
 	disconnectLiveReads();
 	disconnectLiveReadingList();
+	disconnectLivePermissions();
 };
 
 const flagHasPreviousSignIn = () => {
@@ -289,38 +288,6 @@ const updateUserInfo = (firebaseUser : User) : ThunkSomeAction => (dispatch) => 
 	});
 };
 
-export const updatePermissions = (uid : Uid, tryCount = 0) : ThunkSomeAction => async (dispatch) => {
-	if (!uid) {
-		//This is only trigger on e.g. logout
-		dispatch({
-			type: UPDATE_USER_PERMISSIONS,
-			permissions: {},
-		});
-		return;
-	}
-	try {
-		const snapshot = await getDoc(doc(db, PERMISSIONS_COLLECTION, uid));
-		dispatch({
-			type: UPDATE_USER_PERMISSIONS,
-			//If thesnapshot doesn't exist then data() will be undefined, so always
-			//return a {}.
-			permissions: snapshot.data() || {},
-		});
-		//If we already showed a warning, show a success message too.
-		if (tryCount > 0) {
-			console.log('Permissions fetched after ', tryCount, ' tries');
-		}
-	} catch(err) {
-		//This can happen if we're stuck waiting for a very large download and the system erroneously thinks the storage is down.
-		//We'll try again in a second, up to 3 times.
-		console.warn('Error fetching permissions, count ', tryCount, err);
-		if (tryCount < 5) {
-			setTimeout(() => dispatch(updatePermissions(uid, tryCount + 1)), 1000);
-		}
-	
-	}
-};
-
 export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
@@ -332,7 +299,7 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 
 	dispatch(saveUserInfo());
 	flagHasPreviousSignIn();
-	dispatch(updatePermissions(firebaseUser.uid));
+	connectLivePermissions(firebaseUser.uid);
 	connectLiveStars(firebaseUser.uid);
 	connectLiveReads(firebaseUser.uid);
 	connectLiveReadingList(firebaseUser.uid);
@@ -360,7 +327,6 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 
 	dispatch({type:SIGNOUT_USER});
 	flagHasPreviousSignIn();
-	updatePermissions('');
 	firebaseSignOut(auth);
 };
 

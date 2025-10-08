@@ -49,7 +49,8 @@ import {
 	query,
 	orderBy,
 	QuerySnapshot,
-	limit
+	limit,
+	doc
 } from 'firebase/firestore';
 
 import {
@@ -94,11 +95,13 @@ import {
 	AUTHORS_COLLECTION,
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
-	TAGS_COLLECTION
+	TAGS_COLLECTION,
+	PERMISSIONS_COLLECTION
 } from '../../shared/collection-constants.js';
 
 import {
-	STOP_EXPECTING_FETCHED_CARDS
+	STOP_EXPECTING_FETCHED_CARDS,
+	UPDATE_USER_PERMISSIONS
 } from '../actions.js';
 
 import {
@@ -202,6 +205,7 @@ export const connectLiveThreads = () => {
 let liveStarsUnsubscribe : (() => void) | null = null;
 let liveReadsUnsubscribe : (() => void) | null  = null;
 let liveReadingListUnsubscribe : (() => void) | null = null;
+let livePermissionsUnsubscribe : (() => void) | null = null;
 
 export const disconnectLiveStars = () => {
 	if (liveStarsUnsubscribe) {
@@ -270,6 +274,32 @@ export const connectLiveReadingList = (uid : Uid) => {
 			list = doc.data().cards;
 		});
 		store.dispatch(updateReadingList(list));
+	});
+};
+
+export const disconnectLivePermissions = () => {
+	if (livePermissionsUnsubscribe) {
+		livePermissionsUnsubscribe();
+		livePermissionsUnsubscribe = null;
+	}
+	// Clear permissions from state when disconnecting
+	store.dispatch({
+		type: UPDATE_USER_PERMISSIONS,
+		permissions: {},
+	});
+};
+
+export const connectLivePermissions = (uid : Uid) => {
+	disconnectLivePermissions();
+	livePermissionsUnsubscribe = onSnapshot(doc(db, PERMISSIONS_COLLECTION, uid), snapshot => {
+		store.dispatch({
+			type: UPDATE_USER_PERMISSIONS,
+			//If the snapshot doesn't exist then data() will be undefined, so always return a {}.
+			permissions: snapshot.data() || {},
+		});
+	}, (error) => {
+		//Log errors but don't stop trying - onSnapshot will automatically retry when connection is restored
+		console.warn('Error fetching permissions, onSnapshot will retry automatically:', error);
 	});
 };
 
