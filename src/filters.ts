@@ -256,15 +256,179 @@ export const queryFilter = (queryText : string, strict = false) : ConfigurableFi
 	return (strict ? QUERY_STRICT_FILTER_NAME : QUERY_FILTER_NAME)  + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
 
+// Relative date types and interfaces
+export type RelativeDateType = 'offset' | 'weekday' | 'special';
+
+export type RelativeDateParts = {
+	type: 'offset';
+	amount: number;
+	unit: 'day' | 'week' | 'month' | 'year';
+} | {
+	type: 'weekday';
+	weekday: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+} | {
+	type: 'special';
+	value: 'today' | 'yesterday';
+};
+
+/**
+ * Parses a relative date string into an absolute Date object.
+ * Returns null if the string is not a recognized relative date format.
+ *
+ * Supported formats:
+ * - today, yesterday
+ * - N-days-ago, N-weeks-ago, N-months-ago, N-years-ago
+ * - last-monday, last-tuesday, etc.
+ */
+export const parseRelativeDate = (str: string): Date | null => {
+	if (!str) return null;
+
+	// Special keywords
+	if (str === 'today') {
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+		return d;
+	}
+	if (str === 'yesterday') {
+		const d = new Date();
+		d.setDate(d.getDate() - 1);
+		d.setHours(0, 0, 0, 0);
+		return d;
+	}
+
+	// Offset-based: N-days-ago, N-weeks-ago, etc.
+	// Support both singular and plural: 1-day-ago, 2-days-ago
+	const offsetMatch = str.match(/^(\d+)-(day|week|month|year)s?-ago$/);
+	if (offsetMatch) {
+		const amount = parseInt(offsetMatch[1], 10);
+		const unit = offsetMatch[2];
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+
+		switch(unit) {
+		case 'day':
+			d.setDate(d.getDate() - amount);
+			break;
+		case 'week':
+			d.setDate(d.getDate() - (amount * 7));
+			break;
+		case 'month':
+			d.setMonth(d.getMonth() - amount);
+			break;
+		case 'year':
+			d.setFullYear(d.getFullYear() - amount);
+			break;
+		}
+
+		return d;
+	}
+
+	// Weekday-based: last-monday, last-tuesday, etc.
+	const weekdayMatch = str.match(/^last-(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+	if (weekdayMatch) {
+		const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+		const targetDay = weekdays.indexOf(weekdayMatch[1]);
+
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+		const currentDay = d.getDay();
+
+		// Calculate days to go back
+		// If today is Wednesday (3) and we want last Monday (1): (3 - 1) = 2
+		// If today is Monday (1) and we want last Monday (1): we want 7 days back, not 0
+		let daysBack = ((currentDay - targetDay + 7) % 7) || 7;
+
+		d.setDate(d.getDate() - daysBack);
+		return d;
+	}
+
+	// Not a relative date format
+	return null;
+};
+
+/**
+ * Returns true if the string is a valid relative date format.
+ */
+export const isRelativeDate = (str: string): boolean => {
+	return parseRelativeDate(str) !== null;
+};
+
+/**
+ * Parses a relative date string into its component parts for UI editing.
+ * Returns null if not a valid relative date.
+ */
+export const parseRelativeDateParts = (str: string): RelativeDateParts | null => {
+	if (!str) return null;
+
+	// Special keywords
+	if (str === 'today') {
+		return { type: 'special', value: 'today' };
+	}
+	if (str === 'yesterday') {
+		return { type: 'special', value: 'yesterday' };
+	}
+
+	// Offset-based
+	const offsetMatch = str.match(/^(\d+)-(day|week|month|year)s?-ago$/);
+	if (offsetMatch) {
+		return {
+			type: 'offset',
+			amount: parseInt(offsetMatch[1], 10),
+			unit: offsetMatch[2] as 'day' | 'week' | 'month' | 'year'
+		};
+	}
+
+	// Weekday-based
+	const weekdayMatch = str.match(/^last-(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+	if (weekdayMatch) {
+		return {
+			type: 'weekday',
+			weekday: weekdayMatch[1] as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+		};
+	}
+
+	return null;
+};
+
+/**
+ * Constructs a relative date string from component parts.
+ */
+export const makeRelativeDateString = (parts: RelativeDateParts): string => {
+	switch (parts.type) {
+	case 'special':
+		return parts.value;
+	case 'offset': {
+		// Use plural form for amounts != 1
+		const unit = parts.amount === 1 ? parts.unit : `${parts.unit}s`;
+		return `${parts.amount}-${unit}-ago`;
+	}
+	case 'weekday':
+		return `last-${parts.weekday}`;
+	}
+};
+
 export const parseDateSection = (str : string) : [dateType : DateRangeType, firstDate : Date, secondDate : Date] => {
 	let pieces = str.split('/');
 	const targetLength = CONFIGURABLE_FILTER_URL_PARTS[pieces[0]] + 1;
 	pieces = pieces.slice(0, targetLength);
 	let firstDate = new Date();
 	let secondDate = new Date();
-	if (pieces.length > 1) firstDate = new Date(pieces[1]);
+
+	if (pieces.length > 1) {
+		// Try parsing as relative date first, fall back to absolute date
+		const relativeDate = parseRelativeDate(pieces[1]);
+		firstDate = relativeDate !== null ? relativeDate : new Date(pieces[1]);
+	}
+
 	//make sure there's always a second date, defaulting to now.
-	if (pieces.length > 2) secondDate = pieces[2] ? new Date(pieces[2]) : new Date();
+	if (pieces.length > 2 && pieces[2]) {
+		// Try parsing as relative date first, fall back to absolute date
+		const relativeDate = parseRelativeDate(pieces[2]);
+		secondDate = relativeDate !== null ? relativeDate : new Date(pieces[2]);
+	} else if (pieces.length > 2) {
+		secondDate = new Date();
+	}
+
 	return [pieces[0] as DateRangeType, firstDate, secondDate];
 };
 
