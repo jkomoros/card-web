@@ -25,22 +25,55 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 
 ## Key Requirements
 
-### 1. Search All Cards
+### 1. Search All Cards (Two-Phase Fetch Pattern)
 - Must search ALL 30,000+ cards (not just recent 5,000)
-- Must NOT load all 30k client-side (would cause save lag)
+- Must NOT load all 30k card objects client-side (would cause save lag)
 
-### 2. Progressive Loading (Extended)
+**Two-phase fetch pattern:**
+1. **Phase 1 - Count + Card IDs (Server)**: Server executes filter and returns:
+   - **Total count** of matching cards (CRITICAL for UX: "Showing 1-50 of 30,000")
+   - List of matching card IDs (can be batched)
+   - Includes permission filtering (only cards user can access)
+   - Lightweight response (count + 30k card IDs ≈ 240KB, ~60 Firestore reads)
+2. **Phase 2 - Card Data Batches (Progressive)**: Client fetches full card data in batches
+   - Initial batch: Visible cards (e.g., 50 cards)
+   - Progressive batches: Fetch more as user navigates/scrolls
+   - Prefetch next batch before reaching boundary
+   - Never load all 30k card objects simultaneously
+
+**Count is more important than immediate card data:**
+- User needs to see "30,000 results" immediately
+- Card data can be fetched progressively as needed
+- Prefetching prevents perceived latency at batch boundaries
+
+**Why this pattern:**
+- Server enforces permissions (user only sees accessible cards)
+- Cost efficient (card IDs 500× cheaper than card objects)
+- Enables KeyCard navigation (prefetch nearby card data)
+- Leverages existing card-list pagination for rendering performance
+
+### 2. Progressive Loading with Count (Extended)
+- **COUNT is critical**: Show total number of matching cards immediately
+  - "Showing 1-50 of 30,000 results"
+  - Enables progress indicators and navigation
+  - More important than immediate full card data
 - Show partial local results immediately (<100ms)
-- Show full results soon after (<2000ms)
+- Show full results in batches as user navigates (<2000ms per batch)
+- Prefetch next batch before reaching boundary
 - Apply to explicit searches (query dialog)
-- NOT required for KeyCard navigation (must be instant)
+- Apply to large collections with batching
 
 ### 3. KeyCard-Based Collections (Critical)
 - Similar cards sidebar updates on every navigation
 - Reference blocks (8 per card) update instantly
 - 300-1,600 collection instantiations per day
-- Must be <100ms latency (client-side filtering only)
-- Must NOT query server (cost prohibitive)
+- Must be <100ms latency for KeyCard navigation
+
+**Two-phase pattern makes server queries viable:**
+- Phase 1 (card ID list): One-time cost when collection definition changes
+- Phase 2 (card data): Progressive fetch for visible cards
+- KeyCard navigation: Data already loaded for nearby cards
+- Cost: ~$0.000039 per collection (450× cheaper than naive approach)
 
 ### 4. Preserve Save Performance (CRITICAL)
 - Current: ~100-300ms (partial mode with 5k cards)
@@ -55,65 +88,113 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 
 ## Critical Insights from Critiques
 
-### Collections Are Not Uniform
+### Collections Are Not Uniform (Revised with Two-Phase Pattern)
 
-| Collection Type | Frequency | Cost Tolerance | Strategy |
-|----------------|-----------|----------------|----------|
-| **Explicit searches** | 10-20/day | High ($0.01) | Server query ✓ |
-| **KeyCard navigation** | 300-1,600/day | Very low ($0) | Client-only ✓ |
+| Collection Type | Frequency | Card Data Needed | Cost with Two-Phase |
+|----------------|-----------|------------------|---------------------|
+| **Explicit searches** | 10-20/day | All results (~50-500 cards) | $0.01-0.10 per search |
+| **Navigation collections** | 300-1,600/day | Visible only (~5-20 cards) | $0.000039 per collection |
+| **Huge collections** | Rare | Progressive (~5-20 visible) | $0.000039-0.000048 |
 
-**Any approach treating all collections uniformly will either:**
-1. Under-serve explicit searches (incomplete results), OR
-2. Over-serve navigation (cost explosion $145k/month)
+**Two-phase pattern enables server queries for ALL collection types:**
+- Phase 1 (card IDs): Cheap for all sizes (~60 reads)
+- Phase 2 (card data): Cost proportional to visible cards, not collection size
 
-### The Cost Difference
+### Cost Comparison: Naive vs Two-Phase with Batching
 
+**Naive approach (fetch all card objects):**
 ```
-Explicit searches (10/day):  $0.60/month ✓ ACCEPTABLE
-Navigation (1000/day):       $60/month  ✗ CATASTROPHIC (if server-queried)
-
-Ratio: 100:1 frequency, but 1:10 value
+Explicit search (500 results):  500 reads = $0.0003
+Navigation (30k collection):    30,000 reads = $0.018
+Total (10 searches + 1000 nav): $18.30/day ✗ CATASTROPHIC
 ```
 
-### Required: Smart Delegation
+**Two-phase batched approach (count + IDs, then batched card data):**
+```
+Explicit search (500 results):
+  Phase 1: 60 reads (count + IDs)
+  Phase 2: 500 reads (all result cards)
+  Total: 560 reads = $0.000336
 
-Must differentiate collection types:
-- Whitelist explicit searches for server queries
-- Blacklist KeyCard navigation for client-only
-- Selective triggering based on collection characteristics
+Navigation (30k collection, user views 50 cards):
+  Phase 1: 60 reads (count + IDs)
+  Phase 2: 50 reads (first batch)
+  Total: 110 reads = $0.000066
 
-### KeyCard Prefetching Opportunity
+Navigation (30k collection, user views 200 cards):
+  Phase 1: 60 reads (count + IDs)
+  Phase 2: 200 reads (4 batches)
+  Total: 260 reads = $0.000156
+
+Total (10 searches + 1000 nav, avg 50 cards viewed):
+  10 × $0.000336 + 1000 × $0.000066 = $0.069/day ✓ ACCEPTABLE
+```
+
+**Cost reduction: 265× cheaper with two-phase batched pattern**
+
+**Key insight**: Cost proportional to cards VIEWED, not cards MATCHED
+
+### Smart Delegation Still Useful (But Less Critical)
+
+With two-phase pattern, server queries are viable for all collections, but optimization still useful:
+- Cache card ID lists (change infrequently)
+- Distinguish client-only filters (similarity, references) from server-translatable
+- Progressive loading for huge result sets
+
+### KeyCard Prefetching with Two-Phase Fetch
 
 **Critical constraint discovered**: KeyCards are almost always cards in the current collection.
 
-**Impact on designs:**
-- **Without prefetching**: 30k possible KeyCards → ~0% cache hit rate → cost explosion
-- **With prefetching**: 5-20 visible cards → 70-90% cache hit rate → cost manageable
+**How it works:**
+1. **Server returns card ID list** for collection (one-time cost per collection)
+2. **Client progressively fetches card data** for visible cards + buffer
+3. **User navigates (KeyCard changes)** to nearby card
+4. **Card data already loaded** → Sidebar/reference blocks update instantly
 
 **Prefetching strategy:**
-1. When collection loads, identify visible cards (5-20 cards)
-2. Background prefetch server results for each visible KeyCard variant
-3. User navigates to visible card → Cache hit → Instant result
-4. As user scrolls, prefetch new visible cards
+1. When collection loads: Fetch card ID list from server (Phase 1)
+2. Fetch card data for visible cards (5-20 cards, Phase 2)
+3. User navigates: Most KeyCard changes are to already-loaded cards
+4. As user scrolls: Fetch more card data in background
 
-**Cost with prefetching:**
-- Explicit search: 1 query per search = 10-20 queries/day
-- Navigation with prefetch: 1 query per visible card = 100-400 queries/day (on collection change)
-- Total: ~110-420 queries/day vs 1,300-3,200 without prefetch (3-8× reduction)
+**Cost model with two-phase + batching:**
+- **Phase 1 (Count + Card IDs)**: ~60 reads for count + 30k card IDs (one-time per collection)
+  - Can be batched: Fetch first 1000 IDs, then fetch more as needed
+  - Or fetch all IDs upfront if cheap enough (240KB for 30k IDs)
+- **Phase 2 (Card data batches)**: ~1 read per card × batch size
+  - Initial batch: 50 cards = 50 reads
+  - Each subsequent batch: 50 cards = 50 reads
+  - Only fetch batches user navigates to
+- **Total per collection**: 60 (count/IDs) + 50 (initial batch) + (50 × batches navigated)
+- **Navigation cost**: Near-zero within loaded batch, 50 reads at batch boundary
+
+**Example: User navigates through 200 cards in a 30k collection:**
+- Phase 1: 60 reads (count + all card IDs)
+- Phase 2: 4 batches × 50 reads = 200 reads
+- Total: 260 reads = $0.000156
+- vs naive: 30,000 reads = $0.018 (115× cheaper)
+
+**Example: User only views first 50 cards:**
+- Phase 1: 60 reads (count + IDs)
+- Phase 2: 1 batch × 50 reads = 50 reads
+- Total: 110 reads = $0.000066
+- vs naive: 30,000 reads = $0.018 (272× cheaper)
 
 **Trade-offs:**
-- ✅ Makes server queries viable for navigation (70-90% cache hit)
-- ✅ Reduces cost 3-8× compared to naive query-on-demand
-- ⚠️ Still 10× more expensive than client-only filtering
-- ⚠️ Prefetch must be background (not block collection load)
-- ⚠️ Wasted prefetches if user doesn't navigate to all visible cards
+- ✅ Makes server queries viable for ALL collections (not just explicit searches)
+- ✅ KeyCard navigation is instant (data already loaded)
+- ✅ Natural pagination for huge collections (30k+ cards)
+- ⚠️ Two-phase complexity (card ID list + card data)
+- ⚠️ Server must return card ID list format (new API)
 
 ## Success Criteria
 
 ### Functionality
 - ✅ Search coverage: 100% of 30k cards
-- ✅ Real-time sync: Maintained for 5k recent cards
-- ✅ Progressive loading: Works for explicit searches
+- ✅ Count accuracy: Correct total count immediately (not progressive)
+- ✅ Real-time sync: Maintained for loaded cards
+- ✅ Progressive loading: Batched card data as user navigates
+- ✅ Prefetching: Next batch ready before boundary reached
 
 ### Performance
 - ✅ Save latency: <200ms P50, <500ms P95 (no regression)
