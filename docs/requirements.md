@@ -126,10 +126,12 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 - Results should be cached and updated periodically
 
 **Architectural considerations:**
-- Could compute IDF server-side (all cards available)
+- Could compute IDF server-side (all cards available with NLP data)
 - Could cache IDF results (changes slowly)
 - Could compute incrementally (hot tier + sample from cold tier)
 - Could use stale IDF from larger corpus (acceptable slop)
+- With NLP data in Firestore, server can compute IDF over full 30k corpus
+- IDF calculation uses `withoutStopWords` tier (same as fingerprinting)
 
 **Note for architecture design:**
 - This is a global corpus statistic (not per-collection)
@@ -407,10 +409,26 @@ Navigation pattern:
    - Better ranking and relevance
 
 **Implementation requirements:**
-- Add `nlp_tokens` field to card schema (array of stemmed words)
-- Generate tokens on client save in `modifyCardWithBatch()` (src/actions/data.ts:400-452)
+- Add `nlp` field to card schema with same multi-tier structure as currently computed
+- Structure (from src/nlp.ts:611-621, 577-594):
+  ```typescript
+  nlp: {
+      body: [ProcessedRun, ...],
+      title: [ProcessedRun, ...],
+      subtitle: [ProcessedRun, ...],
+      ...
+  }
+
+  ProcessedRun: {
+      original: string,       // "Force of Gravity"
+      normalized: string,     // "force of gravity"
+      stemmed: string,        // "forc of graviti"
+      withoutStopWords: string  // "forc graviti"
+  }
+  ```
+- Generate full NLP object on client save in `modifyCardWithBatch()` (src/actions/data.ts:400-452)
 - NO server-side NLP machinery needed (server never modifies content)
-- One-time backfill: Migrate existing 30k cards to include NLP tokens
+- One-time backfill: Migrate existing 30k cards to include full NLP structure
 
 **Server-side save paths analysis:**
 - Tweet engagement updates (scheduled every 3 hours): `tweet_count`, `tweet_retweet_count`, `tweet_favorite_count`, `star_count`
@@ -421,6 +439,9 @@ Navigation pattern:
 - **Therefore**: No server-side NLP computation needed, no Firestore trigger needed
 
 **Firestore Enterprise Pipeline Operations support:**
-- Can search array fields with `array_contains`, `in` operations
-- Can search string fields with `str_contains`, `regex_match`, expression operations
-- Storing as `nlp_tokens: string[]` enables efficient server-side search
+- ✅ Supports nested object structure (maps containing arrays of objects)
+- Can query nested fields: `nlp.body[*].withoutStopWords` (array wildcard queries)
+- Can use `str_contains`, `regex_match` on nested string fields
+- For text search: Query `withoutStopWords` tier (stemmed + stop words removed)
+- For exact matching: Query `stemmed` or `normalized` tiers
+- Preserves all four processing tiers for flexibility
