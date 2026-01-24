@@ -208,29 +208,58 @@ With two-phase pattern, server queries are viable for all collections, but optim
 
 ## Design Constraints
 
-### 1. Cannot Use Same Strategy for All Collections
-- Explicit searches justify server queries (comprehensive results worth cost)
-- KeyCard navigation requires client-only (cost prohibitive otherwise)
+### 1. NLP Processing Currently Client-Only
+- **Current**: Stemming and normalization happen entirely client-side (`src/nlp.ts`)
+- **Not stored**: Pre-processed NLP data (stemmed words) not in Firestore
+- **Server search limitation**: Server can only do basic text search (contains, regex)
 
-### 2. Progressive Loading is REQUIRED
-- Must show partial results immediately
-- Server-first (blocks until complete) violates requirement
-- Dual-track pattern (preview → complete) is ideal
+**Options for server-side text search:**
 
-### 3. KeyCard Navigation is Highly Predictable
+**Option A: Store pre-processed NLP data in Firestore**
+- Generate stemmed/normalized words on save (client-side and server-side saves)
+- Increases card size (additional field with processed tokens)
+- Requires NLP logic on server (for server-side saves)
+- User assessment: "Wouldn't be that big of a deal"
+- Enables full NLP search server-side
+
+**Option B: Hybrid text search (server + client refinement)**
+- Server does basic text matching (Pipeline `str_contains`, `regex_match`)
+- Returns candidates based on raw text
+- Client applies NLP scoring and ranking
+- Similar to existing similarity filter pattern
+
+**Recommendation**: Start with Option B (hybrid), migrate to Option A if server-side NLP becomes critical
+
+### 2. Cannot Use Same Strategy for All Collections (Less Critical with Two-Phase)
+- Explicit searches may need all result cards (for display)
+- Navigation collections only need visible cards (progressive)
+
+### 3. Progressive Loading with Count is REQUIRED
+- Must show count immediately (most critical)
+- Must show partial results immediately (first batch)
+- Progressive batching as user navigates
+- Prefetch next batch before boundary
+- Count + first batch should be <500ms combined
+
+### 4. KeyCard Navigation is Highly Predictable (Enables Batching)
 - **KeyCards are almost always cards already in the current collection**
 - Navigation is typically sequential (keyboard next/prev card)
 - When scrolling, the next KeyCard must be visible on screen
 - This means: 5-20 candidate KeyCards vs 30,000 theoretical possibilities
-- **Prefetching becomes viable**: Can prefetch server results for visible cards
-- **Cache hit rate could be high** (70-90%) with aggressive prefetching
-- **Important**: Naive caching (no prefetch) still has ~0% hit rate (30k unique KeyCards)
 
-### 4. Cost Controls are MANDATORY
-- Per-user quotas (max queries per day)
-- Rate limiting (max concurrent queries)
-- Circuit breakers (disable if budget exceeded)
-- Collection type whitelisting
+**Two-phase + batching leverages this:**
+- Phase 1: Get count + IDs for collection (one-time)
+- Phase 2: Fetch card data for visible cards in batch (progressive)
+- KeyCard navigation stays within loaded batch (instant)
+- When approaching batch boundary, prefetch next batch
+- Navigation cost: Near-zero (data already loaded in batch)
+
+### 5. Cost Controls (Less Critical with Two-Phase Batching)
+- Two-phase + batching makes costs inherently reasonable
+- Cost proportional to cards viewed, not cards matched
+- Still useful: Cache count + card IDs (change infrequently)
+- Optional: Rate limiting for server queries
+- Optional: Budget monitoring and alerts
 
 ## Usage Patterns
 
@@ -274,4 +303,22 @@ Navigation pattern:
 - `/Users/jkomoros/Code/card-web/src/actions/database.ts` - Firestore queries, must preserve real-time sync
 - `/Users/jkomoros/Code/card-web/src/collection_description.ts` - Collection class (~900 LOC), integration point
 - `/Users/jkomoros/Code/card-web/src/filters.ts` - Filter definitions, translation to Pipeline operations
-- `/Users/jkomoros/Code/card-web/src/nlp.ts` - PreparedQuery (client-only, cannot replicate server-side)
+- `/Users/jkomoros/Code/card-web/src/nlp.ts` - PreparedQuery (client-only, stemming/normalization logic)
+
+## NLP Processing Constraint
+
+**Current architecture**: NLP processing (Porter stemming, bigrams, normalization) happens client-side only.
+
+**Server-side text search options:**
+1. **Store pre-processed tokens**: Add NLP data to Firestore on save (both client and server)
+   - Enables server to search pre-processed tokens
+   - Increases card size moderately
+   - Requires replicating NLP logic on server for server-side saves
+2. **Hybrid search**: Server does basic text matching, client does NLP scoring
+   - Server returns candidates via Pipeline `str_contains` or `regex_match`
+   - Client applies PreparedQuery scoring to candidates
+   - No changes to stored data format
+
+**Trade-off**: Storage cost vs search quality
+- Option 1: Better server-side search, requires implementation work
+- Option 2: Good enough for most queries, simpler implementation
