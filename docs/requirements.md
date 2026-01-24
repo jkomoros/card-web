@@ -509,3 +509,199 @@ Navigation pattern:
 - Example: `working-notes` card has no `title` field in NLP → won't match title queries
 - Configuration changes only require client-side NLP regeneration (no server changes)
 - Enables future per-card search field overrides without server complexity
+
+## Filter System Constraints
+
+The filter system represents one of the most complex aspects of the card-web architecture, with significant implications for server-side query implementation. Understanding filter complexity and server translation limitations is critical for any server-side filtering approach.
+
+### Filter Complexity Overview
+
+The system supports **41+ distinct filter types** organized across **8 major categories**:
+- **Meta filters**: published, section, tag, author, starred, read, reading-list
+- **Date filters**: edited-recent, created-recent, edited-before, created-before, edited-after, created-after, edited-range, created-range
+- **Text filters**: query (5-tier NLP scoring), full-text (simple text search)
+- **Graph filters**: references, children, descendants, about, similar, about-concept, limit
+- **Card type filters**: card-type
+- **Compositional filters**: combine, exclude, expand, multi-union, multi-exclude, multi-expand
+- **Set operation filters**: sort, reverse
+- **Concept filters**: about-concept, similar, about
+
+**Critical architectural characteristics:**
+- **Arbitrary composition depth**: Combine, exclude, and expand filters can nest infinitely
+- **Real-time filter evaluation**: Collections are evaluated on every card change via `onSnapshot()`
+- **Semantic complexity**: Some filters (query, similar, about-concept) require NLP processing
+- **Graph traversal**: Reference-based filters require BFS traversal with variable ply (degrees of separation)
+
+### Server-Side Translation Limitations
+
+**Only ~40% of filters can be fully translated to Firestore Pipeline operations.**
+
+The fundamental constraint is that Firestore (even with Enterprise Pipeline Operations) cannot execute:
+1. **Graph traversal operations** (BFS, multi-hop references)
+2. **Semantic similarity computations** (cosine similarity, concept matching)
+3. **Complex compositional logic** that depends on client-only sub-filters
+
+**Filter categories by server capability:**
+
+```
+FULL_SERVER (40%):
+  - published, section, tag, author, starred
+  - edited-recent, created-recent, edited-before, created-before
+  - edited-after, created-after, edited-range, created-range
+  - card-type
+  - Simple compositional filters (when all sub-filters are server-translatable)
+
+HYBRID (20%):
+  - query: Text search can run server-side, but 5-tier NLP scoring requires client
+  - Multi-ply graph filters: Single-hop can be denormalized, multi-hop requires client
+  - Date filters with relative dates: "3 months ago" requires client-side date calculation
+
+CLIENT_ONLY (40%):
+  - references: BFS graph traversal with variable ply (1-10 degrees of separation)
+  - similar: Cosine similarity computation over NLP fingerprints
+  - children: Graph structure traversal (parent → children)
+  - descendants: Recursive graph traversal (parent → all descendants)
+  - about-concept: Semantic concept matching via graph traversal + similarity
+  - Compositional filters with CLIENT_ONLY sub-filters
+```
+
+### Critical Filter Types
+
+#### References Filter (Graph Traversal)
+- **Purpose**: Find cards connected via reference links (outbound or inbound)
+- **Algorithm**: Breadth-First Search (BFS) with configurable ply (degrees of separation)
+- **Ply range**: 1-10 hops (user-configurable, default 3)
+- **Directionality**: Outbound, inbound, or both
+- **Server limitation**: Firestore cannot execute multi-hop graph traversal
+- **Partial solution**: Single-hop (ply=1) can be denormalized in card document
+- **Multi-hop**: Always requires client-side BFS
+
+**Implication**: Any filter involving references with ply > 1 is CLIENT-ONLY.
+
+#### Query Filter (5-Tier NLP Scoring)
+- **Purpose**: Full-text search with relevance scoring
+- **Scoring system**: 5 tiers of matches (exact phrase → stemmed words)
+- **Inbound link boosting**: Cards referenced by many others rank higher
+- **Server capability**: Can find cards containing text (boolean match)
+- **Client requirement**: Must compute relevance scores and apply link boosting
+- **Hybrid approach**: Server pre-filters to matching cards, client scores and ranks
+
+**Implication**: Query filter requires both server (matching) and client (scoring) phases.
+
+#### Combine/Exclude/Expand Filters (Compositional Logic)
+- **Purpose**: Boolean logic over sub-filters (AND, NOT, OR operations)
+- **Combine**: Intersection of multiple filters (AND)
+- **Exclude**: Set difference (A - B)
+- **Expand**: Union of multiple filters (OR)
+- **Nesting**: Can nest arbitrarily deep (combine within exclude within expand...)
+- **Server capability**: Depends entirely on sub-filter translatability
+  - If all sub-filters are server-translatable → compositional is server-translatable
+  - If any sub-filter is CLIENT_ONLY → entire compositional becomes CLIENT_ONLY
+
+**Implication**: Server translation must recursively analyze sub-filters to determine feasibility.
+
+### Implications for Architecture Design
+
+#### Cannot Assume All Filters Are Server-Executable
+Any server-side filtering approach must handle filters that cannot be translated:
+- Graceful degradation: Fall back to client-side evaluation
+- Explicit feedback: UI should indicate when results are partial
+- Conservative translation: When in doubt, use client evaluation
+
+#### Need Hybrid Approach: Server Pre-Filter + Client Refinement
+Optimal architecture uses server to pre-filter large result sets, then client to apply complex logic:
+1. **Server phase**: Apply translatable portions of filter (reduce 30k → 5k cards)
+2. **Client phase**: Apply full filter logic on reduced set (5k → 500 final results)
+3. **Progressive loading**: Fetch server results in batches, apply client filter incrementally
+
+#### Must Accept Partial Results for Complex Filters
+When filters are CLIENT_ONLY, server can only provide hot tier results:
+- **Hot tier**: Recent cards already loaded client-side (~5-10k cards)
+- **Coverage**: May only be 16-33% of full corpus (5k of 30k cards)
+- **User expectation**: UI must clearly indicate partial coverage
+- **Search limitation**: Complex filters cannot search full 30k card corpus
+
+**Trade-off**: Full filter flexibility vs. comprehensive search coverage.
+
+#### UI Should Show Coverage % When Results Are Incomplete
+Critical UX requirement for CLIENT_ONLY filters:
+- **Show total cards searched**: "Searched 5,000 of 30,000 cards (16.7% coverage)"
+- **Explain limitation**: "This filter cannot search all cards (requires client-side processing)"
+- **Offer alternatives**: Suggest server-translatable filters when available
+- **Progressive disclosure**: As more cards load, results update with coverage %
+
+### Filter Categories by Server Capability
+
+| Filter Type | Category | Server Capable | Notes |
+|-------------|----------|----------------|-------|
+| `published` | Meta | ✅ Full | Simple boolean field |
+| `section` | Meta | ✅ Full | String equality |
+| `tag` | Meta | ✅ Full | Array contains |
+| `author` | Meta | ✅ Full | String equality |
+| `starred` | Meta | ✅ Full | Boolean field |
+| `read` | Meta | ✅ Full | Boolean field |
+| `reading-list` | Meta | ✅ Full | Boolean field |
+| `edited-recent` | Date | ✅ Full | Timestamp comparison |
+| `created-recent` | Date | ✅ Full | Timestamp comparison |
+| `edited-before` | Date | ✅ Full | Timestamp comparison |
+| `created-before` | Date | ✅ Full | Timestamp comparison |
+| `edited-after` | Date | ✅ Full | Timestamp comparison |
+| `created-after` | Date | ✅ Full | Timestamp comparison |
+| `edited-range` | Date | ⚠️ Hybrid | Server can execute, but relative dates need client parsing |
+| `created-range` | Date | ⚠️ Hybrid | Server can execute, but relative dates need client parsing |
+| `query` | Text | ⚠️ Hybrid | Server: boolean match, Client: relevance scoring |
+| `full-text` | Text | ✅ Full | Simple text contains |
+| `card-type` | Type | ✅ Full | String equality |
+| `references` | Graph | ❌ Client-only | Multi-hop BFS traversal (ply > 1) |
+| `children` | Graph | ❌ Client-only | Graph structure traversal |
+| `descendants` | Graph | ❌ Client-only | Recursive graph traversal |
+| `similar` | Graph | ❌ Client-only | Cosine similarity computation |
+| `about` | Graph | ❌ Client-only | Semantic relevance via fingerprints |
+| `about-concept` | Graph | ❌ Client-only | Concept matching + graph traversal |
+| `combine` | Compositional | ⚠️ Depends | Inherits from sub-filters |
+| `exclude` | Compositional | ⚠️ Depends | Inherits from sub-filters |
+| `expand` | Compositional | ⚠️ Depends | Inherits from sub-filters |
+| `multi-union` | Compositional | ⚠️ Depends | Inherits from sub-filters |
+| `multi-exclude` | Compositional | ⚠️ Depends | Inherits from sub-filters |
+| `multi-expand` | Compositional | ⚠️ Depends | Inherits from sub-filters |
+| `sort` | Set Operation | ✅ Full | Server can sort results |
+| `reverse` | Set Operation | ✅ Full | Server can reverse sort |
+| `limit` | Set Operation | ✅ Full | Server can limit results |
+
+**Summary statistics:**
+- **Full server capability**: 16 filter types (39%)
+- **Hybrid capability**: 3 filter types (7%)
+- **Client-only**: 13 filter types (32%)
+- **Compositional (depends)**: 9 filter types (22%)
+
+**Critical insight**: The most powerful and frequently used filters (references, similar, query with scoring, about-concept) are either CLIENT_ONLY or HYBRID, meaning comprehensive server-side filtering cannot support the full filter language.
+
+### Architectural Recommendations
+
+Based on these constraints, any server-side filtering implementation should:
+
+1. **Implement tiered filter translation**:
+   - Tier 1: Full server execution (40% of filters)
+   - Tier 2: Hybrid server pre-filter + client refinement (20% of filters)
+   - Tier 3: Client-only with hot tier limitation (40% of filters)
+
+2. **Provide clear UX for limitations**:
+   - Show coverage % for client-only filters
+   - Explain why some filters can't search all cards
+   - Suggest server-translatable alternatives when available
+
+3. **Design for hybrid execution**:
+   - Server returns superset of matches (over-fetch)
+   - Client applies final filter logic (under-select)
+   - Progressive loading: Apply client filter as batches arrive
+
+4. **Accept coverage trade-offs**:
+   - Full filter flexibility (41+ types) OR comprehensive coverage (30k cards)
+   - Cannot have both without loading all cards client-side
+   - Hot tier (5-10k cards) provides good coverage for most use cases
+
+5. **Optimize for common cases**:
+   - Most navigation uses simple filters (section, tag, published)
+   - Explicit searches often use query filter (hybrid capable)
+   - Graph filters are powerful but less frequent
+   - Prioritize server translation for high-frequency filters
