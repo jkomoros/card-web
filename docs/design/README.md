@@ -70,14 +70,14 @@ Before reviewing designs, see:
 | **Philosophy** | Server authoritative, client renders | Optimize for common case (hot tier) | Collections are ID lists until viewed | Stream results progressively |
 | **Query Pattern** | Always query server (cached) | Try hot tier first, server fallback | Phase 1 cached aggressively, Phase 2 on-demand | Server streams count → IDs → data |
 | **First Feedback** | <50ms (cached), 200-500ms (uncached) | <50ms (95% hot tier hit) | <50ms (cached ID list) | 50ms (count streamed) |
-| **Complete Results** | 200-500ms | <50ms (hot tier) or 200-500ms (server) | 200-300ms (materialize visible) | 200-400ms (IDs + cards) |
+| **Complete Results** | 250-500ms (always fetch cards) | <50ms (hot tier) or 200-500ms (server) | 250-350ms (always fetch cards) | 200-400ms (IDs + cards) |
 | **Cache Hit Rate** | 90-95% (ID lists) | 85-95% (hot tier coverage) | 95-98% (ID lists, longer TTL) | 80-95% (ID lists) |
 | **Memory Usage** | ~110 MB (7k hot tier + cache) | ~80-100 MB (adaptive 8-9k hot tier) | ~80 MB (minimal materialization) | ~90 MB (7k hot tier + materialized) |
 | **Monthly Cost (Single User)** | $0.20/month | $0.12-0.29/month | $0.15-0.20/month | $0.17-0.25/month |
 | **Implementation LOC** | ~1200 LOC | ~1250 LOC | ~1150 LOC | ~1200 LOC |
 | **Timeline** | 5 weeks | 5 weeks | 5 weeks | 5 weeks |
 | **Complexity** | Medium | High | Medium-High | High |
-| **Best For** | Simplicity, scalability | Best-case latency | Cost efficiency | Perceived performance |
+| **Best For** | Simplicity, scalability | **Common case latency** ⭐ | Cost efficiency | Perceived performance |
 
 ### Detailed Designs
 
@@ -89,13 +89,13 @@ Before reviewing designs, see:
 - **Best for**: Simplicity, predictable latency, long-term scalability
 - **Key Insight**: Simple is better - one clear pattern for all collections
 
-📄 **[Approach 2: Intelligent Hot Tier with Progressive Expansion](approach-2-intelligent-hot-tier.md)**
+📄 **[Approach 2: Intelligent Hot Tier with Progressive Expansion](approach-2-intelligent-hot-tier.md)** ⭐ **RECOMMENDED**
 - **Strategy**: Optimistic local-first, query server only when hot tier insufficient
 - **Adaptive**: Hot tier grows to 8-10k cards based on usage patterns (learns from access patterns)
 - **Cache Strategy**: 85-95% queries answered from hot tier, minimal server queries
 - **Cost**: $0.12-0.29/month depending on hit rate
-- **Best for**: Best-case latency (<50ms for 95% of queries), offline-first
-- **Key Insight**: Most queries access recent/popular cards - keep the right cards locally
+- **Best for**: **Common case latency** (<50ms for 95% of queries), fast query typing, offline-first
+- **Key Insight**: Optimize for the common case - 95% of queries should be genuinely instant
 
 📄 **[Approach 3: Lazy Materialized Collections](approach-3-lazy-materialized-collections.md)**
 - **Strategy**: Collections are lightweight card ID lists until rendered
@@ -160,31 +160,56 @@ Before reviewing designs, see:
 
 ## Recommendation
 
-### Primary Recommendation: **Approach 3 (Lazy Materialized Collections)**
+### Primary Recommendation: **Approach 2 (Intelligent Hot Tier)** ⭐
 
 **Rationale:**
 
-1. **Lowest cost**: $0.15/month single user (95-98% cache hit rate for ID lists)
-2. **Memory efficient**: ~80 MB total (minimal materialization until needed)
-3. **Scalable**: Handles thousands of collections naturally
-4. **Clear separation**: Filtering (Phase 1) vs rendering (Phase 2) are distinct concerns
-5. **Predictable**: Consistent latency with aggressive caching
+**Optimized for common case latency** - the most important user experience factor:
+
+1. **Common case is genuinely instant**: 95% of queries are <50ms TOTAL
+   - No server round-trip, no waiting for card data
+   - Filters and renders from local hot tier
+   - Feels like native desktop search
+
+2. **Query typing feels extremely fast**: Type-to-search is real-time
+   - Each keystroke updates results instantly (<50ms)
+   - No lag, no debouncing needed
+   - Results appear as you type
+   - Other approaches: 200-500ms per keystroke (sluggish)
+
+3. **Adaptive learning**: Gets smarter over time
+   - Learns frequently accessed cards → keeps in hot tier
+   - Learns navigation patterns → prefetches proactively
+   - Week 1: 85% hit rate → Week 2+: 95%+ hit rate
+
+4. **Cost still excellent**: $0.12/month single user (minimal server queries)
+   - Only slightly cheaper than Approach 3 ($0.15/month)
+   - But 5× better latency for common case
+
+5. **Best offline degradation**: Hot tier always works (8-10k cards)
 
 **When to choose**:
-- Cost is a priority (lowest server query costs)
-- Memory is constrained (smallest footprint)
-- Collection churn is high (thousands of instantiations/day)
-- Cards change infrequently (good cache hit rates)
+- **Common case latency is priority** (recommended for card-web)
+- Want search typing to feel instant
+- Willing to accept adaptive complexity
+- Have memory for 80-100 MB hot tier
 
-### Alternative: **Approach 2 (Intelligent Hot Tier)** for Best Latency
+**Trade-offs accepted**:
+- Uncommon case (5%): 200-500ms first time, then instant
+- Higher complexity: Adaptive logic, access tracking
+- Variable memory: 8-10k cards (vs 7k fixed)
 
-**If best-case latency is priority:**
-- 95% of queries are <50ms (from hot tier)
-- Adapts to usage patterns (learns frequently accessed cards)
-- Best offline degradation (hot tier always works)
-- Cost: $0.12/month (minimal server queries after warmup)
+### Alternative: **Approach 3 (Lazy Materialized Collections)** for Minimal Cost/Memory
 
-**Trade-off**: More complex (adaptive logic), variable memory (8-10k cards)
+**If extreme cost/memory efficiency is priority:**
+- Lowest cost: $0.15/month (95-98% cache hit rate for ID lists)
+- Smallest memory: ~80 MB (minimal materialization)
+- Clear separation: Filtering vs rendering are distinct
+
+**Trade-off**: **Visible latency even with caching**
+- Cached ID list (50ms) + fetch card data (200-300ms) = **250-350ms ALWAYS**
+- Even common queries require card data fetch
+- Query typing feels sluggish (200-300ms per keystroke)
 
 ### Alternative: **Approach 1 (Server-First)** for Simplicity
 
@@ -192,9 +217,9 @@ Before reviewing designs, see:
 - Simplest mental model (server filters, client renders)
 - Predictable behavior (no adaptive complexity)
 - Easy to debug and reason about
-- Cost: $0.20/month (slightly higher than Approach 3)
+- Cost: $0.20/month
 
-**Trade-off**: Slightly higher cost, cold start latency
+**Trade-off**: Same latency issue as Approach 3 (250-350ms cached, 200-500ms uncached)
 
 ### Alternative: **Approach 4 (Streaming)** for Large Result Sets
 
@@ -204,7 +229,7 @@ Before reviewing designs, see:
 - Natural for large queries
 - Cost: $0.17-0.25/month
 
-**Trade-off**: More complex protocol (streaming), requires Firebase Functions
+**Trade-off**: Complex protocol, still 200-400ms latency
 
 ## Common Elements Across All Approaches
 
@@ -400,6 +425,6 @@ Before final decision:
 ---
 
 **Last Updated**: January 24, 2026
-**Status**: Awaiting decision between Approaches 3, 2, or 1
+**Status**: Approach 2 (Intelligent Hot Tier) recommended - optimizes for common case latency
 **Authors**: Claude (design), jkomoros (requirements)
 **Previous Versions**: See `archive/v1/` for original 4 approaches
