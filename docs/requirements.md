@@ -133,6 +133,15 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 - With NLP data in Firestore, server can compute IDF over full 30k corpus
 - IDF calculation uses `withoutStopWords` tier (same as fingerprinting)
 
+**Pre-filtered NLP simplifies IDF calculation:**
+- Current system: Must check card type for each card to determine which fields to include
+- New system: Just iterate over all NLP fields present (no conditional logic)
+- IDF *should* only consider searchable fields anyway (this is correct behavior)
+- Performance benefit: Consistent code path for V8 JIT optimization
+  - Current: Unpredictable branching based on card type
+  - New: Simple iteration over object keys (highly optimizable)
+- Server-side IDF is even simpler (no client-side type checking at all)
+
 **Note for architecture design:**
 - This is a global corpus statistic (not per-collection)
 - Changes slowly (only when card content changes significantly)
@@ -445,6 +454,11 @@ Navigation pattern:
 - **Self-documenting**: NLP data shows exactly what's searchable
   - If field not present, it's not indexed (clear debugging)
 - **Storage efficient**: 20-40% savings (~15-60 MB for 30k cards)
+- **Simpler IDF calculations**: No card-type conditional logic needed
+  - Current: Must check card type for each card to determine which fields to include
+  - New: Just iterate over NLP fields present (consistent code path)
+  - Performance benefit: V8 JIT can optimize simple iteration vs unpredictable branching
+  - IDF should only consider searchable fields anyway (this is correct behavior)
 - **Existing code ready**: `extractContentWords()` already filters via `extractRawContentRunsForCardField()`
   - Just need to omit empty field arrays for storage optimization
 
