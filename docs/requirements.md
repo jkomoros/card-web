@@ -23,6 +23,15 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 
 **The Real Problem**: Users want comprehensive search (30k cards) WITHOUT loading all cards client-side (which would cause save lag). Any solution MUST keep client-side card count below 5-10k to preserve excellent save performance.
 
+**The Solution Architecture**:
+1. **Two-phase fetch**: Count + card IDs (server), then batched card data (progressive)
+2. **Hot tier + dynamic paging**: Keep recent cards local, page in/out as user navigates
+3. **Aggressive prefetching**: Next batch loaded before user reaches it (hide latency)
+4. **Pre-computed NLP**: Store stemmed tokens in Firestore (fewer cards + no CPU = net win)
+5. **Cost model**: Proportional to cards VIEWED (~50-200), not cards MATCHED (~30,000)
+
+**Key insight**: Firestore doesn't support field selection (always fetch full document), so storing NLP tokens adds storage cost but no query cost. With fewer cards downloaded, this is now a clear win.
+
 ## Key Requirements
 
 ### 1. Search All Cards (Two-Phase Fetch Pattern)
@@ -48,9 +57,16 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 
 **Why this pattern:**
 - Server enforces permissions (user only sees accessible cards)
-- Cost efficient (card IDs 500× cheaper than card objects)
+- Cost efficient (fetch only cards user views, not all matching cards)
 - Enables KeyCard navigation (prefetch nearby card data)
 - Leverages existing card-list pagination for rendering performance
+
+**Overall architecture philosophy:**
+- **Hot tier**: Keep recent cards loaded locally (fast, real-time sync)
+- **Dynamic paging**: Page cards in/out as user navigates
+- **Aggressive prefetching**: Fetch next chunk before user reaches it (hide latency)
+- **Search latency**: Main latency is on search, but progressive loading makes it feel fast
+- **Performance win**: Pre-computed NLP + fewer cards = might support larger hot tier
 
 ### 2. Progressive Loading with Count (Extended)
 - **COUNT is critical**: Show total number of matching cards immediately
@@ -79,12 +95,44 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 - Current: ~100-300ms (partial mode with 5k cards)
 - Target: NO regression
 - Maximum: <500ms P95
-- Client state: <5-10k cards
+- Client state: Keep below 5-10k cards to maintain performance
 
-### 5. Cost Constraints
-- Explicit searches: $1-5/month acceptable
-- Navigation collections: Must be near-zero ($0)
-- Total budget: <$50/month single user
+**With pre-computed NLP, might support larger hot tier:**
+- Current: 5k cards with client-side NLP processing
+- Potential: 7-10k cards with pre-computed NLP (no CPU cost)
+- Save performance depends on card count, not NLP processing
+- Pre-computed NLP is pure win (fewer cards loaded + no CPU = faster)
+
+### 5. Cost Constraints (Dramatically Improved with Two-Phase)
+- Total budget: <$5/month single user (down from <$50)
+- Two-phase + batching makes costs inherently reasonable
+- Cost proportional to cards viewed, not cards matched
+
+### 6. Caching and Paging Architecture
+
+**Hot tier (local, fast):**
+- Keep recent cards loaded locally with real-time sync
+- Potentially 5-10k cards with pre-computed NLP
+- Instant access, no latency
+- Real-time updates via `onSnapshot()`
+
+**Dynamic paging (as needed):**
+- Page cards in/out as user navigates through large collections
+- Fetch batches of 50-100 cards
+- Evict old batches when memory limit approached
+
+**Aggressive prefetching (hide latency):**
+- Prefetch next batch before user reaches boundary
+- User rarely sees latency (feels instant)
+- Keyboard navigation: Prefetch next 50 cards in collection
+- Scroll navigation: Prefetch visible cards
+
+**Search latency (acceptable):**
+- Main visible latency is on initial search query
+- Progressive loading makes it feel fast:
+  - Count + preview from hot tier: <100ms
+  - Full results from server: <500ms
+  - User sees "30,000 results" + preview immediately
 
 ## Critical Insights from Critiques
 
@@ -201,34 +249,34 @@ With two-phase pattern, server queries are viable for all collections, but optim
 - ✅ Query latency: <100ms preview, <500ms complete
 - ✅ Navigation: <100ms sidebar update
 
-### Cost
-- ✅ Monthly: <$5 for single user
-- ✅ Per explicit search: <$0.01
-- ✅ Per navigation: <$0.001 (ideally $0)
+### Cost (Revised with Two-Phase + Batching)
+- ✅ Monthly: <$5 for single user (realistic: $0.50-2/month)
+- ✅ Per explicit search: <$0.001 (60 reads for count/IDs + 50-500 reads for results)
+- ✅ Per navigation: <$0.0001 (most cards already in hot tier or loaded batch)
+- ✅ Per large collection: <$0.0001 (60 reads for count/IDs + 50-100 for visible)
 
 ## Design Constraints
 
-### 1. NLP Processing Currently Client-Only
-- **Current**: Stemming and normalization happen entirely client-side (`src/nlp.ts`)
-- **Not stored**: Pre-processed NLP data (stemmed words) not in Firestore
-- **Server search limitation**: Server can only do basic text search (contains, regex)
+### 1. Store Pre-Processed NLP Data in Firestore (Required)
 
-**Options for server-side text search:**
+**Decision**: Store stemmed/normalized tokens in Firestore with each card.
 
-**Option A: Store pre-processed NLP data in Firestore**
-- Generate stemmed/normalized words on save (client-side and server-side saves)
-- Increases card size (additional field with processed tokens)
-- Requires NLP logic on server (for server-side saves)
-- User assessment: "Wouldn't be that big of a deal"
-- Enables full NLP search server-side
+**Why this is now a clear win:**
+- **Fewer cards downloaded**: Only visible/navigated cards (50-200 vs 5,000-30,000)
+- **CPU cost savings**: NLP processing is non-trivial, removing it is significant
+- **Net performance gain**: Smaller download volume + no CPU processing = might keep MORE cards locally
+- **Better server-side search**: Server can search pre-processed tokens directly
 
-**Option B: Hybrid text search (server + client refinement)**
-- Server does basic text matching (Pipeline `str_contains`, `regex_match`)
-- Returns candidates based on raw text
-- Client applies NLP scoring and ranking
-- Similar to existing similarity filter pattern
+**Implementation:**
+- Generate stemmed/normalized tokens on save (client and server)
+- Store in new Firestore field (e.g., `nlp_tokens: string[]`)
+- Server-side saves need NLP logic (same Porter stemming algorithm)
+- Moderate increase in card size (acceptable given fewer cards loaded)
 
-**Recommendation**: Start with Option B (hybrid), migrate to Option A if server-side NLP becomes critical
+**Firestore limitation**: Can't fetch only some fields, always get full document
+- Even if we only need card ID + title, we download full card
+- This makes storing additional NLP data "free" in terms of query patterns
+- Just increases storage cost slightly
 
 ### 2. Cannot Use Same Strategy for All Collections (Less Critical with Two-Phase)
 - Explicit searches may need all result cards (for display)
@@ -305,20 +353,31 @@ Navigation pattern:
 - `/Users/jkomoros/Code/card-web/src/filters.ts` - Filter definitions, translation to Pipeline operations
 - `/Users/jkomoros/Code/card-web/src/nlp.ts` - PreparedQuery (client-only, stemming/normalization logic)
 
-## NLP Processing Constraint
+## NLP Processing Architecture Decision
 
 **Current architecture**: NLP processing (Porter stemming, bigrams, normalization) happens client-side only.
 
-**Server-side text search options:**
-1. **Store pre-processed tokens**: Add NLP data to Firestore on save (both client and server)
-   - Enables server to search pre-processed tokens
-   - Increases card size moderately
-   - Requires replicating NLP logic on server for server-side saves
-2. **Hybrid search**: Server does basic text matching, client does NLP scoring
-   - Server returns candidates via Pipeline `str_contains` or `regex_match`
-   - Client applies PreparedQuery scoring to candidates
-   - No changes to stored data format
+**Decision**: Store pre-processed NLP tokens in Firestore (migrate to server-side search capability)
 
-**Trade-off**: Storage cost vs search quality
-- Option 1: Better server-side search, requires implementation work
-- Option 2: Good enough for most queries, simpler implementation
+**Rationale with two-phase + batching:**
+1. **Fewer cards downloaded** = NLP storage cost is negligible
+   - Old: 5,000 cards always loaded → NLP storage cost significant
+   - New: 50-200 cards typically loaded → NLP storage cost minimal
+2. **CPU savings outweigh storage cost**
+   - NLP processing is non-trivial computation
+   - Pre-computed tokens eliminate this cost on every card load
+   - Net performance gain: might support LARGER hot tier
+3. **Firestore doesn't support field selection**
+   - Always fetch full document regardless
+   - Adding NLP field doesn't increase query cost
+   - Only increases storage cost (small)
+4. **Better server-side search**
+   - Server can search pre-processed tokens directly
+   - Enables full NLP search capabilities via Pipeline operations
+   - Better ranking and relevance
+
+**Implementation requirements:**
+- Add `nlp_tokens` field to card schema (array of stemmed words)
+- Generate tokens on save (both client-side and server-side saves)
+- Replicate NLP logic on server (Porter stemming, normalization)
+- Migrate existing cards to include NLP tokens (one-time backfill)
