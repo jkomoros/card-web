@@ -33,7 +33,7 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 
 **Key insights**:
 - Firestore doesn't support field selection (always fetch full document), so storing NLP tokens adds storage cost but no query cost. With fewer cards downloaded, this is now a clear win.
-- Server-side saves exist (tweet engagement updates) but don't modify content, requiring Firestore trigger for NLP consistency.
+- Server-side saves exist (tweet engagement updates) but ONLY modify engagement metrics, never content fields, so NLP tokens remain valid without server-side computation.
 
 ## Key Requirements
 
@@ -409,17 +409,16 @@ Navigation pattern:
 **Implementation requirements:**
 - Add `nlp_tokens` field to card schema (array of stemmed words)
 - Generate tokens on client save in `modifyCardWithBatch()` (src/actions/data.ts:400-452)
-- Add Firestore trigger `onDocumentWritten('cards/{cardID}')` to update NLP tokens
-  - Handles server-side saves (tweet engagement metrics updates)
-  - Located in functions/src/twitter.ts:213-216, 330
-  - Only updates engagement fields, but trigger ensures NLP consistency
-- Replicate NLP logic on server (Porter stemming, normalization from src/nlp.ts)
-- Migrate existing cards to include NLP tokens (one-time backfill)
+- NO server-side NLP machinery needed (server never modifies content)
+- One-time backfill: Migrate existing 30k cards to include NLP tokens
 
-**Server-side save paths discovered:**
+**Server-side save paths analysis:**
 - Tweet engagement updates (scheduled every 3 hours): `tweet_count`, `tweet_retweet_count`, `tweet_favorite_count`, `star_count`
 - Auto-tweet marking (4 times daily): `tweet_count`, `last_tweeted`
-- These modify cards WITHOUT client involvement, requiring Firestore trigger for NLP consistency
+- **Critical insight**: Server-side saves ONLY modify engagement metrics, NEVER content fields
+- NLP tokens are computed from content fields (title, body, subtitle, tags, etc.)
+- Since server never modifies content, NLP tokens remain valid
+- **Therefore**: No server-side NLP computation needed, no Firestore trigger needed
 
 **Firestore Enterprise Pipeline Operations support:**
 - Can search array fields with `array_contains`, `in` operations
