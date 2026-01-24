@@ -289,26 +289,29 @@ With two-phase pattern, server queries are viable for all collections, but optim
 
 ## Design Constraints
 
-### 1. Store Pre-Processed NLP Data in Firestore (Required)
+### 1. Store Pre-Processed NLP Data: Only Searchable Fields (Required)
 
-**Decision**: Store stemmed/normalized tokens in Firestore with each card.
+**Decision**: Store pre-filtered NLP data with only searchable fields per card type.
 
-**Why this is now a clear win:**
+**Why this approach:**
 - **Fewer cards downloaded**: Only visible/navigated cards (50-200 vs 5,000-30,000)
-- **CPU cost savings**: NLP processing is non-trivial, removing it is significant
+- **CPU cost savings**: NLP processing is non-trivial, eliminating it is significant
 - **Net performance gain**: Smaller download volume + no CPU processing = might keep MORE cards locally
-- **Better server-side search**: Server can search pre-processed tokens directly
+- **Dramatically simpler server queries**: Server treats all cards uniformly (no card-type logic)
+- **Single source of truth**: Client TEXT_FIELD_CONFIGURATION is authoritative
+- **Storage efficient**: 20-40% savings by omitting non-searchable fields
 
-**Implementation:**
-- Generate stemmed/normalized tokens on save (client and server)
-- Store in new Firestore field (e.g., `nlp_tokens: string[]`)
-- Server-side saves need NLP logic (same Porter stemming algorithm)
-- Moderate increase in card size (acceptable given fewer cards loaded)
+**Critical architectural decision** (analyzed by agent a0a193b):
+- Store only fields that are searchable for each card type
+- Example: `working-notes` card has no `title` in NLP (it's derived/not searchable)
+- Server queries all NLP fields present without knowing card types
+- Configuration changes only require client-side NLP regeneration
+- See "NLP Processing Architecture Decision" section below for full details
 
-**Firestore limitation**: Can't fetch only some fields, always get full document
-- Even if we only need card ID + title, we download full card
-- This makes storing additional NLP data "free" in terms of query patterns
-- Just increases storage cost slightly
+**Firestore limitation works in our favor**:
+- Can't fetch only some fields, always get full document
+- Adding NLP data doesn't increase query cost (only storage cost)
+- Storage cost minimal given fewer cards downloaded
 
 ### 2. Cannot Use Same Strategy for All Collections (Less Critical with Two-Phase)
 - Explicit searches may need all result cards (for display)
@@ -410,13 +413,14 @@ Navigation pattern:
 
 **Implementation requirements:**
 - Add `nlp` field to card schema with same multi-tier structure as currently computed
+- **CRITICAL ARCHITECTURAL DECISION**: Store only searchable fields (pre-filtered by card type)
 - Structure (from src/nlp.ts:611-621, 577-594):
   ```typescript
-  nlp: {
-      body: [ProcessedRun, ...],
-      title: [ProcessedRun, ...],
-      subtitle: [ProcessedRun, ...],
-      ...
+  nlp?: {  // Optional field
+      body?: [ProcessedRun, ...],  // Only present if body is searchable for this card type
+      title?: [ProcessedRun, ...],  // Only present if title is searchable
+      subtitle?: [ProcessedRun, ...],
+      // ... other fields only present if searchable per TEXT_FIELD_CONFIGURATION
   }
 
   ProcessedRun: {
@@ -426,9 +430,36 @@ Navigation pattern:
       withoutStopWords: string  // "forc graviti"
   }
   ```
-- Generate full NLP object on client save in `modifyCardWithBatch()` (src/actions/data.ts:400-452)
+
+**Why store only searchable fields** (analyzed by agent a0a193b):
+- **Dramatically simpler server queries**: Server treats all cards uniformly
+  - No card-type-aware logic needed on server
+  - Server queries all NLP fields present without knowing card types
+  - Configuration changes don't require server updates
+- **Single source of truth**: TEXT_FIELD_CONFIGURATION is authoritative
+  - Client generates exactly what should be searched
+  - Zero configuration drift risk between client and server
+- **Future-proof**: Enables user-configurable search fields naturally
+  - User changes field config → Client regenerates NLP → Done
+  - No server coordination needed
+- **Self-documenting**: NLP data shows exactly what's searchable
+  - If field not present, it's not indexed (clear debugging)
+- **Storage efficient**: 20-40% savings (~15-60 MB for 30k cards)
+- **Existing code ready**: `extractContentWords()` already filters via `extractRawContentRunsForCardField()`
+  - Just need to omit empty field arrays for storage optimization
+
+**Implementation details:**
+- Generate filtered NLP object on client save in `modifyCardWithBatch()` (src/actions/data.ts:400-452)
+- Use existing `extractContentWords()` function (src/nlp.ts:603)
+- Modify to omit fields with empty arrays (storage optimization):
+  ```typescript
+  // Only include fields with content
+  if (processedRuns.length > 0) {
+    obj[fieldName] = processedRuns;
+  }
+  ```
 - NO server-side NLP machinery needed (server never modifies content)
-- One-time backfill: Migrate existing 30k cards to include full NLP structure
+- One-time backfill: Migrate existing 30k cards (~30-60 minutes, ~$5.40 cost)
 
 **Server-side save paths analysis:**
 - Tweet engagement updates (scheduled every 3 hours): `tweet_count`, `tweet_retweet_count`, `tweet_favorite_count`, `star_count`
@@ -445,3 +476,22 @@ Navigation pattern:
 - For text search: Query `withoutStopWords` tier (stemmed + stop words removed)
 - For exact matching: Query `stemmed` or `normalized` tiers
 - Preserves all four processing tiers for flexibility
+
+**Server-side query architecture** (enabled by pre-filtered NLP storage):
+- Server treats all cards uniformly (no card-type-aware logic)
+- Query all possible NLP fields with union:
+  ```typescript
+  // Pseudocode for uniform server query
+  pipeline
+    .collection("cards")
+    .where("nlp.body[*].withoutStopWords", "str_contains", token)
+    .union()
+    .where("nlp.title[*].withoutStopWords", "str_contains", token)
+    .union()
+    .where("nlp.subtitle[*].withoutStopWords", "str_contains", token)
+    // ... for each of 9 possible fields
+  ```
+- Cards without a field won't match queries for that field (graceful)
+- Example: `working-notes` card has no `title` field in NLP → won't match title queries
+- Configuration changes only require client-side NLP regeneration (no server changes)
+- Enables future per-card search field overrides without server complexity
