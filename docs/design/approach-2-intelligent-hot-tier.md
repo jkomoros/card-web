@@ -624,6 +624,391 @@ Max hot tier: 10k cards (~100 MB)
 Average: 8k cards (~80 MB)
 ```
 
+## Critical Filter Complexity Analysis
+
+### Overview: 41+ Filter Types
+
+The card-web application contains **41+ distinct filter types**, each with different characteristics for server-side translation. This complexity significantly impacts the viability of any hybrid hot-tier/server approach.
+
+**Server-Translatability Breakdown**:
+- **Server-translatable (~40%)**: published, section, tag, author, date ranges, card IDs
+- **Medium difficulty (~20%)**: multi-ply graph operations, text search with scoring
+- **Impossible to server-translate (~40%)**: graph traversal, semantic similarity, compositional filters
+
+### 1. Filter System Architecture
+
+The current filter system is organized hierarchically:
+
+**Basic Filters** (Server-translatable):
+- `published`: Boolean flag (direct Firestore field)
+- `section`: String match (indexed field)
+- `tag`: Array-contains (indexed field)
+- `author`: String match (indexed field)
+- `date`: Timestamp range (created, updated, published dates)
+- `card`: Explicit card ID list (Firestore `in` query)
+
+**Graph Filters** (Partially translatable):
+- `inbound-references`: Cards that reference this card (requires reverse index)
+- `outbound-references`: Cards this card references (traversable from card data)
+- `similar`: Semantic similarity (requires embeddings, client-only scoring)
+
+**Compositional Filters** (Complex):
+- `combine`: Union/OR of multiple sub-filters
+- `exclude`: Negation/NOT of sub-filter
+- `expand`: Graph expansion with BFS
+
+**Query Filter** (Hybrid):
+- `query`: Full-text search with 5-tier relevance scoring
+
+### 2. Compositional Filter Challenges
+
+The three compositional filters (`combine`, `exclude`, `expand`) create cascading complexity:
+
+#### COMBINE (Union/OR)
+```typescript
+// Example: Show cards in section "AI" OR tagged "machine-learning"
+{
+  type: 'combine',
+  mode: 'union',
+  filters: [
+    { type: 'section', value: 'AI' },
+    { type: 'tag', value: 'machine-learning' }
+  ]
+}
+```
+
+**Server Translation Challenge**:
+- Requires both sub-filters to be server-translatable
+- Firestore doesn't support OR queries across different fields natively
+- Must execute multiple queries and merge results (expensive)
+- If ANY sub-filter is client-only, entire combine becomes client-only
+
+**Nested Complexity**:
+- Combines can nest arbitrarily deep
+- Example: `COMBINE(COMBINE(A, B), EXCLUDE(C))` requires recursive analysis
+- Each level multiplies the translation complexity
+
+#### EXCLUDE (Negation/NOT)
+```typescript
+// Example: Show all cards EXCEPT those tagged "draft"
+{
+  type: 'exclude',
+  filter: { type: 'tag', value: 'draft' }
+}
+```
+
+**Server Translation Challenge**:
+- Firestore doesn't support NOT queries directly
+- Requires materializing the complement set:
+  1. Query for all cards
+  2. Query for cards matching excluded filter
+  3. Compute set difference
+- Extremely expensive for large exclude sets (30k - exclude_count reads)
+
+**Hot Tier Insufficiency**:
+- Cannot determine if hot tier contains all non-excluded cards
+- Must query server to get complete exclude set
+- Hot tier hit rate drops to ~0% for exclude filters
+
+#### EXPAND (Graph Expansion)
+```typescript
+// Example: Show this card and all cards it references (1 level deep)
+{
+  type: 'expand',
+  fromCardId: 'abc123',
+  depth: 1,
+  direction: 'outbound'
+}
+```
+
+**Server Translation Challenge**:
+- Requires Breadth-First Search (BFS) graph traversal
+- Cannot be expressed in Firestore queries (no recursive queries)
+- Must be computed client-side:
+  1. Start with seed card
+  2. Fetch all referenced cards (level 1)
+  3. Fetch all cards referenced by level 1 (level 2)
+  4. Continue until depth reached
+
+**Why Client-Only**:
+- Variable depth (1-5 levels typical, unbounded in theory)
+- Reference graph structure not indexed
+- Requires iterative fetching (can't predict result set size)
+
+### 3. References Filter Deep Dive
+
+The `references` filter is one of the most commonly used, but **fundamentally client-only**:
+
+```typescript
+// Example: Show all cards referenced by card "abc123" with type "concept"
+{
+  type: 'references',
+  fromCardId: 'abc123',
+  direction: 'outbound',
+  referenceType: 'concept'
+}
+```
+
+**Why Server Translation is Impossible**:
+
+1. **BFS Graph Traversal Required**:
+   - Card references form a directed graph
+   - Must traverse edges to find all reachable cards
+   - Firestore has no graph query support
+
+2. **Variable Depth**:
+   - "Direct references" = 1 hop
+   - "Transitive references" = N hops
+   - Cannot predetermine hop count without traversing
+
+3. **Reference Type Filtering**:
+   - Each card-to-card edge has a type (concept, example, related, etc.)
+   - Must filter edges during traversal
+   - Type data not indexed in Firestore
+
+4. **Bidirectional Traversal**:
+   - `inbound`: Cards that reference this card (reverse lookup)
+   - `outbound`: Cards this card references (forward lookup)
+   - Inbound requires reverse index (not maintained server-side)
+
+**Hot Tier Impact**:
+- If `fromCardId` not in hot tier → must query server for seed card
+- Even if seed card in hot tier, referenced cards may not be
+- Typical reference graph spans 50-200 cards (hot tier miss likely)
+
+### 4. Query Filter: 5-Tier Scoring System
+
+The `query` filter implements sophisticated text search with **five tiers of relevance scoring**:
+
+```typescript
+// Example: Search for "neural networks"
+{
+  type: 'query',
+  value: 'neural networks'
+}
+```
+
+**Tier 1: Server-Capable (Pre-filtering)**
+- **Stemmed token matching**: `nlp_tokens` field contains stemmed words
+- **Server query**: `nlp_tokens array-contains-any ["neural", "network"]`
+- **Purpose**: Reduce candidate set from 30k to ~500 cards
+
+**Tier 2: Client-Only (Exact phrase matching)**
+- **Body text matching**: Check if query appears verbatim in card body
+- **Field weighting**: Title matches score 3x body matches
+- **Purpose**: Boost exact phrase matches above partial matches
+
+**Tier 3: Client-Only (TF-IDF scoring)**
+- **Term frequency**: How often query terms appear in card
+- **Inverse document frequency**: Rare terms score higher
+- **IDF calculation**: Requires access to full corpus statistics
+- **Purpose**: Rank by relevance, not just presence
+
+**Tier 4: Client-Only (Inbound link boosting)**
+- **Link analysis**: Cards with more inbound references score higher
+- **Reference graph required**: Must traverse all references
+- **Purpose**: Surface authoritative/popular cards
+
+**Tier 5: Client-Only (Semantic similarity)**
+- **Embedding distance**: Compare query embedding to card embeddings
+- **Requires**: Pre-computed embeddings for all cards
+- **Purpose**: Find conceptually similar cards (even without keyword match)
+
+**Server Translation Challenges**:
+
+| Tier | Server-Capable? | Why/Why Not |
+|------|----------------|-------------|
+| 1 | ✅ Yes | `array-contains-any` on `nlp_tokens` field |
+| 2 | ❌ No | Firestore can't search inside text fields |
+| 3 | ❌ No | Firestore has no TF-IDF support |
+| 4 | ❌ No | Reference graph not indexed |
+| 5 | ❌ No | Embeddings not stored server-side |
+
+**Recommended Hybrid Approach**:
+1. **Server Phase**: Query `nlp_tokens` to get ~500 candidates
+2. **Hot Tier Expansion**: Fetch candidates not in hot tier
+3. **Client Phase**: Run Tiers 2-5 on expanded candidate set
+4. **UI Transparency**: Show "Searched 30,000 cards" even if only scored 500
+
+**Hot Tier Optimization**:
+- If hot tier contains >5k cards, run Tier 1 client-side first
+- Only query server if hot tier yields <20 results
+- Accept partial results with disclaimer ("Searched 8,000 recent cards")
+
+### 5. Hot Tier Insufficiency Detection: Hard Cases
+
+Determining whether the hot tier can fully answer a query is **undecidable in general** due to compositional filters. Here are the hard cases:
+
+#### Case 1: Nested Compositional Filters
+```typescript
+// Can hot tier answer this?
+COMBINE(
+  EXCLUDE({ type: 'tag', value: 'archived' }),
+  EXPAND({ fromCardId: 'xyz', depth: 2 })
+)
+```
+
+**Analysis**:
+- EXCLUDE requires knowing all archived cards (hot tier may be incomplete)
+- EXPAND requires graph traversal (may reference cards outside hot tier)
+- COMBINE requires both to succeed
+- **Decision**: Cannot guarantee sufficiency, must query server
+
+#### Case 2: Historical Date Filters
+```typescript
+// Show cards created before 2023
+{ type: 'date', field: 'created', before: '2023-01-01' }
+```
+
+**Analysis**:
+- Hot tier prioritizes recent cards (last 6 months)
+- Historical cards (2+ years old) likely evicted
+- **Decision**: Definitely insufficient, must query server
+
+#### Case 3: Unknown Query Result Size
+```typescript
+// Search for rare term
+{ type: 'query', value: 'quantum entanglement' }
+```
+
+**Analysis**:
+- Hot tier may contain some matches (recent cards)
+- Cannot know if more matches exist in cold tier
+- User expects exhaustive search
+- **Decision**: Optimistically try hot tier, but show disclaimer
+
+#### Case 4: Reference Graph Completeness
+```typescript
+// Show all cards that reference "Transformer Architecture"
+{ type: 'references', fromCardId: 'transformer-arch', direction: 'inbound' }
+```
+
+**Analysis**:
+- Seed card may be in hot tier
+- Inbound references may span entire corpus (3+ years)
+- Hot tier cannot guarantee completeness
+- **Decision**: Must query server for complete inbound reference index
+
+**Detection Heuristics**:
+
+| Filter Type | Hot Tier Sufficient? | Confidence |
+|------------|---------------------|-----------|
+| `published: true` | Maybe | 70% (recent cards likely published) |
+| `section: X` | Maybe | 75% (sections cluster temporally) |
+| `tag: X` | Maybe | 60% (tags span time ranges) |
+| `date: recent` | Yes | 95% (hot tier optimized for this) |
+| `date: historical` | No | 100% (hot tier doesn't have old cards) |
+| `query: X` | Maybe | 50% (depends on term rarity) |
+| `references: X` | No | 20% (graph spans corpus) |
+| `expand: X` | No | 10% (graph traversal unpredictable) |
+| `exclude: X` | No | 5% (requires complete complement set) |
+| `combine: [A, B]` | Min(A, B) | Depends on sub-filters |
+
+### 6. Recommended Architectural Changes
+
+Given the complexity analysis above, **Approach 2 requires significant modifications**:
+
+#### Filter Classification System
+
+Introduce a **4-tier classification system**:
+
+```typescript
+enum FilterClass {
+  FULL_SERVER,      // Can translate 100% to Firestore query
+  HYBRID,           // Server pre-filter + client scoring
+  CLIENT_ONLY,      // Requires data only in hot tier
+  COMPOSITIONAL     // Depends on sub-filter classes
+}
+
+const FILTER_CLASSIFICATION: Record<FilterType, FilterClass> = {
+  'published': FilterClass.FULL_SERVER,
+  'section': FilterClass.FULL_SERVER,
+  'tag': FilterClass.FULL_SERVER,
+  'author': FilterClass.FULL_SERVER,
+  'date': FilterClass.FULL_SERVER,
+  'card': FilterClass.FULL_SERVER,
+
+  'query': FilterClass.HYBRID,
+  'similar': FilterClass.HYBRID,
+
+  'references': FilterClass.CLIENT_ONLY,
+  'expand': FilterClass.CLIENT_ONLY,
+  'exclude': FilterClass.CLIENT_ONLY,
+
+  'combine': FilterClass.COMPOSITIONAL
+};
+```
+
+#### Modified Execution Strategy
+
+**For FULL_SERVER filters**:
+1. Check hot tier first (optimistic)
+2. If hot tier has <80% confidence, query server
+3. Expand hot tier with results
+
+**For HYBRID filters**:
+1. Query server for candidate set (Tier 1 filtering)
+2. Expand hot tier with candidates
+3. Run client-side scoring (Tiers 2-5)
+4. Show disclaimer: "Searched X candidates from 30,000 cards"
+
+**For CLIENT_ONLY filters**:
+1. Compute entirely from hot tier
+2. Show disclaimer: "Searched 8,000 recent cards (limited to hot tier)"
+3. Offer "Search All Cards" button → triggers server expansion
+
+**For COMPOSITIONAL filters**:
+1. Recursively classify sub-filters
+2. If all sub-filters are FULL_SERVER → treat as FULL_SERVER
+3. If any sub-filter is CLIENT_ONLY → treat as CLIENT_ONLY
+4. For HYBRID mixes → use most restrictive classification
+
+#### UI Transparency Layer
+
+Add status indicators to search results:
+
+```typescript
+interface CollectionResult {
+  count: number;
+  cards: Card[];
+  completeness: {
+    searchedCards: number;      // How many cards were searched
+    totalCards: number;          // Total cards in corpus
+    isComplete: boolean;         // Did we search everything?
+    disclaimer?: string;         // User-facing message
+  };
+}
+
+// Example disclaimers:
+"Searched 8,412 recent cards (last 6 months)"
+"Searched 537 candidates from 30,284 total cards"
+"Complete search of all 30,284 cards"
+```
+
+#### Accept Partial Results for Complex Filters
+
+**Key Decision**: For filters that are fundamentally client-only (references, expand, exclude), **accept that results are partial** and communicate this clearly.
+
+**Rationale**:
+- Reference graph traversal over 30k cards is expensive (3-5 seconds)
+- Users rarely need exhaustive results for exploratory queries
+- Hot tier results are "good enough" for 90% of use cases
+- Offer opt-in "Deep Search" for remaining 10%
+
+**Implementation**:
+```typescript
+// Default: Fast, partial results from hot tier
+const results = await collection.filteredCards({ mode: 'fast' });
+
+// Opt-in: Slow, exhaustive results from full corpus
+const results = await collection.filteredCards({ mode: 'exhaustive' });
+```
+
+**UI Design**:
+- Fast mode: Show results immediately with disclaimer
+- "Search All Cards" button → switches to exhaustive mode
+- Progress indicator for exhaustive search (2-5 second operation)
+
 ## Implementation Plan
 
 ### Phase 1: Intelligent Hot Tier (2 weeks)
