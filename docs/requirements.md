@@ -29,8 +29,11 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 3. **Aggressive prefetching**: Next batch loaded before user reaches it (hide latency)
 4. **Pre-computed NLP**: Store stemmed tokens in Firestore (fewer cards + no CPU = net win)
 5. **Cost model**: Proportional to cards VIEWED (~50-200), not cards MATCHED (~30,000)
+6. **IDF calculations**: Compute over representative sample (ideally all 30k cards) for word clouds and auto-titles
 
-**Key insight**: Firestore doesn't support field selection (always fetch full document), so storing NLP tokens adds storage cost but no query cost. With fewer cards downloaded, this is now a clear win.
+**Key insights**:
+- Firestore doesn't support field selection (always fetch full document), so storing NLP tokens adds storage cost but no query cost. With fewer cards downloaded, this is now a clear win.
+- Server-side saves exist (tweet engagement updates) but don't modify content, requiring Firestore trigger for NLP consistency.
 
 ## Key Requirements
 
@@ -108,7 +111,33 @@ Users need to **search across ALL 30,000+ cards** while maintaining excellent ap
 - Two-phase + batching makes costs inherently reasonable
 - Cost proportional to cards viewed, not cards matched
 
-### 6. Caching and Paging Architecture
+### 6. IDF (Inverse Document Frequency) Calculations for Word Clouds and Titles
+
+**Current limitations:**
+- IDF calculations based only on ~5k cards in hot set
+- Used for word clouds (visual prominence of terms)
+- Used for auto-generating working-notes titles
+- Some slop acceptable, but ideally want more representative sample
+
+**Requirements:**
+- IDF calculations should use as many representative cards as possible
+- Ideally based on ALL 30k+ cards, not just hot 5k subset
+- Must not block UI (can be computed async/background)
+- Results should be cached and updated periodically
+
+**Architectural considerations:**
+- Could compute IDF server-side (all cards available)
+- Could cache IDF results (changes slowly)
+- Could compute incrementally (hot tier + sample from cold tier)
+- Could use stale IDF from larger corpus (acceptable slop)
+
+**Note for architecture design:**
+- This is a global corpus statistic (not per-collection)
+- Changes slowly (only when card content changes significantly)
+- High cache hit rate potential
+- Acceptable to be slightly stale (doesn't need real-time)
+
+### 7. Caching and Paging Architecture
 
 **Hot tier (local, fast):**
 - Keep recent cards loaded locally with real-time sync
@@ -243,6 +272,7 @@ With two-phase pattern, server queries are viable for all collections, but optim
 - ✅ Real-time sync: Maintained for loaded cards
 - ✅ Progressive loading: Batched card data as user navigates
 - ✅ Prefetching: Next batch ready before boundary reached
+- ✅ IDF calculations: Based on representative sample (ideally all 30k cards, not just hot 5k)
 
 ### Performance
 - ✅ Save latency: <200ms P50, <500ms P95 (no regression)
@@ -378,6 +408,20 @@ Navigation pattern:
 
 **Implementation requirements:**
 - Add `nlp_tokens` field to card schema (array of stemmed words)
-- Generate tokens on save (both client-side and server-side saves)
-- Replicate NLP logic on server (Porter stemming, normalization)
+- Generate tokens on client save in `modifyCardWithBatch()` (src/actions/data.ts:400-452)
+- Add Firestore trigger `onDocumentWritten('cards/{cardID}')` to update NLP tokens
+  - Handles server-side saves (tweet engagement metrics updates)
+  - Located in functions/src/twitter.ts:213-216, 330
+  - Only updates engagement fields, but trigger ensures NLP consistency
+- Replicate NLP logic on server (Porter stemming, normalization from src/nlp.ts)
 - Migrate existing cards to include NLP tokens (one-time backfill)
+
+**Server-side save paths discovered:**
+- Tweet engagement updates (scheduled every 3 hours): `tweet_count`, `tweet_retweet_count`, `tweet_favorite_count`, `star_count`
+- Auto-tweet marking (4 times daily): `tweet_count`, `last_tweeted`
+- These modify cards WITHOUT client involvement, requiring Firestore trigger for NLP consistency
+
+**Firestore Enterprise Pipeline Operations support:**
+- Can search array fields with `array_contains`, `in` operations
+- Can search string fields with `str_contains`, `regex_match`, expression operations
+- Storing as `nlp_tokens: string[]` enables efficient server-side search
