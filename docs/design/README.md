@@ -93,6 +93,9 @@ Before reviewing designs, see:
 - **Strategy**: Optimistic local-first, query server only when hot tier insufficient
 - **Adaptive**: Hot tier grows to 8-10k cards based on usage patterns (learns from access patterns)
 - **Cache Strategy**: 85-95% queries answered from hot tier, minimal server queries
+- **Freshness**: Recent edits query (250 cards) keeps discovered cards fresh automatically
+- **Staleness Indicators**: UI shows which cards are outside recent edits window
+- **Refresh-on-Demand**: Manual refresh available for stale cards
 - **Cost**: $0.12-0.29/month depending on hit rate
 - **Best for**: **Common case latency** (<50ms for 95% of queries), fast query typing, offline-first
 - **Key Insight**: Optimize for the common case - 95% of queries should be genuinely instant
@@ -267,6 +270,31 @@ onSnapshot(
   cardSnapshotReceiver('published')
 );
 ```
+
+### 2a. Recent Edits Query for Discovered Card Freshness (Approach 2 Only)
+
+Approach 2 adds an additional query to maintain freshness for discovered cards:
+
+```typescript
+// Recent edits query - keeps discovered/warm tier cards fresh
+onSnapshot(
+  query(
+    collection(db, 'cards'),
+    orderBy('updated_substantive', 'desc'),
+    limit(250)
+  ),
+  cardSnapshotReceiver('recent_edits')
+);
+```
+
+**How it works:**
+- Monitors top 250 most recently edited cards
+- Updates discovered/warm tier cards when they're edited by other users
+- Skips hot tier cards (already synced) to avoid duplicates
+- Shows staleness indicators for cards outside this window
+- Manual refresh available for stale cards
+
+**Cost impact:** Negligible (<$0.01/month single user, <$0.02/month 10 users)
 
 ### 3. Pre-Filtered NLP Storage
 

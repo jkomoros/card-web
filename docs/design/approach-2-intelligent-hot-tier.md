@@ -1101,6 +1101,250 @@ const results = await collection.filteredCards({ mode: 'exhaustive' });
 - **Reason**: Misses opportunity to learn usage patterns
 - **Trade-off**: Adaptive complexity vs better hit rates
 
+## Discovered Card Freshness Strategy
+
+### Problem
+
+Discovered cards (from similarity/search/filters) are initially static snapshots. If another user edits one of these cards, the local copy becomes stale.
+
+**Tiers of card state:**
+- **Hot tier**: Cards with dedicated real-time sync (5-10k most recent cards via `onSnapshot()`)
+- **Discovered/warm tier**: Cards fetched through search/similarity/filters (static snapshots)
+- **Cold tier**: Cards not yet loaded into memory
+
+When a discovered card is edited by another user, the local copy doesn't update automatically since it's not in the hot tier's real-time sync.
+
+### Solution: Recent Edits Query
+
+Monitor the 250 most recently edited cards to catch changes to discovered cards:
+
+```typescript
+// src/actions/database.ts - Add to existing snapshot listeners
+
+let liveRecentEditsUnsubscribe : (() => void) | null = null;
+
+export const connectLiveRecentEdits = () => {
+  if (!selectUserMayViewApp(store.getState() as State)) return;
+
+  liveRecentEditsUnsubscribe = onSnapshot(
+    query(
+      collection(db, CARDS_COLLECTION),
+      orderBy('updated_substantive', 'desc'),
+      limit(250)
+    ),
+    cardSnapshotReceiver('recent_edits')
+  );
+};
+
+export const disconnectLiveRecentEdits = () => {
+  if (liveRecentEditsUnsubscribe) {
+    liveRecentEditsUnsubscribe();
+    liveRecentEditsUnsubscribe = null;
+  }
+};
+```
+
+### Technical Details
+
+**Query Configuration:**
+- **Field**: `updated_substantive` (tracks meaningful content changes, not metadata)
+- **Order**: `desc` (most recent first)
+- **Limit**: 250 cards
+- **Purpose**: Catch edits on discovered/warm tier cards before they become too stale
+
+**Why 250?**
+- Conservative estimate based on Firestore batch operation limits
+- **Needs refinement**: Actual limit depends on measured operations-per-card-edit count
+- Should monitor cost/performance in production and adjust as needed
+- Potential range: 150-500 cards depending on edit patterns
+
+**Integration with Tier System:**
+
+```typescript
+// src/actions/data.ts - Enhanced receiveCards action
+
+const receiveCards = (cards: Cards, fetchType: CardFetchType) => (dispatch, getState) => {
+  const state = getState();
+  const hotTierCards = selectHotTierCardIds(state);
+  const discoveredCards = selectDiscoveredCardIds(state);
+
+  // Process each incoming card
+  const cardsToUpdate: Cards = {};
+
+  for (const [id, card] of Object.entries(cards)) {
+    if (fetchType === 'recent_edits') {
+      // Recent edits query update
+
+      // Skip if card is in hot tier (already has real-time sync)
+      if (hotTierCards.has(id)) continue;
+
+      // Only update if card is in discovered/warm tier
+      if (!discoveredCards.has(id)) continue;
+
+      // Mark card as fresh
+      cardsToUpdate[id] = {
+        ...card,
+        _metadata: {
+          ...card._metadata,
+          lastSyncedAt: Date.now(),
+          tier: 'warm',
+          fresh: true
+        }
+      };
+    } else {
+      // Normal card fetch (hot tier, search results, etc.)
+      cardsToUpdate[id] = card;
+    }
+  }
+
+  dispatch({
+    type: RECEIVE_CARDS,
+    cards: cardsToUpdate,
+    fetchType
+  });
+};
+```
+
+**How It Works:**
+
+1. **Hot tier cards** already have dedicated real-time sync (unchanged)
+   - Query: `where('published', '==', true)` (all published cards)
+   - Update mechanism: `onSnapshot()` automatically pushes changes
+
+2. **Discovered/warm tier cards** are static snapshots initially
+   - Created when user searches, follows similarity links, or applies filters
+   - Stored in memory but no active sync
+
+3. **Recent edits query** catches when discovered cards are edited
+   - Monitors top 250 recently edited cards
+   - Fires when any of those cards change
+
+4. **Filter updates** to only apply to discovered/warm tier cards
+   - Skip hot tier cards (already synced)
+   - Only update cards already in memory (discovered tier)
+   - Avoids duplicate updates and wasted processing
+
+5. **Freshness tracking** marks which cards are up-to-date
+   - `lastSyncedAt`: Timestamp of last sync
+   - `tier`: 'hot', 'warm', or 'cold'
+   - `fresh`: Boolean indicating if within recent edits window
+
+**UI Integration:**
+
+```typescript
+// Show staleness indicators for cards outside top-250
+interface CardMetadata {
+  lastSyncedAt?: number;
+  tier: 'hot' | 'warm' | 'cold';
+  fresh: boolean;
+}
+
+// In card rendering
+const showStalenessIndicator = (card: Card): boolean => {
+  if (!card._metadata) return false;
+
+  // Hot tier cards are always fresh
+  if (card._metadata.tier === 'hot') return false;
+
+  // Warm tier cards outside recent edits window may be stale
+  if (card._metadata.tier === 'warm' && !card._metadata.fresh) {
+    const ageMs = Date.now() - (card._metadata.lastSyncedAt || 0);
+    const ageMinutes = ageMs / (1000 * 60);
+
+    // Show indicator if not synced in last 30 minutes
+    return ageMinutes > 30;
+  }
+
+  return false;
+};
+
+// User can manually refresh stale cards
+const refreshCard = async (cardId: string) => {
+  const card = await firestore.getDoc(doc(db, CARDS_COLLECTION, cardId));
+  dispatch(receiveCards({ [cardId]: card.data() }, 'manual_refresh'));
+};
+```
+
+**Cost Analysis:**
+
+**Additional Cost:**
+- 1 additional `onSnapshot()` listener
+- Monitors 250 cards continuously
+- Operations triggered per card edit in top-250:
+  - Edit by user A → onSnapshot fires for all connected users
+  - Cost per edit: N users × 1 read
+
+**Example Cost:**
+```
+Single user:
+- Base cost: Existing hot tier listener (unchanged)
+- Recent edits: 1 listener monitoring 250 cards
+- Incremental reads: ~1 read per edit in top-250
+- Typical edits/day: 5-20 (power user editing)
+- Monthly incremental cost: 5-20 edits/day × 30 days × $0.000006 = $0.0009-0.0036
+- Negligible: <$0.01/month
+```
+
+**Multiple Users:**
+```
+10 active users:
+- Each edit triggers updates for all users
+- 10 edits/day (total across users) × 10 users receiving = 100 reads/day
+- Monthly cost: 100 × 30 × $0.000006 = $0.018/month
+- Still negligible: <$0.02/month
+```
+
+**Trade-offs:**
+
+✅ **Benefits:**
+- Discovered cards stay fresh automatically
+- No user intervention needed for common case
+- Leverages existing Firestore real-time infrastructure
+- Minimal cost overhead
+
+❌ **Limitations:**
+- Only covers top 250 recently edited cards
+- Cards outside window require manual refresh
+- Users need to understand freshness indicators
+- Additional complexity in tier management
+
+**Alternatives Considered:**
+
+1. **Refresh-on-demand only** (no background sync)
+   - Simpler but worse UX (stale data common)
+   - Rejected: Users expect freshness
+
+2. **Larger window** (500-1000 cards)
+   - Better coverage but higher cost
+   - Rejected: 250 is sufficient for 95%+ of edits
+
+3. **Individual card subscriptions**
+   - Perfect freshness but doesn't scale
+   - Rejected: 100+ individual listeners is expensive
+
+### Integration Checklist
+
+**Code Changes:**
+- [ ] Add `connectLiveRecentEdits()` to `src/actions/database.ts`
+- [ ] Enhance `receiveCards()` to filter recent edits updates
+- [ ] Add card metadata tracking (`lastSyncedAt`, `tier`, `fresh`)
+- [ ] Implement staleness indicators in card UI
+- [ ] Add manual refresh button for stale cards
+- [ ] Update hot tier detection to exclude recent edits cards
+
+**Testing:**
+- [ ] Verify recent edits query fires on card updates
+- [ ] Test filtering logic (skip hot tier, update warm tier only)
+- [ ] Validate staleness indicators show correctly
+- [ ] Measure operations per edit (tune 250 limit)
+- [ ] Load test with multiple users editing simultaneously
+
+**Documentation:**
+- [x] Document architecture in design docs
+- [ ] Add code comments explaining tier system
+- [ ] Update user-facing docs on card freshness
+- [ ] Document manual refresh process
+
 ## Summary
 
 **Approach 2 (Intelligent Hot Tier)** optimizes for the common case:
@@ -1109,16 +1353,19 @@ const results = await collection.filteredCards({ mode: 'exhaustive' });
 2. **Adaptive expansion** learns usage patterns (grows to 8-10k cards)
 3. **Minimal server queries** (5-15% of collections after warmup)
 4. **Predictive prefetching** reduces perceived latency further
-5. **Cost**: $0.12-0.29/month for single power user
+5. **Discovered card freshness** via recent edits query (250 cards)
+6. **Cost**: $0.12-0.29/month for single power user
 
 **Choose this approach if you value**:
 - Best-case latency (instant for most queries)
 - Adaptive optimization (learns from usage)
 - Cost efficiency (minimal server queries)
 - Offline-first (hot tier always works)
+- Automatic freshness for discovered cards
 
 **Trade-offs**:
 - More complex than server-first
 - Variable memory usage (8-10k cards)
 - Requires warmup period (first week)
 - Harder to predict exact behavior
+- Staleness indicators for cards outside recent edits window
