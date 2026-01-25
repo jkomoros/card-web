@@ -2,28 +2,40 @@
 
 > **Philosophy**: Optimize for the common case - 95%+ of queries should be instant from local hot tier. Server queries are the exception, not the rule.
 >
-> **Strategy**: Intelligent hot tier that dynamically expands based on usage patterns. Two-phase server queries only when hot tier insufficient.
+> **Strategy**: Multi-tier hot tier with intelligent discovered card management and LRU/LFU hybrid eviction. Two-phase server queries only when hot tier insufficient.
 >
-> **Key Insight**: Most queries access recent/popular cards. By keeping the "right" 7-10k cards locally, we can answer almost all queries instantly.
+> **Key Insight**: Most queries access recent/popular cards. By keeping the "right" 7-10k cards locally with smart eviction, we can answer almost all queries instantly.
 
 ## Executive Summary
 
 ### Core Architecture
 
-Collections follow an adaptive pattern:
+Collections follow an adaptive pattern with three-tier hot tier + discovered cards:
 
-1. **Try hot tier first**: Check if query can be fully answered locally (instant)
-2. **Detect insufficiency**: Recognize when hot tier is missing critical cards
-3. **Phase 1 (Server)**: Query for count + missing card IDs
-4. **Phase 2 (Expand hot tier)**: Fetch missing cards, expand hot tier dynamically
-5. **Cache expansion**: Keep expanded cards for future queries
+1. **Multi-tier hot tier** (5-10k cards): Published (5k) + Prioritized (user-configured) + Recent Unpublished (dynamic)
+2. **Discovered cards** (WARM tier): Cards from search/similarity/filters with staleness tracking
+3. **Ghost cards** (minimal metadata): Previews for evicted cards with fetch-on-demand
+4. **Recent edits listener**: 250 most recently edited cards for discovered card freshness
+5. **Smart eviction**: LRU/LFU hybrid scoring keeps frequently accessed cards
 
 ### Key Characteristics
 
 - **Optimistic local-first**: Assume hot tier has what we need
-- **Adaptive expansion**: Hot tier grows intelligently based on actual usage
+- **Adaptive expansion**: Discovered cards tracked with access patterns
 - **Minimal server queries**: Only 5-10% of collections trigger server fetch
-- **Smart eviction**: Keep frequently accessed cards, evict rarely used
+- **Smart eviction**: Hybrid LRU/LFU scoring with discovery-method weighting
+- **Ghost cards**: Distinguish "not loaded" from "doesn't exist"
+
+### Performance Targets
+
+| Metric | Target | Approach 2 |
+|--------|--------|------------|
+| Save latency P95 | <500ms | ~250ms (8-9k cards avg) |
+| Query latency (hot tier) | <100ms | ~50ms (local filtering) |
+| Query latency (server) | <500ms | 200-500ms (first time), then hot |
+| Navigation latency | <100ms | <50ms (95% from hot tier) |
+| Hot tier hit rate | >70% | 85-95% after warmup |
+| Cost/month (power user) | <$5 | $0.12-0.66 |
 
 ### Trade-offs
 
@@ -32,12 +44,13 @@ Collections follow an adaptive pattern:
 - Cost-efficient (minimal server queries due to expansion)
 - Graceful offline degradation (hot tier always works)
 - Adaptive to user behavior (grows to match usage patterns)
+- Ghost cards enable preview without full fetch
 
 ❌ **Weaknesses**:
-- More complex logic (hot tier sufficiency detection)
-- Variable memory usage (hot tier size fluctuates)
+- More complex logic (tier management, eviction)
+- Variable memory usage (hot tier + discovered fluctuates)
 - First query to new content slower (cold start)
-- Harder to reason about memory bounds
+- Requires warmup period (first week 50% hit rate → 85-95%)
 
 ### When to Choose This Approach
 
@@ -46,1093 +59,756 @@ Collections follow an adaptive pattern:
 - **Usage pattern clustering**: Queries tend to cluster around certain cards/topics
 - **Offline priority**: Want maximal offline functionality
 
-## Detailed Architecture
+---
 
-### 1. Intelligent Hot Tier
+## 1. Multi-Tier Hot Tier Architecture
+
+### 1.1 Tier Structure
 
 ```typescript
-// src/hot_tier.ts - Enhanced with intelligence
+// src/types.ts - Hot tier configuration
 
-export class IntelligentHotTier {
-  private cards: Map<string, Card> = new Map();
-  private accessStats: Map<string, AccessStats> = new Map();
-
-  private config = {
-    baseSize: 5000,      // Always keep 5k most recent (unchanged)
-    maxSize: 10000,      // Can grow to 10k total
-    expansionSize: 7000  // Target for expanded tier
+export interface HotTierConfig {
+  // Tier 1: Published cards (NEVER_EVICT)
+  published: {
+    maxSize: 5000;
+    query: 'where(published == true)';
+    priority: 'NEVER_EVICT';
   };
 
-  // Track which cards are accessed frequently
-  private _recordAccess(cardId: string) {
-    const stats = this.accessStats.get(cardId) || {
-      count: 0,
-      lastAccessed: 0,
-      firstAccessed: Date.now()
-    };
+  // Tier 2: Prioritized unpublished (NEVER_EVICT, user-configured)
+  prioritized: {
+    maxSize: number;  // User-configurable: 0-3000
+    tags?: string[];
+    sections?: string[];
+    authors?: string[];
+    priority: 'NEVER_EVICT';
+  };
 
-    stats.count++;
-    stats.lastAccessed = Date.now();
-    this.accessStats.set(cardId, stats);
-  }
-
-  // Calculate "hotness" score for eviction decisions
-  private _calculateHotness(cardId: string): number {
-    const stats = this.accessStats.get(cardId);
-    if (!stats) return 0;
-
-    const recency = Date.now() - stats.lastAccessed;  // Lower is better
-    const frequency = stats.count;  // Higher is better
-    const age = Date.now() - stats.firstAccessed;  // Normalized
-
-    // LFU + LRU hybrid score
-    const recencyScore = 1 / (1 + recency / (1000 * 60 * 60));  // Decay over hours
-    const frequencyScore = Math.log(frequency + 1);
-    const ageNormalization = Math.min(1, age / (1000 * 60 * 60 * 24 * 7));  // Week
-
-    return (recencyScore * 0.6 + frequencyScore * 0.4) * ageNormalization;
-  }
-
-  // Add cards to hot tier (expansion)
-  async expand(cardIds: string[]) {
-    const cards = await firestore.batchGet(cardIds);
-
-    for (const card of cards) {
-      this.cards.set(card.id, card);
-      this._recordAccess(card.id);
-    }
-
-    // Evict if over max size
-    this._evictColdest();
-  }
-
-  private _evictColdest() {
-    if (this.cards.size <= this.config.maxSize) return;
-
-    // Sort by hotness score (ascending)
-    const sorted = Array.from(this.cards.keys())
-      .map(id => ({ id, hotness: this._calculateHotness(id) }))
-      .sort((a, b) => a.hotness - b.hotness);
-
-    // Evict coldest cards until under max size
-    const toEvict = sorted.slice(0, this.cards.size - this.config.expansionSize);
-
-    toEvict.forEach(({ id }) => {
-      this.cards.delete(id);
-      this.accessStats.delete(id);
-    });
-
-    console.log(`Evicted ${toEvict.length} cold cards from hot tier`);
-  }
-
-  // Check if hot tier can fully answer a query
-  canAnswer(filterChain: Filter[]): boolean {
-    // Conservative estimate: if filter references specific cards not in hot tier, can't answer
-    const requiredCards = this._extractRequiredCards(filterChain);
-
-    if (requiredCards.length > 0) {
-      return requiredCards.every(id => this.cards.has(id));
-    }
-
-    // For general queries, assume hot tier sufficient (optimistic)
-    return true;
-  }
-
-  private _extractRequiredCards(filterChain: Filter[]): string[] {
-    const cardIds: string[] = [];
-
-    for (const filter of filterChain) {
-      if (filter.type === 'cards') {
-        // Explicit card list filter
-        cardIds.push(...filter.cardIds);
-      } else if (filter.type === 'references') {
-        // References to specific card
-        cardIds.push(filter.fromCardId);
-      }
-      // Add more specific filter types as needed
-    }
-
-    return cardIds;
-  }
-
-  // Get all cards (for local filtering)
-  getAll(): Card[] {
-    return Array.from(this.cards.values());
-  }
-
-  // Record access for a card (for hotness tracking)
-  recordBatchAccess(cardIds: string[]) {
-    cardIds.forEach(id => this._recordAccess(id));
-  }
+  // Tier 3: Recent unpublished (HOT, evictable)
+  recentUnpublished: {
+    maxSize: number;  // Calculated: 10k - Tier1 - Tier2
+    query: 'where(published == false) orderBy(created, desc) limit(N)';
+    priority: 'HOT';
+  };
 }
+
+// Target total: 10,000 cards across all three tiers
+// Tier 1: ~5,000 (fixed)
+// Tier 2: ~1,000-2,000 (user configurable)
+// Tier 3: ~3,000-4,000 (fills to 10k)
 ```
 
-### 2. Adaptive Collection Query
+### 1.2 Query Construction
 
 ```typescript
-// src/collection_description.ts - Hot tier first, server fallback
+// src/actions/database.ts - Multi-tier connections
 
-class Collection {
-  async filteredCards(): Promise<{
-    count: number,
-    cards: Card[],
-    preview: boolean,
-    source: 'hot' | 'server'
-  }> {
-    // Try hot tier first (optimistic)
-    if (hotTier.canAnswer(this.filterChain)) {
-      const hotCards = hotTier.getAll();
-      const filtered = this._applyFiltersLocally(hotCards);
+// Tier 1: Published cards (unchanged from current)
+export const connectLivePublishedCards = () => {
+  if (!selectUserMayViewApp(store.getState() as State)) return;
 
-      // Record access for hotness tracking
-      hotTier.recordBatchAccess(filtered.slice(0, 50).map(c => c.id));
+  livePublishedCardsUnsubscribe = onSnapshot(
+    query(collection(db, CARDS_COLLECTION), where('published', '==', true)),
+    cardSnapshotReceiver('published')
+  );
+};
 
-      return {
-        count: filtered.length,
-        cards: filtered.slice(0, 50),  // First batch
-        preview: false,
-        source: 'hot'
+// Tier 2: Prioritized unpublished (NEW)
+let livePrioritizedUnpublishedCardsUnsubscribe: (() => void) | null = null;
+
+export const connectLivePrioritizedUnpublishedCards = () => {
+  const state = store.getState() as State;
+  if (!selectUserMayViewApp(state)) return;
+
+  const config = selectHotTierPriorityConfig(state);
+  if (!config.enabled) return;
+
+  // Build queries from user configuration
+  const queries = buildPrioritizedUnpublishedQueries(config);
+
+  store.dispatch(expectUnpublishedCards('unpublished-prioritized'));
+
+  // Execute all queries, union results
+  const unsubscribers = queries.map(q =>
+    onSnapshot(q, cardSnapshotReceiver('unpublished-prioritized'))
+  );
+
+  livePrioritizedUnpublishedCardsUnsubscribe = () => {
+    unsubscribers.forEach(unsub => unsub());
+  };
+};
+
+const buildPrioritizedUnpublishedQueries = (config: HotTierPriorityConfig): Query[] => {
+  const queries: Query[] = [];
+  const baseCollection = collection(db, CARDS_COLLECTION);
+  const unpublishedConstraint = where('published', '==', false);
+
+  // Tags query (array-contains-any, max 10 items)
+  if (config.tags && config.tags.length > 0) {
+    const tagBatches = chunkArray(config.tags, 10);
+    tagBatches.forEach(batch => {
+      queries.push(
+        query(baseCollection, unpublishedConstraint, where('tags', 'array-contains-any', batch))
+      );
+    });
+  }
+
+  // Sections query (in, max 10 items)
+  if (config.sections && config.sections.length > 0) {
+    const sectionBatches = chunkArray(config.sections, 10);
+    sectionBatches.forEach(batch => {
+      queries.push(
+        query(baseCollection, unpublishedConstraint, where('section', 'in', batch))
+      );
+    });
+  }
+
+  // Authors query (in, max 10 items)
+  if (config.authors && config.authors.length > 0) {
+    const authorBatches = chunkArray(config.authors, 10);
+    authorBatches.forEach(batch => {
+      queries.push(
+        query(baseCollection, unpublishedConstraint, where('author', 'in', batch))
+      );
+    });
+  }
+
+  return queries;
+};
+
+// Tier 3: Recent unpublished (MODIFIED from current)
+export const connectLiveUnpublishedCards = () => {
+  const state = store.getState() as State;
+  if (!selectUserMayViewApp(state)) return;
+
+  // Calculate dynamic limit for Tier 3
+  const tier3Limit = calculateTier3Limit(state);
+
+  const userMayViewUnpublished = selectUserMayViewUnpublished(state);
+  const completeModeEnabled = selectCompleteModeEnabled(state);
+
+  if (userMayViewUnpublished) {
+    store.dispatch(expectUnpublishedCards(
+      completeModeEnabled ? 'unpublished-complete' : 'unpublished-recent'
+    ));
+
+    if (completeModeEnabled) {
+      // Complete mode: all unpublished
+      liveUnpublishedCardsUnsubcribe = onSnapshot(
+        query(collection(db, CARDS_COLLECTION), where('published', '==', false)),
+        cardSnapshotReceiver('unpublished-complete')
+      );
+    } else {
+      // Partial mode: limited to Tier 3 allocation
+      liveUnpublishedCardsUnsubcribe = onSnapshot(
+        query(
+          collection(db, CARDS_COLLECTION),
+          where('published', '==', false),
+          orderBy('created', 'desc'),
+          limit(tier3Limit)
+        ),
+        cardSnapshotReceiver('unpublished-recent')
+      );
+    }
+  }
+};
+
+const calculateTier3Limit = (state: State): number => {
+  const totalBudget = 10000;  // Target total cards
+  const tier1Count = 5000;     // Published (estimated)
+  const tier2Config = selectHotTierPriorityConfig(state);
+  const tier2EstimatedCount = tier2Config.enabled ? estimateTier2Count(tier2Config) : 0;
+
+  // Tier 3 = Budget - Tier 1 - Tier 2
+  const tier3Limit = Math.max(0, totalBudget - tier1Count - tier2EstimatedCount);
+
+  console.log(`Hot Tier: T1=${tier1Count}, T2=${tier2EstimatedCount}, T3=${tier3Limit}`);
+
+  return tier3Limit;
+};
+```
+
+### 1.3 Tier Priority Configuration
+
+```typescript
+// src/hot_tier_config.ts - User configuration
+
+export interface HotTierPriorityConfig {
+  enabled: boolean;
+  tags?: string[];      // e.g., ['active-projects', 'high-priority']
+  sections?: string[];  // e.g., ['roadmap', 'urgent']
+  authors?: string[];   // e.g., ['uid-teammate-1', 'uid-teammate-2']
+}
+
+export const DEFAULT_HOT_TIER_PRIORITY_CONFIG: HotTierPriorityConfig = {
+  enabled: false,
+  tags: [],
+  sections: [],
+  authors: []
+};
+
+// Stored in localStorage
+export const loadHotTierPriorityConfig = (): HotTierPriorityConfig => {
+  const stored = localStorage.getItem('hotTierPriorityConfig');
+  if (stored) {
+    try {
+      return {...DEFAULT_HOT_TIER_PRIORITY_CONFIG, ...JSON.parse(stored)};
+    } catch (e) {
+      console.error('Failed to parse hot tier config', e);
+    }
+  }
+  return DEFAULT_HOT_TIER_PRIORITY_CONFIG;
+};
+```
+
+### 1.4 Deduplication Across Tiers
+
+```typescript
+// src/actions/data.ts - Enhanced receiveCards with tier priority
+
+export const receiveCards = (cards: Cards, fetchType: CardFetchType): ThunkSomeAction =>
+  (dispatch, getState) => {
+    const state = getState();
+    const existingCards = selectRawCards(state);
+    const existingMetadata = state.data.cardFetchMetadata || {};
+
+    const cardsToUpdate: Cards = {};
+    const updatedMetadata = {...existingMetadata};
+
+    for (const card of Object.values(cards)) {
+      const cardId = card.id;
+      const existingCard = existingCards[cardId];
+      const existingMeta = existingMetadata[cardId];
+
+      // Determine tier from fetchType
+      const incomingTier = fetchTypeToTier(fetchType);
+
+      // Check if we already have this card from a higher-priority tier
+      if (existingCard && existingMeta) {
+        const existingTier = existingMeta.primaryTier;
+
+        if (tierPriority(existingTier) > tierPriority(incomingTier)) {
+          // Keep existing card from higher-priority tier
+          console.log(`Dedup: Keeping ${cardId} from ${existingTier} (ignoring ${incomingTier})`);
+
+          // But track that this tier also has it
+          updatedMetadata[cardId] = {
+            ...existingMeta,
+            fetchTypes: [...existingMeta.fetchTypes, fetchType]
+          };
+          continue;
+        }
+      }
+
+      // Accept this card (either new or from higher-priority tier)
+      if (!existingCard || !deepEqualIgnoringTimestamps(existingCard, card)) {
+        cardsToUpdate[cardId] = card;
+      }
+
+      updatedMetadata[cardId] = {
+        fetchTypes: existingMeta ? [...existingMeta.fetchTypes, fetchType] : [fetchType],
+        primaryTier: incomingTier
       };
     }
 
-    // Hot tier insufficient, query server
-    return this._queryServerWithExpansion();
+    const pendingModifications = selectPendingModificationCount(state);
+    if (pendingModifications === 0) {
+      dispatch(updateCards(cardsToUpdate, fetchType, updatedMetadata));
+    }
+    dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
+  };
+
+const fetchTypeToTier = (fetchType: CardFetchType): 'tier1' | 'tier2' | 'tier3' => {
+  if (fetchType === 'published') return 'tier1';
+  if (fetchType === 'unpublished-prioritized') return 'tier2';
+  return 'tier3';
+};
+
+const tierPriority = (tier: 'tier1' | 'tier2' | 'tier3'): number => {
+  return {tier1: 3, tier2: 2, tier3: 1}[tier];
+};
+```
+
+---
+
+## 2. Discovered Cards with Intelligent Eviction
+
+### 2.1 Discovery Mechanisms
+
+Cards discovered outside the hot tier are tracked with metadata:
+
+```typescript
+// src/types.ts - Discovered card metadata
+
+export type DiscoveryMethod =
+  | 'reference-block'     // Priority: HIGH (70%) - Explicitly referenced
+  | 'similarity-sidebar'  // Priority: HIGH (60%) - Similar to active card
+  | 'search-query'        // Priority: MEDIUM-HIGH (50%) - User searched
+  | 'filter-collection'   // Priority: MEDIUM (40%) - Collection browsing
+  | 'navigation'          // Priority: LOW (20%) - Prefetched
+  | 'prefetch';           // Priority: VERY LOW (10%) - Aggressive prefetch
+
+export interface DiscoveredCardMetadata {
+  cardID: CardID;
+  tier: 'WARM' | 'COLD' | 'GHOST';
+  discoveryMethod: DiscoveryMethod;
+  discoveryContext?: CardID;  // Card that led to discovery
+  discoveredAt: number;        // Timestamp when first discovered
+  addedAt: number;             // Timestamp when added to current tier
+  lastAccessed: number;        // Last access timestamp
+  accessCount: number;         // Total access count
+  lastSyncedAt?: number;       // Last time fetched from Firestore
+  fresh?: boolean;             // In recent edits window
+}
+```
+
+### 2.2 LRU/LFU Hybrid Eviction Scoring
+
+```typescript
+// src/discovered_cards/eviction.ts - Hybrid scoring algorithm
+
+/**
+ * Calculate eviction score for a card.
+ * Lower scores = higher priority for eviction.
+ *
+ * Formula:
+ * - Recency: 40% (how recently accessed)
+ * - Frequency: 30% (how often accessed)
+ * - Age: 20% (how long in tier)
+ * - Discovery: 10% (discovery method quality)
+ */
+export function calculateEvictionScore(
+  metadata: DiscoveredCardMetadata,
+  now: number = Date.now()
+): number {
+
+  // RECENCY COMPONENT (40%)
+  // Exponential decay: score halves every 6 hours
+  const hoursSinceAccess = (now - metadata.lastAccessed) / (1000 * 60 * 60);
+  const recencyScore = Math.exp(-0.1155 * hoursSinceAccess); // 0.1155 ≈ ln(2)/6
+
+  // FREQUENCY COMPONENT (30%)
+  // Logarithmic scaling: diminishing returns for high frequency
+  const frequencyScore = Math.log10(metadata.accessCount + 1) / 2.0;
+
+  // AGE COMPONENT (20%)
+  // How long has card been in this tier? Older = more established
+  const daysInTier = (now - metadata.addedAt) / (1000 * 60 * 60 * 24);
+  const ageScore = Math.min(1.0, daysInTier / 7.0); // Caps at 1 week
+
+  // DISCOVERY METHOD COMPONENT (10%)
+  // Weight by discovery quality
+  const discoveryWeights: {[key in DiscoveryMethod]: number} = {
+    'reference-block': 0.9,
+    'similarity-sidebar': 0.7,
+    'search-query': 0.6,
+    'filter-collection': 0.4,
+    'navigation': 0.2,
+    'prefetch': 0.1,
+  };
+  const discoveryScore = discoveryWeights[metadata.discoveryMethod] || 0.3;
+
+  // WEIGHTED TOTAL
+  return (
+    recencyScore * 0.40 +
+    frequencyScore * 0.30 +
+    ageScore * 0.20 +
+    discoveryScore * 0.10
+  );
+}
+
+// Example scores:
+// - Just searched, 2 accesses: 0.55 (keep)
+// - Reference, viewed 10x: 0.85 (definitely keep)
+// - Prefetch, never accessed, 2 days: 0.09 (evict!)
+// - Stale search, 5 accesses, 6 months: 0.47 (maybe evict)
+```
+
+### 2.3 Eviction Manager
+
+```typescript
+// src/discovered_cards/eviction_manager.ts - Background eviction
+
+export class EvictionManager {
+  private isEvicting = false;
+  private evictionInterval: number | null = null;
+
+  constructor() {
+    // Check every 5 minutes
+    this.evictionInterval = window.setInterval(() => {
+      this.checkAndEvict();
+    }, 5 * 60 * 1000);
   }
 
-  private async _queryServerWithExpansion(): Promise<CollectionResult> {
-    // Phase 1: Server query for count + IDs
-    const { count, ids } = await serverQueryEngine.execute({
-      filters: this.filterChain,
-      userId: currentUserId(),
-      returnCount: true
-    });
+  async checkAndEvict(): Promise<void> {
+    if (this.isEvicting) return;
 
-    // Phase 2: Identify missing cards (not in hot tier)
-    const missingIds = ids.filter(id => !hotTier.has(id));
+    const state = store.getState() as State;
+    const discoveredState = selectDiscoveredCardsState(state);
+    const status = assessMemoryPressure(discoveredState);
 
-    // Phase 3: Fetch missing cards in batches
-    const visibleBatchSize = 50;
-    const expansionBatchSize = Math.min(200, missingIds.length);
+    if (!status.shouldEvict) return;
 
-    // Fetch visible batch immediately
-    const visibleBatch = await firestore.batchGet(
-      missingIds.slice(0, visibleBatchSize)
-    );
+    this.isEvicting = true;
 
-    // Expand hot tier with additional cards (background)
-    if (missingIds.length > visibleBatchSize) {
-      this._expandHotTierBackground(
-        missingIds.slice(visibleBatchSize, expansionBatchSize)
+    try {
+      // Calculate scores for all WARM cards
+      const metadata = selectDiscoveredCardMetadata(state);
+      const scores = this.scoreAllCards(metadata);
+
+      // Sort by score (ascending = worst first)
+      scores.sort((a, b) => a.totalScore - b.totalScore);
+
+      // Determine how many to evict
+      const currentCount = status.warmCount;
+      const target = MEMORY_CONFIG.EVICTION_TARGET;
+      const toEvict = Math.min(
+        currentCount - target,
+        MEMORY_CONFIG.EVICTION_BATCH_SIZE
       );
-    }
 
-    // Add visible cards to hot tier
-    await hotTier.expand(visibleBatch.map(c => c.id));
+      // Take worst N cards
+      const victimIDs = scores.slice(0, toEvict).map(s => s.cardID);
 
-    return {
-      count,
-      cards: visibleBatch,
-      preview: missingIds.length > visibleBatchSize,
-      source: 'server'
-    };
-  }
+      console.log(`Evicting ${victimIDs.length} cards (scores: ${scores[0].totalScore.toFixed(3)} - ${scores[toEvict-1].totalScore.toFixed(3)})`);
 
-  private async _expandHotTierBackground(cardIds: string[]) {
-    // Low priority background fetch
-    setTimeout(async () => {
-      const cards = await firestore.batchGet(cardIds);
-      await hotTier.expand(cards.map(c => c.id));
-      console.log(`Expanded hot tier with ${cards.length} cards`);
-    }, 1000);  // 1 second delay
-  }
+      // Create ghost cards for evicted cards with references
+      const ghostCards = await this.createGhostCards(victimIDs, state);
 
-  private _applyFiltersLocally(cards: Card[]): Card[] {
-    return cards.filter(card =>
-      this.filterChain.every(filter => {
-        const result = filter.func(card, this.extras);
-        return result.matches;
-      })
-    ).sort(this._getSortComparator());
-  }
-}
-```
+      // Dispatch eviction
+      store.dispatch(evictDiscoveredCards(victimIDs, ghostCards));
 
-### 3. Smart Insufficiency Detection
-
-```typescript
-// src/hot_tier_analyzer.ts - Detect when hot tier is insufficient
-
-export class HotTierAnalyzer {
-  // Analyze filter chain to determine if hot tier likely sufficient
-  static canHotTierAnswer(filterChain: Filter[]): {
-    canAnswer: boolean,
-    confidence: number,
-    reason?: string
-  } {
-    for (const filter of filterChain) {
-      const analysis = this._analyzeFilter(filter);
-
-      if (!analysis.canAnswer) {
-        return {
-          canAnswer: false,
-          confidence: analysis.confidence,
-          reason: analysis.reason
-        };
-      }
-    }
-
-    return { canAnswer: true, confidence: 0.95 };
-  }
-
-  private static _analyzeFilter(filter: Filter): {
-    canAnswer: boolean,
-    confidence: number,
-    reason?: string
-  } {
-    switch (filter.type) {
-      case 'query':
-        // Text queries might match old cards not in hot tier
-        return {
-          canAnswer: true,  // Try, but might be incomplete
-          confidence: 0.7,
-          reason: 'Text query might match historical cards'
-        };
-
-      case 'date':
-        // Date filters for old dates definitely need server
-        if (this._isHistoricalDate(filter)) {
-          return {
-            canAnswer: false,
-            confidence: 1.0,
-            reason: 'Date filter requests historical cards'
-          };
-        }
-        return { canAnswer: true, confidence: 0.95 };
-
-      case 'cards':
-        // Explicit card list - check if all in hot tier
-        const allPresent = filter.cardIds.every(id => hotTier.has(id));
-        return {
-          canAnswer: allPresent,
-          confidence: 1.0,
-          reason: allPresent ? undefined : 'Required cards not in hot tier'
-        };
-
-      case 'references':
-        // References require specific card
-        const hasFromCard = hotTier.has(filter.fromCardId);
-        return {
-          canAnswer: hasFromCard,
-          confidence: 0.8,  // Even if we have from-card, refs might be old
-          reason: hasFromCard ? undefined : 'Reference source card not in hot tier'
-        };
-
-      case 'section':
-      case 'tag':
-      case 'published':
-      case 'author':
-        // These might match cards outside hot tier
-        return {
-          canAnswer: true,
-          confidence: 0.75,
-          reason: 'Filter might match historical cards'
-        };
-
-      default:
-        return { canAnswer: true, confidence: 0.5 };
+    } finally {
+      this.isEvicting = false;
     }
   }
 
-  private static _isHistoricalDate(filter: DateFilter): boolean {
-    const sixMonthsAgo = Date.now() - (6 * 30 * 24 * 60 * 60 * 1000);
+  private scoreAllCards(metadata: {[id: CardID]: DiscoveredCardMetadata}): EvictionScore[] {
+    const now = Date.now();
+    const scores: EvictionScore[] = [];
 
-    if (filter.before && filter.before < sixMonthsAgo) {
-      return true;
+    for (const meta of Object.values(metadata)) {
+      if (meta.tier === 'GHOST') continue;
+      const score = calculateEvictionScore(meta, now);
+      scores.push({cardID: meta.cardID, totalScore: score});
     }
 
-    if (filter.after && filter.after < sixMonthsAgo) {
-      return true;
-    }
-
-    return false;
-  }
-}
-```
-
-### 4. Usage Pattern Learning
-
-```typescript
-// src/usage_pattern_learner.ts - Learn and predict usage patterns
-
-export class UsagePatternLearner {
-  private queryHistory: QueryLog[] = [];
-  private maxHistory: number = 1000;
-
-  logQuery(query: {
-    filterChain: Filter[],
-    resultIds: string[],
-    source: 'hot' | 'server',
-    latency: number
-  }) {
-    this.queryHistory.push({
-      timestamp: Date.now(),
-      filterHash: this._hashFilters(query.filterChain),
-      resultIds: query.resultIds,
-      source: query.source,
-      latency: query.latency
-    });
-
-    // Trim history
-    if (this.queryHistory.length > this.maxHistory) {
-      this.queryHistory = this.queryHistory.slice(-this.maxHistory);
-    }
-
-    // Learn patterns
-    this._updatePatterns();
+    return scores;
   }
 
-  private _updatePatterns() {
-    // Identify frequently accessed cards
-    const cardFrequency = new Map<string, number>();
+  private async createGhostCards(
+    cardIDs: CardID[],
+    state: State
+  ): Promise<GhostCard[]> {
+    const ghosts: GhostCard[] = [];
+    const cards = selectRawCards(state);
 
-    for (const log of this.queryHistory.slice(-100)) {  // Last 100 queries
-      log.resultIds.slice(0, 20).forEach(id => {  // Top 20 results
-        cardFrequency.set(id, (cardFrequency.get(id) || 0) + 1);
-      });
-    }
+    for (const cardID of cardIDs) {
+      const card = cards[cardID];
 
-    // Expand hot tier with frequently accessed cards
-    const frequentCards = Array.from(cardFrequency.entries())
-      .filter(([id, count]) => count >= 3 && !hotTier.has(id))
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 100)  // Top 100 frequent cards
-      .map(([id, _]) => id);
-
-    if (frequentCards.length > 0) {
-      console.log(`Proactively expanding hot tier with ${frequentCards.length} frequent cards`);
-      hotTier.expand(frequentCards);
-    }
-  }
-
-  // Predict if query will likely trigger server fetch
-  predictNeedsServer(filterChain: Filter[]): boolean {
-    const hash = this._hashFilters(filterChain);
-
-    // Check recent history for similar queries
-    const recentSimilar = this.queryHistory
-      .slice(-50)
-      .filter(log => log.filterHash === hash);
-
-    if (recentSimilar.length > 0) {
-      const serverRate = recentSimilar.filter(log => log.source === 'server').length / recentSimilar.length;
-      return serverRate > 0.5;
-    }
-
-    // No history, use analyzer
-    return !HotTierAnalyzer.canHotTierAnswer(filterChain).canAnswer;
-  }
-
-  private _hashFilters(filterChain: Filter[]): string {
-    // Simple hash of filter types and values
-    return filterChain.map(f => `${f.type}:${JSON.stringify(f.value || '')}`).join('|');
-  }
-}
-```
-
-### 5. Prefetching with Prediction
-
-```typescript
-// src/prefetch_controller.ts - Predictive prefetching
-
-export class PrefetchController {
-  private prefetchQueue: PrefetchTask[] = [];
-  private isProcessing: boolean = false;
-
-  // Predict and prefetch likely next queries
-  async predictAndPrefetch(currentContext: {
-    currentCard?: string,
-    currentCollection?: Collection,
-    recentQueries: Filter[][]
-  }) {
-    const predictions = this._predictNextQueries(currentContext);
-
-    for (const prediction of predictions) {
-      this.schedulePrefetch({
-        filterChain: prediction.filterChain,
-        priority: prediction.priority,
-        reason: prediction.reason
-      });
-    }
-
-    this._processPrefetchQueue();
-  }
-
-  private _predictNextQueries(context: any): Prediction[] {
-    const predictions: Prediction[] = [];
-
-    // Prediction 1: User will navigate to next/prev card in collection
-    if (context.currentCollection && context.currentCard) {
-      const { ids } = context.currentCollection._cardIDListCache;
-      const currentIndex = ids.indexOf(context.currentCard);
-
-      if (currentIndex !== -1) {
-        // Prefetch cards around current position
-        const prefetchRange = this._getPrefetchRange(currentIndex, ids.length);
-        predictions.push({
-          filterChain: context.currentCollection.filterChain,
-          cardIds: ids.slice(prefetchRange.start, prefetchRange.end),
-          priority: 'high',
-          reason: 'Navigation context'
+      // Only create ghost if card has inbound references
+      if (card && hasInboundReferences(card)) {
+        ghosts.push({
+          id: card.id,
+          title: card.title,
+          section: card.section,
+          cardType: card.card_type,
+          published: card.published,
+          tier: 'GHOST'
         });
       }
     }
 
-    // Prediction 2: User will repeat recent query with small modification
-    if (context.recentQueries.length > 0) {
-      const lastQuery = context.recentQueries[context.recentQueries.length - 1];
-
-      predictions.push({
-        filterChain: lastQuery,
-        priority: 'medium',
-        reason: 'Recent query repetition'
-      });
-    }
-
-    // Prediction 3: User will view related/similar cards
-    if (context.currentCard) {
-      predictions.push({
-        filterChain: [{ type: 'similar', fromCardId: context.currentCard }],
-        priority: 'low',
-        reason: 'Similar cards to current'
-      });
-    }
-
-    return predictions;
-  }
-
-  private schedulePrefetch(task: PrefetchTask) {
-    // Add to queue if not already present
-    const exists = this.prefetchQueue.some(t =>
-      this._tasksEqual(t, task)
-    );
-
-    if (!exists) {
-      this.prefetchQueue.push(task);
-      this.prefetchQueue.sort((a, b) =>
-        this._priorityValue(b.priority) - this._priorityValue(a.priority)
-      );
-    }
-  }
-
-  private async _processPrefetchQueue() {
-    if (this.isProcessing || this.prefetchQueue.length === 0) return;
-
-    this.isProcessing = true;
-
-    while (this.prefetchQueue.length > 0) {
-      const task = this.prefetchQueue.shift();
-
-      try {
-        // Check if hot tier already sufficient
-        if (hotTier.canAnswer(task.filterChain)) {
-          continue;  // Skip, already have data
-        }
-
-        // Execute prefetch (low priority)
-        await this._executePrefetch(task);
-
-        // Small delay to avoid overwhelming server
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.warn('Prefetch failed:', error);
-      }
-    }
-
-    this.isProcessing = false;
-  }
-
-  private async _executePrefetch(task: PrefetchTask) {
-    const { count, ids } = await serverQueryEngine.execute({
-      filters: task.filterChain,
-      userId: currentUserId(),
-      returnCount: true
-    });
-
-    // Fetch first batch and expand hot tier
-    const batchSize = Math.min(100, ids.length);
-    const cards = await firestore.batchGet(ids.slice(0, batchSize));
-
-    await hotTier.expand(cards.map(c => c.id));
-
-    console.log(`Prefetched ${cards.length} cards for: ${task.reason}`);
+    return ghosts;
   }
 }
 ```
 
-## Cost Analysis
-
-### Server Query Frequency
-
-With intelligent hot tier and expansion:
-
-**Optimistic Scenario (95% hot tier hit rate):**
-```
-Single power user:
-- 10 explicit searches/day × 5% server rate = 0.5 server queries/day
-- 500 navigation collections/day × 5% server rate = 25 server queries/day
-- Total: 25.5 server queries/day
-
-Monthly cost:
-Phase 1: 25.5 × 30 × 60 reads = 45,900 reads = $0.028/month
-Phase 2: 25.5 × 30 × 200 reads (expansion) = 153,000 reads = $0.092/month
-Total: $0.12/month
-```
-
-**Realistic Scenario (85% hot tier hit rate):**
-```
-Single power user:
-- 510 collections/day × 15% server rate = 76.5 server queries/day
-
-Monthly cost:
-Phase 1: 76.5 × 30 × 60 = 137,700 reads = $0.083/month
-Phase 2: 76.5 × 30 × 150 reads (avg expansion) = 344,250 reads = $0.207/month
-Total: $0.29/month
-```
-
-**Cold Start Scenario (50% hot tier hit rate, first week):**
-```
-First week adjustment:
-- 510 collections/day × 50% server rate = 255 server queries/day
-
-Week cost:
-Phase 1: 255 × 7 × 60 = 107,100 reads = $0.064
-Phase 2: 255 × 7 × 200 reads = 357,000 reads = $0.214
-Total: $0.28/week → $1.12/month
-
-After week 1, hot tier converges to 85-95% hit rate, cost drops to $0.12-0.29/month
-```
-
-### Memory Usage
-
-```
-Hot tier size progression:
-- Week 1: 5k base + 2k expansion = 7k cards (~70 MB)
-- Week 2: 7k base + 1.5k expansion = 8.5k cards (~85 MB)
-- Week 4: Stabilizes at 8-9k cards (~80-90 MB)
-
-Max hot tier: 10k cards (~100 MB)
-Average: 8k cards (~80 MB)
-```
-
-## Critical Filter Complexity Analysis
-
-### Overview: 41+ Filter Types
-
-The card-web application contains **41+ distinct filter types**, each with different characteristics for server-side translation. This complexity significantly impacts the viability of any hybrid hot-tier/server approach.
-
-**Server-Translatability Breakdown**:
-- **Server-translatable (~40%)**: published, section, tag, author, date ranges, card IDs
-- **Medium difficulty (~20%)**: multi-ply graph operations, text search with scoring
-- **Impossible to server-translate (~40%)**: graph traversal, semantic similarity, compositional filters
-
-### 1. Filter System Architecture
-
-The current filter system is organized hierarchically:
-
-**Basic Filters** (Server-translatable):
-- `published`: Boolean flag (direct Firestore field)
-- `section`: String match (indexed field)
-- `tag`: Array-contains (indexed field)
-- `author`: String match (indexed field)
-- `date`: Timestamp range (created, updated, published dates)
-- `card`: Explicit card ID list (Firestore `in` query)
-
-**Graph Filters** (Partially translatable):
-- `inbound-references`: Cards that reference this card (requires reverse index)
-- `outbound-references`: Cards this card references (traversable from card data)
-- `similar`: Semantic similarity (requires embeddings, client-only scoring)
-
-**Compositional Filters** (Complex):
-- `combine`: Union/OR of multiple sub-filters
-- `exclude`: Negation/NOT of sub-filter
-- `expand`: Graph expansion with BFS
-
-**Query Filter** (Hybrid):
-- `query`: Full-text search with 5-tier relevance scoring
-
-### 2. Compositional Filter Challenges
-
-The three compositional filters (`combine`, `exclude`, `expand`) create cascading complexity:
-
-#### COMBINE (Union/OR)
-```typescript
-// Example: Show cards in section "AI" OR tagged "machine-learning"
-{
-  type: 'combine',
-  mode: 'union',
-  filters: [
-    { type: 'section', value: 'AI' },
-    { type: 'tag', value: 'machine-learning' }
-  ]
-}
-```
-
-**Server Translation Challenge**:
-- Requires both sub-filters to be server-translatable
-- Firestore doesn't support OR queries across different fields natively
-- Must execute multiple queries and merge results (expensive)
-- If ANY sub-filter is client-only, entire combine becomes client-only
-
-**Nested Complexity**:
-- Combines can nest arbitrarily deep
-- Example: `COMBINE(COMBINE(A, B), EXCLUDE(C))` requires recursive analysis
-- Each level multiplies the translation complexity
-
-#### EXCLUDE (Negation/NOT)
-```typescript
-// Example: Show all cards EXCEPT those tagged "draft"
-{
-  type: 'exclude',
-  filter: { type: 'tag', value: 'draft' }
-}
-```
-
-**Server Translation Challenge**:
-- Firestore doesn't support NOT queries directly
-- Requires materializing the complement set:
-  1. Query for all cards
-  2. Query for cards matching excluded filter
-  3. Compute set difference
-- Extremely expensive for large exclude sets (30k - exclude_count reads)
-
-**Hot Tier Insufficiency**:
-- Cannot determine if hot tier contains all non-excluded cards
-- Must query server to get complete exclude set
-- Hot tier hit rate drops to ~0% for exclude filters
-
-#### EXPAND (Graph Expansion)
-```typescript
-// Example: Show this card and all cards it references (1 level deep)
-{
-  type: 'expand',
-  fromCardId: 'abc123',
-  depth: 1,
-  direction: 'outbound'
-}
-```
-
-**Server Translation Challenge**:
-- Requires Breadth-First Search (BFS) graph traversal
-- Cannot be expressed in Firestore queries (no recursive queries)
-- Must be computed client-side:
-  1. Start with seed card
-  2. Fetch all referenced cards (level 1)
-  3. Fetch all cards referenced by level 1 (level 2)
-  4. Continue until depth reached
-
-**Why Client-Only**:
-- Variable depth (1-5 levels typical, unbounded in theory)
-- Reference graph structure not indexed
-- Requires iterative fetching (can't predict result set size)
-
-### 3. References Filter Deep Dive
-
-The `references` filter is one of the most commonly used, but **fundamentally client-only**:
+### 2.4 Memory Budget Configuration
 
 ```typescript
-// Example: Show all cards referenced by card "abc123" with type "concept"
-{
-  type: 'references',
-  fromCardId: 'abc123',
-  direction: 'outbound',
-  referenceType: 'concept'
-}
-```
+// src/discovered_cards/config.ts - Memory configuration
 
-**Why Server Translation is Impossible**:
+export const MEMORY_CONFIG = {
+  // Target counts
+  HOT_TIER_TARGET: 10000,       // Total hot tier (all 3 tiers)
+  WARM_TIER_TARGET: 5000,       // Discovered cards target
+  WARM_TIER_MAX: 6000,          // Hard limit before eviction
+  GHOST_TIER_MAX: 2000,         // Maximum ghost entries
 
-1. **BFS Graph Traversal Required**:
-   - Card references form a directed graph
-   - Must traverse edges to find all reachable cards
-   - Firestore has no graph query support
+  // Memory estimates (bytes)
+  AVG_CARD_SIZE: 10 * 1024,     // 10KB per full card
+  AVG_GHOST_SIZE: 500,          // 500 bytes per ghost (95% savings)
+  AVG_METADATA_SIZE: 500,       // 500 bytes per metadata entry
 
-2. **Variable Depth**:
-   - "Direct references" = 1 hop
-   - "Transitive references" = N hops
-   - Cannot predetermine hop count without traversing
+  // Eviction batch configuration
+  EVICTION_BATCH_SIZE: 500,     // Evict 500 cards per batch
+  EVICTION_TARGET: 4500,        // Evict down to this count
 
-3. **Reference Type Filtering**:
-   - Each card-to-card edge has a type (concept, example, related, etc.)
-   - Must filter edges during traversal
-   - Type data not indexed in Firestore
-
-4. **Bidirectional Traversal**:
-   - `inbound`: Cards that reference this card (reverse lookup)
-   - `outbound`: Cards this card references (forward lookup)
-   - Inbound requires reverse index (not maintained server-side)
-
-**Hot Tier Impact**:
-- If `fromCardId` not in hot tier → must query server for seed card
-- Even if seed card in hot tier, referenced cards may not be
-- Typical reference graph spans 50-200 cards (hot tier miss likely)
-
-### 4. Query Filter: 5-Tier Scoring System
-
-The `query` filter implements sophisticated text search with **five tiers of relevance scoring**:
-
-```typescript
-// Example: Search for "neural networks"
-{
-  type: 'query',
-  value: 'neural networks'
-}
-```
-
-**Tier 1: Server-Capable (Pre-filtering)**
-- **Stemmed token matching**: `nlp_tokens` field contains stemmed words
-- **Server query**: `nlp_tokens array-contains-any ["neural", "network"]`
-- **Purpose**: Reduce candidate set from 30k to ~500 cards
-
-**Tier 2: Client-Only (Exact phrase matching)**
-- **Body text matching**: Check if query appears verbatim in card body
-- **Field weighting**: Title matches score 3x body matches
-- **Purpose**: Boost exact phrase matches above partial matches
-
-**Tier 3: Client-Only (TF-IDF scoring)**
-- **Term frequency**: How often query terms appear in card
-- **Inverse document frequency**: Rare terms score higher
-- **IDF calculation**: Requires access to full corpus statistics
-- **Purpose**: Rank by relevance, not just presence
-
-**Tier 4: Client-Only (Inbound link boosting)**
-- **Link analysis**: Cards with more inbound references score higher
-- **Reference graph required**: Must traverse all references
-- **Purpose**: Surface authoritative/popular cards
-
-**Tier 5: Client-Only (Semantic similarity)**
-- **Embedding distance**: Compare query embedding to card embeddings
-- **Requires**: Pre-computed embeddings for all cards
-- **Purpose**: Find conceptually similar cards (even without keyword match)
-
-**Server Translation Challenges**:
-
-| Tier | Server-Capable? | Why/Why Not |
-|------|----------------|-------------|
-| 1 | ✅ Yes | `array-contains-any` on `nlp_tokens` field |
-| 2 | ❌ No | Firestore can't search inside text fields |
-| 3 | ❌ No | Firestore has no TF-IDF support |
-| 4 | ❌ No | Reference graph not indexed |
-| 5 | ❌ No | Embeddings not stored server-side |
-
-**Recommended Hybrid Approach**:
-1. **Server Phase**: Query `nlp_tokens` to get ~500 candidates
-2. **Hot Tier Expansion**: Fetch candidates not in hot tier
-3. **Client Phase**: Run Tiers 2-5 on expanded candidate set
-4. **UI Transparency**: Show "Searched 30,000 cards" even if only scored 500
-
-**Hot Tier Optimization**:
-- If hot tier contains >5k cards, run Tier 1 client-side first
-- Only query server if hot tier yields <20 results
-- Accept partial results with disclaimer ("Searched 8,000 recent cards")
-
-### 5. Hot Tier Insufficiency Detection: Hard Cases
-
-Determining whether the hot tier can fully answer a query is **undecidable in general** due to compositional filters. Here are the hard cases:
-
-#### Case 1: Nested Compositional Filters
-```typescript
-// Can hot tier answer this?
-COMBINE(
-  EXCLUDE({ type: 'tag', value: 'archived' }),
-  EXPAND({ fromCardId: 'xyz', depth: 2 })
-)
-```
-
-**Analysis**:
-- EXCLUDE requires knowing all archived cards (hot tier may be incomplete)
-- EXPAND requires graph traversal (may reference cards outside hot tier)
-- COMBINE requires both to succeed
-- **Decision**: Cannot guarantee sufficiency, must query server
-
-#### Case 2: Historical Date Filters
-```typescript
-// Show cards created before 2023
-{ type: 'date', field: 'created', before: '2023-01-01' }
-```
-
-**Analysis**:
-- Hot tier prioritizes recent cards (last 6 months)
-- Historical cards (2+ years old) likely evicted
-- **Decision**: Definitely insufficient, must query server
-
-#### Case 3: Unknown Query Result Size
-```typescript
-// Search for rare term
-{ type: 'query', value: 'quantum entanglement' }
-```
-
-**Analysis**:
-- Hot tier may contain some matches (recent cards)
-- Cannot know if more matches exist in cold tier
-- User expects exhaustive search
-- **Decision**: Optimistically try hot tier, but show disclaimer
-
-#### Case 4: Reference Graph Completeness
-```typescript
-// Show all cards that reference "Transformer Architecture"
-{ type: 'references', fromCardId: 'transformer-arch', direction: 'inbound' }
-```
-
-**Analysis**:
-- Seed card may be in hot tier
-- Inbound references may span entire corpus (3+ years)
-- Hot tier cannot guarantee completeness
-- **Decision**: Must query server for complete inbound reference index
-
-**Detection Heuristics**:
-
-| Filter Type | Hot Tier Sufficient? | Confidence |
-|------------|---------------------|-----------|
-| `published: true` | Maybe | 70% (recent cards likely published) |
-| `section: X` | Maybe | 75% (sections cluster temporally) |
-| `tag: X` | Maybe | 60% (tags span time ranges) |
-| `date: recent` | Yes | 95% (hot tier optimized for this) |
-| `date: historical` | No | 100% (hot tier doesn't have old cards) |
-| `query: X` | Maybe | 50% (depends on term rarity) |
-| `references: X` | No | 20% (graph spans corpus) |
-| `expand: X` | No | 10% (graph traversal unpredictable) |
-| `exclude: X` | No | 5% (requires complete complement set) |
-| `combine: [A, B]` | Min(A, B) | Depends on sub-filters |
-
-### 6. Recommended Architectural Changes
-
-Given the complexity analysis above, **Approach 2 requires significant modifications**:
-
-#### Filter Classification System
-
-Introduce a **4-tier classification system**:
-
-```typescript
-enum FilterClass {
-  FULL_SERVER,      // Can translate 100% to Firestore query
-  HYBRID,           // Server pre-filter + client scoring
-  CLIENT_ONLY,      // Requires data only in hot tier
-  COMPOSITIONAL     // Depends on sub-filter classes
-}
-
-const FILTER_CLASSIFICATION: Record<FilterType, FilterClass> = {
-  'published': FilterClass.FULL_SERVER,
-  'section': FilterClass.FULL_SERVER,
-  'tag': FilterClass.FULL_SERVER,
-  'author': FilterClass.FULL_SERVER,
-  'date': FilterClass.FULL_SERVER,
-  'card': FilterClass.FULL_SERVER,
-
-  'query': FilterClass.HYBRID,
-  'similar': FilterClass.HYBRID,
-
-  'references': FilterClass.CLIENT_ONLY,
-  'expand': FilterClass.CLIENT_ONLY,
-  'exclude': FilterClass.CLIENT_ONLY,
-
-  'combine': FilterClass.COMPOSITIONAL
+  // Hysteresis zones (prevent thrashing)
+  EVICTION_TRIGGER_HIGH: 6000,  // Start evicting
+  EVICTION_TRIGGER_LOW: 4500,   // Stop evicting
 };
-```
 
-#### Modified Execution Strategy
+export interface MemoryStatus {
+  warmCount: number;
+  ghostCount: number;
+  totalEstimate: number;
+  shouldEvict: boolean;
+  pressure: 'low' | 'medium' | 'high' | 'critical';
+}
 
-**For FULL_SERVER filters**:
-1. Check hot tier first (optimistic)
-2. If hot tier has <80% confidence, query server
-3. Expand hot tier with results
+export function assessMemoryPressure(state: DiscoveredCardsState): MemoryStatus {
+  const {warmCardCount, ghostCardCount, totalMemoryEstimate} = state;
 
-**For HYBRID filters**:
-1. Query server for candidate set (Tier 1 filtering)
-2. Expand hot tier with candidates
-3. Run client-side scoring (Tiers 2-5)
-4. Show disclaimer: "Searched X candidates from 30,000 cards"
+  let pressure: 'low' | 'medium' | 'high' | 'critical' = 'low';
+  if (warmCardCount > MEMORY_CONFIG.WARM_TIER_MAX) {
+    pressure = 'critical';
+  } else if (warmCardCount > MEMORY_CONFIG.WARM_TIER_MAX * 0.9) {
+    pressure = 'high';
+  } else if (warmCardCount > MEMORY_CONFIG.WARM_TIER_TARGET) {
+    pressure = 'medium';
+  }
 
-**For CLIENT_ONLY filters**:
-1. Compute entirely from hot tier
-2. Show disclaimer: "Searched 8,000 recent cards (limited to hot tier)"
-3. Offer "Search All Cards" button → triggers server expansion
-
-**For COMPOSITIONAL filters**:
-1. Recursively classify sub-filters
-2. If all sub-filters are FULL_SERVER → treat as FULL_SERVER
-3. If any sub-filter is CLIENT_ONLY → treat as CLIENT_ONLY
-4. For HYBRID mixes → use most restrictive classification
-
-#### UI Transparency Layer
-
-Add status indicators to search results:
-
-```typescript
-interface CollectionResult {
-  count: number;
-  cards: Card[];
-  completeness: {
-    searchedCards: number;      // How many cards were searched
-    totalCards: number;          // Total cards in corpus
-    isComplete: boolean;         // Did we search everything?
-    disclaimer?: string;         // User-facing message
+  return {
+    warmCount: warmCardCount,
+    ghostCount: ghostCardCount,
+    totalEstimate: totalMemoryEstimate,
+    shouldEvict: warmCardCount >= MEMORY_CONFIG.EVICTION_TRIGGER_HIGH,
+    pressure
   };
 }
-
-// Example disclaimers:
-"Searched 8,412 recent cards (last 6 months)"
-"Searched 537 candidates from 30,284 total cards"
-"Complete search of all 30,284 cards"
 ```
 
-#### Accept Partial Results for Complex Filters
+---
 
-**Key Decision**: For filters that are fundamentally client-only (references, expand, exclude), **accept that results are partial** and communicate this clearly.
+## 3. Ghost Cards for Evicted Content
 
-**Rationale**:
-- Reference graph traversal over 30k cards is expensive (3-5 seconds)
-- Users rarely need exhaustive results for exploratory queries
-- Hot tier results are "good enough" for 90% of use cases
-- Offer opt-in "Deep Search" for remaining 10%
+### 3.1 Ghost Card Structure
 
-**Implementation**:
 ```typescript
-// Default: Fast, partial results from hot tier
-const results = await collection.filteredCards({ mode: 'fast' });
+// src/types.ts - Ghost card definition
 
-// Opt-in: Slow, exhaustive results from full corpus
-const results = await collection.filteredCards({ mode: 'exhaustive' });
+export interface GhostCard {
+  // Minimal card data for previews (500 bytes vs 10KB full card)
+  id: CardID;
+  title: string;
+  section: SectionID;
+  cardType: CardType;
+  published: boolean;
+  tier: 'GHOST';
+
+  // Intentionally missing: body, references, nlp data, etc.
+}
+
+export type CardOrGhost = Card | GhostCard;
+
+export function isGhostCard(card: CardOrGhost | null): card is GhostCard {
+  return card !== null && 'tier' in card && card.tier === 'GHOST';
+}
 ```
 
-**UI Design**:
-- Fast mode: Show results immediately with disclaimer
-- "Search All Cards" button → switches to exhaustive mode
-- Progress indicator for exhaustive search (2-5 second operation)
+### 3.2 Card Link Component States
 
-## Implementation Plan
+```typescript
+// src/components/card-link.ts - Three-state rendering
 
-### Phase 1: Intelligent Hot Tier (2 weeks)
+@customElement('card-link')
+class CardLink extends LitElement {
+  @state()
+  _cardState: 'loaded' | 'ghost' | 'not-found' | 'loading';
 
-**Week 1: Foundation**
-- [ ] Create `IntelligentHotTier` class with access tracking
-- [ ] Implement hotness scoring (LFU + LRU hybrid)
-- [ ] Add expansion and eviction logic
-- [ ] Increase base size to 7k (with pre-computed NLP)
+  get _cardState(): 'loaded' | 'ghost' | 'not-found' | 'loading' {
+    const cardObj = this._cardObj;
 
-**Week 2: Sufficiency Detection**
-- [ ] Create `HotTierAnalyzer` for insufficiency detection
-- [ ] Implement filter-specific analysis
-- [ ] Add confidence scoring
-- [ ] Test with real query patterns
+    if (!cardObj) {
+      // Check if fetch is pending
+      if (this._pendingFetches && this._pendingFetches[this.card]) {
+        return 'loading';
+      }
+      return 'not-found';
+    }
 
-### Phase 2: Adaptive Querying (2 weeks)
+    if (isGhostCard(cardObj)) {
+      return 'ghost';
+    }
 
-**Week 3: Server Fallback**
-- [ ] Modify `Collection` to try hot tier first
-- [ ] Implement server query with expansion
-- [ ] Add background expansion logic
-- [ ] Integrate with existing server query engine
+    return 'loaded';
+  }
 
-**Week 4: Pattern Learning**
-- [ ] Create `UsagePatternLearner` module
-- [ ] Track query history and access patterns
-- [ ] Implement proactive expansion
-- [ ] Add telemetry dashboard
+  render() {
+    return html`
+      <a @click=${this._handleMouseClick}
+         title='${this._titleText}'
+         class='card
+                ${this._cardState === 'ghost' ? 'ghost' : ''}
+                ${this._cardState === 'loading' ? 'loading' : ''}
+                ${this._cardState === 'loaded' ? 'exists' : ''}
+                ${this._cardState === 'not-found' ? 'does-not-exist' : ''}'
+         href='${this._computedHref}'>
+        ${this._inner}
+      </a>`;
+  }
 
-### Phase 3: Predictive Prefetching (1 week)
+  _handleMouseClick(e: MouseEvent) {
+    if (!this.card || !this._cardObj) return;
 
-**Week 5: Prefetching**
-- [ ] Create `PrefetchController`
-- [ ] Implement navigation-based prediction
-- [ ] Add query similarity detection
-- [ ] Low-priority background prefetch queue
+    // Handle ghost card click - fetch before navigating
+    if (this._cardState === 'ghost') {
+      e.preventDefault();
+      store.dispatch(fetchCardOnDemand(this.card));
+      return;
+    }
 
-### Files to Create
+    // Normal click handling...
+  }
+}
 
-**New Files** (~950 LOC):
-- `src/hot_tier.ts` (enhanced) (+300 LOC) - Intelligent hot tier with access tracking
-- `src/hot_tier_analyzer.ts` (~200 LOC) - Sufficiency detection logic
-- `src/usage_pattern_learner.ts` (~250 LOC) - Pattern learning and prediction
-- `src/prefetch_controller.ts` (~200 LOC) - Predictive prefetching
+// CSS for ghost state
+a.card.ghost {
+  color: var(--app-secondary-color-light);
+  opacity: 0.7;
+  text-decoration-style: dotted;
+}
 
-**Modified Files** (~300 LOC):
-- `src/collection_description.ts` (+200 LOC) - Hot tier first, server fallback
-- `src/actions/database.ts` (+50 LOC) - Larger hot tier setup
-- `src/selectors.ts` (+50 LOC) - Hot tier state selectors
+a.card.ghost::after {
+  content: " ↓";  /* Down arrow indicates "click to load" */
+  font-size: 0.8em;
+  opacity: 0.5;
+}
+```
 
-**Total**: ~1250 LOC
+### 3.3 Fetch-on-Demand Action
 
-## Comparison to Requirements
+```typescript
+// src/actions/data.ts - Promote ghost to full card
 
-### ✅ Meets All Requirements
+const pendingCardFetches: Map<CardID, Promise<Card | null>> = new Map();
 
-| Requirement | How Met |
-|------------|---------|
-| Search all 30k+ cards | ✅ Server fallback when hot tier insufficient |
-| Two-phase fetch | ✅ Server returns count + IDs, then expansion |
-| Progressive loading with count | ✅ Count from server, cards expanded progressively |
-| KeyCard collections | ✅ Hot tier expansion makes navigation instant |
-| Preserve save performance | ✅ Client keeps <10k cards max, saves stay fast |
-| Cost <$5/month | ✅ $0.12-0.29/month with adaptive expansion |
-| IDF calculations | ✅ Server-side IDF over full corpus (same as Approach 1) |
-| Pre-filtered NLP | ✅ Server queries NLP fields uniformly |
+export const fetchCardOnDemand = (cardID: CardID): ThunkSomeAction =>
+  async (dispatch, getState) => {
+    const state = getState();
 
-### Performance Targets
+    // Check if already loaded
+    const card = getCardById(state, cardID);
+    if (card && !isGhostCard(card)) {
+      return; // Already have full card
+    }
 
-| Metric | Target | Actual |
-|--------|--------|--------|
-| Save latency | <500ms P95 | ~250ms (8-9k cards avg) |
-| Query latency (hot tier) | <100ms | ~50ms (local filtering) |
-| Query latency (server) | <500ms | 200-500ms (first time), then hot |
-| Navigation latency | <100ms | <50ms (95% from hot tier) |
-| Hot tier hit rate | >70% | 85-95% after warmup |
+    // Check if fetch already in progress (deduplicate)
+    if (pendingCardFetches.has(cardID)) {
+      await pendingCardFetches.get(cardID);
+      return;
+    }
 
-## Alternatives Considered
+    // Mark fetch as pending
+    dispatch({type: FETCH_CARD_ON_DEMAND, cardID});
 
-### Why Not Always Query Server?
+    // Fetch from Firestore
+    const fetchPromise = (async () => {
+      try {
+        const docRef = doc(db, CARDS_COLLECTION, cardID);
+        const docSnap = await getDoc(docRef);
 
-**Rejected**: Query server for every collection (Approach 1)
-- **Reason**: Wastes server queries when hot tier already has answer
-- **Trade-off**: Complexity of sufficiency detection vs cost savings
+        if (!docSnap.exists()) {
+          // Card doesn't exist - remove ghost
+          dispatch({
+            type: FETCH_CARD_ON_DEMAND_FAILURE,
+            cardID,
+            reason: 'not-found'
+          });
 
-### Why Not Static Hot Tier?
+          dispatch(removeGhostCard(cardID));
+          return null;
+        }
 
-**Rejected**: Fixed 5k hot tier, always query server for rest
-- **Reason**: Misses opportunity to learn usage patterns
-- **Trade-off**: Adaptive complexity vs better hit rates
+        const cardData = cardWithNormalizedTextProperties(
+          docSnap.data(),
+          selectFallbackTextMap(state),
+          selectImportantNGrams(state)
+        );
 
-## Discovered Card Freshness Strategy
+        // Success - promote ghost to full card
+        dispatch({
+          type: FETCH_CARD_ON_DEMAND_SUCCESS,
+          cardID,
+          card: cardData
+        });
 
-### Problem
+        dispatch(receiveCards({[cardID]: cardData}, 'on-demand'));
 
-Discovered cards (from similarity/search/filters) are initially static snapshots. If another user edits one of these cards, the local copy becomes stale.
+        return cardData;
 
-**Tiers of card state:**
-- **Hot tier**: Cards with dedicated real-time sync (5-10k most recent cards via `onSnapshot()`)
-- **Discovered/warm tier**: Cards fetched through search/similarity/filters (static snapshots)
-- **Cold tier**: Cards not yet loaded into memory
+      } catch (error) {
+        console.error(`Failed to fetch card ${cardID}:`, error);
 
-When a discovered card is edited by another user, the local copy doesn't update automatically since it's not in the hot tier's real-time sync.
+        dispatch({
+          type: FETCH_CARD_ON_DEMAND_FAILURE,
+          cardID,
+          reason: 'error',
+          error: error.message
+        });
 
-### Solution: Recent Edits Query
+        return null;
+      } finally {
+        pendingCardFetches.delete(cardID);
+      }
+    })();
+
+    pendingCardFetches.set(cardID, fetchPromise);
+    await fetchPromise;
+  };
+```
+
+---
+
+## 4. Recent Edits Freshness Query
+
+### 4.1 Architecture
 
 Monitor the 250 most recently edited cards to catch changes to discovered cards:
 
 ```typescript
-// src/actions/database.ts - Add to existing snapshot listeners
+// src/actions/database.ts - Recent edits listener
 
-let liveRecentEditsUnsubscribe : (() => void) | null = null;
+let liveRecentEditsUnsubscribe: (() => void) | null = null;
 
 export const connectLiveRecentEdits = () => {
-  if (!selectUserMayViewApp(store.getState() as State)) return;
+  const state = store.getState() as State;
+  if (!selectUserMayViewApp(state)) return;
+
+  const featureFlags = state.data.featureFlags;
+  if (!featureFlags.recentEditsListener) return;
 
   liveRecentEditsUnsubscribe = onSnapshot(
     query(
       collection(db, CARDS_COLLECTION),
       orderBy('updated_substantive', 'desc'),
-      limit(250)
+      limit(250)  // Conservative; tune based on measured ops/card
     ),
-    cardSnapshotReceiver('recent_edits')
+    (snapshot) => {
+      const cards: Cards = {};
+      const cardIds: CardID[] = [];
+
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'removed') return;
+        const doc = change.doc;
+        const id: CardID = doc.id;
+        const card: Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
+        cards[id] = card;
+        cardIds.push(id);
+      });
+
+      // Update recent edits set
+      store.dispatch({
+        type: RECENT_EDITS_UPDATE,
+        cardIds
+      });
+
+      // Only update cards that are in discovered tier (not hot tier)
+      store.dispatch(receiveCards(cards, 'recent_edits'));
+    }
   );
 };
 
@@ -1144,228 +820,679 @@ export const disconnectLiveRecentEdits = () => {
 };
 ```
 
-### Technical Details
-
-**Query Configuration:**
-- **Field**: `updated_substantive` (tracks meaningful content changes, not metadata)
-- **Order**: `desc` (most recent first)
-- **Limit**: 250 cards
-- **Purpose**: Catch edits on discovered/warm tier cards before they become too stale
-
-**Why 250?**
-- Conservative estimate based on Firestore batch operation limits
-- **Needs refinement**: Actual limit depends on measured operations-per-card-edit count
-- Should monitor cost/performance in production and adjust as needed
-- Potential range: 150-500 cards depending on edit patterns
-
-**Integration with Tier System:**
+### 4.2 Selective Update Logic
 
 ```typescript
-// src/actions/data.ts - Enhanced receiveCards action
+// src/actions/data.ts - Filter recent_edits updates
 
-const receiveCards = (cards: Cards, fetchType: CardFetchType) => (dispatch, getState) => {
-  const state = getState();
-  const hotTierCards = selectHotTierCardIds(state);
-  const discoveredCards = selectDiscoveredCardIds(state);
+export const receiveCards = (cards: Cards, fetchType: CardFetchType): ThunkSomeAction =>
+  (dispatch, getState) => {
+    const state = getState();
+    const existingCards = selectRawCards(state);
+    const cardsToUpdate: Cards = {};
 
-  // Process each incoming card
-  const cardsToUpdate: Cards = {};
+    for (const card of Object.values(cards)) {
+      // Special handling for recent_edits
+      if (fetchType === 'recent_edits') {
+        const hotTierIds = selectHotTierCardIds(state);
+        const discoveredIds = selectDiscoveredCardIds(state);
 
-  for (const [id, card] of Object.entries(cards)) {
-    if (fetchType === 'recent_edits') {
-      // Recent edits query update
+        // Skip if card is in hot tier (already has dedicated listener)
+        if (hotTierIds.has(card.id)) continue;
 
-      // Skip if card is in hot tier (already has real-time sync)
-      if (hotTierCards.has(id)) continue;
+        // Only update if card is already in memory (discovered)
+        if (!discoveredIds.has(card.id)) continue;
 
-      // Only update if card is in discovered/warm tier
-      if (!discoveredCards.has(id)) continue;
-
-      // Mark card as fresh
-      cardsToUpdate[id] = {
-        ...card,
-        _metadata: {
-          ...card._metadata,
-          lastSyncedAt: Date.now(),
-          tier: 'warm',
-          fresh: true
+        // Check for actual changes
+        if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) {
+          continue;
         }
-      };
-    } else {
-      // Normal card fetch (hot tier, search results, etc.)
-      cardsToUpdate[id] = card;
+
+        cardsToUpdate[card.id] = card;
+      } else {
+        // Normal card fetch
+        if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) {
+          continue;
+        }
+        cardsToUpdate[card.id] = card;
+      }
     }
-  }
 
-  dispatch({
-    type: RECEIVE_CARDS,
-    cards: cardsToUpdate,
-    fetchType
-  });
-};
+    const pendingModifications = selectPendingModificationCount(state);
+    if (pendingModifications === 0) {
+      dispatch(updateCards(cardsToUpdate, fetchType));
+    }
+    dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
+  };
 ```
 
-**How It Works:**
+### 4.3 Cost Analysis
 
-1. **Hot tier cards** already have dedicated real-time sync (unchanged)
-   - Query: `where('published', '==', true)` (all published cards)
-   - Update mechanism: `onSnapshot()` automatically pushes changes
-
-2. **Discovered/warm tier cards** are static snapshots initially
-   - Created when user searches, follows similarity links, or applies filters
-   - Stored in memory but no active sync
-
-3. **Recent edits query** catches when discovered cards are edited
-   - Monitors top 250 recently edited cards
-   - Fires when any of those cards change
-
-4. **Filter updates** to only apply to discovered/warm tier cards
-   - Skip hot tier cards (already synced)
-   - Only update cards already in memory (discovered tier)
-   - Avoids duplicate updates and wasted processing
-
-5. **Freshness tracking** marks which cards are up-to-date
-   - `lastSyncedAt`: Timestamp of last sync
-   - `tier`: 'hot', 'warm', or 'cold'
-   - `fresh`: Boolean indicating if within recent edits window
-
-**UI Integration:**
-
-```typescript
-// Show staleness indicators for cards outside top-250
-interface CardMetadata {
-  lastSyncedAt?: number;
-  tier: 'hot' | 'warm' | 'cold';
-  fresh: boolean;
-}
-
-// In card rendering
-const showStalenessIndicator = (card: Card): boolean => {
-  if (!card._metadata) return false;
-
-  // Hot tier cards are always fresh
-  if (card._metadata.tier === 'hot') return false;
-
-  // Warm tier cards outside recent edits window may be stale
-  if (card._metadata.tier === 'warm' && !card._metadata.fresh) {
-    const ageMs = Date.now() - (card._metadata.lastSyncedAt || 0);
-    const ageMinutes = ageMs / (1000 * 60);
-
-    // Show indicator if not synced in last 30 minutes
-    return ageMinutes > 30;
-  }
-
-  return false;
-};
-
-// User can manually refresh stale cards
-const refreshCard = async (cardId: string) => {
-  const card = await firestore.getDoc(doc(db, CARDS_COLLECTION, cardId));
-  dispatch(receiveCards({ [cardId]: card.data() }, 'manual_refresh'));
-};
-```
-
-**Cost Analysis:**
-
-**Additional Cost:**
-- 1 additional `onSnapshot()` listener
-- Monitors 250 cards continuously
-- Operations triggered per card edit in top-250:
-  - Edit by user A → onSnapshot fires for all connected users
-  - Cost per edit: N users × 1 read
-
-**Example Cost:**
 ```
 Single user:
-- Base cost: Existing hot tier listener (unchanged)
-- Recent edits: 1 listener monitoring 250 cards
+- Recent edits listener: 1 listener monitoring 250 cards
 - Incremental reads: ~1 read per edit in top-250
-- Typical edits/day: 5-20 (power user editing)
-- Monthly incremental cost: 5-20 edits/day × 30 days × $0.000006 = $0.0009-0.0036
+- Typical edits/day: 5-20 (power user)
+- Monthly cost: 5-20 × 30 × $0.000006 = $0.0009-0.0036
 - Negligible: <$0.01/month
-```
 
-**Multiple Users:**
-```
 10 active users:
 - Each edit triggers updates for all users
-- 10 edits/day (total across users) × 10 users receiving = 100 reads/day
+- 10 edits/day × 10 users = 100 reads/day
 - Monthly cost: 100 × 30 × $0.000006 = $0.018/month
 - Still negligible: <$0.02/month
 ```
 
-**Trade-offs:**
+---
 
-✅ **Benefits:**
-- Discovered cards stay fresh automatically
-- No user intervention needed for common case
-- Leverages existing Firestore real-time infrastructure
-- Minimal cost overhead
+## 5. Field Selection and Two-Phase Fetch
 
-❌ **Limitations:**
-- Only covers top 250 recently edited cards
-- Cards outside window require manual refresh
-- Users need to understand freshness indicators
-- Additional complexity in tier management
+### 5.1 Architecture (Revised)
 
-**Alternatives Considered:**
+**Key Finding**: Firestore Enterprise `select()` doesn't reduce read costs, only network transfer. Revised strategy uses two-phase ID fetch via aggregation.
 
-1. **Refresh-on-demand only** (no background sync)
-   - Simpler but worse UX (stale data common)
-   - Rejected: Users expect freshness
+```typescript
+// src/actions/enterprise_query.ts - Two-phase query
 
-2. **Larger window** (500-1000 cards)
-   - Better coverage but higher cost
-   - Rejected: 250 is sufficient for 95%+ of edits
+/**
+ * Phase 1: Execute filter and return count + matching card IDs
+ */
+export const executePhase1Query = async (
+  filters: Filter[],
+  userId: Uid
+): Promise<{count: number, ids: CardID[], timestamp: number}> => {
 
-3. **Individual card subscriptions**
-   - Perfect freshness but doesn't scale
-   - Rejected: 100+ individual listeners is expensive
+  // Translate filters to Pipeline where() expressions
+  const whereExpressions = translateFiltersToWhereExpressions(filters, userId);
 
-### Integration Checklist
+  // Execute aggregation query for count + IDs
+  const result = await db.pipeline()
+    .collection(CARDS_COLLECTION)
+    .where(whereExpressions)
+    .aggregate(
+      expr.count(expr.field("*")).as("count"),
+      expr.collect(expr.field("__name__")).as("ids")
+    )
+    .execute();
 
-**Code Changes:**
-- [ ] Add `connectLiveRecentEdits()` to `src/actions/database.ts`
-- [ ] Enhance `receiveCards()` to filter recent edits updates
-- [ ] Add card metadata tracking (`lastSyncedAt`, `tier`, `fresh`)
-- [ ] Implement staleness indicators in card UI
-- [ ] Add manual refresh button for stale cards
-- [ ] Update hot tier detection to exclude recent edits cards
+  return {
+    count: result.count,
+    ids: result.ids,
+    timestamp: Date.now()
+  };
+};
 
-**Testing:**
-- [ ] Verify recent edits query fires on card updates
-- [ ] Test filtering logic (skip hot tier, update warm tier only)
-- [ ] Validate staleness indicators show correctly
-- [ ] Measure operations per edit (tune 250 limit)
-- [ ] Load test with multiple users editing simultaneously
+/**
+ * Phase 2: Fetch full card documents for specific IDs (batch)
+ */
+export const executePhase2Batch = async (
+  cardIds: CardID[],
+  offset: number,
+  batchSize: number
+): Promise<{cards: Cards, batchOffset: number, batchSize: number}> => {
+  const batchIds = cardIds.slice(offset, offset + batchSize);
 
-**Documentation:**
-- [x] Document architecture in design docs
-- [ ] Add code comments explaining tier system
-- [ ] Update user-facing docs on card freshness
-- [ ] Document manual refresh process
+  if (batchIds.length === 0) {
+    return {cards: {}, batchOffset: offset, batchSize: 0};
+  }
 
-## Summary
+  // Batch fetch full documents
+  const docs = await db.pipeline()
+    .documents(batchIds.map(id => db.collection(CARDS_COLLECTION).doc(id)))
+    .execute();
+
+  const cards: Cards = {};
+  docs.forEach(doc => {
+    if (doc.exists) {
+      cards[doc.id] = doc.data() as Card;
+    }
+  });
+
+  return {
+    cards,
+    batchOffset: offset,
+    batchSize: batchIds.length
+  };
+};
+```
+
+### 5.2 Progressive Fetch Strategy
+
+```typescript
+// src/collection_description.ts - Progressive loading
+
+async filteredCards(): Promise<CollectionResultTwoPhase> {
+  // Try hot tier first (optimistic)
+  if (this.hotTier.canAnswer(this.filterChain)) {
+    const hotCards = this.hotTier.getAll();
+    const filtered = this._applyFiltersLocally(hotCards);
+
+    this.hotTier.recordBatchAccess(filtered.slice(0, 50).map(c => c.id));
+
+    return {
+      count: filtered.length,
+      cards: filtered.slice(0, 50),
+      preview: false,
+      completeness: {
+        totalMatched: filtered.length,
+        loaded: Math.min(50, filtered.length),
+        isComplete: filtered.length <= 50
+      },
+      phase: 'phase2-complete'
+    };
+  }
+
+  // Hot tier insufficient, execute two-phase query
+  return this._executeTwoPhaseQuery();
+}
+
+private async _executeTwoPhaseQuery(): Promise<CollectionResultTwoPhase> {
+  // Phase 1: Get count + all matching IDs
+  const phase1 = await executePhase1Query(this.filterChain, this.userId);
+
+  // Identify cards already in hot tier
+  const hotTierIds = new Set(this.hotTier.getAllIds());
+  const missingIds = phase1.ids.filter(id => !hotTierIds.has(id));
+
+  // Phase 2: Fetch first batch of missing cards
+  const initialBatchSize = 50;
+  const phase2 = await executePhase2Batch(missingIds, 0, initialBatchSize);
+
+  // Merge with hot tier cards
+  const allCards = {
+    ...Object.fromEntries(
+      phase1.ids.slice(0, initialBatchSize)
+        .map(id => [id, this.hotTier.get(id) || phase2.cards[id]])
+        .filter(([_, card]) => card)
+    )
+  };
+
+  // Start background prefetch for next batch
+  if (missingIds.length > initialBatchSize) {
+    this._schedulePrefetch(missingIds, initialBatchSize, initialBatchSize);
+  }
+
+  return {
+    count: phase1.count,
+    cards: Object.values(allCards),
+    preview: missingIds.length > 0,
+    completeness: {
+      totalMatched: phase1.count,
+      loaded: Object.keys(allCards).length,
+      percentLoaded: (Object.keys(allCards).length / phase1.count) * 100,
+      isComplete: phase1.count <= initialBatchSize
+    },
+    phase: missingIds.length === 0 ? 'phase2-complete' : 'phase2-partial'
+  };
+}
+```
+
+### 5.3 Cost Estimate
+
+```
+Phase 1: Count + IDs for 30k cards
+- Operations: 30,000 reads (full document scan)
+- Cost: 30,000 / 100,000 × $0.06 = $0.018 per query
+
+Phase 2: Fetch first 50 cards
+- Operations: 50 reads
+- Cost: 50 / 100,000 × $0.06 = $0.00003 per query
+
+Total: $0.01803 per explicit search
+Monthly (10 searches/day): 10 × 30 × $0.018 = $5.40
+
+With hot tier hit rate (85%):
+- Only 15% queries need server
+- Monthly: $5.40 × 0.15 = $0.81/month
+```
+
+---
+
+## 6. Filter Decomposition and Intelligent Splitting
+
+### 6.1 Filter Classification
+
+```typescript
+// src/filter_analyzer.ts - Filter capability analysis
+
+enum FilterCapability {
+  FULL_SERVER = 'full-server',    // 100% server-executable
+  HYBRID = 'hybrid',               // Server pre-filter + client scoring
+  CLIENT_ONLY = 'client-only',     // Requires client-side data
+  COMPOSITIONAL = 'compositional'  // Depends on sub-filters
+}
+
+const FILTER_CLASSIFICATIONS = {
+  // FULL_SERVER (40%)
+  'published': FilterCapability.FULL_SERVER,
+  'section': FilterCapability.FULL_SERVER,
+  'tag': FilterCapability.FULL_SERVER,
+  'author': FilterCapability.FULL_SERVER,
+  'date': FilterCapability.FULL_SERVER,
+  'card-type': FilterCapability.FULL_SERVER,
+
+  // HYBRID (20%)
+  'query': FilterCapability.HYBRID,  // Server: token match, Client: TF-IDF scoring
+  'similar': FilterCapability.HYBRID, // Server: candidates, Client: embeddings
+
+  // CLIENT_ONLY (40%)
+  'references': FilterCapability.CLIENT_ONLY,  // BFS graph traversal
+  'children': FilterCapability.CLIENT_ONLY,
+  'descendants': FilterCapability.CLIENT_ONLY,
+  'expand': FilterCapability.CLIENT_ONLY,
+  'exclude': FilterCapability.CLIENT_ONLY,
+  'about-concept': FilterCapability.CLIENT_ONLY,
+
+  // COMPOSITIONAL
+  'combine': FilterCapability.COMPOSITIONAL,
+};
+```
+
+### 6.2 Hybrid Execution Strategy
+
+```typescript
+// src/hybrid_filter_executor.ts - Coordinated execution
+
+export class HybridFilterExecutor {
+  async execute(
+    collectionDescription: CollectionDescription,
+    extras: FilterExtras
+  ): Promise<HybridExecutionResult> {
+
+    // Step 1: Analyze filter chain
+    const analysis = new FilterAnalyzer().analyzeFilterChain(
+      collectionDescription.filters,
+      extras
+    );
+
+    // Step 2: Check if hot tier sufficient
+    if (this.hotTier.canAnswerWith(analysis)) {
+      return this.executeClientOnly(collectionDescription, extras, 'hot-tier');
+    }
+
+    // Step 3: Route based on capability
+    switch (analysis.decomposition.strategy) {
+      case 'server-only':
+        return this.executeServerOnly(collectionDescription, analysis, extras);
+
+      case 'client-only':
+        return this.executeClientOnly(collectionDescription, extras, 'hot-tier');
+
+      case 'hybrid':
+        return this.executeHybrid(collectionDescription, analysis, extras);
+
+      case 'fallback':
+        return this.executeClientOnly(collectionDescription, extras, 'hot-tier');
+    }
+  }
+
+  private async executeHybrid(
+    description: CollectionDescription,
+    analysis: FilterAnalysis,
+    extras: FilterExtras
+  ): Promise<HybridExecutionResult> {
+
+    // Phase 1: Execute server pre-filter
+    const serverQuery = this.queryBuilder.buildQuery(
+      {
+        ...analysis.decomposition,
+        clientFilters: []  // Only server filters
+      },
+      extras
+    );
+
+    const snapshot = await getDocs(serverQuery);
+    const candidateIDs = snapshot.docs.map(doc => doc.id);
+
+    // Fetch candidate cards
+    const candidateCards = await this.fetchCards(candidateIDs);
+
+    // Phase 2: Apply client filters to candidates
+    const clientFilters = analysis.decomposition.clientFilters;
+    const refinedCollection = new CollectionDescription(
+      description.set,
+      clientFilters,
+      description.sort,
+      description.sortReversed
+    ).collection({
+      ...extras,
+      cards: Object.fromEntries(candidateCards.map(c => [c.id, c]))
+    });
+
+    const finalCards = refinedCollection.filteredCards;
+
+    // Expand hot tier with final results
+    await this.hotTier.expand(finalCards.map(c => c.id));
+
+    return {
+      count: finalCards.length,
+      cards: finalCards,
+      source: 'hybrid',
+      coverage: {
+        searchedCards: candidateIDs.length,
+        totalCards: 30000,
+        isComplete: true,
+        disclaimer: `Searched ${candidateIDs.length} candidates from 30,000 cards`
+      }
+    };
+  }
+}
+```
+
+### 6.3 Query Filter: 5-Tier Hybrid Scoring
+
+```typescript
+// Query filter is HYBRID: server matches tokens, client scores
+
+// Tier 1: Server pre-filtering (reduce 30k → ~500 candidates)
+const preparedQuery = new PreparedQuery(queryText);
+const tokens = preparedQuery.stemmedTokens;
+
+const serverQuery = query(
+  collection(db, CARDS_COLLECTION),
+  where('nlp_tokens', 'array-contains-any', tokens.slice(0, 30))
+);
+
+// Tier 2-5: Client-side scoring on candidates
+// - Exact phrase matching
+// - TF-IDF scoring
+// - Inbound link boosting
+// - Semantic similarity
+
+const scoredResults = candidateCards.map(card => {
+  const [score, fullMatch] = preparedQuery.cardScore(card);
+  return {card, score, fullMatch};
+}).sort((a, b) => b.score - a.score);
+```
+
+---
+
+## 7. Redux State Structure
+
+### 7.1 Complete State Schema
+
+```typescript
+// src/types.ts - Enhanced DataState
+
+export interface DataState {
+  // Existing fields...
+  cards: Cards;
+  authors: AuthorsMap;
+  sections: Sections;
+  tags: Tags;
+  slugIndex: {[slug: Slug]: CardID};
+
+  // NEW: Tier management
+  tiers: {
+    // Three hot tiers
+    hotPublishedIds: Set<CardID>;
+    hotPrioritizedIds: Set<CardID>;
+    hotRecentUnpublishedIds: Set<CardID>;
+
+    // Discovered cards (WARM tier)
+    discoveredIds: Set<CardID>;
+
+    // Ghost cards (COLD tier preview data)
+    ghostCards: {[id: CardID]: GhostCard};
+
+    // Tier configurations
+    hotPublished: TierConfig;
+    hotPrioritized: TierConfig;
+    hotRecentUnpublished: TierConfig;
+
+    // Total memory estimate
+    estimatedMemoryUsage: number;  // MB
+
+    // Eviction state
+    evictionInProgress: boolean;
+  };
+
+  // NEW: Per-card metadata
+  cardMetadata: {
+    [id: CardID]: {
+      lastAccessed: number;
+      accessCount: number;
+      firstLoaded: number;
+      discoveryMethod: DiscoveryMethod;
+      tier: 'HOT_PUBLISHED' | 'HOT_PRIORITIZED' | 'HOT_RECENT_UNPUBLISHED' | 'WARM' | 'COLD' | 'GHOST';
+      lastSyncedAt: number;
+      fresh: boolean;
+    }
+  };
+
+  // NEW: Recent edits tracking
+  recentEditsEnabled: boolean;
+  recentEditsCardIds: Set<CardID>;
+
+  // NEW: Feature flags
+  featureFlags: {
+    intelligentHotTier: boolean;
+    discoveredCards: boolean;
+    evictionPolicy: boolean;
+    recentEditsListener: boolean;
+    fieldSelection: boolean;
+    filterDecomposition: boolean;
+  };
+}
+```
+
+### 7.2 Key Selectors
+
+```typescript
+// src/selectors.ts - Tier query selectors
+
+export const selectHotTierCardIds = createSelector(
+  selectTiers,
+  (tiers): Set<CardID> => {
+    const combined = new Set<CardID>();
+    tiers.hotPublishedIds.forEach(id => combined.add(id));
+    tiers.hotPrioritizedIds.forEach(id => combined.add(id));
+    tiers.hotRecentUnpublishedIds.forEach(id => combined.add(id));
+    return combined;
+  }
+);
+
+export const selectDiscoveredCardIds = createSelector(
+  selectTiers,
+  (tiers) => tiers.discoveredIds
+);
+
+export const selectGhostCards = createSelector(
+  selectTiers,
+  (tiers) => tiers.ghostCards
+);
+
+export const selectCardTier = (state: State, cardId: CardID): string => {
+  const tiers = selectTiers(state);
+  if (tiers.hotPublishedIds.has(cardId)) return 'HOT_PUBLISHED';
+  if (tiers.hotPrioritizedIds.has(cardId)) return 'HOT_PRIORITIZED';
+  if (tiers.hotRecentUnpublishedIds.has(cardId)) return 'HOT_RECENT_UNPUBLISHED';
+  if (tiers.discoveredIds.has(cardId)) return 'WARM';
+  if (tiers.ghostCards[cardId]) return 'GHOST';
+  return 'COLD';
+};
+
+export const selectMemoryUsage = createSelector(
+  selectTiers,
+  selectRawCards,
+  selectCardMetadata,
+  (tiers, cards, metadata): number => {
+    // 10KB per full card, 0.5KB per ghost, 0.5KB per metadata
+    const fullCardCount = Object.keys(cards).length;
+    const ghostCardCount = Object.keys(tiers.ghostCards).length;
+    const metadataCount = Object.keys(metadata).length;
+
+    return (fullCardCount * 10 + ghostCardCount * 0.5 + metadataCount * 0.5) / 1024; // MB
+  }
+);
+```
+
+---
+
+## 8. Migration Strategy
+
+### Phase 1: Add Metadata Structures (Week 1-2)
+**Goal**: Add new state structures without changing behavior
+
+- Add `tiers`, `cardMetadata`, `featureFlags` to `DataState`
+- Create new action types and reducers
+- Add persistence layer (IndexedDB)
+- Feature flag: `intelligentHotTier` (default: false)
+
+### Phase 2: Implement Multi-Tier Hot Tier (Week 3-4)
+**Goal**: Split existing hot tier into three tiers
+
+- Modify `connectLivePublishedCards` to populate `HOT_PUBLISHED`
+- Modify `connectLiveUnpublishedCards` to populate `HOT_RECENT_UNPUBLISHED`
+- Implement `HOT_PRIORITIZED` tier (empty initially)
+- Feature flag: `intelligentHotTier` (opt-in)
+
+### Phase 3: Add Discovered Cards (Week 5-6)
+**Goal**: Track discovered cards separately from hot tier
+
+- Add `DISCOVER_CARDS_BATCH` action to search/filter results
+- Implement discovered tier selectors
+- Update `Collection._makeFilteredCards` to check discovered tier
+- Feature flag: `discoveredCards` (opt-in)
+
+### Phase 4: Enable Eviction Policy (Week 7-8)
+**Goal**: Automatically evict cold cards from discovered tier
+
+- Implement eviction middleware
+- Add LRU/LFU hybrid scoring
+- Create ghost cards for evicted cards with references
+- Feature flag: `evictionPolicy` (opt-in)
+
+### Phase 5: Add Recent Edits Listener (Week 9-10)
+**Goal**: Keep discovered cards fresh
+
+- Implement `connectLiveRecentEdits`
+- Add `RECENT_EDITS_UPDATE` action
+- Update discovered card metadata on edits
+- Feature flag: `recentEditsListener` (opt-in)
+
+### Phase 6: Add Ghost Cards (Week 11-12)
+**Goal**: Support minimal card previews for evicted cards
+
+- Implement ghost card structure
+- Add three-state card-link rendering
+- Promote ghost to full on user interaction
+- Feature flag: `fieldSelection` (opt-in)
+
+### Phase 7: Enable Filter Decomposition (Week 13-14)
+**Goal**: Optimize filter execution with tier awareness
+
+- Enhance `Collection._makeFilteredCards` with tier checking
+- Implement hot tier sufficiency detection
+- Add hybrid filter executor
+- Feature flag: `filterDecomposition` (gradual rollout)
+
+---
+
+## 9. Cost Analysis
+
+### Optimistic Scenario (95% hot tier hit rate)
+
+```
+Single power user:
+- 10 explicit searches/day × 5% server rate = 0.5 server queries/day
+- 500 navigation collections/day × 5% server rate = 25 server queries/day
+- Total: 25.5 server queries/day
+
+Monthly cost:
+- Phase 1: 25.5 × 30 × 60 reads = 45,900 reads = $0.028/month
+- Phase 2: 25.5 × 30 × 200 reads (expansion) = 153,000 reads = $0.092/month
+- Recent edits: <$0.01/month
+Total: $0.12/month
+```
+
+### Realistic Scenario (85% hot tier hit rate)
+
+```
+Single power user:
+- 510 collections/day × 15% server rate = 76.5 server queries/day
+
+Monthly cost:
+- Phase 1: 76.5 × 30 × 60 = 137,700 reads = $0.083/month
+- Phase 2: 76.5 × 30 × 150 reads (avg expansion) = 344,250 reads = $0.207/month
+- Recent edits: <$0.01/month
+Total: $0.29/month
+```
+
+### Cold Start Scenario (50% hot tier hit rate, first week)
+
+```
+First week:
+- 510 collections/day × 50% server rate = 255 server queries/day
+- Phase 1: 255 × 7 × 60 = 107,100 reads = $0.064
+- Phase 2: 255 × 7 × 200 reads = 357,000 reads = $0.214
+Total: $0.28/week
+
+After week 1, hot tier converges to 85-95% hit rate, cost drops to $0.12-0.29/month
+```
+
+---
+
+## 10. Implementation Files
+
+### New Files (~3,200 LOC)
+
+**Core Infrastructure:**
+- `src/hot_tier_config.ts` (~150 LOC) - Multi-tier configuration
+- `src/discovered_cards/eviction.ts` (~200 LOC) - LRU/LFU hybrid scoring
+- `src/discovered_cards/eviction_manager.ts` (~300 LOC) - Background eviction
+- `src/actions/enterprise_query.ts` (~400 LOC) - Two-phase query execution
+- `src/filter_analyzer.ts` (~400 LOC) - Filter classification
+- `src/hybrid_filter_executor.ts` (~500 LOC) - Hybrid execution coordinator
+- `src/persistence/tier_cache.ts` (~200 LOC) - IndexedDB persistence
+
+**Middleware:**
+- `src/middleware/eviction.ts` (~200 LOC) - Eviction sweeper
+- `src/middleware/staleness.ts` (~150 LOC) - Staleness checker
+- `src/middleware/memory.ts` (~150 LOC) - Memory monitor
+
+**Components:**
+- `src/components/hot-tier-config-dialog.ts` (~250 LOC) - Configuration UI
+- `src/components/memory-dashboard.ts` (~200 LOC) - Metrics display
+
+**Monitoring:**
+- `src/monitoring/metrics.ts` (~200 LOC) - Performance tracking
+- `src/monitoring/alerts.ts` (~100 LOC) - Alert thresholds
+
+### Modified Files (~1,200 LOC)
+
+- `src/types.ts` (+200 LOC) - New state structures
+- `src/reducers/data.ts` (+300 LOC) - Tier and metadata reducers
+- `src/actions/data.ts` (+200 LOC) - Discovery and eviction actions
+- `src/actions/database.ts` (+200 LOC) - Multi-tier listeners, recent edits
+- `src/collection_description.ts` (+200 LOC) - Tier-aware filtering
+- `src/selectors.ts` (+100 LOC) - Tier query selectors
+
+**Total**: ~4,400 LOC
+
+---
+
+## 11. Summary
 
 **Approach 2 (Intelligent Hot Tier)** optimizes for the common case:
 
-1. **95% of queries instant** from local hot tier (<50ms)
-2. **Adaptive expansion** learns usage patterns (grows to 8-10k cards)
-3. **Minimal server queries** (5-15% of collections after warmup)
-4. **Predictive prefetching** reduces perceived latency further
-5. **Discovered card freshness** via recent edits query (250 cards)
-6. **Cost**: $0.12-0.29/month for single power user
+1. **Multi-tier hot tier** (5-10k cards): Published + Prioritized + Recent Unpublished
+2. **Discovered cards** (WARM tier): Smart LRU/LFU eviction with discovery-method weighting
+3. **Ghost cards**: Distinguish "not loaded" from "doesn't exist", 95% memory savings
+4. **Recent edits listener**: 250 most recently edited cards for discovered card freshness
+5. **Field selection**: Two-phase ID fetch → progressive loading
+6. **Filter decomposition**: 40% server-capable, 20% hybrid, 40% client-only
+7. **Cost**: $0.12-0.66/month for single power user
 
 **Choose this approach if you value**:
-- Best-case latency (instant for most queries)
-- Adaptive optimization (learns from usage)
-- Cost efficiency (minimal server queries)
+- Best-case latency (instant for 95% of queries)
+- Adaptive optimization (learns from usage patterns)
+- Cost efficiency (minimal server queries with intelligent expansion)
 - Offline-first (hot tier always works)
-- Automatic freshness for discovered cards
+- Ghost cards for instant navigation previews
 
 **Trade-offs**:
-- More complex than server-first
-- Variable memory usage (8-10k cards)
-- Requires warmup period (first week)
-- Harder to predict exact behavior
+- More complex than server-first (tier management, eviction)
+- Variable memory usage (8-10k hot + 0-5k discovered)
+- Requires warmup period (first week 50% → 85-95% hit rate)
 - Staleness indicators for cards outside recent edits window
