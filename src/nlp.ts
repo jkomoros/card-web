@@ -892,7 +892,7 @@ const escapeRegex = (string : string) : string => {
 };
 
 //How high to go for n-grams in fingerprint by default. 2 = bigrams and monograms.
-const MAX_N_GRAM_FOR_FINGERPRINT = 2;
+export const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //ngrams will additionally return an ngram of the full string if the number of
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
@@ -1629,7 +1629,7 @@ const idfMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
 	return result;
 };
 
-const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
+export const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
 	//only consider cards that have a body, even if we were provided a set that included others
 	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
 

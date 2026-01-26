@@ -172,3 +172,5 @@ export const chat = onRequest({
 	memory: '1GiB',
 	timeoutSeconds: 300
 }, chatApp);
+
+export { calculateIDF } from './idf.js';

@@ -1179,39 +1179,69 @@ async function getCollectionCount(
 }
 ```
 
-### 4.6 Pagination for SIMPLE Collections
+### 4.6 "Fetch IDs Only" Pattern Clarification
+
+**IMPORTANT**: There is NO built-in "fetch only document IDs" operation in Firestore. The `select()` stage (Firestore Enterprise Pipeline Operations) can project specific fields, but:
+
+1. **Read charges still apply** - Every document matched counts as a read
+2. **Network transfer reduced** - Smaller payloads when projecting fewer fields
+3. **Covered queries** - If `select()` only requests fields in the index, Firestore reads from index only (cheaper, faster)
+
+**For Simple Collections:**
+- Option A: Use `select('__name__')` to fetch only document IDs (Firestore Enterprise)
+  - Still charges full read units per document
+  - Reduces network transfer
+  - Requires Enterprise Edition
+- Option B: Fetch full documents in batches (Standard Firestore)
+  - Same read cost as option A
+  - More network transfer
+  - Works with Standard Firestore
+
+**Recommendation**: For most use cases, fetching full documents in batches (Option B) is simpler and doesn't require Enterprise Edition. Only use Option A if network bandwidth is a significant concern.
+
+### 4.7 Pagination for SIMPLE Collections
 
 **Two-Phase Fetch Pattern:**
 
-1. **Phase 1:** Fetch card IDs from server (lightweight)
-2. **Phase 2:** Load batches of cards progressively
+1. **Phase 1:** Fetch card IDs or full cards from server
+2. **Phase 2:** Load batches progressively (for pagination)
 
 **Implementation:**
 
 ```typescript
 class SimplifiedCollection {
-  private cardIDs: CardID[] = null;
+  private cards: Card[] = [];
   private visibleCards: Card[] = [];
 
   async initialize() {
-    // Get count + IDs
-    const { count, ids } = await this.fetchCardIDs();
-    this.cardIDs = ids;
-    this.totalCount = count;
+    // Fetch initial batch with server-side query
+    await this.fetchCardBatch(50);
 
-    // Load first batch
-    await this.loadCardBatch(0, 50);
+    // Get count from server
+    this.totalCount = await this.getServerCount();
   }
 
-  async fetchCardIDs(): Promise<{ count: number; ids: CardID[] }> {
+  async fetchCardBatch(limit: number): Promise<void> {
     const q = query(
       collection(db, CARDS_COLLECTION),
       ...this.classification.firestoreConstraints,
-      orderBy(this.sortField, this.sortDirection)
+      orderBy(this.sortField, this.sortDirection),
+      limit(limit)
     );
 
     const snapshot = await getDocs(q);
-    return { count: snapshot.size, ids: snapshot.docs.map(doc => doc.id) };
+    this.cards = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Card));
+    this.visibleCards = this.cards;
+  }
+
+  async getServerCount(): Promise<number> {
+    const q = query(
+      collection(db, CARDS_COLLECTION),
+      ...this.classification.firestoreConstraints
+    );
+
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
   }
 
   async loadCardBatch(startIndex: number, count: number) {
@@ -2046,10 +2076,30 @@ This appendix documents critical issues identified by 7 specialized critique age
 ### Critical Changes Made
 
 1. **Migration Strategy** - Changed from all-at-once to two-phase lazy migration
-2. **Filter Classification** - Expanded from ~10 to ALL 50+ filter types
+2. **Filter Classification** - Expanded from ~10 to ALL ~99 filter types (274 names)
 3. **Missing Functions** - Added implementation specs for 3 functions
 4. **Cost Analysis** - Corrected read estimates and Cloud Function costs
 5. **Server IDF** - Added jsdom polyfill solution for browser APIs
+
+### 8 Misclassified Filters Corrected (v2.4)
+
+**Moved from SIMPLE to COMPLEX:**
+1. `has-slug` / `missing-slug` - Firestore `!= []` doesn't work for empty array detection
+2. `has-tags` / `missing-tags` - Same issue
+3. `has-images` / `missing-images` - Same issue
+4. `has-notes` / `missing-notes` - Requires checking string field length client-side
+
+**Why these were wrong:**
+- Original plan claimed: `where('slugs', '!=', [])` would work
+- **Reality**: Firestore's `!=` operator excludes documents where field doesn't exist
+- Cannot distinguish between `[]` (empty array) and missing field
+- Would require separate boolean flags like `has_slugs: boolean` to query server-side
+- Sources: [Firebase Query Docs](https://firebase.google.com/docs/firestore/query-data/queries), [Fireship Array Tutorial](https://fireship.io/lessons/firestore-array-queries-guide/)
+
+**Impact:**
+- SIMPLE filter count decreased from ~25 to ~17
+- COMPLEX filter count increased from ~25 to ~70+
+- These 4 filter types remain client-side only unless data model changes
 
 ### Outstanding Items for Implementation
 
