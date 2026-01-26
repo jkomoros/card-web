@@ -1,7 +1,7 @@
-# Card-Web: Canonical Implementation Plan v2.0
+# Card-Web: Canonical Implementation Plan v2.3
 ## NLP-Stored 3-Tier Hot System with Firestore Enterprise Integration
 
-**Last Updated:** 2026-01-25
+**Last Updated:** 2026-01-26
 **Status:** Active Plan of Record
 
 ---
@@ -29,6 +29,88 @@ This is the **canonical plan of record** for card-web's architecture upgrade to 
 - **Performance**: 95% reduction in client-side NLP computation time
 - **Search**: Full-text search across ALL 30k cards (not just hot 5k)
 - **Save Performance**: NO regression (100-300ms maintained)
+
+---
+
+## 🆕 Firestore Enterprise Edition - Critical Context
+
+**THIS PLAN REQUIRES FIRESTORE ENTERPRISE EDITION (January 2026)**
+
+This architecture leverages **Firestore Enterprise**, which became Generally Available in January 2026. Enterprise Edition provides **100+ new server-side query capabilities** that Standard Firestore does not support.
+
+### Key Enterprise Capabilities Used in This Plan
+
+**1. Pipeline Operations** - Server-side query engine with:
+- `where()` with regex, string matching, complex expressions
+- `select()` for field projection (fetch only specific fields, not full documents)
+- `unnest()` for array operations
+- `mapGet()` for nested object access
+- Server-side aggregations, grouping, sorting
+- 60-second timeout, 128 MiB memory limit per query
+
+**2. Field Selection** (`select()` stage):
+```javascript
+// ENTERPRISE: Fetch only specific fields
+db.pipeline()
+  .collection("/cards")
+  .where(regex_match(field("nlp_tokens"), "machine.*learning"))
+  .select("id", "name", "section")  // Only fetch these fields
+  .execute();
+```
+
+**Benefits:**
+- ✅ Reduced network transfer (smaller payloads)
+- ✅ Improved latency (less data to transmit)
+- ✅ Lower costs with covered queries (reading from index only)
+- ❌ Read unit charges still apply (unless using covered queries)
+
+**3. Advanced Text Search** (not possible in Standard Firestore):
+- `regex_match()` for pattern matching against stored NLP tokens
+- `str_contains()` for substring search
+- Server-side execution across ALL 30k+ cards without client-side download
+
+**4. Optional Indexing** - Queries work WITHOUT indexes:
+- Standard Firestore: Query fails if index doesn't exist
+- Enterprise Edition: Query runs (slower) without index, fast with index
+- Enables iterative development without upfront index planning
+
+### Standard Firestore vs Enterprise Edition
+
+| Capability | Standard Firestore | Firestore Enterprise |
+|------------|-------------------|---------------------|
+| **Field projection** | ❌ Always fetch full document | ✅ `select()` stage |
+| **Text search** | ❌ Client-side only | ✅ `regex_match()`, `str_contains()` |
+| **Complex filtering** | ❌ Basic comparisons only | ✅ 100+ pipeline operations |
+| **Query without index** | ❌ Hard failure | ✅ Runs (with performance penalty) |
+| **Real-time sync** | ✅ `onSnapshot()` | ❌ Not supported (snapshot-in-time only) |
+
+**Critical Distinction:** Pipeline Operations provide **snapshot-in-time queries** (no real-time sync). This plan uses BOTH:
+- **Standard Firestore queries** (`onSnapshot`) for hot-tier real-time updates
+- **Enterprise Pipeline Operations** for server-side full-corpus search
+
+### Why This Matters for This Plan
+
+**Section 4 (Simple vs Complex Collections)** depends on Enterprise capabilities:
+- Server-side text search: `regex_match(field("nlp_tokens"), pattern)`
+- Field projection: Fetch counts/IDs without full documents (with covered queries)
+- Complex filtering: Date ranges, author filters, section/tag combinations
+
+**Without Firestore Enterprise**, most filters would remain client-side only (~60% of filter types), limiting search to the 5k-card hot tier.
+
+**With Firestore Enterprise**, ~40% of filters become server-side capable, enabling search across the entire 30k+ card corpus.
+
+### Pricing Model
+
+- **Unit-based pricing**: Per 4 KiB read, 1 KiB write
+- **Pipeline operations**: Separate from standard operations
+- **Covered queries**: Significantly cheaper (reading from index only)
+- **Estimated monthly cost**: ~$11-270/month depending on cache hit rate (see Section 10)
+
+**Documentation:**
+- [Firestore Enterprise Overview](https://firebase.google.com/docs/firestore/editions)
+- [Pipeline Operations](https://docs.cloud.google.com/firestore/native/docs/pipeline/overview)
+- [Select Stage](https://firebase.google.com/docs/firestore/pipelines/stages/transformation/select)
+- [Optimize Performance](https://firebase.google.com/docs/firestore/pipelines/enterprise-optimize-query-performance)
 
 ---
 
@@ -2059,6 +2141,15 @@ Reference filters should **remain CLIENT-SIDE**. Focus optimization efforts on:
 
 ## Revision History
 
+- **v2.3** (2026-01-26): Firestore Enterprise capabilities clarification
+  - Added comprehensive section on Firestore Enterprise Edition (NEW in Jan 2026)
+  - Documented Pipeline Operations: 100+ new server-side query capabilities
+  - Clarified `select()` stage for field projection (fetch only specific fields)
+  - Comparison table: Standard Firestore vs Enterprise Edition
+  - Documented covered queries for cost optimization
+  - Corrected misconception about field selection not being supported
+  - Research confirmed: Enterprise supports field projection, ID-only fetches possible with covered queries
+  - Agent investigation: a6b180f (Firestore Enterprise capabilities research)
 - **v2.2** (2026-01-25): Reference filters analysis and composition filter details
   - Added Appendix E: Complete analysis of reference filters server-side feasibility
   - Decision: Keep reference filters CLIENT-SIDE (graph traversal impossible server-side)
