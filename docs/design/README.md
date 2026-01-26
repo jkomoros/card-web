@@ -1,20 +1,39 @@
-# Firestore Enterprise Hybrid Architecture: Design Overview
+# Card-Web Architecture: Design Documentation
 
-> **Status**: Design Phase - 4 New Architectures (v2)
+> **Status**: Active Implementation - CANONICAL PLAN v2.0
 > **Created**: January 2026
-> **Updated**: January 24, 2026
-> **Purpose**: Document 4 architectural approaches for integrating Firestore Enterprise Pipeline Operations into card-web
+> **Updated**: January 25, 2026
+> **Canonical Plan**: See **[CANONICAL-PLAN.md](CANONICAL-PLAN.md)** for the active plan of record
 >
-> **Note**: This document describes v2 architectures that embrace the two-phase fetch pattern and handle 300-1,600 collections/day. See `archive/v1/` for original designs.
+> **Note**: Previous exploratory designs (v1, v2, v3) have been archived. See `archive/` subdirectories.
 
-## Background
+## 📋 Active Plan of Record
 
-Card-web currently handles 30,000+ cards with client-side filtering, but faces limitations:
-- Partial mode limits fetching to 5,000 most recent cards
-- Users cannot search older cards (16.7% coverage)
-- Want to search all 30k+ cards without loading them all client-side (would cause save lag)
+**See [CANONICAL-PLAN.md](CANONICAL-PLAN.md)** for the comprehensive implementation plan.
 
-Firestore Enterprise (now GA, January 2026) provides Pipeline Operations with server-side query capabilities. These designs leverage the two-phase fetch pattern discovered through extensive analysis.
+### Quick Summary
+
+The canonical plan implements a **NLP-Stored 3-Tier Hot System** with:
+
+1. **3-Tier Hot System**: Published (~900) + Prioritized (~6k) + Recent (dynamic)
+2. **NLP Data Storage**: Stored directly on cards (client-side computation on save)
+3. **Server IDF Map**: Global IDF baseline for consistent TF-IDF calculations
+4. **Simple vs Complex Collections**: Server-side counts and pagination where possible
+5. **Similarity Integration**: Leverages existing Qdrant embeddings (server-side)
+6. **Real-Time Conflict Detection**: onSnapshot for non-hot cards during editing
+
+**Key Metrics:**
+- Total Code: ~2,400 LOC net change
+- Storage Cost: +$0.10/month
+- Performance: 95% reduction in NLP computation time
+- Search: Full-text across ALL 30k cards
+- Save Performance: NO regression (100-300ms maintained)
+
+---
+
+## 📚 Historical Context
+
+This section documents the exploration process that led to the canonical plan.
 
 ## Key Architectural Insights
 
