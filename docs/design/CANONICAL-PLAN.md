@@ -150,8 +150,10 @@ Replace the current 2-tier system (published + unpublished-with-limit) with a 3-
 - Real-time: onSnapshot listener
 
 **Tier 3: Recent Unpublished Cards** (fill to limit, ~0-100 cards typically)
-- Query: `where('published', '==', false) AND where('auto_todo_overrides.prioritized', '!=', false) ORDER BY created DESC LIMIT(remaining)`
+- Query: `where('published', '==', false) AND where('auto_todo_overrides.prioritized', '==', true) ORDER BY created DESC LIMIT(remaining)`
 - FetchType: `'unpublished-recent'` (NEW)
+- Logic: `auto_todo_overrides.prioritized === true` means card is explicitly NOT prioritized
+- Note: Cards with `undefined` prioritized field are NOT matched by this query (neither tier 2 nor tier 3)
 - Dynamic Limit: `Math.max(0, effectiveLimit - publishedCount - prioritizedCount)`
 - Priority: Lowest - loaded last
 - Real-time: onSnapshot listener
@@ -170,9 +172,15 @@ export const cardIsPrioritized = (card : Card | null) : boolean => {
 ```
 
 **Three-State System:**
-- `undefined` (missing): Card is NOT prioritized (default)
-- `true`: Card is explicitly NOT prioritized (override to "done")
-- `false`: Card IS prioritized (override to "not done")
+- `undefined` (missing): Card is NOT prioritized (default) - **NOT matched by either Tier 2 or Tier 3**
+- `true`: Card is explicitly NOT prioritized (override to "done") - **Matched by Tier 3**
+- `false`: Card IS prioritized (override to "not done") - **Matched by Tier 2**
+
+**CRITICAL QUERY LOGIC:**
+- Tier 2 query `where('auto_todo_overrides.prioritized', '==', false)` matches ONLY cards with explicit `false` value
+- Tier 3 query `where('auto_todo_overrides.prioritized', '==', true)` matches ONLY cards with explicit `true` value
+- Cards with `undefined` prioritized are NOT loaded in either tier (will be in discovered tier only)
+- This is intentional: 3-tier system loads published + explicitly prioritized + explicitly deprioritized cards
 
 **Why it's backwards:** Historical maintenance task flipped all boolean values. Code uses `cardIsPrioritized()` helper everywhere to abstract this.
 
@@ -193,6 +201,13 @@ const _cardFetchTypeSchema = z.enum([
 
 **File: `/src/actions/database.ts`** - Modify `connectLiveUnpublishedCards()` (lines 398-446):
 
+**Module-level variables to add** (after line 361):
+```typescript
+let liveUnpublishedPrioritizedCardsUnsubscribe : (() => void) | null = null;
+let liveUnpublishedRecentCardsUnsubscribe : (() => void) | null = null;
+```
+
+**Modified function:**
 ```typescript
 export const connectLiveUnpublishedCards = () => {
     // ... existing setup ...
@@ -203,7 +218,7 @@ export const connectLiveUnpublishedCards = () => {
     } else {
         // NEW 3-TIER SYSTEM
 
-        // Tier 2: Prioritized cards
+        // Tier 2: Prioritized cards (explicitly marked with false)
         store.dispatch(expectUnpublishedCards('unpublished-prioritized'));
         liveUnpublishedPrioritizedCardsUnsubscribe = onSnapshot(
             query(
@@ -214,20 +229,50 @@ export const connectLiveUnpublishedCards = () => {
             cardSnapshotReceiver('unpublished-prioritized')
         );
 
-        // Tier 3: Recent unpublished (non-prioritized)
+        // Tier 3: Recent unpublished (explicitly marked with true = NOT prioritized)
         store.dispatch(expectUnpublishedCards('unpublished-recent'));
         liveUnpublishedRecentCardsUnsubscribe = onSnapshot(
             query(
                 collection(db, CARDS_COLLECTION),
                 where('published', '==', false),
-                where('auto_todo_overrides.prioritized', '!=', false),
-                orderBy('auto_todo_overrides.prioritized'),  // Required for != query
+                where('auto_todo_overrides.prioritized', '==', true),
                 orderBy('created', 'desc'),
                 limit(effectiveLimit)  // Conservative initial limit
             ),
             cardSnapshotReceiver('unpublished-recent')
         );
     }
+};
+```
+
+**Also modify `disconnectLiveUnpublishedCards()`** (after line 376):
+```typescript
+const disconnectLiveUnpublishedCards = () => {
+	const loading = selectLoadingCardFetchTypes(store.getState() as State);
+	for (const key of TypedObject.keys(loading)) {
+		store.dispatch(stopExpectingFetchedCards(key));
+	}
+	if (liveUnpublishedCardsForUserAuthorUnsubscribe) {
+		liveUnpublishedCardsForUserAuthorUnsubscribe();
+		liveUnpublishedCardsForUserAuthorUnsubscribe = null;
+	}
+	if (liveUnpublishedCardsForUserEditorUnsubscribe) {
+		liveUnpublishedCardsForUserEditorUnsubscribe();
+		liveUnpublishedCardsForUserEditorUnsubscribe = null;
+	}
+	if (liveUnpublishedCardsUnsubcribe) {
+		liveUnpublishedCardsUnsubcribe();
+		liveUnpublishedCardsUnsubcribe = null;
+	}
+	// NEW: Clean up 3-tier listeners
+	if (liveUnpublishedPrioritizedCardsUnsubscribe) {
+		liveUnpublishedPrioritizedCardsUnsubscribe();
+		liveUnpublishedPrioritizedCardsUnsubscribe = null;
+	}
+	if (liveUnpublishedRecentCardsUnsubscribe) {
+		liveUnpublishedRecentCardsUnsubscribe();
+		liveUnpublishedRecentCardsUnsubscribe = null;
+	}
 };
 ```
 
@@ -262,6 +307,11 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 
 ### 1.4 Firestore Index Required
 
+**Why this index is needed:**
+- Tier 3 query uses two `where()` clauses plus `orderBy()` on different fields
+- Firestore requires a composite index when: equality filters + inequality/range filters + orderBy
+- Query pattern: `where('published', '==', false) AND where('prioritized', '==', true) AND orderBy('created', 'desc')`
+
 **firestore.indexes.json:**
 ```json
 {
@@ -278,6 +328,8 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
   ]
 }
 ```
+
+**Note:** Tier 2 query (prioritized cards) does NOT require this index because it only uses equality filters without orderBy. Firestore's single-field indexes are sufficient for that query.
 
 ### 1.5 Duplicate Prevention
 
@@ -389,11 +441,12 @@ export const modifyCardWithBatch = async (
  */
 const hasContentFieldChanges = (update: CardDiff): boolean => {
   const contentFields: CardFieldType[] = [
-    'title', 'body', 'subtitle', 'commentary', 'notes',
-    'references_info_inbound', 'todo', 'name'
+    'title', 'body', 'subtitle', 'commentary', 'title_alternates', 'external_link',
+    'references_info_inbound', 'non_link_references', 'concept_references'
   ];
 
-  return contentFields.some(field => field in update);
+  // Also check for references_diff which affects concept_references
+  return contentFields.some(field => field in update) || 'references_diff' in update;
 };
 ```
 
@@ -406,7 +459,8 @@ export const generateNLPDataForCard = (
 ): { nlp_tokens: NLPTokenStorage, nlp_fingerprint: string, nlp_version: number } => {
 
   // Generate fallback text map for this card
-  const fallbackText = backportFallbackTextMapForCard(card);
+  const cards = selectCards(state);
+  const fallbackText = backportFallbackTextMapForCard(card, cards);
   const concepts = selectConcepts(state);
   const synonymMap = selectSynonymMap(state);
 
@@ -489,12 +543,16 @@ export const reconstructProcessedCardFromStorage = (
 
   // Reconstruct ProcessedRun objects from storage
   for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens || {})) {
-    nlp[fieldName] = storedRuns.map(stored => new ProcessedRun(
-      stored.original,
-      stored.normalized,
-      stored.stemmed,
-      stored.withoutStopWords
-    ));
+    nlp[fieldName] = storedRuns.map(stored => {
+      // ProcessedRun constructor only takes originalText parameter
+      // We need to manually construct the object with stored values
+      const run = new ProcessedRun(stored.original);
+      // Override with stored pre-computed values instead of recomputing
+      run.normalized = stored.normalized;
+      run.stemmed = stored.stemmed;
+      run.withoutStopWords = stored.withoutStopWords;
+      return run;
+    });
   }
 
   // Create ProcessedCard
