@@ -676,12 +676,48 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 - `references-outbound/[cardID]/[refType]/[ply]` - Outbound filtered traversal
 - Classification: **COMPLEX** (requires full graph in memory for BFS)
 
-**Filter Composition (Recursive):**
-- `exclude/[subFilter]` - Negation of another filter
-- `combine/[filter1]/[filter2]` - Union of two filters
-- `expand/[filter1]/[linkFilter]` - Apply filter then expand via links
-- **Union filters**: `filter1+filter2+...` - Multiple filters OR'd together
-- Classification: **COMPLEX** (requires recursive evaluation)
+**Filter Composition (Context-Dependent):**
+
+**Union Filters (`filter1+filter2+...`)** - 🔀 **HYBRID**
+- OR operation combining multiple simple filters
+- Examples: `section/A+section/B`, `tag/X+tag/Y`, `published+section/intro`
+- **SERVER when**: All sub-filters use same field OR all are server-queryable
+  - Same field (≤30): `section/A+section/B+section/C` → `where('section', 'in', ['A','B','C'])`
+  - Tag union (≤30): `tag/X+tag/Y` → `where('tags', 'array-contains-any', ['X','Y'])`
+  - Different fields: `published+section/A` → `or(where('published', '==', true), where('section', '==', 'A'))`
+- **CLIENT when**: Any sub-filter is client-only (starred, children, query without Enterprise)
+- **Limitation**: Max 30 values for `in`/`array-contains-any`, max 30 OR clauses
+
+**`combine/[filter1]/[filter2]`** - 🔀 **HYBRID**
+- Configurable filter that returns union of two sub-filter expressions
+- Accepts complex sub-filters (unlike union `+` which only takes simple names)
+- Example: `combine/published/children/cardX` (can nest configurables)
+- **SERVER when**: Both sub-filters are server-queryable → use `or()`
+- **CLIENT when**: Any sub-filter requires client-side processing
+- Can be nested: `combine/combine/A/B/C` flattens to `A OR B OR C`
+
+**`exclude/[subFilter]`** - 🔀 **HYBRID**
+- Negation of sub-filter results
+- Examples: `exclude/published`, `exclude/section/intro`
+- **SERVER when**: Simple field negation
+  - `exclude/published` → `where('published', '==', false)`
+  - `exclude/section/A` → `where('section', '!=', 'A')`
+  - `exclude/updated/after/2024-01-01` → `where('updated', '<=', timestamp)`
+- **CLIENT when**: Compound negation, graph-based, or multiple inequalities
+  - `exclude/published+starred` → Cannot negate OR in Firestore
+  - `exclude/children/cardX` → Requires graph traversal
+- **Limitation**: Only ONE inequality per Firestore query
+- **Edge case**: Double-negation with inverse filters needs special handling
+
+**`expand/[filter]/[linkFilter]`** - ❌ **CLIENT**
+- Apply filter to get seed cards, then expand via graph traversal
+- Example: `expand/published/children` = published cards + their children
+- **Always CLIENT** because:
+  - Requires two-phase execution (filter, then traverse)
+  - Graph traversal cannot be expressed in Firestore
+  - `in` operator limited to 10-30 values
+  - Would need multiple round-trips + client coordination
+- No server-side optimization possible without architecture refactor
 
 **Concept Analysis (NLP Required):**
 - `about-concept/[conceptID]` - Cards that reference a concept (semantic analysis)
@@ -718,34 +754,124 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 
 #### Classification Summary
 
-**Total Filter Count:** 50+ distinct filter types
+**Total Filter Count:** 60+ distinct filter types
 
-**SIMPLE (Server-Side):** ~25 filters
-- Boolean equality (2)
-- Section & tag (3+)
-- Card type (10+)
-- Date ranges (3)
-- Author (1)
-- Cards list (1)
-- Similarity (2) ← Already server-side
-- Query text (2) ← With Firestore Enterprise
-- Basic properties (8)
-- Reference existence checks (5)
+**✅ SIMPLE (Server-Side):** ~25 filters
+- Boolean equality (2): published, unpublished
+- Section & tag (3+): section/[id], tag/[id], in-[section]-set
+- Card type (10+): type-content, type-concept, etc.
+- Date ranges (3): updated, created, last-tweeted
+- Author (1): author/[uid]
+- Cards list (1): cards/[id,id,...]
+- Similarity (2): similar/[id], similar-cutoff/[id]/[threshold] ← Already server-side via Qdrant
+- Query text (2): query/[text], query-strict/[text] ← **With Firestore Enterprise**
+- Basic properties (8): has-slug, has-tags, has-images, has-comments, has-tweet, orphaned, prioritized
+- Has-body (1): Card type in BODY_CARD_TYPES
 
-**COMPLEX (Client-Side):** ~30 filters
-- Graph traversal (9)
-- Composition (4)
-- Concept analysis (2)
-- Derived properties (5)
-- Special filters (3)
-- Stored collections (4)
-- Auto TODOs (3+)
+**☁️ CLOUD FUNCTION (Already Server-Side):** 2 filters
+- Similar filters using Qdrant vector search
 
-**HYBRID (Depends on Context):**
-- Query filters: SIMPLE with Enterprise, COMPLEX without
-- Union filters: SIMPLE if all parts are SIMPLE, otherwise COMPLEX
+**🔶 FIRESTORE ENTERPRISE (Pipeline Operations):** 2 filters
+- Query filters (full-text search on nlp_tokens)
 
-### 4.2 Filter Classification Algorithm
+**❌ COMPLEX (Client-Side Only):** ~25 filters
+- Graph traversal (9): children, descendants, parents, ancestors, connections, references*
+- expand (1): Always client-side (graph + multi-phase)
+- Concept analysis (2): about-concept, missing-concept
+- Complex content checks (5): has-content, substantive-content, has-links, reciprocal-links
+- Reference processing (5+): substantive-references, concept-references, specific reference types
+- Stored collections (3): reading-list, starred, read
+- UI state (2): selected, not-selected
+- Pagination (2): limit, offset
+- Combined TODOs (1): has-todo
+
+**🔀 HYBRID (Context-Dependent):** ~8 filters
+- **Union filters (`+`)**: SERVER if same-field or all-server-fields (≤30), CLIENT otherwise
+  - Examples: `section/A+section/B` → SERVER, `published+starred` → CLIENT
+- **combine filter**: SERVER if both sub-filters are SERVER, CLIENT otherwise
+- **exclude filter**: SERVER for simple negation, CLIENT for compound/graph
+  - Examples: `exclude/published` → SERVER, `exclude/children/X` → CLIENT
+- Query filters: SERVER with Firestore Enterprise, CLIENT without
+- Manual TODO overrides (3): prose, citations, diagram (could be server-side)
+- same-type/different-type (2): Could be 2 queries (usually client)
+
+### 4.2 Composition Filter Details
+
+#### Union Filters (`filter1+filter2+...`)
+
+**Syntax:** Multiple filter names separated by `+` (e.g., `section/A+section/B+tag/X`)
+
+**Firestore Capabilities:**
+- `in` operator: `where('field', 'in', [val1, val2, ...])` - max 30 values
+- `array-contains-any`: `where('array_field', 'array-contains-any', [val1, val2])` - max 30 values
+- `or()` compound queries: `or(where(...), where(...))` - max 30 OR clauses
+
+**Server-Side Classification:**
+
+| Union Type | Example | Firestore Query | Classification |
+|------------|---------|-----------------|----------------|
+| Same field (≤30) | `section/A+section/B+section/C` | `where('section', 'in', ['A','B','C'])` | ✅ SERVER |
+| Tag union (≤30) | `tag/X+tag/Y+tag/Z` | `where('tags', 'array-contains-any', ['X','Y','Z'])` | ✅ SERVER |
+| Different server fields | `published+section/intro` | `or(where('published','==',true), where('section','==','intro'))` | ✅ SERVER |
+| Same field (>30) | 31+ sections | Multiple queries or CLIENT | 🔀 HYBRID |
+| Client-only union | `starred+read` | N/A | ❌ CLIENT |
+| Mixed server/client | `published+children/X` | Partial optimization possible | 🔀 HYBRID |
+
+**Implementation Strategy:**
+1. Analyze all sub-filters
+2. If all use same field AND ≤30 values → use `in` or `array-contains-any`
+3. If all are server-queryable AND ≤30 total → use `or()`
+4. If any sub-filter is client-only → entire union must be CLIENT
+5. If >30 values/clauses → use multiple queries or fall back to CLIENT
+
+#### `combine/filter1/filter2` Filter
+
+**Difference from Union `+`:**
+- Accepts **sub-filter expressions** (including configurable filters)
+- Union `+` only accepts simple filter names (no `/` allowed)
+- `combine` is limited to exactly 2 sub-filters (but can nest)
+- Example: `combine/published/children/cardX` ✅ vs `published+children/cardX` ❌ (invalid syntax)
+
+**Server-Side Logic:**
+- Same as union filters: if both sub-filters are SERVER → use `or()`
+- If either is CLIENT → entire combine must be CLIENT
+- Nested combines flatten: `combine/combine/A/B/C` = `A OR B OR C`
+
+#### `exclude/subFilter` Filter
+
+**Firestore Negation:**
+- `!=` operator: `where('field', '!=', value)`
+- `not-in` operator: `where('field', 'not-in', [val1, val2])` - max 10 values
+- **Critical limitation**: Only ONE inequality per query
+
+**Server-Side Classification:**
+
+| Exclude Type | Example | Firestore Query | Classification |
+|--------------|---------|-----------------|----------------|
+| Simple field | `exclude/published` | `where('published', '==', false)` | ✅ SERVER |
+| Simple field | `exclude/section/A` | `where('section', '!=', 'A')` | ✅ SERVER |
+| Date negation | `exclude/updated/after/2024-01-01` | `where('updated', '<=', timestamp)` | ✅ SERVER |
+| Compound negation | `exclude/published+starred` | Cannot express `NOT (A OR B)` | ❌ CLIENT |
+| Graph negation | `exclude/children/X` | Requires graph traversal | ❌ CLIENT |
+| Double inequality | `exclude/section/A` + other `!=` | Only one inequality allowed | ❌ CLIENT |
+
+**Edge Cases:**
+- **Double-negation**: `exclude/unread` where `unread = NOT read` → simplifies to `read`
+- **Degenerate**: `exclude/all-cards` → empty set
+- **Multiple excludes**: Only first can use `!=`, rest must be client-side
+
+#### `expand/filter/linkFilter` Filter
+
+**Why Always CLIENT:**
+1. **Two-phase execution**: Must run filter FIRST to get seed cards, THEN traverse graph
+2. **No JOIN in Firestore**: Cannot express "get cards matching A, then get cards they reference"
+3. **Limited `in` operator**: Even if you get seed card IDs, can only fetch 10-30 in one query
+4. **Multi-hop impossible**: `descendants/2` requires iterative traversal across multiple hops
+5. **Architecture dependency**: Filter system expects complete `FilterMap` (cardID → boolean) client-side
+
+**No optimization possible** without major architecture changes (lazy evaluation, server-side graph API, etc.)
+
+### 4.4 Filter Classification Algorithm
 
 **File: `/src/filters.ts`** - Add classification function:
 
@@ -802,7 +928,7 @@ function classifyFilter(filterDescription: CollectionDescription): FilterClassif
 }
 ```
 
-### 4.3 Server-Side Counts
+### 4.5 Server-Side Counts
 
 **File: `/src/collection_description.ts`** - Add count method:
 
@@ -832,7 +958,7 @@ async function getCollectionCount(
 }
 ```
 
-### 4.4 Pagination for SIMPLE Collections
+### 4.6 Pagination for SIMPLE Collections
 
 **Two-Phase Fetch Pattern:**
 
@@ -893,7 +1019,7 @@ if (scrollPercent > 0.8 && !this.loadingMoreCards) {
 }
 ```
 
-### 4.5 UI for Counts
+### 4.7 UI for Counts
 
 **File: `/src/components/main-view.ts`** - Add collection info display:
 
