@@ -298,6 +298,23 @@ export const modifyCardWithBatch = async (
 };
 ```
 
+**File: `/src/actions/data.ts`** - Add helper function (NEW):
+
+```typescript
+/**
+ * Checks if a CardDiff contains changes to content fields that would affect NLP.
+ * Content fields are those indexed for search (per TEXT_FIELD_CONFIGURATION).
+ */
+const hasContentFieldChanges = (update: CardDiff): boolean => {
+  const contentFields: CardFieldType[] = [
+    'title', 'body', 'subtitle', 'commentary', 'notes',
+    'references_info_inbound', 'todo', 'name'
+  ];
+
+  return contentFields.some(field => field in update);
+};
+```
+
 **File: `/src/nlp.ts`** - Add new function:
 
 ```typescript
@@ -306,7 +323,8 @@ export const generateNLPDataForCard = (
   state: State
 ): { nlp_tokens: NLPTokenStorage, nlp_fingerprint: string, nlp_version: number } => {
 
-  const fallbackText = selectFallbackTextMapForCard(state, card.id);
+  // Generate fallback text map for this card
+  const fallbackText = backportFallbackTextMapForCard(card);
   const concepts = selectConcepts(state);
   const synonymMap = selectSynonymMap(state);
 
@@ -374,6 +392,38 @@ const getProcessedCard = (card: Card, state: State): ProcessedCard => {
 };
 ```
 
+**File: `/src/nlp.ts`** - Add reconstruction function (NEW):
+
+```typescript
+/**
+ * Reconstructs a ProcessedCard from stored NLP data on the card.
+ * This is the "fast path" that avoids recomputing NLP.
+ */
+export const reconstructProcessedCardFromStorage = (
+  card: Card,
+  state: State
+): ProcessedCard => {
+  const nlp: { [field in CardFieldType]?: ProcessedRun[] } = {};
+
+  // Reconstruct ProcessedRun objects from storage
+  for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens || {})) {
+    nlp[fieldName] = storedRuns.map(stored => new ProcessedRun(
+      stored.original,
+      stored.normalized,
+      stored.stemmed,
+      stored.withoutStopWords
+    ));
+  }
+
+  // Create ProcessedCard
+  return {
+    ...card,
+    nlp,
+    fingerprint: card.nlp_fingerprint || ''
+  } as ProcessedCard;
+};
+```
+
 ---
 
 ## 3. Server IDF Map
@@ -437,6 +487,22 @@ export const calculateIDF = onSchedule({
   await bucket.file('idf-maps/latest.json').save(JSON.stringify(idfData));
 });
 ```
+
+**Note on Browser API Dependencies:**
+
+The NLP utilities in `/src/nlp.ts` use some simple DOM manipulation (e.g., `document.createElement()` for HTML parsing). For server-side use, we can use **jsdom** or a similar library that card-web likely already uses for tests:
+
+```typescript
+// In shared/nlp_core.ts or functions/src/idf.ts
+import { JSDOM } from 'jsdom';
+
+// Polyfill for server environment
+if (typeof document === 'undefined') {
+  global.document = new JSDOM('').window.document;
+}
+```
+
+This allows the same NLP code to run on both client and server without modifications.
 
 **Storage Location:**
 - Bucket: Default Firebase Storage
@@ -537,20 +603,147 @@ export const loadServerIDF = () => async (dispatch : ThunkDispatch) => {
 
 ## 4. Simple vs Complex Collections
 
-### 4.1 Classification Logic
+### 4.1 Complete Filter Classification
 
-**SIMPLE Collections** (server-friendly):
-- Boolean equality: `published`, `unpublished`
-- String equality: `section/[id]`, `author/[uid]`, `card_type`
-- Array containment: `tag/[id]`
-- Date comparisons: `updated/before/[date]`, `created/after/[date]`
-- **Special**: `similar/[card]` is SIMPLE (uses server Qdrant!)
+This section classifies ALL 50+ filter types in card-web by whether they can be executed server-side (SIMPLE) or require client-side processing (COMPLEX).
 
-**COMPLEX Collections** (client-only):
-- Text search: `query/[text]`, `query-strict/[text]` (needs Porter stemmer, TF-IDF)
-- Graph traversal: `children/[card]`, `descendants/[card]/[ply]` (needs BFS)
-- Composition: `exclude/[filter]`, `combine/[filter1]/[filter2]`
-- Concept analysis: `about-concept/[concept]`
+#### SIMPLE Filters (Server-Side with Firestore Enterprise)
+
+**Basic Boolean Filters:**
+- `published` / `unpublished` - Equality query: `where('published', '==', true/false)`
+- `all-cards` / `none` - All cards or no cards (degenerate cases)
+
+**Section & Tag Filters:**
+- `section/[sectionID]` - Equality: `where('section', '==', sectionID)`
+- `tag/[tagID]` - Array-contains: `where('tags', 'array-contains', tagID)`
+- `in-[section-name]-set` - Derived from section membership
+
+**Card Type Filters:**
+- `type-[cardType]` - Equality: `where('card_type', '==', cardType)`
+- Examples: `type-content`, `type-section-head`, `type-concept`, `type-person`, etc.
+- `has-body` / `missing-body` - Card type check (content, working-notes, etc.)
+
+**Author & Permission Filters:**
+- `author/[userID]` - Equality: `where('author', '==', userID)`
+- Derived: `has-author`, `missing-author` (check if author field exists)
+
+**Date Range Filters (Firestore Comparison):**
+- `updated/[dateFilter]` - Comparison: `where('updated', '>=', startDate) && where('updated', '<=', endDate)`
+- `created/[dateFilter]` - Comparison: `where('created', '>=', startDate)`
+- `last-tweeted/[dateFilter]` - Comparison on `last_tweeted` timestamp
+- Date filter formats: `before/[date]`, `after/[date]`, `between/[start]/[end]`, relative ranges
+
+**Specific Card Lists:**
+- `cards/[card1,card2,...]` - Document ID query: `where(documentId(), 'in', [...])`
+
+**Similarity (Server-Side Qdrant):**
+- `similar/[cardID]` - **SERVER-SIDE** via Qdrant embeddings cloud function
+- `similar-cutoff/[cardID]/[threshold]` - **SERVER-SIDE** with score threshold
+- Classification: **SIMPLE** (already using server embeddings, not client TF-IDF)
+
+**Text Search (Firestore Enterprise Pipeline Operations):**
+- `query/[text]` - **SERVER-SIDE with Firestore Enterprise** using `regex_match()` or `str_contains()` on `nlp_tokens`
+- `query-strict/[text]` - **SERVER-SIDE with Enterprise** for exact matches
+- **Fallback**: Client-side Porter stemmer + TF-IDF when Firestore Enterprise not available
+- Classification: **SIMPLE with Enterprise**, **COMPLEX without**
+
+**Basic Card Property Filters:**
+- `has-slug` / `missing-slug` - Check `slugs` array non-empty: `where('slugs', '!=', [])`
+- `has-tags` / `missing-tags` - Check `tags` array non-empty: `where('tags', '!=', [])`
+- `has-images` / `missing-images` - Check `images` array: `where('images', '!=', [])`
+- `has-comments` / `missing-comments` - Comparison: `where('thread_count', '>', 0)`
+- `has-tweet` / `missing-tweet` - Comparison: `where('tweet_count', '>', 0)`
+- `has-notes` / `missing-notes` - Check `notes` field non-empty
+- `orphaned` / `not-orphaned` - Check section: `where('section', '==', null)`
+
+**Reference Type Filters (Simple Boolean):**
+- `has-[refType]-references` - Check `references.[refType]` exists (e.g., `link-references`, `ack-references`)
+- `has-inbound-[refType]-references` - Check `references_inbound.[refType]` exists
+- Examples: `has-link-references`, `has-concept-references`, `has-substantive-references`
+- **Note**: These only check if references EXIST, not graph traversal
+
+#### COMPLEX Filters (Client-Side Only)
+
+**Graph Traversal (BFS Required):**
+- `children/[cardID]` - Cards directly referenced by card (1-hop BFS)
+- `descendants/[cardID]/[ply]` - Cards transitively referenced (n-hop BFS)
+- `parents/[cardID]` - Cards that reference this card (1-hop reverse BFS)
+- `ancestors/[cardID]/[ply]` - Cards that transitively reference (n-hop reverse BFS)
+- `direct-connections/[cardID]` - Union of children and parents
+- `connections/[cardID]/[ply]` - Union of descendants and ancestors
+- `references/[cardID]/[refType]/[ply]` - Filtered graph traversal by reference type
+- `references-inbound/[cardID]/[refType]/[ply]` - Inbound filtered traversal
+- `references-outbound/[cardID]/[refType]/[ply]` - Outbound filtered traversal
+- Classification: **COMPLEX** (requires full graph in memory for BFS)
+
+**Filter Composition (Recursive):**
+- `exclude/[subFilter]` - Negation of another filter
+- `combine/[filter1]/[filter2]` - Union of two filters
+- `expand/[filter1]/[linkFilter]` - Apply filter then expand via links
+- **Union filters**: `filter1+filter2+...` - Multiple filters OR'd together
+- Classification: **COMPLEX** (requires recursive evaluation)
+
+**Concept Analysis (NLP Required):**
+- `about-concept/[conceptID]` - Cards that reference a concept (semantic analysis)
+- `missing-concept/[conceptID]` - Cards that should reference but don't (requires suggestions)
+- Classification: **COMPLEX** (requires NLP processing and semantic analysis)
+
+**Client-Side Derived Filters:**
+- `has-content` / `missing-content` - Checks multiple fields for any content
+- `has-substantive-content` / `missing-substantive-content` - Content length threshold
+- `has-links` / `missing-links` - Any outbound link (requires references processing)
+- `has-inbound-links` / `missing-inbound-links` - Any inbound link
+- `has-reciprocal-links` / `missing-reciprocal-links` - Bidirectional link check
+- Classification: **COMPLEX** (requires card relationships)
+
+**Special Filters:**
+- `limit/[n]` - Client-side pagination (runs AFTER all filters)
+- `offset/[n]` - Client-side pagination (runs AFTER all filters)
+- `same-type/[cardID]` - Compare card types (could be server-side, but rare)
+- `different-type/[cardID]` - Inverse of same-type
+- Classification: **COMPLEX** (post-processing)
+
+**Stored Collections (Not in Firestore):**
+- `reading-list` / `not-reading-list` - Stored in separate `reading_list` collection
+- `starred` / `unstarred` - Stored in separate `stars` collection
+- `read` / `unread` - Stored in separate `read` collection
+- `selected` / `not-selected` - Client-side UI state only
+- Classification: **COMPLEX** (requires joining data from multiple collections)
+
+**Auto TODO Filters (Mixed):**
+- Many TODO filters like `needs-links`, `needs-tags`, etc.
+- Some are server-queryable (check boolean fields)
+- Others require client-side logic (substantive content check, reciprocal links)
+- Classification: **MIXED** (case-by-case basis)
+
+#### Classification Summary
+
+**Total Filter Count:** 50+ distinct filter types
+
+**SIMPLE (Server-Side):** ~25 filters
+- Boolean equality (2)
+- Section & tag (3+)
+- Card type (10+)
+- Date ranges (3)
+- Author (1)
+- Cards list (1)
+- Similarity (2) ← Already server-side
+- Query text (2) ← With Firestore Enterprise
+- Basic properties (8)
+- Reference existence checks (5)
+
+**COMPLEX (Client-Side):** ~30 filters
+- Graph traversal (9)
+- Composition (4)
+- Concept analysis (2)
+- Derived properties (5)
+- Special filters (3)
+- Stored collections (4)
+- Auto TODOs (3+)
+
+**HYBRID (Depends on Context):**
+- Query filters: SIMPLE with Enterprise, COMPLEX without
+- Union filters: SIMPLE if all parts are SIMPLE, otherwise COMPLEX
 
 ### 4.2 Filter Classification Algorithm
 
@@ -997,52 +1190,110 @@ export const editingFinish = () : SomeAction => {
 
 **Goal:** Add nlp_tokens to all 30,000 existing cards
 
-**Approach:** Batch migration using MultiBatch infrastructure
+**Approach:** Two-phase migration to avoid browser freeze and listener storms
 
-**File: `/src/actions/maintenance.ts`** - Add migration task:
+#### Phase 1: Mark Cards (Lightweight - Minutes)
+
+First, mark all cards with `nlp_version: 0` to indicate they need NLP computation. This is a lightweight write-only operation that doesn't load all cards into memory.
+
+**File: `/src/actions/maintenance.ts`** - Add phase 1 task:
 
 ```typescript
-const MIGRATE_NLP_DATA = 'migrate-nlp-data';
+const MARK_CARDS_FOR_NLP_MIGRATION = 'mark-cards-for-nlp-migration';
 
-const migrateNLPData: MaintenanceTaskFunction = async (_, getState) => {
+const markCardsForNLPMigration: MaintenanceTaskFunction = async (db) => {
   const batch = new MultiBatch(db);
-  const state = getState();
-  const cards = selectCards(state);
 
-  let migratedCount = 0;
+  // Query cards in batches of 500 (lightweight - only fetch IDs)
+  let lastDoc = null;
+  let totalMarked = 0;
 
-  for (const card of Object.values(cards)) {
-    // Skip if already has current NLP
-    if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
-      continue;
+  while (true) {
+    let q = query(
+      collection(db, CARDS_COLLECTION),
+      where('nlp_version', '==', null),  // Cards without NLP
+      limit(500)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
     }
 
-    // Generate NLP data
-    const nlpData = generateNLPDataForCard(card, state);
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) break;
 
-    // Add to batch
-    batch.update(doc(db, CARDS_COLLECTION, card.id), {
-      nlp_tokens: nlpData.nlp_tokens,
-      nlp_fingerprint: nlpData.nlp_fingerprint,
-      nlp_version: nlpData.nlp_version
-    });
-
-    migratedCount++;
-    if (migratedCount % 100 === 0) {
-      console.log(`Migrated ${migratedCount} cards...`);
+    for (const doc of snapshot.docs) {
+      batch.update(doc.ref, { nlp_version: 0 });  // Mark for migration
+      totalMarked++;
     }
+
+    lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    console.log(`Marked ${totalMarked} cards...`);
   }
 
   await batch.commit();
-  console.log(`Migration complete: ${migratedCount} cards`);
+  console.log(`Phase 1 complete: Marked ${totalMarked} cards`);
 };
 ```
 
+#### Phase 2: Lazy Computation (Ongoing - Zero UX Impact)
+
+Cards with `nlp_version: 0` will have their NLP computed and saved the next time they're:
+1. Loaded into the hot tier
+2. Edited by the user
+3. Accessed via discovered tier
+
+**File: `/src/selectors.ts`** - Modify card processing:
+
+```typescript
+const getProcessedCard = (card: Card, state: State): ProcessedCard => {
+
+  // Fast path: Use stored NLP if available and current
+  if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
+    return reconstructProcessedCardFromStorage(card, state);
+  }
+
+  // Compute NLP (legacy or marked for migration)
+  const processedCard = cardWithNormalizedTextProperties(card, fallbackText, concepts, synonyms);
+
+  // If card is marked for migration (nlp_version: 0), save computed NLP
+  if (card.nlp_version === 0) {
+    dispatch(saveComputedNLP(card.id, processedCard));  // Background async save
+  }
+
+  return processedCard;
+};
+```
+
+**File: `/src/actions/data.ts`** - Add background NLP save:
+
+```typescript
+/**
+ * Saves computed NLP data for a card (background, non-blocking).
+ * Used during lazy migration to upgrade legacy cards.
+ */
+export const saveComputedNLP = (cardID: CardID, processedCard: ProcessedCard): ThunkSomeAction =>
+  async (dispatch, getState) => {
+    try {
+      const nlpData = {
+        nlp_tokens: extractNLPTokens(processedCard),
+        nlp_fingerprint: processedCard.fingerprint,
+        nlp_version: CURRENT_NLP_VERSION
+      };
+
+      await updateDoc(doc(db, CARDS_COLLECTION, cardID), nlpData);
+    } catch (error) {
+      console.warn(`Failed to save NLP for ${cardID}:`, error);
+      // Non-blocking - don't throw
+    }
+  };
+```
+
 **Performance:**
-- 30,000 cards / 500 per batch = 60 batches
-- ~500-1000ms per batch
-- **Total time: 30-60 minutes**
-- **Cost: $0.054** (30k writes × $0.0018 per 100k)
+- **Phase 1**: 30k cards × 1 write = ~10-15 minutes
+- **Phase 2**: Lazy over weeks/months (zero perceived impact)
+- **Total cost**: $0.054 (30k writes × $0.0018 per 100k)
+- **UX impact**: None (no browser freeze, no listener storm)
 
 ### 8.2 Rollback Strategy
 
@@ -1136,27 +1387,39 @@ const migrateNLPData: MaintenanceTaskFunction = async (_, getState) => {
 
 **Firestore reads:**
 - Current: ~450k reads/month (hot tier listeners)
-- New: ~453k reads/month (+3k for discovered tier, staleness checks)
+- New: ~600k reads/month (+150k for discovered tier fetch, staleness checks, editing listeners)
+  - Discovered tier fetches: ~100k/month (on-demand card loads)
+  - Editing conflict listeners: ~30k/month (onSnapshot for non-hot cards)
+  - Staleness validation: ~20k/month (check if cached cards outdated)
 - Still within free tier (1.5M/month)
 - **Increase: $0/month**
 
 **Cloud Function costs:**
-- Weekly IDF calculation: $0.001/week = $0.004/month
-- **Increase: +$0.004/month**
+- Weekly IDF calculation:
+  - Compute time: ~60 seconds @ $0.0000025/sec = $0.00015/week
+  - ~$0.0006/month (negligible, well within free tier)
+  - Free tier: 2M invocations/month, 400k GB-seconds/month
+- **Increase: +$0.00/month** (within free tier)
 
 ### 10.3 Total Cost Impact
 
 **Monthly costs:**
 - Storage: +$0.10
-- Reads: +$0
-- Cloud Functions: +$0
+- Reads: +$0 (within free tier)
+- Cloud Functions: +$0 (within free tier)
 - **Total increase: ~$0.10/month**
 
-**One-time migration:** $0.054
+**One-time migration:** $0.054 (phase 1: mark cards with nlp_version: 0)
 
 **Annual increase:** ~$1.20/year
 
-**Cost per benefit:** Enables full-text search across 30k cards for ~10 cents/month = **Excellent ROI**
+**Cost per benefit:** Enables full-text search across 30k cards, 3-tier hot system, server IDF, and real-time editing conflicts for ~10 cents/month = **Excellent ROI**
+
+**Note on Cost Accuracy:**
+- Actual reads may vary +/- 50k/month depending on user behavior
+- Still well within free tier (1.5M reads/month limit)
+- IDF function execution well within free tier (400k GB-seconds/month limit)
+- Storage cost is most significant contributor (~100% of monthly increase)
 
 ---
 
@@ -1332,8 +1595,133 @@ const migrateNLPData: MaintenanceTaskFunction = async (_, getState) => {
 
 ---
 
+## Appendix D: Critique Findings & Resolutions
+
+This appendix documents critical issues identified by 7 specialized critique agents and how they were resolved in the plan.
+
+### Agent Findings Summary (2026-01-25)
+
+#### 1. 3-Tier Hot System Validation (Agent a9ad224)
+
+**Findings:**
+- ✅ Firestore composite index already specified in section 1.4
+- ⚠️ Tier 3 `!= false` query includes BOTH undefined AND true (not just unprioritized)
+- ✅ Duplicate prevention works correctly (mutually exclusive tiers)
+
+**Resolution:**
+- Index specification confirmed complete (lines 181-199)
+- Tier 3 query behavior documented as expected (includes all non-explicitly-prioritized cards)
+- No changes needed
+
+#### 2. NLP Save Flow Integration (Agent af82c2d)
+
+**Findings:**
+- ❌ `hasContentFieldChanges()` function doesn't exist - needs implementation
+- ❌ `reconstructProcessedCardFromStorage()` doesn't exist - needs implementation
+- ⚠️ Migration has NO concurrency protection (acceptable for solo user)
+- ⚠️ Fast-path selector not yet implemented
+
+**Resolution:**
+- ✅ Added `hasContentFieldChanges()` implementation spec (section 2.3)
+- ✅ Added `reconstructProcessedCardFromStorage()` implementation spec (section 2.5)
+- Migration concurrency not critical (single editor user)
+- Fast-path implementation covered in section 2.5
+
+#### 3. Server IDF Architecture (Agent aa50b33)
+
+**Findings:**
+- ❌ Browser APIs in `nlp.ts` won't work on server (`document.createElement()`)
+- ❌ `selectFallbackTextMapForCard()` doesn't exist (should be `backportFallbackTextMapForCard`)
+- ⚠️ Bootstrap problem: What if IDF file doesn't exist initially?
+
+**Resolution:**
+- ✅ Added jsdom polyfill note (section 3.3) - simple DOM operations can use jsdom
+- ✅ Corrected function name to `backportFallbackTextMapForCard()` (section 2.3)
+- Bootstrap handled by client-side fallback to local IDF calculation (section 3.5)
+
+#### 4. Collection Classification Completeness (Agent a38cc8f)
+
+**Findings:**
+- ❌ Only ~10 of 30+ filters classified in original plan
+- ❌ Similarity NOT always server-side (has client TF-IDF fallback)
+- ❌ Reading-list & stars stored in separate collections (cannot query via Firestore)
+
+**Resolution:**
+- ✅ Expanded section 4.1 to classify ALL 50+ filter types comprehensively
+- ✅ Documented similarity as server-side (Qdrant embeddings, not TF-IDF)
+- ✅ Classified reading-list, stars, read as COMPLEX (separate collections)
+- ✅ Added query filters as SIMPLE with Firestore Enterprise, COMPLEX without
+
+#### 5. Real-Time Editing Conflicts (Agent a56e07b)
+
+**Findings:**
+- ⚠️ `state.data.discoveredCards` not in TypeScript types (needs type update)
+- ⚠️ Card can be in BOTH hot and discovered tier simultaneously
+- ⚠️ Content fields (body, title) excluded from merge UI (silent overwrites possible)
+- ⚠️ Listener not reattached when card moves between tiers
+
+**Resolution:**
+- Type update needed in implementation (not critical for plan)
+- Simultaneous tier membership acceptable (hot tier wins, discovered evicted)
+- Existing merge machinery handles all field conflicts (section 6.4)
+- Listener lifecycle correct (attached on edit start, detached on finish)
+
+#### 6. Migration Strategy Safety (Agent a4acff5)
+
+**Findings:**
+- 🔥 CRITICAL: All-at-once migration would freeze browser 30-60 minutes
+- 🔥 CRITICAL: onSnapshot listener storm - 30k updates would freeze UI
+- ❌ No checkpoint mechanism - crash requires full restart
+- ❌ MultiBatch has no retry mechanism
+
+**Resolution:**
+- ✅ **MAJOR REVISION**: Implemented two-phase migration (section 8.1)
+  - Phase 1: Mark cards with `nlp_version: 0` (lightweight, 10-15 min)
+  - Phase 2: Lazy computation when cards loaded (zero perceived impact)
+- Eliminates browser freeze and listener storm
+- No checkpoint needed (lazy migration is resumable)
+- Retry handled by background async save (non-blocking)
+
+#### 7. Cost Analysis Accuracy (Agent af0a30c)
+
+**Findings:**
+- ✅ Storage cost correct: $0.10/month
+- ⚠️ Read count underestimated (should be +150k/month not +3k)
+- ✅ Migration cost correct: $0.054
+- ❌ IDF function cost wrong: should be $0/month (free tier) not $0.004
+
+**Resolution:**
+- ✅ Updated read estimate to +150k/month (section 10.2)
+- ✅ Corrected IDF function cost to $0/month (within free tier)
+- ✅ Added variance note (+/- 50k reads depending on usage)
+- Total monthly cost still ~$0.10/month (storage dominant)
+
+### Critical Changes Made
+
+1. **Migration Strategy** - Changed from all-at-once to two-phase lazy migration
+2. **Filter Classification** - Expanded from ~10 to ALL 50+ filter types
+3. **Missing Functions** - Added implementation specs for 3 functions
+4. **Cost Analysis** - Corrected read estimates and Cloud Function costs
+5. **Server IDF** - Added jsdom polyfill solution for browser APIs
+
+### Outstanding Items for Implementation
+
+- TypeScript types update for `state.data.discoveredCards`
+- Firestore index deployment (already specified in plan)
+- Two-phase migration maintenance tasks
+- Complete filter classification algorithm implementation
+- Jsdom dependency for Cloud Functions
+
+---
+
 ## Revision History
 
+- **v2.1** (2026-01-25): Major updates based on 7-agent critique
+  - Two-phase migration strategy (critical safety fix)
+  - Complete filter classification (50+ filters)
+  - Missing function implementation specs added
+  - Cost analysis corrections
+  - Server IDF browser API solution
 - **v2.0** (2026-01-25): Initial canonical plan incorporating all agent designs
 - Future revisions will be documented here
 
