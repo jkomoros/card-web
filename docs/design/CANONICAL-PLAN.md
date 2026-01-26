@@ -361,12 +361,47 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
         { "fieldPath": "auto_todo_overrides.prioritized", "order": "ASCENDING" },
         { "fieldPath": "created", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "section", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "card_type", "order": "ASCENDING" },
+        { "fieldPath": "updated_substantive", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tags", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "updated_substantive", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "author", "order": "ASCENDING" },
+        { "fieldPath": "created", "order": "DESCENDING" }
+      ]
     }
   ]
 }
 ```
 
-**Note:** Tier 2 query (prioritized cards) does NOT require this index because it only uses equality filters without orderBy. Firestore's single-field indexes are sufficient for that query.
+**Notes:**
+- Tier 2 query (prioritized cards) does NOT require an index because it only uses equality filters without orderBy
+- Additional indexes above support common SIMPLE collection queries (section + sort, type + sort, tag + sort, author + sort)
+- Firestore will request additional indexes as needed when queries fail in development
 
 ### 1.5 Coverage and Undefined Cards
 
@@ -2329,6 +2364,14 @@ Reference filters should **remain CLIENT-SIDE**. Focus optimization efforts on:
 
 ## Revision History
 
+- **v2.4** (2026-01-26): Section 4 accuracy corrections and complete filter count
+  - **Corrected 8 misclassified filters**: `has-slug`, `has-tags`, `has-images`, `has-notes` moved from SIMPLE to COMPLEX
+  - **Critical finding**: Firestore `where('array', '!=', [])` does NOT work for empty array detection
+  - **Accurate filter count**: ~99 unique filter types generating ~274 filter names (was "60+")
+  - **Added detail on "Fetch IDs only" pattern**: Clarified that `select()` still charges full read units, only reduces network transfer
+  - **Added 4 missing composite indexes** for common SIMPLE collection queries
+  - **Sources**: [Firebase Query Docs](https://firebase.google.com/docs/firestore/query-data/queries), [Fireship Array Tutorial](https://fireship.io/lessons/firestore-array-queries-guide/)
+  - Agent investigation: User-requested comprehensive Section 4 review
 - **v2.3** (2026-01-26): Firestore Enterprise capabilities clarification
   - Added comprehensive section on Firestore Enterprise Edition (NEW in Jan 2026)
   - Documented Pipeline Operations: 100+ new server-side query capabilities
