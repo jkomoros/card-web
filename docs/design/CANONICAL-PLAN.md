@@ -661,6 +661,7 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 - `has-inbound-[refType]-references` - Check `references_inbound.[refType]` exists
 - Examples: `has-link-references`, `has-concept-references`, `has-substantive-references`
 - **Note**: These only check if references EXIST, not graph traversal
+- **Decision**: Keep CLIENT-SIDE - see Appendix E for detailed analysis
 
 #### COMPLEX Filters (Client-Side Only)
 
@@ -1840,8 +1841,231 @@ This appendix documents critical issues identified by 7 specialized critique age
 
 ---
 
+## Appendix E: Reference Filters Analysis - Why They Stay Client-Side
+
+This appendix documents the investigation (Agent a38aec5, 2026-01-25) into whether reference-based filters can be executed server-side with Firestore Enterprise Pipeline Operations, and whether we should change the references data model.
+
+### Current References Data Model
+
+References are stored using **two parallel fields**:
+
+1. **`references_info`** (nested object - canonical source):
+   ```typescript
+   {
+     "cardID_A": {
+       "link": "text of the link",
+       "ack": "",
+       "citation": "Page 22"
+     },
+     "cardID_B": {
+       "link": ""
+     }
+   }
+   ```
+
+2. **`references`** (flat boolean map - for Firestore queries):
+   ```typescript
+   {
+     "cardID_A": true,
+     "cardID_B": true
+   }
+   ```
+
+**16 reference types**: link, ack, dupe-of, generic, fork-of, mined-from, see-also, concept, synonym, opposite-of, parallel-to, example-of, metaphor-for, citation, citation-person
+
+**Design note from `/src/card_fields.ts`**: The `references` map exists because "it's not possible to query for the existence or non-existence of a subobject in Firestore."
+
+### Why Reference Filters Are Client-Side
+
+**Current implementation** (`/src/filters.ts`):
+```typescript
+// All reference filters test client-side
+test: card => references(card).byType[key] !== undefined
+```
+
+**Reasons:**
+1. **Nested object querying**: Traditional Firestore cannot query "does `references_info.link` exist?"
+2. **Reference type filtering**: Requires checking if `references_info[cardID][referenceType]` exists
+3. **Graph traversal**: Requires loading multiple cards and following reference chains (BFS/DFS)
+4. **Complex extraction**: The `references()` function creates a `ReferencesAccessor` that processes nested structure
+
+### Firestore Enterprise Pipeline Operations Limitations
+
+**What Pipeline Operations provide:**
+- `unnest()` - Flattens **arrays** (NOT objects with dynamic keys)
+- `mapGet(field, key)` - Gets value from map by **known key** (can't iterate keys)
+- `regex_match()`, `str_contains()` - String operations
+- Complex field path queries
+
+**Critical limitations for references:**
+1. ❌ Cannot unnest `references_info` (object with dynamic card ID keys, not array)
+2. ❌ No "get all keys from map" operation (cannot iterate reference types or card IDs)
+3. ❌ Cannot check if nested object is non-empty server-side
+4. ❌ Cannot do recursive queries (required for graph traversal)
+
+**What you CAN'T do:**
+- Query "all cards where `references.link` has any keys"
+- Query "all cards where `references.link[someCardID]` exists" (without knowing someCardID)
+- Iterate over reference types or card IDs dynamically
+- Multi-hop graph traversal
+
+### Data Model Alternatives Considered
+
+#### Option A: Flat Arrays (Most Capable)
+
+**Structure:**
+```typescript
+{
+  reference_links: ['cardA', 'cardB'],
+  reference_acks: ['cardC'],
+  reference_citations: ['cardD', 'cardE'],
+  reference_inbound_links: ['cardX', 'cardY'],
+  // ... ~32 fields total (16 outbound + 16 inbound types)
+}
+```
+
+**Enables:**
+- ✅ `where('reference_links', '!=', [])` - has-links queries
+- ✅ `where('reference_links', 'array-contains', cardID)` - parents/cardID queries
+- ❌ Still can't do children/cardID (requires fetching cardID first, then querying - 2 steps)
+- ❌ Still can't do descendants/ancestors (recursive traversal impossible)
+
+**Costs:**
+- 750 LOC changes across 6 files
+- 2-3 weeks development + testing + migration
+- **High desync risk**: Every reference mutation must update `references_info` + `references` + flat arrays
+- Loses reference metadata (text values)
+- ~32 new fields per card
+
+#### Option B: Boolean Flags (Simplest)
+
+**Structure:**
+```typescript
+{
+  has_link_references: true,
+  has_ack_references: false,
+  has_inbound_link_references: true,
+  // ... ~32 fields total
+}
+```
+
+**Enables:**
+- ✅ `where('has_link_references', '==', true)` - existence checks only
+- ❌ No graph traversal
+- ❌ Cannot query which specific cards are referenced
+
+**Costs:**
+- 450 LOC changes
+- 1 week development
+- Lower desync risk (simpler logic)
+
+#### Option C: Count Fields
+
+**Structure:**
+```typescript
+{
+  reference_link_count: 5,
+  reference_inbound_link_count: 3,
+  // ...
+}
+```
+
+**Enables:**
+- ✅ `where('reference_link_count', '>', 0)` - existence checks
+- ✅ Sorting by reference count
+- ❌ No graph traversal
+- ❌ Cannot query which specific cards
+
+### Server-Side Feasibility Matrix
+
+| Filter Type | Current | With Flat Arrays | With Flags | Notes |
+|-------------|---------|------------------|------------|-------|
+| `has-links` | CLIENT | ✅ SERVER | ✅ SERVER | `where('reference_links', '!=', [])` |
+| `has-inbound-links` | CLIENT | ✅ SERVER | ✅ SERVER | Same as above |
+| `has-substantive-references` | CLIENT | ✅ SERVER | ✅ SERVER | Combine types with OR |
+| `has-[refType]-references` | CLIENT | ✅ SERVER | ✅ SERVER | All 16 types |
+| `parents/[cardID]` | CLIENT | ✅ SERVER | ❌ CLIENT | `array-contains` query works! |
+| `children/[cardID]` | CLIENT | ❌ CLIENT | ❌ CLIENT | Requires 2-step query |
+| `descendants/[cardID]` | CLIENT | ❌ CLIENT | ❌ CLIENT | Recursive - impossible |
+| `ancestors/[cardID]` | CLIENT | ❌ CLIENT | ❌ CLIENT | Recursive - impossible |
+| `connections/[cardID]` | CLIENT | ❌ CLIENT | ❌ CLIENT | Bidirectional + recursive |
+
+**Key finding**: Even with best data model, **graph traversal filters remain CLIENT** because Firestore cannot do recursive queries.
+
+### Decision: Keep Client-Side
+
+**Rationale:**
+
+1. **Limited benefit** - Can only make ~8 filters server-side (`has-*-references` variants)
+2. **Cannot fix the important ones** - Graph traversal (children/parents/descendants/ancestors) remains CLIENT due to fundamental Firestore limitation
+3. **High complexity** - 750 LOC changes, 2-3 weeks dev time, significant desync risk
+4. **Maintenance burden** - Every reference mutation becomes 3x more complex (update 3+ fields)
+5. **Enterprise Pipeline doesn't help** - New operations don't solve core problems:
+   - Cannot query nested object keys dynamically
+   - Cannot do recursive traversal
+   - Cannot check if map is non-empty
+6. **Existing workaround works** - The `references` boolean map already enables critical query pattern when needed
+
+**Alternative considered:**
+- **Option B (Flags)** for small win - Add `has_link_references`, `has_inbound_link_references` only
+- Only 4-6 boolean fields
+- 1 week effort
+- Enables basic existence queries
+- **Rejected**: Not worth complexity for such limited benefit
+
+### Graph Traversal: Why It's Impossible Server-Side
+
+**Fundamental limitations:**
+1. **Firestore has no recursive queries** - Cannot follow reference chains across documents
+2. **Multi-hop traversal requires iteration** - descendants/2 needs: fetch card → get children → fetch children → get their children
+3. **BFS/DFS algorithms are client-side** - Cannot be expressed as Firestore query
+4. **Would need multiple round-trips** - Each hop is a separate query
+
+**Example: `descendants/cardX/2`**
+```typescript
+// Hop 1: Get cardX's children
+const children = getCardReferences(cardX);
+
+// Hop 2: Get children's children
+const grandchildren = [];
+for (const child of children) {
+  grandchildren.push(...getCardReferences(child));
+}
+
+// Union all
+return [cardX, ...children, ...grandchildren];
+```
+
+This requires:
+- Fetching cardX
+- Fetching N children (where N = number of references)
+- Fetching M grandchildren (where M = total references from all children)
+- **3+ database round-trips minimum**
+- Client-side logic to manage iteration and deduplication
+
+**No data model change can fix this** - it's a fundamental architectural limitation of document databases.
+
+### Conclusion
+
+Reference filters should **remain CLIENT-SIDE**. Focus optimization efforts on:
+1. Caching filter results client-side
+2. Optimizing the `references()` accessor function
+3. Using discovered tier to lazy-load cards as needed
+4. Waiting for future Firestore features (if they add recursive query support)
+
+**Implementation note**: The existing `references` boolean map already provides a workaround for the most critical query pattern: checking if a specific card is referenced. This is sufficient for current needs.
+
+---
+
 ## Revision History
 
+- **v2.2** (2026-01-25): Reference filters analysis and composition filter details
+  - Added Appendix E: Complete analysis of reference filters server-side feasibility
+  - Decision: Keep reference filters CLIENT-SIDE (graph traversal impossible server-side)
+  - Added section 4.2: Detailed composition filter analysis (union, combine, exclude, expand)
+  - Updated filter classification summary to 60+ filters with HYBRID category
+  - Documented Firestore Enterprise Pipeline limitations for nested objects
+  - Agent investigations: afaf554 (union/combine), a04a1ed (exclude/expand), a38aec5 (references)
 - **v2.1** (2026-01-25): Major updates based on 7-agent critique
   - Two-phase migration strategy (critical safety fix)
   - Complete filter classification (50+ filters)
