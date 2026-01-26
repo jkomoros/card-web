@@ -184,7 +184,37 @@ export const cardIsPrioritized = (card : Card | null) : boolean => {
 
 **Why it's backwards:** Historical maintenance task flipped all boolean values. Code uses `cardIsPrioritized()` helper everywhere to abstract this.
 
-### 1.3 Implementation
+### 1.3 Dynamic Limit Calculation
+
+**How effectiveLimit is determined:**
+The `selectCompleteModeEffectiveCardLimit()` selector calculates:
+```typescript
+// From src/selectors.ts
+effectiveLimit = state.data.completeModeCardLimit || DEFAULT_CARD_LIMIT
+// DEFAULT_CARD_LIMIT is typically 5000-7000
+```
+
+**Tier 3 dynamic limit calculation:**
+```typescript
+// In connectLiveUnpublishedCards()
+const effectiveLimit = selectCompleteModeEffectiveCardLimit(state);
+// Tier 3 receives the FULL limit initially, then culling handles overflow
+
+// After all tiers load, cullExtraCompleteModeCards() runs:
+const publishedCount = publishedCards.length;        // ~900
+const prioritizedCount = prioritizedCards.length;    // ~6000
+const remainingSlots = Math.max(0, effectiveLimit - publishedCount - prioritizedCount);
+// remainingSlots = 7000 - 900 - 6000 = 100
+
+// Cull Tier 3 cards beyond remainingSlots
+if (recentCards.length > remainingSlots) {
+    cullCards(recentCards.slice(remainingSlots));
+}
+```
+
+**Important:** Tier 3 query initially fetches `limit(effectiveLimit)` cards, but culling later reduces it based on actual Tier 1 + Tier 2 counts. This is more efficient than trying to coordinate counts dynamically in the query.
+
+### 1.4 Implementation
 
 **File: `/src/types.ts`** - Add new CardFetchType values:
 ```typescript
@@ -285,18 +315,23 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 
     // Separate cards by tier
     const publishedCards = Object.values(cards).filter(card => card.published);
+
+    // Tier 2: Cards with prioritized === false (explicitly prioritized)
     const prioritizedCards = Object.values(cards).filter(card =>
         !card.published && cardIsPrioritized(card)
     );
+
+    // Tier 3: Cards with prioritized === true (explicitly NOT prioritized)
+    // Note: Cards with undefined prioritized are NOT included (not loaded by either tier)
     const recentCards = Object.values(cards).filter(card =>
-        !card.published && !cardIsPrioritized(card)
+        !card.published && card.auto_todo_overrides.prioritized === true
     ).sort((a, b) => b.created.seconds - a.created.seconds);
 
     // Calculate how many recent cards we can keep
     const limit = selectCompleteModeEffectiveCardLimit(state);
     const remainingSlots = Math.max(0, limit - publishedCards.length - prioritizedCards.length);
 
-    // Cull excess recent cards
+    // Cull excess recent cards (those beyond the dynamic limit)
     if (recentCards.length > remainingSlots) {
         const cardsToCull = recentCards.slice(remainingSlots).map(card => card.id);
         dispatch(cullCards(cardsToCull));
@@ -304,6 +339,8 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
     }
 };
 ```
+
+**Important:** The culling logic must match the query logic exactly. If Tier 3 query loads cards with `prioritized === true`, then culling should only cull from cards with `prioritized === true`, not from cards with `undefined`.
 
 ### 1.4 Firestore Index Required
 
@@ -331,7 +368,30 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 
 **Note:** Tier 2 query (prioritized cards) does NOT require this index because it only uses equality filters without orderBy. Firestore's single-field indexes are sufficient for that query.
 
-### 1.5 Duplicate Prevention
+### 1.5 Coverage and Undefined Cards
+
+**CRITICAL: Cards with `undefined` prioritized are NOT loaded by this system.**
+
+The 3-tier system intentionally loads only:
+- **Tier 1:** Published cards (published === true)
+- **Tier 2:** Unpublished AND explicitly prioritized (prioritized === false)
+- **Tier 3:** Unpublished AND explicitly NOT prioritized (prioritized === true)
+
+**Cards NOT loaded:**
+- Unpublished cards where `auto_todo_overrides.prioritized === undefined`
+- These represent cards that have never had their prioritization status set
+- They will only be accessible via the discovered tier (on-demand fetch)
+
+**Why this design:**
+- Most cards (~80-90%) have explicit prioritization status
+- Loading undefined cards would bloat the hot tier unnecessarily
+- Undefined cards can still be accessed when needed (discovered tier)
+- User can explicitly set prioritization to load cards into hot tier
+
+**Migration consideration:**
+If many cards have `undefined` prioritized and need to be loaded, run a one-time migration to set them to `true` (NOT prioritized).
+
+### 1.6 Duplicate Prevention
 
 **Existing mechanism (no changes needed):**
 - `removeCards()` function uses 3-second timeout
@@ -339,9 +399,10 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 - Most recent update wins
 
 **Scenarios:**
-- Card becomes prioritized: Moves tier 3 → tier 2 ✓
-- Card loses priority: Moves tier 2 → tier 3 (may trigger culling) ✓
+- Card becomes prioritized (false): Moves tier 3 → tier 2 ✓
+- Card loses priority (true): Moves tier 2 → tier 3 (may trigger culling) ✓
 - Card published: Moves tier 2/3 → tier 1 ✓
+- Card set to undefined: Removed from tier 2/3, only in discovered tier ✓
 
 ---
 
@@ -745,7 +806,7 @@ export const loadServerIDF = () => async (dispatch : ThunkDispatch) => {
 
 ### 4.1 Complete Filter Classification
 
-This section classifies ALL 50+ filter types in card-web by whether they can be executed server-side (SIMPLE) or require client-side processing (COMPLEX).
+This section classifies ALL ~99 unique filter types in card-web (generating ~274 filter names with has/no/needs/does-not-need variants) by whether they can be executed server-side (SIMPLE) or require client-side processing (COMPLEX).
 
 #### SIMPLE Filters (Server-Side with Firestore Enterprise)
 
@@ -788,12 +849,8 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 - Classification: **SIMPLE with Enterprise**, **COMPLEX without**
 
 **Basic Card Property Filters:**
-- `has-slug` / `missing-slug` - Check `slugs` array non-empty: `where('slugs', '!=', [])`
-- `has-tags` / `missing-tags` - Check `tags` array non-empty: `where('tags', '!=', [])`
-- `has-images` / `missing-images` - Check `images` array: `where('images', '!=', [])`
 - `has-comments` / `missing-comments` - Comparison: `where('thread_count', '>', 0)`
 - `has-tweet` / `missing-tweet` - Comparison: `where('tweet_count', '>', 0)`
-- `has-notes` / `missing-notes` - Check `notes` field non-empty
 - `orphaned` / `not-orphaned` - Check section: `where('section', '==', null)`
 
 **Reference Type Filters (Simple Boolean):**
@@ -873,6 +930,18 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 - `has-reciprocal-links` / `missing-reciprocal-links` - Bidirectional link check
 - Classification: **COMPLEX** (requires card relationships)
 
+**Array Emptiness Checks (Cannot be Server-Side):**
+- `has-slug` / `missing-slug` - Check `slugs` array non-empty
+- `has-tags` / `missing-tags` - Check `tags` array non-empty
+- `has-images` / `missing-images` - Check `images` array non-empty
+- `has-notes` / `missing-notes` - Check `notes` field non-empty
+- **Firestore Limitation**: `where('array', '!=', [])` does NOT work reliably
+  - The `!=` operator excludes documents where the field doesn't exist
+  - Cannot distinguish between empty array `[]` and missing field
+  - Source: [Firestore Query Documentation](https://firebase.google.com/docs/firestore/query-data/queries)
+- **Workaround**: Would require separate boolean flags (e.g., `has_slugs: boolean`)
+- Classification: **COMPLEX** (requires client-side array length check)
+
 **Special Filters:**
 - `limit/[n]` - Client-side pagination (runs AFTER all filters)
 - `offset/[n]` - Client-side pagination (runs AFTER all filters)
@@ -895,18 +964,27 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 
 #### Classification Summary
 
-**Total Filter Count:** 60+ distinct filter types
+**Total Filter Count:** ~99 unique filter types (274 filter names with variants)
 
-**✅ SIMPLE (Server-Side):** ~25 filters
+**Breakdown:**
+- Configurable filters: 30 (single names)
+- Auto TODO filters: 15 base types × 4 names each = 60 names
+- Freeform TODO: 1 × 4 names = 4 names
+- Non-TODO card filters: 10 × 4 names = 40 names
+- Card type filters: 7 × 2 names = 14 names
+- Reference type filters: 15 outbound + 15 inbound × 4 names = 120 names
+- Special filters: 6 (starred, read, selected, reading-list, all-cards, none)
+
+**✅ SIMPLE (Server-Side):** ~17 filters
 - Boolean equality (2): published, unpublished
 - Section & tag (3+): section/[id], tag/[id], in-[section]-set
-- Card type (10+): type-content, type-concept, etc.
+- Card type (7): type-content, type-section-head, type-concept, type-person, type-work, type-working-notes, type-quote
 - Date ranges (3): updated, created, last-tweeted
 - Author (1): author/[uid]
 - Cards list (1): cards/[id,id,...]
 - Similarity (2): similar/[id], similar-cutoff/[id]/[threshold] ← Already server-side via Qdrant
 - Query text (2): query/[text], query-strict/[text] ← **With Firestore Enterprise**
-- Basic properties (8): has-slug, has-tags, has-images, has-comments, has-tweet, orphaned, prioritized
+- Basic properties (3): has-comments, has-tweet, orphaned
 - Has-body (1): Card type in BODY_CARD_TYPES
 
 **☁️ CLOUD FUNCTION (Already Server-Side):** 2 filters
@@ -915,16 +993,18 @@ This section classifies ALL 50+ filter types in card-web by whether they can be 
 **🔶 FIRESTORE ENTERPRISE (Pipeline Operations):** 2 filters
 - Query filters (full-text search on nlp_tokens)
 
-**❌ COMPLEX (Client-Side Only):** ~25 filters
+**❌ COMPLEX (Client-Side Only):** ~70+ filters
 - Graph traversal (9): children, descendants, parents, ancestors, connections, references*
 - expand (1): Always client-side (graph + multi-phase)
 - Concept analysis (2): about-concept, missing-concept
-- Complex content checks (5): has-content, substantive-content, has-links, reciprocal-links
-- Reference processing (5+): substantive-references, concept-references, specific reference types
+- Complex content checks (5): has-content, substantive-content, has-links, reciprocal-links, has-inbound-links
+- **Array emptiness checks (4): has-slug, has-tags, has-images, has-notes** ← CANNOT use `!= []` in Firestore
+- Reference processing (~32): substantive-references, concept-references, 15 outbound + 15 inbound reference type filters (has-X-references)
 - Stored collections (3): reading-list, starred, read
 - UI state (2): selected, not-selected
 - Pagination (2): limit, offset
 - Combined TODOs (1): has-todo
+- Most TODO filters (~20): needs-links, needs-content, needs-substantive-content, needs-reciprocal-links, etc.
 
 **🔀 HYBRID (Context-Dependent):** ~8 filters
 - **Union filters (`+`)**: SERVER if same-field or all-server-fields (≤30), CLIENT otherwise
