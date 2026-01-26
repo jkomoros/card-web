@@ -1490,109 +1490,532 @@ export const editingFinish = () : SomeAction => {
 
 ## 7. Implementation Roadmap
 
+### Timeline Overview
+
+**Total Duration:** 15-17 weeks (not 10 weeks as initially estimated)
+
+**Critical Path:**
+- Phase 0.5 (Firestore Index) → Phase 1 (3-Tier) → Phase 2 (NLP Storage) → Phase 7 (Migration)
+- Phase 3 (Server IDF) can run parallel to Phase 4-5 after Phase 2
+- Phase 8 (Monitoring) must complete before Phase 9 (Canary)
+
+**Risk Buffer:** 2 weeks built into timeline for unexpected issues
+
+---
+
+### Phase 0.5: Firestore Index Deployment (Week 0 - CRITICAL)
+
+**Goal:** Deploy Firestore composite index BEFORE any code changes
+
+**Why Critical:**
+- Firestore indexes can take 10-30 minutes to build (sometimes hours for large collections)
+- Code will FAIL HARD if index doesn't exist (queries will throw errors)
+- Must be deployed to production before Phase 1
+
+**Tasks:**
+1. Add composite index to `firestore.indexes.json`
+2. Deploy index: `firebase deploy --only firestore:indexes`
+3. Monitor index build status in Firebase Console
+4. Verify index is ACTIVE before proceeding
+5. Test query works with new index
+
+**Index Specification:**
+```json
+{
+  "collectionGroup": "cards",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "published", "order": "ASCENDING" },
+    { "fieldPath": "auto_todo_overrides.prioritized", "order": "ASCENDING" },
+    { "fieldPath": "created", "order": "DESCENDING" }
+  ]
+}
+```
+
+**Success Criteria:**
+- Index shows ACTIVE status in Firebase Console
+- Test query returns results without errors
+- No performance degradation on existing queries
+- Index build completes in <30 minutes
+
+**Rollback Plan:**
+- If index fails, code changes CANNOT proceed
+- Can delete index via Console or CLI
+- No user impact (index-only change)
+
+---
+
 ### Phase 1: 3-Tier Hot System (Week 1-2)
 
 **Goal:** Replace 2-tier with 3-tier card loading
 
+**Dependencies:** Phase 0.5 (Firestore Index) MUST complete first
+
 **Tasks:**
-1. Add new CardFetchType enum values
+1. Add new CardFetchType enum values (`unpublished-prioritized`, `unpublished-recent`)
 2. Modify `connectLiveUnpublishedCards()` with 3 queries
 3. Update `cullExtraCompleteModeCards()` for tier-aware culling
-4. Add Firestore composite index
+4. Update TypeScript types for new fetch types
 5. Test tier transitions and duplicate prevention
+6. Add unit tests for tier classification logic
 
 **Success Criteria:**
-- All 3 tiers load correctly
-- No duplicate cards
-- Cards move between tiers gracefully
-- Tier 1 + 2 total: ~6,900 cards
+- All 3 tiers load correctly with no errors
+- No duplicate cards across tiers (verified by card ID uniqueness check)
+- Cards move between tiers gracefully (no flashing or re-renders)
+- Tier 1 + 2 total: ~6,900 cards (verified by card count)
+- Performance: Tier load time <5 seconds P95 (no regression from <3s baseline)
+- Memory usage: <15% increase from baseline (~20MB → ~23MB)
 
-### Phase 2: NLP Data Storage (Week 3-4)
+**Rollback Plan:**
+- Feature flag: `ENABLE_3_TIER_HOT_SYSTEM = false`
+- Falls back to 2-tier system (existing code path)
+
+---
+
+### Phase 2: NLP Data Storage (Week 3-5)
 
 **Goal:** Store NLP data on cards, compute on save
+
+**Dependencies:** Phase 1 (3-Tier System)
 
 **Tasks:**
 1. Add nlp_tokens, nlp_fingerprint, nlp_version to Card interface
 2. Implement `generateNLPDataForCard()` in nlp.ts
-3. Integrate into `modifyCardWithBatch()` save flow
-4. Modify ProcessedRun to support reconstruction from storage
-5. Update selectors to use stored NLP (fast path)
-6. Create migration task for 30k existing cards
+3. Implement `reconstructProcessedCardFromStorage()` in nlp.ts
+4. Implement `hasContentFieldChanges()` helper function
+5. Integrate into `modifyCardWithBatch()` save flow
+6. Modify ProcessedRun to support reconstruction from storage
+7. Update selectors to use stored NLP (fast path)
+8. Create Phase 1 migration task (mark cards with nlp_version: 0)
+9. Create Phase 2 lazy computation logic
+10. Test save flow with various card types
 
 **Success Criteria:**
-- Save performance: P95 < 500ms (no regression)
-- New cards have nlp_tokens populated
-- Old cards work (fallback to computation)
-- Migration completes in <60 minutes
+- Save performance: P50 <250ms, P95 <500ms, P99 <800ms (no regression from P95 <300ms baseline)
+- NLP computation time: <50ms P95 for typical card
+- New cards have nlp_tokens populated correctly
+- Old cards work with fallback to computation
+- Stored NLP data matches computed NLP (spot-check 100 random cards)
+- Document size increase: <30KB P95 (target: ~18KB typical)
+- Phase 1 migration marks all cards in <20 minutes
 
-### Phase 3: Server IDF Map (Week 5)
+**Rollback Plan:**
+- Feature flag: `ENABLE_STORED_NLP_DATA = false`
+- Falls back to on-the-fly computation
+- Stored nlp_tokens ignored (no data loss)
+
+---
+
+### Phase 3: Server IDF Map (Week 6-7)
 
 **Goal:** Server-maintained IDF for consistent TF-IDF
 
+**Dependencies:** Phase 2 (NLP Storage) - can run parallel to Phase 4-5
+
 **Tasks:**
 1. Create shared NLP utilities in `/shared/nlp_core.ts`
-2. Implement scheduled Cloud Function for IDF calculation
-3. Create `IDFCache` class with localStorage caching
-4. Modify `FingerprintGenerator` to accept server IDF
-5. Add app initialization IDF download
-6. Update storage.rules for public access
+2. Add jsdom dependency for server-side DOM operations
+3. Implement scheduled Cloud Function for IDF calculation
+4. Create `IDFCache` class with localStorage caching
+5. Modify `FingerprintGenerator` to accept server IDF
+6. Add app initialization IDF download
+7. Update storage.rules for public access to `/idf-maps/`
+8. Test weekly Cloud Function execution
+9. Test IDF cache expiration and refresh
 
 **Success Criteria:**
-- IDF map generated weekly on server
-- Clients download and cache IDF
-- Fingerprints consistent across sessions
-- Fallback to client IDF works
+- IDF map generated successfully on server (verified by file in Storage)
+- IDF calculation completes in <60 seconds (target: <30s)
+- Clients download and cache IDF on first load
+- IDF download time: <300ms P95 (gzipped ~50-150KB)
+- Fingerprints consistent across sessions (compare 10 random cards before/after)
+- Fallback to client IDF works when server IDF unavailable
+- localStorage cache respects 7-day TTL
 
-### Phase 4: Simple Collections & Pagination (Week 6-7)
+**Rollback Plan:**
+- Feature flag: `ENABLE_SERVER_IDF = false`
+- Falls back to client-side IDF calculation
+- Cloud Function can be disabled without impact
+
+---
+
+### Phase 4: Simple Collections & Pagination (Week 8-10)
 
 **Goal:** Server counts and pagination for simple collections
 
+**Dependencies:** Phase 2 (NLP Storage) - can run parallel to Phase 3
+
 **Tasks:**
-1. Implement filter classification logic
-2. Add `getCollectionCount()` with getCountFromServer
-3. Implement two-phase fetch (IDs then cards)
-4. Add scroll-based pagination trigger
-5. Update UI to show exact vs approximate counts
+1. Implement filter classification logic (SIMPLE vs COMPLEX)
+2. Add classification for all 50+ filter types
+3. Add `getCollectionCount()` with getCountFromServer
+4. Implement two-phase fetch (IDs then cards)
+5. Add scroll-based pagination trigger (load at 80% scroll)
+6. Update UI to show exact vs approximate counts
+7. Add discovered tier integration for pagination
+8. Test with various collection types
+9. Performance test pagination with 10k+ card collections
 
 **Success Criteria:**
-- SIMPLE collections show exact counts
-- COMPLEX collections show approximate
-- Pagination loads 50 cards at a time
-- Scroll triggering works smoothly
+- SIMPLE collections show exact counts (badge: "Server-side count")
+- COMPLEX collections show approximate counts (badge: "Approximate")
+- Count accuracy: 100% for SIMPLE, >95% for COMPLEX
+- Server count latency: <200ms P95
+- Pagination loads 50 cards per batch
+- Pagination batch load time: <300ms P95
+- Scroll triggering works smoothly (no jank, no duplicate loads)
+- Memory efficient: Only visible cards rendered
 
-### Phase 5: Real-Time Editing Conflicts (Week 8)
+**Rollback Plan:**
+- Feature flag: `ENABLE_SIMPLE_COLLECTIONS = false`
+- Falls back to full collection loading (existing behavior)
+
+---
+
+### Phase 5: Real-Time Editing Conflicts (Week 11)
 
 **Goal:** Detect concurrent edits on non-hot cards
+
+**Dependencies:** Phase 1 (3-Tier System) - can run parallel to Phase 3-4
 
 **Tasks:**
 1. Add `attachEditingCardListener()` in editingStart
 2. Add `detachEditingCardListener()` in editingFinish
-3. Test with concurrent edits
-4. Verify existing merge machinery works
+3. Update TypeScript types for discoveredCards state
+4. Test with concurrent edits (simulate multi-user scenario)
+5. Verify existing merge machinery works
+6. Test listener lifecycle (attach/detach)
+7. Test with cards in different tiers
 
 **Success Criteria:**
-- Listener attached for non-hot cards
-- Merge button appears on conflict
-- Merge works correctly
-- Listener detached on close
+- Listener attached for non-hot cards only
+- Listener not attached for hot-tier cards (redundant)
+- Merge button appears on conflict (existing UI)
+- Merge works correctly (no data loss)
+- Listener detached on editor close
+- No memory leaks from listeners
+- Performance: Listener attachment <10ms
 
-### Phase 6: Testing & Polish (Week 9-10)
+**Rollback Plan:**
+- Feature flag: `ENABLE_EDITING_LISTENERS = false`
+- Falls back to no conflict detection (existing behavior)
+- Users warned about potential edit conflicts
 
-**Goal:** Comprehensive testing and production readiness
+---
+
+### Phase 6: Security Rules & Permissions (Week 12)
+
+**Goal:** Update Firestore security rules and storage rules
+
+**Dependencies:** Phase 3 (Server IDF)
 
 **Tasks:**
-1. Unit tests for all new functions
-2. Integration tests for end-to-end flows
-3. Performance testing (save, load, scroll)
-4. Migration dry-run on staging
-5. Monitoring and logging setup
-6. Documentation updates
+1. Review current security rules for compatibility
+2. Add storage rules for public IDF map access
+3. Test rules with different user permissions
+4. Test rules with unauthenticated users
+5. Verify no security regressions
+6. Deploy rules to staging first
+7. Deploy rules to production
+
+**Security Rules Changes:**
+```
+// storage.rules
+match /idf-maps/{fileName} {
+  allow get: if true;  // Public read for IDF maps
+}
+```
 
 **Success Criteria:**
-- Test coverage >80%
-- All performance targets met
-- Migration validated
-- Rollback plan ready
+- Authenticated users can read/write cards (no regression)
+- Unauthenticated users can read IDF maps only
+- No unauthorized access to card data
+- Rules deploy without errors
+- Security audit passes (verify with test accounts)
+
+**Rollback Plan:**
+- Revert storage rules via `firebase deploy --only storage`
+- Immediate rollback possible (<1 minute)
+
+---
+
+### Phase 7: Data Migration Execution (Week 13)
+
+**Goal:** Execute NLP data migration for all 30k cards
+
+**Dependencies:** Phase 2 (NLP Storage), Phase 8 (Monitoring)
+
+**Tasks:**
+1. Run Phase 1 migration: Mark all cards with `nlp_version: 0`
+2. Monitor migration progress (logs, error rate)
+3. Verify cards marked correctly (sample 100 random cards)
+4. Enable Phase 2 lazy computation
+5. Monitor lazy computation over 1 week
+6. Spot-check NLP correctness (sample 50 cards)
+7. Monitor performance metrics
+8. Check for errors or anomalies
+
+**Migration Timeline:**
+- Phase 1: 10-20 minutes (mark 30k cards)
+- Phase 2: 2-4 weeks (lazy computation as cards accessed)
+- Total cost: $0.054 (one-time)
+
+**Success Criteria:**
+- Phase 1 completes in <20 minutes
+- 100% of cards marked with `nlp_version: 0`
+- No errors during Phase 1 migration
+- Lazy computation works (verified by checking cards have `nlp_version: 1` after access)
+- No performance regression during lazy migration
+- Spot-check accuracy: >99% (allow for edge cases)
+- No user-visible impact
+
+**Rollback Plan:**
+- Phase 1 is reversible (clear `nlp_version` field)
+- Phase 2 is non-blocking (disable via feature flag)
+- If critical issues found, disable lazy computation and investigate
+
+---
+
+### Phase 8: Monitoring & Observability (Week 14)
+
+**Goal:** Add comprehensive monitoring and alerting
+
+**Dependencies:** None - can start early (recommended)
+
+**Tasks:**
+1. Add performance metrics collection
+   - Save operation latency (P50, P95, P99)
+   - NLP computation time
+   - Tier load time
+   - Collection count latency
+   - Pagination load time
+2. Add error tracking
+   - Migration errors
+   - NLP computation failures
+   - Index query failures
+   - Listener attachment failures
+3. Add logging for critical events
+   - Tier transitions
+   - Migration progress
+   - IDF download success/failure
+   - Fallback activations
+4. Set up alerts
+   - Save latency >1s P99
+   - Error rate >1%
+   - Migration stalls
+5. Create monitoring dashboard
+6. Test alerts trigger correctly
+
+**Metrics to Track:**
+- Save operations: P50, P95, P99 latency
+- Tier load time: P50, P95
+- NLP computation: P50, P95 duration
+- Collection counts: accuracy, latency
+- Error rates by phase/feature
+- Feature flag states
+- Cache hit rates (IDF, discovered tier)
+
+**Success Criteria:**
+- All metrics collected correctly
+- Dashboard shows real-time data
+- Alerts trigger within 5 minutes of issue
+- No sensitive data in logs
+- Performance overhead <5ms per operation
+
+**Rollback Plan:**
+- Monitoring is non-blocking (can disable without impact)
+- Reduce logging verbosity if performance impact detected
+
+---
+
+### Phase 9: Canary Deployment (Week 15)
+
+**Goal:** Gradual rollout with canary testing
+
+**Dependencies:** Phase 8 (Monitoring), all feature phases complete
+
+**Tasks:**
+1. Deploy to staging environment (full test)
+2. Run automated test suite
+3. Manual QA testing (save, load, search, edit)
+4. Enable for 5% of users (canary cohort)
+5. Monitor metrics for 48 hours
+6. Compare canary vs control group
+7. If successful, increase to 25%
+8. Monitor for 48 hours
+9. If successful, increase to 100%
+10. Monitor for 1 week
+
+**Canary Groups:**
+- 5% cohort: Early adopters (days 1-2)
+- 25% cohort: Broader test (days 3-4)
+- 100% rollout: Full deployment (day 5+)
+
+**Success Criteria:**
+- Canary group shows no performance regression
+- Error rate <0.5% (lower than control group baseline <1%)
+- No user-reported issues
+- All feature flags enabled successfully
+- Metrics within acceptable ranges (see Phase 8)
+- Save performance: P95 <500ms (no regression)
+
+**Rollback Triggers:**
+- Error rate >2%
+- Save latency P99 >1.5s (>50% regression)
+- User-reported data loss
+- Critical bugs discovered
+
+**Rollback Plan:**
+- Disable feature flags (affects canary group only)
+- Rollback time: <5 minutes
+- Full rollback via deployment revert: <15 minutes
+
+---
+
+### Phase 10: Production Hardening & Docs (Week 16-17)
+
+**Goal:** Production readiness, documentation, post-launch optimization
+
+**Dependencies:** Phase 9 (Canary Deployment)
+
+**Tasks:**
+1. Comprehensive testing
+   - Unit tests for all new functions (>80% coverage)
+   - Integration tests for end-to-end flows
+   - Performance testing (load testing with 30k cards)
+   - Regression testing (verify no existing features broken)
+   - Edge case testing (empty cards, large cards, concurrent edits)
+2. Performance optimization
+   - Profile NLP computation bottlenecks
+   - Optimize filter classification logic
+   - Reduce unnecessary re-renders
+3. Documentation
+   - Update README with new architecture
+   - Document feature flags
+   - Add troubleshooting guide
+   - Document rollback procedures
+4. Code cleanup
+   - Remove dead code
+   - Add inline comments for complex logic
+   - Clean up console.logs
+5. Post-launch monitoring
+   - Watch metrics for 1 week
+   - Address any performance issues
+   - Fix minor bugs
+
+**Success Criteria:**
+- Test coverage >80% for new code
+- All performance targets met (see Appendix B)
+- Zero critical bugs
+- Documentation complete
+- Code review approved
+- Monitoring shows stable metrics
+- No rollbacks needed
+
+**Performance Targets (Final Validation):**
+- Save operations: P50 <200ms, P95 <500ms, P99 <800ms
+- Tier load time: <5s P95
+- NLP computation: <50ms P95
+- IDF download: <300ms P95
+- Server count (SIMPLE): <200ms P95
+- Pagination batch: <300ms P95
+- Memory usage: <15% increase from baseline
+
+**Rollback Plan:**
+- Full deployment revert possible if critical issues found
+- Rollback time: <30 minutes
+- All data safe (migrations are non-destructive)
+    for (const doc of snapshot.docs) {
+      batch.update(doc.ref, { nlp_version: 0 });  // Mark for migration
+      totalMarked++;
+    }
+
+    lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    console.log(`Marked ${totalMarked} cards...`);
+  }
+
+  await batch.commit();
+  console.log(`Phase 1 complete: Marked ${totalMarked} cards`);
+};
+```
+
+#### Phase 2: Lazy Computation (Ongoing - Zero UX Impact)
+
+Cards with `nlp_version: 0` will have their NLP computed and saved the next time they're:
+1. Loaded into the hot tier
+2. Edited by the user
+3. Accessed via discovered tier
+
+**File: `/src/selectors.ts`** - Modify card processing:
+
+```typescript
+const getProcessedCard = (card: Card, state: State): ProcessedCard => {
+
+  // Fast path: Use stored NLP if available and current
+  if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
+    return reconstructProcessedCardFromStorage(card, state);
+  }
+
+  // Compute NLP (legacy or marked for migration)
+  const processedCard = cardWithNormalizedTextProperties(card, fallbackText, concepts, synonyms);
+
+  // If card is marked for migration (nlp_version: 0), save computed NLP
+  if (card.nlp_version === 0) {
+    dispatch(saveComputedNLP(card.id, processedCard));  // Background async save
+  }
+
+  return processedCard;
+};
+```
+
+**File: `/src/actions/data.ts`** - Add background NLP save:
+
+```typescript
+/**
+ * Saves computed NLP data for a card (background, non-blocking).
+ * Used during lazy migration to upgrade legacy cards.
+ */
+export const saveComputedNLP = (cardID: CardID, processedCard: ProcessedCard): ThunkSomeAction =>
+  async (dispatch, getState) => {
+    try {
+      const nlpData = {
+        nlp_tokens: extractNLPTokens(processedCard),
+        nlp_fingerprint: processedCard.fingerprint,
+        nlp_version: CURRENT_NLP_VERSION
+      };
+
+      await updateDoc(doc(db, CARDS_COLLECTION, cardID), nlpData);
+    } catch (error) {
+      console.warn(`Failed to save NLP for ${cardID}:`, error);
+      // Non-blocking - don't throw
+    }
+  };
+```
+
+**Performance:**
+- **Phase 1**: 30k cards × 1 write = ~10-15 minutes
+- **Phase 2**: Lazy over weeks/months (zero perceived impact)
+- **Total cost**: $0.054 (30k writes × $0.0018 per 100k)
+- **UX impact**: None (no browser freeze, no listener storm)
+
+### 8.2 Rollback Strategy
+
+**Feature flags for each component:**
+- `ENABLE_3_TIER_HOT_SYSTEM`
+- `ENABLE_STORED_NLP_DATA`
+- `ENABLE_SERVER_IDF`
+- `ENABLE_SIMPLE_COLLECTIONS`
+- `ENABLE_EDITING_LISTENERS`
+
+**Rollback procedure:**
+1. Set feature flag to false
+2. Clear relevant caches (localStorage, IndexedDB)
+3. Verify fallback behavior works
+4. Investigate issue in dev environment
+5. Fix and re-enable
+
+**Recovery time:** <5 minutes (feature flag toggle)
 
 ---
 
@@ -2364,6 +2787,26 @@ Reference filters should **remain CLIENT-SIDE**. Focus optimization efforts on:
 
 ## Revision History
 
+- **v2.5** (2026-01-26): Section 7 (Implementation Roadmap) comprehensive overhaul
+  - **Timeline extended**: 10 weeks → 15-17 weeks (realistic timeline with risk buffer)
+  - **Added Phase 0.5**: Firestore Index Deployment (CRITICAL - must deploy before code changes)
+  - **Corrected success criteria**: Added specific performance metrics with proper baselines
+    - Save performance: P50 <250ms, P95 <500ms, P99 <800ms (was vague "P95 <500ms")
+    - Tier load time: <5s P95 with baseline comparison
+    - Memory usage: <15% increase with specific targets
+  - **Added 4 missing phases**:
+    - Phase 6: Security Rules & Permissions (Week 12)
+    - Phase 7: Data Migration Execution (Week 13)
+    - Phase 8: Monitoring & Observability (Week 14)
+    - Phase 9: Canary Deployment (Week 15)
+    - Phase 10: Production Hardening & Docs (Week 16-17, was "Testing & Polish")
+  - **Added phase dependencies**: Clear critical path and parallelization opportunities
+  - **Added rollback plans**: Every phase now has specific rollback procedures
+  - **Added comprehensive success criteria**: Measurable metrics for each phase
+  - **Improved Phase 2**: Expanded from 2 weeks to 3 weeks, added 10 detailed tasks
+  - **Improved Phase 3**: Expanded from 1 week to 2 weeks, added 9 detailed tasks
+  - **Improved Phase 4**: Expanded from 2 weeks to 3 weeks, added comprehensive testing
+  - User request: Review and fix Section 7 implementation roadmap
 - **v2.4** (2026-01-26): Section 4 accuracy corrections and complete filter count
   - **Corrected 8 misclassified filters**: `has-slug`, `has-tags`, `has-images`, `has-notes` moved from SIMPLE to COMPLEX
   - **Critical finding**: Firestore `where('array', '!=', [])` does NOT work for empty array detection
