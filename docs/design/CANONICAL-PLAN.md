@@ -2130,78 +2130,1063 @@ export const saveComputedNLP = (cardID: CardID, processedCard: ProcessedCard): T
 - **Total cost**: $0.054 (30k writes × $0.0018 per 100k)
 - **UX impact**: None (no browser freeze, no listener storm)
 
-### 8.2 Rollback Strategy
+**Performance:
+- **Phase 1**: 30k cards × 1 write = ~10-15 minutes
+- **Phase 2**: Lazy over weeks/months (zero perceived impact)
+- **Total cost**: $0.054 (30k writes × $0.0018 per 100k)
+- **UX impact**: None (no browser freeze, no listener storm)
 
-**Feature flags for each component:**
-- `ENABLE_3_TIER_HOT_SYSTEM`
-- `ENABLE_STORED_NLP_DATA`
-- `ENABLE_SERVER_IDF`
-- `ENABLE_SIMPLE_COLLECTIONS`
-- `ENABLE_EDITING_LISTENERS`
+### 8.2 Lazy Computation Triggers (Comprehensive)
 
-**Rollback procedure:**
-1. Set feature flag to false
-2. Clear relevant caches (localStorage, IndexedDB)
-3. Verify fallback behavior works
-4. Investigate issue in dev environment
+Cards marked with `nlp_version: 0` will automatically have their NLP computed and saved when triggered by ANY of these events:
+
+**Primary Triggers:**
+1. **Hot Tier Load** - Card enters published/prioritized/recent tier via onSnapshot
+2. **User Edit** - Card opened in editor and modified
+3. **Discovered Tier Fetch** - Card fetched on-demand via `getDoc()`
+
+**Secondary Triggers:**
+4. **Collection Display** - Card rendered in any collection view
+5. **Card Preview** - Card shown in hover preview or reference panel
+6. **Search Result** - Card appears in search results (triggers NLP for ranking)
+7. **Similar Cards Computation** - Card used as similarity seed
+8. **Fingerprint Generation** - Auto-title computation requires NLP
+9. **Export Operations** - Card included in bulk export
+10. **Maintenance Tasks** - Batch operations that process cards
+
+**Coverage Guarantee:** Since ALL card access routes through selectors that use `getProcessedCard()`, every card will eventually be migrated through normal usage. Published and prioritized cards (~6,900) will migrate within first week. Remaining cards migrate as accessed.
+
+### 8.3 Handling Partial Migrations
+
+**Scenario:** Migration interrupted due to deployment, browser crash, or user session end.
+
+**Built-In Resilience:**
+
+1. **Idempotent Operations** - `nlp_version: 0` marker is idempotent (can set multiple times)
+2. **Resumable Phase 1** - If marking cards fails mid-batch, restart marks only unmarked cards
+3. **Resumable Phase 2** - Lazy computation automatically resumes on next access
+4. **No Coordination Required** - Each card migrates independently (no ordering dependencies)
+
+**Progress Tracking:**
+
+Add maintenance task to report migration status:
+
+```typescript
+export const checkNLPMigrationProgress = async (): Promise<MigrationStatus> => {
+  const totalCards = await getCountFromServer(
+    query(collection(db, CARDS_COLLECTION))
+  );
+
+  const migratedCards = await getCountFromServer(
+    query(
+      collection(db, CARDS_COLLECTION),
+      where('nlp_version', '>=', 1)  // Current or future versions
+    )
+  );
+
+  const markedForMigration = await getCountFromServer(
+    query(
+      collection(db, CARDS_COLLECTION),
+      where('nlp_version', '==', 0)  // Marked but not yet migrated
+    )
+  );
+
+  return {
+    total: totalCards.data().count,
+    migrated: migratedCards.data().count,
+    pending: markedForMigration.data().count,
+    percentComplete: (migratedCards.data().count / totalCards.data().count) * 100
+  };
+};
+```
+
+**Partial Migration States:**
+
+| State | nlp_version | nlp_tokens | Behavior |
+|-------|-------------|------------|----------|
+| **Unmarked** | `undefined` | `undefined` | Compute NLP on every access (legacy) |
+| **Marked** | `0` | `undefined` | Compute NLP + save on first access |
+| **Migrated** | `1` | Present | Use stored NLP (fast path) |
+| **Mixed** | Varies | Varies | Different cards in different states (SAFE) |
+
+**Safety:** All three states work correctly. No card is ever unreadable due to partial migration.
+
+### 8.4 Monitoring During Migration
+
+**Key Metrics to Track:**
+
+1. **Migration Progress**
+   - Cards marked for migration (`nlp_version: 0`)
+   - Cards successfully migrated (`nlp_version: 1`)
+   - Percentage complete
+   - Estimated time to 95% completion
+
+2. **Performance Impact**
+   - Average save time (P50, P95, P99)
+   - NLP computation time per card
+   - Background save success rate
+   - Failed NLP saves (retry queue depth)
+
+3. **Error Rates**
+   - Failed background saves (permissions, network)
+   - NLP computation errors (malformed cards)
+   - Storage quota exceeded errors
+
+4. **Resource Usage**
+   - Client memory usage (ProcessedCard cache)
+   - Firestore write operations (should stay within free tier)
+   - localStorage size (IDF cache)
+
+**Monitoring Implementation:**
+
+```typescript
+// File: /src/actions/monitoring.ts (NEW)
+export class MigrationMonitor {
+  private metrics: MigrationMetrics = {
+    nlpComputeCount: 0,
+    nlpSaveCount: 0,
+    nlpSaveFailures: 0,
+    totalComputeTimeMs: 0,
+    averageComputeTimeMs: 0
+  };
+
+  recordNLPComputation(timeMs: number) {
+    this.metrics.nlpComputeCount++;
+    this.metrics.totalComputeTimeMs += timeMs;
+    this.metrics.averageComputeTimeMs =
+      this.metrics.totalComputeTimeMs / this.metrics.nlpComputeCount;
+
+    // Alert if computation time exceeds threshold
+    if (timeMs > 100) {
+      console.warn(`Slow NLP computation: ${timeMs}ms`);
+    }
+  }
+
+  recordNLPSave(success: boolean) {
+    if (success) {
+      this.metrics.nlpSaveCount++;
+    } else {
+      this.metrics.nlpSaveFailures++;
+
+      // Alert if failure rate exceeds 5%
+      const failureRate = this.metrics.nlpSaveFailures /
+        (this.metrics.nlpSaveCount + this.metrics.nlpSaveFailures);
+      if (failureRate > 0.05) {
+        console.error(`NLP save failure rate: ${(failureRate * 100).toFixed(1)}%`);
+      }
+    }
+  }
+
+  getMetrics(): MigrationMetrics {
+    return { ...this.metrics };
+  }
+
+  persistMetrics() {
+    localStorage.setItem('migration_metrics', JSON.stringify(this.metrics));
+  }
+}
+```
+
+**Alerting Thresholds:**
+- NLP computation time > 100ms → Warning
+- Save failure rate > 5% → Error
+- Memory usage > 500MB → Warning
+- Migration stalled (no progress for 24 hours) → Warning
+
+### 8.5 Performance Impact During Migration
+
+**Expected Impact:**
+
+| Phase | Operation | Impact | Mitigation |
+|-------|-----------|--------|------------|
+| **Phase 1** | Marking Cards | NONE | Happens in maintenance task |
+| **Phase 2** | First Access | +10-50ms NLP compute | Acceptable |
+| **Phase 2** | Background Save | NONE | Async, non-blocking |
+| **Post-Migration** | All Access | -95% compute time | Huge WIN |
+
+**Detailed Analysis:**
+
+1. **Phase 1 (Marking): No User Impact**
+   - Runs as maintenance task in background
+   - Takes 10-15 minutes, user can continue working
+   - No UI freeze, no perceived slowdown
+
+2. **Phase 2 (Lazy Migration): Minimal Impact**
+   - Only affects FIRST access to each card
+   - NLP computation: 10-50ms (already happens on save)
+   - Background save: Async via Firestore SDK
+   - Subsequent accesses use fast path
+
+3. **Post-Migration: Massive Performance Improvement**
+   - 95% reduction in client-side NLP computation
+   - Selectors run 10-50ms faster per card
+   - Filter evaluation faster
+   - Search faster
+
+**Memory Impact:** ZERO (ProcessedCard reconstructed from storage has same footprint)
+
+**Network Impact:**
+- Phase 1: 30k writes × ~50 bytes = 1.5 MB (spread over 10-15 min)
+- Phase 2: 30k writes × ~18 KB avg = 540 MB (spread over weeks/months)
+- Bandwidth: Negligible (<1 MB/day amortized)
+
+### 8.6 Data Consistency Guarantees
+
+**Consistency Model:** Eventual consistency with guaranteed correctness
+
+**Consistency Invariants:**
+
+✅ **Invariant 1: Readable at All Times**
+- Every card state (unmarked, marked, migrated) has valid read path
+- No card ever becomes "unreadable" during migration
+
+✅ **Invariant 2: Write-Once Per Card**
+- Each card migrated exactly once (unless error requires retry)
+- `nlp_version: 0 → 1` transition is one-way
+
+✅ **Invariant 3: Content-NLP Sync**
+- If card content changes during migration, new NLP computed on save
+- `hasContentFieldChanges()` check ensures NLP always matches content
+
+✅ **Invariant 4: Version Monotonicity**
+- `nlp_version` only increases (never decreases)
+- Future migrations (v2, v3) can use same pattern
+
+**Race Conditions Handled:**
+
+1. **Concurrent Edit During Migration**
+   - Resolution: Last write wins (Firestore atomic updates)
+   - Outcome: Card gets latest content + latest NLP ✅
+
+2. **Multiple Browser Tabs**
+   - Resolution: Both saves write identical NLP data (idempotent)
+   - Outcome: No corruption, minor redundant write ✅
+
+3. **Save Collision**
+   - Resolution: User save takes precedence (includes fresh NLP)
+   - Outcome: Correct final state ✅
+
+**Consistency Verification:**
+
+```typescript
+export const verifyNLPConsistency = async (sampleSize = 100): Promise<ConsistencyReport> => {
+  const migratedCards = await getDocs(
+    query(
+      collection(db, CARDS_COLLECTION),
+      where('nlp_version', '==', 1),
+      limit(sampleSize)
+    )
+  );
+
+  let inconsistencies = 0;
+  for (const doc of migratedCards.docs) {
+    const card = doc.data() as Card;
+    const freshNLP = generateNLPDataForCard(card, state);
+
+    if (!deepEqual(freshNLP.nlp_tokens, card.nlp_tokens)) {
+      inconsistencies++;
+      console.warn(`Inconsistent NLP for card ${card.id}`);
+    }
+  }
+
+  return {
+    sampleSize: migratedCards.size,
+    inconsistencies,
+    consistencyRate: ((migratedCards.size - inconsistencies) / migratedCards.size) * 100
+  };
+};
+```
+
+**Expected Consistency Rate:** 99.9%+
+
+### 8.7 Rollback Strategy
+
+**Feature Flags:**
+
+```typescript
+// File: /src/feature_flags.ts
+export const FEATURE_FLAGS = {
+  ENABLE_3_TIER_HOT_SYSTEM: true,
+  ENABLE_STORED_NLP_DATA: true,      // Controls fast path
+  ENABLE_SERVER_IDF: true,
+  ENABLE_SIMPLE_COLLECTIONS: true,
+  ENABLE_EDITING_LISTENERS: true,
+
+  // Emergency kill switches
+  FORCE_RECOMPUTE_NLP: false,        // Ignore stored NLP, always compute
+  DISABLE_NLP_BACKGROUND_SAVE: false // Don't save NLP (read-only mode)
+};
+```
+
+**Rollback Scenarios:**
+
+#### Scenario 1: Stored NLP Causing Errors
+
+**Symptoms:** Cards render incorrectly, search broken, fingerprints wrong
+
+**Rollback Procedure:**
+1. Set `ENABLE_STORED_NLP_DATA = false` (forces fallback to computation)
+2. Deploy config update (30 seconds)
+3. Clear client caches: `localStorage.clear()`, refresh tabs
+4. Verify cards render correctly (fallback path)
+5. Investigate root cause
+6. Fix issue, re-enable flag
+
+**Recovery Time:** <5 minutes
+**Data Impact:** NONE (no data deleted, just ignored)
+**User Impact:** Slight performance regression, but full functionality
+
+#### Scenario 2: Migration Causing Performance Issues
+
+**Symptoms:** Browser slowdowns, excessive memory usage, save timeouts
+
+**Rollback Procedure:**
+1. Set `DISABLE_NLP_BACKGROUND_SAVE = true` (stop migration)
+2. Investigate: Check metrics, identify problematic cards
+3. Fix issue (e.g., skip cards >100KB, optimize NLP)
+4. Resume migration with fix
+
+**Recovery Time:** Immediate (stop migration), resume when fixed
+**Data Impact:** Migration paused (resumable later)
+**User Impact:** NONE (migration is background)
+
+#### Scenario 3: Server IDF Corruption
+
+**Symptoms:** Fingerprints inconsistent, auto-titles broken
+
+**Rollback Procedure:**
+1. Set `ENABLE_SERVER_IDF = false` (use client-side IDF)
+2. Delete corrupted IDF from Cloud Storage
+3. Manually trigger IDF recalculation Cloud Function
+4. Verify new IDF correctness
+5. Re-enable server IDF
+
+**Recovery Time:** 10-15 minutes (IDF recalculation)
+**Data Impact:** NONE (fallback to client IDF)
+**User Impact:** Slight fingerprint variations during fallback
+
+#### Scenario 4: 3-Tier System Causing Duplicates
+
+**Symptoms:** Duplicate cards in UI, cards in wrong tiers
+
+**Rollback Procedure:**
+1. Set `ENABLE_3_TIER_HOT_SYSTEM = false` (revert to 2-tier)
+2. Restart Firestore listeners (reconnect)
+3. Verify no duplicates
+4. Investigate tier boundary conditions
 5. Fix and re-enable
 
-**Recovery time:** <5 minutes (feature flag toggle)
+**Recovery Time:** <2 minutes (listener restart)
+**Data Impact:** NONE (no Firestore changes)
+**User Impact:** Brief UI refresh, then normal operation
 
+**Complete Rollback (Nuclear Option):**
+
+If multiple components fail:
+
+1. Set ALL feature flags to `false`
+2. Clear all caches (localStorage, IndexedDB, service worker)
+3. Redeploy previous stable version
+4. Verify full system functionality
+5. Investigate issues in isolated dev environment
+6. Incremental re-enable with fixes
+
+**Recovery Time:** 10-15 minutes (full redeploy)
+**Data Impact:** NONE (all new fields optional, backward compatible)
+**User Impact:** Brief downtime, then back to pre-migration state
+
+**Rollback Testing:**
+
+```typescript
+// File: /test/rollback_test.ts
+describe('Migration Rollback', () => {
+  it('should work with stored NLP disabled', async () => {
+    FEATURE_FLAGS.ENABLE_STORED_NLP_DATA = false;
+    const card = await selectProcessedCard('test-card');
+    expect(card.nlp).toBeDefined();  // Computed on-the-fly
+  });
+
+  it('should work with 3-tier disabled', async () => {
+    FEATURE_FLAGS.ENABLE_3_TIER_HOT_SYSTEM = false;
+    await connectLiveCards();
+    const cards = selectCards();
+    expect(hasDuplicates(cards)).toBe(false);
+  });
+
+  it('should work with server IDF disabled', async () => {
+    FEATURE_FLAGS.ENABLE_SERVER_IDF = false;
+    const generator = selectFingerprintGenerator();
+    expect(generator).toBeDefined();  // Uses client IDF
+  });
+});
+```
+
+### 8.8 Cloud Function NLP Computation Feasibility
+
+**Question:** Can Cloud Functions run NLP computation (needs jsdom, node environment)?
+
+**Answer:** ✅ YES - Fully supported
+
+**Evidence:**
+
+1. **jsdom Already Available**
+   - Package: `jsdom@22.1.0` in `/functions/package.json` ✅
+   - TypeScript types: `@types/jsdom@21.1.4` ✅
+   - Already used for server-side HTML processing
+
+2. **Node Environment Compatible**
+   - Cloud Functions run Node 20 (specified in `engines`)
+   - NLP utilities only use basic DOM operations (createElement, textContent)
+   - No browser-specific APIs (window, navigator, etc.)
+
+3. **Polyfill Pattern**
+   ```typescript
+   // In Cloud Function before NLP computation
+   import { JSDOM } from 'jsdom';
+
+   if (typeof document === 'undefined') {
+     const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+     global.document = dom.window.document;
+     global.DOMParser = dom.window.DOMParser;
+   }
+
+   // Now NLP utilities work normally
+   const processedCard = cardWithNormalizedTextProperties(card, ...);
+   ```
+
+4. **Existing Server-Side HTML Processing**
+   - File: `/functions/src/embeddings.ts` already processes HTML server-side
+   - Uses similar DOM manipulation patterns
+   - Proven to work in production
+
+**Implementation Note:**
+
+The plan currently uses **client-side NLP computation on save** (Section 2.3), NOT Cloud Functions. This decision is intentional:
+
+- ✅ Simpler architecture (no async Cloud Function roundtrip)
+- ✅ No cold start delays
+- ✅ Atomic with save operation
+- ✅ No additional Cloud Function costs
+
+However, if future requirements need server-side NLP (e.g., bulk migration Cloud Function), jsdom support is already available.
+
+**Server IDF Calculation Cloud Function:**
+
+The plan DOES use Cloud Functions for server-side IDF calculation (Section 3.3):
+
+```typescript
+export const calculateIDF = onSchedule({
+  schedule: '0 2 * * 0',  // Weekly
+  memory: '2GiB',
+  timeoutSeconds: 540
+}, async (event) => {
+  // Polyfill jsdom for NLP utilities
+  if (typeof document === 'undefined') {
+    const dom = new JSDOM('');
+    global.document = dom.window.document;
+  }
+
+  const allCards = await getCards();
+  const bodyCards = allCards.filter(card => BODY_CARD_TYPES[card.card_type]);
+  const idfMap = calcIDFMapForCards(bodyCards, MAX_N_GRAM_FOR_FINGERPRINT);
+
+  await bucket.file(`idf-maps/idf-v${Date.now()}.json`).save(JSON.stringify(idfMap));
+});
+```
+
+This Cloud Function WILL use jsdom and WILL work correctly.
+
+**Conclusion:** Cloud Function NLP computation is feasible but not needed for the current architecture. The jsdom dependency is already satisfied.
 ---
 
 ## 9. Testing Strategy
 
+### Overview
+
+This testing strategy covers all components of the canonical plan with comprehensive unit, integration, performance, and migration tests. Existing test infrastructure uses **Mocha + Chai** with Firebase emulators for security rule tests (located in `/test/` directory).
+
 ### 9.1 Unit Tests
 
-**3-Tier Hot System:**
-- Tier classification logic
-- Duplicate prevention
-- Culling with tier overflow
+Unit tests validate individual components in isolation. Use existing Mocha test framework with `assert` from Chai.
 
-**NLP Storage:**
-- generateNLPDataForCard correctness
-- Reconstruction from storage
-- Backward compatibility (missing nlp_tokens)
+#### 9.1.1 3-Tier Hot System Tests
 
-**Server IDF:**
-- IDFCache download and caching
-- localStorage TTL expiration
-- Fallback to client IDF
+**File:** `/test/tier-system/test.js` (NEW)
 
-**Collection Classification:**
-- SIMPLE vs COMPLEX detection
-- Firestore query building
-- Count accuracy
+**Coverage:**
+- Tier classification logic (published, prioritized, recent)
+- Duplicate prevention during tier transitions
+- Culling logic when tiers overflow limit
+- Edge cases: empty collections, large tier 2 (10k+ cards), zero tier 3 slots
+
+**Key Test Cases:**
+```javascript
+// Tier classification with backwards prioritized logic
+it('Prioritized unpublished cards classified as Tier 2', async () => {
+  const card = {
+    published: false,
+    auto_todo_overrides: { prioritized: false } // false = prioritized (backwards)
+  };
+  const tier = classifyCardTier(card);
+  assert.strictEqual(tier, 'unpublished-prioritized');
+});
+
+// Culling excess Tier 3 cards
+it('Tier 3 culls excess cards when limit exceeded', async () => {
+  const cards = mockCardsWithTiers(900, 6000, 200); // Exceeds 7k limit
+  const culled = cullExtraCompleteModeCards(cards, 7000);
+  assert.strictEqual(countByTier(culled, 'unpublished-recent'), 100); // Only 100 remain
+});
+
+// Tier transition duplicate prevention
+it('Card moving from Tier 3 to Tier 2 removed from Tier 3', async () => {
+  const initialCards = { 'card-1': { fetchType: 'unpublished-recent' } };
+  const update = { 'card-1': { auto_todo_overrides: { prioritized: false } } };
+  const result = await simulateTierTransition(initialCards, update);
+  assert.strictEqual(result['card-1'].fetchType, 'unpublished-prioritized');
+});
+```
+
+**Edge Cases:**
+- Empty database (0 cards)
+- Large Tier 2 (10k+ prioritized cards)
+- Tier 3 limit = 0 (when Tier 1 + Tier 2 fills capacity)
+- Rapid tier transitions (publish → unpublish → prioritize)
+
+#### 9.1.2 NLP Storage Tests
+
+**File:** `/test/nlp-storage/test.js` (NEW)
+
+**Coverage:**
+- `generateNLPDataForCard()` correctness for all content fields
+- Empty field exclusion from NLP tokens
+- Concept reference normalization
+- `reconstructProcessedCardFromStorage()` fast path
+- Backward compatibility (missing/outdated nlp_version)
+- `hasContentFieldChanges()` detection logic
+
+**Key Test Cases:**
+```javascript
+// NLP generation with concepts
+it('Handles concept references correctly', async () => {
+  const card = { title: 'Complexity and Hill Climbing', body: '<p>Discussion</p>' };
+  const conceptMap = { 'Hill Climbing': 'concept-hill-climbing' };
+  const nlpData = generateNLPDataForCard(card, { ...mockState, concepts: conceptMap });
+  const titleTokens = nlpData.nlp_tokens.title;
+  assert.ok(titleTokens.some(run => run.stemmed.includes('climb')));
+});
+
+// Fast path reconstruction
+it('Current nlp_version uses stored data (fast path)', async () => {
+  const card = { nlp_tokens: {/*...*/}, nlp_version: 1 };
+  const startTime = performance.now();
+  const processed = getProcessedCard(card, mockState);
+  const endTime = performance.now();
+  assert.ok(endTime - startTime < 5); // Fast path < 5ms
+});
+
+// Legacy fallback
+it('Legacy card without nlp_tokens computes on-the-fly', async () => {
+  const legacyCard = { id: 'legacy', title: 'Old Card' }; // No NLP fields
+  const processed = getProcessedCard(legacyCard, mockState);
+  assert.ok(processed.nlp); // Computed successfully
+});
+```
+
+**Save Flow Integration:**
+- Content field changes trigger NLP computation
+- Non-content fields skip NLP computation
+- Save includes NLP data when appropriate
+
+#### 9.1.3 Server IDF Tests
+
+**File:** `/test/server-idf/test.js` (NEW)
+
+**Coverage:**
+- `IDFCache` download on first access
+- localStorage caching (survives reload)
+- 7-day TTL expiration
+- Server unavailable fallback to client IDF
+- IDF consistency across sessions
+- Cloud Function IDF generation (mocked)
+
+**Key Test Cases:**
+```javascript
+// Cache behavior
+it('Returns cached IDF on subsequent access', async () => {
+  const cache = new IDFCache();
+  const idf1 = await cache.getIDF();
+  const idf2 = await cache.getIDF();
+  assert.strictEqual(idf1, idf2); // Same object reference
+});
+
+// Expiration
+it('Expired cache (>7 days) triggers re-download', async () => {
+  const expiredDate = Date.now() - (8 * 24 * 60 * 60 * 1000);
+  localStorage.setItem('idf_cache', JSON.stringify({ timestamp: expiredDate, data: {} }));
+  const idf = await cache.getIDF();
+  assert.ok(Date.now() - new Date(idf.generatedAt) < 24 * 60 * 60 * 1000);
+});
+
+// Consistency
+it('Server IDF produces consistent fingerprints across sessions', async () => {
+  const fingerprint1 = generator1.fingerprintForCardID('test-card');
+  const fingerprint2 = generator2.fingerprintForCardID('test-card'); // New session
+  assert.deepStrictEqual(fingerprint1, fingerprint2);
+});
+```
+
+**Fallback Behavior:**
+- Server 500 error → use client IDF
+- Network timeout → use client IDF
+- Client IDF matches expected format
+
+#### 9.1.4 Collection Classification Tests
+
+**File:** `/test/collection-classification/test.js` (NEW)
+
+**Coverage:**
+- SIMPLE filter detection (published, section, tag, date range, author)
+- COMPLEX filter detection (children, descendants, starred, reading-list)
+- Union filter handling (SIMPLE + SIMPLE = SIMPLE, SIMPLE + COMPLEX = COMPLEX)
+- Query filter classification (SIMPLE with Enterprise, COMPLEX without)
+- Firestore query constraint building
+- Server count accuracy validation
+
+**Key Test Cases:**
+```javascript
+// Filter classification
+it('Published filter classified as SIMPLE', async () => {
+  const filter = { filters: ['published'] };
+  const result = classifyFilter(filter);
+  assert.strictEqual(result.isSimple, true);
+  assert.strictEqual(result.canGetServerCount, true);
+});
+
+it('Children filter classified as COMPLEX', async () => {
+  const filter = { filters: ['children/card-123'] };
+  const result = classifyFilter(filter);
+  assert.strictEqual(result.isSimple, false);
+  assert.ok(result.reason.includes('Complex'));
+});
+
+// Union handling
+it('Union of SIMPLE filters remains SIMPLE', async () => {
+  const filter = { filters: ['section/A+section/B'] };
+  const result = classifyFilter(filter);
+  assert.strictEqual(result.isSimple, true);
+});
+
+// Query building
+it('Builds correct query for union filter', async () => {
+  const filter = { filters: ['section/A+section/B+section/C'] };
+  const constraints = buildFirestoreQuery(filter);
+  assert.deepStrictEqual(constraints[0].value, ['A', 'B', 'C']);
+});
+```
+
+**Count Accuracy:**
+- SIMPLE collections return exact counts matching actual cards
+- COMPLEX collections return approximate counts
+- Server count endpoint responds < 200ms
 
 ### 9.2 Integration Tests
 
-**Full Flow:**
-1. Load app → 3 tiers populate
-2. Edit card → save → NLP data stored
-3. Reload app → NLP data loaded from storage
-4. Open SIMPLE collection → accurate count shown
-5. Scroll collection → pagination loads more
-6. Edit non-hot card → concurrent edit detected → merge works
+Integration tests validate end-to-end workflows with Firebase emulators.
+
+**File:** `/test/integration/canonical-plan.test.js` (NEW)
+
+#### 9.2.1 3-Tier Loading Flow
+
+**Scenarios:**
+- Complete load sequence: Tier 1 → Tier 2 → Tier 3
+- Tier overflow handling (> 7000 cards)
+- Correct card distribution across tiers
+- No duplicate cards after all tiers load
+
+**Test:**
+```javascript
+it('Complete load sequence: Tier 1 → Tier 2 → Tier 3', async () => {
+  await store.dispatch(connectLiveCards());
+  await waitForAllTiers();
+
+  const cards = selectRawCards(store.getState());
+  const tier1 = Object.values(cards).filter(c => c.published);
+  const tier2 = Object.values(cards).filter(c => !c.published && cardIsPrioritized(c));
+  const tier3 = Object.values(cards).filter(c => !c.published && !cardIsPrioritized(c));
+
+  assert.ok(tier1.length > 0);
+  assert.ok(tier2.length > 0);
+  assert.strictEqual(tier1.length + tier2.length + tier3.length, Object.keys(cards).length);
+});
+```
+
+#### 9.2.2 NLP Save & Load Flow
+
+**Scenarios:**
+- Edit → Save → NLP stored → Reload → NLP loaded
+- Save performance within targets (P95 < 500ms)
+- Background NLP computation for legacy cards (nlp_version: 0)
+- Failed background save doesn't crash app
+
+**Test:**
+```javascript
+it('Edit → Save → NLP stored → Reload → NLP loaded', async () => {
+  const cardId = 'test-card';
+
+  await store.dispatch(editingStart(cardId));
+  await store.dispatch(updateEditorContent({ title: 'New Title' }));
+  await store.dispatch(saveCard());
+
+  // Verify NLP saved to Firestore
+  const savedCard = await getDoc(doc(db, 'cards', cardId));
+  assert.ok(savedCard.data().nlp_tokens);
+  assert.strictEqual(savedCard.data().nlp_version, 1);
+
+  // Clear and reload
+  await store.dispatch(clearCards());
+  await store.dispatch(fetchCard(cardId));
+
+  const processedCard = selectProcessedCard(store.getState(), cardId);
+  assert.ok(processedCard.nlp);
+});
+```
+
+#### 9.2.3 Server IDF Integration
+
+**Scenarios:**
+- App initialization downloads IDF
+- IDF cached in localStorage
+- FingerprintGenerator uses server IDF
+- Fingerprints consistent across sessions
+
+**Test:**
+```javascript
+it('App initialization downloads and caches IDF', async () => {
+  localStorage.clear();
+  await store.dispatch(initializeApp());
+
+  const idf = selectServerIDF(store.getState());
+  assert.ok(idf);
+
+  const cached = JSON.parse(localStorage.getItem('idf_cache'));
+  assert.ok(cached);
+});
+```
+
+#### 9.2.4 Collection Pagination
+
+**Scenarios:**
+- SIMPLE collection: count → IDs → batch load
+- Scroll trigger loads next batch
+- Pagination batch load < 300ms
+- Discovered tier fetch for missing cards
+
+**Test:**
+```javascript
+it('SIMPLE collection: count → IDs → batch load', async () => {
+  const collection = new CollectionDescription({ filters: ['published'] });
+
+  const countInfo = await collection.getCount();
+  assert.strictEqual(countInfo.isExact, true);
+
+  await collection.initialize();
+  assert.strictEqual(collection.cardIDs.length, countInfo.count);
+
+  await collection.loadCardBatch(0, 50);
+  assert.strictEqual(collection.visibleCards.length, 50);
+});
+```
+
+#### 9.2.5 Real-Time Editing Conflicts
+
+**Scenarios:**
+- Edit non-hot card → concurrent edit → merge
+- Listener attached for non-hot cards only
+- Listener detached on editing finish
+- Merge UI appears on conflict
+
+**Test:**
+```javascript
+it('Edit non-hot card → concurrent edit detected → merge works', async () => {
+  const cardId = 'discovered-card';
+
+  await store.dispatch(fetchDiscoveredCard(cardId));
+  await store.dispatch(editingStart(cardId));
+
+  // Simulate concurrent edit
+  await updateCardRemotely(cardId, { body: '<p>Remote change</p>' });
+  await waitForCardUpdate(cardId);
+
+  const conflicts = selectOvershadowedUnderlyingChangesDiff(store.getState());
+  assert.ok(Object.keys(conflicts).length > 0);
+
+  await store.dispatch(mergeOvershadowedUnderlyingChanges());
+  const editorCard = selectEditorCard(store.getState());
+  assert.ok(editorCard.body.includes('Remote change'));
+});
+```
 
 ### 9.3 Performance Tests
 
-**Metrics:**
-- Save operations: P50 < 200ms, P95 < 500ms
-- 3-tier load time: < 5 seconds
-- NLP computation on save: < 50ms
-- IDF download: < 300ms (first time)
-- Collection count: < 200ms (SIMPLE), < 100ms (COMPLEX)
-- Pagination batch load: < 300ms
+Performance tests validate timing targets with benchmarking.
+
+**File:** `/test/performance/benchmarks.js` (NEW)
+
+#### 9.3.1 Save Operations Benchmark
+
+**Targets:**
+- P50 save time < 200ms
+- P95 save time < 500ms
+- Large card (2000 words) save < 500ms
+- NLP computation overhead < 50ms
+
+**Test:**
+```javascript
+it('P95 save time < 500ms', async () => {
+  const times = await benchmarkSaveOperations(100);
+  const p95 = percentile(times, 0.95);
+  assert.ok(p95 < 500, `P95 ${p95}ms exceeds 500ms target`);
+});
+```
+
+#### 9.3.2 3-Tier Load Performance
+
+**Targets:**
+- Complete 3-tier load < 5 seconds
+- Tier 1 loads < 1 second
+- Tier 2 loads < 3 seconds
+
+**Test:**
+```javascript
+it('Complete 3-tier load < 5 seconds', async () => {
+  const startTime = performance.now();
+  await store.dispatch(connectLiveCards());
+  await waitForAllTiers();
+  const endTime = performance.now();
+  assert.ok(endTime - startTime < 5000);
+});
+```
+
+#### 9.3.3 IDF and Collection Performance
+
+**Targets:**
+- IDF first download < 300ms
+- Cached IDF access < 5ms
+- SIMPLE collection count < 200ms
+- COMPLEX collection count < 100ms
+- Pagination batch load (50 cards) < 300ms
 
 ### 9.4 Migration Tests
 
-**Dry run:**
-1. Copy production data to staging
-2. Run migration on staging
-3. Verify all cards have nlp_tokens
-4. Spot-check NLP correctness
-5. Verify save/load still works
+Migration tests validate data migration safety and correctness.
+
+**File:** `/test/migration/nlp-migration.test.js` (NEW)
+
+#### 9.4.1 Phase 1: Mark Cards
+
+**Scenarios:**
+- All cards without nlp_version marked with nlp_version: 0
+- Existing nlp_version unchanged
+- Completes within time limit (< 15 min for 30k cards)
+- Batch write limits handled correctly (500 per batch)
+
+**Test:**
+```javascript
+it('Marks all cards without nlp_version', async () => {
+  const db = setupStagingDatabase(1000);
+  await runPhase1Migration(db);
+
+  const cards = await getAllCards(db);
+  cards.forEach(card => {
+    if (!card.nlp_tokens) {
+      assert.strictEqual(card.nlp_version, 0);
+    }
+  });
+});
+```
+
+#### 9.4.2 Phase 2: Lazy Computation
+
+**Scenarios:**
+- Card with nlp_version:0 triggers background save on load
+- Background save doesn't block UI
+- Failed background save doesn't crash app
+- NLP computation results correct
+
+**Test:**
+```javascript
+it('Card with nlp_version:0 triggers background save on load', async () => {
+  await setCard(db, 'legacy-card', { title: 'Test', nlp_version: 0 });
+
+  await store.dispatch(fetchCard('legacy-card'));
+  await waitForAsyncSave();
+
+  const updatedCard = await getCard(db, 'legacy-card');
+  assert.ok(updatedCard.nlp_tokens);
+  assert.strictEqual(updatedCard.nlp_version, 1);
+});
+```
+
+#### 9.4.3 Migration Validation
+
+**Scenarios:**
+- Spot-check NLP correctness for migrated cards
+- Save/load still works after migration
+- Performance unchanged after migration
+- All 30k cards have valid NLP data
+
+**Test:**
+```javascript
+it('Spot-check NLP correctness for migrated cards', async () => {
+  await runFullMigration(db);
+  const sampleCards = await getSampleCards(db, 10);
+
+  sampleCards.forEach(card => {
+    assert.ok(card.nlp_tokens);
+    assert.strictEqual(card.nlp_version, 1);
+    Object.values(card.nlp_tokens).forEach(runs => {
+      runs.forEach(run => {
+        assert.ok(run.original && run.normalized && run.stemmed);
+      });
+    });
+  });
+});
+```
+
+### 9.5 Security Rule Tests
+
+Extend existing security tests for NLP fields.
+
+**File:** `/test/security/nlp-rules.test.js` (NEW)
+
+**Coverage:**
+- Users with edit permission can set nlp_tokens
+- Non-editors cannot set nlp_tokens
+- Invalid nlp_version rejected
+- NLP fields follow same permissions as card content
+
+### 9.6 Edge Case Tests
+
+**File:** `/test/edge-cases/stress-tests.js` (NEW)
+
+**Scenarios:**
+- Empty collection (0 cards) loads without error
+- Large collection (30k+ cards) loads successfully
+- Card with very long body (10k words) processes correctly
+- Rapid tier transitions handled gracefully
+- Concurrent saves to same card handled correctly
+
+**Test:**
+```javascript
+it('Large collection (30k+ cards) loads successfully', async () => {
+  const db = setupLargeDatabase(35000);
+  await store.dispatch(connectLiveCards());
+  await waitForAllTiers();
+
+  const cards = selectRawCards(store.getState());
+  const limit = selectCompleteModeEffectiveCardLimit(store.getState());
+  assert.ok(Object.keys(cards).length <= limit);
+});
+```
+
+### 9.7 Regression Test Suite
+
+Track fixes for reported issues.
+
+**File:** `/test/regression/known-issues.test.js` (NEW)
+
+**Examples:**
+- Issue #123: Duplicate cards when publishing
+- Issue #145: NLP fingerprint empty for cards with only stop words
+- Issue #167: Tier 3 culling removes wrong cards
+
+### 9.8 Load Testing
+
+**File:** `/test/load/stress.js` (NEW)
+
+**Scenarios:**
+- 100 concurrent users loading app
+- IDF cache handles concurrent requests
+- Server count endpoint handles sustained load (1000 requests)
+- Success rate > 95% under load
+
+### 9.9 Test Coverage Goals
+
+**Targets:**
+- Unit test coverage: >80%
+- Integration test coverage: >60%
+- Critical paths: 100% coverage
+  - Save flow with NLP
+  - 3-tier loading
+  - Collection classification
+  - Migration phases
+
+**Coverage report:**
+```bash
+npm run test:coverage
+```
+
+### 9.10 Test Infrastructure
+
+**package.json scripts:**
+```json
+{
+  "scripts": {
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:performance",
+    "test:unit": "mocha -r esm test/tier-system test/nlp-storage test/server-idf test/collection-classification --timeout=10000",
+    "test:integration": "npm run generate:config && firebase emulators:exec --only firestore 'mocha -r esm test/integration --timeout=30000'",
+    "test:performance": "mocha -r esm test/performance --timeout=60000",
+    "test:migration": "mocha -r esm test/migration --timeout=300000",
+    "test:load": "mocha -r esm test/load --timeout=600000"
+  }
+}
+```
+
+### 9.11 Continuous Integration
+
+**File:** `.github/workflows/test.yml` (NEW)
+
+Run full test suite on every push/PR:
+- Unit tests
+- Integration tests
+- Performance tests
+- Regression tests
+- Coverage report upload
+
+### Test File Organization
+
+```
+/test/
+  /tier-system/
+    test.js                    # 3-tier loading tests
+  /nlp-storage/
+    test.js                    # NLP generation/storage tests
+  /server-idf/
+    test.js                    # IDF cache tests
+  /collection-classification/
+    test.js                    # Filter classification tests
+  /integration/
+    canonical-plan.test.js     # End-to-end integration tests
+  /performance/
+    benchmarks.js              # Performance benchmarks
+  /migration/
+    nlp-migration.test.js      # Migration validation tests
+  /edge-cases/
+    stress-tests.js            # Edge cases and stress tests
+  /regression/
+    known-issues.test.js       # Regression tests for fixed bugs
+  /load/
+    stress.js                  # Load testing
+  /security/
+    test.js                    # Existing security rule tests
+    nlp-rules.test.js          # NLP field security tests
+  fingerprint/                 # Existing NLP fingerprint tests
+  references/                  # Existing reference tests
+  ngram/                       # Existing ngram tests
+  url/                         # Existing URL tests
+  contenteditable/             # Existing content editable tests
+```
 
 ---
 
