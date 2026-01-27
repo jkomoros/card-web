@@ -3192,54 +3192,442 @@ Run full test suite on every push/PR:
 
 ## 10. Cost Analysis
 
-### 10.1 Storage Costs
+### 10.1 Firestore Enterprise Pricing Model
 
-**Current:**
-- 30k cards × 8 KB = 240 MB
+**IMPORTANT:** This plan requires **Firestore Enterprise Edition** (January 2026), which uses **unit-based pricing** instead of per-document pricing.
+
+**Pricing Structure:**
+- **Storage:** Priced per GB/month (region-specific)
+- **Read Units:** Measured in 4 KiB tranches (minimum 1 unit per operation)
+- **Write Units:** Measured in 1 KiB tranches (minimum 1 unit per operation)
+- **Pipeline Operations:** Separate pricing from standard operations
+- **Covered Queries:** Minimum 32 bytes per item scanned (significantly cheaper than full document reads)
+- **Free Tier:** 50,000 read units per day
+
+**Key Difference from Standard Firestore:**
+- Standard: Charges per full document (regardless of size)
+- Enterprise: Charges per data processed in 4 KiB chunks (potentially 86% savings for small documents)
+
+### 10.2 Storage Costs
+
+**Current Storage (without NLP):**
+- 30,000 cards × 8 KB average = 240 MB
+- Firestore storage: ~$0.18/GB/month (estimate for Enterprise, region-dependent)
 - Cost: $0.043/month
 
-**With NLP data:**
-- 30k cards × 26 KB (avg with NLP) = 780 MB
-- Cost: $0.140/month
-- **Increase: +$0.097/month**
+**With NLP Data Added:**
+- 30,000 cards × 26 KB average (8 KB base + 18 KB NLP) = 780 MB
+- NLP overhead: +540 MB (+225% increase)
+- Cost: 0.78 GB × $0.18/GB = $0.140/month
+- **Increase: +$0.097/month ≈ $0.10/month**
 
-### 10.2 Read/Write Costs
+**IDF Map Storage (Cloud Storage):**
+- File size: ~200-600 KB uncompressed, ~50-150 KB gzipped
+- Cloud Storage Standard: ~$0.023/GB/month
+- Cost: 0.0006 GB × $0.023 = $0.000014/month
+- **Increase: ~$0.00/month (negligible)**
 
-**Firestore reads:**
-- Current: ~450k reads/month (hot tier listeners)
-- New: ~600k reads/month (+150k for discovered tier fetch, staleness checks, editing listeners)
-  - Discovered tier fetches: ~100k/month (on-demand card loads)
-  - Editing conflict listeners: ~30k/month (onSnapshot for non-hot cards)
-  - Staleness validation: ~20k/month (check if cached cards outdated)
-- Still within free tier (1.5M/month)
-- **Increase: $0/month**
+**Total Storage Increase: +$0.10/month**
 
-**Cloud Function costs:**
-- Weekly IDF calculation:
-  - Compute time: ~60 seconds @ $0.0000025/sec = $0.00015/week
-  - ~$0.0006/month (negligible, well within free tier)
-  - Free tier: 2M invocations/month, 400k GB-seconds/month
-- **Increase: +$0.00/month** (within free tier)
+### 10.3 Read Operations Cost Analysis
 
-### 10.3 Total Cost Impact
+**Firestore Enterprise Read Units:**
+- **4 KiB tranche pricing**: 1 read unit = 4 KiB of data processed
+- **Covered query optimization**: Only 32 bytes minimum per item (125x cheaper than full document)
+- **Free tier**: 50,000 read units/day = 1.5M read units/month
 
-**Monthly costs:**
-- Storage: +$0.10
-- Reads: +$0 (within free tier)
-- Cloud Functions: +$0 (within free tier)
-- **Total increase: ~$0.10/month**
+#### 10.3.1 Current Read Operations (Standard Firestore baseline)
 
-**One-time migration:** $0.054 (phase 1: mark cards with nlp_version: 0)
+**Hot Tier onSnapshot Listeners:**
+- Published cards: ~900 cards loaded initially
+- Prioritized unpublished: ~6,000 cards loaded initially
+- Recent unpublished: ~100 cards loaded initially
+- **Initial load: ~7,000 cards**
 
-**Annual increase:** ~$1.20/year
+**Monthly listener updates (estimates):**
+- Card edits trigger updates: ~500 updates/month
+- New cards added: ~50 new cards/month
+- **Total: ~550 update events/month**
 
-**Cost per benefit:** Enables full-text search across 30k cards, 3-tier hot system, server IDF, and real-time editing conflicts for ~10 cents/month = **Excellent ROI**
+**Current total reads: ~450,000 reads/month** (existing baseline from Standard Firestore)
 
-**Note on Cost Accuracy:**
-- Actual reads may vary +/- 50k/month depending on user behavior
-- Still well within free tier (1.5M reads/month limit)
-- IDF function execution well within free tier (400k GB-seconds/month limit)
-- Storage cost is most significant contributor (~100% of monthly increase)
+#### 10.3.2 New Read Operations (Enterprise Edition)
+
+**Discovered Tier Fetches:**
+- On-demand card loads: ~100-200 cards/month (viewing non-hot cards)
+- Average card size with NLP: 26 KB
+- Read units per card: 26 KB ÷ 4 KiB = 7 units per card
+- **Cost: 150 cards × 7 units = 1,050 read units/month**
+
+**Pipeline Operations for Text Search:**
+- Query searches: Depends heavily on cache hit rate and search frequency
+- **Scenarios analyzed in Section 10.5 below**
+
+**Editing Conflict Detection Listeners:**
+- onSnapshot for non-hot cards being edited: ~20-30 activations/month
+- Average duration: 10 minutes per editing session
+- Updates received during editing: ~0-2 per session (rare concurrent edits)
+- **Cost: 30 sessions × 7 units × 1.5 updates = 315 read units/month**
+
+**Staleness Validation:**
+- Checking if discovered tier cards are outdated: ~50 checks/month
+- Using lightweight metadata queries (covered queries): 32 bytes per check
+- **Cost: 50 checks × 0.008 units (32 bytes) = 0.4 read units/month**
+
+**Total New Read Units: ~1,400 read units/month (excluding Pipeline search operations)**
+
+**Free Tier Coverage:**
+- Free tier: 1,500,000 read units/month
+- New operations: ~1,400 read units/month
+- **Remaining free tier: 1,498,600 read units/month (99.9% unused)**
+- **Cost: $0.00/month** (well within free tier)
+
+#### 10.3.3 Pipeline Operations for Full-Text Search
+
+**Critical Assumption:** Pipeline operations have **separate pricing** from standard read operations.
+
+**Query Pattern:**
+- User performs text search: `query/machine learning`
+- Pipeline operation: `regex_match(field("nlp_tokens"), pattern)` across entire corpus
+- Must scan potentially all 30,000 cards to find matches
+
+**Read Unit Calculation:**
+```
+Without covered queries (worst case):
+- 30,000 cards × 26 KB per card = 780 MB total data
+- 780 MB ÷ 4 KiB per unit = 200,000 read units per full corpus scan
+
+With covered queries (best case - indexed nlp_tokens):
+- 30,000 cards × 32 bytes minimum (covered query)
+- 30,000 × 0.008 units = 240 read units per scan
+
+Reality (partial index coverage):
+- Assume 50% of queries benefit from covered query optimization
+- Average: (200,000 + 240) ÷ 2 = ~100,120 read units per full corpus search
+```
+
+**Monthly Search Volume Scenarios:**
+- See Section 10.5 for detailed usage scenarios
+
+### 10.4 Write Operations Cost Analysis
+
+**Firestore Enterprise Write Units:**
+- **1 KiB tranche pricing**: 1 write unit = 1 KiB of data written
+- **Free tier**: Varies by region (typically included in base pricing)
+
+**Current Write Operations:**
+- Card saves: ~100-200 saves/month (typical single-user usage)
+- Average card size: 26 KB with NLP
+- Write units per save: 26 KB ÷ 1 KiB = 26 write units
+- **Monthly writes: 150 saves × 26 units = 3,900 write units/month**
+
+**NLP Data Migration (One-Time):**
+- Phase 1: Mark 30,000 cards with `nlp_version: 0`
+- Update size: ~50 bytes per card (single field)
+- Write units: 30,000 cards × 0.05 units = 1,500 write units
+- **One-time cost: ~$0.00** (within free tier or minimal if charged)
+
+**Phase 2 (Lazy Migration):**
+- Cards upgraded as accessed: ~1,000-5,000 cards over first month
+- Write units: 3,000 cards × 26 units = 78,000 write units spread over weeks
+- **Cost: Minimal** (amortized over time, likely within free tier)
+
+### 10.5 Cost Comparison Scenarios
+
+This section models total monthly costs under different usage patterns.
+
+#### Scenario 1: Low Usage (Few Searches)
+
+**Profile:** Casual user, 5-10 searches per month, mostly browsing hot tier
+
+**Operations:**
+- Hot tier loads: 7,000 cards initial (one-time per session)
+- Discovered tier: 20 cards/month
+- Text searches: 10 searches/month (Pipeline operations)
+- Card saves: 50 saves/month
+- Editing sessions: 10/month
+
+**Read Unit Breakdown:**
+- Standard operations: ~1,000 read units/month (discovered + editing)
+- Pipeline searches (with 80% cache hit rate):
+  - 2 full scans × 100,120 units = 200,240 read units
+  - 8 cached results × 0 units = 0 units
+  - **Total search: 200,240 read units**
+- **Total reads: 201,240 read units/month**
+
+**Write Unit Breakdown:**
+- Card saves: 50 × 26 = 1,300 write units
+- **Total writes: 1,300 write units/month**
+
+**Monthly Cost (estimated at $0.06 per 100k read units, $0.18 per 100k write units):**
+- Reads: 201,240 units × ($0.06/100k) = $0.121
+- Writes: 1,300 units × ($0.18/100k) = $0.002
+- Storage: $0.14
+- **Total: ~$0.26/month**
+
+#### Scenario 2: Medium Usage (Typical User)
+
+**Profile:** Regular user, 50-100 searches per month, moderate editing
+
+**Operations:**
+- Hot tier loads: 7,000 cards initial
+- Discovered tier: 100 cards/month
+- Text searches: 75 searches/month (Pipeline operations)
+- Card saves: 150 saves/month
+- Editing sessions: 30/month
+
+**Read Unit Breakdown:**
+- Standard operations: ~1,400 read units/month (discovered + editing)
+- Pipeline searches (with 60% cache hit rate):
+  - 30 full scans × 100,120 units = 3,003,600 read units
+  - 45 cached results × 0 units = 0 units
+  - **Total search: 3,003,600 read units**
+- **Total reads: 3,005,000 read units/month**
+
+**Write Unit Breakdown:**
+- Card saves: 150 × 26 = 3,900 write units
+- **Total writes: 3,900 write units/month**
+
+**Monthly Cost (estimated at $0.06 per 100k read units, $0.18 per 100k write units):**
+- Reads: 3,005,000 units × ($0.06/100k) = $1.803
+- Writes: 3,900 units × ($0.18/100k) = $0.007
+- Storage: $0.14
+- **Total: ~$1.95/month**
+
+#### Scenario 3: High Usage (Power User)
+
+**Profile:** Power user, 200+ searches per month, heavy editing and exploration
+
+**Operations:**
+- Hot tier loads: 7,000 cards initial
+- Discovered tier: 500 cards/month
+- Text searches: 250 searches/month (Pipeline operations)
+- Card saves: 300 saves/month
+- Editing sessions: 100/month
+
+**Read Unit Breakdown:**
+- Standard operations: ~4,200 read units/month (discovered + editing)
+- Pipeline searches (with 40% cache hit rate):
+  - 150 full scans × 100,120 units = 15,018,000 read units
+  - 100 cached results × 0 units = 0 units
+  - **Total search: 15,018,000 read units**
+- **Total reads: 15,022,200 read units/month**
+
+**Write Unit Breakdown:**
+- Card saves: 300 × 26 = 7,800 write units
+- **Total writes: 7,800 write units/month**
+
+**Monthly Cost (estimated at $0.06 per 100k read units, $0.18 per 100k write units):**
+- Reads: 15,022,200 units × ($0.06/100k) = $9.013
+- Writes: 7,800 units × ($0.18/100k) = $0.014
+- Storage: $0.14
+- **Total: ~$9.17/month**
+
+#### Scenario 4: Worst Case (No Caching, Maximum Search)
+
+**Profile:** Pathological case - every search is unique, no cache benefit, covered queries unavailable
+
+**Operations:**
+- Hot tier loads: 7,000 cards initial
+- Discovered tier: 1,000 cards/month
+- Text searches: 500 searches/month (ALL full corpus scans)
+- Card saves: 500 saves/month
+- Editing sessions: 200/month
+
+**Read Unit Breakdown:**
+- Standard operations: ~8,400 read units/month (discovered + editing)
+- Pipeline searches (0% cache hit rate, no covered queries):
+  - 500 full scans × 200,000 units = 100,000,000 read units
+  - **Total search: 100,000,000 read units**
+- **Total reads: 100,008,400 read units/month**
+
+**Write Unit Breakdown:**
+- Card saves: 500 × 26 = 13,000 write units
+- **Total writes: 13,000 write units/month**
+
+**Monthly Cost (estimated at $0.06 per 100k read units, $0.18 per 100k write units):**
+- Reads: 100,008,400 units × ($0.06/100k) = $60.005
+- Writes: 13,000 units × ($0.18/100k) = $0.023
+- Storage: $0.14
+- **Total: ~$60.17/month**
+
+### 10.6 Cloud Function Costs (IDF Generation)
+
+**Weekly IDF Calculation (Scheduled Cloud Function):**
+
+**Compute Specifications:**
+- Memory: 2 GiB
+- Timeout: 540 seconds (9 minutes)
+- Frequency: Weekly (4.33 executions/month)
+- Actual runtime: ~60 seconds (conservative estimate)
+
+**Free Tier (Cloud Functions 1st Gen):**
+- Invocations: 2,000,000/month
+- GB-seconds: 400,000/month
+- GHz-seconds: 200,000/month
+- Network egress: 5 GiB/month
+
+**Cost Calculation:**
+- Invocations: 4.33/month (negligible vs 2M free tier)
+- GB-seconds: 4.33 invocations × 60 seconds × 2 GB = 520 GB-seconds/month
+- **Cost: $0.00/month** (520 vs 400,000 free tier = 0.13% used)
+
+**Network Costs:**
+- IDF file upload to Cloud Storage: ~150 KB × 4.33 times = 650 KB/month
+- **Cost: $0.00/month** (0.00065 GB vs 5 GiB free tier)
+
+**Total Cloud Function Cost: $0.00/month** (well within free tier)
+
+### 10.7 Cloud Storage Costs (IDF Map Hosting)
+
+**Storage:**
+- Current version: ~150 KB (gzipped)
+- Archived versions (keep 4 weeks): 4 × 150 KB = 600 KB
+- Total storage: 750 KB
+- Cloud Storage Standard: $0.023/GB/month
+- **Cost: 0.00075 GB × $0.023 = $0.000017/month ≈ $0.00/month**
+
+**Bandwidth:**
+- Client downloads: ~150 KB per client per week (cache hit)
+- Single-user app: 4 downloads/month × 150 KB = 600 KB/month
+- **Cost: $0.00/month** (0.0006 GB vs 1 GB free tier)
+
+**Total Cloud Storage Cost: $0.00/month** (negligible)
+
+### 10.8 Total Cost Summary
+
+**Monthly Recurring Costs by Scenario:**
+
+| Scenario | Searches/Month | Cache Hit Rate | Read Units | Write Units | Total Cost |
+|----------|---------------|----------------|------------|-------------|------------|
+| Low Usage | 10 | 80% | 201k | 1.3k | **$0.26** |
+| Medium Usage | 75 | 60% | 3.0M | 3.9k | **$1.95** |
+| High Usage | 250 | 40% | 15.0M | 7.8k | **$9.17** |
+| Worst Case | 500 | 0% | 100M | 13k | **$60.17** |
+
+**Cost Breakdown (All Scenarios Include):**
+- Firestore storage: $0.14/month (NLP data)
+- Firestore reads: Variable (see scenarios)
+- Firestore writes: $0.00-$0.02/month (within free tier or minimal)
+- Cloud Functions: $0.00/month (IDF generation, within free tier)
+- Cloud Storage: $0.00/month (IDF hosting, negligible)
+
+**One-Time Migration Cost:**
+- Phase 1 (mark cards): ~1,500 write units = **$0.00** (within free tier)
+- Phase 2 (lazy upgrade): Amortized over weeks = **$0.00** (within free tier)
+
+**Expected Typical Usage: Scenario 2 (Medium) = $1.95/month**
+
+**Annual Cost: ~$23.40/year**
+
+### 10.9 Cost Optimization Strategies
+
+**1. Covered Queries (CRITICAL):**
+- **Impact:** 125x reduction in read units (200k → 240 units per search)
+- **Implementation:** Ensure Firestore indexes cover `nlp_tokens` field
+- **Priority:** HIGH - Deploy indexes immediately
+- **Savings:** $58/month in worst case, $7.20/month in high usage
+
+**2. Client-Side Search Result Caching:**
+- **Impact:** 60-80% reduction in Pipeline operations
+- **Implementation:** Cache search results in localStorage with 7-day TTL
+- **Priority:** HIGH - Implement in Phase 4
+- **Savings:** $1.20/month (medium usage), $5.50/month (high usage)
+
+**3. Search Query Debouncing:**
+- **Impact:** Reduce searches by 30-40% (delay execution until user stops typing)
+- **Implementation:** 300ms debounce on search input
+- **Priority:** MEDIUM - Simple UI change
+- **Savings:** $0.60/month (medium usage), $2.75/month (high usage)
+
+**4. Progressive Result Loading:**
+- **Impact:** Stop search early once enough results found
+- **Implementation:** Use `limit()` in Pipeline queries, stop after 100 matches
+- **Priority:** MEDIUM - Requires Pipeline query tuning
+- **Savings:** Variable (depends on corpus position of matches)
+
+**5. Hot Tier Optimization:**
+- **Impact:** Serve more searches from hot tier (no Pipeline cost)
+- **Implementation:** Increase hot tier size or prioritize frequently-searched cards
+- **Priority:** LOW - Already optimized with 3-tier system
+- **Savings:** $0.10-$0.30/month
+
+**6. Query Result Sharing:**
+- **Impact:** Reuse search results across tabs/sessions
+- **Implementation:** Store search results in IndexedDB
+- **Priority:** LOW - Complex, marginal benefit for single-user app
+- **Savings:** $0.05-$0.15/month
+
+### 10.10 Key Findings & Recommendations
+
+**✅ EXCELLENT ROI:** For typical usage (Scenario 2: 75 searches/month), cost is **$1.95/month** to enable:
+- Full-text search across entire 30k card corpus
+- 3-tier hot system (6,900 cards always loaded)
+- Server-maintained IDF map (consistent fingerprints)
+- Real-time editing conflict detection
+- Discovered tier on-demand card loading
+
+**⚠️ CRITICAL DEPENDENCY: Covered Queries**
+- **Without covered queries:** Costs explode to $60/month even with moderate usage
+- **With covered queries:** Costs drop to $2-$10/month for typical usage
+- **ACTION REQUIRED:** Deploy Firestore indexes that cover `nlp_tokens` field immediately
+- **Verification:** Test that queries use indexes (check Firestore console query profiler)
+
+**📊 Typical User Profile (Scenario 2):**
+- 75 searches/month = 2-3 searches/day (reasonable for active user)
+- 150 card saves/month = 5 saves/day (realistic for note-taking workflow)
+- 60% cache hit rate (conservative, likely higher with debouncing)
+- **Total cost: $1.95/month** ($23.40/year)
+
+**🚨 Worst Case Mitigation:**
+- Scenario 4 ($60/month) requires deliberate abuse (500 unique searches/month)
+- **Mitigation:** Add client-side rate limiting (max 10 searches/minute)
+- **Fallback:** If monthly costs exceed $10, disable Pipeline search and fall back to hot-tier-only search
+- **Monitoring:** Set up Cloud Billing alerts at $5 and $10 thresholds
+
+**💡 Comparison to Alternatives:**
+- **Algolia:** ~$1/month base + $0.50 per 1000 searches = $38.50/month for 75k search operations
+- **Elasticsearch:** Self-hosted = $10-50/month server costs
+- **This solution:** $1.95/month for comparable functionality
+- **Savings vs Algolia:** $36.55/month ($438.60/year)
+
+**📈 Scalability:**
+- Free tier exhausted at: ~25,000 read units/day (750k/month) = ~7-8 full corpus searches/day
+- Paid tier starts at: $0.06 per 100k read units (region-dependent)
+- Cost scales linearly with search volume beyond free tier
+- **Recommendation:** Monitor usage monthly, optimize if approaching $5/month
+
+### 10.11 Cost Accuracy & Assumptions
+
+**⚠️ Pricing Estimates:**
+- **Read unit cost:** Estimated at **$0.06 per 100k read units** (region-dependent, verify in Firebase console)
+- **Write unit cost:** Estimated at **$0.18 per 100k write units** (region-dependent)
+- **Storage cost:** Estimated at **$0.18/GB/month** (may vary by region and tier)
+- **Free tiers:** Based on current Cloud Functions and Firestore Enterprise documentation (January 2026)
+
+**Assumptions:**
+- Single-user application (card-web personal knowledge base)
+- 30,000 total cards (current corpus size)
+- Average card size: 8 KB base + 18 KB NLP = 26 KB total
+- Covered queries reduce read units by ~99.9% (200k → 240 units per search)
+- Pipeline operations have separate pricing from standard operations
+- Cache hit rates vary by usage pattern (60-80% for typical users)
+
+**Variance Factors:**
+- Actual card sizes may vary ±50% (affects read/write units)
+- Search frequency highly variable (1-500 searches/month)
+- Cache effectiveness depends on search pattern diversity
+- Covered query optimization depends on index configuration
+- Network costs negligible for single-user app
+
+**Monitoring Recommendations:**
+- Set up Cloud Billing alerts at $2, $5, and $10 thresholds
+- Review Firestore usage dashboard weekly during first month
+- Track Pipeline operation costs separately from standard operations
+- Verify covered query optimization is active (check query profiler)
+- Monitor cache hit rates via client-side analytics
+
+**Last Updated:** 2026-01-26 (Firestore Enterprise Edition pricing research)
 
 ---
 
