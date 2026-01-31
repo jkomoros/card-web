@@ -33,9 +33,14 @@ import {
 } from '../collection_description.js';
 
 import {
+	FilterComplexity
+} from '../filter-classification.js';
+
+import {
 	makeAddCardEvent,
 	makeAddWorkingNotesCardEvent,
-	makeInfoZippyClickedEvent
+	makeInfoZippyClickedEvent,
+	makeLoadMoreCardsEvent
 } from '../events.js';
 
 @customElement('card-drawer')
@@ -149,18 +154,64 @@ class CardDrawer extends LitElement {
 				/* tag-list can get wide, but keep it thin */
 				width: 12em;
 			}
+
+			.badge {
+				display: inline-block;
+				padding: 0.1em 0.4em;
+				margin: 0 0.2em;
+				font-size: 0.6em;
+				border-radius: 0.5em;
+				background-color: var(--app-light-text-color-subtle);
+				color: var(--app-dark-text-color);
+				font-weight: normal;
+			}
+
+			.badge.simple {
+				background-color: #4CAF50;
+				color: white;
+			}
+
+			.badge.complex {
+				background-color: #FF9800;
+				color: white;
+			}
+
+			.load-more-container {
+				text-align: center;
+				padding: 1em;
+				margin: 1em 0;
+			}
+
+			.load-more-button {
+				padding: 0.5em 1em;
+				font-size: 0.9em;
+				cursor: pointer;
+			}
 		`
 	];
 
 	override render() {
 
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
+		const classificationResult = this.collection ? this.collection.classification : null;
+		const classification = classificationResult ? classificationResult.complexity : null;
+		const isPaginated = this.collection ? this.collection.isPaginated : false;
+		const totalCount = this.collection ? this.collection.totalCount : null;
+		const currentCount = this.collection ? this.collection.numCards : 0;
+		const hasMoreToLoad = isPaginated && totalCount && currentCount < totalCount;
 
 		return html`
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
-						<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
+						<span>
+							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
+							<strong>${currentCount}</strong>
+							${isPaginated && totalCount ? html` of <strong>${totalCount}</strong>` : ''}
+							cards
+							${classification === FilterComplexity.SIMPLE ? html`<span class='badge simple'>SIMPLE</span>` : ''}
+							${classification === FilterComplexity.COMPLEX ? html`<span class='badge complex'>COMPLEX</span>` : ''}
+						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>
 						</div>
@@ -181,7 +232,13 @@ class CardDrawer extends LitElement {
 				.renderOffset=${this.renderOffset}>
 			</card-thumbnail-list>`
 }
-					
+					${hasMoreToLoad ? html`
+						<div class='load-more-container'>
+							<button class='load-more-button' @click=${this._handleLoadMore}>
+								Load More Cards (${currentCount} of ${totalCount})
+							</button>
+						</div>
+					` : ''}
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
@@ -202,6 +259,10 @@ class CardDrawer extends LitElement {
 
 	_handleCreateWorkingNotes() {
 		this.dispatchEvent(makeAddWorkingNotesCardEvent());
+	}
+
+	_handleLoadMore() {
+		this.dispatchEvent(makeLoadMoreCardsEvent());
 	}
 
 	constructor() {

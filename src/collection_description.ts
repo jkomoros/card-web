@@ -22,6 +22,30 @@ import {
 } from '../shared/collection_description_base.js';
 
 import {
+	classifyCollectionDescription,
+	buildFirestoreConstraints,
+	FilterClassification,
+	FilterComplexity
+} from './filter-classification.js';
+
+import {
+	db
+} from './firebase.js';
+
+import {
+	collection,
+	query,
+	getCountFromServer,
+	getDocs,
+	startAfter,
+	limit
+} from 'firebase/firestore';
+
+import {
+	CARDS_COLLECTION
+} from '../shared/collection-constants.js';
+
+import {
 	TypedObject
 } from '../shared/typed_object.js';
 
@@ -33,6 +57,7 @@ import {
 	ConfigurableFilterName,
 	UnionFilterName,
 	CollectionConfiguration,
+	Card
 } from '../shared/types.js';
 
 import {
@@ -207,6 +232,12 @@ export class CollectionDescription {
 	_offset : number;
 	_serialized : string;
 	_serializedShort : string;
+	_classification? : FilterClassification;
+	_countCache? : {
+		count: number;
+		isExact: boolean;
+		timestamp: number;
+	};
 
 	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
@@ -309,6 +340,80 @@ export class CollectionDescription {
 			sortReversed: this.sortReversed,
 			viewMode: this.viewMode,
 			viewModeExtra: this.viewModeExtra
+		};
+	}
+
+	get classification() : FilterClassification {
+		if (!this._classification) {
+			this._classification = classifyCollectionDescription(this);
+		}
+		return this._classification;
+	}
+
+	async getServerCount(featureEnabled: boolean): Promise<{
+		count: number;
+		isExact: boolean;
+		reason?: string;
+	}> {
+		// Feature flag check
+		if (!featureEnabled) {
+			return this._getClientSideCount();
+		}
+
+		// Cache check (5-minute TTL)
+		if (this._countCache &&
+			(Date.now() - this._countCache.timestamp < 300000)) {
+			return {
+				count: this._countCache.count,
+				isExact: this._countCache.isExact
+			};
+		}
+
+		const classification = this.classification;
+
+		if (!classification.canGetServerCount) {
+			return this._getClientSideCount();
+		}
+
+		try {
+			const constraints = classification.firestoreConstraints || [];
+			const q = query(
+				collection(db, CARDS_COLLECTION),
+				...constraints
+			);
+
+			const snapshot = await getCountFromServer(q);
+			const count = snapshot.data().count;
+
+			// Cache result
+			this._countCache = {
+				count,
+				isExact: true,
+				timestamp: Date.now()
+			};
+
+			return {
+				count,
+				isExact: true,
+				reason: 'Server-side count'
+			};
+		} catch (error) {
+			console.error('Server count failed:', error);
+			return this._getClientSideCount();
+		}
+	}
+
+	private _getClientSideCount(): {
+		count: number;
+		isExact: boolean;
+		reason: string;
+	} {
+		// Requires full collection instantiation
+		// Return 0 as placeholder - actual count from Collection.numCards
+		return {
+			count: 0,
+			isExact: false,
+			reason: 'Client-side filtering required'
 		};
 	}
 
@@ -661,6 +766,10 @@ export class Collection {
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
 	_webInfo : WebInfo | null;
+	_isPaginated = false;
+	_loadedBatchCount = 0;
+	_totalServerCount? : number;
+	_paginationCursor? : unknown;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
@@ -707,6 +816,10 @@ export class Collection {
 
 	get description() {
 		return this._description;
+	}
+
+	get classification() : FilterClassification {
+		return this._description.classification;
 	}
 
 	get _filterExtras() : FilterExtras {
@@ -988,6 +1101,85 @@ export class Collection {
 	get webInfo() {
 		this._ensureWebInfo();
 		return this._webInfo;
+	}
+
+	// Pagination support for SIMPLE collections
+	get isPaginated() {
+		return this._isPaginated;
+	}
+
+	get totalCount() {
+		return this._totalServerCount;
+	}
+
+	/**
+	 * Initialize pagination for SIMPLE collections.
+	 * Returns true if pagination was initialized, false if this is a COMPLEX collection.
+	 */
+	async initializePagination() : Promise<boolean> {
+		const classification = this._description.classification;
+		if (classification.complexity !== FilterComplexity.SIMPLE) {
+			this._isPaginated = false;
+			return false;
+		}
+
+		// Get the total count from server
+		const result = await this._description.getServerCount(true);
+		this._totalServerCount = result.count;
+
+		// Check if we need pagination
+		const BATCH_SIZE = 50;
+		if (result.count <= BATCH_SIZE) {
+			this._isPaginated = false;
+			return false;
+		}
+
+		this._isPaginated = true;
+		this._loadedBatchCount = 0;
+		return true;
+	}
+
+	/**
+	 * Load the next batch of cards from Firestore.
+	 * Returns the fetched cards as an array so the caller can dispatch them.
+	 */
+	async loadNextBatch() : Promise<Card[]> {
+		if (!this._isPaginated) {
+			throw new Error('Cannot load next batch: collection is not paginated');
+		}
+
+		const BATCH_SIZE = 50;
+		const constraints = buildFirestoreConstraints(this._description);
+
+		// Build the query
+		const cardsRef = collection(db, CARDS_COLLECTION);
+		let q = query(cardsRef, ...constraints);
+
+		// Add pagination constraints
+		if (this._paginationCursor) {
+			q = query(q, startAfter(this._paginationCursor), limit(BATCH_SIZE));
+		} else {
+			q = query(q, limit(BATCH_SIZE));
+		}
+
+		// Fetch the batch
+		const snapshot = await getDocs(q);
+
+		if (snapshot.empty) {
+			return [];
+		}
+
+		// Store the last document as the cursor for the next batch
+		this._paginationCursor = snapshot.docs[snapshot.docs.length - 1];
+		this._loadedBatchCount++;
+
+		// Convert snapshots to Card objects
+		const cards: Card[] = [];
+		snapshot.forEach((doc) => {
+			cards.push(doc.data() as Card);
+		});
+
+		return cards;
 	}
 
 }

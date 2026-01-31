@@ -8,18 +8,18 @@ import {
 	selectUserMayChatInCurrentChat,
 	selectUserMayUseAI,
 	selectUserMayViewApp
-} from '../selectors';
+} from '../selectors.js';
 
 import {
 	store,
 	ThunkSomeAction
-} from '../store';
+} from '../store.js';
 
 import {
 	ChatMessages,
 	Chats,
 	State
-} from '../types';
+} from '../types.js';
 
 import {
 	authenticatedFetch,
@@ -66,12 +66,12 @@ import {
 	CHAT_UPDATE_CURRENT_CHAT,
 	CHAT_UPDATE_MESSAGES,
 	SomeAction
-} from '../actions';
+} from '../actions.js';
 
 import {
 	CHAT_MESSAGES_COLLECTION,
 	CHATS_COLLECTION
-} from '../../shared/collection-constants';
+} from '../../shared/collection-constants.js';
 
 import {
 	collection,
