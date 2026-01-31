@@ -45,6 +45,7 @@ import {
 	ReferenceType,
 	SectionID,
 	Sections,
+	ServerIDFData,
 	Slug,
 	SortExtra,
 	Suggestion,
@@ -147,6 +148,7 @@ export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FI
 export const EXPECT_FETCHED_CARDS = 'EXPECT_FETCHED_CARDS';
 export const STOP_EXPECTING_FETCHED_CARDS = 'STOP_EXPECTING_FETCHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
+export const UPDATE_SERVER_IDF = 'UPDATE_SERVER_IDF';
 //Editor
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
@@ -626,6 +628,11 @@ type ActionUpdateCardSimilarity = {
 	type: typeof UPDATE_CARD_SIMILARITY,
 	card_id : CardID,
 	similarity: SortExtra
+};
+
+type ActionUpdateServerIDF = {
+	type: typeof UPDATE_SERVER_IDF,
+	serverIDF: ServerIDFData | null
 };
 
 type ActionCommittedPendingFiltersWhenFullyLoaded = {
@@ -1187,6 +1194,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionExpectFetchedCards
 	| ActionStopExpectingFetchedCards
 	| ActionUpdateCardSimilarity
+	| ActionUpdateServerIDF
 	| ActionEditingStart
 	| ActionEditingFinish
 	| ActionEditingEditorMinimized

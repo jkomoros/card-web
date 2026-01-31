@@ -54,6 +54,10 @@ import {
 } from '../actions/database.js';
 
 import {
+	loadServerIDFMap
+} from '../actions/data.js';
+
+import {
 	DEV_MODE
 } from '../firebase.js';
 
@@ -424,6 +428,7 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveThreads();
 		connectLiveMessages();
 		store.dispatch(loadSavedCompleteModePreference());
+		store.dispatch(loadServerIDFMap());
 	}
 
 	_handleResize() {

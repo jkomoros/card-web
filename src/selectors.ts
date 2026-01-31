@@ -845,9 +845,19 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions || {}).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
+export const selectServerIDF = (state : State) => state.data.serverIDF;
+
 export const selectFingerprintGenerator = createSelector(
 	selectCards,
-	(cards) => new FingerprintGenerator(cards)
+	selectServerIDF,
+	(cards, serverIDF) => {
+		// Convert ServerIDFData to IDFMap format if available
+		const idfMap = serverIDF ? {
+			idf: serverIDF.idf,
+			maxIDF: serverIDF.maxIDF
+		} : null;
+		return new FingerprintGenerator(cards, undefined, undefined, idfMap);
+	}
 );
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
@@ -981,10 +991,11 @@ export const selectEditingCardSuggestedTags = createSelector(
 	selectEditingCardwithDelayedNormalizedProperties,
 	selectEditingCardSemanticFingerprint,
 	selectTagsSemanticFingerprint,
-	(card, cardFingerprint, tagFingerprints) => {
+	selectFingerprintGenerator,
+	(card, cardFingerprint, tagFingerprints, fingerprintGenerator) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!tagFingerprints || Object.keys(tagFingerprints).length == 0) return [];
-		const closestTags = new FingerprintGenerator().closestOverlappingItems('', cardFingerprint, tagFingerprints);
+		const closestTags = fingerprintGenerator.closestOverlappingItems('', cardFingerprint, tagFingerprints);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
 		const result = [];

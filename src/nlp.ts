@@ -1706,10 +1706,24 @@ export class FingerprintGenerator {
 	_ngramSize : number;
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
 
-	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
+	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, serverIDF?: IDFMap | null) {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
-		this._idfMap = idfMapForCards(this._cards, this._ngramSize);
+
+		// Use server IDF if provided and valid
+		if (serverIDF && serverIDF.idf && typeof serverIDF.maxIDF === 'number') {
+			console.log('FingerprintGenerator using server IDF');
+			this._idfMap = serverIDF;
+		} else {
+			// Fall back to client-side calculation
+			if (serverIDF === undefined) {
+				console.log('FingerprintGenerator calculating client-side IDF (server IDF not provided)');
+			} else {
+				console.log('FingerprintGenerator calculating client-side IDF (server IDF invalid or null)');
+			}
+			this._idfMap = idfMapForCards(this._cards, this._ngramSize);
+		}
+
 		this._fingerprintSize = optFingerprintSize;
 	}
 
