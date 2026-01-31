@@ -867,6 +867,8 @@ export type Suggestion = {
 
 const _cardFetchTypeSchema = z.enum([
 	'published',
+	'unpublished-prioritized',
+	'unpublished-recent',
 	'unpublished-partial',
 	'unpublished-complete',
 	'unpublished-editor',

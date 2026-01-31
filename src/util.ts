@@ -60,6 +60,10 @@ export const fetchTypeIsUnpublished = (fetchType : CardFetchType) : boolean => {
 	switch (fetchType) {
 	case 'published':
 		return false;
+	case 'unpublished-prioritized':
+		return true;
+	case 'unpublished-recent':
+		return true;
 	case 'unpublished-partial':
 		return true;
 	case 'unpublished-complete':
