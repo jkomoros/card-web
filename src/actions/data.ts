@@ -133,6 +133,15 @@ import {
 } from '../card_fields.js';
 
 import {
+	cardWithNormalizedTextProperties
+} from '../nlp.js';
+
+import type {
+	NLPTokenStorage,
+	CardFieldType
+} from '../../shared/types.js';
+
+import {
 	cardDiffHasChanges,
 	validateCardDiff,
 	applyCardDiff,
@@ -447,6 +456,45 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	const cardUpdateObject = applyCardDiff(card, update);
 	cardUpdateObject.updated = serverTimestamp();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
+
+	//Generate NLP tokens if content fields have changed
+	const contentFieldsChanged = update.title !== undefined ||
+		update.body !== undefined ||
+		update.commentary !== undefined ||
+		update.references_diff !== undefined;
+
+	if (contentFieldsChanged) {
+		//Create a temporary updated card for NLP processing
+		const tempUpdatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
+
+		//Process the card to generate NLP tokens
+		//Pass empty maps for fallbackText, importantNgrams, and synonyms
+		const processedCard = cardWithNormalizedTextProperties(tempUpdatedCard, {}, {}, {});
+
+		//Convert ProcessedRunInterface to ProcessedRunStorage for Firestore
+		const nlpTokens : NLPTokenStorage = {};
+		for (const [fieldName, runs] of TypedObject.entries(processedCard.nlp)) {
+			nlpTokens[fieldName as CardFieldType] = runs.map(run => ({
+				normalized: run.normalized,
+				stemmed: run.stemmed,
+				withoutStopWords: run.withoutStopWords
+			}));
+		}
+
+		//Generate simple hash fingerprint from content for change detection
+		//Concatenate key stemmed tokens from main content fields
+		const fingerprintParts : string[] = [];
+		for (const field of ['title', 'body', 'commentary'] as CardFieldType[]) {
+			const fieldRuns = nlpTokens[field] || [];
+			fingerprintParts.push(fieldRuns.map(r => r.stemmed).join(' '));
+		}
+		const fingerprint = fingerprintParts.join('|');
+
+		//Add NLP data to card update
+		cardUpdateObject.nlp_tokens = nlpTokens;
+		cardUpdateObject.nlp_fingerprint = fingerprint;
+		cardUpdateObject.nlp_version = 1; //Increment when NLP algorithm changes
+	}
 
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
