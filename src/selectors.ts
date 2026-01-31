@@ -127,7 +127,10 @@ import {
 	SetName,
 	SortName,
 	CollectionConfiguration,
-	ComposedChats
+	ComposedChats,
+	StringCardMap,
+	SynonymMap,
+	ProcessedRunInterface
 } from '../shared/types.js';
 
 import {
@@ -388,6 +391,39 @@ const selectZippedCardAndFallbackMap = createSelector(
 	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]} => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
+//Fast path for cardWithNormalizedTextProperties that uses stored NLP tokens when available
+const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+	//If card has stored NLP tokens, use them instead of recomputing
+	if (card.nlp_tokens) {
+		//Convert stored NLPTokenStorage to NLPInfo format
+		const nlp : {[field : string] : ProcessedRunInterface[]} = {};
+		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
+			if (storedRuns) {
+				nlp[fieldName] = storedRuns.map(storedRun => ({
+					normalized: storedRun.normalized,
+					original: '', //Not stored, but not needed for most operations
+					stemmed: storedRun.stemmed,
+					withoutStopWords: storedRun.withoutStopWords,
+					get empty() { return storedRun.normalized === ''; }
+				}));
+			}
+		}
+
+		//Return ProcessedCard with stored NLP data
+		//Cast nlp to the correct type since we know it's valid
+		return {
+			...card,
+			fallbackText,
+			importantNgrams,
+			synonymMap: synonyms,
+			nlp: nlp as any //Type system can't infer the exact NLPInfo structure
+		} as ProcessedCard;
+	}
+
+	//Fall back to full NLP computation for cards without stored tokens
+	return cardWithNormalizedTextProperties(card, fallbackText, importantNgrams, synonyms);
+};
+
 const selectSnapshotZippedCardAndFallbackMap = createSelector(
 	selectRawCardsSnapshot,
 	selectBackportTextFallbackMapCollection,
@@ -442,14 +478,14 @@ export const selectCards : (state : State) => ProcessedCards = createZippedObjec
 	selectConcepts,
 	selectSynonymMap,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
+	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
 );
 
 const selectCardsSnapshot : (state : State) => ProcessedCards = createZippedObjectSelector(
 	selectSnapshotZippedCardAndFallbackMap,
 	selectConcepts,
 	selectSynonymMap,
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
+	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
