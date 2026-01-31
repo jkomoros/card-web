@@ -281,17 +281,36 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 	const state = getState();
 	const cards = selectRawCards(state);
 	const completeMode = selectCompleteModeEnabled(state);
-	
+
 	//No cards to cull because  we're in complete mode.
 	if (completeMode) return;
 
 	const limit = selectCompleteModeEffectiveCardLimit(state);
 
-	const unpublishedCardIDs = Object.values(cards).filter(card => !card.published).sort((a, b) => b.created.seconds - a.created.seconds).map(card => card.id);
+	//3-Tier Hot System: Keep prioritized cards + recent cards within budget
+	const unpublishedCards = Object.values(cards).filter(card => !card.published);
 
-	if (unpublishedCardIDs.length <= limit) return;
+	//Tier 2: Keep all prioritized cards (always loaded)
+	const prioritizedCards = unpublishedCards.filter(card => card.auto_todo_overrides?.prioritized === true);
+	const prioritizedCardIDs = new Set(prioritizedCards.map(card => card.id));
 
-	const cardsToCull = unpublishedCardIDs.slice(limit);
+	//Tier 3: Keep recent non-prioritized cards up to dynamic limit
+	//Calculate remaining budget after published (~900) and prioritized (~6000) cards
+	const recentLimit = Math.max(100, limit - 6900);
+	const nonPrioritizedCards = unpublishedCards
+		.filter(card => !prioritizedCardIDs.has(card.id))
+		.sort((a, b) => b.created.seconds - a.created.seconds);
+
+	//Keep prioritized cards + recent non-prioritized cards within limit
+	const recentCardsToKeep = new Set(nonPrioritizedCards.slice(0, recentLimit).map(card => card.id));
+	const cardsToKeep = new Set([...prioritizedCardIDs, ...recentCardsToKeep]);
+
+	//Cull cards that are neither prioritized nor recent
+	const cardsToCull = unpublishedCards
+		.filter(card => !cardsToKeep.has(card.id))
+		.map(card => card.id);
+
+	if (cardsToCull.length === 0) return;
 
 	dispatch(cullCards(cardsToCull));
 	dispatch(refreshCardSelector(true));
