@@ -97,6 +97,9 @@ class CardDrawer extends LitElement {
 	@property({ type : Boolean })
 		infoCanBeExpanded: boolean;
 
+	@property({ type : Boolean })
+		paginationLoading: boolean;
+
 	static override styles = [
 		ButtonSharedStyles,
 		ScrollingSharedStyles,
@@ -234,8 +237,8 @@ class CardDrawer extends LitElement {
 }
 					${hasMoreToLoad ? html`
 						<div class='load-more-container'>
-							<button class='load-more-button' @click=${this._handleLoadMore}>
-								Load More Cards (${currentCount} of ${totalCount})
+							<button class='load-more-button' @click=${this._handleLoadMore} ?disabled=${this.paginationLoading}>
+								${this.paginationLoading ? 'Loading...' : `Load More Cards (${currentCount} of ${totalCount})`}
 							</button>
 						</div>
 					` : ''}
