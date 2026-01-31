@@ -2,23 +2,39 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { JSDOM } from 'jsdom';
+import type { DOMWindow } from 'jsdom';
+
+// These are now exported from shared/nlp.js
+import {
+	calcIDFMapForCards,
+	MAX_N_GRAM_FOR_FINGERPRINT,
+	cardWithNormalizedTextPropertiesSimple as cardWithNormalizedTextProperties
+} from '../../shared/nlp.js';
+import { BODY_CARD_TYPES } from '../../shared/card_fields.js';
+import type { Card, ProcessedCard } from '../../shared/types.js';
+
+// ProcessedCards type should match what calcIDFMapForCards expects
+type ProcessedCards = {
+	[id: string]: ProcessedCard
+};
 
 // Polyfill for server environment - jsdom is already a dependency (see functions/package.json line 29)
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
-(global as any).document = dom.window.document;
-(global as any).window = dom.window;
 
-// These are now exported from nlp.ts
-import { calcIDFMapForCards, MAX_N_GRAM_FOR_FINGERPRINT } from '../../src/nlp.js';
-import { cardWithNormalizedTextProperties } from '../../src/nlp.js';
-import { BODY_CARD_TYPES } from '../../shared/card_fields.js';
+// Type the global object properly for JSDOM polyfill
+interface GlobalWithDOM {
+	document: typeof dom.window.document;
+	window: DOMWindow;
+}
+(global as unknown as GlobalWithDOM).document = dom.window.document;
+(global as unknown as GlobalWithDOM).window = dom.window;
 
 export const calculateIDF = onSchedule({
 	schedule: '0 2 * * 0', // Weekly Sunday 2:00 AM PST
 	timeZone: 'America/Los_Angeles',
 	memory: '2GiB',
 	timeoutSeconds: 540 // 9 minutes
-}, async (event) => {
+}, async (_event) => {
 	try {
 		const db = getFirestore();
 		const storage = getStorage();
@@ -26,7 +42,7 @@ export const calculateIDF = onSchedule({
 		// 1. Fetch all cards from Firestore
 		console.log('Fetching cards from Firestore...');
 		const snapshot = await db.collection('cards').get();
-		const allCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+		const allCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Card));
 		console.log(`Fetched ${allCards.length} total cards`);
 
 		// 2. Filter to body cards only
@@ -34,13 +50,13 @@ export const calculateIDF = onSchedule({
 		console.log(`Filtered to ${bodyCards.length} body cards`);
 
 		// 3. Process cards with NLP
-		// For IDF calculation, we can pass empty maps since we only need word counts
-		const processedCards = Object.fromEntries(
+		// Using simplified version that doesn't require fallbackText, importantNgrams, or synonyms
+		const processedCards: ProcessedCards = Object.fromEntries(
 			bodyCards.map(card => [
 				card.id,
-				cardWithNormalizedTextProperties(card, {}, {}, {})
+				cardWithNormalizedTextProperties(card)
 			])
-		);
+		) as ProcessedCards;
 
 		// 4. Calculate IDF map
 		console.log('Calculating IDF map...');

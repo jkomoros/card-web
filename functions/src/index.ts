@@ -144,7 +144,6 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 	}
 	if (data.type !== 'slug') {
 		//Typescript says "don't worry, it's not possible to get a different type", but we want to be sure.
-		//eslint-disable-next-line @typescript-eslint/no-explicit-any
 		throw new HttpsError('invalid-argument', 'Invalid type: ' + (data as any).type);
 	}
 	const result = await slug(data.value);
