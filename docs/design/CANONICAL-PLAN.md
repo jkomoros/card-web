@@ -1999,25 +1999,6 @@ export const saveComputedNLP = (cardID: CardID, processedCard: ProcessedCard): T
 - **Total cost**: $0.054 (30k writes × $0.0018 per 100k)
 - **UX impact**: None (no browser freeze, no listener storm)
 
-### 8.2 Rollback Strategy
-
-**Feature flags for each component:**
-- `ENABLE_3_TIER_HOT_SYSTEM`
-- `ENABLE_STORED_NLP_DATA`
-- `ENABLE_SERVER_IDF`
-- `ENABLE_SIMPLE_COLLECTIONS`
-- `ENABLE_EDITING_LISTENERS`
-
-**Rollback procedure:**
-1. Set feature flag to false
-2. Clear relevant caches (localStorage, IndexedDB)
-3. Verify fallback behavior works
-4. Investigate issue in dev environment
-5. Fix and re-enable
-
-**Recovery time:** <5 minutes (feature flag toggle)
-
----
 
 ## 8. Migration Strategy
 
