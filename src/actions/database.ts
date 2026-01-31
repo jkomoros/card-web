@@ -359,6 +359,8 @@ export const connectLivePublishedCards = () => {
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
+let liveUnpublishedPrioritizedCardsUnsubscribe : (() => void) | null = null;
+let liveUnpublishedRecentCardsUnsubscribe : (() => void) | null = null;
 
 const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 
@@ -391,6 +393,14 @@ const disconnectLiveUnpublishedCards = () => {
 		liveUnpublishedCardsUnsubcribe();
 		liveUnpublishedCardsUnsubcribe = null;
 	}
+	if (liveUnpublishedPrioritizedCardsUnsubscribe) {
+		liveUnpublishedPrioritizedCardsUnsubscribe();
+		liveUnpublishedPrioritizedCardsUnsubscribe = null;
+	}
+	if (liveUnpublishedRecentCardsUnsubscribe) {
+		liveUnpublishedRecentCardsUnsubscribe();
+		liveUnpublishedRecentCardsUnsubscribe = null;
+	}
 };
 
 //This should be called any time that whether the user can see unpublished cards
@@ -414,14 +424,39 @@ export const connectLiveUnpublishedCards = () => {
 
 	if (userMayViewUnpublished) {
 
-		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-		store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
-
 		if (completeModeEnabled) {
+			//In complete mode, load all unpublished cards
+			store.dispatch(expectUnpublishedCards('unpublished-complete'));
 			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
 		} else {
-			//The default is to fetch onty the most recent unpublished cards up to the limit.
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-partial'));
+			//3-Tier Hot System: Load prioritized and recent unpublished cards
+			store.dispatch(expectUnpublishedCards('unpublished-prioritized'));
+			store.dispatch(expectUnpublishedCards('unpublished-recent'));
+
+			//Tier 2: Prioritized unpublished cards (high priority TODOs)
+			liveUnpublishedPrioritizedCardsUnsubscribe = onSnapshot(
+				query(
+					collection(db, CARDS_COLLECTION),
+					where('published', '==', false),
+					where('auto_todo_overrides.prioritized', '==', true),
+					orderBy('auto_todo_overrides.prioritized'),
+					orderBy('created', 'desc')
+				),
+				cardSnapshotReceiver('unpublished-prioritized')
+			);
+
+			//Tier 3: Recent unpublished cards (dynamic limit based on remaining hot tier budget)
+			//Calculate remaining budget after published (~900) and prioritized (~6000) cards
+			const recentLimit = Math.max(100, effectiveLimit - 6900);
+			liveUnpublishedRecentCardsUnsubscribe = onSnapshot(
+				query(
+					collection(db, CARDS_COLLECTION),
+					where('published', '==', false),
+					orderBy('created', 'desc'),
+					limit(recentLimit)
+				),
+				cardSnapshotReceiver('unpublished-recent')
+			);
 		}
 		return;
 	}

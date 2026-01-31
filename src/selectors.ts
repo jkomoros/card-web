@@ -1386,7 +1386,7 @@ export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
 	selectUserMayViewUnpublished,
 	selectCompleteModeEnabled,
 	(mayViewUnpublished, completeModeEnabled) : CardFetchType => {
-		if (mayViewUnpublished) return completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial';
+		if (mayViewUnpublished) return completeModeEnabled ? 'unpublished-complete' : 'unpublished-recent';
 		//Technically this is only true if we have a uid, but otheriwse there's nothing to fetch anyway.
 		return 'unpublished-author';
 	}
