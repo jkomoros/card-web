@@ -516,6 +516,15 @@ export interface Card {
 	//Default to epoch 1970 for things not yet tweeted
 	last_tweeted: Timestamp,
 	tweet_count: number,
+
+	//NLP tokens stored for this card, eliminating need for client-side computation
+	//Only populated for cards saved after NLP storage feature is deployed
+	nlp_tokens?: NLPTokenStorage,
+	//Fingerprint hash of the card's content for similarity matching
+	//Format: "title|body|commentary|references" processed and hashed
+	nlp_fingerprint?: string,
+	//Version number of NLP processing (incremented when algorithm changes)
+	nlp_version?: number,
 }
 
 export interface StringCardMap {
@@ -528,6 +537,19 @@ export type SynonymMap = {
 
 export function isProcessedCard(card : Card | ProcessedCard) : card is ProcessedCard {
 	return (card as {nlp : unknown}).nlp !== undefined;
+}
+
+//Simplified version of ProcessedRun for storage in Firestore
+//Only includes the fields needed for fingerprinting and similarity
+export interface ProcessedRunStorage {
+	normalized: string,
+	stemmed: string,
+	withoutStopWords: string
+}
+
+//Map of field name to array of processed runs for that field
+export type NLPTokenStorage = {
+	[field in CardFieldType]?: ProcessedRunStorage[]
 }
 
 //TODO: is there a better way to do this since ProcessRun just flat out exists in nlp.js?
