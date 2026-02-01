@@ -33,7 +33,8 @@ import {
 import {
 	Collection,
 	CollectionDescription,
-	defaultCollectionConfiguration
+	defaultCollectionConfiguration,
+	serializeCollectionConfiguration
 } from './collection_description.js';
 
 import {
@@ -1618,9 +1619,11 @@ export const selectPaginationForCollection = (state: State, collectionKey: strin
  */
 export const selectActivePaginationState = createSelector(
 	selectState,
-	selectActiveCollectionDescription,
-	(state, description) => {
-		const collectionKey = description.serialize();
+	selectActiveCollectionConfiguration,
+	(state, config) => {
+		// Use pure serialization function to avoid circular dependency
+		// by not creating a CollectionDescription instance
+		const collectionKey = serializeCollectionConfiguration(config);
 		return selectPaginationForCollection(state, collectionKey);
 	}
 );

@@ -215,6 +215,44 @@ export const copyCollectionConfiguration = (config : CollectionConfiguration) : 
 	};
 };
 
+/**
+ * Pure function to serialize a CollectionConfiguration to its canonical string representation.
+ * This is used to generate keys for pagination state without creating a CollectionDescription instance,
+ * which avoids circular dependencies in Redux selectors.
+ *
+ * The serialization format matches CollectionDescription._serialize():
+ * - setName/filter1/filter2/.../sort/reversed/sortName/view/viewMode/viewModeExtra/
+ * - Filters are always sorted alphabetically for canonical representation
+ * - Trailing slash is always included
+ */
+export const serializeCollectionConfiguration = (config : CollectionConfiguration) : string => {
+	let result : string[] = [config.setName];
+
+	// Sort filters for canonical representation
+	const filterNames = [...config.filterNames];
+	filterNames.sort();
+
+	result = result.concat(filterNames);
+
+	// Add sort info if not default
+	if (config.sortName != 'default' || config.sortReversed) {
+		result.push(SORT_URL_KEYWORD);
+		if (config.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
+		result.push(config.sortName);
+	}
+
+	// Add view mode info if not default
+	if (config.viewMode != 'list') {
+		result.push(VIEW_MODE_URL_KEYWORD);
+		result.push(config.viewMode);
+		if (config.viewModeExtra) result.push(config.viewModeExtra);
+	}
+
+	// Add trailing slash
+	result.push('');
+	return result.join('/');
+};
+
 export class CollectionDescription {
 
 	_setNameExplicitlySet : boolean;
