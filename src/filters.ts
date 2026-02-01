@@ -1,3 +1,29 @@
+// Import and re-export filter constants to avoid circular dependency
+import {
+	UNION_FILTER_DELIMITER,
+	PUBLISHED_FILTER_NAME,
+	UNPUBLISHED_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
+	COMBINE_FILTER_NAME,
+	LIMIT_FILTER_NAME,
+	OFFSET_FILTER_NAME,
+	QUERY_FILTER_NAME,
+	SELECTED_FILTER_NAME
+} from './filter-constants.js';
+
+// Re-export for external use
+export {
+	UNION_FILTER_DELIMITER,
+	PUBLISHED_FILTER_NAME,
+	UNPUBLISHED_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
+	COMBINE_FILTER_NAME,
+	LIMIT_FILTER_NAME,
+	OFFSET_FILTER_NAME,
+	QUERY_FILTER_NAME,
+	SELECTED_FILTER_NAME
+};
+
 import {
 	prettyTime,
 	cardHasContent,
@@ -144,15 +170,9 @@ export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_
 export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
 const AUTHOR_FILTER_NAME = 'author';
 const CARDS_FILTER_NAME = 'cards';
-export const UNPUBLISHED_FILTER_NAME = 'unpublished';
-export const PUBLISHED_FILTER_NAME = 'published';
-export const EXCLUDE_FILTER_NAME = 'exclude';
-export const COMBINE_FILTER_NAME = 'combine';
+// (filter constants re-exported at top of file)
 const EXPAND_FILTER_NAME = 'expand';
-export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
-export const LIMIT_FILTER_NAME = 'limit';
-export const OFFSET_FILTER_NAME = 'offset';
 const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
@@ -163,7 +183,7 @@ const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
 const SAME_TYPE_FILTER_NAME = 'same-type';
 const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 
-export const SELECTED_FILTER_NAME = 'selected';
+// (SELECTED_FILTER_NAME re-exported at top of file)
 const NOT_SELECTED_FILTER_NAME = 'not-selected';
 
 /*
@@ -190,8 +210,7 @@ export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, desc
 };
 
 //If filter names have this character in them then they're actually a union of
-//the filters
-export const UNION_FILTER_DELIMITER = '+';
+//the filters (re-exported from filter-constants.js at top of file)
 
 export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';

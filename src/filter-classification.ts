@@ -8,16 +8,18 @@ import {
 	OFFSET_FILTER_NAME,
 	QUERY_FILTER_NAME,
 	SELECTED_FILTER_NAME
-} from './filters.js';
-
-import {
-	CollectionDescription
-} from './collection_description.js';
+} from './filter-constants.js';
 
 import {
 	SetName,
 	FilterName
 } from '../shared/types.js';
+
+// Interface for collection description (avoids circular dependency with collection_description.ts)
+export interface CollectionDescriptionLike {
+	filters: FilterName[];
+	set: SetName;
+}
 
 import {
 	where,
@@ -175,7 +177,7 @@ const META_FILTERS = new Set([
 ]);
 
 export function classifyCollectionDescription(
-	description: CollectionDescription
+	description: CollectionDescriptionLike
 ): FilterClassification {
 	// Empty filters = SIMPLE (just the set)
 	if (!description.filters || description.filters.length === 0) {
@@ -321,7 +323,7 @@ function classifyHybridFilter(_filter: FilterName): FilterClassification {
 }
 
 export function buildFirestoreConstraints(
-	description: CollectionDescription
+	description: CollectionDescriptionLike
 ): QueryConstraint[] {
 	const constraints: QueryConstraint[] = [];
 
