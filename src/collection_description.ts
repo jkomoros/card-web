@@ -75,7 +75,8 @@ import {
 	CardBooleanMap,
 	URLPart,
 	CardSimilarityMap,
-	ConfigurableFilterResult
+	ConfigurableFilterResult,
+	PaginationState
 } from './types.js';
 
 import {
@@ -761,6 +762,7 @@ export class Collection {
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
 	_webInfo : WebInfo | null;
+	_paginationState : PaginationState;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
@@ -803,6 +805,15 @@ export class Collection {
 		//optionally return and then make use of in special sorts later.
 		this._sortExtras = {};
 		this._partialMatches = {};
+		// Store pagination state passed from Redux
+		this._paginationState = collectionArguments.paginationState || {
+			loadedBatchCount: 0,
+			cursor: null,
+			totalServerCount: null,
+			isLoading: false,
+			hasMore: true,
+			countIsExact: false
+		};
 	}
 
 	get description() {
@@ -1094,8 +1105,39 @@ export class Collection {
 		return this._webInfo;
 	}
 
-	// Note: Pagination support was removed because Collection instances are recreated
-	// on every state change, which loses pagination state. A proper fix would store
-	// pagination state in Redux, but for Phase 4 we're using client-side filtering only.
+	// Pagination getters (read-only from Redux)
+	get loadedBatchCount(): number {
+		return this._paginationState.loadedBatchCount;
+	}
+
+	get paginationCursor() {
+		return this._paginationState.cursor;
+	}
+
+	get totalServerCount(): number | null {
+		return this._paginationState.totalServerCount;
+	}
+
+	get isLoadingNextBatch(): boolean {
+		return this._paginationState.isLoading;
+	}
+
+	get hasMoreBatches(): boolean {
+		return this._paginationState.hasMore;
+	}
+
+	get paginationCountIsExact(): boolean {
+		return this._paginationState.countIsExact;
+	}
+
+	// Display count for UI
+	get displayCount(): string {
+		const loaded = this.numCards;
+		const total = this.totalServerCount;
+
+		if (total === null) return `${loaded}`;
+		if (this.paginationCountIsExact) return `${loaded} of ${total}`;
+		return `${loaded} of ~${total}`;
+	}
 
 }

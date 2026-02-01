@@ -40,6 +40,7 @@ import {
 	ImageInfoPropertyValue,
 	ImporterType,
 	MaintenanceTaskMap,
+	PaginationCursor,
 	PermissionType,
 	ProcessedCard,
 	ReferenceType,
@@ -110,6 +111,13 @@ export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
 export const CLEAR_SELECTED_CARDS = 'CLEAR_SELECTED_CARDS';
 export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WORD_CLOUD_VERSION';
+// Pagination Actions
+export const PAGINATION_LOAD_NEXT_BATCH = 'PAGINATION_LOAD_NEXT_BATCH';
+export const PAGINATION_RECEIVE_BATCH = 'PAGINATION_RECEIVE_BATCH';
+export const PAGINATION_RESET = 'PAGINATION_RESET';
+export const PAGINATION_SET_LOADING = 'PAGINATION_SET_LOADING';
+export const PAGINATION_UPDATE_COUNT = 'PAGINATION_UPDATE_COUNT';
+export const PAGINATION_ERROR = 'PAGINATION_ERROR';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -1112,6 +1120,38 @@ type ActionUpdateUserPermissions = {
 	permissions: UserPermissions
 };
 
+type ActionPaginationReceiveBatch = {
+	type: typeof PAGINATION_RECEIVE_BATCH,
+	collectionKey: string,
+	cards: CardID[],
+	cursor: PaginationCursor,
+	hasMore: boolean
+};
+
+type ActionPaginationReset = {
+	type: typeof PAGINATION_RESET,
+	collectionKey: string
+};
+
+type ActionPaginationSetLoading = {
+	type: typeof PAGINATION_SET_LOADING,
+	collectionKey: string,
+	isLoading: boolean
+};
+
+type ActionPaginationUpdateCount = {
+	type: typeof PAGINATION_UPDATE_COUNT,
+	collectionKey: string,
+	count: number,
+	isExact: boolean
+};
+
+type ActionPaginationError = {
+	type: typeof PAGINATION_ERROR,
+	collectionKey: string,
+	error: string
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -1284,4 +1324,9 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateReads
 	| ActionUpdateReadingList
 	| ActionAutoMarkReadPendingChanged
-	| ActionUpdateUserPermissions;
+	| ActionUpdateUserPermissions
+	| ActionPaginationReceiveBatch
+	| ActionPaginationReset
+	| ActionPaginationSetLoading
+	| ActionPaginationUpdateCount
+	| ActionPaginationError;

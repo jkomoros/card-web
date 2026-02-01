@@ -172,7 +172,8 @@ import {
 	SortExtra,
 	CardDiff,
 	Filters,
-	CardFetchType
+	CardFetchType,
+	PaginationState
 } from './types.js';
 
 import {
@@ -1597,6 +1598,33 @@ export const selectSortOrderForGlobalPrepend = createSelector(
 	(highestSortOrder) => highestSortOrder + DEFAULT_SORT_ORDER_INCREMENT
 );
 
+/**
+ * Get pagination state for a specific collection key
+ */
+export const selectPaginationForCollection = (state: State, collectionKey: string): PaginationState => {
+	const pagination = state.collection?.pagination || {};
+	return pagination[collectionKey] || {
+		loadedBatchCount: 0,
+		cursor: null,
+		totalServerCount: null,
+		isLoading: false,
+		hasMore: true,
+		countIsExact: false
+	};
+};
+
+/**
+ * Get pagination state for active collection
+ */
+export const selectActivePaginationState = createSelector(
+	selectState,
+	selectActiveCollectionDescription,
+	(state, description) => {
+		const collectionKey = description.serialize();
+		return selectPaginationForCollection(state, collectionKey);
+	}
+);
+
 //selectCollectionConstructorArguments returns an array that can be unpacked and
 //passed as the arguments to collectionDescription.collection(). It omits the
 //optional editingCard, cardsSnapshot, and filtersSnapshot. See also
@@ -1613,7 +1641,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectRandomSalt,
 	selectCardSimilarity,
 	selectEditingCardSimilarity,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity})
+	selectActivePaginationState,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, paginationState) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, paginationState})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The

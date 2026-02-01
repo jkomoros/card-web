@@ -60,7 +60,8 @@ import {
 	doSelectCards,
 	unselectCards,
 	clearSelectedCards,
-	incrementCollectionWordCloud
+	incrementCollectionWordCloud,
+	initializePagination
 } from '../actions/collection.js';
 
 import {
@@ -888,6 +889,11 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 
 		this._collection = selectActiveCollection(state);
+
+		// Initialize pagination when collection loads
+		if (this._collection && this._collection.classification.canGetServerCount) {
+			store.dispatch(initializePagination());
+		}
 
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
