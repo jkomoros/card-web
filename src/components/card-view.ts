@@ -70,8 +70,7 @@ import {
 import {
 	createCard,
 	navigateToNewCard,
-	createForkedCard,
-	receiveCards
+	createForkedCard
 } from '../actions/data.js';
 
 import {
@@ -196,10 +195,6 @@ import {
 	Collection
 } from '../collection_description.js';
 
-import {
-	FilterComplexity,
-	ENABLE_SIMPLE_COLLECTIONS
-} from '../filter-classification.js';
 
 import {
 	ExpandedReferenceBlocks
@@ -387,9 +382,6 @@ class CardView extends connect(store)(PageViewElement) {
 	@state()
 		_suggestionsPanelOpen : boolean;
 
-	@state()
-		_paginationLoading = false;
-
 	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
@@ -516,7 +508,6 @@ class CardView extends connect(store)(PageViewElement) {
 				.infoCanBeExpanded=${true}
 				.cardTypeToAdd=${this._cardTypeToAdd}
 				.renderOffset=${this._renderOffset}
-				.paginationLoading=${this._paginationLoading}
 			>
 			<div slot='info'>
 				${this._collectionWordCloud ? html`<word-cloud .wordCloud=${this._collectionWordCloud}></word-cloud>` : html``}
@@ -852,63 +843,11 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 
-	async _handleLoadMoreCards() {
-		if (!this._collection) return;
-		if (this._paginationLoading) return;
-		if (!this._collection.isPaginated) return;
-
-		// Store the current collection identity to detect changes during async operation
-		const currentCollectionSerialized = this._collection.description.serialize();
-
-		this._paginationLoading = true;
-
-		try {
-			const cardsArray = await this._collection.loadNextBatch();
-
-			// Check if collection changed during async operation
-			if (!this._collection || this._collection.description.serialize() !== currentCollectionSerialized) {
-				console.log('Collection changed during load, ignoring fetched cards');
-				return;
-			}
-
-			// Convert Card[] to Cards object
-			const cardsMap : {[id : CardID]: Card} = {};
-			for (const card of cardsArray) {
-				cardsMap[card.id] = card;
-			}
-
-			// Dispatch the cards to Redux
-			store.dispatch(receiveCards(cardsMap, 'published'));
-		} catch (error) {
-			console.error('Error loading more cards:', error);
-		} finally {
-			this._paginationLoading = false;
-		}
-	}
-
-	async _initializePaginationIfNeeded() {
-		if (!ENABLE_SIMPLE_COLLECTIONS) return;
-		if (!this._collection) return;
-
-		const classification = this._collection.classification;
-		if (classification.complexity !== FilterComplexity.SIMPLE) return;
-
-		// Store the current collection identity to detect changes during async operation
-		const currentCollectionSerialized = this._collection.description.serialize();
-
-		try {
-			await this._collection.initializePagination();
-
-			// Check if collection changed during async operation
-			if (!this._collection || this._collection.description.serialize() !== currentCollectionSerialized) {
-				return;
-			}
-
-			// Force a re-render to update the UI with pagination state
-			this.requestUpdate();
-		} catch (error) {
-			console.error('Error initializing pagination:', error);
-		}
+	_handleLoadMoreCards() {
+		// Pagination was removed in Phase 4 because Collection instances are recreated
+		// on every Redux state change, which loses pagination state. Future phases should
+		// store pagination state in Redux if server-side pagination is needed.
+		console.log('Load More button clicked - pagination not yet implemented');
 	}
 
 	override stateChanged(state : State) {
@@ -948,7 +887,6 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 
-		const previousCollection = this._collection;
 		this._collection = selectActiveCollection(state);
 
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
@@ -965,11 +903,6 @@ class CardView extends connect(store)(PageViewElement) {
 		this._userIsAdmin = selectUserIsAdmin(state);
 		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 		this._suggestionsPanelOpen = selectSuggestionsOpen(state);
-
-		// Initialize pagination when collection changes
-		if (this._collection && previousCollection !== this._collection) {
-			this._initializePaginationIfNeeded();
-		}
 
 		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
 		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;

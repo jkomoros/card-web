@@ -23,9 +23,7 @@ import {
 
 import {
 	classifyCollectionDescription,
-	buildFirestoreConstraints,
-	FilterClassification,
-	FilterComplexity
+	FilterClassification
 } from './filter-classification.js';
 
 import {
@@ -35,10 +33,7 @@ import {
 import {
 	collection,
 	query,
-	getCountFromServer,
-	getDocs,
-	startAfter,
-	limit
+	getCountFromServer
 } from 'firebase/firestore';
 
 import {
@@ -766,10 +761,6 @@ export class Collection {
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
 	_webInfo : WebInfo | null;
-	_isPaginated = false;
-	_loadedBatchCount = 0;
-	_totalServerCount? : number;
-	_paginationCursor? : unknown;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
@@ -1103,83 +1094,8 @@ export class Collection {
 		return this._webInfo;
 	}
 
-	// Pagination support for SIMPLE collections
-	get isPaginated() {
-		return this._isPaginated;
-	}
-
-	get totalCount() {
-		return this._totalServerCount;
-	}
-
-	/**
-	 * Initialize pagination for SIMPLE collections.
-	 * Returns true if pagination was initialized, false if this is a COMPLEX collection.
-	 */
-	async initializePagination() : Promise<boolean> {
-		const classification = this._description.classification;
-		if (classification.complexity !== FilterComplexity.SIMPLE) {
-			this._isPaginated = false;
-			return false;
-		}
-
-		// Get the total count from server
-		const result = await this._description.getServerCount(true);
-		this._totalServerCount = result.count;
-
-		// Check if we need pagination
-		const BATCH_SIZE = 50;
-		if (result.count <= BATCH_SIZE) {
-			this._isPaginated = false;
-			return false;
-		}
-
-		this._isPaginated = true;
-		this._loadedBatchCount = 0;
-		return true;
-	}
-
-	/**
-	 * Load the next batch of cards from Firestore.
-	 * Returns the fetched cards as an array so the caller can dispatch them.
-	 */
-	async loadNextBatch() : Promise<Card[]> {
-		if (!this._isPaginated) {
-			throw new Error('Cannot load next batch: collection is not paginated');
-		}
-
-		const BATCH_SIZE = 50;
-		const constraints = buildFirestoreConstraints(this._description);
-
-		// Build the query
-		const cardsRef = collection(db, CARDS_COLLECTION);
-		let q = query(cardsRef, ...constraints);
-
-		// Add pagination constraints
-		if (this._paginationCursor) {
-			q = query(q, startAfter(this._paginationCursor), limit(BATCH_SIZE));
-		} else {
-			q = query(q, limit(BATCH_SIZE));
-		}
-
-		// Fetch the batch
-		const snapshot = await getDocs(q);
-
-		if (snapshot.empty) {
-			return [];
-		}
-
-		// Store the last document as the cursor for the next batch
-		this._paginationCursor = snapshot.docs[snapshot.docs.length - 1];
-		this._loadedBatchCount++;
-
-		// Convert snapshots to Card objects
-		const cards: Card[] = [];
-		snapshot.forEach((doc) => {
-			cards.push(doc.data() as Card);
-		});
-
-		return cards;
-	}
+	// Note: Pagination support was removed because Collection instances are recreated
+	// on every state change, which loses pagination state. A proper fix would store
+	// pagination state in Redux, but for Phase 4 we're using client-side filtering only.
 
 }

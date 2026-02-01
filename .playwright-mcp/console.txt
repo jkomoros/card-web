@@ -1,0 +1,20 @@
+[WARNING] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. @ http://localhost:8081/node_modules/@lit/reactive-element/development/reactive-element.js:37
+[WARNING] Element card-web-app scheduled an update (generally because a property was set) after an update completed, causing a new update to be scheduled. This is inefficient and should be avoided unless the next update can only be scheduled as a side effect of the previous update. See https://lit.dev/msg/change-in-update for more information. @ http://localhost:8081/node_modules/@lit/reactive-element/development/reactive-element.js:37
+[WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8081/c/everything/unpublished/:0
+[WARNING] Element card-thumbnail-list scheduled an update (generally because a property was set) after an update completed, causing a new update to be scheduled. This is inefficient and should be avoided unless the next update can only be scheduled as a side effect of the previous update. See https://lit.dev/msg/change-in-update for more information. @ http://localhost:8081/node_modules/@lit/reactive-element/development/reactive-element.js:37
+[WARNING] Element card-view scheduled an update (generally because a property was set) after an update completed, causing a new update to be scheduled. This is inefficient and should be avoided unless the next update can only be scheduled as a side effect of the previous update. See https://lit.dev/msg/change-in-update for more information. @ http://localhost:8081/node_modules/@lit/reactive-element/development/reactive-element.js:37
+[LOG] FingerprintGenerator calculating client-side IDF (server IDF invalid or null) @ http://localhost:8081/lib/src/nlp.js:1548
+[LOG] Downloading IDF map from: https://storage.googleapis.com/dev-complexity-compendium.appspot.com/idf-maps/latest.json @ http://localhost:8081/lib/src/idf-cache.js:46
+[ERROR] Failed to load resource: the server responded with a status of 403 () @ https://storage.googleapis.com/dev-complexity-compendium.appspot.com/idf-maps/latest.json:0
+[ERROR] Error downloading IDF map: Error: HTTP 403: 
+    at downloadIDFMap (http://localhost:8081/lib/src/idf-cache.js:50:19)
+    at async loadServerIDF (http://localhost:8081/lib/src/idf-cache.js:27:25)
+    at async http://localhost:8081/lib/src/actions/data.js:1263:23 @ http://localhost:8081/lib/src/idf-cache.js:59
+[LOG] FingerprintGenerator calculating client-side IDF (server IDF invalid or null) @ http://localhost:8081/lib/src/nlp.js:1548
+[WARNING] Element card-info-panel scheduled an update (generally because a property was set) after an update completed, causing a new update to be scheduled. This is inefficient and should be avoided unless the next update can only be scheduled as a side effect of the previous update. See https://lit.dev/msg/change-in-update for more information. @ http://localhost:8081/node_modules/@lit/reactive-element/development/reactive-element.js:37
+[LOG] FingerprintGenerator calculating client-side IDF (server IDF invalid or null) @ http://localhost:8081/lib/src/nlp.js:1548
+[LOG] FingerprintGenerator calculating client-side IDF (server IDF not provided) @ http://localhost:8081/lib/src/nlp.js:1545
+[WARNING] similarCards failed: no-embedding: Could not find embedding for c-912-fea944 @ http://localhost:8081/lib/src/actions/similarity.js:71
+[LOG] FingerprintGenerator calculating client-side IDF (server IDF invalid or null) @ http://localhost:8081/lib/src/nlp.js:1548
+[LOG] FingerprintGenerator calculating client-side IDF (server IDF not provided) @ http://localhost:8081/lib/src/nlp.js:1545
+[WARNING] similarCards failed: no-embedding: Could not find embedding for c-912-fea944 @ http://localhost:8081/lib/src/actions/similarity.js:71
