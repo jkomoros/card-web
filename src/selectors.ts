@@ -1633,6 +1633,8 @@ export const selectActivePaginationState = createSelector(
 //optional editingCard, cardsSnapshot, and filtersSnapshot. See also
 //selectCollectionConstructorArgumentsWithEditingCard and
 //selectCollectionConstructorArgumentsForGhostingCollection.
+// NOTE: Passes a pagination getter function instead of state directly to avoid
+// circular dependencies. Collection instances lazily load pagination when properties are accessed.
 export const selectCollectionConstructorArguments = createSelector(
 	selectCards,
 	selectAllSets,
@@ -1644,8 +1646,21 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectRandomSalt,
 	selectCardSimilarity,
 	selectEditingCardSimilarity,
-	selectActivePaginationState,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, paginationState) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, paginationState})
+	selectState,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, state) => ({
+		cards,
+		sets,
+		filters,
+		sections,
+		fallbacks,
+		startCards,
+		userID,
+		randomSalt,
+		cardSimilarity,
+		editingCardSimilarity,
+		// Pass getter function that closes over state for lazy pagination loading
+		getPaginationState: (collectionKey: string) => selectPaginationForCollection(state, collectionKey)
+	})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The

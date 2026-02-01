@@ -696,7 +696,8 @@ export interface CollectionConstructorArguments {
 	editingCard? : ProcessedCard,
 	cardSimilarity? : CardSimilarityMap,
 	editingCardSimilarity? : SortExtra,
-	paginationState? : PaginationState
+	// Getter function for lazy pagination loading (breaks circular dependency)
+	getPaginationState? : (collectionKey: string) => PaginationState
 }
 
 export type Logger = {

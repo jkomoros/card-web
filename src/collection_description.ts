@@ -800,7 +800,9 @@ export class Collection {
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
 	_webInfo : WebInfo | null;
-	_paginationState : PaginationState;
+	_getPaginationState? : (collectionKey: string) => PaginationState;
+	_cachedPaginationState? : PaginationState;
+	_collectionKey? : string;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
@@ -843,15 +845,10 @@ export class Collection {
 		//optionally return and then make use of in special sorts later.
 		this._sortExtras = {};
 		this._partialMatches = {};
-		// Store pagination state passed from Redux
-		this._paginationState = collectionArguments.paginationState || {
-			loadedBatchCount: 0,
-			cursor: null,
-			totalServerCount: null,
-			isLoading: false,
-			hasMore: true,
-			countIsExact: false
-		};
+		// Store pagination getter function for lazy loading
+		this._getPaginationState = collectionArguments.getPaginationState;
+		this._collectionKey = description.serialize();
+		this._cachedPaginationState = undefined; // Lazy initialization
 	}
 
 	get description() {
@@ -1143,29 +1140,50 @@ export class Collection {
 		return this._webInfo;
 	}
 
-	// Pagination getters (read-only from Redux)
+	// Private method to lazily load pagination state
+	private _ensurePaginationState(): PaginationState {
+		if (this._cachedPaginationState) return this._cachedPaginationState;
+
+		if (!this._getPaginationState || !this._collectionKey) {
+			// Default pagination state if no getter
+			this._cachedPaginationState = {
+				loadedBatchCount: 0,
+				cursor: null,
+				totalServerCount: null,
+				isLoading: false,
+				hasMore: true,
+				countIsExact: false
+			};
+		} else {
+			this._cachedPaginationState = this._getPaginationState(this._collectionKey);
+		}
+
+		return this._cachedPaginationState;
+	}
+
+	// Pagination getters (lazy-loaded from Redux via getter function)
 	get loadedBatchCount(): number {
-		return this._paginationState.loadedBatchCount;
+		return this._ensurePaginationState().loadedBatchCount;
 	}
 
 	get paginationCursor() {
-		return this._paginationState.cursor;
+		return this._ensurePaginationState().cursor;
 	}
 
 	get totalServerCount(): number | null {
-		return this._paginationState.totalServerCount;
+		return this._ensurePaginationState().totalServerCount;
 	}
 
 	get isLoadingNextBatch(): boolean {
-		return this._paginationState.isLoading;
+		return this._ensurePaginationState().isLoading;
 	}
 
 	get hasMoreBatches(): boolean {
-		return this._paginationState.hasMore;
+		return this._ensurePaginationState().hasMore;
 	}
 
 	get paginationCountIsExact(): boolean {
-		return this._paginationState.countIsExact;
+		return this._ensurePaginationState().countIsExact;
 	}
 
 	// Display count for UI
