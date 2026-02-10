@@ -466,6 +466,7 @@ export const connectLiveSections = () => {
 
 export const connectLiveTags = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
+	console.log('[connectLiveTags] Setting up live tags listener');
 	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
 		const tags : Tags = {};
@@ -478,8 +479,11 @@ export const connectLiveTags = () => {
 			tags[id] = tag;
 		});
 
+		console.log('[connectLiveTags] Received snapshot with', Object.keys(tags).length, 'tag changes');
 		store.dispatch(updateTags(tags));
 
+	}, error => {
+		console.error('[connectLiveTags] Error in onSnapshot:', error);
 	});
 };
 
