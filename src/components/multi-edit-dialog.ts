@@ -33,6 +33,10 @@ import {
 } from '../actions/editor.js';
 
 import {
+	createTag
+} from '../actions/data.js';
+
+import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from '../../shared/icons.js';
 
@@ -237,7 +241,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				.tapEvents=${true}
 				@tag-tapped=${this._handleTagTagTapped}
 				@tag-added=${this._handleUnremoveTag}
-				@tag-removed=${this._handleRemoveTag}>
+				@tag-removed=${this._handleRemoveTag}
+				@tag-new=${this._handleNewTag}>
 			>
 			</tag-list>
 			<label>Enable TODOs</label>
@@ -390,6 +395,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	_handleRemoveTag(e : TagEvent) {
 		store.dispatch(removeTag(e.detail.tag));
+	}
+
+	_handleNewTag() {
+		const name = prompt('What is the base name of the tag?');
+		if (!name) return;
+		const displayName = prompt('What is the display name for the tag?', name);
+		if (!displayName) return;
+		store.dispatch(createTag(name, displayName));
 	}
 
 	_handleAddTODOEnablement(e : TagEvent) {
