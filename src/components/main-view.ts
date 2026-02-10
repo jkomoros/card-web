@@ -414,6 +414,14 @@ class MainView extends connect(store)(PageViewElement) {
 		this._handleResize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		this.addEventListener(CARD_HOVERED_EVENT_NAME, (e : CardHoveredEvent) => this._handleCardHovered(e));
+		// Connect to view app data if user may view app. This handles the case where
+		// viewApp permission is true by default, so _mayViewApp never changes from false
+		// to true, which means the updated() hook never triggers the connection.
+		// Without this, Firestore persistence shows cached tags/sections but live updates
+		// never arrive. See issue where new tags didn't appear after creation.
+		if (this._mayViewApp) {
+			this._connectViewAppData();
+		}
 	}
 
 	_connectViewAppData() {
