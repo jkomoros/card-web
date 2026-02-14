@@ -75,8 +75,7 @@ import {
 	CardBooleanMap,
 	URLPart,
 	CardSimilarityMap,
-	ConfigurableFilterResult,
-	PaginationState
+	ConfigurableFilterResult
 } from './types.js';
 
 import {
@@ -213,44 +212,6 @@ export const copyCollectionConfiguration = (config : CollectionConfiguration) : 
 		...config,
 		filterNames: [...config.filterNames]
 	};
-};
-
-/**
- * Pure function to serialize a CollectionConfiguration to its canonical string representation.
- * This is used to generate keys for pagination state without creating a CollectionDescription instance,
- * which avoids circular dependencies in Redux selectors.
- *
- * The serialization format matches CollectionDescription._serialize():
- * - setName/filter1/filter2/.../sort/reversed/sortName/view/viewMode/viewModeExtra/
- * - Filters are always sorted alphabetically for canonical representation
- * - Trailing slash is always included
- */
-export const serializeCollectionConfiguration = (config : CollectionConfiguration) : string => {
-	let result : string[] = [config.setName];
-
-	// Sort filters for canonical representation
-	const filterNames = [...config.filterNames];
-	filterNames.sort();
-
-	result = result.concat(filterNames);
-
-	// Add sort info if not default
-	if (config.sortName != 'default' || config.sortReversed) {
-		result.push(SORT_URL_KEYWORD);
-		if (config.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
-		result.push(config.sortName);
-	}
-
-	// Add view mode info if not default
-	if (config.viewMode != 'list') {
-		result.push(VIEW_MODE_URL_KEYWORD);
-		result.push(config.viewMode);
-		if (config.viewModeExtra) result.push(config.viewModeExtra);
-	}
-
-	// Add trailing slash
-	result.push('');
-	return result.join('/');
 };
 
 export class CollectionDescription {
@@ -800,9 +761,6 @@ export class Collection {
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
 	_webInfo : WebInfo | null;
-	_getPaginationState? : (collectionKey: string) => PaginationState;
-	_cachedPaginationState? : PaginationState;
-	_collectionKey? : string;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
@@ -845,10 +803,6 @@ export class Collection {
 		//optionally return and then make use of in special sorts later.
 		this._sortExtras = {};
 		this._partialMatches = {};
-		// Store pagination getter function for lazy loading
-		this._getPaginationState = collectionArguments.getPaginationState;
-		this._collectionKey = description.serialize();
-		this._cachedPaginationState = undefined; // Lazy initialization
 	}
 
 	get description() {
@@ -1140,60 +1094,8 @@ export class Collection {
 		return this._webInfo;
 	}
 
-	// Private method to lazily load pagination state
-	private _ensurePaginationState(): PaginationState {
-		if (this._cachedPaginationState) return this._cachedPaginationState;
-
-		if (!this._getPaginationState || !this._collectionKey) {
-			// Default pagination state if no getter
-			this._cachedPaginationState = {
-				loadedBatchCount: 0,
-				cursor: null,
-				totalServerCount: null,
-				isLoading: false,
-				hasMore: true,
-				countIsExact: false
-			};
-		} else {
-			this._cachedPaginationState = this._getPaginationState(this._collectionKey);
-		}
-
-		return this._cachedPaginationState;
-	}
-
-	// Pagination getters (lazy-loaded from Redux via getter function)
-	get loadedBatchCount(): number {
-		return this._ensurePaginationState().loadedBatchCount;
-	}
-
-	get paginationCursor() {
-		return this._ensurePaginationState().cursor;
-	}
-
-	get totalServerCount(): number | null {
-		return this._ensurePaginationState().totalServerCount;
-	}
-
-	get isLoadingNextBatch(): boolean {
-		return this._ensurePaginationState().isLoading;
-	}
-
-	get hasMoreBatches(): boolean {
-		return this._ensurePaginationState().hasMore;
-	}
-
-	get paginationCountIsExact(): boolean {
-		return this._ensurePaginationState().countIsExact;
-	}
-
-	// Display count for UI
-	get displayCount(): string {
-		const loaded = this.numCards;
-		const total = this.totalServerCount;
-
-		if (total === null) return `${loaded}`;
-		if (this.paginationCountIsExact) return `${loaded} of ${total}`;
-		return `${loaded} of ~${total}`;
-	}
+	// Note: Pagination support was removed because Collection instances are recreated
+	// on every state change, which loses pagination state. A proper fix would store
+	// pagination state in Redux, but for Phase 4 we're using client-side filtering only.
 
 }

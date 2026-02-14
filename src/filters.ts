@@ -2279,6 +2279,5 @@ export const INITIAL_STATE : CollectionState = {
 	randomSalt: randomString(16),
 	activeRenderOffset: 0,
 	selectedCards: {},
-	collectionWordCloudVersion: 0,
-	pagination: {}
+	collectionWordCloudVersion: 0
 };

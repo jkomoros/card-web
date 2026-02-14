@@ -19,11 +19,6 @@ import {
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-	PAGINATION_RESET,
-	PAGINATION_RECEIVE_BATCH,
-	PAGINATION_SET_LOADING,
-	PAGINATION_UPDATE_COUNT,
-	PAGINATION_ERROR,
 } from '../actions.js';
 
 import {
@@ -44,8 +39,7 @@ import {
 	CardID,
 	FilterMap,
 	Sections,
-	CardTestFunc,
-	PaginationState
+	CardTestFunc
 } from '../types.js';
 
 import {
@@ -57,18 +51,8 @@ import {
 } from '../../shared/util.js';
 
 import {
-	copyCollectionConfiguration,
-	CollectionDescription
+	copyCollectionConfiguration
 } from '../collection_description.js';
-
-const getDefaultPaginationState = (): PaginationState => ({
-	loadedBatchCount: 0,
-	cursor: null,
-	totalServerCount: null,
-	isLoading: false,
-	hasMore: true,
-	countIsExact: false
-});
 
 const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : CollectionState => {
 	switch (action.type) {
@@ -83,21 +67,13 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			activeRenderOffset: action.renderOffset
 		};
-	case UPDATE_COLLECTION: {
-		const newDescription = CollectionDescription.withConfiguration(action.collection);
-		const collectionKey = newDescription.serialize();
+	case UPDATE_COLLECTION:
 		return {
 			...state,
 			active: action.collection,
 			activeRenderOffset: 0,
-			collectionWordCloudVersion: 0,
-			// Preserve existing pagination if collection unchanged, otherwise initialize
-			pagination: {
-				...state.pagination,
-				[collectionKey]: state.pagination[collectionKey] || getDefaultPaginationState()
-			}
+			collectionWordCloudVersion: 0
 		};
-	}
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones
 		//that updates filters is fired if it's before data fully loaded.
@@ -181,72 +157,6 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			snapshot: action.collection
 		};
-	case PAGINATION_RESET: {
-		return {
-			...state,
-			pagination: {
-				...state.pagination,
-				[action.collectionKey]: getDefaultPaginationState()
-			}
-		};
-	}
-	case PAGINATION_RECEIVE_BATCH: {
-		const current = state.pagination[action.collectionKey] || getDefaultPaginationState();
-		return {
-			...state,
-			pagination: {
-				...state.pagination,
-				[action.collectionKey]: {
-					...current,
-					loadedBatchCount: current.loadedBatchCount + 1,
-					cursor: action.cursor,
-					hasMore: action.hasMore,
-					isLoading: false
-				}
-			}
-		};
-	}
-	case PAGINATION_SET_LOADING: {
-		const current = state.pagination[action.collectionKey] || getDefaultPaginationState();
-		return {
-			...state,
-			pagination: {
-				...state.pagination,
-				[action.collectionKey]: {
-					...current,
-					isLoading: action.isLoading
-				}
-			}
-		};
-	}
-	case PAGINATION_UPDATE_COUNT: {
-		const current = state.pagination[action.collectionKey] || getDefaultPaginationState();
-		return {
-			...state,
-			pagination: {
-				...state.pagination,
-				[action.collectionKey]: {
-					...current,
-					totalServerCount: action.count,
-					countIsExact: action.isExact
-				}
-			}
-		};
-	}
-	case PAGINATION_ERROR: {
-		const current = state.pagination[action.collectionKey] || getDefaultPaginationState();
-		return {
-			...state,
-			pagination: {
-				...state.pagination,
-				[action.collectionKey]: {
-					...current,
-					isLoading: false,
-					hasMore: false
-				}
-			}
-		};
-	}
 	default:
 		return state;
 	}

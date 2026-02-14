@@ -659,28 +659,6 @@ export type SerializedDescriptionToCardList = {
 	[serializedDescription: string] : CardID[],
 }
 
-// Serializable cursor for Firestore pagination
-export type PaginationCursor = {
-	cardID: CardID;           // Last document ID
-	sortOrder: number;        // For default sort
-	timestamp?: number;       // For 'recent' sort
-	title?: string;           // For alphabetical sort
-} | null;
-
-export type PaginationState = {
-	loadedBatchCount: number;      // Number of batches loaded (0, 1, 2...)
-	cursor: PaginationCursor;      // Last document reference
-	totalServerCount: number | null; // Total count from server (null if not fetched)
-	isLoading: boolean;            // Currently fetching batch
-	hasMore: boolean;              // More results available
-	countIsExact: boolean;         // Server count is exact vs estimate
-};
-
-// Map keyed by collection serialization (e.g., "main/starred/sort-recent/")
-export type PaginationStateMap = {
-	[collectionSerialization: string]: PaginationState
-};
-
 export interface CollectionConstructorArguments {
 	cards : ProcessedCards,
 	sets : Sets,
@@ -695,9 +673,7 @@ export interface CollectionConstructorArguments {
 	filtersSnapshot? : Filters,
 	editingCard? : ProcessedCard,
 	cardSimilarity? : CardSimilarityMap,
-	editingCardSimilarity? : SortExtra,
-	// Getter function for lazy pagination loading (breaks circular dependency)
-	getPaginationState? : (collectionKey: string) => PaginationState
+	editingCardSimilarity? : SortExtra
 }
 
 export type Logger = {
@@ -785,9 +761,7 @@ export type CollectionState = {
 	//ephemeral and not persisted.
 	selectedCards: FilterMap,
 	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
-	collectionWordCloudVersion: number,
-	// Pagination state keyed by collection serialization
-	pagination: PaginationStateMap
+	collectionWordCloudVersion: number
 }
 
 export type CommentsState = {

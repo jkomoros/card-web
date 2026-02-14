@@ -42,8 +42,7 @@ import {
 	selectPendingNewCardIDToNavigateTo,
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
-	selectExplicitlySelectedCardIDs,
-	selectPaginationForCollection
+	selectExplicitlySelectedCardIDs
 } from '../selectors.js';
 
 import {
@@ -72,7 +71,6 @@ import {
 import {
 	CardID,
 	Card,
-	Cards,
 	State,
 	CollectionConstructorArguments
 } from '../types.js';
@@ -88,13 +86,7 @@ import {
 	UPDATE_COLLECTION,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	UPDATE_COLLECTION_SHAPSHOT,
-	UPDATE_RENDER_OFFSET,
-	PAGINATION_RESET,
-	PAGINATION_RECEIVE_BATCH,
-	PAGINATION_SET_LOADING,
-	PAGINATION_UPDATE_COUNT,
-	PAGINATION_ERROR,
-	UPDATE_CARDS
+	UPDATE_RENDER_OFFSET
 } from '../actions.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -568,170 +560,4 @@ export const incrementCollectionWordCloud = () : SomeAction => {
 	return {
 		type: INCREMENT_COLLECTION_WORD_CLOUD_VERSION
 	};
-};
-
-// Pagination action creators
-import {
-	query,
-	collection,
-	limit,
-	startAfter,
-	getDocs,
-	doc
-} from 'firebase/firestore';
-
-import { db } from '../firebase.js';
-
-import {
-	CARDS_COLLECTION
-} from '../../shared/collection-constants.js';
-
-const BATCH_SIZE = 20;
-
-/**
- * Reset pagination when collection changes
- */
-export const resetPagination = (collectionKey: string): SomeAction => ({
-	type: PAGINATION_RESET,
-	collectionKey
-});
-
-/**
- * Load next batch of cards from Firestore
- */
-export const loadNextBatch = (): ThunkSomeAction => async (dispatch, getState) => {
-	const state = getState();
-	const description = selectActiveCollectionDescription(state);
-	const collectionKey = description.serialize();
-
-	const paginationState = selectPaginationForCollection(state, collectionKey);
-
-	// Guard: don't load if already loading or no more results
-	if (paginationState.isLoading || !paginationState.hasMore) return;
-
-	// Only works for SIMPLE collections
-	if (!description.classification.canGetServerCount) {
-		dispatch({
-			type: PAGINATION_ERROR,
-			collectionKey,
-			error: 'Collection does not support server-side pagination'
-		});
-		return;
-	}
-
-	dispatch({
-		type: PAGINATION_SET_LOADING,
-		collectionKey,
-		isLoading: true
-	});
-
-	try {
-		// Build Firestore query
-		const constraints = description.classification.firestoreConstraints || [];
-		let q = query(
-			collection(db, CARDS_COLLECTION),
-			...constraints,
-			limit(BATCH_SIZE)
-		);
-
-		// Add cursor for subsequent batches
-		if (paginationState.cursor) {
-			const lastDocRef = doc(db, CARDS_COLLECTION, paginationState.cursor.cardID);
-			q = query(q, startAfter(lastDocRef));
-		}
-
-		// Fetch from Firestore
-		const snapshot = await getDocs(q);
-		const cards: CardID[] = [];
-		let newCursor = null;
-
-		snapshot.forEach((docSnapshot) => {
-			cards.push(docSnapshot.id as CardID);
-		});
-
-		// Store cursor from last document
-		if (!snapshot.empty) {
-			const lastDoc = snapshot.docs[snapshot.docs.length - 1];
-			const lastCard = lastDoc.data();
-			newCursor = {
-				cardID: lastDoc.id as CardID,
-				sortOrder: lastCard.sort_order || 0,
-				timestamp: lastCard.updated?.seconds,
-				title: lastCard.title
-			};
-		}
-
-		const hasMore = cards.length === BATCH_SIZE;
-
-		// Dispatch cards to Redux (use existing UPDATE_CARDS action)
-		const cardsData = Object.fromEntries(
-			snapshot.docs.map(doc => [doc.id, doc.data()])
-		);
-
-		dispatch({
-			type: UPDATE_CARDS,
-			cards: cardsData as Cards,
-			fetchType: 'unpublished-partial'
-		});
-
-		// Update pagination state
-		dispatch({
-			type: PAGINATION_RECEIVE_BATCH,
-			collectionKey,
-			cards,
-			cursor: newCursor,
-			hasMore
-		});
-
-	} catch (error) {
-		console.error('Error loading next batch:', error);
-		dispatch({
-			type: PAGINATION_ERROR,
-			collectionKey,
-			error: (error as Error).message
-		});
-	} finally {
-		dispatch({
-			type: PAGINATION_SET_LOADING,
-			collectionKey,
-			isLoading: false
-		});
-	}
-};
-
-/**
- * Update server count for collection
- */
-export const updateServerCount = (description: CollectionDescription): ThunkSomeAction =>
-	async (dispatch) => {
-		const collectionKey = description.serialize();
-
-		try {
-			const result = await description.getServerCount(true);
-
-			dispatch({
-				type: PAGINATION_UPDATE_COUNT,
-				collectionKey,
-				count: result.count,
-				isExact: result.isExact
-			});
-		} catch (error) {
-			console.error('Error fetching server count:', error);
-		}
-	};
-
-/**
- * Initialize pagination when collection loads
- */
-export const initializePagination = (): ThunkSomeAction => (dispatch, getState) => {
-	const state = getState();
-	const description = selectActiveCollectionDescription(state);
-	const collectionKey = description.serialize();
-	const paginationState = selectPaginationForCollection(state, collectionKey);
-
-	// Only initialize if not already initialized
-	if (!paginationState || paginationState.loadedBatchCount === 0) {
-		dispatch(resetPagination(collectionKey));
-		dispatch(updateServerCount(description));
-	}
 };

@@ -42,12 +42,6 @@ import {
 	makeInfoZippyClickedEvent
 } from '../events.js';
 
-import { store } from '../store.js';
-
-import {
-	loadNextBatch
-} from '../actions/collection.js';
-
 @customElement('card-drawer')
 class CardDrawer extends LitElement {
 
@@ -180,31 +174,6 @@ class CardDrawer extends LitElement {
 				background-color: #FF9800;
 				color: white;
 			}
-
-			.load-more-container {
-				display: flex;
-				justify-content: center;
-				padding: 1em;
-			}
-
-			.load-more-button {
-				padding: 0.5em 1.5em;
-				font-size: 1em;
-				background-color: var(--app-primary-color);
-				color: white;
-				border: none;
-				border-radius: 0.25em;
-				cursor: pointer;
-			}
-
-			.load-more-button:hover:not(:disabled) {
-				background-color: var(--app-primary-color-light);
-			}
-
-			.load-more-button:disabled {
-				opacity: 0.5;
-				cursor: not-allowed;
-			}
 		`
 	];
 
@@ -246,16 +215,6 @@ class CardDrawer extends LitElement {
 			</card-thumbnail-list>`
 }
 				</div>
-				${this.collection && this.collection.hasMoreBatches ? html`
-					<div class='load-more-container'>
-						<button
-							class='load-more-button'
-							@click=${this._handleLoadMore}
-							?disabled=${this.collection.isLoadingNextBatch}>
-							${this.collection.isLoadingNextBatch ? 'Loading...' : 'Load More'}
-						</button>
-					</div>
-				` : ''}
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
 					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.showCreateCard}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button>
@@ -275,14 +234,6 @@ class CardDrawer extends LitElement {
 
 	_handleCreateWorkingNotes() {
 		this.dispatchEvent(makeAddWorkingNotesCardEvent());
-	}
-
-	_handleLoadMore(e: Event) {
-		e.preventDefault();
-		if (!this.collection) return;
-
-		// Dispatch Redux action instead of calling Collection method
-		store.dispatch(loadNextBatch());
 	}
 
 	constructor() {
