@@ -1,5 +1,9 @@
-import { ENABLE_SERVER_IDF } from './config.GENERATED.SECRET.js';
+// TODO: Add ENABLE_SERVER_IDF to config.GENERATED.SECRET.ts
+// import { ENABLE_SERVER_IDF } from './config.GENERATED.SECRET.js';
 import { ServerIDFData } from './types.js';
+
+// Temporary: disable server IDF until config is updated
+const ENABLE_SERVER_IDF = false;
 
 const CACHE_KEY = 'server_idf_cache';
 const CACHE_VERSION = 1; // Increment to force cache invalidation
