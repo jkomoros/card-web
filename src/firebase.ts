@@ -3,11 +3,12 @@
 
 import { initializeApp } from 'firebase/app';
 
-import { 
+import {
 	serverTimestamp,
 	deleteField,
 	Timestamp,
 	initializeFirestore,
+	getFirestore,
 	persistentLocalCache,
 	persistentMultipleTabManager
 } from 'firebase/firestore';
@@ -31,6 +32,8 @@ import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG,
 	FIREBASE_REGION,
+	FIRESTORE_DATABASE_ID_DEV,
+	FIRESTORE_DATABASE_ID_PROD,
 } from './config.GENERATED.SECRET.js';
 
 import {
@@ -43,6 +46,7 @@ export let DEV_MODE = false;
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+const databaseId = DEV_MODE ? FIRESTORE_DATABASE_ID_DEV : FIRESTORE_DATABASE_ID_PROD;
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
 
@@ -50,12 +54,16 @@ const firebaseApp = initializeApp(config);
 //long document. See
 //https://github.com/firebase/firebase-js-sdk/issues/4416#issuecomment-788225325
 //and #659.
-export const db = initializeFirestore(firebaseApp, {
-	experimentalForceLongPolling: true,
-	localCache: persistentLocalCache({
-		tabManager: persistentMultipleTabManager()
+//Support named databases for Enterprise Edition. The default database uses
+//initializeFirestore with custom settings, while named databases use getFirestore.
+export const db = databaseId === '(default)'
+	? initializeFirestore(firebaseApp, {
+		experimentalForceLongPolling: true,
+		localCache: persistentLocalCache({
+			tabManager: persistentMultipleTabManager()
+		})
 	})
-});
+	: getFirestore(firebaseApp, databaseId);
 
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);

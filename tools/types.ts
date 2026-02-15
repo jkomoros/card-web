@@ -59,6 +59,10 @@ export type ModeConfig = {
 		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseOptions;
+	//Named database support for Firestore Enterprise
+	firestore_database_id? : string;
+	//Track whether using Standard or Enterprise edition
+	firestore_edition? : 'STANDARD' | 'ENTERPRISE';
 	//This is typically set via the CLI (tools/cli.ts set-config-last-deploy)
 	last_deploy_affecting_rendering? : string;
 };

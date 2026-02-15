@@ -29,7 +29,17 @@ Paste that JSON blob in your `config.SECRET.json` file, where the sample "fireba
 
 Run `npm run generate:config`. This copies the config you just set into various static files in the project.
 
-Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
+Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'.
+
+**IMPORTANT: Choose Firestore Enterprise Edition**. This project uses Enterprise Edition for advanced query capabilities including:
+- Server-side regex search on card content (regex_match function)
+- Pipeline operations for complex filters
+- Better performance at scale (30k+ cards)
+- Lower storage costs with optional indexing
+
+If you accidentally create a Standard database, you cannot upgrade it. You would need to create a new Enterprise database and migrate your data.
+
+Choose Production Mode. Tap next. Pick the location (the default `us-central1` is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
 In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.  
 
