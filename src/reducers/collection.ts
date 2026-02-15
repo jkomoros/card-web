@@ -19,6 +19,10 @@ import {
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+	INIT_SIMPLE_COLLECTION,
+	LOAD_CHUNK_REQUEST,
+	CHUNK_LOADED,
+	NAVIGATE_TO_CHUNK
 } from '../actions.js';
 
 import {
@@ -68,11 +72,14 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			activeRenderOffset: action.renderOffset
 		};
 	case UPDATE_COLLECTION:
+		// Clear pagination state when collection changes (LRU eviction)
+		// New collection will re-initialize its pagination state as needed
 		return {
 			...state,
 			active: action.collection,
 			activeRenderOffset: 0,
-			collectionWordCloudVersion: 0
+			collectionWordCloudVersion: 0,
+			paginationState: {}
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones
@@ -157,6 +164,73 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			snapshot: action.collection
 		};
+	case INIT_SIMPLE_COLLECTION:
+		return {
+			...state,
+			paginationState: {
+				...state.paginationState,
+				[action.collectionKey]: {
+					loadedChunks: new Set(),
+					chunkCursors: new Map(),
+					currentChunkIndex: 0,
+					chunkSize: action.chunkSize,
+					totalCount: action.totalCount,
+					isLoading: false
+				}
+			}
+		};
+	case LOAD_CHUNK_REQUEST:
+		return {
+			...state,
+			paginationState: {
+				...state.paginationState,
+				[action.collectionKey]: {
+					...state.paginationState[action.collectionKey],
+					isLoading: true
+				}
+			}
+		};
+	case CHUNK_LOADED: {
+		const current = state.paginationState[action.collectionKey];
+		if (!current) return state;
+
+		const newChunks = new Set(current.loadedChunks);
+		newChunks.add(action.chunkIndex);
+
+		const newCursors = new Map(current.chunkCursors);
+		if (action.cursor) {
+			newCursors.set(action.chunkIndex, action.cursor);
+		}
+
+		return {
+			...state,
+			paginationState: {
+				...state.paginationState,
+				[action.collectionKey]: {
+					...current,
+					loadedChunks: newChunks,
+					chunkCursors: newCursors,
+					currentChunkIndex: action.chunkIndex,
+					isLoading: false
+				}
+			}
+		};
+	}
+	case NAVIGATE_TO_CHUNK: {
+		const current = state.paginationState[action.collectionKey];
+		if (!current) return state;
+
+		return {
+			...state,
+			paginationState: {
+				...state.paginationState,
+				[action.collectionKey]: {
+					...current,
+					currentChunkIndex: action.chunkIndex
+				}
+			}
+		};
+	}
 	default:
 		return state;
 	}

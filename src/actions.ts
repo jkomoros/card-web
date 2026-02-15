@@ -12,6 +12,10 @@ import {
 } from '../shared/types.js';
 
 import {
+	DocumentSnapshot
+} from 'firebase/firestore';
+
+import {
 	AIDialogType,
 	AIModelName,
 	AuthorsMap,
@@ -110,6 +114,11 @@ export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
 export const CLEAR_SELECTED_CARDS = 'CLEAR_SELECTED_CARDS';
 export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WORD_CLOUD_VERSION';
+//Collection Pagination (SIMPLE collections)
+export const INIT_SIMPLE_COLLECTION = 'INIT_SIMPLE_COLLECTION';
+export const LOAD_CHUNK_REQUEST = 'LOAD_CHUNK_REQUEST';
+export const CHUNK_LOADED = 'CHUNK_LOADED';
+export const NAVIGATE_TO_CHUNK = 'NAVIGATE_TO_CHUNK';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -471,6 +480,32 @@ type ActionClearSelectedCards = {
 
 type ActionIncrementCollectionWordCloudVersion = {
 	type: typeof INCREMENT_COLLECTION_WORD_CLOUD_VERSION
+};
+
+type ActionInitSimpleCollection = {
+	type: typeof INIT_SIMPLE_COLLECTION,
+	collectionKey: string,
+	totalCount: number,
+	chunkSize: number
+};
+
+type ActionLoadChunkRequest = {
+	type: typeof LOAD_CHUNK_REQUEST,
+	collectionKey: string,
+	chunkIndex: number
+};
+
+type ActionChunkLoaded = {
+	type: typeof CHUNK_LOADED,
+	collectionKey: string,
+	chunkIndex: number,
+	cursor: DocumentSnapshot | null
+};
+
+type ActionNavigateToChunk = {
+	type: typeof NAVIGATE_TO_CHUNK,
+	collectionKey: string,
+	chunkIndex: number
 };
 
 type ActionCommentsUpdateThreads = {
@@ -1160,6 +1195,10 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUnselectCards
 	| ActionClearSelectedCards
 	| ActionIncrementCollectionWordCloudVersion
+	| ActionInitSimpleCollection
+	| ActionLoadChunkRequest
+	| ActionChunkLoaded
+	| ActionNavigateToChunk
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats

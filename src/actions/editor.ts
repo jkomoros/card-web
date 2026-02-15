@@ -71,7 +71,8 @@ import {
 } from '../images.js';
 
 import {
-	uploadsRef
+	uploadsRef,
+	db
 } from '../firebase.js';
 
 import {
@@ -79,6 +80,25 @@ import {
 	uploadBytes,
 	getDownloadURL
 } from 'firebase/storage';
+
+import {
+	doc,
+	getDoc,
+	onSnapshot
+} from 'firebase/firestore';
+
+import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+import {
+	receiveCards
+} from './data.js';
+
+import type {
+	Card,
+	ProcessedCard
+} from '../types.js';
 
 import {
 	AutoTODOType,
@@ -96,7 +116,7 @@ import {
 	SectionID,
 	Slug,
 	TagID,
-	Uid 
+	Uid
 } from '../types.js';
 
 import {
@@ -153,6 +173,9 @@ import {
 let lastReportedSelectionRange : Range | null = null;
 let savedSelectionRange : Range | null = null;
 let selectionParent : HTMLElementWithStashedSelectionOffset | null = null;
+
+// Live listener for the card being edited (conflict mitigation)
+let editingCardUnsubscribe: (() => void) | null = null;
 
 //selection range is weird; you can only listen for changes at the document
 //level, but selections wihtin a shadow root are hidden from outside. Certain
@@ -254,7 +277,7 @@ export const editingSelectEditorTab = (tab : EditorContentTab) : SomeAction => {
 	};
 };
 
-export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
+export const editingStart = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
@@ -269,7 +292,40 @@ export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
 		console.warn('There doesn\'t appear to be an active card.');
 		return;
 	}
-	dispatch({type: EDITING_START, card: card});
+
+	// STEP 1: Refresh card to latest version (multi-edit conflict mitigation)
+	try {
+		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
+		if (freshSnapshot.exists()) {
+			const freshCard: Card = {...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card;
+			dispatch(receiveCards({[card.id]: freshCard}, 'published'));
+		}
+	} catch (error) {
+		console.error('Error refreshing card before editing:', error);
+		// Continue anyway - we'll use the card we have
+	}
+
+	// Start editing with the card (potentially refreshed)
+	const updatedState = getState();
+	const updatedCard = selectActiveCard(updatedState);
+	dispatch({type: EDITING_START, card: updatedCard || card});
+
+	// STEP 2: Set up live listener for this card only
+	if (editingCardUnsubscribe) {
+		editingCardUnsubscribe();
+	}
+
+	editingCardUnsubscribe = onSnapshot(doc(db, CARDS_COLLECTION, card.id), snapshot => {
+		if (!snapshot.exists()) return;
+
+		const liveCard: Card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+
+		// Update underlying card snapshot (conflict detection)
+		dispatch({
+			type: EDITING_UPDATE_UNDERLYING_CARD,
+			updatedUnderlyingCard: liveCard as ProcessedCard
+		});
+	});
 };
 
 export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) => {
@@ -358,8 +414,14 @@ export const linkCard = (cardID : CardID) : ThunkSomeAction => (_, getState) => 
 	document.execCommand('createLink', false, cardID);
 };
 
-export const editingFinish = () : SomeAction => {
-	return {type: EDITING_FINISH};
+export const editingFinish = () : ThunkSomeAction => (dispatch) => {
+	// Unsubscribe from live card listener
+	if (editingCardUnsubscribe) {
+		editingCardUnsubscribe();
+		editingCardUnsubscribe = null;
+	}
+
+	dispatch({type: EDITING_FINISH});
 };
 
 export const notesUpdated = (newNotes : string) : SomeAction => {

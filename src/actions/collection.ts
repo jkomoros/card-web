@@ -59,6 +59,27 @@ import {
 } from './editor.js';
 
 import {
+	receiveCards
+} from './data.js';
+
+import {
+	db
+} from '../firebase.js';
+
+import {
+	collection,
+	query,
+	getDocs,
+	orderBy,
+	limit,
+	startAfter
+} from 'firebase/firestore';
+
+import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+import {
 	ThunkSomeAction, store
 } from '../store.js';
 
@@ -71,6 +92,7 @@ import {
 import {
 	CardID,
 	Card,
+	Cards,
 	State,
 	CollectionConstructorArguments
 } from '../types.js';
@@ -86,7 +108,11 @@ import {
 	UPDATE_COLLECTION,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	UPDATE_COLLECTION_SHAPSHOT,
-	UPDATE_RENDER_OFFSET
+	UPDATE_RENDER_OFFSET,
+	INIT_SIMPLE_COLLECTION,
+	LOAD_CHUNK_REQUEST,
+	CHUNK_LOADED,
+	NAVIGATE_TO_CHUNK
 } from '../actions.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -210,6 +236,11 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 			viewModeExtra
 		}
 	});
+
+	// Initialize pagination for SIMPLE collections
+	if (newCollectionDescription.classification.canGetServerCount) {
+		dispatch(initSimpleCollection());
+	}
 };
 
 //commitPendingCollectionModifications should be dispatched when the list of
@@ -561,3 +592,97 @@ export const incrementCollectionWordCloud = () : SomeAction => {
 		type: INCREMENT_COLLECTION_WORD_CLOUD_VERSION
 	};
 };
+
+/**
+ * Initialize a SIMPLE collection:
+ * 1. Get total count from server
+ * 2. Load first chunk with one-time fetch
+ */
+export const initSimpleCollection = (): ThunkSomeAction =>
+	async (dispatch, getState) => {
+		const state = getState();
+		const description = selectActiveCollectionDescription(state);
+
+		if (!description.classification.canGetServerCount) {
+			return; // Only for SIMPLE collections
+		}
+
+		const collectionKey = description.serialize();
+
+		// Get server count
+		const countResult = await description.getServerCount(true);
+
+		dispatch({
+			type: INIT_SIMPLE_COLLECTION,
+			collectionKey,
+			totalCount: countResult.count,
+			chunkSize: 250  // Match renderLimit
+		});
+
+		// Load first chunk
+		dispatch(loadChunk(0));
+	};
+
+/**
+ * Load a specific chunk using ONE-TIME getDocs() fetch.
+ * No real-time updates for viewed cards (only for edited cards - see editor.ts).
+ */
+export const loadChunk = (chunkIndex: number): ThunkSomeAction =>
+	async (dispatch, getState) => {
+		const state = getState();
+		const description = selectActiveCollectionDescription(state);
+		const collectionKey = description.serialize();
+
+		if (!state.collection) return;
+		const pagState = state.collection.paginationState[collectionKey];
+
+		if (!pagState) return;
+
+		// Check if already loaded
+		if (pagState.loadedChunks.has(chunkIndex)) {
+			dispatch({ type: NAVIGATE_TO_CHUNK, collectionKey, chunkIndex });
+			return;
+		}
+
+		dispatch({ type: LOAD_CHUNK_REQUEST, collectionKey, chunkIndex });
+
+		try {
+			// Build query with limit and startAfter
+			const constraints = description.classification.firestoreConstraints || [];
+			const previousCursor = chunkIndex > 0 ? pagState.chunkCursors.get(chunkIndex - 1) : null;
+
+			const q = query(
+				collection(db, CARDS_COLLECTION),
+				...constraints,
+				orderBy('sort_order'),
+				limit(pagState.chunkSize),
+				...(previousCursor ? [startAfter(previousCursor)] : [])
+			);
+
+			// ONE-TIME fetch (no onSnapshot)
+			const snapshot = await getDocs(q);
+
+			const cards: Cards = {};
+			snapshot.docs.forEach(doc => {
+				const card: Card = {...doc.data({serverTimestamps: 'estimate'}), id: doc.id} as Card;
+				cards[doc.id] = card;
+			});
+
+			// receiveCards() merges into existing state
+			// TODO: Consider adding 'paginated' as a new CardFetchType
+			dispatch(receiveCards(cards, 'published'));
+
+			// Store cursor for next chunk
+			const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+
+			dispatch({
+				type: CHUNK_LOADED,
+				collectionKey,
+				chunkIndex,
+				cursor: lastDoc || null
+			});
+		} catch (error) {
+			console.error('Error loading chunk:', error);
+			// TODO: Dispatch error action
+		}
+	};
