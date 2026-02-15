@@ -10,23 +10,21 @@
 
 This guide documents the implementation of Firestore Enterprise Edition support and migration tooling.
 
-## What Was Implemented
+## Configuration Structure
 
-### Phase 1: Documentation & Configuration (Completed)
-
-#### 1. Config File Updates
-
-**config.SAMPLE.json**
-- Added `firestore_database_id` field (default: "(default)")
-- Added `firestore_edition` field to track Standard vs Enterprise
+### Config File Updates
 
 **tools/types.ts**
-- Added `firestore_database_id?: string` to ModeConfig interface
-- Added `firestore_edition?: 'STANDARD' | 'ENTERPRISE'` to ModeConfig interface
+- Added `use_legacy_firestore?: boolean` to ModeConfig interface
+- When `true`, uses Standard "(default)" database (deprecated)
+- When `false` or omitted, uses Enterprise with database name "firestore"
+- Database names are auto-generated intelligently
 
 **tools/config.ts**
-- Updated to export `FIRESTORE_DATABASE_ID_DEV` and `FIRESTORE_DATABASE_ID_PROD` constants
+- Exports `FIRESTORE_DATABASE_ID_DEV` and `FIRESTORE_DATABASE_ID_PROD` constants
 - These are generated into `src/config.GENERATED.SECRET.ts` on `npm run generate:config`
+- Auto-generates database name "firestore" for Enterprise (default behavior)
+- Validates config and errors if old fields (`firestore_database_id`, `firestore_edition`) are present
 
 #### 2. Firebase Initialization Updates
 
@@ -138,17 +136,18 @@ node tools/verify-migration.mjs --dev
 
 ### For New Projects
 
-1. During Firebase setup, select **Firestore Enterprise** edition
-2. In `config.SECRET.json`, optionally set:
+1. During Firebase setup, select **Firestore Enterprise** edition with database name **"firestore"**
+2. In `config.SECRET.json`, you don't need any firestore config fields! Everything auto-generates:
    ```json
    {
      "base": {
-       "firestore_database_id": "(default)",
-       "firestore_edition": "ENTERPRISE"
+       "app_title": "My Cards",
+       "firebase": { /* ... */ }
+       // No firestore fields needed - defaults to Enterprise!
      }
    }
    ```
-3. Everything works automatically!
+3. Run `npm run generate:config` and everything works automatically!
 
 ### For Existing Projects (Migration)
 
@@ -156,51 +155,48 @@ node tools/verify-migration.mjs --dev
 
 1. Go to Firebase Console → Firestore Database
 2. Click "Create database" (upper right)
-3. Enter Database ID: `cards-enterprise` (or your preferred name)
+3. Enter Database ID: **`firestore`** (use this exact name for auto-config)
 4. Select **"Firestore Enterprise"** edition
 5. Choose location: `us-central1` (should match your existing database)
 6. Click "Create"
 
-#### Step 2: Update Configuration
+#### Step 2: Run Migration
 
-Edit `config.SECRET.json`:
-```json
-{
-  "base": {
-    "firestore_database_id": "cards-enterprise",
-    "firestore_edition": "ENTERPRISE"
-  }
-}
-```
-
-Or for dev/prod separation:
-```json
-{
-  "prod": {
-    "firestore_database_id": "cards-enterprise",
-    "firestore_edition": "ENTERPRISE"
-  },
-  "dev": {
-    "firestore_database_id": "dev-cards-enterprise",
-    "firestore_edition": "ENTERPRISE"
-  }
-}
-```
-
-#### Step 3: Run Migration
-
+Use the automated migration task:
 ```bash
-# For prod (recommended to start with dev first!)
 gulp migrate-to-enterprise
 ```
 
 This will:
-- Export your Standard database
-- Import to Enterprise database
-- Wait for completion
-- Show next steps
+1. Verify Enterprise database exists
+2. Export Standard database to Cloud Storage
+3. Import to Enterprise database
+4. Provide next steps
 
-Estimated time: 5-15 minutes depending on database size
+#### Step 3: Update Configuration
+
+If you're currently using Standard database, you have `use_legacy_firestore: true` in your config. After migration:
+
+1. Edit `config.SECRET.json` and **remove** the `use_legacy_firestore` field:
+   ```json
+   {
+     "base": {
+       // Remove this line:
+       // "use_legacy_firestore": true
+     }
+   }
+   ```
+
+     // Remove use_legacy_firestore from all sections
+   }
+   ```
+
+3. Regenerate config:
+   ```bash
+   npm run generate:config
+   ```
+
+The config will now auto-use Enterprise database named "firestore"!
 
 #### Step 4: Verify Migration
 
@@ -220,17 +216,14 @@ Expected output:
 #### Step 5: Deploy Security Rules
 
 ```bash
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules --database=firestore
 ```
 
 Security Rules are backward compatible between Standard and Enterprise.
 
-#### Step 6: Update App Configuration
+#### Step 6: Build and Test Locally
 
 ```bash
-# Regenerate config files with new database ID
-npm run generate:config
-
 # Build and test locally
 npm run build
 npm run start

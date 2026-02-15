@@ -31,11 +31,12 @@ Run `npm run generate:config`. This copies the config you just set into various 
 
 Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'.
 
-**IMPORTANT: Choose Firestore Enterprise Edition**. This project strongly recommends Enterprise Edition for advanced query capabilities including:
+**IMPORTANT: Choose Firestore Enterprise Edition with database name "firestore"**. This project defaults to Enterprise Edition for:
 - Server-side regex search on card content (regex_match function)
 - Pipeline operations for complex filters
 - Better performance at scale (30k+ cards - 30-40MB vs 835MB memory)
 - Lower storage costs with optional indexing
+- Zero config required (database name "firestore" is auto-generated)
 
 **⚠️ Standard Database is Deprecated**: The Standard (default) Firestore database is deprecated and will show warnings. Support for Standard may be removed in 6-12 months.
 
@@ -102,10 +103,11 @@ If you're using the Standard (default) Firestore database, you should migrate to
 - Better scalability
 
 **How to Migrate:**
-See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for complete migration instructions. The process takes about 5-15 minutes and includes:
-1. Create Enterprise database in Firebase Console
+See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for complete migration instructions. The process includes:
+1. Create Enterprise database named "firestore" in Firebase Console
 2. Run `gulp migrate-to-enterprise` to copy data
-3. Update config and redeploy
+3. Remove `use_legacy_firestore: true` from config.SECRET.json
+4. Run `npm run generate:config` and redeploy
 
 **Note:** Standard database support is deprecated and may be removed in 6-12 months after all users have migrated.
 
