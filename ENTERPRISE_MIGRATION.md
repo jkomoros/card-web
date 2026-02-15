@@ -1,5 +1,13 @@
 # Firestore Enterprise Migration Guide
 
+## ⚠️ RECOMMENDED: Migrate to Enterprise Edition
+
+**The Standard (default) Firestore database is deprecated.** You should migrate to Enterprise Edition for:
+- **Better performance**: 30-40MB memory usage vs 835MB on Standard
+- **Advanced features**: Server-side regex search (regex_match), pipeline operations
+- **Scalability**: Handles 30k+ cards efficiently
+- **Lower costs**: Optional indexing reduces storage costs
+
 This guide documents the implementation of Firestore Enterprise Edition support and migration tooling.
 
 ## What Was Implemented
@@ -106,6 +114,25 @@ node tools/verify-migration.mjs
 # Verify dev migration
 node tools/verify-migration.mjs --dev
 ```
+
+## Why Migrate?
+
+### Standard Database Issues
+- High memory usage (835MB for 30k cards)
+- Limited query capabilities (no regex_match)
+- No pipeline operations
+- Less efficient at scale
+
+### Enterprise Benefits
+- Low memory usage (30-40MB for same dataset)
+- Server-side regex search on card content
+- Complex filter pipelines
+- Better performance with large datasets
+- Optional indexing reduces storage costs
+
+### Deprecation Timeline
+- **Now**: Standard database deprecated, warnings added
+- **6-12 months**: After all users migrate, Standard support will be removed from codebase
 
 ## How to Use
 

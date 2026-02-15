@@ -30,6 +30,8 @@ import {
 	Request as ExpressRequest
 } from 'express';
 
+import * as functions from 'firebase-functions';
+
 // Import shared constants instead of duplicating them
 import {
 	OPENAI_API_KEY_VAR,
@@ -63,8 +65,14 @@ import {
 
 initializeApp();
 
+// Read database ID from functions config, default to '(default)' if not set
+const databaseId = functions.config().firestore?.database_id || '(default)';
+
 //We use this so often we might as well make it more common
-export const db = getFirestore();
+// Use getFirestore() for default database, or getFirestore(undefined, databaseId) for named databases
+export const db = databaseId === '(default)'
+	? getFirestore()
+	: getFirestore(undefined, databaseId);
 export const auth = getAuth();
 export const storage = getStorage();
 

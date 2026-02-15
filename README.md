@@ -31,13 +31,15 @@ Run `npm run generate:config`. This copies the config you just set into various 
 
 Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'.
 
-**IMPORTANT: Choose Firestore Enterprise Edition**. This project uses Enterprise Edition for advanced query capabilities including:
+**IMPORTANT: Choose Firestore Enterprise Edition**. This project strongly recommends Enterprise Edition for advanced query capabilities including:
 - Server-side regex search on card content (regex_match function)
 - Pipeline operations for complex filters
-- Better performance at scale (30k+ cards)
+- Better performance at scale (30k+ cards - 30-40MB vs 835MB memory)
 - Lower storage costs with optional indexing
 
-If you accidentally create a Standard database, you cannot upgrade it. You would need to create a new Enterprise database and migrate your data.
+**⚠️ Standard Database is Deprecated**: The Standard (default) Firestore database is deprecated and will show warnings. Support for Standard may be removed in 6-12 months.
+
+If you accidentally create a Standard database, you cannot upgrade it. You would need to create a new Enterprise database and migrate your data. See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for migration instructions.
 
 Choose Production Mode. Tap next. Pick the location (the default `us-central1` is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
@@ -88,6 +90,24 @@ You will likely have to run maintenance tasks on your instance to upgrade the da
 To do that, go to https://your-project-domain/maintenance , hard refresh
 (Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
 any maintenance tasks it tells you to. Note that you might need to run multiple in a row. Run them until it says 'No tasks to run'.
+
+### ⚠️ Migration Recommended: Upgrade to Enterprise Edition
+
+If you're using the Standard (default) Firestore database, you should migrate to Enterprise Edition for better performance and features.
+
+**Benefits of Enterprise:**
+- 95% lower memory usage (30-40MB vs 835MB for 30k cards)
+- Server-side regex search capabilities
+- Advanced query pipeline operations
+- Better scalability
+
+**How to Migrate:**
+See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for complete migration instructions. The process takes about 5-15 minutes and includes:
+1. Create Enterprise database in Firebase Console
+2. Run `gulp migrate-to-enterprise` to copy data
+3. Update config and redeploy
+
+**Note:** Standard database support is deprecated and may be removed in 6-12 months after all users have migrated.
 
 ## Extra Credit
 

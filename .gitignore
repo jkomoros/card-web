@@ -22,3 +22,5 @@ firestore.rules
 firebase.json
 test-mount/
 .playwright-mcp/
+service-account-key.json
+.claude/settings.local.json

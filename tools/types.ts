@@ -59,9 +59,27 @@ export type ModeConfig = {
 		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseOptions;
-	//Named database support for Firestore Enterprise
+	/**
+	 * Firestore database ID. Use a named database like "cards-enterprise" for Enterprise Edition.
+	 *
+	 * ⚠️ DEPRECATED: The Standard "(default)" database is deprecated. Migrate to Enterprise Edition for:
+	 * - Better performance (30-40MB vs 835MB memory for 30k cards)
+	 * - Server-side regex search (regex_match function)
+	 * - Advanced query pipeline operations
+	 *
+	 * See ENTERPRISE_MIGRATION.md for migration instructions.
+	 *
+	 * @default "(default)"
+	 * @deprecated Standard database support will be removed in 6-12 months
+	 */
 	firestore_database_id? : string;
-	//Track whether using Standard or Enterprise edition
+	/**
+	 * Firestore edition: "STANDARD" or "ENTERPRISE"
+	 *
+	 * Enterprise Edition is strongly recommended for better performance and features.
+	 *
+	 * @default "ENTERPRISE"
+	 */
 	firestore_edition? : 'STANDARD' | 'ENTERPRISE';
 	//This is typically set via the CLI (tools/cli.ts set-config-last-deploy)
 	last_deploy_affecting_rendering? : string;

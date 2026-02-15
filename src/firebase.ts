@@ -8,7 +8,6 @@ import {
 	deleteField,
 	Timestamp,
 	initializeFirestore,
-	getFirestore,
 	persistentLocalCache,
 	persistentMultipleTabManager
 } from 'firebase/firestore';
@@ -47,6 +46,13 @@ if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 const databaseId = DEV_MODE ? FIRESTORE_DATABASE_ID_DEV : FIRESTORE_DATABASE_ID_PROD;
+
+// Warn if using deprecated Standard database
+if (databaseId === '(default)') {
+	console.warn('⚠️  Using Standard Firestore database');
+	console.warn('⚠️  Consider migrating to Enterprise for better performance');
+	console.warn('⚠️  See ENTERPRISE_MIGRATION.md');
+}
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
 
@@ -54,16 +60,14 @@ const firebaseApp = initializeApp(config);
 //long document. See
 //https://github.com/firebase/firebase-js-sdk/issues/4416#issuecomment-788225325
 //and #659.
-//Support named databases for Enterprise Edition. The default database uses
-//initializeFirestore with custom settings, while named databases use getFirestore.
-export const db = databaseId === '(default)'
-	? initializeFirestore(firebaseApp, {
-		experimentalForceLongPolling: true,
-		localCache: persistentLocalCache({
-			tabManager: persistentMultipleTabManager()
-		})
+//Support named databases for Enterprise Edition. The third parameter allows
+//specifying a database ID while maintaining all custom settings.
+export const db = initializeFirestore(firebaseApp, {
+	experimentalForceLongPolling: true,
+	localCache: persistentLocalCache({
+		tabManager: persistentMultipleTabManager()
 	})
-	: getFirestore(firebaseApp, databaseId);
+}, databaseId);
 
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);
@@ -146,12 +150,12 @@ export const getIDToken = async (): Promise<string> => {
  * @returns Promise that resolves to the JSON response
  */
 export const authenticatedFetch = async <RequestData, ResponseData>(
-	url: string, 
+	url: string,
 	data: RequestData
 ): Promise<ResponseData> => {
 	// Get Firebase auth token
 	const token = await getIDToken();
-	
+
 	// Make the authenticated fetch request
 	const response = await fetch(url, {
 		method: 'POST',
@@ -161,9 +165,15 @@ export const authenticatedFetch = async <RequestData, ResponseData>(
 		},
 		body: JSON.stringify(data)
 	});
-	
+
+	// Check for HTTP errors
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(`HTTP ${response.status}: ${errorText}`);
+	}
+
 	// Parse the JSON response
 	const responseData = await response.json() as ResponseData;
-		
+
 	return responseData;
 };

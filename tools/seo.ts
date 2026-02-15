@@ -33,6 +33,10 @@ import {
 	getActiveConfig
 } from './util.js';
 
+import {
+	FIRESTORE_DATABASE_ID_PROD
+} from '../src/config.GENERATED.SECRET.js';
+
 const SEO_PATH = 'seo/';
 //How many characters to allow description to be
 const MAX_DESCRIPTION_LENGTH = 200;
@@ -57,7 +61,8 @@ const log = (msg : string) => console.log(msg);
 const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
 	// Initialize Firebase
 	const firebaseApp = initializeApp(config);
-	const db = getFirestore(firebaseApp);
+	// Use the configured database ID (respects Enterprise database)
+	const db = getFirestore(firebaseApp, FIRESTORE_DATABASE_ID_PROD);
 	let q = query(collection(db, CARDS_COLLECTION), where('published', '==', true));
 	if (DEVELOPMENT_MODE) q = query(collection(db, CARDS_COLLECTION), where('published', '==', true), limit(5));
 	const docs = await getDocs(q);

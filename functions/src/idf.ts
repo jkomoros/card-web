@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { JSDOM } from 'jsdom';
 import type { DOMWindow } from 'jsdom';
+import * as functions from 'firebase-functions';
 
 // These are now exported from shared/nlp.js
 import {
@@ -36,7 +37,9 @@ export const calculateIDF = onSchedule({
 	timeoutSeconds: 540 // 9 minutes
 }, async (_event) => {
 	try {
-		const db = getFirestore();
+		// Read database ID from functions config (set by CONFIGURE_API_KEYS task)
+		const databaseId = functions.config().firestore?.database_id || '(default)';
+		const db = databaseId === '(default)' ? getFirestore() : getFirestore(undefined, databaseId);
 		const storage = getStorage();
 
 		// 1. Fetch all cards from Firestore
