@@ -499,7 +499,8 @@ type ActionChunkLoaded = {
 	type: typeof CHUNK_LOADED,
 	collectionKey: string,
 	chunkIndex: number,
-	cursor: DocumentSnapshot | null
+	cursor: DocumentSnapshot | null,
+	cardIDs: CardID[]
 };
 
 type ActionNavigateToChunk = {

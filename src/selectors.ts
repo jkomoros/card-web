@@ -1659,7 +1659,30 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
-	(description, args) => description ? description.collection(args) : null
+	(state: State) => state.collection ? state.collection.paginationState : {},
+	(description, args, paginationState) => {
+		if (!description) return null;
+
+		// Check if this is a SIMPLE collection with pagination enabled
+		const isSimple = description.classification.canGetServerCount;
+		const collectionKey = description.serialize();
+		const pagState = paginationState[collectionKey];
+
+		// For SIMPLE collections with pagination state: filter to loaded cards only
+		if (isSimple && pagState && pagState.loadedCardIDs.size > 0) {
+			// Filter args.cards to only include loaded cards
+			const loadedCards: typeof args.cards = {};
+			for (const cardID of pagState.loadedCardIDs) {
+				if (args.cards[cardID]) {
+					loadedCards[cardID] = args.cards[cardID];
+				}
+			}
+			return description.collection({...args, cards: loadedCards});
+		}
+
+		// For COMPLEX collections or SIMPLE without pagination: use all cards
+		return description.collection(args);
+	}
 );
 
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in

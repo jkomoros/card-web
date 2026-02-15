@@ -769,6 +769,8 @@ export type CollectionState = {
 		[collectionKey: string]: {
 			// Loaded chunks (one-time fetches)
 			loadedChunks: Set<number>, // chunk indexes that have been fetched
+			// Card IDs that have been loaded across all chunks
+			loadedCardIDs: Set<CardID>,
 			// Cursors for chunk boundaries (for startAfter in next chunk)
 			chunkCursors: Map<number, DocumentSnapshot>, // chunkIndex → last doc of that chunk
 			// Current position (matches renderOffset / chunkSize)

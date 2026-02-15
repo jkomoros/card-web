@@ -663,23 +663,26 @@ export const loadChunk = (chunkIndex: number): ThunkSomeAction =>
 			const snapshot = await getDocs(q);
 
 			const cards: Cards = {};
+			const cardIDs: CardID[] = [];
 			snapshot.docs.forEach(doc => {
 				const card: Card = {...doc.data({serverTimestamps: 'estimate'}), id: doc.id} as Card;
 				cards[doc.id] = card;
+				cardIDs.push(doc.id);
 			});
 
 			// receiveCards() merges into existing state
 			// TODO: Consider adding 'paginated' as a new CardFetchType
 			dispatch(receiveCards(cards, 'published'));
 
-			// Store cursor for next chunk
+			// Store cursor and card IDs for next chunk
 			const lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
 			dispatch({
 				type: CHUNK_LOADED,
 				collectionKey,
 				chunkIndex,
-				cursor: lastDoc || null
+				cursor: lastDoc || null,
+				cardIDs
 			});
 		} catch (error) {
 			console.error('Error loading chunk:', error);

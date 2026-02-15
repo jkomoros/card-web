@@ -171,6 +171,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 				...state.paginationState,
 				[action.collectionKey]: {
 					loadedChunks: new Set(),
+					loadedCardIDs: new Set(),
 					chunkCursors: new Map(),
 					currentChunkIndex: 0,
 					chunkSize: action.chunkSize,
@@ -197,6 +198,9 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		const newChunks = new Set(current.loadedChunks);
 		newChunks.add(action.chunkIndex);
 
+		const newCardIDs = new Set(current.loadedCardIDs);
+		action.cardIDs.forEach(id => newCardIDs.add(id));
+
 		const newCursors = new Map(current.chunkCursors);
 		if (action.cursor) {
 			newCursors.set(action.chunkIndex, action.cursor);
@@ -209,6 +213,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 				[action.collectionKey]: {
 					...current,
 					loadedChunks: newChunks,
+					loadedCardIDs: newCardIDs,
 					chunkCursors: newCursors,
 					currentChunkIndex: action.chunkIndex,
 					isLoading: false
