@@ -10,8 +10,6 @@
 			"storageBucket": "PROJECT_ID.appspot.com",
 			"messagingSenderId": "NUMBER"
 		},
-		"firestore_database_id": "(default)",
-		"firestore_edition": "ENTERPRISE",
 		"twitter_handle": "CHANGE-ME",
 		"disable_twitter": false,
 		"openai_api_key": "CHANGE-ME",

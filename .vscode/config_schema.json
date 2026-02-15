@@ -372,20 +372,6 @@
                 "firebase": {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
-                "firestore_database_id": {
-                    "default": "(default)",
-                    "description": "Firestore database ID. Use a named database like \"cards-enterprise\" for Enterprise Edition.\n\n⚠️ DEPRECATED: The Standard \"(default)\" database is deprecated. Migrate to Enterprise Edition for:\n- Better performance (30-40MB vs 835MB memory for 30k cards)\n- Server-side regex search (regex_match function)\n- Advanced query pipeline operations\n\nSee ENTERPRISE_MIGRATION.md for migration instructions.",
-                    "type": "string"
-                },
-                "firestore_edition": {
-                    "default": "ENTERPRISE",
-                    "description": "Firestore edition: \"STANDARD\" or \"ENTERPRISE\"\n\nEnterprise Edition is strongly recommended for better performance and features.",
-                    "enum": [
-                        "ENTERPRISE",
-                        "STANDARD"
-                    ],
-                    "type": "string"
-                },
                 "google_analytics": {
                     "type": "string"
                 },
@@ -499,6 +485,11 @@
                 },
                 "twitter_handle": {
                     "type": "string"
+                },
+                "use_legacy_firestore": {
+                    "default": "false (Enterprise with database name \"firestore\")",
+                    "description": "⚠️ DEPRECATED: Use Standard \"(default)\" Firestore database.\n\nWhen true, uses legacy Standard database (deprecated, will be removed in 6-12 months).\nWhen false/omitted, uses Enterprise Edition with database name \"firestore\".",
+                    "type": "boolean"
                 },
                 "user_domain": {
                     "type": "string"
@@ -554,20 +545,6 @@
                 "firebase": {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
-                "firestore_database_id": {
-                    "default": "(default)",
-                    "description": "Firestore database ID. Use a named database like \"cards-enterprise\" for Enterprise Edition.\n\n⚠️ DEPRECATED: The Standard \"(default)\" database is deprecated. Migrate to Enterprise Edition for:\n- Better performance (30-40MB vs 835MB memory for 30k cards)\n- Server-side regex search (regex_match function)\n- Advanced query pipeline operations\n\nSee ENTERPRISE_MIGRATION.md for migration instructions.",
-                    "type": "string"
-                },
-                "firestore_edition": {
-                    "default": "ENTERPRISE",
-                    "description": "Firestore edition: \"STANDARD\" or \"ENTERPRISE\"\n\nEnterprise Edition is strongly recommended for better performance and features.",
-                    "enum": [
-                        "ENTERPRISE",
-                        "STANDARD"
-                    ],
-                    "type": "string"
-                },
                 "google_analytics": {
                     "type": "string"
                 },
@@ -681,6 +658,11 @@
                 },
                 "twitter_handle": {
                     "type": "string"
+                },
+                "use_legacy_firestore": {
+                    "default": "false (Enterprise with database name \"firestore\")",
+                    "description": "⚠️ DEPRECATED: Use Standard \"(default)\" Firestore database.\n\nWhen true, uses legacy Standard database (deprecated, will be removed in 6-12 months).\nWhen false/omitted, uses Enterprise Edition with database name \"firestore\".",
+                    "type": "boolean"
                 },
                 "user_domain": {
                     "type": "string"
@@ -736,20 +718,6 @@
                 "firebase": {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
-                "firestore_database_id": {
-                    "default": "(default)",
-                    "description": "Firestore database ID. Use a named database like \"cards-enterprise\" for Enterprise Edition.\n\n⚠️ DEPRECATED: The Standard \"(default)\" database is deprecated. Migrate to Enterprise Edition for:\n- Better performance (30-40MB vs 835MB memory for 30k cards)\n- Server-side regex search (regex_match function)\n- Advanced query pipeline operations\n\nSee ENTERPRISE_MIGRATION.md for migration instructions.",
-                    "type": "string"
-                },
-                "firestore_edition": {
-                    "default": "ENTERPRISE",
-                    "description": "Firestore edition: \"STANDARD\" or \"ENTERPRISE\"\n\nEnterprise Edition is strongly recommended for better performance and features.",
-                    "enum": [
-                        "ENTERPRISE",
-                        "STANDARD"
-                    ],
-                    "type": "string"
-                },
                 "google_analytics": {
                     "type": "string"
                 },
@@ -863,6 +831,11 @@
                 },
                 "twitter_handle": {
                     "type": "string"
+                },
+                "use_legacy_firestore": {
+                    "default": "false (Enterprise with database name \"firestore\")",
+                    "description": "⚠️ DEPRECATED: Use Standard \"(default)\" Firestore database.\n\nWhen true, uses legacy Standard database (deprecated, will be removed in 6-12 months).\nWhen false/omitted, uses Enterprise Edition with database name \"firestore\".",
+                    "type": "boolean"
                 },
                 "user_domain": {
                     "type": "string"
