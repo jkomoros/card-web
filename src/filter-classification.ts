@@ -61,6 +61,8 @@ const SIMPLE_FILTERS = new Set([
 	'has-tweet',
 	'orphaned',
 	'has-body',
+	QUERY_FILTER_NAME, // 'query' - uses Firestore Enterprise regex_match
+	'query-strict',     // uses Firestore Enterprise regex_match
 	// All type-X filters are SIMPLE
 ]);
 
@@ -94,8 +96,7 @@ const COMPLEX_FILTERS = new Set([
 	'has-images',
 	'has-notes',
 	'expand',
-	QUERY_FILTER_NAME, // 'query'
-	'query-strict',
+	// NOTE: 'query' and 'query-strict' moved to SIMPLE (uses Firestore Enterprise regex_match)
 	'similar',
 	'similar-cutoff',
 	'same-type',
@@ -393,6 +394,13 @@ export function buildFirestoreConstraints(
 				// Cards with body field - needs to check card_type in BODY_CARD_TYPES
 				// This is complex - throw for now
 				throw new Error('has-body filter requires client-side processing');
+			case QUERY_FILTER_NAME:
+			case 'query-strict':
+				if (args.length > 0) {
+					const queryString = args.join('/'); // Rejoin in case query had slashes
+					constraints.push(...buildQueryConstraints(queryString));
+				}
+				break;
 			default:
 				if (filterType.startsWith('type-')) {
 					const cardType = filterType.substring(5);
@@ -418,6 +426,33 @@ function buildSetConstraints(set: SetName): QueryConstraint[] {
 		default:
 			return [];
 	}
+}
+
+/**
+ * Build Firestore Enterprise regex_match() constraints for query filters.
+ * Uses nlp_tokens field with stemmed token matching.
+ */
+function buildQueryConstraints(queryString: string): QueryConstraint[] {
+	const tokens = queryString.toLowerCase().split(/\s+/).filter(t => t);
+
+	if (tokens.length === 0) return [];
+
+	// Build regex pattern: match ALL tokens (AND semantics)
+	// Pattern: "(?=.*token1)(?=.*token2).*"
+	// This uses positive lookahead to require all tokens to be present
+	const pattern = tokens.map(t => `(?=.*${escapeRegex(t)})`).join('') + '.*';
+
+	return [
+		// @ts-ignore - regex_match is a Firestore Enterprise feature not yet in SDK types
+		where('nlp_tokens', 'regex_match', pattern)
+	];
+}
+
+/**
+ * Escape special regex characters for use in regex patterns.
+ */
+function escapeRegex(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function buildDateConstraints(
