@@ -38,7 +38,8 @@ const app = initializeApp({
 });
 
 const standardDb = getFirestore(app, '(default)');
-const enterpriseDbId = projectConfig.firestore_database_id || 'cards-enterprise';
+// Use "firestore" as the Enterprise database name (auto-generated default)
+const enterpriseDbId = 'firestore';
 const enterpriseDb = getFirestore(app, enterpriseDbId);
 
 console.log('Standard database: (default)');
