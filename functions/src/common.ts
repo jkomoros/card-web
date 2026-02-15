@@ -68,6 +68,25 @@ initializeApp();
 // Read database ID from functions config, default to '(default)' if not set
 const databaseId = functions.config().firestore?.database_id || '(default)';
 
+const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
+
+//DEV_MODE is true if the project name contains 'dev-' or '-dev'
+export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
+
+// Log database info at initialization
+console.log('☁️  Firebase Functions Database Configuration:', {
+	database: databaseId,
+	edition: databaseId === '(default)' ? 'Standard (deprecated)' : 'Enterprise',
+	project: PROJECT_NAME,
+	isDev: DEV_MODE
+});
+
+// Warn about deprecated database
+if (databaseId === '(default)') {
+	console.warn('⚠️  Using deprecated Standard database');
+	console.warn('⚠️  Migrate to Enterprise: see ENTERPRISE_MIGRATION.md');
+}
+
 //We use this so often we might as well make it more common
 // Use getFirestore() for default database, or getFirestore(undefined, databaseId) for named databases
 export const db = databaseId === '(default)'
@@ -75,11 +94,6 @@ export const db = databaseId === '(default)'
 	: getFirestore(undefined, databaseId);
 export const auth = getAuth();
 export const storage = getStorage();
-
-const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
-
-//DEV_MODE is true if the project name contains 'dev-' or '-dev'
-export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 
 //These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];

@@ -111,6 +111,30 @@ See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for complete migration in
 
 **Note:** Standard database support is deprecated and may be removed in 6-12 months after all users have migrated.
 
+### Firebase Functions Configuration
+
+Cloud Functions store configuration separately from app config.
+
+**View current config:**
+```bash
+firebase functions:config:get
+```
+
+**Update config (run before deploy):**
+```bash
+gulp configure-api-keys
+```
+
+This sets:
+- `firestore.database_id` - Which database functions connect to
+- `openai.api_key` - OpenAI API key (if configured)
+- `anthropic.api_key` - Anthropic API key (if configured)
+
+⚠️ **Important:**
+- Config is per-project (dev and prod separate)
+- Changes require redeploying functions
+- If functions can't access data, verify this config
+
 ## Extra Credit
 
 This section describes things that you don't have to do, but are a good idea

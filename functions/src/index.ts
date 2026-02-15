@@ -6,6 +6,8 @@ import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
 
+import * as functions from 'firebase-functions';
+
 import {
 	onSchedule
 } from 'firebase-functions/v2/scheduler';
@@ -48,6 +50,11 @@ import * as openaiimpl from './openai.js';
 import * as anthropicimpl from './anthropic.js';
 import * as chatImpl from './chat.js';
 import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
+
+import {
+	OPENAI_API_KEY,
+	ANTHROPIC_API_KEY
+} from './common.js';
 
 import {
 	CHAT_CREATE_MESSAGE_ROUTE,
@@ -173,3 +180,23 @@ export const chat = onRequest({
 }, chatApp);
 
 export { calculateIDF } from './idf.js';
+
+// Health endpoint for monitoring
+export const health = onRequest({}, (req, res) => {
+	const databaseId = functions.config().firestore?.database_id || '(default)';
+
+	res.json({
+		status: 'ok',
+		timestamp: new Date().toISOString(),
+		database: {
+			id: databaseId,
+			type: databaseId === '(default)' ? 'Standard' : 'Enterprise',
+			deprecated: databaseId === '(default)'
+		},
+		functions: {
+			configSet: !!functions.config().firestore?.database_id,
+			openaiEnabled: !!OPENAI_API_KEY,
+			anthropicEnabled: !!ANTHROPIC_API_KEY
+		}
+	});
+});

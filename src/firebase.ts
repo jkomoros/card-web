@@ -53,8 +53,17 @@ if (databaseId === '(default)') {
 	console.warn('⚠️  Consider migrating to Enterprise for better performance');
 	console.warn('⚠️  See ENTERPRISE_MIGRATION.md');
 }
+
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
+
+// Log database info for debugging
+console.log('🔌 Firestore Client Configuration:', {
+	database: databaseId,
+	edition: databaseId === '(default)' ? 'Standard (deprecated)' : 'Enterprise',
+	isDev: DEV_MODE,
+	projectId: config.projectId
+});
 
 //Firestore without long polling has a potential to OOM during load with lots of
 //long document. See

@@ -198,6 +198,36 @@ If you're currently using Standard database, you have `use_legacy_firestore: tru
 
 The config will now auto-use Enterprise database named "firestore"!
 
+#### Step 3.5: Configure Cloud Functions
+
+Cloud Functions read database configuration separately from the frontend:
+
+```bash
+# Automatically set function config (includes database ID)
+gulp configure-api-keys
+```
+
+Or manually:
+```bash
+firebase functions:config:set firestore.database_id="firestore"
+```
+
+Verify configuration:
+```bash
+firebase functions:config:get
+```
+
+Expected output:
+```json
+{
+  "firestore": {
+    "database_id": "firestore"
+  }
+}
+```
+
+⚠️ **CRITICAL:** Functions config is per-project. If frontend uses Enterprise but functions config says `(default)`, you'll have silent data inconsistency!
+
 #### Step 4: Verify Migration
 
 ```bash
@@ -215,8 +245,17 @@ Expected output:
 
 #### Step 5: Deploy Security Rules
 
+Deploy security rules to the Enterprise database:
+
 ```bash
 firebase deploy --only firestore:rules --database=firestore
+```
+
+⚠️ **CRITICAL:** The `--database=firestore` flag is required! Without it, rules deploy to `(default)` Standard database, leaving Enterprise database with NO security rules (public read/write).
+
+Verify rules deployed:
+```bash
+firebase firestore:rules --database=firestore
 ```
 
 Security Rules are backward compatible between Standard and Enterprise.
@@ -263,24 +302,22 @@ Once Enterprise is stable:
 
 If issues occur after migration:
 
-### Quick Rollback
+### Quick Rollback (Within 1-2 weeks)
+
+If you need to rollback immediately:
 
 1. Edit `config.SECRET.json`:
    ```json
    {
      "base": {
-       "firestore_database_id": "(default)"
+       "use_legacy_firestore": true
      }
    }
    ```
 
-2. Regenerate config and redeploy:
-   ```bash
-   npm run generate:config
-   gulp release
-   ```
-
-3. App will revert to Standard database
+2. Regenerate config: `npm run generate:config`
+3. Deploy: `gulp release`
+4. Standard database is unchanged - data is safe
 
 ### Full Rollback with Data Restore
 
@@ -292,8 +329,8 @@ If Enterprise database has issues:
    # Find latest backup
    gsutil ls gs://[your-backup-bucket]/
 
-   # Restore (see gulp reset-dev task for example)
-   gcloud firestore import gs://[backup-path]
+   # Restore to Standard database
+   gcloud beta firestore import gs://[backup-path] --database=(default)
    ```
 
 ## Files Modified
