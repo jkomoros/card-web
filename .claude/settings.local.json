@@ -53,7 +53,11 @@
       "mcp__playwright__browser_take_screenshot",
       "mcp__playwright__browser_evaluate",
       "mcp__playwright__browser_console_messages",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(chmod:*)",
+      "Bash(gulp build:*)",
+      "Bash(git restore:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
