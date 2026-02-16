@@ -327,7 +327,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_collection: Collection | null;
 
 	@state()
-		_deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: Set<CardID>; error?: string} | null;
+		_deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: CardID[]; error?: string} | null;
 
 	@state()
 		_collectionIsFallback: boolean;
@@ -502,7 +502,6 @@ class CardView extends connect(store)(PageViewElement) {
 				@add-working-notes-card='${this._handleAddWorkingNotesCard}'
 				@update-render-offset=${this._handleUpdateRenderOffset}
 				@card-selected=${this._handleCardSelected}
-				@load-more-cards=${this._handleLoadMoreCards}
 				.reorderable=${this._userMayReorderCollection}
 				.showCreateCard=${this._userMayAddCardToActiveCollection}
 				.showCreateWorkingNotes=${this._userMayCreateCard}
@@ -846,13 +845,6 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleReorderCard(e : ReorderCardEvent) {
 		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
-	}
-
-	_handleLoadMoreCards() {
-		// Pagination was removed in Phase 4 because Collection instances are recreated
-		// on every Redux state change, which loses pagination state. Future phases should
-		// store pagination state in Redux if server-side pagination is needed.
-		console.log('Load More button clicked - pagination not yet implemented');
 	}
 
 	override stateChanged(state : State) {

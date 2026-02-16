@@ -41,7 +41,6 @@ const REORDER_CARD_EVENT_NAME = 'reorder-card';
 const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
 const ADD_CARD_EVENT_NAME = 'add-card';
 const ADD_WORKING_NOTES_CARD_EVENT_NAME = 'add-working-notes-card';
-const LOAD_MORE_CARDS_EVENT_NAME = 'load-more-cards';
 
 export type TagEvent = CustomEvent<TagEventDetail>;
 
@@ -236,10 +235,4 @@ export type AddWorkingNotesCardEvent = CustomEvent<null>;
 
 export const makeAddWorkingNotesCardEvent = () : AddWorkingNotesCardEvent => {
 	return new CustomEvent(ADD_WORKING_NOTES_CARD_EVENT_NAME, {composed : true, detail: null});
-};
-
-export type LoadMoreCardsEvent = CustomEvent<null>;
-
-export const makeLoadMoreCardsEvent = () : LoadMoreCardsEvent => {
-	return new CustomEvent(LOAD_MORE_CARDS_EVENT_NAME, {composed : true, detail: null});
 };

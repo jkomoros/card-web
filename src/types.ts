@@ -768,7 +768,7 @@ export type CollectionState = {
 		[collectionKey: string]: {
 			status: 'loading' | 'complete' | 'error';
 			//IDs that came from deep fetch (for cleanup/tracking)
-			deepCardIDs: Set<CardID>;
+			deepCardIDs: CardID[];
 			error?: string;
 		}
 	}
@@ -894,7 +894,8 @@ const _cardFetchTypeSchema = z.enum([
 	'unpublished-partial',
 	'unpublished-complete',
 	'unpublished-editor',
-	'unpublished-author'
+	'unpublished-author',
+	'deep-fetch'
 ]);
 
 export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;

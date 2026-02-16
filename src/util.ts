@@ -72,6 +72,8 @@ export const fetchTypeIsUnpublished = (fetchType : CardFetchType) : boolean => {
 		return true;
 	case 'unpublished-editor':
 		return true;
+	case 'deep-fetch':
+		return false;
 	default:
 		return assertUnreachable(fetchType);
 	}

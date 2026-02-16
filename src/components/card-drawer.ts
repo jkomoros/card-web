@@ -68,7 +68,7 @@ class CardDrawer extends LitElement {
 		collection: Collection | null;
 
 	@property({ type : Object })
-		deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: Set<CardID>; error?: string} | null;
+		deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: CardID[]; error?: string} | null;
 
 	@property({ type : Number })
 		renderOffset: number;
@@ -172,7 +172,7 @@ class CardDrawer extends LitElement {
 		const currentCount = this.collection ? this.collection.numCards : 0;
 
 		const deepFetchStatus = this.deepFetchState;
-		const deepFetchAdditionalCount = deepFetchStatus && deepFetchStatus.status === 'complete' ? deepFetchStatus.deepCardIDs.size : 0;
+		const deepFetchAdditionalCount = deepFetchStatus && deepFetchStatus.status === 'complete' ? deepFetchStatus.deepCardIDs.length : 0;
 
 		return html`
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>

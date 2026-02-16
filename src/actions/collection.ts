@@ -71,7 +71,8 @@ import {
 	query,
 	getDocs,
 	orderBy,
-	limit
+	limit,
+	where
 } from 'firebase/firestore';
 
 import {
@@ -220,6 +221,13 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
 	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
 
+	// Always clear any pending debounce timer to prevent stale deep fetches
+	// (e.g. when switching from SIMPLE to COMPLEX collection)
+	if (deepFetchTimer) {
+		clearTimeout(deepFetchTimer);
+		deepFetchTimer = null;
+	}
+
 	// Clean up previous deep-fetch cards before switching collections
 	cleanupDeepFetchCards(dispatch, getState);
 
@@ -241,7 +249,7 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 
 	// Trigger deep fetch for SIMPLE collections (with debounce)
 	if (newCollectionDescription.classification.canGetServerCount) {
-		debouncedDeepFetch(dispatch, getState, newCollectionDescription);
+		debouncedDeepFetch(dispatch, newCollectionDescription);
 	}
 };
 
@@ -607,17 +615,19 @@ const DEEP_FETCH_LIMIT = 5000;
 /**
  * Clean up deep-fetch cards from the previous collection.
  * Removes cards that were only present due to deep fetch (not in hot tier).
+ * Can be called directly with dispatch/getState, or dispatched as a thunk
+ * via cleanupDeepFetchCardsThunk().
  */
 const cleanupDeepFetchCards = (dispatch: (action: SomeAction) => void, getState: () => State) : void => {
 	const state = getState();
 	if (!state.collection) return;
 
 	for (const [, entry] of Object.entries(state.collection.deepFetchState)) {
-		if (!entry.deepCardIDs || entry.deepCardIDs.size === 0) continue;
+		if (!entry.deepCardIDs || entry.deepCardIDs.length === 0) continue;
 
 		// All deepCardIDs are safe to remove because deep fetch filters out
 		// hot-tier cards before adding them.
-		const idsToRemove = [...entry.deepCardIDs];
+		const idsToRemove = entry.deepCardIDs;
 
 		if (idsToRemove.length > 0) {
 			dispatch({
@@ -629,11 +639,23 @@ const cleanupDeepFetchCards = (dispatch: (action: SomeAction) => void, getState:
 };
 
 /**
+ * Thunk wrapper for cleanupDeepFetchCards, for use from other modules
+ * (e.g. when navigating away from collection pages entirely).
+ */
+export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, getState) => {
+	// Also clear any pending debounce timer
+	if (deepFetchTimer) {
+		clearTimeout(deepFetchTimer);
+		deepFetchTimer = null;
+	}
+	cleanupDeepFetchCards(dispatch, getState);
+};
+
+/**
  * Debounced deep fetch trigger. Handles rapid filter changes (e.g. during search typing).
  */
 const debouncedDeepFetch = (
 	dispatch: (action: SomeAction | ThunkSomeAction) => void,
-	_getState: () => State,
 	description: CollectionDescription
 ) : void => {
 	if (deepFetchTimer) {
@@ -671,6 +693,7 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 			const q = query(
 				collection(db, CARDS_COLLECTION),
 				...constraints,
+				where('published', '==', true),
 				orderBy('sort_order'),
 				limit(DEEP_FETCH_LIMIT)
 			);
@@ -708,7 +731,7 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 
 			// Merge new cards into the normal pipeline
 			if (Object.keys(newCards).length > 0) {
-				dispatch(receiveCards(newCards, 'published'));
+				dispatch(receiveCards(newCards, 'deep-fetch'));
 			}
 
 			dispatch({

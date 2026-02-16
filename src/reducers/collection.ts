@@ -168,7 +168,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 				...state.deepFetchState,
 				[action.collectionKey]: {
 					status: 'loading',
-					deepCardIDs: new Set()
+					deepCardIDs: []
 				}
 			}
 		};
@@ -179,7 +179,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 				...state.deepFetchState,
 				[action.collectionKey]: {
 					status: 'complete',
-					deepCardIDs: new Set(action.deepCardIDs)
+					deepCardIDs: [...action.deepCardIDs]
 				}
 			}
 		};
@@ -190,7 +190,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 				...state.deepFetchState,
 				[action.collectionKey]: {
 					status: 'error',
-					deepCardIDs: new Set(),
+					deepCardIDs: [],
 					error: action.error
 				}
 			}
