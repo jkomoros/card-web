@@ -3,8 +3,7 @@ import {
 } from 'zod';
 
 import {
-	FieldValue,
-	DocumentSnapshot
+	FieldValue
 } from 'firebase/firestore';
 
 import {
@@ -763,23 +762,14 @@ export type CollectionState = {
 	selectedCards: FilterMap,
 	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
 	collectionWordCloudVersion: number,
-	//Pagination state for SIMPLE collections (cursor-based chunk loading)
-	//Keyed by collection.serialize() to survive Collection instance recreation
-	paginationState: {
+	//Deep fetch state for SIMPLE collections (progressive loading)
+	//Keyed by collection.serialize() to track deep fetch lifecycle
+	deepFetchState: {
 		[collectionKey: string]: {
-			// Loaded chunks (one-time fetches)
-			loadedChunks: Set<number>, // chunk indexes that have been fetched
-			// Card IDs that have been loaded across all chunks
-			loadedCardIDs: Set<CardID>,
-			// Cursors for chunk boundaries (for startAfter in next chunk)
-			chunkCursors: Map<number, DocumentSnapshot>, // chunkIndex → last doc of that chunk
-			// Current position (matches renderOffset / chunkSize)
-			currentChunkIndex: number,
-			// UI state
-			chunkSize: number,  // Matches renderLimit from card-thumbnail-list (usually 250)
-			totalCount: number | null,  // From getServerCount()
-			isLoading: boolean,
-			error?: string
+			status: 'loading' | 'complete' | 'error';
+			//IDs that came from deep fetch (for cleanup/tracking)
+			deepCardIDs: Set<CardID>;
+			error?: string;
 		}
 	}
 }

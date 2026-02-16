@@ -71,8 +71,7 @@ import {
 	query,
 	getDocs,
 	orderBy,
-	limit,
-	startAfter
+	limit
 } from 'firebase/firestore';
 
 import {
@@ -109,10 +108,10 @@ import {
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	UPDATE_COLLECTION_SHAPSHOT,
 	UPDATE_RENDER_OFFSET,
-	INIT_SIMPLE_COLLECTION,
-	LOAD_CHUNK_REQUEST,
-	CHUNK_LOADED,
-	NAVIGATE_TO_CHUNK
+	DEEP_FETCH_STARTED,
+	DEEP_FETCH_COMPLETE,
+	DEEP_FETCH_FAILED,
+	REMOVE_CARDS
 } from '../actions.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -215,11 +214,14 @@ export const updateCollectionConfigurationSnapshot = (description : CollectionDe
 	};
 };
 
-export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkSomeAction => (dispatch, getState) =>{	
+export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkSomeAction => (dispatch, getState) =>{
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
 	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
+
+	// Clean up previous deep-fetch cards before switching collections
+	cleanupDeepFetchCards(dispatch, getState);
 
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
@@ -237,9 +239,9 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 		}
 	});
 
-	// Initialize pagination for SIMPLE collections
+	// Trigger deep fetch for SIMPLE collections (with debounce)
 	if (newCollectionDescription.classification.canGetServerCount) {
-		dispatch(initSimpleCollection());
+		debouncedDeepFetch(dispatch, getState, newCollectionDescription);
 	}
 };
 
@@ -593,99 +595,138 @@ export const incrementCollectionWordCloud = () : SomeAction => {
 	};
 };
 
-/**
- * Initialize a SIMPLE collection:
- * 1. Get total count from server
- * 2. Load first chunk with one-time fetch
- */
-export const initSimpleCollection = (): ThunkSomeAction =>
-	async (dispatch, getState) => {
-		const state = getState();
-		const description = selectActiveCollectionDescription(state);
+// Generation counter to detect stale deep fetch results
+let deepFetchGeneration = 0;
 
-		if (!description.classification.canGetServerCount) {
-			return; // Only for SIMPLE collections
+// Debounce timer for deep fetch
+let deepFetchTimer : ReturnType<typeof setTimeout> | null = null;
+
+const DEEP_FETCH_DEBOUNCE_MS = 300;
+const DEEP_FETCH_LIMIT = 5000;
+
+/**
+ * Clean up deep-fetch cards from the previous collection.
+ * Removes cards that were only present due to deep fetch (not in hot tier).
+ */
+const cleanupDeepFetchCards = (dispatch: (action: SomeAction) => void, getState: () => State) : void => {
+	const state = getState();
+	if (!state.collection) return;
+
+	for (const [, entry] of Object.entries(state.collection.deepFetchState)) {
+		if (!entry.deepCardIDs || entry.deepCardIDs.size === 0) continue;
+
+		// All deepCardIDs are safe to remove because deep fetch filters out
+		// hot-tier cards before adding them.
+		const idsToRemove = [...entry.deepCardIDs];
+
+		if (idsToRemove.length > 0) {
+			dispatch({
+				type: REMOVE_CARDS,
+				cardIDs: idsToRemove
+			});
 		}
-
-		const collectionKey = description.serialize();
-
-		// Get server count
-		const countResult = await description.getServerCount(true);
-
-		dispatch({
-			type: INIT_SIMPLE_COLLECTION,
-			collectionKey,
-			totalCount: countResult.count,
-			chunkSize: 250  // Match renderLimit
-		});
-
-		// Load first chunk
-		dispatch(loadChunk(0));
-	};
+	}
+};
 
 /**
- * Load a specific chunk using ONE-TIME getDocs() fetch.
- * No real-time updates for viewed cards (only for edited cards - see editor.ts).
+ * Debounced deep fetch trigger. Handles rapid filter changes (e.g. during search typing).
  */
-export const loadChunk = (chunkIndex: number): ThunkSomeAction =>
+const debouncedDeepFetch = (
+	dispatch: (action: SomeAction | ThunkSomeAction) => void,
+	_getState: () => State,
+	description: CollectionDescription
+) : void => {
+	if (deepFetchTimer) {
+		clearTimeout(deepFetchTimer);
+	}
+
+	deepFetchTimer = setTimeout(() => {
+		deepFetchTimer = null;
+		dispatch(deepFetchForActiveCollection(description));
+	}, DEEP_FETCH_DEBOUNCE_MS);
+};
+
+/**
+ * Perform a one-time deep fetch for a SIMPLE collection.
+ * Fetches cold-tier cards from Firestore and merges them into the normal pipeline
+ * via receiveCards().
+ */
+const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): ThunkSomeAction =>
 	async (dispatch, getState) => {
-		const state = getState();
-		const description = selectActiveCollectionDescription(state);
-		const collectionKey = description.serialize();
+		const generation = ++deepFetchGeneration;
+		const collectionKey = fetchDescription.serialize();
 
-		if (!state.collection) return;
-		const pagState = state.collection.paginationState[collectionKey];
-
-		if (!pagState) return;
-
-		// Check if already loaded
-		if (pagState.loadedChunks.has(chunkIndex)) {
-			dispatch({ type: NAVIGATE_TO_CHUNK, collectionKey, chunkIndex });
+		if (!fetchDescription.classification.canGetServerCount) {
 			return;
 		}
 
-		dispatch({ type: LOAD_CHUNK_REQUEST, collectionKey, chunkIndex });
+		dispatch({
+			type: DEEP_FETCH_STARTED,
+			collectionKey
+		});
 
 		try {
-			// Build query with limit and startAfter
-			const constraints = description.classification.firestoreConstraints || [];
-			const previousCursor = chunkIndex > 0 ? pagState.chunkCursors.get(chunkIndex - 1) : null;
+			const constraints = fetchDescription.classification.firestoreConstraints || [];
 
 			const q = query(
 				collection(db, CARDS_COLLECTION),
 				...constraints,
 				orderBy('sort_order'),
-				limit(pagState.chunkSize),
-				...(previousCursor ? [startAfter(previousCursor)] : [])
+				limit(DEEP_FETCH_LIMIT)
 			);
 
-			// ONE-TIME fetch (no onSnapshot)
 			const snapshot = await getDocs(q);
 
-			const cards: Cards = {};
-			const cardIDs: CardID[] = [];
+			// Check for staleness: has the collection changed while we were fetching?
+			if (generation !== deepFetchGeneration) {
+				return; // Discard stale results
+			}
+
+			const state = getState();
+			const currentDescription = selectActiveCollectionDescription(state);
+			if (currentDescription.serialize() !== collectionKey) {
+				return; // Collection changed, discard results
+			}
+
+			// Filter out IDs already in hot tier to avoid overwriting live-updated cards
+			const existingCardIDs = new Set(Object.keys(state.data.cards));
+			const newCards: Cards = {};
+			const newCardIDs: CardID[] = [];
+
 			snapshot.docs.forEach(doc => {
-				const card: Card = {...doc.data({serverTimestamps: 'estimate'}), id: doc.id} as Card;
-				cards[doc.id] = card;
-				cardIDs.push(doc.id);
+				if (!existingCardIDs.has(doc.id)) {
+					const card: Card = {...doc.data({serverTimestamps: 'estimate'}), id: doc.id} as Card;
+					newCards[doc.id] = card;
+					newCardIDs.push(doc.id);
+				}
 			});
 
-			// receiveCards() merges into existing state
-			// TODO: Consider adding 'paginated' as a new CardFetchType
-			dispatch(receiveCards(cards, 'published'));
+			// Check staleness again after processing
+			if (generation !== deepFetchGeneration) {
+				return;
+			}
 
-			// Store cursor and card IDs for next chunk
-			const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+			// Merge new cards into the normal pipeline
+			if (Object.keys(newCards).length > 0) {
+				dispatch(receiveCards(newCards, 'published'));
+			}
 
 			dispatch({
-				type: CHUNK_LOADED,
+				type: DEEP_FETCH_COMPLETE,
 				collectionKey,
-				chunkIndex,
-				cursor: lastDoc || null,
-				cardIDs
+				deepCardIDs: newCardIDs
 			});
 		} catch (error) {
-			console.error('Error loading chunk:', error);
-			// TODO: Dispatch error action
+			// Check staleness before dispatching error
+			if (generation !== deepFetchGeneration) {
+				return;
+			}
+
+			console.error('Deep fetch error:', error);
+			dispatch({
+				type: DEEP_FETCH_FAILED,
+				collectionKey,
+				error: error instanceof Error ? error.message : String(error)
+			});
 		}
 	};

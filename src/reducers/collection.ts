@@ -19,10 +19,9 @@ import {
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-	INIT_SIMPLE_COLLECTION,
-	LOAD_CHUNK_REQUEST,
-	CHUNK_LOADED,
-	NAVIGATE_TO_CHUNK
+	DEEP_FETCH_STARTED,
+	DEEP_FETCH_COMPLETE,
+	DEEP_FETCH_FAILED
 } from '../actions.js';
 
 import {
@@ -72,14 +71,12 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			activeRenderOffset: action.renderOffset
 		};
 	case UPDATE_COLLECTION:
-		// Clear pagination state when collection changes (LRU eviction)
-		// New collection will re-initialize its pagination state as needed
 		return {
 			...state,
 			active: action.collection,
 			activeRenderOffset: 0,
 			collectionWordCloudVersion: 0,
-			paginationState: {}
+			deepFetchState: {}
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones
@@ -164,78 +161,40 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			snapshot: action.collection
 		};
-	case INIT_SIMPLE_COLLECTION:
+	case DEEP_FETCH_STARTED:
 		return {
 			...state,
-			paginationState: {
-				...state.paginationState,
+			deepFetchState: {
+				...state.deepFetchState,
 				[action.collectionKey]: {
-					loadedChunks: new Set(),
-					loadedCardIDs: new Set(),
-					chunkCursors: new Map(),
-					currentChunkIndex: 0,
-					chunkSize: action.chunkSize,
-					totalCount: action.totalCount,
-					isLoading: false
+					status: 'loading',
+					deepCardIDs: new Set()
 				}
 			}
 		};
-	case LOAD_CHUNK_REQUEST:
+	case DEEP_FETCH_COMPLETE:
 		return {
 			...state,
-			paginationState: {
-				...state.paginationState,
+			deepFetchState: {
+				...state.deepFetchState,
 				[action.collectionKey]: {
-					...state.paginationState[action.collectionKey],
-					isLoading: true
+					status: 'complete',
+					deepCardIDs: new Set(action.deepCardIDs)
 				}
 			}
 		};
-	case CHUNK_LOADED: {
-		const current = state.paginationState[action.collectionKey];
-		if (!current) return state;
-
-		const newChunks = new Set(current.loadedChunks);
-		newChunks.add(action.chunkIndex);
-
-		const newCardIDs = new Set(current.loadedCardIDs);
-		action.cardIDs.forEach(id => newCardIDs.add(id));
-
-		const newCursors = new Map(current.chunkCursors);
-		if (action.cursor) {
-			newCursors.set(action.chunkIndex, action.cursor);
-		}
-
+	case DEEP_FETCH_FAILED:
 		return {
 			...state,
-			paginationState: {
-				...state.paginationState,
+			deepFetchState: {
+				...state.deepFetchState,
 				[action.collectionKey]: {
-					...current,
-					loadedChunks: newChunks,
-					loadedCardIDs: newCardIDs,
-					chunkCursors: newCursors,
-					currentChunkIndex: action.chunkIndex,
-					isLoading: false
+					status: 'error',
+					deepCardIDs: new Set(),
+					error: action.error
 				}
 			}
 		};
-	}
-	case NAVIGATE_TO_CHUNK: {
-		const current = state.paginationState[action.collectionKey];
-		if (!current) return state;
-
-		return {
-			...state,
-			paginationState: {
-				...state.paginationState,
-				[action.collectionKey]: {
-					...current,
-					currentChunkIndex: action.chunkIndex
-				}
-			}
-		};
-	}
 	default:
 		return state;
 	}

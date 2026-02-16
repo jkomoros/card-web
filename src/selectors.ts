@@ -1443,10 +1443,21 @@ export const selectDefaultSet = createSelector(
 	selectSections,
 	selectRawCards,
 	(sections : Sections, cards : Cards) : CardID[] => {
-		let result : CardID[] = [];
+		const resultSet = new Set<CardID>();
 		for (const section of Object.values(sections)) {
-			result = result.concat(section.cards);
+			for (const cardId of section.cards) {
+				resultSet.add(cardId);
+			}
 		}
+		//Also include any cards that have a non-null section but aren't in any
+		//section's cards array. This handles deep-fetched cards that have a
+		//section field but weren't loaded via the section data.
+		for (const [id, card] of Object.entries(cards)) {
+			if (card.section && !resultSet.has(id)) {
+				resultSet.add(id);
+			}
+		}
+		const result = [...resultSet];
 		//The order of cards in the section object is nondterministic. The order
 		//that matters is the sort_order. Higher sort-order should sort to the top.
 		result.sort((a,b) => {
@@ -1659,29 +1670,21 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
-	(state: State) => state.collection ? state.collection.paginationState : {},
-	(description, args, paginationState) => {
+	(description, args) => {
 		if (!description) return null;
-
-		// Check if this is a SIMPLE collection with pagination enabled
-		const isSimple = description.classification.canGetServerCount;
-		const collectionKey = description.serialize();
-		const pagState = paginationState[collectionKey];
-
-		// For SIMPLE collections with pagination state: filter to loaded cards only
-		if (isSimple && pagState && pagState.loadedCardIDs.size > 0) {
-			// Filter args.cards to only include loaded cards
-			const loadedCards: typeof args.cards = {};
-			for (const cardID of pagState.loadedCardIDs) {
-				if (args.cards[cardID]) {
-					loadedCards[cardID] = args.cards[cardID];
-				}
-			}
-			return description.collection({...args, cards: loadedCards});
-		}
-
-		// For COMPLEX collections or SIMPLE without pagination: use all cards
 		return description.collection(args);
+	}
+);
+
+const selectDeepFetchStateMap = (state : State) => state.collection ? state.collection.deepFetchState : {};
+
+export const selectActiveDeepFetchState = createSelector(
+	selectActiveCollectionDescription,
+	selectDeepFetchStateMap,
+	(description, deepFetchState) => {
+		if (!description) return null;
+		const key = description.serialize();
+		return deepFetchState[key] || null;
 	}
 );
 

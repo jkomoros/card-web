@@ -12,10 +12,6 @@ import {
 } from '../shared/types.js';
 
 import {
-	DocumentSnapshot
-} from 'firebase/firestore';
-
-import {
 	AIDialogType,
 	AIModelName,
 	AuthorsMap,
@@ -114,11 +110,10 @@ export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
 export const CLEAR_SELECTED_CARDS = 'CLEAR_SELECTED_CARDS';
 export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WORD_CLOUD_VERSION';
-//Collection Pagination (SIMPLE collections)
-export const INIT_SIMPLE_COLLECTION = 'INIT_SIMPLE_COLLECTION';
-export const LOAD_CHUNK_REQUEST = 'LOAD_CHUNK_REQUEST';
-export const CHUNK_LOADED = 'CHUNK_LOADED';
-export const NAVIGATE_TO_CHUNK = 'NAVIGATE_TO_CHUNK';
+//Deep Fetch (progressive loading for SIMPLE collections)
+export const DEEP_FETCH_STARTED = 'DEEP_FETCH_STARTED';
+export const DEEP_FETCH_COMPLETE = 'DEEP_FETCH_COMPLETE';
+export const DEEP_FETCH_FAILED = 'DEEP_FETCH_FAILED';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -482,31 +477,21 @@ type ActionIncrementCollectionWordCloudVersion = {
 	type: typeof INCREMENT_COLLECTION_WORD_CLOUD_VERSION
 };
 
-type ActionInitSimpleCollection = {
-	type: typeof INIT_SIMPLE_COLLECTION,
-	collectionKey: string,
-	totalCount: number,
-	chunkSize: number
+type ActionDeepFetchStarted = {
+	type: typeof DEEP_FETCH_STARTED,
+	collectionKey: string
 };
 
-type ActionLoadChunkRequest = {
-	type: typeof LOAD_CHUNK_REQUEST,
+type ActionDeepFetchComplete = {
+	type: typeof DEEP_FETCH_COMPLETE,
 	collectionKey: string,
-	chunkIndex: number
+	deepCardIDs: CardID[]
 };
 
-type ActionChunkLoaded = {
-	type: typeof CHUNK_LOADED,
+type ActionDeepFetchFailed = {
+	type: typeof DEEP_FETCH_FAILED,
 	collectionKey: string,
-	chunkIndex: number,
-	cursor: DocumentSnapshot | null,
-	cardIDs: CardID[]
-};
-
-type ActionNavigateToChunk = {
-	type: typeof NAVIGATE_TO_CHUNK,
-	collectionKey: string,
-	chunkIndex: number
+	error: string
 };
 
 type ActionCommentsUpdateThreads = {
@@ -1196,10 +1181,9 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUnselectCards
 	| ActionClearSelectedCards
 	| ActionIncrementCollectionWordCloudVersion
-	| ActionInitSimpleCollection
-	| ActionLoadChunkRequest
-	| ActionChunkLoaded
-	| ActionNavigateToChunk
+	| ActionDeepFetchStarted
+	| ActionDeepFetchComplete
+	| ActionDeepFetchFailed
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats

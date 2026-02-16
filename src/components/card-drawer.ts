@@ -33,10 +33,6 @@ import {
 } from '../collection_description.js';
 
 import {
-	FilterComplexity
-} from '../filter-classification.js';
-
-import {
 	makeAddCardEvent,
 	makeAddWorkingNotesCardEvent,
 	makeInfoZippyClickedEvent
@@ -70,6 +66,9 @@ class CardDrawer extends LitElement {
 
 	@property({ type : Object })
 		collection: Collection | null;
+
+	@property({ type : Object })
+		deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: Set<CardID>; error?: string} | null;
 
 	@property({ type : Number })
 		renderOffset: number;
@@ -154,25 +153,15 @@ class CardDrawer extends LitElement {
 				width: 12em;
 			}
 
-			.badge {
+			.deep-fetch-status {
 				display: inline-block;
 				padding: 0.1em 0.4em;
 				margin: 0 0.2em;
 				font-size: 0.6em;
 				border-radius: 0.5em;
-				background-color: var(--app-light-text-color-subtle);
-				color: var(--app-dark-text-color);
 				font-weight: normal;
-			}
-
-			.badge.simple {
-				background-color: #4CAF50;
-				color: white;
-			}
-
-			.badge.complex {
-				background-color: #FF9800;
-				color: white;
+				color: var(--app-dark-text-color-subtle, #666);
+				font-style: italic;
 			}
 		`
 	];
@@ -180,9 +169,10 @@ class CardDrawer extends LitElement {
 	override render() {
 
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
-		const classificationResult = this.collection ? this.collection.classification : null;
-		const classification = classificationResult ? classificationResult.complexity : null;
 		const currentCount = this.collection ? this.collection.numCards : 0;
+
+		const deepFetchStatus = this.deepFetchState;
+		const deepFetchAdditionalCount = deepFetchStatus && deepFetchStatus.status === 'complete' ? deepFetchStatus.deepCardIDs.size : 0;
 
 		return html`
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
@@ -191,8 +181,8 @@ class CardDrawer extends LitElement {
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							<strong>${currentCount}</strong> cards
-							${classification === FilterComplexity.SIMPLE ? html`<span class='badge simple'>SIMPLE</span>` : ''}
-							${classification === FilterComplexity.COMPLEX ? html`<span class='badge complex'>COMPLEX</span>` : ''}
+							${deepFetchStatus && deepFetchStatus.status === 'loading' ? html`<span class='deep-fetch-status'>Searching deeper...</span>` : ''}
+							${deepFetchAdditionalCount > 0 ? html`<span class='deep-fetch-status'>Found ${deepFetchAdditionalCount} additional</span>` : ''}
 						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>
