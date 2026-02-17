@@ -1,9 +1,4 @@
-// TODO: Add ENABLE_SERVER_IDF to config.GENERATED.SECRET.ts
-// import { ENABLE_SERVER_IDF } from './config.GENERATED.SECRET.js';
 import { ServerIDFData } from './types.js';
-
-// Temporary: disable server IDF until config is updated
-const ENABLE_SERVER_IDF = false;
 
 const CACHE_KEY = 'server_idf_cache';
 const CACHE_VERSION = 1; // Increment to force cache invalidation
@@ -18,15 +13,9 @@ type CachedIDF = {
 /**
  * Main entry point to load server IDF map.
  * Checks cache first, then downloads if needed.
- * Returns null if feature disabled or download fails.
+ * Returns null if download fails (graceful 404 fallback).
  */
 export const loadServerIDF = async (): Promise<ServerIDFData | null> => {
-	// Check feature flag first
-	if (!ENABLE_SERVER_IDF) {
-		console.log('Server IDF disabled via feature flag');
-		return null;
-	}
-
 	// Try cache first
 	const cached = getCachedIDF();
 	if (cached && isCacheValid(cached)) {

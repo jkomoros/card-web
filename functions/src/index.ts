@@ -6,8 +6,6 @@ import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
 
-import * as functions from 'firebase-functions';
-
 import {
 	onSchedule
 } from 'firebase-functions/v2/scheduler';
@@ -60,7 +58,8 @@ import {
 	CHAT_CREATE_MESSAGE_ROUTE,
 	CHAT_POST_MESSAGE_ROUTE,
 	CHAT_RETRY_MESSAGE_ROUTE,
-	CHAT_STREAM_MESSAGE_ROUTE
+	CHAT_STREAM_MESSAGE_ROUTE,
+	FIRESTORE_DATABASE_ID_VAR
 } from '../../shared/env-constants.js';
 
 //Runs every three hours
@@ -183,7 +182,7 @@ export { calculateIDF } from './idf.js';
 
 // Health endpoint for monitoring
 export const health = onRequest({}, (req, res) => {
-	const databaseId = functions.config().firestore?.database_id || '(default)';
+	const databaseId = process.env[FIRESTORE_DATABASE_ID_VAR] || '(default)';
 
 	res.json({
 		status: 'ok',
@@ -194,7 +193,7 @@ export const health = onRequest({}, (req, res) => {
 			deprecated: databaseId === '(default)'
 		},
 		functions: {
-			configSet: !!functions.config().firestore?.database_id,
+			envSet: !!process.env[FIRESTORE_DATABASE_ID_VAR],
 			openaiEnabled: !!OPENAI_API_KEY,
 			anthropicEnabled: !!ANTHROPIC_API_KEY
 		}
