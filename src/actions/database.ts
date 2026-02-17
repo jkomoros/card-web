@@ -438,7 +438,7 @@ export const connectLiveUnpublishedCards = () => {
 				query(
 					collection(db, CARDS_COLLECTION),
 					where('published', '==', false),
-					where('auto_todo_overrides.prioritized', '==', true),
+					where('auto_todo_overrides.prioritized', '==', false),
 					orderBy('auto_todo_overrides.prioritized'),
 					orderBy('created', 'desc')
 				),

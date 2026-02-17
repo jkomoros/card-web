@@ -304,7 +304,7 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 	const unpublishedCards = Object.values(cards).filter(card => !card.published);
 
 	//Tier 2: Keep all prioritized cards (always loaded)
-	const prioritizedCards = unpublishedCards.filter(card => card.auto_todo_overrides?.prioritized === true);
+	const prioritizedCards = unpublishedCards.filter(card => card.auto_todo_overrides?.prioritized === false);
 	const prioritizedCardIDs = new Set(prioritizedCards.map(card => card.id));
 
 	//Tier 3: Keep recent non-prioritized cards up to dynamic limit
