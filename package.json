@@ -76,6 +76,7 @@
     "@web/dev-server": "^0.3.0",
     "@web/dev-server-rollup": "^0.5.2",
     "axe-core": "^3.5.5",
+    "firebase-admin": "^11.8.0",
     "chai": "^4.1.2",
     "del": "^3.0.0",
     "eslint": "^8.17.0",

@@ -467,7 +467,7 @@ function buildDateConstraints(
 		throw new Error(`Date filter ${filterType} missing arguments`);
 	}
 
-	const fieldName = filterType === 'last-tweeted' ? 'tweet' : filterType;
+	const fieldName = filterType === 'last-tweeted' ? 'last_tweeted' : filterType;
 
 	const arg0 = args[0];
 

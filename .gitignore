@@ -24,3 +24,7 @@ test-mount/
 .playwright-mcp/
 service-account-key.json
 .claude/settings.local.json
+.firebase/
+.firebaserc
+*.log
+*.bak.*

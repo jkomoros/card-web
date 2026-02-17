@@ -1524,6 +1524,7 @@ export class Fingerprint {
 			if (!maxOriginalNgram) {
 				maxOriginalNgram = ngram.split(' ').map(word => {
 					const candidateMap = reversedStemmedWords[word];
+					if (!candidateMap) return word;
 					let max = 0;
 					let maxWord = '';
 					for (const [word, count] of Object.entries(candidateMap)) {
