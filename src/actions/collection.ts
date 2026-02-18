@@ -16,6 +16,8 @@ import {
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
 	NONE_FILTER_NAME,
+	PUBLISHED_FILTER_NAME,
+	UNPUBLISHED_FILTER_NAME,
 	limitFilter
 } from '../filters.js';
 
@@ -700,10 +702,18 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 		try {
 			const constraints = classification.firestoreConstraints || [];
 
+			// Only add the published constraint if the collection doesn't
+			// already have an explicit published/unpublished filter, to
+			// avoid contradicting an existing where('published', '==', false).
+			const hasPublishedFilter = fetchDescription.filters.some(
+				f => f === PUBLISHED_FILTER_NAME || f === UNPUBLISHED_FILTER_NAME
+			);
+			const publishedConstraints = hasPublishedFilter ? [] : [where('published', '==', true)];
+
 			const q = query(
 				collection(db, CARDS_COLLECTION),
 				...constraints,
-				where('published', '==', true),
+				...publishedConstraints,
 				orderBy('sort_order'),
 				limit(DEEP_FETCH_LIMIT)
 			);

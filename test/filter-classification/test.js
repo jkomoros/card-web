@@ -1,10 +1,6 @@
 /*eslint-env node*/
 
 import {
-	CollectionDescription,
-} from '../../lib/src/collection_description.js';
-
-import {
 	classifyCollectionDescription,
 	FilterComplexity,
 	buildQueryConstraints,
@@ -12,126 +8,115 @@ import {
 
 import assert from 'assert';
 
+// Helper: create a CollectionDescriptionLike object without importing
+// CollectionDescription (which transitively pulls in Lit and requires window).
+const desc = (set, filters) => ({ set, filters });
+
 describe('filter classification', () => {
 	it('classifies no filters as SIMPLE', async () => {
-		const description = new CollectionDescription('main', []);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('main', []));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies published filter as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['published']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['published']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies section filter as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['section/main']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['section/main']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies tag filter as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['tag/foo']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['tag/foo']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies type-X filter as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['type-content']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['type-content']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies starred filter as COMPLEX', async () => {
-		const description = new CollectionDescription('', ['starred']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['starred']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 		assert.strictEqual(classification.isExact, false);
 	});
 
 	it('classifies children filter as COMPLEX', async () => {
-		const description = new CollectionDescription('', ['children/card-123']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['children/card-123']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 		assert.strictEqual(classification.isExact, false);
 	});
 
 	it('classifies query filter as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['query/test']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['query/test']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies mixed SIMPLE and COMPLEX as COMPLEX', async () => {
-		const description = new CollectionDescription('', ['published', 'starred']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['published', 'starred']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 		assert.strictEqual(classification.isExact, false);
 	});
 
 	it('classifies multiple SIMPLE filters as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['published', 'section/main', 'tag/foo']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['published', 'section/main', 'tag/foo']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('ignores limit/offset meta filters', async () => {
-		const description = new CollectionDescription('', ['published', 'limit/10', 'offset/5']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['published', 'limit/10', 'offset/5']));
 		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
 		assert.strictEqual(classification.canGetServerCount, true);
 		assert.strictEqual(classification.isExact, true);
 	});
 
-	it('classifies union of SIMPLE filters as SIMPLE', async () => {
-		const description = new CollectionDescription('', ['section/a+section/b']);
-		const classification = classifyCollectionDescription(description);
-		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
-		assert.strictEqual(classification.canGetServerCount, true);
+	it('classifies union of SIMPLE filters as COMPLEX', async () => {
+		// Union filters always require client-side OR processing
+		const classification = classifyCollectionDescription(desc('', ['section/a+section/b']));
+		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
+		assert.strictEqual(classification.canGetServerCount, false);
 	});
 
 	it('classifies union with COMPLEX filter as COMPLEX', async () => {
-		const description = new CollectionDescription('', ['published+starred']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['published+starred']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 	});
 
 	it('classifies unknown filter as COMPLEX for safety', async () => {
-		const description = new CollectionDescription('', ['unknown-filter']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['unknown-filter']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 	});
 
 	it('classifies combine filter as COMPLEX', async () => {
-		const description = new CollectionDescription('', ['combine/published/starred']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['combine/published/starred']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 	});
 
 	it('classifies exclude filter as COMPLEX', async () => {
-		const description = new CollectionDescription('', ['exclude/published/starred']);
-		const classification = classifyCollectionDescription(description);
+		const classification = classifyCollectionDescription(desc('', ['exclude/published/starred']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
 	});
@@ -164,5 +149,25 @@ describe('filter classification', () => {
 		const constraints = buildQueryConstraints('hill climbing', mockIDF);
 		assert.strictEqual(constraints.length, 1);
 		assert.ok(constraints[0]);
+	});
+
+	it('classifies tag + query combined as COMPLEX (multiple array-contains)', async () => {
+		const classification = classifyCollectionDescription(desc('', ['tag/foo', 'query/bar']));
+		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
+		assert.strictEqual(classification.canGetServerCount, false);
+	});
+
+	it('classifies has-body as COMPLEX', async () => {
+		const classification = classifyCollectionDescription(desc('', ['has-body']));
+		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
+		assert.strictEqual(classification.canGetServerCount, false);
+	});
+
+	it('classifies union filter as COMPLEX', async () => {
+		// Even a union of all-SIMPLE parts is COMPLEX because standard
+		// Firestore cannot do server-side OR queries
+		const classification = classifyCollectionDescription(desc('', ['published+unpublished']));
+		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
+		assert.strictEqual(classification.canGetServerCount, false);
 	});
 });

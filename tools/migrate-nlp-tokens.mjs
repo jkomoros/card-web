@@ -287,7 +287,6 @@ async function migrate() {
 		const summary = {
 			timestamp: new Date().toISOString(),
 			projectId,
-			databaseId,
 			mode: isDev ? 'dev' : 'prod',
 			dryRun,
 			limit,

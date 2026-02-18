@@ -94,7 +94,6 @@ gulp configure-api-keys
 ```
 
 This sets:
-- `firestore.database_id` - Which database functions connect to
 - `openai.api_key` - OpenAI API key (if configured)
 - `anthropic.api_key` - Anthropic API key (if configured)
 

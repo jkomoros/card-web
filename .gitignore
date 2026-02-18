@@ -26,5 +26,6 @@ service-account-key.json
 .claude/settings.local.json
 .firebase/
 .firebaserc
+migration-nlp-tokens-report.json
 *.log
 *.bak.*

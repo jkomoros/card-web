@@ -71,7 +71,6 @@ const SIMPLE_FILTERS = new Set([
 	'has-comments',
 	'has-tweet',
 	'orphaned',
-	'has-body',
 	QUERY_FILTER_NAME, // 'query' - uses array-contains on nlp_search_tokens
 	'query-strict',     // uses array-contains on nlp_search_tokens
 	// All type-X filters are SIMPLE
@@ -79,6 +78,7 @@ const SIMPLE_FILTERS = new Set([
 
 // COMPLEX filters require client-side processing
 const COMPLEX_FILTERS = new Set([
+	'has-body',
 	'children',
 	'parents',
 	'descendants',
@@ -288,38 +288,13 @@ export function classifyCollectionDescription(
 }
 
 function classifyUnionFilter(filter: FilterName): FilterClassification {
-	// Union filters like "section/A+section/B" or "published+starred"
-	const [firstPart] = filter.split('/');
-	const unionParts = firstPart.split(UNION_FILTER_DELIMITER);
-
-	for (const part of unionParts) {
-		// Check if any part is COMPLEX
-		if (COMPLEX_FILTERS.has(part)) {
-			return {
-				complexity: FilterComplexity.COMPLEX,
-				canGetServerCount: false,
-				reason: `Union contains complex filter: ${part}`,
-				isExact: false
-			};
-		}
-
-		// Check if unknown
-		if (!SIMPLE_FILTERS.has(part) && !part.startsWith('type-')) {
-			return {
-				complexity: FilterComplexity.COMPLEX,
-				canGetServerCount: false,
-				reason: `Union contains unknown filter: ${part}`,
-				isExact: false
-			};
-		}
-	}
-
-	// All parts are SIMPLE
+	// Union filters require OR queries which standard Firestore doesn't support
+	// as server-side constraints, so they are always COMPLEX.
 	return {
-		complexity: FilterComplexity.SIMPLE,
-		canGetServerCount: true,
-		reason: 'Union of simple filters',
-		isExact: true
+		complexity: FilterComplexity.COMPLEX,
+		canGetServerCount: false,
+		reason: `Union filter requires client-side processing: ${filter}`,
+		isExact: false
 	};
 }
 
@@ -340,6 +315,7 @@ export function buildFirestoreConstraints(
 	serverIDF?: ServerIDFData | null
 ): QueryConstraint[] {
 	const constraints: QueryConstraint[] = [];
+	let hasArrayContains = false;
 
 	// Add set constraints
 	constraints.push(...buildSetConstraints(description.set));
@@ -375,6 +351,8 @@ export function buildFirestoreConstraints(
 				break;
 			case 'tag':
 				if (args.length > 0) {
+					if (hasArrayContains) throw new Error('Multiple array-contains filters not supported');
+					hasArrayContains = true;
 					constraints.push(where('tags', 'array-contains', args[0]));
 				}
 				break;
@@ -410,6 +388,8 @@ export function buildFirestoreConstraints(
 			case QUERY_FILTER_NAME:
 			case 'query-strict':
 				if (args.length > 0) {
+					if (hasArrayContains) throw new Error('Multiple array-contains filters not supported');
+					hasArrayContains = true;
 					const queryString = args.join('/'); // Rejoin in case query had slashes
 					constraints.push(...buildQueryConstraints(queryString, serverIDF));
 				}
@@ -430,7 +410,10 @@ export function buildFirestoreConstraints(
 function buildSetConstraints(set: SetName): QueryConstraint[] {
 	switch (set) {
 		case 'main':
-			return [where('section', '!=', '')];
+			// Return no constraints for 'main'. The section != '' inequality
+			// conflicts with array-contains and other inequality filters, and
+			// orphaned cards (section == '') are rare enough to filter client-side.
+			return [];
 		case 'everything':
 			return [];
 		case 'reading-list':
