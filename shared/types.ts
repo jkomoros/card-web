@@ -520,6 +520,9 @@ export interface Card {
 	//NLP tokens stored for this card, eliminating need for client-side computation
 	//Only populated for cards saved after NLP storage feature is deployed
 	nlp_tokens?: NLPTokenStorage,
+	//Flat array of deduplicated stemmed unigrams + bigrams for server-side
+	//array-contains queries. Generated from nlp_tokens across all fields.
+	nlp_search_tokens?: string[],
 	//Fingerprint hash of the card's content for similarity matching
 	//Format: "title|body|commentary|references" processed and hashed
 	nlp_fingerprint?: string,

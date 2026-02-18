@@ -31,8 +31,6 @@ import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG,
 	FIREBASE_REGION,
-	FIRESTORE_DATABASE_ID_DEV,
-	FIRESTORE_DATABASE_ID_PROD,
 } from './config.GENERATED.SECRET.js';
 
 import {
@@ -45,38 +43,20 @@ export let DEV_MODE = false;
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
-const databaseId = DEV_MODE ? FIRESTORE_DATABASE_ID_DEV : FIRESTORE_DATABASE_ID_PROD;
-
-// Warn if using deprecated Standard database
-if (databaseId === '(default)') {
-	console.warn('⚠️  Using Standard Firestore database');
-	console.warn('⚠️  Consider migrating to Enterprise for better performance');
-	console.warn('⚠️  See ENTERPRISE_MIGRATION.md');
-}
 
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
-
-// Log database info for debugging
-console.log('🔌 Firestore Client Configuration:', {
-	database: databaseId,
-	edition: databaseId === '(default)' ? 'Standard (deprecated)' : 'Enterprise',
-	isDev: DEV_MODE,
-	projectId: config.projectId
-});
 
 //Firestore without long polling has a potential to OOM during load with lots of
 //long document. See
 //https://github.com/firebase/firebase-js-sdk/issues/4416#issuecomment-788225325
 //and #659.
-//Support named databases for Enterprise Edition. The third parameter allows
-//specifying a database ID while maintaining all custom settings.
 export const db = initializeFirestore(firebaseApp, {
 	experimentalForceLongPolling: true,
 	localCache: persistentLocalCache({
 		tabManager: persistentMultipleTabManager()
 	})
-}, databaseId);
+});
 
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);

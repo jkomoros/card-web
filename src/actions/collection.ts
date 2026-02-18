@@ -42,12 +42,17 @@ import {
 	selectPendingNewCardIDToNavigateTo,
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
-	selectExplicitlySelectedCardIDs
+	selectExplicitlySelectedCardIDs,
+	selectServerIDF
 } from '../selectors.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
 } from '../../shared/card_fields.js';
+
+import {
+	classifyCollectionDescription,
+} from '../filter-classification.js';
 
 import {
 	navigatedToNewCard,
@@ -678,7 +683,12 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 		const generation = ++deepFetchGeneration;
 		const collectionKey = fetchDescription.serialize();
 
-		if (!fetchDescription.classification.canGetServerCount) {
+		// Classify with IDF context so query filters pick the rarest token
+		const state = getState();
+		const serverIDF = selectServerIDF(state);
+		const classification = classifyCollectionDescription(fetchDescription, serverIDF);
+
+		if (!classification.canGetServerCount) {
 			return;
 		}
 
@@ -688,7 +698,7 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 		});
 
 		try {
-			const constraints = fetchDescription.classification.firestoreConstraints || [];
+			const constraints = classification.firestoreConstraints || [];
 
 			const q = query(
 				collection(db, CARDS_COLLECTION),

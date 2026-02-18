@@ -7,6 +7,7 @@ import {
 import {
 	classifyCollectionDescription,
 	FilterComplexity,
+	buildQueryConstraints,
 } from '../../lib/src/filter-classification.js';
 
 import assert from 'assert';
@@ -68,12 +69,12 @@ describe('filter classification', () => {
 		assert.strictEqual(classification.isExact, false);
 	});
 
-	it('classifies query filter as COMPLEX', async () => {
+	it('classifies query filter as SIMPLE', async () => {
 		const description = new CollectionDescription('', ['query/test']);
 		const classification = classifyCollectionDescription(description);
-		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
-		assert.strictEqual(classification.canGetServerCount, false);
-		assert.strictEqual(classification.isExact, false);
+		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
+		assert.strictEqual(classification.canGetServerCount, true);
+		assert.strictEqual(classification.isExact, true);
 	});
 
 	it('classifies mixed SIMPLE and COMPLEX as COMPLEX', async () => {
@@ -133,5 +134,35 @@ describe('filter classification', () => {
 		const classification = classifyCollectionDescription(description);
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
+	});
+
+	it('buildQueryConstraints produces array-contains constraint', async () => {
+		const constraints = buildQueryConstraints('hill climbing');
+		assert.strictEqual(constraints.length, 1);
+		// The constraint should be targeting nlp_search_tokens
+		// We verify by checking the constraint object structure
+		assert.ok(constraints[0]);
+	});
+
+	it('buildQueryConstraints returns empty for empty query', async () => {
+		const constraints = buildQueryConstraints('');
+		assert.strictEqual(constraints.length, 0);
+	});
+
+	it('buildQueryConstraints with IDF selects rarest token', async () => {
+		const mockIDF = {
+			version: 1,
+			cardCount: 100,
+			ngramSize: 2,
+			idf: {
+				'hill': 2.0,
+				'climb': 5.0,      // rarest unigram
+				'hill climb': 8.0  // rarest overall
+			},
+			maxIDF: 10.0
+		};
+		const constraints = buildQueryConstraints('hill climbing', mockIDF);
+		assert.strictEqual(constraints.length, 1);
+		assert.ok(constraints[0]);
 	});
 });

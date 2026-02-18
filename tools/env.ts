@@ -24,7 +24,6 @@ import {
 	EMAIL_FROM_ADDRESS_VAR,
 	QDRANT_CLUSTER_URL_VAR,
 	QDRANT_API_KEY_VAR,
-	FIRESTORE_DATABASE_ID_VAR
 } from '../shared/env-constants.js';
 
 const envLine = (key : string, val = '') : string => {
@@ -51,9 +50,6 @@ const generateModeEnv = (config : ExpandedModeConfig) : void => {
 	lines.push(envLine(EMAIL_FROM_ADDRESS_VAR, config.email?.from_address));
 	lines.push(envLine(QDRANT_CLUSTER_URL_VAR, config.qdrant?.cluster_url));
 	lines.push(envLine(QDRANT_API_KEY_VAR, config.qdrant?.api_key));
-
-	const firestoreDatabaseId = config.use_legacy_firestore ? '(default)' : 'firestore';
-	lines.push(envLine(FIRESTORE_DATABASE_ID_VAR, firestoreDatabaseId));
 
 	const filePath = path.join('functions', '.env.' + projectID);
 	fs.writeFileSync(filePath, lines.join('\n'));

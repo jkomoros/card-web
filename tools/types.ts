@@ -59,16 +59,6 @@ export type ModeConfig = {
 		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseOptions;
-	/**
-	 * ⚠️ DEPRECATED: Use Standard "(default)" Firestore database.
-	 *
-	 * When true, uses legacy Standard database (deprecated, will be removed in 6-12 months).
-	 * When false/omitted, uses Enterprise Edition with database name "firestore".
-	 *
-	 * @default false (Enterprise with database name "firestore")
-	 * @deprecated Will be removed in 6-12 months
-	 */
-	use_legacy_firestore?: boolean;
 	//This is typically set via the CLI (tools/cli.ts set-config-last-deploy)
 	last_deploy_affecting_rendering? : string;
 };

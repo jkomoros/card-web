@@ -136,6 +136,10 @@ import {
 	cardWithNormalizedTextProperties
 } from '../nlp.js';
 
+import {
+	ngrams
+} from '../../shared/nlp.js';
+
 import type {
 	NLPTokenStorage,
 	CardFieldType
@@ -494,8 +498,26 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		}
 		const fingerprint = fingerprintParts.join('|');
 
+		//Generate nlp_search_tokens: flat array of deduplicated stemmed
+		//unigrams + bigrams for server-side array-contains queries
+		const searchTokenSet = new Set<string>();
+		for (const [, runs] of TypedObject.entries(nlpTokens)) {
+			if (!runs) continue;
+			for (const run of runs) {
+				//Add individual stemmed words
+				for (const word of run.stemmed.split(' ')) {
+					if (word) searchTokenSet.add(word);
+				}
+				//Add bigrams
+				for (const bigram of ngrams(run.stemmed, 2)) {
+					searchTokenSet.add(bigram);
+				}
+			}
+		}
+
 		//Add NLP data to card update
 		cardUpdateObject.nlp_tokens = nlpTokens;
+		cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
 		cardUpdateObject.nlp_fingerprint = fingerprint;
 		cardUpdateObject.nlp_version = 1; //Increment when NLP algorithm changes
 	}

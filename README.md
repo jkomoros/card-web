@@ -29,20 +29,7 @@ Paste that JSON blob in your `config.SECRET.json` file, where the sample "fireba
 
 Run `npm run generate:config`. This copies the config you just set into various static files in the project.
 
-Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'.
-
-**IMPORTANT: Choose Firestore Enterprise Edition with database name "firestore"**. This project defaults to Enterprise Edition for:
-- Server-side regex search on card content (regex_match function)
-- Pipeline operations for complex filters
-- Better performance at scale (30k+ cards - 30-40MB vs 835MB memory)
-- Lower storage costs with optional indexing
-- Zero config required (database name "firestore" is auto-generated)
-
-**⚠️ Standard Database is Deprecated**: The Standard (default) Firestore database is deprecated and will show warnings. Support for Standard may be removed in 6-12 months.
-
-If you accidentally create a Standard database, you cannot upgrade it. You would need to create a new Enterprise database and migrate your data. See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for migration instructions.
-
-Choose Production Mode. Tap next. Pick the location (the default `us-central1` is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
+Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default `us-central1` is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
 In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.  
 
@@ -91,25 +78,6 @@ You will likely have to run maintenance tasks on your instance to upgrade the da
 To do that, go to https://your-project-domain/maintenance , hard refresh
 (Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
 any maintenance tasks it tells you to. Note that you might need to run multiple in a row. Run them until it says 'No tasks to run'.
-
-### ⚠️ Migration Recommended: Upgrade to Enterprise Edition
-
-If you're using the Standard (default) Firestore database, you should migrate to Enterprise Edition for better performance and features.
-
-**Benefits of Enterprise:**
-- 95% lower memory usage (30-40MB vs 835MB for 30k cards)
-- Server-side regex search capabilities
-- Advanced query pipeline operations
-- Better scalability
-
-**How to Migrate:**
-See [ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) for complete migration instructions. The process includes:
-1. Create Enterprise database named "firestore" in Firebase Console
-2. Run `gulp migrate-to-enterprise` to copy data
-3. Remove `use_legacy_firestore: true` from config.SECRET.json
-4. Run `npm run generate:config` and redeploy
-
-**Note:** Standard database support is deprecated and may be removed in 6-12 months after all users have migrated.
 
 ### Firebase Functions Configuration
 

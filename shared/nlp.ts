@@ -44,7 +44,7 @@ type NLPInfo = {
 //https://gist.github.com/sebleier/554280, filtered to cut off things from
 //"once" and downward, and also prononuns like `I`, 'my', 'mine', `myself` and
 //the 2nd and 3rd person variations.
-const STOP_WORDS : {[word : string] : boolean} = {
+export const STOP_WORDS : {[word : string] : boolean} = {
 	'a' : true,
 	'an' : true,
 	'the' : true,
@@ -165,7 +165,7 @@ const splitSlashNonURLs = (word : string) : string[]  => {
 	return wordIsUrl(word) ? [word] : word.split('/');
 };
 
-const normalizedWords = (str : string, originalCase = false) : string => {
+export const normalizedWords = (str : string, originalCase = false) : string => {
 	if (!str) str = '';
 
 	const splitWords = lowercaseSplitWords(str, originalCase);
@@ -207,7 +207,7 @@ const stemWord = (word : string) : string => {
 };
 
 //A more aggressive form of normalization
-const stemmedNormalizedWords = (str : string) : string => {
+export const stemmedNormalizedWords = (str : string) : string => {
 	//Assumes the words are already run through nomralizedWords
 
 	const splitWords = str.split(' ');
@@ -328,7 +328,7 @@ export const cardWithNormalizedTextPropertiesSimple = (card: Card): ProcessedCar
 };
 
 //text should be normalized
-const ngrams = (text : string, size  = 2) : string[]  => {
+export const ngrams = (text : string, size  = 2) : string[]  => {
 	if (!text) return [];
 	const pieces = text.split(' ');
 	if (pieces.length < size) return [];

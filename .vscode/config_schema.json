@@ -486,11 +486,6 @@
                 "twitter_handle": {
                     "type": "string"
                 },
-                "use_legacy_firestore": {
-                    "default": "false (Enterprise with database name \"firestore\")",
-                    "description": "⚠️ DEPRECATED: Use Standard \"(default)\" Firestore database.\n\nWhen true, uses legacy Standard database (deprecated, will be removed in 6-12 months).\nWhen false/omitted, uses Enterprise Edition with database name \"firestore\".",
-                    "type": "boolean"
-                },
                 "user_domain": {
                     "type": "string"
                 }
@@ -659,11 +654,6 @@
                 "twitter_handle": {
                     "type": "string"
                 },
-                "use_legacy_firestore": {
-                    "default": "false (Enterprise with database name \"firestore\")",
-                    "description": "⚠️ DEPRECATED: Use Standard \"(default)\" Firestore database.\n\nWhen true, uses legacy Standard database (deprecated, will be removed in 6-12 months).\nWhen false/omitted, uses Enterprise Edition with database name \"firestore\".",
-                    "type": "boolean"
-                },
                 "user_domain": {
                     "type": "string"
                 }
@@ -831,11 +821,6 @@
                 },
                 "twitter_handle": {
                     "type": "string"
-                },
-                "use_legacy_firestore": {
-                    "default": "false (Enterprise with database name \"firestore\")",
-                    "description": "⚠️ DEPRECATED: Use Standard \"(default)\" Firestore database.\n\nWhen true, uses legacy Standard database (deprecated, will be removed in 6-12 months).\nWhen false/omitted, uses Enterprise Edition with database name \"firestore\".",
-                    "type": "boolean"
                 },
                 "user_domain": {
                     "type": "string"

@@ -171,7 +171,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "nlp_tokens",
+          "fieldPath": "nlp_search_tokens",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "published",
           "order": "ASCENDING"
         },
         {
@@ -516,10 +520,10 @@
     },
     {
       "collectionGroup": "cards",
-      "fieldPath": "nlp_tokens",
+      "fieldPath": "nlp_search_tokens",
       "indexes": [
         {
-          "order": "ASCENDING",
+          "arrayConfig": "CONTAINS",
           "queryScope": "COLLECTION"
         }
       ]

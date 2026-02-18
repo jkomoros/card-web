@@ -15,6 +15,17 @@ import {
 	FilterName
 } from '../shared/types.js';
 
+import {
+	normalizedWords,
+	stemmedNormalizedWords,
+	ngrams,
+	STOP_WORDS
+} from '../shared/nlp.js';
+
+import type {
+	ServerIDFData
+} from './types.js';
+
 // Interface for collection description (avoids circular dependency with collection_description.ts)
 export interface CollectionDescriptionLike {
 	filters: FilterName[];
@@ -61,8 +72,8 @@ const SIMPLE_FILTERS = new Set([
 	'has-tweet',
 	'orphaned',
 	'has-body',
-	QUERY_FILTER_NAME, // 'query' - uses Firestore Enterprise regex_match
-	'query-strict',     // uses Firestore Enterprise regex_match
+	QUERY_FILTER_NAME, // 'query' - uses array-contains on nlp_search_tokens
+	'query-strict',     // uses array-contains on nlp_search_tokens
 	// All type-X filters are SIMPLE
 ]);
 
@@ -96,7 +107,7 @@ const COMPLEX_FILTERS = new Set([
 	'has-images',
 	'has-notes',
 	'expand',
-	// NOTE: 'query' and 'query-strict' moved to SIMPLE (uses Firestore Enterprise regex_match)
+	// NOTE: 'query' and 'query-strict' moved to SIMPLE (uses array-contains on nlp_search_tokens)
 	'similar',
 	'similar-cutoff',
 	'same-type',
@@ -178,7 +189,8 @@ const META_FILTERS = new Set([
 ]);
 
 export function classifyCollectionDescription(
-	description: CollectionDescriptionLike
+	description: CollectionDescriptionLike,
+	serverIDF?: ServerIDFData | null
 ): FilterClassification {
 	// Empty filters = SIMPLE (just the set)
 	if (!description.filters || description.filters.length === 0) {
@@ -256,7 +268,7 @@ export function classifyCollectionDescription(
 
 	// All filters SIMPLE - try to build constraints
 	try {
-		const constraints = buildFirestoreConstraints(description);
+		const constraints = buildFirestoreConstraints(description, serverIDF);
 		return {
 			complexity: FilterComplexity.SIMPLE,
 			canGetServerCount: true,
@@ -324,7 +336,8 @@ function classifyHybridFilter(_filter: FilterName): FilterClassification {
 }
 
 export function buildFirestoreConstraints(
-	description: CollectionDescriptionLike
+	description: CollectionDescriptionLike,
+	serverIDF?: ServerIDFData | null
 ): QueryConstraint[] {
 	const constraints: QueryConstraint[] = [];
 
@@ -388,7 +401,7 @@ export function buildFirestoreConstraints(
 				constraints.push(where('tweet_count', '>', 0));
 				break;
 			case 'orphaned':
-				constraints.push(where('section', '==', null));
+				constraints.push(where('section', '==', ''));
 				break;
 			case 'has-body':
 				// Cards with body field - needs to check card_type in BODY_CARD_TYPES
@@ -398,7 +411,7 @@ export function buildFirestoreConstraints(
 			case 'query-strict':
 				if (args.length > 0) {
 					const queryString = args.join('/'); // Rejoin in case query had slashes
-					constraints.push(...buildQueryConstraints(queryString));
+					constraints.push(...buildQueryConstraints(queryString, serverIDF));
 				}
 				break;
 			default:
@@ -417,7 +430,7 @@ export function buildFirestoreConstraints(
 function buildSetConstraints(set: SetName): QueryConstraint[] {
 	switch (set) {
 		case 'main':
-			return [where('section', '!=', null)];
+			return [where('section', '!=', '')];
 		case 'everything':
 			return [];
 		case 'reading-list':
@@ -429,30 +442,52 @@ function buildSetConstraints(set: SetName): QueryConstraint[] {
 }
 
 /**
- * Build Firestore Enterprise regex_match() constraints for query filters.
- * Uses nlp_tokens field with stemmed token matching.
+ * Build array-contains constraint for query filters using nlp_search_tokens.
+ * Stems and normalizes query input, generates bigrams, then selects the
+ * rarest token (by IDF) for the server-side narrowing query.
  */
-function buildQueryConstraints(queryString: string): QueryConstraint[] {
-	const tokens = queryString.toLowerCase().split(/\s+/).filter(t => t);
+export function buildQueryConstraints(queryString: string, serverIDF?: ServerIDFData | null): QueryConstraint[] {
+	const stemmed = stemmedNormalizedWords(normalizedWords(queryString));
+	const tokens = stemmed.split(' ').filter(t => t);
 
 	if (tokens.length === 0) return [];
 
-	// Build regex pattern: match ALL tokens (AND semantics)
-	// Pattern: "(?=.*token1)(?=.*token2).*"
-	// This uses positive lookahead to require all tokens to be present
-	const pattern = tokens.map(t => `(?=.*${escapeRegex(t)})`).join('') + '.*';
+	// Generate bigrams from stemmed tokens
+	const bigrams = tokens.length >= 2 ? ngrams(stemmed, 2) : [];
+	const allCandidates = [...tokens, ...bigrams];
+
+	// Select the best (rarest) token for server-side filtering
+	const selectedToken = selectBestToken(allCandidates, tokens, serverIDF);
 
 	return [
-		// @ts-ignore - regex_match is a Firestore Enterprise feature not yet in SDK types
-		where('nlp_tokens', 'regex_match', pattern)
+		where('nlp_search_tokens', 'array-contains', selectedToken)
 	];
 }
 
 /**
- * Escape special regex characters for use in regex patterns.
+ * Select the best token for array-contains query. Prefers the rarest token
+ * by IDF (if available), otherwise falls back to the first non-stop-word.
  */
-function escapeRegex(str: string): string {
-	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function selectBestToken(candidates: string[], unigrams: string[], serverIDF?: ServerIDFData | null): string {
+	if (serverIDF && serverIDF.idf) {
+		// Pick the candidate with the highest IDF (rarest)
+		let bestToken = candidates[0];
+		let bestIDF = -1;
+		for (const candidate of candidates) {
+			const idf = serverIDF.idf[candidate] ?? serverIDF.maxIDF;
+			if (idf > bestIDF) {
+				bestIDF = idf;
+				bestToken = candidate;
+			}
+		}
+		return bestToken;
+	}
+
+	// No IDF available — pick first non-stop-word unigram, or first token
+	for (const token of unigrams) {
+		if (!STOP_WORDS[token]) return token;
+	}
+	return candidates[0];
 }
 
 function buildDateConstraints(

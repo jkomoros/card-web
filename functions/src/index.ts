@@ -59,7 +59,6 @@ import {
 	CHAT_POST_MESSAGE_ROUTE,
 	CHAT_RETRY_MESSAGE_ROUTE,
 	CHAT_STREAM_MESSAGE_ROUTE,
-	FIRESTORE_DATABASE_ID_VAR
 } from '../../shared/env-constants.js';
 
 //Runs every three hours
@@ -182,18 +181,10 @@ export { calculateIDF } from './idf.js';
 
 // Health endpoint for monitoring
 export const health = onRequest({}, (req, res) => {
-	const databaseId = process.env[FIRESTORE_DATABASE_ID_VAR] || '(default)';
-
 	res.json({
 		status: 'ok',
 		timestamp: new Date().toISOString(),
-		database: {
-			id: databaseId,
-			type: databaseId === '(default)' ? 'Standard' : 'Enterprise',
-			deprecated: databaseId === '(default)'
-		},
 		functions: {
-			envSet: !!process.env[FIRESTORE_DATABASE_ID_VAR],
 			openaiEnabled: !!OPENAI_API_KEY,
 			anthropicEnabled: !!ANTHROPIC_API_KEY
 		}

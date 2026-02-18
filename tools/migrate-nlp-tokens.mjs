@@ -18,12 +18,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { writeFileSync } from 'fs';
 import { JSDOM } from 'jsdom';
 import { devProdConfig } from '../lib/tools/util.js';
-import { cardWithNormalizedTextPropertiesSimple } from '../shared/dist/nlp.js';
+import { cardWithNormalizedTextPropertiesSimple, ngrams } from '../shared/dist/nlp.js';
 import { overrideDocument } from '../shared/dist/document.js';
-import {
-	FIRESTORE_DATABASE_ID_DEV,
-	FIRESTORE_DATABASE_ID_PROD
-} from '../lib/src/config.GENERATED.SECRET.js';
 
 // Set up jsdom for Node.js environment (NLP code needs DOM to parse HTML)
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
@@ -75,12 +71,9 @@ const limit = args.limit ? parseInt(args.limit) : null;
 const config = devProdConfig();
 const projectConfig = isDev ? config.dev : config.prod;
 const projectId = projectConfig.firebase.projectId;
-const databaseId = isDev ? FIRESTORE_DATABASE_ID_DEV : FIRESTORE_DATABASE_ID_PROD;
-
 console.log('🚀 NLP Token Migration Script\n');
 console.log('Configuration:');
 console.log('  Project:', projectId);
-console.log('  Database:', databaseId);
 console.log('  Mode:', isDev ? 'DEV' : 'PROD');
 if (dryRun) console.log('  ⚠️  DRY RUN - No changes will be written');
 if (limit) console.log('  Limit:', limit, 'cards');
@@ -108,7 +101,7 @@ try {
 	process.exit(1);
 }
 
-const db = getFirestore(undefined, databaseId);
+const db = getFirestore();
 const CARDS_COLLECTION = 'cards';
 
 /**
@@ -203,10 +196,26 @@ async function migrate() {
 					}
 					const fingerprint = fingerprintParts.join('|');
 
+					// Generate nlp_search_tokens: flat array of deduplicated
+					// stemmed unigrams + bigrams for array-contains queries
+					const searchTokenSet = new Set();
+					for (const [, runs] of Object.entries(nlpTokens)) {
+						if (!runs) continue;
+						for (const run of runs) {
+							for (const word of run.stemmed.split(' ')) {
+								if (word) searchTokenSet.add(word);
+							}
+							for (const bigram of ngrams(run.stemmed, 2)) {
+								searchTokenSet.add(bigram);
+							}
+						}
+					}
+
 					// Add to batch (if not dry run)
 					if (!dryRun) {
 						batch.update(docSnap.ref, {
 							nlp_tokens: nlpTokens,
+							nlp_search_tokens: Array.from(searchTokenSet),
 							nlp_fingerprint: fingerprint,
 							nlp_version: 1
 						});
