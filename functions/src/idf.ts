@@ -1,6 +1,5 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { JSDOM } from 'jsdom';
-import type { DOMWindow } from 'jsdom';
 
 import { db, storage } from './common.js';
 
@@ -11,6 +10,7 @@ import {
 	cardWithNormalizedTextPropertiesSimple as cardWithNormalizedTextProperties
 } from '../../shared/nlp.js';
 import { BODY_CARD_TYPES } from '../../shared/card_fields.js';
+import { overrideDocument } from '../../shared/document.js';
 import type { Card, ProcessedCard } from '../../shared/types.js';
 
 // ProcessedCards type should match what calcIDFMapForCards expects
@@ -18,16 +18,12 @@ type ProcessedCards = {
 	[id: string]: ProcessedCard
 };
 
-// Polyfill for server environment - jsdom is already a dependency (see functions/package.json line 29)
+// Set up jsdom for Node.js environment (NLP code needs DOM to parse HTML).
+// We must use overrideDocument() rather than setting global.document because
+// shared/document.ts captures DOCUMENT at module evaluation time (before this
+// top-level code runs), so mutating globals has no effect.
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
-
-// Type the global object properly for JSDOM polyfill
-interface GlobalWithDOM {
-	document: typeof dom.window.document;
-	window: DOMWindow;
-}
-(global as unknown as GlobalWithDOM).document = dom.window.document;
-(global as unknown as GlobalWithDOM).window = dom.window;
+overrideDocument(dom.window.document);
 
 export const calculateIDF = onSchedule({
 	schedule: '0 2 * * 0', // Weekly Sunday 2:00 AM PST

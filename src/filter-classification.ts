@@ -485,9 +485,58 @@ function buildDateConstraints(
 		throw new Error(`Date filter ${filterType} missing arguments`);
 	}
 
-	const fieldName = filterType === 'last-tweeted' ? 'last_tweeted' : filterType;
+	// Map filter type to actual Firestore field name.
+	// The 'updated' filter semantically means 'updated_substantive' (substantive
+	// updates only), matching the client-side dateConfigurableFilterMap in filters.ts.
+	const fieldNameMap: {[key: string]: string} = {
+		'updated': 'updated_substantive',
+		'created': 'created',
+		'last-tweeted': 'last_tweeted',
+	};
+	const fieldName = fieldNameMap[filterType] || filterType;
+
+	// The date filter URL format is: filterType/comparisonType/date[/date2]
+	// e.g. updated/before/2020-10-03, updated/after/2020-10-03,
+	//      updated/between/2020-10-03/2020-12-31
+	// But also supports shorthand without comparison type:
+	// e.g. updated/last-7-days, updated/this-week, updated/this-month, etc.
 
 	const arg0 = args[0];
+
+	// Handle before/after/between comparison types
+	if (arg0 === 'before' || arg0 === 'after' || arg0 === 'between') {
+		if (args.length < 2) {
+			throw new Error(`Date filter ${filterType}/${arg0} missing date argument`);
+		}
+		const firstDate = parseDate(args[1]);
+		if (!firstDate) {
+			throw new Error(`Invalid date in filter: ${filterType}/${args.join('/')}`);
+		}
+
+		if (arg0 === 'before') {
+			return [where(fieldName, '<', Timestamp.fromDate(firstDate))];
+		}
+
+		if (arg0 === 'after') {
+			return [where(fieldName, '>', Timestamp.fromDate(firstDate))];
+		}
+
+		// 'between' requires two dates
+		if (args.length < 3) {
+			throw new Error(`Date filter ${filterType}/between requires two dates`);
+		}
+		const secondDate = parseDate(args[2]);
+		if (!secondDate) {
+			throw new Error(`Invalid second date in filter: ${filterType}/${args.join('/')}`);
+		}
+		// Support dates in either order
+		const earlier = firstDate < secondDate ? firstDate : secondDate;
+		const later = firstDate < secondDate ? secondDate : firstDate;
+		return [
+			where(fieldName, '>=', Timestamp.fromDate(earlier)),
+			where(fieldName, '<=', Timestamp.fromDate(later))
+		];
+	}
 
 	// Handle relative dates like "last-7-days"
 	if (arg0.startsWith('last-') && arg0.endsWith('-days')) {

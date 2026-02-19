@@ -203,6 +203,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "updated_substantive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sort_order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "created",
           "order": "ASCENDING"
         },
@@ -477,6 +491,20 @@
     {
       "collectionGroup": "cards",
       "fieldPath": "updated",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cards",
+      "fieldPath": "updated_substantive",
       "indexes": [
         {
           "order": "ASCENDING",

@@ -308,6 +308,8 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 	const unpublishedCards = Object.values(cards).filter(card => !card.published);
 
 	//Tier 2: Keep all prioritized cards (always loaded)
+	//NOTE: `=== false` is correct here. See cardIsPrioritized() in src/util.ts
+	//for why: the prioritized TODO has inverted override semantics.
 	const prioritizedCards = unpublishedCards.filter(card => card.auto_todo_overrides?.prioritized === false);
 	const prioritizedCardIDs = new Set(prioritizedCards.map(card => card.id));
 
