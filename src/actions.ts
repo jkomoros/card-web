@@ -865,7 +865,7 @@ type ActionEditingCloseImageBrowserDialog = {
 
 type ActionEditingUpdateUnderlyingCard = {
 	type: typeof EDITING_UPDATE_UNDERLYING_CARD,
-	updatedUnderlyingCard: ProcessedCard
+	updatedUnderlyingCard: Card
 };
 
 type ActionEditingMergeOvershadowedChanges = {

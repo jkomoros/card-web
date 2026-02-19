@@ -96,8 +96,7 @@ import {
 } from './data.js';
 
 import type {
-	Card,
-	ProcessedCard
+	Card
 } from '../types.js';
 
 import {
@@ -315,17 +314,23 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		editingCardUnsubscribe();
 	}
 
-	editingCardUnsubscribe = onSnapshot(doc(db, CARDS_COLLECTION, card.id), snapshot => {
-		if (!snapshot.exists()) return;
+	editingCardUnsubscribe = onSnapshot(
+		doc(db, CARDS_COLLECTION, card.id),
+		snapshot => {
+			if (!snapshot.exists()) return;
 
-		const liveCard: Card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+			const liveCard: Card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
 
-		// Update underlying card snapshot (conflict detection)
-		dispatch({
-			type: EDITING_UPDATE_UNDERLYING_CARD,
-			updatedUnderlyingCard: liveCard as ProcessedCard
-		});
-	});
+			// Update underlying card snapshot (conflict detection)
+			dispatch({
+				type: EDITING_UPDATE_UNDERLYING_CARD,
+				updatedUnderlyingCard: liveCard
+			});
+		},
+		error => {
+			console.warn('Editing card listener error (will retry on reconnect):', error.message);
+		}
+	);
 };
 
 export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) => {
