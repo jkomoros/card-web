@@ -596,8 +596,8 @@ function buildDateConstraints(
 }
 
 function parseDate(dateStr: string): Date | null {
-	// Parse YYYY-MM-DD format
-	const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	// Parse YYYY-MM-DD or YYYY-M-D format (client generates unpadded dates)
+	const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
 	if (match) {
 		const year = parseInt(match[1]);
 		const month = parseInt(match[2]) - 1; // JS months are 0-indexed

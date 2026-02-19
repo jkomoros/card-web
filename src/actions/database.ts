@@ -434,10 +434,10 @@ export const connectLiveUnpublishedCards = () => {
 			store.dispatch(expectUnpublishedCards('unpublished-recent'));
 
 			//Tier 2: Prioritized unpublished cards (high priority TODOs)
-			//NOTE: `== false` is correct here, not a bug. The prioritized TODO
-			//uses inverted semantics: the auto-test always returns true (meaning
-			//"needs prioritization"), so `false` in auto_todo_overrides means
-			//"override to not-done" which means "this card IS prioritized."
+			//NOTE: `== false` is correct here, not a bug. The prioritized
+			//TODO's auto-test always returns true ("done"), so a card is only
+			//prioritized via an explicit override to false ("not done"). Thus
+			//querying for == false finds prioritized cards.
 			//See cardIsPrioritized() in src/util.ts for the canonical helper.
 			liveUnpublishedPrioritizedCardsUnsubscribe = onSnapshot(
 				query(
