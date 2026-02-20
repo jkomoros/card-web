@@ -54,6 +54,11 @@ import {
 	innerTextForHTML
 } from '../shared/util.js';
 
+import {
+	STOP_WORDS,
+	OVERRIDE_STEMS
+} from '../shared/nlp.js';
+
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
 	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == 'concept'));
@@ -151,78 +156,6 @@ export const synonymMap = (rawCards : Cards) : SynonymMap => {
 	return result;
 };
 
-//STOP_WORDS are words that are so common that we should basically skip them. We
-//skip them when generating multi-word queries, and also for considering words
-//for ngrams, since these words are so common that if they're considered than a
-//distinctive word + a stop word will show up twice. This stop word list is a
-//lightly processed version of NLTK's english stop word list, from
-//https://gist.github.com/sebleier/554280, filtered to cut off things from
-//"once" and downward, and also prononuns like `I`, 'my', 'mine', `myself` and
-//the 2nd and 3rd person variations.
-const STOP_WORDS : {[word : string] : boolean} = {
-	'a' : true,
-	'an' : true,
-	'the' : true,
-	'in' : true,
-	'is' : true,
-	'and': true,
-	'of': true,
-	'to': true,
-	'that': true,
-	'you': true,
-	'it': true,
-	'ar': true,
-	'be': true,
-	'on': true,
-	'can': true,
-	'have': true,
-	'for':true,
-	'which': true,
-	'who': true,
-	'whom': true,
-	'thi': true,
-	'these': true,
-	'those': true,
-	'am': true,
-	'wa': true,
-	'were': true,
-	'been': true,
-	'ha': true,
-	'had': true,
-	'do': true,
-	'doe': true,
-	'did': true,
-	'but': true,
-	'if': true,
-	'or': true,
-	'becaus': true,
-	'as': true,
-	'until': true,
-	'while': true,
-	'at': true,
-	'by': true,
-	'with': true,
-	'about': true,
-	'against': true,
-	'between': true,
-	'into': true,
-	'through': true,
-	'dure': true,
-	'befor': true,
-	'after': true,
-	'abov': true,
-	'below': true,
-	'from': true,
-	'up': true,
-	'down': true,
-	'out': true,
-	'off': true,
-	'over': true,
-	'under': true,
-	'again': true,
-	'further': true,
-	'then': true,
-};
 
 //STOP_WORDS that should be lowercased in fingerprint.prettyItems.
 const LOWERCASE_STOP_WORDS : {[word : string] : boolean } = {
@@ -238,29 +171,6 @@ const LOWERCASE_STOP_WORDS : {[word : string] : boolean } = {
 	'for':true,
 };
 
-//OVERRIDE_STEMS are words that stem 'wrong' and we want to have a manual
-//replacement instead of using the real stemmer. If the word being stemmed
-//starts with the key in this map, it will be 'stemmed' to the word on the
-//right.
-const OVERRIDE_STEMS = {
-	//optimism-family words and optimized-familyl words stem to the same thing
-	//but they're very different.
-	'optimiz': 'optimiz',
-	//generally and generative stem to the same word otherwise
-	'generativ': 'generativ',
-	//Organization and organied stem to the same word otherwise
-	'organiza': 'organiza',
-	//Organic and organized stem to the same word
-	'organic': 'organic',
-	//Polarized and polarity stem to the same thing otherwise
-	'polarit': 'polarit',
-	//Useful and use all reduce down to 'us'
-	'usef': 'usef',
-	//communicate and community reduce to the same stem otherwise
-	'communit': 'communit',
-	//later and lateral reduce to the same
-	'lateral': 'lateral'
-};
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
 //object as a key.
@@ -1713,15 +1623,9 @@ export class FingerprintGenerator {
 
 		// Use server IDF if provided and valid
 		if (serverIDF && serverIDF.idf && typeof serverIDF.maxIDF === 'number') {
-			console.log('FingerprintGenerator using server IDF');
 			this._idfMap = serverIDF;
 		} else {
 			// Fall back to client-side calculation
-			if (serverIDF === undefined) {
-				console.log('FingerprintGenerator calculating client-side IDF (server IDF not provided)');
-			} else {
-				console.log('FingerprintGenerator calculating client-side IDF (server IDF invalid or null)');
-			}
 			this._idfMap = idfMapForCards(this._cards, this._ngramSize);
 		}
 

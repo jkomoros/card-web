@@ -1,3 +1,5 @@
+import { ref, getDownloadURL } from 'firebase/storage';
+import { storage } from './firebase.js';
 import { ServerIDFData } from './types.js';
 
 const CACHE_KEY = 'server_idf_cache';
@@ -19,12 +21,7 @@ export const loadServerIDF = async (): Promise<ServerIDFData | null> => {
 	// Try cache first
 	const cached = getCachedIDF();
 	if (cached && isCacheValid(cached)) {
-		console.log('Using cached IDF map (version:', cached.data.version, ')');
 		return cached.data;
-	}
-
-	if (cached) {
-		console.log('Cached IDF expired, re-downloading...');
 	}
 
 	// Download from Cloud Storage
@@ -32,7 +29,6 @@ export const loadServerIDF = async (): Promise<ServerIDFData | null> => {
 		const idfData = await downloadIDFMap();
 		if (idfData) {
 			cacheIDF(idfData);
-			console.log('Downloaded and cached IDF map (version:', idfData.version, ')');
 		}
 		return idfData;
 	} catch (error) {
@@ -42,16 +38,12 @@ export const loadServerIDF = async (): Promise<ServerIDFData | null> => {
 };
 
 /**
- * Downloads IDF map from Cloud Storage.
+ * Downloads IDF map from Cloud Storage using Firebase Storage SDK.
  */
 const downloadIDFMap = async (): Promise<ServerIDFData | null> => {
 	try {
-		// Determine the Firebase project bucket
-		const bucketName = getStorageBucketName();
-		const url = `https://storage.googleapis.com/${bucketName}/idf-maps/latest.json`;
-
-		console.log('Downloading IDF map from:', url);
-
+		const idfRef = ref(storage, 'idf-maps/latest.json');
+		const url = await getDownloadURL(idfRef);
 		const response = await fetch(url);
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -66,23 +58,9 @@ const downloadIDFMap = async (): Promise<ServerIDFData | null> => {
 
 		return data;
 	} catch (error) {
-		console.error('Error downloading IDF map:', error);
+		console.warn('Error downloading IDF map:', error);
 		return null;
 	}
-};
-
-/**
- * Gets the Firebase Storage bucket name based on the current environment.
- */
-const getStorageBucketName = (): string => {
-	// Check hostname to determine environment
-	const hostname = window.location.hostname;
-
-	if (hostname.includes('localhost') || hostname.includes('dev-complexity-compendium')) {
-		return 'dev-complexity-compendium.appspot.com';
-	}
-
-	return 'complexity-compendium.appspot.com';
 };
 
 /**
@@ -105,16 +83,12 @@ const getCachedIDF = (): CachedIDF | null => {
  * Checks if cached IDF is still valid.
  */
 const isCacheValid = (cached: CachedIDF): boolean => {
-	// Check cache version
 	if (cached.version !== CACHE_VERSION) {
-		console.log('Cache version mismatch, invalidating');
 		return false;
 	}
 
-	// Check TTL
 	const age = Date.now() - cached.cachedAt;
 	if (age > CACHE_TTL_MS) {
-		console.log('Cache expired (age:', Math.round(age / 1000 / 60 / 60), 'hours)');
 		return false;
 	}
 
@@ -132,7 +106,6 @@ const cacheIDF = (data: ServerIDFData): void => {
 			data
 		};
 		localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
-		console.log('Cached IDF map in localStorage');
 	} catch (error) {
 		console.warn('Failed to cache IDF map (localStorage may be full):', error);
 	}
@@ -144,7 +117,6 @@ const cacheIDF = (data: ServerIDFData): void => {
 export const clearIDFCache = (): void => {
 	try {
 		localStorage.removeItem(CACHE_KEY);
-		console.log('Cleared IDF cache');
 	} catch (error) {
 		console.warn('Failed to clear IDF cache:', error);
 	}

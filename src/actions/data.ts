@@ -47,6 +47,7 @@ import {
 	idWasVended,
 	normalizeSlug,
 	createSlugFromArbitraryString,
+	cardIsPrioritized,
 } from '../util.js';
 
 import {
@@ -308,14 +309,13 @@ const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) 
 	const unpublishedCards = Object.values(cards).filter(card => !card.published);
 
 	//Tier 2: Keep all prioritized cards (always loaded)
-	//NOTE: `=== false` is correct here. See cardIsPrioritized() in src/util.ts
-	//for why: the prioritized TODO has inverted override semantics.
-	const prioritizedCards = unpublishedCards.filter(card => card.auto_todo_overrides?.prioritized === false);
+	const prioritizedCards = unpublishedCards.filter(card => cardIsPrioritized(card));
 	const prioritizedCardIDs = new Set(prioritizedCards.map(card => card.id));
 
 	//Tier 3: Keep recent non-prioritized cards up to dynamic limit
 	//Calculate remaining budget after published (~900) and prioritized (~6000) cards
-	const recentLimit = Math.max(100, limit - 6900);
+	const ESTIMATED_PRIORITIZED_AND_PUBLISHED_COUNT = 6900;
+	const recentLimit = Math.max(100, limit - ESTIMATED_PRIORITIZED_AND_PUBLISHED_COUNT);
 	const nonPrioritizedCards = unpublishedCards
 		.filter(card => !prioritizedCardIDs.has(card.id))
 		.sort((a, b) => b.created.seconds - a.created.seconds);

@@ -113,7 +113,7 @@ export const STOP_WORDS : {[word : string] : boolean} = {
 //replacement instead of using the real stemmer. If the word being stemmed
 //starts with the key in this map, it will be 'stemmed' to the word on the
 //right.
-const OVERRIDE_STEMS = {
+export const OVERRIDE_STEMS : {[prefix : string] : string} = {
 	//optimism-family words and optimized-familyl words stem to the same thing
 	//but they're very different.
 	'optimiz': 'optimiz',
