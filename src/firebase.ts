@@ -9,7 +9,8 @@ import {
 	Timestamp,
 	initializeFirestore,
 	persistentLocalCache,
-	persistentMultipleTabManager
+	persistentMultipleTabManager,
+	clearIndexedDbPersistence
 } from 'firebase/firestore';
 
 import {
@@ -57,6 +58,18 @@ export const db = initializeFirestore(firebaseApp, {
 		tabManager: persistentMultipleTabManager()
 	})
 });
+
+// One-time migration: clear stale Firestore IndexedDB cache that may contain
+// unrecognized query operators (regex_match) from the Enterprise Firestore
+// experiment. These cause INTERNAL ASSERTION FAILED errors on startup.
+const FIRESTORE_CACHE_MIGRATION_KEY = 'firestore_cache_cleared_v1';
+if (!localStorage.getItem(FIRESTORE_CACHE_MIGRATION_KEY)) {
+	clearIndexedDbPersistence(db).then(() => {
+		localStorage.setItem(FIRESTORE_CACHE_MIGRATION_KEY, 'true');
+	}).catch(() => {
+		// Will retry on next page load if client already started.
+	});
+}
 
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);
