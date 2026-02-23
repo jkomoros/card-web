@@ -50,7 +50,8 @@ import {
 	orderBy,
 	QuerySnapshot,
 	limit,
-	doc
+	doc,
+	getCountFromServer
 } from 'firebase/firestore';
 
 import {
@@ -405,7 +406,7 @@ const disconnectLiveUnpublishedCards = () => {
 
 //This should be called any time that whether the user can see unpublished cards
 //changes, or if the completeMode toggle changes.
-export const connectLiveUnpublishedCards = () => {
+export const connectLiveUnpublishedCards = async () => {
 
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
@@ -439,19 +440,30 @@ export const connectLiveUnpublishedCards = () => {
 			//prioritized via an explicit override to false ("not done"). Thus
 			//querying for == false finds prioritized cards.
 			//See cardIsPrioritized() in src/util.ts for the canonical helper.
+			const prioritizedQuery = query(
+				collection(db, CARDS_COLLECTION),
+				where('published', '==', false),
+				where('auto_todo_overrides.prioritized', '==', false),
+				orderBy('created', 'desc')
+			);
+
+			//Get exact prioritized count to compute Tier 3's budget
+			const FALLBACK_RECENT_LIMIT = 200;
+			let recentLimit = FALLBACK_RECENT_LIMIT;
+			try {
+				const countSnapshot = await getCountFromServer(prioritizedQuery);
+				const prioritizedCount = countSnapshot.data().count;
+				recentLimit = Math.max(100, effectiveLimit - prioritizedCount);
+			} catch {
+				// Fall back to reasonable default on count error
+			}
+
 			liveUnpublishedPrioritizedCardsUnsubscribe = onSnapshot(
-				query(
-					collection(db, CARDS_COLLECTION),
-					where('published', '==', false),
-					where('auto_todo_overrides.prioritized', '==', false),
-					orderBy('created', 'desc')
-				),
+				prioritizedQuery,
 				cardSnapshotReceiver('unpublished-prioritized')
 			);
 
 			//Tier 3: Recent unpublished cards (dynamic limit based on remaining hot tier budget)
-			//Calculate remaining budget after published (~900) and prioritized (~6000) cards
-			const recentLimit = Math.max(100, effectiveLimit - 6900);
 			liveUnpublishedRecentCardsUnsubscribe = onSnapshot(
 				query(
 					collection(db, CARDS_COLLECTION),
