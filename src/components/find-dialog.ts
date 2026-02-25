@@ -38,6 +38,11 @@ import {
 } from '../actions/data.js';
 
 import {
+	requestDeepFetch,
+	cancelAndCleanupDeepFetch
+} from '../actions/collection.js';
+
+import {
 	setCardToAddPermissionTo
 } from '../actions/permissions.js';
 
@@ -54,7 +59,10 @@ import {
 	selectFindLinking,
 	selectFindSortByRecent,
 	selectFindRenderOffset,
-	selectFindDialogOpen
+	selectFindDialogOpen,
+	selectDeepFetchStateForKey,
+	selectActiveCollectionDescription,
+	selectServerIDF
 } from '../selectors.js';
 
 import { 
@@ -86,6 +94,7 @@ import {
 } from '../util.js';
 
 import {
+	CardID,
 	CardType,
 	CreateCardOpts,
 	ReferenceType,
@@ -95,6 +104,10 @@ import {
 import {
 	Collection, CollectionDescription
 } from '../collection_description.js';
+
+import {
+	classifyCollectionDescription,
+} from '../filter-classification.js';
 
 import {
 	ThumbnailTappedEvent,
@@ -142,6 +155,12 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardTypeFilterLocked: boolean;
+
+	@state()
+		_deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: CardID[]; error?: string} | null;
+
+	// Track previous collection key for deep fetch lifecycle
+	private _previousCollectionKey : string | null = null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -202,7 +221,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .deepFetchState=${this._deepFetchState} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
@@ -222,6 +241,17 @@ class FindDialog extends connect(store)(DialogElement) {
 	override _shouldClose(cancelled  = false) {
 		if (cancelled && this._linking) {
 			store.dispatch(cancelLink());
+		}
+		// Clean up deep fetch for the find dialog's collection key,
+		// but only if the main active collection doesn't share the same key.
+		if (this._previousCollectionKey) {
+			const state = store.getState() as State;
+			const activeDescription = selectActiveCollectionDescription(state);
+			const activeKey = activeDescription ? activeDescription.serialize() : '';
+			if (activeKey !== this._previousCollectionKey) {
+				store.dispatch(cancelAndCleanupDeepFetch(this._previousCollectionKey));
+			}
+			this._previousCollectionKey = null;
 		}
 		//Override base class.
 		store.dispatch(closeFindDialog());
@@ -381,6 +411,29 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
 		this._sortByRecent = selectFindSortByRecent(state);
+
+		// Deep fetch lifecycle for find dialog
+		const newKey = this._collectionDescription ? this._collectionDescription.serialize() : null;
+		if (newKey !== this._previousCollectionKey) {
+			// Clean up old key if it changed
+			if (this._previousCollectionKey) {
+				const activeDescription = selectActiveCollectionDescription(state);
+				const activeKey = activeDescription ? activeDescription.serialize() : '';
+				if (activeKey !== this._previousCollectionKey) {
+					store.dispatch(cancelAndCleanupDeepFetch(this._previousCollectionKey));
+				}
+			}
+			this._previousCollectionKey = newKey;
+			// Trigger deep fetch for the new description if it's SIMPLE-eligible
+			if (this._collectionDescription) {
+				const serverIDF = selectServerIDF(state);
+				const classification = classifyCollectionDescription(this._collectionDescription, serverIDF);
+				if (classification.canGetServerCount) {
+					store.dispatch(requestDeepFetch(this._collectionDescription));
+				}
+			}
+		}
+		this._deepFetchState = newKey ? selectDeepFetchStateForKey(state, newKey) : null;
 	}
 
 }

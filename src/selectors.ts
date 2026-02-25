@@ -1688,6 +1688,11 @@ export const selectActiveDeepFetchState = createSelector(
 	}
 );
 
+export const selectDeepFetchStateForKey = (state : State, collectionKey : string) => {
+	if (!state.collection) return null;
+	return state.collection.deepFetchState[collectionKey] || null;
+};
+
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in
 //which reordering is legal. Note: this means that even if it is legal in
 //genearl to reorder a collection and the user can modify one card in
@@ -1870,7 +1875,8 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectFindGeneric,
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
-		const baseFilters = ['has-body'];
+		const hasQueryText = !!wordsAndFilters[0];
+		const baseFilters : string[] = hasQueryText ? [] : ['has-body'];
 		let sort : SortName = 'default';
 		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);

@@ -21,7 +21,8 @@ import {
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	DEEP_FETCH_STARTED,
 	DEEP_FETCH_COMPLETE,
-	DEEP_FETCH_FAILED
+	DEEP_FETCH_FAILED,
+	DEEP_FETCH_CLEAR_KEY
 } from '../actions.js';
 
 import {
@@ -76,7 +77,6 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			active: action.collection,
 			activeRenderOffset: 0,
 			collectionWordCloudVersion: 0,
-			deepFetchState: {}
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones
@@ -195,6 +195,13 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 				}
 			}
 		};
+	case DEEP_FETCH_CLEAR_KEY: {
+		const {[action.collectionKey]: _, ...rest} = state.deepFetchState;
+		return {
+			...state,
+			deepFetchState: rest
+		};
+	}
 	default:
 		return state;
 	}

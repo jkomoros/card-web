@@ -123,6 +123,7 @@ import {
 	DEEP_FETCH_STARTED,
 	DEEP_FETCH_COMPLETE,
 	DEEP_FETCH_FAILED,
+	DEEP_FETCH_CLEAR_KEY,
 	REMOVE_CARDS
 } from '../actions.js';
 
@@ -232,15 +233,9 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
 	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
 
-	// Always clear any pending debounce timer to prevent stale deep fetches
-	// (e.g. when switching from SIMPLE to COMPLEX collection)
-	if (deepFetchTimer) {
-		clearTimeout(deepFetchTimer);
-		deepFetchTimer = null;
-	}
-
-	// Clean up previous deep-fetch cards before switching collections
-	cleanupDeepFetchCards(dispatch, getState);
+	// Clean up deep fetch for the old active collection key only
+	const oldKey = activeCollectionDescription.serialize();
+	dispatch(cancelAndCleanupDeepFetch(oldKey));
 
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
@@ -260,7 +255,7 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 
 	// Trigger deep fetch for SIMPLE collections (with debounce)
 	if (newCollectionDescription.classification.canGetServerCount) {
-		debouncedDeepFetch(dispatch, newCollectionDescription);
+		dispatch(requestDeepFetch(newCollectionDescription));
 	}
 };
 
@@ -614,69 +609,113 @@ export const incrementCollectionWordCloud = () : SomeAction => {
 	};
 };
 
-// Generation counter to detect stale deep fetch results
-let deepFetchGeneration = 0;
+// Per-key generation counters to detect stale deep fetch results
+const deepFetchGenerations = new Map<string, number>();
 
-// Debounce timer for deep fetch
-let deepFetchTimer : ReturnType<typeof setTimeout> | null = null;
+// Per-key debounce timers for deep fetch
+const deepFetchTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 const DEEP_FETCH_DEBOUNCE_MS = 300;
 const DEEP_FETCH_LIMIT = FIRESTORE_MAXIMUM_LIMIT_CLAUSE;
 
 /**
- * Clean up deep-fetch cards from the previous collection.
- * Removes cards that were only present due to deep fetch (not in hot tier).
- * Can be called directly with dispatch/getState, or dispatched as a thunk
- * via cleanupDeepFetchCardsThunk().
+ * Clean up deep-fetch cards for a specific collection key.
+ * Removes cards that were only present due to deep fetch (not in hot tier),
+ * but skips cards that are also tracked by another key's deepCardIDs.
  */
-const cleanupDeepFetchCards = (dispatch: (action: SomeAction) => void, getState: () => State) : void => {
+const cleanupDeepFetchCardsForKey = (dispatch: (action: SomeAction) => void, getState: () => State, collectionKey: string) : void => {
+	const state = getState();
+	if (!state.collection) return;
+
+	const entry = state.collection.deepFetchState[collectionKey];
+	if (!entry || !entry.deepCardIDs || entry.deepCardIDs.length === 0) return;
+
+	// Collect IDs tracked by other keys so we don't remove shared cards
+	const otherTrackedIDs = new Set<string>();
+	for (const [key, otherEntry] of Object.entries(state.collection.deepFetchState)) {
+		if (key === collectionKey) continue;
+		if (otherEntry.deepCardIDs) {
+			for (const id of otherEntry.deepCardIDs) {
+				otherTrackedIDs.add(id);
+			}
+		}
+	}
+
+	const idsToRemove = entry.deepCardIDs.filter(id => !otherTrackedIDs.has(id));
+
+	if (idsToRemove.length > 0) {
+		dispatch({
+			type: REMOVE_CARDS,
+			cardIDs: idsToRemove
+		});
+	}
+};
+
+/**
+ * Thunk wrapper for cleaning up all deep fetch state, for use from other modules
+ * (e.g. when navigating away from collection pages entirely).
+ */
+export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, getState) => {
+	// Clear all pending debounce timers
+	for (const timer of deepFetchTimers.values()) {
+		clearTimeout(timer);
+	}
+	deepFetchTimers.clear();
+
 	const state = getState();
 	if (!state.collection) return;
 
 	for (const [, entry] of Object.entries(state.collection.deepFetchState)) {
 		if (!entry.deepCardIDs || entry.deepCardIDs.length === 0) continue;
-
-		// All deepCardIDs are safe to remove because deep fetch filters out
-		// hot-tier cards before adding them.
-		const idsToRemove = entry.deepCardIDs;
-
-		if (idsToRemove.length > 0) {
-			dispatch({
-				type: REMOVE_CARDS,
-				cardIDs: idsToRemove
-			});
-		}
+		dispatch({
+			type: REMOVE_CARDS,
+			cardIDs: entry.deepCardIDs
+		});
 	}
-};
-
-/**
- * Thunk wrapper for cleanupDeepFetchCards, for use from other modules
- * (e.g. when navigating away from collection pages entirely).
- */
-export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, getState) => {
-	// Also clear any pending debounce timer
-	if (deepFetchTimer) {
-		clearTimeout(deepFetchTimer);
-		deepFetchTimer = null;
-	}
-	cleanupDeepFetchCards(dispatch, getState);
 };
 
 /**
  * Debounced deep fetch trigger. Handles rapid filter changes (e.g. during search typing).
+ * Debounces by collection key using per-key timer Map.
  */
-const debouncedDeepFetch = (
-	dispatch: (action: SomeAction | ThunkSomeAction) => void,
-	description: CollectionDescription
-) : void => {
-	if (deepFetchTimer) {
-		clearTimeout(deepFetchTimer);
+export const requestDeepFetch = (description: CollectionDescription) : ThunkSomeAction => (dispatch) => {
+	const key = description.serialize();
+	const existingTimer = deepFetchTimers.get(key);
+	if (existingTimer) {
+		clearTimeout(existingTimer);
 	}
 
-	deepFetchTimer = setTimeout(() => {
-		deepFetchTimer = null;
-		dispatch(deepFetchForActiveCollection(description));
+	const timer = setTimeout(() => {
+		deepFetchTimers.delete(key);
+		dispatch(deepFetchForCollection(description));
 	}, DEEP_FETCH_DEBOUNCE_MS);
+	deepFetchTimers.set(key, timer);
+};
+
+/**
+ * Cancel pending deep fetch for a key, invalidate in-flight fetches,
+ * clean up fetched cards, and remove the key from Redux state.
+ */
+export const cancelAndCleanupDeepFetch = (collectionKey: string) : ThunkSomeAction => (dispatch, getState) => {
+	// Cancel pending timer
+	const timer = deepFetchTimers.get(collectionKey);
+	if (timer) {
+		clearTimeout(timer);
+		deepFetchTimers.delete(collectionKey);
+	}
+
+	// Bump generation to invalidate in-flight fetches
+	const gen = deepFetchGenerations.get(collectionKey) || 0;
+	deepFetchGenerations.set(collectionKey, gen + 1);
+
+	// Remove fetched cards
+	cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);
+
+	// Remove key from Redux state
+	dispatch({
+		type: DEEP_FETCH_CLEAR_KEY,
+		collectionKey
+	});
 };
 
 /**
@@ -684,10 +723,11 @@ const debouncedDeepFetch = (
  * Fetches cold-tier cards from Firestore and merges them into the normal pipeline
  * via receiveCards().
  */
-const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): ThunkSomeAction =>
+const deepFetchForCollection = (fetchDescription: CollectionDescription): ThunkSomeAction =>
 	async (dispatch, getState) => {
-		const generation = ++deepFetchGeneration;
 		const collectionKey = fetchDescription.serialize();
+		const gen = (deepFetchGenerations.get(collectionKey) || 0) + 1;
+		deepFetchGenerations.set(collectionKey, gen);
 
 		// Classify with IDF context so query filters pick the rarest token
 		const state = getState();
@@ -724,19 +764,15 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 
 			const snapshot = await getDocs(q);
 
-			// Check for staleness: has the collection changed while we were fetching?
-			if (generation !== deepFetchGeneration) {
+			// Check for staleness: has this key's generation changed while we were fetching?
+			if (gen !== deepFetchGenerations.get(collectionKey)) {
 				return; // Discard stale results
 			}
 
-			const state = getState();
-			const currentDescription = selectActiveCollectionDescription(state);
-			if (currentDescription.serialize() !== collectionKey) {
-				return; // Collection changed, discard results
-			}
+			const currentState = getState();
 
 			// Filter out IDs already in hot tier to avoid overwriting live-updated cards
-			const existingCardIDs = new Set(Object.keys(state.data.cards));
+			const existingCardIDs = new Set(Object.keys(currentState.data.cards));
 			const newCards: Cards = {};
 			const newCardIDs: CardID[] = [];
 
@@ -749,7 +785,7 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 			});
 
 			// Check staleness again after processing
-			if (generation !== deepFetchGeneration) {
+			if (gen !== deepFetchGenerations.get(collectionKey)) {
 				return;
 			}
 
@@ -765,7 +801,7 @@ const deepFetchForActiveCollection = (fetchDescription: CollectionDescription): 
 			});
 		} catch (error) {
 			// Check staleness before dispatching error
-			if (generation !== deepFetchGeneration) {
+			if (gen !== deepFetchGenerations.get(collectionKey)) {
 				return;
 			}
 

@@ -114,6 +114,7 @@ export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WOR
 export const DEEP_FETCH_STARTED = 'DEEP_FETCH_STARTED';
 export const DEEP_FETCH_COMPLETE = 'DEEP_FETCH_COMPLETE';
 export const DEEP_FETCH_FAILED = 'DEEP_FETCH_FAILED';
+export const DEEP_FETCH_CLEAR_KEY = 'DEEP_FETCH_CLEAR_KEY';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -492,6 +493,11 @@ type ActionDeepFetchFailed = {
 	type: typeof DEEP_FETCH_FAILED,
 	collectionKey: string,
 	error: string
+};
+
+type ActionDeepFetchClearKey = {
+	type: typeof DEEP_FETCH_CLEAR_KEY,
+	collectionKey: string
 };
 
 type ActionCommentsUpdateThreads = {
@@ -1184,6 +1190,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionDeepFetchStarted
 	| ActionDeepFetchComplete
 	| ActionDeepFetchFailed
+	| ActionDeepFetchClearKey
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats
