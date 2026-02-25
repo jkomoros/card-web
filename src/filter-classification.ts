@@ -609,3 +609,9 @@ function parseDate(dateStr: string): Date | null {
 	}
 	return null;
 }
+
+export const TESTING = {
+	parseDate,
+	selectBestToken,
+	buildDateConstraints,
+};

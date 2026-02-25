@@ -4,6 +4,8 @@ import {
 	classifyCollectionDescription,
 	FilterComplexity,
 	buildQueryConstraints,
+	buildFirestoreConstraints,
+	TESTING,
 } from '../../lib/src/filter-classification.js';
 
 import assert from 'assert';
@@ -169,5 +171,176 @@ describe('filter classification', () => {
 		const classification = classifyCollectionDescription(desc('', ['published+unpublished']));
 		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
 		assert.strictEqual(classification.canGetServerCount, false);
+	});
+});
+
+describe('parseDate via TESTING', () => {
+	it('parses YYYY-MM-DD correctly', async () => {
+		const date = TESTING.parseDate('2024-01-15');
+		assert.ok(date);
+		assert.strictEqual(date.getFullYear(), 2024);
+		assert.strictEqual(date.getMonth(), 0); // January = 0
+		assert.strictEqual(date.getDate(), 15);
+	});
+
+	it('parses unpadded YYYY-M-D', async () => {
+		const date = TESTING.parseDate('2024-1-5');
+		assert.ok(date);
+		assert.strictEqual(date.getFullYear(), 2024);
+		assert.strictEqual(date.getMonth(), 0);
+		assert.strictEqual(date.getDate(), 5);
+	});
+
+	it('returns null for empty string', async () => {
+		assert.strictEqual(TESTING.parseDate(''), null);
+	});
+
+	it('returns null for no-dash format', async () => {
+		assert.strictEqual(TESTING.parseDate('20240115'), null);
+	});
+
+	it('returns null for incomplete date', async () => {
+		assert.strictEqual(TESTING.parseDate('2024-01'), null);
+	});
+
+	it('returns null for text input', async () => {
+		assert.strictEqual(TESTING.parseDate('not-a-date'), null);
+	});
+
+	it('returns null for ISO datetime format', async () => {
+		assert.strictEqual(TESTING.parseDate('2024-01-15T12:00:00Z'), null);
+	});
+});
+
+describe('selectBestToken via TESTING', () => {
+	it('with IDF: selects highest IDF (rarest) token', async () => {
+		const candidates = ['common', 'rare', 'medium'];
+		const unigrams = ['common', 'rare', 'medium'];
+		const idf = {
+			idf: { 'common': 1.0, 'rare': 5.0, 'medium': 3.0 },
+			maxIDF: 6.0
+		};
+		const result = TESTING.selectBestToken(candidates, unigrams, idf);
+		assert.strictEqual(result, 'rare');
+	});
+
+	it('unknown tokens get maxIDF so unknown words are preferred', async () => {
+		const candidates = ['known', 'unknown_word'];
+		const unigrams = ['known', 'unknown_word'];
+		const idf = {
+			idf: { 'known': 2.0 },
+			maxIDF: 10.0
+		};
+		const result = TESTING.selectBestToken(candidates, unigrams, idf);
+		assert.strictEqual(result, 'unknown_word');
+	});
+
+	it('without IDF: selects first non-stop-word unigram', async () => {
+		const candidates = ['the', 'cat', 'the cat'];
+		const unigrams = ['the', 'cat'];
+		const result = TESTING.selectBestToken(candidates, unigrams, null);
+		assert.strictEqual(result, 'cat');
+	});
+
+	it('all stop words: falls back to first candidate', async () => {
+		const candidates = ['the', 'a', 'the a'];
+		const unigrams = ['the', 'a'];
+		const result = TESTING.selectBestToken(candidates, unigrams, null);
+		assert.strictEqual(result, 'the');
+	});
+});
+
+describe('buildFirestoreConstraints direct', () => {
+	it('published filter produces 1 constraint', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['published']));
+		assert.strictEqual(constraints.length, 1);
+	});
+
+	it('section filter produces 1 constraint', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['section/test-section']));
+		assert.strictEqual(constraints.length, 1);
+	});
+
+	it('type filter produces 1 constraint', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['type-content']));
+		assert.strictEqual(constraints.length, 1);
+	});
+
+	it('throws on multiple array-contains (tag + query)', async () => {
+		assert.throws(
+			() => buildFirestoreConstraints(desc('main', ['tag/foo', 'query/bar'])),
+			/Multiple array-contains/
+		);
+	});
+
+	it('throws on unknown filter', async () => {
+		assert.throws(
+			() => buildFirestoreConstraints(desc('main', ['unknown-filter-xyz'])),
+			/Unknown filter/
+		);
+	});
+
+	it('throws on union filter', async () => {
+		assert.throws(
+			() => buildFirestoreConstraints(desc('main', ['published+unpublished'])),
+			/Union filters/
+		);
+	});
+
+	it('throws on reading-list set', async () => {
+		assert.throws(
+			() => buildFirestoreConstraints(desc('reading-list', [])),
+			/reading-list/
+		);
+	});
+});
+
+describe('date constraint integration via buildFirestoreConstraints', () => {
+	it('updated/before/date produces 1 constraint', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['updated/before/2024-01-15']));
+		assert.strictEqual(constraints.length, 1);
+	});
+
+	it('updated/after/date produces 1 constraint', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['updated/after/2024-01-15']));
+		assert.strictEqual(constraints.length, 1);
+	});
+
+	it('updated/between/date1/date2 produces 2 constraints', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['updated/between/2024-01-01/2024-12-31']));
+		assert.strictEqual(constraints.length, 2);
+	});
+
+	it('created/bare-date produces 2 constraints (start + end of day)', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['created/2024-06-15']));
+		assert.strictEqual(constraints.length, 2);
+	});
+
+	it('updated/last-7-days produces 1 constraint', async () => {
+		const constraints = buildFirestoreConstraints(desc('main', ['updated/last-7-days']));
+		assert.strictEqual(constraints.length, 1);
+	});
+});
+
+describe('date error cases via TESTING.buildDateConstraints', () => {
+	it('empty args throws missing arguments', async () => {
+		assert.throws(
+			() => TESTING.buildDateConstraints('updated', []),
+			/missing arguments/
+		);
+	});
+
+	it('before without date throws missing date', async () => {
+		assert.throws(
+			() => TESTING.buildDateConstraints('updated', ['before']),
+			/missing date/
+		);
+	});
+
+	it('between with only one date throws', async () => {
+		assert.throws(
+			() => TESTING.buildDateConstraints('updated', ['between', '2024-01-01']),
+			/requires two dates/
+		);
 	});
 });
