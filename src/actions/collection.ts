@@ -1,6 +1,10 @@
 //Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
 
 import {
+	FIRESTORE_MAXIMUM_LIMIT_CLAUSE
+} from '../constants.js';
+
+import {
 	scheduleAutoMarkRead
 } from './user.js';
 
@@ -617,7 +621,7 @@ let deepFetchGeneration = 0;
 let deepFetchTimer : ReturnType<typeof setTimeout> | null = null;
 
 const DEEP_FETCH_DEBOUNCE_MS = 300;
-const DEEP_FETCH_LIMIT = 5000;
+const DEEP_FETCH_LIMIT = FIRESTORE_MAXIMUM_LIMIT_CLAUSE;
 
 /**
  * Clean up deep-fetch cards from the previous collection.
