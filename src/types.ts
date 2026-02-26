@@ -730,6 +730,11 @@ export type AppState = {
 	suggestMissingConceptsEnabled: boolean,
 }
 
+export type DeepFetchEntry = {
+	status: 'loading' | 'complete' | 'error';
+	deepCardIDs: CardID[];
+	error?: string;
+}
 
 export type CollectionState = {
 	active : CollectionConfiguration,
@@ -765,12 +770,7 @@ export type CollectionState = {
 	//Deep fetch state for SIMPLE collections (progressive loading)
 	//Keyed by collection.serialize() to track deep fetch lifecycle
 	deepFetchState: {
-		[collectionKey: string]: {
-			status: 'loading' | 'complete' | 'error';
-			//IDs that came from deep fetch (for cleanup/tracking)
-			deepCardIDs: CardID[];
-			error?: string;
-		}
+		[collectionKey: string]: DeepFetchEntry
 	}
 }
 

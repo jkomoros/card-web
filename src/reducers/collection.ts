@@ -196,6 +196,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			}
 		};
 	case DEEP_FETCH_CLEAR_KEY: {
+		if (!(action.collectionKey in state.deepFetchState)) return state;
 		const {[action.collectionKey]: _, ...rest} = state.deepFetchState;
 		return {
 			...state,

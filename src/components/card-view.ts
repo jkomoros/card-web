@@ -183,6 +183,7 @@ import {
 	CardFieldMap,
 	CardID,
 	CardType,
+	DeepFetchEntry,
 	ProcessedCard,
 	SectionID,
 	State,
@@ -327,7 +328,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_collection: Collection | null;
 
 	@state()
-		_deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: CardID[]; error?: string} | null;
+		_deepFetchState: DeepFetchEntry | null;
 
 	@state()
 		_collectionIsFallback: boolean;

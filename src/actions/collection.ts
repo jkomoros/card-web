@@ -49,7 +49,9 @@ import {
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
 	selectExplicitlySelectedCardIDs,
-	selectServerIDF
+	selectServerIDF,
+	selectFindDialogOpen,
+	selectCollectionDescriptionForQuery
 } from '../selectors.js';
 
 import {
@@ -233,9 +235,14 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
 	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
 
-	// Clean up deep fetch for the old active collection key only
+	// Clean up deep fetch for the old active collection key, but only if
+	// the find dialog isn't also using it (they share the same Redux state).
 	const oldKey = activeCollectionDescription.serialize();
-	dispatch(cancelAndCleanupDeepFetch(oldKey));
+	const findOpen = selectFindDialogOpen(state);
+	const findKey = findOpen ? selectCollectionDescriptionForQuery(state)?.serialize() : null;
+	if (oldKey !== findKey) {
+		dispatch(cancelAndCleanupDeepFetch(oldKey));
+	}
 
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
@@ -253,10 +260,8 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 		}
 	});
 
-	// Trigger deep fetch for SIMPLE collections (with debounce)
-	if (newCollectionDescription.classification.canGetServerCount) {
-		dispatch(requestDeepFetch(newCollectionDescription));
-	}
+	// Trigger deep fetch (requestDeepFetch checks SIMPLE eligibility internally)
+	dispatch(requestDeepFetch(newCollectionDescription));
 };
 
 //commitPendingCollectionModifications should be dispatched when the list of
@@ -665,11 +670,20 @@ export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, 
 	const state = getState();
 	if (!state.collection) return;
 
-	for (const [, entry] of Object.entries(state.collection.deepFetchState)) {
-		if (!entry.deepCardIDs || entry.deepCardIDs.length === 0) continue;
+	for (const [key, entry] of Object.entries(state.collection.deepFetchState)) {
+		// Bump generation to invalidate in-flight fetches for this key
+		const gen = deepFetchGenerations.get(key) || 0;
+		deepFetchGenerations.set(key, gen + 1);
+
+		if (entry.deepCardIDs && entry.deepCardIDs.length > 0) {
+			dispatch({
+				type: REMOVE_CARDS,
+				cardIDs: entry.deepCardIDs
+			});
+		}
 		dispatch({
-			type: REMOVE_CARDS,
-			cardIDs: entry.deepCardIDs
+			type: DEEP_FETCH_CLEAR_KEY,
+			collectionKey: key
 		});
 	}
 };
@@ -677,8 +691,15 @@ export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, 
 /**
  * Debounced deep fetch trigger. Handles rapid filter changes (e.g. during search typing).
  * Debounces by collection key using per-key timer Map.
+ * Safe to call for any collection — returns early if not SIMPLE-eligible.
  */
-export const requestDeepFetch = (description: CollectionDescription) : ThunkSomeAction => (dispatch) => {
+export const requestDeepFetch = (description: CollectionDescription) : ThunkSomeAction => (dispatch, getState) => {
+	// Check eligibility here so callers don't need to duplicate this logic
+	const state = getState();
+	const serverIDF = selectServerIDF(state);
+	const classification = classifyCollectionDescription(description, serverIDF);
+	if (!classification.canGetServerCount) return;
+
 	const key = description.serialize();
 	const existingTimer = deepFetchTimers.get(key);
 	if (existingTimer) {
@@ -704,9 +725,9 @@ export const cancelAndCleanupDeepFetch = (collectionKey: string) : ThunkSomeActi
 		deepFetchTimers.delete(collectionKey);
 	}
 
-	// Bump generation to invalidate in-flight fetches
-	const gen = deepFetchGenerations.get(collectionKey) || 0;
-	deepFetchGenerations.set(collectionKey, gen + 1);
+	// Delete generation to invalidate in-flight fetches (they check
+	// gen !== deepFetchGenerations.get(key), which will be undefined)
+	deepFetchGenerations.delete(collectionKey);
 
 	// Remove fetched cards
 	cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);

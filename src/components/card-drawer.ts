@@ -25,7 +25,8 @@ import * as icons from '../../shared/icons.js';
 
 import {
 	CardID,
-	CardType
+	CardType,
+	DeepFetchEntry
 } from '../types.js';
 
 import {
@@ -68,7 +69,7 @@ class CardDrawer extends LitElement {
 		collection: Collection | null;
 
 	@property({ type : Object })
-		deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: CardID[]; error?: string} | null;
+		deepFetchState: DeepFetchEntry | null;
 
 	@property({ type : Number })
 		renderOffset: number;

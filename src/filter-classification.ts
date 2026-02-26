@@ -76,9 +76,17 @@ const SIMPLE_FILTERS = new Set([
 	// All type-X filters are SIMPLE
 ]);
 
+// CLIENT_ONLY filters are applied client-side but do NOT prevent a collection
+// from being classified as SIMPLE. The server query may be broader (returning
+// cards these filters would exclude), but the client pipeline still narrows
+// results. This allows deep fetch to work for collections that include these
+// filters alongside server-queryable ones.
+const CLIENT_ONLY_FILTERS = new Set([
+	'has-body',
+]);
+
 // COMPLEX filters require client-side processing
 const COMPLEX_FILTERS = new Set([
-	'has-body',
 	'children',
 	'parents',
 	'descendants',
@@ -222,6 +230,11 @@ export function classifyCollectionDescription(
 			continue;
 		}
 
+		// Skip client-only filters (applied client-side, don't block SIMPLE)
+		if (CLIENT_ONLY_FILTERS.has(filterType)) {
+			continue;
+		}
+
 		// Union filters
 		if (filter.includes(UNION_FILTER_DELIMITER)) {
 			const result = classifyUnionFilter(filter);
@@ -322,9 +335,9 @@ export function buildFirestoreConstraints(
 
 	// Add filter constraints
 	for (const filter of description.filters) {
-		// Skip meta filters
+		// Skip meta filters and client-only filters
 		const [filterType] = filter.split('/');
-		if (META_FILTERS.has(filterType)) {
+		if (META_FILTERS.has(filterType) || CLIENT_ONLY_FILTERS.has(filterType)) {
 			continue;
 		}
 
@@ -381,10 +394,6 @@ export function buildFirestoreConstraints(
 			case 'orphaned':
 				constraints.push(where('section', '==', ''));
 				break;
-			case 'has-body':
-				// Cards with body field - needs to check card_type in BODY_CARD_TYPES
-				// This is complex - throw for now
-				throw new Error('has-body filter requires client-side processing');
 			case QUERY_FILTER_NAME:
 			case 'query-strict':
 				if (args.length > 0) {

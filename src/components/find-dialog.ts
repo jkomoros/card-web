@@ -38,11 +38,6 @@ import {
 } from '../actions/data.js';
 
 import {
-	requestDeepFetch,
-	cancelAndCleanupDeepFetch
-} from '../actions/collection.js';
-
-import {
 	setCardToAddPermissionTo
 } from '../actions/permissions.js';
 
@@ -60,9 +55,7 @@ import {
 	selectFindSortByRecent,
 	selectFindRenderOffset,
 	selectFindDialogOpen,
-	selectDeepFetchStateForKey,
-	selectActiveCollectionDescription,
-	selectServerIDF
+	selectDeepFetchStateForKey
 } from '../selectors.js';
 
 import { 
@@ -94,9 +87,9 @@ import {
 } from '../util.js';
 
 import {
-	CardID,
 	CardType,
 	CreateCardOpts,
+	DeepFetchEntry,
 	ReferenceType,
 	State
 } from '../types.js';
@@ -104,10 +97,6 @@ import {
 import {
 	Collection, CollectionDescription
 } from '../collection_description.js';
-
-import {
-	classifyCollectionDescription,
-} from '../filter-classification.js';
 
 import {
 	ThumbnailTappedEvent,
@@ -157,10 +146,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		_cardTypeFilterLocked: boolean;
 
 	@state()
-		_deepFetchState: {status: 'loading' | 'complete' | 'error'; deepCardIDs: CardID[]; error?: string} | null;
-
-	// Track previous collection key for deep fetch lifecycle
-	private _previousCollectionKey : string | null = null;
+		_deepFetchState: DeepFetchEntry | null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -241,17 +227,6 @@ class FindDialog extends connect(store)(DialogElement) {
 	override _shouldClose(cancelled  = false) {
 		if (cancelled && this._linking) {
 			store.dispatch(cancelLink());
-		}
-		// Clean up deep fetch for the find dialog's collection key,
-		// but only if the main active collection doesn't share the same key.
-		if (this._previousCollectionKey) {
-			const state = store.getState() as State;
-			const activeDescription = selectActiveCollectionDescription(state);
-			const activeKey = activeDescription ? activeDescription.serialize() : '';
-			if (activeKey !== this._previousCollectionKey) {
-				store.dispatch(cancelAndCleanupDeepFetch(this._previousCollectionKey));
-			}
-			this._previousCollectionKey = null;
 		}
 		//Override base class.
 		store.dispatch(closeFindDialog());
@@ -412,28 +387,10 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
 		this._sortByRecent = selectFindSortByRecent(state);
 
-		// Deep fetch lifecycle for find dialog
-		const newKey = this._collectionDescription ? this._collectionDescription.serialize() : null;
-		if (newKey !== this._previousCollectionKey) {
-			// Clean up old key if it changed
-			if (this._previousCollectionKey) {
-				const activeDescription = selectActiveCollectionDescription(state);
-				const activeKey = activeDescription ? activeDescription.serialize() : '';
-				if (activeKey !== this._previousCollectionKey) {
-					store.dispatch(cancelAndCleanupDeepFetch(this._previousCollectionKey));
-				}
-			}
-			this._previousCollectionKey = newKey;
-			// Trigger deep fetch for the new description if it's SIMPLE-eligible
-			if (this._collectionDescription) {
-				const serverIDF = selectServerIDF(state);
-				const classification = classifyCollectionDescription(this._collectionDescription, serverIDF);
-				if (classification.canGetServerCount) {
-					store.dispatch(requestDeepFetch(this._collectionDescription));
-				}
-			}
-		}
-		this._deepFetchState = newKey ? selectDeepFetchStateForKey(state, newKey) : null;
+		// Deep fetch state is read here; lifecycle (trigger/cancel) is managed
+		// in the action layer (actions/find.ts) to avoid dispatching from stateChanged.
+		const collectionKey = this._collectionDescription ? this._collectionDescription.serialize() : null;
+		this._deepFetchState = collectionKey ? selectDeepFetchStateForKey(state, collectionKey) : null;
 	}
 
 }

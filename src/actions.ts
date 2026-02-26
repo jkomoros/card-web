@@ -101,6 +101,8 @@ export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
 export const BULK_IMPORT_SET_OVERRIDE_CARD_ORDER = 'BULK_IMPORT_SET_OVERRIDE_CARD_ORDER';
 //Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
+// Internal: must only be dispatched via the updateCollection thunk in
+// actions/collection.ts, which handles deep fetch cleanup for the old key.
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';

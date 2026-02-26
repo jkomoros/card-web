@@ -1875,8 +1875,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectFindGeneric,
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
-		const hasQueryText = !!wordsAndFilters[0];
-		const baseFilters : string[] = hasQueryText ? [] : ['has-body'];
+		const baseFilters = ['has-body'];
 		let sort : SortName = 'default';
 		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);

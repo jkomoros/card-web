@@ -159,10 +159,16 @@ describe('filter classification', () => {
 		assert.strictEqual(classification.canGetServerCount, false);
 	});
 
-	it('classifies has-body as COMPLEX', async () => {
+	it('classifies has-body as SIMPLE (client-only filter)', async () => {
 		const classification = classifyCollectionDescription(desc('', ['has-body']));
-		assert.strictEqual(classification.complexity, FilterComplexity.COMPLEX);
-		assert.strictEqual(classification.canGetServerCount, false);
+		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
+		assert.strictEqual(classification.canGetServerCount, true);
+	});
+
+	it('classifies has-body + query as SIMPLE', async () => {
+		const classification = classifyCollectionDescription(desc('', ['has-body', 'query/test']));
+		assert.strictEqual(classification.complexity, FilterComplexity.SIMPLE);
+		assert.strictEqual(classification.canGetServerCount, true);
 	});
 
 	it('classifies union filter as COMPLEX', async () => {
