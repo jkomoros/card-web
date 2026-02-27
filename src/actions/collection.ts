@@ -725,9 +725,12 @@ export const cancelAndCleanupDeepFetch = (collectionKey: string) : ThunkSomeActi
 		deepFetchTimers.delete(collectionKey);
 	}
 
-	// Delete generation to invalidate in-flight fetches (they check
-	// gen !== deepFetchGenerations.get(key), which will be undefined)
-	deepFetchGenerations.delete(collectionKey);
+	// Bump generation to invalidate in-flight fetches (they check
+	// gen !== deepFetchGenerations.get(key), and the bumped value won't match).
+	// We must increment rather than delete: deleting resets to 0 on next use,
+	// which can collide with a stale in-flight fetch that also started at gen 1.
+	const gen = deepFetchGenerations.get(collectionKey) || 0;
+	deepFetchGenerations.set(collectionKey, gen + 1);
 
 	// Remove fetched cards
 	cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);
@@ -758,6 +761,10 @@ const deepFetchForCollection = (fetchDescription: CollectionDescription): ThunkS
 		if (!classification.canGetServerCount) {
 			return;
 		}
+
+		// Clean up previously tracked cards for this key before starting a new
+		// fetch, so they aren't orphaned when DEEP_FETCH_STARTED resets deepCardIDs.
+		cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);
 
 		dispatch({
 			type: DEEP_FETCH_STARTED,

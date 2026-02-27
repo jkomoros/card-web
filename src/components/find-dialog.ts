@@ -55,7 +55,7 @@ import {
 	selectFindSortByRecent,
 	selectFindRenderOffset,
 	selectFindDialogOpen,
-	selectDeepFetchStateForKey
+	getDeepFetchStateForKey
 } from '../selectors.js';
 
 import { 
@@ -390,7 +390,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		// Deep fetch state is read here; lifecycle (trigger/cancel) is managed
 		// in the action layer (actions/find.ts) to avoid dispatching from stateChanged.
 		const collectionKey = this._collectionDescription ? this._collectionDescription.serialize() : null;
-		this._deepFetchState = collectionKey ? selectDeepFetchStateForKey(state, collectionKey) : null;
+		this._deepFetchState = collectionKey ? getDeepFetchStateForKey(state, collectionKey) : null;
 	}
 
 }

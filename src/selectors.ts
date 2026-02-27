@@ -1688,7 +1688,7 @@ export const selectActiveDeepFetchState = createSelector(
 	}
 );
 
-export const selectDeepFetchStateForKey = (state : State, collectionKey : string) => {
+export const getDeepFetchStateForKey = (state : State, collectionKey : string) => {
 	if (!state.collection) return null;
 	return state.collection.deepFetchState[collectionKey] || null;
 };

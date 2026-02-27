@@ -81,6 +81,11 @@ const SIMPLE_FILTERS = new Set([
 // cards these filters would exclude), but the client pipeline still narrows
 // results. This allows deep fetch to work for collections that include these
 // filters alongside server-queryable ones.
+//
+// IMPORTANT: Only add NARROWING filters here — filters that exclude a small
+// fraction of the server results. Broadening or negation filters (e.g., a
+// hypothetical "missing-body") would waste the Firestore limit on irrelevant
+// cards, producing seriously incomplete results.
 const CLIENT_ONLY_FILTERS = new Set([
 	'has-body',
 ]);

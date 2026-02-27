@@ -53,6 +53,12 @@ const refreshFindDeepFetch = (dispatch: (action: ThunkSomeAction | SomeAction) =
 	const state = getState();
 	if (!selectFindDialogOpen(state)) return;
 
+	// Self-healing: if findDialogDeepFetchKey points to a key that was cleaned
+	// externally (e.g., cleanupDeepFetchCardsIfNeeded on page navigation), reset it.
+	if (findDialogDeepFetchKey && !state.collection?.deepFetchState[findDialogDeepFetchKey]) {
+		findDialogDeepFetchKey = null;
+	}
+
 	const description = selectCollectionDescriptionForQuery(state);
 	const newKey = description ? description.serialize() : null;
 
