@@ -34,6 +34,7 @@ import {
 	getIdForCard,
 	getCard,
 	selectDataIsFullyLoaded,
+	selectUserMayViewUnpublished,
 	selectActiveCollectionCards,
 	selectActiveCardID,
 	selectActiveSectionId,
@@ -700,6 +701,13 @@ export const requestDeepFetch = (description: CollectionDescription) : ThunkSome
 	const classification = classifyCollectionDescription(description, serverIDF);
 	if (!classification.canGetServerCount) return;
 
+	// For users without viewUnpublished, all published cards are already loaded
+	// by the unlimited connectLivePublishedCards snapshot listener. Deep fetch
+	// would only re-read the same documents. Skip once initial data has loaded.
+	if (!selectUserMayViewUnpublished(state) && selectDataIsFullyLoaded(state)) {
+		return;
+	}
+
 	const key = description.serialize();
 	const existingTimer = deepFetchTimers.get(key);
 	if (existingTimer) {
@@ -780,7 +788,15 @@ const deepFetchForCollection = (fetchDescription: CollectionDescription): ThunkS
 			const hasPublishedFilter = fetchDescription.filters.some(
 				f => f === PUBLISHED_FILTER_NAME || f === UNPUBLISHED_FILTER_NAME
 			);
-			const publishedConstraints = hasPublishedFilter ? [] : [where('published', '==', true)];
+			// - Explicit published/unpublished filter: no extra constraint (already handled)
+			// - User may view unpublished: no constraint — returns both published & unpublished,
+			//   which is the whole point of deep fetch for privileged users (surfacing cold-tier
+			//   unpublished cards).
+			// - No viewUnpublished: constrain to published only (satisfies Firestore security rules)
+			const userMayViewUnpublished = selectUserMayViewUnpublished(state);
+			const publishedConstraints = (hasPublishedFilter || userMayViewUnpublished)
+				? []
+				: [where('published', '==', true)];
 
 			const q = query(
 				collection(db, CARDS_COLLECTION),
