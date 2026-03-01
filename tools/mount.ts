@@ -458,7 +458,12 @@ const computeBidirectionalDiff = (
 		const localHash = computeContentHash(localContent);
 
 		const localChanged = localHash !== savedState.hash;
-		const remoteChanged = formatTimestamp(card.updated) !== savedState.remoteUpdated;
+		const currentRemoteTimestamp = formatTimestamp(card.updated);
+		//Check if the remote timestamp has changed. Use startsWith for
+		//backwards compatibility: old sync state files stored date-only
+		//"YYYY-MM-DD" which is a prefix of the full ISO timestamp now used.
+		const remoteChanged = currentRemoteTimestamp !== savedState.remoteUpdated
+			&& !(savedState.remoteUpdated && currentRemoteTimestamp.startsWith(savedState.remoteUpdated));
 
 		if (!localChanged && !remoteChanged) {
 			result.unchanged.push(card.id);
@@ -660,13 +665,14 @@ const pushCardToFirestore = async (
 		cardUpdate.updated_substantive = FirebaseFirestore.FieldValue.serverTimestamp();
 	}
 
-	//Build admin SDK sentinel config for resolving FieldValue sentinels
-	const deleteFieldJSON = JSON.stringify(deleteFieldSentinel);
-	const serverTimestampJSON = JSON.stringify(FirebaseFirestore.FieldValue.serverTimestamp());
+	//Build admin SDK sentinel config for resolving FieldValue sentinels.
+	//We use FieldValue.isEqual() rather than JSON.stringify because the
+	//admin SDK serializes both delete() and serverTimestamp() to "{}".
+	const serverTimestampSentinel = FirebaseFirestore.FieldValue.serverTimestamp();
 	const adminSentinels: SentinelConfig = {
 		deleteField: () => deleteFieldSentinel,
-		isDeleteSentinel: (val) => typeof val === 'object' && JSON.stringify(val) === deleteFieldJSON,
-		isServerTimestampSentinel: (val) => typeof val === 'object' && JSON.stringify(val) === serverTimestampJSON,
+		isDeleteSentinel: (val) => val instanceof FirebaseFirestore.FieldValue && val.isEqual(deleteFieldSentinel),
+		isServerTimestampSentinel: (val) => val instanceof FirebaseFirestore.FieldValue && val.isEqual(serverTimestampSentinel),
 		currentTimestamp: () => FirebaseFirestore.Timestamp.now(),
 	};
 
@@ -927,7 +933,7 @@ const markdownToHTML = (markdown: string): string => {
 		return inlineConverted;
 	});
 
-	let result = converted.join('');
+	let result = converted.join('\n');
 
 	//Step 3: Normalize HTML tags
 	result = result.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
