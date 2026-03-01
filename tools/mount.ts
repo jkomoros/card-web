@@ -651,7 +651,24 @@ const pushCardToFirestore = async (
 		cardUpdate.updated_substantive = FirebaseFirestore.FieldValue.serverTimestamp();
 	}
 
-	//Write card document update
+	//Compute inbound reference updates and validate BEFORE adding anything
+	//to the batch. If we added card ops first and then failed here, the
+	//batch would commit partial operations (card updated but inbound links
+	//not), creating the inconsistency described in issue #726.
+	const updatedCard = applyCardFirebaseUpdate(remoteCard, cardUpdate);
+	const inboundUpdates = inboundLinksUpdates(cardId as CardID, remoteCard, updatedCard, deleteFieldSentinel);
+	for (const [otherCardId] of Object.entries(inboundUpdates)) {
+		if (!allCards.has(otherCardId)) {
+			//Card not in our collection — verify it exists in Firestore
+			const otherRef = db.collection(CARDS_COLLECTION).doc(otherCardId);
+			const otherDoc = await otherRef.get();
+			if (!otherDoc.exists) {
+				return { success: false, description: `References non-existent card: ${otherCardId}` };
+			}
+		}
+	}
+
+	//All validation passed — now add everything to the batch atomically
 	const cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
 	batch.update(cardRef, cardUpdate);
 
@@ -664,18 +681,9 @@ const pushCardToFirestore = async (
 		timestamp: FirebaseFirestore.FieldValue.serverTimestamp(),
 	});
 
-	//Compute and apply inbound reference updates
-	const updatedCard = applyCardFirebaseUpdate(remoteCard, cardUpdate);
-	const inboundUpdates = inboundLinksUpdates(cardId as CardID, remoteCard, updatedCard, deleteFieldSentinel);
+	//Apply inbound reference updates (already validated above)
 	for (const [otherCardId, otherCardUpdate] of Object.entries(inboundUpdates)) {
 		const otherRef = db.collection(CARDS_COLLECTION).doc(otherCardId);
-		if (!allCards.has(otherCardId)) {
-			//Card not in our collection — verify it exists in Firestore before updating
-			const otherDoc = await otherRef.get();
-			if (!otherDoc.exists) {
-				return { success: false, description: `References non-existent card: ${otherCardId}` };
-			}
-		}
 		batch.update(otherRef, otherCardUpdate);
 	}
 
