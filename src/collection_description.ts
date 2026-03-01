@@ -1,22 +1,25 @@
 import {
 	INVERSE_FILTER_NAMES,
 	SORTS,
-	SORT_URL_KEYWORD,
-	SORT_REVERSED_URL_KEYWORD,
-	SET_NAMES,
 	UNION_FILTER_DELIMITER,
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
-	VIEW_MODE_URL_KEYWORD,
-	LEGAL_VIEW_MODES,
 	makeConfigurableFilter,
 	queryFilter,
 	queryTextFromQueryFilter,
 	SET_INFOS,
 	SELECTED_FILTER_NAME,
 } from './filters.js';
+
+import {
+	extractFilterNamesSortAndView,
+	SORT_URL_KEYWORD,
+	SORT_REVERSED_URL_KEYWORD,
+	VIEW_MODE_URL_KEYWORD,
+	SET_NAMES,
+} from '../shared/collection_description_base.js';
 
 import {
 	TypedObject
@@ -30,7 +33,6 @@ import {
 	ConfigurableFilterName,
 	UnionFilterName,
 	CollectionConfiguration,
-	viewMode as viewModeSchema
 } from '../shared/types.js';
 
 import {
@@ -65,95 +67,6 @@ import {
 } from './memoize.js';
 
 import { references } from './references.js';
-
-const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortName, boolean, ViewMode, string] => {
-	//returns the filter names, the sort name, and whether the sort is reversed
-	//parts is all of the unconsumed portions of the path that aren't the set
-	//name or the card name.
-	if (!parts.length) return [[], 'default', false, 'list', ''];
-	const filters : FilterName[] = [];
-	let sortName : SortName = 'default';
-	let sortReversed = false;
-	let viewMode : ViewMode = 'list';
-	let viewModeExtra = '';
-	let nextPartIsSort = false;
-	let nextPartIsView = false;
-	let nextPartIsViewExtra = false;
-	//The actual multi-part filter we're accumulating
-	let multiPartFilter : string[] = [];
-	//How many more ports we need until multiPartFilter is done.
-	let expectedRemainingMultiParts = 0;
-	for (let i = 0; i < parts.length; i++) {
-		const part = parts[i];
-		if (part == '') continue;
-		if (part == SORT_URL_KEYWORD) {
-			nextPartIsSort = true;
-			//handle the case where there was already one sort, and only listen
-			//to the last reversed.
-			sortReversed = false;
-			continue;
-		}
-		if (nextPartIsSort) {
-			if (part == SORT_REVERSED_URL_KEYWORD) {
-				sortReversed = true;
-				//Note that we requested a reverse, and then expect the  next
-				//part to be the sort name
-				continue;
-			}
-			//We don't know what sort names are valid, so we'll just assume it's fine.
-			sortName = part as SortName;
-			nextPartIsSort = false;
-			continue;
-		}
-		if (part == VIEW_MODE_URL_KEYWORD) {
-			nextPartIsView = true;
-			nextPartIsViewExtra = false;
-			continue;
-		}
-		if (nextPartIsView) {
-			viewMode = viewModeSchema.parse(part);
-			nextPartIsView = false;
-			//LEGA_VIEW_MODES is a map of view mode to whether or not it expects
-			//an extra. Note that we have no way of signaling an error, so we
-			//just assume the viewMode is legal.
-			if (LEGAL_VIEW_MODES[viewMode]) nextPartIsViewExtra = true;
-			continue;
-		}
-		if (nextPartIsViewExtra) {
-			viewModeExtra = part;
-			nextPartIsViewExtra = false;
-			continue;
-		}
-		if (CONFIGURABLE_FILTER_URL_PARTS[part]) {
-			//It's the beginning of a collection.
-			//No matter what we add this on.
-			multiPartFilter.push(part);
-			//First, if we're already in a multi-count section, keep track that
-			//we got another piece, which might have satisfied all of it
-			if (expectedRemainingMultiParts) {
-				expectedRemainingMultiParts--;
-			}
-			//Now keep track of how many more pieces the new thing needs to eat
-			expectedRemainingMultiParts += CONFIGURABLE_FILTER_URL_PARTS[part];
-			continue;
-		}
-		if (expectedRemainingMultiParts) {
-			multiPartFilter.push(part);
-			expectedRemainingMultiParts--;
-			if (expectedRemainingMultiParts == 0) {
-				//Only add multi-part filters that started with one of the valid
-				//start filter names. We process up until this point, so even if
-				//the URL started in the middle of a multi-part parsing, we
-				//still consume it.
-				if (CONFIGURABLE_FILTER_NAMES[multiPartFilter[0]]) filters.push(multiPartFilter.join('/'));
-				multiPartFilter = [];
-			}
-			continue;
-		}
-		filters.push(part);
-	}
-	return [filters, sortName, sortReversed, viewMode, viewModeExtra];
-};
 
 export const queryTextFromCollectionDescription = (description : CollectionDescription) : string => {
 	if (!description) return '';
@@ -533,7 +446,7 @@ export class CollectionDescription {
 		//Get last part, which is the card selector (and might be "").
 		const extra = parts.pop() || '';
 
-		const [filters, sortName, sortReversed, viewMode, viewModeExtra] = extractFilterNamesSortAndView(parts);
+		const [filters, sortName, sortReversed, viewMode, viewModeExtra] = extractFilterNamesSortAndView(parts, CONFIGURABLE_FILTER_URL_PARTS, CONFIGURABLE_FILTER_NAMES);
 
 		return [new CollectionDescription(setName,filters,sortName,sortReversed, viewMode, viewModeExtra), extra];
 	}
