@@ -2,13 +2,17 @@ import {
 	PermissionInfoCollection
 } from './types.js';
 
+import {
+	PERMISSION_EDIT_CARD
+} from '../shared/card_write.js';
+
 //Note: when adding one to this, also update UserPermissions type.
 export const PERMISSION_ADMIN = 'admin';
 export const PERMISSION_VIEW_APP = 'viewApp';
 export const PERMISSION_EDIT = 'edit';
 export const PERMISSION_EDIT_SECTION = 'editSection';
 export const PERMISSION_EDIT_TAG = 'editTag';
-export const PERMISSION_EDIT_CARD = 'editCard';
+export { PERMISSION_EDIT_CARD };
 export const PERMISSION_CREATE_CARD = 'createCard';
 export const PERMISSION_VIEW_UNPUBLISHED = 'viewUnpublished';
 export const PERMISSION_COMMENT = 'comment';
