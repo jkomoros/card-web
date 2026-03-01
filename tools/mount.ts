@@ -891,9 +891,9 @@ const parseMarkdownFile = (content: string): ParsedMarkdownFile => {
 
 	//Extract title from # heading
 	const titleMatch = remaining.match(/^#\s+(.+)\n?/m);
-	if (titleMatch) {
+	if (titleMatch && titleMatch.index !== undefined) {
 		result.title = titleMatch[1].trim();
-		remaining = remaining.slice(remaining.indexOf(titleMatch[0]) + titleMatch[0].length);
+		remaining = remaining.slice(titleMatch.index + titleMatch[0].length);
 	}
 
 	//Strip leading/trailing whitespace
@@ -933,10 +933,13 @@ const markdownToHTML = (markdown: string): string => {
 	});
 	let result = converted.join('');
 
-	// Step 3: Post-snarkdown unescape
+	// Step 3: Post-snarkdown unescape (skip <code> blocks)
 	// MUST be after snarkdown: snarkdown detects \* as escaped (skips
-	// formatting) but leaves backslash in output. We clean it up here.
-	result = result.replace(/\\([\\*_`~\[\]#>+\-.=])/g, '$1');
+	// formatting) but leaves backslash in output. We clean it up here,
+	// but only outside <code> elements to avoid corrupting code content.
+	result = result.replace(/<code>[\s\S]*?<\/code>|\\([\\*_`~\[\]#>+\-.=])/g,
+		(match, escaped) => escaped !== undefined ? escaped : match
+	);
 
 	// Step 4: Convert <a href> to canonical <card-link> (shared)
 	result = replaceAnchorsWithCardLinks(result);
@@ -967,26 +970,29 @@ const createTurndownService = (): TurndownService => {
 		filter: (node) => {
 			return node.nodeName === 'CARD-LINK';
 		},
-		replacement: (_content, node) => {
+		replacement: (content, node) => {
 			const el = node as HTMLElement;
 			const cardId = el.getAttribute('card') || '';
 			const href = el.getAttribute('href') || '';
 			const text = el.textContent || '';
 
 			if (href) {
-				//External link
-				return `[${text}](${href})`;
+				//External link — escape parens in URL to avoid breaking markdown
+				const safeHref = href.replace(/\(/g, '%28').replace(/\)/g, '%29');
+				return `[${text}](${safeHref})`;
 			}
 
 			if (cardId) {
 				//Internal card link - use card ID directly for round-trip fidelity
+				//Use content (turndown-processed markdown) to preserve inner formatting
+				const displayText = content || text;
 				if (text === cardId || text === '') {
 					return `[[${cardId}]]`;
 				}
-				return `[[${cardId}|${text}]]`;
+				return `[[${cardId}|${displayText}]]`;
 			}
 
-			return text;
+			return content || text;
 		}
 	});
 
@@ -1413,6 +1419,15 @@ const main = async () => {
 					if (!result.noop) {
 						pushSuccess++;
 						successfulEdits.push(edit);
+					} else {
+						//Update sync hash so reformatted-but-identical cards
+						//aren't re-evaluated on every sync cycle.
+						const filePath = path.join(mountPoint, CARDS_DIR, edit.cardId + '.md');
+						const onDiskContent = fs.readFileSync(filePath, 'utf-8');
+						cardsSyncState[edit.cardId] = {
+							hash: computeContentHash(onDiskContent),
+							remoteUpdated: cardsSyncState[edit.cardId]?.remoteUpdated || formatTimestamp(edit.remoteCard.updated),
+						};
 					}
 				} else {
 					console.error(`  FAILED: ${edit.cardId} — ${result.description}`);

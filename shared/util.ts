@@ -89,7 +89,7 @@ export const normalizeLineBreaks = (html : string, legalTopLevelNodes : Record<s
 export const normalizeBodyHTMLString = (html: string): string => {
 	if (!html) return html;
 	// Strip <br> tags entirely (canonical format never has them)
-	html = html.split('<br>').join('');
+	html = html.replace(/<br\s*\/?>/g, '');
 	// Normalize bold/italic to semantic tags
 	html = html.split('<b>').join('<strong>');
 	html = html.split('</b>').join('</strong>');
