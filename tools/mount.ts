@@ -299,19 +299,15 @@ const fetchSlugIndex = async (db: FirebaseFirestore.Firestore): Promise<SlugInde
 };
 
 const fetchTagIndex = async (db: FirebaseFirestore.Firestore): Promise<TagIndex> => {
-	//Tags are stored as cards with card_type 'section-head' in the tags subcollection,
-	//but tag references in card.tags are card IDs. We need to resolve tag card IDs
-	//to their slugs for directory names.
-	//
-	//Tag cards have a title that is the tag display name, and a name/slug.
+	//Tag document IDs in Firestore are the URL-safe slugs (e.g. "bits-and-bobs").
+	//These same IDs appear in card.tags arrays. The document may have a "title"
+	//field with a display name (e.g. "Bits and Bobs") but for URL matching and
+	//directory names we use the document ID directly.
 	const snapshot = await db.collection(TAGS_COLLECTION).get();
 	const index: TagIndex = new Map();
 	for (const doc of snapshot.docs) {
-		const data = doc.data();
-		//The tag document ID is also the tag card ID
-		//The title or name of the tag card serves as the display name
-		const slug = data.name || data.title || doc.id;
-		index.set(doc.id, slug);
+		//Use the document ID as the slug — it's what appears in URLs and card.tags
+		index.set(doc.id, doc.id);
 	}
 	return index;
 };
