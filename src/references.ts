@@ -60,10 +60,7 @@ class ReferencesAccessorFull extends ReferencesAccessorBase {
 
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
-	mayNotRemoveCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType) : string {
-		if (!getCardExists(state, cardID)) {
-			return 'The other card is not known to exist, which means we wouldn\'t be able to update its inboundLinks.';
-		}
+	mayNotRemoveCardReferenceReason(_state : State, cardID : CardID, referenceType : ReferenceType) : string {
 		if (!this._referencesInfo[cardID]) {
 			return 'No references exist to that card';
 		}
@@ -83,16 +80,30 @@ class ReferencesAccessorFull extends ReferencesAccessorBase {
 			return 'The card references itself which is not allowed';
 		}
 
-		if (!getCardExists(state, cardID)) {
-			return 'No such card known to exist on the client';
-		}
-
-		const toCardType = getCardType(state, cardID);
 		const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 
 		if (!referenceTypeConfig) {
 			return 'Illegal referenceType: ' + referenceType;
 		}
+
+		//fromCardTypeAllowList only depends on the source card's type, which
+		//is always available locally, so check it before the getCardExists
+		//guard.
+		if (referenceTypeConfig.fromCardTypeAllowList) {
+			if ((this._cardObj as Card).card_type && !referenceTypeConfig.fromCardTypeAllowList[(this._cardObj as Card).card_type]) {
+				return 'That reference type may not originate from cards of type ' + (this._cardObj as Card).card_type;
+			}
+		}
+
+		if (!getCardExists(state, cardID)) {
+			//The card isn't loaded on the client, so we can't run
+			//target-card-type validations. The batch.update() will fail
+			//server-side if the card doesn't actually exist in Firestore.
+			console.warn('Skipping type-based reference validation for unloaded card ' + cardID);
+			return '';
+		}
+
+		const toCardType = getCardType(state, cardID);
 
 		const baseType = referenceTypeConfig.subTypeOf || referenceType;
 
@@ -109,12 +120,6 @@ class ReferencesAccessorFull extends ReferencesAccessorBase {
 		if (referenceTypeConfig.toCardTypeAllowList) {
 			if (!referenceTypeConfig.toCardTypeAllowList[toCardType]) {
 				return 'That reference type may not point to cards of type ' + toCardType;
-			}
-		}
-
-		if (referenceTypeConfig.fromCardTypeAllowList) {
-			if ((this._cardObj as Card).card_type && !referenceTypeConfig.fromCardTypeAllowList[(this._cardObj as Card).card_type]) {
-				return 'That reference type may not originate from cards of type ' + (this._cardObj as Card).card_type;
 			}
 		}
 

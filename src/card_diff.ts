@@ -597,6 +597,6 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 };
 
 //inboundLinksUpdates wraps the shared version with the client SDK's deleteField sentinel.
-export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike) : {[id : CardID] : DottedCardUpdate } => {
+export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike | null) : {[id : CardID] : DottedCardUpdate } => {
 	return sharedInboundLinksUpdates(cardID, beforeCard, afterCard, deleteField());
 };

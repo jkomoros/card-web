@@ -173,7 +173,6 @@ import {
 	Sections,
 	AuthorsMap,
 	Tags,
-	CardBooleanMap,
 	CreateCardOpts,
 	TweetMap,
 	CardFetchType,
@@ -430,14 +429,8 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	cardUpdateObject.updated = serverTimestamp();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
 
-	const existingCards = selectCards(state);
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
-	for (const otherCardID of Object.keys(inboundUpdates)) {
-		//We need to throw BEFORE adding any updates to batch, so check now for
-		//any references to cards we can't see now.
-		if (!existingCards[otherCardID]) throw new Error(otherCardID + 'is in the reference update but does not already exist');
-	}
 
 	const cardRef = doc(db, CARDS_COLLECTION, card.id);
 
@@ -1156,41 +1149,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	references(newCard).setCardReferencesOfType('fork-of', [cardToFork.id]);
 	references(newCard).setCardReference(cardToFork.id, 'mined-from');
 
-	let inboundUpdates = inboundLinksUpdates(id, null, newCard);
-	const existingCards = selectCards(state);
-	const illegalOtherCards : CardBooleanMap = {};
-	//We need to check for illegal other cards BEFORE adding any updates to
-	//batch, so check now for any references to cards we can't see now.
-	for (const otherCardID of Object.keys(inboundUpdates)) {
-		if (!existingCards[otherCardID]) illegalOtherCards[otherCardID] = true;
-	}
-
-	if (Object.keys(illegalOtherCards).length) {
-
-		//We can forcibly remove most references to illegal cards in the next
-		//step, but not link references (which are fully implied by links in
-		//body), so verify none of the illegal card IDs are from links.
-		const linkReferences = references(newCard).byType.link || {};
-		for (const otherCardID of Object.keys(illegalOtherCards)) {
-			if (linkReferences[otherCardID]) {
-				alert('The card you are trying to fork links to a card that you do not have access to: ' + otherCardID + '. To fork the card, remove that link and try again.');
-				return;
-			}
-		}
-
-		const message = 'The card you are forking contains references to cards (' + Object.keys(illegalOtherCards).join(', ') + ') that you don\'t have access to. Hit OK to continue forking the card, but elide those illegal references, or cancel to cancel the fork.';
-		if (!confirm(message)) {
-			console.log('User aborted fork due to illegal other cards');
-			return;
-		}
-		for (const otherCardID of Object.keys(illegalOtherCards)) {
-			references(newCard).removeAllReferencesForCard(otherCardID);
-		}
-
-		//Regenerate, now that we've removed the illegal ones.
-		inboundUpdates = inboundLinksUpdates(id, null, newCard);
-
-	}
+	const inboundUpdates = inboundLinksUpdates(id, null, newCard);
 
 	const illegalTags : {[tag : TagID] : true} = {};
 	for (const tag of cardToFork.tags) {
@@ -1302,7 +1261,17 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		batch.delete(update.ref);
 	}
 	batch.delete(ref);
-	batch.commit();
+
+	//Clean up inbound reference entries on other cards that this card pointed to.
+	//Passing null as afterCard makes referencesCardsDiff treat all outbound
+	//references as deletions, generating deleteField() updates.
+	const inboundUpdates = inboundLinksUpdates(card.id, card, null);
+	for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+		const otherRef = doc(db, CARDS_COLLECTION, otherCardID);
+		batch.update(otherRef, otherCardUpdate);
+	}
+
+	await batch.commit();
 
 	//Tell the system to expect those cards to be deleted.
 	dispatch({

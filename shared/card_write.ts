@@ -842,7 +842,7 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff, deleteFiel
 // inboundLinksUpdates computes Firestore updates needed on other cards'
 // inbound references when a card's outbound references change.
 // deleteFieldSentinel should be the SDK-appropriate delete sentinel value.
-export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike, deleteFieldSentinel : unknown) : {[id : CardID] : DottedCardUpdate } => {
+export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike | null, deleteFieldSentinel : unknown) : {[id : CardID] : DottedCardUpdate } => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
