@@ -10,6 +10,14 @@ import { getStorage } from 'firebase-admin/storage';
 
 import snarkdown from 'snarkdown';
 import TurndownService from 'turndown';
+import { JSDOM } from 'jsdom';
+
+import { overrideDocument } from '../shared/document.js';
+
+import {
+	normalizeBodyHTMLString,
+	replaceAnchorsWithCardLinks,
+} from '../shared/util.js';
 
 import {
 	deserializeCollectionURL
@@ -47,6 +55,10 @@ import {
 	devProdConfig,
 } from './util.js';
 
+//--- JSDOM setup for shared utilities ---
+const dom = new JSDOM('');
+overrideDocument(dom.window.document);
+
 //--- Types ---
 
 interface CardSyncState {
@@ -79,6 +91,8 @@ const IMAGES_DIR = 'images';
 const TAGS_DIR = 'tags';
 const PRIORITIZED_DIR = 'prioritized';
 const UNPRIORITIZED_DIR = 'unprioritized';
+
+const BLOCK_TAG_REGEX = /^<(p|ul|ol|h[1-4]|blockquote)[\s>]/;
 
 //Filters we know how to convert to Firestore constraints
 const KNOWN_FILTERS: Record<string, boolean> = {
@@ -900,8 +914,7 @@ const parseMarkdownFile = (content: string): ParsedMarkdownFile => {
 const markdownToHTML = (markdown: string): string => {
 	if (!markdown) return '';
 
-	//Step 1: Replace wiki-links with <card-link> elements
-	//Match [[cardID|text]] or [[cardID]]
+	// Step 1: Wiki-link replacement (pass through snarkdown as inline HTML)
 	let html = markdown.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g,
 		(_match, cardId, text) => `<card-link card="${cardId}">${text}</card-link>`
 	);
@@ -909,37 +922,27 @@ const markdownToHTML = (markdown: string): string => {
 		(_match, cardId) => `<card-link card="${cardId}">${cardId}</card-link>`
 	);
 
-	//Step 1b: Unescape TurndownService backslash escapes that snarkdown doesn't handle
-	html = html.replace(/\\([\\*_`~\[\]#>+\-.=])/g, '$1');
-
-	//Step 2: Split on double-newlines into paragraphs, convert each with snarkdown
+	// Step 2: Paragraph split + snarkdown
 	const paragraphs = html.split(/\n\n+/).filter(p => p.trim());
 	const converted = paragraphs.map(p => {
-		//If already looks like a block element, leave it
-		if (p.startsWith('<')) {
-			const trimmed = p.trim();
-			if (trimmed.startsWith('<p>') || trimmed.startsWith('<ul>') ||
-				trimmed.startsWith('<ol>') || trimmed.startsWith('<blockquote>') ||
-				trimmed.startsWith('<h')) {
-				return trimmed;
-			}
-		}
-		//Convert inline markdown using snarkdown
-		const inlineConverted = snarkdown(p);
-		//Wrap in <p> if not already wrapped
-		if (!inlineConverted.startsWith('<p>')) {
-			return `<p>${inlineConverted}</p>`;
-		}
-		return inlineConverted;
+		const trimmed = p.trim();
+		if (BLOCK_TAG_REGEX.test(trimmed)) return trimmed;
+		const result = snarkdown(trimmed);
+		if (BLOCK_TAG_REGEX.test(result)) return result;
+		return `<p>${result}</p>`;
 	});
+	let result = converted.join('');
 
-	let result = converted.join('\n');
+	// Step 3: Post-snarkdown unescape
+	// MUST be after snarkdown: snarkdown detects \* as escaped (skips
+	// formatting) but leaves backslash in output. We clean it up here.
+	result = result.replace(/\\([\\*_`~\[\]#>+\-.=])/g, '$1');
 
-	//Step 3: Normalize HTML tags
-	result = result.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
-	result = result.replace(/<i>/g, '<em>').replace(/<\/i>/g, '</em>');
-	result = result.replace(/<br\s*\/?>/g, '<br>');
-	result = result.replace(/<hr\s*\/?>/g, '<hr>');
+	// Step 4: Convert <a href> to canonical <card-link> (shared)
+	result = replaceAnchorsWithCardLinks(result);
+
+	// Step 5: Canonical normalization (shared)
+	result = normalizeBodyHTMLString(result);
 
 	return result;
 };

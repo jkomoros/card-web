@@ -52,7 +52,7 @@ import {
 } from './card_fields.js';
 
 // Import from src/contenteditable.ts
-const DEFAULT_LEGAL_TOP_LEVEL_NODES = {
+const DEFAULT_LEGAL_TOP_LEVEL_NODES : Record<string, true | undefined> = {
 	'p': true,
 	'ol': true,
 	'ul': true,
@@ -64,7 +64,7 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES = {
 };
 
 // Import from src/contenteditable.ts
-export const normalizeLineBreaks = (html : string, legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+export const normalizeLineBreaks = (html : string, legalTopLevelNodes : Record<string, true | undefined> = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.
 	html = html.split('\n').join('');
@@ -80,6 +80,40 @@ export const normalizeLineBreaks = (html : string, legalTopLevelNodes = DEFAULT_
 	html = html.split('<li>').join('\t<li>');
 	html = html.split('</li>').join('</li>\n');
 	return html;
+};
+
+/** String-based canonical normalization for card body HTML.
+ * Mirrors the non-DOM transforms from normalizeBodyHTML in
+ * src/contenteditable.ts. Both the web app and mount tool call this.
+ */
+export const normalizeBodyHTMLString = (html: string): string => {
+	if (!html) return html;
+	// Strip <br> tags entirely (canonical format never has them)
+	html = html.split('<br>').join('');
+	// Normalize bold/italic to semantic tags
+	html = html.split('<b>').join('<strong>');
+	html = html.split('</b>').join('</strong>');
+	html = html.split('<i>').join('<em>');
+	html = html.split('</i>').join('</em>');
+	// Canonical line-break formatting
+	html = normalizeLineBreaks(html);
+	// Replace non-breaking spaces
+	html = html.split('&nbsp;').join(' ');
+	return html;
+};
+
+/** Convert <a href="..."> to canonical <card-link> format.
+ * External URLs get href attr, card IDs get card attr.
+ */
+export const replaceAnchorsWithCardLinks = (html: string): string => {
+	return html.replace(/<a\s+href="([^"]*)">([\s\S]*?)<\/a>/g,
+		(_match, href, text) => {
+			if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('/')) {
+				return `<card-link href="${href}">${text}</card-link>`;
+			}
+			return `<card-link card="${href}">${text}</card-link>`;
+		}
+	);
 };
 
 /**

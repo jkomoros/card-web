@@ -17,6 +17,11 @@ import {
 	TypedObject
 } from '../shared/typed_object.js';
 
+import {
+	normalizeLineBreaks,
+	normalizeBodyHTMLString,
+} from '../shared/util.js';
+
 import dompurify from 'dompurify';
 
 //We don't just use Node.ELEMENT_NODE and friends because this also runs in the
@@ -294,61 +299,18 @@ const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DE
 
 };
 
-//Also recreated in functions/src/embeddings.ts
-export const normalizeLineBreaks = (html : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
-
-	if (!html) return html;
-	//Remove all line breaks. We'll put them back in.
-	html = html.split('\n').join('');
-
-	//Add in line breaks
-	for (const key of Object.keys(legalTopLevelNodes)) {
-		const closeTag = '</' + key + '>';
-		html = html.split(closeTag).join(closeTag + '\n');
-	}
-
-	html = html.split('<ul>').join('<ul>\n');
-	html = html.split('<ol>').join('<ol>\n');
-	html = html.split('<li>').join('\t<li>');
-	html = html.split('</li>').join('</li>\n');
-	return html;
-};
-
 export const normalizeBodyHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	if (!html) return html;
 
-	//normalizeBodyHTML makes sure that the html is well formatted. It first
-	//does basic string processing to clean it up, and then does node
-	//modification. Thus, it assumes the HTML is always valid. This is true if
-	//the html is coming directly from a contentEditable, or if it's the final
-	//stage before commit.
+	// String-based normalization (shared with tools/mount.ts)
+	html = normalizeBodyHTMLString(html);
 
-	//normalizeBodyHTML should do processing on the HTML (that comes potentially
-	//from contentEditable) to represent it in a sane, simple way that should
-	//ideally not change the display of the content, just structure the markup
-	//differently.
-
-	//Ensure that after every block element we have a new line. Don't worry
-	//about putting in extra; we'll remove them in the next step.
-
-	//Do all gross tag replacements
-
-	//If you have a link at the end and hit enter, it puts in a <br> in a <p>.
-	html = html.split('<br>').join('');
-	html = html.split('<b>').join('<strong>');
-	html = html.split('</b>').join('</strong>');
-	html = html.split('<i>').join('<em>');
-	html = html.split('</i>').join('</em>');
-
+	// DOM-based cleanup (contentEditable artifacts: zombie spans, style attrs, text hoisting)
 	html = cleanUpTopLevelHTML(html, legalTopLevelNodes);
 
+	// Re-apply line breaks after DOM cleanup may have altered structure
 	html = normalizeLineBreaks(html, legalTopLevelNodes);
-
-	html = html.split('&nbsp;').join(' ');
-
-	//Remove any extra linke breaks (which we might have added)
-	//html = removeDoubleLineBreaks(html);
 
 	return normalizeBodyFromContentEditable(html);
 
