@@ -1,8 +1,5 @@
 
 import {
-	applyCardFlags,
-	arrayRemoveUtil,
-	arrayUnionUtil,
 	diffCardFlags,
 	extractCardLinksFromBody,
 	reasonCardTypeNotLegalForCard,
@@ -32,13 +29,6 @@ import {
 } from './card_methods.js';
 
 import {
-	REFERENCES_INFO_CARD_PROPERTY,
-	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY
-} from '../shared/card_fields.js';
-
-import {
 	normalizeBodyHTML
 } from './contenteditable.js';
 
@@ -48,9 +38,7 @@ import {
 
 import {
 	references,
-	applyReferencesDiff,
 	referencesEntriesDiff,
-	referencesCardsDiff,
 	isExpandedReferenceDelete
 } from './references.js';
 
@@ -75,6 +63,21 @@ import {
 	deleteField
 } from 'firebase/firestore';
 
+// Re-export pure functions from shared for backwards compatibility
+export {
+	cardDiffHasChanges,
+	cardDiffDescription,
+} from '../shared/card_write.js';
+
+import {
+	applyCardDiff as sharedApplyCardDiff,
+	applyCardFirebaseUpdate as sharedApplyCardFirebaseUpdate,
+	cardFromDiff as sharedCardFromDiff,
+	inboundLinksUpdates as sharedInboundLinksUpdates,
+	type SentinelConfig,
+	type DottedCardUpdate,
+} from '../shared/card_write.js';
+
 import {
 	State,
 	Card,
@@ -83,8 +86,6 @@ import {
 	CardUpdate,
 	OptionalFieldsCard,
 	CardLike,
-	DottedCardUpdate,
-	FirestoreLeafValue,
 	autoTODOTypeArray,
 	cardFieldTypeEditableSchema,
 	ReferencesEntriesDiff,
@@ -462,15 +463,7 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 	return update;
 };
 
-export const cardDiffHasChanges = (diff : CardDiff) : boolean => {
-	if (!diff) return false;
-	return Object.keys(diff).length > 0;
-};
-
-export const cardDiffDescription = (diff : CardDiff) : string => {
-	if (!cardDiffHasChanges(diff)) return '';
-	return JSON.stringify(diff, null, 2);
-};
+// cardDiffHasChanges and cardDiffDescription are re-exported from shared above
 
 //Returns a diff that includes only fields that were modified between original
 //and snapshot and then shadowed by changes between snapshot and current.
@@ -507,160 +500,27 @@ export const generateFinalCardDiff = async (state : State, underlyingCard : Card
 	return update;
 };
 
-//applyCardFirebaseUpdate takes a firebaseUpdate (like the one returned from
-//applyCardDiff) and applies it to baseCard to generate a new cloned card
-//update. FirebaseUpdates are like normal objects, but might have dotted-string
-//keys (representing deeper layers in the object) and deleteSentinels. This
-//method only clones as deeply down into the objects as it needs to. If
-//replaceTimestampSentinels is true, then every time it sees a
-//serverTimestampSentinel in the firebaseUpdate, it will instead put in a
-//currentTimestamp()>
-export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUpdate, replaceTimestampSentinels  = false) : Card => {
-	//TODO: test this.
-
-	//This clone is only one layer deep!
-	const result = {...baseCard};
-	for (const [key, value] of Object.entries(firebaseUpdate)) {
-		setFirebaseValueOnObj(result, key.split('.'), value, replaceTimestampSentinels);
-	}
-	return result;
+// Client SDK sentinel config for the shared functions
+const clientSentinels : SentinelConfig = {
+	deleteField: () => deleteField(),
+	isDeleteSentinel,
+	isServerTimestampSentinel,
+	currentTimestamp,
 };
 
-//Similar to util.ts:setValueOnObj
-const setFirebaseValueOnObj = (obj : {[field : string]: unknown}, fieldParts : string[], value : FirestoreLeafValue, replaceTimestampSentinels  = false) => {
-	//Obj is an object it's OK to modify, but no other subobjects are.
-
-	const firstFieldPart = fieldParts[0];
-	//Modifies obj in place.
-	if (fieldParts.length == 1) {
-		//Base case, operate in place.
-		if (isDeleteSentinel(value)) {
-			delete obj[firstFieldPart];
-			return;
-		}
-		if (isServerTimestampSentinel(value)) {
-			obj[firstFieldPart] = currentTimestamp();
-			return;
-		}
-		obj[firstFieldPart] = value;
-		return;
-	} 
-	//If descending into sub-oject, create a copy for that field before descending!
-	//And create a new sub object if necessary
-	const newObj = obj[firstFieldPart] && typeof obj[firstFieldPart] == 'object' ? {...(obj[firstFieldPart] as object)} : {};
-	obj[firstFieldPart] = newObj;
-	setFirebaseValueOnObj(newObj, fieldParts.slice(1), value, replaceTimestampSentinels);
+//applyCardFirebaseUpdate takes a firebaseUpdate and applies it to baseCard.
+export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUpdate) : Card => {
+	return sharedApplyCardFirebaseUpdate(baseCard, firebaseUpdate, clientSentinels);
 };
 
-//Returns the result of applying diffT to underlyingCard. This is a bit fincky
-//to know how to do so just wrap it in a convenience wrapper.
+//Returns the result of applying diff to underlyingCard.
 export const cardFromDiff = (underlyingCard : Card, diff : CardDiff) : Card => {
-	return applyCardFirebaseUpdate(underlyingCard, applyCardDiff(underlyingCard, diff));
+	return sharedCardFromDiff(underlyingCard, diff, deleteField(), clientSentinels);
 };
 
-//applyCardDiff returns a cardFirebaseUpdate object with only the fields that
-//change in diff set. This function does not do any validation that these
-//changes are legal. You can apply this change ot an underlying card with
-//applyCardFirebaseUpdate. cardFromDiff also does the kind of finagaly logic itself.
+//applyCardDiff wraps the shared version with the client SDK's deleteField sentinel.
 export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpdate => {
-
-	const cardUpdateObject : CardUpdate = {};
-
-	for (const field of cardFieldTypeEditableSchema.options) {
-		if (diff[field] === undefined) continue;
-		cardUpdateObject[field] = diff[field];
-	}
-
-	if (diff.references_diff !== undefined) {
-		const cardCopy = {...underlyingCard};
-		const refs = references(cardCopy);
-		refs.applyEntriesDiff(diff.references_diff);
-		//NOTE: this is where the raw references property values are also updated
-		applyReferencesDiff(underlyingCard, cardCopy, cardUpdateObject);
-	}
-
-	if (diff.notes !== undefined) {
-		cardUpdateObject.notes = diff.notes;
-	}
-
-	if (diff.todo !== undefined) {
-		cardUpdateObject.todo = diff.todo;
-	}
-
-	if (diff.published !== undefined) {
-		cardUpdateObject.published = diff.published;
-	}
-
-	if (diff.font_size_boost !== undefined) {
-		cardUpdateObject.font_size_boost = diff.font_size_boost;
-	}
-
-	if (diff.images !== undefined) {
-		cardUpdateObject.images = diff.images;
-	}
-
-	//It's never legal to not have a name, so only update if it's not falsey.
-	if (diff.name) {
-		//TODO: really we should verify that this name is legal--that is, either the id or one of the slugs.
-		cardUpdateObject.name = diff.name;
-	}
-
-	if (diff.sort_order !== undefined) {
-		cardUpdateObject.sort_order = diff.sort_order;
-	}
-
-	if (diff.section !== undefined) {
-		cardUpdateObject.section = diff.section;
-	}
-
-	if (diff.card_type !== undefined) {
-		cardUpdateObject.card_type = diff.card_type;
-	}
-
-	if (diff.full_bleed !== undefined) {
-		cardUpdateObject.full_bleed = diff.full_bleed;
-	}
-
-	if (diff.set_flags || diff.remove_flags) {
-		cardUpdateObject.flags = applyCardFlags(underlyingCard.flags ,diff.set_flags, diff.remove_flags);
-	}
-
-	if (diff.add_tags || diff.remove_tags) {
-		let tags = underlyingCard.tags;
-		if (diff.remove_tags) {
-			tags = arrayRemoveUtil(tags, diff.remove_tags);
-		}
-		if (diff.add_tags) {
-			tags = arrayUnionUtil(tags, diff.add_tags);
-		}
-		cardUpdateObject.tags = tags;
-	}
-
-	if (diff.add_editors || diff.remove_editors) {
-		let editors = underlyingCard.permissions[PERMISSION_EDIT_CARD] || [];
-		if (diff.remove_editors) editors = arrayRemoveUtil(editors, diff.remove_editors);
-		if (diff.add_editors) {
-			editors = arrayUnionUtil(editors, diff.add_editors);
-		}
-		cardUpdateObject['permissions.' + PERMISSION_EDIT_CARD] = editors;
-	}
-
-	if (diff.add_collaborators || diff.remove_collaborators) {
-		let collaborators = underlyingCard.collaborators;
-		if (diff.remove_collaborators) collaborators = arrayRemoveUtil(collaborators, diff.remove_collaborators);
-		if (diff.add_collaborators) collaborators = arrayUnionUtil(collaborators, diff.add_collaborators);
-		cardUpdateObject.collaborators = collaborators;
-	}
-
-	if (diff.auto_todo_overrides_enablements || diff.auto_todo_overrides_disablements || diff.auto_todo_overrides_removals) {
-		const overrides = {...underlyingCard.auto_todo_overrides || {}};
-		if (diff.auto_todo_overrides_enablements) diff.auto_todo_overrides_enablements.forEach(key => overrides[key] = true);
-		if (diff.auto_todo_overrides_disablements) diff.auto_todo_overrides_disablements.forEach(key => overrides[key] = false);
-		if (diff.auto_todo_overrides_removals) diff.auto_todo_overrides_removals.forEach(key => delete overrides[key]);
-		cardUpdateObject.auto_todo_overrides = overrides;
-	}
-
-	return cardUpdateObject;
+	return sharedApplyCardDiff(underlyingCard, diff, deleteField());
 };
 
 
@@ -736,42 +596,7 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 	return false;
 };
 
-//Returns an object of cardID -> firebaseUpdate to make to bring the
-//inboundLinks to parity based on the change in beforeCard to afterCard.
+//inboundLinksUpdates wraps the shared version with the client SDK's deleteField sentinel.
 export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike) : {[id : CardID] : DottedCardUpdate } => {
-
-	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
-
-	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return {};
-
-	const updatesToApply : {[id : CardID] : DottedCardUpdate } = {};
-
-	if (Object.keys(changes).length) {
-		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY] || {};
-		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY] || {};
-		for (const otherCardID of Object.keys(changes)) {
-			const update = {
-				//I have confirmed that multiple sets like this (to an object)
-				//int he same transaction won't stomp on each others edits but
-				//will accumulate.
-				[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
-				[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
-			};
-			updatesToApply[otherCardID] = update;
-		}
-	}
-
-	//These deletions are only if the _entire_ block of references for that
-	//cardID is gone; if only some of the keys are gone, that counts as a
-	//modification and is properly handled above, and also means we can safely
-	//remove the boolean value too.
-	for (const otherCardID of Object.keys(deletions)) {
-		const update = {
-			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteField(),
-			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteField(),
-		};
-		updatesToApply[otherCardID] = update;
-	}
-
-	return updatesToApply;
+	return sharedInboundLinksUpdates(cardID, beforeCard, afterCard, deleteField());
 };

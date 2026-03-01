@@ -623,6 +623,10 @@ gulp.task('reset-dev',
 	)
 );
 
+gulp.task('mount', makeExecutor('npx tsx tools/mount.ts'));
+
+gulp.task('mount-dry-run', makeExecutor('npx tsx tools/mount.ts --dry-run'));
+
 import realFavicon from 'gulp-real-favicon';
 
 // File where the favicon markups are stored

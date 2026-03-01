@@ -54,12 +54,19 @@ import {
 
 import {
 	SetName,
-	ViewMode,
 	FilterName,
 	ConcreteFilterName,
 	UnionFilterName,
 	ConfigurableFilterName
 } from '../shared/types.js';
+
+export {
+	SORT_URL_KEYWORD,
+	SORT_REVERSED_URL_KEYWORD,
+	VIEW_MODE_URL_KEYWORD,
+	SET_NAMES,
+	LEGAL_VIEW_MODES,
+} from '../shared/collection_description_base.js';
 
 import {
 	SortConfigurationMap,
@@ -186,23 +193,8 @@ export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, desc
 //the filters
 export const UNION_FILTER_DELIMITER = '+';
 
-export const SET_NAMES = TypedObject.keys(SET_INFOS);
-
-//The word in the URL That means "the part after this is a sort".
-export const SORT_URL_KEYWORD = 'sort';
-export const SORT_REVERSED_URL_KEYWORD = 'reverse';
-
-export const VIEW_MODE_URL_KEYWORD = 'view';
-
 export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
-
-//Legal view modes, including whether an option is expected or not.
-export const LEGAL_VIEW_MODES : {[mode in ViewMode]: boolean} = {
-	//Note: collection_description logic assumes that default_view_mode takes not extra option.
-	'list': false,
-	'web': true,
-};
 
 export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
 
