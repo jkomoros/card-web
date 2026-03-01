@@ -34,6 +34,7 @@ import {
 	applyCardFirebaseUpdate,
 	inboundLinksUpdates,
 	CardUpdate,
+	SentinelConfig,
 } from '../shared/card_write.js';
 
 import {
@@ -350,7 +351,7 @@ const scanLocalCards = (mountPoint: string): Map<string, string> => {
 
 const formatTimestamp = (ts: { toDate(): Date } | null | undefined): string => {
 	if (!ts || !ts.toDate) return '';
-	return ts.toDate().toISOString().split('T')[0];
+	return ts.toDate().toISOString();
 };
 
 const computeDiff = (
@@ -585,14 +586,22 @@ const buildCardDiffFromLocal = (
 };
 
 //Validate that all card-link references in HTML point to existing cards
-const validateCardLinks = (html: string, existingCardIds: Set<string>): string[] => {
+const validateCardLinks = async (
+	html: string,
+	existingCardIds: Set<string>,
+	db: FirebaseFirestore.Firestore,
+): Promise<string[]> => {
 	const errors: string[] = [];
 	const linkRegex = /<card-link\s+card="([^"]+)">/g;
 	let match;
 	while ((match = linkRegex.exec(html)) !== null) {
 		const cardId = match[1];
 		if (!existingCardIds.has(cardId)) {
-			errors.push(`References non-existent card: ${cardId}`);
+			//Check Firestore for out-of-collection cards
+			const doc = await db.collection(CARDS_COLLECTION).doc(cardId).get();
+			if (!doc.exists) {
+				errors.push(`References non-existent card: ${cardId}`);
+			}
 		}
 	}
 	return errors;
@@ -607,7 +616,7 @@ const pushCardToFirestore = async (
 	allCards: Map<string, Card>,
 	batch: MultiBatchBase<FirebaseFirestore.WriteBatch, FirebaseFirestore.DocumentReference>,
 	dryRun: boolean,
-): Promise<{ success: boolean; description: string }> => {
+): Promise<{ success: boolean; description: string; noop?: boolean }> => {
 	const { cardId, localContent, remoteCard } = edit;
 
 	//Parse local markdown
@@ -617,15 +626,15 @@ const pushCardToFirestore = async (
 	const diff = buildCardDiffFromLocal(parsed, remoteCard, tagIndex);
 
 	if (Object.keys(diff).length === 0) {
-		return { success: true, description: 'No changes detected' };
+		return { success: true, description: 'No changes detected', noop: true };
 	}
 
 	//Validate card links in body and commentary
 	const newBody = diff.body || remoteCard.body;
 	const newCommentary = diff.commentary || remoteCard.commentary || '';
 	const linkErrors = [
-		...validateCardLinks(newBody, existingCardIds),
-		...validateCardLinks(newCommentary, existingCardIds),
+		...(await validateCardLinks(newBody, existingCardIds, db)),
+		...(await validateCardLinks(newCommentary, existingCardIds, db)),
 	];
 	if (linkErrors.length > 0) {
 		return { success: false, description: `Invalid card links: ${linkErrors.join(', ')}` };
@@ -651,11 +660,21 @@ const pushCardToFirestore = async (
 		cardUpdate.updated_substantive = FirebaseFirestore.FieldValue.serverTimestamp();
 	}
 
+	//Build admin SDK sentinel config for resolving FieldValue sentinels
+	const deleteFieldJSON = JSON.stringify(deleteFieldSentinel);
+	const serverTimestampJSON = JSON.stringify(FirebaseFirestore.FieldValue.serverTimestamp());
+	const adminSentinels: SentinelConfig = {
+		deleteField: () => deleteFieldSentinel,
+		isDeleteSentinel: (val) => typeof val === 'object' && JSON.stringify(val) === deleteFieldJSON,
+		isServerTimestampSentinel: (val) => typeof val === 'object' && JSON.stringify(val) === serverTimestampJSON,
+		currentTimestamp: () => FirebaseFirestore.Timestamp.now(),
+	};
+
 	//Compute inbound reference updates and validate BEFORE adding anything
 	//to the batch. If we added card ops first and then failed here, the
 	//batch would commit partial operations (card updated but inbound links
 	//not), creating the inconsistency described in issue #726.
-	const updatedCard = applyCardFirebaseUpdate(remoteCard, cardUpdate);
+	const updatedCard = applyCardFirebaseUpdate(remoteCard, cardUpdate, adminSentinels);
 	const inboundUpdates = inboundLinksUpdates(cardId as CardID, remoteCard, updatedCard, deleteFieldSentinel);
 	for (const [otherCardId] of Object.entries(inboundUpdates)) {
 		if (!allCards.has(otherCardId)) {
@@ -884,6 +903,9 @@ const markdownToHTML = (markdown: string): string => {
 		(_match, cardId) => `<card-link card="${cardId}">${cardId}</card-link>`
 	);
 
+	//Step 1b: Unescape TurndownService backslash escapes that snarkdown doesn't handle
+	html = html.replace(/\\([\\*_`~\[\]#>+\-.=])/g, '$1');
+
 	//Step 2: Split on double-newlines into paragraphs, convert each with snarkdown
 	const paragraphs = html.split(/\n\n+/).filter(p => p.trim());
 	const converted = paragraphs.map(p => {
@@ -905,11 +927,13 @@ const markdownToHTML = (markdown: string): string => {
 		return inlineConverted;
 	});
 
-	let result = converted.join('\n');
+	let result = converted.join('');
 
 	//Step 3: Normalize HTML tags
 	result = result.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
 	result = result.replace(/<i>/g, '<em>').replace(/<\/i>/g, '</em>');
+	result = result.replace(/<br\s*\/?>/g, '<br>');
+	result = result.replace(/<hr\s*\/?>/g, '<hr>');
 
 	return result;
 };
@@ -926,6 +950,7 @@ const createTurndownService = (): TurndownService => {
 	const td = new TurndownService({
 		headingStyle: 'atx',
 		codeBlockStyle: 'fenced',
+		emDelimiter: '*',
 	});
 
 	//Custom rule for <card-link> elements
@@ -1376,8 +1401,10 @@ const main = async () => {
 				);
 				if (result.success) {
 					console.log(`  Pushed: ${edit.cardId} — ${result.description}`);
-					pushSuccess++;
-					successfulEdits.push(edit);
+					if (!result.noop) {
+						pushSuccess++;
+						successfulEdits.push(edit);
+					}
 				} else {
 					console.error(`  FAILED: ${edit.cardId} — ${result.description}`);
 					pushFailed++;
@@ -1392,15 +1419,20 @@ const main = async () => {
 
 					//Re-fetch pushed cards to get actual server timestamps
 					for (const edit of successfulEdits) {
-						const freshDoc = await db.collection(CARDS_COLLECTION).doc(edit.cardId).get();
-						const freshData = freshDoc.data();
-						//Hash from disk to account for OS line-ending normalization
-						const filePath = path.join(mountPoint, CARDS_DIR, edit.cardId + '.md');
-						const onDiskContent = fs.readFileSync(filePath, 'utf-8');
-						cardsSyncState[edit.cardId] = {
-							hash: computeContentHash(onDiskContent),
-							remoteUpdated: freshData?.updated ? formatTimestamp(freshData.updated as FirebaseFirestore.Timestamp) : '',
-						};
+						try {
+							const freshDoc = await db.collection(CARDS_COLLECTION).doc(edit.cardId).get();
+							const freshData = freshDoc.data();
+							//Hash from disk to account for OS line-ending normalization
+							const filePath = path.join(mountPoint, CARDS_DIR, edit.cardId + '.md');
+							const onDiskContent = fs.readFileSync(filePath, 'utf-8');
+							cardsSyncState[edit.cardId] = {
+								hash: computeContentHash(onDiskContent),
+								remoteUpdated: freshData?.updated ? formatTimestamp(freshData.updated as FirebaseFirestore.Timestamp) : '',
+							};
+						} catch (refetchErr) {
+							console.warn(`  Warning: Could not re-fetch ${edit.cardId}: ${refetchErr}`);
+							//Leave sync state unset — card will be re-examined next sync
+						}
 					}
 				} catch (err) {
 					console.error(`  Batch commit failed: ${err}`);
