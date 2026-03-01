@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as process from 'process';
@@ -7,6 +8,7 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
+import snarkdown from 'snarkdown';
 import TurndownService from 'turndown';
 
 import {
@@ -15,12 +17,29 @@ import {
 
 import {
 	CARDS_COLLECTION,
-	TAGS_COLLECTION
+	TAGS_COLLECTION,
+	CARD_UPDATES_COLLECTION,
+	TAG_UPDATES_COLLECTION,
 } from '../shared/collection-constants.js';
 
 import {
-	ImageInfo
+	ImageInfo,
+	Card,
+	CardDiff,
+	CardID,
 } from '../shared/types.js';
+
+import {
+	applyCardDiff,
+	applyCardFirebaseUpdate,
+	inboundLinksUpdates,
+	CardUpdate,
+} from '../shared/card_write.js';
+
+import {
+	MultiBatchBase,
+	MultiBatchConfig,
+} from '../shared/multi_batch.js';
 
 import {
 	selectedProjectID,
@@ -29,38 +48,25 @@ import {
 
 //--- Types ---
 
+interface CardSyncState {
+	hash: string;
+	remoteUpdated: string;
+}
+
 interface SyncConfig {
 	collectionUrl: string;
 	projectId: string;
-}
-
-interface CardData {
-	id: string;
-	slug: string;
-	title: string;
-	body: string;
-	commentary: string;
-	card_type: string;
-	tags: string[];
-	published: boolean;
-	created: FirebaseFirestore.Timestamp;
-	updated: FirebaseFirestore.Timestamp;
-	images: ImageInfo[];
-	auto_todo_overrides: Record<string, boolean | undefined>;
-	name: string;
-	slugs: string[];
+	cards?: Record<string, CardSyncState>;
 }
 
 interface DiffResult {
-	newCards: CardData[];
-	updatedCards: CardData[];
+	newCards: Card[];
+	updatedCards: Card[];
 	unchangedCount: number;
 	removedIds: string[];
 	imagesToFetch: number;
 }
 
-//Map of card ID -> slug (or name, or id as fallback)
-type SlugIndex = Map<string, string>;
 //Map of tag card ID -> tag slug/name for directory names
 type TagIndex = Map<string, string>;
 
@@ -79,6 +85,12 @@ const KNOWN_FILTERS: Record<string, boolean> = {
 	'unpublished': true,
 };
 
+//--- Hash Utilities ---
+
+const computeContentHash = (content: string): string => {
+	return crypto.createHash('sha256').update(content).digest('hex').slice(0, 16);
+};
+
 //--- CLI Argument Parsing ---
 
 interface CLIArgs {
@@ -87,6 +99,7 @@ interface CLIArgs {
 	dryRun: boolean;
 	force: boolean;
 	dev: boolean;
+	push: boolean;
 }
 
 const parseArgs = (): CLIArgs => {
@@ -97,6 +110,7 @@ const parseArgs = (): CLIArgs => {
 		dryRun: false,
 		force: false,
 		dev: false,
+		push: false,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -109,6 +123,8 @@ const parseArgs = (): CLIArgs => {
 			result.force = true;
 		} else if (arg === '--dev') {
 			result.dev = true;
+		} else if (arg === '--push') {
+			result.push = true;
 		} else if (!arg.startsWith('-') && !result.mountPoint) {
 			result.mountPoint = arg;
 		}
@@ -123,6 +139,7 @@ Arguments:
 Options:
   --collection <url>       CollectionDescription URL (required on first sync)
                            e.g. "unpublished/bits-and-bobs"
+  --push                   Enable two-way sync (push local edits to Firestore)
   --dry-run                Show what would change without writing
   --force                  Skip confirmation prompt, execute immediately
   --dev                    Use dev Firestore (default: based on \`firebase use\`)`);
@@ -225,7 +242,7 @@ const fetchCards = async (
 	db: FirebaseFirestore.Firestore,
 	parsedCollection: ParsedCollection,
 	tagIndex: TagIndex
-): Promise<CardData[]> => {
+): Promise<Card[]> => {
 	let q: FirebaseFirestore.Query = db.collection(CARDS_COLLECTION);
 
 	//Apply Firestore-level filters
@@ -261,7 +278,7 @@ const fetchCards = async (
 	let cards = snapshot.docs.map(doc => ({
 		...doc.data(),
 		id: doc.id,
-	} as CardData));
+	} as Card));
 
 	//Client-side filtering for additional tags beyond the first
 	if (parsedCollection.tagFilters.length > 1) {
@@ -282,21 +299,6 @@ const fetchCards = async (
 	return cards;
 };
 
-const fetchSlugIndex = async (db: FirebaseFirestore.Firestore): Promise<SlugIndex> => {
-	//Fetch all cards but only the fields we need for slug resolution
-	const snapshot = await db.collection(CARDS_COLLECTION)
-		.select('name', 'slugs')
-		.get();
-
-	const index: SlugIndex = new Map();
-	for (const doc of snapshot.docs) {
-		const data = doc.data();
-		//Prefer the name field (which is the primary slug/identifier)
-		const slug = data.name || (data.slugs && data.slugs.length > 0 ? data.slugs[0] : doc.id);
-		index.set(doc.id, slug);
-	}
-	return index;
-};
 
 const fetchTagIndex = async (db: FirebaseFirestore.Firestore): Promise<TagIndex> => {
 	//Tag document IDs in Firestore are the URL-safe slugs (e.g. "bits-and-bobs").
@@ -346,18 +348,18 @@ const scanLocalCards = (mountPoint: string): Map<string, string> => {
 
 //--- Diff Calculation ---
 
-const formatTimestamp = (ts: FirebaseFirestore.Timestamp): string => {
+const formatTimestamp = (ts: { toDate(): Date } | null | undefined): string => {
 	if (!ts || !ts.toDate) return '';
 	return ts.toDate().toISOString().split('T')[0];
 };
 
 const computeDiff = (
-	fetchedCards: CardData[],
+	fetchedCards: Card[],
 	localCards: Map<string, string>
 ): DiffResult => {
 	const fetchedIds = new Set(fetchedCards.map(c => c.id));
-	const newCards: CardData[] = [];
-	const updatedCards: CardData[] = [];
+	const newCards: Card[] = [];
+	const updatedCards: Card[] = [];
 	let unchangedCount = 0;
 	let imagesToFetch = 0;
 
@@ -383,15 +385,536 @@ const computeDiff = (
 	return { newCards, updatedCards, unchangedCount, removedIds, imagesToFetch };
 };
 
+//--- Bidirectional Diff (for --push mode) ---
+
+interface LocalEdit {
+	cardId: string;
+	localContent: string;
+	remoteCard: Card;
+}
+
+interface ConflictCard {
+	cardId: string;
+	localContent: string;
+	remoteCard: Card;
+}
+
+interface BidirectionalDiffResult {
+	unchanged: string[];
+	remoteOnly: Card[];      // pull from Firestore
+	localOnly: LocalEdit[];      // push to Firestore
+	conflicts: ConflictCard[];   // both changed
+	newRemote: Card[];       // new cards in Firestore, no local file
+	removedRemote: string[];     // local file exists, card gone from collection
+}
+
+const computeBidirectionalDiff = (
+	fetchedCards: Card[],
+	mountPoint: string,
+	syncConfig: SyncConfig | null,
+): BidirectionalDiffResult => {
+	const result: BidirectionalDiffResult = {
+		unchanged: [],
+		remoteOnly: [],
+		localOnly: [],
+		conflicts: [],
+		newRemote: [],
+		removedRemote: [],
+	};
+
+	const savedCards = (syncConfig && syncConfig.cards) || {};
+	const fetchedById = new Map(fetchedCards.map(c => [c.id, c]));
+
+	//Collect local card IDs from files on disk
+	const cardsDir = path.join(mountPoint, CARDS_DIR);
+	const localCardIds = new Set<string>();
+	if (fs.existsSync(cardsDir)) {
+		for (const file of fs.readdirSync(cardsDir).filter(f => f.endsWith('.md'))) {
+			localCardIds.add(file.replace(/\.md$/, ''));
+		}
+	}
+
+	//Classify each fetched card
+	for (const card of fetchedCards) {
+		const savedState = savedCards[card.id];
+
+		if (!localCardIds.has(card.id)) {
+			//No local file — new from remote
+			result.newRemote.push(card);
+			continue;
+		}
+
+		if (!savedState) {
+			//Local file exists but no tracking state — treat as remote-only
+			//(first time syncing with hash tracking, or manually added file)
+			result.remoteOnly.push(card);
+			continue;
+		}
+
+		//Read local file and compute current hash
+		const filePath = path.join(cardsDir, card.id + '.md');
+		const localContent = fs.readFileSync(filePath, 'utf-8');
+		const localHash = computeContentHash(localContent);
+
+		const localChanged = localHash !== savedState.hash;
+		const remoteChanged = formatTimestamp(card.updated) !== savedState.remoteUpdated;
+
+		if (!localChanged && !remoteChanged) {
+			result.unchanged.push(card.id);
+		} else if (!localChanged && remoteChanged) {
+			result.remoteOnly.push(card);
+		} else if (localChanged && !remoteChanged) {
+			result.localOnly.push({
+				cardId: card.id,
+				localContent,
+				remoteCard: card,
+			});
+		} else {
+			//Both changed — conflict
+			result.conflicts.push({
+				cardId: card.id,
+				localContent,
+				remoteCard: card,
+			});
+		}
+	}
+
+	//Check for local files whose cards have been removed from the collection
+	for (const cardId of localCardIds) {
+		if (!fetchedById.has(cardId)) {
+			result.removedRemote.push(cardId);
+		}
+	}
+
+	return result;
+};
+
+//--- Firestore Write Path (for --push mode) ---
+
+//Admin SDK MultiBatch: wraps MultiBatchBase with admin SDK batch ops
+const createAdminMultiBatch = (db: FirebaseFirestore.Firestore) => {
+	const config: MultiBatchConfig<FirebaseFirestore.WriteBatch, FirebaseFirestore.DocumentReference> = {
+		createBatch: () => db.batch(),
+		batchSet: (batch, ref, data, options?) => {
+			if (options) {
+				batch.set(ref, data, options as FirebaseFirestore.SetOptions);
+			} else {
+				batch.set(ref, data);
+			}
+		},
+		batchUpdate: (batch, ref, data) => batch.update(ref, data),
+		batchDelete: (batch, ref) => batch.delete(ref),
+		commitBatch: (batch) => batch.commit().then(() => {}),
+		//Admin SDK: conservative estimate — count every op as 2 to stay safe
+		writeCountForUpdate: () => 2,
+	};
+	return new MultiBatchBase(config);
+};
+
+//Build a CardDiff from parsed local markdown vs the remote Firestore card
+const buildCardDiffFromLocal = (
+	parsed: ParsedMarkdownFile,
+	remoteCard: Card,
+	tagIndex: TagIndex,
+): CardDiff => {
+	const diff: CardDiff = {};
+
+	//Title
+	if (parsed.title && parsed.title !== (remoteCard.title || remoteCard.name || remoteCard.id)) {
+		diff.title = parsed.title;
+	}
+
+	//Body (markdown → HTML)
+	const newBody = markdownToHTML(parsed.body);
+	if (newBody !== remoteCard.body) {
+		diff.body = newBody;
+	}
+
+	//Commentary (markdown → HTML)
+	const newCommentary = markdownToHTML(parsed.commentary);
+	if (newCommentary !== remoteCard.commentary) {
+		diff.commentary = newCommentary;
+	}
+
+	//Published
+	if (parsed.frontmatter.published !== undefined) {
+		const newPublished = !!parsed.frontmatter.published;
+		if (newPublished !== remoteCard.published) {
+			diff.published = newPublished;
+		}
+	}
+
+	//Tags (compare tag slugs → tag IDs)
+	if (Array.isArray(parsed.frontmatter.tags)) {
+		const localTagSlugs = parsed.frontmatter.tags as string[];
+		//Resolve slug → tag ID using tagIndex (tag IDs are the slugs in this system)
+		const localTagIds = new Set(localTagSlugs.map(slug => {
+			//In this system, tag doc IDs are the slugs
+			for (const [id, tagSlug] of tagIndex.entries()) {
+				if (tagSlug === slug) return id;
+			}
+			return slug; //fallback: use slug directly as ID
+		}));
+		const remoteTagIds = new Set(remoteCard.tags || []);
+
+		const addTags = [...localTagIds].filter(id => !remoteTagIds.has(id));
+		const removeTags = [...remoteTagIds].filter(id => !localTagIds.has(id));
+
+		if (addTags.length > 0) diff.add_tags = addTags;
+		if (removeTags.length > 0) diff.remove_tags = removeTags;
+	}
+
+	//Prioritized → auto_todo_overrides
+	if (parsed.frontmatter.prioritized !== undefined) {
+		const localPrioritized = !!parsed.frontmatter.prioritized;
+		const remotePrioritized = cardIsPrioritized(remoteCard);
+
+		if (localPrioritized !== remotePrioritized) {
+			if (localPrioritized) {
+				//Turn on prioritized: set auto_todo_overrides.prioritized = false
+				//(backwards: prioritized === false means IS prioritized)
+				diff.auto_todo_overrides_disablements = ['prioritized'];
+			} else {
+				//Turn off prioritized: remove the override
+				diff.auto_todo_overrides_removals = ['prioritized'];
+			}
+		}
+	}
+
+	return diff;
+};
+
+//Validate that all card-link references in HTML point to existing cards
+const validateCardLinks = (html: string, existingCardIds: Set<string>): string[] => {
+	const errors: string[] = [];
+	const linkRegex = /<card-link\s+card="([^"]+)">/g;
+	let match;
+	while ((match = linkRegex.exec(html)) !== null) {
+		const cardId = match[1];
+		if (!existingCardIds.has(cardId)) {
+			errors.push(`References non-existent card: ${cardId}`);
+		}
+	}
+	return errors;
+};
+
+//Push a single local edit to Firestore
+const pushCardToFirestore = async (
+	db: FirebaseFirestore.Firestore,
+	edit: LocalEdit,
+	tagIndex: TagIndex,
+	existingCardIds: Set<string>,
+	allCards: Map<string, Card>,
+	batch: MultiBatchBase<FirebaseFirestore.WriteBatch, FirebaseFirestore.DocumentReference>,
+	dryRun: boolean,
+): Promise<{ success: boolean; description: string }> => {
+	const { cardId, localContent, remoteCard } = edit;
+
+	//Parse local markdown
+	const parsed = parseMarkdownFile(localContent);
+
+	//Build diff
+	const diff = buildCardDiffFromLocal(parsed, remoteCard, tagIndex);
+
+	if (Object.keys(diff).length === 0) {
+		return { success: true, description: 'No changes detected' };
+	}
+
+	//Validate card links in body and commentary
+	const newBody = diff.body || remoteCard.body;
+	const newCommentary = diff.commentary || remoteCard.commentary || '';
+	const linkErrors = [
+		...validateCardLinks(newBody, existingCardIds),
+		...validateCardLinks(newCommentary, existingCardIds),
+	];
+	if (linkErrors.length > 0) {
+		return { success: false, description: `Invalid card links: ${linkErrors.join(', ')}` };
+	}
+
+	//Build description of changes
+	const changedFields = Object.keys(diff).join(', ');
+	const description = `Updated: ${changedFields}`;
+
+	if (dryRun) {
+		return { success: true, description };
+	}
+
+	const deleteFieldSentinel = FirebaseFirestore.FieldValue.delete();
+	const cardUpdate: CardUpdate = applyCardDiff(remoteCard, diff, deleteFieldSentinel);
+
+	//Add updated timestamp
+	cardUpdate.updated = FirebaseFirestore.FieldValue.serverTimestamp();
+
+	//Check if this is a substantive change (body or title changed)
+	const substantive = !!(diff.body || diff.title || diff.commentary);
+	if (substantive) {
+		cardUpdate.updated_substantive = FirebaseFirestore.FieldValue.serverTimestamp();
+	}
+
+	//Write card document update
+	const cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
+	batch.update(cardRef, cardUpdate);
+
+	//Write audit log entry
+	const updateRef = cardRef.collection(CARD_UPDATES_COLLECTION).doc(`${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+	batch.set(updateRef, {
+		...cardUpdate,
+		batch: batch.batchID || '',
+		substantive,
+		timestamp: FirebaseFirestore.FieldValue.serverTimestamp(),
+	});
+
+	//Compute and apply inbound reference updates
+	const updatedCard = applyCardFirebaseUpdate(remoteCard, cardUpdate);
+	const inboundUpdates = inboundLinksUpdates(cardId as CardID, remoteCard, updatedCard, deleteFieldSentinel);
+	for (const [otherCardId, otherCardUpdate] of Object.entries(inboundUpdates)) {
+		const otherRef = db.collection(CARDS_COLLECTION).doc(otherCardId);
+		if (!allCards.has(otherCardId)) {
+			//Card not in our collection — verify it exists in Firestore before updating
+			const otherDoc = await otherRef.get();
+			if (!otherDoc.exists) {
+				return { success: false, description: `References non-existent card: ${otherCardId}` };
+			}
+		}
+		batch.update(otherRef, otherCardUpdate);
+	}
+
+	//Handle tag membership changes
+	if (diff.add_tags && diff.add_tags.length > 0) {
+		for (const tagId of diff.add_tags) {
+			const tagRef = db.collection(TAGS_COLLECTION).doc(tagId);
+			const tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc(`${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+			batch.update(tagRef, {
+				cards: FirebaseFirestore.FieldValue.arrayUnion(cardId),
+				updated: FirebaseFirestore.FieldValue.serverTimestamp(),
+			});
+			batch.set(tagUpdateRef, {
+				timestamp: FirebaseFirestore.FieldValue.serverTimestamp(),
+				add_card: cardId,
+			});
+		}
+	}
+
+	if (diff.remove_tags && diff.remove_tags.length > 0) {
+		for (const tagId of diff.remove_tags) {
+			const tagRef = db.collection(TAGS_COLLECTION).doc(tagId);
+			const tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc(`${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+			batch.update(tagRef, {
+				cards: FirebaseFirestore.FieldValue.arrayRemove(cardId),
+				updated: FirebaseFirestore.FieldValue.serverTimestamp(),
+			});
+			batch.set(tagUpdateRef, {
+				timestamp: FirebaseFirestore.FieldValue.serverTimestamp(),
+				remove_card: cardId,
+			});
+		}
+	}
+
+	return { success: true, description };
+};
+
+//--- Conflict Resolution UI ---
+
+type ConflictResolution = 'keep-local' | 'keep-remote' | 'skip';
+
+const resolveConflict = async (
+	conflict: ConflictCard,
+	tagIndex: TagIndex,
+	td: TurndownService,
+	rl: readline.Interface,
+): Promise<ConflictResolution> => {
+	const { cardId, remoteCard } = conflict;
+	const title = remoteCard.title || remoteCard.name || cardId;
+	const remoteUpdated = formatTimestamp(remoteCard.updated);
+
+	console.log('');
+	console.log(`--- Conflict: ${cardId} "${title}" ---`);
+	console.log('');
+	console.log(`  Remote updated: ${remoteUpdated}`);
+	console.log('  Both the local file and the remote card have changed since last sync.');
+	console.log('');
+
+	//Show a brief summary of what changed locally
+	const parsed = parseMarkdownFile(conflict.localContent);
+	const localBody = markdownToHTML(parsed.body);
+	const localCommentary = markdownToHTML(parsed.commentary);
+
+	const localChanges: string[] = [];
+	if (parsed.title !== (remoteCard.title || remoteCard.name || remoteCard.id)) localChanges.push('title');
+	if (localBody !== remoteCard.body) localChanges.push('body');
+	if (localCommentary !== remoteCard.commentary) localChanges.push('commentary');
+	if (parsed.frontmatter.published !== remoteCard.published) localChanges.push('published');
+
+	const remoteMarkdown = generateMarkdown(remoteCard, tagIndex, td);
+	const remoteChanges: string[] = [];
+	remoteChanges.push('(unknown — remote updated since last sync)');
+
+	if (localChanges.length > 0) {
+		console.log(`  Local changes: ${localChanges.join(', ')}`);
+	} else {
+		console.log('  Local changes: (metadata or formatting only)');
+	}
+	console.log(`  Remote changes: ${remoteChanges.join(', ')}`);
+	console.log('');
+	console.log('  [1] Keep local  (push to Firestore, overwrite remote)');
+	console.log('  [2] Keep remote (overwrite local file)');
+	console.log('  [3] Skip        (leave both as-is for now)');
+
+	//Suppress unused variable warning - remoteMarkdown will be used for
+	//future diff display but is generated here for the comparison above
+	void remoteMarkdown;
+
+	return new Promise<ConflictResolution>(resolve => {
+		const ask = () => {
+			rl.question('  Choice [1/2/3]: ', answer => {
+				const trimmed = answer.trim();
+				if (trimmed === '1') {
+					resolve('keep-local');
+				} else if (trimmed === '2') {
+					resolve('keep-remote');
+				} else if (trimmed === '3') {
+					resolve('skip');
+				} else {
+					console.log('  Please enter 1, 2, or 3.');
+					ask();
+				}
+			});
+		};
+		ask();
+	});
+};
+
+//--- Markdown Parsing (for push: local .md → structured data) ---
+
+interface ParsedMarkdownFile {
+	frontmatter: Record<string, unknown>;
+	title: string;
+	body: string;
+	commentary: string;
+}
+
+const parseMarkdownFile = (content: string): ParsedMarkdownFile => {
+	const result: ParsedMarkdownFile = {
+		frontmatter: {},
+		title: '',
+		body: '',
+		commentary: '',
+	};
+
+	let remaining = content;
+
+	//Extract YAML frontmatter between --- markers
+	const fmMatch = remaining.match(/^---\n([\s\S]*?)\n---\n?/);
+	if (fmMatch) {
+		remaining = remaining.slice(fmMatch[0].length);
+		//Simple YAML parser for our known frontmatter format
+		const lines = fmMatch[1].split('\n');
+		let currentKey = '';
+		let currentArray: string[] | null = null;
+		for (const line of lines) {
+			const kvMatch = line.match(/^(\w[\w_]*)\s*:\s*(.*)$/);
+			if (kvMatch) {
+				if (currentArray && currentKey) {
+					result.frontmatter[currentKey] = currentArray;
+				}
+				currentKey = kvMatch[1];
+				const value = kvMatch[2].trim();
+				if (value === '') {
+					//Could be a list that follows
+					currentArray = [];
+				} else {
+					currentArray = null;
+					//Parse booleans and numbers
+					if (value === 'true') result.frontmatter[currentKey] = true;
+					else if (value === 'false') result.frontmatter[currentKey] = false;
+					else if (/^\d+(\.\d+)?$/.test(value)) result.frontmatter[currentKey] = Number(value);
+					else result.frontmatter[currentKey] = value;
+				}
+			} else if (currentArray !== null) {
+				const itemMatch = line.match(/^\s+-\s+(.+)$/);
+				if (itemMatch) {
+					currentArray.push(itemMatch[1].trim());
+				}
+			}
+		}
+		if (currentArray && currentKey) {
+			result.frontmatter[currentKey] = currentArray;
+		}
+	}
+
+	//Extract title from # heading
+	const titleMatch = remaining.match(/^#\s+(.+)\n?/m);
+	if (titleMatch) {
+		result.title = titleMatch[1].trim();
+		remaining = remaining.slice(remaining.indexOf(titleMatch[0]) + titleMatch[0].length);
+	}
+
+	//Strip leading/trailing whitespace
+	remaining = remaining.trim();
+
+	//Split on ## Commentary
+	const commentaryIndex = remaining.indexOf('## Commentary');
+	if (commentaryIndex !== -1) {
+		result.body = remaining.slice(0, commentaryIndex).trim();
+		result.commentary = remaining.slice(commentaryIndex + '## Commentary'.length).trim();
+	} else {
+		result.body = remaining;
+	}
+
+	return result;
+};
+
+const markdownToHTML = (markdown: string): string => {
+	if (!markdown) return '';
+
+	//Step 1: Replace wiki-links with <card-link> elements
+	//Match [[cardID|text]] or [[cardID]]
+	let html = markdown.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g,
+		(_match, cardId, text) => `<card-link card="${cardId}">${text}</card-link>`
+	);
+	html = html.replace(/\[\[([^\]]+)\]\]/g,
+		(_match, cardId) => `<card-link card="${cardId}">${cardId}</card-link>`
+	);
+
+	//Step 2: Split on double-newlines into paragraphs, convert each with snarkdown
+	const paragraphs = html.split(/\n\n+/).filter(p => p.trim());
+	const converted = paragraphs.map(p => {
+		//If already looks like a block element, leave it
+		if (p.startsWith('<')) {
+			const trimmed = p.trim();
+			if (trimmed.startsWith('<p>') || trimmed.startsWith('<ul>') ||
+				trimmed.startsWith('<ol>') || trimmed.startsWith('<blockquote>') ||
+				trimmed.startsWith('<h')) {
+				return trimmed;
+			}
+		}
+		//Convert inline markdown using snarkdown
+		const inlineConverted = snarkdown(p);
+		//Wrap in <p> if not already wrapped
+		if (!inlineConverted.startsWith('<p>')) {
+			return `<p>${inlineConverted}</p>`;
+		}
+		return inlineConverted;
+	});
+
+	let result = converted.join('\n');
+
+	//Step 3: Normalize HTML tags
+	result = result.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
+	result = result.replace(/<i>/g, '<em>').replace(/<\/i>/g, '</em>');
+
+	return result;
+};
+
 //--- Markdown Generation ---
 
-const cardIsPrioritized = (card: CardData): boolean => {
+const cardIsPrioritized = (card: Card): boolean => {
 	//Backwards: prioritized === false means IS prioritized
 	if (card.auto_todo_overrides && card.auto_todo_overrides.prioritized === false) return true;
 	return false;
 };
 
-const createTurndownService = (slugIndex: SlugIndex): TurndownService => {
+const createTurndownService = (): TurndownService => {
 	const td = new TurndownService({
 		headingStyle: 'atx',
 		codeBlockStyle: 'fenced',
@@ -414,12 +937,11 @@ const createTurndownService = (slugIndex: SlugIndex): TurndownService => {
 			}
 
 			if (cardId) {
-				//Internal card link - resolve to slug for readability
-				const slug = slugIndex.get(cardId) || cardId;
-				if (text === slug || text === '') {
-					return `[[${slug}]]`;
+				//Internal card link - use card ID directly for round-trip fidelity
+				if (text === cardId || text === '') {
+					return `[[${cardId}]]`;
 				}
-				return `[[${slug}|${text}]]`;
+				return `[[${cardId}|${text}]]`;
 			}
 
 			return text;
@@ -430,7 +952,7 @@ const createTurndownService = (slugIndex: SlugIndex): TurndownService => {
 };
 
 const generateMarkdown = (
-	card: CardData,
+	card: Card,
 	tagIndex: TagIndex,
 	td: TurndownService
 ): string => {
@@ -515,7 +1037,7 @@ const imageFilename = (img: ImageInfo): string => {
 };
 
 const downloadImages = async (
-	card: CardData,
+	card: Card,
 	mountPoint: string,
 	storageBucket: ReturnType<typeof getStorage>
 ): Promise<void> => {
@@ -587,7 +1109,7 @@ const removeSymlinksForCard = (mountPoint: string, cardId: string): void => {
 
 const createSymlinksForCard = (
 	mountPoint: string,
-	card: CardData,
+	card: Card,
 	tagIndex: TagIndex
 ): void => {
 	const filename = card.id + '.md';
@@ -619,7 +1141,7 @@ const createSymlinksForCard = (
 
 const writeCard = (
 	mountPoint: string,
-	card: CardData,
+	card: Card,
 	markdown: string,
 	tagIndex: TagIndex
 ): void => {
@@ -744,77 +1266,268 @@ const main = async () => {
 	const cards = await fetchCards(db, parsedCollection, tagIndex);
 	console.log(`  Fetched ${cards.length} cards`);
 
-	//--- Fetch slug index (for wiki-link resolution) ---
-	console.log('Fetching slug index...');
-	const slugIndex = await fetchSlugIndex(db);
-	console.log(`  Indexed ${slugIndex.size} card slugs`);
 	console.log('');
-
-	//--- Scan local state ---
-	const localCards = scanLocalCards(mountPoint);
-
-	//--- Compute diff ---
-	const diff = computeDiff(cards, localCards);
-
-	//--- Show dry-run summary ---
-	const totalFilesToWrite = diff.newCards.length + diff.updatedCards.length;
-
-	console.log(`  New cards:        ${diff.newCards.length}`);
-	console.log(`  Updated cards:    ${diff.updatedCards.length}  (modified since last sync)`);
-	console.log(`  Unchanged:        ${diff.unchangedCount}  (skipping)`);
-	console.log(`  Removed:          ${diff.removedIds.length}  (no longer in collection)`);
-	console.log(`  Images to fetch:  ${diff.imagesToFetch}`);
-	console.log('');
-	console.log(`  Total files to write: ${totalFilesToWrite}`);
-
-	if (totalFilesToWrite === 0 && diff.removedIds.length === 0) {
-		console.log('\nNothing to do — everything is up to date.');
-		process.exit(0);
-	}
-
-	if (args.dryRun) {
-		console.log('\n(Dry run — no changes written)');
-		process.exit(0);
-	}
-
-	if (!args.force) {
-		console.log('');
-		const confirmed = await askConfirmation('  Proceed? [y/N] ');
-		if (!confirmed) {
-			console.log('Aborted.');
-			process.exit(0);
-		}
-	}
-
-	//--- Execute sync ---
 
 	//Ensure directories exist
 	ensureDir(path.join(mountPoint, CARDS_DIR));
 	ensureDir(path.join(mountPoint, IMAGES_DIR));
 
 	//Create turndown service
-	const td = createTurndownService(slugIndex);
+	const td = createTurndownService();
 
-	//Write new and updated cards
-	const cardsToWrite = [...diff.newCards, ...diff.updatedCards];
-	let written = 0;
-	for (const card of cardsToWrite) {
-		written++;
-		const markdown = generateMarkdown(card, tagIndex, td);
-		writeCard(mountPoint, card, markdown, tagIndex);
+	//Build card sync state from existing config (preserving unchanged cards)
+	const cardsSyncState: Record<string, CardSyncState> = {
+		...(syncConfig && syncConfig.cards || {}),
+	};
 
-		//Download images
-		await downloadImages(card, mountPoint, storage);
+	//Build lookup maps for the fetched cards
+	const allCardsMap = new Map(cards.map(c => [c.id, c]));
+	const existingCardIds = new Set(cards.map(c => c.id));
 
-		if (written % 10 === 0 || written === cardsToWrite.length) {
-			console.log(`  Written ${written}/${cardsToWrite.length} cards`);
+	if (args.push) {
+		//--- Two-way sync (--push mode) ---
+		const biDiff = computeBidirectionalDiff(cards, mountPoint, syncConfig);
+
+		console.log(`  Push (local→remote): ${biDiff.localOnly.length}`);
+		console.log(`  Pull (remote→local): ${biDiff.remoteOnly.length}`);
+		console.log(`  New remote:          ${biDiff.newRemote.length}`);
+		console.log(`  Conflicts:           ${biDiff.conflicts.length}`);
+		console.log(`  Removed remote:      ${biDiff.removedRemote.length}`);
+		console.log(`  Unchanged:           ${biDiff.unchanged.length}`);
+
+		const totalActions = biDiff.localOnly.length + biDiff.remoteOnly.length +
+			biDiff.newRemote.length + biDiff.conflicts.length + biDiff.removedRemote.length;
+
+		if (totalActions === 0) {
+			console.log('\nNothing to do — everything is up to date.');
+			process.exit(0);
 		}
-	}
 
-	//Remove deleted cards
-	for (const cardId of diff.removedIds) {
-		removeCard(mountPoint, cardId);
-		console.log(`  Removed: ${cardId}`);
+		if (args.dryRun) {
+			if (biDiff.localOnly.length > 0) {
+				console.log('\n  Cards to push:');
+				for (const edit of biDiff.localOnly) {
+					console.log(`    ${edit.cardId}`);
+				}
+			}
+			if (biDiff.conflicts.length > 0) {
+				console.log('\n  Conflicting cards:');
+				for (const conflict of biDiff.conflicts) {
+					console.log(`    ${conflict.cardId}`);
+				}
+			}
+			console.log('\n(Dry run — no changes written)');
+			process.exit(0);
+		}
+
+		if (!args.force) {
+			console.log('');
+			const confirmed = await askConfirmation('  Proceed? [y/N] ');
+			if (!confirmed) {
+				console.log('Aborted.');
+				process.exit(0);
+			}
+		}
+
+		//--- Resolve conflicts ---
+		const pushEdits: LocalEdit[] = [...biDiff.localOnly];
+		const pullCards: Card[] = [...biDiff.remoteOnly, ...biDiff.newRemote];
+
+		if (biDiff.conflicts.length > 0) {
+			const rl = readline.createInterface({
+				input: process.stdin,
+				output: process.stdout,
+			});
+			for (const conflict of biDiff.conflicts) {
+				const resolution = await resolveConflict(conflict, tagIndex, td, rl);
+				if (resolution === 'keep-local') {
+					pushEdits.push({
+						cardId: conflict.cardId,
+						localContent: conflict.localContent,
+						remoteCard: conflict.remoteCard,
+					});
+				} else if (resolution === 'keep-remote') {
+					pullCards.push(conflict.remoteCard);
+				}
+				//skip: do nothing
+			}
+			rl.close();
+		}
+
+		//--- Push local edits to Firestore ---
+		if (pushEdits.length > 0) {
+			console.log(`\nPushing ${pushEdits.length} cards to Firestore...`);
+			const batch = createAdminMultiBatch(db);
+			let pushSuccess = 0;
+			let pushFailed = 0;
+			const successfulEdits: LocalEdit[] = [];
+
+			for (const edit of pushEdits) {
+				const result = await pushCardToFirestore(
+					db, edit, tagIndex, existingCardIds, allCardsMap, batch, false
+				);
+				if (result.success) {
+					console.log(`  Pushed: ${edit.cardId} — ${result.description}`);
+					pushSuccess++;
+					successfulEdits.push(edit);
+				} else {
+					console.error(`  FAILED: ${edit.cardId} — ${result.description}`);
+					pushFailed++;
+				}
+			}
+
+			if (pushSuccess > 0) {
+				console.log('  Committing batch...');
+				try {
+					await batch.commit();
+					console.log(`  Pushed ${pushSuccess} cards.`);
+
+					//Re-fetch pushed cards to get actual server timestamps
+					for (const edit of successfulEdits) {
+						const freshDoc = await db.collection(CARDS_COLLECTION).doc(edit.cardId).get();
+						const freshData = freshDoc.data();
+						//Hash from disk to account for OS line-ending normalization
+						const filePath = path.join(mountPoint, CARDS_DIR, edit.cardId + '.md');
+						const onDiskContent = fs.readFileSync(filePath, 'utf-8');
+						cardsSyncState[edit.cardId] = {
+							hash: computeContentHash(onDiskContent),
+							remoteUpdated: freshData?.updated ? formatTimestamp(freshData.updated as FirebaseFirestore.Timestamp) : '',
+						};
+					}
+				} catch (err) {
+					console.error(`  Batch commit failed: ${err}`);
+					console.error('  Sync state for pushed cards will not be updated.');
+					//Do NOT update cardsSyncState for pushed cards — commit failed
+				}
+			}
+			if (pushFailed > 0) {
+				console.warn(`  ${pushFailed} cards failed to push.`);
+			}
+		}
+
+		//--- Pull remote cards ---
+		if (pullCards.length > 0) {
+			console.log(`\nPulling ${pullCards.length} cards from Firestore...`);
+			let pulled = 0;
+			for (const card of pullCards) {
+				pulled++;
+				const markdown = generateMarkdown(card, tagIndex, td);
+				writeCard(mountPoint, card, markdown, tagIndex);
+
+				//Hash from disk to account for OS line-ending normalization
+				const filePath = path.join(mountPoint, CARDS_DIR, card.id + '.md');
+				const onDiskContent = fs.readFileSync(filePath, 'utf-8');
+				cardsSyncState[card.id] = {
+					hash: computeContentHash(onDiskContent),
+					remoteUpdated: formatTimestamp(card.updated),
+				};
+
+				await downloadImages(card, mountPoint, storage);
+
+				if (pulled % 10 === 0 || pulled === pullCards.length) {
+					console.log(`  Pulled ${pulled}/${pullCards.length} cards`);
+				}
+			}
+		}
+
+		//--- Remove cards that are no longer in the collection ---
+		for (const cardId of biDiff.removedRemote) {
+			removeCard(mountPoint, cardId);
+			delete cardsSyncState[cardId];
+			console.log(`  Removed: ${cardId}`);
+		}
+
+		//Update hashes for unchanged cards not yet tracked
+		for (const cardId of biDiff.unchanged) {
+			if (cardsSyncState[cardId]) continue;
+			const card = allCardsMap.get(cardId);
+			if (!card) continue;
+			const filePath = path.join(mountPoint, CARDS_DIR, cardId + '.md');
+			if (fs.existsSync(filePath)) {
+				const content = fs.readFileSync(filePath, 'utf-8');
+				cardsSyncState[cardId] = {
+					hash: computeContentHash(content),
+					remoteUpdated: formatTimestamp(card.updated),
+				};
+			}
+		}
+
+	} else {
+		//--- Pull-only sync (default, original behavior) ---
+		const localCards = scanLocalCards(mountPoint);
+		const diff = computeDiff(cards, localCards);
+
+		const totalFilesToWrite = diff.newCards.length + diff.updatedCards.length;
+
+		console.log(`  New cards:        ${diff.newCards.length}`);
+		console.log(`  Updated cards:    ${diff.updatedCards.length}  (modified since last sync)`);
+		console.log(`  Unchanged:        ${diff.unchangedCount}  (skipping)`);
+		console.log(`  Removed:          ${diff.removedIds.length}  (no longer in collection)`);
+		console.log(`  Images to fetch:  ${diff.imagesToFetch}`);
+		console.log('');
+		console.log(`  Total files to write: ${totalFilesToWrite}`);
+
+		if (totalFilesToWrite === 0 && diff.removedIds.length === 0) {
+			console.log('\nNothing to do — everything is up to date.');
+			process.exit(0);
+		}
+
+		if (args.dryRun) {
+			console.log('\n(Dry run — no changes written)');
+			process.exit(0);
+		}
+
+		if (!args.force) {
+			console.log('');
+			const confirmed = await askConfirmation('  Proceed? [y/N] ');
+			if (!confirmed) {
+				console.log('Aborted.');
+				process.exit(0);
+			}
+		}
+
+		//Write new and updated cards
+		const cardsToWrite = [...diff.newCards, ...diff.updatedCards];
+		let written = 0;
+		for (const card of cardsToWrite) {
+			written++;
+			const markdown = generateMarkdown(card, tagIndex, td);
+			writeCard(mountPoint, card, markdown, tagIndex);
+
+			//Hash from disk to account for OS line-ending normalization
+			const filePath = path.join(mountPoint, CARDS_DIR, card.id + '.md');
+			const onDiskContent = fs.readFileSync(filePath, 'utf-8');
+			cardsSyncState[card.id] = {
+				hash: computeContentHash(onDiskContent),
+				remoteUpdated: formatTimestamp(card.updated),
+			};
+
+			await downloadImages(card, mountPoint, storage);
+
+			if (written % 10 === 0 || written === cardsToWrite.length) {
+				console.log(`  Written ${written}/${cardsToWrite.length} cards`);
+			}
+		}
+
+		//Remove deleted cards
+		for (const cardId of diff.removedIds) {
+			removeCard(mountPoint, cardId);
+			delete cardsSyncState[cardId];
+			console.log(`  Removed: ${cardId}`);
+		}
+
+		//Update hashes for unchanged cards not yet tracked
+		for (const card of cards) {
+			if (cardsSyncState[card.id]) continue;
+			const filePath = path.join(mountPoint, CARDS_DIR, card.id + '.md');
+			if (fs.existsSync(filePath)) {
+				const content = fs.readFileSync(filePath, 'utf-8');
+				cardsSyncState[card.id] = {
+					hash: computeContentHash(content),
+					remoteUpdated: formatTimestamp(card.updated),
+				};
+			}
+		}
 	}
 
 	//Clean up empty tag directories
@@ -824,6 +1537,7 @@ const main = async () => {
 	writeSyncConfig(mountPoint, {
 		collectionUrl,
 		projectId,
+		cards: cardsSyncState,
 	});
 
 	console.log('\nSync complete.');
