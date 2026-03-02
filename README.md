@@ -15,7 +15,7 @@ Download this repository and cd into it.
 
 Run `npm install` to install all of the dependencies.
 
-Run `npm install -g firebase-tools gulp` (you can skip any of those that you already have installed)
+Run `npm install -g firebase-tools` (you can skip this if you already have it installed)
 
 Also run `npm install` in the `functions/` directory.
 
@@ -39,7 +39,7 @@ In the navigation to the right, go to the Storage tab. Tap 'Get Started'. Click 
 
 Run `npm run start` to run the server. This also starts building files the gulp file relies on.
 
-Run `gulp set-up-deploy`
+Run `npm run set-up-deploy`
 
 Visit https://localhost:8081/maintenance in your browser.
 
@@ -59,7 +59,7 @@ Once it completes, tab the 'Main' tab. You're now set up, and can start editing 
 
 Up until now, the web app was only visible on your local computer.
 
-To deploy to production, run `gulp release`. 
+To deploy to production, run `npm run release`.
 
 After the full deploy is done, the webapp will be visible to anyone at https://your-project-id.web.app/ ! The only people who will be able to edit cards, tags, and sections will be you (or anyone else you listed as an admin in the console).
 
@@ -71,9 +71,9 @@ Also check out 'Keeping up to date' to keep your instance current.
 
 Once you've deployed your instance, you should periodically upgrade it with the latest changes.
 
-To do that, `cd` to the directory where you have the webapp checked out. Then run `git pull` and then `gulp release`.
+To do that, `cd` to the directory where you have the webapp checked out. Then run `git pull` and then `npm run release`.
 
-You will likely have to run maintenance tasks on your instance to upgrade the data model. (The gulp command will remind you). 
+You will likely have to run maintenance tasks on your instance to upgrade the data model. (The deploy command will remind you).
 
 To do that, go to https://your-project-domain/maintenance , hard refresh
 (Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
@@ -135,16 +135,16 @@ In your `config.SECRET.json`, add `"backup_bucket_name" : "BUCKET_NAME_HERE"`.
 
 Ensure you have the `gcloud` command line app installed: https://cloud.google.com/sdk/install
 
-Run `gulp backup` to run a backup. You can choose to give it a descriptive name at the prompt to make it easier to remember why you ran the backup, or just hit enter.
+Run `npm run backup` to run a backup. You can choose to give it a descriptive name at the prompt to make it easier to remember why you ran the backup, or just hit enter.
 
-Once this is all set up, every time you run `gulp release` it will automatically save a backup.
+Once this is all set up, every time you run `npm run release` it will automatically save a backup.
 
 
 #### Restoring a back up
 
 Every so often it makes sense to reset the dev database with the most recent prod backup.
 
-Do that with `gulp reset-dev`.
+Do that with `npm run reset-dev`.
 
 You might see an error message about permissions. If you do, take note of the service-account in the error message that needs permission. It will look like `service-DESTINATION-FIREBASE-PROJECT-NUMBEr@gcp-sa-firestore.iam.gserviceaccount.com` where DESTINATION-FIREBASE-PROJECT-NUMBER is the number of the project that is trying to import and can be found at https://console.firebase.google.com on the Project Settings > Project number.
 
@@ -165,7 +165,7 @@ new project, but not run the set-up maintence task.
 
 Note that the uid's for users will be different for the same Google accounts in dev and prod. The best pattern is to add an additional `{admin:true}` in the prod `permissions` table for the primary account's uid in the dev project, too. That way when you restore a backup from prod, you have admin rights configured for both parties.
 
-When you do this, you can run `gulp reset-dev` to copy over the last backup from prod into dev.
+When you do this, you can run `npm run reset-dev` to copy over the last backup from prod into dev.
 
 ### Emailing on messages or stars
 
@@ -379,7 +379,7 @@ Required if you want to backup or restore a backup
 
 ### tag_releases
 
-A boolean. If true, `gulp release` will tag releases. Should only be set to true if you have repo edit privileges to the repo you cloned from.
+A boolean. If true, `npm run release` will tag releases. Should only be set to true if you have repo edit privileges to the repo you cloned from.
 
 ### region
 
@@ -451,11 +451,11 @@ You can also have a "after" object with similar shapes.
 
 ## Favicons
 
-When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json
+When logo.svg has changed, run `npx tsx tools/cli.ts generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json
 
 TODO: make the manifest.json output be merged automatically in that flow
 
-When index.html has changed, run `gulp inject-favicon-markups`, then manually change the point to the manifest ot be to `manifest.json` instead of `/images/site.webmanifest`
+When index.html has changed, run `npx tsx tools/cli.ts inject-favicon-markups`, then manually change the point to the manifest ot be to `manifest.json` instead of `/images/site.webmanifest`
 
 TODO: make the favicon injection be part of the build flow
 
@@ -535,6 +535,6 @@ In `config.SECRET.json` add a key called `anthropic_api_key`. This will allow th
 }
 ```
 
-You can run `gulp configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.
+You can run `npx tsx tools/cli.ts configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.
 
-You can trigger a reindexing of all cards that need an embedding updated by running `gulp reindex-card-embeddings`. It will hit the endpoint to trigger an index, running in the background. It will also be run automatically when you do a release.
+You can trigger a reindexing of all cards that need an embedding updated by running `npx tsx tools/cli.ts reindex-card-embeddings`. It will hit the endpoint to trigger an index, running in the background. It will also be run automatically when you do a release.

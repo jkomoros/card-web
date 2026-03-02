@@ -8,11 +8,20 @@ import fs from 'fs';
 import { exec } from 'child_process';
 
 const PROJECT_CONFIG = 'config.SECRET.json';
-//Also in gulpfile.js
-const EXTRA_PROJECT_CONFIG = 'config.EXTRA.json';
+export const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
 
-//Also in gulpfile
-const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+export const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+
+export const verifyPermissionsLegal = (permissions: object) : void => {
+	for (const [key, val] of Object.entries(permissions)) {
+		if (key == 'admin') {
+			throw new Error('Permissions objects may not list admin privileges for all users of a given type; it must be on the user object in firestore directly');
+		}
+		if (!val) {
+			throw new Error('Permissions objects may only contain true keys');
+		}
+	}
+};
 
 const runCommand = async (command : string) : Promise<string> => {
 	return new Promise((resolve, reject) => {
@@ -102,7 +111,7 @@ const getProjectConfig = () : Config => {
 		throw new Error('No project config');
 	}
 
-	const extraFile = fs.existsSync(EXTRA_PROJECT_CONFIG) ? fs.readFileSync(EXTRA_PROJECT_CONFIG).toString() : '{}';
+	const extraFile = fs.existsSync(CONFIG_EXTRA_FILE) ? fs.readFileSync(CONFIG_EXTRA_FILE).toString() : '{}';
 	const mainFile = fs.readFileSync(PROJECT_CONFIG).toString();
 
 	const main = JSON.parse(mainFile) as Config;
