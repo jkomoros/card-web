@@ -59,7 +59,7 @@ export type ModeConfig = {
 		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseOptions;
-	//This is typically set via gulp
+	//This is typically set via the CLI (tools/cli.ts set-config-last-deploy)
 	last_deploy_affecting_rendering? : string;
 };
 

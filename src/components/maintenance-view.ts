@@ -139,7 +139,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		  <br />
 		  <br />
 		  <h4>Recurring tasks</h4>
-		  <h5>disabled ones need maintenance mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
+		  <h5>disabled ones need maintenance mode to be enabled via the maintenance UI</h5>
 		  ${repeat(Object.entries(MAINTENANCE_TASKS).filter(entry => entry[1].recurring).map(entry => entry[0]), (item) => item, (item) => this._buttonForTaskName(item))}
 		  <p>Tasks that have already been run: ${[...Object.keys(this._executedTasks)].join(', ')}</p>
 		  <details>

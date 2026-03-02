@@ -8,6 +8,7 @@ _site/
 lib/
 tools/**/*.js
 tools/**/*.d.ts
+!tools/vendor.d.ts
 tools/**/*.map
 
 .runtimeconfig.json

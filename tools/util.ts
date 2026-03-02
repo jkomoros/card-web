@@ -5,14 +5,23 @@ import {
 } from './types.js';
 
 import fs from 'fs';
-import { exec } from 'child_process';
+import { exec, spawnSync, spawn } from 'child_process';
 
 const PROJECT_CONFIG = 'config.SECRET.json';
-//Also in gulpfile.js
-const EXTRA_PROJECT_CONFIG = 'config.EXTRA.json';
+export const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
 
-//Also in gulpfile
-const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+export const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+
+export const verifyPermissionsLegal = (permissions: object) : void => {
+	for (const [key, val] of Object.entries(permissions)) {
+		if (key == 'admin') {
+			throw new Error('Permissions objects may not list admin privileges for all users of a given type; it must be on the user object in firestore directly');
+		}
+		if (!val) {
+			throw new Error('Permissions objects may only contain true keys');
+		}
+	}
+};
 
 const runCommand = async (command : string) : Promise<string> => {
 	return new Promise((resolve, reject) => {
@@ -102,11 +111,27 @@ const getProjectConfig = () : Config => {
 		throw new Error('No project config');
 	}
 
-	const extraFile = fs.existsSync(EXTRA_PROJECT_CONFIG) ? fs.readFileSync(EXTRA_PROJECT_CONFIG).toString() : '{}';
+	const extraFile = fs.existsSync(CONFIG_EXTRA_FILE) ? fs.readFileSync(CONFIG_EXTRA_FILE).toString() : '{}';
 	const mainFile = fs.readFileSync(PROJECT_CONFIG).toString();
 
 	const main = JSON.parse(mainFile) as Config;
 	const extra = JSON.parse(extraFile) as Config;
 
 	return deepMerge(extra, main) as Config;
+};
+
+export const runSync = (cmd: string, args: string[]): void => {
+	console.log('Running ' + cmd + ' ' + args.join(' '));
+	const result = spawnSync(cmd, args, { stdio: 'inherit' });
+	if (result.error) throw result.error;
+	if (result.signal) throw new Error(`Command killed by signal ${result.signal}`);
+	if (result.status !== 0) throw new Error(`Command failed with exit code ${result.status}`);
+};
+
+export const runBackground = (cmd: string, args: string[]): void => {
+	const child = spawn(cmd, args, {
+		stdio: 'ignore',
+		detached: true
+	});
+	child.unref();
 };
