@@ -3,16 +3,21 @@ import fs from 'fs';
 import {
 	CONFIG_EXTRA_FILE,
 	selectedProjectID,
-	devProdConfig,
 } from './util.js';
 
-export const setLastDeployConfig = async (releaseTag: string): Promise<void> => {
+interface ExtraConfig {
+	[key: string]: {
+		last_deploy_affecting_rendering?: string;
+		[otherKey: string]: unknown;
+	};
+}
+
+export const setLastDeployConfig = async (releaseTag: string, devProjectId: string): Promise<void> => {
 	const projectID = await selectedProjectID();
-	const { dev } = devProdConfig();
-	const isDev = projectID === dev.firebase.projectId;
+	const isDev = projectID === devProjectId;
 
 	const data = fs.existsSync(CONFIG_EXTRA_FILE) ? fs.readFileSync(CONFIG_EXTRA_FILE).toString() : '{}';
-	const result = JSON.parse(data);
+	const result: ExtraConfig = JSON.parse(data) as ExtraConfig;
 	const key = isDev ? 'dev' : 'prod';
 	const subObj = result[key] || {};
 	subObj.last_deploy_affecting_rendering = releaseTag;

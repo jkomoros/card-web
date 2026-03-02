@@ -33,7 +33,7 @@ export const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_AL
 export const COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS = {...COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
 export const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS};
 
-//NOTE: all of the logic above this line is effectively recreated in gulpfile.js
+//NOTE: all of the logic above this line is effectively recreated in tools/cli.ts
 
 export const PERMISSIONS_INFO : PermissionInfoCollection = {
 	[PERMISSION_ADMIN]: {

@@ -2,7 +2,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 
 import { ModeConfig } from './types.js';
 
-//Duplicated from `functions/src/embedding.ts`
+//Duplicated from `functions/src/embeddings.ts`
 const EMBEDDING_TYPES: Record<string, { length: number; provider: string; model: string }> = {
 	'openai.com-text-embedding-ada-002': {
 		length: 1536,
@@ -19,14 +19,13 @@ const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
 const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
 const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
 
-const qdrantEnabled = (config: ModeConfig): boolean => {
+const qdrantEnabled = (config: ModeConfig, openaiEnabled: boolean): boolean => {
 	if (!config.qdrant) return false;
-	const openaiKey = config.openai_api_key || '';
-	return openaiKey !== '' && !!config.qdrant.api_key && !!config.qdrant.cluster_url;
+	return openaiEnabled && !!config.qdrant.api_key && !!config.qdrant.cluster_url;
 };
 
-const configureQdrantCollection = async (config: ModeConfig, collectionName: string): Promise<void> => {
-	if (!qdrantEnabled(config)) {
+const configureQdrantCollection = async (config: ModeConfig, collectionName: string, openaiEnabled: boolean): Promise<void> => {
+	if (!qdrantEnabled(config, openaiEnabled)) {
 		console.warn('Qdrant not enabled');
 		return;
 	}
@@ -43,8 +42,9 @@ const configureQdrantCollection = async (config: ModeConfig, collectionName: str
 	try {
 		collectionInfo = await client.getCollection(collectionName);
 	} catch (e: unknown) {
-		const err = e as { status?: number };
-		if (err.status !== 404) {
+		if (e && typeof e === 'object' && 'status' in e && (e as { status: number }).status === 404) {
+			// Collection doesn't exist yet, will create below
+		} else {
 			throw e;
 		}
 	}
@@ -87,9 +87,9 @@ const configureQdrantCollection = async (config: ModeConfig, collectionName: str
 	}
 };
 
-export const configureQdrant = async (prodConfig: ModeConfig, devConfig: ModeConfig, devProvided: boolean): Promise<void> => {
+export const configureQdrant = async (prodConfig: ModeConfig, devConfig: ModeConfig, devProvided: boolean, openaiEnabled: boolean): Promise<void> => {
 	if (devProvided) {
-		await configureQdrantCollection(devConfig, QDRANT_DEV_COLLECTION_NAME);
+		await configureQdrantCollection(devConfig, QDRANT_DEV_COLLECTION_NAME, openaiEnabled);
 	}
-	await configureQdrantCollection(prodConfig, QDRANT_PROD_COLLECTION_NAME);
+	await configureQdrantCollection(prodConfig, QDRANT_PROD_COLLECTION_NAME, openaiEnabled);
 };

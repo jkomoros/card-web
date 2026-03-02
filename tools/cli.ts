@@ -1,4 +1,4 @@
-import { spawnSync, spawn } from 'child_process';
+import { spawnSync } from 'child_process';
 import process from 'process';
 import prompts from 'prompts';
 
@@ -7,6 +7,8 @@ import {
 	selectedProjectID,
 	CHANGE_ME_SENTINEL,
 	verifyPermissionsLegal,
+	runSync,
+	runBackground,
 } from './util.js';
 
 import { deployFirebase } from './deploy-firebase.js';
@@ -35,8 +37,10 @@ const CONFIG_INCLUDES_DEV = config.devProvided;
 
 const REGION = projectConfig.region || 'us-central1';
 
-const FIREBASE_PROD_PROJECT = projectConfig.firebase.projectId as string;
-const FIREBASE_DEV_PROJECT = devProjectConfig.firebase.projectId as string;
+const FIREBASE_PROD_PROJECT = projectConfig.firebase.projectId;
+if (!FIREBASE_PROD_PROJECT) throw new Error('Missing prod firebase projectId in config');
+const FIREBASE_DEV_PROJECT = devProjectConfig.firebase.projectId;
+if (!FIREBASE_DEV_PROJECT) throw new Error('Missing dev firebase projectId in config');
 
 const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name !== CHANGE_ME_SENTINEL ? projectConfig.backup_bucket_name : '';
 
@@ -85,39 +89,26 @@ const releaseTag = (): string => {
 
 const RELEASE_TAG = releaseTag();
 
-const runCommand = (cmd: string): void => {
-	console.log('Running ' + cmd);
-	const parts = cmd.split(' ');
-	const result = spawnSync(parts[0], parts.slice(1), { stdio: 'inherit' });
-	if (result.error) throw result.error;
-	if (result.status !== 0) throw new Error(`Command failed with exit code ${result.status}`);
-};
-
-const runBackground = (cmd: string): void => {
-	const parts = cmd.split(' ');
-	const child = spawn(parts[0], parts.slice(1), {
-		stdio: 'ignore',
-		detached: true
-	});
-	child.unref();
+const runCommand = (cmd: string, args: string[]): void => {
+	runSync(cmd, args);
 };
 
 // --- Individual command functions ---
 
 const injectConfig = (): void => {
-	runCommand('npm run generate:config');
+	runCommand('npm', ['run', 'generate:config']);
 };
 
 const configureEnvironment = (): void => {
-	runCommand('npm run generate:env');
+	runCommand('npm', ['run', 'generate:env']);
 };
 
 const build = (): void => {
-	runCommand('npm run build');
+	runCommand('npm', ['run', 'build']);
 };
 
 const generateSeoPages = (): void => {
-	runCommand('npm run generate:seo:pages');
+	runCommand('npm', ['run', 'generate:seo:pages']);
 };
 
 const generateSeoPagesOptionally = (): void => {
@@ -129,27 +120,27 @@ const generateSeoPagesOptionally = (): void => {
 };
 
 const mount = (): void => {
-	runCommand('npx tsx tools/mount.ts');
+	runCommand('npx', ['tsx', 'tools/mount.ts']);
 };
 
 const mountDryRun = (): void => {
-	runCommand('npx tsx tools/mount.ts --dry-run');
+	runCommand('npx', ['tsx', 'tools/mount.ts', '--dry-run']);
 };
 
 const firebaseEnsureProd = (): void => {
-	runCommand('firebase use ' + FIREBASE_PROD_PROJECT);
+	runCommand('firebase', ['use', FIREBASE_PROD_PROJECT]);
 };
 
 const firebaseEnsureDev = (): void => {
-	runCommand('firebase use ' + FIREBASE_DEV_PROJECT);
+	runCommand('firebase', ['use', FIREBASE_DEV_PROJECT]);
 };
 
 const gcloudEnsureProd = (): void => {
-	runCommand('gcloud config set project ' + FIREBASE_PROD_PROJECT);
+	runCommand('gcloud', ['config', 'set', 'project', FIREBASE_PROD_PROJECT]);
 };
 
 const gcloudEnsureDev = (): void => {
-	runCommand('gcloud config set project ' + FIREBASE_DEV_PROJECT);
+	runCommand('gcloud', ['config', 'set', 'project', FIREBASE_DEV_PROJECT]);
 };
 
 const firebaseDeploy = (): void => {
@@ -161,11 +152,11 @@ const firebaseDeploy = (): void => {
 };
 
 const setConfigLastDeploy = async (): Promise<void> => {
-	await setLastDeployConfig(RELEASE_TAG);
+	await setLastDeployConfig(RELEASE_TAG, FIREBASE_DEV_PROJECT);
 };
 
 const configureApiKeys = (): void => {
-	runCommand('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY + ' anthropic.api_key=' + ANTHROPIC_API_KEY);
+	runCommand('firebase', ['functions:config:set', 'openai.api_key=' + OPENAI_API_KEY, 'anthropic.api_key=' + ANTHROPIC_API_KEY]);
 };
 
 const configureApiKeysIfSet = (): void => {
@@ -177,7 +168,7 @@ const configureApiKeysIfSet = (): void => {
 };
 
 const configureQdrantCommand = async (): Promise<void> => {
-	await configureQdrant(projectConfig, devProjectConfig, CONFIG_INCLUDES_DEV);
+	await configureQdrant(projectConfig, devProjectConfig, CONFIG_INCLUDES_DEV, OPENAI_ENABLED);
 };
 
 const reindexCardEmbeddings = async (): Promise<void> => {
@@ -191,7 +182,7 @@ const reindexCardEmbeddings = async (): Promise<void> => {
 	const projectId = await selectedProjectID();
 	const url = 'https://' + REGION + '-' + projectId + '.cloudfunctions.net/reindexCardEmbeddings';
 	console.log('Running in the background: ' + url);
-	runBackground('curl -X POST ' + url);
+	runBackground('curl', ['-X', 'POST', url]);
 };
 
 const cleanupOldEmbeddings = async (): Promise<void> => {
@@ -209,12 +200,12 @@ const cleanupOldEmbeddings = async (): Promise<void> => {
 	const url = 'https://' + REGION + '-' + projectId + '.cloudfunctions.net/cleanupOldEmbeddings';
 	console.log('Running in the background: ' + url);
 	const data = JSON.stringify({ versions: versionsToDelete });
-	runBackground(`curl -X POST -H "Content-Type: application/json" -d '${data}' ${url}`);
+	runBackground('curl', ['-X', 'POST', '-H', 'Content-Type: application/json', '-d', data, url]);
 };
 
 const setUpCors = (): void => {
-	runCommand('gsutil cors set cors.json gs://' + devProjectConfig.firebase.storageBucket);
-	runCommand('gsutil cors set cors.json gs://' + projectConfig.firebase.storageBucket);
+	runCommand('gsutil', ['cors', 'set', 'cors.json', 'gs://' + devProjectConfig.firebase.storageBucket]);
+	runCommand('gsutil', ['cors', 'set', 'cors.json', 'gs://' + projectConfig.firebase.storageBucket]);
 };
 
 const gcloudBackup = (backupMessage: string): void => {
@@ -222,7 +213,7 @@ const gcloudBackup = (backupMessage: string): void => {
 		console.log('Skipping backup since no backup_bucket_name set');
 		return;
 	}
-	runCommand('gcloud beta firestore export gs://' + BACKUP_BUCKET_NAME + '/' + RELEASE_TAG + (backupMessage ? '-' + backupMessage : ''));
+	runCommand('gcloud', ['beta', 'firestore', 'export', 'gs://' + BACKUP_BUCKET_NAME + '/' + RELEASE_TAG + (backupMessage ? '-' + backupMessage : '')]);
 };
 
 const gcloudRestore = (): void => {
@@ -239,7 +230,7 @@ const gcloudRestore = (): void => {
 };
 
 const gsutilRsyncUploads = (): void => {
-	runCommand('gsutil rsync -r gs://' + projectConfig.firebase.storageBucket + '/uploads gs://' + devProjectConfig.firebase.storageBucket + '/uploads');
+	runCommand('gsutil', ['rsync', '-r', 'gs://' + projectConfig.firebase.storageBucket + '/uploads', 'gs://' + devProjectConfig.firebase.storageBucket + '/uploads']);
 };
 
 const firebaseDeleteFirestoreIfSafe = async (): Promise<void> => {
@@ -255,7 +246,7 @@ const firebaseDeleteFirestoreIfSafe = async (): Promise<void> => {
 			process.exit(1);
 		}
 	}
-	runCommand('firebase firestore:delete --all-collections --force');
+	runCommand('firebase', ['firestore:delete', '--all-collections', '--force']);
 };
 
 const warnMaintenance = (): void => {
@@ -271,11 +262,11 @@ const warnMaintenance = (): void => {
 };
 
 const makeTag = (): void => {
-	runCommand('git tag ' + RELEASE_TAG);
+	runCommand('git', ['tag', RELEASE_TAG]);
 };
 
 const pushTag = (): void => {
-	runCommand('git push origin ' + RELEASE_TAG);
+	runCommand('git', ['push', 'origin', RELEASE_TAG]);
 };
 
 const askBackupMessage = async (cliMessage?: string): Promise<string> => {
@@ -304,7 +295,7 @@ const askBackupMessage = async (cliMessage?: string): Promise<string> => {
 const setUpDeploy = (): void => {
 	setUpCors();
 	firebaseEnsureProd();
-	runCommand('firebase deploy --only firestore,storage');
+	runCommand('firebase', ['deploy', '--only', 'firestore,storage']);
 };
 
 const devDeploy = async (): Promise<void> => {
@@ -421,127 +412,130 @@ const main = async (): Promise<void> => {
 	const command = args[0] || '--help';
 
 	switch (command) {
-		case 'help':
-		case '--help':
-		case '-h':
-			showHelp();
-			break;
-		case 'inject-config':
-			injectConfig();
-			break;
-		case 'configure-environment':
-			configureEnvironment();
-			break;
-		case 'build':
-			build();
-			break;
-		case 'generate-seo-pages':
-			generateSeoPages();
-			break;
-		case 'mount':
-			mount();
-			break;
-		case 'mount-dry-run':
-			mountDryRun();
-			break;
-		case 'firebase-ensure-prod':
-			firebaseEnsureProd();
-			break;
-		case 'firebase-ensure-dev':
-			firebaseEnsureDev();
-			break;
-		case 'gcloud-ensure-prod':
-			gcloudEnsureProd();
-			break;
-		case 'gcloud-ensure-dev':
-			gcloudEnsureDev();
-			break;
-		case 'firebase-deploy':
-			firebaseDeploy();
-			break;
-		case 'set-config-last-deploy':
-			await setConfigLastDeploy();
-			break;
-		case 'configure-api-keys':
-			configureApiKeys();
-			break;
-		case 'configure-api-keys-if-set':
-			configureApiKeysIfSet();
-			break;
-		case 'configure-qdrant':
-			await configureQdrantCommand();
-			break;
-		case 'reindex-card-embeddings':
-			await reindexCardEmbeddings();
-			break;
-		case 'cleanup-old-embeddings':
-			await cleanupOldEmbeddings();
-			break;
-		case 'set-up-cors':
-			setUpCors();
-			break;
-		case 'gcloud-backup': {
-			const msgIdx = args.indexOf('--message');
-			const msg = msgIdx >= 0 ? args[msgIdx + 1] || '' : '';
-			gcloudBackup(msg);
-			break;
-		}
-		case 'gcloud-restore':
-			gcloudRestore();
-			break;
-		case 'gsutil-rsync-uploads':
-			gsutilRsyncUploads();
-			break;
-		case 'firebase-delete-firestore-if-safe':
-			await firebaseDeleteFirestoreIfSafe();
-			break;
-		case 'warn-maintenance':
-			warnMaintenance();
-			break;
-		case 'make-tag':
-			makeTag();
-			break;
-		case 'push-tag':
-			pushTag();
-			break;
-		case 'generate-favicon':
-			await generateFaviconImpl(APP_TITLE);
-			break;
-		case 'inject-favicon-markups':
-			await injectFaviconMarkupsImpl();
-			break;
-		case 'check-for-favicon-update':
-			checkForFaviconUpdateImpl();
-			break;
+	case 'help':
+	case '--help':
+	case '-h':
+		showHelp();
+		break;
+	case 'inject-config':
+		injectConfig();
+		break;
+	case 'configure-environment':
+		configureEnvironment();
+		break;
+	case 'build':
+		build();
+		break;
+	case 'generate-seo-pages':
+		generateSeoPages();
+		break;
+	case 'mount':
+		mount();
+		break;
+	case 'mount-dry-run':
+		mountDryRun();
+		break;
+	case 'firebase-ensure-prod':
+		firebaseEnsureProd();
+		break;
+	case 'firebase-ensure-dev':
+		firebaseEnsureDev();
+		break;
+	case 'gcloud-ensure-prod':
+		gcloudEnsureProd();
+		break;
+	case 'gcloud-ensure-dev':
+		gcloudEnsureDev();
+		break;
+	case 'firebase-deploy':
+		firebaseDeploy();
+		break;
+	case 'set-config-last-deploy':
+		await setConfigLastDeploy();
+		break;
+	case 'configure-api-keys':
+		configureApiKeys();
+		break;
+	case 'configure-api-keys-if-set':
+		configureApiKeysIfSet();
+		break;
+	case 'configure-qdrant':
+		await configureQdrantCommand();
+		break;
+	case 'reindex-card-embeddings':
+		await reindexCardEmbeddings();
+		break;
+	case 'cleanup-old-embeddings':
+		await cleanupOldEmbeddings();
+		break;
+	case 'set-up-cors':
+		setUpCors();
+		break;
+	case 'gcloud-backup': {
+		gcloudEnsureProd();
+		const msgIdx = args.indexOf('--message');
+		const msg = msgIdx >= 0 ? args[msgIdx + 1] || '' : '';
+		gcloudBackup(msg);
+		break;
+	}
+	case 'gcloud-restore':
+		gcloudEnsureDev();
+		gcloudRestore();
+		break;
+	case 'gsutil-rsync-uploads':
+		gsutilRsyncUploads();
+		break;
+	case 'firebase-delete-firestore-if-safe':
+		firebaseEnsureDev();
+		await firebaseDeleteFirestoreIfSafe();
+		break;
+	case 'warn-maintenance':
+		warnMaintenance();
+		break;
+	case 'make-tag':
+		makeTag();
+		break;
+	case 'push-tag':
+		pushTag();
+		break;
+	case 'generate-favicon':
+		await generateFaviconImpl(APP_TITLE);
+		break;
+	case 'inject-favicon-markups':
+		await injectFaviconMarkupsImpl();
+		break;
+	case 'check-for-favicon-update':
+		await checkForFaviconUpdateImpl();
+		break;
 		// Composite workflows
-		case 'set-up-deploy':
-			setUpDeploy();
-			break;
-		case 'dev-deploy':
-			await devDeploy();
-			break;
-		case 'deploy':
-			await deploy();
-			break;
-		case 'backup': {
-			const msgIdx = args.indexOf('--message');
-			const msg = msgIdx >= 0 ? args[msgIdx + 1] : undefined;
-			await backup(msg);
-			break;
-		}
-		case 'tag-release':
-			tagRelease();
-			break;
-		case 'release':
-			await release();
-			break;
-		case 'reset-dev':
-			await resetDev();
-			break;
-		default:
-			console.error(`Unknown command: ${command}`);
-			console.error('Run with --help to see available commands');
-			process.exit(1);
+	case 'set-up-deploy':
+		setUpDeploy();
+		break;
+	case 'dev-deploy':
+		await devDeploy();
+		break;
+	case 'deploy':
+		await deploy();
+		break;
+	case 'backup': {
+		const msgIdx = args.indexOf('--message');
+		const msg = msgIdx >= 0 ? args[msgIdx + 1] : undefined;
+		await backup(msg);
+		break;
+	}
+	case 'tag-release':
+		tagRelease();
+		break;
+	case 'release':
+		await release();
+		break;
+	case 'reset-dev':
+		await resetDev();
+		break;
+	default:
+		console.error(`Unknown command: ${command}`);
+		console.error('Run with --help to see available commands');
+		process.exit(1);
 	}
 };
 

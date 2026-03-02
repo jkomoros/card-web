@@ -5,7 +5,7 @@ import {
 } from './types.js';
 
 import fs from 'fs';
-import { exec } from 'child_process';
+import { exec, spawnSync, spawn } from 'child_process';
 
 const PROJECT_CONFIG = 'config.SECRET.json';
 export const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
@@ -118,4 +118,20 @@ const getProjectConfig = () : Config => {
 	const extra = JSON.parse(extraFile) as Config;
 
 	return deepMerge(extra, main) as Config;
+};
+
+export const runSync = (cmd: string, args: string[]): void => {
+	console.log('Running ' + cmd + ' ' + args.join(' '));
+	const result = spawnSync(cmd, args, { stdio: 'inherit' });
+	if (result.error) throw result.error;
+	if (result.signal) throw new Error(`Command killed by signal ${result.signal}`);
+	if (result.status !== 0) throw new Error(`Command failed with exit code ${result.status}`);
+};
+
+export const runBackground = (cmd: string, args: string[]): void => {
+	const child = spawn(cmd, args, {
+		stdio: 'ignore',
+		detached: true
+	});
+	child.unref();
 };

@@ -1,11 +1,24 @@
 import fs from 'fs';
+import { createRequire } from 'module';
 
 // gulp-real-favicon provides generateFavicon and checkForUpdates with callback APIs
 // that don't actually need gulp streams.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 import realFavicon from 'gulp-real-favicon';
 
+const require = createRequire(import.meta.url);
+
 const FAVICON_DATA_FILE = 'favicon_data.json';
+
+interface FaviconData {
+	version: string;
+	favicon: {
+		html_code: string[];
+	};
+}
+
+const readFaviconData = (): FaviconData => {
+	return JSON.parse(fs.readFileSync(FAVICON_DATA_FILE).toString()) as FaviconData;
+};
 
 export const generateFavicon = (appTitle: string): Promise<void> => {
 	return new Promise<void>((resolve, reject) => {
@@ -82,14 +95,12 @@ export const generateFavicon = (appTitle: string): Promise<void> => {
 
 export const injectFaviconMarkups = (): Promise<void> => {
 	return new Promise<void>((resolve, reject) => {
-		const faviconData = JSON.parse(fs.readFileSync(FAVICON_DATA_FILE).toString());
+		const faviconData = readFaviconData();
 		const htmlMarkups: string[] = faviconData.favicon.html_code;
 		const fileContent = fs.readFileSync('index.html');
 
-		// Use rfg-api directly via gulp-real-favicon's underlying implementation
-		// The injectFaviconMarkups on the module uses gulp streams, but rfg-api
-		// exposes a callback-based version. We access it through require.
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		// Use rfg-api directly — the gulp-real-favicon injectFaviconMarkups
+		// returns a gulp stream, but rfg-api exposes a callback-based version.
 		const rfg = require('rfg-api').init();
 		rfg.injectFaviconMarkups(fileContent, htmlMarkups, {}, (err: unknown, html: string) => {
 			if (err) {
@@ -102,11 +113,15 @@ export const injectFaviconMarkups = (): Promise<void> => {
 	});
 };
 
-export const checkForFaviconUpdate = (): void => {
-	const currentVersion = JSON.parse(fs.readFileSync(FAVICON_DATA_FILE).toString()).version;
-	realFavicon.checkForUpdates(currentVersion, (err: unknown) => {
-		if (err) {
-			throw err;
-		}
+export const checkForFaviconUpdate = (): Promise<void> => {
+	return new Promise<void>((resolve, reject) => {
+		const currentVersion = readFaviconData().version;
+		realFavicon.checkForUpdates(currentVersion, (err: unknown) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve();
+			}
+		});
 	});
 };

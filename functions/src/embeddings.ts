@@ -62,7 +62,7 @@ overrideDocument(DOM.window.document);
 
 const QDRANT_ENABLED = openai_endpoint && QDRANT_API_KEY && QDRANT_CLUSTER_URL;
 
-//Duplicated in gulpfile.js as QDRANT_COLLECTION_NAME
+//Duplicated in tools/qdrant.ts as QDRANT_*_COLLECTION_NAME
 const EMBEDDING_TYPES = {
 	'openai.com-text-embedding-ada-002': {
 		length: 1536,
@@ -76,7 +76,7 @@ const EMBEDDING_TYPES = {
 //incremented. When adding one, add it like: `0 | 1` and set
 //CURRENT_EMBEDDING_VERSION to the new number. When you deploy
 //updateCardEmbedding, reindexCardEmbeddings, and similarCards, it will use only
-//the new version, which means you should call `gulp reindex-card-embeddings`.
+//the new version, which means you should call `npx tsx tools/cli.ts reindex-card-embeddings`.
 //Note there's currently no tool to remove the old embeddings, although it
 //should be pretty simple to do one by looking at getExistingPoint and using
 //client.delete() with the filter condition for the old version.
