@@ -70,6 +70,7 @@ interface SyncConfig {
 	collectionUrl: string;
 	projectId: string;
 	cards?: Record<string, CardSyncState>;
+	readOnly?: boolean;
 }
 
 interface DiffResult {
@@ -115,6 +116,7 @@ interface CLIArgs {
 	force: boolean;
 	dev: boolean;
 	push: boolean;
+	writable: boolean | undefined;
 }
 
 const parseArgs = (): CLIArgs => {
@@ -126,6 +128,7 @@ const parseArgs = (): CLIArgs => {
 		force: false,
 		dev: false,
 		push: false,
+		writable: undefined,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -140,6 +143,18 @@ const parseArgs = (): CLIArgs => {
 			result.dev = true;
 		} else if (arg === '--push') {
 			result.push = true;
+		} else if (arg === '--writable') {
+			if (result.writable === false) {
+				console.error('Error: --writable and --read-only cannot both be specified.');
+				process.exit(1);
+			}
+			result.writable = true;
+		} else if (arg === '--read-only') {
+			if (result.writable === true) {
+				console.error('Error: --writable and --read-only cannot both be specified.');
+				process.exit(1);
+			}
+			result.writable = false;
 		} else if (!arg.startsWith('-') && !result.mountPoint) {
 			result.mountPoint = arg;
 		}
@@ -155,6 +170,8 @@ Options:
   --collection <url>       CollectionDescription URL (required on first sync)
                            e.g. "unpublished/bits-and-bobs"
   --push                   Enable two-way sync (push local edits to Firestore)
+  --writable               Create files with normal permissions (required for --push)
+  --read-only              Create files with read-only permissions (default for new mounts)
   --dry-run                Show what would change without writing
   --force                  Skip confirmation prompt, execute immediately
   --dev                    Use dev Firestore (default: based on \`firebase use\`)`);
@@ -1187,6 +1204,38 @@ const createSymlinksForCard = (
 	}
 };
 
+const makeWritableIfExists = (filePath: string): void => {
+	if (fs.existsSync(filePath)) {
+		fs.chmodSync(filePath, 0o644);
+	}
+};
+
+const setPermissions = (mountPoint: string, readOnly: boolean): void => {
+	const mode = readOnly ? 0o444 : 0o644;
+	const cardsDir = path.join(mountPoint, CARDS_DIR);
+	if (fs.existsSync(cardsDir)) {
+		for (const file of fs.readdirSync(cardsDir)) {
+			const filePath = path.join(cardsDir, file);
+			if (fs.statSync(filePath).isFile()) {
+				fs.chmodSync(filePath, mode);
+			}
+		}
+	}
+	const imagesDir = path.join(mountPoint, IMAGES_DIR);
+	if (fs.existsSync(imagesDir)) {
+		for (const cardDir of fs.readdirSync(imagesDir)) {
+			const cardImgDir = path.join(imagesDir, cardDir);
+			if (!fs.statSync(cardImgDir).isDirectory()) continue;
+			for (const file of fs.readdirSync(cardImgDir)) {
+				const filePath = path.join(cardImgDir, file);
+				if (fs.statSync(filePath).isFile()) {
+					fs.chmodSync(filePath, mode);
+				}
+			}
+		}
+	}
+};
+
 const writeCard = (
 	mountPoint: string,
 	card: Card,
@@ -1194,6 +1243,7 @@ const writeCard = (
 	tagIndex: TagIndex
 ): void => {
 	const filePath = path.join(mountPoint, CARDS_DIR, card.id + '.md');
+	makeWritableIfExists(filePath);
 	fs.writeFileSync(filePath, markdown);
 
 	//Clean slate: remove existing symlinks, then recreate
@@ -1263,6 +1313,18 @@ const main = async () => {
 		process.exit(1);
 	}
 
+	//--- Resolve read-only mode ---
+	let readOnly: boolean;
+	if (args.writable === true) {
+		readOnly = false;
+	} else if (args.writable === false) {
+		readOnly = true;
+	} else if (syncConfig && syncConfig.readOnly !== undefined) {
+		readOnly = syncConfig.readOnly;
+	} else {
+		readOnly = true;
+	}
+
 	//--- Determine project ---
 	let projectId: string;
 	let storageBucket: string;
@@ -1293,6 +1355,7 @@ const main = async () => {
 
 	console.log(`Card-web mount sync: ${collectionUrl}`);
 	console.log(`Project: ${projectId}`);
+	console.log(`Mode: ${readOnly ? 'read-only' : 'writable'}`);
 	console.log('');
 
 	//--- Initialize Firebase Admin ---
@@ -1333,6 +1396,10 @@ const main = async () => {
 	const existingCardIds = new Set(cards.map(c => c.id));
 
 	if (args.push) {
+		if (readOnly) {
+			console.error('Error: Cannot push from a read-only mount. Re-sync with --writable first.');
+			process.exit(1);
+		}
 		//--- Two-way sync (--push mode) ---
 		const biDiff = computeBidirectionalDiff(cards, mountPoint, syncConfig);
 
@@ -1597,11 +1664,15 @@ const main = async () => {
 	//Clean up empty tag directories
 	cleanEmptyTagDirs(mountPoint);
 
+	//Set file permissions
+	setPermissions(mountPoint, readOnly);
+
 	//--- Write sync config ---
 	writeSyncConfig(mountPoint, {
 		collectionUrl,
 		projectId,
 		cards: cardsSyncState,
+		readOnly,
 	});
 
 	console.log('\nSync complete.');
