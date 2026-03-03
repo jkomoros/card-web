@@ -52,7 +52,6 @@ import {
 	ConfigurableFilterName,
 	UnionFilterName,
 	CollectionConfiguration,
-	Card
 } from '../shared/types.js';
 
 import {
