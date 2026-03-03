@@ -1101,6 +1101,12 @@ const imageFilename = (img: ImageInfo): string => {
 	return 'image';
 };
 
+const makeWritableIfExists = (filePath: string): void => {
+	if (fs.existsSync(filePath)) {
+		fs.chmodSync(filePath, 0o644);
+	}
+};
+
 const downloadImages = async (
 	card: Card,
 	mountPoint: string,
@@ -1124,6 +1130,7 @@ const downloadImages = async (
 				const bucket = storageBucket.bucket();
 				const file = bucket.file(img.uploadPath);
 				const [contents] = await file.download();
+				makeWritableIfExists(destPath);
 				fs.writeFileSync(destPath, contents);
 				console.log(`  Downloaded: images/${card.id}/${filename}`);
 			} else if (img.src) {
@@ -1131,6 +1138,7 @@ const downloadImages = async (
 				const response = await fetch(img.src);
 				if (response.ok) {
 					const buffer = Buffer.from(await response.arrayBuffer());
+					makeWritableIfExists(destPath);
 					fs.writeFileSync(destPath, buffer);
 					console.log(`  Downloaded: images/${card.id}/${filename}`);
 				} else {
@@ -1201,12 +1209,6 @@ const createSymlinksForCard = (
 	const target = path.join('..', CARDS_DIR, filename);
 	if (!fs.existsSync(linkPath)) {
 		fs.symlinkSync(target, linkPath);
-	}
-};
-
-const makeWritableIfExists = (filePath: string): void => {
-	if (fs.existsSync(filePath)) {
-		fs.chmodSync(filePath, 0o644);
 	}
 };
 
@@ -1321,8 +1323,25 @@ const main = async () => {
 		readOnly = true;
 	} else if (syncConfig && syncConfig.readOnly !== undefined) {
 		readOnly = syncConfig.readOnly;
+	} else if (syncConfig) {
+		//Existing mount created before readOnly feature — preserve writable behavior
+		readOnly = false;
 	} else {
+		//Brand-new mount defaults to read-only
 		readOnly = true;
+	}
+
+	//--- Early push guard (before any network calls) ---
+	if (args.push && readOnly) {
+		console.error('Error: Cannot push from a read-only mount. Use --push --writable to push and convert to writable mode, or re-sync with --writable first.');
+		process.exit(1);
+	}
+
+	//--- Warn if mode is changing ---
+	if (syncConfig && syncConfig.readOnly !== undefined && syncConfig.readOnly !== readOnly) {
+		const oldMode = syncConfig.readOnly ? 'read-only' : 'writable';
+		const newMode = readOnly ? 'read-only' : 'writable';
+		console.log(`Note: Mount mode changing from ${oldMode} to ${newMode}.`);
 	}
 
 	//--- Determine project ---
@@ -1396,10 +1415,6 @@ const main = async () => {
 	const existingCardIds = new Set(cards.map(c => c.id));
 
 	if (args.push) {
-		if (readOnly) {
-			console.error('Error: Cannot push from a read-only mount. Re-sync with --writable first.');
-			process.exit(1);
-		}
 		//--- Two-way sync (--push mode) ---
 		const biDiff = computeBidirectionalDiff(cards, mountPoint, syncConfig);
 
