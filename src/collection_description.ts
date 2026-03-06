@@ -27,20 +27,6 @@ import {
 } from './filter-classification.js';
 
 import {
-	db
-} from './firebase.js';
-
-import {
-	collection,
-	query,
-	getCountFromServer
-} from 'firebase/firestore';
-
-import {
-	CARDS_COLLECTION
-} from '../shared/collection-constants.js';
-
-import {
 	TypedObject
 } from '../shared/typed_object.js';
 
@@ -227,11 +213,6 @@ export class CollectionDescription {
 	_serialized : string;
 	_serializedShort : string;
 	_classification? : FilterClassification;
-	_countCache? : {
-		count: number;
-		isExact: boolean;
-		timestamp: number;
-	};
 
 	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
@@ -342,73 +323,6 @@ export class CollectionDescription {
 			this._classification = classifyCollectionDescription(this);
 		}
 		return this._classification;
-	}
-
-	async getServerCount(featureEnabled: boolean): Promise<{
-		count: number;
-		isExact: boolean;
-		reason?: string;
-	}> {
-		// Feature flag check
-		if (!featureEnabled) {
-			return this._getClientSideCount();
-		}
-
-		// Cache check (5-minute TTL)
-		if (this._countCache &&
-			(Date.now() - this._countCache.timestamp < 300000)) {
-			return {
-				count: this._countCache.count,
-				isExact: this._countCache.isExact
-			};
-		}
-
-		const classification = this.classification;
-
-		if (!classification.canGetServerCount) {
-			return this._getClientSideCount();
-		}
-
-		try {
-			const constraints = classification.firestoreConstraints || [];
-			const q = query(
-				collection(db, CARDS_COLLECTION),
-				...constraints
-			);
-
-			const snapshot = await getCountFromServer(q);
-			const count = snapshot.data().count;
-
-			// Cache result
-			this._countCache = {
-				count,
-				isExact: true,
-				timestamp: Date.now()
-			};
-
-			return {
-				count,
-				isExact: true,
-				reason: 'Server-side count'
-			};
-		} catch (error) {
-			console.error('Server count failed:', error);
-			return this._getClientSideCount();
-		}
-	}
-
-	private _getClientSideCount(): {
-		count: number;
-		isExact: boolean;
-		reason: string;
-	} {
-		// Requires full collection instantiation
-		// Return 0 as placeholder - actual count from Collection.numCards
-		return {
-			count: 0,
-			isExact: false,
-			reason: 'Client-side filtering required'
-		};
 	}
 
 	serialize() {

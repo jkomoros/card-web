@@ -396,7 +396,7 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 	//If card has stored NLP tokens, use them instead of recomputing
 	if (card.nlp_tokens) {
 		//Convert stored NLPTokenStorage to NLPInfo format
-		const nlp : {[field : string] : ProcessedRunInterface[]} = {};
+		const nlp : {[field in CardFieldType]?: ProcessedRunInterface[]} = {};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
 			if (storedRuns) {
 				nlp[fieldName] = storedRuns.map(storedRun => ({
@@ -416,7 +416,7 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 			fallbackText,
 			importantNgrams,
 			synonymMap: synonyms,
-			nlp: nlp as any //Type system can't infer the exact NLPInfo structure
+			nlp: nlp as unknown as ProcessedCard['nlp']
 		} as ProcessedCard;
 	}
 

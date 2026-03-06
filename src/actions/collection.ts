@@ -84,7 +84,6 @@ import {
 	collection,
 	query,
 	getDocs,
-	orderBy,
 	limit,
 	where
 } from 'firebase/firestore';
@@ -662,7 +661,6 @@ const cleanupDeepFetchCardsForKey = (dispatch: (action: SomeAction) => void, get
  * (e.g. when navigating away from collection pages entirely).
  */
 export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, getState) => {
-	// Clear all pending debounce timers
 	for (const timer of deepFetchTimers.values()) {
 		clearTimeout(timer);
 	}
@@ -671,17 +669,35 @@ export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, 
 	const state = getState();
 	if (!state.collection) return;
 
-	for (const [key, entry] of Object.entries(state.collection.deepFetchState)) {
-		// Bump generation to invalidate in-flight fetches for this key
+	const keys = Object.keys(state.collection.deepFetchState);
+
+	// Bump generations to invalidate all in-flight fetches
+	for (const key of keys) {
 		const gen = deepFetchGenerations.get(key) || 0;
 		deepFetchGenerations.set(key, gen + 1);
+	}
 
-		if (entry.deepCardIDs && entry.deepCardIDs.length > 0) {
-			dispatch({
-				type: REMOVE_CARDS,
-				cardIDs: entry.deepCardIDs
-			});
+	// Collect all deep-fetched card IDs across all keys (deduplicated)
+	const allDeepCardIDs = new Set<string>();
+	for (const key of keys) {
+		const entry = state.collection.deepFetchState[key];
+		if (entry?.deepCardIDs) {
+			for (const id of entry.deepCardIDs) {
+				allDeepCardIDs.add(id);
+			}
 		}
+	}
+
+	// Remove all deep-fetched cards in one dispatch
+	if (allDeepCardIDs.size > 0) {
+		dispatch({
+			type: REMOVE_CARDS,
+			cardIDs: [...allDeepCardIDs]
+		});
+	}
+
+	// Clear all keys from Redux state
+	for (const key of keys) {
 		dispatch({
 			type: DEEP_FETCH_CLEAR_KEY,
 			collectionKey: key
@@ -802,7 +818,6 @@ const deepFetchForCollection = (fetchDescription: CollectionDescription): ThunkS
 				collection(db, CARDS_COLLECTION),
 				...constraints,
 				...publishedConstraints,
-				orderBy('sort_order'),
 				limit(DEEP_FETCH_LIMIT)
 			);
 

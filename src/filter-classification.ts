@@ -39,9 +39,6 @@ import {
 	Timestamp
 } from 'firebase/firestore';
 
-// Feature flag for SIMPLE collections with server-side counting
-export const ENABLE_SIMPLE_COLLECTIONS = true;
-
 export enum FilterComplexity {
 	SIMPLE = 'SIMPLE',    // Server-queryable
 	COMPLEX = 'COMPLEX',  // Client-only
