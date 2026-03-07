@@ -56,7 +56,9 @@ import {
 
 import {
 	STOP_WORDS,
-	OVERRIDE_STEMS
+	OVERRIDE_STEMS,
+	computeUppercaseRanges,
+	applyCaseMap
 } from '../shared/nlp.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -488,12 +490,15 @@ class ProcessedRun {
 
 	original : string;
 	normalized : string;
+	uppercaseRanges? : number[];
 	stemmed : string;
 	withoutStopWords : string;
 
 	constructor(originalText : string) {
 		this.original = originalText;
 		this.normalized = normalizedWords(originalText);
+		const normalizedOrigCase = normalizedWords(originalText, true);
+		this.uppercaseRanges = computeUppercaseRanges(this.normalized, normalizedOrigCase);
 		this.stemmed = stemmedNormalizedWords(this.normalized);
 		this.withoutStopWords = withoutStopWords(this.stemmed);
 	}
@@ -960,7 +965,7 @@ const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun, o
 		return '';
 	}
 
-	const normalized = originalCase ? normalizedWords(run.original, true) : run.normalized;
+	const normalized = originalCase ? applyCaseMap(run.normalized, run.uppercaseRanges) : run.normalized;
 	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
 	return normalized.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
 

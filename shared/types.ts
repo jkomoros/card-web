@@ -547,7 +547,8 @@ export function isProcessedCard(card : Card | ProcessedCard) : card is Processed
 export interface ProcessedRunStorage {
 	normalized: string,
 	stemmed: string,
-	withoutStopWords: string
+	withoutStopWords: string,
+	uppercaseRanges?: number[]
 }
 
 //Map of field name to array of processed runs for that field
@@ -561,6 +562,7 @@ export interface ProcessedRunInterface {
 	original : string,
 	stemmed : string,
 	withoutStopWords : string,
+	uppercaseRanges? : number[],
 	readonly empty : boolean
 }
 

@@ -404,6 +404,7 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 					original: '', //Not stored, but not needed for most operations
 					stemmed: storedRun.stemmed,
 					withoutStopWords: storedRun.withoutStopWords,
+					uppercaseRanges: storedRun.uppercaseRanges,
 					get empty() { return storedRun.normalized === ''; }
 				}));
 			}

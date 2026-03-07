@@ -29,6 +29,7 @@ interface ProcessedRunInterface {
 	original : string,
 	stemmed : string,
 	withoutStopWords : string,
+	uppercaseRanges? : number[],
 	readonly empty : boolean
 }
 
@@ -268,16 +269,51 @@ const extractRawContentRunsForCardField = (card : Card, fieldName : CardFieldTyp
 	return splitRuns(content);
 };
 
+// Compute uppercase ranges by comparing case-preserved vs lowercase normalized.
+// Returns a flat array of [startIndex, length] pairs encoding runs of uppercase
+// characters, or undefined if there are none.
+export const computeUppercaseRanges = (normalizedLower: string, normalizedOrigCase: string): number[] | undefined => {
+	const ranges: number[] = [];
+	let i = 0;
+	while (i < normalizedLower.length) {
+		if (normalizedOrigCase[i] !== normalizedLower[i]) {
+			const start = i;
+			while (i < normalizedLower.length && normalizedOrigCase[i] !== normalizedLower[i]) i++;
+			ranges.push(start, i - start);
+		} else {
+			i++;
+		}
+	}
+	return ranges.length > 0 ? ranges : undefined;
+};
+
+// Reconstruct case-preserved normalized text from lowercase + uppercase ranges.
+export const applyCaseMap = (normalized: string, uppercaseRanges?: number[]): string => {
+	if (!uppercaseRanges || uppercaseRanges.length === 0) return normalized;
+	const chars = normalized.split('');
+	for (let r = 0; r < uppercaseRanges.length; r += 2) {
+		const start = uppercaseRanges[r];
+		const len = uppercaseRanges[r + 1];
+		for (let i = start; i < start + len && i < chars.length; i++) {
+			chars[i] = chars[i].toUpperCase();
+		}
+	}
+	return chars.join('');
+};
+
 class ProcessedRun {
 
 	original : string;
 	normalized : string;
+	uppercaseRanges? : number[];
 	stemmed : string;
 	withoutStopWords : string;
 
 	constructor(originalText : string) {
 		this.original = originalText;
 		this.normalized = normalizedWords(originalText);
+		const normalizedOrigCase = normalizedWords(originalText, true);
+		this.uppercaseRanges = computeUppercaseRanges(this.normalized, normalizedOrigCase);
 		this.stemmed = stemmedNormalizedWords(this.normalized);
 		this.withoutStopWords = withoutStopWords(this.stemmed);
 	}

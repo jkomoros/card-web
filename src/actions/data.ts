@@ -487,7 +487,8 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 			nlpTokens[fieldName as CardFieldType] = runs.map(run => ({
 				normalized: run.normalized,
 				stemmed: run.stemmed,
-				withoutStopWords: run.withoutStopWords
+				withoutStopWords: run.withoutStopWords,
+				...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
 			}));
 		}
 
