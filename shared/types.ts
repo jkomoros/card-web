@@ -523,9 +523,11 @@ export interface Card {
 	//Flat array of deduplicated stemmed unigrams + bigrams for server-side
 	//array-contains queries. Generated from nlp_tokens across all fields.
 	nlp_search_tokens?: string[],
-	//Fingerprint hash of the card's content for similarity matching
-	//Format: "title|body|commentary|references" processed and hashed
-	nlp_fingerprint?: string,
+	//nlp_fingerprint was removed: it was originally conceived as a pre-computed
+	//semantic fingerprint for auto-titles, then repurposed for "change detection",
+	//but no consumer was ever wired up. nlp_search_tokens and nlp_version cover
+	//the query and versioning use cases respectively. Old cards may still have
+	//the field in Firestore; it is harmlessly ignored.
 	//Version number of NLP processing (incremented when algorithm changes)
 	nlp_version?: number,
 }
@@ -546,8 +548,6 @@ export function isProcessedCard(card : Card | ProcessedCard) : card is Processed
 //Only includes the fields needed for fingerprinting and similarity
 export interface ProcessedRunStorage {
 	normalized: string,
-	stemmed: string,
-	withoutStopWords: string,
 	uppercaseRanges?: number[]
 }
 

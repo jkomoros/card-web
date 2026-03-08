@@ -15,7 +15,6 @@ for (const doc of snapshot.docs) {
   console.log(`Card ID: ${doc.id}`);
   console.log(`  Title: ${card.title || '(none)'}`);
   console.log(`  Has nlp_tokens: ${!!card.nlp_tokens}`);
-  console.log(`  Has nlp_fingerprint: ${!!card.nlp_fingerprint}`);
   console.log(`  nlp_version: ${card.nlp_version || '(none)'}`);
   if (card.nlp_tokens) {
     const fields = Object.keys(card.nlp_tokens);

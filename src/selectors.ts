@@ -184,6 +184,11 @@ import {
 } from '../shared/typed_object.js';
 
 import {
+	stemmedNormalizedWords,
+	withoutStopWords
+} from '../shared/nlp.js';
+
+import {
 	Timestamp
 } from 'firebase/firestore';
 
@@ -399,14 +404,23 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 		const nlp : {[field in CardFieldType]?: ProcessedRunInterface[]} = {};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
 			if (storedRuns) {
-				nlp[fieldName] = storedRuns.map(storedRun => ({
+				nlp[fieldName] = storedRuns.map(storedRun => {
+				//Derive stemmed and withoutStopWords from normalized at load time.
+				//The stemmer is deterministic and cheap (~15ms for entire corpus).
+				let cachedStemmed : string | undefined;
+				const getStemmed = () => {
+					if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
+					return cachedStemmed;
+				};
+				return {
 					normalized: storedRun.normalized,
 					original: '', //Not stored, but not needed for most operations
-					stemmed: storedRun.stemmed,
-					withoutStopWords: storedRun.withoutStopWords,
+					get stemmed() { return getStemmed(); },
+					get withoutStopWords() { return withoutStopWords(getStemmed()); },
 					uppercaseRanges: storedRun.uppercaseRanges,
 					get empty() { return storedRun.normalized === ''; }
-				}));
+				};
+			});
 			}
 		}
 

@@ -482,29 +482,20 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		const processedCard = cardWithNormalizedTextProperties(tempUpdatedCard, {}, {}, {});
 
 		//Convert ProcessedRunInterface to ProcessedRunStorage for Firestore
+		//Only store normalized + uppercaseRanges; stemmed and withoutStopWords
+		//are derived at load time since the stemmer is deterministic and cheap.
 		const nlpTokens : NLPTokenStorage = {};
 		for (const [fieldName, runs] of TypedObject.entries(processedCard.nlp)) {
 			nlpTokens[fieldName as CardFieldType] = runs.map(run => ({
 				normalized: run.normalized,
-				stemmed: run.stemmed,
-				withoutStopWords: run.withoutStopWords,
 				...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
 			}));
 		}
 
-		//Generate simple hash fingerprint from content for change detection
-		//Concatenate key stemmed tokens from main content fields
-		const fingerprintParts : string[] = [];
-		for (const field of ['title', 'body', 'commentary'] as CardFieldType[]) {
-			const fieldRuns = nlpTokens[field] || [];
-			fingerprintParts.push(fieldRuns.map(r => r.stemmed).join(' '));
-		}
-		const fingerprint = fingerprintParts.join('|');
-
 		//Generate nlp_search_tokens: flat array of deduplicated stemmed
 		//unigrams + bigrams for server-side array-contains queries
 		const searchTokenSet = new Set<string>();
-		for (const [, runs] of TypedObject.entries(nlpTokens)) {
+		for (const [, runs] of TypedObject.entries(processedCard.nlp)) {
 			if (!runs) continue;
 			for (const run of runs) {
 				//Add individual stemmed words
@@ -521,7 +512,6 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		//Add NLP data to card update
 		cardUpdateObject.nlp_tokens = nlpTokens;
 		cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
-		cardUpdateObject.nlp_fingerprint = fingerprint;
 		cardUpdateObject.nlp_version = 1; //Increment when NLP algorithm changes
 	}
 

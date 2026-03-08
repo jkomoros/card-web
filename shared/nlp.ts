@@ -219,7 +219,7 @@ export const stemmedNormalizedWords = (str : string) : string => {
 	return result.join(' ');
 };
 
-const withoutStopWords = (str : string) : string => {
+export const withoutStopWords = (str : string) : string => {
 	return str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
 };
 

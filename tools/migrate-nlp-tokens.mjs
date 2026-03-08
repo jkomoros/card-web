@@ -44,7 +44,7 @@ if (args.help || args.h) {
 	console.log(`
 Usage: node tools/migrate-nlp-tokens.mjs [OPTIONS]
 
-Backfill NLP tokens (nlp_tokens, nlp_fingerprint, nlp_version) for existing cards.
+Backfill NLP tokens (nlp_tokens, nlp_search_tokens, nlp_version) for existing cards.
 
 Options:
   --dev         Use development database
@@ -178,28 +178,20 @@ async function migrate() {
 					// Generate NLP tokens
 					const processedCard = cardWithNormalizedTextPropertiesSimple(card);
 
-					// Convert to storage format
+					// Convert to storage format: only normalized + uppercaseRanges.
+					// stemmed and withoutStopWords are derived at load time.
 					const nlpTokens = {};
 					for (const [fieldName, runs] of Object.entries(processedCard.nlp)) {
 						nlpTokens[fieldName] = runs.map(run => ({
 							normalized: run.normalized,
-							stemmed: run.stemmed,
-							withoutStopWords: run.withoutStopWords
+							...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
 						}));
 					}
-
-					// Generate fingerprint (stemmed tokens joined by | for each field)
-					const fingerprintParts = [];
-					for (const field of ['title', 'body', 'commentary']) {
-						const fieldRuns = nlpTokens[field] || [];
-						fingerprintParts.push(fieldRuns.map(r => r.stemmed).join(' '));
-					}
-					const fingerprint = fingerprintParts.join('|');
 
 					// Generate nlp_search_tokens: flat array of deduplicated
 					// stemmed unigrams + bigrams for array-contains queries
 					const searchTokenSet = new Set();
-					for (const [, runs] of Object.entries(nlpTokens)) {
+					for (const [, runs] of Object.entries(processedCard.nlp)) {
 						if (!runs) continue;
 						for (const run of runs) {
 							for (const word of run.stemmed.split(' ')) {
@@ -216,7 +208,6 @@ async function migrate() {
 						batch.update(docSnap.ref, {
 							nlp_tokens: nlpTokens,
 							nlp_search_tokens: Array.from(searchTokenSet),
-							nlp_fingerprint: fingerprint,
 							nlp_version: 1
 						});
 					}
