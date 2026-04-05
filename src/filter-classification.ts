@@ -42,7 +42,6 @@ import {
 export enum FilterComplexity {
 	SIMPLE = 'SIMPLE',    // Server-queryable
 	COMPLEX = 'COMPLEX',  // Client-only
-	HYBRID = 'HYBRID'     // Context-dependent
 }
 
 export interface FilterClassification {

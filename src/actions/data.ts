@@ -471,6 +471,8 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	const contentFieldsChanged = update.title !== undefined ||
 		update.body !== undefined ||
 		update.commentary !== undefined ||
+		update.subtitle !== undefined ||
+		update.title_alternates !== undefined ||
 		update.references_diff !== undefined;
 
 	if (contentFieldsChanged) {

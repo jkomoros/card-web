@@ -111,13 +111,3 @@ const cacheIDF = (data: ServerIDFData): void => {
 	}
 };
 
-/**
- * Clears the IDF cache. Useful for debugging.
- */
-export const clearIDFCache = (): void => {
-	try {
-		localStorage.removeItem(CACHE_KEY);
-	} catch (error) {
-		console.warn('Failed to clear IDF cache:', error);
-	}
-};
