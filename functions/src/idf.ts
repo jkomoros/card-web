@@ -1,5 +1,4 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { JSDOM } from 'jsdom';
 
 import { db, storage } from './common.js';
 
@@ -18,12 +17,20 @@ type ProcessedCards = {
 	[id: string]: ProcessedCard
 };
 
-// Set up jsdom for Node.js environment (NLP code needs DOM to parse HTML).
+// Lazy-init jsdom for Node.js environment (NLP code needs DOM to parse HTML).
 // We must use overrideDocument() rather than setting global.document because
 // shared/document.ts captures DOCUMENT at module evaluation time (before this
 // top-level code runs), so mutating globals has no effect.
-const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
-overrideDocument(dom.window.document);
+// Initialized lazily so non-NLP Cloud Functions don't pay the JSDOM cold start cost.
+let jsdomInitialized = false;
+const ensureJsdom = () => {
+	if (jsdomInitialized) return;
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	const { JSDOM } = require('jsdom');
+	const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+	overrideDocument(dom.window.document);
+	jsdomInitialized = true;
+};
 
 export const calculateIDF = onSchedule({
 	schedule: '0 2 * * 0', // Weekly Sunday 2:00 AM PST
@@ -31,6 +38,7 @@ export const calculateIDF = onSchedule({
 	memory: '2GiB',
 	timeoutSeconds: 540 // 9 minutes
 }, async (_event) => {
+	ensureJsdom();
 	try {
 		// 1. Fetch all cards from Firestore
 		console.log('Fetching cards from Firestore...');
