@@ -312,8 +312,13 @@ class ProcessedRun {
 	constructor(originalText : string) {
 		this.original = originalText;
 		this.normalized = normalizedWords(originalText);
-		const normalizedOrigCase = normalizedWords(originalText, true);
-		this.uppercaseRanges = computeUppercaseRanges(this.normalized, normalizedOrigCase);
+		const hasUppercase = originalText !== originalText.toLowerCase();
+		if (hasUppercase) {
+			const normalizedOrigCase = normalizedWords(originalText, true);
+			this.uppercaseRanges = computeUppercaseRanges(this.normalized, normalizedOrigCase);
+		} else {
+			this.uppercaseRanges = undefined;
+		}
 		this.stemmed = stemmedNormalizedWords(this.normalized);
 		this.withoutStopWords = withoutStopWords(this.stemmed);
 	}

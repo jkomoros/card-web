@@ -408,6 +408,7 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 				//Derive stemmed and withoutStopWords from normalized at load time.
 				//The stemmer is deterministic and cheap (~15ms for entire corpus).
 				let cachedStemmed : string | undefined;
+				let cachedWithoutStopWords : string | undefined;
 				const getStemmed = () => {
 					if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
 					return cachedStemmed;
@@ -416,7 +417,10 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 					normalized: storedRun.normalized,
 					original: '', //Not stored, but not needed for most operations
 					get stemmed() { return getStemmed(); },
-					get withoutStopWords() { return withoutStopWords(getStemmed()); },
+					get withoutStopWords() {
+						if (cachedWithoutStopWords === undefined) cachedWithoutStopWords = withoutStopWords(getStemmed());
+						return cachedWithoutStopWords;
+					},
 					uppercaseRanges: storedRun.uppercaseRanges,
 					get empty() { return storedRun.normalized === ''; }
 				};
