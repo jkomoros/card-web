@@ -144,12 +144,12 @@ const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 const WHOLE_NGRAM_MAX_SIZE = 6;
 
 //If originalCase is not true, then lowercases everything.
-const lowercaseSplitWords = (str : string, originalCase = false) : string[] => {
+export const lowercaseSplitWords = (str : string, originalCase = false) : string[] => {
 	if (!originalCase) str = str.toLowerCase();
 	return str.split(/\s+/);
 };
 
-const wordIsUrl = (word : string) : boolean => {
+export const wordIsUrl = (word : string) : boolean => {
 	if (!word || !word.includes('/')) return false;
 	const distinctiveURLParts = ['http:', 'https:', '.com', '.net', '.org'];
 	for (const urlPart of distinctiveURLParts) {
@@ -161,7 +161,7 @@ const wordIsUrl = (word : string) : boolean => {
 //splitSlashNonURLs will return an array of words, with either a single item, or
 //n items, split on '/'. If the item looks like a URL it won't split slashes. It
 //assumes text is lowercase.
-const splitSlashNonURLs = (word : string) : string[]  => {
+export const splitSlashNonURLs = (word : string) : string[]  => {
 	if (!word || !word.includes('/')) return [word];
 	return wordIsUrl(word) ? [word] : word.split('/');
 };
@@ -227,7 +227,7 @@ export const withoutStopWords = (str : string) : string => {
 //are) they're joined by ' '. This allows it to work straightforwardly for
 //normal text properties, as well as arrays, objects, or even nested objects
 //that have string values at the terminus.
-const extractFieldValueForIndexing = (fieldValue : string | object) : string => {
+export const extractFieldValueForIndexing = (fieldValue : string | object) : string => {
 	if (typeof fieldValue !== 'object') return fieldValue;
 	if (!fieldValue) return '';
 	//Join multi ones with the split character
@@ -238,7 +238,7 @@ const extractFieldValueForIndexing = (fieldValue : string | object) : string => 
 //logically separate from one another, such that a word at the end of one run
 //shouldn't be considered to be 'next to' the beginning word of the next run.
 //Block-level elements, separate links, etc, all are considered new runs.
-const splitRuns = (text : string) : string[] => {
+export const splitRuns = (text : string) : string[] => {
 	if (!text) return [];
 	//TODO: also split for e.g. parantheses, quotes, etc
 	return text.split('\n').filter(str => str);

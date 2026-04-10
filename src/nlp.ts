@@ -1,6 +1,6 @@
 import {
 	stemmer
-} from './stemmer.js';
+} from '../shared/stemmer.js';
 
 import {
 	TypedObject
@@ -58,7 +58,16 @@ import {
 	STOP_WORDS,
 	OVERRIDE_STEMS,
 	computeUppercaseRanges,
-	applyCaseMap
+	applyCaseMap,
+	normalizedWords,
+	withoutStopWords,
+	ngrams,
+	ngramWithinOther,
+	MAX_N_GRAM_FOR_FINGERPRINT,
+	lowercaseSplitWords,
+	wordIsUrl,
+	extractFieldValueForIndexing,
+	splitRuns
 } from '../shared/nlp.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -299,55 +308,6 @@ const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, within
 	}
 };
 
-//If originalCase is not true, then lowercases everything.
-const lowercaseSplitWords = (str : string, originalCase = false) : string[] => {
-	if (!originalCase) str = str.toLowerCase();
-	return str.split(/\s+/);
-};
-
-const wordIsUrl = (word : string) : boolean => {
-	if (!word || !word.includes('/')) return false;
-	const distinctiveURLParts = ['http:', 'https:', '.com', '.net', '.org'];
-	for (const urlPart of distinctiveURLParts) {
-		if (word.includes(urlPart)) return true;
-	}
-	return false;
-};
-
-//splitSlashNonURLs will return an array of words, with either a single item, or
-//n items, split on '/'. If the item looks like a URL it won't split slashes. It
-//assumes text is lowercase.
-const splitSlashNonURLs = (word : string) : string[]  => {
-	if (!word || !word.includes('/')) return [word];
-	return wordIsUrl(word) ? [word] : word.split('/');
-};
-
-const normalizedWords = (str : string, originalCase = false) : string => {
-	if (!str) str = '';
-
-	const splitWords = lowercaseSplitWords(str, originalCase);
-	const result = [];
-	for (const word of splitWords) {
-		for (let subWord of splitSlashNonURLs(word)) {
-			//Leave URLS totally in place.
-			if (wordIsUrl(subWord)) {
-				result.push(subWord);
-				continue;
-			}
-			subWord = subWord.replace(/^\W*/, '');
-			subWord = subWord.replace(/\W*$/, '');
-			//Pretend like em-dashes are just spaces
-			subWord = subWord.split('--').join(' ');
-			subWord = subWord.split('&emdash;').join(' ');
-			subWord = subWord.split('-').join(' ');
-			subWord = subWord.split('+').join(' ');
-			if (!subWord) continue;
-			result.push(subWord);
-		}
-	}
-	return result.join(' ');
-};
-
 const memoizedStemmedWords : {[word : string] : string} = {};
 //Inverse: the stemmed result, to a map of words and their counts with how often
 //they're handed out
@@ -380,10 +340,6 @@ const stemmedNormalizedWords = (str : string) : string => {
 	return result.join(' ');
 };
 
-const withoutStopWords = (str : string) : string => {
-	return str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
-};
-
 const memoizedFullyNormalizedString : {[raw : string] : string} = {};
 
 const fullyNormalizedString = (rawStr : string) : string => {
@@ -406,27 +362,6 @@ export const cardMatchesString = (card : ProcessedCard, fieldName : CardFieldTyp
 		if (run.withoutStopWords == normalizedString) return true;
 	}
 	return false;
-};
-
-//Returns a string, where if it's an array or object (or any of their subkeys
-//are) they're joined by ' '. This allows it to work straightforwardly for
-//normal text properties, as well as arrays, objects, or even nested objects
-//that have string values at the terminus.
-const extractFieldValueForIndexing = (fieldValue : string | object) : string => {
-	if (typeof fieldValue !== 'object') return fieldValue;
-	if (!fieldValue) return '';
-	//Join multi ones with the split character
-	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).filter(str => str).join('\n');
-};
-
-//Text is non-normalized raw text. Runs are distinct bits of text that are
-//logically separate from one another, such that a word at the end of one run
-//shouldn't be considered to be 'next to' the beginning word of the next run.
-//Block-level elements, separate links, etc, all are considered new runs.
-const splitRuns = (text : string) : string[] => {
-	if (!text) return [];
-	//TODO: also split for e.g. parantheses, quotes, etc
-	return text.split('\n').filter(str => str);
 };
 
 //This is the set of card field extractors for any field types that have
@@ -615,22 +550,6 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fa
 	};
 });
 
-//text should be normalized
-const ngrams = (text : string, size  = 2) : string[]  => {
-	if (!text) return [];
-	const pieces = text.split(' ');
-	if (pieces.length < size) return [];
-	const result = [];
-	for (let i = 0; i < (pieces.length - size + 1); i++) {
-		const subPieces = [];
-		for (let j = 0; j < size; j++) {
-			subPieces.push(pieces[i + j]);
-		}
-		result.push(subPieces.join(' '));
-	}
-	return result;
-};
-
 //Returns the words and filters in the text.
 export const extractFiltersFromQuery = (queryTextIncludingFilters : string) : [query : string, filters : string[]] => {
 	return queryWordsAndFilters(rewriteQueryFilters(queryTextIncludingFilters));
@@ -797,13 +716,8 @@ const queryWordsAndFilters = (queryString : string) : [string, string[]] => {
 	return [words.join(' '), filters];
 };
 
-export const ngramWithinOther =(ngram : string, container : string) : boolean => {
-	//ngramWithinOther is _extremely_ hot. We'll add padding to make sure that
-	//matches only happen at word boundaries.
-	const paddedNgram = ' ' + ngram + ' ';
-	const paddedContainer = ' ' + container + ' ';
-	return paddedContainer.includes(paddedNgram);
-};
+//Re-export for existing consumers
+export { ngramWithinOther, MAX_N_GRAM_FOR_FINGERPRINT };
 
 //from https://stackoverflow.com/a/3561711
 const escapeRegex = (string : string) : string => {
@@ -811,8 +725,6 @@ const escapeRegex = (string : string) : string => {
 	return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 };
 
-//How high to go for n-grams in fingerprint by default. 2 = bigrams and monograms.
-export const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //ngrams will additionally return an ngram of the full string if the number of
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
