@@ -269,8 +269,11 @@ export function classifyCollectionDescription(
 			continue;
 		}
 
-		// Unknown filter = COMPLEX for safety
+		// Unknown filter = COMPLEX for safety.
+		// If you see this warning, add the filter to SIMPLE_FILTERS,
+		// CLIENT_ONLY_FILTERS, or COMPLEX_FILTERS above.
 		if (!SIMPLE_FILTERS.has(filterType)) {
+			console.warn(`filter-classification: "${filterType}" is not in any classification set — treating as COMPLEX. Add it to SIMPLE_FILTERS, CLIENT_ONLY_FILTERS, or COMPLEX_FILTERS in filter-classification.ts.`);
 			return {
 				complexity: FilterComplexity.COMPLEX,
 				canGetServerCount: false,
