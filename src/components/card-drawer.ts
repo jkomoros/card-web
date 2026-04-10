@@ -164,6 +164,10 @@ class CardDrawer extends LitElement {
 				color: var(--app-dark-text-color-subtle, #666);
 				font-style: italic;
 			}
+
+			.deep-fetch-status.error {
+				color: var(--app-warning-color, #c62828);
+			}
 		`
 	];
 
@@ -182,8 +186,11 @@ class CardDrawer extends LitElement {
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							<strong>${currentCount}</strong> cards
+							<span aria-live='polite'>
 							${deepFetchStatus && deepFetchStatus.status === 'loading' ? html`<span class='deep-fetch-status'>Searching deeper...</span>` : ''}
+							${deepFetchStatus && deepFetchStatus.status === 'error' ? html`<span class='deep-fetch-status error'>Search failed</span>` : ''}
 							${deepFetchAdditionalCount > 0 ? html`<span class='deep-fetch-status'>Found ${deepFetchAdditionalCount} additional</span>` : ''}
+						</span>
 						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>

@@ -10,6 +10,7 @@ import { innerTextForHTML } from './util.js';
 import type {
 	Card,
 	ProcessedCard,
+	ProcessedRunInterface,
 	CardFieldType,
 	CardID
 } from './types.js';
@@ -23,15 +24,6 @@ export type IDFMap = {
 export type ProcessedCards = {
 	[id: CardID]: ProcessedCard
 };
-
-interface ProcessedRunInterface {
-	normalized : string,
-	original : string,
-	stemmed : string,
-	withoutStopWords : string,
-	uppercaseRanges? : number[],
-	readonly empty : boolean
-}
 
 type NLPInfo = {
 	[field in CardFieldType]: ProcessedRunInterface[]
