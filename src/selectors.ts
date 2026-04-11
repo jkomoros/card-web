@@ -185,7 +185,8 @@ import {
 
 import {
 	stemmedNormalizedWords,
-	withoutStopWords
+	withoutStopWords,
+	CURRENT_NLP_VERSION
 } from '../shared/nlp.js';
 
 import {
@@ -398,8 +399,8 @@ const selectZippedCardAndFallbackMap = createSelector(
 
 //Fast path for cardWithNormalizedTextProperties that uses stored NLP tokens when available
 const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
-	//If card has stored NLP tokens, use them instead of recomputing
-	if (card.nlp_tokens) {
+	//If card has stored NLP tokens at the current version, use them instead of recomputing
+	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
 		//Convert stored NLPTokenStorage to NLPInfo format
 		const nlp : {[field in CardFieldType]?: ProcessedRunInterface[]} = {};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {

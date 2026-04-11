@@ -18,7 +18,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { writeFileSync } from 'fs';
 import { JSDOM } from 'jsdom';
 import { devProdConfig } from '../lib/tools/util.js';
-import { cardWithNormalizedTextPropertiesSimple, ngrams } from '../shared/dist/nlp.js';
+import { cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION } from '../shared/dist/nlp.js';
 import { overrideDocument } from '../shared/dist/document.js';
 
 // Set up jsdom for Node.js environment (NLP code needs DOM to parse HTML)
@@ -161,8 +161,8 @@ async function migrate() {
 				try {
 					card = { id: docSnap.id, ...docSnap.data() };
 
-					// Skip if already has tokens
-					if (card.nlp_tokens) {
+					// Skip if already has tokens at current version
+					if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
 						skippedCount++;
 						processedCount++;
 						continue;
@@ -208,7 +208,7 @@ async function migrate() {
 						batch.update(docSnap.ref, {
 							nlp_tokens: nlpTokens,
 							nlp_search_tokens: Array.from(searchTokenSet),
-							nlp_version: 1
+							nlp_version: CURRENT_NLP_VERSION
 						});
 					}
 

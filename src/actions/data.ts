@@ -138,7 +138,8 @@ import {
 } from '../nlp.js';
 
 import {
-	ngrams
+	ngrams,
+	CURRENT_NLP_VERSION
 } from '../../shared/nlp.js';
 
 import type {
@@ -514,7 +515,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		//Add NLP data to card update
 		cardUpdateObject.nlp_tokens = nlpTokens;
 		cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
-		cardUpdateObject.nlp_version = 1; //Increment when NLP algorithm changes
+		cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
 	}
 
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);

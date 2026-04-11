@@ -15,6 +15,20 @@ import type {
 	CardID
 } from './types.js';
 
+/**
+ * Current NLP pipeline version. Increment this whenever you change anything
+ * that affects the stored NLP tokens:
+ *   - STOP_WORDS or OVERRIDE_STEMS
+ *   - normalizedWords(), stemmedNormalizedWords(), withoutStopWords()
+ *   - stemmer behavior (shared/stemmer.ts)
+ *   - computeUppercaseRanges()
+ *   - nlp_search_tokens generation (bigram/unigram logic in data.ts)
+ *
+ * After incrementing, re-run: node tools/migrate-nlp-tokens.mjs
+ * The migration script will re-process cards with older nlp_version.
+ */
+export const CURRENT_NLP_VERSION = 1;
+
 type WordNumbers = { [word: string]: number };
 export type IDFMap = {
 	idf: WordNumbers;

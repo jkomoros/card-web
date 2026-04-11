@@ -759,6 +759,10 @@ export const cancelAndCleanupDeepFetch = (collectionKey: string) : ThunkSomeActi
 	// Remove fetched cards
 	cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);
 
+	// Clean up module-level tracking for this key
+	deepFetchGenerations.delete(collectionKey);
+	deepFetchTimers.delete(collectionKey);
+
 	// Remove key from Redux state
 	dispatch({
 		type: DEEP_FETCH_CLEAR_KEY,
