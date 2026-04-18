@@ -83,10 +83,6 @@ import {
 } from '../collection_description.js';
 
 import {
-	cleanupDeepFetchCardsIfNeeded
-} from './collection.js';
-
-import {
 	aboutConceptFilter,
 } from '../filters.js';
 
@@ -314,7 +310,7 @@ export const navigated = (path : string, query : string) : ThunkSomeAction => (d
 
 };
 
-const loadPage = (pathname : string, query : string) : ThunkSomeAction => (dispatch, getState) => {
+const loadPage = (pathname : string, query : string) : ThunkSomeAction => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
 	const pieces = pathname.split('/');
@@ -325,12 +321,6 @@ const loadPage = (pathname : string, query : string) : ThunkSomeAction => (dispa
 	if (query) pageExtra += query;
 
 	if (pageRequiresMainView(page)) import('../components/main-view.js');
-
-	// Clean up deep-fetched cards when navigating away from collection view
-	const previousPage = selectPage(getState());
-	if (previousPage === PAGE_DEFAULT && page !== PAGE_DEFAULT) {
-		dispatch(cleanupDeepFetchCardsIfNeeded());
-	}
 
 	switch(page) {
 	case PAGE_DEFAULT:

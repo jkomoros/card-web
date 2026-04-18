@@ -47,7 +47,6 @@ import {
 	idWasVended,
 	normalizeSlug,
 	createSlugFromArbitraryString,
-	cardIsPrioritized,
 } from '../util.js';
 
 import {
@@ -91,7 +90,6 @@ import {
 	selectPendingModificationCount,
 	selectCompleteModeEnabled,
 	selectCompleteModeRawCardLimit,
-	selectCompleteModeEffectiveCardLimit,
 	selectExpectedCardFetchTypeForNewUnpublishedCard
 } from '../selectors.js';
 
@@ -288,52 +286,6 @@ export const turnCompleteMode = (on : boolean, limit : number) : ThunkSomeAction
 	});
 
 
-	//If we're turning off complete mode, we need to cull any cards that are
-	//in complete mode that shouldn	't be. This will be a no-op if complete mode is on.
-	dispatch(cullExtraCompleteModeCards());
-
-};
-
-const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) => {
-	//This logic should approximate the selection logic in connectLiveUnpublishedCards.
-
-	const state = getState();
-	const cards = selectRawCards(state);
-	const completeMode = selectCompleteModeEnabled(state);
-
-	//No cards to cull because  we're in complete mode.
-	if (completeMode) return;
-
-	const limit = selectCompleteModeEffectiveCardLimit(state);
-
-	//3-Tier Hot System: Keep prioritized cards + recent cards within budget
-	const unpublishedCards = Object.values(cards).filter(card => !card.published);
-
-	//Tier 2: Keep all prioritized cards (always loaded)
-	const prioritizedCards = unpublishedCards.filter(card => cardIsPrioritized(card));
-	const prioritizedCardIDs = new Set(prioritizedCards.map(card => card.id));
-
-	//Tier 3: Keep recent non-prioritized cards up to dynamic limit
-	//Calculate remaining budget after published (~900) and prioritized (~6000) cards
-	const ESTIMATED_PRIORITIZED_AND_PUBLISHED_COUNT = 6900;
-	const recentLimit = Math.max(100, limit - ESTIMATED_PRIORITIZED_AND_PUBLISHED_COUNT);
-	const nonPrioritizedCards = unpublishedCards
-		.filter(card => !prioritizedCardIDs.has(card.id))
-		.sort((a, b) => b.created.seconds - a.created.seconds);
-
-	//Keep prioritized cards + recent non-prioritized cards within limit
-	const recentCardsToKeep = new Set(nonPrioritizedCards.slice(0, recentLimit).map(card => card.id));
-	const cardsToKeep = new Set([...prioritizedCardIDs, ...recentCardsToKeep]);
-
-	//Cull cards that are neither prioritized nor recent
-	const cardsToCull = unpublishedCards
-		.filter(card => !cardsToKeep.has(card.id))
-		.map(card => card.id);
-
-	if (cardsToCull.length === 0) return;
-
-	dispatch(cullCards(cardsToCull));
-	dispatch(refreshCardSelector(true));
 
 };
 

@@ -730,12 +730,6 @@ export type AppState = {
 	suggestMissingConceptsEnabled: boolean,
 }
 
-export type DeepFetchEntry = {
-	status: 'loading' | 'complete' | 'error';
-	deepCardIDs: CardID[];
-	error?: string;
-}
-
 export type CollectionState = {
 	active : CollectionConfiguration,
 	//If the dialog to configure the collection is open, this will be set to a
@@ -767,11 +761,6 @@ export type CollectionState = {
 	selectedCards: FilterMap,
 	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
 	collectionWordCloudVersion: number,
-	//Deep fetch state for SIMPLE collections (progressive loading)
-	//Keyed by collection.serialize() to track deep fetch lifecycle
-	deepFetchState: {
-		[collectionKey: string]: DeepFetchEntry
-	}
 }
 
 export type CommentsState = {
@@ -889,13 +878,9 @@ export type Suggestion = {
 
 const _cardFetchTypeSchema = z.enum([
 	'published',
-	'unpublished-prioritized',
-	'unpublished-recent',
-	'unpublished-partial',
-	'unpublished-complete',
+	'unpublished',
 	'unpublished-editor',
 	'unpublished-author',
-	'deep-fetch'
 ]);
 
 export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;

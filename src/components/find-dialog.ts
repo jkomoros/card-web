@@ -55,7 +55,6 @@ import {
 	selectFindSortByRecent,
 	selectFindRenderOffset,
 	selectFindDialogOpen,
-	getDeepFetchStateForKey
 } from '../selectors.js';
 
 import { 
@@ -89,7 +88,6 @@ import {
 import {
 	CardType,
 	CreateCardOpts,
-	DeepFetchEntry,
 	ReferenceType,
 	State
 } from '../types.js';
@@ -144,9 +142,6 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardTypeFilterLocked: boolean;
-
-	@state()
-		_deepFetchState: DeepFetchEntry | null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -207,7 +202,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .deepFetchState=${this._deepFetchState} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
@@ -386,11 +381,6 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
 		this._sortByRecent = selectFindSortByRecent(state);
-
-		// Deep fetch state is read here; lifecycle (trigger/cancel) is managed
-		// in the action layer (actions/find.ts) to avoid dispatching from stateChanged.
-		const collectionKey = this._collectionDescription ? this._collectionDescription.serialize() : null;
-		this._deepFetchState = collectionKey ? getDeepFetchStateForKey(state, collectionKey) : null;
 	}
 
 }

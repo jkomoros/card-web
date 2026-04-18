@@ -1451,9 +1451,8 @@ export const selectCardLimitReached = createSelector(
 
 export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
 	selectUserMayViewUnpublished,
-	selectCompleteModeEnabled,
-	(mayViewUnpublished, completeModeEnabled) : CardFetchType => {
-		if (mayViewUnpublished) return completeModeEnabled ? 'unpublished-complete' : 'unpublished-recent';
+	(mayViewUnpublished) : CardFetchType => {
+		if (mayViewUnpublished) return 'unpublished';
 		//Technically this is only true if we have a uid, but otheriwse there's nothing to fetch anyway.
 		return 'unpublished-author';
 	}
@@ -1470,8 +1469,8 @@ export const selectDefaultSet = createSelector(
 			}
 		}
 		//Also include any cards that have a non-null section but aren't in any
-		//section's cards array. This handles deep-fetched cards that have a
-		//section field but weren't loaded via the section data.
+		//section's cards array. This handles cards that have a section field
+		//but weren't loaded via the section data.
 		for (const [id, card] of Object.entries(cards)) {
 			if (card.section && !resultSet.has(id)) {
 				resultSet.add(id);
@@ -1696,22 +1695,6 @@ export const selectActiveCollection = createSelector(
 	}
 );
 
-const selectDeepFetchStateMap = (state : State) => state.collection ? state.collection.deepFetchState : {};
-
-export const selectActiveDeepFetchState = createSelector(
-	selectActiveCollectionDescription,
-	selectDeepFetchStateMap,
-	(description, deepFetchState) => {
-		if (!description) return null;
-		const key = description.serialize();
-		return deepFetchState[key] || null;
-	}
-);
-
-export const getDeepFetchStateForKey = (state : State, collectionKey : string) => {
-	if (!state.collection) return null;
-	return state.collection.deepFetchState[collectionKey] || null;
-};
 
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in
 //which reordering is legal. Note: this means that even if it is legal in

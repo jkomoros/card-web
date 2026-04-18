@@ -2280,5 +2280,4 @@ export const INITIAL_STATE : CollectionState = {
 	activeRenderOffset: 0,
 	selectedCards: {},
 	collectionWordCloudVersion: 0,
-	deepFetchState: {}
 };

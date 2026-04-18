@@ -19,10 +19,6 @@ import {
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-	DEEP_FETCH_STARTED,
-	DEEP_FETCH_COMPLETE,
-	DEEP_FETCH_FAILED,
-	DEEP_FETCH_CLEAR_KEY
 } from '../actions.js';
 
 import {
@@ -161,48 +157,6 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			snapshot: action.collection
 		};
-	case DEEP_FETCH_STARTED:
-		return {
-			...state,
-			deepFetchState: {
-				...state.deepFetchState,
-				[action.collectionKey]: {
-					status: 'loading',
-					deepCardIDs: []
-				}
-			}
-		};
-	case DEEP_FETCH_COMPLETE:
-		return {
-			...state,
-			deepFetchState: {
-				...state.deepFetchState,
-				[action.collectionKey]: {
-					status: 'complete',
-					deepCardIDs: [...action.deepCardIDs]
-				}
-			}
-		};
-	case DEEP_FETCH_FAILED:
-		return {
-			...state,
-			deepFetchState: {
-				...state.deepFetchState,
-				[action.collectionKey]: {
-					status: 'error',
-					deepCardIDs: [],
-					error: action.error
-				}
-			}
-		};
-	case DEEP_FETCH_CLEAR_KEY: {
-		if (!(action.collectionKey in state.deepFetchState)) return state;
-		const {[action.collectionKey]: _, ...rest} = state.deepFetchState;
-		return {
-			...state,
-			deepFetchState: rest
-		};
-	}
 	default:
 		return state;
 	}

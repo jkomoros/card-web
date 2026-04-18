@@ -32,10 +32,8 @@ import {
 	selectUserMayViewApp,
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
-	selectCompleteModeEnabled,
 	selectUserMayViewUnpublished,
 	selectUid,
-	selectCompleteModeEffectiveCardLimit
 } from '../selectors.js';
 
 import {
@@ -49,9 +47,7 @@ import {
 	query,
 	orderBy,
 	QuerySnapshot,
-	limit,
 	doc,
-	getCountFromServer
 } from 'firebase/firestore';
 
 import {
@@ -360,8 +356,6 @@ export const connectLivePublishedCards = () => {
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
-let liveUnpublishedPrioritizedCardsUnsubscribe : (() => void) | null = null;
-let liveUnpublishedRecentCardsUnsubscribe : (() => void) | null = null;
 
 const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 
@@ -394,106 +388,38 @@ const disconnectLiveUnpublishedCards = () => {
 		liveUnpublishedCardsUnsubcribe();
 		liveUnpublishedCardsUnsubcribe = null;
 	}
-	if (liveUnpublishedPrioritizedCardsUnsubscribe) {
-		liveUnpublishedPrioritizedCardsUnsubscribe();
-		liveUnpublishedPrioritizedCardsUnsubscribe = null;
-	}
-	if (liveUnpublishedRecentCardsUnsubscribe) {
-		liveUnpublishedRecentCardsUnsubscribe();
-		liveUnpublishedRecentCardsUnsubscribe = null;
-	}
 };
 
-//This should be called any time that whether the user can see unpublished cards
-//changes, or if the completeMode toggle changes.
 export const connectLiveUnpublishedCards = async () => {
-
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
 	disconnectLiveUnpublishedCards();
 
-
 	const userMayViewUnpublished = selectUserMayViewUnpublished(state);
 	const uid = selectUid(state);
-	const completeModeEnabled = selectCompleteModeEnabled(state);
-
-	const effectiveLimit = selectCompleteModeEffectiveCardLimit(state);
-
-	//Note: this logic is largely recreated in a different form in cullExtraCompleteModeCards.
-
-	//Note: the logic of which fetchType channel to expect a new unpublished card to come in on is duplicated in selectExpectedCardFetchTypeForNewUnpublishedCard
 
 	if (userMayViewUnpublished) {
-
-		if (completeModeEnabled) {
-			//In complete mode, load all unpublished cards
-			store.dispatch(expectUnpublishedCards('unpublished-complete'));
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
-		} else {
-			//3-Tier Hot System: Load prioritized and recent unpublished cards
-			store.dispatch(expectUnpublishedCards('unpublished-prioritized'));
-			store.dispatch(expectUnpublishedCards('unpublished-recent'));
-
-			//Tier 2: Prioritized unpublished cards (high priority TODOs)
-			//NOTE: `== false` is correct here, not a bug. The prioritized
-			//TODO's auto-test always returns true ("done"), so a card is only
-			//prioritized via an explicit override to false ("not done"). Thus
-			//querying for == false finds prioritized cards.
-			//See cardIsPrioritized() in src/util.ts for the canonical helper.
-			const prioritizedQuery = query(
-				collection(db, CARDS_COLLECTION),
-				where('published', '==', false),
-				where('auto_todo_overrides.prioritized', '==', false),
-				orderBy('created', 'desc')
-			);
-
-			//Get exact prioritized count to compute Tier 3's budget
-			const FALLBACK_RECENT_LIMIT = 200;
-			let recentLimit = FALLBACK_RECENT_LIMIT;
-			try {
-				const countSnapshot = await getCountFromServer(prioritizedQuery);
-				const prioritizedCount = countSnapshot.data().count;
-				recentLimit = Math.max(100, effectiveLimit - prioritizedCount);
-			} catch {
-				// Fall back to reasonable default on count error
-			}
-
-			liveUnpublishedPrioritizedCardsUnsubscribe = onSnapshot(
-				prioritizedQuery,
-				cardSnapshotReceiver('unpublished-prioritized')
-			);
-
-			//Tier 3: Recent unpublished cards (dynamic limit based on remaining hot tier budget)
-			liveUnpublishedRecentCardsUnsubscribe = onSnapshot(
-				query(
-					collection(db, CARDS_COLLECTION),
-					where('published', '==', false),
-					orderBy('created', 'desc'),
-					limit(recentLimit)
-				),
-				cardSnapshotReceiver('unpublished-recent')
-			);
-		}
+		// Load ALL unpublished cards (replaces 3-tier hot system)
+		store.dispatch(expectUnpublishedCards('unpublished'));
+		liveUnpublishedCardsUnsubcribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished')
+		);
 		return;
 	}
 
 	if (uid) {
-		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-		
-		//TODO: also have unpublished-{author,editor}-{complete,partial} like above?
 		store.dispatch(expectUnpublishedCards('unpublished-author'));
 		store.dispatch(expectUnpublishedCards('unpublished-editor'));
-
-		if (completeModeEnabled) {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
-		} else {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-editor'));
-		}
-
+		liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished-author')
+		);
+		liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished-editor')
+		);
 	}
-
 };
 
 export const connectLiveSections = () => {

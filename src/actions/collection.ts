@@ -1,10 +1,6 @@
 //Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
 
 import {
-	FIRESTORE_MAXIMUM_LIMIT_CLAUSE
-} from '../constants.js';
-
-import {
 	scheduleAutoMarkRead
 } from './user.js';
 
@@ -20,8 +16,6 @@ import {
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
 	NONE_FILTER_NAME,
-	PUBLISHED_FILTER_NAME,
-	UNPUBLISHED_FILTER_NAME,
 	limitFilter
 } from '../filters.js';
 
@@ -34,7 +28,6 @@ import {
 	getIdForCard,
 	getCard,
 	selectDataIsFullyLoaded,
-	selectUserMayViewUnpublished,
 	selectActiveCollectionCards,
 	selectActiveCardID,
 	selectActiveSectionId,
@@ -50,18 +43,11 @@ import {
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
 	selectExplicitlySelectedCardIDs,
-	selectServerIDF,
-	selectFindDialogOpen,
-	selectCollectionDescriptionForQuery
 } from '../selectors.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
 } from '../../shared/card_fields.js';
-
-import {
-	classifyCollectionDescription,
-} from '../filter-classification.js';
 
 import {
 	navigatedToNewCard,
@@ -71,26 +57,6 @@ import {
 import {
 	editingStart
 } from './editor.js';
-
-import {
-	receiveCards
-} from './data.js';
-
-import {
-	db
-} from '../firebase.js';
-
-import {
-	collection,
-	query,
-	getDocs,
-	limit,
-	where
-} from 'firebase/firestore';
-
-import {
-	CARDS_COLLECTION
-} from '../../shared/collection-constants.js';
 
 import {
 	ThunkSomeAction, store
@@ -105,7 +71,6 @@ import {
 import {
 	CardID,
 	Card,
-	Cards,
 	State,
 	CollectionConstructorArguments
 } from '../types.js';
@@ -122,11 +87,6 @@ import {
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	UPDATE_COLLECTION_SHAPSHOT,
 	UPDATE_RENDER_OFFSET,
-	DEEP_FETCH_STARTED,
-	DEEP_FETCH_COMPLETE,
-	DEEP_FETCH_FAILED,
-	DEEP_FETCH_CLEAR_KEY,
-	REMOVE_CARDS
 } from '../actions.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -235,15 +195,6 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
 	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
 
-	// Clean up deep fetch for the old active collection key, but only if
-	// the find dialog isn't also using it (they share the same Redux state).
-	const oldKey = activeCollectionDescription.serialize();
-	const findOpen = selectFindDialogOpen(state);
-	const findKey = findOpen ? selectCollectionDescriptionForQuery(state)?.serialize() : null;
-	if (oldKey !== findKey) {
-		dispatch(cancelAndCleanupDeepFetch(oldKey));
-	}
-
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
 	//whole collection is changing anyway.
@@ -259,9 +210,6 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 			viewModeExtra
 		}
 	});
-
-	// Trigger deep fetch (requestDeepFetch checks SIMPLE eligibility internally)
-	dispatch(requestDeepFetch(newCollectionDescription));
 };
 
 //commitPendingCollectionModifications should be dispatched when the list of
@@ -614,265 +562,3 @@ export const incrementCollectionWordCloud = () : SomeAction => {
 	};
 };
 
-// Per-key generation counters to detect stale deep fetch results
-const deepFetchGenerations = new Map<string, number>();
-
-// Per-key debounce timers for deep fetch
-const deepFetchTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-const DEEP_FETCH_DEBOUNCE_MS = 300;
-const DEEP_FETCH_LIMIT = FIRESTORE_MAXIMUM_LIMIT_CLAUSE;
-
-/**
- * Clean up deep-fetch cards for a specific collection key.
- * Removes cards that were only present due to deep fetch (not in hot tier),
- * but skips cards that are also tracked by another key's deepCardIDs.
- */
-const cleanupDeepFetchCardsForKey = (dispatch: (action: SomeAction) => void, getState: () => State, collectionKey: string) : void => {
-	const state = getState();
-	if (!state.collection) return;
-
-	const entry = state.collection.deepFetchState[collectionKey];
-	if (!entry || !entry.deepCardIDs || entry.deepCardIDs.length === 0) return;
-
-	// Collect IDs tracked by other keys so we don't remove shared cards
-	const otherTrackedIDs = new Set<string>();
-	for (const [key, otherEntry] of Object.entries(state.collection.deepFetchState)) {
-		if (key === collectionKey) continue;
-		if (otherEntry.deepCardIDs) {
-			for (const id of otherEntry.deepCardIDs) {
-				otherTrackedIDs.add(id);
-			}
-		}
-	}
-
-	const idsToRemove = entry.deepCardIDs.filter(id => !otherTrackedIDs.has(id));
-
-	if (idsToRemove.length > 0) {
-		dispatch({
-			type: REMOVE_CARDS,
-			cardIDs: idsToRemove
-		});
-	}
-};
-
-/**
- * Thunk wrapper for cleaning up all deep fetch state, for use from other modules
- * (e.g. when navigating away from collection pages entirely).
- */
-export const cleanupDeepFetchCardsIfNeeded = () : ThunkSomeAction => (dispatch, getState) => {
-	for (const timer of deepFetchTimers.values()) {
-		clearTimeout(timer);
-	}
-	deepFetchTimers.clear();
-
-	const state = getState();
-	if (!state.collection) return;
-
-	const keys = Object.keys(state.collection.deepFetchState);
-
-	// Bump generations to invalidate all in-flight fetches
-	for (const key of keys) {
-		const gen = deepFetchGenerations.get(key) || 0;
-		deepFetchGenerations.set(key, gen + 1);
-	}
-
-	// Collect all deep-fetched card IDs across all keys (deduplicated)
-	const allDeepCardIDs = new Set<string>();
-	for (const key of keys) {
-		const entry = state.collection.deepFetchState[key];
-		if (entry?.deepCardIDs) {
-			for (const id of entry.deepCardIDs) {
-				allDeepCardIDs.add(id);
-			}
-		}
-	}
-
-	// Remove all deep-fetched cards in one dispatch
-	if (allDeepCardIDs.size > 0) {
-		dispatch({
-			type: REMOVE_CARDS,
-			cardIDs: [...allDeepCardIDs]
-		});
-	}
-
-	// Clear all keys from Redux state
-	for (const key of keys) {
-		dispatch({
-			type: DEEP_FETCH_CLEAR_KEY,
-			collectionKey: key
-		});
-	}
-};
-
-/**
- * Debounced deep fetch trigger. Handles rapid filter changes (e.g. during search typing).
- * Debounces by collection key using per-key timer Map.
- * Safe to call for any collection — returns early if not SIMPLE-eligible.
- */
-export const requestDeepFetch = (description: CollectionDescription) : ThunkSomeAction => (dispatch, getState) => {
-	// Check eligibility here so callers don't need to duplicate this logic
-	const state = getState();
-	const serverIDF = selectServerIDF(state);
-	const classification = classifyCollectionDescription(description, serverIDF);
-	if (!classification.canGetServerCount) return;
-
-	// For users without viewUnpublished, all published cards are already loaded
-	// by the unlimited connectLivePublishedCards snapshot listener. Deep fetch
-	// would only re-read the same documents. Skip once initial data has loaded.
-	if (!selectUserMayViewUnpublished(state) && selectDataIsFullyLoaded(state)) {
-		return;
-	}
-
-	const key = description.serialize();
-	const existingTimer = deepFetchTimers.get(key);
-	if (existingTimer) {
-		clearTimeout(existingTimer);
-	}
-
-	const timer = setTimeout(() => {
-		deepFetchTimers.delete(key);
-		dispatch(deepFetchForCollection(description));
-	}, DEEP_FETCH_DEBOUNCE_MS);
-	deepFetchTimers.set(key, timer);
-};
-
-/**
- * Cancel pending deep fetch for a key, invalidate in-flight fetches,
- * clean up fetched cards, and remove the key from Redux state.
- */
-export const cancelAndCleanupDeepFetch = (collectionKey: string) : ThunkSomeAction => (dispatch, getState) => {
-	// Cancel pending timer
-	const timer = deepFetchTimers.get(collectionKey);
-	if (timer) {
-		clearTimeout(timer);
-		deepFetchTimers.delete(collectionKey);
-	}
-
-	// Bump generation to invalidate in-flight fetches (they check
-	// gen !== deepFetchGenerations.get(key), and the bumped value won't match).
-	// We must increment rather than delete: deleting resets to 0 on next use,
-	// which can collide with a stale in-flight fetch that also started at gen 1.
-	const gen = deepFetchGenerations.get(collectionKey) || 0;
-	deepFetchGenerations.set(collectionKey, gen + 1);
-
-	// Remove fetched cards
-	cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);
-
-	// Clean up module-level tracking for this key
-	deepFetchGenerations.delete(collectionKey);
-	deepFetchTimers.delete(collectionKey);
-
-	// Remove key from Redux state
-	dispatch({
-		type: DEEP_FETCH_CLEAR_KEY,
-		collectionKey
-	});
-};
-
-/**
- * Perform a one-time deep fetch for a SIMPLE collection.
- * Fetches cold-tier cards from Firestore and merges them into the normal pipeline
- * via receiveCards().
- */
-const deepFetchForCollection = (fetchDescription: CollectionDescription): ThunkSomeAction =>
-	async (dispatch, getState) => {
-		const collectionKey = fetchDescription.serialize();
-		const gen = (deepFetchGenerations.get(collectionKey) || 0) + 1;
-		deepFetchGenerations.set(collectionKey, gen);
-
-		// Classify with IDF context so query filters pick the rarest token
-		const state = getState();
-		const serverIDF = selectServerIDF(state);
-		const classification = classifyCollectionDescription(fetchDescription, serverIDF);
-
-		if (!classification.canGetServerCount) {
-			return;
-		}
-
-		// Clean up previously tracked cards for this key before starting a new
-		// fetch, so they aren't orphaned when DEEP_FETCH_STARTED resets deepCardIDs.
-		cleanupDeepFetchCardsForKey(dispatch, getState, collectionKey);
-
-		dispatch({
-			type: DEEP_FETCH_STARTED,
-			collectionKey
-		});
-
-		try {
-			const constraints = classification.firestoreConstraints || [];
-
-			// Only add the published constraint if the collection doesn't
-			// already have an explicit published/unpublished filter, to
-			// avoid contradicting an existing where('published', '==', false).
-			const hasPublishedFilter = fetchDescription.filters.some(
-				f => f === PUBLISHED_FILTER_NAME || f === UNPUBLISHED_FILTER_NAME
-			);
-			// - Explicit published/unpublished filter: no extra constraint (already handled)
-			// - User may view unpublished: no constraint — returns both published & unpublished,
-			//   which is the whole point of deep fetch for privileged users (surfacing cold-tier
-			//   unpublished cards).
-			// - No viewUnpublished: constrain to published only (satisfies Firestore security rules)
-			const userMayViewUnpublished = selectUserMayViewUnpublished(state);
-			const publishedConstraints = (hasPublishedFilter || userMayViewUnpublished)
-				? []
-				: [where('published', '==', true)];
-
-			const q = query(
-				collection(db, CARDS_COLLECTION),
-				...constraints,
-				...publishedConstraints,
-				limit(DEEP_FETCH_LIMIT)
-			);
-
-			const snapshot = await getDocs(q);
-
-			// Check for staleness: has this key's generation changed while we were fetching?
-			if (gen !== deepFetchGenerations.get(collectionKey)) {
-				return; // Discard stale results
-			}
-
-			const currentState = getState();
-
-			// Filter out IDs already in hot tier to avoid overwriting live-updated cards
-			const existingCardIDs = new Set(Object.keys(currentState.data.cards));
-			const newCards: Cards = {};
-			const newCardIDs: CardID[] = [];
-
-			snapshot.docs.forEach(doc => {
-				if (!existingCardIDs.has(doc.id)) {
-					const card: Card = {...doc.data({serverTimestamps: 'estimate'}), id: doc.id} as Card;
-					newCards[doc.id] = card;
-					newCardIDs.push(doc.id);
-				}
-			});
-
-			// Check staleness again after processing
-			if (gen !== deepFetchGenerations.get(collectionKey)) {
-				return;
-			}
-
-			// Merge new cards into the normal pipeline
-			if (Object.keys(newCards).length > 0) {
-				dispatch(receiveCards(newCards, 'deep-fetch'));
-			}
-
-			dispatch({
-				type: DEEP_FETCH_COMPLETE,
-				collectionKey,
-				deepCardIDs: newCardIDs
-			});
-		} catch (error) {
-			// Check staleness before dispatching error
-			if (gen !== deepFetchGenerations.get(collectionKey)) {
-				return;
-			}
-
-			console.error('Deep fetch error:', error);
-			dispatch({
-				type: DEEP_FETCH_FAILED,
-				collectionKey,
-				error: error instanceof Error ? error.message : String(error)
-			});
-		}
-	};

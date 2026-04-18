@@ -49,7 +49,6 @@ import {
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
 	selectCardModificationPending,
-	selectActiveDeepFetchState
 } from '../selectors.js';
 
 import {
@@ -183,7 +182,6 @@ import {
 	CardFieldMap,
 	CardID,
 	CardType,
-	DeepFetchEntry,
 	ProcessedCard,
 	SectionID,
 	State,
@@ -326,9 +324,6 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_collection: Collection | null;
-
-	@state()
-		_deepFetchState: DeepFetchEntry | null;
 
 	@state()
 		_collectionIsFallback: boolean;
@@ -494,7 +489,6 @@ class CardView extends connect(store)(PageViewElement) {
 				class='${this._cardsDrawerPanelShowing ? 'showing' : ''}'
 				.showing=${this._cardsDrawerPanelShowing}
 				.collection=${this._collection}
-				.deepFetchState=${this._deepFetchState}
 				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
@@ -886,7 +880,6 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 
 		this._collection = selectActiveCollection(state);
-		this._deepFetchState = selectActiveDeepFetchState(state);
 
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);

@@ -26,7 +26,6 @@ import * as icons from '../../shared/icons.js';
 import {
 	CardID,
 	CardType,
-	DeepFetchEntry
 } from '../types.js';
 
 import {
@@ -67,9 +66,6 @@ class CardDrawer extends LitElement {
 
 	@property({ type : Object })
 		collection: Collection | null;
-
-	@property({ type : Object })
-		deepFetchState: DeepFetchEntry | null;
 
 	@property({ type : Number })
 		renderOffset: number;
@@ -154,20 +150,6 @@ class CardDrawer extends LitElement {
 				width: 12em;
 			}
 
-			.deep-fetch-status {
-				display: inline-block;
-				padding: 0.1em 0.4em;
-				margin: 0 0.2em;
-				font-size: 0.6em;
-				border-radius: 0.5em;
-				font-weight: normal;
-				color: var(--app-dark-text-color-subtle, #666);
-				font-style: italic;
-			}
-
-			.deep-fetch-status.error {
-				color: var(--app-warning-color, #c62828);
-			}
 		`
 	];
 
@@ -176,9 +158,6 @@ class CardDrawer extends LitElement {
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
 		const currentCount = this.collection ? this.collection.numCards : 0;
 
-		const deepFetchStatus = this.deepFetchState;
-		const deepFetchAdditionalCount = deepFetchStatus && deepFetchStatus.status === 'complete' ? deepFetchStatus.deepCardIDs.length : 0;
-
 		return html`
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
@@ -186,11 +165,6 @@ class CardDrawer extends LitElement {
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							<strong>${currentCount}</strong> cards
-							<span aria-live='polite'>
-							${deepFetchStatus && deepFetchStatus.status === 'loading' ? html`<span class='deep-fetch-status'>Searching deeper...</span>` : ''}
-							${deepFetchStatus && deepFetchStatus.status === 'error' ? html`<span class='deep-fetch-status error'>Search failed</span>` : ''}
-							${deepFetchAdditionalCount > 0 ? html`<span class='deep-fetch-status'>Found ${deepFetchAdditionalCount} additional</span>` : ''}
-						</span>
 						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>

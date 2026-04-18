@@ -101,8 +101,6 @@ export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
 export const BULK_IMPORT_SET_OVERRIDE_CARD_ORDER = 'BULK_IMPORT_SET_OVERRIDE_CARD_ORDER';
 //Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
-// Internal: must only be dispatched via the updateCollection thunk in
-// actions/collection.ts, which handles deep fetch cleanup for the old key.
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
@@ -112,11 +110,6 @@ export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
 export const CLEAR_SELECTED_CARDS = 'CLEAR_SELECTED_CARDS';
 export const INCREMENT_COLLECTION_WORD_CLOUD_VERSION = 'INCREMENT_COLLECTION_WORD_CLOUD_VERSION';
-//Deep Fetch (progressive loading for SIMPLE collections)
-export const DEEP_FETCH_STARTED = 'DEEP_FETCH_STARTED';
-export const DEEP_FETCH_COMPLETE = 'DEEP_FETCH_COMPLETE';
-export const DEEP_FETCH_FAILED = 'DEEP_FETCH_FAILED';
-export const DEEP_FETCH_CLEAR_KEY = 'DEEP_FETCH_CLEAR_KEY';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -478,28 +471,6 @@ type ActionClearSelectedCards = {
 
 type ActionIncrementCollectionWordCloudVersion = {
 	type: typeof INCREMENT_COLLECTION_WORD_CLOUD_VERSION
-};
-
-type ActionDeepFetchStarted = {
-	type: typeof DEEP_FETCH_STARTED,
-	collectionKey: string
-};
-
-type ActionDeepFetchComplete = {
-	type: typeof DEEP_FETCH_COMPLETE,
-	collectionKey: string,
-	deepCardIDs: CardID[]
-};
-
-type ActionDeepFetchFailed = {
-	type: typeof DEEP_FETCH_FAILED,
-	collectionKey: string,
-	error: string
-};
-
-type ActionDeepFetchClearKey = {
-	type: typeof DEEP_FETCH_CLEAR_KEY,
-	collectionKey: string
 };
 
 type ActionCommentsUpdateThreads = {
@@ -1189,10 +1160,6 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUnselectCards
 	| ActionClearSelectedCards
 	| ActionIncrementCollectionWordCloudVersion
-	| ActionDeepFetchStarted
-	| ActionDeepFetchComplete
-	| ActionDeepFetchFailed
-	| ActionDeepFetchClearKey
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionChatUpdateChats

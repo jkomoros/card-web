@@ -86,13 +86,13 @@ class LimitWarning extends connect(store)(LitElement) {
 	
 	override render() {
 
-		const loadingUnpublishedComplete = this._loadingFetchTypes?.['unpublished-complete'] || false;
+		const loadingUnpublished = this._loadingFetchTypes?.['unpublished'] || false;
 
-		if (this._cardLimitReached || loadingUnpublishedComplete) {
+		if (this._cardLimitReached || loadingUnpublished) {
 
 			const classes = {
 				container: true,
-				loading: loadingUnpublishedComplete,
+				loading: loadingUnpublished,
 				bold: !this._completeMode,
 				tight: this.tight
 			};
@@ -110,7 +110,7 @@ class LimitWarning extends connect(store)(LitElement) {
 						${WARNING_ICON}
 					</button>
 					<label for='warning'>
-						${this._completeMode ? (loadingUnpublishedComplete ? html`Fetching all cards <span class="bold">(slow)</span>` : html`Showing all cards <span class="bold">(slow)</span>`) : 'Showing only recent cards'}
+						${this._completeMode ? (loadingUnpublished ? html`Fetching all cards <span class="bold">(slow)</span>` : html`Showing all cards <span class="bold">(slow)</span>`) : 'Showing only recent cards'}
 					</label>
 				</div>
 			`;
