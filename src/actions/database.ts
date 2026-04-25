@@ -320,8 +320,9 @@ export const connectLiveAuthors = () => {
 };
 
 const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
-	
+
 	return (snapshot : QuerySnapshot) => {
+		const startTime = performance.now();
 		const cards : Cards = {};
 		const cardIDsToRemove : CardID[] = [];
 
@@ -342,15 +343,27 @@ const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
 			cards[id] = card;
 		});
 
+		const cardCount = Object.keys(cards).length;
+		const parseTime = performance.now() - startTime;
+		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): parsed ${cardCount} cards in ${parseTime.toFixed(1)}ms`);
+
+		const dispatchStart = performance.now();
 		store.dispatch(receiveCards(cards, fetchType));
 		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
+		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): dispatched in ${(performance.now() - dispatchStart).toFixed(1)}ms (total: ${(performance.now() - startTime).toFixed(1)}ms)`);
 	};
 
 };
 
 export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver('published'));
+	console.log('[PERF] connectLivePublishedCards: starting listener');
+	console.time('[PERF] published-cards-first-snapshot');
+	let first = true;
+	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
+		if (first) { console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
+		cardSnapshotReceiver('published')(snapshot);
+	});
 };
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
@@ -400,10 +413,16 @@ export const connectLiveUnpublishedCards = async () => {
 
 	if (userMayViewUnpublished) {
 		// Load ALL unpublished cards (replaces 3-tier hot system)
+		console.log('[PERF] connectLiveUnpublishedCards: starting unlimited listener');
+		console.time('[PERF] unpublished-cards-first-snapshot');
+		let first = true;
 		store.dispatch(expectUnpublishedCards('unpublished'));
 		liveUnpublishedCardsUnsubcribe = onSnapshot(
 			query(collection(db, CARDS_COLLECTION), where('published', '==', false)),
-			cardSnapshotReceiver('unpublished')
+			(snapshot) => {
+				if (first) { console.timeEnd('[PERF] unpublished-cards-first-snapshot'); first = false; }
+				cardSnapshotReceiver('unpublished')(snapshot);
+			}
 		);
 		return;
 	}

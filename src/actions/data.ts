@@ -1441,13 +1441,18 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 };
 
 export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
+	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
+	const inputCount = Object.keys(cards).length;
 	for (const card of Object.values(cards)) {
 		//Check ot see if we already have effectively the same card locally with no notional changes.
 		if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) continue;
 		cardsToUpdate[card.id] = card;
 	}
+	const diffCount = Object.keys(cardsToUpdate).length;
+	const diffTime = performance.now() - startTime;
+	console.log(`[PERF] receiveCards(${fetchType}): diffed ${inputCount} cards → ${diffCount} changed in ${diffTime.toFixed(1)}ms`);
 
 	const pendingModifications = selectPendingModificationCount(getState());
 	if (pendingModifications == 0) {
@@ -1455,7 +1460,7 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSom
 	}
 
 	dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
-	
+	console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
 const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch) => {

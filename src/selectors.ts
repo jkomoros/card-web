@@ -128,8 +128,6 @@ import {
 	SortName,
 	CollectionConfiguration,
 	ComposedChats,
-	StringCardMap,
-	SynonymMap,
 	ProcessedRunInterface
 } from '../shared/types.js';
 
@@ -397,10 +395,27 @@ const selectZippedCardAndFallbackMap = createSelector(
 	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]} => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
-//Fast path for cardWithNormalizedTextProperties that uses stored NLP tokens when available
-const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+let _perfNlpCallCount = 0;
+let _perfNlpFastCount = 0;
+let _perfNlpSlowCount = 0;
+let _perfNlpBatchStart = 0;
+let _perfNlpBatchTimer : ReturnType<typeof setTimeout> | null = null;
+
+//Fast path for cardWithNormalizedTextProperties that uses stored NLP tokens when available.
+//Does NOT take importantNgrams or synonyms — those are concept/synonym dependencies
+//that change frequently and would force re-evaluation of all 40k cards via reselect-map.
+//Fingerprinting accesses cardObj.importantNgrams/synonymMap but handles {} gracefully.
+const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : ReferencesInfoMap) : ProcessedCard => {
+	if (_perfNlpBatchStart === 0) _perfNlpBatchStart = performance.now();
+	_perfNlpCallCount++;
+	if (_perfNlpBatchTimer) clearTimeout(_perfNlpBatchTimer);
+	_perfNlpBatchTimer = setTimeout(() => {
+		console.log(`[PERF] cardWithNormalizedTextPropertiesFast batch: ${_perfNlpCallCount} calls (${_perfNlpFastCount} fast, ${_perfNlpSlowCount} slow) in ${(performance.now() - _perfNlpBatchStart).toFixed(1)}ms`);
+		_perfNlpCallCount = 0; _perfNlpFastCount = 0; _perfNlpSlowCount = 0; _perfNlpBatchStart = 0; _perfNlpBatchTimer = null;
+	}, 50);
 	//If card has stored NLP tokens at the current version, use them instead of recomputing
 	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
+		_perfNlpFastCount++;
 		//Convert stored NLPTokenStorage to NLPInfo format
 		const nlp : {[field in CardFieldType]?: ProcessedRunInterface[]} = {};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
@@ -431,17 +446,20 @@ const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : Refere
 
 		//Return ProcessedCard with stored NLP data
 		//Cast nlp to the correct type since we know it's valid
+		//importantNgrams and synonymMap set to empty — they're only used by
+		//fingerprinting which handles {} gracefully (minor quality tradeoff).
 		return {
 			...card,
 			fallbackText,
-			importantNgrams,
-			synonymMap: synonyms,
+			importantNgrams: {},
+			synonymMap: {},
 			nlp: nlp as unknown as ProcessedCard['nlp']
 		} as ProcessedCard;
 	}
 
 	//Fall back to full NLP computation for cards without stored tokens
-	return cardWithNormalizedTextProperties(card, fallbackText, importantNgrams, synonyms);
+	_perfNlpSlowCount++;
+	return cardWithNormalizedTextProperties(card, fallbackText, {}, {});
 };
 
 const selectSnapshotZippedCardAndFallbackMap = createSelector(
@@ -487,25 +505,22 @@ const createZippedObjectSelector = createObjectSelectorCreator(objectEquality);
 //this uses createZippedObjectSelector because the cardAndFallbackMap entry will
 //be a different item, but as long as the individual items are the same as last
 //time they should be considered the same.
+//
+//NOTE: selectConcepts and selectSynonymMap are intentionally NOT dependencies.
+//They were removed because reselect-map clears its entire cache when ANY
+//non-per-key dependency changes, causing a 49-second re-evaluation of all 40k
+//cards. Since the fast path (stored NLP tokens) doesn't use concepts/synonyms
+//for computation anyway, removing them has no effect on card NLP data.
+//Fingerprinting (wordCountsForSemantics) reads cardObj.importantNgrams/synonymMap
+//but handles {} gracefully — minor quality tradeoff for a massive perf win.
 export const selectCards : (state : State) => ProcessedCards = createZippedObjectSelector(
 	selectZippedCardAndFallbackMap,
-	//Note that depending on selectConcepts actually doesn't lead to many
-	//recalcs. That's because a) we're using objectEquality, so as long as the
-	//map stays semantically the same cards won't be reindexed, and b) because
-	//concept cards are by default published, which means they're in the first
-	//set of cards. That means the only time every card has to be reindexed is
-	//when specifically the title of one of the concept cards changes.
-	selectConcepts,
-	selectSynonymMap,
-	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
+	(cardAndFallbackMap) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1])
 );
 
 const selectCardsSnapshot : (state : State) => ProcessedCards = createZippedObjectSelector(
 	selectSnapshotZippedCardAndFallbackMap,
-	selectConcepts,
-	selectSynonymMap,
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
+	(cardAndFallbackMap) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1])
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
