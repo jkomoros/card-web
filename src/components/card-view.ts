@@ -8,6 +8,7 @@ import { store } from '../store.js';
 
 import {
 	selectActiveCard,
+	selectActiveCardEnriched,
 	selectActiveSectionId,
 	selectDataIsFullyLoaded,
 	selectUserSignedIn,
@@ -846,7 +847,10 @@ class CardView extends connect(store)(PageViewElement) {
 		this._editingCard = selectEditingCardwithDelayedNormalizedProperties(state);
 		this._card = selectActiveCard(state);
 		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
-		this._displayCard = this._editingCard ? this._editingCard : this._card;
+		//Use enriched card (with real importantNgrams/synonymMap) for display so
+		//concept highlighting works. The editing card is already enriched via
+		//cardWithNormalizedTextProperties.
+		this._displayCard = this._editingCard ? this._editingCard : selectActiveCardEnriched(state);
 		this._pageExtra = state.app.pageExtra;
 		this._editing = selectIsEditing(state);
 		this._cardModificationsPending = selectCardModificationPending(state);

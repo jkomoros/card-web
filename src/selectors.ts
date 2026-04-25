@@ -62,6 +62,7 @@ import {
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
+	enrichCardWithConcepts,
 	suggestedConceptReferencesForCard,
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
@@ -543,6 +544,16 @@ export const selectActiveCard = createSelector(
 	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard | null => cards[activeCard] || null
 );
 
+//selectActiveCardEnriched returns the active card enriched with real
+//importantNgrams and synonymMap, so concept highlighting works correctly.
+//This only enriches a single card (the active one), not all 40k.
+export const selectActiveCardEnriched = createSelector(
+	selectActiveCard,
+	selectConcepts,
+	selectSynonymMap,
+	(card, concepts, synonyms) : ProcessedCard | null => card ? enrichCardWithConcepts(card, concepts, synonyms) : null
+);
+
 export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
@@ -885,13 +896,15 @@ export const selectServerIDF = (state : State) => state.data.serverIDF;
 export const selectFingerprintGenerator = createSelector(
 	selectCards,
 	selectServerIDF,
-	(cards, serverIDF) => {
+	selectConcepts,
+	selectSynonymMap,
+	(cards, serverIDF, concepts, synonyms) => {
 		// Convert ServerIDFData to IDFMap format if available
 		const idfMap = serverIDF ? {
 			idf: serverIDF.idf,
 			maxIDF: serverIDF.maxIDF
 		} : null;
-		return new FingerprintGenerator(cards, undefined, undefined, idfMap);
+		return new FingerprintGenerator(cards, undefined, undefined, idfMap, concepts, synonyms);
 	}
 );
 
@@ -1044,10 +1057,10 @@ export const selectEditingCardSuggestedTags = createSelector(
 );
 
 //selectingEitingOrActiveCard returns either the editing card, or else the
-//active card.
+//active card (enriched with concepts so fingerprinting and highlighting work).
 const selectEditingOrActiveNormalizedCard = createSelector(
 	selectEditingNormalizedCard,
-	selectActiveCard,
+	selectActiveCardEnriched,
 	(editing, active) => editing && Object.keys(editing).length > 0 ? editing : active
 );
 

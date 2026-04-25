@@ -482,6 +482,27 @@ const extractContentWords = (card : CardWithOptionalFallbackText) => {
 	return obj;
 };
 
+const _enrichCache = new WeakMap<ProcessedCard, {concepts: StringCardMap, synonyms: SynonymMap, result: ProcessedCard}>();
+
+//enrichCardWithConcepts lazily enriches a ProcessedCard that was created
+//without concepts/synonyms (i.e. from the fast path in selectCards) with the
+//real importantNgrams and synonymMap. This is used at the point of consumption
+//(fingerprinting, concept highlighting) rather than at card creation, so we
+//don't trigger a 49-second re-evaluation of all 40k cards.
+export const enrichCardWithConcepts = (card : ProcessedCard, concepts : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+	const cached = _enrichCache.get(card);
+	if (cached && cached.concepts === concepts && cached.synonyms === synonyms) return cached.result;
+	const normalizedConcepts = normalizeNgramMap(concepts);
+	const normalizedSynonyms = normalizeSynonymMap(synonyms);
+	const result : ProcessedCard = {
+		...card,
+		importantNgrams: normalizedConcepts,
+		synonymMap: normalizedSynonyms,
+	};
+	_enrichCache.set(card, {concepts, synonyms, result});
+	return result;
+};
+
 const memoizedNormalizedSynonymMaps = new WeakMap();
 
 const normalizeSynonymMap = (synonyms : SynonymMap) => {
@@ -922,12 +943,15 @@ const DEBUG_PRINT_MISSING_CONCEPTS_INFO = false;
 
 export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint => {
 	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
-	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
+	//Derive concepts and synonyms from cards so the fingerprint generator can enrich cards with concept data.
+	const conceptCards = conceptCardsFromCards(cards);
+	const concepts = getConceptsFromConceptCards(conceptCards);
+	const syns = synonymMap(cards);
+	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5, null, concepts, syns);
 	let cardIDsForNgram : {[ngram : string]: CardID[]} = {};
 	let cumulativeTFIDFForNgram : {[ngram : string]: number} = {};
 
-	const conceptCards = conceptCardsFromCards(cards);
-	const existingConcepts = normalizeNgramMap(getConceptsFromConceptCards(conceptCards));
+	const existingConcepts = normalizeNgramMap(concepts);
 
 	for (const [cardID, fingerprint] of Object.entries(maximumFingerprintGenerator.fingerprints())) {
 		for (const [ngram, tfidf] of fingerprint.entries()) {
@@ -1537,11 +1561,15 @@ export class FingerprintGenerator {
 	_idfMap : IDFMap;
 	_fingerprintSize : number;
 	_ngramSize : number;
+	_concepts : StringCardMap;
+	_synonyms : SynonymMap;
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
 
-	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, serverIDF?: IDFMap | null) {
+	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, serverIDF?: IDFMap | null, concepts? : StringCardMap, synonyms? : SynonymMap) {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
+		this._concepts = concepts || {};
+		this._synonyms = synonyms || {};
 
 		// Use server IDF if provided and valid
 		if (serverIDF && serverIDF.idf && typeof serverIDF.maxIDF === 'number') {
@@ -1554,15 +1582,25 @@ export class FingerprintGenerator {
 		this._fingerprintSize = optFingerprintSize;
 	}
 
+	_enrichCard(cardObj : ProcessedCard) : ProcessedCard {
+		if (this._concepts && Object.keys(this._concepts).length > 0) {
+			return enrichCardWithConcepts(cardObj, this._concepts, this._synonyms);
+		}
+		return cardObj;
+	}
+
 	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[] ) : Fingerprint {
-		//A convenience method for other contexts that need to call this.
-		return fingerprintForCardObj(cardObj, this._idfMap, this._fingerprintSize, this._ngramSize, optFieldList);
+		//Enrich the card with concepts/synonyms before fingerprinting, so
+		//importantNgrams and synonymMap are used in wordCountsForSemantics.
+		const enriched = this._enrichCard(cardObj);
+		return fingerprintForCardObj(enriched, this._idfMap, this._fingerprintSize, this._ngramSize, optFieldList);
 	}
 
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		const card = this._cards[cardID];
 		if (!card) return new Fingerprint();
-		return fingerprintForCardObj(card, this._idfMap, this._fingerprintSize, this._ngramSize);
+		const enriched = this._enrichCard(card);
+		return fingerprintForCardObj(enriched, this._idfMap, this._fingerprintSize, this._ngramSize);
 	}
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {
