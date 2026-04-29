@@ -43,6 +43,7 @@ import {
 import {
 	collection,
 	onSnapshot,
+	getDocs,
 	where,
 	query,
 	orderBy,
@@ -412,17 +413,52 @@ export const connectLiveUnpublishedCards = async () => {
 	const uid = selectUid(state);
 
 	if (userMayViewUnpublished) {
-		// Load ALL unpublished cards (replaces 3-tier hot system)
-		console.log('[PERF] connectLiveUnpublishedCards: starting unlimited listener');
-		console.time('[PERF] unpublished-cards-first-snapshot');
-		let first = true;
+		// Load ALL unpublished cards client-side. We use a two-phase approach:
+		//
+		// Phase 1 (getDocs): Fetch all ~38k unpublished cards in a single
+		// request/response. This is more reliable than onSnapshot for the
+		// initial load because onSnapshot's Listen stream times out at ~60s
+		// (server-side, non-configurable) when delivering large result sets
+		// over long polling. getDocs uses a simpler RunQuery protocol that
+		// handles large responses better. As a side effect, getDocs populates
+		// the Firestore IndexedDB cache (persistentLocalCache).
+		//
+		// Phase 2 (onSnapshot): Attach a real-time listener on the same query.
+		// Since the cache was just primed by getDocs, the initial onSnapshot
+		// delivery comes from cache (instant, no server round-trip), then the
+		// listener watches for subsequent changes (edits, creates, deletes).
+		//
+		// The existing deepEqualIgnoringTimestamps check in receiveCards()
+		// prevents double-dispatch: when onSnapshot delivers cached cards
+		// that getDocs already dispatched, the diff finds zero changes.
+		//
+		// On subsequent page loads (warm cache), getDocs returns from cache
+		// almost instantly, and onSnapshot syncs only deltas from the server.
 		store.dispatch(expectUnpublishedCards('unpublished'));
+
+		const unpublishedQuery = query(
+			collection(db, CARDS_COLLECTION),
+			where('published', '==', false)
+		);
+
+		// Phase 1: Prime cache and populate Redux
+		console.time('[PERF] unpublished-getDocs');
+		try {
+			const snapshot = await getDocs(unpublishedQuery);
+			console.timeEnd('[PERF] unpublished-getDocs');
+			console.log(`[PERF] getDocs returned ${snapshot.size} unpublished cards`);
+			cardSnapshotReceiver('unpublished')(snapshot);
+		} catch (e) {
+			console.timeEnd('[PERF] unpublished-getDocs');
+			console.warn('[PERF] getDocs failed, relying on onSnapshot alone:', e);
+			// Fall through — onSnapshot may still work (e.g., warm cache
+			// from a previous session, or smaller dataset on retry)
+		}
+
+		// Phase 2: Real-time listener for ongoing changes
 		liveUnpublishedCardsUnsubcribe = onSnapshot(
-			query(collection(db, CARDS_COLLECTION), where('published', '==', false)),
-			(snapshot) => {
-				if (first) { console.timeEnd('[PERF] unpublished-cards-first-snapshot'); first = false; }
-				cardSnapshotReceiver('unpublished')(snapshot);
-			}
+			unpublishedQuery,
+			cardSnapshotReceiver('unpublished')
 		);
 		return;
 	}
