@@ -47,8 +47,7 @@ import {
 	where,
 	query,
 	orderBy,
-	startAfter,
-	limit,
+	documentId,
 	QuerySnapshot,
 	doc,
 } from 'firebase/firestore';
@@ -444,42 +443,53 @@ export const connectLiveUnpublishedCards = async () => {
 			where('published', '==', false)
 		);
 
-		// Phase 1: Paginated getDocs to prime cache and populate Redux
-		const PAGE_SIZE = 10000;
+		// Phase 1: Parallel getDocs to prime cache and populate Redux.
+		// A single getDocs for 38k+ docs takes ~37s per 10k batch due to
+		// the experimentalForceLongPolling overhead. Running 5 partitions
+		// in parallel (by document ID range) cuts wall-clock time by ~4-5x.
+		// Card IDs are formatted as c-NNN-LLLLLL, so the digit after c-
+		// distributes roughly evenly across 0-9.
+		const PARTITIONS = [
+			{ gte: '', lt: 'c-2' },       // c-0xx, c-1xx
+			{ gte: 'c-2', lt: 'c-4' },    // c-2xx, c-3xx
+			{ gte: 'c-4', lt: 'c-6' },    // c-4xx, c-5xx
+			{ gte: 'c-6', lt: 'c-8' },    // c-6xx, c-7xx
+			{ gte: 'c-8', lt: '\uf8ff' }, // c-8xx, c-9xx, and any others
+		];
+
 		console.time('[PERF] unpublished-getDocs-total');
 		try {
-			let totalLoaded = 0;
-			let pageNum = 0;
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			let lastDoc : any = null;
-			let done = false;
+			const partitionPromises = PARTITIONS.map(async (partition, i) => {
+				const constraints = [
+					where('published', '==', false),
+					where(documentId(), '>=', partition.gte),
+					where(documentId(), '<', partition.lt),
+				];
+				// Filter out empty gte to avoid querying with >= ''
+				const partitionQuery = partition.gte
+					? query(collection(db, CARDS_COLLECTION), ...constraints)
+					: query(collection(db, CARDS_COLLECTION),
+						where('published', '==', false),
+						where(documentId(), '<', partition.lt));
 
-			while (!done) {
-				const pageQuery = lastDoc
-					? query(unpublishedQuery, orderBy('__name__'), startAfter(lastDoc), limit(PAGE_SIZE))
-					: query(unpublishedQuery, orderBy('__name__'), limit(PAGE_SIZE));
-
-				console.time(`[PERF] unpublished-getDocs-page-${pageNum}`);
-				const snapshot = await getDocs(pageQuery);
-				console.timeEnd(`[PERF] unpublished-getDocs-page-${pageNum}`);
+				console.time(`[PERF] unpublished-getDocs-partition-${i}`);
+				const snapshot = await getDocs(partitionQuery);
+				console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
 
 				if (snapshot.size > 0) {
 					cardSnapshotReceiver('unpublished')(snapshot);
-					totalLoaded += snapshot.size;
-					lastDoc = snapshot.docs[snapshot.docs.length - 1];
-					console.log(`[PERF] getDocs page ${pageNum}: ${snapshot.size} cards (total: ${totalLoaded})`);
+					console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
 				}
+				return snapshot.size;
+			});
 
-				if (snapshot.size < PAGE_SIZE) {
-					done = true;
-				}
-				pageNum++;
-			}
+			const sizes = await Promise.all(partitionPromises);
+			const totalLoaded = sizes.reduce((a, b) => a + b, 0);
 			console.timeEnd('[PERF] unpublished-getDocs-total');
-			console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards in ${pageNum} pages`);
+			console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
 		} catch (e) {
 			console.timeEnd('[PERF] unpublished-getDocs-total');
-			console.warn('[PERF] getDocs pagination failed:', e);
+			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
 
 		// Phase 2: Real-time listener for ongoing changes
