@@ -2,7 +2,6 @@ import { createSelector } from 'reselect';
 
 import {
 	createObjectSelector,
-	createObjectSelectorCreator
 } from 'reselect-map';
 
 /* 
@@ -147,7 +146,6 @@ import {
 	Uid,
 	Author,
 	CardType,
-	ReferencesInfoMap,
 	UserInfo,
 	CardBooleanMap,
 	CardID,
@@ -366,14 +364,6 @@ export const selectNextMaintenanceTaskName = createSelector(
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
 //backportMissingText, and where the card has some text that needs to be filled.
-const selectBackportTextFallbackMapCollection = createObjectSelector(
-	selectRawCards,
-	selectRawCards,
-	//Because this is a createObjectSelector, this will be called once per card
-	//in selectRawCards.
-	(card : Card, cards : Cards) : ReferencesInfoMap | null => backportFallbackTextMapForCard(card, cards)
-);
-
 const selectRawConceptCards = createSelector(
 	selectRawCards,
 	(cards) => conceptCardsFromCards(cards)
@@ -390,138 +380,85 @@ export const selectConcepts = createSelector(
 	(conceptCards) => getConceptsFromConceptCards(conceptCards)
 );
 
-const selectZippedCardAndFallbackMap = createSelector(
-	selectRawCards,
-	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]} => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
-);
+// Per-card processing cache keyed on the Card object reference from Redux.
+// When Redux updates a card, it creates a new Card object — the old one's
+// cache entry becomes unreachable and is garbage-collected by WeakMap.
+// When selectRawCards changes (any card update), we iterate all entries but
+// only reprocess the cards whose object reference actually changed.
+// This replaces the old reselect-map chain (selectBackportTextFallbackMapCollection
+// → selectZippedCardAndFallbackMap → createZippedObjectSelector) which cleared
+// ALL 40k per-key caches on every card change, causing 600ms+ of blocking work.
+const _processedCardCache = new WeakMap<Card, ProcessedCard>();
 
-let _perfNlpCallCount = 0;
-let _perfNlpFastCount = 0;
-let _perfNlpSlowCount = 0;
-let _perfNlpBatchStart = 0;
-let _perfNlpBatchTimer : ReturnType<typeof setTimeout> | null = null;
+const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
+	const cached = _processedCardCache.get(card);
+	if (cached) return cached;
 
-//Fast path for cardWithNormalizedTextProperties that uses stored NLP tokens when available.
-//Does NOT take importantNgrams or synonyms — those are concept/synonym dependencies
-//that change frequently and would force re-evaluation of all 40k cards via reselect-map.
-//Fingerprinting accesses cardObj.importantNgrams/synonymMap but handles {} gracefully.
-const cardWithNormalizedTextPropertiesFast = (card : Card, fallbackText : ReferencesInfoMap) : ProcessedCard => {
-	if (_perfNlpBatchStart === 0) _perfNlpBatchStart = performance.now();
-	_perfNlpCallCount++;
-	if (_perfNlpBatchTimer) clearTimeout(_perfNlpBatchTimer);
-	_perfNlpBatchTimer = setTimeout(() => {
-		console.log(`[PERF] cardWithNormalizedTextPropertiesFast batch: ${_perfNlpCallCount} calls (${_perfNlpFastCount} fast, ${_perfNlpSlowCount} slow) in ${(performance.now() - _perfNlpBatchStart).toFixed(1)}ms`);
-		_perfNlpCallCount = 0; _perfNlpFastCount = 0; _perfNlpSlowCount = 0; _perfNlpBatchStart = 0; _perfNlpBatchTimer = null;
-	}, 50);
-	//If card has stored NLP tokens at the current version, use them instead of recomputing
+	const fallbackText = backportFallbackTextMapForCard(card, allCards) || {};
+
+	let processed : ProcessedCard;
 	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
-		_perfNlpFastCount++;
-		//Convert stored NLPTokenStorage to NLPInfo format
+		// Fast path: use stored NLP tokens
 		const nlp : {[field in CardFieldType]?: ProcessedRunInterface[]} = {};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
 			if (storedRuns) {
 				nlp[fieldName] = storedRuns.map(storedRun => {
-				//Derive stemmed and withoutStopWords from normalized at load time.
-				//The stemmer is deterministic and cheap (~15ms for entire corpus).
-				let cachedStemmed : string | undefined;
-				let cachedWithoutStopWords : string | undefined;
-				const getStemmed = () => {
-					if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
-					return cachedStemmed;
-				};
-				return {
-					normalized: storedRun.normalized,
-					original: '', //Not stored, but not needed for most operations
-					get stemmed() { return getStemmed(); },
-					get withoutStopWords() {
-						if (cachedWithoutStopWords === undefined) cachedWithoutStopWords = withoutStopWords(getStemmed());
-						return cachedWithoutStopWords;
-					},
-					uppercaseRanges: storedRun.uppercaseRanges,
-					get empty() { return storedRun.normalized === ''; }
-				};
-			});
+					let cachedStemmed : string | undefined;
+					let cachedWithoutStopWords : string | undefined;
+					const getStemmed = () => {
+						if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
+						return cachedStemmed;
+					};
+					return {
+						normalized: storedRun.normalized,
+						original: '',
+						get stemmed() { return getStemmed(); },
+						get withoutStopWords() {
+							if (cachedWithoutStopWords === undefined) cachedWithoutStopWords = withoutStopWords(getStemmed());
+							return cachedWithoutStopWords;
+						},
+						uppercaseRanges: storedRun.uppercaseRanges,
+						get empty() { return storedRun.normalized === ''; }
+					};
+				});
 			}
 		}
-
-		//Return ProcessedCard with stored NLP data
-		//Cast nlp to the correct type since we know it's valid
-		//importantNgrams and synonymMap set to empty — they're only used by
-		//fingerprinting which handles {} gracefully (minor quality tradeoff).
-		return {
+		processed = {
 			...card,
 			fallbackText,
 			importantNgrams: {},
 			synonymMap: {},
 			nlp: nlp as unknown as ProcessedCard['nlp']
 		} as ProcessedCard;
+	} else {
+		// Slow path: full NLP computation
+		processed = cardWithNormalizedTextProperties(card, fallbackText, {}, {});
 	}
 
-	//Fall back to full NLP computation for cards without stored tokens
-	_perfNlpSlowCount++;
-	return cardWithNormalizedTextProperties(card, fallbackText, {}, {});
+	_processedCardCache.set(card, processed);
+	return processed;
 };
 
-const selectSnapshotZippedCardAndFallbackMap = createSelector(
+export const selectCards : (state : State) => ProcessedCards = createSelector(
+	selectRawCards,
+	(rawCards : Cards) : ProcessedCards => {
+		const result : ProcessedCards = {} as ProcessedCards;
+		for (const [id, card] of Object.entries(rawCards) as [CardID, Card][]) {
+			result[id] = processCard(card, rawCards);
+		}
+		return result;
+	}
+);
+
+const selectCardsSnapshot : (state : State) => ProcessedCards = createSelector(
 	selectRawCardsSnapshot,
-	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]}  => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
-);
-
-//objectEquality checks for objects to be the same content, allowing nested
-//objects
-const objectEquality = (before : unknown, after : unknown) : boolean => {
-	if (before === after) return true;
-	if (!before) return false;
-	if (!after) return false;
-	if (typeof before != 'object') return false;
-	if (typeof after != 'object') return false;
-	if (Array.isArray(before) && Array.isArray(after)) return arrayEquality(before, after);
-	const beforeEntries = Object.entries(before);
-	const objAfter : {[name :string]: unknown} = after as {[name : string] : unknown};
-	if (beforeEntries.length != Object.keys(after).length) return false;
-	return beforeEntries.every(entry => objectEquality(entry[1], objAfter[entry[0]]));
-};
-
-//arrayEquality returns true if both are arrays and each of their items are the same
-const arrayEquality = (before : unknown[], after : unknown[]) : boolean => {
-	if (before === after) return true;
-	if (!Array.isArray(before)) return false;
-	if (!Array.isArray(after)) return false;
-	if (before.length != after.length) return false;
-	return before.every((item, i) => objectEquality(item, after[i]));
-};
-
-//note: using objectEquality, instead of something that knows that the first item
-//is a card and the second is a two-level map, means that misses on card objects
-//will be more expensive to discover, because they'll iterate through each
-//property in the card. The upside is that because we use objectSelector, each
-//card will be presented the same for each ID consistently, so by only treating
-//them differently if something actually changed, we can save a lot of
-//downstream processing, since we do often get updateCards with no real change
-//to the card, and so much is downstream of when updateCards changes.
-const createZippedObjectSelector = createObjectSelectorCreator(objectEquality);
-
-//this uses createZippedObjectSelector because the cardAndFallbackMap entry will
-//be a different item, but as long as the individual items are the same as last
-//time they should be considered the same.
-//
-//NOTE: selectConcepts and selectSynonymMap are intentionally NOT dependencies.
-//They were removed because reselect-map clears its entire cache when ANY
-//non-per-key dependency changes, causing a 49-second re-evaluation of all 40k
-//cards. Since the fast path (stored NLP tokens) doesn't use concepts/synonyms
-//for computation anyway, removing them has no effect on card NLP data.
-//Fingerprinting (wordCountsForSemantics) reads cardObj.importantNgrams/synonymMap
-//but handles {} gracefully — minor quality tradeoff for a massive perf win.
-export const selectCards : (state : State) => ProcessedCards = createZippedObjectSelector(
-	selectZippedCardAndFallbackMap,
-	(cardAndFallbackMap) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1])
-);
-
-const selectCardsSnapshot : (state : State) => ProcessedCards = createZippedObjectSelector(
-	selectSnapshotZippedCardAndFallbackMap,
-	(cardAndFallbackMap) => cardWithNormalizedTextPropertiesFast(cardAndFallbackMap[0], cardAndFallbackMap[1])
+	(rawCards : Cards) : ProcessedCards => {
+		const result : ProcessedCards = {} as ProcessedCards;
+		for (const [id, card] of Object.entries(rawCards) as [CardID, Card][]) {
+			result[id] = processCard(card, rawCards);
+		}
+		return result;
+	}
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
