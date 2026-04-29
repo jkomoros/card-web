@@ -47,6 +47,8 @@ import {
 	where,
 	query,
 	orderBy,
+	startAfter,
+	limit,
 	QuerySnapshot,
 	doc,
 } from 'firebase/firestore';
@@ -406,34 +408,35 @@ const disconnectLiveUnpublishedCards = () => {
 
 export const connectLiveUnpublishedCards = async () => {
 	const state = store.getState() as State;
-	if (!selectUserMayViewApp(state)) return;
+	if (!selectUserMayViewApp(state)) {
+		console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
+		return;
+	}
 	disconnectLiveUnpublishedCards();
 
 	const userMayViewUnpublished = selectUserMayViewUnpublished(state);
 	const uid = selectUid(state);
+	console.log(`[PERF] connectLiveUnpublishedCards: mayViewUnpublished=${userMayViewUnpublished}, uid=${uid}`);
 
 	if (userMayViewUnpublished) {
-		// Load ALL unpublished cards client-side. We use a two-phase approach:
+		// Load ALL unpublished cards client-side. Two-phase approach:
 		//
-		// Phase 1 (getDocs): Fetch all ~38k unpublished cards in a single
-		// request/response. This is more reliable than onSnapshot for the
-		// initial load because onSnapshot's Listen stream times out at ~60s
-		// (server-side, non-configurable) when delivering large result sets
-		// over long polling. getDocs uses a simpler RunQuery protocol that
-		// handles large responses better. As a side effect, getDocs populates
-		// the Firestore IndexedDB cache (persistentLocalCache).
+		// Phase 1 (paginated getDocs): Fetch all unpublished cards in batches.
+		// Firestore has a ~60s server-side timeout (non-configurable) that
+		// prevents loading 38k+ docs in a single request, especially with
+		// experimentalForceLongPolling. We paginate with orderBy + startAfter
+		// + limit, dispatching each batch to Redux as it arrives so the UI
+		// populates progressively. getDocs also primes the IndexedDB cache.
 		//
-		// Phase 2 (onSnapshot): Attach a real-time listener on the same query.
-		// Since the cache was just primed by getDocs, the initial onSnapshot
-		// delivery comes from cache (instant, no server round-trip), then the
-		// listener watches for subsequent changes (edits, creates, deletes).
+		// Phase 2 (onSnapshot): Attach a real-time listener on the full query.
+		// Since the cache was primed by getDocs, the initial delivery comes
+		// from cache (instant), then the listener watches for live changes.
 		//
-		// The existing deepEqualIgnoringTimestamps check in receiveCards()
-		// prevents double-dispatch: when onSnapshot delivers cached cards
-		// that getDocs already dispatched, the diff finds zero changes.
+		// The deepEqualIgnoringTimestamps dedup in receiveCards() prevents
+		// redundant Redux dispatches when onSnapshot re-delivers cached cards.
 		//
-		// On subsequent page loads (warm cache), getDocs returns from cache
-		// almost instantly, and onSnapshot syncs only deltas from the server.
+		// On subsequent loads (warm cache), getDocs returns from cache almost
+		// instantly, and onSnapshot syncs only deltas from the server.
 		store.dispatch(expectUnpublishedCards('unpublished'));
 
 		const unpublishedQuery = query(
@@ -441,18 +444,42 @@ export const connectLiveUnpublishedCards = async () => {
 			where('published', '==', false)
 		);
 
-		// Phase 1: Prime cache and populate Redux
-		console.time('[PERF] unpublished-getDocs');
+		// Phase 1: Paginated getDocs to prime cache and populate Redux
+		const PAGE_SIZE = 10000;
+		console.time('[PERF] unpublished-getDocs-total');
 		try {
-			const snapshot = await getDocs(unpublishedQuery);
-			console.timeEnd('[PERF] unpublished-getDocs');
-			console.log(`[PERF] getDocs returned ${snapshot.size} unpublished cards`);
-			cardSnapshotReceiver('unpublished')(snapshot);
+			let totalLoaded = 0;
+			let pageNum = 0;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			let lastDoc : any = null;
+			let done = false;
+
+			while (!done) {
+				const pageQuery = lastDoc
+					? query(unpublishedQuery, orderBy('__name__'), startAfter(lastDoc), limit(PAGE_SIZE))
+					: query(unpublishedQuery, orderBy('__name__'), limit(PAGE_SIZE));
+
+				console.time(`[PERF] unpublished-getDocs-page-${pageNum}`);
+				const snapshot = await getDocs(pageQuery);
+				console.timeEnd(`[PERF] unpublished-getDocs-page-${pageNum}`);
+
+				if (snapshot.size > 0) {
+					cardSnapshotReceiver('unpublished')(snapshot);
+					totalLoaded += snapshot.size;
+					lastDoc = snapshot.docs[snapshot.docs.length - 1];
+					console.log(`[PERF] getDocs page ${pageNum}: ${snapshot.size} cards (total: ${totalLoaded})`);
+				}
+
+				if (snapshot.size < PAGE_SIZE) {
+					done = true;
+				}
+				pageNum++;
+			}
+			console.timeEnd('[PERF] unpublished-getDocs-total');
+			console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards in ${pageNum} pages`);
 		} catch (e) {
-			console.timeEnd('[PERF] unpublished-getDocs');
-			console.warn('[PERF] getDocs failed, relying on onSnapshot alone:', e);
-			// Fall through — onSnapshot may still work (e.g., warm cache
-			// from a previous session, or smaller dataset on retry)
+			console.timeEnd('[PERF] unpublished-getDocs-total');
+			console.warn('[PERF] getDocs pagination failed:', e);
 		}
 
 		// Phase 2: Real-time listener for ongoing changes
