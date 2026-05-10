@@ -23,6 +23,7 @@
     "generate:seo:config": "npx tsx tools/seo.ts config",
     "generate:schema": "npx typescript-json-schema tools/types.ts Config --noExtraProps --excludePrivate --ignoreErrors > .vscode/config_schema.json",
     "mount": "npx tsx tools/mount.ts",
+    "dump": "npx tsx tools/dump.ts",
     "deploy": "npx tsx tools/cli.ts deploy",
     "deploy:dev": "npx tsx tools/cli.ts dev-deploy",
     "release": "npx tsx tools/cli.ts release",
