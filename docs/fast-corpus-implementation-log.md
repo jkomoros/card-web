@@ -268,6 +268,14 @@ Remaining for B3 (documented for continuation):
      changed entries; bridge dispatches UPDATE_CARD_META into
      DataState.cardMeta (selectCardMetas). Verified live: all 1240 metas
      populate in shadow mode.
+   - **CardMeta carries author + collaborators** so permission-map selectors
+     (selectCardIDsUserMayEdit, selectUserPermissionsForCardsMap) can flip to
+     meta in P2.
+   - **card-link flipped (browser-verified)**: existence/card_type/published
+     and auto-title rendering prefer selectCardMetas when populated, falling
+     back to the full cards map — behavior-neutral today, and removes the
+     inline-link full-map dependency ahead of P2 stop-mirroring. Non-title
+     auto fields still need the full card (documented in the getter).
    - **Consumer survey completed (sub-agent, 2026-07-03)**: full
      classification of every selectCards/selectRawCards consumer. Key
      conclusions: most selectors are already identity-optimized (A2) or

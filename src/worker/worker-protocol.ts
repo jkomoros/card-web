@@ -26,12 +26,15 @@ export const metaForCard = (card : Card) : CardMeta => ({
 	slugs: card.slugs || [],
 	published: Boolean(card.published),
 	sort_order: card.sort_order,
+	author: card.author,
+	collaborators: card.collaborators || [],
 });
 
 export const metasEquivalent = (a : CardMeta, b : CardMeta) : boolean => {
-	if (a.name !== b.name || a.title !== b.title || a.card_type !== b.card_type || a.section !== b.section || a.published !== b.published || a.sort_order !== b.sort_order) return false;
+	if (a.name !== b.name || a.title !== b.title || a.card_type !== b.card_type || a.section !== b.section || a.published !== b.published || a.sort_order !== b.sort_order || a.author !== b.author) return false;
 	if (a.tags.length !== b.tags.length || a.tags.some((tag, i) => tag !== b.tags[i])) return false;
 	if (a.slugs.length !== b.slugs.length || a.slugs.some((slug, i) => slug !== b.slugs[i])) return false;
+	if (a.collaborators.length !== b.collaborators.length || a.collaborators.some((uid, i) => uid !== b.collaborators[i])) return false;
 	return true;
 };
 

@@ -786,6 +786,8 @@ export type CardMeta = {
 	slugs: Slug[],
 	published: boolean,
 	sort_order: number,
+	author: Uid,
+	collaborators: Uid[],
 };
 
 export type CardMetas = {[id : CardID]: CardMeta};
