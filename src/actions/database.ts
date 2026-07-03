@@ -108,6 +108,11 @@ import {
 	stripEphemeralCardFields
 } from '../util.js';
 
+import {
+	corpusWorkerOwnsCardIngestion,
+	corpusWorkerConnectCards
+} from '../corpus-bridge.js';
+
 import { TypedObject } from '../../shared/typed_object.js';
 
 
@@ -365,7 +370,14 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 };
 
 export const connectLivePublishedCards = () => {
-	if (!selectUserMayViewApp(store.getState() as State)) return;
+	const state = store.getState() as State;
+	if (!selectUserMayViewApp(state)) return;
+	if (corpusWorkerOwnsCardIngestion()) {
+		//The corpus worker owns the Firestore card listeners; batches arrive
+		//via the bridge and are dispatched through the same receiveCards path.
+		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
+		return;
+	}
 	console.log('[PERF] connectLivePublishedCards: starting listener');
 	console.time('[PERF] published-cards-first-snapshot');
 	let first = true;
@@ -420,6 +432,20 @@ export const connectLiveUnpublishedCards = async () => {
 		console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
 		return;
 	}
+
+	if (corpusWorkerOwnsCardIngestion()) {
+		//Keep the loading indicator semantics; the worker's forwarded batches
+		//clear the flags through the normal UPDATE_CARDS path.
+		if (selectUserMayViewUnpublished(state)) {
+			store.dispatch(expectUnpublishedCards('unpublished'));
+		} else if (selectUid(state)) {
+			store.dispatch(expectUnpublishedCards('unpublished-author'));
+			store.dispatch(expectUnpublishedCards('unpublished-editor'));
+		}
+		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
+		return;
+	}
+
 	disconnectLiveUnpublishedCards();
 
 	const userMayViewUnpublished = selectUserMayViewUnpublished(state);

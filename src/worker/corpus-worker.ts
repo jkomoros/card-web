@@ -17,11 +17,14 @@ import {
 	initializeFirestore,
 	persistentLocalCache,
 	onSnapshot,
+	getDocs,
 	query,
 	collection,
 	where,
+	documentId,
 	Firestore,
-	QuerySnapshot
+	QuerySnapshot,
+	Timestamp
 } from 'firebase/firestore';
 
 import {
@@ -45,7 +48,8 @@ import {
 import {
 	Card,
 	Cards,
-	CardID
+	CardID,
+	CardFetchType
 } from '../types.js';
 
 import {
@@ -59,9 +63,20 @@ import {
 	SearchIndex
 } from './search-index.js';
 
+import {
+	toWire
+} from './wire-format.js';
+
 //The name of the cards collection; mirrored from src/actions/database.ts
 //(not imported: that module pulls in the store and DOM-touching deps).
 const CARDS_COLLECTION = 'cards';
+
+//Mirrored from src/actions/database.ts — permission key for editor listeners.
+const PERMISSION_EDIT_CARD = 'editCard';
+
+//How long ingestion batches accumulate before being flushed to the main
+//thread during the initial load (mirrors A4's boot coalescing).
+const COALESCE_INTERVAL_MS = 750;
 
 //Narrow view of the dedicated-worker global scope, to avoid needing the
 //"webworker" tsconfig lib (which conflicts with "dom" in the same program).
@@ -75,20 +90,38 @@ let db : Firestore | null = null;
 let auth : Auth | null = null;
 
 let generation : WorkerGeneration = 0;
+//Internal connection generation, bumped on every (re)connect to invalidate
+//in-flight partition fetches (mirrors unpublishedConnectionGeneration).
+let connectionGeneration = 0;
 
 const corpus : Map<CardID, Card> = new Map();
 const index = new SearchIndex();
 let cardsWithStoredTokens = 0;
 let indexBuildMs = 0;
 
-let publishedUnsubscribe : (() => void) | null = null;
+const unsubscribes : (() => void)[] = [];
 
 const send = (message : WorkerToMainMessage) => workerScope.postMessage(message);
 
 const status = (message : string) => send({type: 'status', generation, message});
 
-const ingestSnapshot = (snapshot : QuerySnapshot) => {
-	const start = performance.now();
+const isTimestamp = (value : unknown) : boolean => value instanceof Timestamp;
+const getTime = (timestamp : unknown) => {
+	const ts = timestamp as Timestamp;
+	return {seconds: ts.seconds, nanoseconds: ts.nanoseconds};
+};
+
+//Fields stored on the doc for server-side querying only; stripped before
+//forwarding to the main thread (mirrors stripEphemeralCardFields in
+//src/util.ts). The worker keeps the tokens for its own index first.
+const stripForWire = (card : Card) : Card => {
+	if (!('nlp_search_tokens' in card)) return card;
+	const result = {...card};
+	delete result.nlp_search_tokens;
+	return result;
+};
+
+const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[]} => {
 	const cards : Cards = {};
 	const removedIDs : CardID[] = [];
 	snapshot.docChanges().forEach(change => {
@@ -100,7 +133,10 @@ const ingestSnapshot = (snapshot : QuerySnapshot) => {
 		const card : Card = {...change.doc.data({serverTimestamps: 'estimate'}), id} as Card;
 		cards[id] = card;
 	});
+	return {cards, removedIDs};
+};
 
+const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 	const indexStart = performance.now();
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
@@ -119,14 +155,37 @@ const ingestSnapshot = (snapshot : QuerySnapshot) => {
 		index.removeCard(id);
 	}
 	indexBuildMs += performance.now() - indexStart;
+};
 
+const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean) => {
+	const wireCards = Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, toWire(stripForWire(card), isTimestamp, getTime)])) as Cards;
+	send({
+		type: 'cards',
+		generation,
+		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe}
+	});
+};
+
+//Ingests a snapshot: updates worker-local corpus/index and forwards the batch
+//to the main thread.
+const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fastDedupe = false) => {
+	const start = performance.now();
+	const {cards, removedIDs} = parseSnapshot(snapshot);
+	updateLocalState(cards, removedIDs);
 	const count = Object.keys(cards).length;
 	if (count || removedIDs.length) {
-		status(`ingested ${count} cards (${removedIDs.length} removed) in ${(performance.now() - start).toFixed(1)}ms (index share ${(performance.now() - indexStart).toFixed(1)}ms); corpus=${corpus.size}`);
+		forwardBatch(cards, removedIDs, fetchType, fastDedupe);
+		status(`ingested ${count} cards (${removedIDs.length} removed, ${fetchType}) in ${(performance.now() - start).toFixed(1)}ms; corpus=${corpus.size}`);
 	}
 };
 
-const connect = (devMode : boolean) => {
+const teardownListeners = () => {
+	connectionGeneration++;
+	for (const unsubscribe of unsubscribes) unsubscribe();
+	unsubscribes.length = 0;
+};
+
+const connectFirebase = (devMode : boolean) => {
 	if (app) return;
 	const config = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 	app = initializeApp(config, 'corpus-worker');
@@ -141,26 +200,118 @@ const connect = (devMode : boolean) => {
 		experimentalForceLongPolling: true,
 		localCache: persistentLocalCache({})
 	});
-
-	publishedUnsubscribe = onSnapshot(
-		query(collection(db, CARDS_COLLECTION), where('published', '==', true)),
-		ingestSnapshot,
-		error => send({type: 'error', generation, message: `published listener: ${error.message}`})
-	);
-
-	status('connected; published listener attached');
 };
 
-const teardown = () => {
-	if (publishedUnsubscribe) {
-		publishedUnsubscribe();
-		publishedUnsubscribe = null;
+const connectPublished = () => {
+	if (!db) return;
+	unsubscribes.push(onSnapshot(
+		query(collection(db, CARDS_COLLECTION), where('published', '==', true)),
+		snapshot => ingestSnapshot(snapshot, 'published'),
+		error => send({type: 'error', generation, message: `published listener: ${error.message}`})
+	));
+	status('published listener attached');
+};
+
+//Mirrors the partitioned unpublished fetch in src/actions/database.ts:
+//parallel getDocs by document-ID range (a single query on 38k+ docs hits the
+//~60s Firestore timeout), coalesced into batched forwards, then a full
+//onSnapshot whose initial delivery is flagged for fast dedupe.
+const connectUnpublishedPrivileged = async () => {
+	if (!db) return;
+	const database = db;
+	const myConnectionGeneration = connectionGeneration;
+
+	const PARTITIONS = [
+		{ gte: '', lt: 'c-2' },
+		{ gte: 'c-2', lt: 'c-4' },
+		{ gte: 'c-4', lt: 'c-6' },
+		{ gte: 'c-6', lt: 'c-8' },
+		{ gte: 'c-8', lt: '' },
+	];
+
+	const pendingCards : Cards = {};
+	let flushTimeout : ReturnType<typeof setTimeout> | null = null;
+	const flushPending = () => {
+		if (flushTimeout) {
+			clearTimeout(flushTimeout);
+			flushTimeout = null;
+		}
+		if (myConnectionGeneration !== connectionGeneration) return;
+		const ids = Object.keys(pendingCards);
+		if (ids.length === 0) return;
+		const cards = {...pendingCards};
+		for (const id of ids) delete pendingCards[id];
+		updateLocalState(cards, []);
+		forwardBatch(cards, [], 'unpublished', false);
+		status(`flushed ${ids.length} coalesced unpublished cards; corpus=${corpus.size}`);
+	};
+
+	const startTime = performance.now();
+	try {
+		const partitionPromises = PARTITIONS.map(async (partition) => {
+			const partitionQuery = partition.gte
+				? query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false),
+					where(documentId(), '>=', partition.gte),
+					where(documentId(), '<', partition.lt))
+				: query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false),
+					where(documentId(), '<', partition.lt));
+			const snapshot = await getDocs(partitionQuery);
+			if (myConnectionGeneration !== connectionGeneration) return 0;
+			if (snapshot.size > 0) {
+				const {cards} = parseSnapshot(snapshot);
+				Object.assign(pendingCards, cards);
+				if (!flushTimeout) flushTimeout = setTimeout(flushPending, COALESCE_INTERVAL_MS);
+			}
+			return snapshot.size;
+		});
+		const sizes = await Promise.all(partitionPromises);
+		if (myConnectionGeneration !== connectionGeneration) return;
+		flushPending();
+		status(`unpublished getDocs complete: ${sizes.reduce((a, b) => a + b, 0)} cards in ${(performance.now() - startTime).toFixed(0)}ms`);
+	} catch (e) {
+		flushPending();
+		send({type: 'error', generation, message: `unpublished getDocs: ${String(e)}`});
 	}
-	//SearchIndex has no clear(); remove all cards before clearing the corpus.
-	for (const id of [...corpus.keys()]) index.removeCard(id);
-	corpus.clear();
-	cardsWithStoredTokens = 0;
-	indexBuildMs = 0;
+
+	if (myConnectionGeneration !== connectionGeneration) return;
+	let firstDelivery = true;
+	unsubscribes.push(onSnapshot(
+		query(collection(database, CARDS_COLLECTION), where('published', '==', false)),
+		snapshot => {
+			const fastDedupe = firstDelivery;
+			firstDelivery = false;
+			ingestSnapshot(snapshot, 'unpublished', fastDedupe);
+		},
+		error => send({type: 'error', generation, message: `unpublished listener: ${error.message}`})
+	));
+	status('unpublished listener attached');
+};
+
+const connectUnpublishedAuthorEditor = (uid : string) => {
+	if (!db || !uid) return;
+	unsubscribes.push(onSnapshot(
+		query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
+		snapshot => ingestSnapshot(snapshot, 'unpublished-author'),
+		error => send({type: 'error', generation, message: `unpublished-author listener: ${error.message}`})
+	));
+	unsubscribes.push(onSnapshot(
+		query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
+		snapshot => ingestSnapshot(snapshot, 'unpublished-editor'),
+		error => send({type: 'error', generation, message: `unpublished-editor listener: ${error.message}`})
+	));
+	status('author/editor listeners attached');
+};
+
+const connectCards = (mayViewUnpublished : boolean, uid : string) => {
+	teardownListeners();
+	connectPublished();
+	if (mayViewUnpublished) {
+		connectUnpublishedPrivileged();
+	} else if (uid) {
+		connectUnpublishedAuthorEditor(uid);
+	}
 };
 
 const spike = () => {
@@ -208,20 +359,12 @@ workerScope.addEventListener('message', event => {
 	switch (message.type) {
 	case 'connect':
 		generation = message.generation;
-		connect(message.devMode);
+		connectFirebase(message.devMode);
+		connectCards(message.mayViewUnpublished, message.uid);
 		break;
 	case 'reconnect':
 		generation = message.generation;
-		teardown();
-		//Reattach listeners under the new generation. (B0 scope: published
-		//only; permission-scoped unpublished listeners arrive with B1.)
-		if (db) {
-			publishedUnsubscribe = onSnapshot(
-				query(collection(db, CARDS_COLLECTION), where('published', '==', true)),
-				ingestSnapshot,
-				error => send({type: 'error', generation, message: `published listener: ${error.message}`})
-			);
-		}
+		connectCards(message.mayViewUnpublished, message.uid);
 		break;
 	case 'spike':
 		spike();

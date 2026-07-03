@@ -3,20 +3,52 @@
 //
 //Rollout is gated by localStorage key 'corpus-worker':
 //  'off' (or unset) — worker never spawns; zero behavior change.
-//  'spike'          — worker spawns and loads published cards + index in the
+//  'spike'          — worker spawns and loads cards + index in the
 //                     background, purely for benchmarking via the
-//                     window.CORPUS_WORKER console API. No app behavior
-//                     change.
-//  'shadow' / 'on'  — reserved for B2/B3.
+//                     window.CORPUS_WORKER console API. The main thread's own
+//                     Firestore card listeners run exactly as before.
+//  'shadow'         — the WORKER owns card ingestion: the main thread's card
+//                     listeners don't attach, and the worker forwards parsed
+//                     card batches which the bridge dispatches through the
+//                     exact same receiveCards path. Redux/selector behavior
+//                     is unchanged; only who talks to Firestore changes.
+//  'on'             — reserved for B3 cutover.
 //
-//Console API (any mode): CORPUS_WORKER.setMode('spike'), .spike(),
-//.query('some text'), .setMode('off').
+//Console API (any mode): CORPUS_WORKER.setMode('shadow'), .spike(),
+//.query('some text'), .setMode('off'). Mode changes require a reload to fully
+//re-wire listeners.
+
+import {
+	Timestamp
+} from 'firebase/firestore';
+
+import {
+	store
+} from './store.js';
+
+import {
+	receiveCards,
+	removeCards
+} from './actions/data.js';
+
+import {
+	fetchTypeIsUnpublished
+} from './util.js';
+
+import {
+	Cards
+} from './types.js';
 
 import {
 	MainToWorkerMessage,
 	WorkerToMainMessage,
-	WorkerGeneration
+	WorkerGeneration,
+	CardBatch
 } from './worker/worker-protocol.js';
+
+import {
+	fromWire
+} from './worker/wire-format.js';
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
@@ -37,15 +69,40 @@ const readMode = () : CorpusWorkerMode => {
 	return 'off';
 };
 
+//True when the worker (not the main thread) should own the Firestore card
+//listeners. src/actions/database.ts consults this before attaching.
+export const corpusWorkerOwnsCardIngestion = () : boolean => {
+	const mode = readMode();
+	return mode === 'shadow' || mode === 'on';
+};
+
 let worker : Worker | null = null;
 let generation : WorkerGeneration = 0;
 let queryCounter = 0;
 const pendingQueries : Map<number, (result : {ids : string[], ms : number, fullScanFallback : boolean}) => void> = new Map();
+//The most recent ingestion parameters, so auth/permission changes can
+//reconnect the worker.
+let lastMayViewUnpublished = false;
+let lastUid = '';
+let connectSent = false;
 
 const devMode = () : boolean => {
 	if (window.location.hostname == 'localhost') return true;
 	if (window.location.hostname.indexOf('dev-') >= 0) return true;
 	return false;
+};
+
+const makeTimestamp = (seconds : number, nanoseconds : number) : Timestamp => new Timestamp(seconds, nanoseconds);
+
+const handleCardBatch = (batch : CardBatch) => {
+	if (!corpusWorkerOwnsCardIngestion()) return;
+	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
+	if (Object.keys(cards).length) {
+		store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe));
+	}
+	if (batch.removedIDs.length) {
+		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
+	}
 };
 
 const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
@@ -76,7 +133,7 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		break;
 	}
 	case 'cards':
-		//B1: forwarded ingestion batches. Ignored in spike mode.
+		handleCardBatch(message.batch);
 		break;
 	}
 };
@@ -88,28 +145,49 @@ const post = (message : MainToWorkerMessage) => {
 
 const spawnWorker = () => {
 	if (worker) return;
-	generation++;
 	worker = new Worker(WORKER_URL, {type: 'module'});
 	worker.addEventListener('message', handleMessage);
 	worker.addEventListener('error', event => {
 		console.warn('[corpus-worker] worker error:', event.message);
 	});
-	post({type: 'connect', generation, devMode: devMode(), mayViewUnpublished: false, uid: ''});
 };
 
 const stopWorker = () => {
 	if (!worker) return;
 	worker.terminate();
 	worker = null;
+	connectSent = false;
 	pendingQueries.clear();
 };
 
+//Ensures the worker is running and (re)connected with the given ingestion
+//parameters. Called by src/actions/database.ts when the worker owns
+//ingestion, in exactly the places the main-thread listeners would otherwise
+//attach; also used by spike mode with default (published-only) parameters.
+export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : string) => {
+	spawnWorker();
+	//Both published and unpublished connect paths funnel here; don't tear
+	//down and reconnect when nothing changed.
+	if (connectSent && mayViewUnpublished === lastMayViewUnpublished && uid === lastUid) return;
+	lastMayViewUnpublished = mayViewUnpublished;
+	lastUid = uid;
+	generation++;
+	if (!connectSent) {
+		connectSent = true;
+		post({type: 'connect', generation, devMode: devMode(), mayViewUnpublished, uid});
+	} else {
+		post({type: 'reconnect', generation, mayViewUnpublished, uid});
+	}
+};
+
 //Called once at app startup (from main-view). Spawns the worker only when the
-//user has opted in via localStorage.
+//user has opted in via localStorage. In 'spike' mode the worker loads
+//published cards for benchmarking; in 'shadow'/'on' modes the real ingestion
+//wiring in src/actions/database.ts drives it instead.
 export const maybeStartCorpusWorker = () => {
 	const mode = readMode();
-	if (mode === 'off') return;
-	spawnWorker();
+	if (mode !== 'spike') return;
+	corpusWorkerConnectCards(false, '');
 };
 
 declare global {
@@ -135,17 +213,13 @@ if (typeof window !== 'undefined') {
 			} catch {
 				//Best effort
 			}
-			if (mode === 'off') {
-				stopWorker();
-			} else {
-				spawnWorker();
-			}
-			console.log(`[corpus-worker] mode set to ${mode}`);
+			if (mode === 'off') stopWorker();
+			console.log(`[corpus-worker] mode set to ${mode}; reload for it to take full effect`);
 		},
 		mode: readMode,
 		spike: () => {
 			if (!worker) {
-				console.log('[corpus-worker] not running; call CORPUS_WORKER.setMode(\'spike\') first');
+				console.log('[corpus-worker] not running; call CORPUS_WORKER.setMode(\'spike\') (or \'shadow\') and reload');
 				return;
 			}
 			post({type: 'spike', generation});

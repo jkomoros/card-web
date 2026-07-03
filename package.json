@@ -30,7 +30,7 @@
     "backup": "npx tsx tools/cli.ts backup",
     "reset-dev": "npx tsx tools/cli.ts reset-dev",
     "set-up-deploy": "npx tsx tools/cli.ts set-up-deploy",
-    "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index",
+    "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format",
     "test:security": "npm run generate:config && npm run generate:seo:config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
     "test:security-impl": "mocha -r esm test/security --timeout=10000",
     "test:url": "mocha -r esm test/url --timeout=10000",
@@ -49,7 +49,8 @@
     "test:reducers": "mocha -r esm test/reducers --timeout=10000",
     "test:incremental-selectors": "mocha -r esm test/incremental-selectors --timeout=10000",
     "test:collection": "mocha -r esm test/collection --timeout=10000",
-    "test:search-index": "mocha -r esm test/search-index --timeout=30000"
+    "test:search-index": "mocha -r esm test/search-index --timeout=30000",
+    "test:wire-format": "mocha -r esm test/wire-format --timeout=10000"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

@@ -105,15 +105,38 @@ loads under wds dev serving and in prod build; (b) worker auth picks up the
 persisted credential; (c) Firestore-in-worker cold/warm load times; (d)
 IndexedDB coexistence of the worker's cache with the main thread's.
 
-### B1 — planned
+### B1 — COMPLETE (code-side; browser validation pending)
 
-Move card ingestion (published onSnapshot + partitioned unpublished getDocs +
-generation guards, from `src/actions/database.ts`) into the worker behind the
-flag; worker forwards parsed batches via `cards` messages; bridge dispatches the
-same `receiveCards` (including fastDedupe hint) so Redux/selectors are
-untouched. Sections/tags/stars/reads listeners stay on the main thread and are
-forwarded TO the worker (needed later for filters). Flag off = current path
-entirely intact.
+Worker-owned card ingestion behind the flag ('shadow' or 'on'):
+
+- `src/worker/wire-format.ts` + `test/wire-format`: Firestore Timestamp
+  instances don't survive structured clone, so cards crossing the boundary
+  have Timestamps converted to `{__wireTimestamp, seconds, nanoseconds}`
+  markers worker-side and reconstructed as real Timestamp instances
+  bridge-side. Identity-preserving for subtrees without timestamps.
+- `src/worker/corpus-worker.ts`: full ingestion mirroring
+  src/actions/database.ts — published onSnapshot; privileged unpublished via
+  5 parallel documentID-partitioned getDocs (60s-timeout workaround) with
+  750ms coalescing and connection-generation guards, then phase-2 onSnapshot
+  whose initial delivery is flagged fastDedupe; author/editor listeners for
+  non-privileged uids. Every batch also updates the worker's own corpus +
+  search index (strips nlp_search_tokens only in the forwarded copy).
+- `src/corpus-bridge.ts`: `corpusWorkerOwnsCardIngestion()` (mode is 'shadow'
+  or 'on'); 'cards' messages → `receiveCards(cards, fetchType, fastDedupe)` /
+  `removeCards` — the exact same Redux path as main-thread listeners.
+  Param-deduped connect/reconnect with generation bumps on auth changes.
+- `src/actions/database.ts`: connectLivePublishedCards /
+  connectLiveUnpublishedCards delegate to the worker when it owns ingestion
+  (still dispatching expectUnpublishedCards so loading indicators work);
+  otherwise the existing main-thread path runs untouched.
+
+Flag off (default): zero behavior change. **Browser validation (user)**: set
+`localStorage.setItem('corpus-worker','shadow')`, reload; cards should load
+normally with `[corpus-worker]` ingestion lines in the console; boot-time
+snapshot parsing now happens off the UI thread.
+
+Sections/tags/stars/reads listeners remain on the main thread; forwarding
+them TO the worker is part of B2 (needed for worker-side filters).
 
 ### B2 — planned
 
