@@ -1,3 +1,9 @@
+// Legacy server-query classification support from the abandoned Enterprise/
+// deep-fetch approach. The all-cards-local runtime fetches raw cards broadly
+// and applies filters client-side; it does not consume firestoreConstraints.
+// Keep this module isolated for tests and for any future server-narrowing work,
+// but do not treat it as part of the active fetch architecture.
+
 import {
 	UNION_FILTER_DELIMITER,
 	PUBLISHED_FILTER_NAME,

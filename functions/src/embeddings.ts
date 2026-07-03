@@ -50,6 +50,10 @@ import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
 
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
 //The highest number of cards there might ever be.
 const MAX_EMBEDDINGS = 100000;
 

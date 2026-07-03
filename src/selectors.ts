@@ -46,7 +46,8 @@ import {
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE,
-	editableFieldsForCardType
+	editableFieldsForCardType,
+	TEXT_FIELD_CONFIGURATION
 } from '../shared/card_fields.js';
 
 import {
@@ -66,7 +67,8 @@ import {
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
 	possibleMissingConcepts,
-	synonymMap
+	synonymMap,
+	processedRunsForCardField
 } from './nlp.js';
 
 import {
@@ -183,7 +185,8 @@ import {
 import {
 	stemmedNormalizedWords,
 	withoutStopWords,
-	CURRENT_NLP_VERSION
+	CURRENT_NLP_VERSION,
+	nlpSourceFingerprintForCard
 } from '../shared/nlp.js';
 
 import {
@@ -397,9 +400,10 @@ const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 	const fallbackText = backportFallbackTextMapForCard(card, allCards) || {};
 
 	let processed : ProcessedCard;
-	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
-		// Fast path: use stored NLP tokens
-		const nlp : {[field in CardFieldType]?: ProcessedRunInterface[]} = {};
+	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION && card.nlp_source_fingerprint === nlpSourceFingerprintForCard(card)) {
+		// Fast path: use stored NLP tokens for ordinary fields while preserving
+		// the full nlp shape expected by downstream semantic code.
+		const nlp = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION).map(fieldName => [fieldName, []])) as unknown as {[field in CardFieldType]: ProcessedRunInterface[]};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
 			if (storedRuns) {
 				nlp[fieldName] = storedRuns.map(storedRun => {
@@ -423,12 +427,19 @@ const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 				});
 			}
 		}
+		// Compute reference-derived fields locally so all-cards local search sees
+		// the current raw-card reference state even when stored NLP was generated
+		// before an inbound/outbound reference side effect.
+		const cardWithFallback = {...card, fallbackText};
+		nlp.references_info_inbound = processedRunsForCardField(cardWithFallback, 'references_info_inbound');
+		nlp.non_link_references = processedRunsForCardField(cardWithFallback, 'non_link_references');
+		nlp.concept_references = processedRunsForCardField(cardWithFallback, 'concept_references');
 		processed = {
 			...card,
 			fallbackText,
 			importantNgrams: {},
 			synonymMap: {},
-			nlp: nlp as unknown as ProcessedCard['nlp']
+			nlp: nlp as ProcessedCard['nlp']
 		} as ProcessedCard;
 	} else {
 		// Slow path: full NLP computation
@@ -884,17 +895,22 @@ const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined 
 	}
 	//null is a totally legal value to have, so we signal we need a recalculation via undefined.
 	if (memoizedEditingNormalizedCard === undefined) {
+		const start = performance.now();
 		//Note: this processing logic should be the same as selectCards processing.
 		const editingCard = selectEditingCard(state);
 		if (editingCard) {
 			const cards = selectRawCards(state);
 			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
-			const conceptsMap = selectConcepts(state);
-			const synonyms = selectSynonymMap(state);
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, conceptsMap, synonyms);
+			// Keep editing normalization cheap. Suggested concepts use the global
+			// concept map as a lookup after tokenizing the card; attaching every
+			// concept as importantNgrams here makes semantic word counting scan
+			// the full concept set against the editing text.
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, {}, {});
 		} else {
 			memoizedEditingNormalizedCard = undefined;
 		}
+		const duration = performance.now() - start;
+		if (duration > 50) console.log(`[PERF] selectEditingNormalizedCard: ${duration.toFixed(1)}ms`);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
 	return memoizedEditingNormalizedCard;
@@ -911,6 +927,22 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 		if (!editing) return editing;
 		if (!normalized) return editing;
 		return {...editing, nlp:normalized.nlp};
+	}
+);
+
+export const selectEditingCardForDisplay = createSelector(
+	selectEditingCard,
+	selectActiveCard,
+	(editing, active) => {
+		if (!editing) return null;
+		if (!active) return editing;
+		return {
+			...active,
+			...editing,
+			nlp: active.nlp,
+			importantNgrams: active.importantNgrams,
+			synonymMap: active.synonymMap
+		};
 	}
 );
 
@@ -1638,7 +1670,7 @@ export const selectCollectionConstructorArgumentsWithEditingCard = createSelecto
 );
 
 export const selectFieldValidationErrorsForEditingCard = createSelector(
-	selectEditingNormalizedCard,
+	selectEditingCard,
 	(card) :{[field in CardFieldType]+?: string}  => {
 		const result : {[field in CardFieldType]+?: string} = {};
 		if (!card) return result;
@@ -1791,7 +1823,12 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectCardsDrawerPanelOpen,
 	selectIsEditing,
 	selectEditorMinimized,
-	(activeCollection, panelOpen, isEditing, editorMinimized) => (isEditing && editorMinimized) ? false : !activeCollection || activeCollection.isFallback ? false : panelOpen
+	(activeCollection, panelOpen, isEditing, editorMinimized) => {
+		if (isEditing && editorMinimized) return false;
+		if (!panelOpen) return false;
+		if (!activeCollection || activeCollection.isFallback) return false;
+		return true;
+	}
 );
 
 //This is the final expanded, sorted collection, including start cards.
@@ -1800,15 +1837,19 @@ export const selectActiveCollectionCards = createSelector(
 	(collection) => collection ? collection.finalSortedCards : []
 );
 
+const selectActiveCollectionCardIndex = createSelector(
+	selectActiveCollectionCards,
+	(collection) : Map<CardID, number> => new Map(collection.map((card, index) => [card.id, index]))
+);
+
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardID,
-	selectActiveCollectionCards,
-	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
+	selectActiveCollectionCardIndex,
+	(cardId, index) => index.get(cardId) ?? -1
 );
 
 export const getCardIndexForActiveCollection = (state : State, cardId: CardID) : number => {
-	const collection = selectActiveCollectionCards(state);
-	return collection.map(card => card.id).indexOf(cardId);
+	return selectActiveCollectionCardIndex(state).get(cardId) ?? -1;
 };
 
 //returns an array of card-types that are in the BODY_CARD_TYPES that this user has access to

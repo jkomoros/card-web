@@ -11,6 +11,7 @@ import {
 	selectMultiEditDialogOpen,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
+	selectEditingUnderlyingCardSnapshot,
 	selectOvershadowedUnderlyingCardChangesDiff,
 	selectOvershadowedUnderlyingCardChangesDiffDescription
 } from '../selectors.js';
@@ -72,7 +73,8 @@ import {
 
 import {
 	uploadsRef,
-	db
+	db,
+	deepEqualIgnoringTimestamps
 } from '../firebase.js';
 
 import {
@@ -90,10 +92,6 @@ import {
 import {
 	CARDS_COLLECTION
 } from '../../shared/collection-constants.js';
-
-import {
-	receiveCards
-} from './data.js';
 
 import type {
 	Card
@@ -114,11 +112,13 @@ import {
 	ReferenceType,
 	SectionID,
 	Slug,
+	State,
 	TagID,
 	Uid
 } from '../types.js';
 
 import {
+	AppThunkDispatch,
 	ThunkSomeAction
 } from '../store.js';
 
@@ -175,6 +175,18 @@ let selectionParent : HTMLElementWithStashedSelectionOffset | null = null;
 
 // Live listener for the card being edited (conflict mitigation)
 let editingCardUnsubscribe: (() => void) | null = null;
+
+const dispatchUnderlyingCardUpdateIfChanged = (dispatch : AppThunkDispatch, getState : () => State, freshCard : Card) => {
+	const state = getState();
+	const editingCard = selectEditingCard(state);
+	if (!editingCard || editingCard.id !== freshCard.id) return;
+	const underlyingSnapshot = selectEditingUnderlyingCardSnapshot(state);
+	if (underlyingSnapshot && deepEqualIgnoringTimestamps(underlyingSnapshot, freshCard)) return;
+	dispatch({
+		type: EDITING_UPDATE_UNDERLYING_CARD,
+		updatedUnderlyingCard: freshCard
+	});
+};
 
 //selection range is weird; you can only listen for changes at the document
 //level, but selections wihtin a shadow root are hidden from outside. Certain
@@ -292,24 +304,11 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		return;
 	}
 
-	// STEP 1: Refresh card to latest version (multi-edit conflict mitigation)
-	try {
-		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
-		if (freshSnapshot.exists()) {
-			const freshCard: Card = {...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card;
-			dispatch(receiveCards({[card.id]: freshCard}, 'published'));
-		}
-	} catch (error) {
-		console.error('Error refreshing card before editing:', error);
-		// Continue anyway - we'll use the card we have
-	}
+	// Start editing immediately from local state. Freshness checks happen below
+	// without blocking the editor from opening.
+	dispatch({type: EDITING_START, card});
 
-	// Start editing with the card (potentially refreshed)
-	const updatedState = getState();
-	const updatedCard = selectActiveCard(updatedState);
-	dispatch({type: EDITING_START, card: updatedCard || card});
-
-	// STEP 2: Set up live listener for this card only
+	// Set up live listener for this card only.
 	if (editingCardUnsubscribe) {
 		editingCardUnsubscribe();
 	}
@@ -320,17 +319,23 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 			if (!snapshot.exists()) return;
 
 			const liveCard: Card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
-
-			// Update underlying card snapshot (conflict detection)
-			dispatch({
-				type: EDITING_UPDATE_UNDERLYING_CARD,
-				updatedUnderlyingCard: liveCard
-			});
+			dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, liveCard);
 		},
 		error => {
 			console.warn('Editing card listener error (will retry on reconnect):', error.message);
 		}
 	);
+
+	// Refresh the card after the editor is open. If the user navigates away or
+	// starts editing a different card before this resolves, ignore the result.
+	try {
+		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
+		if (!freshSnapshot.exists()) return;
+		const freshCard: Card = {...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card;
+		dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, freshCard);
+	} catch (error) {
+		console.error('Error refreshing card after opening editor:', error);
+	}
 };
 
 export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) => {
@@ -349,7 +354,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 		}
 	}
 
-	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
+	if (state.editor?.selectedTab == 'config' && selectEditingCardSuggestedConceptReferences(state).length > 0) {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
 	}
 

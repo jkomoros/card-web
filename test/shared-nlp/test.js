@@ -12,6 +12,7 @@ import {
 	ngrams,
 	calcIDFMapForCards,
 	cardWithNormalizedTextPropertiesSimple,
+	nlpSourceFingerprintForCard,
 } from '../../shared/dist/nlp.js';
 
 import assert from 'assert';
@@ -177,5 +178,28 @@ describe('calcIDFMapForCards', () => {
 		);
 		const idfMap = calcIDFMapForCards({ 'card-1': card }, 2);
 		assert.ok(typeof idfMap.maxIDF === 'number');
+	});
+});
+
+describe('nlpSourceFingerprintForCard', () => {
+	it('changes when raw searchable text changes', async () => {
+		const before = makeCard('card-1', '<p>old body</p>', 'Title');
+		const after = makeCard('card-1', '<p>new body</p>', 'Title');
+
+		assert.notStrictEqual(nlpSourceFingerprintForCard(before), nlpSourceFingerprintForCard(after));
+	});
+
+	it('ignores inbound reference text because clients recompute it locally', async () => {
+		const before = makeCard('card-1', '<p>body</p>', 'Title');
+		const after = {
+			...before,
+			references_info_inbound: {
+				other: {
+					link: 'Changed inbound label'
+				}
+			}
+		};
+
+		assert.strictEqual(nlpSourceFingerprintForCard(before), nlpSourceFingerprintForCard(after));
 	});
 });

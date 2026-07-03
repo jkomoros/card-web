@@ -155,11 +155,13 @@ class CardDrawer extends LitElement {
 
 	override render() {
 
+		if (!this.showing) return html`<div hidden></div>`;
+
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
 		const currentCount = this.collection ? this.collection.numCards : 0;
 
 		return html`
-			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
+			<div class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>

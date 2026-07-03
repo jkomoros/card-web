@@ -383,9 +383,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._card= selectActiveCard(state);
 		this._active = selectSuggestionsOpen(state);
-		this._suggestions = selectSuggestionsForActiveCard(state);
-		this._selectedIndex = selectSuggestionsEffectiveSelectedIndex(state);
-		this._tagInfosForCards = selectTagInfosForCards(state);
+		this._suggestions = this._active ? selectSuggestionsForActiveCard(state) : [];
+		this._selectedIndex = this._active ? selectSuggestionsEffectiveSelectedIndex(state) : -1;
+		this._tagInfosForCards = this._active ? selectTagInfosForCards(state) : {};
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._useLLMs = selectSuggestionsUseLLMs(state);
 		this._aggressive = selectSuggestionsAggressive(state);

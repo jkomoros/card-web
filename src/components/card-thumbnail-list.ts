@@ -11,10 +11,6 @@ import { store } from '../store.js';
 import { cardHasContent } from '../util.js';
 
 import {
-	getExpandedPrimaryReferenceBlocksForCard
-} from '../reference_blocks.js';
-
-import {
 	cardBadges,
 	cardBadgesStyles
 } from './card-badges.js';
@@ -29,7 +25,6 @@ import { cancelHoverTimeout } from '../actions/app.js';
 
 import {
 	selectBadgeMap,
-	selectCardIDsUserMayEdit,
 	selectCardsSelected
 } from '../selectors';
 
@@ -120,9 +115,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	@state()
 		_badgeMap: BadgeMap;
-
-	@state()
-		_cardIDsUserMayEdit: CardBooleanMap;
 
 	@state()
 		_cardsSelected: boolean;
@@ -371,8 +363,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	get _cardsClipped() {
 		//Returns true if there are cards at the end that are clipped.
 		if (!this.collection) return false;
-		const offsetCards = this.collection.finalSortedCards.slice(this.renderOffset);
-		return offsetCards.length > this.renderLimit;
+		return this.collection.finalSortedCards.length > this.renderOffset + this.renderLimit;
 	}
 
 	get _offsetChunk() {
@@ -406,7 +397,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		return html`
 			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${[]}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap, this.selectable ? this._handleSelectedClicked : undefined)}
 			</div>
 		`;
@@ -539,9 +530,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		if (!this._highlightedViaClick && !this._highlightedScrolled) {
 			//we prepend 'id-' to the front of the ID because ids must start
 			//with a letter, and some card IDs in production start with numbers.
-			const shadowRoot = this.shadowRoot;
-			if (!shadowRoot) throw new Error('no shadowRoot');
-			const ele = shadowRoot.querySelector('#id-' + this.highlightedCardId);
+			const ele = this._thumbnailElementForCard(this.highlightedCardId);
 			if (ele) {
 				ele.scrollIntoView({behavior:'auto', block:'center'});
 				this._highlightedScrolled = true;
@@ -575,6 +564,21 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._highlightedViaClick = false;
 	}
 
+	_thumbnailElementForCard(cardID : CardID) {
+		if (!cardID) return null;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) return null;
+		return shadowRoot.getElementById('id-' + cardID);
+	}
+
+	_updateHighlightedThumbnail(oldCardID : CardID) {
+		const oldEle = this._thumbnailElementForCard(oldCardID);
+		if (oldEle) oldEle.classList.remove('highlighted');
+		const newEle = this._thumbnailElementForCard(this.highlightedCardId);
+		if (newEle) newEle.classList.add('highlighted');
+		this._scrollHighlightedThumbnailIntoView(true);
+	}
+
 	get _collectionItemsToGhost() {
 		if (!this.collection) return {};
 		if (!this._memoizedGhostItems) {
@@ -586,7 +590,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
-		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
 		this._cardsSelected = selectCardsSelected(state);
 	}
 
@@ -603,6 +606,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		if (changedProps.has('collection') || changedProps.has('ghostCardsThatWillBeRemoved')) {
 			this._memoizedGhostItems = null;
 		}
+	}
+
+	override shouldUpdate(changedProps : PropertyValues<this>) {
+		if (changedProps.size == 1 && changedProps.has('highlightedCardId')) {
+			this._updateHighlightedThumbnail(changedProps.get('highlightedCardId') as CardID);
+			return false;
+		}
+		return true;
 	}
 }
 

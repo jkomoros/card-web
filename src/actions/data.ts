@@ -137,7 +137,8 @@ import {
 
 import {
 	ngrams,
-	CURRENT_NLP_VERSION
+	CURRENT_NLP_VERSION,
+	nlpSourceFingerprintForCard
 } from '../../shared/nlp.js';
 
 import type {
@@ -422,11 +423,12 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 
 	//Generate NLP tokens if content fields have changed
 	const contentFieldsChanged = update.title !== undefined ||
-		update.body !== undefined ||
-		update.commentary !== undefined ||
-		update.subtitle !== undefined ||
-		update.title_alternates !== undefined ||
-		update.references_diff !== undefined;
+			update.body !== undefined ||
+			update.commentary !== undefined ||
+			update.subtitle !== undefined ||
+			update.title_alternates !== undefined ||
+			update.external_link !== undefined ||
+			update.references_diff !== undefined;
 
 	if (contentFieldsChanged) {
 		//Create a temporary updated card for NLP processing
@@ -464,11 +466,12 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 			}
 		}
 
-		//Add NLP data to card update
-		cardUpdateObject.nlp_tokens = nlpTokens;
-		cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
-		cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
-	}
+			//Add NLP data to card update
+			cardUpdateObject.nlp_tokens = nlpTokens;
+			cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
+			cardUpdateObject.nlp_source_fingerprint = nlpSourceFingerprintForCard(tempUpdatedCard);
+			cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
+		}
 
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
@@ -1634,4 +1637,3 @@ export const loadServerIDFMap = () : ThunkSomeAction => async (dispatch) => {
 		serverIDF
 	});
 };
-

@@ -523,11 +523,9 @@ export interface Card {
 	//Flat array of deduplicated stemmed unigrams + bigrams for server-side
 	//array-contains queries. Generated from nlp_tokens across all fields.
 	nlp_search_tokens?: string[],
-	//nlp_fingerprint was removed: it was originally conceived as a pre-computed
-	//semantic fingerprint for auto-titles, then repurposed for "change detection",
-	//but no consumer was ever wired up. nlp_search_tokens and nlp_version cover
-	//the query and versioning use cases respectively. Old cards may still have
-	//the field in Firestore; it is harmlessly ignored.
+	//Fingerprint of the raw searchable fields represented by nlp_tokens. Used to
+	//detect content edits from old clients that did not refresh stored NLP.
+	nlp_source_fingerprint?: string,
 	//Version number of NLP processing (incremented when algorithm changes)
 	nlp_version?: number,
 }

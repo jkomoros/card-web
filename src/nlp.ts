@@ -50,6 +50,10 @@ import {
 	cardFieldTypeSchema
 } from './types.js';
 
+import type {
+	ProcessedRunInterface
+} from '../shared/types.js';
+
 import {
 	innerTextForHTML
 } from '../shared/util.js';
@@ -182,6 +186,19 @@ const LOWERCASE_STOP_WORDS : {[word : string] : boolean } = {
 	'for':true,
 };
 
+const _importantNgramsByCardIDCache = new WeakMap<StringCardMap, {[cardID : CardID] : string[]}>();
+
+const importantNgramsByCardID = (importantNgrams : StringCardMap) : {[cardID : CardID] : string[]} => {
+	let cached = _importantNgramsByCardIDCache.get(importantNgrams);
+	if (cached) return cached;
+	cached = {};
+	for (const [ngram, cardID] of Object.entries(importantNgrams || {})) {
+		cached[cardID] = [...(cached[cardID] || []), ngram];
+	}
+	_importantNgramsByCardIDCache.set(importantNgrams, cached);
+	return cached;
+};
+
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
 //object as a key.
@@ -221,7 +238,13 @@ export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard,
 	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
 	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray('concept').map(item => [item, true]));
 	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
-	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => allConceptCardReferences[entry[1]]));
+	const byCardID = importantNgramsByCardID(card.importantNgrams || {});
+	const filteredHighlightMap : StringCardMap = {};
+	for (const cardID of Object.keys(allConceptCardReferences)) {
+		for (const ngram of byCardID[cardID] || []) {
+			filteredHighlightMap[ngram] = cardID;
+		}
+	}
 	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
 });
 
@@ -453,6 +476,10 @@ const processedRun = (originalText : string) : ProcessedRun => {
 	return new ProcessedRun(originalText);
 };
 
+export const processedRunsForCardField = (card : CardWithOptionalFallbackText, fieldName : CardFieldType) : ProcessedRunInterface[] => {
+	return extractRawContentRunsForCardField(card, fieldName).map(str => processedRun(str)).filter(run => !run.empty);
+};
+
 //extractContentWords returns an object with the field to the non-de-stemmed
 //normalized words for each of the main properties.
 const extractContentWords = (card : CardWithOptionalFallbackText) => {
@@ -475,9 +502,7 @@ const extractContentWords = (card : CardWithOptionalFallbackText) => {
 		concept_references: []
 	};
 	for (const fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
-		const runs = extractRawContentRunsForCardField(card, fieldName);
-		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-		obj[fieldName] = runs.map(str => processedRun(str)).filter(run => !run.empty);
+		obj[fieldName] = processedRunsForCardField(card, fieldName);
 	}
 	return obj;
 };

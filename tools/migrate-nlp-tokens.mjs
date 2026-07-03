@@ -18,7 +18,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { writeFileSync } from 'fs';
 import { JSDOM } from 'jsdom';
 import { devProdConfig } from '../lib/tools/util.js';
-import { cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION } from '../shared/dist/nlp.js';
+import { cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION, nlpSourceFingerprintForCard } from '../shared/dist/nlp.js';
 import { overrideDocument } from '../shared/dist/document.js';
 
 // Set up jsdom for Node.js environment (NLP code needs DOM to parse HTML)
@@ -162,7 +162,7 @@ async function migrate() {
 					card = { id: docSnap.id, ...docSnap.data() };
 
 					// Skip if already has tokens at current version
-					if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION) {
+					if (card.nlp_tokens && card.nlp_source_fingerprint && card.nlp_version === CURRENT_NLP_VERSION) {
 						skippedCount++;
 						processedCount++;
 						continue;
@@ -205,11 +205,12 @@ async function migrate() {
 
 					// Add to batch (if not dry run)
 					if (!dryRun) {
-						batch.update(docSnap.ref, {
-							nlp_tokens: nlpTokens,
-							nlp_search_tokens: Array.from(searchTokenSet),
-							nlp_version: CURRENT_NLP_VERSION
-						});
+							batch.update(docSnap.ref, {
+								nlp_tokens: nlpTokens,
+								nlp_search_tokens: Array.from(searchTokenSet),
+								nlp_source_fingerprint: nlpSourceFingerprintForCard(card),
+								nlp_version: CURRENT_NLP_VERSION
+							});
 					}
 
 					batchUpdates++;

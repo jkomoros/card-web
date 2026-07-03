@@ -28,6 +28,7 @@ import type {
  * The migration script will re-process cards with older nlp_version.
  */
 export const CURRENT_NLP_VERSION = 1;
+export const NLP_SOURCE_FINGERPRINT_VERSION = 1;
 
 type WordNumbers = { [word: string]: number };
 export type IDFMap = {
@@ -238,6 +239,32 @@ export const extractFieldValueForIndexing = (fieldValue : string | object) : str
 	if (!fieldValue) return '';
 	//Join multi ones with the split character
 	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).filter(str => str).join('\n');
+};
+
+const hashString = (str : string) : string => {
+	let hash = 2166136261;
+	for (let i = 0; i < str.length; i++) {
+		hash ^= str.charCodeAt(i);
+		hash = Math.imul(hash, 16777619);
+	}
+	return (hash >>> 0).toString(36);
+};
+
+// nlpSourceFingerprintForCard fingerprints the raw card fields represented by
+// stored nlp_tokens. Reference-derived fields are intentionally excluded because
+// the client computes them locally from current raw card/reference state.
+export const nlpSourceFingerprintForCard = (card : Card) : string => {
+	const pieces : string[] = [`v${NLP_SOURCE_FINGERPRINT_VERSION}`, card.card_type || ''];
+	for (const fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
+		if (fieldName === 'references_info_inbound') continue;
+		const config = TEXT_FIELD_CONFIGURATION[fieldName];
+		if (config.skipIndexing || config.overrideExtractor) continue;
+		if ((DERIVED_FIELDS_FOR_CARD_TYPE[card.card_type] || {})[fieldName]) continue;
+		//eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const value = extractFieldValueForIndexing((card as any)[fieldName] || '');
+		pieces.push(fieldName, value);
+	}
+	return hashString(pieces.join('\u0000'));
 };
 
 //Text is non-normalized raw text. Runs are distinct bits of text that are

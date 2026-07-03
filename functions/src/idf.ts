@@ -1,4 +1,5 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { createRequire } from 'module';
 
 import { db, storage } from './common.js';
 
@@ -16,6 +17,8 @@ import type { Card, ProcessedCard } from '../../shared/types.js';
 type ProcessedCards = {
 	[id: string]: ProcessedCard
 };
+
+const require = createRequire(import.meta.url);
 
 // Lazy-init jsdom for Node.js environment (NLP code needs DOM to parse HTML).
 // We must use overrideDocument() rather than setting global.document because
@@ -46,9 +49,10 @@ export const calculateIDF = onSchedule({
 		const allCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Card));
 		console.log(`Fetched ${allCards.length} total cards`);
 
-		// 2. Filter to body cards only
-		const bodyCards = allCards.filter(card => BODY_CARD_TYPES[card.card_type]);
-		console.log(`Filtered to ${bodyCards.length} body cards`);
+		// 2. Filter to published body cards only. The generated map is public,
+		// so it must not include vocabulary from unpublished/private cards.
+		const bodyCards = allCards.filter(card => card.published && BODY_CARD_TYPES[card.card_type]);
+		console.log(`Filtered to ${bodyCards.length} published body cards`);
 
 		// 3. Process cards with NLP
 		// Using simplified version that doesn't require fallbackText, importantNgrams, or synonyms

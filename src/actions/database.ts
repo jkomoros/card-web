@@ -371,6 +371,7 @@ export const connectLivePublishedCards = () => {
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
+let unpublishedConnectionGeneration = 0;
 
 const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 
@@ -387,6 +388,7 @@ const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction 
 };
 
 const disconnectLiveUnpublishedCards = () => {
+	unpublishedConnectionGeneration++;
 	const loading = selectLoadingCardFetchTypes(store.getState() as State);
 	for (const key of TypedObject.keys(loading)) {
 		store.dispatch(stopExpectingFetchedCards(key));
@@ -418,6 +420,7 @@ export const connectLiveUnpublishedCards = async () => {
 	console.log(`[PERF] connectLiveUnpublishedCards: mayViewUnpublished=${userMayViewUnpublished}, uid=${uid}`);
 
 	if (userMayViewUnpublished) {
+		const connectionGeneration = ++unpublishedConnectionGeneration;
 		// Load ALL unpublished cards client-side. Two-phase approach:
 		//
 		// Phase 1 (paginated getDocs): Fetch all unpublished cards in batches.
@@ -472,28 +475,38 @@ export const connectLiveUnpublishedCards = async () => {
 						where('published', '==', false),
 						where(documentId(), '<', partition.lt));
 
-				console.time(`[PERF] unpublished-getDocs-partition-${i}`);
-				const snapshot = await getDocs(partitionQuery);
-				console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
+					console.time(`[PERF] unpublished-getDocs-partition-${i}`);
+					const snapshot = await getDocs(partitionQuery);
+					console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
 
-				if (snapshot.size > 0) {
-					cardSnapshotReceiver('unpublished')(snapshot);
-					console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
+					if (connectionGeneration !== unpublishedConnectionGeneration) {
+						console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
+						return 0;
+					}
+					if (snapshot.size > 0) {
+						cardSnapshotReceiver('unpublished')(snapshot);
+						console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
+					}
+					return snapshot.size;
+				});
+
+				const sizes = await Promise.all(partitionPromises);
+				if (connectionGeneration !== unpublishedConnectionGeneration) {
+					console.timeEnd('[PERF] unpublished-getDocs-total');
+					console.log('[PERF] unpublished getDocs complete: ignored stale connection');
+					return;
 				}
-				return snapshot.size;
-			});
-
-			const sizes = await Promise.all(partitionPromises);
-			const totalLoaded = sizes.reduce((a, b) => a + b, 0);
-			console.timeEnd('[PERF] unpublished-getDocs-total');
-			console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
+				const totalLoaded = sizes.reduce((a, b) => a + b, 0);
+				console.timeEnd('[PERF] unpublished-getDocs-total');
+				console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
 		} catch (e) {
 			console.timeEnd('[PERF] unpublished-getDocs-total');
 			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
 
-		// Phase 2: Real-time listener for ongoing changes
-		liveUnpublishedCardsUnsubcribe = onSnapshot(
+			// Phase 2: Real-time listener for ongoing changes
+			if (connectionGeneration !== unpublishedConnectionGeneration) return;
+			liveUnpublishedCardsUnsubcribe = onSnapshot(
 			unpublishedQuery,
 			cardSnapshotReceiver('unpublished')
 		);
@@ -551,4 +564,3 @@ export const connectLiveTags = () => {
 
 	});
 };
-

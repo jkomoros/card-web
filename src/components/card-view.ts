@@ -24,7 +24,7 @@ import {
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectActiveCollection,
-	selectEditingCardwithDelayedNormalizedProperties,
+	selectEditingCardForDisplay,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
@@ -38,7 +38,6 @@ import {
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
-	selectEditingCardSuggestedConceptReferences,
 	selectActiveRenderOffset,
 	selectEditorMinimized,
 	selectUserMayUseAI,
@@ -844,15 +843,15 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	override stateChanged(state : State) {
-		this._editingCard = selectEditingCardwithDelayedNormalizedProperties(state);
+		this._editingCard = selectEditingCardForDisplay(state);
 		this._card = selectActiveCard(state);
-		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
-		//Use enriched card (with real importantNgrams/synonymMap) for display so
-		//concept highlighting works. The editing card is already enriched via
-		//cardWithNormalizedTextProperties.
+		this._editing = selectIsEditing(state);
+		this._cardReferenceBlocks = this._editing ? [] : selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
+		//Use enriched card for display when not editing. While editing, avoid
+		//semantic enrichment on the keystroke path and keep the active card's
+		//previous NLP block only as a display fallback.
 		this._displayCard = this._editingCard ? this._editingCard : selectActiveCardEnriched(state);
 		this._pageExtra = state.app.pageExtra;
-		this._editing = selectIsEditing(state);
 		this._cardModificationsPending = selectCardModificationPending(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
@@ -900,8 +899,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 		this._suggestionsPanelOpen = selectSuggestionsOpen(state);
 
-		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
-		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
+		this._suggestedConcepts = null;
 
 		const lastWordCloudVersion = this._collectionWordCloudVersion;
 		this._collectionWordCloudVersion = selectCollectionWordCloudVersion(state);
