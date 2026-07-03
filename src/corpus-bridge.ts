@@ -160,13 +160,46 @@ const flushBufferedActions = () => {
 // so both sides are answering the same question.
 //----------------------------------------------------------------------------
 
-const SHADOW_COMPARE_INTERVAL_MS = 5000;
+const SHADOW_COMPARE_INTERVAL_MS = 1000;
 
 let shadowComparatorStarted = false;
 let shadowCompareTimeout : ReturnType<typeof setTimeout> | null = null;
-let shadowRequestID = 0;
-//Description + UI ids captured when the request was sent, compared on reply.
-const pendingShadowRequests : Map<number, {description : string, uiIDs : string[]}> = new Map();
+
+//The live worker subscription for the active collection: pushed results are
+//stored here and compared against the UI whenever both sides are settled.
+let subscriptionCounter = 0;
+let activeSubscriptionID = 0;
+let activeSubscriptionKey = '';
+let latestSubscriptionResult : {subscriptionID : number, ids : string[], ms : number} | null = null;
+
+const ensureActiveCollectionSubscription = (state : State) => {
+	const description = selectActiveCollectionDescription(state);
+	if (!description) return;
+	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid;
+	if (key === activeSubscriptionKey) return;
+	if (activeSubscriptionID) {
+		post({type: 'unsubscribeCollection', generation, subscriptionID: activeSubscriptionID});
+	}
+	activeSubscriptionKey = key;
+	activeSubscriptionID = ++subscriptionCounter;
+	latestSubscriptionResult = null;
+	post({
+		type: 'subscribeCollection',
+		generation,
+		subscriptionID: activeSubscriptionID,
+		description: description.serialize(),
+		keyCardID: '',
+		uid: lastUid,
+		randomSalt: selectRandomSalt(state),
+		cardSimilarity: selectCardSimilarity(state)
+	});
+};
+
+const handleCollectionResult = (subscriptionID : number, ids : string[], ms : number) => {
+	if (subscriptionID !== activeSubscriptionID) return;
+	latestSubscriptionResult = {subscriptionID, ids, ms};
+	scheduleShadowCompare();
+};
 
 const scheduleShadowCompare = () => {
 	if (shadowCompareTimeout) return;
@@ -193,6 +226,8 @@ const sendCollectionConfigIfChanged = (state : State) => {
 const runShadowCompare = () => {
 	if (!worker || readMode() !== 'shadow') return;
 	const state = store.getState() as State;
+	sendCollectionConfigIfChanged(state);
+	ensureActiveCollectionSubscription(state);
 	//Don't compare while card loading is still in progress — the two sides
 	//are guaranteed to be at different points of the load.
 	const loading = selectLoadingCardFetchTypes(state);
@@ -202,35 +237,27 @@ const runShadowCompare = () => {
 	if (selectIsEditing(state)) return;
 	if (state.data.cardsSnapshot !== state.data.cards) return;
 	if (state.collection && state.collection.filtersSnapshot !== state.collection.filters) return;
-	sendCollectionConfigIfChanged(state);
 	const description = selectActiveCollectionDescription(state);
 	if (!description) return;
 	const collection = selectActiveCollection(state);
 	if (!collection) return;
-	const id = ++shadowRequestID;
-	pendingShadowRequests.set(id, {
-		description: description.serialize(),
-		uiIDs: collection.finalSortedCards.map(card => card.id)
-	});
-	post({
-		type: 'shadowCollection',
-		generation,
-		id,
-		description: description.serialize(),
-		keyCardID: '',
-		uid: lastUid,
-		randomSalt: selectRandomSalt(state),
-		cardSimilarity: selectCardSimilarity(state)
-	});
+	const result = latestSubscriptionResult;
+	if (!result || result.subscriptionID !== activeSubscriptionID) return;
+	const uiIDs = collection.finalSortedCards.map(card => card.id);
+	compareShadowResult(description.serialize(), uiIDs, result.ids, result.ms);
 };
 
-const handleShadowResult = (id : number, workerIDs : string[], ms : number) => {
-	const pending = pendingShadowRequests.get(id);
-	pendingShadowRequests.delete(id);
-	if (!pending) return;
-	const {description, uiIDs} = pending;
+//Deduplicates identical consecutive log lines so a stable MATCH doesn't spam
+//the console on every state change.
+let lastShadowLogLine = '';
+
+const compareShadowResult = (description : string, uiIDs : string[], workerIDs : string[], ms : number) => {
 	if (uiIDs.length === workerIDs.length && uiIDs.every((cardID, i) => cardID === workerIDs[i])) {
-		console.log(`[corpus-shadow] MATCH for ${description}: ${uiIDs.length} cards (worker ${ms}ms)`);
+		const line = `[corpus-shadow] MATCH for ${description}: ${uiIDs.length} cards`;
+		if (line !== lastShadowLogLine) {
+			lastShadowLogLine = line;
+			console.log(`${line} (worker ${ms}ms)`);
+		}
 		return;
 	}
 	const uiSet = new Set(uiIDs);
@@ -238,7 +265,11 @@ const handleShadowResult = (id : number, workerIDs : string[], ms : number) => {
 	const onlyUI = uiIDs.filter(cardID => !workerSet.has(cardID)).slice(0, 5);
 	const onlyWorker = workerIDs.filter(cardID => !uiSet.has(cardID)).slice(0, 5);
 	const orderOnly = onlyUI.length === 0 && onlyWorker.length === 0;
-	console.warn(`[corpus-shadow] DIVERGENCE for ${description}: ui=${uiIDs.length} worker=${workerIDs.length}${orderOnly ? ' (ordering only)' : ''}`, {onlyUI, onlyWorker});
+	const line = `[corpus-shadow] DIVERGENCE for ${description}: ui=${uiIDs.length} worker=${workerIDs.length}${orderOnly ? ' (ordering only)' : ''}`;
+	if (line !== lastShadowLogLine) {
+		lastShadowLogLine = line;
+		console.warn(line, {onlyUI, onlyWorker});
+	}
 };
 
 const startShadowComparator = () => {
@@ -292,8 +323,8 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'cards':
 		handleCardBatch(message.batch);
 		break;
-	case 'shadowCollectionResult':
-		handleShadowResult(message.id, message.ids, message.ms);
+	case 'collectionResult':
+		handleCollectionResult(message.subscriptionID, message.ids, message.ms);
 		break;
 	}
 };

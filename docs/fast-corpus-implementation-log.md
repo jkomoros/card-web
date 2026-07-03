@@ -198,8 +198,26 @@ credential pickup, partitioned unpublished getDocs at 40k scale), and
 editing/saving under shadow mode. Same steps: set the flag, use the app,
 watch for `[corpus-shadow] DIVERGENCE`.
 
-### B3 — planned (gated)
+### B3 — IN PROGRESS (gated cutover)
 
-CollectionView over CollectionResult + windowCards + cardMeta; convert async
-consumers (suggestions/ai/maintenance) to worker RPCs; delete UI-thread corpus
-machinery. Only after B2 shadow-divergence is clean on the user's machine.
+Full cutover (CollectionView over pushed results + windowCards + cardMeta on
+the UI thread; async consumers → worker RPCs; delete UI-thread corpus
+machinery) remains gated on the user validating shadow mode on the real
+privileged 40k corpus.
+
+- **B3a — live collection subscriptions (done, browser-verified)**:
+  `src/worker/subscription-manager.ts` — subscribe/unsubscribe a description;
+  every engine mutation (card batches, replayed actions, config) marks dirty;
+  coalesced 50ms flush recomputes and pushes ONLY results whose ordered
+  IDs/labels changed. Bridge subscribes the active collection description
+  (resubscribing on description/salt/uid changes) and the shadow comparator
+  is now push-driven (1s debounce, deduped log lines) instead of 5s polling.
+  The one-shot shadowCollection protocol was removed (subscriptions supersede
+  it). New suite `test:subscription-manager` (4 tests). Verified live:
+  MATCH pushes for main/half-baked (89) and main/random-thoughts (386).
+
+Remaining for B3 (each step flag-gated on 'on' mode, commit-per-step):
+1. windowCards/cardMeta state slice + reducer fed by pushed results.
+2. CollectionView adapter over pushed results for the component surface.
+3. Component/actions consumers flip when mode === 'on'.
+4. Delete UI-thread corpus machinery once 'on' is validated & default.

@@ -65,8 +65,10 @@ export type MainToWorkerMessage =
 	| {type: 'action', generation: WorkerGeneration, action : unknown}
 	//Tab-config fallbacks/startCards needed by the Collection machinery.
 	| {type: 'configureCollections', generation: WorkerGeneration, fallbacks : SerializedDescriptionToCardList, startCards : SerializedDescriptionToCardList}
-	//Run a collection in the worker for shadow comparison against the UI.
-	| {type: 'shadowCollection', generation: WorkerGeneration, id : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap};
+	//Subscribe to live results for a collection description; the worker
+	//pushes a collectionResult whenever the ordered result changes.
+	| {type: 'subscribeCollection', generation: WorkerGeneration, subscriptionID : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
+	| {type: 'unsubscribeCollection', generation: WorkerGeneration, subscriptionID : number};
 
 //--------------------------------------------------------------------------
 // Worker → main thread
@@ -99,7 +101,8 @@ export type WorkerToMainMessage =
 	| {type: 'cards', generation: WorkerGeneration, batch : CardBatch}
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}
-	| {type: 'shadowCollectionResult', generation: WorkerGeneration, id : number, ids : CardID[], labels : string[], numCards : number, isFallback : boolean, preview : boolean, ms : number};
+	//Pushed whenever a subscribed collection's ordered result changes.
+	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, isFallback : boolean, preview : boolean, ms : number};
 
 //Tokens used for index recall for a single card: its stored search tokens if
 //current, or empty if the card has none (those cards always go through the

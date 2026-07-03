@@ -68,6 +68,10 @@ import {
 } from './query-engine.js';
 
 import {
+	SubscriptionManager
+} from './subscription-manager.js';
+
+import {
 	SomeAction
 } from '../actions.js';
 
@@ -106,6 +110,19 @@ let connectionGeneration = 0;
 const corpus : Map<CardID, Card> = new Map();
 const index = new SearchIndex();
 const engine = new QueryEngine();
+const subscriptions = new SubscriptionManager(engine, push => {
+	send({
+		type: 'collectionResult',
+		generation,
+		subscriptionID: push.subscriptionID,
+		ids: push.ids,
+		labels: push.labels,
+		numCards: push.numCards,
+		isFallback: push.isFallback,
+		preview: push.preview,
+		ms: push.ms
+	});
+});
 let cardsWithStoredTokens = 0;
 let indexBuildMs = 0;
 
@@ -169,6 +186,7 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 	//search tokens just like main-thread Redux does, so processing and filter
 	//behavior match exactly.
 	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
+	subscriptions.markDirty();
 	indexBuildMs += performance.now() - indexStart;
 };
 
@@ -399,35 +417,24 @@ workerScope.addEventListener('message', event => {
 		break;
 	case 'action':
 		engine.applyAction(fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction);
+		subscriptions.markDirty();
 		break;
 	case 'configureCollections':
 		engine.configureCollections(message.fallbacks, message.startCards);
+		subscriptions.markDirty();
 		break;
-	case 'shadowCollection': {
-		const start = performance.now();
-		try {
-			const result = engine.runCollection(message.description, {
-				keyCardID: message.keyCardID,
-				uid: message.uid,
-				randomSalt: message.randomSalt,
-				cardSimilarity: message.cardSimilarity
-			});
-			send({
-				type: 'shadowCollectionResult',
-				generation,
-				id: message.id,
-				ids: result.ids,
-				labels: result.labels,
-				numCards: result.numCards,
-				isFallback: result.isFallback,
-				preview: result.preview,
-				ms: Math.round((performance.now() - start) * 10) / 10
-			});
-		} catch (e) {
-			send({type: 'error', generation, message: `shadowCollection(${message.description}): ${String(e)}`});
-		}
+	case 'subscribeCollection':
+		subscriptions.subscribe(message.subscriptionID, {
+			description: message.description,
+			keyCardID: message.keyCardID,
+			uid: message.uid,
+			randomSalt: message.randomSalt,
+			cardSimilarity: message.cardSimilarity
+		});
 		break;
-	}
+	case 'unsubscribeCollection':
+		subscriptions.unsubscribe(message.subscriptionID);
+		break;
 	}
 });
 
