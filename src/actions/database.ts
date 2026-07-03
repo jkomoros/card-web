@@ -434,6 +434,14 @@ export const connectLiveUnpublishedCards = async () => {
 	}
 
 	if (corpusWorkerOwnsCardIngestion()) {
+		//Clear any loading flags from a previous connection under different
+		//permissions (mirrors disconnectLiveUnpublishedCards): e.g. the
+		//pre-permission author/editor flags must not stick around after the
+		//privileged reconnect stops those listeners.
+		const loading = selectLoadingCardFetchTypes(state);
+		for (const key of TypedObject.keys(loading)) {
+			store.dispatch(stopExpectingFetchedCards(key));
+		}
 		//Keep the loading indicator semantics; the worker's forwarded batches
 		//clear the flags through the normal UPDATE_CARDS path.
 		if (selectUserMayViewUnpublished(state)) {

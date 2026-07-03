@@ -290,6 +290,24 @@ Remaining for B3 (documented for continuation):
      (P4) delete 'on'-mode dead paths.
 3. User validation of shadow → on on the real privileged 40k corpus
    (worker auth pickup + partitioned unpublished getDocs at scale).
+
+**40K PROFILING RESULTS (2026-07-03, dev mirror, admin account, 40,225 cards)**:
+- Cold partitioned load: 38,985 unpublished across 5 partitions, ~146s
+  (long-polling); warm (IndexedDB) reload: <30s. A4 coalescing flushed all
+  38,985 in one batch. PROD WARNING: loading the corpus on prod hit
+  Firestore `resource-exhausted` quota mid-load — use the dev mirror for
+  testing (localhost = dev-complexity-compendium; 127.0.0.1 = prod).
+- **Plan A held at scale**: no slow dispatches during navigation; the main
+  collection handoff worked (never appeared in slow-work logs).
+- **ROOT CAUSE OF RESIDUAL NAV SLOWNESS FOUND**: each navigation
+  synchronously ran ~10 key-card reference-block collections (info panel +
+  on-card) over all 40,225 cards: 60-400ms each, similar/key-card-id
+  fingerprint blocks 250-950ms → 1-2s blocking per keystroke. Fixed the
+  keystroke path via 250ms debounce (commit dba98e20); the settle cost
+  itself (~1-2s once per landed card) remains — NEXT: compute reference
+  blocks in the corpus worker (the descriptions are ordinary collections;
+  run them via one-shot engine runs in the deferred callback, or
+  per-block subscriptions).
 4. Once 'on' is default: delete main-thread listener paths and the
    UI-thread Collection filtering (keep handoff for fallback windows), and
    move remaining all-card consumers (word clouds, suggestions, maintenance)

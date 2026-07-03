@@ -69,8 +69,8 @@ import {
 } from './corpus-mode.js';
 
 import {
-	selectActiveCollection,
 	selectActiveCollectionDescription,
+	selectCollectionConstructorArguments,
 	selectCollectionDescriptionForQuery,
 	selectFindDialogOpen,
 	selectIsEditing,
@@ -297,15 +297,20 @@ const runShadowCompare = () => {
 	if (!state.data || !state.data.sectionsLoaded || !state.data.tagsLoaded) return;
 	//Only compare when both sides are answering the same question.
 	if (selectIsEditing(state)) return;
-	if (state.data.cardsSnapshot !== state.data.cards) return;
-	if (state.collection && state.collection.filtersSnapshot !== state.collection.filters) return;
 	const description = selectActiveCollectionDescription(state);
 	if (!description) return;
-	const collection = selectActiveCollection(state);
-	if (!collection) return;
 	const active = bridgeSubscriptions.active;
 	if (!active.latest || active.descriptionSerialized !== description.serialize()) return;
-	const uiIDs = collection.finalSortedCards.map(card => card.id);
+	//The rendered active collection uses ghosting snapshots, which routinely
+	//lag live state (they recommit only on collection-level events), so it
+	//can't be compared against the worker's live results. Instead compute a
+	//LIVE (non-ghosting) UI collection for the comparison. This costs one
+	//filter+sort on the UI thread per comparison — acceptable for the
+	//diagnostic shadow mode, and exactly what makes the comparison
+	//apples-to-apples.
+	const liveArgs = selectCollectionConstructorArguments(state);
+	const liveCollection = description.collection(liveArgs);
+	const uiIDs = liveCollection.finalSortedCards.map(card => card.id);
 	compareShadowResult(description.serialize(), uiIDs, active.latest.ids, active.latest.ms);
 };
 

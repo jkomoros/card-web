@@ -15,7 +15,7 @@ import {
 
 import {
 	initializeFirestore,
-	persistentLocalCache,
+	memoryLocalCache,
 	onSnapshot,
 	getDocs,
 	query,
@@ -263,17 +263,25 @@ const teardownListeners = () => {
 const connectFirebase = (devMode : boolean) => {
 	if (app) return;
 	const config = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
-	app = initializeApp(config, 'corpus-worker');
+	//IMPORTANT: the app must use the DEFAULT name. Auth persistence keys in
+	//IndexedDB include the app name, so a custom-named app would read an
+	//empty credential slot instead of the one the main thread's interactive
+	//sign-in persisted (observed as permission-denied on unpublished reads).
+	app = initializeApp(config);
 	//The main thread signs in interactively and persists the credential to
 	//IndexedDB; initializeAuth here picks it up and receives refreshes.
 	auth = initializeAuth(app, {persistence: indexedDBLocalPersistence});
-	//NOTE: deliberately NOT persistentMultipleTabManager for now — multi-tab
-	//coordination from inside a worker is the open Stage-B0 question; the
-	//single-tab default is the documented fallback. The main thread's own
-	//Firestore instance keeps using the multi-tab persistent cache.
+	//Memory cache, NOT persistent: the worker's app must share the DEFAULT
+	//app name with the main thread for the auth credential to be readable,
+	//but that means a persistent cache here would collide with the main
+	//thread's persistence database ("failed to obtain exclusive access",
+	//observed live). Memory cache avoids the collision at the cost of a
+	//network corpus load per worker boot; the long-term 'on'-mode plan is to
+	//hand the persistent cache to the worker and switch the main thread (by
+	//then only handling sections/tags/user state) to memory.
 	db = initializeFirestore(app, {
 		experimentalForceLongPolling: true,
-		localCache: persistentLocalCache({})
+		localCache: memoryLocalCache()
 	});
 };
 
