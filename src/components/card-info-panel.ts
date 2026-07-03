@@ -36,7 +36,10 @@ import {
 	selectWordCloudForActiveCard,
 	selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard,
 	selectExpandedInfoPanelReferenceBlocksForActiveCard,
-	selectIsEditing
+	selectIsEditing,
+	selectActiveCardEnriched,
+	selectCollectionConstructorArguments,
+	selectCardIDsUserMayEdit
 } from '../selectors.js';
 
 import {
@@ -76,8 +79,15 @@ import {
 } from '../types.js';
 
 import {
-	ExpandedReferenceBlocks
+	ExpandedReferenceBlocks,
+	expandReferenceBlocksViaRunner,
+	infoPanelReferenceBlocksForCard
 } from '../reference_blocks.js';
+
+import {
+	corpusWorkerCanRunCollections,
+	corpusWorkerRunCollection
+} from '../corpus-bridge.js';
 
 //Matches card-view's reference-blocks debounce: long enough that navigation
 //keystrokes never pay the whole-corpus reference-block cost.
@@ -297,12 +307,41 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//argument would break selector memoization with a stale state).
 		this._expensivePropertiesTimeout = window.setTimeout(() => {
 			const freshState = store.getState() as State;
+			if (!this._open) {
+				this._referenceBlocks = [];
+				this._wordCloud = emptyWordCloud();
+				return;
+			}
+			this._wordCloud = selectWordCloudForActiveCard(freshState);
+			//Prefer computing the blocks in the corpus worker (off the UI
+			//thread) when it holds the corpus.
+			if (corpusWorkerCanRunCollections()) {
+				const card = selectActiveCardEnriched(freshState);
+				const cardID = card ? card.id : '';
+				expandReferenceBlocksViaRunner(
+					card,
+					infoPanelReferenceBlocksForCard(card),
+					selectCollectionConstructorArguments(freshState),
+					selectCardIDsUserMayEdit(freshState),
+					corpusWorkerRunCollection
+				).then(blocks => {
+					if (blocks === null) {
+						this._referenceBlocks = selectExpandedInfoPanelReferenceBlocksForActiveCard(store.getState() as State);
+						return;
+					}
+					//Drop stale results if the user navigated meanwhile.
+					const currentState = store.getState() as State;
+					const freshCard = selectActiveCardEnriched(currentState);
+					if (!freshCard || freshCard.id !== cardID) return;
+					this._referenceBlocks = blocks;
+				});
+				return;
+			}
 			//While editing, use the active-card variant: the editing-card
 			//variant re-runs ~10 whole-corpus collections at every typing
 			//pause because the editing card changes per keystroke.
 			const blocksSelector = selectIsEditing(freshState) ? selectExpandedInfoPanelReferenceBlocksForActiveCard : selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard;
-			this._referenceBlocks = this._open ? blocksSelector(freshState) : [];
-			this._wordCloud = this._open ? selectWordCloudForActiveCard(freshState) : emptyWordCloud();
+			this._referenceBlocks = blocksSelector(freshState);
 		}, EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
 
 	}

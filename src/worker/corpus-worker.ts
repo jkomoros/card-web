@@ -475,6 +475,33 @@ workerScope.addEventListener('message', event => {
 	case 'unsubscribeCollection':
 		subscriptions.unsubscribe(message.subscriptionID);
 		break;
+	case 'runCollection': {
+		const start = performance.now();
+		try {
+			const result = engine.runCollection(message.description, {
+				keyCardID: message.keyCardID,
+				uid: message.uid,
+				randomSalt: message.randomSalt,
+				cardSimilarity: message.cardSimilarity
+			});
+			send({
+				type: 'runCollectionResult',
+				generation,
+				id: message.id,
+				ids: result.ids,
+				labels: result.labels,
+				numCards: result.numCards,
+				numStartCards: result.numStartCards,
+				isFallback: result.isFallback,
+				preview: result.preview,
+				partialMatches: result.partialMatches,
+				ms: Math.round((performance.now() - start) * 10) / 10
+			});
+		} catch (e) {
+			send({type: 'error', generation, message: `runCollection(${message.description}): ${String(e)}`});
+		}
+		break;
+	}
 	}
 });
 

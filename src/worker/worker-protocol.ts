@@ -94,7 +94,9 @@ export type MainToWorkerMessage =
 	//Subscribe to live results for a collection description; the worker
 	//pushes a collectionResult whenever the ordered result changes.
 	| {type: 'subscribeCollection', generation: WorkerGeneration, subscriptionID : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
-	| {type: 'unsubscribeCollection', generation: WorkerGeneration, subscriptionID : number};
+	| {type: 'unsubscribeCollection', generation: WorkerGeneration, subscriptionID : number}
+	//One-shot collection run (e.g. the active card's reference blocks).
+	| {type: 'runCollection', generation: WorkerGeneration, id : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap};
 
 //--------------------------------------------------------------------------
 // Worker → main thread
@@ -129,6 +131,8 @@ export type WorkerToMainMessage =
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}
 	//Pushed whenever a subscribed collection's ordered result changes.
 	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
+	//Response to a one-shot runCollection.
+	| {type: 'runCollectionResult', generation: WorkerGeneration, id : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
 	//Delta-pushed compact per-card metadata (changed entries + removals).
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]};
 

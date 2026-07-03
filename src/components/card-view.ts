@@ -36,6 +36,8 @@ import {
 	selectWordCloudForMainCardDrawer,
 	selectCardsDrawerInfoExpanded,
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
+	selectCollectionConstructorArguments,
+	selectCardIDsUserMayEdit,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
 	selectActiveRenderOffset,
@@ -197,8 +199,15 @@ import {
 
 
 import {
-	ExpandedReferenceBlocks
+	ExpandedReferenceBlocks,
+	expandReferenceBlocksViaRunner,
+	primaryReferenceBlocksForCard
 } from '../reference_blocks.js';
+
+import {
+	corpusWorkerCanRunCollections,
+	corpusWorkerRunCollection
+} from '../corpus-bridge.js';
 
 import {
 	CardSelectedEvent,
@@ -869,6 +878,34 @@ class CardView extends connect(store)(PageViewElement) {
 			const state = store.getState() as State;
 			if (selectIsEditing(state)) {
 				this._cardReferenceBlocks = [];
+				return;
+			}
+			//Prefer computing the blocks in the corpus worker (off the UI
+			//thread) when it holds the corpus; fall back to the synchronous
+			//local computation otherwise.
+			if (corpusWorkerCanRunCollections()) {
+				const card = selectActiveCardEnriched(state);
+				const cardID = card ? card.id : '';
+				const workerPromise = expandReferenceBlocksViaRunner(
+					card,
+					primaryReferenceBlocksForCard(card),
+					selectCollectionConstructorArguments(state),
+					selectCardIDsUserMayEdit(state),
+					corpusWorkerRunCollection
+				);
+				workerPromise.then(blocks => {
+					if (blocks === null) {
+						//Worker went away mid-flight: local fallback.
+						this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(store.getState() as State);
+						return;
+					}
+					//Drop stale results if the user navigated meanwhile.
+					const freshState = store.getState() as State;
+					if (selectIsEditing(freshState)) return;
+					const freshCard = selectActiveCardEnriched(freshState);
+					if (!freshCard || freshCard.id !== cardID) return;
+					this._cardReferenceBlocks = blocks;
+				});
 				return;
 			}
 			this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);

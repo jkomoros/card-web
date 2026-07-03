@@ -156,6 +156,57 @@ const flushBufferedActions = () => {
 };
 
 //----------------------------------------------------------------------------
+// One-shot collection runs (reference blocks etc.)
+//----------------------------------------------------------------------------
+
+let runCollectionCounter = 0;
+type RunCollectionResolution = {
+	ids : string[],
+	labels : string[],
+	numCards : number,
+	numStartCards : number,
+	isFallback : boolean,
+	preview : boolean,
+	partialMatches : CardBooleanMap,
+	ms : number
+};
+const pendingRunCollections : Map<number, (result : RunCollectionResolution) => void> = new Map();
+
+//True when the worker holds the corpus and can answer collection runs. Gated
+//on card loading being complete — in worker modes the loading flags are fed
+//by the worker's own forwarded batches, so pending flags mean the worker's
+//corpus is still partial and its answers would silently miss cards.
+export const corpusWorkerCanRunCollections = () : boolean => {
+	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
+	const state = store.getState() as State;
+	if (Object.keys(selectLoadingCardFetchTypes(state)).length) return false;
+	return true;
+};
+
+//Runs a collection description in the worker; resolves with the ordered
+//result. Returns null when the worker isn't available (caller should fall
+//back to local computation).
+export const corpusWorkerRunCollection = (description : string, keyCardID : string) : Promise<RunCollectionResolution> | null => {
+	if (!corpusWorkerCanRunCollections()) return null;
+	const state = store.getState() as State;
+	const id = ++runCollectionCounter;
+	const promise = new Promise<RunCollectionResolution>(resolve => {
+		pendingRunCollections.set(id, resolve);
+	});
+	post({
+		type: 'runCollection',
+		generation,
+		id,
+		description,
+		keyCardID,
+		uid: lastUid,
+		randomSalt: selectRandomSalt(state),
+		cardSimilarity: selectCardSimilarity(state)
+	});
+	return promise;
+};
+
+//----------------------------------------------------------------------------
 // Shadow comparator ('shadow' mode)
 //
 // Periodically asks the worker to run the active collection and compares its
@@ -396,6 +447,23 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'collectionResult':
 		handleCollectionResult(message);
 		break;
+	case 'runCollectionResult': {
+		const resolve = pendingRunCollections.get(message.id);
+		if (resolve) {
+			pendingRunCollections.delete(message.id);
+			resolve({
+				ids: message.ids,
+				labels: message.labels,
+				numCards: message.numCards,
+				numStartCards: message.numStartCards,
+				isFallback: message.isFallback,
+				preview: message.preview,
+				partialMatches: message.partialMatches,
+				ms: message.ms
+			});
+		}
+		break;
+	}
 	case 'cardMeta':
 		if (corpusWorkerOwnsCardIngestion()) {
 			store.dispatch({type: UPDATE_CARD_META, metas: message.metas, removedIDs: message.removedIDs});
