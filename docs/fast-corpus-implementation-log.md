@@ -291,6 +291,25 @@ Remaining for B3 (documented for continuation):
 3. User validation of shadow → on on the real privileged 40k corpus
    (worker auth pickup + partitioned unpublished getDocs at scale).
 
+**40K VALIDATION SCORECARD for the user's three targets (2026-07-03)**:
+1. Rapid keyboard navigation: keystroke path clean (debounced reference
+   blocks, commit dba98e20); settle cost ~1-2s remains = reference blocks.
+2. Typing while editing: FIXED (fafe64da) — zero long tasks at 40k, was
+   600-1200ms per >=250ms pause (info-panel blocks were keyed on the
+   editing card, defeating memoization per keystroke).
+3. Commit: works end to end, 4.05s total = ~3 repeated reference-block
+   sweeps (~2.5s) + 583ms UPDATE_CARDS echo cascade + network. Both
+   remaining costs are the same subsystem: reference blocks.
+
+**THE ONE REMAINING FIX THAT PAYS ALL THREE**: make reference blocks cheap.
+(a) Right answer: serve them from the corpus worker (they're ordinary
+collection descriptions — one-shot engine runs or per-block subscriptions).
+(b) Quick structural win available first: the ~8 direct-references* blocks
+scan 40k cards to answer an O(dozens) question — a Collection fast path
+could derive candidates from the key card's reference maps directly; only
+the two similar/key-card-id blocks genuinely need corpus-wide scoring.
+Also worth attacking: the 583ms single-card UPDATE_CARDS echo dispatch.
+
 **40K PROFILING RESULTS (2026-07-03, dev mirror, admin account, 40,225 cards)**:
 - Cold partitioned load: 38,985 unpublished across 5 partitions, ~146s
   (long-polling); warm (IndexedDB) reload: <30s. A4 coalescing flushed all
