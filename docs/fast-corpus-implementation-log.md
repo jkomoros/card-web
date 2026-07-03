@@ -244,11 +244,23 @@ privileged 40k corpus.
   ranked result pushed from the worker (everything/has-body/query/complex/)
   and the dialog rendered it.
 
+**IMPORTANT FINDING (2026-07-03), revises the design doc's index assumption**:
+PreparedQuery matching is SUBSTRING-based — `stringPropertyScoreForStringSubQuery`
+does `value.indexOf(str) >= 0` against the joined stemmed runs (src/nlp.ts:727),
+so a query term matches anywhere inside a card's text ("art" matches "start").
+Exact-token recall from nlp_search_tokens therefore CANNOT be bit-identical:
+it would miss substring matches. The built SearchIndex remains useful for
+explicitly-approximate contexts (as-you-type prefiltering, server-side
+narrowing) but must NOT gate the query filter. Options if full-scan-in-worker
+latency proves too high at 40k: (a) trigram/substring index, (b) accept
+token-boundary semantics as a product change, (c) two-phase display (fast
+token-recall results instantly, full-scan results merged when ready). The
+full scan runs off-thread and per-card scoring over preprocessed runs is
+cheap, so measure at 40k before building any of these.
+
 Remaining for B3 (documented for continuation):
-1. Index-accelerated query recall: wire PreparedQuery scoring through
-   SearchIndex.candidates in the worker engine so query filters score only
-   recalled candidates instead of the whole corpus (index is built; engine
-   still uses the standard full-scan filter path).
+1. ~~Index-accelerated query recall~~ — blocked on the substring finding
+   above; measure worker full-scan query latency at 40k first.
 2. windowCards/cardMeta memory reduction: stop holding all raw cards in
    UI-thread Redux in 'on' mode (the actual memory win; today 'on' mode still
    mirrors all cards to Redux via forwarded batches).
