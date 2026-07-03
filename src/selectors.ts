@@ -50,6 +50,8 @@ import {
 import {
 	Collection,
 	CollectionDescription,
+	countForDescription,
+	descriptionRequiresFullCollectionCount,
 	defaultCollectionConfiguration
 } from './collection_description.js';
 
@@ -1087,7 +1089,7 @@ export const selectAllCardsFilter = createSelector(
 	createCardsDiffSelector({
 		name: 'allCardsFilter',
 		needsRecompute: membershipChanged,
-		compute: (cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]))
+		compute: (cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true] as [CardID, true]))
 	})
 );
 
@@ -1764,12 +1766,21 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 	}
 );
 
+//The previous active collection, so single-card update echoes can hand off
+//the already-computed filter/sort work instead of rebuilding from scratch.
+let _previousActiveCollection : Collection | null = null;
+
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
 	(description, args) => {
-		if (!description) return null;
-		return description.collection(args);
+		if (!description) {
+			_previousActiveCollection = null;
+			return null;
+		}
+		const collection = description.collection(args, _previousActiveCollection);
+		_previousActiveCollection = collection;
+		return collection;
 	}
 );
 
@@ -1883,18 +1894,52 @@ export const selectWordCloudForMainCardDrawer = (state : State) : WordCloud | nu
 	return selectSuggestMissingConceptsEnabled(state) ? selectWordCloudForPossibleMissingConcepts(state) : selectActiveCollectionWordCloud(state);
 };
 
-export const selectCountsForTabs = createSelector(
+//Counts for tabs whose descriptions only use precomputed filter maps: cheap
+//set intersections keyed on identity-stable inputs, so they don't recompute
+//on unrelated card updates (previously every tab count instantiated a full
+//Collection — several filtering the entire everything set — on every args
+//identity change, i.e. every card update).
+const selectNonConfigurableCountsForTabs = createSelector(
 	selectExpandedTabConfig,
-	selectCollectionConstructorArguments,
-	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
+	selectAllSets,
+	selectFilters,
+	selectAllCardsFilter,
+	(tabs : ExpandedTabConfig, sets, filters, allCardIDs) : {[tabDescription : string] : number} => {
 		const result : {[tabDescription : string] : number} = {};
 		for (const tab of tabs) {
 			//hideIfEmpty also requires calculating count
 			if (!tab.count && !tab.hideIfEmpty) continue;
-			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
+			if (descriptionRequiresFullCollectionCount(tab.expandedCollection)) continue;
+			result[tab.expandedCollection.serialize()] = countForDescription(tab.expandedCollection, sets, filters, allCardIDs);
 		}
 		return result;
 	}
+);
+
+const EMPTY_COUNTS : {[tabDescription : string] : number} = Object.freeze({});
+
+//Counts for tabs that genuinely need the full Collection machinery
+//(configurable filters). Returns a stable empty object when there are none,
+//so the merged selector doesn't churn.
+const selectConfigurableCountsForTabs = createSelector(
+	selectExpandedTabConfig,
+	selectCollectionConstructorArguments,
+	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
+		let result : {[tabDescription : string] : number} | null = null;
+		for (const tab of tabs) {
+			if (!tab.count && !tab.hideIfEmpty) continue;
+			if (!descriptionRequiresFullCollectionCount(tab.expandedCollection)) continue;
+			if (!result) result = {};
+			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
+		}
+		return result || EMPTY_COUNTS;
+	}
+);
+
+export const selectCountsForTabs = createSelector(
+	selectNonConfigurableCountsForTabs,
+	selectConfigurableCountsForTabs,
+	(nonConfigurable, configurable) : {[tabDescription : string] : number} => ({...nonConfigurable, ...configurable})
 );
 
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,

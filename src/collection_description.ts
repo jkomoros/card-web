@@ -434,7 +434,15 @@ export class CollectionDescription {
 	//collectiondescription. You can use selectCollectionConstructorArguments to
 	//select all of the items at once.
 	//Arguments: {cards, sets, filters, editingCard, sections, fallbacks, startCards}
-	collection(collectionArguments : CollectionConstructorArguments) : Collection {
+	//If previousCollection is provided and every filtering/sorting input is
+	//identity-equal to the previous collection's (only the live cards map for
+	//expansion differing), the expensive filter/sort work is handed off from
+	//the previous collection instead of being redone.
+	collection(collectionArguments : CollectionConstructorArguments, previousCollection? : Collection | null) : Collection {
+		if (previousCollection) {
+			const handedOff = Collection.handoff(previousCollection, this, collectionArguments);
+			if (handedOff) return handedOff;
+		}
 		return new Collection(this, collectionArguments);
 	}
 
@@ -613,6 +621,46 @@ type FilterFunc = (id : CardID) => boolean;
 
 type FilterDefinition = FilterName[];
 
+//True if computing this description's numCards requires the full Collection
+//machinery (because a filter is configurable and needs real card objects).
+export const descriptionRequiresFullCollectionCount = (description : CollectionDescription) : boolean => {
+	return description.filters.some(filterName => filterNameIsConfigurableFilter(filterName));
+};
+
+//Cheaply computes what description.collection(args).numCards would return,
+//without instantiating a Collection or expanding/sorting any cards — just set
+//intersection over precomputed filter membership maps. Only legal when
+//descriptionRequiresFullCollectionCount is false. allCardIDs may be any map
+//keyed by every card ID; it is only consulted to concretize inverse filters
+//inside union filters.
+export const countForDescription = (description : CollectionDescription, sets : Sets, filters : Filters, allCardIDs : CardIDMap) : number => {
+	const baseSet = sets[description.set] || [];
+	let count = baseSet.length;
+	if (description.filters.length) {
+		//Safe cast: with no configurable filters, extras.cards is only ever
+		//used as an ID map (see makeFilterUnionSet).
+		const extras : FilterExtras = {
+			filterSetMemberships: filters,
+			cards: allCardIDs as ProcessedCards,
+			keyCardID: '',
+			editingCard: null,
+			userID: '',
+			randomSalt: '',
+			cardSimilarity: {},
+			editingCardSimilarity: null
+		};
+		const [combinedFilter] = combinedFilterForFilterDefinition(description.filters, extras);
+		count = 0;
+		for (const id of baseSet) {
+			if (combinedFilter(id)) count++;
+		}
+	}
+	//Mirror the numCards getter's offset/limit math exactly.
+	let len = count - description.offset;
+	if (description.limit) len = Math.min(len, description.limit);
+	return len;
+};
+
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
 const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap, preview: boolean] => {
 	const includeSets = [];
@@ -735,6 +783,66 @@ export class Collection {
 		//optionally return and then make use of in special sorts later.
 		this._sortExtras = {};
 		this._partialMatches = {};
+	}
+
+	//If the new arguments differ from the previous collection's ONLY in the
+	//live cards map (the common case after a single-card edit echo: cards
+	//changes identity, but the ghosting snapshot inputs that filtering and
+	//sorting actually consume are untouched), build a new Collection that
+	//carries over the previous collection's computed filter/sort work and only
+	//re-expands card objects (O(collection length) map lookups). Returns null
+	//when a full rebuild is required.
+	static handoff(previous : Collection, description : CollectionDescription, args : CollectionConstructorArguments) : Collection | null {
+		const prevArgs = previous._arguments;
+		//Nothing to hand off if the previous collection never did its work.
+		if (!previous._filteredCards) return null;
+		if (!description.equivalent(previous._description)) return null;
+		//Filtering ran over cardsSnapshot (if present) — it must be identical.
+		//Without a snapshot, filtering ran over the live cards map, which is
+		//exactly what changed, so no handoff is possible.
+		if (!args.cardsSnapshot || args.cardsSnapshot !== prevArgs.cardsSnapshot) return null;
+		//Filter extras used filtersSnapshot when present, else live filters.
+		if (args.filtersSnapshot) {
+			if (args.filtersSnapshot !== prevArgs.filtersSnapshot) return null;
+		} else {
+			if (prevArgs.filtersSnapshot) return null;
+			if (args.filters !== prevArgs.filters) return null;
+		}
+		if (args.sets !== prevArgs.sets) return null;
+		if (args.sections !== prevArgs.sections) return null;
+		if (args.fallbacks !== prevArgs.fallbacks) return null;
+		if (args.startCards !== prevArgs.startCards) return null;
+		if ((args.keyCardID || '') !== (prevArgs.keyCardID || '')) return null;
+		if (args.editingCard !== prevArgs.editingCard) return null;
+		if ((args.userID || '') !== (prevArgs.userID || '')) return null;
+		if ((args.randomSalt || '') !== (prevArgs.randomSalt || '')) return null;
+		if (args.cardSimilarity !== prevArgs.cardSimilarity) return null;
+		if (args.editingCardSimilarity !== prevArgs.editingCardSimilarity) return null;
+
+		const result = new Collection(description, args);
+		//Carry over everything _makeFilteredCards computed; only the expansion
+		//against the (changed) live cards map is redone.
+		const filteredIDs = previous._filteredCards.map(card => card.id);
+		result._filteredCards = expandCardCollection(filteredIDs, result._cardsForExpansion);
+		result._sortExtras = previous._sortExtras;
+		result._partialMatches = previous._partialMatches;
+		result._preview = previous._preview;
+		result._collectionIsFallback = previous._collectionIsFallback;
+		result._preLimitlength = previous._preLimitlength;
+		//Sort info was extracted from snapshot cards, so it's still valid —
+		//except for cards that weren't in the snapshot (e.g. created since the
+		//last snapshot commit), whose entries were extracted from the live
+		//card. In that rare case leave sort state lazy for a full recompute.
+		const allInSnapshot = filteredIDs.every(id => previous._cardsForFiltering[id]);
+		if (allInSnapshot) {
+			if (previous._sortInfo) result._sortInfo = previous._sortInfo;
+			if (previous._sortInfo && previous._sortedCards) {
+				result._sortedCards = expandCardCollection(previous._sortedCards.map(card => card.id), result._cardsForExpansion);
+				if (previous._labels) result._labels = previous._labels;
+			}
+		}
+		perfCount('collection:handoff');
+		return result;
 	}
 
 	get description() {
