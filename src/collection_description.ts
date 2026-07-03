@@ -500,7 +500,19 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 		memoizedConfigurableFilters = {};
 	}
 
-	const [func, reverse] = makeConfigurableFilter(name);
+	const [func, reverse, enumerate] = makeConfigurableFilter(name);
+
+	//Filters that can enumerate their matching set directly (e.g. the
+	//reference-graph filters, whose BFS map already is the answer) skip the
+	//whole-corpus scan below — at 40k cards this turns each ~100ms
+	//materialization into an O(references) one.
+	if (enumerate && !reverse) {
+		const {matches, sortValues} = enumerate(extras);
+		const enumeratedResult : ConfigurableFilterResult = [matches, reverse, sortValues, null, false];
+		memoizedConfigurableFilters[name] = enumeratedResult;
+		return enumeratedResult;
+	}
+
 	const result : FilterMap = {};
 	let sortValues : SortExtra | null = {};
 	let partialMatches : CardBooleanMap | null = {};

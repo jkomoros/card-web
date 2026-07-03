@@ -352,7 +352,15 @@ export type ConfigurableFilterResult = [result : FilterMap, reverse : boolean, s
 
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => FilterFuncResult;
 
-export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
+//An optional capability of a configurable filter: directly enumerate the
+//matching set (and sort values) instead of having the machinery test every
+//card in the corpus against func. Only legal for filters whose func is
+//equivalent to membership in an enumerable set (e.g. reference-graph
+//filters, whose BFS map already IS the answer); semantics must be identical
+//to running func over every card.
+export type ConfigurableFilterEnumerator = (extras : FilterExtras) => {matches : FilterMap, sortValues : SortExtra | null};
+
+export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean, enumerate? : ConfigurableFilterEnumerator];
 
 type ConfigurableFilterFuncFactory = (filterType : ConfigurableFilterType, ...parts : URLPart[]) => ConfigurableFilterFuncFactoryResult;
 

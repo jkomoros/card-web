@@ -539,13 +539,32 @@ const makeCardLinksConfigurableFilter = (filterName : ConfigurableFilterType, ca
 	const mapCreator = cardBFSMaker(filterName, cardID, countOrTypeStr, countStr);
 
 	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
-		
+
 		const val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
 		return {matches: val !== undefined, sortExtra: val};
 	};
 
-	return [func, false];
+	//The BFS map already IS the matching set (typically a few dozen ids), so
+	//enumerate it directly instead of having the filter machinery test every
+	//card in the corpus against func — identical semantics, O(references)
+	//instead of O(corpus).
+	const enumerate = (extras : FilterExtras) => {
+		const bfsMap = mapCreator(extras.cards, extras.keyCardID, extras.editingCard);
+		const matches : FilterMap = {};
+		let sortValues : SortExtra | null = {};
+		for (const [id, ply] of Object.entries(bfsMap)) {
+			//BFS traverses within extras.cards, but guard anyway so results
+			//can never include ids func would never have been asked about.
+			if (extras.cards[id] === undefined) continue;
+			matches[id] = true;
+			sortValues[id] = ply;
+		}
+		if (Object.keys(sortValues).length === 0) sortValues = null;
+		return {matches, sortValues};
+	};
+
+	return [func, false, enumerate];
 };
 
 export const parseMultipleCardIDs = (str : string) : CardIdentifier[] => str.split(INCLUDE_KEY_CARD_PREFIX);
