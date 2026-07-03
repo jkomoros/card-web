@@ -772,6 +772,24 @@ export type CollectionState = {
 //Which worker-served collection slot a pushed result belongs to.
 export type WorkerCollectionSlot = 'active' | 'query';
 
+//Compact per-card metadata maintained by the corpus worker and delta-pushed
+//to the main thread. Serves synchronous whole-corpus consumers (link titles,
+//slug resolution, sort-order adjacency, list skeletons) without holding full
+//card objects in UI-thread Redux.
+export type CardMeta = {
+	id: CardID,
+	name: string,
+	title: string,
+	card_type: CardType,
+	section: SectionID,
+	tags: TagID[],
+	slugs: Slug[],
+	published: boolean,
+	sort_order: number,
+};
+
+export type CardMetas = {[id : CardID]: CardMeta};
+
 //An ordered collection result computed in the corpus worker and pushed to the
 //main thread.
 export type WorkerCollectionResult = {
@@ -933,6 +951,9 @@ export type DataState = {
 	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.
 	sectionsLoaded: boolean,
 	tagsLoaded: boolean,
+	//Compact per-card metadata delta-pushed by the corpus worker (empty when
+	//the worker isn't running). See CardMeta.
+	cardMeta: CardMetas,
 	//keeps track of whether we committed any pending collections on being fully
 	//loaded already. If so, then even if refreshCardSelector gets called again,
 	//we won't update the collection again.

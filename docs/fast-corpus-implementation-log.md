@@ -261,9 +261,25 @@ cheap, so measure at 40k before building any of these.
 Remaining for B3 (documented for continuation):
 1. ~~Index-accelerated query recall~~ — blocked on the substring finding
    above; measure worker full-scan query latency at 40k first.
-2. windowCards/cardMeta memory reduction: stop holding all raw cards in
-   UI-thread Redux in 'on' mode (the actual memory win; today 'on' mode still
-   mirrors all cards to Redux via forwarded batches).
+2. windowCards/cardMeta memory reduction (IN PROGRESS):
+   - **cardMeta infrastructure done (browser-verified)**: the worker
+     maintains a compact CardMeta table (id/name/title/card_type/section/
+     tags/slugs/published/sort_order) and delta-pushes only genuinely
+     changed entries; bridge dispatches UPDATE_CARD_META into
+     DataState.cardMeta (selectCardMetas). Verified live: all 1240 metas
+     populate in shadow mode.
+   - **Consumer survey completed (sub-agent, 2026-07-03)**: full
+     classification of every selectCards/selectRawCards consumer. Key
+     conclusions: most selectors are already identity-optimized (A2) or
+     small-set; the first cardMeta flip target is card-link title lookups;
+     genuine full-corpus UI consumers to move to worker RPCs (all off hot
+     paths): possibleMissingConcepts word cloud, maintenance tasks,
+     suggestions generation, reference fallback-text resolution. Flip order:
+     (P1) validate + default 'on'; (P2) stop mirroring full card batches
+     into Redux in 'on' mode, serving thumbnails from windowed expansion +
+     card-link/tag-info/slug lookups from cardMeta (add author/collaborators
+     to CardMeta for permission maps first); (P3) off-path worker RPCs;
+     (P4) delete 'on'-mode dead paths.
 3. User validation of shadow → on on the real privileged 40k corpus
    (worker auth pickup + partitioned unpublished getDocs at scale).
 4. Once 'on' is default: delete main-thread listener paths and the

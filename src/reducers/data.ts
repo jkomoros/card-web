@@ -25,7 +25,8 @@ import {
 } from '../actions.js';
 
 import {
-	UPDATE_COLLECTION_SHAPSHOT
+	UPDATE_COLLECTION_SHAPSHOT,
+	UPDATE_CARD_META
 } from '../actions.js';
 
 import {
@@ -73,6 +74,7 @@ const INITIAL_STATE : DataState = {
 	sections: {},
 	tags: {},
 	slugIndex: {},
+	cardMeta: {},
 	cardsSnapshot: {},
 	tweetsLoading: false,
 	tweets: {},
@@ -175,6 +177,14 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			cardsSnapshot: state.cards,
 		};
+	case UPDATE_CARD_META: {
+		const cardMeta = {...state.cardMeta, ...action.metas};
+		for (const id of action.removedIDs) delete cardMeta[id];
+		return {
+			...state,
+			cardMeta,
+		};
+	}
 	case REMOVE_CARDS:
 		return removeCardIDs(action.cardIDs, state);
 	case EXPECTED_NEW_CARD_FAILED:

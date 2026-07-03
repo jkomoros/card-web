@@ -32,7 +32,8 @@ import {
 } from './actions/data.js';
 
 import {
-	UPDATE_WORKER_COLLECTION
+	UPDATE_WORKER_COLLECTION,
+	UPDATE_CARD_META
 } from './actions.js';
 
 import {
@@ -389,6 +390,11 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		break;
 	case 'collectionResult':
 		handleCollectionResult(message);
+		break;
+	case 'cardMeta':
+		if (corpusWorkerOwnsCardIngestion()) {
+			store.dispatch({type: UPDATE_CARD_META, metas: message.metas, removedIDs: message.removedIDs});
+		}
 		break;
 	}
 };

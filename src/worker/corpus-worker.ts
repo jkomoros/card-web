@@ -56,8 +56,14 @@ import {
 	MainToWorkerMessage,
 	WorkerToMainMessage,
 	WorkerGeneration,
-	searchTokensForCard
+	searchTokensForCard,
+	metaForCard,
+	metasEquivalent
 } from './worker-protocol.js';
+
+import {
+	CardMetas
+} from '../types.js';
 
 import {
 	SearchIndex
@@ -189,7 +195,31 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 	//behavior match exactly.
 	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
 	subscriptions.markDirty();
+	pushMetaDeltas(cards, removedIDs);
 	indexBuildMs += performance.now() - indexStart;
+};
+
+//The compact metadata already pushed to the main thread; only genuinely
+//changed entries are re-pushed.
+const pushedMetas : CardMetas = {};
+
+const pushMetaDeltas = (cards : Cards, removedIDs : CardID[]) => {
+	const changed : CardMetas = {};
+	for (const [id, card] of Object.entries(cards)) {
+		const meta = metaForCard(card);
+		const previous = pushedMetas[id];
+		if (previous && metasEquivalent(previous, meta)) continue;
+		pushedMetas[id] = meta;
+		changed[id] = meta;
+	}
+	const removed : CardID[] = [];
+	for (const id of removedIDs) {
+		if (!pushedMetas[id]) continue;
+		delete pushedMetas[id];
+		removed.push(id);
+	}
+	if (Object.keys(changed).length === 0 && removed.length === 0) return;
+	send({type: 'cardMeta', generation, metas: changed, removedIDs: removed});
 };
 
 const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean) => {

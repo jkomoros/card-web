@@ -9,9 +9,31 @@ import {
 	CardBooleanMap,
 	CardID,
 	CardFetchType,
+	CardMeta,
+	CardMetas,
 	CardSimilarityMap,
 	SerializedDescriptionToCardList
 } from '../types.js';
+
+//Extracts the compact metadata the main thread keeps for every card.
+export const metaForCard = (card : Card) : CardMeta => ({
+	id: card.id,
+	name: card.name,
+	title: card.title || '',
+	card_type: card.card_type,
+	section: card.section,
+	tags: card.tags || [],
+	slugs: card.slugs || [],
+	published: Boolean(card.published),
+	sort_order: card.sort_order,
+});
+
+export const metasEquivalent = (a : CardMeta, b : CardMeta) : boolean => {
+	if (a.name !== b.name || a.title !== b.title || a.card_type !== b.card_type || a.section !== b.section || a.published !== b.published || a.sort_order !== b.sort_order) return false;
+	if (a.tags.length !== b.tags.length || a.tags.some((tag, i) => tag !== b.tags[i])) return false;
+	if (a.slugs.length !== b.slugs.length || a.slugs.some((slug, i) => slug !== b.slugs[i])) return false;
+	return true;
+};
 
 import {
 	UPDATE_STARS,
@@ -103,7 +125,9 @@ export type WorkerToMainMessage =
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}
 	//Pushed whenever a subscribed collection's ordered result changes.
-	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number};
+	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
+	//Delta-pushed compact per-card metadata (changed entries + removals).
+	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]};
 
 //Tokens used for index recall for a single card: its stored search tokens if
 //current, or empty if the card has none (those cards always go through the

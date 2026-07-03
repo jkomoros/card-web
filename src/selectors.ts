@@ -1637,6 +1637,10 @@ let _previousActiveCollection : Collection | null = null;
 
 const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
 
+//Compact per-card metadata pushed by the corpus worker; empty unless the
+//worker owns ingestion.
+export const selectCardMetas = (state : State) => state.data ? state.data.cardMeta : {};
+
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,

@@ -57,7 +57,8 @@ import {
 	UserPermissions,
 	UserPermissionsMap,
 	WorkerCollectionResult,
-	WorkerCollectionSlot
+	WorkerCollectionSlot,
+	CardMetas
 } from './types.js';
 
 //AI
@@ -107,6 +108,7 @@ export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFI
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 export const UPDATE_WORKER_COLLECTION = 'UPDATE_WORKER_COLLECTION';
+export const UPDATE_CARD_META = 'UPDATE_CARD_META';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
@@ -451,6 +453,12 @@ type ActionUpdateWorkerCollection = {
 	type: typeof UPDATE_WORKER_COLLECTION,
 	slot: WorkerCollectionSlot,
 	result: WorkerCollectionResult | null
+};
+
+type ActionUpdateCardMeta = {
+	type: typeof UPDATE_CARD_META,
+	metas: CardMetas,
+	removedIDs: CardID[]
 };
 
 type ActionRandomizeSalt = {
@@ -1154,6 +1162,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportDialogSetOverrideCardOrder
 	| ActionUpdateCollection
 	| ActionUpdateWorkerCollection
+	| ActionUpdateCardMeta
 	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot
