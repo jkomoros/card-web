@@ -34,7 +34,9 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectWordCloudForActiveCard,
-	selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard
+	selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard,
+	selectExpandedInfoPanelReferenceBlocksForActiveCard,
+	selectIsEditing
 } from '../selectors.js';
 
 import {
@@ -295,7 +297,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//argument would break selector memoization with a stale state).
 		this._expensivePropertiesTimeout = window.setTimeout(() => {
 			const freshState = store.getState() as State;
-			this._referenceBlocks = this._open ? selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard(freshState) : [];
+			//While editing, use the active-card variant: the editing-card
+			//variant re-runs ~10 whole-corpus collections at every typing
+			//pause because the editing card changes per keystroke.
+			const blocksSelector = selectIsEditing(freshState) ? selectExpandedInfoPanelReferenceBlocksForActiveCard : selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard;
+			this._referenceBlocks = this._open ? blocksSelector(freshState) : [];
 			this._wordCloud = this._open ? selectWordCloudForActiveCard(freshState) : emptyWordCloud();
 		}, EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
 

@@ -1960,6 +1960,25 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 	}
 );
 
+//Like selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard, but keyed
+//only on the ACTIVE card — deliberately NOT the editing card. The editing
+//card changes with every keystroke, and these blocks run ~10 key-card
+//collections over the whole corpus (1-2s at 40k cards), so live-updating
+//them while typing froze the editor at every pause. While editing, the info
+//panel shows the blocks for the card as it was opened; live-updating
+//similarity while typing should eventually come from the corpus worker.
+export const selectExpandedInfoPanelReferenceBlocksForActiveCard = createSelector(
+	selectActiveCardEnriched,
+	selectCollectionConstructorArguments,
+	selectCardIDsUserMayEdit,
+	(card, args, cardIDsUserMayEdit) : ExpandedReferenceBlocks => {
+		if (!card) return [];
+		const blocks = infoPanelReferenceBlocksForCard(card);
+		if (blocks.length == 0) return [];
+		return expandReferenceBlocks(card, blocks, args, cardIDsUserMayEdit);
+	}
+);
+
 export const selectSuggestionsOpen = createSelector(
 	selectIsEditing,
 	selectSuggestionsRawOpen,
