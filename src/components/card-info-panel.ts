@@ -77,6 +77,10 @@ import {
 	ExpandedReferenceBlocks
 } from '../reference_blocks.js';
 
+//Matches card-view's reference-blocks debounce: long enough that navigation
+//keystrokes never pay the whole-corpus reference-block cost.
+const EXPENSIVE_PROPERTIES_DEBOUNCE_MS = 250;
+
 @customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
 
@@ -284,14 +288,17 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//state, which will break memoization of selectors by selecting old
 		//things), so skip it. 
 		window.clearTimeout(this._expensivePropertiesTimeout);
-		//selectActiveCardSimilarCards is extremly expensive to call into being,
-		//so only do it if the user is an admin, and always wait and update
-		//without blocking the main update.
+		//The info-panel reference blocks run several key-card collections over
+		//the whole corpus (very expensive at 40k cards), so they must never
+		//land between navigation keystrokes: debounce until the user settles,
+		//and read FRESH state at fire time (capturing the stateChanged
+		//argument would break selector memoization with a stale state).
 		this._expensivePropertiesTimeout = window.setTimeout(() => {
-			this._referenceBlocks = this._open ? selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard(state) : [];
-			this._wordCloud = this._open ? selectWordCloudForActiveCard(state) : emptyWordCloud();
-		}, 0);
-		
+			const freshState = store.getState() as State;
+			this._referenceBlocks = this._open ? selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard(freshState) : [];
+			this._wordCloud = this._open ? selectWordCloudForActiveCard(freshState) : emptyWordCloud();
+		}, EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
+
 	}
 
 	override async updated(changedProps : Map<string, CardInfoPanel[keyof CardInfoPanel]>) {

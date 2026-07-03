@@ -223,6 +223,12 @@ import {
 	showCreateChatPrompt
 } from '../actions/chat.js';
 
+//How long after the last state change the active card's reference blocks
+//recompute. Long enough that holding an arrow key never pays the ~1-2s
+//whole-corpus cost mid-navigation; short enough that blocks feel immediate
+//once the user settles.
+const REFERENCE_BLOCKS_DEBOUNCE_MS = 250;
+
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
 
@@ -372,6 +378,8 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_cardReferenceBlocks: ExpandedReferenceBlocks;
+
+	_referenceBlocksTimeout : number;
 
 	@state()
 		_signedIn: boolean;
@@ -842,11 +850,40 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 
+	//Debounced recompute of the active card's reference blocks. Cleared and
+	//rescheduled on every state change, so rapid navigation never pays the
+	//cost; it lands once the user settles on a card.
+	_scheduleReferenceBlocksUpdate() {
+		if (this._editing) {
+			if (this._referenceBlocksTimeout) {
+				window.clearTimeout(this._referenceBlocksTimeout);
+				this._referenceBlocksTimeout = 0;
+			}
+			this._cardReferenceBlocks = [];
+			return;
+		}
+		if (this._referenceBlocksTimeout) window.clearTimeout(this._referenceBlocksTimeout);
+		this._referenceBlocksTimeout = window.setTimeout(() => {
+			this._referenceBlocksTimeout = 0;
+			//Read fresh state at fire time.
+			const state = store.getState() as State;
+			if (selectIsEditing(state)) {
+				this._cardReferenceBlocks = [];
+				return;
+			}
+			this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
+		}, REFERENCE_BLOCKS_DEBOUNCE_MS);
+	}
+
 	override stateChanged(state : State) {
 		this._editingCard = selectEditingCardForDisplay(state);
 		this._card = selectActiveCard(state);
 		this._editing = selectIsEditing(state);
-		this._cardReferenceBlocks = this._editing ? [] : selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
+		//Reference blocks run ~10 key-card collections over the whole corpus
+		//(~1-2s at 40k cards), so they must never compute synchronously on the
+		//navigation keystroke path — schedule them for after navigation
+		//settles. The previous card's blocks stay visible in the interim.
+		this._scheduleReferenceBlocksUpdate();
 		//Use enriched card for display when not editing. While editing, avoid
 		//semantic enrichment on the keystroke path and keep the active card's
 		//previous NLP block only as a display fallback.
