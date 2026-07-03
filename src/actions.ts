@@ -90,7 +90,6 @@ export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
 export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
 export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
-export const TURN_COMPLETE_MODE = 'TURN_COMPLETE_MODE';
 //BulkImport
 export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
 export const BULK_IMPORT_PENDING = 'BULK_IMPORT_DIALOG_PENDING';
@@ -384,12 +383,6 @@ type ActionCloseCardsDrawerInfo = {
 type ActionTurnSuggestedMissingConcepts = {
 	type: typeof TURN_SUGGEST_MISSING_CONCEPTS,
 	on: boolean
-};
-
-type ActionTurnCompleteMode = {
-	type: typeof TURN_COMPLETE_MODE,
-	on: boolean,
-	limit: number
 };
 
 type ActionBulkImportDialogOpen = {
@@ -1142,7 +1135,6 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionOpenCardsDrawerInfo
 	| ActionCloseCardsDrawerInfo
 	| ActionTurnSuggestedMissingConcepts
-	| ActionTurnCompleteMode
 	| ActionShowCard
 	| ActionBulkImportDialogOpen
 	| ActionBulkImportPending

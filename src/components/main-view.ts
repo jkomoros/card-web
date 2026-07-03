@@ -38,9 +38,7 @@ import {
 	selectKeyboardNavigates,
 	selectUid,
 	selectBadgeMap,
-	selectExpandedPrimaryReferenceBlocksForPreviewCard,
-	selectCompleteModeEnabled,
-	selectCompleteModeEffectiveCardLimit
+	selectExpandedPrimaryReferenceBlocksForPreviewCard
 } from '../selectors.js';
 
 import {
@@ -120,7 +118,6 @@ import {
 import {
 	toggleCardSelected
 } from '../actions/collection.js';
-import { loadSavedCompleteModePreference } from '../actions/data.js';
 
 @customElement('main-view')
 class MainView extends connect(store)(PageViewElement) {
@@ -169,12 +166,6 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_mayViewApp: boolean;
-
-	@state()
-		_completeMode : boolean;
-
-	@state()
-		_effectiveCardLimit : number;
 
 	@state()
 		_userPermissionsFinal: boolean;
@@ -435,7 +426,6 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
-		store.dispatch(loadSavedCompleteModePreference());
 		store.dispatch(loadServerIDFMap());
 	}
 
@@ -545,12 +535,10 @@ class MainView extends connect(store)(PageViewElement) {
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 		this._uid = selectUid(state);
 		this._badgeMap = selectBadgeMap(state);
-		this._completeMode = selectCompleteModeEnabled(state);
-		this._effectiveCardLimit = selectCompleteModeEffectiveCardLimit(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode') || changedProps.has('_uid') || changedProps.has('_effectiveCardLimit')) {
+		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_uid')) {
 			//connectLiveUnpublishedCards will handle connecting if it needs to or not.
 			connectLiveUnpublishedCards();
 		}

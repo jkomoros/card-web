@@ -22,11 +22,6 @@ import {
 } from '../shared/collection_description_base.js';
 
 import {
-	classifyCollectionDescription,
-	FilterClassification
-} from './filter-classification.js';
-
-import {
 	TypedObject
 } from '../shared/typed_object.js';
 
@@ -227,7 +222,6 @@ export class CollectionDescription {
 	_offset : number;
 	_serialized : string;
 	_serializedShort : string;
-	_classification? : FilterClassification;
 
 	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
@@ -331,13 +325,6 @@ export class CollectionDescription {
 			viewMode: this.viewMode,
 			viewModeExtra: this.viewModeExtra
 		};
-	}
-
-	get classification() : FilterClassification {
-		if (!this._classification) {
-			this._classification = classifyCollectionDescription(this);
-		}
-		return this._classification;
 	}
 
 	serialize() {
@@ -849,9 +836,6 @@ export class Collection {
 		return this._description;
 	}
 
-	get classification() : FilterClassification {
-		return this._description.classification;
-	}
 
 	get _filterExtras() : FilterExtras {
 		if (!this._cachedFilterExtras) {

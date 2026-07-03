@@ -1,5 +1,5 @@
 // Filter name constants - extracted to break circular dependency
-// between filters.ts -> collection_description.ts -> filter-classification.ts -> filters.ts
+// between filters.ts and collection_description.ts
 
 export const UNION_FILTER_DELIMITER = '+';
 

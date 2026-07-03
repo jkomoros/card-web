@@ -88,8 +88,6 @@ import {
 	selectEditingCard,
 	selectEnqueuedCards,
 	selectPendingModificationCount,
-	selectCompleteModeEnabled,
-	selectCompleteModeRawCardLimit,
 	selectExpectedCardFetchTypeForNewUnpublishedCard
 } from '../selectors.js';
 
@@ -220,16 +218,8 @@ import {
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS,
-	CLEAR_ENQUEUED_CARD_UPDATES,
-	TURN_COMPLETE_MODE
+	CLEAR_ENQUEUED_CARD_UPDATES
 } from '../actions.js';
-
-import {
-	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
-	FIRESTORE_MAXIMUM_LIMIT_CLAUSE,
-	LOCAL_STORAGE_COMPLETE_MODE_KEY,
-	LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY
-} from '../constants.js';
 
 //map of cardID => promiseResolver that's waiting
 const waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
@@ -251,54 +241,6 @@ const waitingForCardToExistStoreUpdated = () => {
 	}
 };
 
-export const toggleCompleteMode = () : ThunkSomeAction => (dispatch, getState) => {
-	const completeMode = selectCompleteModeEnabled(getState());
-	const limit = selectCompleteModeRawCardLimit(getState());
-	dispatch(turnCompleteMode(!completeMode, limit));
-};
-
-export const modifyCompleteModeCardLimit = (limit : number) : ThunkSomeAction => (dispatch, getState) => {
-	const currentLimit = selectCompleteModeRawCardLimit(getState());
-	if (limit == currentLimit) return;
-	const completeMode = selectCompleteModeEnabled(getState());
-	dispatch(turnCompleteMode(completeMode, limit));
-};
-
-export const turnCompleteMode = (on : boolean, limit : number) : ThunkSomeAction => (dispatch, getState) => {
-
-	//Limit of 0 means 'default'
-
-	const state = getState();
-	const alreadyActive = selectCompleteModeEnabled(state);
-	if (limit > 0 && limit < DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT) limit = DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT;
-	if (limit == DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT) limit = 0;
-	if (limit > FIRESTORE_MAXIMUM_LIMIT_CLAUSE) limit = FIRESTORE_MAXIMUM_LIMIT_CLAUSE;
-	if (limit < 0) limit = 0;
-	const activeLimit = selectCompleteModeRawCardLimit(state);
-	if (on == alreadyActive && limit == activeLimit) return;
-
-	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_KEY, on ? '1' : '0');
-	localStorage.setItem(LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY, '' + limit);
-
-	dispatch({
-		type: TURN_COMPLETE_MODE,
-		on,
-		limit
-	});
-
-
-
-};
-
-export const loadSavedCompleteModePreference = () : ThunkSomeAction => (dispatch) => {
-	const value = localStorage.getItem(LOCAL_STORAGE_COMPLETE_MODE_KEY);
-	let limit = parseInt(localStorage.getItem(LOCAL_STORAGE_COMPLETE_MODE_LIMIT_KEY) || '0');
-	if (isNaN(limit)) limit = 0;
-	if (limit < 0) limit = 0;
-	if (value == '1' || limit > 0) {
-		dispatch(turnCompleteMode(value == '1', limit));
-	}
-};
 
 let unsubscribeFromStore : (() => void) | null = null;
 
