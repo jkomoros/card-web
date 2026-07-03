@@ -425,13 +425,19 @@ export const selectConcepts = createSelector(
 // ALL 40k per-key caches on every card change, causing 600ms+ of blocking work.
 const _processedCardCache = new WeakMap<Card, ProcessedCard>();
 
+//Shared frozen empties: with tens of thousands of processed cards, per-card
+//empty object literals add up to real memory and GC pressure.
+const EMPTY_FALLBACK_TEXT = Object.freeze({}) as ProcessedCard['fallbackText'];
+const EMPTY_IMPORTANT_NGRAMS = Object.freeze({}) as ProcessedCard['importantNgrams'];
+const EMPTY_SYNONYM_MAP = Object.freeze({}) as ProcessedCard['synonymMap'];
+
 const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 	const cached = _processedCardCache.get(card);
 	if (cached) return cached;
 
 	perfCount('processCard:miss');
 
-	const fallbackText = backportFallbackTextMapForCard(card, allCards) || {};
+	const fallbackText = backportFallbackTextMapForCard(card, allCards) || EMPTY_FALLBACK_TEXT;
 
 	let processed : ProcessedCard;
 	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION && card.nlp_source_fingerprint === nlpSourceFingerprintForCard(card)) {
@@ -471,8 +477,8 @@ const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 		processed = {
 			...card,
 			fallbackText,
-			importantNgrams: {},
-			synonymMap: {},
+			importantNgrams: EMPTY_IMPORTANT_NGRAMS,
+			synonymMap: EMPTY_SYNONYM_MAP,
 			nlp: nlp as ProcessedCard['nlp']
 		} as ProcessedCard;
 	} else {

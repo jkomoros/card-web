@@ -42,7 +42,8 @@ import {
 } from '../references.js';
 
 import {
-	cardHasContent
+	cardHasContent,
+	stripEphemeralCardFields
 } from '../util.js';
 
 import {
@@ -318,7 +319,7 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		snapshot => {
 			if (!snapshot.exists()) return;
 
-			const liveCard: Card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+			const liveCard: Card = stripEphemeralCardFields({...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card);
 			dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, liveCard);
 		},
 		error => {
@@ -331,7 +332,7 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 	try {
 		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
 		if (!freshSnapshot.exists()) return;
-		const freshCard: Card = {...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card;
+		const freshCard: Card = stripEphemeralCardFields({...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card);
 		dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, freshCard);
 	} catch (error) {
 		console.error('Error refreshing card after opening editor:', error);

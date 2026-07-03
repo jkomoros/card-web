@@ -104,7 +104,8 @@ import {
 } from '../actions.js';
 
 import {
-	fetchTypeIsUnpublished
+	fetchTypeIsUnpublished,
+	stripEphemeralCardFields
 } from '../util.js';
 
 import { TypedObject } from '../../shared/typed_object.js';
@@ -339,7 +340,7 @@ const parseCardSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, cardIDsTo
 		//editing for example. See
 		//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
 		const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
-		cards[id] = card;
+		cards[id] = stripEphemeralCardFields(card);
 	});
 
 	return {cards, cardIDsToRemove};
