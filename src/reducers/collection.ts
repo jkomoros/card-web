@@ -3,6 +3,7 @@ import {
 	UPDATE_COLLECTION,
 	UPDATE_RENDER_OFFSET,
 	UPDATE_COLLECTION_SHAPSHOT,
+	UPDATE_WORKER_COLLECTION,
 	RANDOMIZE_SALT,
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
@@ -84,6 +85,11 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			filtersSnapshot: state.filters,
+		};
+	case UPDATE_WORKER_COLLECTION:
+		return {
+			...state,
+			workerActiveCollection: action.result,
 		};
 	case UPDATE_SECTIONS:
 		return {

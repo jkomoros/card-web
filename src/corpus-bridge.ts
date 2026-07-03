@@ -32,6 +32,10 @@ import {
 } from './actions/data.js';
 
 import {
+	UPDATE_WORKER_COLLECTION
+} from './actions.js';
+
+import {
 	fetchTypeIsUnpublished
 } from './util.js';
 
@@ -195,9 +199,25 @@ const ensureActiveCollectionSubscription = (state : State) => {
 	});
 };
 
-const handleCollectionResult = (subscriptionID : number, ids : string[], ms : number) => {
-	if (subscriptionID !== activeSubscriptionID) return;
-	latestSubscriptionResult = {subscriptionID, ids, ms};
+const handleCollectionResult = (message : {subscriptionID : number, ids : string[], labels : string[], numCards : number, isFallback : boolean, preview : boolean, ms : number}) => {
+	if (message.subscriptionID !== activeSubscriptionID) return;
+	latestSubscriptionResult = {subscriptionID: message.subscriptionID, ids: message.ids, ms: message.ms};
+	if (readMode() === 'on') {
+		//Cutover mode: pushed results feed Redux directly; the UI renders
+		//from them instead of computing collections.
+		const descriptionSerialized = activeSubscriptionKey.split('|')[0];
+		store.dispatch({
+			type: UPDATE_WORKER_COLLECTION,
+			result: {
+				description: descriptionSerialized,
+				ids: message.ids,
+				labels: message.labels,
+				numCards: message.numCards,
+				isFallback: message.isFallback,
+				preview: message.preview
+			}
+		});
+	}
 	scheduleShadowCompare();
 };
 
@@ -224,10 +244,14 @@ const sendCollectionConfigIfChanged = (state : State) => {
 };
 
 const runShadowCompare = () => {
-	if (!worker || readMode() !== 'shadow') return;
+	const mode = readMode();
+	if (!worker || (mode !== 'shadow' && mode !== 'on')) return;
 	const state = store.getState() as State;
 	sendCollectionConfigIfChanged(state);
 	ensureActiveCollectionSubscription(state);
+	//In cutover mode there's nothing to compare against — the pushed result
+	//IS the collection.
+	if (mode !== 'shadow') return;
 	//Don't compare while card loading is still in progress — the two sides
 	//are guaranteed to be at different points of the load.
 	const loading = selectLoadingCardFetchTypes(state);
@@ -274,11 +298,14 @@ const compareShadowResult = (description : string, uiIDs : string[], workerIDs :
 
 const startShadowComparator = () => {
 	if (shadowComparatorStarted) return;
-	if (readMode() !== 'shadow') return;
+	const mode = readMode();
+	if (mode !== 'shadow' && mode !== 'on') return;
 	shadowComparatorStarted = true;
 	store.subscribe(scheduleShadowCompare);
 	scheduleShadowCompare();
-	console.log('[corpus-shadow] comparator active (compares at most every ' + (SHADOW_COMPARE_INTERVAL_MS / 1000) + 's)');
+	if (mode === 'shadow') {
+		console.log('[corpus-shadow] comparator active (compares at most every ' + (SHADOW_COMPARE_INTERVAL_MS / 1000) + 's)');
+	}
 };
 
 const handleCardBatch = (batch : CardBatch) => {
@@ -324,7 +351,7 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		handleCardBatch(message.batch);
 		break;
 	case 'collectionResult':
-		handleCollectionResult(message.subscriptionID, message.ids, message.ms);
+		handleCollectionResult(message);
 		break;
 	}
 };

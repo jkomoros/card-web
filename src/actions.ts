@@ -55,7 +55,8 @@ import {
 	Uid,
 	UserInfo,
 	UserPermissions,
-	UserPermissionsMap
+	UserPermissionsMap,
+	WorkerCollectionResult
 } from './types.js';
 
 //AI
@@ -104,6 +105,7 @@ export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
+export const UPDATE_WORKER_COLLECTION = 'UPDATE_WORKER_COLLECTION';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
@@ -442,6 +444,11 @@ type ActionUpdateRenderOffset = {
 
 type ActionUpdateCollectionSnapshot = {
 	type: typeof UPDATE_COLLECTION_SHAPSHOT
+};
+
+type ActionUpdateWorkerCollection = {
+	type: typeof UPDATE_WORKER_COLLECTION,
+	result: WorkerCollectionResult | null
 };
 
 type ActionRandomizeSalt = {
@@ -1144,6 +1151,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportSetBodies
 	| ActionBulkImportDialogSetOverrideCardOrder
 	| ActionUpdateCollection
+	| ActionUpdateWorkerCollection
 	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot

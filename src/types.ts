@@ -761,7 +761,23 @@ export type CollectionState = {
 	selectedCards: FilterMap,
 	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
 	collectionWordCloudVersion: number,
+	//When the corpus worker serves collections ('on' mode), the most recent
+	//pushed result for the active collection. Null when the worker isn't
+	//serving collections or no result has arrived yet.
+	workerActiveCollection: WorkerCollectionResult | null,
 }
+
+//An ordered collection result computed in the corpus worker and pushed to the
+//main thread.
+export type WorkerCollectionResult = {
+	//The serialized description this result answers.
+	description: string,
+	ids: CardID[],
+	labels: string[],
+	numCards: number,
+	isFallback: boolean,
+	preview: boolean,
+};
 
 export type CommentsState = {
 	messages: CommentMessages,
