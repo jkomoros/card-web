@@ -5,6 +5,16 @@ import {
 } from './perf.js';
 
 import {
+	createCardsDiffSelector,
+	diffCards,
+	anyCardMatches,
+	anyChangedCardDiffers,
+	membershipChanged,
+	isConceptCard,
+	arraysEqual
+} from './incremental-selectors.js';
+
+import {
 	createObjectSelector,
 } from 'reselect-map';
 
@@ -375,14 +385,26 @@ export const selectNextMaintenanceTaskName = createSelector(
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
 //backportMissingText, and where the card has some text that needs to be filled.
+//Both of these only depend on concept cards; the diff projection means a
+//non-concept-card update neither recomputes them nor changes their identity
+//(which previously re-ran downstream fingerprint/enrichment selectors on
+//every card edit).
 const selectRawConceptCards = createSelector(
 	selectRawCards,
-	(cards) => conceptCardsFromCards(cards)
+	createCardsDiffSelector({
+		name: 'conceptCards',
+		needsRecompute: delta => anyCardMatches(delta, isConceptCard),
+		compute: (cards) => conceptCardsFromCards(cards)
+	})
 );
 
 export const selectSynonymMap = createSelector(
 	selectRawCards,
-	(cards) => synonymMap(cards)
+	createCardsDiffSelector({
+		name: 'synonymMap',
+		needsRecompute: delta => anyCardMatches(delta, isConceptCard),
+		compute: (cards) => synonymMap(cards)
+	})
 );
 
 //selectConcepts returns a map of all concepts based on visible concept cards.
@@ -485,16 +507,20 @@ const selectCardsSnapshot : (state : State) => ProcessedCards = createSelector(
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
 	selectRawCards,
-	(rawCards : Cards) : Uid[] => {
-		const ids : {[id : Uid] : true} = {};
-		for (const card of Object.values(rawCards)) {
-			ids[card.author] = true;
-			for (const collaborator of card.collaborators) {
-				ids[collaborator] = true;
+	createCardsDiffSelector({
+		name: 'authorsAndCollaborators',
+		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.author !== next.author || !arraysEqual(prev.collaborators, next.collaborators)),
+		compute: (rawCards : Cards) : Uid[] => {
+			const ids : {[id : Uid] : true} = {};
+			for (const card of Object.values(rawCards)) {
+				ids[card.author] = true;
+				for (const collaborator of card.collaborators) {
+					ids[collaborator] = true;
+				}
 			}
+			return Object.keys(ids);
 		}
-		return Object.keys(ids);
-	}
+	})
 );
 
 export const selectActiveCard = createSelector(
@@ -1057,15 +1083,23 @@ export const selectWordCloudForActiveCard = createSelector(
 //Selects the set of all cards the current user can see (which even includes
 //ones not in default)
 export const selectAllCardsFilter = createSelector(
-	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]))
+	selectRawCards,
+	createCardsDiffSelector({
+		name: 'allCardsFilter',
+		needsRecompute: membershipChanged,
+		compute: (cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]))
+	})
 );
 
 //selectTagInfosForCards selects a tagInfos map based on all cards. Used for
 //example for showing missing link auto todos in card-editor.
 export const selectTagInfosForCards = createSelector(
-	selectCards,
-	cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
+	selectRawCards,
+	createCardsDiffSelector({
+		name: 'tagInfosForCards',
+		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name),
+		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
+	})
 );
 
 export const getCardHasStar = (state : State, cardId : CardID) : boolean => {
@@ -1466,32 +1500,54 @@ export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
 	}
 );
 
+const computeDefaultSet = (sections : Sections, cards : Cards) : CardID[] => {
+	const resultSet = new Set<CardID>();
+	for (const section of Object.values(sections)) {
+		for (const cardId of section.cards) {
+			resultSet.add(cardId);
+		}
+	}
+	//Also include any cards that have a non-null section but aren't in any
+	//section's cards array. This handles cards that have a section field
+	//but weren't loaded via the section data.
+	for (const [id, card] of Object.entries(cards)) {
+		if (card.section && !resultSet.has(id)) {
+			resultSet.add(id);
+		}
+	}
+	const result = [...resultSet];
+	//The order of cards in the section object is nondterministic. The order
+	//that matters is the sort_order. Higher sort-order should sort to the top.
+	result.sort((a,b) => {
+		const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
+		const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
+		return cardBValue - cardAValue;
+	});
+	return result;
+};
+
+const defaultSetCardsDiffer = (prev : Card, next : Card) : boolean =>
+	prev.section !== next.section || prev.sort_order !== next.sort_order;
+
+//Hand-rolled two-input memoizer: recomputes when sections change, but a cards
+//change only recomputes if a card's section or sort_order changed.
+let _defaultSetState : {sections : Sections, cards : Cards, result : CardID[]} | null = null;
+
 export const selectDefaultSet = createSelector(
 	selectSections,
 	selectRawCards,
 	(sections : Sections, cards : Cards) : CardID[] => {
-		const resultSet = new Set<CardID>();
-		for (const section of Object.values(sections)) {
-			for (const cardId of section.cards) {
-				resultSet.add(cardId);
+		if (_defaultSetState && _defaultSetState.sections === sections) {
+			const delta = diffCards(_defaultSetState.cards, cards);
+			if (!anyChangedCardDiffers(delta, defaultSetCardsDiffer)) {
+				perfCount('diffSelector:defaultSet:skipped');
+				_defaultSetState = {sections, cards, result: _defaultSetState.result};
+				return _defaultSetState.result;
 			}
 		}
-		//Also include any cards that have a non-null section but aren't in any
-		//section's cards array. This handles cards that have a section field
-		//but weren't loaded via the section data.
-		for (const [id, card] of Object.entries(cards)) {
-			if (card.section && !resultSet.has(id)) {
-				resultSet.add(id);
-			}
-		}
-		const result = [...resultSet];
-		//The order of cards in the section object is nondterministic. The order
-		//that matters is the sort_order. Higher sort-order should sort to the top.
-		result.sort((a,b) => {
-			const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-			const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
-			return cardBValue - cardAValue;
-		});
+		perfCount('diffSelector:defaultSet:recompute');
+		const result = computeDefaultSet(sections, cards);
+		_defaultSetState = {sections, cards, result};
 		return result;
 	}
 );
@@ -1506,15 +1562,26 @@ const makeEverythingSetFromCards = (cards : Cards) : CardID[] => {
 	return keys;
 };
 
+const everythingSetCardsDiffer = (prev : Card, next : Card) : boolean =>
+	prev.sort_order !== next.sort_order;
+
 //Note; other selectors depend on this being sorted based on descending sort_order
 export const selectEverythingSet = createSelector(
-	selectCards,
-	makeEverythingSetFromCards,
+	selectRawCards,
+	createCardsDiffSelector({
+		name: 'everythingSet',
+		needsRecompute: delta => anyChangedCardDiffers(delta, everythingSetCardsDiffer),
+		compute: makeEverythingSetFromCards
+	})
 );
 
 const selectEverythingSetSnapshot = createSelector(
-	selectCardsSnapshot,
-	makeEverythingSetFromCards,
+	selectRawCardsSnapshot,
+	createCardsDiffSelector({
+		name: 'everythingSetSnapshot',
+		needsRecompute: delta => anyChangedCardDiffers(delta, everythingSetCardsDiffer),
+		compute: makeEverythingSetFromCards
+	})
 );
 
 type SetCollection = {
