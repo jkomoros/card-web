@@ -321,36 +321,42 @@ export const connectLiveAuthors = () => {
 	});
 };
 
-const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
+const parseCardSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, cardIDsToRemove : CardID[]} => {
+	const cards : Cards = {};
+	const cardIDsToRemove : CardID[] = [];
+
+	snapshot.docChanges().forEach(change => {
+		if (change.type === 'removed') {
+			cardIDsToRemove.push(change.doc.id);
+			return;
+		}
+		const doc = change.doc;
+		const id : CardID = doc.id;
+		//Ensure that timestamps are never null. If this isn't set, then
+		//when cards are first created (and other times) they will have null
+		//timestamps on some of the updates, an if we read them we'll get
+		//confused. Without this you can't open a card immediately for
+		//editing for example. See
+		//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
+		const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
+		cards[id] = card;
+	});
+
+	return {cards, cardIDsToRemove};
+};
+
+const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe? : boolean}) =>{
 
 	return (snapshot : QuerySnapshot) => {
 		const startTime = performance.now();
-		const cards : Cards = {};
-		const cardIDsToRemove : CardID[] = [];
-
-		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') {
-				cardIDsToRemove.push(change.doc.id);
-				return;
-			}
-			const doc = change.doc;
-			const id : CardID = doc.id;
-			//Ensure that timestamps are never null. If this isn't set, then
-			//when cards are first created (and other times) they will have null
-			//timestamps on some of the updates, an if we read them we'll get
-			//confused. Without this you can't open a card immediately for
-			//editing for example. See
-			//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
-			const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
-			cards[id] = card;
-		});
+		const {cards, cardIDsToRemove} = parseCardSnapshot(snapshot);
 
 		const cardCount = Object.keys(cards).length;
 		const parseTime = performance.now() - startTime;
 		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): parsed ${cardCount} cards in ${parseTime.toFixed(1)}ms`);
 
 		const dispatchStart = performance.now();
-		store.dispatch(receiveCards(cards, fetchType));
+		store.dispatch(receiveCards(cards, fetchType, options?.fastDedupe));
 		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
 		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): dispatched in ${(performance.now() - dispatchStart).toFixed(1)}ms (total: ${(performance.now() - startTime).toFixed(1)}ms)`);
 	};
@@ -460,6 +466,34 @@ export const connectLiveUnpublishedCards = async () => {
 			{ gte: 'c-8', lt: '\uf8ff' }, // c-8xx, c-9xx, and any others
 		];
 
+		// Coalesce partition arrivals into batched dispatches: each
+		// UPDATE_CARDS dispatch runs the full selector cascade over the
+		// whole (growing) cards map, so dispatching once per flush interval
+		// instead of once per partition cuts boot-time cascades from
+		// partitions+1 to ~2-3, at the cost of up to
+		// BOOT_COALESCE_INTERVAL_MS of display latency during boot.
+		const BOOT_COALESCE_INTERVAL_MS = 750;
+		const pendingBootCards : Cards = {};
+		let bootFlushTimeout : ReturnType<typeof setTimeout> | null = null;
+		const flushBootCards = () => {
+			if (bootFlushTimeout) {
+				clearTimeout(bootFlushTimeout);
+				bootFlushTimeout = null;
+			}
+			if (connectionGeneration !== unpublishedConnectionGeneration) return;
+			const ids = Object.keys(pendingBootCards);
+			if (ids.length === 0) return;
+			const cards = {...pendingBootCards};
+			for (const id of ids) delete pendingBootCards[id];
+			console.log(`[PERF] flushing ${ids.length} coalesced unpublished cards`);
+			store.dispatch(receiveCards(cards, 'unpublished'));
+		};
+		const enqueueBootSnapshot = (snapshot : QuerySnapshot) => {
+			const {cards} = parseCardSnapshot(snapshot);
+			Object.assign(pendingBootCards, cards);
+			if (!bootFlushTimeout) bootFlushTimeout = setTimeout(flushBootCards, BOOT_COALESCE_INTERVAL_MS);
+		};
+
 		console.time('[PERF] unpublished-getDocs-total');
 		try {
 			const partitionPromises = PARTITIONS.map(async (partition, i) => {
@@ -484,7 +518,7 @@ export const connectLiveUnpublishedCards = async () => {
 						return 0;
 					}
 					if (snapshot.size > 0) {
-						cardSnapshotReceiver('unpublished')(snapshot);
+						enqueueBootSnapshot(snapshot);
 						console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
 					}
 					return snapshot.size;
@@ -496,19 +530,30 @@ export const connectLiveUnpublishedCards = async () => {
 					console.log('[PERF] unpublished getDocs complete: ignored stale connection');
 					return;
 				}
+				flushBootCards();
 				const totalLoaded = sizes.reduce((a, b) => a + b, 0);
 				console.timeEnd('[PERF] unpublished-getDocs-total');
 				console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
 		} catch (e) {
+			//Flush whatever did arrive before the failure.
+			flushBootCards();
 			console.timeEnd('[PERF] unpublished-getDocs-total');
 			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
 
-			// Phase 2: Real-time listener for ongoing changes
+			// Phase 2: Real-time listener for ongoing changes. The initial
+			// delivery redelivers everything getDocs just primed, so it uses
+			// the fast timestamp-based dedupe; subsequent deltas use the full
+			// deep compare.
 			if (connectionGeneration !== unpublishedConnectionGeneration) return;
+			let firstListenerDelivery = true;
 			liveUnpublishedCardsUnsubcribe = onSnapshot(
 			unpublishedQuery,
-			cardSnapshotReceiver('unpublished')
+			(snapshot : QuerySnapshot) => {
+				const fastDedupe = firstListenerDelivery;
+				firstListenerDelivery = false;
+				cardSnapshotReceiver('unpublished', {fastDedupe})(snapshot);
+			}
 		);
 		return;
 	}

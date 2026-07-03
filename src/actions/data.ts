@@ -1443,14 +1443,38 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
+type TimestampLike = {seconds : number, nanoseconds : number};
+
+const timestampsEquivalent = (a? : TimestampLike, b? : TimestampLike) : boolean =>
+	Boolean(a && b && a.seconds === b.seconds && a.nanoseconds === b.nanoseconds);
+
+//How often the fast dedupe path double-checks itself against the full deep
+//equality check.
+const FAST_DEDUPE_VALIDATION_RATE = 0.01;
+
+//fastDedupe should be passed only for snapshot deliveries that are expected
+//to overwhelmingly redeliver cards we already hold (e.g. the initial
+//onSnapshot delivery right after getDocs primed the cache): matching updated
+//timestamps are then treated as proof of equivalence, replacing an O(full
+//card) deep compare per doc with a two-number compare. A small sample is
+//still deep-checked and logged (and applied) on mismatch.
+export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe = false) : ThunkSomeAction => (dispatch, getState) => {
 	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
 	const inputCount = Object.keys(cards).length;
 	for (const card of Object.values(cards)) {
-		//Check ot see if we already have effectively the same card locally with no notional changes.
-		if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) continue;
+		const existing = existingCards[card.id];
+		if (existing) {
+			if (fastDedupe && timestampsEquivalent(existing.updated as TimestampLike, card.updated as TimestampLike)) {
+				const validate = Math.random() < FAST_DEDUPE_VALIDATION_RATE;
+				if (!validate || deepEqualIgnoringTimestamps(existing, card)) continue;
+				console.warn(`[PERF] receiveCards fast dedupe mismatch for ${card.id}; applying update`);
+			} else if (deepEqualIgnoringTimestamps(existing, card)) {
+				//Check ot see if we already have effectively the same card locally with no notional changes.
+				continue;
+			}
+		}
 		cardsToUpdate[card.id] = card;
 	}
 	const diffCount = Object.keys(cardsToUpdate).length;
