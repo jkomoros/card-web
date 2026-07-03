@@ -75,24 +75,35 @@ mode → B3 cutover.
   nlp_search_tokens are stripped from Redux (A5) but the worker sees raw
   Firestore docs, so it has them.
 
-### B0 spike — in progress
+### B0 spike — COMPLETE (code-side)
 
-Done so far (uncommitted at time of writing; committed with this log):
 - `src/worker/search-index.ts` — pure inverted index (updateCard/removeCard/
   candidates/candidatesUnion), no DOM/Firestore deps.
 - `src/worker/worker-protocol.ts` — typed main↔worker message unions with
   generation counters for stale-message dropping.
+- `src/worker/corpus-worker.ts` — worker entry: own Firebase app
+  ('corpus-worker'), initializeAuth(indexedDBLocalPersistence),
+  persistentLocalCache (single-tab in worker — see decisions), published-cards
+  onSnapshot ingestion into corpus Map + index, spike/query messages.
+- `src/corpus-bridge.ts` — main-thread bridge, spawned only when localStorage
+  'corpus-worker' is set; `window.CORPUS_WORKER` console API (setMode/spike/
+  query). Wired into main-view._connectViewAppData as a no-op by default.
+- rollup: second config emits self-contained
+  `build/lib/src/worker/corpus-worker.js` (~380KB min). Full `npm run build`
+  passes.
+- `test/search-index/test.js` (`npm run test:search-index`, in `npm test`):
+  unit tests + synthetic 40k benchmark. **Benchmark results (Node, M-series):
+  index build 40k cards ≈ 1.7s total (43µs/card); avg recall query 0.12ms.**
+  Validates the design assumption that index build is a cheap one-time boot
+  cost off-thread and recall is effectively free vs. O(40k) scoring.
 
-Remaining for B0:
-- `src/worker/corpus-worker.ts` — worker entry: Firebase init (auth via
-  indexedDB persistence), published-cards onSnapshot, index build, spike
-  report + query messages.
-- `src/corpus-bridge.ts` — main-thread bridge; registers `window.CORPUS_WORKER`
-  debug API (spike()/query()); zero app-behavior change.
-- rollup second config for the worker bundle; wds dev-serving check.
-- `test/search-index/test.js` — unit tests + synthetic 40k benchmark (log
-  build/query ms). npm script `test:search-index`, added to `npm test`.
-- Verify: tsc, build, suites. Commit as B0.
+**Browser validation still needed (user)**: set
+`localStorage.setItem('corpus-worker','spike')`, reload, watch
+`[corpus-worker]` console lines, run `CORPUS_WORKER.spike()` and
+`CORPUS_WORKER.query('...')`. Open questions it answers: (a) module worker
+loads under wds dev serving and in prod build; (b) worker auth picks up the
+persisted credential; (c) Firestore-in-worker cold/warm load times; (d)
+IndexedDB coexistence of the worker's cache with the main thread's.
 
 ### B1 — planned
 

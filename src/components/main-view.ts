@@ -56,6 +56,10 @@ import {
 } from '../actions/data.js';
 
 import {
+	maybeStartCorpusWorker
+} from '../corpus-bridge.js';
+
+import {
 	DEV_MODE
 } from '../firebase.js';
 
@@ -427,6 +431,8 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveThreads();
 		connectLiveMessages();
 		store.dispatch(loadServerIDFMap());
+		//No-op unless the user has opted in via localStorage 'corpus-worker'.
+		maybeStartCorpusWorker();
 	}
 
 	_handleResize() {
