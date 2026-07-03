@@ -62,6 +62,7 @@ import {
 	selectIsEditing,
 	selectRandomSalt,
 	selectCardSimilarity,
+	selectLoadingCardFetchTypes,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards
 } from './selectors.js';
@@ -175,13 +176,33 @@ const scheduleShadowCompare = () => {
 	}, SHADOW_COMPARE_INTERVAL_MS);
 };
 
+//The last tab-config maps sent to the worker; re-sent when their identity
+//changes (e.g. sections finishing loading changes section start cards).
+let sentFallbacks : ReturnType<typeof selectTabCollectionFallbacks> | null = null;
+let sentStartCards : ReturnType<typeof selectTabCollectionStartCards> | null = null;
+
+const sendCollectionConfigIfChanged = (state : State) => {
+	const fallbacks = selectTabCollectionFallbacks(state);
+	const startCards = selectTabCollectionStartCards(state);
+	if (fallbacks === sentFallbacks && startCards === sentStartCards) return;
+	sentFallbacks = fallbacks;
+	sentStartCards = startCards;
+	post({type: 'configureCollections', generation, fallbacks, startCards});
+};
+
 const runShadowCompare = () => {
 	if (!worker || readMode() !== 'shadow') return;
 	const state = store.getState() as State;
+	//Don't compare while card loading is still in progress — the two sides
+	//are guaranteed to be at different points of the load.
+	const loading = selectLoadingCardFetchTypes(state);
+	if (Object.keys(loading).length) return;
+	if (!state.data || !state.data.sectionsLoaded || !state.data.tagsLoaded) return;
 	//Only compare when both sides are answering the same question.
 	if (selectIsEditing(state)) return;
-	if (state.data && state.data.cardsSnapshot !== state.data.cards) return;
+	if (state.data.cardsSnapshot !== state.data.cards) return;
 	if (state.collection && state.collection.filtersSnapshot !== state.collection.filters) return;
+	sendCollectionConfigIfChanged(state);
 	const description = selectActiveCollectionDescription(state);
 	if (!description) return;
 	const collection = selectActiveCollection(state);
@@ -232,9 +253,10 @@ const startShadowComparator = () => {
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
-	if (Object.keys(cards).length) {
-		store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe));
-	}
+	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
+	//the fetchType regardless of card count, exactly like a main-thread
+	//listener receiving an empty snapshot.
+	store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe));
 	if (batch.removedIDs.length) {
 		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
 	}
@@ -318,13 +340,10 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	}
 	flushBufferedActions();
 	if (corpusWorkerOwnsCardIngestion()) {
-		const state = store.getState() as State;
-		post({
-			type: 'configureCollections',
-			generation,
-			fallbacks: selectTabCollectionFallbacks(state),
-			startCards: selectTabCollectionStartCards(state)
-		});
+		//Reset so the config is re-sent under the new generation.
+		sentFallbacks = null;
+		sentStartCards = null;
+		sendCollectionConfigIfChanged(store.getState() as State);
 		startShadowComparator();
 	}
 };

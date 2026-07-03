@@ -182,16 +182,26 @@ const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetc
 };
 
 //Ingests a snapshot: updates worker-local corpus/index and forwards the batch
-//to the main thread.
+//to the main thread. Empty batches are forwarded too — the main thread's
+//UPDATE_CARDS clears loading indicators for the fetchType even with no cards,
+//matching the behavior of a main-thread listener receiving an empty snapshot.
 const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fastDedupe = false) => {
 	const start = performance.now();
 	const {cards, removedIDs} = parseSnapshot(snapshot);
 	updateLocalState(cards, removedIDs);
 	const count = Object.keys(cards).length;
+	forwardBatch(cards, removedIDs, fetchType, fastDedupe);
 	if (count || removedIDs.length) {
-		forwardBatch(cards, removedIDs, fetchType, fastDedupe);
 		status(`ingested ${count} cards (${removedIDs.length} removed, ${fetchType}) in ${(performance.now() - start).toFixed(1)}ms; corpus=${corpus.size}`);
 	}
+};
+
+//A listener that errors (e.g. permission denied for anonymous users on
+//author/editor queries) will never deliver a snapshot; forward an empty batch
+//so the main thread's loading indicators clear rather than spinning forever.
+const listenerError = (fetchType : CardFetchType, context : string) => (error : {message : string}) => {
+	send({type: 'error', generation, message: `${context}: ${error.message}`});
+	forwardBatch({}, [], fetchType, false);
 };
 
 const teardownListeners = () => {
@@ -222,7 +232,7 @@ const connectPublished = () => {
 	unsubscribes.push(onSnapshot(
 		query(collection(db, CARDS_COLLECTION), where('published', '==', true)),
 		snapshot => ingestSnapshot(snapshot, 'published'),
-		error => send({type: 'error', generation, message: `published listener: ${error.message}`})
+		listenerError('published', 'published listener')
 	));
 	status('published listener attached');
 };
@@ -299,7 +309,7 @@ const connectUnpublishedPrivileged = async () => {
 			firstDelivery = false;
 			ingestSnapshot(snapshot, 'unpublished', fastDedupe);
 		},
-		error => send({type: 'error', generation, message: `unpublished listener: ${error.message}`})
+		listenerError('unpublished', 'unpublished listener')
 	));
 	status('unpublished listener attached');
 };
@@ -309,12 +319,12 @@ const connectUnpublishedAuthorEditor = (uid : string) => {
 	unsubscribes.push(onSnapshot(
 		query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
 		snapshot => ingestSnapshot(snapshot, 'unpublished-author'),
-		error => send({type: 'error', generation, message: `unpublished-author listener: ${error.message}`})
+		listenerError('unpublished-author', 'unpublished-author listener')
 	));
 	unsubscribes.push(onSnapshot(
 		query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
 		snapshot => ingestSnapshot(snapshot, 'unpublished-editor'),
-		error => send({type: 'error', generation, message: `unpublished-editor listener: ${error.message}`})
+		listenerError('unpublished-editor', 'unpublished-editor listener')
 	));
 	status('author/editor listeners attached');
 };

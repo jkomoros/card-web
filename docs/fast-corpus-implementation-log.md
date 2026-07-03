@@ -170,16 +170,33 @@ valid stored tokens) got a regex-based no-document fallback.
   entity decode + card-link conversion). Slow-path-only; cards with valid
   stored NLP tokens never touch it.
 
-**Browser validation (user)**: `localStorage.setItem('corpus-worker','shadow')`,
-reload, use the app normally, watch for `[corpus-shadow] DIVERGENCE` warnings.
-Clean logs across normal usage (navigation, starring, reading, searching,
-editing) are the gate for B3.
+**Browser-validated (2026-07-03, Playwright against the dev backend as an
+anonymous user)**: worker module loads under wds; Firebase-in-worker
+initializes; all 1240 published cards ingested by the worker and forwarded
+(main-thread listeners never attached); UI populated identically. Shadow
+comparator results — all MATCH, byte-identical ordered IDs:
+- `main/half-baked/` 89 cards (including section start card)
+- `main/random-thoughts/` 386 cards
+- `everything/sort/recent/` 1240 cards (validates worker-side Timestamps)
+- `everything/query/complexity/` 202 cards (validates full-text scoring)
 
-Known/expected divergence sources to watch: slow-path cards (no valid stored
-tokens) whose regex text extraction differs from DOM extraction; concepts/
-synonyms are NOT yet attached in worker processing (matches main-thread
-selectCards behavior post-lazy-enrichment, so should agree); random-sort salt
-is forwarded per-request.
+Parity fixes found by this validation (all committed):
+- configureCollections re-sent when tab-config fallbacks/startCards change
+  (was snapshotted before sections loaded → missing start cards).
+- Shadow compares gated on loading flags + sections/tags loaded.
+- Worker forwards EMPTY snapshots (UPDATE_CARDS clears loading flags even
+  with no cards) and forwards an empty batch on listener permission errors
+  (anonymous users can't run author/editor queries), so loading indicators
+  clear exactly like the main-thread path; bridge dispatches empty batches.
+
+Known-benign console line in worker modes: Firestore warns "LocalStorage is
+unavailable" in the worker (no localStorage there); IndexedDB persistence
+still applies.
+
+**Still needing user validation**: signed-in privileged flows (worker auth
+credential pickup, partitioned unpublished getDocs at 40k scale), and
+editing/saving under shadow mode. Same steps: set the flag, use the app,
+watch for `[corpus-shadow] DIVERGENCE`.
 
 ### B3 — planned (gated)
 
