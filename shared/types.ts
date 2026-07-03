@@ -516,6 +516,18 @@ export interface Card {
 	//Default to epoch 1970 for things not yet tweeted
 	last_tweeted: Timestamp,
 	tweet_count: number,
+
+	//NLP tokens stored for this card, eliminating need for client-side computation
+	//Only populated for cards saved after NLP storage feature is deployed
+	nlp_tokens?: NLPTokenStorage,
+	//Flat array of deduplicated stemmed unigrams + bigrams for server-side
+	//array-contains queries. Generated from nlp_tokens across all fields.
+	nlp_search_tokens?: string[],
+	//Fingerprint of the raw searchable fields represented by nlp_tokens. Used to
+	//detect content edits from old clients that did not refresh stored NLP.
+	nlp_source_fingerprint?: string,
+	//Version number of NLP processing (incremented when algorithm changes)
+	nlp_version?: number,
 }
 
 export interface StringCardMap {
@@ -530,12 +542,25 @@ export function isProcessedCard(card : Card | ProcessedCard) : card is Processed
 	return (card as {nlp : unknown}).nlp !== undefined;
 }
 
+//Simplified version of ProcessedRun for storage in Firestore
+//Only includes the fields needed for fingerprinting and similarity
+export interface ProcessedRunStorage {
+	normalized: string,
+	uppercaseRanges?: number[]
+}
+
+//Map of field name to array of processed runs for that field
+export type NLPTokenStorage = {
+	[field in CardFieldType]?: ProcessedRunStorage[]
+}
+
 //TODO: is there a better way to do this since ProcessRun just flat out exists in nlp.js?
 export interface ProcessedRunInterface {
 	normalized : string,
 	original : string,
 	stemmed : string,
 	withoutStopWords : string,
+	uppercaseRanges? : number[],
 	readonly empty : boolean
 }
 

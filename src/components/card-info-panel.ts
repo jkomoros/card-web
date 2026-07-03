@@ -257,6 +257,19 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
+		if (!this._open) {
+			this._card = null;
+			this._sectionTitle = '';
+			this._author = undefined as unknown as Author;
+			this._collaborators = [];
+			this._tagInfos = {};
+			this._tweets = {};
+			this._tweetsLoading = false;
+			this._referenceBlocks = [];
+			this._wordCloud = emptyWordCloud();
+			window.clearTimeout(this._expensivePropertiesTimeout);
+			return;
+		}
 		this._card = selectActiveCard(state);
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = getAuthorForId(state, this._card?.author || '');

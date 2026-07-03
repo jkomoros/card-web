@@ -8,6 +8,7 @@ import { store } from '../store.js';
 
 import {
 	selectActiveCard,
+	selectActiveCardEnriched,
 	selectActiveSectionId,
 	selectDataIsFullyLoaded,
 	selectUserSignedIn,
@@ -23,7 +24,7 @@ import {
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectActiveCollection,
-	selectEditingCardwithDelayedNormalizedProperties,
+	selectEditingCardForDisplay,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
@@ -37,7 +38,6 @@ import {
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
-	selectEditingCardSuggestedConceptReferences,
 	selectActiveRenderOffset,
 	selectEditorMinimized,
 	selectUserMayUseAI,
@@ -48,7 +48,7 @@ import {
 	selectActiveCollectionNotFullySelected,
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
-	selectCardModificationPending
+	selectCardModificationPending,
 } from '../selectors.js';
 
 import {
@@ -194,6 +194,7 @@ import {
 import {
 	Collection
 } from '../collection_description.js';
+
 
 import {
 	ExpandedReferenceBlocks
@@ -494,7 +495,7 @@ class CardView extends connect(store)(PageViewElement) {
 				@reorder-card=${this._handleReorderCard}
 				@add-card='${this._handleAddCard}'
 				@add-working-notes-card='${this._handleAddWorkingNotesCard}'
-				@update-render-offset=${this._handleUpdateRenderOffset} 
+				@update-render-offset=${this._handleUpdateRenderOffset}
 				@card-selected=${this._handleCardSelected}
 				.reorderable=${this._userMayReorderCollection}
 				.showCreateCard=${this._userMayAddCardToActiveCollection}
@@ -842,12 +843,15 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	override stateChanged(state : State) {
-		this._editingCard = selectEditingCardwithDelayedNormalizedProperties(state);
+		this._editingCard = selectEditingCardForDisplay(state);
 		this._card = selectActiveCard(state);
-		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
-		this._displayCard = this._editingCard ? this._editingCard : this._card;
-		this._pageExtra = state.app.pageExtra;
 		this._editing = selectIsEditing(state);
+		this._cardReferenceBlocks = this._editing ? [] : selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
+		//Use enriched card for display when not editing. While editing, avoid
+		//semantic enrichment on the keystroke path and keep the active card's
+		//previous NLP block only as a display fallback.
+		this._displayCard = this._editingCard ? this._editingCard : selectActiveCardEnriched(state);
+		this._pageExtra = state.app.pageExtra;
 		this._cardModificationsPending = selectCardModificationPending(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
@@ -877,7 +881,9 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
+
 		this._collection = selectActiveCollection(state);
+
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
@@ -893,8 +899,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 		this._suggestionsPanelOpen = selectSuggestionsOpen(state);
 
-		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
-		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
+		this._suggestedConcepts = null;
 
 		const lastWordCloudVersion = this._collectionWordCloudVersion;
 		this._collectionWordCloudVersion = selectCollectionWordCloudVersion(state);

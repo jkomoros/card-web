@@ -730,7 +730,6 @@ export type AppState = {
 	suggestMissingConceptsEnabled: boolean,
 }
 
-
 export type CollectionState = {
 	active : CollectionConfiguration,
 	//If the dialog to configure the collection is open, this will be set to a
@@ -761,7 +760,7 @@ export type CollectionState = {
 	//ephemeral and not persisted.
 	selectedCards: FilterMap,
 	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
-	collectionWordCloudVersion: number
+	collectionWordCloudVersion: number,
 }
 
 export type CommentsState = {
@@ -826,6 +825,18 @@ export type ExpandedTabConfig = ExpandedTabConfigItem[];
 //Note the map will likely only have a subset of the other cards.
 export type CardSimilarityMap = Record<CardID, SortExtra>;
 
+//Server-generated IDF map data structure
+export type ServerIDFData = {
+	version: number,
+	cardCount: number,
+	ngramSize: number,
+	idf: {
+		[word: string]: number
+	},
+	maxIDF: number,
+	generatedAt: string
+};
+
 export type SuggestionDiffCreateCard = {
 	card_type? : CardType,
 	title? : string,
@@ -867,10 +878,9 @@ export type Suggestion = {
 
 const _cardFetchTypeSchema = z.enum([
 	'published',
-	'unpublished-partial',
-	'unpublished-complete',
+	'unpublished',
 	'unpublished-editor',
-	'unpublished-author'
+	'unpublished-author',
 ]);
 
 export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;
@@ -940,6 +950,8 @@ export type DataState = {
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
 	cardSimilarity: CardSimilarityMap
+	//Server-generated IDF map for faster fingerprint generation
+	serverIDF: ServerIDFData | null
 }
 
 export type EditorState = {

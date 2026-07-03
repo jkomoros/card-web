@@ -10,7 +10,8 @@ export const deployFirebase = (flags: DeployFlags): void => {
 	const baseFunctions = [
 		'emailAdminOnMessage',
 		'emailAdminOnStar',
-		'legal'
+		'legal',
+		'calculateIDF'
 	];
 
 	if (flags.openaiEnabled) {

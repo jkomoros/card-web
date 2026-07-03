@@ -54,7 +54,7 @@ import {
 	selectFindLinking,
 	selectFindSortByRecent,
 	selectFindRenderOffset,
-	selectFindDialogOpen
+	selectFindDialogOpen,
 } from '../selectors.js';
 
 import { 

@@ -50,10 +50,15 @@ import * as chatImpl from './chat.js';
 import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 
 import {
+	OPENAI_API_KEY,
+	ANTHROPIC_API_KEY
+} from './common.js';
+
+import {
 	CHAT_CREATE_MESSAGE_ROUTE,
 	CHAT_POST_MESSAGE_ROUTE,
 	CHAT_RETRY_MESSAGE_ROUTE,
-	CHAT_STREAM_MESSAGE_ROUTE
+	CHAT_STREAM_MESSAGE_ROUTE,
 } from '../../shared/env-constants.js';
 
 //Runs every three hours
@@ -144,7 +149,7 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 	}
 	if (data.type !== 'slug') {
 		//Typescript says "don't worry, it's not possible to get a different type", but we want to be sure.
-		//eslint-disable-next-line @typescript-eslint/no-explicit-any
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		throw new HttpsError('invalid-argument', 'Invalid type: ' + (data as any).type);
 	}
 	const result = await slug(data.value);
@@ -172,3 +177,17 @@ export const chat = onRequest({
 	memory: '1GiB',
 	timeoutSeconds: 300
 }, chatApp);
+
+export { calculateIDF } from './idf.js';
+
+// Health endpoint for monitoring
+export const health = onRequest({}, (req, res) => {
+	res.json({
+		status: 'ok',
+		timestamp: new Date().toISOString(),
+		functions: {
+			openaiEnabled: !!OPENAI_API_KEY,
+			anthropicEnabled: !!ANTHROPIC_API_KEY
+		}
+	});
+});

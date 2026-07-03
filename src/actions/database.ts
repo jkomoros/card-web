@@ -32,10 +32,8 @@ import {
 	selectUserMayViewApp,
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
-	selectCompleteModeEnabled,
 	selectUserMayViewUnpublished,
 	selectUid,
-	selectCompleteModeEffectiveCardLimit
 } from '../selectors.js';
 
 import {
@@ -45,12 +43,13 @@ import {
 import {
 	collection,
 	onSnapshot,
+	getDocs,
 	where,
 	query,
 	orderBy,
+	documentId,
 	QuerySnapshot,
-	limit,
-	doc
+	doc,
 } from 'firebase/firestore';
 
 import {
@@ -323,8 +322,9 @@ export const connectLiveAuthors = () => {
 };
 
 const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
-	
+
 	return (snapshot : QuerySnapshot) => {
+		const startTime = performance.now();
 		const cards : Cards = {};
 		const cardIDsToRemove : CardID[] = [];
 
@@ -345,20 +345,33 @@ const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
 			cards[id] = card;
 		});
 
+		const cardCount = Object.keys(cards).length;
+		const parseTime = performance.now() - startTime;
+		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): parsed ${cardCount} cards in ${parseTime.toFixed(1)}ms`);
+
+		const dispatchStart = performance.now();
 		store.dispatch(receiveCards(cards, fetchType));
 		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
+		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): dispatched in ${(performance.now() - dispatchStart).toFixed(1)}ms (total: ${(performance.now() - startTime).toFixed(1)}ms)`);
 	};
 
 };
 
 export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver('published'));
+	console.log('[PERF] connectLivePublishedCards: starting listener');
+	console.time('[PERF] published-cards-first-snapshot');
+	let first = true;
+	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
+		if (first) { console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
+		cardSnapshotReceiver('published')(snapshot);
+	});
 };
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
+let unpublishedConnectionGeneration = 0;
 
 const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 
@@ -375,6 +388,7 @@ const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction 
 };
 
 const disconnectLiveUnpublishedCards = () => {
+	unpublishedConnectionGeneration++;
 	const loading = selectLoadingCardFetchTypes(store.getState() as State);
 	for (const key of TypedObject.keys(loading)) {
 		store.dispatch(stopExpectingFetchedCards(key));
@@ -393,56 +407,124 @@ const disconnectLiveUnpublishedCards = () => {
 	}
 };
 
-//This should be called any time that whether the user can see unpublished cards
-//changes, or if the completeMode toggle changes.
-export const connectLiveUnpublishedCards = () => {
-
+export const connectLiveUnpublishedCards = async () => {
 	const state = store.getState() as State;
-	if (!selectUserMayViewApp(state)) return;
+	if (!selectUserMayViewApp(state)) {
+		console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
+		return;
+	}
 	disconnectLiveUnpublishedCards();
-
 
 	const userMayViewUnpublished = selectUserMayViewUnpublished(state);
 	const uid = selectUid(state);
-	const completeModeEnabled = selectCompleteModeEnabled(state);
-
-	const effectiveLimit = selectCompleteModeEffectiveCardLimit(state);
-
-	//Note: this logic is largely recreated in a different form in cullExtraCompleteModeCards.
-
-	//Note: the logic of which fetchType channel to expect a new unpublished card to come in on is duplicated in selectExpectedCardFetchTypeForNewUnpublishedCard
+	console.log(`[PERF] connectLiveUnpublishedCards: mayViewUnpublished=${userMayViewUnpublished}, uid=${uid}`);
 
 	if (userMayViewUnpublished) {
+		const connectionGeneration = ++unpublishedConnectionGeneration;
+		// Load ALL unpublished cards client-side. Two-phase approach:
+		//
+		// Phase 1 (paginated getDocs): Fetch all unpublished cards in batches.
+		// Firestore has a ~60s server-side timeout (non-configurable) that
+		// prevents loading 38k+ docs in a single request, especially with
+		// experimentalForceLongPolling. We paginate with orderBy + startAfter
+		// + limit, dispatching each batch to Redux as it arrives so the UI
+		// populates progressively. getDocs also primes the IndexedDB cache.
+		//
+		// Phase 2 (onSnapshot): Attach a real-time listener on the full query.
+		// Since the cache was primed by getDocs, the initial delivery comes
+		// from cache (instant), then the listener watches for live changes.
+		//
+		// The deepEqualIgnoringTimestamps dedup in receiveCards() prevents
+		// redundant Redux dispatches when onSnapshot re-delivers cached cards.
+		//
+		// On subsequent loads (warm cache), getDocs returns from cache almost
+		// instantly, and onSnapshot syncs only deltas from the server.
+		store.dispatch(expectUnpublishedCards('unpublished'));
 
-		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-		store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
+		const unpublishedQuery = query(
+			collection(db, CARDS_COLLECTION),
+			where('published', '==', false)
+		);
 
-		if (completeModeEnabled) {
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
-		} else {
-			//The default is to fetch onty the most recent unpublished cards up to the limit.
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-partial'));
+		// Phase 1: Parallel getDocs to prime cache and populate Redux.
+		// A single getDocs for 38k+ docs takes ~37s per 10k batch due to
+		// the experimentalForceLongPolling overhead. Running 5 partitions
+		// in parallel (by document ID range) cuts wall-clock time by ~4-5x.
+		// Card IDs are formatted as c-NNN-LLLLLL, so the digit after c-
+		// distributes roughly evenly across 0-9.
+		const PARTITIONS = [
+			{ gte: '', lt: 'c-2' },       // c-0xx, c-1xx
+			{ gte: 'c-2', lt: 'c-4' },    // c-2xx, c-3xx
+			{ gte: 'c-4', lt: 'c-6' },    // c-4xx, c-5xx
+			{ gte: 'c-6', lt: 'c-8' },    // c-6xx, c-7xx
+			{ gte: 'c-8', lt: '\uf8ff' }, // c-8xx, c-9xx, and any others
+		];
+
+		console.time('[PERF] unpublished-getDocs-total');
+		try {
+			const partitionPromises = PARTITIONS.map(async (partition, i) => {
+				const constraints = [
+					where('published', '==', false),
+					where(documentId(), '>=', partition.gte),
+					where(documentId(), '<', partition.lt),
+				];
+				// Filter out empty gte to avoid querying with >= ''
+				const partitionQuery = partition.gte
+					? query(collection(db, CARDS_COLLECTION), ...constraints)
+					: query(collection(db, CARDS_COLLECTION),
+						where('published', '==', false),
+						where(documentId(), '<', partition.lt));
+
+					console.time(`[PERF] unpublished-getDocs-partition-${i}`);
+					const snapshot = await getDocs(partitionQuery);
+					console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
+
+					if (connectionGeneration !== unpublishedConnectionGeneration) {
+						console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
+						return 0;
+					}
+					if (snapshot.size > 0) {
+						cardSnapshotReceiver('unpublished')(snapshot);
+						console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
+					}
+					return snapshot.size;
+				});
+
+				const sizes = await Promise.all(partitionPromises);
+				if (connectionGeneration !== unpublishedConnectionGeneration) {
+					console.timeEnd('[PERF] unpublished-getDocs-total');
+					console.log('[PERF] unpublished getDocs complete: ignored stale connection');
+					return;
+				}
+				const totalLoaded = sizes.reduce((a, b) => a + b, 0);
+				console.timeEnd('[PERF] unpublished-getDocs-total');
+				console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
+		} catch (e) {
+			console.timeEnd('[PERF] unpublished-getDocs-total');
+			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
+
+			// Phase 2: Real-time listener for ongoing changes
+			if (connectionGeneration !== unpublishedConnectionGeneration) return;
+			liveUnpublishedCardsUnsubcribe = onSnapshot(
+			unpublishedQuery,
+			cardSnapshotReceiver('unpublished')
+		);
 		return;
 	}
 
 	if (uid) {
-		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-		
-		//TODO: also have unpublished-{author,editor}-{complete,partial} like above?
 		store.dispatch(expectUnpublishedCards('unpublished-author'));
 		store.dispatch(expectUnpublishedCards('unpublished-editor'));
-
-		if (completeModeEnabled) {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
-		} else {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-editor'));
-		}
-
+		liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished-author')
+		);
+		liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished-editor')
+		);
 	}
-
 };
 
 export const connectLiveSections = () => {
@@ -486,4 +568,3 @@ export const connectLiveTags = () => {
 		console.error('[connectLiveTags] Error in onSnapshot:', error);
 	});
 };
-

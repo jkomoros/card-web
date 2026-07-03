@@ -2,7 +2,6 @@ import { createSelector } from 'reselect';
 
 import {
 	createObjectSelector,
-	createObjectSelectorCreator
 } from 'reselect-map';
 
 /* 
@@ -51,7 +50,8 @@ import {
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE,
-	editableFieldsForCardType
+	editableFieldsForCardType,
+	TEXT_FIELD_CONFIGURATION
 } from '../shared/card_fields.js';
 
 import {
@@ -66,11 +66,13 @@ import {
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
+	enrichCardWithConcepts,
 	suggestedConceptReferencesForCard,
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
 	possibleMissingConcepts,
-	synonymMap
+	synonymMap,
+	processedRunsForCardField
 } from './nlp.js';
 
 import {
@@ -131,7 +133,8 @@ import {
 	SetName,
 	SortName,
 	CollectionConfiguration,
-	ComposedChats
+	ComposedChats,
+	ProcessedRunInterface
 } from '../shared/types.js';
 
 import {
@@ -149,7 +152,6 @@ import {
 	Uid,
 	Author,
 	CardType,
-	ReferencesInfoMap,
 	UserInfo,
 	CardBooleanMap,
 	CardID,
@@ -183,6 +185,13 @@ import {
 import {
 	TypedObject
 } from '../shared/typed_object.js';
+
+import {
+	stemmedNormalizedWords,
+	withoutStopWords,
+	CURRENT_NLP_VERSION,
+	nlpSourceFingerprintForCard
+} from '../shared/nlp.js';
 
 import {
 	Timestamp
@@ -362,14 +371,6 @@ export const selectNextMaintenanceTaskName = createSelector(
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
 //backportMissingText, and where the card has some text that needs to be filled.
-const selectBackportTextFallbackMapCollection = createObjectSelector(
-	selectRawCards,
-	selectRawCards,
-	//Because this is a createObjectSelector, this will be called once per card
-	//in selectRawCards.
-	(card : Card, cards : Cards) : ReferencesInfoMap | null => backportFallbackTextMapForCard(card, cards)
-);
-
 const selectRawConceptCards = createSelector(
 	selectRawCards,
 	(cards) => conceptCardsFromCards(cards)
@@ -386,74 +387,93 @@ export const selectConcepts = createSelector(
 	(conceptCards) => getConceptsFromConceptCards(conceptCards)
 );
 
-const selectZippedCardAndFallbackMap = createSelector(
+// Per-card processing cache keyed on the Card object reference from Redux.
+// When Redux updates a card, it creates a new Card object — the old one's
+// cache entry becomes unreachable and is garbage-collected by WeakMap.
+// When selectRawCards changes (any card update), we iterate all entries but
+// only reprocess the cards whose object reference actually changed.
+// This replaces the old reselect-map chain (selectBackportTextFallbackMapCollection
+// → selectZippedCardAndFallbackMap → createZippedObjectSelector) which cleared
+// ALL 40k per-key caches on every card change, causing 600ms+ of blocking work.
+const _processedCardCache = new WeakMap<Card, ProcessedCard>();
+
+const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
+	const cached = _processedCardCache.get(card);
+	if (cached) return cached;
+
+	const fallbackText = backportFallbackTextMapForCard(card, allCards) || {};
+
+	let processed : ProcessedCard;
+	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION && card.nlp_source_fingerprint === nlpSourceFingerprintForCard(card)) {
+		// Fast path: use stored NLP tokens for ordinary fields while preserving
+		// the full nlp shape expected by downstream semantic code.
+		const nlp = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION).map(fieldName => [fieldName, []])) as unknown as {[field in CardFieldType]: ProcessedRunInterface[]};
+		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
+			if (storedRuns) {
+				nlp[fieldName] = storedRuns.map(storedRun => {
+					let cachedStemmed : string | undefined;
+					let cachedWithoutStopWords : string | undefined;
+					const getStemmed = () => {
+						if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
+						return cachedStemmed;
+					};
+					return {
+						normalized: storedRun.normalized,
+						original: '',
+						get stemmed() { return getStemmed(); },
+						get withoutStopWords() {
+							if (cachedWithoutStopWords === undefined) cachedWithoutStopWords = withoutStopWords(getStemmed());
+							return cachedWithoutStopWords;
+						},
+						uppercaseRanges: storedRun.uppercaseRanges,
+						get empty() { return storedRun.normalized === ''; }
+					};
+				});
+			}
+		}
+		// Compute reference-derived fields locally so all-cards local search sees
+		// the current raw-card reference state even when stored NLP was generated
+		// before an inbound/outbound reference side effect.
+		const cardWithFallback = {...card, fallbackText};
+		nlp.references_info_inbound = processedRunsForCardField(cardWithFallback, 'references_info_inbound');
+		nlp.non_link_references = processedRunsForCardField(cardWithFallback, 'non_link_references');
+		nlp.concept_references = processedRunsForCardField(cardWithFallback, 'concept_references');
+		processed = {
+			...card,
+			fallbackText,
+			importantNgrams: {},
+			synonymMap: {},
+			nlp: nlp as ProcessedCard['nlp']
+		} as ProcessedCard;
+	} else {
+		// Slow path: full NLP computation
+		processed = cardWithNormalizedTextProperties(card, fallbackText, {}, {});
+	}
+
+	_processedCardCache.set(card, processed);
+	return processed;
+};
+
+export const selectCards : (state : State) => ProcessedCards = createSelector(
 	selectRawCards,
-	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]} => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+	(rawCards : Cards) : ProcessedCards => {
+		const result : ProcessedCards = {} as ProcessedCards;
+		for (const [id, card] of Object.entries(rawCards) as [CardID, Card][]) {
+			result[id] = processCard(card, rawCards);
+		}
+		return result;
+	}
 );
 
-const selectSnapshotZippedCardAndFallbackMap = createSelector(
+const selectCardsSnapshot : (state : State) => ProcessedCards = createSelector(
 	selectRawCardsSnapshot,
-	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]}  => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
-);
-
-//objectEquality checks for objects to be the same content, allowing nested
-//objects
-const objectEquality = (before : unknown, after : unknown) : boolean => {
-	if (before === after) return true;
-	if (!before) return false;
-	if (!after) return false;
-	if (typeof before != 'object') return false;
-	if (typeof after != 'object') return false;
-	if (Array.isArray(before) && Array.isArray(after)) return arrayEquality(before, after);
-	const beforeEntries = Object.entries(before);
-	const objAfter : {[name :string]: unknown} = after as {[name : string] : unknown};
-	if (beforeEntries.length != Object.keys(after).length) return false;
-	return beforeEntries.every(entry => objectEquality(entry[1], objAfter[entry[0]]));
-};
-
-//arrayEquality returns true if both are arrays and each of their items are the same
-const arrayEquality = (before : unknown[], after : unknown[]) : boolean => {
-	if (before === after) return true;
-	if (!Array.isArray(before)) return false;
-	if (!Array.isArray(after)) return false;
-	if (before.length != after.length) return false;
-	return before.every((item, i) => objectEquality(item, after[i]));
-};
-
-//note: using objectEquality, instead of something that knows that the first item
-//is a card and the second is a two-level map, means that misses on card objects
-//will be more expensive to discover, because they'll iterate through each
-//property in the card. The upside is that because we use objectSelector, each
-//card will be presented the same for each ID consistently, so by only treating
-//them differently if something actually changed, we can save a lot of
-//downstream processing, since we do often get updateCards with no real change
-//to the card, and so much is downstream of when updateCards changes.
-const createZippedObjectSelector = createObjectSelectorCreator(objectEquality);
-
-//this uses createZippedObjectSelector because the cardAndFallbackMap entry will
-//be a different item, but as long as the individual items are the same as last
-//time they should be considered the same.
-export const selectCards : (state : State) => ProcessedCards = createZippedObjectSelector(
-	selectZippedCardAndFallbackMap,
-	//Note that depending on selectConcepts actually doesn't lead to many
-	//recalcs. That's because a) we're using objectEquality, so as long as the
-	//map stays semantically the same cards won't be reindexed, and b) because
-	//concept cards are by default published, which means they're in the first
-	//set of cards. That means the only time every card has to be reindexed is
-	//when specifically the title of one of the concept cards changes.
-	selectConcepts,
-	selectSynonymMap,
-	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
-);
-
-const selectCardsSnapshot : (state : State) => ProcessedCards = createZippedObjectSelector(
-	selectSnapshotZippedCardAndFallbackMap,
-	selectConcepts,
-	selectSynonymMap,
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
+	(rawCards : Cards) : ProcessedCards => {
+		const result : ProcessedCards = {} as ProcessedCards;
+		for (const [id, card] of Object.entries(rawCards) as [CardID, Card][]) {
+			result[id] = processCard(card, rawCards);
+		}
+		return result;
+	}
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
@@ -474,6 +494,16 @@ export const selectActiveCard = createSelector(
 	selectCards,
 	selectActiveCardID,
 	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard | null => cards[activeCard] || null
+);
+
+//selectActiveCardEnriched returns the active card enriched with real
+//importantNgrams and synonymMap, so concept highlighting works correctly.
+//This only enriches a single card (the active one), not all 40k.
+export const selectActiveCardEnriched = createSelector(
+	selectActiveCard,
+	selectConcepts,
+	selectSynonymMap,
+	(card, concepts, synonyms) : ProcessedCard | null => card ? enrichCardWithConcepts(card, concepts, synonyms) : null
 );
 
 export const selectKeyboardNavigates = createSelector(
@@ -813,9 +843,21 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions || {}).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
+export const selectServerIDF = (state : State) => state.data.serverIDF;
+
 export const selectFingerprintGenerator = createSelector(
 	selectCards,
-	(cards) => new FingerprintGenerator(cards)
+	selectServerIDF,
+	selectConcepts,
+	selectSynonymMap,
+	(cards, serverIDF, concepts, synonyms) => {
+		// Convert ServerIDFData to IDFMap format if available
+		const idfMap = serverIDF ? {
+			idf: serverIDF.idf,
+			maxIDF: serverIDF.maxIDF
+		} : null;
+		return new FingerprintGenerator(cards, undefined, undefined, idfMap, concepts, synonyms);
+	}
 );
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
@@ -857,17 +899,22 @@ const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined 
 	}
 	//null is a totally legal value to have, so we signal we need a recalculation via undefined.
 	if (memoizedEditingNormalizedCard === undefined) {
+		const start = performance.now();
 		//Note: this processing logic should be the same as selectCards processing.
 		const editingCard = selectEditingCard(state);
 		if (editingCard) {
 			const cards = selectRawCards(state);
 			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
-			const conceptsMap = selectConcepts(state);
-			const synonyms = selectSynonymMap(state);
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, conceptsMap, synonyms);
+			// Keep editing normalization cheap. Suggested concepts use the global
+			// concept map as a lookup after tokenizing the card; attaching every
+			// concept as importantNgrams here makes semantic word counting scan
+			// the full concept set against the editing text.
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, {}, {});
 		} else {
 			memoizedEditingNormalizedCard = undefined;
 		}
+		const duration = performance.now() - start;
+		if (duration > 50) console.log(`[PERF] selectEditingNormalizedCard: ${duration.toFixed(1)}ms`);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
 	return memoizedEditingNormalizedCard;
@@ -884,6 +931,22 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 		if (!editing) return editing;
 		if (!normalized) return editing;
 		return {...editing, nlp:normalized.nlp};
+	}
+);
+
+export const selectEditingCardForDisplay = createSelector(
+	selectEditingCard,
+	selectActiveCard,
+	(editing, active) => {
+		if (!editing) return null;
+		if (!active) return editing;
+		return {
+			...active,
+			...editing,
+			nlp: active.nlp,
+			importantNgrams: active.importantNgrams,
+			synonymMap: active.synonymMap
+		};
 	}
 );
 
@@ -949,10 +1012,11 @@ export const selectEditingCardSuggestedTags = createSelector(
 	selectEditingCardwithDelayedNormalizedProperties,
 	selectEditingCardSemanticFingerprint,
 	selectTagsSemanticFingerprint,
-	(card, cardFingerprint, tagFingerprints) => {
+	selectFingerprintGenerator,
+	(card, cardFingerprint, tagFingerprints, fingerprintGenerator) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!tagFingerprints || Object.keys(tagFingerprints).length == 0) return [];
-		const closestTags = new FingerprintGenerator().closestOverlappingItems('', cardFingerprint, tagFingerprints);
+		const closestTags = fingerprintGenerator.closestOverlappingItems('', cardFingerprint, tagFingerprints);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
 		const result = [];
@@ -966,10 +1030,10 @@ export const selectEditingCardSuggestedTags = createSelector(
 );
 
 //selectingEitingOrActiveCard returns either the editing card, or else the
-//active card.
+//active card (enriched with concepts so fingerprinting and highlighting work).
 const selectEditingOrActiveNormalizedCard = createSelector(
 	selectEditingNormalizedCard,
-	selectActiveCard,
+	selectActiveCardEnriched,
 	(editing, active) => editing && Object.keys(editing).length > 0 ? editing : active
 );
 
@@ -1388,9 +1452,8 @@ export const selectCardLimitReached = createSelector(
 
 export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
 	selectUserMayViewUnpublished,
-	selectCompleteModeEnabled,
-	(mayViewUnpublished, completeModeEnabled) : CardFetchType => {
-		if (mayViewUnpublished) return completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial';
+	(mayViewUnpublished) : CardFetchType => {
+		if (mayViewUnpublished) return 'unpublished';
 		//Technically this is only true if we have a uid, but otheriwse there's nothing to fetch anyway.
 		return 'unpublished-author';
 	}
@@ -1400,10 +1463,21 @@ export const selectDefaultSet = createSelector(
 	selectSections,
 	selectRawCards,
 	(sections : Sections, cards : Cards) : CardID[] => {
-		let result : CardID[] = [];
+		const resultSet = new Set<CardID>();
 		for (const section of Object.values(sections)) {
-			result = result.concat(section.cards);
+			for (const cardId of section.cards) {
+				resultSet.add(cardId);
+			}
 		}
+		//Also include any cards that have a non-null section but aren't in any
+		//section's cards array. This handles cards that have a section field
+		//but weren't loaded via the section data.
+		for (const [id, card] of Object.entries(cards)) {
+			if (card.section && !resultSet.has(id)) {
+				resultSet.add(id);
+			}
+		}
+		const result = [...resultSet];
 		//The order of cards in the section object is nondterministic. The order
 		//that matters is the sort_order. Higher sort-order should sort to the top.
 		result.sort((a,b) => {
@@ -1603,7 +1677,7 @@ export const selectCollectionConstructorArgumentsWithEditingCard = createSelecto
 );
 
 export const selectFieldValidationErrorsForEditingCard = createSelector(
-	selectEditingNormalizedCard,
+	selectEditingCard,
 	(card) :{[field in CardFieldType]+?: string}  => {
 		const result : {[field in CardFieldType]+?: string} = {};
 		if (!card) return result;
@@ -1619,8 +1693,12 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
-	(description, args) => description ? description.collection(args) : null
+	(description, args) => {
+		if (!description) return null;
+		return description.collection(args);
+	}
 );
+
 
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in
 //which reordering is legal. Note: this means that even if it is legal in
@@ -1752,7 +1830,12 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectCardsDrawerPanelOpen,
 	selectIsEditing,
 	selectEditorMinimized,
-	(activeCollection, panelOpen, isEditing, editorMinimized) => (isEditing && editorMinimized) ? false : !activeCollection || activeCollection.isFallback ? false : panelOpen
+	(activeCollection, panelOpen, isEditing, editorMinimized) => {
+		if (isEditing && editorMinimized) return false;
+		if (!panelOpen) return false;
+		if (!activeCollection || activeCollection.isFallback) return false;
+		return true;
+	}
 );
 
 //This is the final expanded, sorted collection, including start cards.
@@ -1761,15 +1844,19 @@ export const selectActiveCollectionCards = createSelector(
 	(collection) => collection ? collection.finalSortedCards : []
 );
 
+const selectActiveCollectionCardIndex = createSelector(
+	selectActiveCollectionCards,
+	(collection) : Map<CardID, number> => new Map(collection.map((card, index) => [card.id, index]))
+);
+
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardID,
-	selectActiveCollectionCards,
-	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
+	selectActiveCollectionCardIndex,
+	(cardId, index) => index.get(cardId) ?? -1
 );
 
 export const getCardIndexForActiveCollection = (state : State, cardId: CardID) : number => {
-	const collection = selectActiveCollectionCards(state);
-	return collection.map(card => card.id).indexOf(cardId);
+	return selectActiveCollectionCardIndex(state).get(cardId) ?? -1;
 };
 
 //returns an array of card-types that are in the BODY_CARD_TYPES that this user has access to

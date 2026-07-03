@@ -172,6 +172,13 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 
 	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
+		if (!this._open) {
+			this._card = null;
+			this._collectionIsFallback = false;
+			this._composedThreads = [];
+			this._userMayComment = false;
+			return;
+		}
 		this._card = selectActiveCard(state);
 		const activeCollection = selectActiveCollection(state);
 		this._collectionIsFallback = Boolean(activeCollection && activeCollection.isFallback);

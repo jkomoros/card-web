@@ -25,7 +25,7 @@ import * as icons from '../../shared/icons.js';
 
 import {
 	CardID,
-	CardType
+	CardType,
 } from '../types.js';
 
 import {
@@ -149,18 +149,25 @@ class CardDrawer extends LitElement {
 				/* tag-list can get wide, but keep it thin */
 				width: 12em;
 			}
+
 		`
 	];
 
 	override render() {
 
+		if (!this.showing) return html`<div hidden></div>`;
+
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
+		const currentCount = this.collection ? this.collection.numCards : 0;
 
 		return html`
-			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
+			<div class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
-						<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
+						<span>
+							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
+							<strong>${currentCount}</strong> cards
+						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>
 						</div>
@@ -181,7 +188,6 @@ class CardDrawer extends LitElement {
 				.renderOffset=${this.renderOffset}>
 			</card-thumbnail-list>`
 }
-					
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>

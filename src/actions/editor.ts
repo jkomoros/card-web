@@ -11,6 +11,7 @@ import {
 	selectMultiEditDialogOpen,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
+	selectEditingUnderlyingCardSnapshot,
 	selectOvershadowedUnderlyingCardChangesDiff,
 	selectOvershadowedUnderlyingCardChangesDiffDescription
 } from '../selectors.js';
@@ -71,7 +72,9 @@ import {
 } from '../images.js';
 
 import {
-	uploadsRef
+	uploadsRef,
+	db,
+	deepEqualIgnoringTimestamps
 } from '../firebase.js';
 
 import {
@@ -79,6 +82,20 @@ import {
 	uploadBytes,
 	getDownloadURL
 } from 'firebase/storage';
+
+import {
+	doc,
+	getDoc,
+	onSnapshot
+} from 'firebase/firestore';
+
+import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+import type {
+	Card
+} from '../types.js';
 
 import {
 	AutoTODOType,
@@ -95,11 +112,13 @@ import {
 	ReferenceType,
 	SectionID,
 	Slug,
+	State,
 	TagID,
-	Uid 
+	Uid
 } from '../types.js';
 
 import {
+	AppThunkDispatch,
 	ThunkSomeAction
 } from '../store.js';
 
@@ -153,6 +172,21 @@ import {
 let lastReportedSelectionRange : Range | null = null;
 let savedSelectionRange : Range | null = null;
 let selectionParent : HTMLElementWithStashedSelectionOffset | null = null;
+
+// Live listener for the card being edited (conflict mitigation)
+let editingCardUnsubscribe: (() => void) | null = null;
+
+const dispatchUnderlyingCardUpdateIfChanged = (dispatch : AppThunkDispatch, getState : () => State, freshCard : Card) => {
+	const state = getState();
+	const editingCard = selectEditingCard(state);
+	if (!editingCard || editingCard.id !== freshCard.id) return;
+	const underlyingSnapshot = selectEditingUnderlyingCardSnapshot(state);
+	if (underlyingSnapshot && deepEqualIgnoringTimestamps(underlyingSnapshot, freshCard)) return;
+	dispatch({
+		type: EDITING_UPDATE_UNDERLYING_CARD,
+		updatedUnderlyingCard: freshCard
+	});
+};
 
 //selection range is weird; you can only listen for changes at the document
 //level, but selections wihtin a shadow root are hidden from outside. Certain
@@ -254,7 +288,7 @@ export const editingSelectEditorTab = (tab : EditorContentTab) : SomeAction => {
 	};
 };
 
-export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
+export const editingStart = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
@@ -269,7 +303,39 @@ export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
 		console.warn('There doesn\'t appear to be an active card.');
 		return;
 	}
-	dispatch({type: EDITING_START, card: card});
+
+	// Start editing immediately from local state. Freshness checks happen below
+	// without blocking the editor from opening.
+	dispatch({type: EDITING_START, card});
+
+	// Set up live listener for this card only.
+	if (editingCardUnsubscribe) {
+		editingCardUnsubscribe();
+	}
+
+	editingCardUnsubscribe = onSnapshot(
+		doc(db, CARDS_COLLECTION, card.id),
+		snapshot => {
+			if (!snapshot.exists()) return;
+
+			const liveCard: Card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+			dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, liveCard);
+		},
+		error => {
+			console.warn('Editing card listener error (will retry on reconnect):', error.message);
+		}
+	);
+
+	// Refresh the card after the editor is open. If the user navigates away or
+	// starts editing a different card before this resolves, ignore the result.
+	try {
+		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
+		if (!freshSnapshot.exists()) return;
+		const freshCard: Card = {...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card;
+		dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, freshCard);
+	} catch (error) {
+		console.error('Error refreshing card after opening editor:', error);
+	}
 };
 
 export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) => {
@@ -288,7 +354,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 		}
 	}
 
-	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
+	if (state.editor?.selectedTab == 'config' && selectEditingCardSuggestedConceptReferences(state).length > 0) {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
 	}
 
@@ -358,8 +424,14 @@ export const linkCard = (cardID : CardID) : ThunkSomeAction => (_, getState) => 
 	document.execCommand('createLink', false, cardID);
 };
 
-export const editingFinish = () : SomeAction => {
-	return {type: EDITING_FINISH};
+export const editingFinish = () : ThunkSomeAction => (dispatch) => {
+	// Unsubscribe from live card listener
+	if (editingCardUnsubscribe) {
+		editingCardUnsubscribe();
+		editingCardUnsubscribe = null;
+	}
+
+	dispatch({type: EDITING_FINISH});
 };
 
 export const notesUpdated = (newNotes : string) : SomeAction => {

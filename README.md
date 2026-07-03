@@ -29,7 +29,7 @@ Paste that JSON blob in your `config.SECRET.json` file, where the sample "fireba
 
 Run `npm run generate:config`. This copies the config you just set into various static files in the project.
 
-Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
+Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default `us-central1` is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
 In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.  
 
@@ -78,6 +78,29 @@ You will likely have to run maintenance tasks on your instance to upgrade the da
 To do that, go to https://your-project-domain/maintenance , hard refresh
 (Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
 any maintenance tasks it tells you to. Note that you might need to run multiple in a row. Run them until it says 'No tasks to run'.
+
+### Firebase Functions Configuration
+
+Cloud Functions store configuration separately from app config.
+
+**View current config:**
+```bash
+firebase functions:config:get
+```
+
+**Update config (run before deploy):**
+```bash
+gulp configure-api-keys
+```
+
+This sets:
+- `openai.api_key` - OpenAI API key (if configured)
+- `anthropic.api_key` - Anthropic API key (if configured)
+
+⚠️ **Important:**
+- Config is per-project (dev and prod separate)
+- Changes require redeploying functions
+- If functions can't access data, verify this config
 
 ## Extra Credit
 

@@ -22,7 +22,7 @@ import {
 	selectEditingCardSuggestedTags,
 	selectAuthorsForTagList,
 	selectUserIsAdmin,
-	selectTagInfosForCards,
+	selectRawCards,
 	selectUserMayEditSomeTags,
 	tagsUserMayNotEdit,
 	selectSectionsUserMayEdit,
@@ -136,6 +136,7 @@ import {
 	TagID,
 	Slug,
 	CardID,
+	Cards,
 	State,
 	ReferenceType,
 	CardFieldTypeEditable,
@@ -173,8 +174,31 @@ import {
 
 type TagInfosByReferenceType = {[typ in ReferenceType]: TagInfos};
 
+const cardReferenceIDs = (card : Card | null) : CardID[] => {
+	if (!card) return [];
+	return Object.values(references(card).byTypeArray()).flat();
+};
+
+const cardTagInfosForIDs = (cards : Cards, ids : Iterable<CardID>) : TagInfos => {
+	const result : TagInfos = {};
+	for (const id of ids) {
+		const card = cards[id];
+		if (!card) continue;
+		result[id] = {
+			id,
+			title: card.name || id,
+			previewCard: id
+		};
+	}
+	return result;
+};
+
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
+
+	_suggestionsTimeout = 0;
+
+	_suggestionsKey = '';
 
 	@state()
 		_card: Card | null;
@@ -481,7 +505,7 @@ class CardEditor extends connect(store)(LitElement) {
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
 		<div class='scrim'></div>
         <div class='inputs'>
-		  <div ?hidden=${this._selectedTab !== 'content'} class='flex body'>
+		  ${this._selectedTab == 'content' ? html`<div class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
 				<label data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
 				<label data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
@@ -525,8 +549,8 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${card.todo}></textarea>
-		  </div>
-		  <div ?hidden=${this._selectedTab !== 'config'}>
+		  </div>` : ''}
+		  ${this._selectedTab == 'config' ? html`<div>
 			<div class='row'>
 				<div>
 				<label>Section ${help('Cards are in 0 or 1 sections, which determines the default order they show up in. Cards that are orphaned will not show up in any default collection.')}</label>
@@ -741,7 +765,7 @@ class CardEditor extends connect(store)(LitElement) {
 						</div>`;
 	})}
 				</div>
-			</div>
+			</div>` : ''}
         </div>
         <div class='buttons'>
 			<div class='header' @click=${this._handleMinimizedClicked}>
@@ -856,32 +880,73 @@ class CardEditor extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._card= selectEditingCard(state);
-		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
 		this._active = selectIsEditing(state);
 		this._minimized = selectEditorMinimized(state);
-		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
-		this._userMayUseAI = selectUserMayUseAI(state);
-		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
-		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
-		this._substantive = state.editor ? state.editor.substantive : false;
 		this._selectedTab = state.editor ? state.editor.selectedTab : 'content';
 		this._selectedEditorTab = state.editor ? state.editor.selectedEditorTab : 'content';
+		const configTabActive = this._active && this._selectedTab == 'config';
+
+		this._autoTodos = configTabActive ? selectEditingCardAutoTodos(state) : [];
+		this._userMayChangeEditingCardSection = configTabActive ? selectUserMayChangeEditingCardSection(state) : false;
+		this._userMayUseAI = selectUserMayUseAI(state);
+		this._sectionsUserMayEdit = configTabActive ? selectSectionsUserMayEdit(state) : {};
+		this._mayNotDeleteReason = configTabActive ? selectReasonsUserMayNotDeleteActiveCard(state) : '';
+		this._substantive = state.editor ? state.editor.substantive : false;
 		this._tagInfos = selectTags(state);
-		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
-		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
-		this._cardTagInfos = selectTagInfosForCards(state);
-		//skip the expensive selectors if we're not active
-		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
-		this._suggestedConcepts = this._active ? selectEditingCardSuggestedConceptReferences(state) : [];
-		this._authors = selectAuthorsForTagList(state);
+		this._userMayEditSomeTags = configTabActive ? selectUserMayEditSomeTags(state) : false;
+		this._tagsUserMayNotEdit = configTabActive ? tagsUserMayNotEdit(state) : [];
+		if (configTabActive) {
+			this._scheduleSuggestions(state);
+			this._cardTagInfos = this._makeVisibleCardTagInfos(state);
+		} else {
+			window.clearTimeout(this._suggestionsTimeout);
+			this._suggestionsKey = '';
+			this._suggestedTags = [];
+			this._suggestedConcepts = [];
+			this._cardTagInfos = {};
+		}
+		this._authors = configTabActive ? selectAuthorsForTagList(state) : {};
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
-		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
-		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
+		this._underlyingCardDifferences = configTabActive ? selectEditingUnderlyingCardSnapshotDiffDescription(state) : '';
+		this._overshadowedDifferences = configTabActive ? selectOvershadowedUnderlyingCardChangesDiffDescription(state) : '';
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 		this._fieldValidationErrors = selectFieldValidationErrorsForEditingCard(state);
+	}
+
+	_suggestionKeyForState(state : State) {
+		const cardID = state.editor?.card?.id || '';
+		const extractionVersion = state.editor?.cardExtractionVersion || 0;
+		return this._active && this._selectedTab == 'config' ? `${cardID}:${extractionVersion}` : '';
+	}
+
+	_scheduleSuggestions(state : State) {
+		const key = this._suggestionKeyForState(state);
+		if (!key || key == this._suggestionsKey) return;
+		window.clearTimeout(this._suggestionsTimeout);
+		this._suggestionsKey = key;
+		this._suggestedTags = [];
+		this._suggestedConcepts = [];
+		this._suggestionsTimeout = window.setTimeout(() => {
+			const latestState = store.getState() as State;
+			if (this._suggestionKeyForState(latestState) != key) return;
+			this._suggestedTags = selectEditingCardSuggestedTags(latestState);
+			this._suggestedConcepts = selectEditingCardSuggestedConceptReferences(latestState);
+			this._cardTagInfos = this._makeVisibleCardTagInfos(latestState, this._suggestedConcepts);
+			this._cardTagInfosForReferenceTypes = this._makeCardTagInfosForReferenceTypes();
+		}, 0);
+	}
+
+	_makeVisibleCardTagInfos(state : State, suggestedConcepts = this._suggestedConcepts || []) {
+		const visibleCardIDs = new Set<CardID>([
+			...cardReferenceIDs(this._card),
+			...cardReferenceIDs(this._underlyingCard),
+			...(this._card ? cardMissingReciprocalLinks(this._card) : []),
+			...suggestedConcepts
+		]);
+		return cardTagInfosForIDs(selectRawCards(state), visibleCardIDs);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

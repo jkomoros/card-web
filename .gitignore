@@ -21,3 +21,11 @@ index.PARTIAL.html
 firestore.rules
 firebase.json
 test-mount/
+.playwright-mcp/
+service-account-key.json
+.claude/settings.local.json
+.firebase/
+.firebaserc
+migration-nlp-tokens-report.json
+*.log
+*.bak.*

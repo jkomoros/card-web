@@ -22,6 +22,11 @@ import {
 } from '../shared/collection_description_base.js';
 
 import {
+	classifyCollectionDescription,
+	FilterClassification
+} from './filter-classification.js';
+
+import {
 	TypedObject
 } from '../shared/typed_object.js';
 
@@ -67,6 +72,14 @@ import {
 } from './memoize.js';
 
 import { references } from './references.js';
+
+const SLOW_COLLECTION_WORK_THRESHOLD_MS = 50;
+
+const logSlowCollectionWork = (operation : string, description : CollectionDescription, count : number, start : number) => {
+	const duration = performance.now() - start;
+	if (duration < SLOW_COLLECTION_WORK_THRESHOLD_MS) return;
+	console.log(`[PERF] collection ${operation}: ${duration.toFixed(1)}ms over ${count} cards for ${description.serialize()}`);
+};
 
 export const queryTextFromCollectionDescription = (description : CollectionDescription) : string => {
 	if (!description) return '';
@@ -207,6 +220,7 @@ export class CollectionDescription {
 	_offset : number;
 	_serialized : string;
 	_serializedShort : string;
+	_classification? : FilterClassification;
 
 	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
@@ -310,6 +324,13 @@ export class CollectionDescription {
 			viewMode: this.viewMode,
 			viewModeExtra: this.viewModeExtra
 		};
+	}
+
+	get classification() : FilterClassification {
+		if (!this._classification) {
+			this._classification = classifyCollectionDescription(this);
+		}
+		return this._classification;
 	}
 
 	serialize() {
@@ -654,6 +675,8 @@ export class Collection {
 	_sortedCards : ProcessedCard[] | null;
 	_labels : string[] | null;
 	_startCards : ProcessedCard[] | null;
+	_finalSortedCards : ProcessedCard[] | null;
+	_finalLabels : string[] | null;
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
@@ -698,6 +721,8 @@ export class Collection {
 		this._sortedCards = null;
 		this._labels = null;
 		this._startCards = null;
+		this._finalSortedCards = null;
+		this._finalLabels = null;
 		this._webInfo = null;
 		//sortExtras is extra information that configurable filters can
 		//optionally return and then make use of in special sorts later.
@@ -707,6 +732,10 @@ export class Collection {
 
 	get description() {
 		return this._description;
+	}
+
+	get classification() : FilterClassification {
+		return this._description.classification;
 	}
 
 	get _filterExtras() : FilterExtras {
@@ -723,6 +752,7 @@ export class Collection {
 	}
 
 	_makeFilteredCards() {
+		const start = performance.now();
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
@@ -738,7 +768,9 @@ export class Collection {
 			this._collectionIsFallback = true;
 			filteredItems = this._fallbacks[this._description.serialize()] || [];
 		}
-		return expandCardCollection(filteredItems, this._cardsForExpansion);
+		const result = expandCardCollection(filteredItems, this._cardsForExpansion);
+		logSlowCollectionWork('filter', this._description, baseSet.length, start);
+		return result;
 	}
 
 	_ensureFilteredCards() {
@@ -835,11 +867,13 @@ export class Collection {
 	}
 
 	_makeSortedCards() {
+		const start = performance.now();
 		const collection = this._preLimitFilteredCards;
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
 		if (this._description.set == 'main' && this._description.sort == 'default' && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
+			logSlowCollectionWork('sort-skip', this._description, collection.length, start);
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
@@ -854,6 +888,7 @@ export class Collection {
 		};
 		const sortedCards = [...collection].sort(sort);
 		if (this._description.sortReversed) sortedCards.reverse();
+		logSlowCollectionWork('sort', this._description, collection.length, start);
 		return sortedCards;
 	}
 
@@ -909,10 +944,12 @@ export class Collection {
 	}
 
 	get finalSortedCards() : ProcessedCard[] {
+		if (this._finalSortedCards) return this._finalSortedCards;
 		this._ensureStartCards();
 		const startCards = this._startCards;
 		if (!startCards) throw new Error('No start cards as expected');
-		return [...startCards, ...this.sortedCards];
+		this._finalSortedCards = [...startCards, ...this.sortedCards];
+		return this._finalSortedCards;
 	}
 
 	get numStartCards() {
@@ -954,10 +991,12 @@ export class Collection {
 	}
 
 	get finalLabels() {
+		if (this._finalLabels) return this._finalLabels;
 		this._ensureStartCards();
 		const startCards = this._startCards;
 		if (!startCards) throw new Error('no start cards as expected');
-		return [...startCards.map(() => ''), ...this.labels];
+		this._finalLabels = [...startCards.map(() => ''), ...this.labels];
+		return this._finalLabels;
 	}
 
 	_ensureWebInfo() {
@@ -989,5 +1028,9 @@ export class Collection {
 		this._ensureWebInfo();
 		return this._webInfo;
 	}
+
+	// Note: Pagination support was removed because Collection instances are recreated
+	// on every state change, which loses pagination state. A proper fix would store
+	// pagination state in Redux, but for Phase 4 we're using client-side filtering only.
 
 }

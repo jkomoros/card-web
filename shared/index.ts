@@ -6,3 +6,5 @@ export * from './types.js';
 export * from './collection-constants.js';
 export * from './timestamp.js';
 export * from './util.js';
+export * from './nlp.js';
+export * from './stemmer.js';

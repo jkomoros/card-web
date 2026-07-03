@@ -23,7 +23,7 @@ import {
 	EMAIL_TO_ADDRESS_VAR,
 	EMAIL_FROM_ADDRESS_VAR,
 	QDRANT_CLUSTER_URL_VAR,
-	QDRANT_API_KEY_VAR
+	QDRANT_API_KEY_VAR,
 } from '../shared/env-constants.js';
 
 const envLine = (key : string, val = '') : string => {

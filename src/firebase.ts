@@ -3,13 +3,13 @@
 
 import { initializeApp } from 'firebase/app';
 
-import { 
+import {
 	serverTimestamp,
 	deleteField,
 	Timestamp,
 	initializeFirestore,
 	persistentLocalCache,
-	persistentMultipleTabManager
+	persistentMultipleTabManager,
 } from 'firebase/firestore';
 
 import {
@@ -43,6 +43,7 @@ export let DEV_MODE = false;
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
 
@@ -138,12 +139,12 @@ export const getIDToken = async (): Promise<string> => {
  * @returns Promise that resolves to the JSON response
  */
 export const authenticatedFetch = async <RequestData, ResponseData>(
-	url: string, 
+	url: string,
 	data: RequestData
 ): Promise<ResponseData> => {
 	// Get Firebase auth token
 	const token = await getIDToken();
-	
+
 	// Make the authenticated fetch request
 	const response = await fetch(url, {
 		method: 'POST',
@@ -153,9 +154,15 @@ export const authenticatedFetch = async <RequestData, ResponseData>(
 		},
 		body: JSON.stringify(data)
 	});
-	
+
+	// Check for HTTP errors
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(`HTTP ${response.status}: ${errorText}`);
+	}
+
 	// Parse the JSON response
 	const responseData = await response.json() as ResponseData;
-		
+
 	return responseData;
 };

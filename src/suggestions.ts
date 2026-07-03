@@ -285,7 +285,7 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 			keyCardID: card.id
 		},
 		logger,
-		concepts: selectConcepts(state),
+		concepts: selectConcepts(state) as StringCardMap,
 		uid: selectUid(state),
 		useLLMs: selectUserMayUseAI(state) && selectSuggestionsUseLLMs(state),
 		aggressive: selectSuggestionsAggressive(state)

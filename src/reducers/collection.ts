@@ -72,7 +72,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			active: action.collection,
 			activeRenderOffset: 0,
-			collectionWordCloudVersion: 0
+			collectionWordCloudVersion: 0,
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones

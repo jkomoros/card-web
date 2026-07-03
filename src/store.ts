@@ -7,7 +7,7 @@ import {
 	Reducer
 } from 'redux';
 
-import thunk, { ThunkAction, ThunkDispatch, ThunkMiddleware } from 'redux-thunk';
+import thunkImport, { ThunkAction, ThunkDispatch, ThunkMiddleware } from 'redux-thunk';
 import { lazyReducerEnhancer } from 'pwa-helpers/lazy-reducer-enhancer.js';
 
 import { State } from './types.js';
@@ -31,6 +31,8 @@ const devCompose: <Ext0, Ext1, StateExt0, StateExt1>(
   ) => StoreEnhancer<Ext0 & Ext1, StateExt0 & StateExt1> =
 	window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
+const thunkMiddleware = (typeof thunkImport === 'function' ? thunkImport : (thunkImport as {default: typeof thunkImport}).default) as ThunkMiddleware<State, SomeAction>;
+
 // Initializes the Redux store with a lazyReducerEnhancer (so that you can
 // lazily add reducers after the store has been created) and redux-thunk (so
 // that you can dispatch async actions). See the "Redux and state management"
@@ -40,7 +42,7 @@ export const store = createStore(
 	state => state as Reducer<State,SomeAction>,
 	devCompose(
 		lazyReducerEnhancer(combineReducers),
-		applyMiddleware(thunk as ThunkMiddleware<State, SomeAction>))
+		applyMiddleware(thunkMiddleware))
 );
 
 // Initially loaded reducers.

@@ -56,7 +56,8 @@
           "reorder-card",
           "info-zippy-clicked",
           "add-card",
-          "add-working-notes-card"
+          "add-working-notes-card",
+          "load-more-cards"
         ]
       }
     ]

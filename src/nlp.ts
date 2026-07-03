@@ -1,6 +1,6 @@
 import {
 	stemmer
-} from './stemmer.js';
+} from '../shared/stemmer.js';
 
 import {
 	TypedObject
@@ -50,9 +50,29 @@ import {
 	cardFieldTypeSchema
 } from './types.js';
 
+import type {
+	ProcessedRunInterface
+} from '../shared/types.js';
+
 import {
 	innerTextForHTML
 } from '../shared/util.js';
+
+import {
+	STOP_WORDS,
+	OVERRIDE_STEMS,
+	computeUppercaseRanges,
+	applyCaseMap,
+	normalizedWords,
+	withoutStopWords,
+	ngrams,
+	ngramWithinOther,
+	MAX_N_GRAM_FOR_FINGERPRINT,
+	lowercaseSplitWords,
+	wordIsUrl,
+	extractFieldValueForIndexing,
+	splitRuns
+} from '../shared/nlp.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
@@ -151,78 +171,6 @@ export const synonymMap = (rawCards : Cards) : SynonymMap => {
 	return result;
 };
 
-//STOP_WORDS are words that are so common that we should basically skip them. We
-//skip them when generating multi-word queries, and also for considering words
-//for ngrams, since these words are so common that if they're considered than a
-//distinctive word + a stop word will show up twice. This stop word list is a
-//lightly processed version of NLTK's english stop word list, from
-//https://gist.github.com/sebleier/554280, filtered to cut off things from
-//"once" and downward, and also prononuns like `I`, 'my', 'mine', `myself` and
-//the 2nd and 3rd person variations.
-const STOP_WORDS : {[word : string] : boolean} = {
-	'a' : true,
-	'an' : true,
-	'the' : true,
-	'in' : true,
-	'is' : true,
-	'and': true,
-	'of': true,
-	'to': true,
-	'that': true,
-	'you': true,
-	'it': true,
-	'ar': true,
-	'be': true,
-	'on': true,
-	'can': true,
-	'have': true,
-	'for':true,
-	'which': true,
-	'who': true,
-	'whom': true,
-	'thi': true,
-	'these': true,
-	'those': true,
-	'am': true,
-	'wa': true,
-	'were': true,
-	'been': true,
-	'ha': true,
-	'had': true,
-	'do': true,
-	'doe': true,
-	'did': true,
-	'but': true,
-	'if': true,
-	'or': true,
-	'becaus': true,
-	'as': true,
-	'until': true,
-	'while': true,
-	'at': true,
-	'by': true,
-	'with': true,
-	'about': true,
-	'against': true,
-	'between': true,
-	'into': true,
-	'through': true,
-	'dure': true,
-	'befor': true,
-	'after': true,
-	'abov': true,
-	'below': true,
-	'from': true,
-	'up': true,
-	'down': true,
-	'out': true,
-	'off': true,
-	'over': true,
-	'under': true,
-	'again': true,
-	'further': true,
-	'then': true,
-};
 
 //STOP_WORDS that should be lowercased in fingerprint.prettyItems.
 const LOWERCASE_STOP_WORDS : {[word : string] : boolean } = {
@@ -238,29 +186,19 @@ const LOWERCASE_STOP_WORDS : {[word : string] : boolean } = {
 	'for':true,
 };
 
-//OVERRIDE_STEMS are words that stem 'wrong' and we want to have a manual
-//replacement instead of using the real stemmer. If the word being stemmed
-//starts with the key in this map, it will be 'stemmed' to the word on the
-//right.
-const OVERRIDE_STEMS = {
-	//optimism-family words and optimized-familyl words stem to the same thing
-	//but they're very different.
-	'optimiz': 'optimiz',
-	//generally and generative stem to the same word otherwise
-	'generativ': 'generativ',
-	//Organization and organied stem to the same word otherwise
-	'organiza': 'organiza',
-	//Organic and organized stem to the same word
-	'organic': 'organic',
-	//Polarized and polarity stem to the same thing otherwise
-	'polarit': 'polarit',
-	//Useful and use all reduce down to 'us'
-	'usef': 'usef',
-	//communicate and community reduce to the same stem otherwise
-	'communit': 'communit',
-	//later and lateral reduce to the same
-	'lateral': 'lateral'
+const _importantNgramsByCardIDCache = new WeakMap<StringCardMap, {[cardID : CardID] : string[]}>();
+
+const importantNgramsByCardID = (importantNgrams : StringCardMap) : {[cardID : CardID] : string[]} => {
+	let cached = _importantNgramsByCardIDCache.get(importantNgrams);
+	if (cached) return cached;
+	cached = {};
+	for (const [ngram, cardID] of Object.entries(importantNgrams || {})) {
+		cached[cardID] = [...(cached[cardID] || []), ngram];
+	}
+	_importantNgramsByCardIDCache.set(importantNgrams, cached);
+	return cached;
 };
+
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
 //object as a key.
@@ -300,7 +238,13 @@ export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard,
 	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
 	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray('concept').map(item => [item, true]));
 	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
-	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => allConceptCardReferences[entry[1]]));
+	const byCardID = importantNgramsByCardID(card.importantNgrams || {});
+	const filteredHighlightMap : StringCardMap = {};
+	for (const cardID of Object.keys(allConceptCardReferences)) {
+		for (const ngram of byCardID[cardID] || []) {
+			filteredHighlightMap[ngram] = cardID;
+		}
+	}
 	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
 });
 
@@ -387,55 +331,6 @@ const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, within
 	}
 };
 
-//If originalCase is not true, then lowercases everything.
-const lowercaseSplitWords = (str : string, originalCase = false) : string[] => {
-	if (!originalCase) str = str.toLowerCase();
-	return str.split(/\s+/);
-};
-
-const wordIsUrl = (word : string) : boolean => {
-	if (!word || !word.includes('/')) return false;
-	const distinctiveURLParts = ['http:', 'https:', '.com', '.net', '.org'];
-	for (const urlPart of distinctiveURLParts) {
-		if (word.includes(urlPart)) return true;
-	}
-	return false;
-};
-
-//splitSlashNonURLs will return an array of words, with either a single item, or
-//n items, split on '/'. If the item looks like a URL it won't split slashes. It
-//assumes text is lowercase.
-const splitSlashNonURLs = (word : string) : string[]  => {
-	if (!word || !word.includes('/')) return [word];
-	return wordIsUrl(word) ? [word] : word.split('/');
-};
-
-const normalizedWords = (str : string, originalCase = false) : string => {
-	if (!str) str = '';
-
-	const splitWords = lowercaseSplitWords(str, originalCase);
-	const result = [];
-	for (const word of splitWords) {
-		for (let subWord of splitSlashNonURLs(word)) {
-			//Leave URLS totally in place.
-			if (wordIsUrl(subWord)) {
-				result.push(subWord);
-				continue;
-			}
-			subWord = subWord.replace(/^\W*/, '');
-			subWord = subWord.replace(/\W*$/, '');
-			//Pretend like em-dashes are just spaces
-			subWord = subWord.split('--').join(' ');
-			subWord = subWord.split('&emdash;').join(' ');
-			subWord = subWord.split('-').join(' ');
-			subWord = subWord.split('+').join(' ');
-			if (!subWord) continue;
-			result.push(subWord);
-		}
-	}
-	return result.join(' ');
-};
-
 const memoizedStemmedWords : {[word : string] : string} = {};
 //Inverse: the stemmed result, to a map of words and their counts with how often
 //they're handed out
@@ -468,10 +363,6 @@ const stemmedNormalizedWords = (str : string) : string => {
 	return result.join(' ');
 };
 
-const withoutStopWords = (str : string) : string => {
-	return str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
-};
-
 const memoizedFullyNormalizedString : {[raw : string] : string} = {};
 
 const fullyNormalizedString = (rawStr : string) : string => {
@@ -494,27 +385,6 @@ export const cardMatchesString = (card : ProcessedCard, fieldName : CardFieldTyp
 		if (run.withoutStopWords == normalizedString) return true;
 	}
 	return false;
-};
-
-//Returns a string, where if it's an array or object (or any of their subkeys
-//are) they're joined by ' '. This allows it to work straightforwardly for
-//normal text properties, as well as arrays, objects, or even nested objects
-//that have string values at the terminus.
-const extractFieldValueForIndexing = (fieldValue : string | object) : string => {
-	if (typeof fieldValue !== 'object') return fieldValue;
-	if (!fieldValue) return '';
-	//Join multi ones with the split character
-	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).filter(str => str).join('\n');
-};
-
-//Text is non-normalized raw text. Runs are distinct bits of text that are
-//logically separate from one another, such that a word at the end of one run
-//shouldn't be considered to be 'next to' the beginning word of the next run.
-//Block-level elements, separate links, etc, all are considered new runs.
-const splitRuns = (text : string) : string[] => {
-	if (!text) return [];
-	//TODO: also split for e.g. parantheses, quotes, etc
-	return text.split('\n').filter(str => str);
 };
 
 //This is the set of card field extractors for any field types that have
@@ -578,12 +448,20 @@ class ProcessedRun {
 
 	original : string;
 	normalized : string;
+	uppercaseRanges? : number[];
 	stemmed : string;
 	withoutStopWords : string;
 
 	constructor(originalText : string) {
 		this.original = originalText;
 		this.normalized = normalizedWords(originalText);
+		const hasUppercase = originalText !== originalText.toLowerCase();
+		if (hasUppercase) {
+			const normalizedOrigCase = normalizedWords(originalText, true);
+			this.uppercaseRanges = computeUppercaseRanges(this.normalized, normalizedOrigCase);
+		} else {
+			this.uppercaseRanges = undefined;
+		}
 		this.stemmed = stemmedNormalizedWords(this.normalized);
 		this.withoutStopWords = withoutStopWords(this.stemmed);
 	}
@@ -596,6 +474,10 @@ class ProcessedRun {
 //returns an object with original, normalized, stemmed, withoutStopWords fields.
 const processedRun = (originalText : string) : ProcessedRun => {
 	return new ProcessedRun(originalText);
+};
+
+export const processedRunsForCardField = (card : CardWithOptionalFallbackText, fieldName : CardFieldType) : ProcessedRunInterface[] => {
+	return extractRawContentRunsForCardField(card, fieldName).map(str => processedRun(str)).filter(run => !run.empty);
 };
 
 //extractContentWords returns an object with the field to the non-de-stemmed
@@ -620,11 +502,30 @@ const extractContentWords = (card : CardWithOptionalFallbackText) => {
 		concept_references: []
 	};
 	for (const fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
-		const runs = extractRawContentRunsForCardField(card, fieldName);
-		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-		obj[fieldName] = runs.map(str => processedRun(str)).filter(run => !run.empty);
+		obj[fieldName] = processedRunsForCardField(card, fieldName);
 	}
 	return obj;
+};
+
+const _enrichCache = new WeakMap<ProcessedCard, {concepts: StringCardMap, synonyms: SynonymMap, result: ProcessedCard}>();
+
+//enrichCardWithConcepts lazily enriches a ProcessedCard that was created
+//without concepts/synonyms (i.e. from the fast path in selectCards) with the
+//real importantNgrams and synonymMap. This is used at the point of consumption
+//(fingerprinting, concept highlighting) rather than at card creation, so we
+//don't trigger a 49-second re-evaluation of all 40k cards.
+export const enrichCardWithConcepts = (card : ProcessedCard, concepts : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+	const cached = _enrichCache.get(card);
+	if (cached && cached.concepts === concepts && cached.synonyms === synonyms) return cached.result;
+	const normalizedConcepts = normalizeNgramMap(concepts);
+	const normalizedSynonyms = normalizeSynonymMap(synonyms);
+	const result : ProcessedCard = {
+		...card,
+		importantNgrams: normalizedConcepts,
+		synonymMap: normalizedSynonyms,
+	};
+	_enrichCache.set(card, {concepts, synonyms, result});
+	return result;
 };
 
 const memoizedNormalizedSynonymMaps = new WeakMap();
@@ -694,22 +595,6 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fa
 		nlp: extractContentWords(preliminaryResult),
 	};
 });
-
-//text should be normalized
-const ngrams = (text : string, size  = 2) : string[]  => {
-	if (!text) return [];
-	const pieces = text.split(' ');
-	if (pieces.length < size) return [];
-	const result = [];
-	for (let i = 0; i < (pieces.length - size + 1); i++) {
-		const subPieces = [];
-		for (let j = 0; j < size; j++) {
-			subPieces.push(pieces[i + j]);
-		}
-		result.push(subPieces.join(' '));
-	}
-	return result;
-};
 
 //Returns the words and filters in the text.
 export const extractFiltersFromQuery = (queryTextIncludingFilters : string) : [query : string, filters : string[]] => {
@@ -877,13 +762,8 @@ const queryWordsAndFilters = (queryString : string) : [string, string[]] => {
 	return [words.join(' '), filters];
 };
 
-export const ngramWithinOther =(ngram : string, container : string) : boolean => {
-	//ngramWithinOther is _extremely_ hot. We'll add padding to make sure that
-	//matches only happen at word boundaries.
-	const paddedNgram = ' ' + ngram + ' ';
-	const paddedContainer = ' ' + container + ' ';
-	return paddedContainer.includes(paddedNgram);
-};
+//Re-export for existing consumers
+export { ngramWithinOther, MAX_N_GRAM_FOR_FINGERPRINT };
 
 //from https://stackoverflow.com/a/3561711
 const escapeRegex = (string : string) : string => {
@@ -891,8 +771,6 @@ const escapeRegex = (string : string) : string => {
 	return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 };
 
-//How high to go for n-grams in fingerprint by default. 2 = bigrams and monograms.
-const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //ngrams will additionally return an ngram of the full string if the number of
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
@@ -1050,7 +928,7 @@ const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun, o
 		return '';
 	}
 
-	const normalized = originalCase ? normalizedWords(run.original, true) : run.normalized;
+	const normalized = originalCase ? applyCaseMap(run.normalized, run.uppercaseRanges) : run.normalized;
 	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
 	return normalized.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
 
@@ -1090,12 +968,15 @@ const DEBUG_PRINT_MISSING_CONCEPTS_INFO = false;
 
 export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint => {
 	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
-	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
+	//Derive concepts and synonyms from cards so the fingerprint generator can enrich cards with concept data.
+	const conceptCards = conceptCardsFromCards(cards);
+	const concepts = getConceptsFromConceptCards(conceptCards);
+	const syns = synonymMap(cards);
+	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5, null, concepts, syns);
 	let cardIDsForNgram : {[ngram : string]: CardID[]} = {};
 	let cumulativeTFIDFForNgram : {[ngram : string]: number} = {};
 
-	const conceptCards = conceptCardsFromCards(cards);
-	const existingConcepts = normalizeNgramMap(getConceptsFromConceptCards(conceptCards));
+	const existingConcepts = normalizeNgramMap(concepts);
 
 	for (const [cardID, fingerprint] of Object.entries(maximumFingerprintGenerator.fingerprints())) {
 		for (const [ngram, tfidf] of fingerprint.entries()) {
@@ -1524,6 +1405,7 @@ export class Fingerprint {
 			if (!maxOriginalNgram) {
 				maxOriginalNgram = ngram.split(' ').map(word => {
 					const candidateMap = reversedStemmedWords[word];
+					if (!candidateMap) return word;
 					let max = 0;
 					let maxWord = '';
 					for (const [word, count] of Object.entries(candidateMap)) {
@@ -1629,7 +1511,7 @@ const idfMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
 	return result;
 };
 
-const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
+export const calcIDFMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
 	//only consider cards that have a body, even if we were provided a set that included others
 	cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
 
@@ -1704,24 +1586,46 @@ export class FingerprintGenerator {
 	_idfMap : IDFMap;
 	_fingerprintSize : number;
 	_ngramSize : number;
+	_concepts : StringCardMap;
+	_synonyms : SynonymMap;
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
 
-	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
+	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, serverIDF?: IDFMap | null, concepts? : StringCardMap, synonyms? : SynonymMap) {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
-		this._idfMap = idfMapForCards(this._cards, this._ngramSize);
+		this._concepts = concepts || {};
+		this._synonyms = synonyms || {};
+
+		// Use server IDF if provided and valid
+		if (serverIDF && serverIDF.idf && typeof serverIDF.maxIDF === 'number') {
+			this._idfMap = serverIDF;
+		} else {
+			// Fall back to client-side calculation
+			this._idfMap = idfMapForCards(this._cards, this._ngramSize);
+		}
+
 		this._fingerprintSize = optFingerprintSize;
 	}
 
+	_enrichCard(cardObj : ProcessedCard) : ProcessedCard {
+		if (this._concepts && Object.keys(this._concepts).length > 0) {
+			return enrichCardWithConcepts(cardObj, this._concepts, this._synonyms);
+		}
+		return cardObj;
+	}
+
 	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[] ) : Fingerprint {
-		//A convenience method for other contexts that need to call this.
-		return fingerprintForCardObj(cardObj, this._idfMap, this._fingerprintSize, this._ngramSize, optFieldList);
+		//Enrich the card with concepts/synonyms before fingerprinting, so
+		//importantNgrams and synonymMap are used in wordCountsForSemantics.
+		const enriched = this._enrichCard(cardObj);
+		return fingerprintForCardObj(enriched, this._idfMap, this._fingerprintSize, this._ngramSize, optFieldList);
 	}
 
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		const card = this._cards[cardID];
 		if (!card) return new Fingerprint();
-		return fingerprintForCardObj(card, this._idfMap, this._fingerprintSize, this._ngramSize);
+		const enriched = this._enrichCard(card);
+		return fingerprintForCardObj(enriched, this._idfMap, this._fingerprintSize, this._ngramSize);
 	}
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {

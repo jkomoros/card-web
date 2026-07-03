@@ -3,7 +3,7 @@
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
-} from '../../lib/src/type_constants.js';
+} from '../../shared/dist/card_fields.js';
 
 import {
 	references,

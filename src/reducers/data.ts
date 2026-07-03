@@ -1,4 +1,4 @@
-import { 
+import {
 	UPDATE_CARDS,
 	ENQUEUE_CARD_UPDATES,
 	UPDATE_SECTIONS,
@@ -19,6 +19,7 @@ import {
 	EXPECT_FETCHED_CARDS,
 	SomeAction,
 	UPDATE_CARD_SIMILARITY,
+	UPDATE_SERVER_IDF,
 	STOP_EXPECTING_FETCHED_CARDS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	TURN_COMPLETE_MODE,
@@ -69,7 +70,8 @@ const INITIAL_STATE : DataState = {
 	pendingDeletions: {},
 	pendingReorder: false,
 	enqueuedCards: {},
-	cardSimilarity: {}
+	cardSimilarity: {},
+	serverIDF: null
 };
 
 const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState => {
@@ -252,6 +254,11 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 				...state.cardSimilarity,
 				[action.card_id] : action.similarity
 			}
+		};
+	case UPDATE_SERVER_IDF:
+		return {
+			...state,
+			serverIDF: action.serverIDF
 		};
 	default:
 		return state;

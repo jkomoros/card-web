@@ -90,7 +90,6 @@ import {
 	selectPendingModificationCount,
 	selectCompleteModeEnabled,
 	selectCompleteModeRawCardLimit,
-	selectCompleteModeEffectiveCardLimit,
 	selectExpectedCardFetchTypeForNewUnpublishedCard
 } from '../selectors.js';
 
@@ -131,6 +130,25 @@ import {
 import {
 	EMPTY_CARD_ID
 } from '../card_fields.js';
+
+import {
+	cardWithNormalizedTextProperties
+} from '../nlp.js';
+
+import {
+	ngrams,
+	CURRENT_NLP_VERSION,
+	nlpSourceFingerprintForCard
+} from '../../shared/nlp.js';
+
+import type {
+	NLPTokenStorage,
+	CardFieldType
+} from '../../shared/types.js';
+
+import {
+	UPDATE_SERVER_IDF
+} from '../actions.js';
 
 import {
 	cardDiffHasChanges,
@@ -269,32 +287,6 @@ export const turnCompleteMode = (on : boolean, limit : number) : ThunkSomeAction
 	});
 
 
-	//If we're turning off complete mode, we need to cull any cards that are
-	//in complete mode that shouldn	't be. This will be a no-op if complete mode is on.
-	dispatch(cullExtraCompleteModeCards());
-
-};
-
-const cullExtraCompleteModeCards = () : ThunkSomeAction => (dispatch, getState) => {
-	//This logic should approximate the selection logic in connectLiveUnpublishedCards.
-
-	const state = getState();
-	const cards = selectRawCards(state);
-	const completeMode = selectCompleteModeEnabled(state);
-	
-	//No cards to cull because  we're in complete mode.
-	if (completeMode) return;
-
-	const limit = selectCompleteModeEffectiveCardLimit(state);
-
-	const unpublishedCardIDs = Object.values(cards).filter(card => !card.published).sort((a, b) => b.created.seconds - a.created.seconds).map(card => card.id);
-
-	if (unpublishedCardIDs.length <= limit) return;
-
-	const cardsToCull = unpublishedCardIDs.slice(limit);
-
-	dispatch(cullCards(cardsToCull));
-	dispatch(refreshCardSelector(true));
 
 };
 
@@ -428,6 +420,58 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	const cardUpdateObject = applyCardDiff(card, update);
 	cardUpdateObject.updated = serverTimestamp();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
+
+	//Generate NLP tokens if content fields have changed
+	const contentFieldsChanged = update.title !== undefined ||
+			update.body !== undefined ||
+			update.commentary !== undefined ||
+			update.subtitle !== undefined ||
+			update.title_alternates !== undefined ||
+			update.external_link !== undefined ||
+			update.references_diff !== undefined;
+
+	if (contentFieldsChanged) {
+		//Create a temporary updated card for NLP processing
+		const tempUpdatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
+
+		//Process the card to generate NLP tokens
+		//Pass empty maps for fallbackText, importantNgrams, and synonyms
+		const processedCard = cardWithNormalizedTextProperties(tempUpdatedCard, {}, {}, {});
+
+		//Convert ProcessedRunInterface to ProcessedRunStorage for Firestore
+		//Only store normalized + uppercaseRanges; stemmed and withoutStopWords
+		//are derived at load time since the stemmer is deterministic and cheap.
+		const nlpTokens : NLPTokenStorage = {};
+		for (const [fieldName, runs] of TypedObject.entries(processedCard.nlp)) {
+			nlpTokens[fieldName as CardFieldType] = runs.map(run => ({
+				normalized: run.normalized,
+				...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
+			}));
+		}
+
+		//Generate nlp_search_tokens: flat array of deduplicated stemmed
+		//unigrams + bigrams for server-side array-contains queries
+		const searchTokenSet = new Set<string>();
+		for (const [, runs] of TypedObject.entries(processedCard.nlp)) {
+			if (!runs) continue;
+			for (const run of runs) {
+				//Add individual stemmed words
+				for (const word of run.stemmed.split(' ')) {
+					if (word) searchTokenSet.add(word);
+				}
+				//Add bigrams
+				for (const bigram of ngrams(run.stemmed, 2)) {
+					searchTokenSet.add(bigram);
+				}
+			}
+		}
+
+			//Add NLP data to card update
+			cardUpdateObject.nlp_tokens = nlpTokens;
+			cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
+			cardUpdateObject.nlp_source_fingerprint = nlpSourceFingerprintForCard(tempUpdatedCard);
+			cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
+		}
 
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
@@ -1400,13 +1444,18 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 };
 
 export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
+	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
+	const inputCount = Object.keys(cards).length;
 	for (const card of Object.values(cards)) {
 		//Check ot see if we already have effectively the same card locally with no notional changes.
 		if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) continue;
 		cardsToUpdate[card.id] = card;
 	}
+	const diffCount = Object.keys(cardsToUpdate).length;
+	const diffTime = performance.now() - startTime;
+	console.log(`[PERF] receiveCards(${fetchType}): diffed ${inputCount} cards → ${diffCount} changed in ${diffTime.toFixed(1)}ms`);
 
 	const pendingModifications = selectPendingModificationCount(getState());
 	if (pendingModifications == 0) {
@@ -1414,7 +1463,7 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType) : ThunkSom
 	}
 
 	dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
-	
+	console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
 const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch) => {
@@ -1574,3 +1623,17 @@ export const committedFiltersWhenFullyLoaded = () : SomeAction => {
 	};
 };
 
+/**
+ * Loads the server-generated IDF map from Cloud Storage.
+ * This is called during app initialization to enable faster fingerprint generation.
+ */
+export const loadServerIDFMap = () : ThunkSomeAction => async (dispatch) => {
+	const { loadServerIDF } = await import('../idf-cache.js');
+
+	const serverIDF = await loadServerIDF();
+
+	dispatch({
+		type: UPDATE_SERVER_IDF,
+		serverIDF
+	});
+};

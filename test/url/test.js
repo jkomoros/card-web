@@ -1,17 +1,34 @@
 /*eslint-env node*/
 
 import {
-	CollectionDescription,
-	collectionDescriptionWithQuery,
-} from '../../lib/src/collection_description.js';
-
-import {
-	UNION_FILTER_DELIMITER
-} from '../../lib/src/filters.js';
+	JSDOM
+} from 'jsdom';
 
 import assert from 'assert';
 
+const dom = new JSDOM('');
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+globalThis.Document = dom.window.Document;
+globalThis.HTMLElement = dom.window.HTMLElement;
+globalThis.customElements = dom.window.customElements;
+globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
+
+let CollectionDescription;
+let collectionDescriptionWithQuery;
+let UNION_FILTER_DELIMITER;
+
 describe('card-web url parsing', () => {
+	before(async () => {
+		({
+			CollectionDescription,
+			collectionDescriptionWithQuery,
+		} = await import('../../lib/src/collection_description.js'));
+		({
+			UNION_FILTER_DELIMITER
+		} = await import('../../lib/src/filters.js'));
+	});
+
 	it('supports basic url parsing', async () => {
 		const description = CollectionDescription.deserialize('starred/');
 		const golden = new CollectionDescription('', ['starred']);
