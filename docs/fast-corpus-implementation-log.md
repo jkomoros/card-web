@@ -331,3 +331,21 @@ Also worth attacking: the 583ms single-card UPDATE_CARDS echo dispatch.
    UI-thread Collection filtering (keep handoff for fallback windows), and
    move remaining all-card consumers (word clouds, suggestions, maintenance)
    to worker RPCs.
+
+**POST-FAST-PATH MEASUREMENT (2026-07-03, settled 40k session, trusted input)**:
+- Navigation: ~0.6-1.2s blocking per press remains; the two similar/key-card-id
+  blocks now dominate (direct-references enumerate landed in 84087fe5 and
+  removed those materialization scans). 
+- Typing: steady-state clean (earlier zero-long-task run stands); switching
+  INTO the 38k-card working-notes collection costs ~3s (filter+sort).
+- Commit: 16s when the active collection is the 38k recent-sorted view
+  (vs 4.05s in a small collection) — big-collection re-sort + stale-retry
+  loop dominate.
+- CONCLUSION: UI-thread micro-fixes are at diminishing returns. The remaining
+  hot costs (similarity blocks, big-collection filter/sort, echo cascade) are
+  precisely what the corpus worker already does off-thread — next steps are
+  worker-served reference blocks and defaulting collection serving to 'on'
+  mode after the user's shadow sign-off, per the existing B3 plan.
+- Measurement harness for reuse: scratchpad/measure.mjs pattern (playwright
+  launchPersistentContext with the copied mcp-chrome profile — May profile's
+  Firebase session remains valid; chromium-1223 executablePath pin).
