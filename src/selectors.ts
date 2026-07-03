@@ -15,6 +15,15 @@ import {
 } from './incremental-selectors.js';
 
 import {
+	processCards
+} from './card-processing.js';
+
+import {
+	computeDefaultSet,
+	makeEverythingSetFromCards
+} from './set-projections.js';
+
+import {
 	createObjectSelector,
 } from 'reselect-map';
 
@@ -65,8 +74,7 @@ import {
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE,
-	editableFieldsForCardType,
-	TEXT_FIELD_CONFIGURATION
+	editableFieldsForCardType
 } from '../shared/card_fields.js';
 
 import {
@@ -86,8 +94,7 @@ import {
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
 	possibleMissingConcepts,
-	synonymMap,
-	processedRunsForCardField
+	synonymMap
 } from './nlp.js';
 
 import {
@@ -144,8 +151,7 @@ import {
 	SetName,
 	SortName,
 	CollectionConfiguration,
-	ComposedChats,
-	ProcessedRunInterface
+	ComposedChats
 } from '../shared/types.js';
 
 import {
@@ -196,13 +202,6 @@ import {
 import {
 	TypedObject
 } from '../shared/typed_object.js';
-
-import {
-	stemmedNormalizedWords,
-	withoutStopWords,
-	CURRENT_NLP_VERSION,
-	nlpSourceFingerprintForCard
-} from '../shared/nlp.js';
 
 import {
 	Timestamp
@@ -416,94 +415,14 @@ export const selectConcepts = createSelector(
 // This replaces the old reselect-map chain (selectBackportTextFallbackMapCollection
 // → selectZippedCardAndFallbackMap → createZippedObjectSelector) which cleared
 // ALL 40k per-key caches on every card change, causing 600ms+ of blocking work.
-const _processedCardCache = new WeakMap<Card, ProcessedCard>();
-
-//Shared frozen empties: with tens of thousands of processed cards, per-card
-//empty object literals add up to real memory and GC pressure.
-const EMPTY_FALLBACK_TEXT = Object.freeze({}) as ProcessedCard['fallbackText'];
-const EMPTY_IMPORTANT_NGRAMS = Object.freeze({}) as ProcessedCard['importantNgrams'];
-const EMPTY_SYNONYM_MAP = Object.freeze({}) as ProcessedCard['synonymMap'];
-
-const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
-	const cached = _processedCardCache.get(card);
-	if (cached) return cached;
-
-	perfCount('processCard:miss');
-
-	const fallbackText = backportFallbackTextMapForCard(card, allCards) || EMPTY_FALLBACK_TEXT;
-
-	let processed : ProcessedCard;
-	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION && card.nlp_source_fingerprint === nlpSourceFingerprintForCard(card)) {
-		// Fast path: use stored NLP tokens for ordinary fields while preserving
-		// the full nlp shape expected by downstream semantic code.
-		const nlp = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION).map(fieldName => [fieldName, []])) as unknown as {[field in CardFieldType]: ProcessedRunInterface[]};
-		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
-			if (storedRuns) {
-				nlp[fieldName] = storedRuns.map(storedRun => {
-					let cachedStemmed : string | undefined;
-					let cachedWithoutStopWords : string | undefined;
-					const getStemmed = () => {
-						if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
-						return cachedStemmed;
-					};
-					return {
-						normalized: storedRun.normalized,
-						original: '',
-						get stemmed() { return getStemmed(); },
-						get withoutStopWords() {
-							if (cachedWithoutStopWords === undefined) cachedWithoutStopWords = withoutStopWords(getStemmed());
-							return cachedWithoutStopWords;
-						},
-						uppercaseRanges: storedRun.uppercaseRanges,
-						get empty() { return storedRun.normalized === ''; }
-					};
-				});
-			}
-		}
-		// Compute reference-derived fields locally so all-cards local search sees
-		// the current raw-card reference state even when stored NLP was generated
-		// before an inbound/outbound reference side effect.
-		const cardWithFallback = {...card, fallbackText};
-		nlp.references_info_inbound = processedRunsForCardField(cardWithFallback, 'references_info_inbound');
-		nlp.non_link_references = processedRunsForCardField(cardWithFallback, 'non_link_references');
-		nlp.concept_references = processedRunsForCardField(cardWithFallback, 'concept_references');
-		processed = {
-			...card,
-			fallbackText,
-			importantNgrams: EMPTY_IMPORTANT_NGRAMS,
-			synonymMap: EMPTY_SYNONYM_MAP,
-			nlp: nlp as ProcessedCard['nlp']
-		} as ProcessedCard;
-	} else {
-		// Slow path: full NLP computation
-		perfCount('processCard:slowPath');
-		processed = cardWithNormalizedTextProperties(card, fallbackText, {}, {});
-	}
-
-	_processedCardCache.set(card, processed);
-	return processed;
-};
-
 export const selectCards : (state : State) => ProcessedCards = createSelector(
 	selectRawCards,
-	(rawCards : Cards) : ProcessedCards => {
-		const result : ProcessedCards = {} as ProcessedCards;
-		for (const [id, card] of Object.entries(rawCards) as [CardID, Card][]) {
-			result[id] = processCard(card, rawCards);
-		}
-		return result;
-	}
+	processCards
 );
 
 const selectCardsSnapshot : (state : State) => ProcessedCards = createSelector(
 	selectRawCardsSnapshot,
-	(rawCards : Cards) : ProcessedCards => {
-		const result : ProcessedCards = {} as ProcessedCards;
-		for (const [id, card] of Object.entries(rawCards) as [CardID, Card][]) {
-			result[id] = processCard(card, rawCards);
-		}
-		return result;
-	}
+	processCards
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
@@ -1480,32 +1399,6 @@ export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
 	}
 );
 
-const computeDefaultSet = (sections : Sections, cards : Cards) : CardID[] => {
-	const resultSet = new Set<CardID>();
-	for (const section of Object.values(sections)) {
-		for (const cardId of section.cards) {
-			resultSet.add(cardId);
-		}
-	}
-	//Also include any cards that have a non-null section but aren't in any
-	//section's cards array. This handles cards that have a section field
-	//but weren't loaded via the section data.
-	for (const [id, card] of Object.entries(cards)) {
-		if (card.section && !resultSet.has(id)) {
-			resultSet.add(id);
-		}
-	}
-	const result = [...resultSet];
-	//The order of cards in the section object is nondterministic. The order
-	//that matters is the sort_order. Higher sort-order should sort to the top.
-	result.sort((a,b) => {
-		const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-		const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
-		return cardBValue - cardAValue;
-	});
-	return result;
-};
-
 const defaultSetCardsDiffer = (prev : Card, next : Card) : boolean =>
 	prev.section !== next.section || prev.sort_order !== next.sort_order;
 
@@ -1531,16 +1424,6 @@ export const selectDefaultSet = createSelector(
 		return result;
 	}
 );
-
-const makeEverythingSetFromCards = (cards : Cards) : CardID[] => {
-	const keys = Object.keys(cards);
-	keys.sort((a, b) => {
-		const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-		const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
-		return cardBValue - cardAValue;
-	});
-	return keys;
-};
 
 const everythingSetCardsDiffer = (prev : Card, next : Card) : boolean =>
 	prev.sort_order !== next.sort_order;
