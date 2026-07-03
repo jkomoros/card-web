@@ -61,6 +61,13 @@ import {
 } from './action-forwarder.js';
 
 import {
+	readCorpusWorkerMode,
+	writeCorpusWorkerMode,
+	corpusWorkerOwnsCardIngestion,
+	CorpusWorkerMode
+} from './corpus-mode.js';
+
+import {
 	selectActiveCollection,
 	selectActiveCollectionDescription,
 	selectIsEditing,
@@ -72,34 +79,19 @@ import {
 } from './selectors.js';
 
 import {
+	CardBooleanMap,
 	State
 } from './types.js';
-
-const LOCAL_STORAGE_KEY = 'corpus-worker';
 
 //Absolute path that resolves in both dev (wds serves the repo root; tsc
 //emits to lib/) and prod (build/ is the web root; rollup emits a
 //self-contained worker bundle at the same relative location).
 const WORKER_URL = '/lib/src/worker/corpus-worker.js';
 
-export type CorpusWorkerMode = 'off' | 'spike' | 'shadow' | 'on';
+const readMode = readCorpusWorkerMode;
 
-const readMode = () : CorpusWorkerMode => {
-	try {
-		const value = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-		if (value === 'spike' || value === 'shadow' || value === 'on') return value;
-	} catch {
-		//Best effort
-	}
-	return 'off';
-};
-
-//True when the worker (not the main thread) should own the Firestore card
-//listeners. src/actions/database.ts consults this before attaching.
-export const corpusWorkerOwnsCardIngestion = () : boolean => {
-	const mode = readMode();
-	return mode === 'shadow' || mode === 'on';
-};
+//Re-exported for src/actions/database.ts (historical import site).
+export {corpusWorkerOwnsCardIngestion};
 
 let worker : Worker | null = null;
 let generation : WorkerGeneration = 0;
@@ -199,7 +191,7 @@ const ensureActiveCollectionSubscription = (state : State) => {
 	});
 };
 
-const handleCollectionResult = (message : {subscriptionID : number, ids : string[], labels : string[], numCards : number, isFallback : boolean, preview : boolean, ms : number}) => {
+const handleCollectionResult = (message : {subscriptionID : number, ids : string[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}) => {
 	if (message.subscriptionID !== activeSubscriptionID) return;
 	latestSubscriptionResult = {subscriptionID: message.subscriptionID, ids: message.ids, ms: message.ms};
 	if (readMode() === 'on') {
@@ -213,8 +205,10 @@ const handleCollectionResult = (message : {subscriptionID : number, ids : string
 				ids: message.ids,
 				labels: message.labels,
 				numCards: message.numCards,
+				numStartCards: message.numStartCards,
 				isFallback: message.isFallback,
-				preview: message.preview
+				preview: message.preview,
+				partialMatches: message.partialMatches
 			}
 		});
 	}
@@ -437,15 +431,7 @@ if (typeof window !== 'undefined' && corpusWorkerOwnsCardIngestion()) {
 if (typeof window !== 'undefined') {
 	window.CORPUS_WORKER = {
 		setMode: (mode : CorpusWorkerMode) => {
-			try {
-				if (mode === 'off') {
-					window.localStorage.removeItem(LOCAL_STORAGE_KEY);
-				} else {
-					window.localStorage.setItem(LOCAL_STORAGE_KEY, mode);
-				}
-			} catch {
-				//Best effort
-			}
+			writeCorpusWorkerMode(mode);
 			if (mode === 'off') stopWorker();
 			console.log(`[corpus-worker] mode set to ${mode}; reload for it to take full effect`);
 		},

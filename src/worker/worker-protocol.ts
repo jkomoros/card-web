@@ -6,6 +6,7 @@
 import {
 	Card,
 	Cards,
+	CardBooleanMap,
 	CardID,
 	CardFetchType,
 	CardSimilarityMap,
@@ -102,7 +103,7 @@ export type WorkerToMainMessage =
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}
 	//Pushed whenever a subscribed collection's ordered result changes.
-	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, isFallback : boolean, preview : boolean, ms : number};
+	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number};
 
 //Tokens used for index recall for a single card: its stored search tokens if
 //current, or empty if the card has none (those cards always go through the

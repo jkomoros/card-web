@@ -143,6 +143,47 @@ describe('Collection handoff', () => {
 	});
 });
 
+describe('Collection.fromWorkerResult', () => {
+	before(async () => {
+		({
+			CollectionDescription,
+			countForDescription,
+			descriptionRequiresFullCollectionCount,
+		} = await import('../../lib/src/collection_description.js'));
+	});
+
+	it('reproduces a locally-computed collection without recomputing', async () => {
+		const state = makeBaseState();
+		const description = new CollectionDescription('everything', ['starred']);
+		const args = makeArgs(state);
+		const local = description.collection(args);
+		const result = {
+			description: description.serialize(),
+			ids: local.finalSortedCards.map(c => c.id),
+			labels: local.finalLabels,
+			numCards: local.numCards,
+			numStartCards: local.numStartCards,
+			isFallback: local.isFallback,
+			preview: local.preview,
+			partialMatches: local.partialMatches,
+		};
+		const {Collection} = await import('../../lib/src/collection_description.js');
+		const seeded = Collection.fromWorkerResult(description, args, result);
+		//All the getters components use agree with the local computation...
+		assert.deepStrictEqual(seeded.finalSortedCards.map(c => c.id), result.ids);
+		assert.deepStrictEqual(seeded.finalLabels, result.labels);
+		assert.strictEqual(seeded.numCards, local.numCards);
+		assert.strictEqual(seeded.numStartCards, local.numStartCards);
+		assert.strictEqual(seeded.isFallback, local.isFallback);
+		assert.strictEqual(seeded.preview, local.preview);
+		//...and the expensive state was pre-seeded, not recomputed: the
+		//internal filtered cards were installed directly.
+		assert.ok(seeded._filteredCards !== null);
+		//Expanded cards come from the live cards map.
+		assert.strictEqual(seeded.finalSortedCards[0], state.cards[result.ids[0]]);
+	});
+});
+
 describe('countForDescription', () => {
 	before(async () => {
 		({

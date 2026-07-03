@@ -53,6 +53,7 @@ import {
 	FilterExtras,
 	CardIDMap,
 	CardBooleanMap,
+	WorkerCollectionResult,
 	URLPart,
 	CardSimilarityMap,
 	ConfigurableFilterResult
@@ -830,6 +831,40 @@ export class Collection {
 		}
 		perfCount('collection:handoff');
 		return result;
+	}
+
+	//Builds a Collection whose expensive computed state is pre-seeded from a
+	//result the corpus worker already computed, so no filtering or sorting
+	//happens on the UI thread. Because this is a REAL Collection, every
+	//consumer keeps its exact type and getter surface; any getter that isn't
+	//pre-seeded (e.g. sortValueForCard, webInfo) lazily computes on the UI
+	//thread as a graceful fallback.
+	static fromWorkerResult(description : CollectionDescription, args : CollectionConstructorArguments, result : WorkerCollectionResult) : Collection {
+		const collection = new Collection(description, args);
+		const cards = args.cards;
+		const expand = (ids : CardID[]) => expandCardCollection(ids, cards);
+		const finalCards = expand(result.ids);
+		const startCards = finalCards.slice(0, result.numStartCards);
+		const sortedCards = finalCards.slice(result.numStartCards);
+		//Pre-seed so every _ensure* no-ops.
+		collection._startCards = startCards;
+		collection._sortedCards = sortedCards;
+		collection._finalSortedCards = finalCards;
+		collection._labels = result.labels.slice(result.numStartCards);
+		collection._finalLabels = result.labels;
+		//filteredCards feeds numCards via _preLimitlength; reconstruct the
+		//pre-limit count from the numCards math (numCards = preLimit - offset,
+		//capped by limit — the cap can't be inverted, so prefer the raw list
+		//length when no limit applies).
+		collection._filteredCards = sortedCards;
+		collection._preLimitlength = result.numCards + description.offset;
+		collection._collectionIsFallback = result.isFallback;
+		collection._preview = result.preview;
+		collection._partialMatches = result.partialMatches;
+		//Sort info is deliberately left lazy; sortExtras stays empty (label
+		//functions for exotic sorts may degrade — acceptable while gated).
+		perfCount('collection:fromWorkerResult');
+		return collection;
 	}
 
 	get description() {

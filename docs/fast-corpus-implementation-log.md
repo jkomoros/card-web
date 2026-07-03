@@ -216,8 +216,33 @@ privileged 40k corpus.
   it). New suite `test:subscription-manager` (4 tests). Verified live:
   MATCH pushes for main/half-baked (89) and main/random-thoughts (386).
 
-Remaining for B3 (each step flag-gated on 'on' mode, commit-per-step):
-1. windowCards/cardMeta state slice + reducer fed by pushed results.
-2. CollectionView adapter over pushed results for the component surface.
-3. Component/actions consumers flip when mode === 'on'.
-4. Delete UI-thread corpus machinery once 'on' is validated & default.
+- **B3b (707479f2)**: UPDATE_WORKER_COLLECTION action +
+  CollectionState.workerActiveCollection slice; bridge maintains the live
+  subscription in shadow AND on modes and dispatches pushes in 'on' mode.
+- **B3c — cutover path live (done, browser-verified)**: worker results carry
+  numStartCards + partialMatches; `Collection.fromWorkerResult` builds a REAL
+  Collection pre-seeded with the pushed result (filtered/sorted/final cards,
+  labels, counts, fallback/preview/partialMatches) so every lazy getter
+  no-ops and NO component changes were needed — un-seeded getters
+  (sortValueForCard, webInfo, exotic sort labels) gracefully fall back to
+  UI-thread computation. selectActiveCollection serves the seeded collection
+  in 'on' mode when the pushed description matches, falling back to local
+  computation during transitions. Mode helpers moved to leaf
+  `src/corpus-mode.ts` (no import cycles). Verified live in 'on' mode:
+  active collections rendered from worker pushes (main/half-baked 89 incl.
+  start card; main/random-thoughts 386), navigation tracks, card view works.
+  fromWorkerResult equivalence test added to test:collection.
+
+Remaining for B3 (documented for continuation):
+1. Subscribe the find-dialog collection (selectCollectionForQuery) the same
+   way, so search executes in the worker (index-accelerated recall is already
+   built — wire PreparedQuery candidates through SearchIndex.candidates).
+2. windowCards/cardMeta memory reduction: stop holding all raw cards in
+   UI-thread Redux in 'on' mode (the actual memory win; today 'on' mode still
+   mirrors all cards to Redux via forwarded batches).
+3. User validation of shadow → on on the real privileged 40k corpus
+   (worker auth pickup + partitioned unpublished getDocs at scale).
+4. Once 'on' is default: delete main-thread listener paths and the
+   UI-thread Collection filtering (keep handoff for fallback windows), and
+   move remaining all-card consumers (word clouds, suggestions, maintenance)
+   to worker RPCs.

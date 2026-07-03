@@ -775,8 +775,10 @@ export type WorkerCollectionResult = {
 	ids: CardID[],
 	labels: string[],
 	numCards: number,
+	numStartCards: number,
 	isFallback: boolean,
 	preview: boolean,
+	partialMatches: CardBooleanMap,
 };
 
 export type CommentsState = {

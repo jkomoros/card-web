@@ -64,6 +64,10 @@ import {
 } from './collection_description.js';
 
 import {
+	corpusWorkerServesCollections
+} from './corpus-mode.js';
+
+import {
 	tabConfiguration
 } from './tabs.js';
 
@@ -1631,13 +1635,25 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 //the already-computed filter/sort work instead of rebuilding from scratch.
 let _previousActiveCollection : Collection | null = null;
 
+const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
+
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
-	(description, args) => {
+	selectWorkerActiveCollectionResult,
+	(description, args, workerResult) => {
 		if (!description) {
 			_previousActiveCollection = null;
 			return null;
+		}
+		//Cutover mode: when the corpus worker has pushed a result for exactly
+		//this description, build the collection from it — no UI-thread
+		//filtering or sorting. During transitions (boot, description just
+		//changed) fall through to the local computation.
+		if (workerResult && corpusWorkerServesCollections() && workerResult.description === description.serialize()) {
+			const collection = Collection.fromWorkerResult(description, args, workerResult);
+			_previousActiveCollection = collection;
+			return collection;
 		}
 		const collection = description.collection(args, _previousActiveCollection);
 		_previousActiveCollection = collection;

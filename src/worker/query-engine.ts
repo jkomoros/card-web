@@ -42,6 +42,7 @@ import {
 
 import {
 	Cards,
+	CardBooleanMap,
 	CardID,
 	CollectionState,
 	CollectionConstructorArguments,
@@ -63,8 +64,10 @@ export type RunCollectionResult = {
 	ids : CardID[],
 	labels : string[],
 	numCards : number,
+	numStartCards : number,
 	isFallback : boolean,
-	preview : boolean
+	preview : boolean,
+	partialMatches : CardBooleanMap
 };
 
 export class QueryEngine {
@@ -183,8 +186,10 @@ export class QueryEngine {
 			ids: collection.finalSortedCards.map(card => card.id),
 			labels: collection.finalLabels,
 			numCards: collection.numCards,
+			numStartCards: collection.numStartCards,
 			isFallback: collection.isFallback,
-			preview: collection.preview
+			preview: collection.preview,
+			partialMatches: collection.partialMatches
 		};
 	}
 }

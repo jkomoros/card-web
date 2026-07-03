@@ -118,8 +118,10 @@ const subscriptions = new SubscriptionManager(engine, push => {
 		ids: push.ids,
 		labels: push.labels,
 		numCards: push.numCards,
+		numStartCards: push.numStartCards,
 		isFallback: push.isFallback,
 		preview: push.preview,
+		partialMatches: push.partialMatches,
 		ms: push.ms
 	});
 });
