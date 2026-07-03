@@ -87,6 +87,12 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			filtersSnapshot: state.filters,
 		};
 	case UPDATE_WORKER_COLLECTION:
+		if (action.slot === 'query') {
+			return {
+				...state,
+				workerQueryCollection: action.result,
+			};
+		}
 		return {
 			...state,
 			workerActiveCollection: action.result,

@@ -2229,4 +2229,5 @@ export const INITIAL_STATE : CollectionState = {
 	selectedCards: {},
 	collectionWordCloudVersion: 0,
 	workerActiveCollection: null,
+	workerQueryCollection: null,
 };

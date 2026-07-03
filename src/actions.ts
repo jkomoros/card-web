@@ -56,7 +56,8 @@ import {
 	UserInfo,
 	UserPermissions,
 	UserPermissionsMap,
-	WorkerCollectionResult
+	WorkerCollectionResult,
+	WorkerCollectionSlot
 } from './types.js';
 
 //AI
@@ -448,6 +449,7 @@ type ActionUpdateCollectionSnapshot = {
 
 type ActionUpdateWorkerCollection = {
 	type: typeof UPDATE_WORKER_COLLECTION,
+	slot: WorkerCollectionSlot,
 	result: WorkerCollectionResult | null
 };
 

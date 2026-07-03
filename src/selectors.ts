@@ -1911,10 +1911,23 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	}
 );
 
+const selectWorkerQueryCollectionResult = (state : State) => state.collection ? state.collection.workerQueryCollection : null;
+
 export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArgumentsWithEditingCard,
-	(description, args) : Collection => description.collection(args)
+	selectWorkerQueryCollectionResult,
+	(description, args, workerResult) : Collection => {
+		//Cutover mode: the find dialog's collection is served from worker
+		//pushes when available. The editing-card variant stays local (the
+		//worker doesn't have the editing card), which the bridge enforces by
+		//not subscribing while editing — the description match below then
+		//simply fails and we compute locally.
+		if (workerResult && corpusWorkerServesCollections() && !args.editingCard && workerResult.description === description.serialize()) {
+			return Collection.fromWorkerResult(description, args, workerResult);
+		}
+		return description.collection(args);
+	}
 );
 
 export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(

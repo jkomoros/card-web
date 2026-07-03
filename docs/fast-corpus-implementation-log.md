@@ -233,10 +233,22 @@ privileged 40k corpus.
   start card; main/random-thoughts 386), navigation tracks, card view works.
   fromWorkerResult equivalence test added to test:collection.
 
+- **B3d — find-dialog search served by the worker (done, browser-verified)**:
+  second subscription slot ('query') tracking
+  selectCollectionDescriptionForQuery while the find dialog is open and
+  nothing is being edited (the editing-card-dependent variant stays local —
+  the worker has no editing card; the bridge simply doesn't subscribe then
+  and the selector's description-match fails safe to local computation).
+  selectCollectionForQuery serves Collection.fromWorkerResult in 'on' mode.
+  Verified live: typing "complex" in the find dialog produced a 199-card
+  ranked result pushed from the worker (everything/has-body/query/complex/)
+  and the dialog rendered it.
+
 Remaining for B3 (documented for continuation):
-1. Subscribe the find-dialog collection (selectCollectionForQuery) the same
-   way, so search executes in the worker (index-accelerated recall is already
-   built — wire PreparedQuery candidates through SearchIndex.candidates).
+1. Index-accelerated query recall: wire PreparedQuery scoring through
+   SearchIndex.candidates in the worker engine so query filters score only
+   recalled candidates instead of the whole corpus (index is built; engine
+   still uses the standard full-scan filter path).
 2. windowCards/cardMeta memory reduction: stop holding all raw cards in
    UI-thread Redux in 'on' mode (the actual memory win; today 'on' mode still
    mirrors all cards to Redux via forwarded batches).

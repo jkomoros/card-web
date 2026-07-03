@@ -765,7 +765,12 @@ export type CollectionState = {
 	//pushed result for the active collection. Null when the worker isn't
 	//serving collections or no result has arrived yet.
 	workerActiveCollection: WorkerCollectionResult | null,
+	//Same, for the find dialog's query collection.
+	workerQueryCollection: WorkerCollectionResult | null,
 }
+
+//Which worker-served collection slot a pushed result belongs to.
+export type WorkerCollectionSlot = 'active' | 'query';
 
 //An ordered collection result computed in the corpus worker and pushed to the
 //main thread.

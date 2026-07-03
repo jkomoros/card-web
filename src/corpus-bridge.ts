@@ -70,6 +70,8 @@ import {
 import {
 	selectActiveCollection,
 	selectActiveCollectionDescription,
+	selectCollectionDescriptionForQuery,
+	selectFindDialogOpen,
 	selectIsEditing,
 	selectRandomSalt,
 	selectCardSimilarity,
@@ -80,8 +82,13 @@ import {
 
 import {
 	CardBooleanMap,
-	State
+	State,
+	WorkerCollectionSlot
 } from './types.js';
+
+import {
+	CollectionDescription
+} from './collection_description.js';
 
 //Absolute path that resolves in both dev (wds serves the repo root; tsc
 //emits to lib/) and prod (build/ is the web root; rollup emits a
@@ -161,28 +168,56 @@ const SHADOW_COMPARE_INTERVAL_MS = 1000;
 let shadowComparatorStarted = false;
 let shadowCompareTimeout : ReturnType<typeof setTimeout> | null = null;
 
-//The live worker subscription for the active collection: pushed results are
-//stored here and compared against the UI whenever both sides are settled.
+//Live worker subscriptions: one per served collection slot. The active
+//collection is subscribed in shadow and on modes; the find dialog's query
+//collection only in 'on' mode (and only while the dialog is open and no card
+//is being edited — link-searching while editing depends on the editing card,
+//which the worker doesn't have).
 let subscriptionCounter = 0;
-let activeSubscriptionID = 0;
-let activeSubscriptionKey = '';
-let latestSubscriptionResult : {subscriptionID : number, ids : string[], ms : number} | null = null;
 
-const ensureActiveCollectionSubscription = (state : State) => {
-	const description = selectActiveCollectionDescription(state);
-	if (!description) return;
-	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid;
-	if (key === activeSubscriptionKey) return;
-	if (activeSubscriptionID) {
-		post({type: 'unsubscribeCollection', generation, subscriptionID: activeSubscriptionID});
+type BridgeSubscription = {
+	slot : WorkerCollectionSlot,
+	id : number,
+	key : string,
+	descriptionSerialized : string,
+	latest : {ids : string[], ms : number} | null,
+};
+
+const bridgeSubscriptions : {[slot in WorkerCollectionSlot] : BridgeSubscription} = {
+	active: {slot: 'active', id: 0, key: '', descriptionSerialized: '', latest: null},
+	query: {slot: 'query', id: 0, key: '', descriptionSerialized: '', latest: null},
+};
+
+//Subscribe (or resubscribe, or unsubscribe when description is null) the
+//given slot. The key incorporates everything that changes results besides
+//engine-internal state.
+const ensureSubscription = (slot : WorkerCollectionSlot, description : CollectionDescription | null, state : State) => {
+	const subscription = bridgeSubscriptions[slot];
+	if (!description) {
+		if (subscription.id) {
+			post({type: 'unsubscribeCollection', generation, subscriptionID: subscription.id});
+			subscription.id = 0;
+			subscription.key = '';
+			subscription.latest = null;
+			if (readMode() === 'on') {
+				store.dispatch({type: UPDATE_WORKER_COLLECTION, slot, result: null});
+			}
+		}
+		return;
 	}
-	activeSubscriptionKey = key;
-	activeSubscriptionID = ++subscriptionCounter;
-	latestSubscriptionResult = null;
+	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid;
+	if (key === subscription.key) return;
+	if (subscription.id) {
+		post({type: 'unsubscribeCollection', generation, subscriptionID: subscription.id});
+	}
+	subscription.key = key;
+	subscription.descriptionSerialized = description.serialize();
+	subscription.id = ++subscriptionCounter;
+	subscription.latest = null;
 	post({
 		type: 'subscribeCollection',
 		generation,
-		subscriptionID: activeSubscriptionID,
+		subscriptionID: subscription.id,
 		description: description.serialize(),
 		keyCardID: '',
 		uid: lastUid,
@@ -192,16 +227,17 @@ const ensureActiveCollectionSubscription = (state : State) => {
 };
 
 const handleCollectionResult = (message : {subscriptionID : number, ids : string[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}) => {
-	if (message.subscriptionID !== activeSubscriptionID) return;
-	latestSubscriptionResult = {subscriptionID: message.subscriptionID, ids: message.ids, ms: message.ms};
+	const subscription = Object.values(bridgeSubscriptions).find(candidate => candidate.id === message.subscriptionID);
+	if (!subscription) return;
+	subscription.latest = {ids: message.ids, ms: message.ms};
 	if (readMode() === 'on') {
 		//Cutover mode: pushed results feed Redux directly; the UI renders
 		//from them instead of computing collections.
-		const descriptionSerialized = activeSubscriptionKey.split('|')[0];
 		store.dispatch({
 			type: UPDATE_WORKER_COLLECTION,
+			slot: subscription.slot,
 			result: {
-				description: descriptionSerialized,
+				description: subscription.descriptionSerialized,
 				ids: message.ids,
 				labels: message.labels,
 				numCards: message.numCards,
@@ -242,7 +278,14 @@ const runShadowCompare = () => {
 	if (!worker || (mode !== 'shadow' && mode !== 'on')) return;
 	const state = store.getState() as State;
 	sendCollectionConfigIfChanged(state);
-	ensureActiveCollectionSubscription(state);
+	ensureSubscription('active', selectActiveCollectionDescription(state), state);
+	if (mode === 'on') {
+		//Serve the find dialog's query collection from the worker too, but
+		//only while the dialog is open and nothing is being edited (the
+		//editing-card-dependent variant must stay local).
+		const queryDescription = (selectFindDialogOpen(state) && !selectIsEditing(state)) ? selectCollectionDescriptionForQuery(state) : null;
+		ensureSubscription('query', queryDescription, state);
+	}
 	//In cutover mode there's nothing to compare against — the pushed result
 	//IS the collection.
 	if (mode !== 'shadow') return;
@@ -259,10 +302,10 @@ const runShadowCompare = () => {
 	if (!description) return;
 	const collection = selectActiveCollection(state);
 	if (!collection) return;
-	const result = latestSubscriptionResult;
-	if (!result || result.subscriptionID !== activeSubscriptionID) return;
+	const active = bridgeSubscriptions.active;
+	if (!active.latest || active.descriptionSerialized !== description.serialize()) return;
 	const uiIDs = collection.finalSortedCards.map(card => card.id);
-	compareShadowResult(description.serialize(), uiIDs, result.ids, result.ms);
+	compareShadowResult(description.serialize(), uiIDs, active.latest.ids, active.latest.ms);
 };
 
 //Deduplicates identical consecutive log lines so a stable MATCH doesn't spam
