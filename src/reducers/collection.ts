@@ -54,6 +54,10 @@ import {
 	copyCollectionConfiguration
 } from '../collection_description.js';
 
+import {
+	perfCount
+} from '../perf.js';
+
 const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : CollectionState => {
 	switch (action.type) {
 	case SHOW_CARD:
@@ -250,6 +254,8 @@ const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters
 		if (toAdd) for (const id of toAdd) updated[id] = true;
 		result[filterName] = updated;
 	}
+	perfCount('makeFilterFromCards:calls');
+	perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
 	return result;
 };
 

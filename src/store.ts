@@ -15,6 +15,7 @@ import { State } from './types.js';
 import app from './reducers/app.js';
 import data from './reducers/data.js';
 import { SomeAction } from './actions.js';
+import { perfMiddleware } from './perf.js';
 
 declare global {
 	interface Window {
@@ -42,7 +43,7 @@ export const store = createStore(
 	state => state as Reducer<State,SomeAction>,
 	devCompose(
 		lazyReducerEnhancer(combineReducers),
-		applyMiddleware(thunkMiddleware))
+		applyMiddleware(thunkMiddleware, perfMiddleware))
 );
 
 // Initially loaded reducers.

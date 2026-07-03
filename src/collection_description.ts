@@ -73,10 +73,17 @@ import {
 
 import { references } from './references.js';
 
+import {
+	perfCount,
+	perfRecord
+} from './perf.js';
+
 const SLOW_COLLECTION_WORK_THRESHOLD_MS = 50;
 
 const logSlowCollectionWork = (operation : string, description : CollectionDescription, count : number, start : number) => {
 	const duration = performance.now() - start;
+	perfCount('collection:' + operation);
+	perfRecord('collection:' + operation, duration);
 	if (duration < SLOW_COLLECTION_WORK_THRESHOLD_MS) return;
 	console.log(`[PERF] collection ${operation}: ${duration.toFixed(1)}ms over ${count} cards for ${description.serialize()}`);
 };

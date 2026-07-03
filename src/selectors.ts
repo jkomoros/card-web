@@ -1,6 +1,10 @@
 import { createSelector } from 'reselect';
 
 import {
+	perfCount
+} from './perf.js';
+
+import {
 	createObjectSelector,
 } from 'reselect-map';
 
@@ -401,6 +405,8 @@ const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 	const cached = _processedCardCache.get(card);
 	if (cached) return cached;
 
+	perfCount('processCard:miss');
+
 	const fallbackText = backportFallbackTextMapForCard(card, allCards) || {};
 
 	let processed : ProcessedCard;
@@ -447,6 +453,7 @@ const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 		} as ProcessedCard;
 	} else {
 		// Slow path: full NLP computation
+		perfCount('processCard:slowPath');
 		processed = cardWithNormalizedTextProperties(card, fallbackText, {}, {});
 	}
 
