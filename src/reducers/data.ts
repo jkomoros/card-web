@@ -33,6 +33,7 @@ import {
 	DataState,
 	CardID,
 	Cards,
+	CardSimilarityMap,
 	Slug,
 	State,
 	SectionID
@@ -41,6 +42,31 @@ import {
 import {
 	TypedObject
 } from '../../shared/typed_object.js';
+
+//Removes only the similarity entries that mention one of the changed cards,
+//either as the key card or within the ranked results. Preserves the map's
+//identity when no entry is affected.
+const pruneCardSimilarity = (similarity : CardSimilarityMap, changedCards : Cards) : CardSimilarityMap => {
+	const changedIDs = Object.keys(changedCards);
+	if (changedIDs.length === 0) return similarity;
+	const keysToDelete : CardID[] = [];
+	for (const [keyCardID, scores] of TypedObject.entries(similarity)) {
+		if (changedCards[keyCardID]) {
+			keysToDelete.push(keyCardID);
+			continue;
+		}
+		for (const id of changedIDs) {
+			if (scores[id] !== undefined) {
+				keysToDelete.push(keyCardID);
+				break;
+			}
+		}
+	}
+	if (keysToDelete.length === 0) return similarity;
+	const result = {...similarity};
+	for (const key of keysToDelete) delete result[key];
+	return result;
+};
 
 const INITIAL_STATE : DataState = {
 	cards:{},
@@ -148,10 +174,11 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			result.pendingNewCardID = '';
 			result.pendingNewCardType = 'content';
 		}
-		//Reset the card similarity map because if the card that was just change
-		//was in any map, it is now invalid.
-		//TODO: couldn't we only remove the entries that explicitly include that item?
-		result.cardSimilarity = {};
+		//Similarity entries that mention a changed card are now invalid, but
+		//unrelated entries (and the map's identity, if nothing matched) are
+		//still good — resetting the whole map here used to force downstream
+		//collection rebuilds on every single-card update.
+		result.cardSimilarity = pruneCardSimilarity(state.cardSimilarity, action.cards);
 		return result;
 	case UPDATE_COLLECTION_SHAPSHOT:
 		return {

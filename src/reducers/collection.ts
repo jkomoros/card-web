@@ -91,23 +91,34 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			filters: {...state.filters, ...makeFilterFromSection(action.tags, false)}
 		};
-	case UPDATE_CARDS:
+	case UPDATE_CARDS: {
+		const changedFilters = makeFilterFromCards(action.cards, state.filters);
+		//If no filter membership actually changed, keep state identity so
+		//downstream selectors keyed on filters don't reevaluate.
+		if (Object.keys(changedFilters).length === 0) return state;
 		return {
 			...state,
-			filters: {...state.filters, ...makeFilterFromCards(action.cards, state.filters)}
+			filters: {...state.filters, ...changedFilters}
 		};
+	}
 	case REMOVE_CARDS:
 		return removeCardIDsFromSubState(action.cardIDs, state);
-	case UPDATE_STARS:
+	case UPDATE_STARS: {
+		const starred = updateFilterMap(state.filters.starred, action.starsToRemove, action.starsToAdd);
+		if (starred === state.filters.starred) return state;
 		return {
 			...state,
-			filters: {...state.filters, starred: setUnion(setRemove(state.filters.starred, action.starsToRemove), action.starsToAdd)}
+			filters: {...state.filters, starred}
 		};
-	case UPDATE_READS:
+	}
+	case UPDATE_READS: {
+		const read = updateFilterMap(state.filters.read, action.readsToRemove, action.readsToAdd);
+		if (read === state.filters.read) return state;
 		return {
 			...state,
-			filters: {...state.filters, read: setUnion(setRemove(state.filters.read, action.readsToRemove), action.readsToAdd)}
+			filters: {...state.filters, read}
 		};
+	}
 	case UPDATE_READING_LIST:
 		return {
 			...state,
@@ -184,20 +195,60 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 	return result;
 };
 
-const makeFilterFromCards = (cards : Cards, previousFilters : Filters) => {
-	const result : Filters = {};
-	for (const [filterName, func] of TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string,  CardTestFunc])) {
-		const newMatchingCards = [];
-		const newNonMatchingCards = [];
-		if(!func) throw new Error('Invalid func name: ' + filterName);
-		for (const card of Object.values(cards)) {
-			if(func(card)) {
-				newMatchingCards.push(card.id);
-			} else {
-				newNonMatchingCards.push(card.id);
+//Applies removals then additions to a filter map, returning the previous map
+//by identity if no membership actually changed.
+const updateFilterMap = (previous : FilterMap, toRemove : CardID[], toAdd : CardID[]) : FilterMap => {
+	const prev = previous || {};
+	let changed = false;
+	for (const id of toRemove) {
+		if (prev[id]) {
+			changed = true;
+			break;
+		}
+	}
+	if (!changed) {
+		for (const id of toAdd) {
+			if (!prev[id]) {
+				changed = true;
+				break;
 			}
 		}
-		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
+	}
+	if (!changed) return previous;
+	const result = setUnion(setRemove(prev, toRemove), toAdd);
+	return result;
+};
+
+//Returns only the filter maps whose membership actually changed for the
+//updated cards; unchanged filters are omitted entirely so their identity (and
+//the identity of the overall filters object, if nothing changed) is
+//preserved. Previously this cloned every one of the ~125 CARD_FILTER_FUNCS
+//maps (each potentially tens of thousands of entries) on every UPDATE_CARDS,
+//which made every single-card snapshot echo O(filters × corpus).
+const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters => {
+	const result : Filters = {};
+	const cardValues = Object.values(cards);
+	for (const [filterName, func] of TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string,  CardTestFunc])) {
+		if(!func) throw new Error('Invalid func name: ' + filterName);
+		const previous = previousFilters[filterName] || {};
+		let toAdd : CardID[] | null = null;
+		let toRemove : CardID[] | null = null;
+		for (const card of cardValues) {
+			//Filter funcs return truthiness, not strict booleans.
+			const matches = Boolean(func(card));
+			const inPrevious = Boolean(previous[card.id]);
+			if (matches === inPrevious) continue;
+			if (matches) {
+				(toAdd ||= []).push(card.id);
+			} else {
+				(toRemove ||= []).push(card.id);
+			}
+		}
+		if (!toAdd && !toRemove) continue;
+		const updated : FilterMap = {...previous};
+		if (toRemove) for (const id of toRemove) delete updated[id];
+		if (toAdd) for (const id of toAdd) updated[id] = true;
+		result[filterName] = updated;
 	}
 	return result;
 };
