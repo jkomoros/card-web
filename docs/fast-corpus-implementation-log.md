@@ -138,15 +138,48 @@ snapshot parsing now happens off the UI thread.
 Sections/tags/stars/reads listeners remain on the main thread; forwarding
 them TO the worker is part of B2 (needed for worker-side filters).
 
-### B2 — planned
+### B2 — COMPLETE (code-side; browser shadow validation pending)
 
-Worker QueryEngine: import filters.ts/collection_description.ts/nlp.ts in the
-worker (inject a DOM shim via `overrideDocument()` — same trick as Node tests),
-FilterMaps maintenance moved/duplicated from reducers/collection.ts, live
-collection subscriptions (description + user-state deltas in, CollectionResult
-out), `collectionRunner` bridge middleware subscribing the active collection +
-find dialog, and divergence logging comparing worker results against the
-UI-computed Collection.
+Discovery that simplified everything: filters.ts / collection_description.ts /
+nlp.ts / reducers/collection.ts / actions.js all load and run WITHOUT any DOM
+(verified empirically in bare Node) — the JSDOM shims in older tests were
+over-cautious. No document shim needed; the one genuine DOM dependency
+(innerTextForHTML in shared/util.ts, used by slow-path NLP for cards without
+valid stored tokens) got a regex-based no-document fallback.
+
+- B2a (2787a40c): pure refactor — processCard/processCards →
+  `src/card-processing.ts`; computeDefaultSet/makeEverythingSetFromCards →
+  `src/set-projections.ts`. Store-free, shared by selectors and worker.
+- `src/worker/query-engine.ts`: maintains filter membership by replaying the
+  REAL collection reducer (semantics can't drift), engine-local raw
+  sections/reading-list, identity-memoized processed-cards + sets, and
+  runCollection() through the real CollectionDescription/Collection machinery.
+  Mirrors selectFilters (base + selected). Node-tested end to end in
+  `test/query-engine` (8 tests: sets, starred/unread/selected filters,
+  sections, reading-list, query text search, updates/removals).
+- `src/action-forwarder.ts`: leaf middleware module (avoids store↔bridge
+  import cycle); store.ts taps every action.
+- Bridge: forwards FORWARDED_ACTION_TYPES (stars/reads/reading-list/sections/
+  tags/selection) wire-encoded to the worker, buffering until spawn (listener
+  installed at module load in shadow/on modes); sends tab-config
+  fallbacks/startCards on connect; shadow comparator asks the worker to run
+  the active collection every ≥5s and diff-logs `[corpus-shadow]`
+  MATCH/DIVERGENCE lines, gated to moments when ghosting snapshot == live
+  state and nothing is being edited (so both sides answer the same question).
+- shared/util.ts innerTextForHTML: no-document regex fallback (tag strip +
+  entity decode + card-link conversion). Slow-path-only; cards with valid
+  stored NLP tokens never touch it.
+
+**Browser validation (user)**: `localStorage.setItem('corpus-worker','shadow')`,
+reload, use the app normally, watch for `[corpus-shadow] DIVERGENCE` warnings.
+Clean logs across normal usage (navigation, starring, reading, searching,
+editing) are the gate for B3.
+
+Known/expected divergence sources to watch: slow-path cards (no valid stored
+tokens) whose regex text extraction differs from DOM extraction; concepts/
+synonyms are NOT yet attached in worker processing (matches main-thread
+selectCards behavior post-lazy-enrichment, so should agree); random-sort salt
+is forwarded per-request.
 
 ### B3 — planned (gated)
 

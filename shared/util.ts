@@ -122,9 +122,39 @@ export const replaceAnchorsWithCardLinks = (html: string): string => {
  * users and thus untrusted, because the temporary element is never actually
  * appended into the DOM
  */
+//Regex-based approximation of card-link conversion for environments without
+//a document (workers, bare Node). Handles the well-formed card-link markup
+//the editor produces; pathological HTML may extract slightly differently
+//than the DOM path.
+const convertCardLinksForPlainTextWithoutDocument = (html : string) : string => {
+	return html.replace(/<card-link\b([^>]*)>([\s\S]*?)<\/card-link>/gi, (_match, attrs : string, text : string) => {
+		const hrefMatch = attrs.match(/href\s*=\s*["']([^"']*)["']/i);
+		if (hrefMatch) return `${text} (${hrefMatch[1]})`;
+		return text;
+	});
+};
+
+//Decodes the handful of entities that show up in card content.
+const decodeCommonEntities = (text : string) : string => {
+	return text
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, '\'')
+		.replace(/&amp;/g, '&');
+};
+
+const innerTextForHTMLWithoutDocument = (body : string) : string => {
+	//Remove comments, then all tags, then decode entities.
+	const withoutComments = body.replace(/<!--[\s\S]*?-->/g, '');
+	const withoutTags = withoutComments.replace(/<[^>]*>/g, '');
+	return decodeCommonEntities(withoutTags);
+};
+
 const convertCardLinksForPlainText = (html : string) : string => {
 	const document = getDocument();
-	if (!document) throw new Error('missing document');
+	if (!document) return convertCardLinksForPlainTextWithoutDocument(html);
 	const tempDiv = document.createElement('div');
 	tempDiv.innerHTML = html;
 
@@ -151,13 +181,17 @@ const convertCardLinksForPlainText = (html : string) : string => {
 
 export const innerTextForHTML = (body : string, preserveLinks = false) : string => {
 	const document = getDocument();
-	if (!document) throw new Error('missing document');
-	const ele = document.createElement('section');
 	// makes sure line breaks are in the right place after each legal block level element
 	body = normalizeLineBreaks(body);
 	if (preserveLinks) {
 		body = convertCardLinksForPlainText(body);
 	}
+	if (!document) {
+		//Workers and bare Node have no document; a regex-based extraction is
+		//a close approximation for the well-formed HTML cards contain.
+		return innerTextForHTMLWithoutDocument(body);
+	}
+	const ele = document.createElement('section');
 	ele.innerHTML = body;
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
 	return ele.textContent || '';

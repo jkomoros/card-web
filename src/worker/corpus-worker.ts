@@ -64,7 +64,16 @@ import {
 } from './search-index.js';
 
 import {
-	toWire
+	QueryEngine
+} from './query-engine.js';
+
+import {
+	SomeAction
+} from '../actions.js';
+
+import {
+	toWire,
+	fromWire
 } from './wire-format.js';
 
 //The name of the cards collection; mirrored from src/actions/database.ts
@@ -96,6 +105,7 @@ let connectionGeneration = 0;
 
 const corpus : Map<CardID, Card> = new Map();
 const index = new SearchIndex();
+const engine = new QueryEngine();
 let cardsWithStoredTokens = 0;
 let indexBuildMs = 0;
 
@@ -154,6 +164,11 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 		corpus.delete(id);
 		index.removeCard(id);
 	}
+	//The engine keeps its own plain-object mirror (identity-preserving per
+	//card) plus filter membership via the real reducer. Strip the ephemeral
+	//search tokens just like main-thread Redux does, so processing and filter
+	//behavior match exactly.
+	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
 	indexBuildMs += performance.now() - indexStart;
 };
 
@@ -372,6 +387,37 @@ workerScope.addEventListener('message', event => {
 	case 'query':
 		runQuery(message.id, message.text);
 		break;
+	case 'action':
+		engine.applyAction(fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction);
+		break;
+	case 'configureCollections':
+		engine.configureCollections(message.fallbacks, message.startCards);
+		break;
+	case 'shadowCollection': {
+		const start = performance.now();
+		try {
+			const result = engine.runCollection(message.description, {
+				keyCardID: message.keyCardID,
+				uid: message.uid,
+				randomSalt: message.randomSalt,
+				cardSimilarity: message.cardSimilarity
+			});
+			send({
+				type: 'shadowCollectionResult',
+				generation,
+				id: message.id,
+				ids: result.ids,
+				labels: result.labels,
+				numCards: result.numCards,
+				isFallback: result.isFallback,
+				preview: result.preview,
+				ms: Math.round((performance.now() - start) * 10) / 10
+			});
+		} catch (e) {
+			send({type: 'error', generation, message: `shadowCollection(${message.description}): ${String(e)}`});
+		}
+		break;
+	}
 	}
 });
 

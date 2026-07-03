@@ -287,7 +287,7 @@ const selectSnapshotCollectionConfiguration = (state : State) : CollectionConfig
 export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
 export const selectActiveCardID = (state : State) => state.collection ? state.collection.activeCardID : '';
 export const selectExplicitlySelectedCardIDs = (state : State) => state.collection ? state.collection.selectedCards : {};
-const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
+export const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state : State) => state.editor ? state.editor.card : null;

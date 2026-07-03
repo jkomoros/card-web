@@ -43,12 +43,32 @@ import {
 	MainToWorkerMessage,
 	WorkerToMainMessage,
 	WorkerGeneration,
-	CardBatch
+	CardBatch,
+	FORWARDED_ACTION_TYPES
 } from './worker/worker-protocol.js';
 
 import {
+	toWire,
 	fromWire
 } from './worker/wire-format.js';
+
+import {
+	setActionListener
+} from './action-forwarder.js';
+
+import {
+	selectActiveCollection,
+	selectActiveCollectionDescription,
+	selectIsEditing,
+	selectRandomSalt,
+	selectCardSimilarity,
+	selectTabCollectionFallbacks,
+	selectTabCollectionStartCards
+} from './selectors.js';
+
+import {
+	State
+} from './types.js';
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
@@ -94,6 +114,121 @@ const devMode = () : boolean => {
 
 const makeTimestamp = (seconds : number, nanoseconds : number) : Timestamp => new Timestamp(seconds, nanoseconds);
 
+const isTimestamp = (value : unknown) : boolean => value instanceof Timestamp;
+const getTime = (timestamp : unknown) => {
+	const ts = timestamp as Timestamp;
+	return {seconds: ts.seconds, nanoseconds: ts.nanoseconds};
+};
+
+//----------------------------------------------------------------------------
+// Action forwarding (shadow/on modes)
+//
+// Whitelisted user-state actions are forwarded to the worker's query engine,
+// which replays them through the real collection reducer. The listener is
+// installed at module load (when the mode calls for it) so early actions
+// aren't missed; they buffer until the worker spawns.
+//----------------------------------------------------------------------------
+
+const bufferedActions : unknown[] = [];
+
+const forwardAction = (action : unknown) => {
+	const type = (action as {type : string}).type;
+	if (!FORWARDED_ACTION_TYPES[type]) return;
+	const wireAction = toWire(action, isTimestamp, getTime);
+	if (worker) {
+		post({type: 'action', generation, action: wireAction});
+	} else {
+		bufferedActions.push(wireAction);
+	}
+};
+
+const flushBufferedActions = () => {
+	if (!worker) return;
+	for (const action of bufferedActions) {
+		post({type: 'action', generation, action});
+	}
+	bufferedActions.length = 0;
+};
+
+//----------------------------------------------------------------------------
+// Shadow comparator ('shadow' mode)
+//
+// Periodically asks the worker to run the active collection and compares its
+// ordered ID list against the UI's. Comparisons are gated to moments when the
+// ghosting snapshot is in sync with live state and nothing is being edited,
+// so both sides are answering the same question.
+//----------------------------------------------------------------------------
+
+const SHADOW_COMPARE_INTERVAL_MS = 5000;
+
+let shadowComparatorStarted = false;
+let shadowCompareTimeout : ReturnType<typeof setTimeout> | null = null;
+let shadowRequestID = 0;
+//Description + UI ids captured when the request was sent, compared on reply.
+const pendingShadowRequests : Map<number, {description : string, uiIDs : string[]}> = new Map();
+
+const scheduleShadowCompare = () => {
+	if (shadowCompareTimeout) return;
+	shadowCompareTimeout = setTimeout(() => {
+		shadowCompareTimeout = null;
+		runShadowCompare();
+	}, SHADOW_COMPARE_INTERVAL_MS);
+};
+
+const runShadowCompare = () => {
+	if (!worker || readMode() !== 'shadow') return;
+	const state = store.getState() as State;
+	//Only compare when both sides are answering the same question.
+	if (selectIsEditing(state)) return;
+	if (state.data && state.data.cardsSnapshot !== state.data.cards) return;
+	if (state.collection && state.collection.filtersSnapshot !== state.collection.filters) return;
+	const description = selectActiveCollectionDescription(state);
+	if (!description) return;
+	const collection = selectActiveCollection(state);
+	if (!collection) return;
+	const id = ++shadowRequestID;
+	pendingShadowRequests.set(id, {
+		description: description.serialize(),
+		uiIDs: collection.finalSortedCards.map(card => card.id)
+	});
+	post({
+		type: 'shadowCollection',
+		generation,
+		id,
+		description: description.serialize(),
+		keyCardID: '',
+		uid: lastUid,
+		randomSalt: selectRandomSalt(state),
+		cardSimilarity: selectCardSimilarity(state)
+	});
+};
+
+const handleShadowResult = (id : number, workerIDs : string[], ms : number) => {
+	const pending = pendingShadowRequests.get(id);
+	pendingShadowRequests.delete(id);
+	if (!pending) return;
+	const {description, uiIDs} = pending;
+	if (uiIDs.length === workerIDs.length && uiIDs.every((cardID, i) => cardID === workerIDs[i])) {
+		console.log(`[corpus-shadow] MATCH for ${description}: ${uiIDs.length} cards (worker ${ms}ms)`);
+		return;
+	}
+	const uiSet = new Set(uiIDs);
+	const workerSet = new Set(workerIDs);
+	const onlyUI = uiIDs.filter(cardID => !workerSet.has(cardID)).slice(0, 5);
+	const onlyWorker = workerIDs.filter(cardID => !uiSet.has(cardID)).slice(0, 5);
+	const orderOnly = onlyUI.length === 0 && onlyWorker.length === 0;
+	console.warn(`[corpus-shadow] DIVERGENCE for ${description}: ui=${uiIDs.length} worker=${workerIDs.length}${orderOnly ? ' (ordering only)' : ''}`, {onlyUI, onlyWorker});
+};
+
+const startShadowComparator = () => {
+	if (shadowComparatorStarted) return;
+	if (readMode() !== 'shadow') return;
+	shadowComparatorStarted = true;
+	store.subscribe(scheduleShadowCompare);
+	scheduleShadowCompare();
+	console.log('[corpus-shadow] comparator active (compares at most every ' + (SHADOW_COMPARE_INTERVAL_MS / 1000) + 's)');
+};
+
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
@@ -134,6 +269,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	}
 	case 'cards':
 		handleCardBatch(message.batch);
+		break;
+	case 'shadowCollectionResult':
+		handleShadowResult(message.id, message.ids, message.ms);
 		break;
 	}
 };
@@ -178,6 +316,17 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	} else {
 		post({type: 'reconnect', generation, mayViewUnpublished, uid});
 	}
+	flushBufferedActions();
+	if (corpusWorkerOwnsCardIngestion()) {
+		const state = store.getState() as State;
+		post({
+			type: 'configureCollections',
+			generation,
+			fallbacks: selectTabCollectionFallbacks(state),
+			startCards: selectTabCollectionStartCards(state)
+		});
+		startShadowComparator();
+	}
 };
 
 //Called once at app startup (from main-view). Spawns the worker only when the
@@ -199,6 +348,13 @@ declare global {
 			query: (text : string) => Promise<{ids : string[], ms : number, fullScanFallback : boolean}>,
 		};
 	}
+}
+
+//Install the action-forwarding tap at module load when the worker will own
+//ingestion, so no early user-state actions are missed (they buffer until the
+//worker spawns).
+if (typeof window !== 'undefined' && corpusWorkerOwnsCardIngestion()) {
+	setActionListener(forwardAction);
 }
 
 if (typeof window !== 'undefined') {

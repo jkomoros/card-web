@@ -16,6 +16,7 @@ import app from './reducers/app.js';
 import data from './reducers/data.js';
 import { SomeAction } from './actions.js';
 import { perfMiddleware } from './perf.js';
+import { actionForwarderMiddleware } from './action-forwarder.js';
 
 declare global {
 	interface Window {
@@ -43,7 +44,7 @@ export const store = createStore(
 	state => state as Reducer<State,SomeAction>,
 	devCompose(
 		lazyReducerEnhancer(combineReducers),
-		applyMiddleware(thunkMiddleware, perfMiddleware))
+		applyMiddleware(thunkMiddleware, perfMiddleware, actionForwarderMiddleware))
 );
 
 // Initially loaded reducers.
