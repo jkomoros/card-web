@@ -17,15 +17,20 @@ import {
 	initializeFirestore,
 	memoryLocalCache,
 	onSnapshot,
-	getDocs,
+	getDocsFromServer,
 	query,
 	collection,
 	where,
 	documentId,
 	Firestore,
+	Query,
 	QuerySnapshot,
 	Timestamp
 } from 'firebase/firestore';
+
+import {
+	retryWithBackoff
+} from './retry.js';
 
 import {
 	initializeAuth,
@@ -260,6 +265,54 @@ const teardownListeners = () => {
 	unsubscribes.length = 0;
 };
 
+//Backoff for re-attaching snapshot listeners after an error. The SDK
+//TERMINATES a listener whose error callback fires — it will never deliver
+//again — and the worker's memory cache means there is no persistent-cache
+//cushion hiding the outage. Without re-attachment a single backend blip
+//(e.g. "datastore operation timed out", observed live on dev) would leave
+//the worker serving a silently-incomplete corpus forever.
+const LISTENER_RETRY_BASE_MS = 5000;
+const LISTENER_RETRY_MAX_MS = 60000;
+
+//Attaches a snapshot listener that re-attaches itself with backoff when it
+//errors. listenerError still runs on each error (reporting + forwarding an
+//empty batch so main-thread loading indicators clear); the re-attached
+//listener's initial delivery then supplies the real data. makeHandler is
+//called per attachment so per-attachment state (like the fastDedupe
+//first-delivery flag) resets on re-attach.
+const attachResilientListener = (
+	context : string,
+	fetchType : CardFetchType,
+	makeQuery : () => Query,
+	makeHandler : () => (snapshot : QuerySnapshot) => void
+) => {
+	const myConnectionGeneration = connectionGeneration;
+	let delay = LISTENER_RETRY_BASE_MS;
+	const attach = () => {
+		if (myConnectionGeneration !== connectionGeneration) return;
+		const handler = makeHandler();
+		unsubscribes.push(onSnapshot(
+			makeQuery(),
+			snapshot => {
+				delay = LISTENER_RETRY_BASE_MS;
+				handler(snapshot);
+			},
+			error => {
+				listenerError(fetchType, context)(error);
+				//permission-denied is terminal until auth changes, and auth
+				//changes arrive as a reconnect (new generation → fresh
+				//attach); retrying it would just spam empty batches.
+				if ((error as {code? : string}).code === 'permission-denied') return;
+				const thisDelay = delay;
+				delay = Math.min(delay * 2, LISTENER_RETRY_MAX_MS);
+				status(`${context} re-attaching in ${thisDelay / 1000}s`);
+				setTimeout(attach, thisDelay);
+			}
+		));
+	};
+	attach();
+};
+
 const connectFirebase = (devMode : boolean) => {
 	if (app) return;
 	const config = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
@@ -287,11 +340,10 @@ const connectFirebase = (devMode : boolean) => {
 
 const connectPublished = () => {
 	if (!db) return;
-	unsubscribes.push(onSnapshot(
-		query(collection(db, CARDS_COLLECTION), where('published', '==', true)),
-		snapshot => ingestSnapshot(snapshot, 'published'),
-		listenerError('published', 'published listener')
-	));
+	const database = db;
+	attachResilientListener('published listener', 'published',
+		() => query(collection(database, CARDS_COLLECTION), where('published', '==', true)),
+		() => snapshot => ingestSnapshot(snapshot, 'published'));
 	status('published listener attached');
 };
 
@@ -340,7 +392,20 @@ const connectUnpublishedPrivileged = async () => {
 				: query(collection(database, CARDS_COLLECTION),
 					where('published', '==', false),
 					where(documentId(), '<', partition.lt));
-			const snapshot = await getDocs(partitionQuery);
+			//From the SERVER, with retry: plain getDocs silently falls back
+			//to the (memory, i.e. empty) cache when the backend has a blip,
+			//which reads as a successful zero-card partition. Observed live
+			//on dev: "complete: 0 cards" with no error during a datastore
+			//outage.
+			const snapshot = await retryWithBackoff(
+				() => getDocsFromServer(partitionQuery),
+				{
+					attempts: 5,
+					baseDelayMs: 2000,
+					shouldContinue: () => myConnectionGeneration === connectionGeneration,
+					onRetry: (error, attempt, delayMs) => status(`unpublished partition [${partition.gte || 'start'},${partition.lt || 'end'}) attempt ${attempt} failed (${String(error)}); retrying in ${delayMs}ms`)
+				}
+			);
 			if (myConnectionGeneration !== connectionGeneration) return 0;
 			if (snapshot.size > 0) {
 				const {cards} = parseSnapshot(snapshot);
@@ -359,31 +424,37 @@ const connectUnpublishedPrivileged = async () => {
 	}
 
 	if (myConnectionGeneration !== connectionGeneration) return;
-	let firstDelivery = true;
-	unsubscribes.push(onSnapshot(
-		query(collection(database, CARDS_COLLECTION), where('published', '==', false)),
-		snapshot => {
-			const fastDedupe = firstDelivery;
-			firstDelivery = false;
-			ingestSnapshot(snapshot, 'unpublished', fastDedupe);
-		},
-		listenerError('unpublished', 'unpublished listener')
-	));
+	attachResilientListener('unpublished listener', 'unpublished',
+		() => query(collection(database, CARDS_COLLECTION), where('published', '==', false)),
+		() => {
+			//Per attachment: only the initial delivery right after the
+			//getDocs prime is overwhelmingly-redundant; re-attached
+			//listeners get a fresh flag (their initial delivery redelivers
+			//everything already in the worker corpus, which fast dedupe
+			//also handles correctly).
+			let firstDelivery = true;
+			return snapshot => {
+				const fastDedupe = firstDelivery;
+				firstDelivery = false;
+				ingestSnapshot(snapshot, 'unpublished', fastDedupe);
+			};
+		});
 	status('unpublished listener attached');
 };
 
 const connectUnpublishedAuthorEditor = (uid : string) => {
 	if (!db || !uid) return;
-	unsubscribes.push(onSnapshot(
-		query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
-		snapshot => ingestSnapshot(snapshot, 'unpublished-author'),
-		listenerError('unpublished-author', 'unpublished-author listener')
-	));
-	unsubscribes.push(onSnapshot(
-		query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
-		snapshot => ingestSnapshot(snapshot, 'unpublished-editor'),
-		listenerError('unpublished-editor', 'unpublished-editor listener')
-	));
+	const database = db;
+	//These two error with permission-denied for users without the right
+	//grants (expected, e.g. anonymous users); attachResilientListener treats
+	//that as terminal, so the only effect is the empty-batch forward that
+	//keeps loading indicators clear — same as before.
+	attachResilientListener('unpublished-author listener', 'unpublished-author',
+		() => query(collection(database, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
+		() => snapshot => ingestSnapshot(snapshot, 'unpublished-author'));
+	attachResilientListener('unpublished-editor listener', 'unpublished-editor',
+		() => query(collection(database, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
+		() => snapshot => ingestSnapshot(snapshot, 'unpublished-editor'));
 	status('author/editor listeners attached');
 };
 
