@@ -382,7 +382,12 @@ const connectUnpublishedPrivileged = async () => {
 		const cards = {...pendingCards};
 		for (const id of ids) delete pendingCards[id];
 		updateLocalState(cards, []);
-		forwardBatch(cards, [], 'unpublished', false);
+		//fastDedupe: when the main thread primed Redux from its local cache,
+		//this flush overwhelmingly redelivers cards it already holds —
+		//matching updated timestamps prove equivalence without a 39k-card
+		//deep-compare sweep. On an unprimed (empty-Redux) boot the flag is
+		//moot: nothing to dedupe against.
+		forwardBatch(cards, [], 'unpublished', true);
 		status(`flushed ${ids.length} coalesced unpublished cards; corpus=${corpus.size}`);
 	};
 

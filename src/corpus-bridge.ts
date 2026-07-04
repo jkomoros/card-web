@@ -172,14 +172,22 @@ type RunCollectionResolution = {
 };
 const pendingRunCollections : Map<number, (result : RunCollectionResolution) => void> = new Map();
 
-//True when the worker holds the corpus and can answer collection runs. Gated
-//on card loading being complete — in worker modes the loading flags are fed
-//by the worker's own forwarded batches, so pending flags mean the worker's
-//corpus is still partial and its answers would silently miss cards.
+//Fetch types the worker has delivered at least one batch for under the
+//current generation. This — not the Redux loading flags — is the signal that
+//the worker's corpus is complete enough to serve collection runs: the local
+//cache prime (see primeCardsFromLocalCacheForWorkerModes) fills Redux and
+//clears the loading flags long before the worker finishes its own load.
+let workerDeliveredFetchTypes : {[fetchType : string] : true} = {};
+
+//True when the worker holds the corpus and can answer collection runs: it
+//must have delivered every fetch type its connection parameters call for
+//(empty batches count — they signal an attached-but-empty listener or a
+//permission failure, exactly like the main-thread path).
 export const corpusWorkerCanRunCollections = () : boolean => {
 	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
-	const state = store.getState() as State;
-	if (Object.keys(selectLoadingCardFetchTypes(state)).length) return false;
+	if (!workerDeliveredFetchTypes['published']) return false;
+	if (lastMayViewUnpublished) return Boolean(workerDeliveredFetchTypes['unpublished']);
+	if (lastUid) return Boolean(workerDeliveredFetchTypes['unpublished-author'] && workerDeliveredFetchTypes['unpublished-editor']);
 	return true;
 };
 
@@ -342,6 +350,11 @@ const runShadowCompare = () => {
 	if (!worker || (mode !== 'shadow' && mode !== 'on')) return;
 	const state = store.getState() as State;
 	sendCollectionConfigIfChanged(state);
+	//Don't subscribe (or serve pushed results) until the worker's corpus is
+	//complete: with the local cache prime, Redux holds the FULL cached corpus
+	//while the worker is still loading, and a partial worker push would
+	//visibly shrink the rendered collection in 'on' mode.
+	if (!corpusWorkerCanRunCollections()) return;
 	ensureSubscription('active', selectActiveCollectionDescription(state), state);
 	if (mode === 'on') {
 		//Serve the find dialog's query collection from the worker too, but
@@ -416,6 +429,7 @@ const startShadowComparator = () => {
 
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
+	workerDeliveredFetchTypes[batch.fetchType] = true;
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
 	//the fetchType regardless of card count, exactly like a main-thread
@@ -526,6 +540,9 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	lastMayViewUnpublished = mayViewUnpublished;
 	lastUid = uid;
 	generation++;
+	//A (re)connect restarts the worker's ingestion from scratch; its corpus
+	//is incomplete again until batches for the new parameters arrive.
+	workerDeliveredFetchTypes = {};
 	if (!connectSent) {
 		connectSent = true;
 		post({type: 'connect', generation, devMode: devMode(), mayViewUnpublished, uid});

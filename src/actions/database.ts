@@ -44,6 +44,7 @@ import {
 	collection,
 	onSnapshot,
 	getDocs,
+	getDocsFromCache,
 	where,
 	query,
 	orderBy,
@@ -369,12 +370,47 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 
 };
 
+//One-time warm-boot prime in worker modes: the worker's memory cache means
+//it must network-load the whole corpus every boot (~1-2min at 40k), while
+//the main thread's persistent cache still holds the previous session's
+//cards — its listeners just aren't attached in worker modes. Serve that
+//cache into Redux immediately (a purely local read: no listeners, no
+//network) so the app is usable at old-way warm-boot speed; the worker's
+//authoritative batches then dedupe against it (fast dedupe on matching
+//updated timestamps). Known limitation (rare): a card DELETED since the
+//cache was written lingers for the session — the worker never saw it, so it
+//can't send a removal.
+let localCachePrimeStarted = false;
+const primeCardsFromLocalCacheForWorkerModes = async () => {
+	if (localCachePrimeStarted) return;
+	localCachePrimeStarted = true;
+	const start = performance.now();
+	const primes = [
+		{fetchType: 'published', cardsQuery: query(collection(db, CARDS_COLLECTION), where('published', '==', true))},
+		{fetchType: 'unpublished', cardsQuery: query(collection(db, CARDS_COLLECTION), where('published', '==', false))},
+	] as const;
+	for (const {fetchType, cardsQuery} of primes) {
+		try {
+			const snapshot = await getDocsFromCache(cardsQuery);
+			if (snapshot.empty) continue;
+			const {cards} = parseCardSnapshot(snapshot);
+			if (!Object.keys(cards).length) continue;
+			console.log(`[PERF] local cache prime: serving ${Object.keys(cards).length} ${fetchType} cards from the persistent cache`);
+			store.dispatch(receiveCards(cards, fetchType));
+		} catch {
+			//Cache empty or unavailable — the worker load proceeds as usual.
+		}
+	}
+	console.log(`[PERF] local cache prime: total ${(performance.now() - start).toFixed(1)}ms`);
+};
+
 export const connectLivePublishedCards = () => {
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
 	if (corpusWorkerOwnsCardIngestion()) {
 		//The corpus worker owns the Firestore card listeners; batches arrive
 		//via the bridge and are dispatched through the same receiveCards path.
+		void primeCardsFromLocalCacheForWorkerModes();
 		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
 		return;
 	}
