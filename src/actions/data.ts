@@ -323,9 +323,30 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		}
 	}
 
+	//Optimistic echo (worker modes only, inside echoLocalCardModifications):
+	//apply the materialized post-write cards NOW, before the server ack —
+	//the same latency compensation Firestore's own listeners give off mode.
+	//Snapshot the pre-write cards first so a failed commit can roll back.
+	let priorCards : Cards | null = null;
+	if (modifiedCount > 0 && Object.keys(localEchoes).length) {
+		const rawCards = selectRawCards(getState());
+		priorCards = {};
+		for (const id of Object.keys(localEchoes)) {
+			if (rawCards[id]) priorCards[id] = rawCards[id];
+		}
+		dispatch(echoLocalCardModifications(localEchoes));
+	}
+
 	try {
 		await batch.commit();
 	} catch(err) {
+		//Roll back the optimistic echo locally and in the worker corpus. If
+		//a multi-batch commit failed partially, the batches that DID land
+		//redeliver via the listener (their timestamps differ from these
+		//pre-write cards, so the correction isn't deduped away).
+		if (priorCards && Object.keys(priorCards).length) {
+			dispatch(echoLocalCardModifications(priorCards));
+		}
 		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
 		return;
 	}
@@ -333,8 +354,6 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
 
 	dispatch(modifyCardSuccess(modifiedCount));
-
-	if (modifiedCount > 0) dispatch(echoLocalCardModifications(localEchoes));
 };
 
 //In worker modes the card-listener echo takes a full server round trip
@@ -1489,10 +1508,20 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 
 	const pendingModifications = selectPendingModificationCount(getState());
 	if (pendingModifications == 0) {
+		//Direct-apply path. These used to ALSO run through the enqueue path,
+		//whose flush condition (enqueued >= 0 pending) was always satisfied —
+		//so every batch was applied TWICE, doubling the downstream
+		//recalculation cascade. The paths are now exclusive; first flush any
+		//leftovers a failed/corrected modification cycle stranded in the
+		//queue (they're older than this batch, so they apply first).
+		const leftovers = selectEnqueuedCards(getState());
+		if (Object.values(leftovers).some(cards => Object.keys(cards).length)) {
+			dispatch(updateEnqueuedCards());
+		}
 		dispatch(updateCards(cardsToUpdate, fetchType));
+	} else {
+		dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
 	}
-
-	dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
 	console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 

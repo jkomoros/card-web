@@ -425,22 +425,37 @@ const connectUnpublishedPrivileged = async () => {
 	}
 
 	if (myConnectionGeneration !== connectionGeneration) return;
-	attachResilientListener('unpublished listener', 'unpublished',
-		() => query(collection(database, CARDS_COLLECTION), where('published', '==', false)),
-		() => {
-			//Per attachment: only the initial delivery right after the
-			//getDocs prime is overwhelmingly-redundant; re-attached
-			//listeners get a fresh flag (their initial delivery redelivers
-			//everything already in the worker corpus, which fast dedupe
-			//also handles correctly).
-			let firstDelivery = true;
-			return snapshot => {
-				const fastDedupe = firstDelivery;
-				firstDelivery = false;
-				ingestSnapshot(snapshot, 'unpublished', fastDedupe);
-			};
-		});
-	status('unpublished listener attached');
+	//One listener per document-ID partition rather than a single 38k-doc
+	//Listen: a full-corpus Listen stream died with "datastore operation
+	//timed out" ~2min after attach on the dev backend (observed repeatedly),
+	//and with per-partition listeners a drop only costs re-attaching and
+	//redelivering ~1/5 of the corpus.
+	for (const partition of PARTITIONS) {
+		const label = `[${partition.gte || 'start'},${partition.lt <= 'c-9' ? partition.lt : 'end'})`;
+		attachResilientListener(`unpublished listener ${label}`, 'unpublished',
+			() => partition.gte
+				? query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false),
+					where(documentId(), '>=', partition.gte),
+					where(documentId(), '<', partition.lt))
+				: query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false),
+					where(documentId(), '<', partition.lt)),
+			() => {
+				//Per attachment: only the initial delivery right after the
+				//getDocs prime is overwhelmingly-redundant; re-attached
+				//listeners get a fresh flag (their initial delivery
+				//redelivers everything already in the worker corpus, which
+				//fast dedupe also handles correctly).
+				let firstDelivery = true;
+				return snapshot => {
+					const fastDedupe = firstDelivery;
+					firstDelivery = false;
+					ingestSnapshot(snapshot, 'unpublished', fastDedupe);
+				};
+			});
+	}
+	status(`unpublished listeners attached (${PARTITIONS.length} partitions)`);
 };
 
 const connectUnpublishedAuthorEditor = (uid : string) => {
