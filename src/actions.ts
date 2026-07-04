@@ -593,7 +593,12 @@ type ActionModifyCard = {
 };
 
 type ActionModifyCardSuccess = {
-	type: typeof MODIFY_CARD_SUCCESS
+	type: typeof MODIFY_CARD_SUCCESS,
+	//How many writes were actually committed. May be lower than the planned
+	//modificationCount (some updates turn out to be no-ops); the reducer
+	//corrects the pending count so echo-gating doesn't wait for echoes that
+	//are never coming.
+	modificationCount: number
 };
 
 type ActionModifyCardFailure = {

@@ -241,11 +241,18 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 		return {
 			...state,
 			pendingModifications: false,
+			//Correct the planned count down to the writes actually committed
+			//(no-op diffs produce no echo, so waiting for them would suppress
+			//UPDATE_CARDS forever). min, not overwrite: the local echo can
+			//arrive and flush before the commit resolves, and success must
+			//not re-raise an already-cleared count.
+			pendingModificationCount: Math.min(state.pendingModificationCount, action.modificationCount),
 		};
 	case MODIFY_CARD_FAILURE:
 		return {
 			...state,
 			pendingModifications: false,
+			pendingModificationCount: 0,
 			cardModificationError: action.error
 		};
 	case REORDER_STATUS:

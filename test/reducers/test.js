@@ -24,6 +24,10 @@ let dataReducer;
 let UPDATE_CARDS;
 let UPDATE_READS;
 let UPDATE_STARS;
+let MODIFY_CARD;
+let MODIFY_CARD_SUCCESS;
+let MODIFY_CARD_FAILURE;
+let CLEAR_ENQUEUED_CARD_UPDATES;
 let INITIAL_COLLECTION_STATE;
 
 const makeCard = (id, extras) => ({
@@ -60,6 +64,10 @@ describe('reducer identity preservation', () => {
 			UPDATE_CARDS,
 			UPDATE_READS,
 			UPDATE_STARS,
+			MODIFY_CARD,
+			MODIFY_CARD_SUCCESS,
+			MODIFY_CARD_FAILURE,
+			CLEAR_ENQUEUED_CARD_UPDATES,
 		} = await import('../../lib/src/actions.js'));
 		({
 			INITIAL_STATE: INITIAL_COLLECTION_STATE
@@ -134,6 +142,41 @@ describe('reducer identity preservation', () => {
 		const state = primedCollectionState({'card-one': card});
 		const nextState = collectionReducer(state, {type: UPDATE_STARS, starsToAdd: [], starsToRemove: ['card-one']});
 		assert.strictEqual(nextState, state);
+	});
+
+	it('MODIFY_CARD_SUCCESS corrects pendingModificationCount to the writes actually made', async () => {
+		const initial = dataReducer(undefined, {type: '@@INIT'});
+		//A commit plans one write…
+		let state = dataReducer(initial, {type: MODIFY_CARD, modificationCount: 1});
+		assert.strictEqual(state.pendingModificationCount, 1);
+		//…but the diff turns out to be a no-op: zero writes committed. The
+		//count must clear, or receiveCards would suppress applying card
+		//updates forever (no echo is ever coming).
+		state = dataReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 0});
+		assert.strictEqual(state.pendingModifications, false);
+		assert.strictEqual(state.pendingModificationCount, 0);
+		//A multi-card commit where only some cards actually changed keeps the
+		//count of real writes, so echo-gating still works for those.
+		state = dataReducer(state, {type: MODIFY_CARD, modificationCount: 3});
+		state = dataReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 2});
+		assert.strictEqual(state.pendingModificationCount, 2);
+		//If the echo already arrived and flushed (latency-compensated local
+		//echo lands before commit resolves), the count is already 0 and
+		//success must NOT re-raise it.
+		state = dataReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 0});
+		state = dataReducer(state, {type: MODIFY_CARD, modificationCount: 1});
+		state = dataReducer(state, {type: CLEAR_ENQUEUED_CARD_UPDATES});
+		assert.strictEqual(state.pendingModificationCount, 0);
+		state = dataReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 1});
+		assert.strictEqual(state.pendingModificationCount, 0);
+	});
+
+	it('MODIFY_CARD_FAILURE clears pendingModificationCount', async () => {
+		const initial = dataReducer(undefined, {type: '@@INIT'});
+		let state = dataReducer(initial, {type: MODIFY_CARD, modificationCount: 1});
+		state = dataReducer(state, {type: MODIFY_CARD_FAILURE, error: new Error('nope')});
+		assert.strictEqual(state.pendingModifications, false);
+		assert.strictEqual(state.pendingModificationCount, 0);
 	});
 
 	it('UPDATE_CARDS prunes only similarity entries mentioning changed cards', async () => {

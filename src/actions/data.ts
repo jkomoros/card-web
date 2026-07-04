@@ -325,7 +325,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 
 	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
 
-	dispatch(modifyCardSuccess());
+	dispatch(modifyCardSuccess(modifiedCount));
 };
 
 //returns true if a modificatioon was made to the card, or false if it was a no
@@ -1300,7 +1300,7 @@ const modifyCardAction = (modificationCount : number) : SomeAction => {
 	};
 };
 
-const modifyCardSuccess = () : ThunkSomeAction => (dispatch, getState) => {
+const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingFinish());
@@ -1310,7 +1310,16 @@ const modifyCardSuccess = () : ThunkSomeAction => (dispatch, getState) => {
 	}
 	dispatch({
 		type:MODIFY_CARD_SUCCESS,
+		modificationCount,
 	});
+	//Echoes for the committed writes may have arrived (and been enqueued)
+	//before the commit resolved, when the pending count was still the planned
+	//(higher) number. Now that the count is corrected, flush if satisfied.
+	const enqueuedUpdates = selectEnqueuedCards(getState());
+	const enqueuedCount = Object.values(enqueuedUpdates).reduce((acc, val) => acc + Object.keys(val).length, 0);
+	if (enqueuedCount > 0 && enqueuedCount >= selectPendingModificationCount(getState())) {
+		dispatch(updateEnqueuedCards());
+	}
 };
 
 const modifyCardFailure = (err : Error, skipAlert? : boolean) : SomeAction => {
