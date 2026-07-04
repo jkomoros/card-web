@@ -350,15 +350,88 @@ Also worth attacking: the 583ms single-card UPDATE_CARDS echo dispatch.
   launchPersistentContext with the copied mcp-chrome profile — May profile's
   Firebase session remains valid; chromium-1223 executablePath pin).
 
-**WORKER-SERVED REFERENCE BLOCKS (099fd6bd, VERIFICATION PENDING)**: the
-deferred reference-block callbacks in card-view/card-info-panel now run each
-block's collection in the corpus worker (one-shot runCollection protocol) and
-reconstitute pre-seeded Collections via fromWorkerResult; sync local
-computation remains the fallback when the worker is off or still loading
-(corpusWorkerCanRunCollections gates on loading flags). Typecheck + suites
-green. STILL NEEDED: the live shadow-mode measurement (scratchpad/measure.mjs
-sets corpus-worker=shadow via addInitScript; readiness deadline 600s because
-the worker cold-loads its memory-cache corpus ~2.5min) — launch was blocked
-by a transient Anthropic-side Bash-classifier outage at session end. Expect
-NAV long tasks to drop to renders only (similar/ block scoring moves
-off-thread) and post-commit sweeps to shrink similarly.
+**WORKER-SERVED REFERENCE BLOCKS (099fd6bd) — VERIFIED LIVE (2026-07-03,
+40,225 cards, admin account, shadow mode)**: measure.mjs results vs the
+POST-FAST-PATH baseline:
+- NAV: **zero long tasks** across 6 rapid ArrowDown presses + settle (was
+  ~0.6-1.2s blocking per press). The similar/ block scoring left the UI
+  thread; the [PERF] collection-filter lines for direct-references/similar
+  blocks still appear but no longer block.
+- TYPING: clean — one 66ms task across a 10-char trusted-input type.
+- COMMIT: UI-thread cost gone (56ms + 295ms tasks vs 16s of sweeps), but the
+  settle condition (pendingModificationCount==0 && !editing) timed out —
+  which led to the two findings below.
+
+**COMMIT-SETTLE INVESTIGATION (2026-07-03)** — two real bugs found via
+focused probes (scratchpad probe-commit.mjs / probe-commit2.mjs):
+1. **Stuck pendingModificationCount (fixed, 8fb46bd1)**: MODIFY_CARD sets the
+   count to the PLANNED write count; a commit whose diff turns out to be a
+   no-op (zero writes committed — e.g. probe 1's edit was normalized away)
+   or a failed commit never gets an echo, so the count never cleared and
+   receiveCards suppressed applying card updates indefinitely. In off mode
+   unrelated background echoes eventually self-healed this; in worker modes
+   they're rare, so it surfaced. MODIFY_CARD_SUCCESS now carries the actual
+   committed write count; the reducer takes min (the local echo can flush
+   BEFORE commit resolves — success must not re-raise a cleared count);
+   FAILURE clears; success also flushes already-enqueued satisfying echoes.
+   Tests in test:reducers.
+2. **Worker corpus was one backend blip away from silent permanent
+   incompleteness (fixed, c79541c2)**: during a live dev datastore outage the
+   partitioned unpublished getDocs resolved with "0 cards" and NO error
+   (plain getDocs silently falls back to the worker's EMPTY memory cache) and
+   the phase-2 unpublished onSnapshot errored — which terminates the listener
+   permanently. Worker now uses getDocsFromServer + retryWithBackoff (new
+   src/worker/retry.ts + test:worker-retry suite, in npm test), and all
+   worker snapshot listeners re-attach with 5s→60s backoff on error
+   (generation-guarded; permission-denied stays terminal since auth changes
+   arrive as reconnects). NOTE the main-thread path keeps its old behavior
+   (persistent cache cushions it); if its listeners ever die on error the
+   same pattern applies.
+
+Harness notes (probes): editingCommit has confirm() dialogs — Playwright
+auto-DISMISSES dialogs unless a 'dialog' handler accepts them, which reads as
+"User cancelled" and leaves editing=true (part of the measure.mjs timeout).
+Body edits appended after the final </p> get normalized away → no-op commit;
+insert INSIDE the last paragraph. Commit-echo round trip in worker modes goes
+main-thread write → server → worker's separate connection → forwarded batch
+(no latency-compensated local echo), so expect seconds, not ms.
+
+**COMMIT-ECHO ROOT CAUSE + FIX (2026-07-03, probe-echo3.mjs)**: side-by-side
+main-thread doc listener vs worker query listener on the same commit showed:
+main thread latency-compensated echo at +39ms, server ack +1.0s — but the
+worker's 38,985-doc unpublished Listen stream DIES ~110s after attach on dev
+("datastore operation timed out"), observed repeatedly. Off mode never sees
+this because the main thread's persistent cache gives its Listen resume
+tokens; the worker's memory cache restarts the full Listen every boot. With
+the re-attach fix (c79541c2) the echo eventually arrives via the re-attached
+listener's initial delivery (fastDedupe diffs 38,985 → 1 changed): commit
+settled at +113.8s — correct but unusable.
+
+**Fix — commits self-echo locally in worker modes (d7ccf9d0)**:
+modifyCardWithBatch materializes the post-write cards (sentinels resolved
+locally via applyCardFirebaseUpdate's clientSentinels; inbound-link updates
+composed per batch) into an optional accumulator; after a successful commit,
+modifyCardsIndividually (and reorderCard) dispatch them through receiveCards
+(token-stripped) AND forward them unstripped to the worker corpus via new
+whitelisted action ECHO_LOCAL_CARD_MODIFICATIONS (worker preserves prior
+nlp_search_tokens when an echo card lacks them, so non-content edits don't
+knock cards out of the index; updateLocalState covers corpus + index +
+engine + subscriptions + cardMeta). The real server echo later dedupes away
+(deepEqualIgnoringTimestamps). Off mode untouched. **VERIFIED LIVE at 40k:
+commit now FULLY SETTLES at +2.0s in shadow mode** (was 113.8s / never).
+Server truth confirmed the write; [PERF] showed the echo as "diffed 1 → 1
+changed".
+
+Also fixed in passing (d7ccf9d0): reorderCard and maintenance
+rerunCardFinishers called modifyCardWithBatch WITHOUT await, but its
+batch.set calls happen after its first internal await — batch.commit() ran on
+an empty batch and those writes silently never persisted (latent dormant bug,
+predates this branch).
+
+Remaining worker-Listen consideration for 'on'-mode quality (not
+correctness): each Listen drop costs a full 38,985-doc redelivery on
+re-attach (~4s worker CPU + ~75ms main-thread diff, every ~2min on a strained
+dev backend). Options if it matters: partition the unpublished Listen like
+the getDocs (5 × ~8k, localizes drops), or the already-planned cache handoff
+(worker gets persistentLocalCache + resume tokens once the main thread stops
+holding it — the endgame of P2/P4).
