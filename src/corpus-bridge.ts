@@ -227,6 +227,11 @@ let shadowCompareTimeout : ReturnType<typeof setTimeout> | null = null;
 //which the worker doesn't have).
 let subscriptionCounter = 0;
 
+//Tracks identity changes of the cardSimilarity map so subscription keys
+//change (→ resubscribe with fresh data) whenever new similarity data lands.
+let lastSeenCardSimilarity : ReturnType<typeof selectCardSimilarity> | null = null;
+let cardSimilaritySerial = 0;
+
 type BridgeSubscription = {
 	slot : WorkerCollectionSlot,
 	id : number,
@@ -257,7 +262,14 @@ const ensureSubscription = (slot : WorkerCollectionSlot, description : Collectio
 		}
 		return;
 	}
-	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid;
+	//cardSimilarity is snapshotted into the worker-side subscription at
+	//subscribe time, so a similarity identity change must resubscribe.
+	const similarity = selectCardSimilarity(state);
+	if (similarity !== lastSeenCardSimilarity) {
+		lastSeenCardSimilarity = similarity;
+		cardSimilaritySerial++;
+	}
+	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid + '|' + cardSimilaritySerial;
 	if (key === subscription.key) return;
 	if (subscription.id) {
 		post({type: 'unsubscribeCollection', generation, subscriptionID: subscription.id});
@@ -468,6 +480,14 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		if (corpusWorkerOwnsCardIngestion()) {
 			store.dispatch({type: UPDATE_CARD_META, metas: message.metas, removedIDs: message.removedIDs});
 		}
+		break;
+	case 'requestSimilarity':
+		//The worker's similar-card filters can't fetch server similarity
+		//themselves; perform the fetch here. When it lands,
+		//UPDATE_CARD_SIMILARITY changes selectCardSimilarity's identity,
+		//which re-keys the live subscriptions below so the worker recomputes
+		//with the fresh data.
+		void import('./actions/similarity.js').then(module => module.fetchSimilarCardsIfEnabled(message.cardID));
 		break;
 	}
 };

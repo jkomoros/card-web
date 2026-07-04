@@ -1030,3 +1030,29 @@ describe('ngrams', () => {
 	});
 
 });
+
+describe('fingerprint cache reuse across generators', () => {
+	it('unchanged card objects keep fingerprint identity across generators with stable server IDF', async () => {
+		const cards = baseCards();
+		const serverIDF = {idf: {}, maxIDF: 1};
+		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, serverIDF);
+		const fingerprintOne = generatorOne.fingerprintForCardID(CARD_ID_ONE);
+		const fingerprintTwoBefore = generatorOne.fingerprintForCardID(CARD_ID_TWO);
+		//Simulate a single-card update: fresh map, fresh object for card two
+		//only (unchanged cards keep identity, like the incremental reducers).
+		const updatedCards = {...cards, [CARD_ID_TWO]: {...cards[CARD_ID_TWO]}};
+		const generatorTwo = new FingerprintGenerator(updatedCards, undefined, undefined, serverIDF);
+		//The unchanged card's fingerprint is the SAME OBJECT (cache hit)…
+		assert.strictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), fingerprintOne);
+		//…while the changed card is recomputed.
+		assert.notStrictEqual(generatorTwo.fingerprintForCardID(CARD_ID_TWO), fingerprintTwoBefore);
+	});
+
+	it('a different server IDF identity does not reuse cached fingerprints', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, {idf: {}, maxIDF: 1});
+		const fingerprintOne = generatorOne.fingerprintForCardID(CARD_ID_ONE);
+		const generatorTwo = new FingerprintGenerator(cards, undefined, undefined, {idf: {}, maxIDF: 1});
+		assert.notStrictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), fingerprintOne);
+	});
+});

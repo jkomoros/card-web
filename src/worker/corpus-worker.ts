@@ -88,6 +88,10 @@ import {
 } from '../actions.js';
 
 import {
+	setSimilarityRequestHandler
+} from '../similarity-request.js';
+
+import {
 	toWire,
 	fromWire
 } from './wire-format.js';
@@ -608,6 +612,17 @@ workerScope.addEventListener('message', event => {
 		break;
 	}
 	}
+});
+
+//The engine's similar-card filters trigger similarity fetches as a side
+//effect; only the main thread can perform them, so forward the request over
+//the bridge (deduped — the filter re-fires on every run until the similarity
+//data arrives). See src/similarity-request.ts.
+const requestedSimilarityCardIDs : Set<CardID> = new Set();
+setSimilarityRequestHandler(cardID => {
+	if (requestedSimilarityCardIDs.has(cardID)) return;
+	requestedSimilarityCardIDs.add(cardID);
+	send({type: 'requestSimilarity', generation, cardID});
 });
 
 send({type: 'ready', generation});

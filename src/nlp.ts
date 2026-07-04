@@ -1580,6 +1580,23 @@ const fingerprintForCardObj = memoizeFirstArg((cardObj : ProcessedCard, idfMap :
 	return fingerprint;
 });
 
+//Per-card fingerprints depend only on the card object, the IDF map, the
+//concepts/synonyms enrichment, and the size parameters — so when those
+//auxiliary inputs keep identity (the common case: server-provided IDF and
+//stable concept maps), fingerprints can be shared ACROSS generator instances,
+//keyed on card object identity. Since unchanged cards keep object identity
+//through the incremental reducers, a generator rebuilt after a single-card
+//change reuses every other card's fingerprint instead of re-running TF-IDF
+//over the whole corpus (~800ms per commit at 40k cards, measured live).
+type SharedFingerprintCacheEntry = {
+	concepts : StringCardMap,
+	synonyms : SynonymMap,
+	fingerprintSize : number,
+	ngramSize : number,
+	cache : WeakMap<ProcessedCard, Fingerprint>
+};
+const sharedFingerprintCaches : WeakMap<IDFMap, SharedFingerprintCacheEntry> = new WeakMap();
+
 export class FingerprintGenerator {
 
 	_cards : ProcessedCards;
@@ -1589,6 +1606,7 @@ export class FingerprintGenerator {
 	_concepts : StringCardMap;
 	_synonyms : SynonymMap;
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
+	_fingerprintCache : WeakMap<ProcessedCard, Fingerprint>;
 
 	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, serverIDF?: IDFMap | null, concepts? : StringCardMap, synonyms? : SynonymMap) {
 		this._cards = cards || {};
@@ -1605,6 +1623,20 @@ export class FingerprintGenerator {
 		}
 
 		this._fingerprintSize = optFingerprintSize;
+
+		const shared = sharedFingerprintCaches.get(this._idfMap);
+		if (shared && shared.concepts === this._concepts && shared.synonyms === this._synonyms && shared.fingerprintSize === this._fingerprintSize && shared.ngramSize === this._ngramSize) {
+			this._fingerprintCache = shared.cache;
+		} else {
+			this._fingerprintCache = new WeakMap();
+			sharedFingerprintCaches.set(this._idfMap, {
+				concepts: this._concepts,
+				synonyms: this._synonyms,
+				fingerprintSize: this._fingerprintSize,
+				ngramSize: this._ngramSize,
+				cache: this._fingerprintCache
+			});
+		}
 	}
 
 	_enrichCard(cardObj : ProcessedCard) : ProcessedCard {
@@ -1624,8 +1656,15 @@ export class FingerprintGenerator {
 	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		const card = this._cards[cardID];
 		if (!card) return new Fingerprint();
+		//Keyed on the ORIGINAL card object (stable across corpus versions for
+		//unchanged cards) — enrichment creates a fresh object per call, so
+		//caching post-enrichment would never hit.
+		const cached = this._fingerprintCache.get(card);
+		if (cached) return cached;
 		const enriched = this._enrichCard(card);
-		return fingerprintForCardObj(enriched, this._idfMap, this._fingerprintSize, this._ngramSize);
+		const result = fingerprintForCardObj(enriched, this._idfMap, this._fingerprintSize, this._ngramSize);
+		this._fingerprintCache.set(card, result);
+		return result;
 	}
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {

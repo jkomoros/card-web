@@ -156,6 +156,10 @@ import {
 	QDRANT_ENABLED
 } from './config.GENERATED.SECRET.js';
 
+import {
+	requestSimilarity
+} from './similarity-request.js';
+
 const INBOUND_SUFFIX = '-inbound';
 const OUTBOUND_SUFFIX = '-outbound';
 const DIRECT_PREFIX = 'direct-';
@@ -866,14 +870,15 @@ const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new Fin
 
 const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	if (!QDRANT_ENABLED) return false;
-	void import('./actions/similarity.js').then(module => module.fetchSimilarCardsIfEnabled(cardID));
-	return true;
+	//Via the environment-installed handler: this module also runs in the
+	//corpus worker, where importing actions/similarity.js (store → lit)
+	//throws. See src/similarity-request.ts.
+	return requestSimilarity(cardID);
 };
 
 const fetchSimilarCardsForCardIfEnabled = (card : ProcessedCard) : boolean => {
 	if (!QDRANT_ENABLED) return false;
-	void import('./actions/similarity.js').then(module => module.fetchSimilarCardsForCardIfEnabled(card));
-	return true;
+	return requestSimilarity(card.id, card);
 };
 
 //This is how we'll keep track of if we need to fetch updated similarCard embeddings or not.

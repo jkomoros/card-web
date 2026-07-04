@@ -139,7 +139,10 @@ export type WorkerToMainMessage =
 	//Response to a one-shot runCollection.
 	| {type: 'runCollectionResult', generation: WorkerGeneration, id : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
 	//Delta-pushed compact per-card metadata (changed entries + removals).
-	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]};
+	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
+	//The worker's similar-card filters need server similarity for this card;
+	//only the main thread can fetch it (see src/similarity-request.ts).
+	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID};
 
 //Tokens used for index recall for a single card: its stored search tokens if
 //current, or empty if the card has none (those cards always go through the

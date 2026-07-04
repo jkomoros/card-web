@@ -17,6 +17,7 @@ import data from './reducers/data.js';
 import { SomeAction } from './actions.js';
 import { perfMiddleware } from './perf.js';
 import { actionForwarderMiddleware } from './action-forwarder.js';
+import { setSimilarityRequestHandler } from './similarity-request.js';
 
 declare global {
 	interface Window {
@@ -55,6 +56,17 @@ store.addReducers({
 
 //Stash this here so it's easy to get access to it via console.
 window['DEBUG_STORE'] = store;
+
+//Install the main-thread handler for the similar-card filters' fetch-trigger
+//side effect (see src/similarity-request.ts: filters.ts also runs inside the
+//corpus worker, which forwards these requests to us over the bridge instead).
+//Dynamic import keeps actions/similarity.js out of the store's static graph.
+setSimilarityRequestHandler((cardID, editingCard) => {
+	void import('./actions/similarity.js').then(module => {
+		if (editingCard) module.fetchSimilarCardsForCardIfEnabled(editingCard);
+		else module.fetchSimilarCardsIfEnabled(cardID);
+	});
+});
 
 export type AppThunkDispatch = ThunkDispatch<State, undefined, SomeAction>;
 
