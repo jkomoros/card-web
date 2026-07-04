@@ -497,6 +497,34 @@ change (~1.5s at 38k) — measure commit UX in ON mode (or off), never shadow.
 Harness caveat: harness scripts must use an ABSOLUTE profile path; a
 relative ./perf-profile silently creates a fresh signed-out profile.
 
+**OLD-WAY ROBUSTNESS PARITY (2026-07-04, 28547779)** — warm boots restored:
+worker modes now prime Redux once from the MAIN thread's persistent cache
+(getDocsFromCache; purely local) at connect, so the app is usable in seconds
+(active card resolved +5s vs +80s, verified live) while the worker's
+authoritative network load proceeds behind; its initial coalesced flush is
+flagged fastDedupe so reconciliation over the primed state skips the deep
+compares. Worker readiness for serving collections/reference blocks is now
+tracked bridge-side (per-fetchType batches delivered under the current
+generation) instead of via Redux loading flags — the prime clears those
+early, and a partially-loaded worker must never shrink a rendered collection
+or serve empty reference blocks. Known limitation (rare): cards DELETED
+since the cache was written linger for the session (the worker can't send
+removals for docs it never saw); a full fix is a post-load ID-set
+reconciliation message — noted for B3.
+
+**FAILED EXPERIMENT — do not retry casually**: persistentLocalCache with
+persistentMultipleTabManager inside the worker is `unimplemented` in the SDK
+(12.12.0: "IndexedDB persistence is only available on platforms that support
+LocalStorage"), auto-falls back to memory — AND the mere attempt reproducibly
+broke app boot (active card never resolved; mechanism unclear, likely shared
+firestore IndexedDB metadata interference with the main thread's multi-tab
+client). Reverted. The real cache handoff (persistentSingleTabManager in the
+worker once the main thread no longer holds persistence) remains the P2/P4
+endgame; the local-cache prime above covers the daily warm-boot need until
+then. Also note single-editor priority (user, 2026-07-04): concurrent edits
+are an accepted-eventual-consistency edge case; 99% of usage is one editor,
+occasionally multiple readers.
+
 Baseline-harness mechanics (for reruns): master worktree needs
 src/config.GENERATED.SECRET.ts copied in, `npm run generate:config` +
 `generate:seo:config` (index.html is GENERATED and gitignored — wds 404s on
