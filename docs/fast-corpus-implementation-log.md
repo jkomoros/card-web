@@ -512,6 +512,26 @@ since the cache was written linger for the session (the worker can't send
 removals for docs it never saw); a full fix is a post-load ID-set
 reconciliation message — noted for B3.
 
+**RECONCILIATION + QUOTA-OUTAGE HARDENING (2026-07-04, 67675d47)**: the
+deleted-card limitation above is now closed — once the worker corpus is
+complete the bridge requests the full corpus ID set (requestCorpusIDs /
+corpusIDs protocol) and removes Redux cards the worker doesn't have, once
+per generation, with a mass-removal guard (skip + warn if >max(50, 10%)
+stale — genuine while-away deletions are small). Found + fixed in the
+process via a REAL dev quota outage (resource-exhausted after this session's
+~15 full 40k loads): listener-error empty batches were counted as
+corpus-completeness evidence, which under an outage would have declared an
+empty worker corpus ready (empty reference blocks in 'on' mode, and
+reconciliation would have removed every primed card). Error batches now
+carry errorFallback and don't count. Validated UNDER the live outage: app
+usable at +5s on 5,001 primed cards, readiness stays false, zero removals,
+count stable — the old-way degraded-mode behavior, demonstrated in the wild.
+PENDING (quota reset): one full-load run to see 'corpus reconciliation:
+clean' and re-confirm commit flows. NOTE the outage also demonstrates why
+the memory-cache worker is quota-hungry: every boot reads ~40k docs; go easy
+on repeated full boots against dev (each probe run costs ~40k reads), and
+the persistent-cache handoff (P2/P4) is what ultimately fixes this.
+
 **FAILED EXPERIMENT — do not retry casually**: persistentLocalCache with
 persistentMultipleTabManager inside the worker is `unimplemented` in the SDK
 (12.12.0: "IndexedDB persistence is only available on platforms that support
