@@ -349,3 +349,16 @@ Also worth attacking: the 583ms single-card UPDATE_CARDS echo dispatch.
 - Measurement harness for reuse: scratchpad/measure.mjs pattern (playwright
   launchPersistentContext with the copied mcp-chrome profile — May profile's
   Firebase session remains valid; chromium-1223 executablePath pin).
+
+**WORKER-SERVED REFERENCE BLOCKS (099fd6bd, VERIFICATION PENDING)**: the
+deferred reference-block callbacks in card-view/card-info-panel now run each
+block's collection in the corpus worker (one-shot runCollection protocol) and
+reconstitute pre-seeded Collections via fromWorkerResult; sync local
+computation remains the fallback when the worker is off or still loading
+(corpusWorkerCanRunCollections gates on loading flags). Typecheck + suites
+green. STILL NEEDED: the live shadow-mode measurement (scratchpad/measure.mjs
+sets corpus-worker=shadow via addInitScript; readiness deadline 600s because
+the worker cold-loads its memory-cache corpus ~2.5min) — launch was blocked
+by a transient Anthropic-side Bash-classifier outage at session end. Expect
+NAV long tasks to drop to renders only (similar/ block scoring moves
+off-thread) and post-commit sweeps to shrink similarly.
