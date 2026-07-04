@@ -77,12 +77,14 @@ import {
 	selectRandomSalt,
 	selectCardSimilarity,
 	selectLoadingCardFetchTypes,
+	selectRawCards,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards
 } from './selectors.js';
 
 import {
 	CardBooleanMap,
+	CardID,
 	State,
 	WorkerCollectionSlot
 } from './types.js';
@@ -427,9 +429,16 @@ const startShadowComparator = () => {
 	}
 };
 
+//The generation a corpus-ID reconciliation has been requested for, so it
+//runs once per connection.
+let reconciliationRequestedGeneration : WorkerGeneration = -1;
+
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
-	workerDeliveredFetchTypes[batch.fetchType] = true;
+	//Error-fallback batches clear loading indicators but are NOT evidence the
+	//worker actually holds this fetchType's data (e.g. a quota outage
+	//error-forwards every fetch type with nothing loaded).
+	if (!batch.errorFallback) workerDeliveredFetchTypes[batch.fetchType] = true;
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
 	//the fetchType regardless of card count, exactly like a main-thread
@@ -438,6 +447,45 @@ const handleCardBatch = (batch : CardBatch) => {
 	if (batch.removedIDs.length) {
 		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
 	}
+	//Once the worker's corpus is complete, reconcile once: the local-cache
+	//prime may have served cards that were deleted while the app was closed,
+	//and the worker can never send removals for docs it never saw.
+	if (reconciliationRequestedGeneration !== generation && corpusWorkerCanRunCollections()) {
+		reconciliationRequestedGeneration = generation;
+		post({type: 'requestCorpusIDs', generation});
+	}
+};
+
+//Removes cards from Redux that the (fully-loaded) worker corpus doesn't
+//have. Normal case: zero. Non-zero happens when the local-cache prime served
+//since-deleted cards, or when permissions narrowed between sessions.
+const handleCorpusIDs = (ids : CardID[]) => {
+	if (!corpusWorkerOwnsCardIngestion()) return;
+	const workerIDs = new Set(ids);
+	const cards = selectRawCards(store.getState() as State);
+	const stalePublished : CardID[] = [];
+	const staleUnpublished : CardID[] = [];
+	for (const [id, card] of Object.entries(cards)) {
+		if (workerIDs.has(id)) continue;
+		if (card.published) stalePublished.push(id);
+		else staleUnpublished.push(id);
+	}
+	if (!stalePublished.length && !staleUnpublished.length) {
+		console.log(`[corpus-worker] corpus reconciliation: clean (${workerIDs.size} cards)`);
+		return;
+	}
+	//Sanity guard: genuine while-you-were-away deletions are rare and small.
+	//A large stale set means the worker corpus is somehow partial despite
+	//claiming completeness — never mass-remove on that signal.
+	const staleCount = stalePublished.length + staleUnpublished.length;
+	const reduxCount = Object.keys(cards).length;
+	if (staleCount > Math.max(50, reduxCount * 0.1)) {
+		console.warn(`[corpus-worker] corpus reconciliation: SKIPPED — ${staleCount} of ${reduxCount} Redux cards missing from the worker corpus (${workerIDs.size} ids); corpus looks partial`);
+		return;
+	}
+	console.log(`[corpus-worker] corpus reconciliation: removing ${stalePublished.length} published + ${staleUnpublished.length} unpublished cards the worker corpus doesn't have`);
+	if (stalePublished.length) store.dispatch(removeCards(stalePublished, false));
+	if (staleUnpublished.length) store.dispatch(removeCards(staleUnpublished, true));
 };
 
 const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
@@ -494,6 +542,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		if (corpusWorkerOwnsCardIngestion()) {
 			store.dispatch({type: UPDATE_CARD_META, metas: message.metas, removedIDs: message.removedIDs});
 		}
+		break;
+	case 'corpusIDs':
+		handleCorpusIDs(message.ids);
 		break;
 	case 'requestSimilarity':
 		//The worker's similar-card filters can't fetch server similarity

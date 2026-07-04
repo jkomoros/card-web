@@ -101,7 +101,12 @@ export type MainToWorkerMessage =
 	| {type: 'subscribeCollection', generation: WorkerGeneration, subscriptionID : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
 	| {type: 'unsubscribeCollection', generation: WorkerGeneration, subscriptionID : number}
 	//One-shot collection run (e.g. the active card's reference blocks).
-	| {type: 'runCollection', generation: WorkerGeneration, id : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap};
+	| {type: 'runCollection', generation: WorkerGeneration, id : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
+	//Ask for the full set of card IDs in the worker's corpus, so the bridge
+	//can reconcile away cards the local-cache prime served that no longer
+	//exist (deleted while the app was closed — the worker never saw them, so
+	//it can never send a removal for them).
+	| {type: 'requestCorpusIDs', generation: WorkerGeneration};
 
 //--------------------------------------------------------------------------
 // Worker → main thread
@@ -113,7 +118,14 @@ export type CardBatch = {
 	fetchType : CardFetchType,
 	//True for deliveries that are expected to be redeliveries of cards the
 	//main thread already holds (initial listener delivery after priming).
-	fastDedupe : boolean
+	fastDedupe : boolean,
+	//True for the empty batch forwarded when a listener ERRORS (so loading
+	//indicators clear). Crucially it does NOT signify real data for the
+	//fetchType — the bridge must not treat it as corpus-completeness
+	//evidence (observed live: a quota outage error-forwarded every fetch
+	//type, which would otherwise have declared an empty worker corpus
+	//"ready" and let reconciliation remove every locally-primed card).
+	errorFallback? : boolean
 };
 
 export type SpikeReport = {
@@ -142,7 +154,9 @@ export type WorkerToMainMessage =
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
 	//The worker's similar-card filters need server similarity for this card;
 	//only the main thread can fetch it (see src/similarity-request.ts).
-	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID};
+	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID}
+	//Response to requestCorpusIDs: every card ID currently in the corpus.
+	| {type: 'corpusIDs', generation: WorkerGeneration, ids : CardID[]};
 
 //Tokens used for index recall for a single card: its stored search tokens if
 //current, or empty if the card has none (those cards always go through the

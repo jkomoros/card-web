@@ -232,12 +232,12 @@ const pushMetaDeltas = (cards : Cards, removedIDs : CardID[]) => {
 	send({type: 'cardMeta', generation, metas: changed, removedIDs: removed});
 };
 
-const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean) => {
+const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean, errorFallback = false) => {
 	const wireCards = Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, toWire(stripForWire(card), isTimestamp, getTime)])) as Cards;
 	send({
 		type: 'cards',
 		generation,
-		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe}
+		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback}
 	});
 };
 
@@ -261,7 +261,9 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 //so the main thread's loading indicators clear rather than spinning forever.
 const listenerError = (fetchType : CardFetchType, context : string) => (error : {message : string}) => {
 	send({type: 'error', generation, message: `${context}: ${error.message}`});
-	forwardBatch({}, [], fetchType, false);
+	//errorFallback: clears loading indicators but is NOT evidence the worker
+	//holds this fetchType's data.
+	forwardBatch({}, [], fetchType, false, true);
 };
 
 const teardownListeners = () => {
@@ -616,6 +618,9 @@ workerScope.addEventListener('message', event => {
 		}
 		break;
 	}
+	case 'requestCorpusIDs':
+		send({type: 'corpusIDs', generation, ids: [...corpus.keys()]});
+		break;
 	}
 });
 

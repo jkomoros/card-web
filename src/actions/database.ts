@@ -392,13 +392,17 @@ const primeCardsFromLocalCacheForWorkerModes = async () => {
 	for (const {fetchType, cardsQuery} of primes) {
 		try {
 			const snapshot = await getDocsFromCache(cardsQuery);
-			if (snapshot.empty) continue;
+			if (snapshot.empty) {
+				console.log(`[PERF] local cache prime: no ${fetchType} cards in cache`);
+				continue;
+			}
 			const {cards} = parseCardSnapshot(snapshot);
 			if (!Object.keys(cards).length) continue;
 			console.log(`[PERF] local cache prime: serving ${Object.keys(cards).length} ${fetchType} cards from the persistent cache`);
 			store.dispatch(receiveCards(cards, fetchType));
-		} catch {
+		} catch (err) {
 			//Cache empty or unavailable — the worker load proceeds as usual.
+			console.log(`[PERF] local cache prime: ${fetchType} cache read unavailable (${String(err)})`);
 		}
 	}
 	console.log(`[PERF] local cache prime: total ${(performance.now() - start).toFixed(1)}ms`);
