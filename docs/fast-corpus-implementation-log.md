@@ -435,3 +435,36 @@ dev backend). Options if it matters: partition the unpublished Listen like
 the getDocs (5 × ~8k, localizes drops), or the already-planned cache handoff
 (worker gets persistentLocalCache + resume tokens once the main thread stops
 holding it — the endgame of P2/P4).
+
+**MASTER BASELINE COMPARISON (2026-07-03)** — the real bar: master's daily
+experience is PARTIAL mode (~6,240 cards loaded: 1,240 published + 5,000
+most-recent unpublished), vs the branch loading all 40,225. Measured master
+(ef9e9cd4) with the identical harness/flow (NAV in main/half-baked, in-app
+switch to working-notes, trusted-input typing, editor commit), same account,
+dev backend, same machine:
+
+| | master @ 6,240 cards | branch @ 40,225 (shadow) |
+|---|---|---|
+| NAV (6 rapid presses) | 22 long tasks, ~2,030ms total blocking (sustained ~90-120ms tasks) | **zero long tasks** |
+| TYPING (10 chars) | 3 tasks, 195ms total | 1 task, 66ms |
+| COMMIT settle | 819ms | ~2,000ms |
+| COMMIT UI blocking | 8 tasks, ~1,120ms | 2 tasks, ~350ms |
+
+Verdict: at 6.4× the corpus, the branch has strictly less UI-thread jank than
+master's baseline in every phase. The one metric where master wins is commit
+wall-clock settle (0.8s vs 2.0s): master's Firestore latency compensation
+settles at local write-ack, while the branch's self-echo fires after the
+server ack (~1s) and the UPDATE_CARDS echo cascade costs ~300ms at 40k. If
+that 1.2s gap matters, the echo could move to fire at dispatch time (before
+awaiting commit) — deferred until someone feels it.
+
+Baseline-harness mechanics (for reruns): master worktree needs
+src/config.GENERATED.SECRET.ts copied in, `npm run generate:config` +
+`generate:seo:config` (index.html is GENERATED and gitignored — wds 404s on
+everything without it), tools/dump.ts deleted (pre-existing master tsc
+error), node_modules symlinked (deps identical). CRITICAL: serve on port
+8081 — the browser profile's Firebase credential is ORIGIN-bound to
+localhost:8081; on any other port the app runs signed-out (published cards
+only). Clear completeModeEnabled/completeModeLimit/corpus-worker in
+localStorage via addInitScript. Script: scratchpad/measure-master.mjs;
+worktree at scratchpad/master-baseline (git worktree remove when done).
