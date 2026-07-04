@@ -142,6 +142,7 @@ export const TWEETS_LOADING = 'TWEETS_LOADING';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
+export const ECHO_LOCAL_CARD_MODIFICATIONS = 'ECHO_LOCAL_CARD_MODIFICATIONS';
 export const REORDER_STATUS = 'REORDER_STATUS';
 export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
@@ -590,6 +591,15 @@ type ActionModifyCard = {
 	type: typeof MODIFY_CARD,
 	//How many modifications we expect to be made.
 	modificationCount: number
+};
+
+type ActionEchoLocalCardModifications = {
+	type: typeof ECHO_LOCAL_CARD_MODIFICATIONS,
+	//The just-committed cards, materialized locally (sentinels resolved with
+	//local timestamps). No reducer consumes this action — it exists so the
+	//corpus-worker bridge's action tap can forward the new card state to the
+	//worker without waiting for the server echo.
+	cards: Cards
 };
 
 type ActionModifyCardSuccess = {
@@ -1199,6 +1209,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionTweetsLoading
 	| ActionModifyCard
 	| ActionModifyCardSuccess
+	| ActionEchoLocalCardModifications
 	| ActionModifyCardFailure
 	| ActionReorderStatus
 	| ActionSetPendingSlug

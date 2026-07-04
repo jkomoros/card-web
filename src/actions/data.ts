@@ -47,7 +47,12 @@ import {
 	idWasVended,
 	normalizeSlug,
 	createSlugFromArbitraryString,
+	stripEphemeralCardFields,
 } from '../util.js';
+
+import {
+	corpusWorkerOwnsCardIngestion
+} from '../corpus-mode.js';
 
 import {
 	ensureAuthor
@@ -218,7 +223,8 @@ import {
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS,
-	CLEAR_ENQUEUED_CARD_UPDATES
+	CLEAR_ENQUEUED_CARD_UPDATES,
+	ECHO_LOCAL_CARD_MODIFICATIONS
 } from '../actions.js';
 
 //map of cardID => promiseResolver that's waiting
@@ -288,6 +294,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	const batch = new MultiBatch(db);
 	let modifiedCount = 0;
 	let errorCount = 0;
+	const localEchoes : Cards = {};
 
 	for (const card of cards) {
 
@@ -304,8 +311,8 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		if (!update) continue;
 
 		try {
-			const bool = await modifyCardWithBatch(state, card, update, substantive, batch);
-			if (bool) modifiedCount++;
+			const modified = await modifyCardWithBatch(state, card, update, substantive, batch, localEchoes);
+			if (modified) modifiedCount++;
 		} catch (err) {
 			console.warn('Couldn\'t modify card: ' + err);
 			errorCount++;
@@ -326,11 +333,39 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
 
 	dispatch(modifyCardSuccess(modifiedCount));
+
+	if (modifiedCount > 0) dispatch(echoLocalCardModifications(localEchoes));
+};
+
+//In worker modes the card-listener echo takes a full server round trip
+//through the worker's separate connection (and its Listen stream may be
+//mid-recovery), so nothing latency-compensates a just-committed write the
+//way the main thread's own listeners would in off mode. This applies the
+//materialized post-write cards locally, and forwards them (unstripped, so
+//the worker keeps its search tokens) to the worker via the action tap so its
+//corpus doesn't serve stale collections meanwhile. When the real echo
+//eventually arrives, receiveCards' timestamp-ignoring dedupe drops it. No-op
+//outside worker modes.
+const echoLocalCardModifications = (localEchoes : Cards) : ThunkSomeAction => (dispatch) => {
+	if (!corpusWorkerOwnsCardIngestion() || !Object.keys(localEchoes).length) return;
+	dispatch({type: ECHO_LOCAL_CARD_MODIFICATIONS, cards: localEchoes});
+	const published : Cards = {};
+	const unpublished : Cards = {};
+	for (const echoCard of Object.values(localEchoes)) {
+		const stripped = stripEphemeralCardFields(echoCard);
+		if (echoCard.published) published[echoCard.id] = stripped;
+		else unpublished[echoCard.id] = stripped;
+	}
+	if (Object.keys(published).length) dispatch(receiveCards(published, 'published'));
+	if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
 };
 
 //returns true if a modificatioon was made to the card, or false if it was a no
-//op. When an error is thrown, that's an implied 'false'.
-export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch) : Promise<boolean> => {
+//op. When an error is thrown, that's an implied 'false'. If echoCards is
+//provided, the locally-materialized post-write cards (the modified card plus
+//any cards whose inbound links changed) are accumulated into it, so callers
+//can apply them without waiting for the server echo.
+export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards) : Promise<boolean> => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -417,6 +452,18 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
+
+	if (echoCards) {
+		echoCards[card.id] = updatedCard;
+		const rawCards = selectRawCards(state);
+		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+			//Base each materialization on any echo already accumulated this
+			//batch, so successive updates touching the same card compose.
+			const base = echoCards[otherCardID] || rawCards[otherCardID];
+			if (!base) continue;
+			echoCards[otherCardID] = applyCardFirebaseUpdate(base, otherCardUpdate);
+		}
+	}
 
 	const cardRef = doc(db, CARDS_COLLECTION, card.id);
 
@@ -546,18 +593,26 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 	const cards = selectCards(state);
 	const card = cards[cardID];
 
-	modifyCardWithBatch(state, card, update, false, batch);
+	const localEchoes : Cards = {};
+
+	//The await matters: modifyCardWithBatch queues its writes after its first
+	//internal await, so an un-awaited call commits an EMPTY batch and the
+	//reorder silently never persists.
+	await modifyCardWithBatch(state, card, update, false, batch, localEchoes);
 
 	try {
 		await batch.commit();
 	} catch(err) {
 		console.warn(err);
+		dispatch(reorderStatus(false));
+		return;
 	}
 	dispatch(reorderStatus(false));
 
-	//We don't need to tell the store anything, because firestore will tell it
-	//automatically.
-
+	//In off mode firestore's latency compensation tells the store
+	//automatically; in worker modes apply the local echo ourselves (see
+	//modifyCardsIndividually).
+	dispatch(echoLocalCardModifications(localEchoes));
 };
 
 const setPendingSlug = (slug : Slug) : SomeAction => {

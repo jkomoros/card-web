@@ -527,7 +527,10 @@ const rerunCardFinishers : MaintenanceTaskFunction = async (_, getState) => {
 		if (!cardDiffHasChanges(diff)) continue;
 		console.log('Updating card ' + underlyingCard.id + '\n', underlyingCard.title, '\n', updatedCard.title);
 		try {
-			modifyCardWithBatch(state, underlyingCard, diff, false, batch);
+			//The await matters: modifyCardWithBatch queues its writes after
+			//its first internal await, so un-awaited calls would all land
+			//AFTER the batch.commit() below and silently never persist.
+			await modifyCardWithBatch(state, underlyingCard, diff, false, batch);
 		} catch (err) {
 			console.warn('Card ' + underlyingCard.id + ' had error: ' + err);
 		}

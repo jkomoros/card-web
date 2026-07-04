@@ -83,7 +83,8 @@ import {
 } from './subscription-manager.js';
 
 import {
-	SomeAction
+	SomeAction,
+	ECHO_LOCAL_CARD_MODIFICATIONS
 } from '../actions.js';
 
 import {
@@ -526,10 +527,28 @@ workerScope.addEventListener('message', event => {
 	case 'query':
 		runQuery(message.id, message.text);
 		break;
-	case 'action':
-		engine.applyAction(fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction);
+	case 'action': {
+		const action = fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction;
+		if (action.type === ECHO_LOCAL_CARD_MODIFICATIONS) {
+			//The main thread just committed these cards; apply them to the
+			//corpus immediately instead of waiting for the server echo. The
+			//cards were materialized from Redux state, which strips
+			//nlp_search_tokens — preserve the corpus copy's tokens so a
+			//non-content change doesn't knock the card out of the index.
+			const echoCards : Cards = {};
+			for (const [id, card] of Object.entries(action.cards)) {
+				const previous = corpus.get(id);
+				echoCards[id] = (previous && searchTokensForCard(previous).length && !searchTokensForCard(card).length)
+					? {...card, nlp_search_tokens: previous.nlp_search_tokens}
+					: card;
+			}
+			updateLocalState(echoCards, []);
+			break;
+		}
+		engine.applyAction(action);
 		subscriptions.markDirty();
 		break;
+	}
 	case 'configureCollections':
 		engine.configureCollections(message.fallbacks, message.startCards);
 		subscriptions.markDirty();

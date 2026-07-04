@@ -46,13 +46,17 @@ import {
 	UPDATE_TAGS,
 	SELECT_CARDS,
 	UNSELECT_CARDS,
-	CLEAR_SELECTED_CARDS
+	CLEAR_SELECTED_CARDS,
+	ECHO_LOCAL_CARD_MODIFICATIONS
 } from '../actions.js';
 
 //User-state actions forwarded verbatim (wire-encoded) from the main thread to
 //the worker's query engine, which replays them through the real collection
 //reducer. Card actions are NOT forwarded — the worker gets cards from its own
-//Firestore listeners.
+//Firestore listeners. The one exception is ECHO_LOCAL_CARD_MODIFICATIONS: the
+//just-committed card state, applied straight to the worker's corpus so it
+//doesn't serve stale collections during the server-echo round trip (or while
+//a dropped Listen stream is re-attaching).
 export const FORWARDED_ACTION_TYPES : {[actionType : string] : true} = {
 	[UPDATE_STARS]: true,
 	[UPDATE_READS]: true,
@@ -62,6 +66,7 @@ export const FORWARDED_ACTION_TYPES : {[actionType : string] : true} = {
 	[SELECT_CARDS]: true,
 	[UNSELECT_CARDS]: true,
 	[CLEAR_SELECTED_CARDS]: true,
+	[ECHO_LOCAL_CARD_MODIFICATIONS]: true,
 };
 
 //A generation counter accompanies every worker→main message. The bridge bumps
