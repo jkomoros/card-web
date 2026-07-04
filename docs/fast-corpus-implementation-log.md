@@ -458,6 +458,45 @@ server ack (~1s) and the UPDATE_CARDS echo cascade costs ~300ms at 40k. If
 that 1.2s gap matters, the echo could move to fire at dispatch time (before
 awaiting commit) — deferred until someone feels it.
 
+**STRICTLY-SUPERIOR PASS (2026-07-03, commits b8301740→7bddaa96)** — closing
+the commit gap and hardening; final head-to-head, ON mode at 40,225 cards vs
+master at 6,240:
+- NAV: master 22 long tasks ~2,030ms → branch ZERO long tasks.
+- TYPING: master 3 tasks/195ms → branch ZERO long tasks.
+- COMMIT UI blocking: master ~1,120ms across 8 tasks (max 380ms) → branch
+  ~750ms across 3 tasks (max 384ms).
+- COMMIT wall-clock settle: both now bounded by the same server ack (the
+  optimistic echo settles Redux instantly; editor close awaits ack exactly
+  like master; dev-backend acks ranged 0.8–2.9s across runs for both).
+What it took (each CPU-profiled live before/after):
+1. receiveCards applied every batch TWICE when nothing pending (enqueue-path
+   flush condition always satisfied) — paths now exclusive w/ leftover guard.
+2. Optimistic echo: dispatched before awaiting commit; pre-write cards
+   snapshotted; rollback on commit failure (worker corpus too).
+3. Worker's unpublished Listen split into the 5 getDocs partitions (a drop
+   now redelivers ~8k, not 39k).
+4. selectFingerprintGenerator rebuilt per cards-map change and re-ran TF-IDF
+   over the corpus (~840ms/commit): per-card fingerprints now shared across
+   generator instances via WeakMap keyed on card object identity (valid
+   because unchanged cards keep identity), scoped to IDF/concepts/synonyms/
+   size identity — plus selectServerIDFMap so the IDF wrapper keeps identity
+   (without which the cache silently never hit). Remaining ~230ms is the
+   per-tag fingerprint combine (selectTagsSemanticFingerprint) — next
+   candidate if commit blocking needs to shrink further.
+5. Similar-card filters' fetch trigger dynamically imported
+   actions/similarity.js, whose graph reaches lit — in the worker this threw
+   'window is not defined' (40 pageerrors/session) and silently dropped
+   EVERY similarity fetch in worker modes. Now routed through leaf
+   src/similarity-request.ts: main thread installs the real fetch
+   (store.ts), the worker forwards over the bridge (deduped,
+   'requestSimilarity' message), and the bridge re-keys live subscriptions
+   on cardSimilarity identity changes so worker collections refresh.
+Shadow-mode measurement caveat discovered on the way: the shadow comparator
+itself recomputes the active collection on the UI thread after every corpus
+change (~1.5s at 38k) — measure commit UX in ON mode (or off), never shadow.
+Harness caveat: harness scripts must use an ABSOLUTE profile path; a
+relative ./perf-profile silently creates a fresh signed-out profile.
+
 Baseline-harness mechanics (for reruns): master worktree needs
 src/config.GENERATED.SECRET.ts copied in, `npm run generate:config` +
 `generate:seo:config` (index.html is GENERATED and gitignored — wds 404s on
