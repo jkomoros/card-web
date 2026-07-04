@@ -802,19 +802,24 @@ export const selectUidsWithPermissions = createSelector(
 
 export const selectServerIDF = (state : State) => state.data.serverIDF;
 
+// Convert ServerIDFData to IDFMap format if available. Its own selector so
+// the wrapper object keeps IDENTITY across generator rebuilds — the
+// generator's shared fingerprint cache is keyed on the IDF map object, so a
+// fresh wrapper per rebuild would silently defeat it.
+const selectServerIDFMap = createSelector(
+	selectServerIDF,
+	(serverIDF) => serverIDF ? {
+		idf: serverIDF.idf,
+		maxIDF: serverIDF.maxIDF
+	} : null
+);
+
 export const selectFingerprintGenerator = createSelector(
 	selectCards,
-	selectServerIDF,
+	selectServerIDFMap,
 	selectConcepts,
 	selectSynonymMap,
-	(cards, serverIDF, concepts, synonyms) => {
-		// Convert ServerIDFData to IDFMap format if available
-		const idfMap = serverIDF ? {
-			idf: serverIDF.idf,
-			maxIDF: serverIDF.maxIDF
-		} : null;
-		return new FingerprintGenerator(cards, undefined, undefined, idfMap, concepts, synonyms);
-	}
+	(cards, idfMap, concepts, synonyms) => new FingerprintGenerator(cards, undefined, undefined, idfMap, concepts, synonyms)
 );
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
