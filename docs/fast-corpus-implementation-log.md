@@ -555,3 +555,62 @@ localhost:8081; on any other port the app runs signed-out (published cards
 only). Clear completeModeEnabled/completeModeLimit/corpus-worker in
 localStorage via addInitScript. Script: scratchpad/measure-master.mjs;
 worktree at scratchpad/master-baseline (git worktree remove when done).
+
+**ADVERSARIAL REVIEW + BLOCKING FIXES (2026-07-04, 070d7659)**: four
+sub-agent critiques (hacks / UX downsides / robustness / 6-month regrets)
+reviewed the whole branch; three independently converged on the same top
+defect. Fixed in 070d7659 (all 23 suites green):
+1. Readiness was "first batch per fetchType" — satisfiable by the first of
+   five partition flushes (~20% corpus) or an offline worker's empty
+   from-cache snapshots. Now: worker announces loadComplete explicitly
+   (privileged 'unpublished' = prime finished + listeners attached), AND the
+   corpus must be TRUSTWORTHY vs Redux (corpusSizeTrustworthy in
+   src/corpus-readiness.ts, max(50,10%) tolerance, tested). Every batch
+   carries corpusSize so readiness recovers after outages.
+2. Offline/outage blanking: an empty-memory-cache "load" can no longer
+   serve/blank the primed app (trustworthy gate) — VALIDATED LIVE under a
+   real dev resource-exhausted outage during this session: readiness stayed
+   false, no untrusted serving, no reconciliation mass-removal.
+3. Gen-1 (pre-permission) subscriptions no longer survive reconnect:
+   worker clears its SubscriptionManager on (re)connect, bridge resets slot
+   state + dispatches null results, pushes are readiness-gated at delivery.
+4. Reconciliation now fires only when load-complete AND trustworthy, and
+   re-arms per batch (outage recovery still reconciles); no more
+   partial-corpus guard-skip latch.
+5. Privacy: unpublished cache prime now happens at unpublished-connect with
+   permissions known — full corpus only for mayViewUnpublished,
+   author/editor-filtered for plain uids, skipped for anonymous. (A
+   privileged session's cache previously primed ~38k unpublished cards into
+   ANY later viewer's Redux.)
+6. Stuck latches: reorderCard throw → pendingReorder stuck (try/caught);
+   modifyCards no-id failOnError return → pendingModifications stuck
+   (dispatches FAILURE). Worker runCollection failures reply WITH id
+   (failed:true → bridge resolves null → local fallback); pending runs
+   flushed on generation bump/teardown (blocks no longer freeze). Similarity
+   dedupe is a 60s TTL (one failed fetch no longer kills similarity for a
+   card until reload); bridge fetch call catches.
+7. Hack removal: worker gets DEV_MODE from src/firebase.ts (was a duplicate
+   hostname sniff — the thing that once pointed the loader at prod);
+   partition table unified in src/card-partitions.ts (copies had drifted),
+   sentinel as explicit '' escape.
+
+STILL PENDING from the review (non-blocking, prioritized):
+- Happy-path live validation of loadComplete/reconciliation/commit at 40k —
+  BLOCKED on dev quota reset (the outage is real as of this writing; the
+  main-thread persistent cache also came up nearly empty (1 card), so the
+  next warm-boot prime will be cold until an off-mode session or worker
+  load repopulates it).
+- Parity test iterating every registered filter/sort through selector path
+  AND QueryEngine (drift guard for FORWARDED_ACTION_TYPES); extract bridge
+  readiness/reconciliation into more pure tested functions.
+- Commit measurement harnesses to tools/perf/ (currently in wipeable /tmp).
+- Measure find-dialog local-scan cost at 40k in 'on' mode (B3d only
+  verified at 1,240; first paint per typing pause is still a local scan).
+- Verify whether card-view's suggested-concept highlights were silently
+  disabled (card-view.ts ~:976) vs deferred — review flagged as a possible
+  unlogged feature removal.
+- The [PERF] console.logs in receiveCards/database.ts bypass the
+  DEBUG_PERF gate — gate them behind perfEnabled().
+- Bigger regrets tracked for P2+: dual data planes calcifying, 'off'-mode
+  rot, SearchIndex maintenance cost with no consumer, multi-tab quota
+  multiplication (each tab = its own worker = its own 40k load).
