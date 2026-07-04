@@ -69,6 +69,14 @@ import {
 } from './corpus-mode.js';
 
 import {
+	corpusSizeTrustworthy
+} from './corpus-readiness.js';
+
+import {
+	DEV_MODE
+} from './firebase.js';
+
+import {
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArguments,
 	selectCollectionDescriptionForQuery,
@@ -112,12 +120,6 @@ const pendingQueries : Map<number, (result : {ids : string[], ms : number, fullS
 let lastMayViewUnpublished = false;
 let lastUid = '';
 let connectSent = false;
-
-const devMode = () : boolean => {
-	if (window.location.hostname == 'localhost') return true;
-	if (window.location.hostname.indexOf('dev-') >= 0) return true;
-	return false;
-};
 
 const makeTimestamp = (seconds : number, nanoseconds : number) : Timestamp => new Timestamp(seconds, nanoseconds);
 
@@ -172,35 +174,46 @@ type RunCollectionResolution = {
 	partialMatches : CardBooleanMap,
 	ms : number
 };
-const pendingRunCollections : Map<number, (result : RunCollectionResolution) => void> = new Map();
+const pendingRunCollections : Map<number, (result : RunCollectionResolution | null) => void> = new Map();
 
-//Fetch types the worker has delivered at least one batch for under the
-//current generation. This — not the Redux loading flags — is the signal that
-//the worker's corpus is complete enough to serve collection runs: the local
-//cache prime (see primeCardsFromLocalCacheForWorkerModes) fills Redux and
-//clears the loading flags long before the worker finishes its own load.
-let workerDeliveredFetchTypes : {[fetchType : string] : true} = {};
+//Resolves every in-flight one-shot run with null (callers fall back to
+//local computation). Called on generation bumps and worker teardown, where
+//replies would otherwise be dropped as stale and the promises would hang
+//forever — freezing reference blocks on the previous card's results.
+const flushPendingRunCollections = () => {
+	for (const resolve of pendingRunCollections.values()) resolve(null);
+	pendingRunCollections.clear();
+};
 
-//True when the worker holds the corpus and can answer collection runs: it
-//must have delivered every fetch type its connection parameters call for
-//(empty batches count — they signal an attached-but-empty listener or a
-//permission failure, exactly like the main-thread path).
+//Whether the worker announced loadComplete for the current generation, and
+//its corpus size (updated on every batch thereafter, so readiness recovers
+//as re-attached listeners refill the corpus after an outage).
+let workerLoadComplete = false;
+let workerCorpusSize = 0;
+
+//True when the worker holds a corpus it is safe to SERVE from. Two parts:
+//the worker must have announced that the initial load for the current
+//connection parameters finished (loadComplete — per-batch inference was
+//satisfiable by the first of five partition flushes, at ~20% corpus), and
+//the resulting corpus must be plausibly complete relative to what Redux
+//already holds (an offline worker "completes" with an EMPTY corpus from its
+//memory cache; serving that would blank out the warm-boot-primed app).
 export const corpusWorkerCanRunCollections = () : boolean => {
 	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
-	if (!workerDeliveredFetchTypes['published']) return false;
-	if (lastMayViewUnpublished) return Boolean(workerDeliveredFetchTypes['unpublished']);
-	if (lastUid) return Boolean(workerDeliveredFetchTypes['unpublished-author'] && workerDeliveredFetchTypes['unpublished-editor']);
-	return true;
+	if (!workerLoadComplete) return false;
+	const reduxCount = Object.keys(selectRawCards(store.getState() as State)).length;
+	return corpusSizeTrustworthy(workerCorpusSize, reduxCount);
 };
 
 //Runs a collection description in the worker; resolves with the ordered
-//result. Returns null when the worker isn't available (caller should fall
-//back to local computation).
-export const corpusWorkerRunCollection = (description : string, keyCardID : string) : Promise<RunCollectionResolution> | null => {
+//result. Returns null when the worker isn't available; resolves null when
+//the run fails or the connection is torn down mid-flight (caller should
+//fall back to local computation).
+export const corpusWorkerRunCollection = (description : string, keyCardID : string) : Promise<RunCollectionResolution | null> | null => {
 	if (!corpusWorkerCanRunCollections()) return null;
 	const state = store.getState() as State;
 	const id = ++runCollectionCounter;
-	const promise = new Promise<RunCollectionResolution>(resolve => {
+	const promise = new Promise<RunCollectionResolution | null>(resolve => {
 		pendingRunCollections.set(id, resolve);
 	});
 	post({
@@ -303,6 +316,9 @@ const ensureSubscription = (slot : WorkerCollectionSlot, description : Collectio
 const handleCollectionResult = (message : {subscriptionID : number, ids : string[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}) => {
 	const subscription = Object.values(bridgeSubscriptions).find(candidate => candidate.id === message.subscriptionID);
 	if (!subscription) return;
+	//A push computed over a corpus we no longer trust (mid-reload, outage
+	//recovery) must not reach the UI — 'on' mode would render it directly.
+	if (!corpusWorkerCanRunCollections()) return;
 	subscription.latest = {ids: message.ids, ms: message.ms};
 	if (readMode() === 'on') {
 		//Cutover mode: pushed results feed Redux directly; the UI renders
@@ -430,15 +446,22 @@ const startShadowComparator = () => {
 };
 
 //The generation a corpus-ID reconciliation has been requested for, so it
-//runs once per connection.
+//runs once per connection — requested only once the worker's corpus is BOTH
+//load-complete and trustworthy, so it can't fire against a partial corpus
+//(where the mass-removal guard would skip it and, being once-per-generation,
+//it would never retry).
 let reconciliationRequestedGeneration : WorkerGeneration = -1;
+
+const maybeRequestReconciliation = () => {
+	if (reconciliationRequestedGeneration === generation) return;
+	if (!corpusWorkerCanRunCollections()) return;
+	reconciliationRequestedGeneration = generation;
+	post({type: 'requestCorpusIDs', generation});
+};
 
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
-	//Error-fallback batches clear loading indicators but are NOT evidence the
-	//worker actually holds this fetchType's data (e.g. a quota outage
-	//error-forwards every fetch type with nothing loaded).
-	if (!batch.errorFallback) workerDeliveredFetchTypes[batch.fetchType] = true;
+	workerCorpusSize = batch.corpusSize;
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
 	//the fetchType regardless of card count, exactly like a main-thread
@@ -447,13 +470,13 @@ const handleCardBatch = (batch : CardBatch) => {
 	if (batch.removedIDs.length) {
 		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
 	}
-	//Once the worker's corpus is complete, reconcile once: the local-cache
-	//prime may have served cards that were deleted while the app was closed,
-	//and the worker can never send removals for docs it never saw.
-	if (reconciliationRequestedGeneration !== generation && corpusWorkerCanRunCollections()) {
-		reconciliationRequestedGeneration = generation;
-		post({type: 'requestCorpusIDs', generation});
-	}
+	//Once the worker's corpus is complete AND trustworthy, reconcile once:
+	//the local-cache prime may have served cards that were deleted while the
+	//app was closed, and the worker can never send removals for docs it
+	//never saw. Checked per batch (not just at loadComplete) so recovery
+	//from a degraded load — corpus refilling via re-attached listeners —
+	//still triggers it.
+	maybeRequestReconciliation();
 };
 
 //Removes cards from Redux that the (fully-loaded) worker corpus doesn't
@@ -525,7 +548,8 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		const resolve = pendingRunCollections.get(message.id);
 		if (resolve) {
 			pendingRunCollections.delete(message.id);
-			resolve({
+			//failed → resolve null so the caller takes its local fallback.
+			resolve(message.failed ? null : {
 				ids: message.ids,
 				labels: message.labels,
 				numCards: message.numCards,
@@ -538,6 +562,15 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		}
 		break;
 	}
+	case 'loadComplete':
+		workerLoadComplete = true;
+		workerCorpusSize = message.corpusSize;
+		console.log(`[corpus-worker] load complete: ${message.corpusSize} cards`);
+		maybeRequestReconciliation();
+		//Kick the comparator so subscriptions attach promptly now that
+		//serving is allowed (rather than waiting for the next state change).
+		scheduleShadowCompare();
+		break;
 	case 'cardMeta':
 		if (corpusWorkerOwnsCardIngestion()) {
 			store.dispatch({type: UPDATE_CARD_META, metas: message.metas, removedIDs: message.removedIDs});
@@ -551,8 +584,16 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//themselves; perform the fetch here. When it lands,
 		//UPDATE_CARD_SIMILARITY changes selectCardSimilarity's identity,
 		//which re-keys the live subscriptions below so the worker recomputes
-		//with the fresh data.
-		void import('./actions/similarity.js').then(module => module.fetchSimilarCardsIfEnabled(message.cardID));
+		//with the fresh data. Failures are logged, not rethrown — the
+		//worker's TTL dedupe re-requests after a minute, restoring the
+		//retry-per-filter-run behavior off mode always had.
+		void import('./actions/similarity.js').then(module => {
+			try {
+				module.fetchSimilarCardsIfEnabled(message.cardID);
+			} catch (e) {
+				console.warn(`[corpus-worker] similarity fetch for ${message.cardID} failed:`, e);
+			}
+		}).catch(e => console.warn('[corpus-worker] similarity module load failed:', e));
 		break;
 	}
 };
@@ -577,6 +618,27 @@ const stopWorker = () => {
 	worker = null;
 	connectSent = false;
 	pendingQueries.clear();
+	flushPendingRunCollections();
+	workerLoadComplete = false;
+	workerCorpusSize = 0;
+};
+
+//Resets local subscription bookkeeping across a (re)connect. The worker
+//clears its own SubscriptionManager on connect/reconnect, so the old
+//subscription ids are already dead worker-side; without this reset the
+//bridge would keep serving the last pushed result (computed under the OLD
+//parameters) and never resubscribe under the new ones.
+const resetSubscriptionsForReconnect = () => {
+	for (const subscription of Object.values(bridgeSubscriptions)) {
+		if (!subscription.id) continue;
+		subscription.id = 0;
+		subscription.key = '';
+		subscription.descriptionSerialized = '';
+		subscription.latest = null;
+		if (readMode() === 'on') {
+			store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: subscription.slot, result: null});
+		}
+	}
 };
 
 //Ensures the worker is running and (re)connected with the given ingestion
@@ -592,11 +654,20 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	lastUid = uid;
 	generation++;
 	//A (re)connect restarts the worker's ingestion from scratch; its corpus
-	//is incomplete again until batches for the new parameters arrive.
-	workerDeliveredFetchTypes = {};
+	//is incomplete again until it announces loadComplete for the new
+	//parameters. In-flight one-shot runs would reply under the old
+	//generation (dropped as stale) — resolve them to their fallbacks now.
+	workerLoadComplete = false;
+	workerCorpusSize = 0;
+	flushPendingRunCollections();
+	resetSubscriptionsForReconnect();
 	if (!connectSent) {
 		connectSent = true;
-		post({type: 'connect', generation, devMode: devMode(), mayViewUnpublished, uid});
+		//DEV_MODE comes from src/firebase.ts — the SAME flag that chose the
+		//main thread's Firebase project, not a re-derived hostname sniff
+		//(the two copies of that heuristic could drift, silently pointing
+		//the worker's 40k-doc-per-boot loader at a different project).
+		post({type: 'connect', generation, devMode: DEV_MODE, mayViewUnpublished, uid});
 	} else {
 		post({type: 'reconnect', generation, mayViewUnpublished, uid});
 	}

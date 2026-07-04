@@ -300,7 +300,13 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 
 		if (!card || !card.id) {
 			console.log('No id on card');
-			if (failOnError) return;
+			if (failOnError) {
+				//MODIFY_CARD was already dispatched: returning without a
+				//SUCCESS/FAILURE leaves pendingModifications latched true
+				//forever, silently rejecting every future save until reload.
+				dispatch(modifyCardFailure(new Error('No id on card'), true));
+				return;
+			}
 			continue;
 		}
 
@@ -616,10 +622,11 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 
 	//The await matters: modifyCardWithBatch queues its writes after its first
 	//internal await, so an un-awaited call commits an EMPTY batch and the
-	//reorder silently never persists.
-	await modifyCardWithBatch(state, card, update, false, batch, localEchoes);
-
+	//reorder silently never persists. The try matters too: a throw from
+	//inside (permission check, diff validation) would otherwise leave
+	//pendingReorder latched true forever.
 	try {
+		await modifyCardWithBatch(state, card, update, false, batch, localEchoes);
 		await batch.commit();
 	} catch(err) {
 		console.warn(err);

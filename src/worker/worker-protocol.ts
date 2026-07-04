@@ -125,7 +125,12 @@ export type CardBatch = {
 	//evidence (observed live: a quota outage error-forwarded every fetch
 	//type, which would otherwise have declared an empty worker corpus
 	//"ready" and let reconciliation remove every locally-primed card).
-	errorFallback? : boolean
+	errorFallback? : boolean,
+	//The worker's corpus size AFTER applying this batch, so the bridge can
+	//continuously judge whether the worker corpus is trustworthy relative to
+	//what Redux holds (recovers readiness after an outage as re-attached
+	//listeners refill the corpus).
+	corpusSize : number
 };
 
 export type SpikeReport = {
@@ -148,8 +153,18 @@ export type WorkerToMainMessage =
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}
 	//Pushed whenever a subscribed collection's ordered result changes.
 	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
-	//Response to a one-shot runCollection.
-	| {type: 'runCollectionResult', generation: WorkerGeneration, id : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
+	//Response to a one-shot runCollection. failed:true means the run threw —
+	//the bridge resolves the pending promise with null so callers take their
+	//local-fallback path instead of waiting forever on a reply that (before
+	//this flag) never carried the request id.
+	| {type: 'runCollectionResult', generation: WorkerGeneration, id : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number, failed? : boolean}
+	//Announced exactly once per (re)connect, when every fetch type the
+	//connection parameters call for has had its initial delivery (or terminal
+	//error): the worker's corpus is as complete as this connection can make
+	//it. THE readiness signal — inferring completeness from per-batch
+	//arrivals declared partial corpora ready (the first of five partition
+	//flushes, or an offline worker's empty from-cache snapshots).
+	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number}
 	//Delta-pushed compact per-card metadata (changed entries + removals).
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
 	//The worker's similar-card filters need server similarity for this card;

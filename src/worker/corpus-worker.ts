@@ -92,6 +92,12 @@ import {
 } from '../similarity-request.js';
 
 import {
+	UNPUBLISHED_CARD_PARTITIONS,
+	UnpublishedCardPartition,
+	partitionLabel
+} from '../card-partitions.js';
+
+import {
 	toWire,
 	fromWire
 } from './wire-format.js';
@@ -237,8 +243,40 @@ const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetc
 	send({
 		type: 'cards',
 		generation,
-		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback}
+		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size}
 	});
+};
+
+//----------------------------------------------------------------------------
+// Initial-load tracking
+//
+// The bridge must not serve collections (or reconcile) from this corpus
+// until the initial load for the CURRENT connection parameters is done.
+// Inferring that from per-batch arrivals was wrong twice over: the first of
+// five partition flushes marked 'unpublished' delivered at ~20% corpus, and
+// an offline worker's empty from-cache snapshots read as normal deliveries.
+// Instead each connect declares which fetch types it will load, and
+// loadComplete is announced exactly once when all have had their initial
+// delivery (or terminal error — the corpusSize it carries lets the bridge
+// judge an error-riddled load as untrustworthy).
+//----------------------------------------------------------------------------
+
+let initialLoadPending : Set<CardFetchType> | null = null;
+let initialLoadConnectionGeneration = -1;
+
+const expectInitialLoad = (fetchTypes : CardFetchType[]) => {
+	initialLoadPending = new Set(fetchTypes);
+	initialLoadConnectionGeneration = connectionGeneration;
+};
+
+const markInitialDelivered = (fetchType : CardFetchType) => {
+	if (!initialLoadPending) return;
+	if (initialLoadConnectionGeneration !== connectionGeneration) return;
+	if (!initialLoadPending.delete(fetchType)) return;
+	if (initialLoadPending.size) return;
+	initialLoadPending = null;
+	send({type: 'loadComplete', generation, corpusSize: corpus.size});
+	status(`initial load complete: ${corpus.size} cards in corpus`);
 };
 
 //Ingests a snapshot: updates worker-local corpus/index and forwards the batch
@@ -251,6 +289,11 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 	updateLocalState(cards, removedIDs);
 	const count = Object.keys(cards).length;
 	forwardBatch(cards, removedIDs, fetchType, fastDedupe);
+	//For the privileged 'unpublished' load, completion is marked explicitly
+	//at the end of connectUnpublishedPrivileged (the prime, not the
+	//listeners, defines done); marking here is idempotent and covers the
+	//single-listener fetch types.
+	markInitialDelivered(fetchType);
 	if (count || removedIDs.length) {
 		status(`ingested ${count} cards (${removedIDs.length} removed, ${fetchType}) in ${(performance.now() - start).toFixed(1)}ms; corpus=${corpus.size}`);
 	}
@@ -264,6 +307,10 @@ const listenerError = (fetchType : CardFetchType, context : string) => (error : 
 	//errorFallback: clears loading indicators but is NOT evidence the worker
 	//holds this fetchType's data.
 	forwardBatch({}, [], fetchType, false, true);
+	//A terminal error still resolves this fetch type's INITIAL load — the
+	//loadComplete it may trigger carries the (small) corpusSize, which is
+	//what tells the bridge not to trust the corpus for serving.
+	markInitialDelivered(fetchType);
 };
 
 const teardownListeners = () => {
@@ -354,6 +401,20 @@ const connectPublished = () => {
 	status('published listener attached');
 };
 
+//Builds the Firestore query for one shared unpublished partition. gte ''
+//means unbounded below; every partition has an explicit upper bound.
+const unpublishedPartitionQuery = (database : Firestore, partition : UnpublishedCardPartition) : Query => {
+	if (!partition.gte) {
+		return query(collection(database, CARDS_COLLECTION),
+			where('published', '==', false),
+			where(documentId(), '<', partition.lt));
+	}
+	return query(collection(database, CARDS_COLLECTION),
+		where('published', '==', false),
+		where(documentId(), '>=', partition.gte),
+		where(documentId(), '<', partition.lt));
+};
+
 //Mirrors the partitioned unpublished fetch in src/actions/database.ts:
 //parallel getDocs by document-ID range (a single query on 38k+ docs hits the
 //~60s Firestore timeout), coalesced into batched forwards, then a full
@@ -362,14 +423,6 @@ const connectUnpublishedPrivileged = async () => {
 	if (!db) return;
 	const database = db;
 	const myConnectionGeneration = connectionGeneration;
-
-	const PARTITIONS = [
-		{ gte: '', lt: 'c-2' },
-		{ gte: 'c-2', lt: 'c-4' },
-		{ gte: 'c-4', lt: 'c-6' },
-		{ gte: 'c-6', lt: 'c-8' },
-		{ gte: 'c-8', lt: '' },
-	];
 
 	const pendingCards : Cards = {};
 	let flushTimeout : ReturnType<typeof setTimeout> | null = null;
@@ -395,15 +448,8 @@ const connectUnpublishedPrivileged = async () => {
 
 	const startTime = performance.now();
 	try {
-		const partitionPromises = PARTITIONS.map(async (partition) => {
-			const partitionQuery = partition.gte
-				? query(collection(database, CARDS_COLLECTION),
-					where('published', '==', false),
-					where(documentId(), '>=', partition.gte),
-					where(documentId(), '<', partition.lt))
-				: query(collection(database, CARDS_COLLECTION),
-					where('published', '==', false),
-					where(documentId(), '<', partition.lt));
+		const partitionPromises = UNPUBLISHED_CARD_PARTITIONS.map(async (partition) => {
+			const partitionQuery = unpublishedPartitionQuery(database, partition);
 			//From the SERVER, with retry: plain getDocs silently falls back
 			//to the (memory, i.e. empty) cache when the backend has a blip,
 			//which reads as a successful zero-card partition. Observed live
@@ -415,7 +461,7 @@ const connectUnpublishedPrivileged = async () => {
 					attempts: 5,
 					baseDelayMs: 2000,
 					shouldContinue: () => myConnectionGeneration === connectionGeneration,
-					onRetry: (error, attempt, delayMs) => status(`unpublished partition [${partition.gte || 'start'},${partition.lt || 'end'}) attempt ${attempt} failed (${String(error)}); retrying in ${delayMs}ms`)
+					onRetry: (error, attempt, delayMs) => status(`unpublished partition ${partitionLabel(partition)} attempt ${attempt} failed (${String(error)}); retrying in ${delayMs}ms`)
 				}
 			);
 			if (myConnectionGeneration !== connectionGeneration) return 0;
@@ -441,17 +487,9 @@ const connectUnpublishedPrivileged = async () => {
 	//timed out" ~2min after attach on the dev backend (observed repeatedly),
 	//and with per-partition listeners a drop only costs re-attaching and
 	//redelivering ~1/5 of the corpus.
-	for (const partition of PARTITIONS) {
-		const label = `[${partition.gte || 'start'},${partition.lt <= 'c-9' ? partition.lt : 'end'})`;
-		attachResilientListener(`unpublished listener ${label}`, 'unpublished',
-			() => partition.gte
-				? query(collection(database, CARDS_COLLECTION),
-					where('published', '==', false),
-					where(documentId(), '>=', partition.gte),
-					where(documentId(), '<', partition.lt))
-				: query(collection(database, CARDS_COLLECTION),
-					where('published', '==', false),
-					where(documentId(), '<', partition.lt)),
+	for (const partition of UNPUBLISHED_CARD_PARTITIONS) {
+		attachResilientListener(`unpublished listener ${partitionLabel(partition)}`, 'unpublished',
+			() => unpublishedPartitionQuery(database, partition),
 			() => {
 				//Per attachment: only the initial delivery right after the
 				//getDocs prime is overwhelmingly-redundant; re-attached
@@ -466,7 +504,10 @@ const connectUnpublishedPrivileged = async () => {
 				};
 			});
 	}
-	status(`unpublished listeners attached (${PARTITIONS.length} partitions)`);
+	status(`unpublished listeners attached (${UNPUBLISHED_CARD_PARTITIONS.length} partitions)`);
+	//The prime (or its terminal failure) plus attached listeners IS the
+	//initial unpublished load — not any individual batch arrival.
+	markInitialDelivered('unpublished');
 };
 
 const connectUnpublishedAuthorEditor = (uid : string) => {
@@ -487,6 +528,17 @@ const connectUnpublishedAuthorEditor = (uid : string) => {
 
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
+	//A (re)connect changes what this corpus MEANS (different permissions ⇒
+	//different visible card set): live subscriptions computed under the old
+	//parameters must not keep pushing (they survived reconnects before,
+	//serving stale-uid results for the whole reload), and pending similarity
+	//dedupe state belongs to the old world.
+	subscriptions.clear();
+	requestedSimilarityCardIDs.clear();
+	const expected : CardFetchType[] = ['published'];
+	if (mayViewUnpublished) expected.push('unpublished');
+	else if (uid) expected.push('unpublished-author', 'unpublished-editor');
+	expectInitialLoad(expected);
 	connectPublished();
 	if (mayViewUnpublished) {
 		connectUnpublishedPrivileged();
@@ -615,6 +667,12 @@ workerScope.addEventListener('message', event => {
 			});
 		} catch (e) {
 			send({type: 'error', generation, message: `runCollection(${message.description}): ${String(e)}`});
+			//The failure reply MUST carry the request id: an error without it
+			//left the bridge's pending promise unresolved forever, freezing
+			//reference blocks on the previous card's results and leaking a
+			//Map entry per state change while a throwing description stayed
+			//active.
+			send({type: 'runCollectionResult', generation, id: message.id, ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}, ms: 0, failed: true});
 		}
 		break;
 	}
@@ -626,12 +684,19 @@ workerScope.addEventListener('message', event => {
 
 //The engine's similar-card filters trigger similarity fetches as a side
 //effect; only the main thread can perform them, so forward the request over
-//the bridge (deduped — the filter re-fires on every run until the similarity
-//data arrives). See src/similarity-request.ts.
-const requestedSimilarityCardIDs : Set<CardID> = new Set();
+//the bridge. Deduped with a TTL rather than a permanent set: the filter
+//re-fires on every run until similarity data arrives, so a permanent entry
+//meant one failed fetch disabled similarity for that card until reload.
+//After the TTL the next filter run re-requests; once data lands the filter
+//stops asking entirely, so a satisfied request generates no further
+//traffic.
+const SIMILARITY_REQUEST_RETRY_MS = 60 * 1000;
+const requestedSimilarityCardIDs : Map<CardID, number> = new Map();
 setSimilarityRequestHandler(cardID => {
-	if (requestedSimilarityCardIDs.has(cardID)) return;
-	requestedSimilarityCardIDs.add(cardID);
+	const now = Date.now();
+	const requestedAt = requestedSimilarityCardIDs.get(cardID);
+	if (requestedAt !== undefined && now - requestedAt < SIMILARITY_REQUEST_RETRY_MS) return;
+	requestedSimilarityCardIDs.set(cardID, now);
 	send({type: 'requestSimilarity', generation, cardID});
 });
 

@@ -114,6 +114,10 @@ import {
 	corpusWorkerConnectCards
 } from '../corpus-bridge.js';
 
+import {
+	UNPUBLISHED_CARD_PARTITIONS
+} from '../card-partitions.js';
+
 import { TypedObject } from '../../shared/typed_object.js';
 
 
@@ -380,32 +384,51 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 //updated timestamps). Known limitation (rare): a card DELETED since the
 //cache was written lingers for the session — the worker never saw it, so it
 //can't send a removal.
-let localCachePrimeStarted = false;
-const primeCardsFromLocalCacheForWorkerModes = async () => {
-	if (localCachePrimeStarted) return;
-	localCachePrimeStarted = true;
+//The prime must mirror the listener permission model, NOT dump the whole
+//cache: the persistent cache is shared across sessions, so a privileged
+//session leaves ~38k unpublished cards in it that a later signed-out (or
+//less-privileged) visitor in worker modes must never see. published primes
+//unconditionally; unpublished primes only when the CURRENT user's
+//listeners would deliver those cards (full corpus for mayViewUnpublished,
+//author/editor-filtered for a plain uid, nothing for anonymous).
+const primedFetchTypes : {[fetchType : string] : true} = {};
+const primeFromLocalCache = async (fetchType : CardFetchType, cardFilter? : (card : Card) => boolean) => {
+	if (primedFetchTypes[fetchType]) return;
+	primedFetchTypes[fetchType] = true;
 	const start = performance.now();
-	const primes = [
-		{fetchType: 'published', cardsQuery: query(collection(db, CARDS_COLLECTION), where('published', '==', true))},
-		{fetchType: 'unpublished', cardsQuery: query(collection(db, CARDS_COLLECTION), where('published', '==', false))},
-	] as const;
-	for (const {fetchType, cardsQuery} of primes) {
-		try {
-			const snapshot = await getDocsFromCache(cardsQuery);
-			if (snapshot.empty) {
-				console.log(`[PERF] local cache prime: no ${fetchType} cards in cache`);
-				continue;
-			}
-			const {cards} = parseCardSnapshot(snapshot);
-			if (!Object.keys(cards).length) continue;
-			console.log(`[PERF] local cache prime: serving ${Object.keys(cards).length} ${fetchType} cards from the persistent cache`);
-			store.dispatch(receiveCards(cards, fetchType));
-		} catch (err) {
-			//Cache empty or unavailable — the worker load proceeds as usual.
-			console.log(`[PERF] local cache prime: ${fetchType} cache read unavailable (${String(err)})`);
+	const cardsQuery = query(collection(db, CARDS_COLLECTION), where('published', '==', fetchType === 'published'));
+	try {
+		const snapshot = await getDocsFromCache(cardsQuery);
+		if (snapshot.empty) {
+			console.log(`[PERF] local cache prime: no ${fetchType} cards in cache`);
+			return;
 		}
+		let {cards} = parseCardSnapshot(snapshot);
+		if (cardFilter) {
+			cards = Object.fromEntries(Object.entries(cards).filter(([, card]) => cardFilter(card)));
+		}
+		if (!Object.keys(cards).length) {
+			console.log(`[PERF] local cache prime: no ${fetchType} cards visible to this user`);
+			return;
+		}
+		console.log(`[PERF] local cache prime: serving ${Object.keys(cards).length} ${fetchType} cards from the persistent cache in ${(performance.now() - start).toFixed(1)}ms`);
+		store.dispatch(receiveCards(cards, fetchType));
+	} catch (err) {
+		//Cache empty or unavailable — the worker load proceeds as usual.
+		console.log(`[PERF] local cache prime: ${fetchType} cache read unavailable (${String(err)})`);
 	}
-	console.log(`[PERF] local cache prime: total ${(performance.now() - start).toFixed(1)}ms`);
+};
+
+const primeUnpublishedFromLocalCacheForWorkerModes = (state : State) => {
+	if (selectUserMayViewUnpublished(state)) {
+		void primeFromLocalCache('unpublished');
+		return;
+	}
+	const uid = selectUid(state);
+	if (!uid) return;
+	//Mirror the author/editor listener queries.
+	void primeFromLocalCache('unpublished', card =>
+		card.author === uid || Boolean(card.permissions && Array.isArray(card.permissions[PERMISSION_EDIT_CARD]) && card.permissions[PERMISSION_EDIT_CARD].includes(uid)));
 };
 
 export const connectLivePublishedCards = () => {
@@ -414,7 +437,7 @@ export const connectLivePublishedCards = () => {
 	if (corpusWorkerOwnsCardIngestion()) {
 		//The corpus worker owns the Firestore card listeners; batches arrive
 		//via the bridge and are dispatched through the same receiveCards path.
-		void primeCardsFromLocalCacheForWorkerModes();
+		void primeFromLocalCache('published');
 		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
 		return;
 	}
@@ -490,6 +513,11 @@ export const connectLiveUnpublishedCards = async () => {
 			store.dispatch(expectUnpublishedCards('unpublished-author'));
 			store.dispatch(expectUnpublishedCards('unpublished-editor'));
 		}
+		//The unpublished prime happens HERE — not at published-connect time —
+		//because this is where the user's permissions are known, and the
+		//prime must not show a previous (more privileged) session's cached
+		//unpublished cards to this user.
+		primeUnpublishedFromLocalCacheForWorkerModes(state);
 		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
 		return;
 	}
@@ -531,15 +559,9 @@ export const connectLiveUnpublishedCards = async () => {
 		// A single getDocs for 38k+ docs takes ~37s per 10k batch due to
 		// the experimentalForceLongPolling overhead. Running 5 partitions
 		// in parallel (by document ID range) cuts wall-clock time by ~4-5x.
-		// Card IDs are formatted as c-NNN-LLLLLL, so the digit after c-
-		// distributes roughly evenly across 0-9.
-		const PARTITIONS = [
-			{ gte: '', lt: 'c-2' },       // c-0xx, c-1xx
-			{ gte: 'c-2', lt: 'c-4' },    // c-2xx, c-3xx
-			{ gte: 'c-4', lt: 'c-6' },    // c-4xx, c-5xx
-			{ gte: 'c-6', lt: 'c-8' },    // c-6xx, c-7xx
-			{ gte: 'c-8', lt: '\uf8ff' }, // c-8xx, c-9xx, and any others
-		];
+		// The partition table is shared with the corpus worker (which used
+		// to carry a drifted copy).
+		const PARTITIONS = UNPUBLISHED_CARD_PARTITIONS;
 
 		// Coalesce partition arrivals into batched dispatches: each
 		// UPDATE_CARDS dispatch runs the full selector cascade over the

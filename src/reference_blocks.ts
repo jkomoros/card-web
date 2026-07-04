@@ -319,7 +319,7 @@ export type WorkerRunCollectionResolution = {
 //Injected by callers so this module doesn't import the bridge (the bridge
 //imports selectors, which import us). Returns null when the worker isn't
 //available.
-export type WorkerCollectionRunner = (description : string, keyCardID : string) => Promise<WorkerRunCollectionResolution> | null;
+export type WorkerCollectionRunner = (description : string, keyCardID : string) => Promise<WorkerRunCollectionResolution | null> | null;
 
 //Like expandReferenceBlocks, but each block's collection is computed in the
 //corpus worker (off the UI thread) and reconstituted as a pre-seeded real
@@ -333,15 +333,18 @@ export const expandReferenceBlocksViaRunner = async (card : Card | null, blocks 
 		keyCardID: card.id,
 	};
 	const filteredBlocks = blocks.filter(block => block.onlyForEditors ? cardIDsUserMayEdit[card.id] : true);
-	const promises : Promise<WorkerRunCollectionResolution>[] = [];
+	const promises : Promise<WorkerRunCollectionResolution | null>[] = [];
 	for (const block of filteredBlocks) {
 		const promise = runner(block.collectionDescription.serialize(), card.id);
 		if (!promise) return null;
 		promises.push(promise);
 	}
 	const results = await Promise.all(promises);
+	//A null resolution means a run failed or the connection was torn down
+	//mid-flight — fall back to the sync path for the whole set.
+	if (results.some(result => result === null)) return null;
 	return filteredBlocks.map((block, index) => {
-		const result = results[index];
+		const result = results[index] as WorkerRunCollectionResolution;
 		const collection = Collection.fromWorkerResult(block.collectionDescription, keyCardCollectionConstructorArgs, {
 			description: block.collectionDescription.serialize(),
 			ids: result.ids,

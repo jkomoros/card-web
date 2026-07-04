@@ -77,6 +77,13 @@ export class SubscriptionManager {
 		this._subscriptions.delete(subscriptionID);
 	}
 
+	//Drops every subscription. Called on (re)connect: subscriptions were
+	//created under the previous connection's parameters (uid, permissions)
+	//and must not keep pushing results computed under the old world.
+	clear() : void {
+		this._subscriptions.clear();
+	}
+
 	get size() : number {
 		return this._subscriptions.size;
 	}
