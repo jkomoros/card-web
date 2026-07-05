@@ -28,6 +28,9 @@ import {
 	collection,
 	where,
 	documentId,
+	orderBy,
+	startAfter,
+	limit,
 	doc,
 	Firestore,
 	Query,
@@ -46,6 +49,15 @@ import {
 	SyncMetaStore,
 	SyncMeta
 } from './sync-meta.js';
+
+import {
+	pacificDayKey,
+	msUntilNextPacificDay,
+	rolledOverReads,
+	budgetExhausted,
+	COLD_SWEEP_PAGE_SIZE,
+	COLD_SWEEP_PRIORITY_COUNT
+} from './cold-budget.js';
 
 import {
 	retryWithBackoff
@@ -817,6 +829,125 @@ const attachDeltaListener = (database : Firestore) => {
 		() => { if (currentSyncState === 'live') setSyncState('stale'); });
 };
 
+//----------------------------------------------------------------------------
+// Cold sweep (Phase 2): first-ever fill of the corpus on a device with no
+// usable cache. Reads the whole corpus ONCE — unavoidable (the client SDK
+// reads whole docs) — but budgeted per quota day, resumable across days via
+// a persisted cursor, and priority-ordered so the app is usable in minutes.
+//----------------------------------------------------------------------------
+
+//A primed corpus holding less than this fraction of the server total is
+//treated as cold (full sweep) rather than repaired partition-by-partition:
+//repairing nearly everything IS a full read, but unbudgeted.
+const COLD_FRACTION = 0.5;
+
+const coldSweep = async (database : Firestore, myConnectionGeneration : number) : Promise<boolean> => {
+	if (!syncMetaStore || !syncMetaState) return false;
+	const meta = syncMetaState;
+	const now = Date.now();
+	//Roll the budget over if the quota day changed since the cursor persisted.
+	if (meta.coldLoad) {
+		const rolled = rolledOverReads(meta.coldLoad.readsToday, meta.coldLoad.day, now);
+		meta.coldLoad.readsToday = rolled.readsToday;
+		meta.coldLoad.day = rolled.day;
+	}
+
+	//Priority phase (fresh sweeps only): the most recently updated cards
+	//first, so a knowledge garden is USABLE minutes into a 2-day sweep.
+	if (!meta.coldLoad) {
+		let prioritySnapshot : QuerySnapshot;
+		try {
+			prioritySnapshot = await getDocsFromServer(query(collection(database, CARDS_COLLECTION),
+				where('published', '==', false), orderBy('updated', 'desc'), limit(COLD_SWEEP_PRIORITY_COUNT)));
+		} catch (e) {
+			status(`cold sweep priority phase failed (${String(e)}); will retry`);
+			return false;
+		}
+		if (myConnectionGeneration !== connectionGeneration) return false;
+		const {cards} = parseSnapshot(prioritySnapshot);
+		updateLocalState(cards, []);
+		forwardBatch(cards, [], 'unpublished', false);
+		meta.coldLoad = {
+			cursorUpdated: {seconds: 0, nanoseconds: 0},
+			cursorDocID: '',
+			readsToday: prioritySnapshot.size,
+			day: pacificDayKey(now)
+		};
+		void syncMetaStore.save(meta);
+		status(`cold sweep: priority phase served ${prioritySnapshot.size} recent cards; systematic sweep follows`);
+	}
+
+	//Systematic sweep, ascending (updated, documentId): an edit moves a doc
+	//FORWARD past the cursor, so mid-sweep edits are re-encountered
+	//(idempotent) rather than missed. Descending order would silently skip.
+	for (;;) {
+		if (myConnectionGeneration !== connectionGeneration) return false;
+		const cursor : SyncMeta['coldLoad'] = meta.coldLoad;
+		if (!cursor) return true;
+		if (budgetExhausted(cursor.readsToday)) {
+			const waitMs = msUntilNextPacificDay(Date.now());
+			status(`cold sweep paused at ${cursor.readsToday} reads today; resuming in ~${Math.round(waitMs / 3600000)}h`);
+			setTimeout(() => {
+				if (myConnectionGeneration !== connectionGeneration) return;
+				void coldSweep(database, myConnectionGeneration).then(done => {
+					if (done) void afterColdSweep(database, myConnectionGeneration);
+				});
+			}, waitMs);
+			return false;
+		}
+		let page : QuerySnapshot;
+		try {
+			page = await getDocsFromServer(query(collection(database, CARDS_COLLECTION),
+				where('published', '==', false),
+				orderBy('updated', 'asc'), orderBy(documentId(), 'asc'),
+				startAfter(new Timestamp(cursor.cursorUpdated.seconds, cursor.cursorUpdated.nanoseconds), cursor.cursorDocID),
+				limit(COLD_SWEEP_PAGE_SIZE)));
+		} catch (e) {
+			status(`cold sweep page failed (${String(e)}); pausing 60s`);
+			setTimeout(() => {
+				if (myConnectionGeneration !== connectionGeneration) return;
+				void coldSweep(database, myConnectionGeneration).then(done => {
+					if (done) void afterColdSweep(database, myConnectionGeneration);
+				});
+			}, 60 * 1000);
+			return false;
+		}
+		if (myConnectionGeneration !== connectionGeneration) return false;
+		const {cards} = parseSnapshot(page);
+		if (page.size) {
+			updateLocalState(cards, []);
+			forwardBatch(cards, [], 'unpublished', true);
+			const lastDoc = page.docs[page.docs.length - 1];
+			const lastUpdated = lastDoc.data({serverTimestamps: 'estimate'}).updated as Timestamp | undefined;
+			meta.coldLoad = {
+				cursorUpdated: lastUpdated && typeof lastUpdated.seconds === 'number' ? {seconds: lastUpdated.seconds, nanoseconds: lastUpdated.nanoseconds} : cursor.cursorUpdated,
+				cursorDocID: lastDoc.id,
+				readsToday: cursor.readsToday + page.size,
+				day: cursor.day
+			};
+			void syncMetaStore.save(meta);
+		}
+		if (page.size < COLD_SWEEP_PAGE_SIZE) {
+			meta.coldLoad = null;
+			void syncMetaStore.save(meta);
+			status(`cold sweep complete; corpus=${corpus.size}`);
+			return true;
+		}
+	}
+};
+
+//Tail shared by the sweep's completion paths: re-verify, then bring up the
+//normal delta plane.
+const afterColdSweep = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
+	if (myConnectionGeneration !== connectionGeneration) return;
+	sessionWatermark = deriveSessionWatermark();
+	attachTombstoneListener(database, () => {
+		attachDeltaListener(database);
+		markInitialDelivered('unpublished');
+		setSyncState('live');
+	});
+};
+
 //Retry cadence for the trust gate when it can't reach the server (offline,
 //quota exhaustion): the app keeps serving the unverified prime locally.
 const GATE_RETRY_MS = 60 * 1000;
@@ -865,6 +996,19 @@ const connectUnpublishedWatermark = async () => {
 				if (myConnectionGeneration !== connectionGeneration) return;
 				void gateAndProceed();
 			}, GATE_RETRY_MS);
+			return;
+		}
+		//COLD: a corpus holding under half the server total is a first fill
+		//(or catastrophic cache loss) — run the budgeted sweep, not a
+		//partition-by-partition repair (which would be a full unbudgeted
+		//read of nearly everything).
+		const localTotal = corpusUnpublishedPerPartition().reduce((total, bucket) => total + bucket.size, 0);
+		if (gate.serverTotal > 0 && localTotal < gate.serverTotal * COLD_FRACTION) {
+			status(`cold corpus (${localTotal} of ${gate.serverTotal}); starting budgeted sweep`);
+			const done = await coldSweep(database, myConnectionGeneration);
+			if (myConnectionGeneration !== connectionGeneration) return;
+			if (!done) return; //paused/erred: coldSweep schedules its own resume
+			void afterColdSweep(database, myConnectionGeneration);
 			return;
 		}
 		if (gate.mismatched.length) {
