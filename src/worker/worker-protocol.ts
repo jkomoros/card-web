@@ -82,7 +82,15 @@ export type MainToWorkerMessage =
 	//Boot the worker's Firebase app. devMode picks the dev/prod config; the
 	//worker reads persisted auth credentials from IndexedDB (written by the
 	//main thread's interactive sign-in).
-	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, mayViewUnpublished : boolean, uid : string}
+	//persist: whether the worker should claim the PERSISTENT Firestore cache
+	//(single-tab force-ownership — the only persistence mode the SDK supports
+	//in a dedicated worker). Computed by the bridge (the worker has no
+	//localStorage to read the mode itself): true only when the worker OWNS
+	//ingestion, because in spike mode the main thread still holds the same
+	//persistence DB and a force-owning worker would fight its lease — the
+	//exact interference that broke app boot in the failed multi-tab
+	//experiment.
+	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, persist : boolean, mayViewUnpublished : boolean, uid : string}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}

@@ -10,7 +10,12 @@ import {
 	initializeFirestore,
 	persistentLocalCache,
 	persistentMultipleTabManager,
+	memoryLocalCache,
 } from 'firebase/firestore';
+
+import {
+	corpusWorkerOwnsCardIngestion
+} from './corpus-mode.js';
 
 import {
 	getAuth
@@ -51,9 +56,20 @@ const firebaseApp = initializeApp(config);
 //long document. See
 //https://github.com/firebase/firebase-js-sdk/issues/4416#issuecomment-788225325
 //and #659.
+//
+//CACHE OWNERSHIP: exactly one client may hold the persistent cache. In
+//worker modes (corpus-worker = shadow/on) the CORPUS WORKER owns it — with
+//the single-tab force-ownership manager, the only persistence mode Firestore
+//supports inside a dedicated worker — because the corpus (40k cards) is what
+//actually needs resume tokens: without them every worker boot re-reads the
+//whole corpus from the server (~40k billed reads, i.e. a full free-tier day
+//per boot, observed as a real resource-exhausted outage). The main thread
+//steps down to a memory cache in those modes; its reads (sections, tags,
+//user state) are small and online-only. Off/spike modes are unchanged:
+//main-thread multi-tab persistence, exactly as before.
 export const db = initializeFirestore(firebaseApp, {
 	experimentalForceLongPolling: true,
-	localCache: persistentLocalCache({
+	localCache: corpusWorkerOwnsCardIngestion() ? memoryLocalCache() : persistentLocalCache({
 		tabManager: persistentMultipleTabManager()
 	})
 });

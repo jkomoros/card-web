@@ -44,7 +44,6 @@ import {
 	collection,
 	onSnapshot,
 	getDocs,
-	getDocsFromCache,
 	where,
 	query,
 	orderBy,
@@ -374,62 +373,13 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 
 };
 
-//One-time warm-boot prime in worker modes: the worker's memory cache means
-//it must network-load the whole corpus every boot (~1-2min at 40k), while
-//the main thread's persistent cache still holds the previous session's
-//cards — its listeners just aren't attached in worker modes. Serve that
-//cache into Redux immediately (a purely local read: no listeners, no
-//network) so the app is usable at old-way warm-boot speed; the worker's
-//authoritative batches then dedupe against it (fast dedupe on matching
-//updated timestamps). Known limitation (rare): a card DELETED since the
-//cache was written lingers for the session — the worker never saw it, so it
-//can't send a removal.
-//The prime must mirror the listener permission model, NOT dump the whole
-//cache: the persistent cache is shared across sessions, so a privileged
-//session leaves ~38k unpublished cards in it that a later signed-out (or
-//less-privileged) visitor in worker modes must never see. published primes
-//unconditionally; unpublished primes only when the CURRENT user's
-//listeners would deliver those cards (full corpus for mayViewUnpublished,
-//author/editor-filtered for a plain uid, nothing for anonymous).
-const primedFetchTypes : {[fetchType : string] : true} = {};
-const primeFromLocalCache = async (fetchType : CardFetchType, cardFilter? : (card : Card) => boolean) => {
-	if (primedFetchTypes[fetchType]) return;
-	primedFetchTypes[fetchType] = true;
-	const start = performance.now();
-	const cardsQuery = query(collection(db, CARDS_COLLECTION), where('published', '==', fetchType === 'published'));
-	try {
-		const snapshot = await getDocsFromCache(cardsQuery);
-		if (snapshot.empty) {
-			console.log(`[PERF] local cache prime: no ${fetchType} cards in cache`);
-			return;
-		}
-		let {cards} = parseCardSnapshot(snapshot);
-		if (cardFilter) {
-			cards = Object.fromEntries(Object.entries(cards).filter(([, card]) => cardFilter(card)));
-		}
-		if (!Object.keys(cards).length) {
-			console.log(`[PERF] local cache prime: no ${fetchType} cards visible to this user`);
-			return;
-		}
-		console.log(`[PERF] local cache prime: serving ${Object.keys(cards).length} ${fetchType} cards from the persistent cache in ${(performance.now() - start).toFixed(1)}ms`);
-		store.dispatch(receiveCards(cards, fetchType));
-	} catch (err) {
-		//Cache empty or unavailable — the worker load proceeds as usual.
-		console.log(`[PERF] local cache prime: ${fetchType} cache read unavailable (${String(err)})`);
-	}
-};
-
-const primeUnpublishedFromLocalCacheForWorkerModes = (state : State) => {
-	if (selectUserMayViewUnpublished(state)) {
-		void primeFromLocalCache('unpublished');
-		return;
-	}
-	const uid = selectUid(state);
-	if (!uid) return;
-	//Mirror the author/editor listener queries.
-	void primeFromLocalCache('unpublished', card =>
-		card.author === uid || Boolean(card.permissions && Array.isArray(card.permissions[PERMISSION_EDIT_CARD]) && card.permissions[PERMISSION_EDIT_CARD].includes(uid)));
-};
+//NOTE: the main-thread warm-boot prime that used to live here is gone. In
+//worker modes the main thread's Firestore uses a MEMORY cache (see
+//src/firebase.ts — the worker owns the persistent cache now), so there is
+//nothing local to prime from. Warm boots come from the worker's own
+//persistent cache instead: one copy, correct permission scoping via the
+//worker's own queries, and — unlike the prime — since-deleted cards are
+//removed properly because resume-token catch-up delivers real removals.
 
 export const connectLivePublishedCards = () => {
 	const state = store.getState() as State;
@@ -437,7 +387,6 @@ export const connectLivePublishedCards = () => {
 	if (corpusWorkerOwnsCardIngestion()) {
 		//The corpus worker owns the Firestore card listeners; batches arrive
 		//via the bridge and are dispatched through the same receiveCards path.
-		void primeFromLocalCache('published');
 		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
 		return;
 	}
@@ -513,11 +462,6 @@ export const connectLiveUnpublishedCards = async () => {
 			store.dispatch(expectUnpublishedCards('unpublished-author'));
 			store.dispatch(expectUnpublishedCards('unpublished-editor'));
 		}
-		//The unpublished prime happens HERE — not at published-connect time —
-		//because this is where the user's permissions are known, and the
-		//prime must not show a previous (more privileged) session's cached
-		//unpublished cards to this user.
-		primeUnpublishedFromLocalCacheForWorkerModes(state);
 		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
 		return;
 	}

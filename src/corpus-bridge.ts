@@ -667,7 +667,9 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 		//main thread's Firebase project, not a re-derived hostname sniff
 		//(the two copies of that heuristic could drift, silently pointing
 		//the worker's 40k-doc-per-boot loader at a different project).
-		post({type: 'connect', generation, devMode: DEV_MODE, mayViewUnpublished, uid});
+		//persist: the worker claims the persistent cache only when it owns
+		//ingestion — in spike mode the main thread still holds that cache.
+		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), mayViewUnpublished, uid});
 	} else {
 		post({type: 'reconnect', generation, mayViewUnpublished, uid});
 	}

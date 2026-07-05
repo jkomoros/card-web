@@ -16,8 +16,11 @@ import {
 import {
 	initializeFirestore,
 	memoryLocalCache,
+	persistentLocalCache,
+	persistentSingleTabManager,
 	onSnapshot,
 	getDocsFromServer,
+	getDocsFromCache,
 	query,
 	collection,
 	where,
@@ -367,7 +370,7 @@ const attachResilientListener = (
 	attach();
 };
 
-const connectFirebase = (devMode : boolean) => {
+const connectFirebase = (devMode : boolean, persist : boolean) => {
 	if (app) return;
 	const config = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 	//IMPORTANT: the app must use the DEFAULT name. Auth persistence keys in
@@ -378,14 +381,35 @@ const connectFirebase = (devMode : boolean) => {
 	//The main thread signs in interactively and persists the credential to
 	//IndexedDB; initializeAuth here picks it up and receives refreshes.
 	auth = initializeAuth(app, {persistence: indexedDBLocalPersistence});
-	//Memory cache, NOT persistent: the worker's app must share the DEFAULT
-	//app name with the main thread for the auth credential to be readable,
-	//but that means a persistent cache here would collide with the main
-	//thread's persistence database ("failed to obtain exclusive access",
-	//observed live). Memory cache avoids the collision at the cost of a
-	//network corpus load per worker boot; the long-term 'on'-mode plan is to
-	//hand the persistent cache to the worker and switch the main thread (by
-	//then only handling sections/tags/user state) to memory.
+	//THE CACHE HANDOFF (the fix for ~40k billed reads per worker boot): when
+	//the worker owns ingestion, it also owns the PERSISTENT cache —
+	//single-tab with forceOwnership, the only persistence mode the SDK
+	//supports in a dedicated worker (the multi-tab manager needs LocalStorage
+	//and is `unimplemented` here; without forceOwnership the ownership lease
+	//needs visibility/unload events a worker doesn't have). Safe because
+	//src/firebase.ts steps the main thread down to a memory cache in worker
+	//modes — exactly one client touches the persistence DB. The DB is the
+	//same one the main thread's off-mode sessions populated (same default
+	//app name), so the first persistent boot may already be warm, and
+	//per-query resume tokens persisted across sessions make listener
+	//re-attach bill ~deltas instead of the full result set.
+	//
+	//Persistence failures (or a second worker-mode tab, whose worker will
+	//lose the ownership fight) fall back to the memory cache: the boot works
+	//but pays the full network load — and the bridge's loadComplete +
+	//trustworthy gating keeps even a failed/empty load safe.
+	if (persist) {
+		try {
+			db = initializeFirestore(app, {
+				experimentalForceLongPolling: true,
+				localCache: persistentLocalCache({tabManager: persistentSingleTabManager({forceOwnership: true})})
+			});
+			status('persistent single-tab cache (force-ownership) initialized');
+			return;
+		} catch (e) {
+			send({type: 'error', generation, message: `persistent cache init failed (${String(e)}); falling back to memory cache`});
+		}
+	}
 	db = initializeFirestore(app, {
 		experimentalForceLongPolling: true,
 		localCache: memoryLocalCache()
@@ -419,10 +443,74 @@ const unpublishedPartitionQuery = (database : Firestore, partition : Unpublished
 //parallel getDocs by document-ID range (a single query on 38k+ docs hits the
 //~60s Firestore timeout), coalesced into batched forwards, then a full
 //onSnapshot whose initial delivery is flagged for fast dedupe.
+//Attaches the phase-2 per-partition listeners and marks the initial
+//unpublished load complete. Shared tail of both boot paths (warm cache
+//prime and cold server prime).
+const attachUnpublishedListeners = (database : Firestore, myConnectionGeneration : number) => {
+	if (myConnectionGeneration !== connectionGeneration) return;
+	//One listener per document-ID partition rather than a single 38k-doc
+	//Listen: a full-corpus Listen stream died with "datastore operation
+	//timed out" ~2min after attach on the dev backend (observed repeatedly),
+	//and with per-partition listeners a drop only costs re-attaching and
+	//redelivering ~1/5 of the corpus (or, with persisted resume tokens, just
+	//the delta).
+	for (const partition of UNPUBLISHED_CARD_PARTITIONS) {
+		attachResilientListener(`unpublished listener ${partitionLabel(partition)}`, 'unpublished',
+			() => unpublishedPartitionQuery(database, partition),
+			() => {
+				//Per attachment: only the initial delivery right after the
+				//prime is overwhelmingly-redundant; re-attached listeners
+				//get a fresh flag (their initial delivery redelivers
+				//everything already in the worker corpus, which fast dedupe
+				//also handles correctly).
+				let firstDelivery = true;
+				return snapshot => {
+					const fastDedupe = firstDelivery;
+					firstDelivery = false;
+					ingestSnapshot(snapshot, 'unpublished', fastDedupe);
+				};
+			});
+	}
+	status(`unpublished listeners attached (${UNPUBLISHED_CARD_PARTITIONS.length} partitions)`);
+	//The prime (or its terminal failure) plus attached listeners IS the
+	//initial unpublished load — not any individual batch arrival.
+	markInitialDelivered('unpublished');
+};
+
+//Below this many cached unpublished cards, the cache is treated as cold and
+//the full partitioned server prime runs (first-ever boot, cleared site
+//data). Above it, the cache serves the boot and the listeners' persisted
+//resume tokens deliver just the catch-up delta.
+const WARM_CACHE_THRESHOLD = 1000;
+
 const connectUnpublishedPrivileged = async () => {
 	if (!db) return;
 	const database = db;
 	const myConnectionGeneration = connectionGeneration;
+
+	//Warm-boot fast path (persistent worker cache): serve the previous
+	//session's corpus straight from IndexedDB — zero billed reads — and let
+	//the phase-2 listeners reconcile via their persisted resume tokens.
+	//Replaces the ~40k-billed-read getDocsFromServer prime that made every
+	//worker boot cost most of a free-tier day.
+	try {
+		const cachedSnapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
+		if (myConnectionGeneration !== connectionGeneration) return;
+		if (cachedSnapshot.size >= WARM_CACHE_THRESHOLD) {
+			const start = performance.now();
+			const {cards} = parseSnapshot(cachedSnapshot);
+			updateLocalState(cards, []);
+			forwardBatch(cards, [], 'unpublished', false);
+			status(`warm boot: ${cachedSnapshot.size} unpublished cards from the persistent cache in ${(performance.now() - start).toFixed(0)}ms; listeners reconcile via resume tokens`);
+			attachUnpublishedListeners(database, myConnectionGeneration);
+			return;
+		}
+		status(`cache prime skipped (${cachedSnapshot.size} cached < ${WARM_CACHE_THRESHOLD}); doing server prime`);
+	} catch (e) {
+		//Memory-cache fallback boots land here (getDocsFromCache on an empty
+		//cache) — the server prime below is the correct path for them.
+		status(`cache prime unavailable (${String(e)}); doing server prime`);
+	}
 
 	const pendingCards : Cards = {};
 	let flushTimeout : ReturnType<typeof setTimeout> | null = null;
@@ -481,33 +569,7 @@ const connectUnpublishedPrivileged = async () => {
 		send({type: 'error', generation, message: `unpublished getDocs: ${String(e)}`});
 	}
 
-	if (myConnectionGeneration !== connectionGeneration) return;
-	//One listener per document-ID partition rather than a single 38k-doc
-	//Listen: a full-corpus Listen stream died with "datastore operation
-	//timed out" ~2min after attach on the dev backend (observed repeatedly),
-	//and with per-partition listeners a drop only costs re-attaching and
-	//redelivering ~1/5 of the corpus.
-	for (const partition of UNPUBLISHED_CARD_PARTITIONS) {
-		attachResilientListener(`unpublished listener ${partitionLabel(partition)}`, 'unpublished',
-			() => unpublishedPartitionQuery(database, partition),
-			() => {
-				//Per attachment: only the initial delivery right after the
-				//getDocs prime is overwhelmingly-redundant; re-attached
-				//listeners get a fresh flag (their initial delivery
-				//redelivers everything already in the worker corpus, which
-				//fast dedupe also handles correctly).
-				let firstDelivery = true;
-				return snapshot => {
-					const fastDedupe = firstDelivery;
-					firstDelivery = false;
-					ingestSnapshot(snapshot, 'unpublished', fastDedupe);
-				};
-			});
-	}
-	status(`unpublished listeners attached (${UNPUBLISHED_CARD_PARTITIONS.length} partitions)`);
-	//The prime (or its terminal failure) plus attached listeners IS the
-	//initial unpublished load — not any individual batch arrival.
-	markInitialDelivered('unpublished');
+	attachUnpublishedListeners(database, myConnectionGeneration);
 };
 
 const connectUnpublishedAuthorEditor = (uid : string) => {
@@ -592,7 +654,7 @@ workerScope.addEventListener('message', event => {
 	switch (message.type) {
 	case 'connect':
 		generation = message.generation;
-		connectFirebase(message.devMode);
+		connectFirebase(message.devMode, message.persist);
 		connectCards(message.mayViewUnpublished, message.uid);
 		break;
 	case 'reconnect':
