@@ -18,6 +18,7 @@ import {
 	memoryLocalCache,
 	persistentLocalCache,
 	persistentSingleTabManager,
+	CACHE_SIZE_UNLIMITED,
 	onSnapshot,
 	getDocsFromServer,
 	getDocsFromCache,
@@ -402,7 +403,14 @@ const connectFirebase = (devMode : boolean, persist : boolean) => {
 		try {
 			db = initializeFirestore(app, {
 				experimentalForceLongPolling: true,
-				localCache: persistentLocalCache({tabManager: persistentSingleTabManager({forceOwnership: true})})
+				//UNLIMITED: the default cache is 40MB with LRU garbage
+				//collection — a 40-60k-card corpus (~240-480MB) gets mostly
+				//evicted, silently turning every warm boot back into a cold
+				//one (observed live: caches holding 1-5k of 39k cards).
+				localCache: persistentLocalCache({
+					tabManager: persistentSingleTabManager({forceOwnership: true}),
+					cacheSizeBytes: CACHE_SIZE_UNLIMITED
+				})
 			});
 			status('persistent single-tab cache (force-ownership) initialized');
 			return;

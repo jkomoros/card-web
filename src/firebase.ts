@@ -11,6 +11,7 @@ import {
 	persistentLocalCache,
 	persistentMultipleTabManager,
 	memoryLocalCache,
+	CACHE_SIZE_UNLIMITED,
 } from 'firebase/firestore';
 
 import {
@@ -69,8 +70,13 @@ const firebaseApp = initializeApp(config);
 //main-thread multi-tab persistence, exactly as before.
 export const db = initializeFirestore(firebaseApp, {
 	experimentalForceLongPolling: true,
+	//cacheSizeBytes UNLIMITED: the default is 40MB with LRU garbage
+	//collection, which silently evicts most of an all-cards-local corpus
+	//(~240-480MB at 40-60k cards) — master never noticed because its ~6k
+	//partial-mode corpus fit under 40MB.
 	localCache: corpusWorkerOwnsCardIngestion() ? memoryLocalCache() : persistentLocalCache({
-		tabManager: persistentMultipleTabManager()
+		tabManager: persistentMultipleTabManager(),
+		cacheSizeBytes: CACHE_SIZE_UNLIMITED
 	})
 });
 
