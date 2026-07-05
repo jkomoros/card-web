@@ -667,3 +667,29 @@ Lock; Phase 4 cleanup (remove partition listeners after soak); live
 validation of a watermark-mode boot (<100 reads expected) AFTER
 rules+index deploy — dev quota was exhausted again on 2026-07-05 by a
 single legacy-mode boot (the incident that proved the partial-cache hole).
+
+
+**PHASES 2-3 + FIRST LIVE WATERMARK BOOTS (2026-07-05, later)**: Phase 2
+budgeted cold sweep landed (6663f1db: priority phase = 5,000 most-recent
+first, then ascending (updated, documentId) pages of 500 with persisted
+cursor; 42k/quota-day budget with automatic pause/resume at Pacific
+midnight; pure math in src/worker/cold-budget.ts + test:cold-budget; cold =
+local < 50% of server total per the gate — repairs of nearly-everything are
+a full read and belong on the budget). Phase 3 second-tab Web Locks guard
+landed (65d277f6). Rules + BOTH composite indexes deployed to
+dev-complexity-compendium — found live that index DIRECTION matters: the
+priority phase's ORDER BY updated DESC needs its own (published ASC,
+updated DESC) composite (9a2613e0), separate from the delta listener's ASC
+one. LIVE VALIDATION so far (real dev, watermark mode): prime served 5,001
+cached cards with the app usable at +10s; trust gate correctly reported
+server=38,985 local=5,001 mismatched=10 and classified COLD; budgeted sweep
+started; priority query correctly failed-precondition'd while the DESC
+index builds, with the 60s retry loop holding; syncState 'unverified'
+surfaced; no boot breakage. STILL PENDING: sweep completion once the DESC
+index finishes building (a long-observation probe is running; expect
+priority 5k + pages until today's remaining quota dies → pause → resume at
+reset), then a WARM watermark boot (<100 reads: the real headline number),
+then prod rules+indexes deploy and flipping corpus-sync default after soak.
+NOTE: the budget counter only counts SWEEP reads — a day whose quota was
+partly burned by other traffic (like today's legacy boot) exhausts early
+and the 60s page-retry loop rides it out; acceptable, documented.
