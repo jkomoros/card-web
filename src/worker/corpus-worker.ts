@@ -22,15 +22,30 @@ import {
 	onSnapshot,
 	getDocsFromServer,
 	getDocsFromCache,
+	getDocFromServer,
+	getCountFromServer,
 	query,
 	collection,
 	where,
 	documentId,
+	doc,
 	Firestore,
 	Query,
 	QuerySnapshot,
 	Timestamp
 } from 'firebase/firestore';
+
+import {
+	deriveWatermark,
+	advanceWatermark,
+	watermarkQueryBound,
+	WireTimestamp
+} from './watermark.js';
+
+import {
+	SyncMetaStore,
+	SyncMeta
+} from './sync-meta.js';
 
 import {
 	retryWithBackoff
@@ -100,6 +115,10 @@ import {
 	UnpublishedCardPartition,
 	partitionLabel
 } from '../card-partitions.js';
+
+import {
+	TOMBSTONES_COLLECTION
+} from '../../shared/collection-constants.js';
 
 import {
 	toWire,
@@ -342,7 +361,8 @@ const attachResilientListener = (
 	context : string,
 	fetchType : CardFetchType,
 	makeQuery : () => Query,
-	makeHandler : () => (snapshot : QuerySnapshot) => void
+	makeHandler : () => (snapshot : QuerySnapshot) => void,
+	onError? : () => void
 ) => {
 	const myConnectionGeneration = connectionGeneration;
 	let delay = LISTENER_RETRY_BASE_MS;
@@ -356,6 +376,7 @@ const attachResilientListener = (
 				handler(snapshot);
 			},
 			error => {
+				if (onError) onError();
 				listenerError(fetchType, context)(error);
 				//permission-denied is terminal until auth changes, and auth
 				//changes arrive as a reconnect (new generation → fresh
@@ -596,6 +617,282 @@ const connectUnpublishedAuthorEditor = (uid : string) => {
 	status('author/editor listeners attached');
 };
 
+//----------------------------------------------------------------------------
+// Watermark delta sync (docs/corpus-sync-design.md)
+//
+// Instead of full-corpus partitioned listeners (whose >30-min re-attach is
+// BILLED as a brand-new query — the whole ~39-59k result set, per boot), the
+// unpublished corpus syncs via: free cache prime → per-boot count() trust
+// gate (partial caches are real: observed live) → ONE delta listener
+// `published==false AND updated > watermark` whose result set IS the change
+// set → tombstones for deletions. Billed reads scale with changes, not
+// corpus size.
+//----------------------------------------------------------------------------
+
+let syncMode : 'listen' | 'watermark' = 'listen';
+let currentDevMode = false;
+let currentUid = '';
+let sessionWatermark : WireTimestamp | null = null;
+let syncMetaStore : SyncMetaStore | null = null;
+let syncMetaState : SyncMeta | null = null;
+let currentSyncState : 'unverified' | 'live' | 'stale' | '' = '';
+
+const setSyncState = (state : 'unverified' | 'live' | 'stale') => {
+	if (currentSyncState === state) return;
+	currentSyncState = state;
+	send({type: 'syncState', generation, state});
+};
+
+//Per-partition tolerance for the trust gate: writes can land between the
+//cache snapshot and the count query.
+const GATE_PARTITION_TOLERANCE = 5;
+
+const partitionIndexForID = (id : string) : number => {
+	for (let i = 0; i < UNPUBLISHED_CARD_PARTITIONS.length; i++) {
+		const partition = UNPUBLISHED_CARD_PARTITIONS[i];
+		if ((partition.gte === '' || id >= partition.gte) && id < partition.lt) return i;
+	}
+	return UNPUBLISHED_CARD_PARTITIONS.length - 1;
+};
+
+//IDs of unpublished cards currently in the corpus, bucketed by partition.
+const corpusUnpublishedPerPartition = () : Set<CardID>[] => {
+	const buckets = UNPUBLISHED_CARD_PARTITIONS.map(() => new Set<CardID>());
+	for (const [id, card] of corpus.entries()) {
+		if (card.published) continue;
+		buckets[partitionIndexForID(id)].add(id);
+	}
+	return buckets;
+};
+
+//The per-boot trust gate: per-partition server count()s vs the corpus in
+//hand. Returns the mismatched partition indexes, or null when the counts
+//couldn't be fetched (offline/quota). Cost: 1 read per 1000 index entries
+//per partition — ~40-60 reads total at 40-60k cards. Per-partition (not one
+//total) so a ghost in one range can't mask a missing doc in another.
+const runTrustGate = async (database : Firestore, myConnectionGeneration : number) : Promise<{mismatched : number[], serverTotal : number} | null> => {
+	try {
+		const buckets = corpusUnpublishedPerPartition();
+		const counts = await Promise.all(UNPUBLISHED_CARD_PARTITIONS.map(partition =>
+			getCountFromServer(unpublishedPartitionQuery(database, partition)).then(snapshot => snapshot.data().count)));
+		if (myConnectionGeneration !== connectionGeneration) return null;
+		const mismatched : number[] = [];
+		let serverTotal = 0;
+		for (let i = 0; i < counts.length; i++) {
+			serverTotal += counts[i];
+			if (Math.abs(counts[i] - buckets[i].size) > GATE_PARTITION_TOLERANCE) mismatched.push(i);
+		}
+		status(`trust gate: server=${serverTotal} local=${buckets.reduce((a, b) => a + b.size, 0)} mismatchedPartitions=${mismatched.length}`);
+		return {mismatched, serverTotal};
+	} catch (e) {
+		status(`trust gate unavailable (${String(e)})`);
+		return null;
+	}
+};
+
+//Repairs mismatched partitions by re-reading them from the server: missing
+//docs get ingested, ghost docs (local-only — console deletes, stale primes)
+//get removed. Bounded to the mismatched ranges (~1/10 of the corpus each)
+//instead of a full re-read.
+const repairPartitions = async (database : Firestore, myConnectionGeneration : number, mismatched : number[]) : Promise<boolean> => {
+	for (const index of mismatched) {
+		const partition = UNPUBLISHED_CARD_PARTITIONS[index];
+		let snapshot : QuerySnapshot;
+		try {
+			snapshot = await retryWithBackoff(
+				() => getDocsFromServer(unpublishedPartitionQuery(database, partition)),
+				{attempts: 3, baseDelayMs: 2000, shouldContinue: () => myConnectionGeneration === connectionGeneration});
+		} catch (e) {
+			status(`partition ${partitionLabel(partition)} repair failed (${String(e)})`);
+			return false;
+		}
+		if (myConnectionGeneration !== connectionGeneration) return false;
+		const {cards} = parseSnapshot(snapshot);
+		const serverIDs = new Set(Object.keys(cards));
+		const ghosts : CardID[] = [];
+		for (const id of corpusUnpublishedPerPartition()[index]) {
+			if (!serverIDs.has(id)) ghosts.push(id);
+		}
+		updateLocalState(cards, ghosts);
+		forwardBatch(cards, ghosts, 'unpublished', true);
+		status(`partition ${partitionLabel(partition)} repaired: ${serverIDs.size} server docs, ${ghosts.length} ghosts removed`);
+	}
+	return true;
+};
+
+//Derive the session watermark from the corpus actually in hand — NEVER from
+//clocks or read times (see src/worker/watermark.ts for the invariant).
+const deriveSessionWatermark = () : WireTimestamp | null => {
+	const values : (WireTimestamp | null)[] = [];
+	for (const card of corpus.values()) {
+		if (card.published) continue;
+		const updated = card.updated as Timestamp | undefined;
+		values.push(updated && typeof updated.seconds === 'number' ? {seconds: updated.seconds, nanoseconds: updated.nanoseconds} : null);
+	}
+	return deriveWatermark(values);
+};
+
+//Processes tombstone docs: remove from corpus/engine, forward removals,
+//launder the SDK cache (getDocFromServer overwrites the cached ghost with
+//not-exists — client code cannot delete cache entries directly), and track
+//unlaundered IDs so a re-prime can't resurrect a ghost.
+const processTombstones = (database : Firestore, tombstones : {id : CardID, deleted : WireTimestamp}[]) => {
+	if (!tombstones.length || !syncMetaState || !syncMetaStore) return;
+	const meta = syncMetaState;
+	const removals = tombstones.map(tombstone => tombstone.id).filter(id => corpus.has(id));
+	if (removals.length) {
+		updateLocalState({}, removals);
+		forwardBatch({}, removals, 'unpublished', false);
+	}
+	for (const tombstone of tombstones) {
+		meta.tombstoneCursor = advanceWatermark(meta.tombstoneCursor, tombstone.deleted);
+		if (!meta.processedTombstoneIDs.includes(tombstone.id)) meta.processedTombstoneIDs.push(tombstone.id);
+		//Launder asynchronously; on confirmation the suppress entry drops.
+		getDocFromServer(doc(database, CARDS_COLLECTION, tombstone.id)).then(snapshot => {
+			if (snapshot.exists()) return; //Recreated? Leave suppression off:
+			meta.processedTombstoneIDs = meta.processedTombstoneIDs.filter(id => id !== tombstone.id);
+			if (syncMetaStore) void syncMetaStore.save(meta);
+		}).catch(() => {
+			//Keep the suppression entry; retried implicitly next boot.
+		});
+	}
+	void syncMetaStore.save(meta);
+	if (removals.length) status(`tombstones: removed ${removals.length} deleted cards`);
+};
+
+const attachTombstoneListener = (database : Firestore, onInitialDelivery : () => void) => {
+	let first = true;
+	attachResilientListener('tombstone listener', 'unpublished',
+		() => {
+			const cursor = syncMetaState?.tombstoneCursor;
+			const bound = cursor ? watermarkQueryBound(cursor) : {seconds: 0, nanoseconds: 0};
+			return query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds)));
+		},
+		() => snapshot => {
+			const tombstones : {id : CardID, deleted : WireTimestamp}[] = [];
+			snapshot.docChanges().forEach(change => {
+				if (change.type === 'removed') return; //pruning, not un-deletion
+				const deleted = change.doc.data({serverTimestamps: 'estimate'}).deleted as Timestamp | undefined;
+				if (!deleted || typeof deleted.seconds !== 'number') return;
+				tombstones.push({id: change.doc.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}});
+			});
+			processTombstones(database, tombstones);
+			if (first) {
+				first = false;
+				onInitialDelivery();
+			}
+		},
+		() => { if (currentSyncState === 'live') setSyncState('stale'); });
+};
+
+const attachDeltaListener = (database : Firestore) => {
+	attachResilientListener('unpublished delta listener', 'unpublished',
+		() => {
+			//Read the CURRENT watermark at (re)attach, so a re-attach after a
+			//drop catches up from the latest coverage — a tiny result set —
+			//instead of re-reading from the boot bound.
+			const bound = sessionWatermark ? watermarkQueryBound(sessionWatermark) : {seconds: 0, nanoseconds: 0};
+			return query(collection(database, CARDS_COLLECTION),
+				where('published', '==', false),
+				where('updated', '>', new Timestamp(bound.seconds, bound.nanoseconds)));
+		},
+		() => snapshot => {
+			//Removed events here are advisory only: a doc leaves this result
+			//set on publish-flip (the published listener re-adds it) — and
+			//real deletions arrive via tombstones. Never remove on them.
+			const {cards} = parseSnapshot(snapshot);
+			const count = Object.keys(cards).length;
+			if (!count) return;
+			updateLocalState(cards, []);
+			forwardBatch(cards, [], 'unpublished', false);
+			for (const card of Object.values(cards)) {
+				const updated = card.updated as Timestamp | undefined;
+				if (updated && typeof updated.seconds === 'number') {
+					sessionWatermark = advanceWatermark(sessionWatermark, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
+				}
+			}
+			if (currentSyncState === 'stale') setSyncState('live');
+			status(`delta: ${count} changed cards; corpus=${corpus.size}`);
+		},
+		() => { if (currentSyncState === 'live') setSyncState('stale'); });
+};
+
+//Retry cadence for the trust gate when it can't reach the server (offline,
+//quota exhaustion): the app keeps serving the unverified prime locally.
+const GATE_RETRY_MS = 60 * 1000;
+
+const connectUnpublishedWatermark = async () => {
+	if (!db) return;
+	const database = db;
+	const myConnectionGeneration = connectionGeneration;
+	setSyncState('unverified');
+
+	syncMetaStore = new SyncMetaStore(`${currentDevMode ? 'dev' : 'prod'}:${currentUid}:privileged`);
+	syncMetaState = await syncMetaStore.load();
+	if (myConnectionGeneration !== connectionGeneration) return;
+
+	//1. Prime from the persistent cache — free, instant, served immediately
+	//in the 'unverified' state (trust slow, serve fast).
+	let primedCards : Cards = {};
+	try {
+		const snapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
+		({cards: primedCards} = parseSnapshot(snapshot));
+	} catch {
+		//Empty/unavailable cache: the gate below classifies this as cold.
+	}
+	if (myConnectionGeneration !== connectionGeneration) return;
+	for (const id of syncMetaState.processedTombstoneIDs) delete primedCards[id];
+	const primedCount = Object.keys(primedCards).length;
+	if (primedCount) {
+		updateLocalState(primedCards, []);
+		forwardBatch(primedCards, [], 'unpublished', false);
+		status(`watermark prime: ${primedCount} unpublished cards from the persistent cache`);
+	}
+
+	//2. Trust gate. A cache prime's completeness is UNKNOWABLE client-side
+	//(observed live: a 5,001-card partial-mode residue blessed as warm while
+	//34k docs were missing — and max(updated) over such a cache can equal
+	//the true corpus max, so the delta query would never heal it). Only a
+	//server count can bless it.
+	const gateAndProceed = async () : Promise<void> => {
+		const gate = await runTrustGate(database, myConnectionGeneration);
+		if (myConnectionGeneration !== connectionGeneration) return;
+		if (gate === null) {
+			//Offline or quota-starved: keep serving the prime locally,
+			//unverified; retry. loadComplete is withheld so the bridge never
+			//serves worker collections from an unverified corpus.
+			setTimeout(() => {
+				if (myConnectionGeneration !== connectionGeneration) return;
+				void gateAndProceed();
+			}, GATE_RETRY_MS);
+			return;
+		}
+		if (gate.mismatched.length) {
+			const repaired = await repairPartitions(database, myConnectionGeneration, gate.mismatched);
+			if (myConnectionGeneration !== connectionGeneration) return;
+			if (!repaired) {
+				setTimeout(() => {
+					if (myConnectionGeneration !== connectionGeneration) return;
+					void gateAndProceed();
+				}, GATE_RETRY_MS);
+				return;
+			}
+		}
+		//3. Watermark from the (verified) corpus in hand.
+		sessionWatermark = deriveSessionWatermark();
+		//4. Tombstone catch-up + listener; completion waits for its initial
+		//delivery so a pre-existing deletion can't be served as live.
+		attachTombstoneListener(database, () => {
+			//5. Delta listener from the watermark.
+			attachDeltaListener(database);
+			//6. Complete.
+			markInitialDelivered('unpublished');
+			setSyncState('live');
+		});
+	};
+	void gateAndProceed();
+};
+
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
 	//A (re)connect changes what this corpus MEANS (different permissions ⇒
@@ -605,13 +902,19 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	//dedupe state belongs to the old world.
 	subscriptions.clear();
 	requestedSimilarityCardIDs.clear();
+	currentUid = uid;
+	sessionWatermark = null;
 	const expected : CardFetchType[] = ['published'];
 	if (mayViewUnpublished) expected.push('unpublished');
 	else if (uid) expected.push('unpublished-author', 'unpublished-editor');
 	expectInitialLoad(expected);
 	connectPublished();
 	if (mayViewUnpublished) {
-		connectUnpublishedPrivileged();
+		if (syncMode === 'watermark') {
+			void connectUnpublishedWatermark();
+		} else {
+			void connectUnpublishedPrivileged();
+		}
 	} else if (uid) {
 		connectUnpublishedAuthorEditor(uid);
 	}
@@ -662,6 +965,8 @@ workerScope.addEventListener('message', event => {
 	switch (message.type) {
 	case 'connect':
 		generation = message.generation;
+		syncMode = message.syncMode;
+		currentDevMode = message.devMode;
 		connectFirebase(message.devMode, message.persist);
 		connectCards(message.mayViewUnpublished, message.uid);
 		break;

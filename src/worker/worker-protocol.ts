@@ -90,7 +90,10 @@ export type MainToWorkerMessage =
 	//persistence DB and a force-owning worker would fight its lease — the
 	//exact interference that broke app boot in the failed multi-tab
 	//experiment.
-	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, persist : boolean, mayViewUnpublished : boolean, uid : string}
+	//syncMode: 'listen' = legacy full-corpus partitioned listeners;
+	//'watermark' = the delta plane (docs/corpus-sync-design.md). Computed by
+	//the bridge (no localStorage in workers).
+	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}
@@ -173,6 +176,11 @@ export type WorkerToMainMessage =
 	//arrivals declared partial corpora ready (the first of five partition
 	//flushes, or an offline worker's empty from-cache snapshots).
 	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number}
+	//Delta-sync health: 'unverified' = serving a cache prime the trust gate
+	//hasn't blessed yet (e.g. offline); 'live' = gate passed, listeners
+	//healthy; 'stale' = corpus complete but the delta channel is erroring
+	//(quota/outage) — content is correct as of the last delivery.
+	| {type: 'syncState', generation: WorkerGeneration, state : 'unverified' | 'live' | 'stale'}
 	//Delta-pushed compact per-card metadata (changed entries + removals).
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
 	//The worker's similar-card filters need server similarity for this card;

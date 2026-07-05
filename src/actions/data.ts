@@ -67,6 +67,7 @@ import {
 
 import {
 	selectActiveSectionId,
+	selectUid,
 	selectUser,
 	selectUserIsAdmin,
 	selectFilters,
@@ -127,6 +128,7 @@ import {
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION,
 	TAG_UPDATES_COLLECTION,
+	TOMBSTONES_COLLECTION,
 	TWEETS_COLLECTION,
 } from '../../shared/collection-constants.js';
 
@@ -1328,6 +1330,16 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		batch.delete(update.ref);
 	}
 	batch.delete(ref);
+
+	//Deletion tombstone, written atomically with the delete: the watermark
+	//delta sync can never observe a disappearance (a deleted doc simply
+	//stops matching queries), so other devices learn about deletions by
+	//listening to this collection. See docs/corpus-sync-design.md.
+	batch.set(doc(db, TOMBSTONES_COLLECTION, card.id), {
+		deleted: serverTimestamp(),
+		by: selectUid(state),
+		published: Boolean(card.published)
+	});
 
 	//Clean up inbound reference entries on other cards that this card pointed to.
 	//Passing null as afterCard makes referencesCardsDiff treat all outbound

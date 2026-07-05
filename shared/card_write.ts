@@ -842,7 +842,13 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff, deleteFiel
 // inboundLinksUpdates computes Firestore updates needed on other cards'
 // inbound references when a card's outbound references change.
 // deleteFieldSentinel should be the SDK-appropriate delete sentinel value.
-export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike | null, deleteFieldSentinel : unknown) : {[id : CardID] : DottedCardUpdate } => {
+//timestampSentinel (a serverTimestamp() sentinel) is applied as `updated` on
+//every touched card: the inbound-reference maps are real document changes,
+//and a card change that does not bump `updated` breaks both the
+//timestamp-equality fast dedupe (a redelivered card with equal timestamps is
+//treated as unchanged) and the watermark delta sync (other devices only
+//fetch docs with updated > watermark). Pass undefined to skip (tests only).
+export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike | null, deleteFieldSentinel : unknown, timestampSentinel? : unknown) : {[id : CardID] : DottedCardUpdate } => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
@@ -858,6 +864,7 @@ export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | nul
 				[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
 				[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
 			};
+			if (timestampSentinel !== undefined) update.updated = timestampSentinel;
 			updatesToApply[otherCardID] = update;
 		}
 	}
@@ -867,6 +874,7 @@ export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | nul
 			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteFieldSentinel,
 			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteFieldSentinel,
 		};
+		if (timestampSentinel !== undefined) update.updated = timestampSentinel;
 		updatesToApply[otherCardID] = update;
 	}
 

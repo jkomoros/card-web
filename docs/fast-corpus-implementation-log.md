@@ -614,3 +614,56 @@ STILL PENDING from the review (non-blocking, prioritized):
 - Bigger regrets tracked for P2+: dual data planes calcifying, 'off'-mode
   rot, SearchIndex maintenance cost with no consumer, multi-tab quota
   multiplication (each tab = its own worker = its own 40k load).
+
+**QUOTA ROOT-CAUSE + THE SYNC REDESIGN (2026-07-05)**: the owner declared
+~40k-billed-reads-per-worker-boot unacceptable and set a 60k-card prod
+ceiling. Key verified fact that reframed everything (see
+docs/corpus-sync-fact-check.md, official pricing doc): a listener
+re-attached after >30 MINUTES of disconnection is billed as a BRAND-NEW
+query — the full result set — persistence and resume tokens
+notwithstanding. So full-corpus listeners can never be cheap across
+sessions, and the persistent-cache handoff (ecb69ec2) fixed boot SPEED and
+offline but not billing. Two design agents (watermark/delta vs
+bundle-centric; both docs committed), a fact-checker, and an adversarial
+judge produced the final architecture in docs/corpus-sync-design.md:
+- Delta plane: cache prime (free) → PER-BOOT trust gate (per-partition
+  getCountFromServer vs corpus-in-hand; ~40-60 reads; partial caches are
+  REAL — live incident: a 5,001-card partial-mode residue whose
+  max(updated) ≈ corpus max would never self-heal via deltas) → ONE
+  `published==false AND updated>watermark-5min` delta listener (result set
+  = the change set) → tombstones collection for deletions (+ per-tombstone
+  getDocFromServer cache laundering) → repair path re-reads only
+  mismatched partitions.
+- Watermark invariant: derived ONLY from `updated` of docs resident in the
+  corpus from server-confirmed snapshots (never clocks/read-times/echo
+  cards) — the no-gap proof in the watermark design doc depends on it.
+- `updated` is the cursor (NOT a new sync_ts field): the judge verified
+  'recent'/'updated' sorts read updated_substantive, so bumping `updated`
+  on inbound-link writes (which previously DIDN'T bump — a live fastDedupe
+  silent-drop hazard) has no sort side effects.
+- Cold path v1: budgeted resumable server sweep (~65k reads over 2 days,
+  ~yearly); bundle/GCS-snapshot machinery deliberately rejected for v1
+  (internal-API risk + ~800 lines of standing server infra for a yearly
+  event); escalation triggers documented in the design doc.
+- ALSO fixed: cacheSizeBytes CACHE_SIZE_UNLIMITED on both persistent caches
+  (17cffef9) — the 40MB LRU default was silently evicting the corpus and
+  explains this week's near-empty caches.
+
+Landed so far: Phase 0 (inbound-link updated bumps via new shared
+timestampSentinel param + rules TEMPLATE change [firestore.rules is
+GENERATED — edit firestore.TEMPLATE.rules]; tombstones collection + rules +
+deleteCard batch write; (published,updated) composite index) and Phase 1
+code (corpus-sync localStorage flag 'listen'|'watermark' via
+CORPUS_WORKER.setSyncMode; worker watermark boot: prime → gate → repair →
+tombstone catch-up → delta listener; src/worker/watermark.ts +
+test:watermark; src/worker/sync-meta.ts worker IndexedDB store; syncState
+protocol message unverified|live|stale). DEPLOY ORDER: npm run
+generate:config, then firebase deploy --only firestore:rules,
+firestore:indexes (dev, then prod) BEFORE any watermark-mode boot — the
+delta query needs the composite index and the tombstone/updated rules.
+STILL TO DO: Phase 2 budgeted cold sweep (currently cold falls back to the
+partition repair path = full unbudgeted re-read); Phase 3 second-tab Web
+Lock; Phase 4 cleanup (remove partition listeners after soak); live
+validation of a watermark-mode boot (<100 reads expected) AFTER
+rules+index deploy — dev quota was exhausted again on 2026-07-05 by a
+single legacy-mode boot (the incident that proved the partial-cache hole).

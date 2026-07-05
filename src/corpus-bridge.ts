@@ -65,7 +65,10 @@ import {
 	readCorpusWorkerMode,
 	writeCorpusWorkerMode,
 	corpusWorkerOwnsCardIngestion,
-	CorpusWorkerMode
+	readCorpusSyncMode,
+	writeCorpusSyncMode,
+	CorpusWorkerMode,
+	CorpusSyncMode
 } from './corpus-mode.js';
 
 import {
@@ -190,6 +193,8 @@ const flushPendingRunCollections = () => {
 //as re-attached listeners refill the corpus after an outage).
 let workerLoadComplete = false;
 let workerCorpusSize = 0;
+//Delta-sync health as last reported by the worker (watermark mode).
+let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 
 //True when the worker holds a corpus it is safe to SERVE from. Two parts:
 //the worker must have announced that the initial load for the current
@@ -571,6 +576,10 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//serving is allowed (rather than waiting for the next state change).
 		scheduleShadowCompare();
 		break;
+	case 'syncState':
+		lastSyncState = message.state;
+		console.log(`[corpus-worker] sync state: ${message.state}`);
+		break;
 	case 'cardMeta':
 		if (corpusWorkerOwnsCardIngestion()) {
 			store.dispatch({type: UPDATE_CARD_META, metas: message.metas, removedIDs: message.removedIDs});
@@ -669,7 +678,7 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 		//the worker's 40k-doc-per-boot loader at a different project).
 		//persist: the worker claims the persistent cache only when it owns
 		//ingestion — in spike mode the main thread still holds that cache.
-		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), mayViewUnpublished, uid});
+		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid});
 	} else {
 		post({type: 'reconnect', generation, mayViewUnpublished, uid});
 	}
@@ -698,6 +707,9 @@ declare global {
 		CORPUS_WORKER: {
 			setMode: (mode : CorpusWorkerMode) => void,
 			mode: () => CorpusWorkerMode,
+			setSyncMode: (mode : CorpusSyncMode) => void,
+			syncMode: () => CorpusSyncMode,
+			syncState: () => string,
 			spike: () => void,
 			query: (text : string) => Promise<{ids : string[], ms : number, fullScanFallback : boolean}>,
 		};
@@ -719,6 +731,12 @@ if (typeof window !== 'undefined') {
 			console.log(`[corpus-worker] mode set to ${mode}; reload for it to take full effect`);
 		},
 		mode: readMode,
+		setSyncMode: (mode : CorpusSyncMode) => {
+			writeCorpusSyncMode(mode);
+			console.log(`[corpus-worker] sync mode set to ${mode}; reload for it to take full effect`);
+		},
+		syncMode: readCorpusSyncMode,
+		syncState: () => lastSyncState,
 		spike: () => {
 			if (!worker) {
 				console.log('[corpus-worker] not running; call CORPUS_WORKER.setMode(\'spike\') (or \'shadow\') and reload');

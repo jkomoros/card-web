@@ -22,4 +22,7 @@ export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 export const CHATS_COLLECTION = 'chats';
-export const CHAT_MESSAGES_COLLECTION = 'chat_messages';
+export const CHAT_MESSAGES_COLLECTION = 'chat_messages';//Deletion tombstones for the watermark delta sync (see
+//docs/corpus-sync-design.md): one doc per deleted card, written atomically
+//with the delete, pruned by admins after ~90 days.
+export const TOMBSTONES_COLLECTION = 'tombstones';

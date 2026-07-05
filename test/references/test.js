@@ -1265,3 +1265,47 @@ describe('unionReferences and intersectionReferences', () => {
 		assert.deepStrictEqual(intersectionResult, expectedIntersectionResult);
 	});
 });
+
+describe('inboundLinksUpdates timestamp sentinel', () => {
+	it('bumps updated on every touched card when a sentinel is provided', async () => {
+		const {inboundLinksUpdates} = await import('../../shared/dist/card_write.js');
+		const DELETE_SENTINEL = {__delete: true};
+		const TIMESTAMP_SENTINEL = {__serverTimestamp: true};
+		const before = {
+			references_info: {'other-card': {link: ''}},
+			references: {'other-card': true},
+		};
+		const after = {
+			references_info: {'other-card': {link: 'new text'}, 'third-card': {link: ''}},
+			references: {'other-card': true, 'third-card': true},
+		};
+		const updates = inboundLinksUpdates('main-card', before, after, DELETE_SENTINEL, TIMESTAMP_SENTINEL);
+		//other-card changed, third-card added — both must carry the bump.
+		assert.strictEqual(Object.keys(updates).length, 2);
+		for (const update of Object.values(updates)) {
+			assert.strictEqual(update.updated, TIMESTAMP_SENTINEL);
+		}
+		//Deletions bump too.
+		const deletionUpdates = inboundLinksUpdates('main-card', after, null, DELETE_SENTINEL, TIMESTAMP_SENTINEL);
+		assert.strictEqual(Object.keys(deletionUpdates).length, 2);
+		for (const update of Object.values(deletionUpdates)) {
+			assert.strictEqual(update.updated, TIMESTAMP_SENTINEL);
+			assert.strictEqual(update['references_inbound.main-card'], DELETE_SENTINEL);
+		}
+	});
+
+	it('omits updated entirely when no sentinel is provided (legacy callers)', async () => {
+		const {inboundLinksUpdates} = await import('../../shared/dist/card_write.js');
+		const DELETE_SENTINEL = {__delete: true};
+		const before = {references_info: {}, references: {}};
+		const after = {
+			references_info: {'other-card': {link: ''}},
+			references: {'other-card': true},
+		};
+		const updates = inboundLinksUpdates('main-card', before, after, DELETE_SENTINEL);
+		assert.strictEqual(Object.keys(updates).length, 1);
+		for (const update of Object.values(updates)) {
+			assert.strictEqual('updated' in update, false);
+		}
+	});
+});

@@ -42,5 +42,38 @@ export const corpusWorkerOwnsCardIngestion = () : boolean => {
 	return mode === 'shadow' || mode === 'on';
 };
 
+//How the worker syncs the unpublished corpus (docs/corpus-sync-design.md):
+//  'listen'    — (legacy) full-corpus partitioned listeners. O(corpus)
+//                billed reads per boot (>30-min listener re-attach bills the
+//                whole result set).
+//  'watermark' — delta plane: cache prime + per-boot count() trust gate +
+//                one `updated > watermark` delta listener + tombstones.
+//                O(changes) billed reads per boot.
+const SYNC_LOCAL_STORAGE_KEY = 'corpus-sync';
+
+export type CorpusSyncMode = 'listen' | 'watermark';
+
+export const readCorpusSyncMode = () : CorpusSyncMode => {
+	if (typeof window === 'undefined') return 'listen';
+	try {
+		if (window.localStorage.getItem(SYNC_LOCAL_STORAGE_KEY) === 'watermark') return 'watermark';
+	} catch {
+		//Best effort
+	}
+	return 'listen';
+};
+
+export const writeCorpusSyncMode = (mode : CorpusSyncMode) : void => {
+	try {
+		if (mode === 'listen') {
+			window.localStorage.removeItem(SYNC_LOCAL_STORAGE_KEY);
+		} else {
+			window.localStorage.setItem(SYNC_LOCAL_STORAGE_KEY, mode);
+		}
+	} catch {
+		//Best effort
+	}
+};
+
 //True when the active collection is served from worker-pushed results.
 export const corpusWorkerServesCollections = () : boolean => readCorpusWorkerMode() === 'on';
