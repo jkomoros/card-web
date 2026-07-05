@@ -893,6 +893,36 @@ const connectUnpublishedWatermark = async () => {
 	void gateAndProceed();
 };
 
+//----------------------------------------------------------------------------
+// Second-tab guard: exactly one worker per origin may own the unpublished
+// sync (the persistence DB is single-owner, and a second full sync would
+// double the quota footprint). The loser serves published-only, degraded —
+// it must NEVER cold-load or delta-listen. Web Locks auto-release when the
+// owning context dies. v1: the loser doesn't retry (reload to re-contend);
+// the long-term fix is a SharedWorker.
+//----------------------------------------------------------------------------
+
+let ownershipLockHeld = false;
+
+const acquireOwnershipLock = () : Promise<boolean> => {
+	if (ownershipLockHeld) return Promise.resolve(true);
+	const locks = (globalThis as unknown as {navigator? : {locks? : {request : (name : string, options : {ifAvailable : boolean}, callback : (lock : unknown) => Promise<void> | void) => Promise<void>}}}).navigator?.locks;
+	//No Web Locks support: proceed as owner (pre-guard behavior).
+	if (!locks) return Promise.resolve(true);
+	return new Promise<boolean>(resolve => {
+		locks.request('corpus-worker-owner', {ifAvailable: true}, lock => {
+			if (!lock) {
+				resolve(false);
+				return;
+			}
+			ownershipLockHeld = true;
+			resolve(true);
+			//Hold the lock for the worker's lifetime.
+			return new Promise<void>(() => { /* never resolves */ });
+		}).catch(() => resolve(true));
+	});
+};
+
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
 	//A (re)connect changes what this corpus MEANS (different permissions ⇒
@@ -910,11 +940,25 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	expectInitialLoad(expected);
 	connectPublished();
 	if (mayViewUnpublished) {
-		if (syncMode === 'watermark') {
-			void connectUnpublishedWatermark();
-		} else {
-			void connectUnpublishedPrivileged();
-		}
+		const myConnectionGeneration = connectionGeneration;
+		void acquireOwnershipLock().then(owner => {
+			if (myConnectionGeneration !== connectionGeneration) return;
+			if (!owner) {
+				//Another tab owns the corpus sync. Serve published-only,
+				//degraded: clear the unpublished loading indicator with an
+				//errorFallback batch (NOT completeness evidence) and withhold
+				//loadComplete so this tab never claims a trustworthy corpus.
+				status('another tab owns the corpus sync; serving published-only (reload to re-contend)');
+				forwardBatch({}, [], 'unpublished', false, true);
+				setSyncState('unverified');
+				return;
+			}
+			if (syncMode === 'watermark') {
+				void connectUnpublishedWatermark();
+			} else {
+				void connectUnpublishedPrivileged();
+			}
+		});
 	} else if (uid) {
 		connectUnpublishedAuthorEditor(uid);
 	}
