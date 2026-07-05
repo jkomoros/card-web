@@ -24,5 +24,34 @@ Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ comm
 1. Remaining B3 items from the log: user shadow sign-off → default 'on'; stop mirroring full cards into Redux ('on' mode memory win — windowed cards + cardMeta serve consumers; the consumer survey + flip order are in the log); off-path worker RPCs (missing-concepts word cloud, maintenance, suggestions); delete legacy paths.
 2. Probe harnesses live in the session scratchpads (measure.mjs in the 5580af71 scratchpad; probe-commit2/probe-echo3/probe-cleanup.mjs in the c4ce6470 one); pinned chromium-1223 executablePath, copied browser profile ./perf-profile (Firebase session valid), corpus-worker=shadow via addInitScript, 600s readiness deadline (worker memory-cache cold load; ~2.5min when dev backend is healthy). Accept dialogs via page.on('dialog') or commits abort.
 
+## SYNC REDESIGN STATE (2026-07-05) — read docs/corpus-sync-design.md FIRST
+- WHY: listener re-attach after >30min is billed as a brand-new query (full
+  result set) — verified, official. Full-corpus listeners can never be cheap
+  across sessions; worker boots cost ~39k reads (two real quota outages).
+  Owner requires free-tier viability at up to 60k cards.
+- LANDED (all committed, suites green): judged design docs; CACHE_SIZE_UNLIMITED
+  on both persistent caches (40MB LRU default was evicting the corpus —
+  explains the week's empty caches); Phase 0 (inbound-link writes bump
+  `updated` — also fixes a fastDedupe silent-drop bug; tombstones collection
+  + deleteCard batch write; (published ASC, updated ASC) composite index;
+  rules in firestore.TEMPLATE.rules — firestore.rules is GENERATED); Phase 1
+  (corpus-sync='watermark' flag: cache prime -> per-boot per-partition
+  count() trust gate -> partition repair -> tombstone catch-up/listener with
+  cache laundering -> ONE delta listener updated>watermark-5min; watermark
+  invariant module + tests; sync-meta worker IndexedDB store; syncState
+  protocol unverified|live|stale); Phase 3 (Web Locks second-tab guard).
+  Rules+indexes DEPLOYED to dev-complexity-compendium (NOT prod yet).
+- NEXT: (1) live-validate a watermark boot on dev once quota resets
+  (localStorage corpus-worker='on' or 'shadow' AND corpus-sync='watermark';
+  expect: prime free, gate ~40-60 reads, loadComplete, syncState live,
+  <100 reads total; watch first boot repair the partial cache the incidents
+  left behind — that repair is a full partition re-read, budget ~39k ONCE).
+  (2) Phase 2: budgeted resumable cold sweep (design doc §Phased plan) —
+  today a cold/mismatched-everything cache repairs unbudgeted. (3) Phase 4
+  cleanup after soak: remove partition listeners, tombstone pruning task,
+  prod rules+index deploy + flip corpus-sync default.
+- Read-cost targets (judged design): typical boot <100; sweep day ~300/dev;
+  cold device ~65k over 2 budgeted days (Phase 2); second tab ~1.2k.
+
 ## Rollout flags
 localStorage `corpus-worker`: off (default) | spike | shadow (worker owns ingestion + divergence logging) | on (worker also serves active collection, find-dialog search, reference blocks). Console APIs: `CORPUS_WORKER.setMode(...)`, `DEBUG_PERF.enable()`/`dump()`.
