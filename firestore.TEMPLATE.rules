@@ -155,13 +155,19 @@ service cloud.firestore {
 
     function cardEditInboundReferences() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      let allKeys = ['references_inbound', 'references_info_inbound'];
+      //`updated` is OPTIONAL (older clients don't send it) but when present
+      //must be the request server-time: inbound-reference changes are real
+      //document changes and must bump `updated` so timestamp-based dedupe
+      //and watermark delta sync see them (docs/corpus-sync-design.md).
+      //Tighten to REQUIRED once clients that send it have fully shipped.
+      let allKeys = ['references_inbound', 'references_info_inbound', 'updated'];
+      let referenceKeys = ['references_inbound', 'references_info_inbound'];
       //TODO: for each modifiedCardID, verify userMayEditCard. There is no way
       //to access keys by index in the set, or to loop currently which will mean
       //it would always be hacky.
 
       //let modifiedCardIDs = request.resource.data.get('references_inbound', {}).diff(resource.data.get('references_inbound', {})).changedKeys();
-      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(allKeys);
+      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && (!affectedKeys.hasAny(['updated']) || request.resource.data.updated == request.time);
     }
 
     function cardEditMinor() {
@@ -264,6 +270,19 @@ service cloud.firestore {
       match /updates/{update} {
         allow read, write: if userMayEditCard(card);
       }
+    }
+
+    //Deletion tombstones: the watermark delta sync's deletion channel (see
+    //docs/corpus-sync-design.md). A card delete writes tombstones/{cardID}
+    //in the same batch; other devices listen for tombstones newer than
+    //their cursor. Content is only an ID + timestamp; reads are restricted
+    //to privileged users because readers learn about published-card
+    //deletions natively from their full published listener. Tombstones are
+    //immutable except by admins (pruning).
+    match /tombstones/{card} {
+      allow read: if userMayViewUnpublished();
+      allow create: if userMayCreateCard() && request.resource.data.deleted == request.time;
+      allow update, delete: if userIsAdmin();
     }
 
     match /embeddings/{card} {
