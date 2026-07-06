@@ -897,11 +897,21 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 		}
 		let page : QuerySnapshot;
 		try {
-			page = await getDocsFromServer(query(collection(database, CARDS_COLLECTION),
-				where('published', '==', false),
-				orderBy('updated', 'asc'), orderBy(documentId(), 'asc'),
-				startAfter(new Timestamp(cursor.cursorUpdated.seconds, cursor.cursorUpdated.nanoseconds), cursor.cursorDocID),
-				limit(COLD_SWEEP_PAGE_SIZE)));
+			//The very first page has no cursor yet: an EMPTY docID in
+			//startAfter resolves to an invalid document path (observed live:
+			//invalid-argument, "'cards' ... odd number of segments"), so the
+			//startAfter constraint is applied only once a real cursor exists.
+			const pageQuery = cursor.cursorDocID
+				? query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false),
+					orderBy('updated', 'asc'), orderBy(documentId(), 'asc'),
+					startAfter(new Timestamp(cursor.cursorUpdated.seconds, cursor.cursorUpdated.nanoseconds), cursor.cursorDocID),
+					limit(COLD_SWEEP_PAGE_SIZE))
+				: query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false),
+					orderBy('updated', 'asc'), orderBy(documentId(), 'asc'),
+					limit(COLD_SWEEP_PAGE_SIZE));
+			page = await getDocsFromServer(pageQuery);
 		} catch (e) {
 			status(`cold sweep page failed (${String(e)}); pausing 60s`);
 			setTimeout(() => {
