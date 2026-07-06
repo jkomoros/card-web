@@ -693,3 +693,25 @@ then prod rules+indexes deploy and flipping corpus-sync default after soak.
 NOTE: the budget counter only counts SWEEP reads — a day whose quota was
 partly burned by other traffic (like today's legacy boot) exhausts early
 and the 60s page-retry loop rides it out; acceptable, documented.
+**ADVERSARIAL VERIFICATION OF THE SHIPPED SYNC (2026-07-05, later)**: a
+verifier agent audited the implementation line-by-line plus the live cold
+run. Verdict: yes-with-fixes (warm plane correct, O(changes) billing holds).
+Its blocker B1 (cold sweep first-page startAfter('') deadlock, demonstrated
+live) was already fixed in 2c625504; everything else landed in e19e248e:
+watermark client-clock contamination guards (echo cards + pending persisted
+mutations excluded from derivation until server-confirmed — the no-gap
+invariant was violated two ways, one needing NO clock skew), tombstone
+catch-up before the gate, directional gate (ghosts always repaired, small
+missing-counts tolerated since the delta covers fresh creations),
+post-sweep re-gate before loadComplete (sweep cursor and swept docs live in
+different IndexedDBs), recreated-card suppression inversion + boot-time
+launder retries, deleteCard tombstone-first batch ordering + editCard-
+grantee tombstone rules (redeployed to dev). Remaining validations, in the
+verifier's priority order: (1) cold sweep to completion live incl. one
+budget pause and one worker-kill mid-sweep; (2) emulator test for watermark
+contamination (pending mutation + skewed-clock echo must not advance the
+bound); (3) multi-day warm-boot soak with billed-read telemetry (~40-60
+gate + deltas expected), incl. a cross-device delete and an unpublish-flip.
+The verifier's M7 stands: the specced emulator suite is the biggest
+remaining test gap — the one live cold run immediately hit a bug in exactly
+that untested layer.
