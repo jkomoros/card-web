@@ -281,7 +281,10 @@ service cloud.firestore {
     //immutable except by admins (pruning).
     match /tombstones/{card} {
       allow read: if userMayViewUnpublished();
-      allow create: if userMayCreateCard() && request.resource.data.deleted == request.time;
+      //userMayEditCard covers per-card editCard grantees, who may delete a
+      //card (see the cards delete rule) and whose delete batch must not be
+      //rejected wholesale for lacking global createCard permission.
+      allow create: if (userMayCreateCard() || userMayEditCard(card)) && request.resource.data.deleted == request.time;
       allow update, delete: if userIsAdmin();
     }
 

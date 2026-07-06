@@ -321,6 +321,9 @@ const markInitialDelivered = (fetchType : CardFetchType) => {
 const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fastDedupe = false) => {
 	const start = performance.now();
 	const {cards, removedIDs} = parseSnapshot(snapshot);
+	//Server delivery: these entries are no longer client-clock contaminated.
+	for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
+	for (const id of removedIDs) clientClockCardIDs.delete(id);
 	updateLocalState(cards, removedIDs);
 	const count = Object.keys(cards).length;
 	forwardBatch(cards, removedIDs, fetchType, fastDedupe);
@@ -692,7 +695,15 @@ const runTrustGate = async (database : Firestore, myConnectionGeneration : numbe
 		let serverTotal = 0;
 		for (let i = 0; i < counts.length; i++) {
 			serverTotal += counts[i];
-			if (Math.abs(counts[i] - buckets[i].size) > GATE_PARTITION_TOLERANCE) mismatched.push(i);
+			const local = buckets[i].size;
+			//DIRECTIONAL: missing docs (server > local) tolerate small
+			//in-flight churn — a card created seconds ago has updated > W
+			//and the delta listener delivers it anyway. Ghosts (local >
+			//server) get NO tolerance: the tombstone catch-up already ran,
+			//so any surplus is a real ghost (console delete, stale prime)
+			//that nothing else will ever remove — the old ±tolerance let up
+			//to 5 ghosts per partition persist forever.
+			if (counts[i] - local > GATE_PARTITION_TOLERANCE || local > counts[i]) mismatched.push(i);
 		}
 		status(`trust gate: server=${serverTotal} local=${buckets.reduce((a, b) => a + b.size, 0)} mismatchedPartitions=${mismatched.length}`);
 		return {mismatched, serverTotal};
@@ -732,12 +743,26 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 	return true;
 };
 
+//Card IDs whose corpus entry carries a CLIENT-CLOCK timestamp rather than a
+//server-confirmed one, and therefore must never feed the watermark (the
+//no-gap proof dies otherwise — a fast client clock could push the bound
+//past genuine server commits, permanently skipping them):
+//- optimistic echoes (ECHO_LOCAL_CARD_MODIFICATIONS materializes sentinels
+//  with the local clock; commits can land during boot windows), and
+//- cache-primed docs overlaid by a PENDING persisted mutation (the shared
+//  persistence DB can hold an unacknowledged offline write from a prior
+//  session; serverTimestamps:'estimate' fills it with localWriteTime).
+//Entries clear when a server-confirmed snapshot delivers the doc.
+const clientClockCardIDs : Set<CardID> = new Set();
+
 //Derive the session watermark from the corpus actually in hand — NEVER from
-//clocks or read times (see src/worker/watermark.ts for the invariant).
+//clocks, read times, or client-clock-contaminated entries (see
+//src/worker/watermark.ts for the invariant).
 const deriveSessionWatermark = () : WireTimestamp | null => {
 	const values : (WireTimestamp | null)[] = [];
-	for (const card of corpus.values()) {
+	for (const [id, card] of corpus.entries()) {
 		if (card.published) continue;
+		if (clientClockCardIDs.has(id)) continue;
 		const updated = card.updated as Timestamp | undefined;
 		values.push(updated && typeof updated.seconds === 'number' ? {seconds: updated.seconds, nanoseconds: updated.nanoseconds} : null);
 	}
@@ -760,16 +785,64 @@ const processTombstones = (database : Firestore, tombstones : {id : CardID, dele
 		meta.tombstoneCursor = advanceWatermark(meta.tombstoneCursor, tombstone.deleted);
 		if (!meta.processedTombstoneIDs.includes(tombstone.id)) meta.processedTombstoneIDs.push(tombstone.id);
 		//Launder asynchronously; on confirmation the suppress entry drops.
-		getDocFromServer(doc(database, CARDS_COLLECTION, tombstone.id)).then(snapshot => {
-			if (snapshot.exists()) return; //Recreated? Leave suppression off:
+		getDocFromServer(doc(database, CARDS_COLLECTION, tombstone.id)).then(() => {
+			//Laundered (not-exists overwrote the cached ghost) OR the card
+			//was recreated under the same ID — either way suppression must
+			//lift (suppressing a recreated card made it permanently
+			//invisible on this device).
 			meta.processedTombstoneIDs = meta.processedTombstoneIDs.filter(id => id !== tombstone.id);
 			if (syncMetaStore) void syncMetaStore.save(meta);
 		}).catch(() => {
-			//Keep the suppression entry; retried implicitly next boot.
+			//Launder unconfirmed: keep suppressing; retryPendingLaunders
+			//re-attempts at every boot.
 		});
 	}
 	void syncMetaStore.save(meta);
 	if (removals.length) status(`tombstones: removed ${removals.length} deleted cards`);
+};
+
+//One-shot tombstone catch-up, run BEFORE the trust gate so deletions-while-
+//away don't read as partition mismatches (a monthly cleanup could otherwise
+//trigger a ~5k-read partition repair to remove ghosts a dozen tombstone
+//reads handle). Non-fatal on failure — the gate's ghost handling remains
+//the backstop.
+const catchUpTombstones = async (database : Firestore) : Promise<void> => {
+	try {
+		const cursor = syncMetaState?.tombstoneCursor;
+		const bound = cursor ? watermarkQueryBound(cursor) : {seconds: 0, nanoseconds: 0};
+		const snapshot = await getDocsFromServer(query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds))));
+		const tombstones : {id : CardID, deleted : WireTimestamp}[] = [];
+		snapshot.docs.forEach(docSnapshot => {
+			const deleted = docSnapshot.data({serverTimestamps: 'estimate'}).deleted as Timestamp | undefined;
+			if (!deleted || typeof deleted.seconds !== 'number') return;
+			tombstones.push({id: docSnapshot.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}});
+		});
+		processTombstones(database, tombstones);
+	} catch (e) {
+		status(`tombstone catch-up unavailable (${String(e)})`);
+	}
+};
+
+//Boot-time retry of cache laundering for tombstones whose earlier launder
+//never confirmed (their IDs are still suppressed at prime; without this the
+//poisoned cache entries and suppression list persisted forever once the
+//cursor moved past them).
+const retryPendingLaunders = (database : Firestore) => {
+	const meta = syncMetaState;
+	if (!meta || !syncMetaStore) return;
+	for (const id of [...meta.processedTombstoneIDs]) {
+		getDocFromServer(doc(database, CARDS_COLLECTION, id)).then(snapshot => {
+			meta.processedTombstoneIDs = meta.processedTombstoneIDs.filter(other => other !== id);
+			if (snapshot.exists()) {
+				//Recreated under the same ID: stop suppressing so the live
+				//card can serve again (it arrives via prime/delta).
+				status(`tombstoned card ${id} was recreated; suppression lifted`);
+			}
+			if (syncMetaStore) void syncMetaStore.save(meta);
+		}).catch(() => {
+			//Still unreachable; retried again next boot.
+		});
+	}
 };
 
 const attachTombstoneListener = (database : Firestore, onInitialDelivery : () => void) => {
@@ -815,6 +888,7 @@ const attachDeltaListener = (database : Firestore) => {
 			const {cards} = parseSnapshot(snapshot);
 			const count = Object.keys(cards).length;
 			if (!count) return;
+			for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
 			updateLocalState(cards, []);
 			forwardBatch(cards, [], 'unpublished', false);
 			for (const card of Object.values(cards)) {
@@ -946,10 +1020,26 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 	}
 };
 
-//Tail shared by the sweep's completion paths: re-verify, then bring up the
-//normal delta plane.
+//Tail shared by the sweep's completion paths: RE-VERIFY with the gate (the
+//sweep's cursor lives in a different IndexedDB than the swept docs — a
+//cache eviction mid-sweep could otherwise let a tail-only corpus complete
+//as trustworthy), then bring up the normal delta plane.
 const afterColdSweep = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
 	if (myConnectionGeneration !== connectionGeneration) return;
+	const gate = await runTrustGate(database, myConnectionGeneration);
+	if (myConnectionGeneration !== connectionGeneration) return;
+	if (!gate || gate.mismatched.length) {
+		if (gate && gate.mismatched.length) {
+			const repaired = await repairPartitions(database, myConnectionGeneration, gate.mismatched);
+			if (myConnectionGeneration !== connectionGeneration || !repaired) {
+				setTimeout(() => void afterColdSweep(database, myConnectionGeneration), 60 * 1000);
+				return;
+			}
+		} else {
+			setTimeout(() => void afterColdSweep(database, myConnectionGeneration), 60 * 1000);
+			return;
+		}
+	}
 	sessionWatermark = deriveSessionWatermark();
 	attachTombstoneListener(database, () => {
 		attachDeltaListener(database);
@@ -974,10 +1064,18 @@ const connectUnpublishedWatermark = async () => {
 
 	//1. Prime from the persistent cache — free, instant, served immediately
 	//in the 'unverified' state (trust slow, serve fast).
-	let primedCards : Cards = {};
+	const primedCards : Cards = {};
 	try {
 		const snapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
-		({cards: primedCards} = parseSnapshot(snapshot));
+		for (const docSnapshot of snapshot.docs) {
+			const id : CardID = docSnapshot.id;
+			primedCards[id] = {...docSnapshot.data({serverTimestamps: 'estimate'}), id} as Card;
+			//A pending persisted mutation overlays the cached doc with its
+			//LOCAL write time — poison for the watermark (see
+			//clientClockCardIDs). The doc still serves; it just can't set
+			//the delta bound until server-confirmed.
+			if (docSnapshot.metadata.hasPendingWrites) clientClockCardIDs.add(id);
+		}
 	} catch {
 		//Empty/unavailable cache: the gate below classifies this as cold.
 	}
@@ -990,7 +1088,13 @@ const connectUnpublishedWatermark = async () => {
 		status(`watermark prime: ${primedCount} unpublished cards from the persistent cache`);
 	}
 
-	//2. Trust gate. A cache prime's completeness is UNKNOWABLE client-side
+	//2. Tombstone catch-up FIRST (deletions-while-away must not read as
+	//partition mismatches) + retry any unconfirmed cache launders.
+	await catchUpTombstones(database);
+	if (myConnectionGeneration !== connectionGeneration) return;
+	retryPendingLaunders(database);
+
+	//3. Trust gate. A cache prime's completeness is UNKNOWABLE client-side
 	//(observed live: a 5,001-card partial-mode residue blessed as warm while
 	//34k docs were missing — and max(updated) over such a cache can equal
 	//the true corpus max, so the delta query would never heal it). Only a
@@ -1032,14 +1136,19 @@ const connectUnpublishedWatermark = async () => {
 				return;
 			}
 		}
-		//3. Watermark from the (verified) corpus in hand.
+		//A gate pass without the sweep means any persisted sweep cursor is
+		//stale — clearing it prevents a FUTURE cold event from resuming
+		//mid-corpus and "completing" with only the tail.
+		if (syncMetaState && syncMetaState.coldLoad) {
+			syncMetaState.coldLoad = null;
+			if (syncMetaStore) void syncMetaStore.save(syncMetaState);
+		}
+		//4. Watermark from the (verified) corpus in hand.
 		sessionWatermark = deriveSessionWatermark();
-		//4. Tombstone catch-up + listener; completion waits for its initial
-		//delivery so a pre-existing deletion can't be served as live.
+		//5. Tombstone listener (catch-up already ran); then the delta
+		//listener from the watermark; then complete.
 		attachTombstoneListener(database, () => {
-			//5. Delta listener from the watermark.
 			attachDeltaListener(database);
-			//6. Complete.
 			markInitialDelivered('unpublished');
 			setSyncState('live');
 		});
@@ -1088,6 +1197,7 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	requestedSimilarityCardIDs.clear();
 	currentUid = uid;
 	sessionWatermark = null;
+	clientClockCardIDs.clear();
 	const expected : CardFetchType[] = ['published'];
 	if (mayViewUnpublished) expected.push('unpublished');
 	else if (uid) expected.push('unpublished-author', 'unpublished-editor');
@@ -1193,6 +1303,9 @@ workerScope.addEventListener('message', event => {
 					? {...card, nlp_search_tokens: previous.nlp_search_tokens}
 					: card;
 			}
+			//Echo timestamps are client-clock sentinels: exclude these ids
+			//from watermark derivation until a server snapshot confirms them.
+			for (const id of Object.keys(echoCards)) clientClockCardIDs.add(id);
 			updateLocalState(echoCards, []);
 			break;
 		}

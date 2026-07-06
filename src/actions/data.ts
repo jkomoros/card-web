@@ -1325,21 +1325,27 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 
 	const batch = new MultiBatch(db);
 	const ref = doc(db, CARDS_COLLECTION, card.id);
-	const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
-	for (const update of updates.docs) {
-		batch.delete(update.ref);
-	}
-	batch.delete(ref);
 
 	//Deletion tombstone, written atomically with the delete: the watermark
 	//delta sync can never observe a disappearance (a deleted doc simply
 	//stops matching queries), so other devices learn about deletions by
 	//listening to this collection. See docs/corpus-sync-design.md.
+	//ORDER MATTERS: the tombstone and the card delete are added FIRST so
+	//they land in the same underlying WriteBatch — MultiBatch splits at
+	//~500 ops and permits partial failure, and a card with hundreds of
+	//updates/ subdocs could otherwise push these two into different batches
+	//(card deleted, tombstone lost = a permanent ghost on other devices).
 	batch.set(doc(db, TOMBSTONES_COLLECTION, card.id), {
 		deleted: serverTimestamp(),
 		by: selectUid(state),
 		published: Boolean(card.published)
 	});
+	batch.delete(ref);
+
+	const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
+	for (const update of updates.docs) {
+		batch.delete(update.ref);
+	}
 
 	//Clean up inbound reference entries on other cards that this card pointed to.
 	//Passing null as afterCard makes referencesCardsDiff treat all outbound
