@@ -208,7 +208,9 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkSome
 		messages: arrayUnion(messageId)
 	});
 
-	batch.update(doc(db, CARDS_COLLECTION, card.id),{
+	//updated-invariant: exempt — cardEditMinor rules path; commenters may
+	//not touch `updated`, and message-count drift is an accepted tradeoff.
+	batch.updateWithoutTimestampBump(doc(db, CARDS_COLLECTION, card.id), {
 		updated_message: serverTimestamp(),
 	});
 

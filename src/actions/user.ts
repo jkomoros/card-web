@@ -464,7 +464,9 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getSt
 	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
 	const batch = new MultiBatch(db);
-	batch.update(cardRef, {
+	//updated-invariant: exempt — cardEditMinor rules path; star counts are
+	//reader-driven and their drift is an accepted tradeoff.
+	batch.updateWithoutTimestampBump(cardRef, {
 		star_count: increment(1),
 		star_count_manual: increment(1),
 	});
@@ -501,7 +503,8 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, ge
 	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
 	const batch = new MultiBatch(db);
-	batch.update(cardRef, {
+	//updated-invariant: exempt — cardEditMinor rules path (see addStar).
+	batch.updateWithoutTimestampBump(cardRef, {
 		star_count: increment(-1),
 		star_count_manual: increment(-1),
 	});
