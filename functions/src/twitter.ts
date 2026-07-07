@@ -210,6 +210,9 @@ const markCardTweeted = async (card : Card, tweetInfo : Twitter.ResponseData | n
 
 	const batch = db.batch();
 
+	//updated-invariant: exempt — vestigial tweet counters on an admin path
+	//(these functions must never be scheduled, per docs/corpus-sync-design.md).
+	//Admin db.batch bypasses the client MultiBatch guard.
 	batch.update(cardRef, {
 		tweet_count: FieldValue.increment(1),
 		last_tweeted: FieldValue.serverTimestamp(),
@@ -327,6 +330,8 @@ export const fetchTweetEngagement = async() => {
 
 				cardUpdateDoc.star_count = FieldValue.increment(starCountDiff);
 
+				//updated-invariant: exempt — reader-driven tweet/star counters on
+				//an admin path; bypasses the client MultiBatch guard. Accepted drift.
 				transaction.update(cardRef, cardUpdateDoc);
 			}
 

@@ -712,7 +712,11 @@ const pushCardToFirestore = async (
 	//batch would commit partial operations (card updated but inbound links
 	//not), creating the inconsistency described in issue #726.
 	const updatedCard = applyCardFirebaseUpdate(remoteCard, cardUpdate, adminSentinels);
-	const inboundUpdates = inboundLinksUpdates(cardId as CardID, remoteCard, updatedCard, deleteFieldSentinel);
+	//updated-invariant: pass the serverTimestamp sentinel so inbound-reference
+	//updates to OTHER cards bump `updated` (mirrors src/card_diff.ts). Without
+	//it those cards' inbound-link changes silently never reach other devices
+	//via the watermark delta sync (docs/corpus-sync-design.md, residual risk #1).
+	const inboundUpdates = inboundLinksUpdates(cardId as CardID, remoteCard, updatedCard, deleteFieldSentinel, serverTimestampSentinel);
 	for (const [otherCardId] of Object.entries(inboundUpdates)) {
 		if (!allCards.has(otherCardId)) {
 			//Card not in our collection — verify it exists in Firestore
@@ -726,6 +730,8 @@ const pushCardToFirestore = async (
 
 	//All validation passed — now add everything to the batch atomically
 	const cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
+	//updated-invariant: bumps `updated` (cardUpdate.updated is set above).
+	//Admin MultiBatch bypasses the client guard, so this is enforced by review.
 	batch.update(cardRef, cardUpdate);
 
 	//Write audit log entry
@@ -740,6 +746,8 @@ const pushCardToFirestore = async (
 	//Apply inbound reference updates (already validated above)
 	for (const [otherCardId, otherCardUpdate] of Object.entries(inboundUpdates)) {
 		const otherRef = db.collection(CARDS_COLLECTION).doc(otherCardId);
+		//updated-invariant: bumps `updated` — inboundLinksUpdates is called with
+		//the serverTimestamp sentinel above, so each inbound update stamps it.
 		batch.update(otherRef, otherCardUpdate);
 	}
 

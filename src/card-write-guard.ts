@@ -24,3 +24,35 @@ export const cardWriteViolation = (path : string, cardsCollection : string, hasU
 		'(see docs/corpus-sync-design.md). If this writer genuinely must not bump ' +
 		'(reader-counter paths only), use updateWithoutTimestampBump().';
 };
+
+//The ONLY top-level card fields a no-bump write (updateWithoutTimestampBump)
+//may touch. These are the reader-driven counters whose drift is an accepted
+//tradeoff (single editor, rare readers, vestigial tweet feature) and whose
+//security rules (cardEditMinor) forbid touching `updated`. ANY other field is
+//a content change that MUST bump `updated`, so writing it via the escape
+//hatch is a bug — the hatch is not a way to opt out of the invariant for
+//real content.
+export const COUNTER_FIELDS_EXEMPT_FROM_UPDATED : readonly string[] = [
+	'star_count',
+	'star_count_manual',
+	'thread_count',
+	'thread_resolved_count',
+	'updated_message',
+	'tweet_count',
+	'tweet_favorite_count',
+	'tweet_retweet_count',
+	'last_tweeted'
+];
+
+//Returns a violation message if a no-bump card write (updateWithoutTimestampBump)
+//touches any field outside the counter allowlist, or null if it is a
+//legitimate counter-only write. `keys` are the top-level field names being
+//written. Non-card writes are always allowed (the invariant is card-only).
+export const nonBumpCardWriteViolation = (path : string, cardsCollection : string, keys : string[]) : string | null => {
+	if (!isTopLevelDocPath(path, cardsCollection)) return null;
+	const disallowed = keys.filter(key => !COUNTER_FIELDS_EXEMPT_FROM_UPDATED.includes(key));
+	if (disallowed.length === 0) return null;
+	return `updateWithoutTimestampBump write to ${path} touches non-counter field(s): ${disallowed.join(', ')}. ` +
+		'The escape hatch is only for reader-driven counters (' + COUNTER_FIELDS_EXEMPT_FROM_UPDATED.join(', ') + '); ' +
+		'a content change must bump `updated` — use update() instead.';
+};

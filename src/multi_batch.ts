@@ -31,7 +31,8 @@ import {
 } from '../shared/collection-constants.js';
 
 import {
-	cardWriteViolation
+	cardWriteViolation,
+	nonBumpCardWriteViolation
 } from './card-write-guard.js';
 
 import {
@@ -130,7 +131,13 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 	//reader-driven counters (star/thread counts, updated_message). Their
 	//drift is an accepted product tradeoff — see the sync design doc. Every
 	//call site of this method is audited by test:updated-invariant.
+	//
+	//The hatch is not a blanket opt-out: it throws if the write touches any
+	//field outside the counter allowlist (card-write-guard.ts), so it cannot
+	//be misused to smuggle a real content change past the invariant.
 	updateWithoutTimestampBump(ref : DocumentReference, data : object) {
+		const violation = nonBumpCardWriteViolation(ref.path, CARDS_COLLECTION, Object.keys(data));
+		if (violation) throw new Error(violation);
 		return super.update(ref, data);
 	}
 }

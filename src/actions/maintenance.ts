@@ -158,6 +158,9 @@ const normalizeContentBody : MaintenanceTaskFunction = async() => {
 		const body = doc.data().body;
 		const card_type = doc.data().card_type as CardType;
 		if (body) {
+			//updated-invariant: bumps `updated` (a body rewrite is a content
+			//change that must resync). This is a raw updateDoc, not MultiBatch,
+			//so the structural guard does not cover it — enforced by review.
 			await updateDoc(doc.ref,{
 				body: normalizeBodyHTML(body, config.overrideLegalTopLevelNodes?.[card_type]),
 				updated: serverTimestamp(),

@@ -103,6 +103,9 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 		let newThreadCount = (cardDoc.data().thread_count || 0) - 1;
 		if (newThreadCount < 0) newThreadCount = 0;
 		const newThreadResolvedCount = (cardDoc.data().thread_resolved_count || 0) + 1;
+		//updated-invariant: exempt — reader-driven thread counters
+		//(cardEditMinor rules path). runTransaction bypasses the MultiBatch
+		//guard, and counter drift is an accepted tradeoff (see sync design doc).
 		transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
 		transaction.update(threadRef, {
 			resolved: true,
@@ -272,6 +275,9 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 			throw 'Doc doesn\'t exist!';
 		}
 		const newThreadCount = (cardDoc.data().thread_count || 0) + 1;
+		//updated-invariant: exempt — reader-driven counters (thread_count,
+		//updated_message); this cardEditMinor path may not touch `updated` and
+		//runTransaction bypasses the MultiBatch guard. Accepted drift.
 		transaction.update(cardRef, {
 			thread_count: newThreadCount,
 			updated_message: serverTimestamp(),

@@ -205,6 +205,9 @@ async function migrate() {
 
 					// Add to batch (if not dry run)
 					if (!dryRun) {
+							//updated-invariant: exempt — one-off admin backfill of derived
+							//NLP tokens; bumping `updated` would redeliver the entire corpus
+							//to every device. Derived tokens self-heal on the next real edit.
 							batch.update(docSnap.ref, {
 								nlp_tokens: nlpTokens,
 								nlp_search_tokens: Array.from(searchTokenSet),
