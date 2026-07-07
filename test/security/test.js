@@ -1231,6 +1231,15 @@ describe('Compendium Rules', () => {
 		}));
 	});
 
+	it('disallows updating inbound links without bumping updated', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+		}));
+	});
+
 	it('disallows users to update inbound links on a card they can see but cant edit if the update contains other edits', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);

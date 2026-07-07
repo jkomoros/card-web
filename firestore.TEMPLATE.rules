@@ -162,11 +162,10 @@ service cloud.firestore {
 
     function cardEditInboundReferences() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      //`updated` is OPTIONAL (older clients don't send it) but when present
-      //must be the request server-time: inbound-reference changes are real
-      //document changes and must bump `updated` so timestamp-based dedupe
-      //and watermark delta sync see them (docs/corpus-sync-design.md).
-      //Tighten to REQUIRED once clients that send it have fully shipped.
+      //`updated` is REQUIRED and must be the request server-time:
+      //inbound-reference changes are real document changes and must bump
+      //`updated` so timestamp-based dedupe and watermark delta sync see
+      //them (docs/corpus-sync-design.md).
       let allKeys = ['references_inbound', 'references_info_inbound', 'updated'];
       let referenceKeys = ['references_inbound', 'references_info_inbound'];
       //TODO: for each modifiedCardID, verify userMayEditCard. There is no way
@@ -174,7 +173,7 @@ service cloud.firestore {
       //it would always be hacky.
 
       //let modifiedCardIDs = request.resource.data.get('references_inbound', {}).diff(resource.data.get('references_inbound', {})).changedKeys();
-      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && (!affectedKeys.hasAny(['updated']) || request.resource.data.updated == request.time);
+      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && affectedKeys.hasAny(['updated']) && request.resource.data.updated == request.time;
     }
 
     function cardEditMinor() {
