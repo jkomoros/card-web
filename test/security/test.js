@@ -331,20 +331,20 @@ describe('Compendium Rules', () => {
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with edit permission to create a card', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with createCard permission to create a card', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'createCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('disallows admins to create a card they aren\'t author of', async() => {
@@ -513,35 +513,35 @@ describe('Compendium Rules', () => {
 	it('allows users with edit permission to arbitrarily edit a card', async () => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with editCard permission to arbitrarily edit a card', async () => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as author for that card to arbitrarily edit a card', async () => {
 		//bob is explictly the author
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as editors for that card to arbitrarily edit a card', async () => {
 		//Sally is explicitly listed as an editor on the card
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as editors to arbitrarily edit a card', async () => {
 		//jerry has blanket edit permission
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows admins to read card updates', async() => {
@@ -1192,6 +1192,7 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
 
@@ -1220,6 +1221,7 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.update({
 			['references_inbound.' + cardId]: true,
 			['references_info_inbound.' + cardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
 
