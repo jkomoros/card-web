@@ -353,6 +353,12 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:bobUid}));
 	});
 
+	it('disallows creating a card without bumping updated', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
+		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:adminUid}));
+	});
+
 	it('does not allow normal users to create a card', async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
@@ -1106,6 +1112,7 @@ describe('Compendium Rules', () => {
 			section: 'random-thoughts',
 			tags: [],
 			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertFails(ref.delete());
 	});
@@ -1121,6 +1128,7 @@ describe('Compendium Rules', () => {
 			section: '',
 			tags: ['bam'],
 			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertFails(ref.delete());
 	});
@@ -1137,7 +1145,8 @@ describe('Compendium Rules', () => {
 			tags: [],
 			references_inbound: {
 				'foo': true,
-			}
+			},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertFails(ref.delete());
 	});
@@ -1152,7 +1161,8 @@ describe('Compendium Rules', () => {
 			author: jerryUid,
 			section: '',
 			tags: [],
-			references_inbound: {}
+			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertSucceeds(ref.delete());
 	});
@@ -1169,7 +1179,8 @@ describe('Compendium Rules', () => {
 			author: bobUid,
 			section: '',
 			tags: [],
-			references_inbound: {}
+			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertSucceeds(ref.delete());
 	});

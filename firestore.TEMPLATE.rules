@@ -153,6 +153,13 @@ service cloud.firestore {
       return requestData.diff(resourceData).affectedKeys().hasOnly([incKey, decKey]) && resourceData[decKey] - 1 == requestData[decKey] && resourceData[incKey] + 1 == requestData[incKey];
     }
 
+    //True when the write stamps `updated` with the request server-time, i.e.
+    //it bumped `updated: serverTimestamp()`. Works for create (no resource)
+    //and update (merged post-state). .get avoids erroring on an absent key.
+    function bumpsUpdated() {
+      return request.resource.data.get('updated', null) == request.time;
+    }
+
     function cardEditInboundReferences() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       //`updated` is OPTIONAL (older clients don't send it) but when present
@@ -262,7 +269,7 @@ service cloud.firestore {
     
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
-      allow create: if userMayCreateCard() && createIsAuthor();
+      allow create: if userMayCreateCard() && createIsAuthor() && bumpsUpdated();
       allow update: if cardEditMinor() || cardEditInboundReferences() || userMayEditCard(card);
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
