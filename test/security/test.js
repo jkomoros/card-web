@@ -1204,7 +1204,6 @@ describe('Compendium Rules', () => {
 			section: '',
 			tags: [],
 			references_inbound: {},
-			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertSucceeds(ref.delete());
 	});

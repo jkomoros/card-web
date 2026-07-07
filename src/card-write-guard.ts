@@ -27,8 +27,10 @@ export const cardWriteViolation = (path : string, cardsCollection : string, hasU
 
 //The ONLY top-level card fields a no-bump write (updateWithoutTimestampBump)
 //may touch. These are the reader-driven counters whose drift is an accepted
-//tradeoff (single editor, rare readers, vestigial tweet feature) and whose
-//security rules (cardEditMinor) forbid touching `updated`. ANY other field is
+//tradeoff (single editor, rare readers, vestigial tweet feature). This
+//allowlist deliberately mirrors the security rules' non-bump branches
+//(cardEditLegalStars + cardEditLegalMessages + cardEditLegalTweets), so the
+//client guard and the DB rules agree by construction. ANY other field is
 //a content change that MUST bump `updated`, so writing it via the escape
 //hatch is a bug — the hatch is not a way to opt out of the invariant for
 //real content.
@@ -39,8 +41,6 @@ export const COUNTER_FIELDS_EXEMPT_FROM_UPDATED : readonly string[] = [
 	'thread_resolved_count',
 	'updated_message',
 	'tweet_count',
-	'tweet_favorite_count',
-	'tweet_retweet_count',
 	'last_tweeted'
 ];
 

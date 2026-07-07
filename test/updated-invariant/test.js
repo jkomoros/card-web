@@ -235,6 +235,15 @@ const scanForCardBypassWrites = (files, patterns) => {
 	return sites;
 };
 
+//NOTE: this audit is a heuristic lower-bound, not a proof. It only
+//recognizes card refs via the CARD_REF_STRONG/CARD_REF_WEAK name allowlists
+//above; a card write using an unrecognized ref variable name (e.g.
+//`newCardRef`) on a line that doesn't otherwise mention CARDS_COLLECTION
+//would silently not be flagged here. Treat this suite as a tripwire that
+//catches sloppy/renamed bypasses, not as the enforcement mechanism itself —
+//the actual enforcement is the runtime guard (src/card-write-guard.ts, wired
+//through src/multi_batch.ts) for client code, and the Firestore security
+//rules for all client writes regardless of code path.
 describe('updated-invariant bypass audit', () => {
 	let sites;
 
