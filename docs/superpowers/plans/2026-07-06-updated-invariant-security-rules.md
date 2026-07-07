@@ -12,7 +12,8 @@
 
 - Tests run under **Node 20.20.0** (`.nvmrc`); the system Node 26 breaks the mocha/yargs toolchain. Prefix test commands with `bash -lc 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 20.20.0 >/dev/null; <cmd>'`.
 - `test:security` requires the **Firestore emulator** (Java). Full run: `npm run test:security`. Targeted run: `firebase emulators:exec --only firestore "npx mocha -r esm test/security --timeout=10000 --grep '<pattern>'"`.
-- In rules, `serverTimestamp()` resolves to `request.time` during evaluation (proven by the existing passing test at `test/security/test.js:462`). Access possibly-absent fields with `request.resource.data.get('updated', null)`, matching the existing `resource.data.get('section', '')` idiom (firestore.rules:273) — never bare `.updated`, which errors when the key is absent.
+- In rules, `serverTimestamp()` resolves to `request.time` during evaluation (proven by the existing passing test at `test/security/test.js:462`). Access possibly-absent fields with `request.resource.data.get('updated', null)`, matching the existing `resource.data.get('section', '')` idiom — never bare `.updated`, which errors when the key is absent.
+- **Edit `firestore.TEMPLATE.rules`, NOT `firestore.rules`.** `firestore.rules` is gitignored and regenerated from the template by `tools/config.ts` (`test:security` regenerates it before each run), so direct edits to `firestore.rules` are silently wiped. All rule changes below land in `firestore.TEMPLATE.rules`; the emulator reads the generated `firestore.rules`. `git add firestore.TEMPLATE.rules` (not the generated file, which is ignored).
 - Rules changes take effect for ALL client writes on deploy; admin-SDK writes (`functions/`, `tools/`) bypass rules and are out of scope.
 - The card used by most tests is `cardId` (`'card'`), published, authored by `bobUid`, with `sallyUid` as editCard grantee; `jerryUid` has blanket `edit`; `adminUid` is admin; `genericUid` is a plain user. It has NO `updated` field in setup.
 
@@ -136,7 +137,7 @@ git commit -m "rules: require updated == request.time on card create"
 These two changes ship together: tightening `userMayEditCard` removes the fallback that `resetTweets`'s tweet-counter write currently rides, so the `cardEditLegalTweets` branch must land in the same commit to keep `resetTweets` working.
 
 **Files:**
-- Modify: `firestore.rules` (`cardEditMinor`, new `cardEditLegalTweets`, `cards` `allow update`)
+- Modify: `firestore.TEMPLATE.rules` (`cardEditMinor`, new `cardEditLegalTweets`, `cards` `allow update`)
 - Modify: `test/security/test.js` (add four tests)
 
 **Interfaces:**
@@ -180,7 +181,7 @@ Expected: FAIL — currently an editor can set arbitrary fields (both deny tests
 
 - [ ] **Step 3: Add the `cardEditLegalTweets` disjunct**
 
-In `firestore.rules`, replace `function cardEditMinor()` with:
+In `firestore.TEMPLATE.rules`, replace `function cardEditMinor()` with:
 
 ```
     function cardEditMinor() {
@@ -221,7 +222,7 @@ Expected: PASS — the two content-edit deny tests pass; admin tweet reset allow
 - [ ] **Step 6: Commit**
 
 ```bash
-git add firestore.rules test/security/test.js
+git add firestore.TEMPLATE.rules test/security/test.js
 git commit -m "rules: require updated on card content edits; admin-gated tweet-counter exemption"
 ```
 
@@ -230,7 +231,7 @@ git commit -m "rules: require updated on card content edits; admin-gated tweet-c
 ### Task 4: Require `updated` on inbound-reference writes
 
 **Files:**
-- Modify: `firestore.rules` (`cardEditInboundReferences`)
+- Modify: `firestore.TEMPLATE.rules` (`cardEditInboundReferences`)
 - Modify: `test/security/test.js` (add one deny test)
 
 **Interfaces:**
@@ -259,7 +260,7 @@ Expected: FAIL — `updated` is currently optional on inbound writes, so this SU
 
 - [ ] **Step 3: Tighten the rule**
 
-In `firestore.rules` `cardEditInboundReferences()`, change the final `return` from the optional form to require `updated`:
+In `firestore.TEMPLATE.rules` `cardEditInboundReferences()`, change the final `return` from the optional form to require `updated`:
 
 ```
       return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && affectedKeys.hasAny(['updated']) && request.resource.data.updated == request.time;
@@ -275,7 +276,7 @@ Expected: PASS — the new deny test passes; the Task-1-updated inbound-success 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add firestore.rules test/security/test.js
+git add firestore.TEMPLATE.rules test/security/test.js
 git commit -m "rules: require updated on inbound-reference card writes"
 ```
 
