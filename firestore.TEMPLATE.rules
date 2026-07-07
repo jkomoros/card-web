@@ -181,7 +181,9 @@ service cloud.firestore {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       //we can bail only if there are any keys not in this set, or if they aren't any keys in this set, without doing the more expensive calculations.
       let allKeys = ['star_count', 'star_count_manual', 'thread_count', 'thread_resolved_count', 'thread_count', 'updated_message'];
-      return affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(allKeys) && cardEditLegalMessages(affectedKeys) || cardEditLegalStars(affectedKeys);
+      return affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(allKeys) && cardEditLegalMessages(affectedKeys)
+        || cardEditLegalStars(affectedKeys)
+        || cardEditLegalTweets(affectedKeys);
     }
 
     function cardEditLegalMessages(affectedKeys) {
@@ -192,6 +194,14 @@ service cloud.firestore {
     function cardEditLegalStars(affectedKeys) {
       //TODO: pass in the affectedKeys into the children to save another calculation
       return userMayStar() && editOnlyIncrementsOrDecrements('star_count', 'star_count_manual');
+    }
+
+    function cardEditLegalTweets(affectedKeys) {
+      //resetTweets zeroes vestigial tweet counters. Admin-gated: the only
+      //client writer is the admin-run resetTweets maintenance task (the Twitter
+      //Cloud Functions use the admin SDK and bypass rules). Accepted-drift
+      //counters that must NOT bump `updated` (a whole-corpus redelivery).
+      return userIsAdmin() && affectedKeys.hasOnly(['tweet_count', 'last_tweeted']);
     }
     
     function loggedIn() {
@@ -270,7 +280,7 @@ service cloud.firestore {
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userMayCreateCard() && createIsAuthor() && bumpsUpdated();
-      allow update: if cardEditMinor() || cardEditInboundReferences() || userMayEditCard(card);
+      allow update: if cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated());
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
     

@@ -516,6 +516,30 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({foo:5}));
 	});
 
+	it('disallows an editor from editing card content without bumping updated', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({foo:5}));
+	});
+
+	it('disallows an editor from editing card content with a non-request-time updated', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({foo:5, updated: new Date(2015,10,10)}));
+	});
+
+	it('allows an admin to reset vestigial tweet counters without bumping updated', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
+	});
+
+	it('disallows a non-admin editor from writing tweet counters', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
+	});
+
 	it('allows users with edit permission to arbitrarily edit a card', async () => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
