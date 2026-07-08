@@ -279,3 +279,168 @@ describe('updated-invariant bypass audit', () => {
 			unannotated.map(s => `  ${path.relative(process.cwd(), s.file)}:${s.line}`).join('\n'));
 	});
 });
+
+//---------------------------------------------------------------------------
+//Combinatorial falsification of the pure policy core. The input domain is
+//small and finite (a doc path, a collection name, and a set of field names),
+//so we enumerate it EXHAUSTIVELY — a stronger guarantee than random property
+//sampling would give for this shape. Each test states an invariant PROPERTY
+//and tries to find a counterexample, rather than re-deriving the impl.
+//---------------------------------------------------------------------------
+describe('updated-invariant pure core — combinatorial falsification', () => {
+	let isTopLevelDocPath, cardWriteViolation, nonBumpCardWriteViolation, COUNTER_FIELDS;
+
+	before(async () => {
+		({isTopLevelDocPath, cardWriteViolation, nonBumpCardWriteViolation, COUNTER_FIELDS_EXEMPT_FROM_UPDATED: COUNTER_FIELDS} =
+			await import('../../lib/src/card-write-guard.js'));
+	});
+
+	const CARD_IDS = ['abc', 'a', 'card-with-dashes', '123', 'UPPERCASE', 'a.b'];
+	//Deliberately excludes the malformed 'cards/' (empty doc id) — real
+	//DocumentReference paths never have an empty id, and isTopLevelDocPath
+	//treats it as a card path, which is fine because it cannot occur.
+	const NON_CARD_PATHS = ['sections/main', 'stars/x', 'tags/y', 'tombstones/z', 'cards', '', 'cards/a/b', 'cards/a/updates/1', 'cards/a/updates/1/extra/2', 'x'];
+	const CONTENT_FIELDS = ['body', 'title', 'references', 'references_info', 'published', 'notes', 'todo', 'tags', 'section', 'images', 'font_size_boost', 'updated_substantive', 'nlp_tokens'];
+
+	it('isTopLevelDocPath is true for cards/{id} and false for everything else in the domain', () => {
+		for (const id of CARD_IDS) assert.strictEqual(isTopLevelDocPath('cards/' + id, CARDS), true, `cards/${id}`);
+		for (const p of NON_CARD_PATHS) assert.strictEqual(isTopLevelDocPath(p, CARDS), false, `"${p}"`);
+	});
+
+	it('cardWriteViolation: a violation IFF top-level card path AND no sentinel', () => {
+		for (const id of CARD_IDS) {
+			const p = 'cards/' + id;
+			assert.strictEqual(cardWriteViolation(p, CARDS, true), null, `sentinel present must be compliant: ${p}`);
+			const v = cardWriteViolation(p, CARDS, false);
+			assert.ok(v && v.includes('updateWithoutTimestampBump') && v.includes(p),
+				`no-sentinel card write must violate, name the hatch, and name the path: ${p}`);
+		}
+	});
+
+	it('cardWriteViolation: never a violation for a non-top-level-card path (sentinel or not)', () => {
+		for (const p of NON_CARD_PATHS) {
+			for (const hasSentinel of [true, false]) {
+				assert.strictEqual(cardWriteViolation(p, CARDS, hasSentinel), null, `must be inert for "${p}" (sentinel=${hasSentinel})`);
+			}
+		}
+	});
+
+	it('nonBump: every counter-only card write (all 1- and 2-field subsets) is allowed', () => {
+		const allowed = [...COUNTER_FIELDS];
+		for (const a of allowed) assert.strictEqual(nonBumpCardWriteViolation('cards/x', CARDS, [a]), null, `single counter allowed: ${a}`);
+		for (let i = 0; i < allowed.length; i++) {
+			for (let j = i; j < allowed.length; j++) {
+				assert.strictEqual(nonBumpCardWriteViolation('cards/x', CARDS, [allowed[i], allowed[j]]), null, `counter pair allowed: ${allowed[i]},${allowed[j]}`);
+			}
+		}
+	});
+
+	it('nonBump: any content field (alone or mixed with a counter) violates and is named', () => {
+		for (const c of CONTENT_FIELDS) {
+			const vAlone = nonBumpCardWriteViolation('cards/x', CARDS, [c]);
+			assert.ok(vAlone && vAlone.includes(c), `content field alone must violate + be named: ${c}`);
+			for (const a of COUNTER_FIELDS) {
+				const vMixed = nonBumpCardWriteViolation('cards/x', CARDS, [a, c]);
+				assert.ok(vMixed && vMixed.includes(c), `content field smuggled alongside a counter must still violate + name it: ${a}+${c}`);
+			}
+		}
+	});
+
+	it('nonBump: adding any key never clears an existing violation (monotonicity — no smuggling)', () => {
+		for (const c of CONTENT_FIELDS) {
+			assert.ok(nonBumpCardWriteViolation('cards/x', CARDS, [c]), `precondition: ${c} violates`);
+			for (const extra of [...COUNTER_FIELDS, ...CONTENT_FIELDS]) {
+				assert.ok(nonBumpCardWriteViolation('cards/x', CARDS, [c, extra]), `adding ${extra} must not clear the ${c} violation`);
+			}
+		}
+	});
+
+	it('nonBump: inert for non-card and subcollection paths regardless of keys', () => {
+		for (const p of NON_CARD_PATHS) {
+			assert.strictEqual(nonBumpCardWriteViolation(p, CARDS, ['body', 'title', 'anything']), null, `must be inert for "${p}"`);
+		}
+	});
+});
+
+//---------------------------------------------------------------------------
+//Guard <-> rules DRIFT GATE. The client guard allowlist and the security
+//rules encode the SAME policy, authored together — so this is NOT an
+//independence oracle that proves the policy correct. It is a drift-regression
+//gate: it fails if the two DIVERGE, which is the real risk (it would have
+//caught the tweet_favorite_count/tweet_retweet_count mismatch fixed in
+//ebe85506). A field the guard lets a client write without bumping `updated`
+//that the rules reject == broken editing; the reverse == a client that can
+//skip the bump undetected.
+//---------------------------------------------------------------------------
+describe('updated-invariant guard↔rules drift gate', () => {
+	let COUNTER_FIELDS;
+
+	before(async () => {
+		({COUNTER_FIELDS_EXEMPT_FROM_UPDATED: COUNTER_FIELDS} = await import('../../lib/src/card-write-guard.js'));
+	});
+
+	//The card fields the rules permit to be written WITHOUT bumping `updated`:
+	//the quoted string literals inside the cardEditLegal{Stars,Messages,Tweets}
+	//helper bodies of the rules TEMPLATE (the tracked source; firestore.rules
+	//is generated). In those bodies every quoted string is a field name (args
+	//to editOnly* helpers / hasOnly([...])).
+	const rulesNonBumpFields = () => {
+		const rules = fs.readFileSync(path.join(process.cwd(), 'firestore.TEMPLATE.rules'), 'utf8');
+		const fields = new Set();
+		for (const fn of ['cardEditLegalStars', 'cardEditLegalMessages', 'cardEditLegalTweets']) {
+			const start = rules.indexOf('function ' + fn);
+			assert.ok(start >= 0, `rules must define ${fn}`);
+			const rest = rules.slice(start);
+			const end = rest.indexOf('\n    }');
+			assert.ok(end > 0, `could not find end of ${fn}`);
+			const body = rest.slice(0, end);
+			for (const m of body.matchAll(/'([a-z_]+)'/g)) fields.add(m[1]);
+		}
+		return fields;
+	};
+
+	it('the guard no-bump allowlist exactly equals the rules non-bump fields', () => {
+		const rulesFields = rulesNonBumpFields();
+		//Canary: extraction actually found fields (guard against a silent empty set).
+		assert.ok(rulesFields.size >= 5, `rules field extraction looks broken, found ${rulesFields.size}`);
+		const guardSet = new Set(COUNTER_FIELDS);
+		const onlyInGuard = [...guardSet].filter(f => !rulesFields.has(f)).sort();
+		const onlyInRules = [...rulesFields].filter(f => !guardSet.has(f)).sort();
+		assert.deepStrictEqual({onlyInGuard, onlyInRules}, {onlyInGuard: [], onlyInRules: []},
+			'guard allowlist (card-write-guard.ts COUNTER_FIELDS_EXEMPT_FROM_UPDATED) and rules non-bump fields ' +
+			'(cardEditLegal{Stars,Messages,Tweets}) have DRIFTED — re-align them.');
+	});
+});
+
+//---------------------------------------------------------------------------
+//Guard cost micro-bench (informational). The pure-core policy check runs once
+//per card set/update; this bounds it as O(1) and negligible against the 200ms
+//commit budget. Deliberately a LOOSE smoke ceiling, not a tight wall-clock
+//gate (CI hardware varies — the printed per-call figure is the real datum).
+//NOTE: this covers the pure core only; the full guard also calls
+//isServerTimestampSentinel (a WeakMap.get + an occasional JSON.stringify of a
+//tiny FieldValue), which lives in firebase.ts and cannot be imported in Node —
+//it is likewise O(1). End-to-end commit latency is the browser harness's job.
+//---------------------------------------------------------------------------
+describe('updated-invariant guard cost (micro-bench, informational)', () => {
+	let cardWriteViolation, nonBumpCardWriteViolation;
+
+	before(async () => {
+		({cardWriteViolation, nonBumpCardWriteViolation} = await import('../../lib/src/card-write-guard.js'));
+	});
+
+	it('2e6 pure-core policy checks complete well under the commit budget', function() {
+		this.timeout(10000);
+		const N = 1_000_000;
+		const t0 = process.hrtime.bigint();
+		for (let i = 0; i < N; i++) {
+			cardWriteViolation('cards/abc', CARDS, (i & 1) === 0);
+			nonBumpCardWriteViolation('cards/abc', CARDS, ['star_count', 'tweet_count']);
+		}
+		const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+		const perCallNs = (ms * 1e6) / (N * 2);
+		//eslint-disable-next-line no-console
+		console.log(`      [micro-bench] ${N * 2} pure-core policy checks in ${ms.toFixed(1)}ms (${perCallNs.toFixed(1)} ns/call)`);
+		assert.ok(ms < 3000, `2e6 policy checks took ${ms.toFixed(0)}ms — unexpectedly slow for O(1) checks`);
+	});
+});
