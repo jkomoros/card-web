@@ -29,3 +29,7 @@ service-account-key.json
 migration-nlp-tokens-report.json
 *.log
 *.bak.*
+
+#Stryker mutation-testing sandbox + reports (npm run test:mutation)
+.stryker-tmp/
+reports/mutation/

@@ -360,6 +360,25 @@ describe('updated-invariant pure core — combinatorial falsification', () => {
 			assert.strictEqual(nonBumpCardWriteViolation(p, CARDS, ['body', 'title', 'anything']), null, `must be inert for "${p}"`);
 		}
 	});
+
+	//The violation messages ARE the guard's developer-facing contract — pin
+	//their load-bearing content (the escape hatch, the design doc, the
+	//comma-listed offending + allowed fields, and the fix) so a future edit
+	//that guts the guidance is caught. (Also kills the message-text mutants
+	//that survive the behavioural assertions above.)
+	it('violation messages pin their load-bearing guidance', () => {
+		const cw = cardWriteViolation('cards/xyz', CARDS, false);
+		assert.ok(cw.includes('Every card mutation must bump'), 'cardWriteViolation states the rule');
+		assert.ok(cw.includes('docs/corpus-sync-design.md'), 'cardWriteViolation names the design doc');
+		assert.ok(cw.includes('updateWithoutTimestampBump'), 'cardWriteViolation names the escape hatch');
+
+		const nb = nonBumpCardWriteViolation('cards/xyz', CARDS, ['body', 'title']);
+		assert.ok(nb.includes('body, title'), 'nonBump lists the disallowed fields comma-separated');
+		assert.ok(nb.includes('reader-driven counters'), 'nonBump explains the exemption');
+		assert.ok(nb.includes('star_count, star_count_manual'), 'nonBump lists the allowlist comma-separated');
+		assert.ok(nb.includes('); '), 'nonBump closes the allowlist parenthetical');
+		assert.ok(nb.includes('use update()'), 'nonBump points to the fix');
+	});
 });
 
 //---------------------------------------------------------------------------
