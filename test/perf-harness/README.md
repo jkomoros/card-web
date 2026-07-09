@@ -2,11 +2,12 @@
 
 **Status: foundation landed; browser runner is next.** This is the committed, rerunnable replacement for the lost scratchpad probe scripts (`measure.mjs`, `probe-*.mjs`). It measures the design doc's **Appendix-A interaction budgets** at 40k+ cards and emits a diffable JSON baseline, so the G0/G1 decision gates become empirical and the ~2s commit-settle becomes attributable. See `docs/fast-corpus-design-doc.md` (Appendix A, G0/G1) and `docs/superpowers/plans/2026-07-07-adversarial-verification-plan.md` (hand-off #1).
 
-**Built so far (this increment):**
+**Built so far:**
 - `src/perf.ts` gained `DEBUG_PERF.data()` — a machine-readable snapshot of `{actionStats, counters}` so a driver can assert against budgets/invariants instead of scraping `console.table`.
 - `gen-corpus.js` — the deterministic, worst-case synthetic corpus generator (below), with `gen-corpus.test.js` (7 cases) wired into `npm run test:perf-harness` and the full `npm test`.
+- `load-emulator.js` — seeds a generated corpus into the Firestore **emulator** via `firebase-admin` (converts the generator's plain timestamps to real `Timestamp`s, batches at 400, verifies the `count()`). Refuses to run without `FIRESTORE_EMULATOR_HOST` (never a real project). **Verified**: 2000 cards → emulator → count matches. Runs on a dedicated port via `firebase.perf.json` (8089) so it never touches the default 8080.
 
-**Not yet built (next increment, has infra/session dependencies):** the Playwright browser runner and its two run modes.
+**Not yet built (next increment — real complications, see Open Questions):** the app-side emulator wiring and the Playwright browser runner + auth.
 
 ## Why it exists
 
@@ -48,11 +49,18 @@ The commit path already emits `dispatch:<TYPE>` timings via `perfMiddleware`. Th
 - `npm run perf:local` — emulator + synthetic corpus (CI-safe, no session).
 - `npm run perf:dev` — dev app + real corpus (G1; needs a live Firebase session in the copied profile).
 
-## Open questions to resolve before the runner is complete
-- **Q1 — corpus-ready signal.** Which signal does the harness await so it measures a fully-loaded corpus? Candidates: the worker `syncState:'live'`/`loadComplete`, a card-count threshold in the store, or a DOM signal. Resolve by tracing `src/corpus-bridge.ts` / `src/worker/worker-protocol.ts` / the store's loaded-state.
-- **Q2 — browser automation dep.** Add `playwright` as a devDep and use its bundled chromium (cleaner than the scratchpad's hardcoded `chromium-1223` path). Confirm it installs under Node 20.
-- **Q3 — synthetic corpus into the emulator.** The generator (`gen-corpus.js`, `generateCorpus({count, seed})`) is built and produces a consistent worst-case `{[id]: cardDoc}` map (dense refs, derived inbound, fat body tail). Remaining: a loader that bulk-writes it to the Firestore emulator via `firebase-admin` (the `tools/mount.ts` pattern, gated on `FIRESTORE_EMULATOR_HOST`) and auths the app against the emulator. `node test/perf-harness/gen-corpus.js --count 40000 --seed 1 --out corpus.json` works today for the file form.
-- **Q4 — dialog handling.** The scratchpad harness had to `page.on('dialog')` accept, or commits aborted; replicate.
+## Next increment: app-side wiring + Playwright runner
+
+**Resolved this increment:**
+- **Ready signal** — `window.CORPUS_WORKER.syncState() === 'live'` in worker modes (`src/corpus-bridge.ts`); in `off` mode, poll the store's card count instead.
+- **Corpus into the emulator** — done (`load-emulator.js`, verified).
+
+**Remaining, with the real complications:**
+1. **App emulator wiring does not exist yet.** `src/firebase.ts` always connects to the real dev/prod project; `firebase.json` has no emulator config (the `test:security` emulator is rules-only). Add a **strictly flag-gated, default-off** `connectFirestoreEmulator(db,…)` + `connectAuthEmulator(auth,…)` block, gated on a localStorage flag the harness sets pre-boot via Playwright `addInitScript`.
+2. **The worker has no `localStorage`.** In `shadow`/`on` modes the corpus worker (`src/worker/corpus-worker.ts`) does its OWN Firestore init and cannot read the flag; the emulator config must be passed to the worker at spawn. **So the first runnable target is `corpus-worker=off`** (main-thread only, no worker) — it needs only the `firebase.ts` wiring and exercises the reducer/selector path that is the design doc's actual slowness suspect (`makeFilterFromCards`). Worker-mode measurement is a later step.
+3. **Auth.** Admin/unpublished visibility needs a signed-in admin — use the **Auth emulator** + a test sign-in (`load-emulator.js` already seeds `permissions/{uid} = {admin:true}`).
+4. **Browser driver.** Add `playwright` (devDep, bundled chromium). Wrap the whole run in one `firebase emulators:exec` so the emulator stays up: load corpus → start `wds --port 8081` → drive the Appendix-A script → emit baseline → **assert the counter invariants, report p95**.
+5. **Dialogs.** `page.on('dialog')` accept, or commits abort (per the lost scratchpad harness).
 
 ## Provenance note
 The prior harness (`measure.mjs` in the `5580af71` scratchpad; `probe-commit2/probe-echo3/probe-cleanup.mjs` in `c4ce6470`) used pinned chromium-1223, a copied `./perf-profile` with a valid Firebase session, `corpus-worker=shadow` via `addInitScript`, and a 600s readiness deadline. Those files are gone; this harness is the committed, never-lost-again replacement.
