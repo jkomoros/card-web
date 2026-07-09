@@ -28,6 +28,14 @@ const count = parseInt(getArg('count', '40000'), 10);
 const seed = parseInt(getArg('seed', '1'), 10);
 const projectId = getArg('project', 'demo-perf');
 const adminUid = getArg('admin', 'perf-admin');
+//publishedP: fraction of cards published. Default 0.3. The perf EMULATOR's
+//WebChannel back channel caps at ~10001 pending pushed messages, so the single
+//`published==true` listener overflows and aborts the channel once published
+//exceeds ~10k (i.e. total>~33k at 0.3). Lowering publishedP keeps that listener
+//under the cap so larger TOTAL corpora load — total corpus size (the thing that
+//stresses filters/index/nav) is preserved; only the published/unpublished split
+//shifts. Real Firestore has no such cap. See docs.
+const publishedP = parseFloat(getArg('published-p', '0.3'));
 
 const {Timestamp} = admin.firestore;
 
@@ -54,7 +62,7 @@ const main = async () => {
 	admin.initializeApp({projectId});
 	const db = admin.firestore();
 
-	const cards = generateCorpus({count, seed});
+	const cards = generateCorpus({count, seed, publishedP});
 	const stats = corpusStats(cards);
 	console.error('[load-emulator] generated ' + JSON.stringify(stats));
 

@@ -9,6 +9,11 @@ const args = process.argv.slice(2);
 const getArg = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const count = parseInt(getArg('count', '40000'), 10);
 const seed = parseInt(getArg('seed', '1'), 10);
+//publishedP: forwarded to the seeder. Lower it to keep the published listener
+//under the emulator's ~10k back-channel cap so larger TOTAL corpora load (the
+//emulator cannot stream >~10k docs over one WebChannel Listen — real Firestore
+//can). Total corpus size is preserved; only the published/unpublished split.
+const publishedP = getArg('published-p', '');
 const authMode = getArg('auth', 'anon'); //'anon' | 'admin'
 const projectId = getArg('project', 'demo-perf');
 //corpus-worker mode: 'off' (main-thread only, the OLD-shaped path) | 'shadow'
@@ -47,7 +52,7 @@ const waitForServer = async (url, timeoutMs = 60000) => {
 
 const main = async () => {
 	//1. Seed the emulator (inherits the emulator env from emulators:exec).
-	await sh('node', ['test/perf-harness/load-emulator.js', '--count', String(count), '--seed', String(seed), '--project', projectId]);
+	await sh('node', ['test/perf-harness/load-emulator.js', '--count', String(count), '--seed', String(seed), '--project', projectId, ...(publishedP ? ['--published-p', publishedP] : [])]);
 
 	//2. Start wds. `detached` + kill(-pid) so we reap the WHOLE tree — `npx`
 	//spawns a child node; killing only the npx wrapper orphans the real server
