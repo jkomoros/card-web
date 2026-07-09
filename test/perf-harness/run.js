@@ -84,7 +84,17 @@ const main = async () => {
 		const page = await context.newPage();
 		page.on('dialog', d => d.accept().catch(() => {})); //editingCommit() confirm()/alert() (src/actions/editor.ts)
 		const consoleMsgs = [];
-		page.on('console', m => { consoleMsgs.push('[' + m.type() + '] ' + m.text()); });
+		page.on('console', m => {
+			const line = '[' + m.type() + '] ' + m.text();
+			consoleMsgs.push(line);
+			//Live-echo the signal lines (worker status, errors) so long loads and
+			//failures aren't invisible until the final tail dump. Skip the
+			//high-frequency [PERF] spam.
+			const t = m.text();
+			if ((m.type() === 'error' || t.includes('[corpus-worker]') || t.includes('[corpus-shadow]') || t.includes('transport errored') || t.includes('reconcil')) && !t.includes('[PERF]')) {
+				console.log('  ' + line.slice(0, 240));
+			}
+		});
 		page.on('response', r => { if (r.status() === 400) consoleMsgs.push('[400] ' + r.url().slice(0, 160)); });
 		page.on('requestfailed', r => { consoleMsgs.push('[reqfail] ' + (r.failure() ? r.failure().errorText : '') + ' ' + r.url().slice(0, 160)); });
 
@@ -97,8 +107,13 @@ const main = async () => {
 
 		console.log('[run] corpus-worker=' + workerMode + (syncMode ? ' corpus-sync=' + syncMode : '') + (workerModeActive ? ' (gating on syncState===live)' : ''));
 		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * 0.15);
-		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive}).catch(e => {
-			console.log('[run] console tail:\n' + consoleMsgs.slice(-20).join('\n'));
+		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, progressEveryMs: 15000}).catch(e => {
+			//Dump the distinct signal lines (not raw last-N, which is dominated by
+			//repeating transport errors) so a timeout is diagnosable.
+			const signal = consoleMsgs.filter(m => m.startsWith('[error]') || m.includes('[corpus-worker]') || m.includes('reconcil') || m.includes('transport errored'));
+			const seen = new Set();
+			const distinct = signal.filter(m => { const k = m.replace(/SID=[^ &]+|0x[0-9a-f]+|[0-9.]+ms|[0-9]+ cards/g, ''); if (seen.has(k)) return false; seen.add(k); return true; });
+			console.log('[run] distinct signal lines (' + distinct.length + ' of ' + consoleMsgs.length + ' console msgs):\n' + distinct.slice(-40).join('\n'));
 			throw e;
 		});
 		console.log('[run] BOOT OK: cardCount=' + state.cardCount + ' dataFullyLoaded=' + state.dataFullyLoaded + ' loadComplete=' + state.workerLoadComplete + ' syncState="' + state.syncState + '" user=' + JSON.stringify(state.user));

@@ -42,11 +42,17 @@ export const readStateInPage = async () => {
 //untrusted worker corpus and silently inflate the numbers. loadComplete is the
 //universal signal (both sync modes); sync==='unverified' only occurs in
 //watermark mode, where we additionally require the trust gate to have passed.
-export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500, requireWorkerLive = false} = {}) => {
+export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500, requireWorkerLive = false, progressEveryMs = 0} = {}) => {
 	const start = Date.now();
 	let last = null;
+	let lastProgress = 0;
 	while (Date.now() - start < timeoutMs) {
 		last = await page.evaluate(readStateInPage);
+		//Periodic progress so long (40k+) loads aren't a black box until timeout.
+		if (progressEveryMs && Date.now() - lastProgress >= progressEveryMs) {
+			lastProgress = Date.now();
+			console.log('[waitForCorpus] +' + Math.round((Date.now() - start) / 1000) + 's cardCount=' + last.cardCount + ' loadComplete=' + last.workerLoadComplete + ' syncState="' + last.syncState + '" dataFullyLoaded=' + last.dataFullyLoaded);
+		}
 		const workerReady = !requireWorkerLive || (last.workerLoadComplete === true && last.syncState !== 'unverified');
 		if (last.ready && last.dataFullyLoaded && last.cardCount >= minCards && workerReady) return last;
 		await page.waitForTimeout(pollMs);
