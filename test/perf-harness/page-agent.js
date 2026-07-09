@@ -24,6 +24,10 @@ export const readStateInPage = async () => {
 	const cw = window.CORPUS_WORKER;
 	const syncState = cw ? cw.syncState() : null;
 	const workerLoadComplete = cw && cw.loadComplete ? cw.loadComplete() : null;
+	//The worker's OWN corpus size: distinguishes "worker has the cards but the
+	//main store doesn't" (forwarding bug) from "the worker's prime yielded ~0"
+	//(the emulator transport collapsed on the cold 40k prime).
+	const workerCorpusSize = cw && cw.corpusSize ? cw.corpusSize() : null;
 	return {
 		ready: true,
 		cardCount: Object.keys(data.cards || {}).length,
@@ -31,6 +35,7 @@ export const readStateInPage = async () => {
 		loadingFetchTypes: Object.keys(data.loadingCardFetchTypes || {}),
 		syncState,
 		workerLoadComplete,
+		workerCorpusSize,
 		user: s.user && s.user.user ? {uid: s.user.user.uid, isAnonymous: s.user.user.isAnonymous} : null,
 	};
 };
@@ -51,7 +56,7 @@ export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pol
 		//Periodic progress so long (40k+) loads aren't a black box until timeout.
 		if (progressEveryMs && Date.now() - lastProgress >= progressEveryMs) {
 			lastProgress = Date.now();
-			console.log('[waitForCorpus] +' + Math.round((Date.now() - start) / 1000) + 's cardCount=' + last.cardCount + ' loadComplete=' + last.workerLoadComplete + ' syncState="' + last.syncState + '" dataFullyLoaded=' + last.dataFullyLoaded);
+			console.log('[waitForCorpus] +' + Math.round((Date.now() - start) / 1000) + 's mainCards=' + last.cardCount + ' workerCorpus=' + last.workerCorpusSize + ' loadComplete=' + last.workerLoadComplete + ' syncState="' + last.syncState + '" dataFullyLoaded=' + last.dataFullyLoaded);
 		}
 		const workerReady = !requireWorkerLive || (last.workerLoadComplete === true && last.syncState !== 'unverified');
 		if (last.ready && last.dataFullyLoaded && last.cardCount >= minCards && workerReady) return last;

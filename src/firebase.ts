@@ -91,7 +91,11 @@ const firebaseApp = initializeApp(config);
 //user state) are small and online-only. Off/spike modes are unchanged:
 //main-thread multi-tab persistence, exactly as before.
 export const db = initializeFirestore(firebaseApp, {
-	experimentalForceLongPolling: true,
+	//Force long-polling against REAL Firestore (OOM avoidance with long docs —
+	//#4416/#659). Against the perf EMULATOR, forced long-polling collapses under
+	//a 40k cold prime ('transport errored: Qd'); auto-detect uses the streaming
+	//transport against localhost. Emulator-only; real connections unchanged.
+	...(emulatorTarget ? {experimentalAutoDetectLongPolling: true} : {experimentalForceLongPolling: true}),
 	//cacheSizeBytes UNLIMITED: the default is 40MB with LRU garbage
 	//collection, which silently evicts most of an all-cards-local corpus
 	//(~240-480MB at 40-60k cards) — master never noticed because its ~6k

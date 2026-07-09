@@ -732,6 +732,10 @@ declare global {
 			//complete as the current connection can make it. The universal
 			//readiness signal across both sync modes (syncState is watermark-only).
 			loadComplete: () => boolean,
+			//The worker's OWN corpus size (last reported via batch/loadComplete).
+			//Distinguishes "worker loaded N but didn't forward" from "worker's
+			//own prime yielded ~0" when the main store is empty.
+			corpusSize: () => number,
 			spike: () => void,
 			query: (text : string) => Promise<{ids : string[], ms : number, fullScanFallback : boolean}>,
 			//PERF HARNESS ONLY: worker-scoped timing (perfMiddleware sees only the
@@ -764,6 +768,7 @@ if (typeof window !== 'undefined') {
 		syncMode: readCorpusSyncMode,
 		syncState: () => lastSyncState,
 		loadComplete: () => workerLoadComplete,
+		corpusSize: () => workerCorpusSize,
 		spike: () => {
 			if (!worker) {
 				console.log('[corpus-worker] not running; call CORPUS_WORKER.setMode(\'spike\') (or \'shadow\') and reload');

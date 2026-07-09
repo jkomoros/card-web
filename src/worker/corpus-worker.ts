@@ -457,6 +457,16 @@ const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? :
 	//Point Firestore + Auth at the emulators once db is created (below).
 	//connectFirestoreEmulator must run before the first Firestore operation, so
 	//it is invoked immediately after each initializeFirestore call.
+	//Transport: force long-polling against REAL Firestore (OOM avoidance with
+	//long documents — issue #4416/#659). But against the perf EMULATOR, forced
+	//long-polling shares ONE WebChannel transport across the partitioned getDocs
+	//prime AND the delta listeners, and a 40k cold prime saturates it (observed:
+	//'transport errored: Qd', HTTP 400, prime returns ~0 cards). Auto-detect lets
+	//the SDK use the streaming transport against localhost, which handles the
+	//load. Emulator-only; real connections are unchanged.
+	const longPolling = emulatorTarget
+		? {experimentalAutoDetectLongPolling: true}
+		: {experimentalForceLongPolling: true};
 	const hookEmulator = () => {
 		if (!emulatorTarget || !db || !auth) return;
 		try {
@@ -489,7 +499,7 @@ const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? :
 	if (persist) {
 		try {
 			db = initializeFirestore(app, {
-				experimentalForceLongPolling: true,
+				...longPolling,
 				//UNLIMITED: the default cache is 40MB with LRU garbage
 				//collection — a 40-60k-card corpus (~240-480MB) gets mostly
 				//evicted, silently turning every warm boot back into a cold
@@ -507,7 +517,7 @@ const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? :
 		}
 	}
 	db = initializeFirestore(app, {
-		experimentalForceLongPolling: true,
+		...longPolling,
 		localCache: memoryLocalCache()
 	});
 	hookEmulator();
