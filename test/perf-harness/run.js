@@ -11,6 +11,15 @@ const count = parseInt(getArg('count', '40000'), 10);
 const seed = parseInt(getArg('seed', '1'), 10);
 const authMode = getArg('auth', 'anon'); //'anon' | 'admin'
 const projectId = getArg('project', 'demo-perf');
+//corpus-worker mode: 'off' (main-thread only, the OLD-shaped path) | 'shadow'
+//(worker ingests, UI still serves) | 'on' (worker owns ingestion AND serves the
+//collection — THE SHIP MODE). Only 'on' is a ship gate. Set pre-boot so the app
+//reads it before spawning the worker.
+const workerMode = getArg('corpus-worker', 'off');
+//corpus-sync: '' = app default (listen); 'watermark' = the delta plane (the
+//ship config for worker modes — O(changes) reads). Only set when provided.
+const syncMode = getArg('corpus-sync', '');
+const workerModeActive = workerMode === 'shadow' || workerMode === 'on';
 //Corpus load can be slow at scale (the app's ingestion cost is itself part of
 //what we measure); large runs need a longer budget than the 180s default.
 const loadTimeoutMs = parseInt(getArg('load-timeout', '180000'), 10);
@@ -57,15 +66,20 @@ const main = async () => {
 
 		const browser = await chromium.launch();
 		const context = await browser.newContext({serviceWorkers: 'block'}); //stops service-worker.js registering/caching across runs
-		await context.addInitScript(() => {
+		await context.addInitScript((cfg) => {
 			try {
 				window.localStorage.setItem('firebase-emulator', 'localhost:8089');
 				window.localStorage.setItem('debug-perf', '1');
 				//Suppress the auto-anonymous-signin race (src/actions/user.ts:213-217).
 				//KEY is 'hasPreviousSignIn' (LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY, src/constants.ts).
 				window.localStorage.setItem('hasPreviousSignIn', '1');
+				//corpus-worker/corpus-sync are read pre-boot by src/corpus-mode.ts.
+				//The worker inherits the emulator target via the connect message
+				//(it has no localStorage) — see src/corpus-bridge.ts.
+				window.localStorage.setItem('corpus-worker', cfg.workerMode);
+				if (cfg.syncMode) window.localStorage.setItem('corpus-sync', cfg.syncMode);
 			} catch { /* noop */ }
-		});
+		}, {workerMode, syncMode});
 
 		const page = await context.newPage();
 		page.on('dialog', d => d.accept().catch(() => {})); //editingCommit() confirm()/alert() (src/actions/editor.ts)
@@ -81,12 +95,13 @@ const main = async () => {
 			console.log('[run] signed in:', JSON.stringify(signed));
 		}
 
+		console.log('[run] corpus-worker=' + workerMode + (syncMode ? ' corpus-sync=' + syncMode : '') + (workerModeActive ? ' (gating on syncState===live)' : ''));
 		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * 0.15);
-		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs}).catch(e => {
+		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive}).catch(e => {
 			console.log('[run] console tail:\n' + consoleMsgs.slice(-20).join('\n'));
 			throw e;
 		});
-		console.log('[run] BOOT OK: cardCount=' + state.cardCount + ' dataFullyLoaded=' + state.dataFullyLoaded + ' user=' + JSON.stringify(state.user));
+		console.log('[run] BOOT OK: cardCount=' + state.cardCount + ' dataFullyLoaded=' + state.dataFullyLoaded + ' syncState=' + state.syncState + ' user=' + JSON.stringify(state.user));
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
 
@@ -97,14 +112,16 @@ const main = async () => {
 				throw e;
 			});
 			const baseline = {
-				count, seed, authMode, cardCount: state.cardCount, results,
-				note: 'commit/find wall-clock is EMULATOR-OPTIMISTIC (near-zero local write-echo); budget-authoritative = results.dispatch.* (main-thread) and the real-corpus perf:dev run.',
+				count, seed, authMode, workerMode, syncMode: syncMode || '(default)', cardCount: state.cardCount, syncState: state.syncState, results,
+				note: 'commit/find wall-clock is EMULATOR-OPTIMISTIC (near-zero local write-echo); budget-authoritative = results.dispatch.* (main-thread) + results.worker.* (worker-thread) attributed together. Only corpus-worker=on is a ship gate.',
 			};
-			const outPath = getArg('out', `test/perf-harness/baselines/${authMode}-${count}.json`);
+			const outPath = getArg('out', `test/perf-harness/baselines/${authMode}-${workerMode}-${count}.json`);
 			fs.writeFileSync(outPath, JSON.stringify(baseline, null, 2));
 			console.log('[run] baseline -> ' + outPath);
 			const d = results.dispatch;
 			console.log('[run] main-thread avg/max ms: SHOW_CARD=' + JSON.stringify(d.showCard) + ' UPDATE_READS=' + JSON.stringify(d.updateReads) + ' EDITING_START=' + JSON.stringify(d.editingStart) + ' MODIFY_CARD=' + JSON.stringify(d.modifyCard) + ' UPDATE_CARDS=' + JSON.stringify(d.updateCards));
+			if (d.updateWorkerCollection || d.echoLocalCardModifications) console.log('[run] worker-mode dispatches: UPDATE_WORKER_COLLECTION=' + JSON.stringify(d.updateWorkerCollection) + ' ECHO_LOCAL_CARD_MODIFICATIONS=' + JSON.stringify(d.echoLocalCardModifications));
+			if (results.worker) console.log('[run] WORKER-thread avg/max ms: ingest=' + JSON.stringify(results.worker.ingest) + ' indexBuild=' + JSON.stringify(results.worker.indexBuild) + ' runCollection=' + JSON.stringify(results.worker.runCollection) + ' collectionPush=' + JSON.stringify(results.worker.collectionPush) + ' query=' + JSON.stringify(results.worker.query) + ' indexBuildMsCumulative=' + results.worker.indexBuildMsCumulative);
 			console.log('[run] makeFilterFromCards counters: ' + JSON.stringify(Object.fromEntries(Object.entries(results.counters).filter(([k]) => k.includes('makeFilterFromCards')))));
 			console.log('[run] NOTE: commit/find wall-clock is emulator-optimistic; commit→interactive budget belongs to perf:dev.');
 		}

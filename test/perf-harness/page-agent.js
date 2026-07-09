@@ -16,22 +16,32 @@ export const readStateInPage = async () => {
 	const selectors = await import('/lib/src/selectors.js');
 	const s = store.getState();
 	const data = s.data || {};
+	//In worker (shadow/on) modes the worker's own trust gate is the real
+	//readiness signal — the main store can hold a cache-primed corpus the worker
+	//hasn't blessed yet. 'live' = gate passed + listeners healthy (src/corpus-
+	//bridge.ts). null when no worker is running (off mode).
+	const syncState = window.CORPUS_WORKER ? window.CORPUS_WORKER.syncState() : null;
 	return {
 		ready: true,
 		cardCount: Object.keys(data.cards || {}).length,
 		dataFullyLoaded: !!selectors.selectDataIsFullyLoaded(s),
 		loadingFetchTypes: Object.keys(data.loadingCardFetchTypes || {}),
+		syncState,
 		user: s.user && s.user.user ? {uid: s.user.user.uid, isAnonymous: s.user.user.isAnonymous} : null,
 	};
 };
 
 //Runs IN NODE; polls readStateInPage() until fully loaded (or minCards) or timeout.
-export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500} = {}) => {
+//requireWorkerLive: in worker (shadow/on) modes, ALSO wait for the worker's
+//syncState()==='live' — otherwise the script can fire against a merely
+//cache-primed / partial worker corpus and silently inflate the numbers.
+export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500, requireWorkerLive = false} = {}) => {
 	const start = Date.now();
 	let last = null;
 	while (Date.now() - start < timeoutMs) {
 		last = await page.evaluate(readStateInPage);
-		if (last.ready && last.dataFullyLoaded && last.cardCount >= minCards) return last;
+		const workerReady = !requireWorkerLive || last.syncState === 'live';
+		if (last.ready && last.dataFullyLoaded && last.cardCount >= minCards && workerReady) return last;
 		await page.waitForTimeout(pollMs);
 	}
 	throw new Error('waitForCorpus timed out after ' + timeoutMs + 'ms; last=' + JSON.stringify(last));
