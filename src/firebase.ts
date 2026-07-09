@@ -62,6 +62,13 @@ let emulatorTarget : string | null = null;
 try { emulatorTarget = window.localStorage.getItem('firebase-emulator'); } catch { emulatorTarget = null; }
 const PERF_EMULATOR_PROJECT_ID = 'demo-perf';
 
+//Exported so the corpus worker (shadow/on modes) can point at the SAME emulator.
+//The worker has no localStorage; the bridge forwards this value in its `connect`
+//message rather than re-reading the flag (a second read could drift from the one
+//that chose the main thread's project — the same single-source-of-truth reason
+//DEV_MODE is exported). Null (the default) means no emulator: a complete no-op.
+export const EMULATOR_TARGET = emulatorTarget;
+
 const baseConfig = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 const config = emulatorTarget ? {...baseConfig, projectId: PERF_EMULATOR_PROJECT_ID} : baseConfig;
 

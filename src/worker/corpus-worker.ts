@@ -19,6 +19,7 @@ import {
 	persistentLocalCache,
 	persistentSingleTabManager,
 	CACHE_SIZE_UNLIMITED,
+	connectFirestoreEmulator,
 	onSnapshot,
 	getDocsFromServer,
 	getDocsFromCache,
@@ -66,6 +67,7 @@ import {
 import {
 	initializeAuth,
 	indexedDBLocalPersistence,
+	connectAuthEmulator,
 	Auth
 } from 'firebase/auth';
 
@@ -407,9 +409,23 @@ const attachResilientListener = (
 	attach();
 };
 
-const connectFirebase = (devMode : boolean, persist : boolean) => {
+//PERF HARNESS ONLY: the fixed demo project the emulator namespaces the seeded
+//corpus under. Must match src/firebase.ts's PERF_EMULATOR_PROJECT_ID so the
+//worker, the main thread, and the seeded corpus all share one emulator
+//namespace (the Firestore emulator namespaces data by projectId).
+const PERF_EMULATOR_PROJECT_ID = 'demo-perf';
+
+const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? : string) => {
 	if (app) return;
-	const config = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+	//PERF HARNESS ONLY: when the main thread forwards the `firebase-emulator`
+	//flag (host:firestorePort, e.g. `localhost:8089`) in the connect message,
+	//override projectId to the fixed demo project and point Firestore + Auth at
+	//the local emulators — mirroring src/firebase.ts's own emulator branch. The
+	//worker has no localStorage, so it cannot read the flag itself; the bridge
+	//reads it and passes it here. DEFAULT OFF — an absent target is a complete
+	//no-op, so real dev/prod worker connections are unaffected.
+	const baseConfig = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+	const config = emulatorTarget ? {...baseConfig, projectId: PERF_EMULATOR_PROJECT_ID} : baseConfig;
 	//IMPORTANT: the app must use the DEFAULT name. Auth persistence keys in
 	//IndexedDB include the app name, so a custom-named app would read an
 	//empty credential slot instead of the one the main thread's interactive
@@ -418,6 +434,21 @@ const connectFirebase = (devMode : boolean, persist : boolean) => {
 	//The main thread signs in interactively and persists the credential to
 	//IndexedDB; initializeAuth here picks it up and receives refreshes.
 	auth = initializeAuth(app, {persistence: indexedDBLocalPersistence});
+	//Point Firestore + Auth at the emulators once db is created (below).
+	//connectFirestoreEmulator must run before the first Firestore operation, so
+	//it is invoked immediately after each initializeFirestore call.
+	const hookEmulator = () => {
+		if (!emulatorTarget || !db || !auth) return;
+		try {
+			const [emuHost, emuPort] = emulatorTarget.split(':');
+			const host = emuHost || 'localhost';
+			connectFirestoreEmulator(db, host, parseInt(emuPort || '8089', 10));
+			connectAuthEmulator(auth, `http://${host}:9099`, {disableWarnings: true});
+			status(`EMULATOR MODE (perf harness): project ${PERF_EMULATOR_PROJECT_ID}, firestore ${host}:${emuPort || '8089'}, auth ${host}:9099`);
+		} catch (e) {
+			send({type: 'error', generation, message: `emulator connect failed (${String(e)})`});
+		}
+	};
 	//THE CACHE HANDOFF (the fix for ~40k billed reads per worker boot): when
 	//the worker owns ingestion, it also owns the PERSISTENT cache —
 	//single-tab with forceOwnership, the only persistence mode the SDK
@@ -448,6 +479,7 @@ const connectFirebase = (devMode : boolean, persist : boolean) => {
 					cacheSizeBytes: CACHE_SIZE_UNLIMITED
 				})
 			});
+			hookEmulator();
 			status('persistent single-tab cache (force-ownership) initialized');
 			return;
 		} catch (e) {
@@ -458,6 +490,7 @@ const connectFirebase = (devMode : boolean, persist : boolean) => {
 		experimentalForceLongPolling: true,
 		localCache: memoryLocalCache()
 	});
+	hookEmulator();
 };
 
 const connectPublished = () => {
@@ -1275,7 +1308,7 @@ workerScope.addEventListener('message', event => {
 		generation = message.generation;
 		syncMode = message.syncMode;
 		currentDevMode = message.devMode;
-		connectFirebase(message.devMode, message.persist);
+		connectFirebase(message.devMode, message.persist, message.emulatorTarget);
 		connectCards(message.mayViewUnpublished, message.uid);
 		break;
 	case 'reconnect':

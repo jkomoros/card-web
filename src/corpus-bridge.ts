@@ -76,7 +76,8 @@ import {
 } from './corpus-readiness.js';
 
 import {
-	DEV_MODE
+	DEV_MODE,
+	EMULATOR_TARGET
 } from './firebase.js';
 
 import {
@@ -678,7 +679,10 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 		//the worker's 40k-doc-per-boot loader at a different project).
 		//persist: the worker claims the persistent cache only when it owns
 		//ingestion — in spike mode the main thread still holds that cache.
-		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid});
+		//emulatorTarget (PERF HARNESS ONLY): forward the main thread's
+		//`firebase-emulator` flag so the worker points at the SAME emulator; null
+		//→ omitted, so real connections are unaffected.
+		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 	} else {
 		post({type: 'reconnect', generation, mayViewUnpublished, uid});
 	}

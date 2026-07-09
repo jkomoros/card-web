@@ -93,7 +93,11 @@ export type MainToWorkerMessage =
 	//syncMode: 'listen' = legacy full-corpus partitioned listeners;
 	//'watermark' = the delta plane (docs/corpus-sync-design.md). Computed by
 	//the bridge (no localStorage in workers).
-	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string}
+	//emulatorTarget (PERF HARNESS ONLY, host:firestorePort e.g. `localhost:8089`)
+	//is forwarded from the main thread's `firebase-emulator` localStorage flag —
+	//the worker has no localStorage, so the bridge reads it and passes it here.
+	//Absent (undefined) in every real dev/prod connection.
+	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, emulatorTarget? : string}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}
