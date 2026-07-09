@@ -99,6 +99,11 @@ export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);
 export const storage = getStorage(firebaseApp);
 
+//Re-exported for the perf harness's page-context sign-in (test/perf-harness/),
+//which must reach Auth through this served module — a runtime `import('firebase/auth')`
+//from injected page code is a bare specifier wds will not resolve.
+export { signInWithCustomToken } from 'firebase/auth';
+
 //PERF HARNESS ONLY (test/perf-harness/): when the `firebase-emulator`
 //localStorage flag is set to `host:firestorePort` (e.g. `localhost:8089`),
 //point Firestore + Auth at the local emulators instead of the real project.

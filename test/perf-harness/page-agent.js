@@ -36,16 +36,22 @@ export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pol
 	throw new Error('waitForCorpus timed out after ' + timeoutMs + 'ms; last=' + JSON.stringify(last));
 };
 
-//Signs in against the Auth emulator with a fake Google credential through the
-//app's OWN served firebase module (which re-exports GoogleAuthProvider +
-//signInWithCredential). The emulator does not verify signatures and provisions
-//a user whose uid is the token `sub`. Runs IN THE PAGE.
-export const signInAsAdminInPage = async ({uid, email}) => {
+//Signs in against the Auth emulator with an unsigned Firebase CUSTOM token
+//through the app's OWN served firebase module. Unlike a Google-IdP credential
+//(which mints a random uid), a custom token's `uid` claim BECOMES the user's
+//uid — so it deterministically matches the seeded permissions/{uid} admin doc.
+//The emulator does not verify the signature. Runs IN THE PAGE.
+export const signInAsAdminInPage = async ({uid}) => {
 	const b = (o) => btoa(JSON.stringify(o)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-	const header = {alg: 'none', kid: '', typ: 'JWT'};
-	const payload = {iss: 'https://accounts.google.com', aud: 'demo-perf', sub: uid, user_id: uid, email, email_verified: true, name: 'Perf Admin', firebase: {sign_in_provider: 'google.com', identities: {'google.com': [uid], email: [email]}}};
-	const idToken = `${b(header)}.${b(payload)}.`;
+	const now = Math.floor(Date.now() / 1000);
+	const header = {alg: 'none', typ: 'JWT'};
+	const payload = {
+		iss: 'perf-harness', sub: 'perf-harness',
+		aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
+		iat: now, exp: now + 3600, uid,
+	};
+	const token = `${b(header)}.${b(payload)}.`;
 	const fb = await import('/lib/src/firebase.js');
-	const res = await fb.signInWithCredential(fb.auth, fb.GoogleAuthProvider.credential(idToken));
+	const res = await fb.signInWithCustomToken(fb.auth, token);
 	return {uid: res.user.uid, isAnonymous: res.user.isAnonymous};
 };

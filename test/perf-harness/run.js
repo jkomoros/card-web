@@ -1,7 +1,7 @@
 /*eslint-env node*/
 import {spawn} from 'child_process';
 import {chromium} from 'playwright';
-import {waitForCorpus} from './page-agent.js';
+import {waitForCorpus, signInAsAdminInPage} from './page-agent.js';
 
 const args = process.argv.slice(2);
 const getArg = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
@@ -68,6 +68,11 @@ const main = async () => {
 		page.on('console', m => { consoleMsgs.push('[' + m.type() + '] ' + m.text()); });
 
 		await page.goto(URL, {waitUntil: 'domcontentloaded'});
+
+		if (authMode === 'admin') {
+			const signed = await page.evaluate(signInAsAdminInPage, {uid: 'perf-admin', email: 'perf-admin@example.com'});
+			console.log('[run] signed in:', JSON.stringify(signed));
+		}
 
 		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * 0.15);
 		const state = await waitForCorpus(page, {minCards}).catch(e => {
