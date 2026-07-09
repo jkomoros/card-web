@@ -101,7 +101,7 @@ const main = async () => {
 			console.log('[run] console tail:\n' + consoleMsgs.slice(-20).join('\n'));
 			throw e;
 		});
-		console.log('[run] BOOT OK: cardCount=' + state.cardCount + ' dataFullyLoaded=' + state.dataFullyLoaded + ' syncState=' + state.syncState + ' user=' + JSON.stringify(state.user));
+		console.log('[run] BOOT OK: cardCount=' + state.cardCount + ' dataFullyLoaded=' + state.dataFullyLoaded + ' loadComplete=' + state.workerLoadComplete + ' syncState="' + state.syncState + '" user=' + JSON.stringify(state.user));
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
 

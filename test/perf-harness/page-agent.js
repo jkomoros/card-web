@@ -16,31 +16,38 @@ export const readStateInPage = async () => {
 	const selectors = await import('/lib/src/selectors.js');
 	const s = store.getState();
 	const data = s.data || {};
-	//In worker (shadow/on) modes the worker's own trust gate is the real
-	//readiness signal — the main store can hold a cache-primed corpus the worker
-	//hasn't blessed yet. 'live' = gate passed + listeners healthy (src/corpus-
-	//bridge.ts). null when no worker is running (off mode).
-	const syncState = window.CORPUS_WORKER ? window.CORPUS_WORKER.syncState() : null;
+	//In worker (shadow/on) modes the worker's own signals are the real readiness
+	//gate — the main store can hold a cache-primed corpus the worker hasn't
+	//finished/blessed. loadComplete = corpus as complete as this connection can
+	//make it (BOTH sync modes). syncState is watermark-only: '' in listen mode,
+	//'unverified'|'live'|'stale' in watermark. null when no worker (off mode).
+	const cw = window.CORPUS_WORKER;
+	const syncState = cw ? cw.syncState() : null;
+	const workerLoadComplete = cw && cw.loadComplete ? cw.loadComplete() : null;
 	return {
 		ready: true,
 		cardCount: Object.keys(data.cards || {}).length,
 		dataFullyLoaded: !!selectors.selectDataIsFullyLoaded(s),
 		loadingFetchTypes: Object.keys(data.loadingCardFetchTypes || {}),
 		syncState,
+		workerLoadComplete,
 		user: s.user && s.user.user ? {uid: s.user.user.uid, isAnonymous: s.user.user.isAnonymous} : null,
 	};
 };
 
 //Runs IN NODE; polls readStateInPage() until fully loaded (or minCards) or timeout.
-//requireWorkerLive: in worker (shadow/on) modes, ALSO wait for the worker's
-//syncState()==='live' — otherwise the script can fire against a merely
-//cache-primed / partial worker corpus and silently inflate the numbers.
+//requireWorkerLive: in worker (shadow/on) modes, ALSO wait for the worker to
+//announce loadComplete AND not be sitting on an unverified (cache-primed, not
+//yet trust-blessed) corpus — otherwise the script can fire against a partial /
+//untrusted worker corpus and silently inflate the numbers. loadComplete is the
+//universal signal (both sync modes); sync==='unverified' only occurs in
+//watermark mode, where we additionally require the trust gate to have passed.
 export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500, requireWorkerLive = false} = {}) => {
 	const start = Date.now();
 	let last = null;
 	while (Date.now() - start < timeoutMs) {
 		last = await page.evaluate(readStateInPage);
-		const workerReady = !requireWorkerLive || last.syncState === 'live';
+		const workerReady = !requireWorkerLive || (last.workerLoadComplete === true && last.syncState !== 'unverified');
 		if (last.ready && last.dataFullyLoaded && last.cardCount >= minCards && workerReady) return last;
 		await page.waitForTimeout(pollMs);
 	}
