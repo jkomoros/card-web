@@ -7,6 +7,9 @@
     "firestore": {
       "port": 8089
     },
+    "auth": {
+      "port": 9099
+    },
     "ui": {
       "enabled": false
     }
