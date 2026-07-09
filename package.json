@@ -58,7 +58,7 @@
     "test:watermark": "mocha -r esm test/watermark --timeout=10000",
     "test:cold-budget": "mocha -r esm test/cold-budget --timeout=10000",
     "test:updated-invariant": "mocha -r esm test/updated-invariant --timeout=10000",
-    "test:perf-harness": "mocha -r esm test/perf-harness --timeout=30000",
+    "test:perf-harness": "mocha -r esm test/perf-harness/*.test.js --timeout=30000",
     "test:mutation": "stryker run"
   },
   "dependencies": {

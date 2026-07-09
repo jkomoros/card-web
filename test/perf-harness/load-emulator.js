@@ -29,11 +29,6 @@ const seed = parseInt(getArg('seed', '1'), 10);
 const projectId = getArg('project', 'demo-perf');
 const adminUid = getArg('admin', 'perf-admin');
 
-if (!process.env.FIRESTORE_EMULATOR_HOST) {
-	console.error('REFUSING TO RUN: FIRESTORE_EMULATOR_HOST is not set. This tool only writes to the Firestore emulator, never a real project.');
-	process.exit(1);
-}
-
 const {Timestamp} = admin.firestore;
 
 //Convert the generator's SDK-agnostic {seconds, nanoseconds} plain objects into
@@ -52,6 +47,10 @@ const withTimestamps = (value) => {
 };
 
 const main = async () => {
+	if (!process.env.FIRESTORE_EMULATOR_HOST) {
+		console.error('REFUSING TO RUN: FIRESTORE_EMULATOR_HOST is not set. This tool only writes to the Firestore emulator, never a real project.');
+		process.exit(1);
+	}
 	admin.initializeApp({projectId});
 	const db = admin.firestore();
 
@@ -95,4 +94,9 @@ const main = async () => {
 	process.exit(0);
 };
 
-main().catch(err => { console.error('[load-emulator] failed:', err); process.exit(1); });
+//Guarded so importing/loading this module (e.g. by mocha scanning the dir)
+//never runs the loader; only a direct `node load-emulator.js` invocation does.
+const invokedDirectly = process.argv[1] && process.argv[1].endsWith('load-emulator.js');
+if (invokedDirectly) {
+	main().catch(err => { console.error('[load-emulator] failed:', err); process.exit(1); });
+}
