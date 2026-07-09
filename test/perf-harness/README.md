@@ -1,6 +1,15 @@
 # Perf harness (test/perf-harness/) — design & usage
 
-**Status: foundation landed; browser runner is next.** This is the committed, rerunnable replacement for the lost scratchpad probe scripts (`measure.mjs`, `probe-*.mjs`). It measures the design doc's **Appendix-A interaction budgets** at 40k+ cards and emits a diffable JSON baseline, so the G0/G1 decision gates become empirical and the ~2s commit-settle becomes attributable. See `docs/fast-corpus-design-doc.md` (Appendix A, G0/G1) and `docs/superpowers/plans/2026-07-07-adversarial-verification-plan.md` (hand-off #1).
+**Status: runner BUILT and verified (emulator; 300–6000 cards).** This is the committed, rerunnable replacement for the lost scratchpad probe scripts (`measure.mjs`, `probe-*.mjs`). It measures the design doc's **Appendix-A interaction budgets** and emits a diffable JSON baseline, so the G0/G1 decision gates become empirical and the ingestion cost becomes attributable. See `docs/fast-corpus-design-doc.md` (Appendix A, G0/G1) and the plan `docs/superpowers/plans/2026-07-07-perf-harness-runner.md`.
+
+**How to run:** `npm run perf:local` (anonymous published-only, 2000, CI-safe). For a full-corpus admin run with the interaction script:
+```
+npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \
+  "node test/perf-harness/run.js --count 6000 --auth admin --load-timeout 180000"
+```
+Baseline lands in `test/perf-harness/baselines/<authMode>-<count>.json`; authoritative main-thread numbers are `results.dispatch.*` (avg/max from perfMiddleware). Raise `--load-timeout` for larger corpora.
+
+**First findings (emulator, admin):** the interaction dispatches are all sub-ms at 300 cards; by 6000, **`UPDATE_CARDS` (card ingestion/echo-apply) grows to ~13ms avg / ~29ms max** and `UPDATE_READS` (auto-mark-read → `makeFilterFromCards`) is climbing — early confirmation that the ingestion path is the scaling cost. **A 40k corpus does not finish loading within a practical timeout** (the ingestion is genuinely slow at scale — exactly the symptom the perf effort targets); measuring 40k needs either the reducer/selector fixes to land first or a much larger `--load-timeout`. Note: emulator commit/echo wall-clock is optimistic (near-zero local round-trip); the real-corpus G1 acceptance run (`perf:dev`) remains separate.
 
 **Built so far:**
 - `src/perf.ts` gained `DEBUG_PERF.data()` — a machine-readable snapshot of `{actionStats, counters}` so a driver can assert against budgets/invariants instead of scraping `console.table`.

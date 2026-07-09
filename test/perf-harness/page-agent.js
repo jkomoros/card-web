@@ -20,6 +20,7 @@ export const readStateInPage = async () => {
 		ready: true,
 		cardCount: Object.keys(data.cards || {}).length,
 		dataFullyLoaded: !!selectors.selectDataIsFullyLoaded(s),
+		loadingFetchTypes: Object.keys(data.loadingCardFetchTypes || {}),
 		user: s.user && s.user.user ? {uid: s.user.user.uid, isAnonymous: s.user.user.isAnonymous} : null,
 	};
 };

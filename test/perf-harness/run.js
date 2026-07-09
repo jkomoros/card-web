@@ -1,7 +1,9 @@
 /*eslint-env node*/
 import {spawn} from 'child_process';
+import fs from 'fs';
 import {chromium} from 'playwright';
 import {waitForCorpus, signInAsAdminInPage} from './page-agent.js';
+import {runInteractions} from './interactions.js';
 
 const args = process.argv.slice(2);
 const getArg = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
@@ -9,6 +11,9 @@ const count = parseInt(getArg('count', '40000'), 10);
 const seed = parseInt(getArg('seed', '1'), 10);
 const authMode = getArg('auth', 'anon'); //'anon' | 'admin'
 const projectId = getArg('project', 'demo-perf');
+//Corpus load can be slow at scale (the app's ingestion cost is itself part of
+//what we measure); large runs need a longer budget than the 180s default.
+const loadTimeoutMs = parseInt(getArg('load-timeout', '180000'), 10);
 const PORT = 8081;
 const URL = `http://localhost:${PORT}`;
 
@@ -66,6 +71,8 @@ const main = async () => {
 		page.on('dialog', d => d.accept().catch(() => {})); //editingCommit() confirm()/alert() (src/actions/editor.ts)
 		const consoleMsgs = [];
 		page.on('console', m => { consoleMsgs.push('[' + m.type() + '] ' + m.text()); });
+		page.on('response', r => { if (r.status() === 400) consoleMsgs.push('[400] ' + r.url().slice(0, 160)); });
+		page.on('requestfailed', r => { consoleMsgs.push('[reqfail] ' + (r.failure() ? r.failure().errorText : '') + ' ' + r.url().slice(0, 160)); });
 
 		await page.goto(URL, {waitUntil: 'domcontentloaded'});
 
@@ -75,13 +82,32 @@ const main = async () => {
 		}
 
 		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * 0.15);
-		const state = await waitForCorpus(page, {minCards}).catch(e => {
+		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs}).catch(e => {
 			console.log('[run] console tail:\n' + consoleMsgs.slice(-20).join('\n'));
 			throw e;
 		});
 		console.log('[run] BOOT OK: cardCount=' + state.cardCount + ' dataFullyLoaded=' + state.dataFullyLoaded + ' user=' + JSON.stringify(state.user));
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
+
+		//The Appendix-A interaction script needs an editable card (admin).
+		if (authMode === 'admin') {
+			const results = await runInteractions(page, {keystrokes: 30}).catch(e => {
+				console.log('[run] interactions failed. url=' + page.url() + '\ntail:\n' + consoleMsgs.slice(-18).join('\n'));
+				throw e;
+			});
+			const baseline = {
+				count, seed, authMode, cardCount: state.cardCount, results,
+				note: 'commit/find wall-clock is EMULATOR-OPTIMISTIC (near-zero local write-echo); budget-authoritative = results.dispatch.* (main-thread) and the real-corpus perf:dev run.',
+			};
+			const outPath = getArg('out', `test/perf-harness/baselines/${authMode}-${count}.json`);
+			fs.writeFileSync(outPath, JSON.stringify(baseline, null, 2));
+			console.log('[run] baseline -> ' + outPath);
+			const d = results.dispatch;
+			console.log('[run] main-thread avg/max ms: SHOW_CARD=' + JSON.stringify(d.showCard) + ' UPDATE_READS=' + JSON.stringify(d.updateReads) + ' EDITING_START=' + JSON.stringify(d.editingStart) + ' MODIFY_CARD=' + JSON.stringify(d.modifyCard) + ' UPDATE_CARDS=' + JSON.stringify(d.updateCards));
+			console.log('[run] makeFilterFromCards counters: ' + JSON.stringify(Object.fromEntries(Object.entries(results.counters).filter(([k]) => k.includes('makeFilterFromCards')))));
+			console.log('[run] NOTE: commit/find wall-clock is emulator-optimistic; commit→interactive budget belongs to perf:dev.');
+		}
 
 		await browser.close();
 	} finally {
