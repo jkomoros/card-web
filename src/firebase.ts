@@ -12,6 +12,7 @@ import {
 	persistentMultipleTabManager,
 	memoryLocalCache,
 	CACHE_SIZE_UNLIMITED,
+	connectFirestoreEmulator,
 } from 'firebase/firestore';
 
 import {
@@ -19,7 +20,8 @@ import {
 } from './corpus-mode.js';
 
 import {
-	getAuth
+	getAuth,
+	connectAuthEmulator
 } from 'firebase/auth';
 
 import {
@@ -83,6 +85,26 @@ export const db = initializeFirestore(firebaseApp, {
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);
 export const storage = getStorage(firebaseApp);
+
+//PERF HARNESS ONLY (test/perf-harness/): when the `firebase-emulator`
+//localStorage flag is set to `host:firestorePort` (e.g. `localhost:8089`),
+//point Firestore + Auth at the local emulators instead of the real project.
+//DEFAULT OFF — an absent flag is a complete no-op, so real dev/prod connections
+//are unaffected. The harness sets it pre-boot via Playwright addInitScript.
+//Only the main thread reads this; the corpus worker has no localStorage, so
+//worker (shadow/on) modes are out of scope — the harness runs corpus-worker=off.
+try {
+	const emulator = window.localStorage.getItem('firebase-emulator');
+	if (emulator) {
+		const [emuHost, emuPort] = emulator.split(':');
+		const host = emuHost || 'localhost';
+		connectFirestoreEmulator(db, host, parseInt(emuPort || '8089', 10));
+		connectAuthEmulator(auth, `http://${host}:9099`, {disableWarnings: true});
+		console.warn(`[firebase] EMULATOR MODE (perf harness): firestore ${host}:${emuPort || '8089'}, auth ${host}:9099`);
+	}
+} catch {
+	//Best effort — never break a real boot.
+}
 
 const UPLOADS_FOLDER_NAME = 'uploads';
 
