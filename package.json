@@ -59,7 +59,9 @@
     "test:cold-budget": "mocha -r esm test/cold-budget --timeout=10000",
     "test:updated-invariant": "mocha -r esm test/updated-invariant --timeout=10000",
     "test:perf-harness": "mocha -r esm test/perf-harness/*.test.js --timeout=30000",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "perf:build": "npm run generate:config && npm run build:shared && npx tsc",
+    "perf:local": "npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \"node test/perf-harness/run.js --count 2000 --auth anon\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

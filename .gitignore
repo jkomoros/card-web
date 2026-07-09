@@ -33,3 +33,6 @@ migration-nlp-tokens-report.json
 #Stryker mutation-testing sandbox + reports (npm run test:mutation)
 .stryker-tmp/
 reports/mutation/
+
+#Perf-harness run artifacts (machine-specific numbers; not committed as gates)
+test/perf-harness/baselines/

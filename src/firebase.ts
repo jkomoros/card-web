@@ -50,7 +50,20 @@ export let DEV_MODE = false;
 //in local mode, just do 127.0.0.1 instead.
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
-const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+
+//PERF HARNESS ONLY: the `firebase-emulator` localStorage flag (host:firestorePort,
+//e.g. `localhost:8089`) points Firestore + Auth at the local emulators. Read once
+//here, BEFORE init, because in emulator mode the projectId is overridden to a
+//fixed demo project so the app and the seeded corpus share one emulator namespace
+//(the Firestore emulator namespaces data by projectId). DEFAULT OFF — an absent
+//flag is a complete no-op, so real dev/prod connections are unaffected. Set
+//pre-boot via Playwright addInitScript.
+let emulatorTarget : string | null = null;
+try { emulatorTarget = window.localStorage.getItem('firebase-emulator'); } catch { emulatorTarget = null; }
+const PERF_EMULATOR_PROJECT_ID = 'demo-perf';
+
+const baseConfig = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+const config = emulatorTarget ? {...baseConfig, projectId: PERF_EMULATOR_PROJECT_ID} : baseConfig;
 
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
@@ -93,17 +106,16 @@ export const storage = getStorage(firebaseApp);
 //are unaffected. The harness sets it pre-boot via Playwright addInitScript.
 //Only the main thread reads this; the corpus worker has no localStorage, so
 //worker (shadow/on) modes are out of scope — the harness runs corpus-worker=off.
-try {
-	const emulator = window.localStorage.getItem('firebase-emulator');
-	if (emulator) {
-		const [emuHost, emuPort] = emulator.split(':');
+if (emulatorTarget) {
+	try {
+		const [emuHost, emuPort] = emulatorTarget.split(':');
 		const host = emuHost || 'localhost';
 		connectFirestoreEmulator(db, host, parseInt(emuPort || '8089', 10));
 		connectAuthEmulator(auth, `http://${host}:9099`, {disableWarnings: true});
-		console.warn(`[firebase] EMULATOR MODE (perf harness): firestore ${host}:${emuPort || '8089'}, auth ${host}:9099`);
+		console.warn(`[firebase] EMULATOR MODE (perf harness): project ${PERF_EMULATOR_PROJECT_ID}, firestore ${host}:${emuPort || '8089'}, auth ${host}:9099`);
+	} catch {
+		//Best effort — never break a real boot.
 	}
-} catch {
-	//Best effort — never break a real boot.
 }
 
 const UPLOADS_FOLDER_NAME = 'uploads';
