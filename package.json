@@ -30,7 +30,7 @@
     "backup": "npx tsx tools/cli.ts backup",
     "reset-dev": "npx tsx tools/cli.ts reset-dev",
     "set-up-deploy": "npx tsx tools/cli.ts set-up-deploy",
-    "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format && npm run test:query-engine && npm run test:subscription-manager && npm run test:worker-retry && npm run test:corpus-readiness && npm run test:watermark && npm run test:cold-budget && npm run test:updated-invariant",
+    "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format && npm run test:query-engine && npm run test:subscription-manager && npm run test:worker-retry && npm run test:corpus-readiness && npm run test:watermark && npm run test:cold-budget && npm run test:updated-invariant && npm run test:perf-harness",
     "test:security": "npm run generate:config && npm run generate:seo:config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
     "test:security-impl": "mocha -r esm test/security --timeout=10000",
     "test:url": "mocha -r esm test/url --timeout=10000",
@@ -58,6 +58,7 @@
     "test:watermark": "mocha -r esm test/watermark --timeout=10000",
     "test:cold-budget": "mocha -r esm test/cold-budget --timeout=10000",
     "test:updated-invariant": "mocha -r esm test/updated-invariant --timeout=10000",
+    "test:perf-harness": "mocha -r esm test/perf-harness --timeout=30000",
     "test:mutation": "stryker run"
   },
   "dependencies": {

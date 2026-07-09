@@ -79,6 +79,15 @@ const reset = () : void => {
 	for (const key of Object.keys(counters)) delete counters[key];
 };
 
+//Machine-readable snapshot of the collected stats, for programmatic consumers
+//like the perf harness (test/perf-harness/). dump() is for humans
+//(console.table); data() returns a JSON-serializable deep copy so a harness
+//can assert against the Appendix-A budgets and the counter invariants.
+const data = () : {actionStats : Record<string, PerfStats>, counters : Record<string, number>} => ({
+	actionStats: Object.fromEntries(Object.entries(actionStats).map(([name, stats]) => [name, {...stats}])),
+	counters: {...counters},
+});
+
 declare global {
 	interface Window {
 		DEBUG_PERF: {
@@ -86,6 +95,7 @@ declare global {
 			disable: () => void,
 			dump: () => void,
 			reset: () => void,
+			data: () => {actionStats : Record<string, PerfStats>, counters : Record<string, number>},
 		};
 	}
 }
@@ -111,5 +121,6 @@ if (typeof window !== 'undefined') {
 		},
 		dump,
 		reset,
+		data,
 	};
 }
