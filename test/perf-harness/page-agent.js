@@ -65,6 +65,35 @@ export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pol
 	throw new Error('waitForCorpus timed out after ' + timeoutMs + 'ms; last=' + JSON.stringify(last));
 };
 
+//Runs IN NODE. After the corpus is loaded the worker does a ONE-TIME cold
+//computation of the active collection (at 40k this is many seconds); if the
+//interaction script starts before it finishes, that boot-settle cost leaks into
+//the measurement window (recorded as a giant collectionPush) and is mis-read as
+//a per-interaction cost. Wait until the worker's collection-computation counters
+//(collectionPush + runCollection) stop changing for idleMs, so measurement
+//starts against a settled worker. No-op in off mode (no worker perf channel).
+export const waitForWorkerIdle = async (page, {idleMs = 5000, timeoutMs = 120000, pollMs = 1000} = {}) => {
+	const start = Date.now();
+	let lastSig = null;
+	let stableSince = Date.now();
+	let sawActivity = false;
+	while (Date.now() - start < timeoutMs) {
+		const snap = await page.evaluate(async () => (window.CORPUS_WORKER && window.CORPUS_WORKER.perfData) ? await window.CORPUS_WORKER.perfData() : null);
+		if (!snap) return {idle: true, reason: 'no worker'};
+		const A = snap.actionStats || {};
+		const busy = ['collectionPush', 'runCollection'].map(k => (A[k] ? A[k].count + ':' + Math.round(A[k].totalMs) : '0')).join('|');
+		if (busy !== '0|0') sawActivity = true;
+		if (busy !== lastSig) { lastSig = busy; stableSince = Date.now(); }
+		//Require: (a) at least one full idle window elapsed (so a not-yet-started
+		//compute isn't mistaken for idle), and (b) counters stable for idleMs.
+		else if (Date.now() - stableSince >= idleMs && Date.now() - start >= idleMs) {
+			return {idle: true, sawActivity, sig: busy, waitedMs: Date.now() - start};
+		}
+		await page.waitForTimeout(pollMs);
+	}
+	return {idle: false, sawActivity, sig: lastSig, waitedMs: Date.now() - start};
+};
+
 //Signs in against the Auth emulator with an unsigned Firebase CUSTOM token
 //through the app's OWN served firebase module. Unlike a Google-IdP credential
 //(which mints a random uid), a custom token's `uid` claim BECOMES the user's

@@ -2,7 +2,7 @@
 import {spawn} from 'child_process';
 import fs from 'fs';
 import {chromium} from 'playwright';
-import {waitForCorpus, signInAsAdminInPage} from './page-agent.js';
+import {waitForCorpus, waitForWorkerIdle, signInAsAdminInPage} from './page-agent.js';
 import {runInteractions} from './interactions.js';
 
 const args = process.argv.slice(2);
@@ -124,6 +124,13 @@ const main = async () => {
 		console.log('[run] BOOT OK: mainCards=' + state.cardCount + ' workerCorpus=' + state.workerCorpusSize + ' dataFullyLoaded=' + state.dataFullyLoaded + ' loadComplete=' + state.workerLoadComplete + ' syncState="' + state.syncState + '" user=' + JSON.stringify(state.user));
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
+
+		//Let the worker's one-time post-load collection computation finish before
+		//measuring, so it isn't mis-attributed as a per-interaction cost.
+		if (workerModeActive) {
+			const idle = await waitForWorkerIdle(page);
+			console.log('[run] worker settle: ' + JSON.stringify(idle));
+		}
 
 		//The Appendix-A interaction script needs an editable card (admin).
 		if (authMode === 'admin') {
