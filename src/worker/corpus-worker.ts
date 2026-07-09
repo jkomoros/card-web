@@ -93,6 +93,7 @@ import {
 import {
 	MainToWorkerMessage,
 	WorkerToMainMessage,
+	WorkerActionStats,
 	WorkerGeneration,
 	searchTokensForCard,
 	metaForCard,
@@ -170,6 +171,7 @@ const corpus : Map<CardID, Card> = new Map();
 const index = new SearchIndex();
 const engine = new QueryEngine();
 const subscriptions = new SubscriptionManager(engine, push => {
+	recordWorkerPerf('collectionPush', push.ms);
 	send({
 		type: 'collectionResult',
 		generation,
@@ -192,6 +194,20 @@ const unsubscribes : (() => void)[] = [];
 const send = (message : WorkerToMainMessage) => workerScope.postMessage(message);
 
 const status = (message : string) => send({type: 'status', generation, message});
+
+//PERF HARNESS ONLY: worker-scoped timing accumulator, mirroring src/perf.ts's
+//actionStats shape ({count, totalMs, maxMs} per label). perfMiddleware wraps the
+//MAIN-thread store only, so without this the worker's O(corpus) compute is
+//invisible and worker mode looks artificially fast. Snapshotted via the
+//`perfData` message, zeroed via `perfReset`. Default-off cost: a Map write per
+//worker compute event, negligible relative to the work being timed.
+let workerPerf : WorkerActionStats = {};
+const recordWorkerPerf = (label : string, ms : number) => {
+	const s = workerPerf[label] || (workerPerf[label] = {count: 0, totalMs: 0, maxMs: 0});
+	s.count++;
+	s.totalMs += ms;
+	if (ms > s.maxMs) s.maxMs = ms;
+};
 
 const isTimestamp = (value : unknown) : boolean => value instanceof Timestamp;
 const getTime = (timestamp : unknown) => {
@@ -249,7 +265,9 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
 	subscriptions.markDirty();
 	pushMetaDeltas(cards, removedIDs);
-	indexBuildMs += performance.now() - indexStart;
+	const indexElapsed = performance.now() - indexStart;
+	indexBuildMs += indexElapsed;
+	recordWorkerPerf('indexBuild', indexElapsed);
 };
 
 //The compact metadata already pushed to the main thread; only genuinely
@@ -334,8 +352,10 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 	//listeners, defines done); marking here is idempotent and covers the
 	//single-listener fetch types.
 	markInitialDelivered(fetchType);
+	const ingestElapsed = performance.now() - start;
+	recordWorkerPerf('ingest', ingestElapsed);
 	if (count || removedIDs.length) {
-		status(`ingested ${count} cards (${removedIDs.length} removed, ${fetchType}) in ${(performance.now() - start).toFixed(1)}ms; corpus=${corpus.size}`);
+		status(`ingested ${count} cards (${removedIDs.length} removed, ${fetchType}) in ${ingestElapsed.toFixed(1)}ms; corpus=${corpus.size}`);
 	}
 };
 
@@ -1291,6 +1311,7 @@ const runQuery = (id : number, text : string) => {
 	const tokens = queryTokens(text);
 	const candidates = index.candidates(tokens);
 	const ms = performance.now() - start;
+	recordWorkerPerf('query', ms);
 	send({
 		type: 'queryResult',
 		generation,
@@ -1371,6 +1392,7 @@ workerScope.addEventListener('message', event => {
 				randomSalt: message.randomSalt,
 				cardSimilarity: message.cardSimilarity
 			});
+			recordWorkerPerf('runCollection', performance.now() - start);
 			send({
 				type: 'runCollectionResult',
 				generation,
@@ -1397,6 +1419,16 @@ workerScope.addEventListener('message', event => {
 	}
 	case 'requestCorpusIDs':
 		send({type: 'corpusIDs', generation, ids: [...corpus.keys()]});
+		break;
+	case 'perfData':
+		//PERF HARNESS ONLY: reply with a snapshot of worker-scoped timing.
+		send({type: 'perfDataResult', generation, id: message.id, actionStats: workerPerf, indexBuildMs: Math.round(indexBuildMs * 10) / 10});
+		break;
+	case 'perfReset':
+		//PERF HARNESS ONLY: zero the accumulator before the interaction script.
+		//indexBuildMs is a cumulative boot metric; leave it (it reflects ingest
+		//cost incurred before the reset and is reported alongside, not reset).
+		workerPerf = {};
 		break;
 	}
 });

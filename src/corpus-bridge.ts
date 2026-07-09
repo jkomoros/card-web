@@ -47,6 +47,7 @@ import {
 import {
 	MainToWorkerMessage,
 	WorkerToMainMessage,
+	WorkerActionStats,
 	WorkerGeneration,
 	CardBatch,
 	FORWARDED_ACTION_TYPES
@@ -119,6 +120,9 @@ let worker : Worker | null = null;
 let generation : WorkerGeneration = 0;
 let queryCounter = 0;
 const pendingQueries : Map<number, (result : {ids : string[], ms : number, fullScanFallback : boolean}) => void> = new Map();
+//PERF HARNESS ONLY: pending CORPUS_WORKER.perfData() requests (worker timing).
+let perfDataCounter = 0;
+const pendingPerfData : Map<number, (result : {actionStats : WorkerActionStats, indexBuildMs : number}) => void> = new Map();
 //The most recent ingestion parameters, so auth/permission changes can
 //reconnect the worker.
 let lastMayViewUnpublished = false;
@@ -544,6 +548,15 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		}
 		break;
 	}
+	case 'perfDataResult': {
+		//PERF HARNESS ONLY: resolve a pending CORPUS_WORKER.perfData() request.
+		const resolver = pendingPerfData.get(message.id);
+		if (resolver) {
+			pendingPerfData.delete(message.id);
+			resolver({actionStats: message.actionStats, indexBuildMs: message.indexBuildMs});
+		}
+		break;
+	}
 	case 'cards':
 		handleCardBatch(message.batch);
 		break;
@@ -628,6 +641,7 @@ const stopWorker = () => {
 	worker = null;
 	connectSent = false;
 	pendingQueries.clear();
+	pendingPerfData.clear();
 	flushPendingRunCollections();
 	workerLoadComplete = false;
 	workerCorpusSize = 0;
@@ -716,6 +730,10 @@ declare global {
 			syncState: () => string,
 			spike: () => void,
 			query: (text : string) => Promise<{ids : string[], ms : number, fullScanFallback : boolean}>,
+			//PERF HARNESS ONLY: worker-scoped timing (perfMiddleware sees only the
+			//main thread). perfReset() before driving, perfData() after.
+			perfData: () => Promise<{actionStats : WorkerActionStats, indexBuildMs : number}>,
+			perfReset: () => void,
 		};
 	}
 }
@@ -756,6 +774,19 @@ if (typeof window !== 'undefined') {
 			});
 			post({type: 'query', generation, id, text});
 			return promise;
+		},
+		perfData: () => {
+			if (!worker) return Promise.reject(new Error('corpus worker not running'));
+			const id = ++perfDataCounter;
+			const promise = new Promise<{actionStats : WorkerActionStats, indexBuildMs : number}>(resolve => {
+				pendingPerfData.set(id, resolve);
+			});
+			post({type: 'perfData', generation, id});
+			return promise;
+		},
+		perfReset: () => {
+			if (!worker) return;
+			post({type: 'perfReset', generation});
 		},
 	};
 }

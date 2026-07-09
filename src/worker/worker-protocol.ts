@@ -121,7 +121,16 @@ export type MainToWorkerMessage =
 	//can reconcile away cards the local-cache prime served that no longer
 	//exist (deleted while the app was closed — the worker never saw them, so
 	//it can never send a removal for them).
-	| {type: 'requestCorpusIDs', generation: WorkerGeneration};
+	| {type: 'requestCorpusIDs', generation: WorkerGeneration}
+	//PERF HARNESS ONLY: snapshot the worker's per-label timing accumulator
+	//(request/response, mirroring the query path). perfMiddleware only sees the
+	//MAIN-thread store, so in worker (on/shadow) modes the O(corpus) compute —
+	//ingest, index build, collection runs/pushes, query — is otherwise invisible
+	//and would make worker mode look artificially fast. See src/perf.ts.
+	| {type: 'perfData', generation: WorkerGeneration, id : number}
+	//PERF HARNESS ONLY: zero the accumulator (the harness resets before driving
+	//the interaction script, then reads after — like DEBUG_PERF.reset()/data()).
+	| {type: 'perfReset', generation: WorkerGeneration};
 
 //--------------------------------------------------------------------------
 // Worker → main thread
@@ -159,6 +168,12 @@ export type SpikeReport = {
 	firestoreSource : 'cache' | 'server' | 'mixed' | 'unknown'
 };
 
+//PERF HARNESS ONLY: worker-scoped timing, shaped like src/perf.ts's actionStats
+//({count, totalMs, maxMs} per label) so the harness can compute avg/max/p-values
+//the same way for both threads. Labels are worker compute phases: 'ingest',
+//'indexBuild', 'runCollection', 'collectionPush', 'query'.
+export type WorkerActionStats = {[label : string] : {count : number, totalMs : number, maxMs : number}};
+
 export type WorkerToMainMessage =
 	| {type: 'ready', generation: WorkerGeneration}
 	| {type: 'status', generation: WorkerGeneration, message : string}
@@ -191,7 +206,9 @@ export type WorkerToMainMessage =
 	//only the main thread can fetch it (see src/similarity-request.ts).
 	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID}
 	//Response to requestCorpusIDs: every card ID currently in the corpus.
-	| {type: 'corpusIDs', generation: WorkerGeneration, ids : CardID[]};
+	| {type: 'corpusIDs', generation: WorkerGeneration, ids : CardID[]}
+	//PERF HARNESS ONLY: response to perfData — the worker's timing snapshot.
+	| {type: 'perfDataResult', generation: WorkerGeneration, id : number, actionStats : WorkerActionStats, indexBuildMs : number};
 
 //Tokens used for index recall for a single card: its stored search tokens if
 //current, or empty if the card has none (those cards always go through the
