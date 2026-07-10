@@ -1230,12 +1230,28 @@ describe('Compendium Rules', () => {
 		}));
 	});
 
-	it('disallows updating inbound links without bumping updated', async() => {
+	it('allows updating inbound links without bumping updated (STAGED: flip to assertFails at prod cutover)', async() => {
+		//The rules keep `updated` OPTIONAL on this branch until the client
+		//that always sends it has fully shipped to prod (a rules-only deploy
+		//with REQUIRED would permission-deny every link-affecting edit from
+		//the pre-guard client). See cardEditInboundReferences in
+		//firestore.TEMPLATE.rules. At prod cutover, tighten the rule and
+		//flip this to assertFails.
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+		}));
+	});
+
+	it('disallows updating inbound links with a non-servertime updated', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: new Date(),
 		}));
 	});
 

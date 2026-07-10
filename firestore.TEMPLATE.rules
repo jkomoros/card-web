@@ -162,10 +162,17 @@ service cloud.firestore {
 
     function cardEditInboundReferences() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      //`updated` is REQUIRED and must be the request server-time:
-      //inbound-reference changes are real document changes and must bump
-      //`updated` so timestamp-based dedupe and watermark delta sync see
-      //them (docs/corpus-sync-design.md).
+      //`updated` is OPTIONAL-BUT-VALIDATED for now: when present it must be
+      //the request server-time. Inbound-reference changes are real document
+      //changes and SHOULD bump `updated` (timestamp-based dedupe and the
+      //watermark delta sync depend on it — docs/corpus-sync-design.md), and
+      //the current client always sends it. It is not yet REQUIRED because
+      //the rules deploy is decoupled from the hosting deploy: requiring it
+      //while the pre-guard prod client (or a stale service-worker bundle of
+      //it) is live would permission-deny EVERY link-affecting edit. TIGHTEN
+      //to required (affectedKeys.hasAny(['updated']) && ...) only as part
+      //of the prod cutover checklist, after the client that sends it has
+      //fully shipped and a cache-bust has aged out old bundles.
       let allKeys = ['references_inbound', 'references_info_inbound', 'updated'];
       let referenceKeys = ['references_inbound', 'references_info_inbound'];
       //TODO: for each modifiedCardID, verify userMayEditCard. There is no way
@@ -173,7 +180,7 @@ service cloud.firestore {
       //it would always be hacky.
 
       //let modifiedCardIDs = request.resource.data.get('references_inbound', {}).diff(resource.data.get('references_inbound', {})).changedKeys();
-      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && affectedKeys.hasAny(['updated']) && request.resource.data.updated == request.time;
+      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && (!affectedKeys.hasAny(['updated']) || request.resource.data.updated == request.time);
     }
 
     function cardEditMinor() {
