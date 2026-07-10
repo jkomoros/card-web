@@ -1,4 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src/card-write-guard.ts"]
+  "include": [
+    "shared/card-write-guard.ts"
+  ]
 }

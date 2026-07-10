@@ -5,7 +5,7 @@ import * as process from 'process';
 import * as readline from 'readline';
 
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
 import snarkdown from 'snarkdown';
@@ -544,6 +544,25 @@ const createAdminMultiBatch = (db: FirebaseFirestore.Firestore) => {
 		commitBatch: (batch) => batch.commit().then(() => {}),
 		//Admin SDK: conservative estimate — count every op as 2 to stay safe
 		writeCountForUpdate: () => 2,
+		//The same `updated` write-invariant the client MultiBatch enforces
+		//(shared/card-write-guard.ts): admin-SDK writes bypass security
+		//rules entirely, so this chokepoint is the ONLY runtime net on this
+		//path. Admin sentinel detection: FieldValue.isEqual against a fresh
+		//serverTimestamp() sentinel.
+		cardWriteGuard: {
+			cardsCollection: 'cards',
+			refPath: (ref) => ref.path,
+			isServerTimestampValue: (value : unknown) : boolean => {
+				if (!value || typeof value !== 'object') return false;
+				const candidate = value as {isEqual? : (other : unknown) => boolean};
+				if (typeof candidate.isEqual !== 'function') return false;
+				try {
+					return candidate.isEqual(FieldValue.serverTimestamp());
+				} catch {
+					return false;
+				}
+			},
+		},
 	};
 	return new MultiBatchBase(config);
 };

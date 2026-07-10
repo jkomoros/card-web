@@ -31,11 +31,6 @@ import {
 } from '../shared/collection-constants.js';
 
 import {
-	cardWriteViolation,
-	nonBumpCardWriteViolation
-} from './card-write-guard.js';
-
-import {
 	FirestoreLeafValue
 } from './types.js';
 
@@ -69,29 +64,22 @@ if (!SENTINEL_DEFINITION_VALID) {
 //If we can't detect sentinels correctly, we need to assume that EVERY update double-counts.
 const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT : Math.floor(FIRESTORE_BATCH_LIMIT / 2) - 1;
 
-//THE `updated` INVARIANT, enforced structurally (docs/corpus-sync-design.md):
-//every write to a card document must stamp `updated: serverTimestamp()`.
-//The watermark delta sync fetches only docs with updated > watermark, and
-//the timestamp-equality fast dedupe treats equal `updated` as proof of
-//equivalence — a card write that forgets the bump silently never propagates
-//to other devices and can be silently dropped on redelivery. A writer that
-//KNOWS it must not bump (the reader-counter paths whose security rules
-//forbid touching `updated`) must say so explicitly via
-//updateWithoutTimestampBump, which is grep-able and audited.
+//THE `updated` INVARIANT (docs/corpus-sync-design.md) is enforced by the
+//SHARED base class via the cardWriteGuard config below: set/update THROW on
+//any top-level card write that doesn't stamp updated with a serverTimestamp
+//sentinel, and updateWithoutTimestampBump (also on the base) admits only
+//the audited reader-counter allowlist. Hosting the enforcement in the base
+//means the admin-SDK MultiBatch (tools/mount.ts) applies the SAME policy —
+//the invariant must not depend on which SDK performs the write.
 //
-//The POLICY (which paths must bump, the message) lives in the zero-import,
-//unit-tested core in ./card-write-guard.ts. Here we supply only the
-//SDK-specific bit: whether data.updated is a serverTimestamp sentinel.
-//isServerTimestampSentinel (./firebase.ts) recognizes BOTH the literal
-//serverTimestamp() FieldValue (the modify path) AND the
-//serverTimestampSentinel() vended Timestamp (defaultCardObject / the create
-//path). The earlier inline detector matched only the former, so it threw on
-//every card creation.
-const assertCardWriteBumpsUpdated = (ref : DocumentReference, data : object) => {
-	const updatedValue = (data as {updated? : FirestoreLeafValue}).updated as FirestoreLeafValue;
-	const violation = cardWriteViolation(ref.path, CARDS_COLLECTION, isServerTimestampSentinel(updatedValue));
-	if (violation) throw new Error(violation);
-};
+//The POLICY (which paths must bump, the allowlist, the messages) lives in
+//the zero-import, unit-tested core in shared/card-write-guard.ts. Here we
+//supply only the SDK-specific bit: whether data.updated is a
+//serverTimestamp sentinel. isServerTimestampSentinel (./firebase.ts)
+//recognizes BOTH the literal serverTimestamp() FieldValue (the modify path)
+//AND the serverTimestampSentinel() vended Timestamp (defaultCardObject /
+//the create path) — a detector matching only the former throws on every
+//card creation.
 
 //MultiBatch is a thing that can be used as a drop-in replacement firebase db
 //batch, and will automatically split into multiple underlying batches if it's
@@ -113,31 +101,11 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				}
 				return 1;
 			},
+			cardWriteGuard: {
+				cardsCollection: CARDS_COLLECTION,
+				refPath: (ref : DocumentReference) => ref.path,
+				isServerTimestampValue: (value : unknown) => isServerTimestampSentinel(value as FirestoreLeafValue),
+			},
 		}, EFFECTIVE_BATCH_LIMIT);
-	}
-
-	override set(ref : DocumentReference, data : object, options? : object) {
-		assertCardWriteBumpsUpdated(ref, data);
-		return super.set(ref, data, options);
-	}
-
-	override update(ref : DocumentReference, data : object) {
-		assertCardWriteBumpsUpdated(ref, data);
-		return super.update(ref, data);
-	}
-
-	//The EXPLICIT, annotated escape hatch for the handful of writers whose
-	//security-rules branch (cardEditMinor) forbids touching `updated`:
-	//reader-driven counters (star/thread counts, updated_message). Their
-	//drift is an accepted product tradeoff — see the sync design doc. Every
-	//call site of this method is audited by test:updated-invariant.
-	//
-	//The hatch is not a blanket opt-out: it throws if the write touches any
-	//field outside the counter allowlist (card-write-guard.ts), so it cannot
-	//be misused to smuggle a real content change past the invariant.
-	updateWithoutTimestampBump(ref : DocumentReference, data : object) {
-		const violation = nonBumpCardWriteViolation(ref.path, CARDS_COLLECTION, Object.keys(data));
-		if (violation) throw new Error(violation);
-		return super.update(ref, data);
 	}
 }

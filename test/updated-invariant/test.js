@@ -463,3 +463,79 @@ describe('updated-invariant guard cost (micro-bench, informational)', () => {
 		assert.ok(ms < 3000, `2e6 policy checks took ${ms.toFixed(0)}ms — unexpectedly slow for O(1) checks`);
 	});
 });
+
+describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy)', () => {
+	//These tests close the hole the adversarial audit named: deleting the
+	//guard call inside the batch implementation used to pass every test in
+	//the repo while the pure-policy mutation score stayed 100%. They drive
+	//the SHARED base class — the single implementation both the client and
+	//the admin MultiBatch now inherit — with a stub SDK config, so a
+	//regression in the wiring itself fails loudly here.
+	let MultiBatchBase;
+
+	before(async () => {
+		({MultiBatchBase} = await import('../../lib/shared/multi_batch.js'));
+	});
+
+	const SENTINEL = {__serverTimestamp: true};
+
+	const makeBatch = (withGuard = true) => {
+		const writes = [];
+		const config = {
+			createBatch: () => ({}),
+			batchSet: (_batch, ref, data) => writes.push({op: 'set', path: ref.path, data}),
+			batchUpdate: (_batch, ref, data) => writes.push({op: 'update', path: ref.path, data}),
+			batchDelete: (_batch, ref) => writes.push({op: 'delete', path: ref.path}),
+			commitBatch: async () => {},
+		};
+		if (withGuard) {
+			config.cardWriteGuard = {
+				cardsCollection: 'cards',
+				refPath: ref => ref.path,
+				isServerTimestampValue: value => value === SENTINEL,
+			};
+		}
+		return {batch: new MultiBatchBase(config), writes};
+	};
+
+	const ref = (path) => ({path});
+
+	it('update on a card without the sentinel THROWS and queues nothing', () => {
+		const {batch, writes} = makeBatch();
+		assert.throws(() => batch.update(ref('cards/c-123-abcdef'), {body: 'hi'}), /does not set updated/);
+		assert.strictEqual(writes.length, 0);
+	});
+
+	it('set on a card without the sentinel THROWS (create path is guarded too)', () => {
+		const {batch} = makeBatch();
+		assert.throws(() => batch.set(ref('cards/c-123-abcdef'), {body: 'hi'}), /does not set updated/);
+	});
+
+	it('card write WITH the sentinel is queued', () => {
+		const {batch, writes} = makeBatch();
+		batch.update(ref('cards/c-123-abcdef'), {body: 'hi', updated: SENTINEL});
+		batch.set(ref('cards/c-456-ghijkl'), {body: 'new', updated: SENTINEL});
+		assert.strictEqual(writes.length, 2);
+	});
+
+	it('non-card and subcollection writes are never guarded', () => {
+		const {batch, writes} = makeBatch();
+		batch.update(ref('sections/main'), {title: 'x'});
+		batch.set(ref('cards/c-123-abcdef/updates/12345'), {diff: {}});
+		assert.strictEqual(writes.length, 2);
+	});
+
+	it('updateWithoutTimestampBump admits counters and REJECTS content', () => {
+		const {batch, writes} = makeBatch();
+		batch.updateWithoutTimestampBump(ref('cards/c-123-abcdef'), {star_count: 2, star_count_manual: 2});
+		assert.strictEqual(writes.length, 1);
+		assert.throws(() => batch.updateWithoutTimestampBump(ref('cards/c-123-abcdef'), {body: 'smuggled'}), /non-counter field/);
+		assert.strictEqual(writes.length, 1);
+	});
+
+	it('a config without cardWriteGuard enforces nothing (opt-in)', () => {
+		const {batch, writes} = makeBatch(false);
+		batch.update(ref('cards/c-123-abcdef'), {body: 'hi'});
+		assert.strictEqual(writes.length, 1);
+	});
+});

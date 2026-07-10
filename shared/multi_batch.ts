@@ -5,6 +5,11 @@ import {
 	randomString
 } from './util.js';
 
+import {
+	cardWriteViolation,
+	nonBumpCardWriteViolation
+} from './card-write-guard.js';
+
 const FIRESTORE_BATCH_LIMIT = 500;
 
 // Configuration for SDK-specific batch operations
@@ -19,6 +24,18 @@ export interface MultiBatchConfig<TBatch, TRef> {
 	// Optional: count write operations for sentinel-heavy updates.
 	// Returns the number of ops this update counts as (default: 1).
 	writeCountForUpdate?: (update: object) => number;
+	// Optional: enforce the `updated` write-invariant on top-level card docs
+	// (docs/corpus-sync-design.md). When present, set/update THROW on a card
+	// write that doesn't stamp updated with the SDK's serverTimestamp
+	// sentinel, and updateWithoutTimestampBump only admits the reader-counter
+	// allowlist. Hosted here in the BASE so both the client SDK MultiBatch
+	// (src/multi_batch.ts) and the admin one (tools/mount.ts) enforce the
+	// same policy — the invariant must not depend on which SDK writes.
+	cardWriteGuard?: {
+		cardsCollection: string;
+		refPath: (ref: TRef) => string;
+		isServerTimestampValue: (value: unknown) => boolean;
+	};
 }
 
 export class MultiBatchBase<TBatch, TRef> {
@@ -68,7 +85,18 @@ export class MultiBatchBase<TBatch, TRef> {
 		return this;
 	}
 
+	protected _assertCardWriteAllowed(ref: TRef, data: object, noBump: boolean) {
+		const guard = this._config.cardWriteGuard;
+		if (!guard) return;
+		const path = guard.refPath(ref);
+		const violation = noBump
+			? nonBumpCardWriteViolation(path, guard.cardsCollection, Object.keys(data))
+			: cardWriteViolation(path, guard.cardsCollection, guard.isServerTimestampValue((data as {updated?: unknown}).updated));
+		if (violation) throw new Error(violation);
+	}
+
 	set(ref: TRef, data: object, options?: object) {
+		this._assertCardWriteAllowed(ref, data, false);
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
@@ -78,6 +106,21 @@ export class MultiBatchBase<TBatch, TRef> {
 	}
 
 	update(ref: TRef, data: object) {
+		this._assertCardWriteAllowed(ref, data, false);
+		if (this._config.preprocessData) {
+			data = this._config.preprocessData(data);
+		}
+		this._config.batchUpdate(this._batch, ref, data);
+		this._currentBatchOperationCount += this._writeCountForUpdate(data);
+		return this;
+	}
+
+	//The EXPLICIT, audited escape hatch for the reader-counter writers whose
+	//rules branches forbid touching `updated` (see card-write-guard.ts's
+	//allowlist). Throws if the write touches anything beyond the counters —
+	//the hatch is not an opt-out for real content.
+	updateWithoutTimestampBump(ref: TRef, data: object) {
+		this._assertCardWriteAllowed(ref, data, true);
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
