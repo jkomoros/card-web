@@ -107,3 +107,30 @@ Remove partition listeners after ~2-week soak (keep `card-partitions.ts`); tombs
 **Top 3 residual risks:** (1) **`updated` as a forever-invariant** — any future writer that skips the bump silently forks devices; mitigate with a write-site lint/test and the documented `sync_ts` escape hatch. (2) **Cache durability** — eviction converts warm boots into 2-day sweeps; the boot gate now *detects* it reliably (the incident class is closed), but frequency risk remains — measure, and escalate to the GCS-snapshot v2 at >monthly. (3) **Gate blind spots** — count() cannot detect silently *mutated* content, and within-partition ghost/missing cancellation is theoretically possible; the no-gap proof discipline covers mutations, and an optional quarterly full re-read (60k, one budgeted day) is the honest paranoia backstop.
 
 **Where the designers were wrong, plainly:** B built ~800 lines of internal-API-dependent infrastructure to optimize a yearly event and left the warm path exactly as blind as the live incident that motivated this review (manifest counts guard only the cold path). A had the right architecture but placed count() at the wrong cadence — a daily net catches the 34k-doc hole a day late; only a per-boot, per-partition gate closes it by construction. The coordinator's `sync_ts` addendum rested on a false premise — `'recent'` and `'updated'` sorts read `updated_substantive`, not `updated` (filters.ts:459, 1650, 1678) — and reusing `updated` is not merely acceptable but required to fix the fastDedupe silent-drop bug at data.ts:1501.
+
+## Registered no-bump exemptions (the complete list)
+
+Every writer that intentionally does NOT bump `updated` must be listed here
+— an exemption that exists only as a code comment is how silent divergence
+gets normalized. Current registry:
+
+1. **Reader-driven counters** (client, via `updateWithoutTimestampBump`,
+   allowlisted in shared/card-write-guard.ts and mirrored by the rules'
+   non-bump branches): star_count, star_count_manual, thread_count,
+   thread_resolved_count, updated_message, tweet_count, last_tweeted.
+   Drift accepted: cosmetic, heals on next real edit.
+2. **Admin tweet-engagement writes** (functions/src/twitter.ts, admin SDK,
+   vestigial feature): tweet_favorite_count, tweet_retweet_count,
+   star_count adjustments. Same rationale.
+3. **tools/migrate-nlp-tokens.mjs** (admin SDK, one-shot migration):
+   rewrites nlp_tokens / nlp_search_tokens / nlp_source_fingerprint /
+   nlp_version WITHOUT bumping. Consequence, accepted deliberately:
+   watermark-synced devices keep stale derived-NLP fields for cards never
+   edited again, until their next real edit. The alternative — bumping —
+   would redeliver the entire corpus to every device (~40-60k reads each).
+   If derived-NLP freshness ever matters cross-device, rerun the migration
+   with a bump on a bounded subset instead.
+
+Adding a new exemption requires: an entry here, the allowlist/rules change
+if client-side, and an `updated-invariant:` annotation at the write site
+(audited by test:updated-invariant).

@@ -715,3 +715,49 @@ gate + deltas expected), incl. a cross-device delete and an unpublish-flip.
 The verifier's M7 stands: the specced emulator suite is the biggest
 remaining test gap — the one live cold run immediately hit a bug in exactly
 that untested layer.
+
+**CATCH-UP ENTRY (2026-07-07/08): three arcs landed by a separate session,
+then review-hardened.** The 2026-07-06/07 session (31 commits, 06cba17c..
+be340772) shipped: (1) the `updated` write-invariant made structural for
+client writes — MultiBatch chokepoint + rules enforcement (bumpsUpdated on
+create/content-edit branches, admin-gated tweet exemption) + a 465-line
+audit suite + Stryker mutation testing; (2) adversarial verification
+scaffolding (property tests, 100% mutation score on the policy core); (3) an
+emulator-based perf harness (test/perf-harness/: seeded synthetic corpus,
+Playwright runner, flag-gated emulator wiring in firebase.ts — default-off
+and fail-closed via a demo-perf projectId override — worker-mode
+measurement, DEBUG_PERF.data()). That session did NOT update this log, and
+did NOT run the three pending live sync validations (cold sweep completion,
+warm-boot billed-read count, soak) — THEY REMAIN THE GATE to flipping
+corpus-sync default and the prod deploy.
+
+A two-critic adversarial review of that work, then fixes (bced4990,
+153a3d98, 181eaa0a, + this entry):
+- Rules: the inbound-reference `updated` requirement had been collapsed
+  from the design's staged rollout straight to REQUIRED — a rules-only prod
+  deploy would have permission-denied every link-affecting edit from the
+  shipped prod client. Un-collapsed to optional-but-validated; the tighten
+  step is written into the rule itself as a prod-cutover action; security
+  tests assert the staged semantics (176 passing).
+- The guard moved to shared/ and its ENFORCEMENT into MultiBatchBase, so
+  the admin-SDK MultiBatch (tools/mount.ts) applies the same policy —
+  admin writes bypass rules, so the chokepoint is their only net. Six new
+  tests drive the base wiring with a stub SDK (the audit had demonstrated
+  that deleting the guard call passed every test while the mutation badge
+  stayed 100%). Stryker retargeted: 43/43 killed.
+- Perf harness: synthetic cards now carry nlp_search_tokens + a Zipf
+  vocabulary (previously the worker index had nothing to index — every
+  query measured the full-scan fallback) + the REQUIRED sort_order
+  (previously the default-set comparator computed NaN per pair) + realistic
+  published ratio; --assert gate implemented; README gains a Status-honesty
+  section (no CI, no perf:dev yet, live-dev numbers remain the acceptance
+  evidence; pre-fix baselines not comparable).
+- The NLP-migration no-bump exemption is now REGISTERED in
+  docs/corpus-sync-design.md's new exemption registry (it had been
+  self-granted in a code comment).
+- Claim corrections for the record: "100% mutation score" covers the policy
+  core only (now also the base wiring via direct tests); harness numbers
+  are relative-delta evidence only. OPEN: the unexplained 14.4s worker
+  collectionPush inside the settled window of the admin-on-40000 baseline —
+  investigate before trusting worker-side harness timings; old baselines
+  invalidated by the corpus changes anyway.
