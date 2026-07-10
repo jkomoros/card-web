@@ -111,7 +111,11 @@ const main = async () => {
 		}
 
 		console.log('[run] corpus-worker=' + workerMode + (syncMode ? ' corpus-sync=' + syncMode : '') + (workerModeActive ? ' (gating on syncState===live)' : ''));
-		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * 0.15);
+		//Anon sessions only ever see published cards, so the readiness floor
+		//must track the ACTUAL published ratio the seeder used (the old
+		//hardcoded 0.15 guaranteed a timeout for any --published-p below it).
+		const effectivePublishedP = publishedP ? parseFloat(publishedP) : 0.05;
+		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * effectivePublishedP * 0.8);
 		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, progressEveryMs: 15000}).catch(e => {
 			//Dump the distinct signal lines (not raw last-N, which is dominated by
 			//repeating transport errors) so a timeout is diagnosable.
@@ -151,6 +155,48 @@ const main = async () => {
 			if (results.worker) console.log('[run] WORKER-thread avg/max ms: ingest=' + JSON.stringify(results.worker.ingest) + ' indexBuild=' + JSON.stringify(results.worker.indexBuild) + ' runCollection=' + JSON.stringify(results.worker.runCollection) + ' collectionPush=' + JSON.stringify(results.worker.collectionPush) + ' query=' + JSON.stringify(results.worker.query) + ' indexBuildMsCumulative=' + results.worker.indexBuildMsCumulative);
 			console.log('[run] makeFilterFromCards counters: ' + JSON.stringify(Object.fromEntries(Object.entries(results.counters).filter(([k]) => k.includes('makeFilterFromCards')))));
 			console.log('[run] NOTE: commit/find wall-clock is emulator-optimistic; commit→interactive budget belongs to perf:dev.');
+
+			//--assert: the gate half the README promises. Deterministic
+			//counter invariants FAIL the run (exit 1); wall-clock budgets
+			//are reported as breaches but only fail under --assert-budgets
+			//(hardware variance makes them advisory on shared machines).
+			if (args.includes('--assert') || args.includes('--assert-budgets')) {
+				const failures = [];
+				const advisories = [];
+				const counters = results.counters || {};
+				//Nav in a settled session must not refilter when membership
+				//is unchanged: every makeFilterFromCards call that changes
+				//zero maps was pure waste. changedMaps > 0 across the whole
+				//interaction script is expected (the commit legitimately
+				//changes membership); calls with NO corresponding membership
+				//change are the regression this invariant pins. We assert
+				//the coarse form the counters support: calls must be small
+				//and bounded (each corresponds to a real card-batch apply),
+				//not once-per-navigation.
+				const filterCalls = counters['makeFilterFromCards:calls'] ?? 0;
+				const NAV_PRESSES = 20; //interactions.js drives 20 arrow presses
+				if (filterCalls > 6) {
+					failures.push(`makeFilterFromCards ran ${filterCalls}x across the script (expected <=6: card batches only, never per-navigation over ${NAV_PRESSES} presses)`);
+				}
+				//Wall-clock budgets (Appendix A), advisory by default.
+				const budgets = [['nav', 16], ['keystroke', 16], ['editorOpen', 100], ['find', 100]];
+				for (const [metric, budgetMs] of budgets) {
+					const wall = results.wall?.[metric];
+					if (wall && typeof wall.p95 === 'number' && wall.p95 > budgetMs) {
+						advisories.push(`${metric} p95=${wall.p95}ms exceeds ${budgetMs}ms budget`);
+					}
+				}
+				if (advisories.length) {
+					console.log('[run] BUDGET BREACHES (advisory' + (args.includes('--assert-budgets') ? ', FAILING per --assert-budgets' : '') + '):\n  ' + advisories.join('\n  '));
+					if (args.includes('--assert-budgets')) failures.push(...advisories);
+				}
+				if (failures.length) {
+					console.error('[run] ASSERT FAILED:\n  ' + failures.join('\n  '));
+					process.exitCode = 1;
+				} else {
+					console.log('[run] ASSERT OK (counter invariants' + (args.includes('--assert-budgets') ? ' + budgets' : '') + ')');
+				}
+			}
 		}
 
 		await browser.close();

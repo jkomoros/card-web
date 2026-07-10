@@ -121,7 +121,9 @@ export { signInWithCustomToken } from 'firebase/auth';
 //DEFAULT OFF — an absent flag is a complete no-op, so real dev/prod connections
 //are unaffected. The harness sets it pre-boot via Playwright addInitScript.
 //Only the main thread reads this; the corpus worker has no localStorage, so
-//worker (shadow/on) modes are out of scope — the harness runs corpus-worker=off.
+//the bridge forwards EMULATOR_TARGET in its connect message (see above) —
+//worker (shadow/on) modes run against the same emulator, and admin-on-*
+//baselines exercise exactly that path.
 if (emulatorTarget) {
 	try {
 		const [emuHost, emuPort] = emulatorTarget.split(':');

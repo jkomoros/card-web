@@ -24,6 +24,21 @@ Baseline lands in `test/perf-harness/baselines/<authMode>-<count>.json`; authori
 - Nav is measurably fixed at 40k (zero long tasks), but **commit→interactive sits at ~2s vs a 200ms budget (10×)** with the root cause unattributed (worker↔UI serialization vs Lit render fan-out vs computation).
 - Per the reshaped verification plan: **gate deterministic counter invariants hard (CI); report wall-clock p95 (don't hard-fail — hardware variance).**
 
+## Status honesty
+
+- `--assert` (implemented) hard-fails on the deterministic counter invariant
+  and reports wall-clock budget breaches; `--assert-budgets` makes breaches
+  fail too. There is NO CI wiring yet — nothing runs this automatically.
+- `perf:dev` (the acceptance run against the REAL dev backend that every
+  emulator-optimism disclaimer defers to) **does not exist yet**. Until it
+  does, the live-dev measurements in docs/fast-corpus-implementation-log.md
+  are the acceptance evidence; this harness is a regression detector for
+  relative deltas between harness runs only.
+- The synthetic corpus now includes nlp_search_tokens, a Zipf-ish ~800-word
+  vocabulary, sort_order, and a realistic published ratio (~5%) — earlier
+  runs exercised the worker's full-scan fallback exclusively and a
+  NaN-comparator sort; baselines recorded before this are not comparable.
+
 ## Budgets (Appendix A)
 
 | Interaction | Budget | Gate type |

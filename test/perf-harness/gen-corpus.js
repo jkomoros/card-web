@@ -30,24 +30,76 @@ const mulberry32 = (seed) => {
 	};
 };
 
-const CARD_TYPES = ['content', 'working-notes', 'section-head', 'concept', 'work', 'person', 'quote'];
+//Weighted toward the real corpus (working-notes dominate the ~39k
+//unpublished cards; content next; everything else is a thin tail).
+const CARD_TYPE_WEIGHTS = [
+	['working-notes', 0.55],
+	['content', 0.32],
+	['concept', 0.06],
+	['work', 0.03],
+	['person', 0.02],
+	['quote', 0.01],
+	['section-head', 0.01],
+];
 const SECTIONS = ['main', 'stubs', 'random-thoughts', '', '', '']; //blanks = orphaned (worst case for section filters)
 const REFERENCE_TYPES = ['link', 'dupe-of', 'ack', 'see-also', 'concept', 'example-of', 'mined-from'];
 const TAG_POOL = Array.from({length: 40}, (_, i) => 'tag-' + i);
 
-//A chunk of realistic-ish HTML body content, repeated to hit a target size.
-const BODY_SENTENCE = '<p>The corpus contains many interlinked cards whose membership in filters must be recomputed cheaply. </p>';
-
 const pick = (rnd, arr) => arr[Math.floor(rnd() * arr.length)];
 const intBetween = (rnd, lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
 
-//Build a body of roughly `targetBytes` by repeating the sentence.
+const pickWeighted = (rnd, weighted) => {
+	let roll = rnd();
+	for (const [value, weight] of weighted) {
+		roll -= weight;
+		if (roll <= 0) return value;
+	}
+	return weighted[weighted.length - 1][0];
+};
+
+//A deterministic pseudo-word vocabulary (~800 words from syllables). The
+//previous single repeated sentence gave the whole corpus ~15 unique words:
+//every fingerprint was near-identical, IDF was degenerate, and the worker's
+//search index (which indexes stored nlp_search_tokens) had nothing
+//realistic to index — the review found the harness structurally unable to
+//reproduce any NLP/fingerprint/search-dependent perf conclusion.
+const SYLLABLES = ['ka', 'ren', 'to', 'mi', 'lor', 've', 'shan', 'dre', 'pol', 'qua', 'zen', 'bri', 'sto', 'gal', 'nu', 'fen'];
+const WORD_POOL = Array.from({length: 800}, (_, i) => {
+	const a = SYLLABLES[i % SYLLABLES.length];
+	const b = SYLLABLES[Math.floor(i / SYLLABLES.length) % SYLLABLES.length];
+	const c = SYLLABLES[Math.floor(i / (SYLLABLES.length * SYLLABLES.length)) % SYLLABLES.length];
+	return a + b + (i >= SYLLABLES.length * SYLLABLES.length ? c : '');
+});
+
+//Zipf-ish word sampling: squaring the roll skews toward low indices, giving
+//a realistic frequent-head/long-tail IDF distribution.
+const sampleWord = (rnd) => WORD_POOL[Math.floor(rnd() * rnd() * WORD_POOL.length)];
+
+//Build a body of roughly `targetBytes` from sampled words in <p> sentences.
 const makeBody = (rnd, targetBytes) => {
-	const reps = Math.max(1, Math.round(targetBytes / BODY_SENTENCE.length));
 	let out = '';
-	for (let i = 0; i < reps; i++) out += BODY_SENTENCE;
-	//A little per-card variation so bodies aren't identical (fingerprint/NLP realism).
-	return out + '<p>card salt ' + Math.floor(rnd() * 1e9) + '</p>';
+	while (out.length < targetBytes) {
+		const wordCount = intBetween(rnd, 8, 16);
+		const words = [];
+		for (let w = 0; w < wordCount; w++) words.push(sampleWord(rnd));
+		out += '<p>' + words.join(' ') + '.</p>';
+	}
+	return out;
+};
+
+//Approximation of the app's stored search tokens (stemmed unigrams +
+//bigrams over body+title words). The worker's inverted index consumes these
+//verbatim (searchTokensForCard), so their presence/cardinality — not their
+//linguistic fidelity — is what exercises the index path instead of the
+//100%-full-scan fallback the review demonstrated.
+const makeSearchTokens = (title, body) => {
+	const words = (title + ' ' + body).toLowerCase().replace(/<[^>]+>/g, ' ').split(/[^a-z0-9]+/).filter(Boolean);
+	const tokens = new Set();
+	for (let i = 0; i < words.length; i++) {
+		tokens.add(words[i]);
+		if (i + 1 < words.length) tokens.add(words[i] + ' ' + words[i + 1]);
+	}
+	return [...tokens];
 };
 
 //ts spreads updated timestamps across ~2 years ending at `epochSeconds`, so
@@ -62,14 +114,16 @@ const spreadTs = (rnd, epochSeconds) => {
 //  count       number of cards (default 40000)
 //  seed        PRNG seed (default 1)
 //  maxRefs     max forward references per card (default 12 — dense graph)
-//  publishedP  probability a card is published (default 0.3)
+//  publishedP  probability a card is published (default 0.05 — the real
+//              corpus is ~3% published; also keeps the published listener
+//              under the emulator's pushed-message cap)
 //  bodyBytes   approx body size in bytes (default 1500; some cards 8x for the tail)
 //  epochSeconds fixed "now" for timestamp spread (default 1_700_000_000)
 export const generateCorpus = (opts = {}) => {
 	const count = opts.count ?? 40000;
 	const seed = opts.seed ?? 1;
 	const maxRefs = opts.maxRefs ?? 12;
-	const publishedP = opts.publishedP ?? 0.3;
+	const publishedP = opts.publishedP ?? 0.05;
 	const bodyBytes = opts.bodyBytes ?? 1500;
 	const epochSeconds = opts.epochSeconds ?? 1_700_000_000;
 	const rnd = mulberry32(seed);
@@ -102,12 +156,14 @@ export const generateCorpus = (opts = {}) => {
 			if (!tagSeen.has(tag)) { tagSeen.add(tag); tags.push(tag); }
 		}
 		const ts = spreadTs(rnd, epochSeconds);
+		const title = 'Perf card ' + i + ' ' + sampleWord(rnd) + ' ' + sampleWord(rnd);
+		const body = makeBody(rnd, thisBodyBytes);
 		cards[id] = {
 			id,
-			card_type: pick(rnd, CARD_TYPES),
+			card_type: pickWeighted(rnd, CARD_TYPE_WEIGHTS),
 			section: pick(rnd, SECTIONS),
-			title: 'Perf card ' + i,
-			body: makeBody(rnd, thisBodyBytes),
+			title,
+			body,
 			published: rnd() < publishedP,
 			tags,
 			references,
@@ -134,6 +190,12 @@ export const generateCorpus = (opts = {}) => {
 			slugs: [],
 			name: id,
 			images: [],
+			//REQUIRED on Card: its absence made the default-set comparator
+			//compute NaN for every pair (the review's C1) — the sort the
+			//harness exercised was garbage ordering.
+			sort_order: (count - i) * 1000 + rnd(),
+			//Stored search tokens: what the worker's inverted index indexes.
+			nlp_search_tokens: makeSearchTokens(title, body),
 		};
 	}
 
