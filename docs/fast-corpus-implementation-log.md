@@ -866,3 +866,32 @@ update within ~1-5s without typing jank; verify one similarCards callable
 per content version in the network tab, no duplicates in shadow mode).
 Info panel still deliberately serves the COMMITTED card while editing —
 candidate follow-up now that the worker can serve editing content.
+
+## 2026-07-11 — FAST COLD BOOT emulator validation + a false-alarm regression
+
+Harness A/B at 12k (admin, corpus-worker=on, corpus-sync=watermark, fresh
+profile = true cold boot):
+- NEW parallel sweep (c36b7ecc): priority 5k in seconds, full 12,000 to
+  syncState=live in ~124-240s (emulator long-polling; NOT the acceptance
+  metric), interactions all green, baseline admin-on-12000.json written.
+- OLD budgeted sequential sweep (da68dbea): only 8,475/12,000 loaded before
+  the 300s load timeout — the parallel rework is faster on the emulator by
+  itself, before any real-backend parallelism gains.
+
+FALSE ALARM worth remembering: the first 12k run failed its interaction
+phase ("Can't navigate while editing" x18, then destroyed page context),
+implicating the same-day editing-blocks restore (4790e53e). Clean-room
+reruns showed NO regression — the failure came from orphaned harness
+processes (a leftover wds on 8081 + a prior run.js/Playwright browser still
+talking to the shared emulator). Lessons: (1) never pipe a long harness run
+through `head` — SIGPIPE kills the chain and orphans children mid-run; (2)
+check `lsof -ti :8081 :8089` + `ps aux | grep run.js` BEFORE any harness
+run; (3) a harness failure in editing-adjacent code deserves a clean-room
+rerun before bisecting.
+
+Editing-restore validation note: the passing 12k interaction phase
+exercises editingStart -> 30 keystrokes -> commit -> nav with the live
+editing-card pipeline active (worker setEditingCard, blocks scheduled
+during editing) — commit closes the editor and nav proceeds. Live-dev
+editing-feel check (sidebar refresh cadence while typing at 40k) still
+pending a signed-in session.
