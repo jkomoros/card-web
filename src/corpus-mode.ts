@@ -1,12 +1,17 @@
 //Leaf module (no app imports) for reading the corpus-worker rollout mode, so
 //selectors, actions, and the bridge can all consult it without import cycles.
 //
-//  'off' (default) — worker never spawns; the main thread does everything.
+//  'off'           — worker never spawns; the main thread does everything.
 //  'spike'         — worker runs for benchmarking only.
 //  'shadow'        — worker owns card ingestion and results are compared
 //                    against the UI's; behavior unchanged.
-//  'on'            — cutover: worker owns ingestion AND serves the active
+//  'on' (default)  — cutover: worker owns ingestion AND serves the active
 //                    collection; the UI renders pushed results.
+//
+//DEFAULT FLIPPED 2026-07-11 (owner directive): 'on' + 'watermark' are the
+//defaults; localStorage is now the opt-OUT. Windowless contexts (tests,
+//tools) still resolve to the legacy modes so Node-side code never assumes
+//a worker exists.
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
@@ -16,16 +21,18 @@ export const readCorpusWorkerMode = () : CorpusWorkerMode => {
 	if (typeof window === 'undefined') return 'off';
 	try {
 		const value = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-		if (value === 'spike' || value === 'shadow' || value === 'on') return value;
+		if (value === 'off' || value === 'spike' || value === 'shadow' || value === 'on') return value;
 	} catch {
 		//Best effort
 	}
-	return 'off';
+	return 'on';
 };
 
 export const writeCorpusWorkerMode = (mode : CorpusWorkerMode) : void => {
 	try {
-		if (mode === 'off') {
+		if (mode === 'on') {
+			//The default: clearing the key keeps fresh and reset profiles
+			//identical.
 			window.localStorage.removeItem(LOCAL_STORAGE_KEY);
 		} else {
 			window.localStorage.setItem(LOCAL_STORAGE_KEY, mode);
@@ -56,16 +63,19 @@ export type CorpusSyncMode = 'listen' | 'watermark';
 export const readCorpusSyncMode = () : CorpusSyncMode => {
 	if (typeof window === 'undefined') return 'listen';
 	try {
-		if (window.localStorage.getItem(SYNC_LOCAL_STORAGE_KEY) === 'watermark') return 'watermark';
+		const value = window.localStorage.getItem(SYNC_LOCAL_STORAGE_KEY);
+		if (value === 'listen' || value === 'watermark') return value;
 	} catch {
 		//Best effort
 	}
-	return 'listen';
+	return 'watermark';
 };
 
 export const writeCorpusSyncMode = (mode : CorpusSyncMode) : void => {
 	try {
-		if (mode === 'listen') {
+		if (mode === 'watermark') {
+			//The default: clearing the key keeps fresh and reset profiles
+			//identical.
 			window.localStorage.removeItem(SYNC_LOCAL_STORAGE_KEY);
 		} else {
 			window.localStorage.setItem(SYNC_LOCAL_STORAGE_KEY, mode);
