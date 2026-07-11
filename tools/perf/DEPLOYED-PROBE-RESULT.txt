@@ -1,0 +1,178 @@
+[land] loading…
+[console +15s] [corpus-worker] load complete: 1240 cards
+[console +15s] [corpus-worker] initial load complete: 1240 cards in corpus
+[console +15s] [corpus-worker] corpus reconciliation: clean (1240 cards)
+[land] +30s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +60s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +90s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +120s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +150s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +180s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +210s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +240s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +270s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +300s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +330s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +360s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +390s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +420s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +450s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +480s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +510s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +540s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +570s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +600s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +630s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +660s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +690s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +720s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +750s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +780s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +810s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +840s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +870s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +900s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +930s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +960s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +990s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1020s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1050s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1080s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1110s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1140s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1170s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1200s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1230s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1260s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1290s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1320s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1350s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1380s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1816s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1817s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1817s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1819s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1819s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1821s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1821s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1827s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1827s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1838s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1838s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1410s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +1847s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1847s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1863s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1863s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1440s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1470s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +1928s] Failed to load resource: net::ERR_QUIC_PROTOCOL_ERROR.QUIC_PACKET_WRITE_ERROR
+[console +1928s] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+[land] +1500s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +1951s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1951s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1951s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1951s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1951s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1952s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1952s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1954s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1954s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1956s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1956s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1958s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1958s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1961s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1961s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1530s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +1972s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1972s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1982s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +1982s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1560s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2005s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2005s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1590s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2036s] Failed to load resource: net::ERR_NETWORK_CHANGED
+[console +2036s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2036s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2036s] Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+[console +2036s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2036s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2036s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2037s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2037s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2038s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2038s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2040s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2040s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2044s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2044s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2047s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2047s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2052s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2052s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1620s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2065s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2065s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2083s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2083s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1650s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1680s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2118s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2118s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2144s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2144s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1710s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1740s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2196s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2196s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1770s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1800s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1830s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2277s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2277s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1860s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1890s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2348s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2348s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1920s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +1950s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2403s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2403s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +1980s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2010s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2468s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2468s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2040s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2070s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2511s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2511s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2100s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2130s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2595s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2595s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2160s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2190s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2220s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2679s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2679s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2250s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2714s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2714s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2280s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2310s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2753s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2753s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2340s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] +2370s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[console +2832s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[console +2832s] Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+[land] +2400s {"email":null,"cards":1240,"activeCardID":null} sweepPages=0
+[land] DONE
