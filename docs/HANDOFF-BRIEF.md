@@ -12,6 +12,9 @@ Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ comm
 ## Read these FIRST
 1. docs/fast-corpus-implementation-log.md — complete state, environment traps, measurements, next steps. THE source of truth.
 2. docs/fast-corpus-design-doc.md — the overall Plan A (done) / Plan B (mostly done) architecture.
+3. docs/prod-cutover-runbook.md — THE ordered checklist for taking this to
+   prod (rules/indexes BEFORE hosting, one-time artifact policy, verify,
+   next-day rule tightening). Do not deploy prod any other way.
 
 ## Environment traps (also in the log)
 - Node 20.20.0 required: `export PATH="$HOME/.nvm/versions/node/v20.20.0/bin:$PATH"`
