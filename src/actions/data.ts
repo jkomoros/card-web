@@ -55,6 +55,10 @@ import {
 } from '../corpus-mode.js';
 
 import {
+	perfEnabled
+} from '../perf.js';
+
+import {
 	ensureAuthor
 } from './comments.js';
 
@@ -1529,7 +1533,9 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 	}
 	const diffCount = Object.keys(cardsToUpdate).length;
 	const diffTime = performance.now() - startTime;
-	console.log(`[PERF] receiveCards(${fetchType}): diffed ${inputCount} cards → ${diffCount} changed in ${diffTime.toFixed(1)}ms`);
+	//Gated: these fired unconditionally on every batch for every user (the
+	//review's ambient-noise finding); DEBUG_PERF.enable() turns them on.
+	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): diffed ${inputCount} cards → ${diffCount} changed in ${diffTime.toFixed(1)}ms`);
 
 	const pendingModifications = selectPendingModificationCount(getState());
 	if (pendingModifications == 0) {
@@ -1547,7 +1553,7 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 	} else {
 		dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
 	}
-	console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
+	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
 const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch) => {

@@ -761,3 +761,20 @@ A two-critic adversarial review of that work, then fixes (bced4990,
   collectionPush inside the settled window of the admin-on-40000 baseline —
   investigate before trusting worker-side harness timings; old baselines
   invalidated by the corpus changes anyway.
+
+**LANDING READINESS (2026-07-10, in progress)** — branch is 203 commits
+ahead of origin/master, 0 behind (no conflict risk). CRITICAL DEPLOY
+FINDING, verified in code: with all flags at defaults ('corpus-worker' off,
+'corpus-sync' listen), the app is STILL all-cards-local via MAIN-THREAD
+full-corpus listeners — A6 deleted partial mode, so there is no 6k-cap
+fallback anymore. At prod scale (~40-60k cards) every >30-min-gap boot on
+the default path bills ~O(corpus) reads (the documented 30-min listener
+re-billing rule). Therefore: **MERGING to master is safe (no deploy
+happens); DEPLOYING to prod is NOT safe until the flag-flip decision** —
+prod deploy must ship with corpus-worker='on' + corpus-sync='watermark'
+defaults (gated on the three live validations + the user's sign-off) or
+not happen at all. The "default-off = behavior-neutral" framing is true
+for dev ergonomics and rollback, NOT for prod billing. Also gated the
+formerly-unconditional [PERF] console.logs in receiveCards/
+cardSnapshotReceiver behind perfEnabled() (review item; ambient noise for
+every user otherwise).

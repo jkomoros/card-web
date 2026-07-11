@@ -117,6 +117,10 @@ import {
 	UNPUBLISHED_CARD_PARTITIONS
 } from '../card-partitions.js';
 
+import {
+	perfEnabled
+} from '../perf.js';
+
 import { TypedObject } from '../../shared/typed_object.js';
 
 
@@ -363,12 +367,14 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 
 		const cardCount = Object.keys(cards).length;
 		const parseTime = performance.now() - startTime;
-		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): parsed ${cardCount} cards in ${parseTime.toFixed(1)}ms`);
+		//Gated: these fired on every snapshot for every user (ambient noise);
+		//DEBUG_PERF.enable() turns them on.
+		if (perfEnabled()) console.log(`[PERF] cardSnapshotReceiver(${fetchType}): parsed ${cardCount} cards in ${parseTime.toFixed(1)}ms`);
 
 		const dispatchStart = performance.now();
 		store.dispatch(receiveCards(cards, fetchType, options?.fastDedupe));
 		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
-		console.log(`[PERF] cardSnapshotReceiver(${fetchType}): dispatched in ${(performance.now() - dispatchStart).toFixed(1)}ms (total: ${(performance.now() - startTime).toFixed(1)}ms)`);
+		if (perfEnabled()) console.log(`[PERF] cardSnapshotReceiver(${fetchType}): dispatched in ${(performance.now() - dispatchStart).toFixed(1)}ms (total: ${(performance.now() - startTime).toFixed(1)}ms)`);
 	};
 
 };
@@ -390,8 +396,8 @@ export const connectLivePublishedCards = () => {
 		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
 		return;
 	}
-	console.log('[PERF] connectLivePublishedCards: starting listener');
-	console.time('[PERF] published-cards-first-snapshot');
+	if (perfEnabled()) console.log('[PERF] connectLivePublishedCards: starting listener');
+	if (perfEnabled()) console.time('[PERF] published-cards-first-snapshot');
 	let first = true;
 	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
 		if (first) { console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
@@ -441,7 +447,7 @@ const disconnectLiveUnpublishedCards = () => {
 export const connectLiveUnpublishedCards = async () => {
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) {
-		console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
+		if (perfEnabled()) console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
 		return;
 	}
 
@@ -470,7 +476,7 @@ export const connectLiveUnpublishedCards = async () => {
 
 	const userMayViewUnpublished = selectUserMayViewUnpublished(state);
 	const uid = selectUid(state);
-	console.log(`[PERF] connectLiveUnpublishedCards: mayViewUnpublished=${userMayViewUnpublished}, uid=${uid}`);
+	if (perfEnabled()) console.log(`[PERF] connectLiveUnpublishedCards: mayViewUnpublished=${userMayViewUnpublished}, uid=${uid}`);
 
 	if (userMayViewUnpublished) {
 		const connectionGeneration = ++unpublishedConnectionGeneration;
@@ -526,7 +532,7 @@ export const connectLiveUnpublishedCards = async () => {
 			if (ids.length === 0) return;
 			const cards = {...pendingBootCards};
 			for (const id of ids) delete pendingBootCards[id];
-			console.log(`[PERF] flushing ${ids.length} coalesced unpublished cards`);
+			if (perfEnabled()) console.log(`[PERF] flushing ${ids.length} coalesced unpublished cards`);
 			store.dispatch(receiveCards(cards, 'unpublished'));
 		};
 		const enqueueBootSnapshot = (snapshot : QuerySnapshot) => {
@@ -535,7 +541,7 @@ export const connectLiveUnpublishedCards = async () => {
 			if (!bootFlushTimeout) bootFlushTimeout = setTimeout(flushBootCards, BOOT_COALESCE_INTERVAL_MS);
 		};
 
-		console.time('[PERF] unpublished-getDocs-total');
+		if (perfEnabled()) console.time('[PERF] unpublished-getDocs-total');
 		try {
 			const partitionPromises = PARTITIONS.map(async (partition, i) => {
 				const constraints = [
@@ -550,35 +556,35 @@ export const connectLiveUnpublishedCards = async () => {
 						where('published', '==', false),
 						where(documentId(), '<', partition.lt));
 
-					console.time(`[PERF] unpublished-getDocs-partition-${i}`);
+					if (perfEnabled()) console.time(`[PERF] unpublished-getDocs-partition-${i}`);
 					const snapshot = await getDocs(partitionQuery);
-					console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
+					if (perfEnabled()) console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
 
 					if (connectionGeneration !== unpublishedConnectionGeneration) {
-						console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
+						if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
 						return 0;
 					}
 					if (snapshot.size > 0) {
 						enqueueBootSnapshot(snapshot);
-						console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
+						if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
 					}
 					return snapshot.size;
 				});
 
 				const sizes = await Promise.all(partitionPromises);
 				if (connectionGeneration !== unpublishedConnectionGeneration) {
-					console.timeEnd('[PERF] unpublished-getDocs-total');
-					console.log('[PERF] unpublished getDocs complete: ignored stale connection');
+					if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
+					if (perfEnabled()) console.log('[PERF] unpublished getDocs complete: ignored stale connection');
 					return;
 				}
 				flushBootCards();
 				const totalLoaded = sizes.reduce((a, b) => a + b, 0);
-				console.timeEnd('[PERF] unpublished-getDocs-total');
-				console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
+				if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
+				if (perfEnabled()) console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
 		} catch (e) {
 			//Flush whatever did arrive before the failure.
 			flushBootCards();
-			console.timeEnd('[PERF] unpublished-getDocs-total');
+			if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
 			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
 

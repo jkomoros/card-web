@@ -1,5 +1,12 @@
 # Handoff brief: card-web fast-corpus work
 
+> **LANDING STATUS (2026-07-10)**: merge to master is SAFE (all flags
+> default off; 570 tests green incl. security; final landing review
+> passed). PROD DEPLOY IS NOT: default boot is now main-thread full-corpus
+> listeners with no partial-mode cap (~40k+ billed reads/boot on prod
+> scale) until the corpus-sync flag flip ships after its live soak. Deploy
+> dev-only until then. Details: implementation log's landing entry.
+
 Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ commits, all green). Continue the autonomous loop: implement, test, verify live, commit early and often.
 
 ## Read these FIRST
