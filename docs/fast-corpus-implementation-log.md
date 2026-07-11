@@ -794,3 +794,36 @@ document.querySelector('card-view')._cardReferenceBlocksForCardID ===
 activeCardID from keydown to first correct frame (the ownership fields
 exist precisely to make this measurable); accepted-not-fixed: blocks
 pinned/empty while editing (restore via worker editing-card blocks, P3).
+
+## 2026-07-11 — Adversarial round 2 (fixes-of-the-fixes) + UX-feel critique
+
+**Attacker vs 9e754b67 — four confirmed defects, all fixed in 496c98e6:**
+C1 max-wait could fire the SYNC 1-2s fallback mid-nav in off/boot mode
+(freeze + ~1Hz flicker) → overdue now also requires
+corpusWorkerCanRunCollections(); I1 firstDeferredAt epochs not reset on
+early-return paths (editing return, !_open return) → stale-overdue instant
+fires on editing-finish/panel-reopen, fixed; I2 worker-null fallback
+labeled ownership with stale captured cardID (clears CORRECT content next
+stateChanged) → fresh card id; I3 fastResubscribeOnDescriptionChange paid
+Object.keys(40k) on EVERY dispatch → cheap serialize compare gates first.
+Attacker verified sound: reconnect interplay, editing/find gating,
+no-stuck-empty, precomputed serialize.
+
+**UX-feel critic verdict (full report in session task
+a1907d60d91ad47c4):** browsing/settling/find = acceptable; editing,
+boot-visibility, second-tab = needs-work. Top 5 by felt impact, NOT YET
+IMPLEMENTED (queue for pre-flag-flip polish):
+1. Sync/staleness pill in header driven by already-plumbed syncState +
+   cold-sweep progress (today syncState is console.log-only — biggest
+   trust gap: app knows its confidence, tells nobody).
+2. Second-tab snack-bar ("another tab is syncing — showing published
+   only; reload to take over") — snack-bar.ts exists, currently
+   offline/online-only; loser-tab downgrade is console-only
+   (corpus-worker.ts ~:1278).
+3. Sidebar skeleton instead of hard void during the 250ms gap — reuse
+   card-renderer's italic/dim `.loading` idiom + reserve height.
+4. Frozen dimmed "as of before edit" reference blocks while editing
+   (today blocks + word cloud vanish for the whole edit session — the
+   garden's best feature removed exactly while writing).
+5. Find-drawer opacity dip while a query is in flight (occasional
+   "search ignored me" on slow queries).
