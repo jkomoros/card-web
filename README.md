@@ -81,26 +81,30 @@ any maintenance tasks it tells you to. Note that you might need to run multiple 
 
 ### Firebase Functions Configuration
 
-Cloud Functions store configuration separately from app config.
+Cloud Functions read configuration from per-project dotenv files
+(`functions/.env.<projectID>`, gitignored), generated from your
+`config.SECRET.json` by:
 
-**View current config:**
 ```bash
-firebase functions:config:get
+npm run generate:env
 ```
 
-**Update config (run before deploy):**
-```bash
-gulp configure-api-keys
-```
-
-This sets:
-- `openai.api_key` - OpenAI API key (if configured)
-- `anthropic.api_key` - Anthropic API key (if configured)
+The deploy commands (`npm run deploy`, `npm run deploy:dev`) regenerate
+these automatically before deploying. The files carry the OpenAI/Anthropic
+API keys, Qdrant credentials, email settings, and site domain (see
+`tools/env.ts` for the full list); functions read them via `process.env`.
+(The legacy `firebase functions:config:*` Runtime Config API was retired
+by Firebase in March 2026 and is no longer used.)
 
 ⚠️ **Important:**
 - Config is per-project (dev and prod separate)
 - Changes require redeploying functions
-- If functions can't access data, verify this config
+- If functions can't access data, verify the generated `.env.<projectID>`
+- Each project needs a ONE-TIME Artifact Registry cleanup policy or the
+  functions deploy exits non-zero at the end (images pile up otherwise):
+  `npx firebase functions:artifacts:setpolicy --project <projectID> --location us-central1 --force`
+  (done for dev-complexity-compendium 2026-07-11; prod still needs it
+  before its next deploy)
 
 ## Extra Credit
 

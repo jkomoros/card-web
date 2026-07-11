@@ -155,18 +155,6 @@ const setConfigLastDeploy = async (): Promise<void> => {
 	await setLastDeployConfig(RELEASE_TAG, FIREBASE_DEV_PROJECT);
 };
 
-const configureApiKeys = (): void => {
-	runCommand('firebase', ['functions:config:set', 'openai.api_key=' + OPENAI_API_KEY, 'anthropic.api_key=' + ANTHROPIC_API_KEY]);
-};
-
-const configureApiKeysIfSet = (): void => {
-	if (!OPENAI_API_KEY && !ANTHROPIC_API_KEY) {
-		console.log('Skipping uploading of api keys because they weren\'t set');
-		return;
-	}
-	configureApiKeys();
-};
-
 const configureQdrantCommand = async (): Promise<void> => {
 	await configureQdrant(projectConfig, devProjectConfig, CONFIG_INCLUDES_DEV, OPENAI_ENABLED);
 };
@@ -304,7 +292,6 @@ const devDeploy = async (): Promise<void> => {
 	generateSeoPagesOptionally();
 	firebaseEnsureDev();
 	await setConfigLastDeploy();
-	configureApiKeysIfSet();
 	await configureQdrantCommand();
 	configureEnvironment();
 	firebaseDeploy();
@@ -317,7 +304,6 @@ const deploy = async (): Promise<void> => {
 	generateSeoPagesOptionally();
 	firebaseEnsureProd();
 	await setConfigLastDeploy();
-	configureApiKeysIfSet();
 	await configureQdrantCommand();
 	configureEnvironment();
 	firebaseDeploy();
@@ -380,8 +366,6 @@ const COMMANDS: { name: string; description: string }[] = [
 	{ name: 'gcloud-backup', description: 'Export firestore to backup bucket' },
 	{ name: 'gcloud-restore', description: 'Import latest backup into firestore' },
 	{ name: 'gsutil-rsync-uploads', description: 'Sync uploads from prod to dev storage' },
-	{ name: 'configure-api-keys', description: 'Upload API keys to firebase functions config' },
-	{ name: 'configure-api-keys-if-set', description: 'Upload API keys if they are configured' },
 	{ name: 'configure-qdrant', description: 'Set up qdrant collections and indices' },
 	{ name: 'reindex-card-embeddings', description: 'Trigger background reindexing of card embeddings' },
 	{ name: 'cleanup-old-embeddings', description: 'Trigger background cleanup of old embeddings' },
@@ -452,12 +436,6 @@ const main = async (): Promise<void> => {
 		break;
 	case 'set-config-last-deploy':
 		await setConfigLastDeploy();
-		break;
-	case 'configure-api-keys':
-		configureApiKeys();
-		break;
-	case 'configure-api-keys-if-set':
-		configureApiKeysIfSet();
 		break;
 	case 'configure-qdrant':
 		await configureQdrantCommand();
