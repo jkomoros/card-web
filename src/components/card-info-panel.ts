@@ -92,6 +92,10 @@ import {
 //Matches card-view's reference-blocks debounce: long enough that navigation
 //keystrokes never pay the whole-corpus reference-block cost.
 const EXPENSIVE_PROPERTIES_DEBOUNCE_MS = 250;
+//Max-wait: the debounce resets on every state change, so sustained store
+//churn could starve it and the panel would never populate. See the same
+//guarantee in card-view.ts.
+const EXPENSIVE_PROPERTIES_MAX_WAIT_MS = 1000;
 
 @customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
@@ -128,6 +132,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	@state()
 		_expensivePropertiesTimeout: number;
+	_expensivePropertiesFirstDeferredAt = 0;
+	//Which card the rendered blocks/word cloud belong to (stale content is
+	//cleared on card change — empty-until-ready, never wrong-then-right).
+	_expensivePropertiesForCardID = '';
 
 	static override styles = [
 		ScrollingSharedStyles,
@@ -300,12 +308,27 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//state, which will break memoization of selectors by selecting old
 		//things), so skip it. 
 		window.clearTimeout(this._expensivePropertiesTimeout);
+		//Blocks/word-cloud rendered for a DIFFERENT card get cleared right
+		//now — empty-until-ready is honest; the previous card's content under
+		//the new card misattributes relations.
+		if (this._expensivePropertiesForCardID && this._card && this._card.id !== this._expensivePropertiesForCardID) {
+			this._referenceBlocks = [];
+			this._wordCloud = emptyWordCloud();
+			this._expensivePropertiesForCardID = '';
+		}
 		//The info-panel reference blocks run several key-card collections over
 		//the whole corpus (very expensive at 40k cards), so they must never
 		//land between navigation keystrokes: debounce until the user settles,
 		//and read FRESH state at fire time (capturing the stateChanged
 		//argument would break selector memoization with a stale state).
+		//Max-wait guarantee: fire on the next tick if deferrals have piled up
+		//past the bound (the debounce resets on EVERY state change and could
+		//otherwise be starved by store churn).
+		const now = Date.now();
+		if (!this._expensivePropertiesFirstDeferredAt) this._expensivePropertiesFirstDeferredAt = now;
+		const overdue = now - this._expensivePropertiesFirstDeferredAt >= EXPENSIVE_PROPERTIES_MAX_WAIT_MS;
 		this._expensivePropertiesTimeout = window.setTimeout(() => {
+			this._expensivePropertiesFirstDeferredAt = 0;
 			const freshState = store.getState() as State;
 			if (!this._open) {
 				this._referenceBlocks = [];
@@ -327,6 +350,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				).then(blocks => {
 					if (blocks === null) {
 						this._referenceBlocks = selectExpandedInfoPanelReferenceBlocksForActiveCard(store.getState() as State);
+						this._expensivePropertiesForCardID = cardID;
 						return;
 					}
 					//Drop stale results if the user navigated meanwhile.
@@ -334,6 +358,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					const freshCard = selectActiveCardEnriched(currentState);
 					if (!freshCard || freshCard.id !== cardID) return;
 					this._referenceBlocks = blocks;
+					this._expensivePropertiesForCardID = cardID;
 				});
 				return;
 			}
@@ -342,7 +367,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			//pause because the editing card changes per keystroke.
 			const blocksSelector = selectIsEditing(freshState) ? selectExpandedInfoPanelReferenceBlocksForActiveCard : selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard;
 			this._referenceBlocks = blocksSelector(freshState);
-		}, EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
+			this._expensivePropertiesForCardID = selectActiveCard(freshState)?.id || '';
+		}, overdue ? 0 : EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
 
 	}
 

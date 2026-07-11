@@ -237,6 +237,12 @@ import {
 //whole-corpus cost mid-navigation; short enough that blocks feel immediate
 //once the user settles.
 const REFERENCE_BLOCKS_DEBOUNCE_MS = 250;
+//The debounce timer resets on EVERY state change, so sustained churn
+//(worker pushes, similarity fetches, boot batches) could starve it
+//indefinitely — blocks would simply never appear. The max-wait guarantees
+//blocks compute within this bound of the FIRST deferral no matter how busy
+//the store is.
+const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -389,6 +395,14 @@ class CardView extends connect(store)(PageViewElement) {
 		_cardReferenceBlocks: ExpandedReferenceBlocks;
 
 	_referenceBlocksTimeout : number;
+	//When the CURRENT string of deferrals began (0 = none pending) — for the
+	//max-wait guarantee.
+	_referenceBlocksFirstDeferredAt = 0;
+	//Which card the currently-rendered _cardReferenceBlocks belong to, so a
+	//navigation can clear MISMATCHED blocks immediately (showing the
+	//previous card's "similar cards" under a new card misattributes
+	//relations; empty-until-ready is honest, wrong-then-right is not).
+	_cardReferenceBlocksForCardID = '';
 
 	@state()
 		_signedIn: boolean;
@@ -872,8 +886,14 @@ class CardView extends connect(store)(PageViewElement) {
 			return;
 		}
 		if (this._referenceBlocksTimeout) window.clearTimeout(this._referenceBlocksTimeout);
+		const now = Date.now();
+		if (!this._referenceBlocksFirstDeferredAt) this._referenceBlocksFirstDeferredAt = now;
+		//Fire immediately (next tick) if deferrals have been piling up past
+		//the max-wait; otherwise the normal settle debounce.
+		const overdue = now - this._referenceBlocksFirstDeferredAt >= REFERENCE_BLOCKS_MAX_WAIT_MS;
 		this._referenceBlocksTimeout = window.setTimeout(() => {
 			this._referenceBlocksTimeout = 0;
+			this._referenceBlocksFirstDeferredAt = 0;
 			//Read fresh state at fire time.
 			const state = store.getState() as State;
 			if (selectIsEditing(state)) {
@@ -897,6 +917,7 @@ class CardView extends connect(store)(PageViewElement) {
 					if (blocks === null) {
 						//Worker went away mid-flight: local fallback.
 						this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(store.getState() as State);
+						this._cardReferenceBlocksForCardID = cardID;
 						return;
 					}
 					//Drop stale results if the user navigated meanwhile.
@@ -905,11 +926,13 @@ class CardView extends connect(store)(PageViewElement) {
 					const freshCard = selectActiveCardEnriched(freshState);
 					if (!freshCard || freshCard.id !== cardID) return;
 					this._cardReferenceBlocks = blocks;
+					this._cardReferenceBlocksForCardID = cardID;
 				});
 				return;
 			}
 			this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
-		}, REFERENCE_BLOCKS_DEBOUNCE_MS);
+			this._cardReferenceBlocksForCardID = selectActiveCard(state)?.id || '';
+		}, overdue ? 0 : REFERENCE_BLOCKS_DEBOUNCE_MS);
 	}
 
 	override stateChanged(state : State) {
@@ -919,7 +942,13 @@ class CardView extends connect(store)(PageViewElement) {
 		//Reference blocks run ~10 key-card collections over the whole corpus
 		//(~1-2s at 40k cards), so they must never compute synchronously on the
 		//navigation keystroke path — schedule them for after navigation
-		//settles. The previous card's blocks stay visible in the interim.
+		//settles. Blocks rendered for a DIFFERENT card are cleared right now:
+		//empty-until-ready is honest; the previous card's "similar cards"
+		//under the new card silently misattributes relations.
+		if (this._cardReferenceBlocksForCardID && this._card && this._card.id !== this._cardReferenceBlocksForCardID) {
+			this._cardReferenceBlocks = [];
+			this._cardReferenceBlocksForCardID = '';
+		}
 		this._scheduleReferenceBlocksUpdate();
 		//Use enriched card for display when not editing. While editing, avoid
 		//semantic enrichment on the keystroke path and keep the active card's

@@ -443,12 +443,32 @@ const compareShadowResult = (description : string, uiIDs : string[], workerIDs :
 	}
 };
 
+//Resubscribe the active-collection slot IMMEDIATELY when its description
+//changes, instead of waiting for the debounced comparator tick: that tick
+//(up to 1s) plus worker compute was the first-paint lag on every collection
+//switch in 'on' mode — the UI fell back to a ~3s local filter+sort at 40k
+//while a worker result was only a subscription away. Cheap on every state
+//change (one serialize + string compare; ensureSubscription dedupes by
+//key), heavy work only when the description ACTUALLY changed.
+const fastResubscribeOnDescriptionChange = () => {
+	if (!worker || !corpusWorkerCanRunCollections()) return;
+	const state = store.getState() as State;
+	const description = selectActiveCollectionDescription(state);
+	if (!description) return;
+	if (description.serialize() === bridgeSubscriptions.active.descriptionSerialized) return;
+	sendCollectionConfigIfChanged(state);
+	ensureSubscription('active', description, state);
+};
+
 const startShadowComparator = () => {
 	if (shadowComparatorStarted) return;
 	const mode = readMode();
 	if (mode !== 'shadow' && mode !== 'on') return;
 	shadowComparatorStarted = true;
-	store.subscribe(scheduleShadowCompare);
+	store.subscribe(() => {
+		fastResubscribeOnDescriptionChange();
+		scheduleShadowCompare();
+	});
 	scheduleShadowCompare();
 	if (mode === 'shadow') {
 		console.log('[corpus-shadow] comparator active (compares at most every ' + (SHADOW_COMPARE_INTERVAL_MS / 1000) + 's)');
