@@ -827,3 +827,42 @@ IMPLEMENTED (queue for pre-flag-flip polish):
    garden's best feature removed exactly while writing).
 5. Find-drawer opacity dip while a query is in flight (occasional
    "search ignored me" on slow queries).
+
+## 2026-07-11 — Restored: live related-cards refresh while editing (4790e53e)
+
+Owner asked where the master-era "refresh related cards every ~5s while
+editing" pipeline went. Answer: it was a chain, and only the last hop was
+cut. Upstream always survived — textFieldUpdated's 1s debounce →
+EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES → version-memoized
+selectEditingNormalizedCard; the similar-cards filter's
+lastSeenEditingCard identity trigger → Qdrant fetch of LIVE content →
+EDITING_UPDATE_SIMILAR_CARDS overlay. dba98e20 severed the render hop
+(card-view cleared blocks for the whole edit session) because the sync
+expansion is 1-2s at 40k; and the worker path couldn't represent the
+editing card (query-engine hardcoded editingCardSimilarity: undefined,
+worker's requestSimilarity forward dropped the editingCard arg — so in
+worker mode the editing-content Qdrant fetch was ALSO silently dead).
+
+Restore (worker-served): setEditingCard protocol message (bridge sends on
+normalized-card/similarity identity change, ~1/s max, reset+resent on
+reconnect) → engine threads editingCard/editingCardSimilarity into every
+run (native CollectionConstructorArguments fields; shared filter code
+just works) + markDirty re-pushes subscriptions; requestSimilarity
+forEditingCard forwarded sans TTL, resolved main-side against the
+canonical object (clone has dead Timestamp prototypes), identity-deduped
+in fetchSimilarCardsForCardIfEnabled against shadow-mode double-fetch.
+card-view editing gate removed: same debounce/max-wait scheduler, card =
+selectEditingNormalizedCard while editing, args =
+selectCollectionConstructorArgumentsWithEditingCard, stale-drop
+invalidates on editing-state toggle. Off-mode sync fallback = exact
+master behavior (feature at ≤10k scale; off mode at 40k was already
+non-viable). Cadence while typing: debounce+1s max-wait ≈ 1Hz off-thread
+refresh; Qdrant round-trip lands seconds later and re-pushes. This
+closes UX critique #4 and subsumes the P3 editing-blocks item.
+
+Tests: full suite green. NOT yet live-verified (needs signed-in editor
+session on dev at 40k: type in a card body, watch sidebar related cards
+update within ~1-5s without typing jank; verify one similarCards callable
+per content version in the network tab, no duplicates in shadow mode).
+Info panel still deliberately serves the COMMITTED card while editing —
+candidate follow-up now that the worker can serve editing content.
