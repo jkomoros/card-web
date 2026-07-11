@@ -62,3 +62,33 @@ Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ comm
 
 ## Rollout flags
 localStorage `corpus-worker`: off (default) | spike | shadow (worker owns ingestion + divergence logging) | on (worker also serves active collection, find-dialog search, reference blocks). Console APIs: `CORPUS_WORKER.setMode(...)`, `DEBUG_PERF.enable()`/`dump()`.
+
+## DIRECTIVE (2026-07-11, owner): FAST COLD BOOT — top priority next session
+Owner requirement: logged-in fresh boots must download ALL cards as fast as
+possible. Both projects confirmed Blaze-for-years, billing linked, NO caps
+anywhere (verified in console: no per-minute read quota, no App Engine
+spending limit, billing healthy). The 07-04/05 resource-exhausted incidents
+are, by elimination, SERVER-SIDE BACKPRESSURE against our burst shape (the
+SDK's 'maximum backoff to prevent overloading' message confirms) — a
+client-pacing problem, not a quota problem.
+
+IMPLEMENT: replace the budgeted cold sweep (42k/day + Pacific-midnight
+pause — designed for a free-tier cliff that does not exist) with:
+1. Priority phase unchanged: ~5k most-recent via (published, updated DESC)
+   index — usable in seconds.
+2. Then ALL 10 partitions in PARALLEL via getDocsFromServer (the legacy
+   prime shape: 39k in ~75-150s measured) with per-partition resumable
+   cursors (keep sync-meta persistence for interrupted boots).
+3. ADAPTIVE PACING instead of daily budget: on RESOURCE_EXHAUSTED, halve
+   partition concurrency (10->5->2->1) + exponential backoff per
+   retryWithBackoff; restore concurrency after N clean pages. Never pause
+   until midnight; never give up (generation-guarded).
+4. Retire cold-budget.ts daily-pause logic (keep pacificDayKey only if
+   telemetry wants it); update tests; trust gate + afterColdSweep re-gate
+   unchanged.
+5. Validate live on dev: fresh profile, measure wall-clock to full 40k
+   corpus + confirm zero resource-exhausted at full concurrency, or that
+   adaptive pacing degrades smoothly if throttled. Target: usable <30s,
+   complete <3min (legacy prime speed), cost ~2.4 cents.
+Cost analysis on Blaze: full cold load = ~4 cents. Speed is the only
+objective; backpressure-adaptation is the only constraint.
