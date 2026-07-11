@@ -778,3 +778,19 @@ for dev ergonomics and rollback, NOT for prod billing. Also gated the
 formerly-unconditional [PERF] console.logs in receiveCards/
 cardSnapshotReceiver behind perfEnabled() (review item; ambient noise for
 every user otherwise).
+
+**PERCEIVED-LATENCY FIXES (2026-07-11, 9e754b67)**: adversarial prosecution
+proved "zero long tasks" measured jank, not content arrival. Fixed: (1)
+stale reference blocks / info-panel content now CLEAR on card change
+(empty-until-ready) instead of showing the previous card's relations for
+the debounce+roundtrip window; components track ownership via
+_cardReferenceBlocksForCardID / _expensivePropertiesForCardID; (2) 1s
+max-wait on both 250ms settle debounces (they reset per state change —
+store churn could starve them forever); (3) bridge resubscribes the active
+collection IMMEDIATELY on description change (was: up to 1s comparator tick
++ compute, forcing a ~3s local fallback per switch at 40k). REMAINING
+pre-flip: content-correctness metric in the harness — poll
+document.querySelector('card-view')._cardReferenceBlocksForCardID ===
+activeCardID from keydown to first correct frame (the ownership fields
+exist precisely to make this measurable); accepted-not-fixed: blocks
+pinned/empty while editing (restore via worker editing-card blocks, P3).
