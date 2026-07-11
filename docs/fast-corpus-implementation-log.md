@@ -895,3 +895,31 @@ editing-card pipeline active (worker setEditingCard, blocks scheduled
 during editing) — commit closes the editor and nav proceeds. Live-dev
 editing-feel check (sidebar refresh cadence while typing at 40k) still
 pending a signed-in session.
+
+## 2026-07-11 — FLAG FLIP (e8cc5257) + dev deploy: on/watermark are the defaults
+
+Owner directive: corpus-worker='on' + corpus-sync='watermark' are now the
+DEFAULTS; localStorage is the opt-OUT (explicit 'off'/'listen' honored;
+writing the default clears the key). Windowless contexts still resolve
+legacy. Full suite green.
+
+Deployed to dev (hosting + firestore) — NOTE: `npm run deploy:dev` is
+BROKEN at configureApiKeys (`functions:config:set` hard-deprecated,
+Runtime Config shut down 2026-03); deployed manually with
+`npx firebase deploy --only hosting,firestore --project
+dev-complexity-compendium`. Functions NOT redeployed (unchanged callables
+serve fine); task chip filed to migrate the tooling.
+
+Live anon validation on https://dev-complexity-compendium.web.app with a
+FRESH profile (no localStorage → defaults exercised for real): worker owns
+ingestion, 1,240 published cards ingested in 525ms, load complete,
+reconciliation clean, worker-served active collection, sections + card
+content + drawer all render, ZERO console errors. /c/working-notes/ shows
+'no card' anon — correct (privileged collection).
+
+PENDING (owner's browser): the signed-in cold-boot soak — fresh profile or
+cleared site data on dev, sign in, expect priority 5k usable in seconds,
+full ~39k corpus complete in ~1-3min (watch for 'cold sweep ... throttled;
+concurrency now N' messages = adaptive pacing engaging), then syncState
+live and <100 reads on subsequent warm boots. Editing feel check: open a
+card, type, watch sidebar related cards refresh every ~1-5s.
