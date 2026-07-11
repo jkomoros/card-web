@@ -282,6 +282,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		if (!this._open) {
+			//Reset the max-wait epoch: a stale timestamp would make the first
+			//schedule after reopening instantly "overdue" and fire the
+			//expensive path right on the open click.
+			this._expensivePropertiesFirstDeferredAt = 0;
 			this._card = null;
 			this._sectionTitle = '';
 			this._author = undefined as unknown as Author;
@@ -326,7 +330,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//otherwise be starved by store churn).
 		const now = Date.now();
 		if (!this._expensivePropertiesFirstDeferredAt) this._expensivePropertiesFirstDeferredAt = now;
-		const overdue = now - this._expensivePropertiesFirstDeferredAt >= EXPENSIVE_PROPERTIES_MAX_WAIT_MS;
+		//Only short-circuit when the worker can serve (async): an early fire
+		//onto the SYNC 1-2s local fallback is a mid-interaction freeze, and
+		//starvation only arises from worker-mode store churn anyway.
+		const overdue = now - this._expensivePropertiesFirstDeferredAt >= EXPENSIVE_PROPERTIES_MAX_WAIT_MS && corpusWorkerCanRunCollections();
 		this._expensivePropertiesTimeout = window.setTimeout(() => {
 			this._expensivePropertiesFirstDeferredAt = 0;
 			const freshState = store.getState() as State;
@@ -349,8 +356,12 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					corpusWorkerRunCollection
 				).then(blocks => {
 					if (blocks === null) {
-						this._referenceBlocks = selectExpandedInfoPanelReferenceBlocksForActiveCard(store.getState() as State);
-						this._expensivePropertiesForCardID = cardID;
+						//Fallback computes from FRESH state — label ownership
+						//with the fresh card, or the next stateChanged clears
+						//correct content (stale-label flash bug).
+						const fallbackState = store.getState() as State;
+						this._referenceBlocks = selectExpandedInfoPanelReferenceBlocksForActiveCard(fallbackState);
+						this._expensivePropertiesForCardID = selectActiveCard(fallbackState)?.id || '';
 						return;
 					}
 					//Drop stale results if the user navigated meanwhile.

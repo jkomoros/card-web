@@ -882,6 +882,10 @@ class CardView extends connect(store)(PageViewElement) {
 				window.clearTimeout(this._referenceBlocksTimeout);
 				this._referenceBlocksTimeout = 0;
 			}
+			//Also reset the max-wait epoch: a stale timestamp here would make
+			//the FIRST post-editing schedule instantly "overdue" and fire the
+			//expensive path right on top of the commit dispatch storm.
+			this._referenceBlocksFirstDeferredAt = 0;
 			this._cardReferenceBlocks = [];
 			return;
 		}
@@ -889,8 +893,13 @@ class CardView extends connect(store)(PageViewElement) {
 		const now = Date.now();
 		if (!this._referenceBlocksFirstDeferredAt) this._referenceBlocksFirstDeferredAt = now;
 		//Fire immediately (next tick) if deferrals have been piling up past
-		//the max-wait; otherwise the normal settle debounce.
-		const overdue = now - this._referenceBlocksFirstDeferredAt >= REFERENCE_BLOCKS_MAX_WAIT_MS;
+		//the max-wait — but ONLY when the worker can serve (async,
+		//off-thread). When the fallback would be the SYNCHRONOUS 1-2s local
+		//computation (worker off/loading), an early fire is a mid-navigation
+		//freeze — the exact jank the debounce exists to prevent — and the
+		//starvation this guards against only occurs from worker-mode store
+		//churn anyway.
+		const overdue = now - this._referenceBlocksFirstDeferredAt >= REFERENCE_BLOCKS_MAX_WAIT_MS && corpusWorkerCanRunCollections();
 		this._referenceBlocksTimeout = window.setTimeout(() => {
 			this._referenceBlocksTimeout = 0;
 			this._referenceBlocksFirstDeferredAt = 0;
@@ -915,9 +924,13 @@ class CardView extends connect(store)(PageViewElement) {
 				);
 				workerPromise.then(blocks => {
 					if (blocks === null) {
-						//Worker went away mid-flight: local fallback.
-						this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(store.getState() as State);
-						this._cardReferenceBlocksForCardID = cardID;
+						//Worker went away mid-flight: local fallback, computed
+						//from FRESH state — so label ownership with the fresh
+						//card, not the captured one (a stale label makes the
+						//next stateChanged clear CORRECT content).
+						const fallbackState = store.getState() as State;
+						this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(fallbackState);
+						this._cardReferenceBlocksForCardID = selectActiveCard(fallbackState)?.id || '';
 						return;
 					}
 					//Drop stale results if the user navigated meanwhile.

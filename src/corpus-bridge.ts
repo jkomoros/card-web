@@ -451,11 +451,17 @@ const compareShadowResult = (description : string, uiIDs : string[], workerIDs :
 //change (one serialize + string compare; ensureSubscription dedupes by
 //key), heavy work only when the description ACTUALLY changed.
 const fastResubscribeOnDescriptionChange = () => {
-	if (!worker || !corpusWorkerCanRunCollections()) return;
+	if (!worker) return;
+	//CHEAP check first: this runs on every dispatch, and
+	//corpusWorkerCanRunCollections() enumerates the whole raw-cards map —
+	//paying that on the no-change common path (every keystroke, every
+	//batch) is a hot-path tax. The memoized description + precomputed
+	//serialize costs a string compare.
 	const state = store.getState() as State;
 	const description = selectActiveCollectionDescription(state);
 	if (!description) return;
 	if (description.serialize() === bridgeSubscriptions.active.descriptionSerialized) return;
+	if (!corpusWorkerCanRunCollections()) return;
 	sendCollectionConfigIfChanged(state);
 	ensureSubscription('active', description, state);
 };
