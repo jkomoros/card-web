@@ -36,12 +36,14 @@ import {
 	Firestore,
 	Query,
 	QuerySnapshot,
-	Timestamp
+	Timestamp,
+	QueryConstraint
 } from 'firebase/firestore';
 
 import {
 	deriveWatermark,
 	advanceWatermark,
+	compareTimestamps,
 	watermarkQueryBound,
 	WireTimestamp
 } from './watermark.js';
@@ -52,13 +54,15 @@ import {
 } from './sync-meta.js';
 
 import {
-	pacificDayKey,
-	msUntilNextPacificDay,
-	rolledOverReads,
-	budgetExhausted,
 	COLD_SWEEP_PAGE_SIZE,
-	COLD_SWEEP_PRIORITY_COUNT
-} from './cold-budget.js';
+	COLD_SWEEP_PRIORITY_COUNT,
+	initialPaceState,
+	concurrencyForPace,
+	paceOnThrottle,
+	paceOnCleanPage,
+	throttleBackoffMs,
+	isResourceExhausted
+} from './cold-pace.js';
 
 import {
 	retryWithBackoff
@@ -832,6 +836,25 @@ const deriveSessionWatermark = () : WireTimestamp | null => {
 	return deriveWatermark(values);
 };
 
+//Derive the watermark honoring a pending post-sweep clamp (see sync-meta.ts
+//watermarkClamp for why an unclamped derivation after a docID-ordered sweep
+//can skip mid-sweep edits).
+const deriveClampedWatermark = () : WireTimestamp | null => {
+	const derived = deriveSessionWatermark();
+	const clamp = syncMetaState ? syncMetaState.watermarkClamp : null;
+	if (!derived || !clamp) return derived;
+	return compareTimestamps(clamp, derived) < 0 ? clamp : derived;
+};
+
+//Once the delta listener is attached under the clamped watermark the clamp
+//has served its purpose; clearing it keeps later boots from re-replaying
+//everything since the sweep forever.
+const clearWatermarkClamp = () => {
+	if (!syncMetaState || !syncMetaState.watermarkClamp) return;
+	syncMetaState.watermarkClamp = null;
+	if (syncMetaStore) void syncMetaStore.save(syncMetaState);
+};
+
 //Processes tombstone docs: remove from corpus/engine, forward removals,
 //launder the SDK cache (getDocFromServer overwrites the cached ghost with
 //not-exists — client code cannot delete cache entries directly), and track
@@ -967,31 +990,43 @@ const attachDeltaListener = (database : Firestore) => {
 };
 
 //----------------------------------------------------------------------------
-// Cold sweep (Phase 2): first-ever fill of the corpus on a device with no
-// usable cache. Reads the whole corpus ONCE — unavoidable (the client SDK
-// reads whole docs) — but budgeted per quota day, resumable across days via
-// a persisted cursor, and priority-ordered so the app is usable in minutes.
+// Cold sweep (FAST COLD BOOT): first-ever fill of the corpus on a device
+// with no usable cache. Reads the whole corpus ONCE — unavoidable (the
+// client SDK reads whole docs) — as fast as the backend allows: a priority
+// phase of the most recent cards (usable in seconds), then ALL partitions in
+// parallel with per-partition resumable cursors and ADAPTIVE PACING (halve
+// concurrency + exponential backoff on RESOURCE_EXHAUSTED backpressure,
+// restore after a run of clean pages). On Blaze there is no quota to budget
+// against — the full 60k load costs ~4 cents. See cold-pace.ts.
 //----------------------------------------------------------------------------
 
 //A primed corpus holding less than this fraction of the server total is
 //treated as cold (full sweep) rather than repaired partition-by-partition:
-//repairing nearly everything IS a full read, but unbudgeted.
+//repairing nearly everything IS a full read of everything.
 const COLD_FRACTION = 0.5;
+
+//A page of one partition, ordered by documentId with a resumable cursor.
+//Served by the same (published ==, __name__) index shape as
+//unpublishedPartitionQuery.
+const unpublishedPartitionPageQuery = (database : Firestore, partition : UnpublishedCardPartition, afterDocID : string) : Query => {
+	const constraints : QueryConstraint[] = [where('published', '==', false)];
+	if (partition.gte) constraints.push(where(documentId(), '>=', partition.gte));
+	constraints.push(where(documentId(), '<', partition.lt));
+	constraints.push(orderBy(documentId(), 'asc'));
+	if (afterDocID) constraints.push(startAfter(afterDocID));
+	constraints.push(limit(COLD_SWEEP_PAGE_SIZE));
+	return query(collection(database, CARDS_COLLECTION), ...constraints);
+};
 
 const coldSweep = async (database : Firestore, myConnectionGeneration : number) : Promise<boolean> => {
 	if (!syncMetaStore || !syncMetaState) return false;
 	const meta = syncMetaState;
-	const now = Date.now();
-	//Roll the budget over if the quota day changed since the cursor persisted.
-	if (meta.coldLoad) {
-		const rolled = rolledOverReads(meta.coldLoad.readsToday, meta.coldLoad.day, now);
-		meta.coldLoad.readsToday = rolled.readsToday;
-		meta.coldLoad.day = rolled.day;
-	}
+	const metaStore = syncMetaStore;
 
 	//Priority phase (fresh sweeps only): the most recently updated cards
-	//first, so a knowledge garden is USABLE minutes into a 2-day sweep.
-	if (!meta.coldLoad) {
+	//first, so a knowledge garden is USABLE in seconds while the parallel
+	//sweep fills the rest.
+	if (!meta.coldSweep) {
 		let prioritySnapshot : QuerySnapshot;
 		try {
 			prioritySnapshot = await getDocsFromServer(query(collection(database, CARDS_COLLECTION),
@@ -1004,83 +1039,107 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 		const {cards} = parseSnapshot(prioritySnapshot);
 		updateLocalState(cards, []);
 		forwardBatch(cards, [], 'unpublished', false);
-		meta.coldLoad = {
-			cursorUpdated: {seconds: 0, nanoseconds: 0},
-			cursorDocID: '',
-			readsToday: prioritySnapshot.size,
-			day: pacificDayKey(now)
+		//startBound: max(updated) at sweep START, server-confirmed. The
+		//post-sweep watermark is clamped to it — the docID-ordered pages
+		//below can read a doc BEFORE a mid-sweep edit lands on it, so an
+		//unclamped max(updated) could advance past an unseen edit and the
+		//delta listener would permanently skip it.
+		let startBound : WireTimestamp | null = null;
+		for (const card of Object.values(cards)) {
+			const updated = card.updated as Timestamp | undefined;
+			if (updated && typeof updated.seconds === 'number') {
+				startBound = advanceWatermark(startBound, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
+			}
+		}
+		meta.coldSweep = {
+			startBound,
+			cursors: UNPUBLISHED_CARD_PARTITIONS.map(() => ''),
+			done: UNPUBLISHED_CARD_PARTITIONS.map(() => false)
 		};
-		void syncMetaStore.save(meta);
-		status(`cold sweep: priority phase served ${prioritySnapshot.size} recent cards; systematic sweep follows`);
+		void metaStore.save(meta);
+		status(`cold sweep: priority phase served ${prioritySnapshot.size} recent cards; parallel partition sweep follows`);
 	}
 
-	//Systematic sweep, ascending (updated, documentId): an edit moves a doc
-	//FORWARD past the cursor, so mid-sweep edits are re-encountered
-	//(idempotent) rather than missed. Descending order would silently skip.
-	for (;;) {
-		if (myConnectionGeneration !== connectionGeneration) return false;
-		const cursor : SyncMeta['coldLoad'] = meta.coldLoad;
-		if (!cursor) return true;
-		if (budgetExhausted(cursor.readsToday)) {
-			const waitMs = msUntilNextPacificDay(Date.now());
-			status(`cold sweep paused at ${cursor.readsToday} reads today; resuming in ~${Math.round(waitMs / 3600000)}h`);
-			setTimeout(() => {
+	//All partitions in parallel, each page gated by an adaptive semaphore.
+	//RESOURCE_EXHAUSTED is server-side backpressure against the burst shape
+	//(verified NOT a quota — both projects are Blaze with no caps): halve
+	//concurrency and back off; a run of clean pages restores it. Other
+	//errors back off without downshifting. Generation-guarded; otherwise
+	//never gives up and never pauses.
+	const sweep = meta.coldSweep;
+	let pace = initialPaceState();
+	let activePages = 0;
+	let waiters : (() => void)[] = [];
+	const wake = () => {
+		const pending = waiters;
+		waiters = [];
+		for (const waiter of pending) waiter();
+	};
+	const acquirePageSlot = async () => {
+		while (activePages >= concurrencyForPace(pace)) {
+			await new Promise<void>(resolve => waiters.push(resolve));
+		}
+		activePages++;
+	};
+	const releasePageSlot = () => {
+		activePages--;
+		wake();
+	};
+	const sleep = (ms : number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+	const sweepPartition = async (index : number) : Promise<void> => {
+		const partition = UNPUBLISHED_CARD_PARTITIONS[index];
+		let errorBackoffMs = 1000;
+		while (!sweep.done[index]) {
+			if (myConnectionGeneration !== connectionGeneration) return;
+			await acquirePageSlot();
+			let page : QuerySnapshot;
+			try {
+				page = await getDocsFromServer(unpublishedPartitionPageQuery(database, partition, sweep.cursors[index]));
+			} catch (e) {
+				releasePageSlot();
 				if (myConnectionGeneration !== connectionGeneration) return;
-				void coldSweep(database, myConnectionGeneration).then(done => {
-					if (done) void afterColdSweep(database, myConnectionGeneration);
-				});
-			}, waitMs);
-			return false;
+				if (isResourceExhausted(e)) {
+					pace = paceOnThrottle(pace);
+					const backoff = throttleBackoffMs(pace.consecutiveThrottles);
+					status(`cold sweep ${partitionLabel(partition)} throttled; concurrency now ${concurrencyForPace(pace)}, retrying in ${Math.round(backoff / 1000)}s`);
+					await sleep(backoff);
+				} else {
+					status(`cold sweep ${partitionLabel(partition)} page failed (${String(e)}); retrying in ${Math.round(errorBackoffMs / 1000)}s`);
+					await sleep(errorBackoffMs);
+					errorBackoffMs = Math.min(errorBackoffMs * 2, 60 * 1000);
+				}
+				continue;
+			}
+			if (myConnectionGeneration !== connectionGeneration) {
+				releasePageSlot();
+				return;
+			}
+			errorBackoffMs = 1000;
+			pace = paceOnCleanPage(pace);
+			const {cards} = parseSnapshot(page);
+			if (page.size) {
+				updateLocalState(cards, []);
+				forwardBatch(cards, [], 'unpublished', true);
+				sweep.cursors[index] = page.docs[page.docs.length - 1].id;
+			}
+			if (page.size < COLD_SWEEP_PAGE_SIZE) sweep.done[index] = true;
+			//Persist-late per page: an over-old cursor just re-reads a page.
+			void metaStore.save(meta);
+			releasePageSlot();
 		}
-		let page : QuerySnapshot;
-		try {
-			//The very first page has no cursor yet: an EMPTY docID in
-			//startAfter resolves to an invalid document path (observed live:
-			//invalid-argument, "'cards' ... odd number of segments"), so the
-			//startAfter constraint is applied only once a real cursor exists.
-			const pageQuery = cursor.cursorDocID
-				? query(collection(database, CARDS_COLLECTION),
-					where('published', '==', false),
-					orderBy('updated', 'asc'), orderBy(documentId(), 'asc'),
-					startAfter(new Timestamp(cursor.cursorUpdated.seconds, cursor.cursorUpdated.nanoseconds), cursor.cursorDocID),
-					limit(COLD_SWEEP_PAGE_SIZE))
-				: query(collection(database, CARDS_COLLECTION),
-					where('published', '==', false),
-					orderBy('updated', 'asc'), orderBy(documentId(), 'asc'),
-					limit(COLD_SWEEP_PAGE_SIZE));
-			page = await getDocsFromServer(pageQuery);
-		} catch (e) {
-			status(`cold sweep page failed (${String(e)}); pausing 60s`);
-			setTimeout(() => {
-				if (myConnectionGeneration !== connectionGeneration) return;
-				void coldSweep(database, myConnectionGeneration).then(done => {
-					if (done) void afterColdSweep(database, myConnectionGeneration);
-				});
-			}, 60 * 1000);
-			return false;
-		}
-		if (myConnectionGeneration !== connectionGeneration) return false;
-		const {cards} = parseSnapshot(page);
-		if (page.size) {
-			updateLocalState(cards, []);
-			forwardBatch(cards, [], 'unpublished', true);
-			const lastDoc = page.docs[page.docs.length - 1];
-			const lastUpdated = lastDoc.data({serverTimestamps: 'estimate'}).updated as Timestamp | undefined;
-			meta.coldLoad = {
-				cursorUpdated: lastUpdated && typeof lastUpdated.seconds === 'number' ? {seconds: lastUpdated.seconds, nanoseconds: lastUpdated.nanoseconds} : cursor.cursorUpdated,
-				cursorDocID: lastDoc.id,
-				readsToday: cursor.readsToday + page.size,
-				day: cursor.day
-			};
-			void syncMetaStore.save(meta);
-		}
-		if (page.size < COLD_SWEEP_PAGE_SIZE) {
-			meta.coldLoad = null;
-			void syncMetaStore.save(meta);
-			status(`cold sweep complete; corpus=${corpus.size}`);
-			return true;
-		}
-	}
+	};
+
+	await Promise.all(UNPUBLISHED_CARD_PARTITIONS.map((_, index) => sweepPartition(index)));
+	if (myConnectionGeneration !== connectionGeneration) return false;
+	//Promote the start bound to the persisted clamp BEFORE clearing the
+	//sweep state, so a crash between here and the delta-listener attach
+	//still clamps the next boot's watermark.
+	meta.watermarkClamp = sweep.startBound;
+	meta.coldSweep = null;
+	void metaStore.save(meta);
+	status(`cold sweep complete; corpus=${corpus.size}`);
+	return true;
 };
 
 //Tail shared by the sweep's completion paths: RE-VERIFY with the gate (the
@@ -1103,9 +1162,10 @@ const afterColdSweep = async (database : Firestore, myConnectionGeneration : num
 			return;
 		}
 	}
-	sessionWatermark = deriveSessionWatermark();
+	sessionWatermark = deriveClampedWatermark();
 	attachTombstoneListener(database, () => {
 		attachDeltaListener(database);
+		clearWatermarkClamp();
 		markInitialDelivered('unpublished');
 		setSyncState('live');
 	});
@@ -1202,16 +1262,18 @@ const connectUnpublishedWatermark = async () => {
 		//A gate pass without the sweep means any persisted sweep cursor is
 		//stale — clearing it prevents a FUTURE cold event from resuming
 		//mid-corpus and "completing" with only the tail.
-		if (syncMetaState && syncMetaState.coldLoad) {
-			syncMetaState.coldLoad = null;
+		if (syncMetaState && syncMetaState.coldSweep) {
+			syncMetaState.coldSweep = null;
 			if (syncMetaStore) void syncMetaStore.save(syncMetaState);
 		}
-		//4. Watermark from the (verified) corpus in hand.
-		sessionWatermark = deriveSessionWatermark();
+		//4. Watermark from the (verified) corpus in hand — clamped if a
+		//completed sweep's clamp is still pending (crash recovery).
+		sessionWatermark = deriveClampedWatermark();
 		//5. Tombstone listener (catch-up already ran); then the delta
 		//listener from the watermark; then complete.
 		attachTombstoneListener(database, () => {
 			attachDeltaListener(database);
+			clearWatermarkClamp();
 			markInitialDelivered('unpublished');
 			setSyncState('live');
 		});

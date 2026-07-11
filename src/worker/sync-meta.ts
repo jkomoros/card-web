@@ -18,20 +18,35 @@ export type SyncMeta = {
 	//confirmed yet: re-suppressed at prime time so a ghost can't resurface
 	//from the (client-unpurgeable) SDK cache between boots.
 	processedTombstoneIDs : string[],
-	//Cold-load progress (Phase 2): resumable cursor + per-day read budget.
-	coldLoad : {
-		cursorUpdated : WireTimestamp,
-		cursorDocID : string,
-		readsToday : number,
-		day : string
+	//Cold-sweep progress (FAST COLD BOOT): per-partition resumable cursors,
+	//index-aligned with UNPUBLISHED_CARD_PARTITIONS. Replaces the retired
+	//daily-budget cursor (an old persisted `coldLoad` value is simply
+	//ignored and the sweep restarts — pre-ship, dev-only state).
+	coldSweep : {
+		//max(updated) served by the priority phase: a server-confirmed
+		//bound from sweep START, promoted to watermarkClamp on completion.
+		startBound : WireTimestamp | null,
+		//Last document ID ingested per partition ('' = not started).
+		cursors : string[],
+		//Whether each partition is exhausted.
+		done : boolean[]
 	} | null,
+	//Pending watermark clamp from a completed sweep, cleared once the delta
+	//listener is attached under it. The parallel sweep pages by documentId,
+	//so a doc can be read BEFORE a mid-sweep edit lands on it while
+	//max(updated) over the swept corpus advances past that edit — deriving
+	//the watermark unclamped could then permanently skip the edit. Clamping
+	//to the sweep-start bound keeps the delta listener's no-gap proof; the
+	//cost is replaying the handful of edits made during the sweep.
+	watermarkClamp : WireTimestamp | null,
 	schemaVersion : 1
 };
 
 const EMPTY_META : SyncMeta = {
 	tombstoneCursor: null,
 	processedTombstoneIDs: [],
-	coldLoad: null,
+	coldSweep: null,
+	watermarkClamp: null,
 	schemaVersion: 1
 };
 
@@ -73,7 +88,9 @@ export class SyncMetaStore {
 				const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(this._key);
 				request.onsuccess = () => {
 					const value = request.result as SyncMeta | undefined;
-					resolve(value && value.schemaVersion === 1 ? value : {...EMPTY_META});
+					//Spread over EMPTY_META so fields added since the value
+					//was persisted (coldSweep, watermarkClamp) default sanely.
+					resolve(value && value.schemaVersion === 1 ? {...EMPTY_META, ...value} : {...EMPTY_META});
 				};
 				request.onerror = () => resolve({...EMPTY_META});
 			});
