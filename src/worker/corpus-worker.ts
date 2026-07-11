@@ -1393,6 +1393,11 @@ workerScope.addEventListener('message', event => {
 	case 'unsubscribeCollection':
 		subscriptions.unsubscribe(message.subscriptionID);
 		break;
+	case 'setEditingCard':
+		//Re-push subscriptions so open collections and reference blocks
+		//reflect the new editing content immediately.
+		if (engine.setEditingCard(message.card, message.similarity)) subscriptions.markDirty();
+		break;
 	case 'runCollection': {
 		const start = performance.now();
 		try {
@@ -1453,7 +1458,14 @@ workerScope.addEventListener('message', event => {
 //traffic.
 const SIMILARITY_REQUEST_RETRY_MS = 60 * 1000;
 const requestedSimilarityCardIDs : Map<CardID, number> = new Map();
-setSimilarityRequestHandler(cardID => {
+setSimilarityRequestHandler((cardID, editingCard) => {
+	if (editingCard) {
+		//Editing-card content requests: the filter's own editing-card
+		//identity guard already dedupes per content version, and each new
+		//version SHOULD refetch — so the cardID TTL below must not apply.
+		send({type: 'requestSimilarity', generation, cardID, forEditingCard: true});
+		return;
+	}
 	const now = Date.now();
 	const requestedAt = requestedSimilarityCardIDs.get(cardID);
 	if (requestedAt !== undefined && now - requestedAt < SIMILARITY_REQUEST_RETRY_MS) return;

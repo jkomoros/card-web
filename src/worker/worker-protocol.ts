@@ -12,7 +12,9 @@ import {
 	CardMeta,
 	CardMetas,
 	CardSimilarityMap,
-	SerializedDescriptionToCardList
+	ProcessedCard,
+	SerializedDescriptionToCardList,
+	SortExtra
 } from '../types.js';
 
 //Extracts the compact metadata the main thread keeps for every card.
@@ -117,6 +119,10 @@ export type MainToWorkerMessage =
 	| {type: 'unsubscribeCollection', generation: WorkerGeneration, subscriptionID : number}
 	//One-shot collection run (e.g. the active card's reference blocks).
 	| {type: 'runCollection', generation: WorkerGeneration, id : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
+	//The live editing card (normalized on the main thread) and its
+	//content-derived similarity, mirrored so collection runs reflect unsaved
+	//content — null card when editing ends.
+	| {type: 'setEditingCard', generation: WorkerGeneration, card : ProcessedCard | null, similarity : SortExtra | null}
 	//Ask for the full set of card IDs in the worker's corpus, so the bridge
 	//can reconcile away cards the local-cache prime served that no longer
 	//exist (deleted while the app was closed — the worker never saw them, so
@@ -204,7 +210,10 @@ export type WorkerToMainMessage =
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
 	//The worker's similar-card filters need server similarity for this card;
 	//only the main thread can fetch it (see src/similarity-request.ts).
-	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID}
+	//forEditingCard: the fetch is for live editing-card content; the main
+	//thread resolves its own canonical editing card (the worker's copy is a
+	//structured clone with dead Timestamp prototypes).
+	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID, forEditingCard? : boolean}
 	//Response to requestCorpusIDs: every card ID currently in the corpus.
 	| {type: 'corpusIDs', generation: WorkerGeneration, ids : CardID[]}
 	//PERF HARNESS ONLY: response to perfData — the worker's timing snapshot.

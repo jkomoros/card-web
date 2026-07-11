@@ -37,6 +37,8 @@ import {
 	selectCardsDrawerInfoExpanded,
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
 	selectCollectionConstructorArguments,
+	selectCollectionConstructorArgumentsWithEditingCard,
+	selectEditingNormalizedCard,
 	selectCardIDsUserMayEdit,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
@@ -877,18 +879,6 @@ class CardView extends connect(store)(PageViewElement) {
 	//rescheduled on every state change, so rapid navigation never pays the
 	//cost; it lands once the user settles on a card.
 	_scheduleReferenceBlocksUpdate() {
-		if (this._editing) {
-			if (this._referenceBlocksTimeout) {
-				window.clearTimeout(this._referenceBlocksTimeout);
-				this._referenceBlocksTimeout = 0;
-			}
-			//Also reset the max-wait epoch: a stale timestamp here would make
-			//the FIRST post-editing schedule instantly "overdue" and fire the
-			//expensive path right on top of the commit dispatch storm.
-			this._referenceBlocksFirstDeferredAt = 0;
-			this._cardReferenceBlocks = [];
-			return;
-		}
 		if (this._referenceBlocksTimeout) window.clearTimeout(this._referenceBlocksTimeout);
 		const now = Date.now();
 		if (!this._referenceBlocksFirstDeferredAt) this._referenceBlocksFirstDeferredAt = now;
@@ -905,20 +895,22 @@ class CardView extends connect(store)(PageViewElement) {
 			this._referenceBlocksFirstDeferredAt = 0;
 			//Read fresh state at fire time.
 			const state = store.getState() as State;
-			if (selectIsEditing(state)) {
-				this._cardReferenceBlocks = [];
-				return;
-			}
+			//While editing, compute the blocks for the LIVE editing card —
+			//related cards refresh as you type, throttled by the 1s-debounced
+			//normalized editing card (and by this debounce). In worker modes
+			//the bridge mirrors the editing card into the worker, so the
+			//compute stays off-thread.
+			const editing = selectIsEditing(state);
 			//Prefer computing the blocks in the corpus worker (off the UI
 			//thread) when it holds the corpus; fall back to the synchronous
 			//local computation otherwise.
 			if (corpusWorkerCanRunCollections()) {
-				const card = selectActiveCardEnriched(state);
+				const card = editing ? (selectEditingNormalizedCard(state) || null) : selectActiveCardEnriched(state);
 				const cardID = card ? card.id : '';
 				const workerPromise = expandReferenceBlocksViaRunner(
 					card,
 					primaryReferenceBlocksForCard(card),
-					selectCollectionConstructorArguments(state),
+					editing ? selectCollectionConstructorArgumentsWithEditingCard(state) : selectCollectionConstructorArguments(state),
 					selectCardIDsUserMayEdit(state),
 					corpusWorkerRunCollection
 				);
@@ -933,10 +925,12 @@ class CardView extends connect(store)(PageViewElement) {
 						this._cardReferenceBlocksForCardID = selectActiveCard(fallbackState)?.id || '';
 						return;
 					}
-					//Drop stale results if the user navigated meanwhile.
+					//Drop stale results if the user navigated or toggled
+					//editing meanwhile. (Same-id compare covers both modes:
+					//the editing card's id IS the active card's id.)
 					const freshState = store.getState() as State;
-					if (selectIsEditing(freshState)) return;
-					const freshCard = selectActiveCardEnriched(freshState);
+					if (selectIsEditing(freshState) !== editing) return;
+					const freshCard = selectActiveCard(freshState);
 					if (!freshCard || freshCard.id !== cardID) return;
 					this._cardReferenceBlocks = blocks;
 					this._cardReferenceBlocksForCardID = cardID;

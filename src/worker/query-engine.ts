@@ -46,6 +46,8 @@ import {
 	CardID,
 	CollectionState,
 	CollectionConstructorArguments,
+	ProcessedCard,
+	SortExtra,
 	Sections,
 	CardSimilarityMap,
 	Filters,
@@ -164,6 +166,22 @@ export class QueryEngine {
 		};
 	}
 
+	//The card currently being edited on the main thread (normalized), plus
+	//its content-derived similarity — threaded into every collection run so
+	//similar-card filters reflect live editing content, exactly like the
+	//main thread's selectCollectionConstructorArgumentsWithEditingCard.
+	_editingCard : ProcessedCard | null = null;
+	_editingCardSimilarity : SortExtra | null = null;
+
+	//Returns whether anything changed, so callers know to re-push
+	//subscriptions.
+	setEditingCard(card : ProcessedCard | null, similarity : SortExtra | null) : boolean {
+		if (card === this._editingCard && similarity === this._editingCardSimilarity) return false;
+		this._editingCard = card;
+		this._editingCardSimilarity = similarity;
+		return true;
+	}
+
 	runCollection(serializedDescription : string, options : RunCollectionOptions = {}) : RunCollectionResult {
 		const description = CollectionDescription.deserialize(serializedDescription);
 		const processed = this._ensureProcessedCards();
@@ -178,7 +196,8 @@ export class QueryEngine {
 			userID: options.uid || '',
 			randomSalt: options.randomSalt || '',
 			cardSimilarity: options.cardSimilarity || {},
-			editingCardSimilarity: undefined,
+			editingCard: this._editingCard || undefined,
+			editingCardSimilarity: this._editingCardSimilarity || undefined,
 			keyCardID: options.keyCardID || ''
 		} as CollectionConstructorArguments;
 		const collection = description.collection(args);

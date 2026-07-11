@@ -171,9 +171,17 @@ const fetchSimilarCardsToCardContent = (card : Card) : ThunkSomeAction => async 
 
 };
 
+//The editing-content fetch can be triggered from two environments for the
+//same content version (the main thread's own filter run in shadow mode, and
+//the corpus worker's forwarded request) — both resolve to the same canonical
+//normalized-card object, so identity is the dedupe key.
+let lastEditingCardFetched : Card | null = null;
+
 //Returns true if you should expect an UPDATE_CARD_SIMLIARITY for that cardID in the future, and false if not.
 export const fetchSimilarCardsForCardIfEnabled = (card : Card) : boolean => {
 	if (!QDRANT_ENABLED) return false;
+	if (card === lastEditingCardFetched) return true;
+	lastEditingCardFetched = card;
 
 	//This will return immediately.
 	store.dispatch(fetchSimilarCardsToCardContent(card));

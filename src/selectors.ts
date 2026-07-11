@@ -854,7 +854,7 @@ let memoizedEditingNormalizedCardExtractionVersion = -1;
 //if it ran every single keystroke while editingCard was being edited it would
 //be very slow. When extractionVersion increments, that's the system saying it's
 //OK to run the expensive properties again.
-const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined => {
+export const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined => {
 	const extractionVersion = selectEditingCardExtractionVersion(state);
 	if (memoizedEditingNormalizedCardExtractionVersion != extractionVersion) {
 		memoizedEditingNormalizedCard = undefined;

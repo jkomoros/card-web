@@ -85,6 +85,8 @@ import {
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArguments,
 	selectCollectionDescriptionForQuery,
+	selectEditingCardSimilarity,
+	selectEditingNormalizedCard,
 	selectFindDialogOpen,
 	selectIsEditing,
 	selectRandomSalt,
@@ -98,6 +100,8 @@ import {
 import {
 	CardBooleanMap,
 	CardID,
+	ProcessedCard,
+	SortExtra,
 	State,
 	WorkerCollectionSlot
 } from './types.js';
@@ -466,6 +470,27 @@ const fastResubscribeOnDescriptionChange = () => {
 	ensureSubscription('active', description, state);
 };
 
+//Identity of the last editing card + similarity sent to the worker, so the
+//boundary is only crossed when the (extraction-version-memoized) normalized
+//editing card or its fetched similarity actually changes — at most about
+//once a second while typing.
+let lastSentEditingCard : ProcessedCard | null = null;
+let lastSentEditingCardSimilarity : SortExtra | null = null;
+
+//Mirrors the live editing card into the worker so its collection runs (and
+//thus worker-served reference blocks) reflect unsaved content — the
+//pipeline where related cards refresh every few seconds while typing.
+const maybeSendEditingCard = () => {
+	if (!worker) return;
+	const state = store.getState() as State;
+	const card = selectEditingNormalizedCard(state) || null;
+	const similarity = selectEditingCardSimilarity(state) || null;
+	if (card === lastSentEditingCard && similarity === lastSentEditingCardSimilarity) return;
+	lastSentEditingCard = card;
+	lastSentEditingCardSimilarity = similarity;
+	post({type: 'setEditingCard', generation, card, similarity});
+};
+
 const startShadowComparator = () => {
 	if (shadowComparatorStarted) return;
 	const mode = readMode();
@@ -473,6 +498,7 @@ const startShadowComparator = () => {
 	shadowComparatorStarted = true;
 	store.subscribe(() => {
 		fastResubscribeOnDescriptionChange();
+		maybeSendEditingCard();
 		scheduleShadowCompare();
 	});
 	scheduleShadowCompare();
@@ -638,6 +664,17 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//retry-per-filter-run behavior off mode always had.
 		void import('./actions/similarity.js').then(module => {
 			try {
+				if (message.forEditingCard) {
+					//Resolve the CANONICAL editing card from main-thread
+					//state (the worker's copy is a structured clone with
+					//dead Timestamp prototypes); fall through to the
+					//committed-card fetch if editing ended meanwhile.
+					const editingCard = selectEditingNormalizedCard(store.getState() as State);
+					if (editingCard) {
+						module.fetchSimilarCardsForCardIfEnabled(editingCard);
+						return;
+					}
+				}
 				module.fetchSimilarCardsIfEnabled(message.cardID);
 			} catch (e) {
 				console.warn(`[corpus-worker] similarity fetch for ${message.cardID} failed:`, e);
@@ -679,6 +716,9 @@ const stopWorker = () => {
 //bridge would keep serving the last pushed result (computed under the OLD
 //parameters) and never resubscribe under the new ones.
 const resetSubscriptionsForReconnect = () => {
+	//A fresh generation starts with no editing card; re-send if still editing.
+	lastSentEditingCard = null;
+	lastSentEditingCardSimilarity = null;
 	for (const subscription of Object.values(bridgeSubscriptions)) {
 		if (!subscription.id) continue;
 		subscription.id = 0;
