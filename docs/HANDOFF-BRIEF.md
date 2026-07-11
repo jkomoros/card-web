@@ -63,7 +63,17 @@ Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ comm
 ## Rollout flags
 localStorage `corpus-worker`: off (default) | spike | shadow (worker owns ingestion + divergence logging) | on (worker also serves active collection, find-dialog search, reference blocks). Console APIs: `CORPUS_WORKER.setMode(...)`, `DEBUG_PERF.enable()`/`dump()`.
 
-## DIRECTIVE (2026-07-11, owner): FAST COLD BOOT — top priority next session
+## DIRECTIVE (2026-07-11, owner): FAST COLD BOOT — IMPLEMENTED (c36b7ecc)
+Status: code + unit tests landed (cold-pace.ts ladder/backoff math, paged
+parallel partition sweep with persisted per-partition cursors, watermark
+clamp for the docID-ordering change — see the implementation log).
+REMAINING: live validation on dev with a fresh signed-in profile (usable
+<30s, complete <3min, throttling degrades smoothly). Emulator harness runs
+validate mechanics only (no real backpressure). Emulator A/B at 12k cards,
+admin, corpus-worker=on corpus-sync=watermark: NEW parallel sweep loads
+12,000/12,000 in ~124s to syncState=live; OLD budgeted sequential sweep
+managed only 8,475/12,000 before the 300s load timeout. Original spec
+follows.
 Owner requirement: logged-in fresh boots must download ALL cards as fast as
 possible. Both projects confirmed Blaze-for-years, billing linked, NO caps
 anywhere (verified in console: no per-minute read quota, no App Engine
