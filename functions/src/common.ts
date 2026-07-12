@@ -1,8 +1,4 @@
 import {
-	initializeApp
-} from 'firebase-admin/app';
-
-import {
 	getFirestore
 } from 'firebase-admin/firestore';
 
@@ -60,8 +56,6 @@ import {
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../../shared/card_fields.js';
-
-initializeApp();
 
 //We use this so often we might as well make it more common
 export const db = getFirestore();

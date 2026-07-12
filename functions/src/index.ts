@@ -1,3 +1,4 @@
+import './instrumentation.js';
 
 import {
 	onRequest,
