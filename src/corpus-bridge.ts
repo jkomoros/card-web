@@ -70,7 +70,8 @@ import {
 	readCorpusSyncMode,
 	writeCorpusSyncMode,
 	CorpusWorkerMode,
-	CorpusSyncMode
+	CorpusSyncMode,
+	markCorpusWorkerUnavailable
 } from './corpus-mode.js';
 
 import {
@@ -133,6 +134,14 @@ const pendingPerfData : Map<number, (result : {actionStats : WorkerActionStats, 
 let lastMayViewUnpublished = false;
 let lastUid = '';
 let connectSent = false;
+let workerStartupTimeout : ReturnType<typeof setTimeout> | null = null;
+let workerFailureRecoveryStarted = false;
+
+const clearWorkerStartupTimeout = () => {
+	if (!workerStartupTimeout) return;
+	clearTimeout(workerStartupTimeout);
+	workerStartupTimeout = null;
+};
 
 const makeTimestamp = (seconds : number, nanoseconds : number) : Timestamp => new Timestamp(seconds, nanoseconds);
 
@@ -580,6 +589,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		console.log('[corpus-worker] dropped stale message', message.type);
 		return;
 	}
+	//Any current-generation reply proves the module loaded and processed the
+	//connect message; cold data loading itself may legitimately take minutes.
+	clearWorkerStartupTimeout();
 	switch (message.type) {
 	case 'ready':
 		console.log('[corpus-worker] ready');
@@ -690,18 +702,41 @@ const post = (message : MainToWorkerMessage) => {
 	worker.postMessage(message);
 };
 
-const spawnWorker = () => {
-	if (worker) return;
-	worker = new Worker(WORKER_URL, {type: 'module'});
+const recoverFromWorkerFailure = (reason : string) => {
+	if (workerFailureRecoveryStarted) return;
+	workerFailureRecoveryStarted = true;
+	console.warn(`[corpus-worker] unavailable (${reason}); falling back to main-thread card listeners`);
+	clearWorkerStartupTimeout();
+	stopWorker();
+	markCorpusWorkerUnavailable();
+	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
+	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
+	//Dynamic import avoids making the database↔bridge dependency cycle eager.
+	//At this point corpusWorkerOwnsCardIngestion() is false, so these functions
+	//take their established main-thread paths.
+	void import('./actions/database.js').then(database => {
+		database.connectLivePublishedCards();
+		void database.connectLiveUnpublishedCards();
+	}).catch(error => console.error('[corpus-worker] fallback listeners failed:', error));
+};
+
+const spawnWorker = () : boolean => {
+	if (worker) return true;
+	try {
+		worker = new Worker(WORKER_URL, {type: 'module'});
+	} catch (error) {
+		recoverFromWorkerFailure(String(error));
+		return false;
+	}
 	worker.addEventListener('message', handleMessage);
 	worker.addEventListener('error', event => {
-		console.warn('[corpus-worker] worker error:', event.message);
+		recoverFromWorkerFailure(event.message || 'uncaught worker error');
 	});
+	return true;
 };
 
 const stopWorker = () => {
-	if (!worker) return;
-	worker.terminate();
+	if (worker) worker.terminate();
 	worker = null;
 	connectSent = false;
 	pendingQueries.clear();
@@ -737,7 +772,7 @@ const resetSubscriptionsForReconnect = () => {
 //ingestion, in exactly the places the main-thread listeners would otherwise
 //attach; also used by spike mode with default (published-only) parameters.
 export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : string) => {
-	spawnWorker();
+	if (!spawnWorker()) return;
 	//Both published and unpublished connect paths funnel here; don't tear
 	//down and reconnect when nothing changed.
 	if (connectSent && mayViewUnpublished === lastMayViewUnpublished && uid === lastUid) return;
@@ -778,6 +813,8 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 		//`firebase-emulator` flag so the worker points at the SAME emulator; null
 		//→ omitted, so real connections are unaffected.
 		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		clearWorkerStartupTimeout();
+		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
 		post({type: 'reconnect', generation, mayViewUnpublished, uid});
 	}

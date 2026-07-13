@@ -15,6 +15,16 @@
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
+//Session-only circuit breaker. If the worker cannot start or crashes, the
+//bridge flips this and reconnects the legacy main-thread listeners. Keeping
+//the persisted preference unchanged means the next reload can try the worker
+//again after a transient deployment/cache problem.
+let corpusWorkerUnavailable = false;
+
+export const markCorpusWorkerUnavailable = () : void => {
+	corpusWorkerUnavailable = true;
+};
+
 export type CorpusWorkerMode = 'off' | 'spike' | 'shadow' | 'on';
 
 export const readCorpusWorkerMode = () : CorpusWorkerMode => {
@@ -45,6 +55,7 @@ export const writeCorpusWorkerMode = (mode : CorpusWorkerMode) : void => {
 //True when the worker (not the main thread) owns the Firestore card
 //listeners.
 export const corpusWorkerOwnsCardIngestion = () : boolean => {
+	if (corpusWorkerUnavailable) return false;
 	const mode = readCorpusWorkerMode();
 	return mode === 'shadow' || mode === 'on';
 };
@@ -86,4 +97,4 @@ export const writeCorpusSyncMode = (mode : CorpusSyncMode) : void => {
 };
 
 //True when the active collection is served from worker-pushed results.
-export const corpusWorkerServesCollections = () : boolean => readCorpusWorkerMode() === 'on';
+export const corpusWorkerServesCollections = () : boolean => !corpusWorkerUnavailable && readCorpusWorkerMode() === 'on';
