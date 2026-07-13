@@ -6,7 +6,8 @@
 largest scale this emulator has repeatedly completed inside a practical
 timeout), signs in as an admin, runs the shipping `on` + `watermark`
 configuration, drives the interaction script, and fails on invariant or
-interaction-budget regressions. Real 40k–60k acceptance remains the dev run;
+missing-sample regressions while reporting hardware-sensitive wall-clock
+budgets. Real 40k–60k acceptance remains the dev run;
 the emulator delivered only ~22k/40k within ten minutes in a 2026-07-13 gate
 attempt. For a smaller exploratory admin run:
 ```

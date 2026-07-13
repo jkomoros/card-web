@@ -164,6 +164,11 @@ const main = async () => {
 				const failures = [];
 				const advisories = [];
 				const counters = results.counters || {};
+				const requiredSamples = {nav: 20, keystroke: 30, editorOpen: 1, commit: 1, find: 1};
+				for (const [metric, minimum] of Object.entries(requiredSamples)) {
+					const count = results.wall?.[metric]?.n ?? 0;
+					if (count < minimum) failures.push(`${metric} produced ${count} samples (expected at least ${minimum})`);
+				}
 				//Nav in a settled session must not refilter when membership
 				//is unchanged: every makeFilterFromCards call that changes
 				//zero maps was pure waste. changedMaps > 0 across the whole
@@ -205,4 +210,4 @@ const main = async () => {
 	}
 };
 
-main().then(() => process.exit(0)).catch(err => { console.error('[run] FAILED:', err); process.exit(1); });
+main().then(() => process.exit(process.exitCode || 0)).catch(err => { console.error('[run] FAILED:', err); process.exit(1); });
