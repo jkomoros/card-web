@@ -75,7 +75,8 @@ import {
 } from './corpus-mode.js';
 
 import {
-	corpusSizeTrustworthy
+	corpusSizeTrustworthy,
+	corpusSyncReady
 } from './corpus-readiness.js';
 
 import {
@@ -225,6 +226,7 @@ let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 export const corpusWorkerCanRunCollections = () : boolean => {
 	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
 	if (!workerLoadComplete) return false;
+	if (!corpusSyncReady(readCorpusSyncMode(), lastMayViewUnpublished, lastSyncState)) return false;
 	const reduxCount = Object.keys(selectRawCards(store.getState() as State)).length;
 	return corpusSizeTrustworthy(workerCorpusSize, reduxCount);
 };
@@ -363,6 +365,24 @@ const handleCollectionResult = (message : {subscriptionID : number, ids : string
 		});
 	}
 	scheduleShadowCompare();
+};
+
+//Drop worker-served results as soon as watermark coverage becomes uncertain.
+//Also unsubscribe so a transition back to live creates a fresh push even when
+//the ordered IDs happen to match the last pre-outage result.
+const invalidateWorkerCollections = () => {
+	for (const subscription of Object.values(bridgeSubscriptions)) {
+		if (subscription.id) {
+			post({type: 'unsubscribeCollection', generation, subscriptionID: subscription.id});
+		}
+		subscription.id = 0;
+		subscription.key = '';
+		subscription.descriptionSerialized = '';
+		subscription.latest = null;
+		if (readMode() === 'on') {
+			store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: subscription.slot, result: null});
+		}
+	}
 };
 
 const scheduleShadowCompare = () => {
@@ -658,6 +678,8 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'syncState':
 		lastSyncState = message.state;
 		console.log(`[corpus-worker] sync state: ${message.state}`);
+		if (message.state !== 'live') invalidateWorkerCollections();
+		else scheduleShadowCompare();
 		break;
 	case 'cardMeta':
 		if (corpusWorkerOwnsCardIngestion()) {

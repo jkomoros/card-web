@@ -366,7 +366,7 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 //A listener that errors (e.g. permission denied for anonymous users on
 //author/editor queries) will never deliver a snapshot; forward an empty batch
 //so the main thread's loading indicators clear rather than spinning forever.
-const listenerError = (fetchType : CardFetchType, context : string) => (error : {message : string}) => {
+const listenerError = (fetchType : CardFetchType, context : string, errorCompletesInitialLoad = true) => (error : {message : string}) => {
 	send({type: 'error', generation, message: `${context}: ${error.message}`});
 	//errorFallback: clears loading indicators but is NOT evidence the worker
 	//holds this fetchType's data.
@@ -374,7 +374,7 @@ const listenerError = (fetchType : CardFetchType, context : string) => (error : 
 	//A terminal error still resolves this fetch type's INITIAL load — the
 	//loadComplete it may trigger carries the (small) corpusSize, which is
 	//what tells the bridge not to trust the corpus for serving.
-	markInitialDelivered(fetchType);
+	if (errorCompletesInitialLoad) markInitialDelivered(fetchType);
 };
 
 const teardownListeners = () => {
@@ -403,7 +403,8 @@ const attachResilientListener = (
 	fetchType : CardFetchType,
 	makeQuery : () => Query,
 	makeHandler : () => (snapshot : QuerySnapshot) => void,
-	onError? : () => void
+	onError? : () => void,
+	errorCompletesInitialLoad = true
 ) => {
 	const myConnectionGeneration = connectionGeneration;
 	let delay = LISTENER_RETRY_BASE_MS;
@@ -418,7 +419,7 @@ const attachResilientListener = (
 			},
 			error => {
 				if (onError) onError();
-				listenerError(fetchType, context)(error);
+				listenerError(fetchType, context, errorCompletesInitialLoad)(error);
 				//permission-denied is terminal until auth changes, and auth
 				//changes arrive as a reconnect (new generation → fresh
 				//attach); retrying it would just spam empty batches.
@@ -952,8 +953,12 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 				first = false;
 				onInitialDelivery();
 			}
-		},
-		() => { if (currentSyncState === 'live') setSyncState('stale'); });
+			},
+			() => { if (currentSyncState === 'live') setSyncState('stale'); },
+			//The delta listener is attached only after the tombstone listener's
+			//real initial snapshot. An error must never satisfy unpublished
+			//completeness or let a stale cache be served as live.
+			false);
 };
 
 const attachDeltaListener = (database : Firestore) => {

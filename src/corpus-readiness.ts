@@ -23,3 +23,12 @@ export const corpusSizeTrustworthy = (workerCorpusSize : number, reduxCardCount 
 	if (missing <= 0) return true;
 	return missing <= Math.max(50, reduxCardCount * 0.1);
 };
+
+//Only privileged watermark sync needs the deletion+delta plane to be live
+//before worker results are safe. Published-only and per-user author/editor
+//connections do not use that plane and therefore have no syncState.
+export const corpusSyncReady = (
+	syncMode : 'listen' | 'watermark',
+	mayViewUnpublished : boolean,
+	syncState : 'unverified' | 'live' | 'stale' | ''
+) : boolean => syncMode !== 'watermark' || !mayViewUnpublished || syncState === 'live';

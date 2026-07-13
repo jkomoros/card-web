@@ -6,10 +6,11 @@
 import assert from 'assert';
 
 let corpusSizeTrustworthy;
+let corpusSyncReady;
 
 describe('corpusSizeTrustworthy', () => {
 	before(async () => {
-		({corpusSizeTrustworthy} = await import('../../lib/src/corpus-readiness.js'));
+		({corpusSizeTrustworthy, corpusSyncReady} = await import('../../lib/src/corpus-readiness.js'));
 	});
 
 	it('trusts a corpus that matches Redux exactly', () => {
@@ -46,5 +47,19 @@ describe('corpusSizeTrustworthy', () => {
 
 	it('rejects nonsense sizes', () => {
 		assert.strictEqual(corpusSizeTrustworthy(-1, 0), false);
+	});
+});
+
+describe('corpusSyncReady', () => {
+	it('requires live coverage for privileged watermark sync', () => {
+		assert.strictEqual(corpusSyncReady('watermark', true, ''), false);
+		assert.strictEqual(corpusSyncReady('watermark', true, 'unverified'), false);
+		assert.strictEqual(corpusSyncReady('watermark', true, 'stale'), false);
+		assert.strictEqual(corpusSyncReady('watermark', true, 'live'), true);
+	});
+
+	it('does not gate listener mode or published/per-user connections', () => {
+		assert.strictEqual(corpusSyncReady('listen', true, ''), true);
+		assert.strictEqual(corpusSyncReady('watermark', false, ''), true);
 	});
 });
