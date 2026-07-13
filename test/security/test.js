@@ -26,6 +26,7 @@ const READS_COLLECTION = 'reads';
 const TWEETS_COLLECTION = 'tweets';
 const READING_LISTS_COLLECTION = 'reading_lists';
 const UPDATES_COLLECTION = 'updates';
+const TOMBSTONES_COLLECTION = 'tombstones';
 const CHATS_COLLECTION = 'chats';
 const CHAT_MESSAGES_COLLECTION = 'chat_messages';
 
@@ -1206,6 +1207,33 @@ describe('Compendium Rules', () => {
 			references_inbound: {},
 		}));
 		await firebase.assertSucceeds(ref.delete());
+	});
+
+	it('disallows create-only users from forging a tombstone for a live card', async() => {
+		await addPermissionForUser(genericUid, 'createCard');
+		const db = authedApp(genericAuth);
+		const tombstone = db.collection(TOMBSTONES_COLLECTION).doc(cardId);
+		await firebase.assertFails(tombstone.set({
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows editors from writing a tombstone without deleting the card', async() => {
+		const db = authedApp(sallyAuth);
+		const tombstone = db.collection(TOMBSTONES_COLLECTION).doc(cardId);
+		await firebase.assertFails(tombstone.set({
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('allows an editor to atomically delete a card and create its tombstone', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+		});
+		await firebase.assertSucceeds(batch.commit());
 	});
 
 	it('disallows users to delete updates from a card they don\'t own', async() => {
