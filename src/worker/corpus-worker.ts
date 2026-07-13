@@ -1320,6 +1320,14 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	//dedupe state belongs to the old world.
 	subscriptions.clear();
 	requestedSimilarityCardIDs.clear();
+	//The worker outlives Firebase auth transitions, so its in-memory corpus is
+	//NOT automatically scoped to the new user. Keeping even one card from the
+	//old authorization world can expose unpublished content through search or
+	//collection results. Rebuild every corpus-derived structure from the new
+	//listeners instead. Published cards are harmless to retain in Redux on the
+	//main thread, but the worker must start from a single, coherent scope.
+	const staleCardIDs = [...corpus.keys()];
+	if (staleCardIDs.length) updateLocalState({}, staleCardIDs);
 	currentUid = uid;
 	sessionWatermark = null;
 	clientClockCardIDs.clear();

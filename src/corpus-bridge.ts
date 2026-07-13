@@ -33,7 +33,8 @@ import {
 
 import {
 	UPDATE_WORKER_COLLECTION,
-	UPDATE_CARD_META
+	UPDATE_CARD_META,
+	REMOVE_CARDS
 } from './actions.js';
 
 import {
@@ -740,6 +741,20 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	//Both published and unpublished connect paths funnel here; don't tear
 	//down and reconnect when nothing changed.
 	if (connectSent && mayViewUnpublished === lastMayViewUnpublished && uid === lastUid) return;
+	if (connectSent) {
+		//Authorization scope changed without a page reload. Redux is deliberately
+		//long-lived, so remove every unpublished card received under the previous
+		//scope immediately; the new worker connection will re-deliver only those
+		//the new identity may see. Do not use removeCards() here: its delayed
+		//published/unpublished transition guard could remove a newly re-authorized
+		//card three seconds after it is delivered.
+		const staleUnpublishedIDs = Object.values(selectRawCards(store.getState() as State))
+			.filter(card => !card.published)
+			.map(card => card.id);
+		if (staleUnpublishedIDs.length) {
+			store.dispatch({type: REMOVE_CARDS, cardIDs: staleUnpublishedIDs});
+		}
+	}
 	lastMayViewUnpublished = mayViewUnpublished;
 	lastUid = uid;
 	generation++;
