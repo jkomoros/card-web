@@ -184,6 +184,7 @@ export type WorkerToMainMessage =
 	| {type: 'ready', generation: WorkerGeneration}
 	| {type: 'status', generation: WorkerGeneration, message : string}
 	| {type: 'error', generation: WorkerGeneration, message : string}
+	| {type: 'degraded', generation: WorkerGeneration, reason : string}
 	| {type: 'cards', generation: WorkerGeneration, batch : CardBatch}
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}

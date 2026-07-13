@@ -28,6 +28,7 @@ let MODIFY_CARD;
 let MODIFY_CARD_SUCCESS;
 let MODIFY_CARD_FAILURE;
 let CLEAR_ENQUEUED_CARD_UPDATES;
+let UPDATE_CORPUS_STATUS;
 let INITIAL_COLLECTION_STATE;
 
 const makeCard = (id, extras) => ({
@@ -68,6 +69,7 @@ describe('reducer identity preservation', () => {
 			MODIFY_CARD_SUCCESS,
 			MODIFY_CARD_FAILURE,
 			CLEAR_ENQUEUED_CARD_UPDATES,
+			UPDATE_CORPUS_STATUS,
 		} = await import('../../lib/src/actions.js'));
 		({
 			INITIAL_STATE: INITIAL_COLLECTION_STATE
@@ -177,6 +179,17 @@ describe('reducer identity preservation', () => {
 		state = dataReducer(state, {type: MODIFY_CARD_FAILURE, error: new Error('nope')});
 		assert.strictEqual(state.pendingModifications, false);
 		assert.strictEqual(state.pendingModificationCount, 0);
+	});
+
+	it('UPDATE_CORPUS_STATUS stores user-visible sync health', () => {
+		const initial = dataReducer(undefined, {type: '@@INIT'});
+		const state = dataReducer(initial, {
+			type: UPDATE_CORPUS_STATUS,
+			status: 'stale',
+			message: 'Sync interrupted',
+		});
+		assert.strictEqual(state.corpusStatus, 'stale');
+		assert.strictEqual(state.corpusStatusMessage, 'Sync interrupted');
 	});
 
 	it('UPDATE_CARDS prunes only similarity entries mentioning changed cards', async () => {

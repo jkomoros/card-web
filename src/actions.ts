@@ -58,7 +58,8 @@ import {
 	UserPermissionsMap,
 	WorkerCollectionResult,
 	WorkerCollectionSlot,
-	CardMetas
+	CardMetas,
+	CorpusStatus
 } from './types.js';
 
 //AI
@@ -154,6 +155,7 @@ export const EXPECT_FETCHED_CARDS = 'EXPECT_FETCHED_CARDS';
 export const STOP_EXPECTING_FETCHED_CARDS = 'STOP_EXPECTING_FETCHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 export const UPDATE_SERVER_IDF = 'UPDATE_SERVER_IDF';
+export const UPDATE_CORPUS_STATUS = 'UPDATE_CORPUS_STATUS';
 //Editor
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
@@ -658,6 +660,12 @@ type ActionUpdateCardSimilarity = {
 type ActionUpdateServerIDF = {
 	type: typeof UPDATE_SERVER_IDF,
 	serverIDF: ServerIDFData | null
+};
+
+type ActionUpdateCorpusStatus = {
+	type: typeof UPDATE_CORPUS_STATUS,
+	status: CorpusStatus,
+	message: string
 };
 
 type ActionCommittedPendingFiltersWhenFullyLoaded = {
@@ -1178,6 +1186,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCollection
 	| ActionUpdateWorkerCollection
 	| ActionUpdateCardMeta
+	| ActionUpdateCorpusStatus
 	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot

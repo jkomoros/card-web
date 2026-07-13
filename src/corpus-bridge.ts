@@ -34,7 +34,10 @@ import {
 import {
 	UPDATE_WORKER_COLLECTION,
 	UPDATE_CARD_META,
-	REMOVE_CARDS
+	REMOVE_CARDS,
+	EXPECT_FETCHED_CARDS,
+	STOP_EXPECTING_FETCHED_CARDS,
+	UPDATE_CORPUS_STATUS
 } from './actions.js';
 
 import {
@@ -103,6 +106,7 @@ import {
 import {
 	CardBooleanMap,
 	CardID,
+	CardFetchType,
 	ProcessedCard,
 	SortExtra,
 	State,
@@ -559,6 +563,12 @@ const handleCardBatch = (batch : CardBatch) => {
 	//the fetchType regardless of card count, exactly like a main-thread
 	//listener receiving an empty snapshot.
 	store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe));
+	//A coalesced first batch is progress, not completion. Keep loading truthy
+	//until the worker's explicit loadComplete signal rather than letting the
+	//UPDATE_CARDS reducer clear it after the first partition.
+	if (!workerLoadComplete && !batch.errorFallback) {
+		store.dispatch({type: EXPECT_FETCHED_CARDS, fetchType: batch.fetchType});
+	}
 	if (batch.removedIDs.length) {
 		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
 	}
@@ -622,6 +632,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'error':
 		console.warn('[corpus-worker]', message.message);
 		break;
+	case 'degraded':
+		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: message.reason});
+		break;
 	case 'spikeReport':
 		console.table([message.report]);
 		break;
@@ -670,6 +683,12 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		workerLoadComplete = true;
 		workerCorpusSize = message.corpusSize;
 		console.log(`[corpus-worker] load complete: ${message.corpusSize} cards`);
+		for (const fetchType of Object.keys(selectLoadingCardFetchTypes(store.getState() as State)) as CardFetchType[]) {
+			store.dispatch({type: STOP_EXPECTING_FETCHED_CARDS, fetchType});
+		}
+		if (!lastSyncState) {
+			store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'live', message: ''});
+		}
 		maybeRequestReconciliation();
 		//Kick the comparator so subscriptions attach promptly now that
 		//serving is allowed (rather than waiting for the next state change).
@@ -678,6 +697,13 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'syncState':
 		lastSyncState = message.state;
 		console.log(`[corpus-worker] sync state: ${message.state}`);
+		store.dispatch({
+			type: UPDATE_CORPUS_STATUS,
+			status: message.state === 'live' ? 'live' : message.state === 'stale' ? 'stale' : 'loading',
+			message: message.state === 'stale'
+				? 'Card sync is interrupted; showing the latest locally available data.'
+				: message.state === 'unverified' ? 'Verifying the local card corpus…' : ''
+		});
 		if (message.state !== 'live') invalidateWorkerCollections();
 		else scheduleShadowCompare();
 		break;
@@ -731,6 +757,7 @@ const recoverFromWorkerFailure = (reason : string) => {
 	clearWorkerStartupTimeout();
 	stopWorker();
 	markCorpusWorkerUnavailable();
+	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'fallback', message: 'Background card sync is unavailable; using standard loading.'});
 	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
 	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
 	//Dynamic import avoids making the database↔bridge dependency cycle eager.
@@ -798,6 +825,7 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	//Both published and unpublished connect paths funnel here; don't tear
 	//down and reconnect when nothing changed.
 	if (connectSent && mayViewUnpublished === lastMayViewUnpublished && uid === lastUid) return;
+	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'loading', message: 'Loading card corpus…'});
 	if (connectSent) {
 		//Authorization scope changed without a page reload. Redux is deliberately
 		//long-lived, so remove every unpublished card received under the previous

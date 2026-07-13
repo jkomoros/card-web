@@ -1370,6 +1370,7 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 				status('another tab owns the corpus sync; serving published-only (reload to re-contend)');
 				forwardBatch({}, [], 'unpublished', false, true);
 				setSyncState('unverified');
+				send({type: 'degraded', generation, reason: 'Another tab is syncing all cards; this tab shows published cards only.'});
 				return;
 			}
 			if (syncMode === 'watermark') {

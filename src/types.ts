@@ -938,6 +938,8 @@ export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;
 
 export type CardFetchTypeMap = {[type in CardFetchType]+?: true};
 
+export type CorpusStatus = 'off' | 'loading' | 'live' | 'stale' | 'degraded' | 'fallback';
+
 export type DataState = {
 	cards: Cards,
 	authors: AuthorsMap,
@@ -956,6 +958,8 @@ export type DataState = {
 	//when the fetch starts, and lowered when the first result of that fetchtyep
 	//is provided (although there might be subsequent of htat type too and that's OK)
 	loadingCardFetchTypes: CardFetchTypeMap,
+	corpusStatus: CorpusStatus,
+	corpusStatusMessage: string,
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
 	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.

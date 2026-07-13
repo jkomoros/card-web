@@ -8,17 +8,18 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import { 
-	selectLoadingCardFetchTypes
+	selectLoadingCardFetchTypes,
+	selectCorpusStatus,
+	selectCorpusStatusMessage
 } from '../selectors.js';
 
 import {
 	WARNING_ICON
 } from '../../shared/icons.js';
 
-import { ButtonSharedStyles } from './button-shared-styles.js';
-
 import {
 	CardFetchTypeMap,
+	CorpusStatus,
 	State
 } from '../types.js';
 
@@ -32,8 +33,13 @@ class LimitWarning extends connect(store)(LitElement) {
 	@state()
 		_loadingFetchTypes: CardFetchTypeMap;
 
+	@state()
+		_corpusStatus: CorpusStatus;
+
+	@state()
+		_corpusStatusMessage: string;
+
 	static override styles = [
-		ButtonSharedStyles,
 		css`
 			:host {
 				display:flex;
@@ -54,14 +60,26 @@ class LimitWarning extends connect(store)(LitElement) {
 				font-style: italic;
 			}
 
-			.bold, div.bold label, div.bold button svg {
+			.bold, div.bold label, div.bold svg {
 				color: var(--app-primary-color);
 				fill: var(--app-primary-color);
 			}
 
-			.bold:hover, div.bold:hover label, div.bold:hover button svg {
+			.bold:hover, div.bold:hover label, div.bold:hover svg {
 				color: var(--app-primary-color-light);
 				fill: var(--app-primary-color-light);
+			}
+
+			span.small {
+				display: inline-flex;
+				vertical-align: middle;
+				margin-right: 0.25em;
+			}
+
+			span.small svg {
+				fill: var(--app-dark-text-color);
+				height: 18px;
+				width: 18px;
 			}
 
 		`
@@ -70,29 +88,32 @@ class LimitWarning extends connect(store)(LitElement) {
 	override render() {
 
 		const loadingUnpublished = this._loadingFetchTypes?.['unpublished'] || false;
+		const showCorpusStatus = this._corpusStatus === 'stale' || this._corpusStatus === 'degraded' || this._corpusStatus === 'fallback';
 
-			if (loadingUnpublished) {
+			if (loadingUnpublished || showCorpusStatus) {
 
 				const classes = {
 					container: true,
-					loading: loadingUnpublished,
+					loading: loadingUnpublished && !showCorpusStatus,
 					tight: this.tight
 				};
 
 				return html`
 					<div
 						class=${classMap(classes)}
-						title='Fetching unpublished cards'
+						role='status'
+						aria-live='polite'
+						title=${showCorpusStatus ? this._corpusStatusMessage : 'Fetching unpublished cards'}
 					>
-						<button
+						<span
 							class='small'
-							id='warning'
+							aria-hidden='true'
 						>
 							${WARNING_ICON}
-						</button>
-						<label for='warning'>
-							Fetching all cards <span class="bold">(slow)</span>
-						</label>
+						</span>
+						<span>
+							${showCorpusStatus ? this._corpusStatusMessage : html`Fetching all cards <span class="bold">(slow)</span>`}
+						</span>
 					</div>
 				`;
 		}
@@ -101,6 +122,8 @@ class LimitWarning extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._loadingFetchTypes = selectLoadingCardFetchTypes(state);
+		this._corpusStatus = selectCorpusStatus(state);
+		this._corpusStatusMessage = selectCorpusStatusMessage(state);
 	}
 
 }
