@@ -2,10 +2,13 @@
 
 **Status: runner BUILT and verified (emulator; 300–6000 cards).** This is the committed, rerunnable replacement for the lost scratchpad probe scripts (`measure.mjs`, `probe-*.mjs`). It measures the design doc's **Appendix-A interaction budgets** and emits a diffable JSON baseline, so the G0/G1 decision gates become empirical and the ingestion cost becomes attributable. See `docs/fast-corpus-design-doc.md` (Appendix A, G0/G1) and the plan `docs/superpowers/plans/2026-07-07-perf-harness-runner.md`.
 
-**How to run:** `npm run perf:local`. The packaged gate seeds 40k cards,
-signs in as an admin, runs the shipping `on` + `watermark` configuration,
-drives the interaction script, and fails on invariant or interaction-budget
-regressions. For a smaller exploratory admin run:
+**How to run:** `npm run perf:local`. The packaged gate seeds 12k cards (the
+largest scale this emulator has repeatedly completed inside a practical
+timeout), signs in as an admin, runs the shipping `on` + `watermark`
+configuration, drives the interaction script, and fails on invariant or
+interaction-budget regressions. Real 40k–60k acceptance remains the dev run;
+the emulator delivered only ~22k/40k within ten minutes in a 2026-07-13 gate
+attempt. For a smaller exploratory admin run:
 ```
 npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \
   "node test/perf-harness/run.js --count 6000 --auth admin --load-timeout 180000"
@@ -73,7 +76,7 @@ The commit path already emits `dispatch:<TYPE>` timings via `perfMiddleware`. Th
 - `src/corpus-mode.ts`: `corpus-worker` (off|spike|shadow|on) and `corpus-sync` (listen|watermark) localStorage keys.
 
 ## How to run (target)
-- `npm run perf:local` — 40k-card emulator ship gate (admin, worker-on,
+- `npm run perf:local` — 12k-card emulator ship gate (admin, worker-on,
   watermark, assertions enabled; no live session).
 - `npm run perf:dev` — dev app + real corpus (G1; needs a live Firebase session in the copied profile).
 

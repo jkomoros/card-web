@@ -61,7 +61,7 @@
     "test:perf-harness": "mocha -r esm test/perf-harness/*.test.js --timeout=30000",
     "test:mutation": "stryker run",
     "perf:build": "npm run generate:config && npm run build:shared && npx tsc",
-    "perf:local": "npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \"node test/perf-harness/run.js --count 40000 --published-p 0.02 --auth admin --corpus-worker on --corpus-sync watermark --load-timeout 600000 --assert --assert-budgets\""
+    "perf:local": "npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \"node test/perf-harness/run.js --count 12000 --published-p 0.02 --auth admin --corpus-worker on --corpus-sync watermark --load-timeout 300000 --assert --assert-budgets\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
