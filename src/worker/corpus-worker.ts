@@ -1029,10 +1029,18 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 	if (!meta.coldSweep) {
 		let prioritySnapshot : QuerySnapshot;
 		try {
-			prioritySnapshot = await getDocsFromServer(query(collection(database, CARDS_COLLECTION),
-				where('published', '==', false), orderBy('updated', 'desc'), limit(COLD_SWEEP_PRIORITY_COUNT)));
+			prioritySnapshot = await retryWithBackoff(
+				() => getDocsFromServer(query(collection(database, CARDS_COLLECTION),
+					where('published', '==', false), orderBy('updated', 'desc'), limit(COLD_SWEEP_PRIORITY_COUNT))),
+				{
+					attempts: 5,
+					baseDelayMs: 2000,
+					shouldContinue: () => myConnectionGeneration === connectionGeneration,
+					onRetry: (error, attempt, delayMs) => status(`cold sweep priority attempt ${attempt} failed (${String(error)}); retrying in ${delayMs}ms`)
+				}
+			);
 		} catch (e) {
-			status(`cold sweep priority phase failed (${String(e)}); will retry`);
+			status(`cold sweep priority phase failed (${String(e)}); gate will retry`);
 			return false;
 		}
 		if (myConnectionGeneration !== connectionGeneration) return false;
@@ -1244,7 +1252,16 @@ const connectUnpublishedWatermark = async () => {
 			status(`cold corpus (${localTotal} of ${gate.serverTotal}); starting budgeted sweep`);
 			const done = await coldSweep(database, myConnectionGeneration);
 			if (myConnectionGeneration !== connectionGeneration) return;
-			if (!done) return; //paused/erred: coldSweep schedules its own resume
+			if (!done) {
+				//An exhausted priority-phase retry does not own a timer. Re-run the
+				//gate (and therefore the still-cold sweep) instead of leaving a fresh
+				//device unverified until its next page reload.
+				setTimeout(() => {
+					if (myConnectionGeneration !== connectionGeneration) return;
+					void gateAndProceed();
+				}, GATE_RETRY_MS);
+				return;
+			}
 			void afterColdSweep(database, myConnectionGeneration);
 			return;
 		}
