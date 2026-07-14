@@ -178,6 +178,7 @@ import {
 } from '../references.js';
 
 import {
+	AppThunkDispatch,
 	ThunkSomeAction,
 	store
 } from '../store.js';
@@ -406,7 +407,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		for (const id of Object.keys(localEchoes)) {
 			if (rawCards[id]) priorCards[id] = rawCards[id];
 		}
-		dispatch(echoLocalCardModifications(localEchoes));
+		await dispatch(echoLocalCardModifications(localEchoes));
 	}
 
 	try {
@@ -440,7 +441,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 					current.updated instanceof Timestamp && optimistic.updated instanceof Timestamp &&
 					current.updated.isEqual(optimistic.updated),
 			);
-			if (Object.keys(rollbackCards).length) dispatch(echoLocalCardModifications(rollbackCards));
+			if (Object.keys(rollbackCards).length) await dispatch(echoLocalCardModifications(rollbackCards));
 		}
 
 		//MultiBatch may have partially succeeded. After it has fully settled,
@@ -472,7 +473,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		return;
 	}
 
-	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
+	if (modifiedCount > 1 || errorCount > 0) alert(`${modifiedCount} cards modified.${errorCount > 0 ? ` ${errorCount} cards errored. See the console for details.` : ''}`);
 
 	dispatch(modifyCardSuccess(modifiedCount));
 };
@@ -486,15 +487,27 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 //corpus doesn't serve stale collections meanwhile. When the real echo
 //eventually arrives, receiveCards' timestamp-ignoring dedupe drops it. No-op
 //outside worker modes.
-const echoLocalCardModifications = (localEchoes : Cards) : ThunkSomeAction => (dispatch) => {
-	if (!corpusWorkerOwnsCardIngestion() || !Object.keys(localEchoes).length) return;
-	dispatch({type: ECHO_LOCAL_CARD_MODIFICATIONS, cards: localEchoes});
+const LOCAL_ECHO_WORKER_CHUNK_SIZE = 500;
+
+const echoLocalCardModifications = (localEchoes : Cards) => async (dispatch: AppThunkDispatch): Promise<void> => {
+	if (!corpusWorkerOwnsCardIngestion()) return;
+	const entries = Object.entries(localEchoes);
+	if (!entries.length) return;
 	const published : Cards = {};
 	const unpublished : Cards = {};
-	for (const echoCard of Object.values(localEchoes)) {
-		const stripped = stripEphemeralCardFields(echoCard);
-		if (echoCard.published) published[echoCard.id] = stripped;
-		else unpublished[echoCard.id] = stripped;
+	for (let index = 0; index < entries.length; index += LOCAL_ECHO_WORKER_CHUNK_SIZE) {
+		const chunk = entries.slice(index, index + LOCAL_ECHO_WORKER_CHUNK_SIZE);
+		dispatch({type: ECHO_LOCAL_CARD_MODIFICATIONS, cards: Object.fromEntries(chunk)});
+		for (const [, echoCard] of chunk) {
+			const stripped = stripEphemeralCardFields(echoCard);
+			if (echoCard.published) published[echoCard.id] = stripped;
+			else unpublished[echoCard.id] = stripped;
+		}
+		//toWire + postMessage structured-clone this chunk synchronously. Yield
+		//between chunks so a corpus-wide multi-edit cannot monopolize the UI.
+		if (index + LOCAL_ECHO_WORKER_CHUNK_SIZE < entries.length) {
+			await new Promise<void>(resolve => setTimeout(resolve, 0));
+		}
 	}
 	if (Object.keys(published).length) dispatch(receiveCards(published, 'published'));
 	if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
@@ -756,7 +769,7 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 	//In off mode firestore's latency compensation tells the store
 	//automatically; in worker modes apply the local echo ourselves (see
 	//modifyCardsIndividually).
-	dispatch(echoLocalCardModifications(localEchoes));
+	await dispatch(echoLocalCardModifications(localEchoes));
 };
 
 const setPendingSlug = (slug : Slug) : SomeAction => {
