@@ -568,4 +568,38 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		assert.strictEqual(error.failedBatchCount, 1);
 		assert.match(error.message, /1 of 2 Firestore batches failed/);
 	});
+
+	it('rolls to a new batch rather than splitting an atomic group', async () => {
+		const committedBatches = [];
+		let nextBatchID = 0;
+		const config = {
+			createBatch: () => ({id: ++nextBatchID, writes: []}),
+			batchSet: (batch, ref) => batch.writes.push(ref.path),
+			batchUpdate: (batch, ref) => batch.writes.push(ref.path),
+			batchDelete: (batch, ref) => batch.writes.push(ref.path),
+			commitBatch: async batch => { committedBatches.push(batch); },
+		};
+		const batch = new MultiBatchBase(config, 3);
+		batch.update(ref('sections/one'), {});
+		batch.update(ref('sections/two'), {});
+		batch.beginAtomicGroup();
+		batch.update(ref('cards/a/updates/one'), {});
+		batch.update(ref('sections/three'), {});
+		batch.endAtomicGroup();
+		await batch.commit();
+		assert.deepStrictEqual(committedBatches.map(item => item.writes), [
+			['sections/one', 'sections/two'],
+			['cards/a/updates/one', 'sections/three'],
+		]);
+	});
+
+	it('rejects an oversized atomic group before queueing any of its writes', async () => {
+		const {batch, writes} = makeBatch(false, 1);
+		batch.beginAtomicGroup();
+		batch.update(ref('sections/one'), {});
+		batch.update(ref('sections/two'), {});
+		assert.throws(() => batch.endAtomicGroup(), /requires 2 operations/);
+		assert.deepStrictEqual(writes, []);
+		await batch.commit();
+	});
 });

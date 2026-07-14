@@ -65,6 +65,7 @@ export class MultiBatchBase<TBatch, TRef> {
 	protected _batches: TBatch[];
 	protected _id: string;
 	protected _effectiveBatchLimit: number;
+	protected _atomicGroup: {count: number, apply: (batch: TBatch) => void}[] | null;
 
 	constructor(config: MultiBatchConfig<TBatch, TRef>, effectiveBatchLimit: number = FIRESTORE_BATCH_LIMIT) {
 		this._config = config;
@@ -73,6 +74,7 @@ export class MultiBatchBase<TBatch, TRef> {
 		this._batches = [];
 		this._id = randomString(8);
 		this._effectiveBatchLimit = effectiveBatchLimit;
+		this._atomicGroup = null;
 	}
 
 	get batchID() {
@@ -98,9 +100,49 @@ export class MultiBatchBase<TBatch, TRef> {
 		return 1;
 	}
 
+	protected _queueOperation(count: number, apply: (batch: TBatch) => void) {
+		if (this._atomicGroup) {
+			this._atomicGroup.push({count, apply});
+			return;
+		}
+		apply(this._batch);
+		this._currentBatchOperationCount += count;
+	}
+
+	//Buffer a logical unit of writes until its total size is known. endAtomicGroup
+	//then places the whole unit in one underlying Firestore batch, rolling to a
+	//fresh batch first when necessary. This preserves the efficiency of packed
+	//multi-card commits without ever bisecting one card's denormalized writes.
+	beginAtomicGroup() {
+		if (this._atomicGroup) throw new Error('MultiBatch atomic groups cannot be nested');
+		this._atomicGroup = [];
+	}
+
+	endAtomicGroup() {
+		if (!this._atomicGroup) throw new Error('No MultiBatch atomic group is active');
+		const operations = this._atomicGroup;
+		this._atomicGroup = null;
+		const count = operations.reduce((total, operation) => total + operation.count, 0);
+		if (count > this._effectiveBatchLimit) {
+			throw new Error(`Atomic write group requires ${count} operations; Firestore limit is ${this._effectiveBatchLimit}`);
+		}
+		if (!count) return;
+		if (this._currentBatch && this._currentBatchOperationCount + count > this._effectiveBatchLimit) {
+			this._currentBatch = null;
+			this._currentBatchOperationCount = 0;
+		}
+		const batch = this._batch;
+		for (const operation of operations) operation.apply(batch);
+		this._currentBatchOperationCount += count;
+	}
+
+	abortAtomicGroup() {
+		if (!this._atomicGroup) return;
+		this._atomicGroup = null;
+	}
+
 	delete(ref: TRef) {
-		this._config.batchDelete(this._batch, ref);
-		this._currentBatchOperationCount++;
+		this._queueOperation(1, batch => this._config.batchDelete(batch, ref));
 		return this;
 	}
 
@@ -119,8 +161,8 @@ export class MultiBatchBase<TBatch, TRef> {
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
-		this._config.batchSet(this._batch, ref, data, options);
-		this._currentBatchOperationCount += this._writeCountForUpdate(data);
+		const count = this._writeCountForUpdate(data);
+		this._queueOperation(count, batch => this._config.batchSet(batch, ref, data, options));
 		return this;
 	}
 
@@ -129,8 +171,8 @@ export class MultiBatchBase<TBatch, TRef> {
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
-		this._config.batchUpdate(this._batch, ref, data);
-		this._currentBatchOperationCount += this._writeCountForUpdate(data);
+		const count = this._writeCountForUpdate(data);
+		this._queueOperation(count, batch => this._config.batchUpdate(batch, ref, data));
 		return this;
 	}
 
@@ -143,8 +185,8 @@ export class MultiBatchBase<TBatch, TRef> {
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
-		this._config.batchUpdate(this._batch, ref, data);
-		this._currentBatchOperationCount += this._writeCountForUpdate(data);
+		const count = this._writeCountForUpdate(data);
+		this._queueOperation(count, batch => this._config.batchUpdate(batch, ref, data));
 		return this;
 	}
 
@@ -153,7 +195,8 @@ export class MultiBatchBase<TBatch, TRef> {
 		//fails, while the other independent commits can still be in flight. A
 		//caller that immediately rolls back or refetches can then race those
 		//late commits and "recover" to a state that was never authoritative.
-		const results = await Promise.allSettled(this._batches.map(batch => this._config.commitBatch(batch)));
+		if (this._atomicGroup) throw new Error('Cannot commit while a MultiBatch atomic group is active');
+		const results = await Promise.allSettled(this._batches.map(batch => Promise.resolve().then(() => this._config.commitBatch(batch))));
 		const reasons = results
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.map(result => result.reason);

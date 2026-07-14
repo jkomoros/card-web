@@ -360,10 +360,22 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		//we know there's an update.
 		if (!update) continue;
 
+		batch.beginAtomicGroup();
 		try {
-			const modified = await modifyCardWithBatch(state, card, update, substantive, batch, localEchoes);
-			if (modified) modifiedCount++;
+			//Stage this card's materialized echoes separately. If validation or
+			//atomic-group placement fails, none of its optimistic state may leak
+			//into the successfully prepared cards.
+			const cardEchoes: Cards = {};
+			const modified = await modifyCardWithBatch(state, card, update, substantive, batch, cardEchoes, localEchoes);
+			if (modified) {
+				batch.endAtomicGroup();
+				Object.assign(localEchoes, cardEchoes);
+				modifiedCount++;
+			} else {
+				batch.abortAtomicGroup();
+			}
 		} catch (err) {
+			batch.abortAtomicGroup();
 			console.warn('Couldn\'t modify card: ' + err);
 			errorCount++;
 			if (failOnError) {
@@ -466,7 +478,7 @@ const echoLocalCardModifications = (localEchoes : Cards) : ThunkSomeAction => (d
 //provided, the locally-materialized post-write cards (the modified card plus
 //any cards whose inbound links changed) are accumulated into it, so callers
 //can apply them without waiting for the server echo.
-export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards) : Promise<boolean> => {
+export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards) : Promise<boolean> => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -551,7 +563,10 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 			cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
 		}
 
-	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
+	//A prior card in this multi-edit may already have changed this card's
+	//inbound references. Compose the visible echo on top of that state while
+	//the Firestore transforms themselves remain queued independently.
+	const updatedCard = applyCardFirebaseUpdate(priorEchoCards?.[card.id] || card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
 
 	if (echoCards) {
@@ -560,7 +575,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
 			//Base each materialization on any echo already accumulated this
 			//batch, so successive updates touching the same card compose.
-			const base = echoCards[otherCardID] || rawCards[otherCardID];
+			const base = echoCards[otherCardID] || priorEchoCards?.[otherCardID] || rawCards[otherCardID];
 			if (!base) continue;
 			echoCards[otherCardID] = applyCardFirebaseUpdate(base, otherCardUpdate);
 		}
