@@ -365,7 +365,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			//atomic-group placement fails, none of its optimistic state may leak
 			//into the successfully prepared cards.
 			const cardEchoes: Cards = {};
-			const modified = await modifyCardWithBatch(state, card, update, substantive, batch, cardEchoes, localEchoes);
+			const modified = await modifyCardWithBatch(state, card, update, substantive, batch, cardEchoes, localEchoes, false);
 			if (modified) {
 				batch.endAtomicGroup();
 				Object.assign(localEchoes, cardEchoes);
@@ -382,6 +382,14 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 				return;
 			}
 		}
+	}
+	if (modifiedCount > 0) {
+		//The author record describes the acting user, not an individual card.
+		//Writing the same hot document once per selected card made a 60k-card
+		//multi-edit perform 60k redundant writes.
+		batch.beginAtomicGroup();
+		ensureAuthor(batch, selectUser(state) as UserInfo);
+		batch.endAtomicGroup();
 	}
 
 	//Optimistic echo (worker modes only, inside echoLocalCardModifications):
@@ -485,7 +493,7 @@ const echoLocalCardModifications = (localEchoes : Cards) : ThunkSomeAction => (d
 //provided, the locally-materialized post-write cards (the modified card plus
 //any cards whose inbound links changed) are accumulated into it, so callers
 //can apply them without waiting for the server echo.
-export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards) : Promise<boolean> => {
+export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards, ensureAuthorForCard = true) : Promise<boolean> => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -600,7 +608,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		batch.update(ref, otherCardUpdate);
 	}
 
-	ensureAuthor(batch, user);
+	if (ensureAuthorForCard) ensureAuthor(batch, user);
 
 	if (sectionUpdated) {
 		//Need to update the section objects too.

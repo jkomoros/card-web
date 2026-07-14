@@ -472,9 +472,10 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 	//the admin MultiBatch now inherit — with a stub SDK config, so a
 	//regression in the wiring itself fails loudly here.
 	let MultiBatchBase;
+	let MULTI_BATCH_COMMIT_CONCURRENCY;
 
 	before(async () => {
-		({MultiBatchBase} = await import('../../lib/shared/multi_batch.js'));
+		({MultiBatchBase, MULTI_BATCH_COMMIT_CONCURRENCY} = await import('../../lib/shared/multi_batch.js'));
 	});
 
 	const SENTINEL = {__serverTimestamp: true};
@@ -622,5 +623,28 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		batch.endAtomicGroup();
 		await assert.rejects(batch.commit(), /SDK validation failed/);
 		assert.strictEqual(commitCount, 0, 'no batch may reach the server after materialization fails');
+	});
+
+	it('bounds underlying Firestore commit concurrency', async () => {
+		let active = 0;
+		let maximumActive = 0;
+		const config = {
+			createBatch: () => ({}),
+			batchSet: () => {},
+			batchUpdate: () => {},
+			batchDelete: () => {},
+			commitBatch: async () => {
+				active++;
+				maximumActive = Math.max(maximumActive, active);
+				await new Promise(resolve => setTimeout(resolve, 2));
+				active--;
+			},
+		};
+		const batch = new MultiBatchBase(config, 1);
+		for (let i = 0; i < MULTI_BATCH_COMMIT_CONCURRENCY * 3; i++) {
+			batch.update(ref(`sections/${i}`), {});
+		}
+		await batch.commit();
+		assert.strictEqual(maximumActive, MULTI_BATCH_COMMIT_CONCURRENCY);
 	});
 });

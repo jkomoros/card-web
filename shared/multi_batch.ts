@@ -11,6 +11,7 @@ import {
 } from './card-write-guard.js';
 
 const FIRESTORE_BATCH_LIMIT = 500;
+export const MULTI_BATCH_COMMIT_CONCURRENCY = 8;
 
 // Configuration for SDK-specific batch operations
 export interface MultiBatchConfig<TBatch, TRef> {
@@ -209,7 +210,23 @@ export class MultiBatchBase<TBatch, TRef> {
 			atomicBatches.push(batch);
 		}
 		const batches = [...this._batches, ...atomicBatches];
-		const results = await Promise.allSettled(batches.map(batch => Promise.resolve().then(() => this._config.commitBatch(batch))));
+		const results: PromiseSettledResult<void>[] = new Array(batches.length);
+		let nextBatchIndex = 0;
+		const commitWorker = async () => {
+			while (nextBatchIndex < batches.length) {
+				const index = nextBatchIndex++;
+				try {
+					await this._config.commitBatch(batches[index]);
+					results[index] = {status: 'fulfilled', value: undefined};
+				} catch (reason) {
+					results[index] = {status: 'rejected', reason};
+				}
+			}
+		};
+		await Promise.all(Array.from(
+			{length: Math.min(MULTI_BATCH_COMMIT_CONCURRENCY, batches.length)},
+			() => commitWorker(),
+		));
 		const reasons = results
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.map(result => result.reason);
