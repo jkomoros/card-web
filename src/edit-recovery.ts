@@ -4,6 +4,7 @@
 
 import {
 	Card,
+	CardID,
 	Cards,
 } from './types.js';
 
@@ -25,4 +26,26 @@ export const rollbackCardsStillOptimistic = (
 		if (equivalent(currentCard, optimisticCard)) result[id] = priorCard;
 	}
 	return result;
+};
+
+//Classify materialized echo cards after split-batch outcomes. Cards touched
+//only by failed atomic groups can be rolled back without a billed server read;
+//only overlap between successful and failed groups is genuinely ambiguous.
+export const recoveryIDsForGroupOutcomes = (
+	echoIDsByGroup: {[groupID: string]: CardID[]},
+	succeededGroupIDs: string[],
+	failedGroupIDs: string[],
+): {failedOnlyIDs: CardID[], ambiguousIDs: CardID[]} => {
+	const succeeded = new Set(succeededGroupIDs);
+	const failed = new Set(failedGroupIDs);
+	const successfulAffected = new Set<CardID>();
+	const failedAffected = new Set<CardID>();
+	for (const [groupID, echoIDs] of Object.entries(echoIDsByGroup)) {
+		const target = succeeded.has(groupID) ? successfulAffected : failed.has(groupID) ? failedAffected : null;
+		if (target) for (const id of echoIDs) target.add(id);
+	}
+	return {
+		ambiguousIDs: [...failedAffected].filter(id => successfulAffected.has(id)),
+		failedOnlyIDs: [...failedAffected].filter(id => !successfulAffected.has(id)),
+	};
 };

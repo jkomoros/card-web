@@ -189,6 +189,7 @@ import {
 } from '../multi_batch.js';
 
 import {
+	recoveryIDsForGroupOutcomes,
 	rollbackCardsStillOptimistic
 } from '../edit-recovery.js';
 
@@ -413,16 +414,11 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	try {
 		await batch.commit();
 	} catch(err) {
-		const successfulGroupIDs = new Set(err instanceof MultiBatchCommitError ? err.succeededGroupIDs : []);
-		const failedGroupIDs = new Set(err instanceof MultiBatchCommitError ? err.failedGroupIDs : Object.keys(echoIDsByCard));
-		const successfulAffectedIDs = new Set<CardID>();
-		const failedAffectedIDs = new Set<CardID>();
-		for (const [cardID, echoIDs] of Object.entries(echoIDsByCard)) {
-			const target = successfulGroupIDs.has(cardID) ? successfulAffectedIDs : failedGroupIDs.has(cardID) ? failedAffectedIDs : null;
-			if (target) for (const id of echoIDs) target.add(id);
-		}
-		const ambiguousIDs = [...failedAffectedIDs].filter(id => successfulAffectedIDs.has(id));
-		const failedOnlyIDs = [...failedAffectedIDs].filter(id => !successfulAffectedIDs.has(id));
+		const {ambiguousIDs, failedOnlyIDs} = recoveryIDsForGroupOutcomes(
+			echoIDsByCard,
+			err instanceof MultiBatchCommitError ? err.succeededGroupIDs : [],
+			err instanceof MultiBatchCommitError ? err.failedGroupIDs : Object.keys(echoIDsByCard),
+		);
 
 		//A failed underlying Firestore batch is atomic, so cards touched only by
 		//failed groups need no billed reread. Restore them if their exact local

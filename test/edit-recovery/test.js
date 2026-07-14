@@ -1,6 +1,7 @@
 import assert from 'assert';
 
 import {
+	recoveryIDsForGroupOutcomes,
 	rollbackCardsStillOptimistic,
 } from '../../lib/src/edit-recovery.js';
 
@@ -47,5 +48,31 @@ describe('failed edit rollback', () => {
 			(a, b) => a.body === b.body && a.version === b.version,
 		);
 		assert.deepStrictEqual(result, {});
+	});
+});
+
+describe('partial batch recovery classification', () => {
+	it('requires no reads when every group failed', () => {
+		const result = recoveryIDsForGroupOutcomes(
+			{a: ['a', 'inbound-a'], b: ['b']},
+			[],
+			['a', 'b'],
+		);
+		assert.deepStrictEqual(result, {
+			failedOnlyIDs: ['a', 'inbound-a', 'b'],
+			ambiguousIDs: [],
+		});
+	});
+
+	it('reads only cards shared by successful and failed groups', () => {
+		const result = recoveryIDsForGroupOutcomes(
+			{a: ['a', 'shared-inbound'], b: ['b', 'shared-inbound']},
+			['a'],
+			['b'],
+		);
+		assert.deepStrictEqual(result, {
+			failedOnlyIDs: ['b'],
+			ambiguousIDs: ['shared-inbound'],
+		});
 	});
 });
