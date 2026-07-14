@@ -47,14 +47,18 @@ export class MultiBatchCommitError extends Error {
 	readonly succeededBatchCount: number;
 	readonly failedBatchCount: number;
 	readonly reasons: unknown[];
+	readonly succeededGroupIDs: string[];
+	readonly failedGroupIDs: string[];
 
-	constructor(succeededBatchCount: number, reasons: unknown[]) {
+	constructor(succeededBatchCount: number, reasons: unknown[], succeededGroupIDs: string[] = [], failedGroupIDs: string[] = []) {
 		const detail = reasons.length === 1 ? `: ${String(reasons[0])}` : '';
 		super(`${reasons.length} of ${succeededBatchCount + reasons.length} Firestore batches failed${detail}`);
 		this.name = 'MultiBatchCommitError';
 		this.succeededBatchCount = succeededBatchCount;
 		this.failedBatchCount = reasons.length;
 		this.reasons = reasons;
+		this.succeededGroupIDs = succeededGroupIDs;
+		this.failedGroupIDs = failedGroupIDs;
 	}
 }
 
@@ -67,7 +71,8 @@ export class MultiBatchBase<TBatch, TRef> {
 	protected _id: string;
 	protected _effectiveBatchLimit: number;
 	protected _atomicGroup: {count: number, apply: (batch: TBatch) => void}[] | null;
-	protected _atomicBatches: {count: number, operations: {count: number, apply: (batch: TBatch) => void}[]}[];
+	protected _atomicGroupID: string | null;
+	protected _atomicBatches: {count: number, operations: {count: number, apply: (batch: TBatch) => void}[], groupIDs: string[]}[];
 
 	constructor(config: MultiBatchConfig<TBatch, TRef>, effectiveBatchLimit: number = FIRESTORE_BATCH_LIMIT) {
 		this._config = config;
@@ -77,6 +82,7 @@ export class MultiBatchBase<TBatch, TRef> {
 		this._id = randomString(8);
 		this._effectiveBatchLimit = effectiveBatchLimit;
 		this._atomicGroup = null;
+		this._atomicGroupID = null;
 		this._atomicBatches = [];
 	}
 
@@ -116,15 +122,18 @@ export class MultiBatchBase<TBatch, TRef> {
 	//then places the whole unit in one underlying Firestore batch, rolling to a
 	//fresh batch first when necessary. This preserves the efficiency of packed
 	//multi-card commits without ever bisecting one card's denormalized writes.
-	beginAtomicGroup() {
+	beginAtomicGroup(groupID?: string) {
 		if (this._atomicGroup) throw new Error('MultiBatch atomic groups cannot be nested');
 		this._atomicGroup = [];
+		this._atomicGroupID = groupID || null;
 	}
 
 	endAtomicGroup() {
 		if (!this._atomicGroup) throw new Error('No MultiBatch atomic group is active');
 		const operations = this._atomicGroup;
+		const groupID = this._atomicGroupID;
 		this._atomicGroup = null;
+		this._atomicGroupID = null;
 		const count = operations.reduce((total, operation) => total + operation.count, 0);
 		if (count > this._effectiveBatchLimit) {
 			throw new Error(`Atomic write group requires ${count} operations; Firestore limit is ${this._effectiveBatchLimit}`);
@@ -132,16 +141,18 @@ export class MultiBatchBase<TBatch, TRef> {
 		if (!count) return;
 		let target = this._atomicBatches[this._atomicBatches.length - 1];
 		if (!target || target.count + count > this._effectiveBatchLimit) {
-			target = {count: 0, operations: []};
+			target = {count: 0, operations: [], groupIDs: []};
 			this._atomicBatches.push(target);
 		}
 		target.operations.push(...operations);
+		if (groupID) target.groupIDs.push(groupID);
 		target.count += count;
 	}
 
 	abortAtomicGroup() {
 		if (!this._atomicGroup) return;
 		this._atomicGroup = null;
+		this._atomicGroupID = null;
 	}
 
 	delete(ref: TRef) {
@@ -231,7 +242,14 @@ export class MultiBatchBase<TBatch, TRef> {
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.map(result => result.reason);
 		if (reasons.length) {
-			throw new MultiBatchCommitError(results.length - reasons.length, reasons);
+			const succeededGroupIDs: string[] = [];
+			const failedGroupIDs: string[] = [];
+			for (let index = 0; index < this._atomicBatches.length; index++) {
+				const result = results[this._batches.length + index];
+				const target = result.status === 'fulfilled' ? succeededGroupIDs : failedGroupIDs;
+				target.push(...this._atomicBatches[index].groupIDs);
+			}
+			throw new MultiBatchCommitError(results.length - reasons.length, reasons, succeededGroupIDs, failedGroupIDs);
 		}
 	}
 }

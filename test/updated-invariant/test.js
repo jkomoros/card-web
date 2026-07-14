@@ -647,4 +647,28 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		await batch.commit();
 		assert.strictEqual(maximumActive, MULTI_BATCH_COMMIT_CONCURRENCY);
 	});
+
+	it('reports card-group membership for successful and failed split batches', async () => {
+		let commitIndex = 0;
+		const config = {
+			createBatch: () => ({}),
+			batchSet: () => {},
+			batchUpdate: () => {},
+			batchDelete: () => {},
+			commitBatch: async () => {
+				commitIndex++;
+				if (commitIndex === 2) throw new Error('second batch failed');
+			},
+		};
+		const batch = new MultiBatchBase(config, 1);
+		batch.beginAtomicGroup('card-a');
+		batch.update(ref('sections/a'), {});
+		batch.endAtomicGroup();
+		batch.beginAtomicGroup('card-b');
+		batch.update(ref('sections/b'), {});
+		batch.endAtomicGroup();
+		const error = await batch.commit().catch(value => value);
+		assert.deepStrictEqual(error.succeededGroupIDs, ['card-a']);
+		assert.deepStrictEqual(error.failedGroupIDs, ['card-b']);
+	});
 });

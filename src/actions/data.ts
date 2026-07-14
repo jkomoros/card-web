@@ -183,7 +183,8 @@ import {
 } from '../store.js';
 
 import {
-	MultiBatch
+	MultiBatch,
+	MultiBatchCommitError
 } from '../multi_batch.js';
 
 import {
@@ -338,6 +339,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	let modifiedCount = 0;
 	let errorCount = 0;
 	const localEchoes : Cards = {};
+	const echoIDsByCard: {[id: CardID]: CardID[]} = {};
 
 	for (const card of cards) {
 
@@ -359,7 +361,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		//we know there's an update.
 		if (!update) continue;
 
-		batch.beginAtomicGroup();
+		batch.beginAtomicGroup(card.id);
 		try {
 			//Stage this card's materialized echoes separately. If validation or
 			//atomic-group placement fails, none of its optimistic state may leak
@@ -369,6 +371,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			if (modified) {
 				batch.endAtomicGroup();
 				Object.assign(localEchoes, cardEchoes);
+				echoIDsByCard[card.id] = Object.keys(cardEchoes);
 				modifiedCount++;
 			} else {
 				batch.abortAtomicGroup();
@@ -409,12 +412,41 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	try {
 		await batch.commit();
 	} catch(err) {
+		const successfulGroupIDs = new Set(err instanceof MultiBatchCommitError ? err.succeededGroupIDs : []);
+		const failedGroupIDs = new Set(err instanceof MultiBatchCommitError ? err.failedGroupIDs : Object.keys(echoIDsByCard));
+		const successfulAffectedIDs = new Set<CardID>();
+		const failedAffectedIDs = new Set<CardID>();
+		for (const [cardID, echoIDs] of Object.entries(echoIDsByCard)) {
+			const target = successfulGroupIDs.has(cardID) ? successfulAffectedIDs : failedGroupIDs.has(cardID) ? failedAffectedIDs : null;
+			if (target) for (const id of echoIDs) target.add(id);
+		}
+		const ambiguousIDs = [...failedAffectedIDs].filter(id => successfulAffectedIDs.has(id));
+		const failedOnlyIDs = [...failedAffectedIDs].filter(id => !successfulAffectedIDs.has(id));
+
+		//A failed underlying Firestore batch is atomic, so cards touched only by
+		//failed groups need no billed reread. Restore them if their exact local
+		//optimistic version is still current; listener-delivered versions win.
+		if (priorCards && failedOnlyIDs.length) {
+			const failedOnlySet = new Set(failedOnlyIDs);
+			const rollbackPrior = Object.fromEntries(Object.entries(priorCards).filter(([id]) => failedOnlySet.has(id))) as Cards;
+			const optimisticForComparison = Object.fromEntries(Object.entries(localEchoes)
+				.filter(([id]) => failedOnlySet.has(id))
+				.map(([id, card]) => [id, stripEphemeralCardFields(card)])) as Cards;
+			const rollbackCards = rollbackCardsStillOptimistic(
+				rollbackPrior,
+				optimisticForComparison,
+				selectRawCards(getState()),
+				(current, optimistic) => deepEqualIgnoringTimestamps(current, optimistic) &&
+					current.updated instanceof Timestamp && optimistic.updated instanceof Timestamp &&
+					current.updated.isEqual(optimistic.updated),
+			);
+			if (Object.keys(rollbackCards).length) dispatch(echoLocalCardModifications(rollbackCards));
+		}
+
 		//MultiBatch may have partially succeeded. After it has fully settled,
-		//force-read every affected card and install exactly what the server now
-		//has in Redux and the worker. Keep the modification pending until this
-		//finishes, so another edit cannot supersede or race recovery.
-		const affectedIDs = Object.keys(localEchoes);
-		const authoritative = await authoritativeCardsAfterFailedCommit(affectedIDs);
+		//only cards composed from BOTH successful and failed atomic groups are
+		//uncertain. Force-read those and install exactly what the server has.
+		const authoritative = await authoritativeCardsAfterFailedCommit(ambiguousIDs);
 		if (authoritative.failedIDs.length) {
 			console.warn(`Couldn't reconcile ${authoritative.failedIDs.length} cards after a failed commit; live listeners remain the fallback.`);
 		}
@@ -436,26 +468,6 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			if (authoritative.removedIDs.length) dispatch({type: REMOVE_CARDS, cardIDs: authoritative.removedIDs});
 		}
 
-		//Only server reads that themselves failed need snapshot rollback. Require
-		//the exact optimistic timestamp as well as semantic equality: a listener
-		//echo for a successful partial commit has the same content but a distinct
-		//server timestamp and must never be rolled back.
-		if (priorCards && authoritative.failedIDs.length) {
-			const failedSet = new Set(authoritative.failedIDs);
-			const rollbackPrior = Object.fromEntries(Object.entries(priorCards).filter(([id]) => failedSet.has(id))) as Cards;
-			const optimisticForComparison = Object.fromEntries(Object.entries(localEchoes)
-				.filter(([id]) => failedSet.has(id))
-				.map(([id, card]) => [id, stripEphemeralCardFields(card)])) as Cards;
-			const rollbackCards = rollbackCardsStillOptimistic(
-				rollbackPrior,
-				optimisticForComparison,
-				selectRawCards(getState()),
-				(current, optimistic) => deepEqualIgnoringTimestamps(current, optimistic) &&
-					current.updated instanceof Timestamp && optimistic.updated instanceof Timestamp &&
-					current.updated.isEqual(optimistic.updated),
-			);
-			if (Object.keys(rollbackCards).length) dispatch(echoLocalCardModifications(rollbackCards));
-		}
 		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
 		return;
 	}

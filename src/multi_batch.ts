@@ -26,6 +26,10 @@ import {
 	MultiBatchBase,
 } from '../shared/multi_batch.js';
 
+export {
+	MultiBatchCommitError,
+} from '../shared/multi_batch.js';
+
 import {
 	CARDS_COLLECTION
 } from '../shared/collection-constants.js';
