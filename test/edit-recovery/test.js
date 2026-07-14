@@ -37,4 +37,15 @@ describe('failed edit rollback', () => {
 		);
 		assert.deepStrictEqual(result, {b: card('b', 'before b')});
 	});
+
+	it('preserves a server-confirmed echo with identical content but a newer version', () => {
+		const versionedCard = (id, body, version) => ({id, body, version});
+		const result = rollbackCardsStillOptimistic(
+			{a: versionedCard('a', 'before', 1)},
+			{a: versionedCard('a', 'same edit', 2)},
+			{a: versionedCard('a', 'same edit', 3)},
+			(a, b) => a.body === b.body && a.version === b.version,
+		);
+		assert.deepStrictEqual(result, {});
+	});
 });

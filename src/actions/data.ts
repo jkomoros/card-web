@@ -317,8 +317,6 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 	return {cards, removedIDs, failedIDs};
 };
 
-let latestCardModificationAttempt = 0;
-
 export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID] : CardDiff}, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 
@@ -326,7 +324,6 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		console.log('Can\'t modify card; another card is being modified.');
 		return;
 	}
-	const modificationAttempt = ++latestCardModificationAttempt;
 
 	cards.forEach((card) => {
 		if (!updates[card.id]) {
@@ -404,27 +401,12 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	try {
 		await batch.commit();
 	} catch(err) {
-		//Roll back only cards that still contain this attempt's optimistic
-		//state. A concurrent listener delivery must win over our old snapshot.
-		if (priorCards && Object.keys(priorCards).length) {
-			const optimisticForComparison = Object.fromEntries(Object.entries(localEchoes)
-				.map(([id, card]) => [id, stripEphemeralCardFields(card)])) as Cards;
-			const rollbackCards = rollbackCardsStillOptimistic(
-				priorCards,
-				optimisticForComparison,
-				selectRawCards(getState()),
-				deepEqualIgnoringTimestamps,
-			);
-			if (Object.keys(rollbackCards).length) dispatch(echoLocalCardModifications(rollbackCards));
-		}
-		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
-
 		//MultiBatch may have partially succeeded. After it has fully settled,
 		//force-read every affected card and install exactly what the server now
-		//has in Redux and the worker. A newer edit attempt supersedes this read.
+		//has in Redux and the worker. Keep the modification pending until this
+		//finishes, so another edit cannot supersede or race recovery.
 		const affectedIDs = Object.keys(localEchoes);
 		const authoritative = await authoritativeCardsAfterFailedCommit(affectedIDs);
-		if (modificationAttempt !== latestCardModificationAttempt) return;
 		if (authoritative.failedIDs.length) {
 			console.warn(`Couldn't reconcile ${authoritative.failedIDs.length} cards after a failed commit; live listeners remain the fallback.`);
 		}
@@ -445,6 +427,28 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
 			if (authoritative.removedIDs.length) dispatch({type: REMOVE_CARDS, cardIDs: authoritative.removedIDs});
 		}
+
+		//Only server reads that themselves failed need snapshot rollback. Require
+		//the exact optimistic timestamp as well as semantic equality: a listener
+		//echo for a successful partial commit has the same content but a distinct
+		//server timestamp and must never be rolled back.
+		if (priorCards && authoritative.failedIDs.length) {
+			const failedSet = new Set(authoritative.failedIDs);
+			const rollbackPrior = Object.fromEntries(Object.entries(priorCards).filter(([id]) => failedSet.has(id))) as Cards;
+			const optimisticForComparison = Object.fromEntries(Object.entries(localEchoes)
+				.filter(([id]) => failedSet.has(id))
+				.map(([id, card]) => [id, stripEphemeralCardFields(card)])) as Cards;
+			const rollbackCards = rollbackCardsStillOptimistic(
+				rollbackPrior,
+				optimisticForComparison,
+				selectRawCards(getState()),
+				(current, optimistic) => deepEqualIgnoringTimestamps(current, optimistic) &&
+					current.updated instanceof Timestamp && optimistic.updated instanceof Timestamp &&
+					current.updated.isEqual(optimistic.updated),
+			);
+			if (Object.keys(rollbackCards).length) dispatch(echoLocalCardModifications(rollbackCards));
+		}
+		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
 		return;
 	}
 
