@@ -144,6 +144,7 @@ export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const ECHO_LOCAL_CARD_MODIFICATIONS = 'ECHO_LOCAL_CARD_MODIFICATIONS';
+export const RECONCILE_CARDS_AFTER_FAILED_COMMIT = 'RECONCILE_CARDS_AFTER_FAILED_COMMIT';
 export const REORDER_STATUS = 'REORDER_STATUS';
 export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
@@ -602,6 +603,14 @@ type ActionEchoLocalCardModifications = {
 	//corpus-worker bridge's action tap can forward the new card state to the
 	//worker without waiting for the server echo.
 	cards: Cards
+};
+
+type ActionReconcileCardsAfterFailedCommit = {
+	type: typeof RECONCILE_CARDS_AFTER_FAILED_COMMIT,
+	//Authoritative getDocFromServer results after every underlying batch has
+	//settled. Unlike an optimistic echo, these timestamps are server-confirmed.
+	cards: Cards,
+	removedIDs: CardID[]
 };
 
 type ActionModifyCardSuccess = {
@@ -1219,6 +1228,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionModifyCard
 	| ActionModifyCardSuccess
 	| ActionEchoLocalCardModifications
+	| ActionReconcileCardsAfterFailedCommit
 	| ActionModifyCardFailure
 	| ActionReorderStatus
 	| ActionSetPendingSlug

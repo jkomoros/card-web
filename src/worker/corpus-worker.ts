@@ -122,7 +122,8 @@ import {
 
 import {
 	SomeAction,
-	ECHO_LOCAL_CARD_MODIFICATIONS
+	ECHO_LOCAL_CARD_MODIFICATIONS,
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT
 } from '../actions.js';
 
 import {
@@ -1447,6 +1448,14 @@ workerScope.addEventListener('message', event => {
 		break;
 	case 'action': {
 		const action = fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction;
+		if (action.type === RECONCILE_CARDS_AFTER_FAILED_COMMIT) {
+			//These cards came from getDocFromServer after every split commit
+			//settled, so they are authoritative and safe to put back into the
+			//watermark. Missing documents must be removed from the corpus too.
+			for (const id of [...Object.keys(action.cards), ...action.removedIDs]) clientClockCardIDs.delete(id);
+			updateLocalState(action.cards, action.removedIDs);
+			break;
+		}
 		if (action.type === ECHO_LOCAL_CARD_MODIFICATIONS) {
 			//The main thread just committed these cards; apply them to the
 			//corpus immediately instead of waiting for the server echo. The

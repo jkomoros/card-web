@@ -15,6 +15,7 @@ import {
 import {
 	doc,
 	getDoc,
+	getDocFromServer,
 	getDocs,
 	query,
 	where,
@@ -186,6 +187,10 @@ import {
 } from '../multi_batch.js';
 
 import {
+	rollbackCardsStillOptimistic
+} from '../edit-recovery.js';
+
+import {
 	State,
 	CardDiff,
 	Card,
@@ -230,7 +235,8 @@ import {
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SUCCESS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
-	ECHO_LOCAL_CARD_MODIFICATIONS
+	ECHO_LOCAL_CARD_MODIFICATIONS,
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT
 } from '../actions.js';
 
 //map of cardID => promiseResolver that's waiting
@@ -280,6 +286,37 @@ export const modifyCards = (cards : Card[], update : CardDiff, substantive = fal
 	return modifyCardsIndividually(cards, updates, substantive, failOnError);
 };
 
+//Bound one-document server reads so a failed very-large multi-edit doesn't
+//turn recovery into an unbounded burst. Individual reads work for users whose
+//rules permit particular unpublished cards but not an arbitrary ID query.
+const FAILED_COMMIT_RECONCILIATION_CONCURRENCY = 20;
+
+const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
+	const cards: Cards = {};
+	const removedIDs: CardID[] = [];
+	const failedIDs: CardID[] = [];
+	for (let index = 0; index < cardIDs.length; index += FAILED_COMMIT_RECONCILIATION_CONCURRENCY) {
+		const ids = cardIDs.slice(index, index + FAILED_COMMIT_RECONCILIATION_CONCURRENCY);
+		const results = await Promise.allSettled(ids.map(id => getDocFromServer(doc(db, CARDS_COLLECTION, id))));
+		results.forEach((result, resultIndex) => {
+			const id = ids[resultIndex];
+			if (result.status === 'rejected') {
+				failedIDs.push(id);
+				return;
+			}
+			if (!result.value.exists()) {
+				removedIDs.push(id);
+				return;
+			}
+			const card = {...result.value.data({serverTimestamps: 'estimate'}), id} as Card;
+			cards[id] = stripEphemeralCardFields(card);
+		});
+	}
+	return {cards, removedIDs, failedIDs};
+};
+
+let latestCardModificationAttempt = 0;
+
 export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID] : CardDiff}, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 
@@ -287,6 +324,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		console.log('Can\'t modify card; another card is being modified.');
 		return;
 	}
+	const modificationAttempt = ++latestCardModificationAttempt;
 
 	cards.forEach((card) => {
 		if (!updates[card.id]) {
@@ -352,14 +390,46 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	try {
 		await batch.commit();
 	} catch(err) {
-		//Roll back the optimistic echo locally and in the worker corpus. If
-		//a multi-batch commit failed partially, the batches that DID land
-		//redeliver via the listener (their timestamps differ from these
-		//pre-write cards, so the correction isn't deduped away).
+		//Roll back only cards that still contain this attempt's optimistic
+		//state. A concurrent listener delivery must win over our old snapshot.
 		if (priorCards && Object.keys(priorCards).length) {
-			dispatch(echoLocalCardModifications(priorCards));
+			const optimisticForComparison = Object.fromEntries(Object.entries(localEchoes)
+				.map(([id, card]) => [id, stripEphemeralCardFields(card)])) as Cards;
+			const rollbackCards = rollbackCardsStillOptimistic(
+				priorCards,
+				optimisticForComparison,
+				selectRawCards(getState()),
+				deepEqualIgnoringTimestamps,
+			);
+			if (Object.keys(rollbackCards).length) dispatch(echoLocalCardModifications(rollbackCards));
 		}
 		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
+
+		//MultiBatch may have partially succeeded. After it has fully settled,
+		//force-read every affected card and install exactly what the server now
+		//has in Redux and the worker. A newer edit attempt supersedes this read.
+		const affectedIDs = Object.keys(localEchoes);
+		const authoritative = await authoritativeCardsAfterFailedCommit(affectedIDs);
+		if (modificationAttempt !== latestCardModificationAttempt) return;
+		if (authoritative.failedIDs.length) {
+			console.warn(`Couldn't reconcile ${authoritative.failedIDs.length} cards after a failed commit; live listeners remain the fallback.`);
+		}
+		if (Object.keys(authoritative.cards).length || authoritative.removedIDs.length) {
+			dispatch({
+				type: RECONCILE_CARDS_AFTER_FAILED_COMMIT,
+				cards: authoritative.cards,
+				removedIDs: authoritative.removedIDs,
+			});
+			const published: Cards = {};
+			const unpublished: Cards = {};
+			for (const card of Object.values(authoritative.cards)) {
+				if (card.published) published[card.id] = card;
+				else unpublished[card.id] = card;
+			}
+			if (Object.keys(published).length) dispatch(receiveCards(published, 'published'));
+			if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
+			if (authoritative.removedIDs.length) dispatch({type: REMOVE_CARDS, cardIDs: authoritative.removedIDs});
+		}
 		return;
 	}
 

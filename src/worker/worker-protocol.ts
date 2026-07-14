@@ -49,7 +49,8 @@ import {
 	SELECT_CARDS,
 	UNSELECT_CARDS,
 	CLEAR_SELECTED_CARDS,
-	ECHO_LOCAL_CARD_MODIFICATIONS
+	ECHO_LOCAL_CARD_MODIFICATIONS,
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT
 } from '../actions.js';
 
 //User-state actions forwarded verbatim (wire-encoded) from the main thread to
@@ -69,6 +70,7 @@ export const FORWARDED_ACTION_TYPES : {[actionType : string] : true} = {
 	[UNSELECT_CARDS]: true,
 	[CLEAR_SELECTED_CARDS]: true,
 	[ECHO_LOCAL_CARD_MODIFICATIONS]: true,
+	[RECONCILE_CARDS_AFTER_FAILED_COMMIT]: true,
 };
 
 //A generation counter accompanies every worker→main message. The bridge bumps

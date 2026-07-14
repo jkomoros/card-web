@@ -48,7 +48,8 @@ export class MultiBatchCommitError extends Error {
 	readonly reasons: unknown[];
 
 	constructor(succeededBatchCount: number, reasons: unknown[]) {
-		super(`${reasons.length} of ${succeededBatchCount + reasons.length} Firestore batches failed`);
+		const detail = reasons.length === 1 ? `: ${String(reasons[0])}` : '';
+		super(`${reasons.length} of ${succeededBatchCount + reasons.length} Firestore batches failed${detail}`);
 		this.name = 'MultiBatchCommitError';
 		this.succeededBatchCount = succeededBatchCount;
 		this.failedBatchCount = reasons.length;
