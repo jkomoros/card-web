@@ -602,4 +602,25 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		assert.deepStrictEqual(writes, []);
 		await batch.commit();
 	});
+
+	it('starts no commits when SDK validation throws while materializing an atomic batch', async () => {
+		let commitCount = 0;
+		const config = {
+			createBatch: () => ({writes: []}),
+			batchSet: (batch, ref) => batch.writes.push(ref.path),
+			batchUpdate: (batch, ref) => {
+				if (ref.path === 'sections/bad') throw new Error('SDK validation failed');
+				batch.writes.push(ref.path);
+			},
+			batchDelete: (batch, ref) => batch.writes.push(ref.path),
+			commitBatch: async () => { commitCount++; },
+		};
+		const batch = new MultiBatchBase(config, 3);
+		batch.beginAtomicGroup();
+		batch.update(ref('sections/good'), {});
+		batch.update(ref('sections/bad'), {});
+		batch.endAtomicGroup();
+		await assert.rejects(batch.commit(), /SDK validation failed/);
+		assert.strictEqual(commitCount, 0, 'no batch may reach the server after materialization fails');
+	});
 });

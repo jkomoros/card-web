@@ -66,6 +66,7 @@ export class MultiBatchBase<TBatch, TRef> {
 	protected _id: string;
 	protected _effectiveBatchLimit: number;
 	protected _atomicGroup: {count: number, apply: (batch: TBatch) => void}[] | null;
+	protected _atomicBatches: {count: number, operations: {count: number, apply: (batch: TBatch) => void}[]}[];
 
 	constructor(config: MultiBatchConfig<TBatch, TRef>, effectiveBatchLimit: number = FIRESTORE_BATCH_LIMIT) {
 		this._config = config;
@@ -75,6 +76,7 @@ export class MultiBatchBase<TBatch, TRef> {
 		this._id = randomString(8);
 		this._effectiveBatchLimit = effectiveBatchLimit;
 		this._atomicGroup = null;
+		this._atomicBatches = [];
 	}
 
 	get batchID() {
@@ -127,13 +129,13 @@ export class MultiBatchBase<TBatch, TRef> {
 			throw new Error(`Atomic write group requires ${count} operations; Firestore limit is ${this._effectiveBatchLimit}`);
 		}
 		if (!count) return;
-		if (this._currentBatch && this._currentBatchOperationCount + count > this._effectiveBatchLimit) {
-			this._currentBatch = null;
-			this._currentBatchOperationCount = 0;
+		let target = this._atomicBatches[this._atomicBatches.length - 1];
+		if (!target || target.count + count > this._effectiveBatchLimit) {
+			target = {count: 0, operations: []};
+			this._atomicBatches.push(target);
 		}
-		const batch = this._batch;
-		for (const operation of operations) operation.apply(batch);
-		this._currentBatchOperationCount += count;
+		target.operations.push(...operations);
+		target.count += count;
 	}
 
 	abortAtomicGroup() {
@@ -196,7 +198,18 @@ export class MultiBatchBase<TBatch, TRef> {
 		//caller that immediately rolls back or refetches can then race those
 		//late commits and "recover" to a state that was never authoritative.
 		if (this._atomicGroup) throw new Error('Cannot commit while a MultiBatch atomic group is active');
-		const results = await Promise.allSettled(this._batches.map(batch => Promise.resolve().then(() => this._config.commitBatch(batch))));
+		//Materialize every deferred atomic batch before starting ANY network
+		//commit. Firestore's WriteBatch methods validate synchronously; if one
+		//throws, its disposable batch (and every previously materialized batch)
+		//is simply abandoned, so no prefix can leak to the server.
+		const atomicBatches: TBatch[] = [];
+		for (const pendingBatch of this._atomicBatches) {
+			const batch = this._config.createBatch();
+			for (const operation of pendingBatch.operations) operation.apply(batch);
+			atomicBatches.push(batch);
+		}
+		const batches = [...this._batches, ...atomicBatches];
+		const results = await Promise.allSettled(batches.map(batch => Promise.resolve().then(() => this._config.commitBatch(batch))));
 		const reasons = results
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.map(result => result.reason);
