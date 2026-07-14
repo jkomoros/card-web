@@ -157,6 +157,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	@state()
 		_cardModificationPending: boolean;
 
+	@state()
+		_offline: boolean;
+
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
@@ -171,8 +174,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				display:none;
 			}
 
-			.modification-pending .scrim {
-				display:block;
+				.modification-pending .scrim {
+					display:flex;
+					align-items:center;
+					justify-content:center;
+					font-weight:bold;
+					text-align:center;
+					padding:1em;
+					box-sizing:border-box;
 			}
 
 			.buttons {
@@ -205,7 +214,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
-			<div class='scrim'></div>
+				<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
+					${this._offline ? 'Waiting for a connection to save. Keep this tab open; your changes are still here.' : 'Saving selected cards…'}
+				</div>
 			<select @change=${this._handleAddReference}>
 				<option value=''><em>Add a reference to a card type...</option>
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
@@ -440,6 +451,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._published = selectMultiEditPublished(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._offline = state.app.offline;
 		this._diff = selectMultiEditCardDiff(state);
 	}
 

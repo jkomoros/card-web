@@ -270,6 +270,9 @@ class CardEditor extends connect(store)(LitElement) {
 		_cardModificationPending: boolean;
 
 	@state()
+		_offline: boolean;
+
+	@state()
 		_suggestedConcepts: CardID[];
 
 	@state()
@@ -465,8 +468,14 @@ class CardEditor extends connect(store)(LitElement) {
 				display:none;
 			}
 
-			.modification-pending .scrim {
-				display:block;
+				.modification-pending .scrim {
+					display:flex;
+					align-items:center;
+					justify-content:center;
+					font-weight:bold;
+					text-align:center;
+					padding:1em;
+					box-sizing:border-box;
 			}
 
 		`
@@ -503,7 +512,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 		return html`
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
-		<div class='scrim'></div>
+			<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
+				${this._offline ? 'Waiting for a connection to save. Keep this tab open; your draft is still here.' : 'Saving card…'}
+			</div>
         <div class='inputs'>
 		  ${this._selectedTab == 'content' ? html`<div class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
@@ -910,6 +921,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._offline = state.app.offline;
 		this._underlyingCardDifferences = configTabActive ? selectEditingUnderlyingCardSnapshotDiffDescription(state) : '';
 		this._overshadowedDifferences = configTabActive ? selectOvershadowedUnderlyingCardChangesDiffDescription(state) : '';
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
