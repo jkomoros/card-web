@@ -308,8 +308,10 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 				removedIDs.push(id);
 				return;
 			}
-			const card = {...result.value.data({serverTimestamps: 'estimate'}), id} as Card;
-			cards[id] = stripEphemeralCardFields(card);
+			//Keep the complete server document for the worker reconciliation.
+			//nlp_search_tokens are intentionally ephemeral in Redux, but they are
+			//the worker search index's authoritative input.
+			cards[id] = {...result.value.data({serverTimestamps: 'estimate'}), id} as Card;
 		});
 	}
 	return {cards, removedIDs, failedIDs};
@@ -435,8 +437,9 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			const published: Cards = {};
 			const unpublished: Cards = {};
 			for (const card of Object.values(authoritative.cards)) {
-				if (card.published) published[card.id] = card;
-				else unpublished[card.id] = card;
+				const reduxCard = stripEphemeralCardFields(card);
+				if (card.published) published[card.id] = reduxCard;
+				else unpublished[card.id] = reduxCard;
 			}
 			if (Object.keys(published).length) dispatch(receiveCards(published, 'published'));
 			if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
