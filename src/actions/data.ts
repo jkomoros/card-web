@@ -654,7 +654,7 @@ const setPendingSlug = (slug : Slug) : SomeAction => {
 	};
 };
 
-const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) : Promise<void[]> => {
+const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) : Promise<void> => {
 	//legalSlug must already be verified to be legal.
 	const batch = new MultiBatch(db);
 	const cardRef = doc(db, CARDS_COLLECTION, cardID);

@@ -479,7 +479,7 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 
 	const SENTINEL = {__serverTimestamp: true};
 
-	const makeBatch = (withGuard = true) => {
+	const makeBatch = (withGuard = true, effectiveBatchLimit) => {
 		const writes = [];
 		const config = {
 			createBatch: () => ({}),
@@ -495,7 +495,7 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 				isServerTimestampValue: value => value === SENTINEL,
 			};
 		}
-		return {batch: new MultiBatchBase(config), writes};
+		return {batch: new MultiBatchBase(config, effectiveBatchLimit), writes, config};
 	};
 
 	const ref = (path) => ({path});
@@ -537,5 +537,35 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		const {batch, writes} = makeBatch(false);
 		batch.update(ref('cards/c-123-abcdef'), {body: 'hi'});
 		assert.strictEqual(writes.length, 1);
+	});
+
+	it('waits for every underlying commit before reporting partial failure', async () => {
+		const {batch, config} = makeBatch(false, 1);
+		batch.update(ref('sections/one'), {title: 'one'});
+		batch.update(ref('sections/two'), {title: 'two'});
+
+		let finishSecondCommit;
+		const secondCommit = new Promise(resolve => { finishSecondCommit = resolve; });
+		let commitIndex = 0;
+		config.commitBatch = async () => {
+			commitIndex++;
+			if (commitIndex === 1) throw new Error('first failed');
+			await secondCommit;
+		};
+
+		let settled = false;
+		const committed = batch.commit().catch(error => {
+			settled = true;
+			return error;
+		});
+		await Promise.resolve();
+		await Promise.resolve();
+		assert.strictEqual(settled, false, 'must not reject while another commit is still in flight');
+		finishSecondCommit();
+		const error = await committed;
+		assert.strictEqual(error.name, 'MultiBatchCommitError');
+		assert.strictEqual(error.succeededBatchCount, 1);
+		assert.strictEqual(error.failedBatchCount, 1);
+		assert.match(error.message, /1 of 2 Firestore batches failed/);
 	});
 });

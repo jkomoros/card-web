@@ -38,6 +38,24 @@ export interface MultiBatchConfig<TBatch, TRef> {
 	};
 }
 
+//A logical MultiBatch can span several independent Firestore batches. Keep
+//the partial-success information when one or more of those commits fail so
+//callers can reconcile against the server instead of assuming an all-or-none
+//outcome.
+export class MultiBatchCommitError extends Error {
+	readonly succeededBatchCount: number;
+	readonly failedBatchCount: number;
+	readonly reasons: unknown[];
+
+	constructor(succeededBatchCount: number, reasons: unknown[]) {
+		super(`${reasons.length} of ${succeededBatchCount + reasons.length} Firestore batches failed`);
+		this.name = 'MultiBatchCommitError';
+		this.succeededBatchCount = succeededBatchCount;
+		this.failedBatchCount = reasons.length;
+		this.reasons = reasons;
+	}
+}
+
 export class MultiBatchBase<TBatch, TRef> {
 
 	protected _config: MultiBatchConfig<TBatch, TRef>;
@@ -129,7 +147,17 @@ export class MultiBatchBase<TBatch, TRef> {
 		return this;
 	}
 
-	commit() {
-		return Promise.all(this._batches.map(batch => this._config.commitBatch(batch)));
+	async commit(): Promise<void> {
+		//Do not use Promise.all here. It rejects as soon as the first batch
+		//fails, while the other independent commits can still be in flight. A
+		//caller that immediately rolls back or refetches can then race those
+		//late commits and "recover" to a state that was never authoritative.
+		const results = await Promise.allSettled(this._batches.map(batch => this._config.commitBatch(batch)));
+		const reasons = results
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.map(result => result.reason);
+		if (reasons.length) {
+			throw new MultiBatchCommitError(results.length - reasons.length, reasons);
+		}
 	}
 }
