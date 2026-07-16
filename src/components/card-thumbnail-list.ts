@@ -61,6 +61,8 @@ import {
 	makeCardSelectedEvent
 } from '../events.js';
 
+import { CardSelectionAnchor } from '../card_selection.js';
+
 //How many cards to cap the rendering limit at (unless overriden by the parent
 //of this element). This should be set to a number of elements that can be
 //rendered without bad performance on typical hardware.
@@ -126,6 +128,8 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	@state()
 		_cardsSelected: boolean;
+
+	_selectionAnchor = new CardSelectionAnchor();
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -353,7 +357,10 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		if (!card) throw new Error('no card');
 
-		this.dispatchEvent(makeCardSelectedEvent(card, selected));
+		const cardIDs = this.collection ? this.collection.finalSortedCards.map(card => card.id) : [];
+		const cards = this._selectionAnchor.cardsForClick(cardIDs, card, e.shiftKey);
+
+		this.dispatchEvent(makeCardSelectedEvent(cards, selected));
 	}
 
 	get _cards() {
@@ -587,10 +594,18 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
 		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
-		this._cardsSelected = selectCardsSelected(state);
+		const cardsSelected = selectCardsSelected(state);
+		if (this._cardsSelected && !cardsSelected) this._selectionAnchor.reset();
+		this._cardsSelected = cardsSelected;
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
+		if (changedProps.has('collection')) {
+			const previousCollection = changedProps.get('collection');
+			const previousDescription = previousCollection?.description.serialize();
+			const currentDescription = this.collection?.description.serialize();
+			if (previousDescription !== currentDescription) this._selectionAnchor.reset();
+		}
 		if(changedProps.has('highlightedCardId') && this.highlightedCardId) {
 			this._scrollHighlightedThumbnailIntoView(true);
 		}

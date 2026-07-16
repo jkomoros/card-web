@@ -117,7 +117,7 @@ export const cardBadgesStyles = css`
 //badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also
 //need to embed cardBadgeStyles at least once If selectTarget is passed, then it
 //will render a checkbox that will have that method called with the ven ton
-//change. If not provided, it will not render a select checkbox.
+//click. If not provided, it will not render a select checkbox.
 export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap, selectTarget? : (e : MouseEvent) => void) => {
 	if (!badgeMap) badgeMap = {
 		stars: {},
@@ -149,7 +149,7 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 			${selectTarget ? html`<input
 				type='checkbox'
 				.checked=${badgeMap.selected[id]}
-				@change=${selectTarget}
+				@click=${selectTarget}
 				data-card-id=${id}
 				></input>
 			` : ''}
