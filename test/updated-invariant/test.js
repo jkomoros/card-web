@@ -594,14 +594,35 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		]);
 	});
 
-	it('rejects an oversized atomic group before queueing any of its writes', async () => {
-		const {batch, writes} = makeBatch(false, 1);
-		batch.beginAtomicGroup();
+	it('splits an oversized atomic group across batches with the groupID on every batch it spans', async () => {
+		//An edit whose fanout exceeds one Firestore batch can't be atomic at
+		//all; refusing made such cards permanently unsavable. The split
+		//attaches the groupID to EVERY spanned batch, so a partial failure
+		//reports the group as both succeeded and failed -> the recovery
+		//layer treats its cards as ambiguous and re-reads server state.
+		const committedBatches = [];
+		const config = {
+			createBatch: () => ({writes: []}),
+			batchSet: (batch, ref) => batch.writes.push(ref.path),
+			batchUpdate: (batch, ref) => batch.writes.push(ref.path),
+			batchDelete: (batch, ref) => batch.writes.push(ref.path),
+			commitBatch: async batch => { committedBatches.push(batch); },
+		};
+		const batch = new MultiBatchBase(config, 1);
+		batch.beginAtomicGroup('huge');
 		batch.update(ref('sections/one'), {});
 		batch.update(ref('sections/two'), {});
-		assert.throws(() => batch.endAtomicGroup(), /requires 2 operations/);
-		assert.deepStrictEqual(writes, []);
+		batch.endAtomicGroup();
 		await batch.commit();
+		assert.deepStrictEqual(committedBatches.map(item => item.writes), [
+			['sections/one'],
+			['sections/two'],
+		]);
+		//The recovery contract: the group is attributed to BOTH batches.
+		assert.deepStrictEqual(batch._atomicBatches.map(item => item.groupIDs), [
+			['huge'],
+			['huge'],
+		]);
 	});
 
 	it('starts no commits when SDK validation throws while materializing an atomic batch', async () => {

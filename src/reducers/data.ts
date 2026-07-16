@@ -250,12 +250,15 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 		return {
 			...state,
 			pendingModifications: false,
-			//Correct the planned count down to the writes actually committed
-			//(no-op diffs produce no echo, so waiting for them would suppress
-			//UPDATE_CARDS forever). min, not overwrite: the local echo can
-			//arrive and flush before the commit resolves, and success must
-			//not re-raise an already-cleared count.
-			pendingModificationCount: Math.min(state.pendingModificationCount, action.modificationCount),
+			//The commit has fully settled: every echo that will ever arrive
+			//for it has already been enqueued or deduped away (echoes are
+			//awaited before commit()). Zero the gate. An earlier revision
+			//kept min(planned, modifiedCount), but dedupe silently drops
+			//updated-only echoes (a tag sweep over cards that mostly already
+			//have the tag), so the enqueued count could NEVER satisfy the
+			//planned count and every subsequent listener delivery froze in
+			//the queue.
+			pendingModificationCount: 0,
 		};
 	case MODIFY_CARD_FAILURE:
 		return {

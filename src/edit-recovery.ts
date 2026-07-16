@@ -8,10 +8,19 @@ import {
 	Cards,
 } from './types.js';
 
-//Only restore a pre-write card while the UI still contains the optimistic
-//version produced by THIS attempt. A listener may have delivered a genuinely
-//newer edit while our commit was pending; an unconditional snapshot restore
-//would erase that edit locally and the listener is not obliged to replay it.
+//Restore a pre-write card unless a listener delivered a genuinely newer
+//edit while our commit was pending (an unconditional restore would erase
+//that edit locally, and the listener is not obliged to replay it). Two
+//states mean the rollback is safe and NEEDED:
+//- Redux holds the optimistic version (the echo applied): restore prior.
+//- Redux still holds the exact prior object (the echo was enqueue-gated or
+//  deduped away and never reached Redux): the rollback echo is a Redux
+//  no-op but it enqueue-merges over the phantom optimistic entry still
+//  sitting in the queue AND corrects the worker corpus, which applied the
+//  optimistic echo unconditionally. Skipping here (as an earlier revision
+//  did by comparing only against the optimistic version) let the phantom
+//  flush later as if saved — and a retry then diffed against the phantom
+//  and silently wrote nothing.
 export const rollbackCardsStillOptimistic = (
 	priorCards: Cards,
 	optimisticCards: Cards,
@@ -23,7 +32,7 @@ export const rollbackCardsStillOptimistic = (
 		const optimisticCard = optimisticCards[id];
 		const currentCard = currentCards[id];
 		if (!optimisticCard || !currentCard) continue;
-		if (equivalent(currentCard, optimisticCard)) result[id] = priorCard;
+		if (currentCard === priorCard || equivalent(currentCard, optimisticCard)) result[id] = priorCard;
 	}
 	return result;
 };

@@ -136,7 +136,25 @@ export class MultiBatchBase<TBatch, TRef> {
 		this._atomicGroupID = null;
 		const count = operations.reduce((total, operation) => total + operation.count, 0);
 		if (count > this._effectiveBatchLimit) {
-			throw new Error(`Atomic write group requires ${count} operations; Firestore limit is ${this._effectiveBatchLimit}`);
+			//An edit whose denormalized fanout exceeds one Firestore batch (a
+			//hub card with >~248 changed inbound references) cannot be
+			//written atomically at all. Splitting is strictly better than
+			//refusing (an earlier revision threw here, which made such cards
+			//PERMANENTLY unsavable): the group's ID is attached to every
+			//batch it spans, so a partial failure reports it in BOTH the
+			//succeeded and failed lists and the recovery layer classifies
+			//its cards as ambiguous and re-reads authoritative server state.
+			for (const operation of operations) {
+				let overflowTarget = this._atomicBatches[this._atomicBatches.length - 1];
+				if (!overflowTarget || overflowTarget.count + operation.count > this._effectiveBatchLimit) {
+					overflowTarget = {count: 0, operations: [], groupIDs: []};
+					this._atomicBatches.push(overflowTarget);
+				}
+				overflowTarget.operations.push(operation);
+				if (groupID && !overflowTarget.groupIDs.includes(groupID)) overflowTarget.groupIDs.push(groupID);
+				overflowTarget.count += operation.count;
+			}
+			return;
 		}
 		if (!count) return;
 		let target = this._atomicBatches[this._atomicBatches.length - 1];

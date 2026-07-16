@@ -447,6 +447,18 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		if (authoritative.failedIDs.length) {
 			console.warn(`Couldn't reconcile ${authoritative.failedIDs.length} cards after a failed commit; live listeners remain the fallback.`);
 		}
+		//Fail FIRST: MODIFY_CARD_FAILURE zeroes the enqueue gate, so the
+		//authoritative server cards below direct-apply instead of stranding
+		//in the queue (where they'd sit while the worker corpus was already
+		//corrected — main/worker divergence at the moment we claim to
+		//install server truth).
+		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
+		//Flush anything the failed cycle stranded in the queue (including
+		//the rollback echoes above, which enqueue-merged over the phantom
+		//optimistic entries) BEFORE applying server truth, so server wins.
+		if (Object.values(selectEnqueuedCards(getState())).some(cards => Object.keys(cards).length)) {
+			dispatch(updateEnqueuedCards());
+		}
 		if (Object.keys(authoritative.cards).length || authoritative.removedIDs.length) {
 			dispatch({
 				type: RECONCILE_CARDS_AFTER_FAILED_COMMIT,
@@ -464,8 +476,6 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
 			if (authoritative.removedIDs.length) dispatch({type: REMOVE_CARDS, cardIDs: authoritative.removedIDs});
 		}
-
-		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
 		return;
 	}
 
@@ -1537,11 +1547,12 @@ const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dis
 		modificationCount,
 	});
 	//Echoes for the committed writes may have arrived (and been enqueued)
-	//before the commit resolved, when the pending count was still the planned
-	//(higher) number. Now that the count is corrected, flush if satisfied.
+	//before the commit resolved. The commit has settled and the reducer just
+	//zeroed the gate, so flush whatever is queued unconditionally — an
+	//enqueued-count threshold can never be met when dedupe dropped
+	//updated-only echoes.
 	const enqueuedUpdates = selectEnqueuedCards(getState());
-	const enqueuedCount = Object.values(enqueuedUpdates).reduce((acc, val) => acc + Object.keys(val).length, 0);
-	if (enqueuedCount > 0 && enqueuedCount >= selectPendingModificationCount(getState())) {
+	if (Object.values(enqueuedUpdates).some(cards => Object.keys(cards).length)) {
 		dispatch(updateEnqueuedCards());
 	}
 };

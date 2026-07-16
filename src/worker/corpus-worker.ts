@@ -950,16 +950,23 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 				tombstones.push({id: change.doc.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}});
 			});
 			processTombstones(database, tombstones);
+			//A healthy server-confirmed delivery on the unpublished plane
+			//clears a listener-blip 'stale' — without this, a transient
+			//TOMBSTONE stream error latched 'stale' for the whole session
+			//(the delta handler only restored 'live' on non-empty
+			//deliveries, which a quiet corpus never produces), which under
+			//coverage gating means main-thread slow-path forever.
+			if (!snapshot.metadata.fromCache && currentSyncState === 'stale') setSyncState('live');
 			if (first) {
 				first = false;
 				onInitialDelivery();
 			}
-			},
-			() => { if (currentSyncState === 'live') setSyncState('stale'); },
-			//The delta listener is attached only after the tombstone listener's
-			//real initial snapshot. An error must never satisfy unpublished
-			//completeness or let a stale cache be served as live.
-			false);
+		},
+		() => { if (currentSyncState === 'live') setSyncState('stale'); },
+		//The delta listener is attached only after the tombstone listener's
+		//real initial snapshot. An error must never satisfy unpublished
+		//completeness or let a stale cache be served as live.
+		false);
 };
 
 const attachDeltaListener = (database : Firestore) => {
@@ -977,6 +984,11 @@ const attachDeltaListener = (database : Firestore) => {
 			//Removed events here are advisory only: a doc leaves this result
 			//set on publish-flip (the published listener re-adds it) — and
 			//real deletions arrive via tombstones. Never remove on them.
+			//Restore 'live' BEFORE the empty-delivery early-return: a
+			//re-attach after a blip in a quiet period delivers an empty (or
+			//tiny) snapshot, and gating the restore on count>0 left 'stale'
+			//latched until the next real edit.
+			if (!snapshot.metadata.fromCache && currentSyncState === 'stale') setSyncState('live');
 			const {cards} = parseSnapshot(snapshot);
 			const count = Object.keys(cards).length;
 			if (!count) return;
@@ -989,7 +1001,6 @@ const attachDeltaListener = (database : Firestore) => {
 					sessionWatermark = advanceWatermark(sessionWatermark, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
 				}
 			}
-			if (currentSyncState === 'stale') setSyncState('live');
 			status(`delta: ${count} changed cards; corpus=${corpus.size}`);
 		},
 		() => { if (currentSyncState === 'live') setSyncState('stale'); });
@@ -1371,7 +1382,7 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 				status('another tab owns the corpus sync; serving published-only (reload to re-contend)');
 				forwardBatch({}, [], 'unpublished', false, true);
 				setSyncState('unverified');
-				send({type: 'degraded', generation, reason: 'Another tab is syncing all cards; this tab shows published cards only.'});
+				send({type: 'degraded', generation, reason: 'Another tab is syncing all cards; this tab shows published cards only. Reload this tab to take over.'});
 				return;
 			}
 			if (syncMode === 'watermark') {
@@ -1449,10 +1460,16 @@ workerScope.addEventListener('message', event => {
 	case 'action': {
 		const action = fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction;
 		if (action.type === RECONCILE_CARDS_AFTER_FAILED_COMMIT) {
-			//These cards came from getDocFromServer after every split commit
-			//settled, so they are authoritative and safe to put back into the
-			//watermark. Missing documents must be removed from the corpus too.
-			for (const id of [...Object.keys(action.cards), ...action.removedIDs]) clientClockCardIDs.delete(id);
+			//Authoritative content for the CORPUS — but NOT for the
+			//watermark: this can arrive before boot derives sessionWatermark
+			//(polluting the bound with ~now and permanently skipping
+			//edits-while-away), and the snapshot is serialized from the main
+			//thread's SDK view, which overlays pending local writes with
+			//client-clock estimates. Keep the ids excluded until a real
+			//server listener snapshot confirms them (the delta listener
+			//clears the exclusion on delivery).
+			for (const id of Object.keys(action.cards)) clientClockCardIDs.add(id);
+			for (const id of action.removedIDs) clientClockCardIDs.delete(id);
 			updateLocalState(action.cards, action.removedIDs);
 			break;
 		}

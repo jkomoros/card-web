@@ -39,6 +39,25 @@ describe('failed edit rollback', () => {
 		assert.deepStrictEqual(result, {b: card('b', 'before b')});
 	});
 
+	it('rolls back when Redux still holds the exact prior object (echo was enqueue-gated and never applied)', () => {
+		//The optimistic echo often never reaches Redux: receiveCards
+		//enqueues while a commit is pending, and dedupe drops updated-only
+		//echoes entirely. Redux then still holds the PRIOR object — the
+		//rollback must still be dispatched (it corrects the worker corpus,
+		//which applied the echo unconditionally, and enqueue-merges over the
+		//phantom optimistic entry). Identity, not equivalence: a listener
+		//delivering different content produces a different object and is
+		//correctly skipped (previous test).
+		const prior = card('a', 'before');
+		const result = rollbackCardsStillOptimistic(
+			{a: prior},
+			{a: card('a', 'optimistic')},
+			{a: prior},
+			equivalent,
+		);
+		assert.deepStrictEqual(result, {a: prior});
+	});
+
 	it('preserves a server-confirmed echo with identical content but a newer version', () => {
 		const versionedCard = (id, body, version) => ({id, body, version});
 		const result = rollbackCardsStillOptimistic(

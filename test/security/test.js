@@ -1236,6 +1236,43 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(batch.commit());
 	});
 
+	it('allows the REAL client tombstone shape ({deleted, by, published}) — the shape deleteCard actually writes', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: sallyAuth.uid,
+			published: false,
+		});
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('disallows a tombstone attributing the deletion to someone else', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: 'someone-else',
+			published: false,
+		});
+		await firebase.assertFails(batch.commit());
+	});
+
+	it('disallows a tombstone with extra fields beyond the client shape', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: sallyAuth.uid,
+			published: false,
+			junk: true,
+		});
+		await firebase.assertFails(batch.commit());
+	});
+
 	it('disallows users to delete updates from a card they don\'t own', async() => {
 		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);

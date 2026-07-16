@@ -310,8 +310,13 @@ service cloud.firestore {
       //and make privileged clients hide it.
       allow create: if userMayEditCard(card)
         && !existsAfter(/databases/$(database)/documents/cards/$(card))
-        && request.resource.data.keys().hasOnly(['deleted'])
-        && request.resource.data.deleted == request.time;
+        //The client writes {deleted, by, published} (src/actions/data.ts
+        //deleteCard); by/published are optional but validated so a caller
+        //can't misattribute the deletion or write junk.
+        && request.resource.data.keys().hasOnly(['deleted', 'by', 'published'])
+        && request.resource.data.deleted == request.time
+        && (!('by' in request.resource.data) || request.resource.data.by == request.auth.uid)
+        && (!('published' in request.resource.data) || request.resource.data.published is bool);
       allow update, delete: if userIsAdmin();
     }
 

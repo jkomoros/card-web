@@ -157,11 +157,14 @@ describe('reducer identity preservation', () => {
 		state = dataReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 0});
 		assert.strictEqual(state.pendingModifications, false);
 		assert.strictEqual(state.pendingModificationCount, 0);
-		//A multi-card commit where only some cards actually changed keeps the
-		//count of real writes, so echo-gating still works for those.
+		//A settled commit zeroes the gate outright: every echo it will ever
+		//produce has already been enqueued or deduped away (echoes are
+		//awaited before commit()), and dedupe drops updated-only echoes —
+		//keeping a residual count froze all subsequent card updates in the
+		//queue (the mostly-no-op tag-sweep stall).
 		state = dataReducer(state, {type: MODIFY_CARD, modificationCount: 3});
 		state = dataReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 2});
-		assert.strictEqual(state.pendingModificationCount, 2);
+		assert.strictEqual(state.pendingModificationCount, 0);
 		//If the echo already arrived and flushed (latency-compensated local
 		//echo lands before commit resolves), the count is already 0 and
 		//success must NOT re-raise it.

@@ -35,7 +35,6 @@ import {
 	UPDATE_WORKER_COLLECTION,
 	UPDATE_CARD_META,
 	REMOVE_CARDS,
-	EXPECT_FETCHED_CARDS,
 	STOP_EXPECTING_FETCHED_CARDS,
 	UPDATE_CORPUS_STATUS
 } from './actions.js';
@@ -563,12 +562,16 @@ const handleCardBatch = (batch : CardBatch) => {
 	//the fetchType regardless of card count, exactly like a main-thread
 	//listener receiving an empty snapshot.
 	store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe));
-	//A coalesced first batch is progress, not completion. Keep loading truthy
-	//until the worker's explicit loadComplete signal rather than letting the
-	//UPDATE_CARDS reducer clear it after the first partition.
-	if (!workerLoadComplete && !batch.errorFallback) {
-		store.dispatch({type: EXPECT_FETCHED_CARDS, fetchType: batch.fetchType});
-	}
+	//NOTE: an earlier revision re-raised EXPECT_FETCHED_CARDS here after
+	//every pre-loadComplete batch ("first batch is progress, not
+	//completion"). That was REMOVED: the worker has designed paths that
+	//withhold loadComplete indefinitely while still forwarding batches (the
+	//second-tab Web-Locks loser; a boot whose trust gate is unreachable and
+	//retrying) — the re-raise turned both into a permanently
+	//never-fully-loaded app (dead new-card/random navigation, suggestions,
+	//snapshot commits). It also ran AFTER receiveCards, too late to stop
+	//the same-tick observers it was written for. First-batch-clears-loading
+	//is the long-standing main-thread-listener semantic; keep it.
 	if (batch.removedIDs.length) {
 		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
 	}
@@ -615,6 +618,12 @@ const handleCorpusIDs = (ids : CardID[]) => {
 
 const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	const message = event.data;
+	//'ready' is emitted at module bottom under the worker's own (pre-connect)
+	//generation and would be dropped as stale below — but it proves exactly
+	//what the startup timeout watches for (the module loaded and is
+	//running), so clear the timeout BEFORE the generation gate or a slow
+	//module init gets a healthy worker terminated at 15s.
+	if (message.type === 'ready') clearWorkerStartupTimeout();
 	if (message.generation !== generation) {
 		console.log('[corpus-worker] dropped stale message', message.type);
 		return;
@@ -757,7 +766,7 @@ const recoverFromWorkerFailure = (reason : string) => {
 	clearWorkerStartupTimeout();
 	stopWorker();
 	markCorpusWorkerUnavailable();
-	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'fallback', message: 'Background card sync is unavailable; using standard loading.'});
+	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'fallback', message: 'Background card sync is unavailable; using standard loading. Reload to retry.'});
 	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
 	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
 	//Dynamic import avoids making the database↔bridge dependency cycle eager.
@@ -779,7 +788,18 @@ const spawnWorker = () : boolean => {
 	}
 	worker.addEventListener('message', handleMessage);
 	worker.addEventListener('error', event => {
-		recoverFromWorkerFailure(event.message || 'uncaught worker error');
+		//Auto-recover only during startup (the timeout window): a worker
+		//that fails to boot is useless. AFTER startup, workers survive
+		//uncaught exceptions — terminating a healthy worker holding the
+		//whole corpus over one cosmetic bug means a session-long slow path
+		//plus a full billed main-thread re-read. Log and keep running; a
+		//genuinely wedged worker is covered by runCollection null-fallbacks
+		//and the reconnect machinery.
+		if (workerStartupTimeout) {
+			recoverFromWorkerFailure(event.message || 'uncaught worker error');
+			return;
+		}
+		console.warn('[corpus-worker] uncaught worker exception (worker continues):', event.message);
 	});
 	return true;
 };

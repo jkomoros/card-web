@@ -36,3 +36,4 @@ reports/mutation/
 
 #Perf-harness run artifacts (machine-specific numbers; not committed as gates)
 test/perf-harness/baselines/
+.codex/

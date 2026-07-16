@@ -14,7 +14,7 @@ attempt. For a smaller exploratory admin run:
 npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \
   "node test/perf-harness/run.js --count 6000 --auth admin --load-timeout 180000"
 ```
-Baseline lands in `test/perf-harness/baselines/<authMode>-<count>.json`; authoritative main-thread numbers are `results.dispatch.*` (avg/max from perfMiddleware). Raise `--load-timeout` for larger corpora.
+Baseline lands in `test/perf-harness/baselines/<authMode>-<workerMode>-<count>.json`; authoritative main-thread numbers are `results.dispatch.*` (avg/max from perfMiddleware). Raise `--load-timeout` for larger corpora.
 
 **First findings (emulator, admin):** the interaction dispatches are all sub-ms at 300 cards; by 6000, **`UPDATE_CARDS` (card ingestion/echo-apply) grows to ~13ms avg / ~29ms max** and `UPDATE_READS` (auto-mark-read → `makeFilterFromCards`) is climbing — early confirmation that the ingestion path is the scaling cost. **A 40k corpus does not finish loading within a practical timeout** (the ingestion is genuinely slow at scale — exactly the symptom the perf effort targets); measuring 40k needs either the reducer/selector fixes to land first or a much larger `--load-timeout`. Note: emulator commit/echo wall-clock is optimistic (near-zero local round-trip); the real-corpus G1 acceptance run (`perf:dev`) remains separate.
 
@@ -78,7 +78,10 @@ The commit path already emits `dispatch:<TYPE>` timings via `perfMiddleware`. Th
 
 ## How to run (target)
 - `npm run perf:local` — 12k-card emulator ship gate (admin, worker-on,
-  watermark, assertions enabled; no live session).
+  watermark). Hard-fails on the DETERMINISTIC invariants only
+  (sample-count minimums, makeFilterFromCards call count); the wall-clock
+  budgets are advisory prints unless you add `--assert-budgets` (emulator
+  wall-clock is hardware/load-noisy by design — see Status honesty).
 - `npm run perf:dev` — dev app + real corpus (G1; needs a live Firebase session in the copied profile).
 
 ## Next increment: app-side wiring + Playwright runner
