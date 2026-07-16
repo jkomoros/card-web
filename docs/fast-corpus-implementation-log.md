@@ -923,3 +923,36 @@ full ~39k corpus complete in ~1-3min (watch for 'cold sweep ... throttled;
 concurrency now N' messages = adaptive pacing engaging), then syncState
 live and <100 reads on subsequent warm boots. Editing feel check: open a
 card, type, watch sidebar related cards refresh every ~1-5s.
+
+## 2026-07-12 — Adversarial round 3: the 21 robustness commits, 11 confirmed findings fixed (f049a067)
+
+Three parallel attackers reviewed the multi-edit/recovery cluster, the
+sync-core hardening, and the UX/perf-gate changes another agent landed.
+Verdict: the batching/atomicity layer (multi_batch atomic groups) and the
+watermark clamp/auth-clear/fallback designs were SOUND; the recovery
+layer's core assumption and two hardening commits were not. All fixed in
+f049a067 (see its message for the full list). Headlines:
+- Tombstone rules rejected the client's own {deleted, by, published}
+  shape: EVERY card delete permission-denied. (Tests passed because they
+  exercised a minimal shape the client never writes — test the REAL
+  client payload.)
+- Per-batch EXPECT_FETCHED_CARDS re-raise = second tab / gate-retry boots
+  never reach dataIsFullyLoaded, forever.
+- Recovery assumed the optimistic echo reaches Redux; it's routinely
+  enqueue-gated or dedupe-dropped — phantom "saved" state + a retry that
+  writes nothing. Root fixes: prior-identity rollback gate, zero the
+  pending gate at settled success + unconditional flush, direct-apply
+  authoritative reads after failure.
+- Worker reconcile laundered client-clock exclusions pre-derivation
+  (no-gap break); sticky 'stale' after a tombstone blip (session-long
+  slow path); >248-ref fanout permanently unsavable (now splits with
+  ambiguous-on-partial-failure attribution).
+Deferred as acceptable: budgets stay advisory in perf:local (matches the
+original deterministic-hard/wall-clock-advisory design); author-only
+batch failure misreports as full failure (harmless retry); Date.now()
+update-log doc-id collisions (pre-existing); sign-out ghosting-snapshot
+transient (local-only, next snapshot commit clears it).
+
+Dev redeployed (hosting + firestore rules) after the fixes — the
+tombstone rule fix is REQUIRED on dev or deletes stay broken there.
+Acceptance test should be against this redeployed bundle.
