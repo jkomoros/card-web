@@ -18,6 +18,7 @@ let readableCollectionExpression;
 let collectionExpressionParts;
 let selectCollectionComposerCandidates;
 let activeCardRelationshipCandidates;
+let activeCardMetadataCandidates;
 let makeConfigurableFilter;
 let configurableFilterCacheKey;
 
@@ -38,6 +39,7 @@ describe("Collection Composer suggestions", () => {
       readableCollectionExpression,
       collectionExpressionParts,
       activeCardRelationshipCandidates,
+      activeCardMetadataCandidates,
     } = await import("../../lib/src/collection-composer-suggestions.js"));
     ({ selectCollectionComposerCandidates } = await import("../../lib/src/selectors.js"));
     ({ makeConfigurableFilter, configurableFilterCacheKey } = await import("../../lib/src/filters.js"));
@@ -59,6 +61,25 @@ describe("Collection Composer suggestions", () => {
     assert.ok(
       suggestions.some((item) => item.label === "Reverse the current sort")
     );
+  });
+
+  it("uses contributor labels instead of durable IDs in removal suggestions", () => {
+    const candidate = {
+      filter: "author/visibleperson",
+      category: "author",
+      label: "Cards Casey authored or collaborated on",
+      detail: "",
+      clauseLabel: "Contributed By Casey",
+    };
+    const suggestions = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/author/visibleperson/"),
+      "",
+      descriptions,
+      { candidates: [candidate] }
+    );
+    assert.strictEqual(suggestions[0].label, "Remove Contributed By Casey");
+    assert.match(suggestions[0].detail, /Contributed By Casey/);
+    assert.doesNotMatch(`${suggestions[0].label} ${suggestions[0].detail}`, /visibleperson/);
   });
 
   it("turns an existing card selection into an explicit filter", () => {
@@ -181,12 +202,68 @@ describe("Collection Composer suggestions", () => {
           unread: { title: "Misleading tag" },
           useful: { title: "Useful tag" },
         },
+        cards: {},
+        authors: {},
       },
     });
     assert.ok(!candidates.some(candidate => ["shared", "starred", "unread"].includes(candidate.filter)));
     assert.ok(candidates.some(candidate => candidate.filter === "safe" && candidate.category === "section"));
     assert.ok(candidates.some(candidate => candidate.filter === "useful" && candidate.category === "tag"));
     assert.strictEqual(candidates.find(candidate => candidate.filter === "working-notes").label, "Card type: Working Notes");
+  });
+
+  it("discovers only visible contributors with durable, honestly labeled clauses", () => {
+    const candidates = selectCollectionComposerCandidates({
+      data: {
+        sections: {},
+        tags: {},
+        cards: {
+          one: { author: "CurrentUser", collaborators: ["VisiblePerson"] },
+        },
+        authors: {
+          CurrentUser: { displayName: "Jordan" },
+          VisiblePerson: { displayName: "Casey" },
+          HiddenPerson: { displayName: "Hidden" },
+        },
+      },
+      user: { user: { uid: "CurrentUser" } },
+    });
+    const mine = candidates.find(candidate => candidate.label === "My cards");
+    const casey = candidates.find(candidate => candidate.label.includes("Casey"));
+    assert.strictEqual(mine.filter, "author/currentuser");
+    assert.strictEqual(casey.filter, "author/visibleperson");
+    assert.match(casey.label, /authored or collaborated on/);
+    assert.ok(!candidates.some(candidate => candidate.label.includes("Hidden")));
+    assert.ok(!casey.searchValues.some(value => value.includes("visibleperson")));
+
+    const suggestions = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "casey",
+      { author: "Selects cards by contributor" },
+      { candidates }
+    );
+    assert.strictEqual(suggestions[0].label, "Cards Casey authored or collaborated on");
+    assert.deepStrictEqual(suggestions[0].description.filters, ["author/visibleperson"]);
+    assert.doesNotMatch(suggestions[0].detail, /visibleperson/i);
+    const [contributorFilter] = makeConfigurableFilter("author/visibleperson");
+    assert.strictEqual(contributorFilter({ author: "Other", collaborators: ["VisiblePerson"] }, {}).matches, true);
+    assert.strictEqual(
+      readableCollectionExpression(suggestions[0].description, {
+        "author/visibleperson": "Cards Casey authored or collaborated on",
+      }),
+      "Everything AND Cards Casey authored or collaborated on"
+    );
+
+    const duplicateNames = selectCollectionComposerCandidates({
+      data: {
+        sections: {}, tags: {},
+        cards: { one: { author: "First", collaborators: ["Second"] } },
+        authors: { First: { displayName: "Casey" }, Second: { displayName: "Casey" } },
+      },
+      user: { user: { uid: "SomeoneElse" } },
+    }).filter(candidate => candidate.category === "author");
+    assert.strictEqual(new Set(duplicateNames.map(candidate => candidate.label)).size, 2);
+    assert.ok(duplicateNames.every(candidate => !/First|Second/.test(candidate.label)));
   });
 
   it("caps and deduplicates concrete values while retaining text search", () => {
@@ -236,14 +313,9 @@ describe("Collection Composer suggestions", () => {
       descriptions,
       { candidates }
     );
-    assert.deepStrictEqual(
-      withoutTyping.slice(0, 3).map(suggestion => suggestion.label),
-      [
-        "This card and cards it links to",
-        "This card and cards linking here",
-        "This card and directly connected cards",
-      ]
-    );
+    assert.deepStrictEqual(withoutTyping.slice(0, 1).map(suggestion => suggestion.label), [
+      "This card and directly connected cards",
+    ]);
     const withRecent = collectionComposerSuggestions(
       CollectionDescription.deserialize("everything/"),
       "",
@@ -260,6 +332,54 @@ describe("Collection Composer suggestions", () => {
     assert.ok(withRecent.some(suggestion => suggestion.label === "Keep only Unread"));
   });
 
+  it("turns visible active-card metadata into explicit contextual clauses", () => {
+    const base = [
+      { filter: "inductively-knowable", category: "tag", label: "Tagged", detail: "", valueLabel: "Inductively Knowable", clauseLabel: "Tagged Inductively Knowable" },
+      { filter: "systems", category: "tag", label: "Tagged", detail: "", valueLabel: "Systems", clauseLabel: "Tagged Systems" },
+      { filter: "half-baked", category: "section", label: "Section", detail: "", valueLabel: "Half Baked", clauseLabel: "Section Half Baked" },
+      { filter: "working-notes", category: "card type", label: "Type", detail: "", valueLabel: "Working Notes", clauseLabel: "Card Type Working Notes" },
+      { filter: "author/person", category: "author", label: "Cards Casey authored or collaborated on", detail: "", valueLabel: "Casey", clauseLabel: "Contributed By Casey" },
+      { filter: "author/collaborator", category: "author", label: "Cards Alex authored or collaborated on", detail: "", valueLabel: "Alex", clauseLabel: "Contributed By Alex" },
+    ];
+    const contextual = activeCardMetadataCandidates({
+      section: "half-baked",
+      tags: ["missing-tag", "systems", "inductively-knowable"],
+      cardType: "working-notes",
+      contributors: ["Person", "Collaborator", "Person"],
+    }, base);
+    assert.deepStrictEqual(contextual.map(candidate => candidate.filter), [
+      "inductively-knowable",
+      "systems",
+      "half-baked",
+      "working-notes",
+      "author/person",
+      "author/collaborator",
+    ]);
+    assert.deepStrictEqual(contextual.filter(candidate => candidate.spotlight).map(candidate => candidate.filter), [
+      "inductively-knowable",
+      "half-baked",
+    ]);
+    assert.match(contextual[0].detail, /open card has this tag/i);
+    assert.match(contextual[0].urlDetail, /copied links keep this value/i);
+    assert.strictEqual(
+      readableCollectionExpression(
+        CollectionDescription.deserialize("everything/inductively-knowable/"),
+        Object.fromEntries(contextual.map(candidate => [candidate.filter, candidate.clauseLabel]))
+      ),
+      "Everything AND Tagged Inductively Knowable"
+    );
+
+    const combined = [...contextual, ...activeCardRelationshipCandidates("card-123")];
+    const withoutTyping = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"), "", descriptions, { candidates: combined }
+    );
+    assert.deepStrictEqual(withoutTyping.slice(0, 3).map(suggestion => suggestion.label), [
+      "Keep only cards tagged “Inductively Knowable”",
+      "Keep only section “Half Baked”",
+      "This card and directly connected cards",
+    ]);
+  });
+
   it("executes durable relative-date candidates with their stated meaning", () => {
     const [filter] = makeConfigurableFilter("updated/after/7-days-ago");
     const timestamp = (date) => ({ toMillis: () => date.getTime() });
@@ -269,7 +389,7 @@ describe("Collection Composer suggestions", () => {
     assert.strictEqual(filter({ updated_substantive: timestamp(recent) }).matches, true);
     assert.strictEqual(filter({ updated_substantive: timestamp(old) }).matches, false);
 
-    const candidates = selectCollectionComposerCandidates({ data: { sections: {}, tags: {} } });
+    const candidates = selectCollectionComposerCandidates({ data: { sections: {}, tags: {}, cards: {}, authors: {} } });
     const suggestions = collectionComposerSuggestions(
       CollectionDescription.deserialize("everything/"),
       "last 7 days",
@@ -279,16 +399,16 @@ describe("Collection Composer suggestions", () => {
     assert.strictEqual(suggestions[0].label, "Updated since 7 days ago");
     assert.deepStrictEqual(suggestions[0].description.filters, ["updated/after/7-days-ago"]);
 
-	const beforeMidnight = new Date(2026, 6, 17, 23, 59);
-	const afterMidnight = new Date(2026, 6, 18, 0, 1);
-	assert.notStrictEqual(
-	  configurableFilterCacheKey("updated/after/today", beforeMidnight),
-	  configurableFilterCacheKey("updated/after/today", afterMidnight)
-	);
-	assert.strictEqual(
-	  configurableFilterCacheKey("updated/after/2026-7-17", beforeMidnight),
-	  configurableFilterCacheKey("updated/after/2026-7-17", afterMidnight)
-	);
+    const beforeMidnight = new Date(2026, 6, 17, 23, 59);
+    const afterMidnight = new Date(2026, 6, 18, 0, 1);
+    assert.notStrictEqual(
+      configurableFilterCacheKey("updated/after/today", beforeMidnight),
+      configurableFilterCacheKey("updated/after/today", afterMidnight)
+    );
+    assert.strictEqual(
+      configurableFilterCacheKey("updated/after/2026-7-17", beforeMidnight),
+      configurableFilterCacheKey("updated/after/2026-7-17", afterMidnight)
+    );
   });
 
   it("constructs configurable filters with visible editable defaults", () => {

@@ -35,6 +35,10 @@ export type CollectionComposerCandidate = {
   detail: string;
   aliases?: string[];
   searchValues?: string[];
+  urlDetail?: string;
+  valueLabel?: string;
+  spotlight?: boolean;
+  clauseLabel?: string;
 };
 
 export type CollectionComposerContext = {
@@ -44,6 +48,56 @@ export type CollectionComposerContext = {
     description: CollectionDescription;
     visits: number;
   }>;
+};
+
+export type ActiveCardMetadata = {
+  section: string;
+  tags: string[];
+  cardType: string;
+  contributors: string[];
+};
+
+export const activeCardMetadataCandidates = (
+  activeCard: ActiveCardMetadata | null,
+  baseCandidates: CollectionComposerCandidate[]
+): CollectionComposerCandidate[] => {
+  if (!activeCard) return [];
+  const byFilter = new Map(baseCandidates.map(candidate => [candidate.filter, candidate]));
+  const result: CollectionComposerCandidate[] = [];
+  const add = (filter: string, label: string, reason: string, spotlight = false) => {
+    const candidate = byFilter.get(filter);
+    if (!candidate) return;
+    result.push({
+      ...candidate,
+      label,
+      detail: reason,
+      spotlight,
+      urlDetail: candidate.category === "author"
+        ? "Adds a durable contributor clause; copied links keep the same person"
+        : "Adds the explicit value to the collection URL; copied links keep this value",
+    });
+  };
+  const visibleTags = activeCard.tags
+    .map(tag => ({tag, candidate: byFilter.get(tag)}))
+    .filter(item => Boolean(item.candidate))
+    .sort((left, right) => (left.candidate?.valueLabel || left.tag).localeCompare(right.candidate?.valueLabel || right.tag));
+  for (const [index, {tag, candidate}] of visibleTags.entries()) {
+    add(tag, `Keep only cards tagged “${candidate?.valueLabel || tag}”`, "The open card has this tag", index === 0);
+  }
+  if (activeCard.section) {
+    const candidate = byFilter.get(activeCard.section);
+    add(activeCard.section, `Keep only section “${candidate?.valueLabel || activeCard.section}”`, "The open card is in this section", true);
+  }
+  if (activeCard.cardType) {
+    const candidate = byFilter.get(activeCard.cardType);
+    add(activeCard.cardType, `Keep only ${candidate?.valueLabel || activeCard.cardType} cards`, "The open card has this card type");
+  }
+  for (const contributor of [...new Set((activeCard.contributors || []).filter(Boolean))]) {
+    const authorFilter = `author/${contributor.toLowerCase()}`;
+    const candidate = byFilter.get(authorFilter);
+    add(authorFilter, candidate?.label || "Cards by this card's contributor", "The open card has this contributor");
+  }
+  return result;
 };
 
 export const activeCardRelationshipCandidates = (activeCardID: string): CollectionComposerCandidate[] => activeCardID ? [
@@ -67,6 +121,7 @@ export const activeCardRelationshipCandidates = (activeCardID: string): Collecti
     label: "This card and directly connected cards",
     detail: `Anchors to the open card (${activeCardID}) and follows references in either direction; copied links keep this anchor`,
     aliases: ["connected to this card", "connections", "either direction", "related cards"],
+    spotlight: true,
   },
 ] : [];
 
@@ -151,21 +206,23 @@ export const collectionDescriptionFromComposerSource = (
 };
 
 const removalSuggestions = (
-  current: CollectionDescription
+  current: CollectionDescription,
+  filterLabels: Record<string, string>
 ): CollectionComposerSuggestion[] =>
   current.filters.map((filter, index) => ({
     id: `remove:${index}:${filter}`,
     kind: "broaden",
     action: "remove",
-    label: `Remove ${humanize(filter.split("/")[0])}`,
-    detail: `Broadens this collection by removing ${filter}`,
+    label: `Remove ${filterLabels[filter] || humanize(filter.split("/")[0])}`,
+    detail: `Broadens this collection by removing ${filterLabels[filter] || readableCollectionFilter(filter)}`,
     description: collectionDescriptionWithFilterRemoved(current, index),
   }));
 
 const collectionDifference = (
   current: CollectionDescription,
   destination: CollectionDescription,
-  visits: number
+  visits: number,
+  filterLabels: Record<string, string>
 ): string => {
   const changes: string[] = [];
   if (current.set !== destination.set) {
@@ -182,9 +239,9 @@ const collectionDifference = (
     (filter) => !currentFilters.has(filter)
   );
   if (removed.length)
-    changes.push(`Removes ${removed.map(readableCollectionFilter).join(", ")}`);
+    changes.push(`Removes ${removed.map(filter => filterLabels[filter] || readableCollectionFilter(filter)).join(", ")}`);
   if (added.length)
-    changes.push(`Adds ${added.map(readableCollectionFilter).join(", ")}`);
+    changes.push(`Adds ${added.map(filter => filterLabels[filter] || readableCollectionFilter(filter)).join(", ")}`);
   if (
     current.sort !== destination.sort ||
     current.sortReversed !== destination.sortReversed
@@ -203,6 +260,7 @@ const recentSuggestions = (
   current: CollectionDescription,
   context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
+  const filterLabels = Object.fromEntries((context.candidates || []).map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
   const seen = new Set<string>();
   const result: CollectionComposerSuggestion[] = [];
   for (const recent of context.recentCollections || []) {
@@ -213,8 +271,8 @@ const recentSuggestions = (
       id: `recent:${canonical}`,
       kind: "recent",
       action: "open",
-      label: `Back to ${readableCollectionExpression(recent.description)}`,
-      detail: collectionDifference(current, recent.description, recent.visits),
+      label: `Back to ${readableCollectionExpression(recent.description, filterLabels)}`,
+      detail: collectionDifference(current, recent.description, recent.visits, filterLabels),
       description: recent.description,
     });
     if (result.length >= 3) break;
@@ -228,6 +286,7 @@ const emptyStateSuggestions = (
   current: CollectionDescription,
   context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
+  const filterLabels = Object.fromEntries((context.candidates || []).map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
   const result: CollectionComposerSuggestion[] = recentSuggestions(
     current,
     context
@@ -246,18 +305,18 @@ const emptyStateSuggestions = (
       description: collectionDescriptionWithSelected(current),
     });
   }
-  result.push(...removalSuggestions(current));
+  result.push(...removalSuggestions(current, filterLabels));
   //Teach the coherent outgoing/incoming/either-direction family only when it
   //will not displace recents, selection, or removal actions. In denser states
   //the same candidates remain discoverable by typing.
   if (!result.length && !current.filters.length) {
-    for (const candidate of (context.candidates || []).filter(candidate => candidate.category === "relationship")) {
+    for (const candidate of (context.candidates || []).filter(candidate => candidate.spotlight).slice(0, 3)) {
       result.push({
         id: `candidate:${candidate.category}:${candidate.filter}`,
         kind: "add",
         action: "add",
         label: candidate.label,
-        detail: `${candidate.detail} · Adds “${candidate.filter}” to the collection URL`,
+        detail: `${candidate.detail} · ${candidate.urlDetail || `Adds “${candidate.filter}” to the collection URL`}`,
         description: collectionDescriptionWithFilterAppended(current, candidate.filter),
       });
     }
@@ -364,7 +423,7 @@ export const collectionComposerSuggestions = (
         kind: "add",
         action: "add",
         label: candidate.label,
-        detail: `${candidate.detail} · Adds “${candidate.filter}” to the collection URL`,
+        detail: `${candidate.detail} · ${candidate.urlDetail || `Adds “${candidate.filter}” to the collection URL`}`,
         description: collectionDescriptionWithFilterAppended(current, candidate.filter),
       };
     } else {
@@ -403,9 +462,10 @@ export const collectionComposerSuggestions = (
 };
 
 export const readableCollectionExpression = (
-  description: CollectionDescription
+  description: CollectionDescription,
+  filterLabels: Record<string, string> = {}
 ): string => {
-  const parts = collectionExpressionParts(description);
+  const parts = collectionExpressionParts(description, filterLabels);
   const clauses = [parts.set.label];
   clauses.push(...parts.filters.map(filter => filter.label));
   let result = clauses.join(" AND ");
@@ -420,7 +480,8 @@ export type CollectionExpressionParts = {
 };
 
 export const collectionExpressionParts = (
-  description: CollectionDescription
+  description: CollectionDescription,
+  filterLabels: Record<string, string> = {}
 ): CollectionExpressionParts => {
   const modifiers: string[] = [];
   if (description.sort !== "default" || description.sortReversed) {
@@ -433,7 +494,7 @@ export const collectionExpressionParts = (
   }
   return {
     set: {raw: description.set, label: humanize(description.set)},
-    filters: description.filters.map((raw, index) => ({raw, index, label: readableCollectionFilter(raw)})),
+    filters: description.filters.map((raw, index) => ({raw, index, label: filterLabels[raw] || readableCollectionFilter(raw)})),
     modifiers,
   };
 };
