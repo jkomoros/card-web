@@ -66,6 +66,12 @@ export const SHORTCUT_COMBOS = {
 	//several others — declaring only the shifted form would dead-key the sheet
 	//outside the US.
 	'show-shortcuts': [{key: '?', shift: true}, {key: '?'}],
+	//The Collection Composer (#498). Deliberately the SAME combo as
+	//find-card-to-link: that one is an editor binding with focus policy
+	//'allow-text-fields' and only applies while a card is being edited,
+	//while this one is gated on whenKeyboardNavigates (which is false while
+	//editing), so the registry's applicability guards keep them disjoint.
+	'open-collection-composer': [{key: 'k', mod: true}],
 } as const satisfies {[id : string] : readonly ShortcutCombo[]};
 
 export type ShortcutID = keyof typeof SHORTCUT_COMBOS;

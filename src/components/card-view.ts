@@ -124,6 +124,10 @@ import {
 } from '../util.js';
 
 import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
+
+import {
 	addStar,
 	removeStar,
 	markRead,
@@ -744,6 +748,18 @@ class CardView extends connect(store)(PageViewElement) {
 			`
 		: ''
 }
+				${collectionComposerEnabled() ? html`
+					<button
+						id='refine-collection'
+						class='small'
+						title='Refine this collection (Ctrl-K)'
+						@click=${this._handleConfigureCollectionClicked}
+					>
+						${RULE_ICON}
+					</button>
+					<label for='refine-collection'>Refine</label>
+					<br />
+				` : ''}
 				${this._collection?.description.isRandom ? html`
 					<button
 						id='randomize'
@@ -1431,13 +1447,33 @@ registerShortcuts([
 		},
 	},
 	{
+		//The Collection Composer's primary entry point (#498). Gated on
+		//whenKeyboardNavigates like the rest of this family, which is what
+		//keeps it from firing behind Find, bulk edit, or the corpus
+		//ownership overlay — `inert` does not stop a global keydown, so the
+		//feature's own dialog-open check was never sufficient by itself.
+		id: 'open-collection-composer',
+		keys: SHORTCUT_COMBOS['open-collection-composer'],
+		label: 'Compose a collection',
+		when: (state) => whenKeyboardNavigates(state) && collectionComposerEnabled(),
+		handler: () => store.dispatch(openConfigureCollectionDialog()),
+	},
+	{
 		id: 'navigate-to-path',
 		//Ctrl-Shift-L navigates to a URL in the web app without modifying
 		//the URL bar in the browser, which would lead to a full refresh.
+		//With the composer enabled it opens the composer instead: same job,
+		//said in the composer's vocabulary.
 		keys: SHORTCUT_COMBOS['navigate-to-path'],
 		label: 'Navigate to a path',
 		when: whenKeyboardNavigates,
-		handler: () => store.dispatch(askForPathToNavigateTo()),
+		handler: () => {
+			if (collectionComposerEnabled()) {
+				store.dispatch(openConfigureCollectionDialog());
+				return;
+			}
+			store.dispatch(askForPathToNavigateTo());
+		},
 	},
 	{
 		id: 'randomize-collection',
