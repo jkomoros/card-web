@@ -25,6 +25,12 @@ import {
 } from '../collection_description.js';
 
 import {
+	cardIDIsPlaceholder,
+	resolveCardRequest,
+	resolveInvalidCollectionCard,
+} from '../collection-navigation.js';
+
+import {
 	getIdForCard,
 	getCard,
 	selectDataIsFullyLoaded,
@@ -33,7 +39,6 @@ import {
 	selectActiveSectionId,
 	selectRequestedCard,
 	selectActiveCard,
-	selectActiveCardIndex,
 	selectPage,
 	selectPageExtra,
 	getCardIndexForActiveCollection,
@@ -70,7 +75,6 @@ import {
 
 import {
 	CardID,
-	Card,
 	State,
 	CollectionConstructorArguments
 } from '../types.js';
@@ -332,7 +336,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 	}
 
 
-	if (cardIdIsPlaceholder(requestedCard) || !requestedCard) {
+	if (cardIDIsPlaceholder(requestedCard) || !requestedCard) {
 		//If it was a special placeholder that was requested, then leave it in
 		//the URL. If they arrow down and back up it's OK for it go back to its
 		//canonical URL.
@@ -346,21 +350,6 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 	//Ensure that the article name that we're shwoing--no matter how they
 	//havigated here--is the preferred slug name.
 	dispatch(navigatePathTo(path, true));
-};
-
-//cardIdIsPlaceholder is whether the cardId (the last part of the URL) starts
-//with a "_"
-const cardIdIsPlaceholder = (cardId : CardID) : boolean => {
-	if (!cardId) return false;
-	return cardId[0] == PLACEHOLDER_CARD_ID_CHARACTER;
-};
-
-const cardIdForPlaceholder = (requestedCard : CardID, collection : Card[]) : CardID => {
-	//Collection is an expanded collection of cards, not card ids.
-	if (!cardIdIsPlaceholder(requestedCard)) return '';
-	if (!collection || !collection.length) return '';
-	//TODO: support random, _popular, _recent, etc.
-	return collection[0].id;
 };
 
 export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispatch, getState) => {
@@ -385,11 +374,18 @@ export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispat
 		return;
 	}
   
-	if (!collection.length) return;
-	const index = selectActiveCardIndex(state);
-	//If the card is not in this collection, then forward to a collection that
-	//it is in.
-	if (index >= 0) return;
+	const resolution = resolveInvalidCollectionCard(
+		selectRequestedCard(state),
+		card.id,
+		collection.map(item => item.id)
+	);
+	if (resolution.action === 'stay') return;
+	if (resolution.action === 'select-first') {
+		dispatch(showCard(selectRequestedCard(state)));
+		return;
+	}
+	//An explicitly requested card takes precedence over a collection that does
+	//not contain it, so forward to the card's default collection.
 	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
@@ -397,32 +393,28 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 
 	const state = getState();
 
-	let cardId = getIdForCard(state, requestedCard);
-	//If it'll be a no op don't worry about it.
-	if (selectActiveCardID(state) == cardId) {
+	const collection = cardIDIsPlaceholder(requestedCard) ? selectActiveCollectionCards(state) : [];
+	const resolution = resolveCardRequest(
+		requestedCard,
+		getIdForCard(state, requestedCard),
+		selectActiveCardID(state),
+		collection.map(card => card.id)
+	);
+	if (!resolution.commit) {
 		dispatch(redirectIfInvalidCardOrCollection());
 		return;
 	}
-
-	//The qreuestedCard is a placeholder, so we need to select the cardId based
-	//on the current collection.
-	if (cardIdIsPlaceholder(requestedCard)) {
-		//We used to check that data was fully loaded here. But that delays
-		//showing the content for the card until EVERYTHING is loaded. And
-		//because the cardID is canonically removed from the URL, it doesn't
-		//really matter if we change the requested card later. This logic will
-		//need updating if/when we support other placeholders like _random.
-		const collection = selectActiveCollectionCards(state);
-		cardId = cardIdForPlaceholder(requestedCard, collection);
-		//If there's no valid card then give up.
-		if (!cardId) return;
-	}
+	const cardId = resolution.cardID;
 
 	dispatch({
 		type: SHOW_CARD,
 		requestedCard: requestedCard,
 		card: cardId,
 	});
+	//Keep the placeholder request in state while membership catches up. A later
+	//refresh will select the first card without redirecting away from the
+	//explicitly requested collection.
+	if (resolution.collectionPending) return;
 	dispatch(redirectIfInvalidCardOrCollection());
 	dispatch(canonicalizeURL());
 	dispatch(scheduleAutoMarkRead());
