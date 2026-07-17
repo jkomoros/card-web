@@ -11,6 +11,7 @@ import {
 	CLOSE_CARDS_DRAWER_PANEL,
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	CANCEL_CONFIGURE_COLLECTION_DIALOG,
 	ENABLE_PRESENTATION_MODE,
 	DISABLE_PRESENTATION_MODE,
 	ENABLE_MOBILE_MODE,
@@ -128,6 +129,7 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			configureCollectionDialogOpen: true,
 		};
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
+	case CANCEL_CONFIGURE_COLLECTION_DIALOG:
 		return {
 			...state,
 			configureCollectionDialogOpen: false,

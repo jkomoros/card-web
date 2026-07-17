@@ -109,8 +109,15 @@ import {
 } from '../types.js';
 
 import {
-	ThunkSomeAction
+	ThunkSomeAction,
+	AppThunkDispatch,
+	AppGetState
 } from '../store.js';
+
+import {
+	NavigationCommitResult,
+	navigationCommitDecision,
+} from '../navigation-commit.js';
 
 import {
 	CARD_BEING_FETCHED,
@@ -118,6 +125,7 @@ import {
 	CLOSE_CARDS_DRAWER_PANEL,
 	CLOSE_COMMENTS_AND_INFO_PANEL,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	CANCEL_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_HEADER_PANEL,
 	CLOSE_SNACKBAR,
 	DISABLE_MOBILE_MODE,
@@ -139,21 +147,34 @@ import {
 	UPDATE_PAGE
 } from '../actions.js';
 
+export const navigatePathToResult = (path : string, silent? : boolean) => (
+	dispatch : AppThunkDispatch,
+	getState : AppGetState
+) : NavigationCommitResult => {
+	const decision = navigationCommitDecision(
+		window.location.pathname,
+		path,
+		selectIsEditing(getState()),
+		silent
+	);
+	if (decision.status !== 'commit') return decision;
+	if (decision.history === 'replace') {
+		window.history.replaceState({}, '', decision.path);
+	} else {
+		window.history.pushState({}, '', decision.path);
+		dispatch(navigated(decision.path, location.search));
+	}
+	return {
+		status: 'committed',
+		requestedPath: decision.path,
+		committedPath: window.location.pathname,
+		history: decision.history,
+	};
+};
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeAction => (dispatch, getState) => {
-	const state = getState();
-	//If we're already pointed there, no need to navigate
-	if ('/' + path === window.location.pathname) return;
-	if (selectIsEditing(state)) {
-		console.log('Can\'t navigate while editing');
-		return;
-	}
-	if (silent) {
-		window.history.replaceState({}, '', path);
-		return;
-	}
-	window.history.pushState({}, '', path);
-	dispatch(navigated(path, location.search));
+export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeAction => (dispatch) => {
+	dispatch(navigatePathToResult(path, silent));
 };
 
 export const navigateToNextCard = () : ThunkSomeAction => (dispatch, getState) => {
@@ -299,6 +320,9 @@ export const urlForCollection = (collection : CollectionDescription) : string =>
 export const navigateToCollection = (collection : CollectionDescription) => {
 	return navigatePathTo(urlForCollection(collection));
 };
+
+export const navigateToCollectionWithResult = (collection : CollectionDescription) =>
+	navigatePathToResult(urlForCollection(collection));
 
 export const navigated = (path : string, query : string) : ThunkSomeAction => (dispatch) => {
 
@@ -569,6 +593,10 @@ export const closeConfigureCollectionDialog = () : SomeAction => {
 		type: CLOSE_CONFIGURE_COLLECTION_DIALOG
 	};
 };
+
+export const cancelConfigureCollectionDialog = () : SomeAction => ({
+	type: CANCEL_CONFIGURE_COLLECTION_DIALOG
+});
 
 
 export const enablePresentationMode = () : SomeAction => {

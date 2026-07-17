@@ -84,6 +84,7 @@ export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
 export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
 export const OPEN_CONFIGURE_COLLECTION_DIALOG = 'OPEN_CONFIGURE_COLLECTION_DIALOG';
 export const CLOSE_CONFIGURE_COLLECTION_DIALOG = 'CLOSE_CONFIGURE_COLLECTION_DIALOG';
+export const CANCEL_CONFIGURE_COLLECTION_DIALOG = 'CANCEL_CONFIGURE_COLLECTION_DIALOG';
 export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
 export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
@@ -351,6 +352,10 @@ type ActionOpenConfigureCollectionDialog = {
 
 type ActionCloseConfigureCollectionDialog = {
 	type: typeof CLOSE_CONFIGURE_COLLECTION_DIALOG
+};
+
+type ActionCancelConfigureCollectionDialog = {
+	type: typeof CANCEL_CONFIGURE_COLLECTION_DIALOG
 };
 
 type ActionEnablePresentationMode = {
@@ -1267,6 +1272,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCloseCardsDrawerPanel
 	| ActionOpenConfigureCollectionDialog
 	| ActionCloseConfigureCollectionDialog
+	| ActionCancelConfigureCollectionDialog
 	| ActionEnablePresentationMode
 	| ActionDisablePresentationMode
 	| ActionEnableMobileMode

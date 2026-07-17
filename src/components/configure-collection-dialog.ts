@@ -20,8 +20,9 @@ import {
 
 import {
 	askForPathToNavigateTo,
+	cancelConfigureCollectionDialog,
 	closeConfigureCollectionDialog,
-	navigateToCollection,
+	navigateToCollectionWithResult,
 	showSnackbar,
 } from '../actions/app.js';
 
@@ -127,6 +128,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_activeCardID = '';
+
+	@state()
+		_activationPending = false;
+
+	@state()
+		_activationMessage = '';
 	_cancelPreviews : (() => void) | null = null;
 
 	static override styles = [
@@ -321,11 +328,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				aria-controls='collection-composer-suggestions'
 				aria-expanded=${suggestions.length > 0}
 				aria-activedescendant=${suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : ''}
+				aria-busy=${this._activationPending}
+				?disabled=${this._activationPending}
 				placeholder='Type a filter, value, or collection source…'
 				.value=${this._composerInput}
 				@input=${this._handleComposerInput}
 				@keydown=${this._handleComposerKeyDown}
 			>
+			${this._activationMessage ? html`<div class='activation-message' role='alert'>${this._activationMessage}</div>` : ''}
 			${suggestions.length ? html`
 				<div class='suggestions' id='collection-composer-suggestions' role='listbox'>
 					${recentSuggestions.length ? html`
@@ -356,6 +366,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 							<button
 								id='collection-suggestion-${index}'
 								data-index=${index}
+								?disabled=${this._activationPending}
 								?data-highlighted=${index === this._highlightedSuggestion}
 								@mouseenter=${this._handleSuggestionHovered}
 								@click=${this._handleSuggestionClicked}
@@ -394,11 +405,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!(input instanceof HTMLInputElement)) throw new Error('not input element');
 		this._composerInput = input.value;
 		this._highlightedSuggestion = 0;
+		this._activationMessage = '';
 	}
 
 	_handleComposerKeyDown(e : KeyboardEvent) {
+		if (this._activationPending) {
+			e.preventDefault();
+			e.stopPropagation();
+			return;
+		}
 		const suggestions = this._composerSuggestions;
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+			if (e.isComposing || e.keyCode === 229) return;
 			if (!suggestions.length) return;
 			e.preventDefault();
 			e.stopPropagation();
@@ -406,13 +424,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
 			return;
 		}
-		if (e.key === 'Tab' && suggestions.length) {
+		if (e.key === 'Tab' && !e.shiftKey && suggestions.length) {
+			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
 			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], false);
 			return;
 		}
 		if (e.key === 'Enter' && suggestions.length) {
+			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
 			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], true);
@@ -434,19 +454,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
 		if (open) {
-			const previousPath = window.location.pathname;
+			if (this._activationPending) return;
 			const alreadyActive = this._collectionDescription.serialize() === suggestion.description.serialize();
 			if (alreadyActive) {
-				store.dispatch(closeConfigureCollectionDialog());
+				store.dispatch(cancelConfigureCollectionDialog());
 				return;
 			}
-			store.dispatch(navigateToCollection(suggestion.description));
-			//Navigation can be blocked while editing. Keep the draft open and do
-			//not claim success unless a route was actually committed. The router
-			//may legitimately shorten the requested path; results-usable semantic
-			//confirmation belongs to the later activation state machine.
-			if (window.location.pathname === previousPath) return;
-			store.dispatch(closeConfigureCollectionDialog());
+			this._activationPending = true;
+			this._activationMessage = '';
+			const result = store.dispatch(navigateToCollectionWithResult(suggestion.description));
+			if (result.status === 'blocked-editing') {
+				this._activationPending = false;
+				this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
+				return;
+			}
+			if (result.status === 'unchanged') {
+				this._activationPending = false;
+				store.dispatch(cancelConfigureCollectionDialog());
+				return;
+			}
+			store.dispatch(cancelConfigureCollectionDialog());
 			const count = this._previewCounts[suggestion.id];
 			const expression = readableCollectionExpression(suggestion.description);
 			store.dispatch(showSnackbar(
@@ -507,15 +534,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	override _shouldClose() {
 		//Override base class.
-		store.dispatch(closeConfigureCollectionDialog());
+		if (collectionComposerEnabled()) {
+			store.dispatch(cancelConfigureCollectionDialog());
+		} else {
+			store.dispatch(closeConfigureCollectionDialog());
+		}
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
 		super.updated(changedProps);
-		if (changedProps.has('open') && this.open) {
-			this._composerInput = '';
-			this._highlightedSuggestion = 0;
-			this._builderExpanded = false;
+		if (changedProps.has('open')) {
+			this._activationPending = false;
+			this._activationMessage = '';
+			if (this.open) {
+				this._composerInput = '';
+				this._highlightedSuggestion = 0;
+				this._builderExpanded = false;
+			}
 		}
 		if (
 			changedProps.has('open') ||
