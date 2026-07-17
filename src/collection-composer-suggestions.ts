@@ -46,6 +46,30 @@ export type CollectionComposerContext = {
   }>;
 };
 
+export const activeCardRelationshipCandidates = (activeCardID: string): CollectionComposerCandidate[] => activeCardID ? [
+  {
+    filter: `children/+${activeCardID}`,
+    category: "relationship",
+    label: "This card and cards it links to",
+    detail: `Anchors to the open card (${activeCardID}) and follows its direct outgoing references; copied links keep this anchor`,
+    aliases: ["links from this card", "linked from", "children", "outgoing references"],
+  },
+  {
+    filter: `parents/+${activeCardID}`,
+    category: "relationship",
+    label: "This card and cards linking here",
+    detail: `Anchors to the open card (${activeCardID}) and follows direct incoming references; copied links keep this anchor`,
+    aliases: ["links to this card", "linking here", "parents", "incoming references"],
+  },
+  {
+    filter: `direct-connections/+${activeCardID}`,
+    category: "relationship",
+    label: "This card and directly connected cards",
+    detail: `Anchors to the open card (${activeCardID}) and follows references in either direction; copied links keep this anchor`,
+    aliases: ["connected to this card", "connections", "either direction", "related cards"],
+  },
+] : [];
+
 const candidateRelevance = (candidate: CollectionComposerCandidate, query: string): number => {
   const values = candidate.searchValues || [candidate.label, candidate.filter, candidate.category, ...(candidate.aliases || [])]
     .map(value => value.toLowerCase());
@@ -65,6 +89,11 @@ const humanize = (value: string): string =>
 
 export const readableCollectionFilter = (filter: string): string => {
   const [family, ...rawValues] = filter.split("/");
+  if (rawValues[0]?.startsWith("+")) {
+    if (family === "children") return "This Card And Cards It Links To";
+    if (family === "parents") return "This Card And Cards Linking Here";
+    if (family === "direct-connections") return "This Card And Directly Connected Cards";
+  }
   const readableFamily = (value: string) => {
     try {
       const alternatives = decodeURIComponent(value).split("+").map(humanize);
@@ -306,6 +335,7 @@ export const collectionComposerSuggestions = (
     ...matchingCandidates.map(match => ({type: "candidate" as const, ...match})),
     ...matchingFilters.map(match => ({type: "filter" as const, ...match})),
   ].sort((left, right) => left.relevance - right.relevance ||
+    (left.type === right.type ? 0 : left.type === "candidate" ? -1 : 1) ||
     (left.type === "candidate" ? left.candidate.label : left.name).localeCompare(right.type === "candidate" ? right.candidate.label : right.name));
   const seenDestinations = new Set(result.map(suggestion => suggestion.description.serialize()));
   let concreteCandidateCount = 0;
