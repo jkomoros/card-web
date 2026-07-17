@@ -12,7 +12,8 @@ import {
 	selectFilterDescriptions,
 	selectAuthorAndCollaboratorUserIDs,
 	selectTagInfosForCards,
-	selectSnapshotCollectionDescription
+	selectSnapshotCollectionDescription,
+	selectCardsSelected
 } from '../selectors.js';
 
 import {
@@ -98,6 +99,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_builderExpanded = false;
+
+	@state()
+		_cardsSelected = false;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -316,7 +320,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
 		if (!this._collectionDescription) return [];
-		return collectionComposerSuggestions(this._collectionDescription, this._composerInput, this._filterDescriptions || {});
+		return collectionComposerSuggestions(
+			this._collectionDescription,
+			this._composerInput,
+			this._filterDescriptions || {},
+			{cardsSelected: this._cardsSelected}
+		);
 	}
 
 	constructor() {
@@ -442,6 +451,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._filterDescriptions = selectFilterDescriptions(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._cardsSelected = selectCardsSelected(state);
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 

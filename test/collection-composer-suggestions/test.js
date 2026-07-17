@@ -51,6 +51,22 @@ describe("Collection Composer suggestions", () => {
     );
   });
 
+  it("turns an existing card selection into an explicit filter", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const suggestions = collectionComposerSuggestions(
+      current,
+      "",
+      descriptions,
+      { cardsSelected: true }
+    );
+    const selected = suggestions.find(
+      (item) => item.label === "Keep only the selected cards"
+    );
+    assert.ok(selected);
+    assert.deepStrictEqual(selected.description.filters, ["selected"]);
+    assert.match(selected.detail, /ordinary Selected filter/);
+  });
+
   it("shows ambiguous text as explicit interpretations", () => {
     const current = CollectionDescription.deserialize("everything/");
     const suggestions = collectionComposerSuggestions(
