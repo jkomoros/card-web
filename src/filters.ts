@@ -1523,6 +1523,19 @@ const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER
 
 const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : ConfigurableFilterFuncFactoryResult} = {};
 
+//A day-scoped name for a configurable filter, exported for the collection
+//composer, which needs to reason about WHICH filter names are sensitive to
+//the current date when it explains and caches its suggestions. It is
+//deliberately NOT the key of the memo below any more: master's #743
+//mechanism evicts the whole by-name cache on a day change, which also
+//covers the wrapper filters (exclude/, combine/, expand/) that a per-name
+//key cannot reach.
+export const configurableFilterCacheKey = (name : ConfigurableFilterName, now = new Date()) : string => {
+	const hasRelativeDate = name.split('/').slice(1).some(part => isRelativeDate(part));
+	if (!hasRelativeDate) return name;
+	return `${name}\n${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+};
+
 //The local day this cache was built under. Constructed filters can close
 //over relative-date resolution ("today", "7-days-ago" resolve against local
 //midnight), and the wrapper filters (exclude/, combine/, expand/) each hold
