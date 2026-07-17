@@ -104,14 +104,19 @@ export const readRememberedCollections = (scope = ""): RememberedCollectionEntry
       return group.visits >= 3 && group.visitedDays.size >= 2;
     })
     .sort((left, right) => right[1].visits - left[1].visits || right[1].visitedAt - left[1].visitedAt)
-    .map(([canonical, group]) => ({
-      canonical,
-      authoring: group.authoring,
-      visitedAt: group.visitedAt,
-      visits: group.visits,
-      frequent: true,
-      relative: group.exactCanonicals.size >= 2,
-    }));
+    .map(([canonical, group]) => {
+      const inferredRelative = group.exactCanonicals.size >= 2;
+      const exactCanonical = [...group.exactCanonicals][0];
+      const exactEntry = recent.find(entry => entry.canonical === exactCanonical);
+      return {
+        canonical: inferredRelative || group.intrinsicallyRelative ? canonical : exactCanonical,
+        authoring: inferredRelative || group.intrinsicallyRelative ? group.authoring : (exactEntry?.authoring || group.authoring),
+        visitedAt: group.visitedAt,
+        visits: group.visits,
+        frequent: true,
+        relative: inferredRelative,
+      };
+    });
   const immediate = recent.slice(0, 2);
   const seen = new Set(immediate.map(entry => entry.canonical));
   const promoted = frequent.find(entry => !seen.has(entry.canonical));
