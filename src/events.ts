@@ -85,14 +85,14 @@ export const makeCardHoveredEvent = (card : CardID, x : number, y : number) : Ca
 };
 
 type CardSelectedEventDetail = {
-	card : CardID;
+	cards : CardID[];
 	selected: boolean;
 }
 
 export type CardSelectedEvent = CustomEvent<CardSelectedEventDetail>;
 
-export const makeCardSelectedEvent = (card : CardID, selected: boolean) : CardSelectedEvent => {
-	return new CustomEvent(CARD_SELECTED_EVENT_NAME, {composed : true, detail: {card, selected}});
+export const makeCardSelectedEvent = (cards : CardID[], selected: boolean) : CardSelectedEvent => {
+	return new CustomEvent(CARD_SELECTED_EVENT_NAME, {composed : true, detail: {cards, selected}});
 };
 
 type ThumbnailTappedDetail = {

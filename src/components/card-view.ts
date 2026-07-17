@@ -655,10 +655,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleCardSelected(e : CardSelectedEvent) {
 		if (e.detail.selected) {
-			store.dispatch(doSelectCards([e.detail.card]));
+			store.dispatch(doSelectCards(e.detail.cards));
 			return;
 		}
-		store.dispatch(unselectCards([e.detail.card]));
+		store.dispatch(unselectCards(e.detail.cards));
 	}
 
 	_handleFilterToSelectedClicked() {
