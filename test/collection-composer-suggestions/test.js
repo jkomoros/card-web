@@ -17,6 +17,7 @@ let collectionDescriptionFromComposerSource;
 let readableCollectionExpression;
 let collectionExpressionParts;
 let selectCollectionComposerCandidates;
+let activeCardRelationshipCandidates;
 
 const descriptions = {
   starred: "Cards you have starred",
@@ -34,6 +35,7 @@ describe("Collection Composer suggestions", () => {
       collectionDescriptionFromComposerSource,
       readableCollectionExpression,
       collectionExpressionParts,
+      activeCardRelationshipCandidates,
     } = await import("../../lib/src/collection-composer-suggestions.js"));
     ({ selectCollectionComposerCandidates } = await import("../../lib/src/selectors.js"));
   });
@@ -197,6 +199,33 @@ describe("Collection Composer suggestions", () => {
     assert.strictEqual(suggestions.filter(item => item.kind === "add").length, 6);
     assert.ok(!suggestions.some(item => item.description.filters.filter(filter => filter === "tag-0").length > 1));
     assert.strictEqual(suggestions.at(-1).kind, "search");
+  });
+
+  it("offers explicit active-card relationship clauses only with context", () => {
+    assert.deepStrictEqual(activeCardRelationshipCandidates(""), []);
+    const candidates = activeCardRelationshipCandidates("card-123");
+    const suggestions = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "links from this card",
+      descriptions,
+      { candidates }
+    );
+    assert.strictEqual(suggestions[0].label, "This card and cards it links to");
+    assert.deepStrictEqual(suggestions[0].description.filters, ["children/+card-123"]);
+    assert.match(suggestions[0].detail, /copied links keep this anchor/);
+    assert.doesNotMatch(suggestions[0].description.serialize(), /key-card-id/);
+    assert.strictEqual(suggestions.at(-1).kind, "search");
+    assert.strictEqual(
+      readableCollectionExpression(suggestions[0].description),
+      "Everything AND This Card And Cards It Links To"
+    );
+    const byFamilyName = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "children",
+      descriptions,
+      { candidates }
+    );
+    assert.strictEqual(byFamilyName[0].label, "This card and cards it links to");
   });
 
   it("constructs configurable filters with visible editable defaults", () => {

@@ -91,6 +91,7 @@ import {
 import {
 	CollectionComposerSuggestion,
 	CollectionComposerCandidate,
+	activeCardRelationshipCandidates,
 	collectionExpressionParts,
 	readableCollectionFilter,
 	collectionComposerSuggestions,
@@ -600,7 +601,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._collectionDescription,
 			this._composerInput,
 			this._filterDescriptions || {},
-			{cardsSelected: this._cardsSelected, recentCollections, candidates: this._composerCandidates}
+			{
+				cardsSelected: this._cardsSelected,
+				recentCollections,
+				candidates: [...this._composerCandidates, ...activeCardRelationshipCandidates(this._activeCardID)],
+			}
 		);
 	}
 
