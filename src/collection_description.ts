@@ -7,6 +7,7 @@ import {
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
 	makeConfigurableFilter,
+	configurableFilterCacheKey,
 	queryFilter,
 	queryTextFromQueryFilter,
 	SET_INFOS,
@@ -493,12 +494,13 @@ let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} =
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
 const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras : FilterExtras) : ConfigurableFilterResult => {
+	const cacheKey = configurableFilterCacheKey(name);
 	if (memoizedConfigurableFiltersExtras == extras) {
-		if (memoizedConfigurableFilters[name]) {
-			return memoizedConfigurableFilters[name];
+		if (memoizedConfigurableFilters[cacheKey]) {
+			return memoizedConfigurableFilters[cacheKey];
 		}
 	} else {
-		memoizedConfigurableFiltersExtras = null;
+		memoizedConfigurableFiltersExtras = extras;
 		memoizedConfigurableFilters = {};
 	}
 
@@ -511,7 +513,7 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 	if (enumerate && !reverse) {
 		const {matches, sortValues} = enumerate(extras);
 		const enumeratedResult : ConfigurableFilterResult = [matches, reverse, sortValues, null, false];
-		memoizedConfigurableFilters[name] = enumeratedResult;
+		memoizedConfigurableFilters[cacheKey] = enumeratedResult;
 		return enumeratedResult;
 	}
 
@@ -537,7 +539,7 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 
 	const fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches, hasPreview];
 
-	memoizedConfigurableFilters[name] = fullResult;
+	memoizedConfigurableFilters[cacheKey] = fullResult;
 
 	return fullResult;
 };

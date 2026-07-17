@@ -1469,13 +1469,20 @@ const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER
 
 const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : ConfigurableFilterFuncFactoryResult} = {};
 
+export const configurableFilterCacheKey = (name : ConfigurableFilterName, now = new Date()) : string => {
+	const hasRelativeDate = name.split('/').slice(1).some(part => isRelativeDate(part));
+	if (!hasRelativeDate) return name;
+	return `${name}\n${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+};
+
 export const makeConfigurableFilter = (name : ConfigurableFilterName) : ConfigurableFilterFuncFactoryResult => {
-	if (!memoizedConfigurableFilters[name]) {
+	const cacheKey = configurableFilterCacheKey(name);
+	if (!memoizedConfigurableFilters[cacheKey]) {
 		const parts = name.split('/');
 		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
-		memoizedConfigurableFilters[name] = func(parts[0], ...parts.slice(1));
+		memoizedConfigurableFilters[cacheKey] = func(parts[0], ...parts.slice(1));
 	}
-	return memoizedConfigurableFilters[name];
+	return memoizedConfigurableFilters[cacheKey];
 };
 
 export const splitCompoundFilter = (fullFilterName : ConfigurableFilterName) : [firstPart : ConfigurableFilterType, rest: ConfigurableFilterRest] => {

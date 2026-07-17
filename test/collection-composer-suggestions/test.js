@@ -18,6 +18,8 @@ let readableCollectionExpression;
 let collectionExpressionParts;
 let selectCollectionComposerCandidates;
 let activeCardRelationshipCandidates;
+let makeConfigurableFilter;
+let configurableFilterCacheKey;
 
 const descriptions = {
   starred: "Cards you have starred",
@@ -38,6 +40,7 @@ describe("Collection Composer suggestions", () => {
       activeCardRelationshipCandidates,
     } = await import("../../lib/src/collection-composer-suggestions.js"));
     ({ selectCollectionComposerCandidates } = await import("../../lib/src/selectors.js"));
+    ({ makeConfigurableFilter, configurableFilterCacheKey } = await import("../../lib/src/filters.js"));
   });
 
   it("starts from the current collection with deterministic transformations", () => {
@@ -226,6 +229,37 @@ describe("Collection Composer suggestions", () => {
       { candidates }
     );
     assert.strictEqual(byFamilyName[0].label, "This card and cards it links to");
+  });
+
+  it("executes durable relative-date candidates with their stated meaning", () => {
+    const [filter] = makeConfigurableFilter("updated/after/7-days-ago");
+    const timestamp = (date) => ({ toMillis: () => date.getTime() });
+    const recent = new Date();
+    const old = new Date();
+    old.setDate(old.getDate() - 8);
+    assert.strictEqual(filter({ updated_substantive: timestamp(recent) }).matches, true);
+    assert.strictEqual(filter({ updated_substantive: timestamp(old) }).matches, false);
+
+    const candidates = selectCollectionComposerCandidates({ data: { sections: {}, tags: {} } });
+    const suggestions = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "last 7 days",
+      descriptions,
+      { candidates }
+    );
+    assert.strictEqual(suggestions[0].label, "Updated since 7 days ago");
+    assert.deepStrictEqual(suggestions[0].description.filters, ["updated/after/7-days-ago"]);
+
+	const beforeMidnight = new Date(2026, 6, 17, 23, 59);
+	const afterMidnight = new Date(2026, 6, 18, 0, 1);
+	assert.notStrictEqual(
+	  configurableFilterCacheKey("updated/after/today", beforeMidnight),
+	  configurableFilterCacheKey("updated/after/today", afterMidnight)
+	);
+	assert.strictEqual(
+	  configurableFilterCacheKey("updated/after/2026-7-17", beforeMidnight),
+	  configurableFilterCacheKey("updated/after/2026-7-17", afterMidnight)
+	);
   });
 
   it("constructs configurable filters with visible editable defaults", () => {

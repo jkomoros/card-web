@@ -1396,6 +1396,20 @@ export const selectCollectionComposerCandidates = createSelector(
 			detail: 'Keeps cards with at least one unfinished TODO',
 			aliases: ['todo', 'todos', 'unfinished', 'needs work'],
 		},
+		{
+			filter: 'updated/after/today',
+			category: 'date' as const,
+			label: 'Updated today',
+			detail: 'Keeps cards substantively updated after local midnight today',
+			aliases: ['today', 'updated today', 'changed today', 'recent'],
+		},
+		{
+			filter: 'updated/after/7-days-ago',
+			category: 'date' as const,
+			label: 'Updated since 7 days ago',
+			detail: 'Keeps cards substantively updated after local midnight seven days ago',
+			aliases: ['week', 'weekly', 'last 7 days', 'since 7 days ago', 'recent'],
+		},
 		];
 		return candidates.map(candidate => ({
 			...candidate,
