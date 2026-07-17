@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -18,6 +18,7 @@ import {
 import {
 	askForPathToNavigateTo,
 	closeConfigureCollectionDialog,
+	navigateToCollection,
 } from '../actions/app.js';
 
 import {
@@ -64,6 +65,16 @@ import {
 	FilterModifiedEvent
 } from '../events.js';
 
+import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
+
+import {
+	CollectionComposerSuggestion,
+	collectionComposerSuggestions,
+	readableCollectionExpression,
+} from '../collection-composer-suggestions.js';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
@@ -78,6 +89,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardTagInfos: TagInfos;
+
+	@state()
+		_composerInput = '';
+
+	@state()
+		_highlightedSuggestion = 0;
+
+	@state()
+		_builderExpanded = false;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -97,10 +117,106 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				display: flex;
 				flex-direction: column;
 			}
+
+			.expression {
+				font-size: 1.05em;
+				line-height: 1.55;
+				padding: 0.75em 0;
+				color: var(--app-dark-text-color);
+			}
+
+			.expression strong {
+				color: var(--app-primary-color);
+				font-weight: 500;
+			}
+
+			.composer-input {
+				border: 0;
+				border-bottom: 1px solid var(--app-dark-text-color);
+				font: inherit;
+				font-size: 1.05em;
+				padding: 0.6em 0.2em;
+				width: 100%;
+				box-sizing: border-box;
+			}
+
+			.composer-input:focus {
+				border-bottom-color: var(--app-primary-color);
+				outline: none;
+			}
+
+			.suggestion-heading {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				margin-top: 1.2em;
+				text-transform: uppercase;
+			}
+
+			.suggestions {
+				list-style: none;
+				margin: 0.25em 0 0;
+				padding: 0;
+			}
+
+			.suggestion {
+				border-top: 1px solid var(--app-divider-color);
+				margin: 0;
+			}
+
+			.suggestion button {
+				background: transparent;
+				box-shadow: none;
+				color: var(--app-dark-text-color);
+				display: block;
+				margin: 0;
+				padding: 0.65em 0.5em;
+				text-align: left;
+				width: 100%;
+			}
+
+			.suggestion button:hover,
+			.suggestion button[data-highlighted] {
+				background: var(--app-primary-color-light-very-transparent);
+				box-shadow: none;
+			}
+
+			.suggestion button[data-highlighted] {
+				border-left: 3px solid var(--app-primary-color);
+				padding-left: calc(0.5em - 3px);
+			}
+
+			.suggestion-detail,
+			.key-hints,
+			.no-suggestions {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.78em;
+				margin-top: 0.2em;
+			}
+
+			.builder-toggle {
+				border-top: 1px solid var(--app-divider-color);
+				margin-top: 0.75em;
+				padding-top: 0.5em;
+			}
+
+			.builder-toggle button.small {
+				color: var(--app-primary-color);
+				margin: 0;
+				padding: 0.35em 0;
+			}
+
+			.builder {
+				margin-top: 0.5em;
+			}
 		`
 	];
 
 	override innerRender() {
+		if (collectionComposerEnabled()) return this._composerRender();
+		return this._builderRender();
+	}
+
+	_builderRender() {
 		return html`
 			<label>Filters</label>
 			<ul>
@@ -149,9 +265,118 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
+	_composerRender() {
+		if (!this._collectionDescription) return html``;
+		const suggestions = this._composerSuggestions;
+		return html`
+			<div class='expression' aria-label='Current collection expression'>
+				<strong>${readableCollectionExpression(this._collectionDescription)}</strong>
+				 AND
+			</div>
+			<input
+				class='composer-input'
+				id='collection-composer-input'
+				type='text'
+				role='combobox'
+				aria-autocomplete='list'
+				aria-controls='collection-composer-suggestions'
+				aria-expanded=${suggestions.length > 0}
+				aria-activedescendant=${suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : ''}
+				placeholder='Type a filter, value, or collection source…'
+				.value=${this._composerInput}
+				@input=${this._handleComposerInput}
+				@keydown=${this._handleComposerKeyDown}
+			>
+			<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
+			${suggestions.length ? html`
+				<ul class='suggestions' id='collection-composer-suggestions' role='listbox'>
+					${suggestions.map((suggestion, index) => html`
+						<li class='suggestion' role='option' aria-selected=${index === this._highlightedSuggestion}>
+							<button
+								id='collection-suggestion-${index}'
+								data-index=${index}
+								?data-highlighted=${index === this._highlightedSuggestion}
+								@mouseenter=${this._handleSuggestionHovered}
+								@click=${this._handleSuggestionClicked}
+							>
+								<div>${suggestion.label}</div>
+								<div class='suggestion-detail'>${suggestion.detail}</div>
+							</button>
+						</li>
+					`)}
+				</ul>
+			` : html`<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>`}
+			<div class='key-hints'>↑↓ choose · Tab adds and keeps composing · Enter opens</div>
+			<div class='builder-toggle'>
+				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
+			</div>
+			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
+		`;
+	}
+
+	get _composerSuggestions() : CollectionComposerSuggestion[] {
+		if (!this._collectionDescription) return [];
+		return collectionComposerSuggestions(this._collectionDescription, this._composerInput, this._filterDescriptions || {});
+	}
+
 	constructor() {
 		super();
-		this.title = 'Configure Collection';
+		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
+	}
+
+	_handleComposerInput(e : InputEvent) {
+		const input = e.composedPath()[0];
+		if (!(input instanceof HTMLInputElement)) throw new Error('not input element');
+		this._composerInput = input.value;
+		this._highlightedSuggestion = 0;
+	}
+
+	_handleComposerKeyDown(e : KeyboardEvent) {
+		const suggestions = this._composerSuggestions;
+		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+			if (!suggestions.length) return;
+			e.preventDefault();
+			const direction = e.key === 'ArrowDown' ? 1 : -1;
+			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
+			return;
+		}
+		if (e.key === 'Tab' && suggestions.length) {
+			e.preventDefault();
+			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], false);
+			return;
+		}
+		if (e.key === 'Enter' && suggestions.length) {
+			e.preventDefault();
+			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], true);
+		}
+	}
+
+	_handleSuggestionHovered(e : MouseEvent) {
+		const button = e.currentTarget;
+		if (!(button instanceof HTMLButtonElement)) return;
+		this._highlightedSuggestion = parseInt(button.dataset.index || '0');
+	}
+
+	_handleSuggestionClicked(e : MouseEvent) {
+		const button = e.currentTarget;
+		if (!(button instanceof HTMLButtonElement)) return;
+		const suggestion = this._composerSuggestions[parseInt(button.dataset.index || '0')];
+		if (suggestion) this._applyComposerSuggestion(suggestion, true);
+	}
+
+	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
+		if (open) {
+			store.dispatch(closeConfigureCollectionDialog());
+			store.dispatch(navigateToCollection(suggestion.description));
+			return;
+		}
+		store.dispatch(updateCollectionConfigurationSnapshot(suggestion.description));
+		this._composerInput = '';
+		this._highlightedSuggestion = 0;
+	}
+
+	_handleBuilderToggle() {
+		this._builderExpanded = !this._builderExpanded;
 	}
 
 	_handleModifyPath() {
@@ -200,13 +425,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		store.dispatch(closeConfigureCollectionDialog());
 	}
 
+	override updated(changedProps : PropertyValues<this>) {
+		super.updated(changedProps);
+		if (changedProps.has('open') && this.open) {
+			this._composerInput = '';
+			this._highlightedSuggestion = 0;
+			this._builderExpanded = false;
+		}
+	}
+
 	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectConfigureCollectionDialogOpen(state);
+		this.mobile = state.app ? state.app.mobileMode : false;
 		this._collectionDescription = selectSnapshotCollectionDescription(state);
 		this._filterDescriptions = selectFilterDescriptions(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 
 }

@@ -105,6 +105,10 @@ import {
 } from '../util.js';
 
 import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
+
+import {
 	addStar,
 	removeStar,
 	markRead,
@@ -721,6 +725,18 @@ class CardView extends connect(store)(PageViewElement) {
 			`
 		: ''
 }
+				${collectionComposerEnabled() ? html`
+					<button
+						id='refine-collection'
+						class='small'
+						title='Refine this collection (Ctrl-K)'
+						@click=${this._handleConfigureCollectionClicked}
+					>
+						${RULE_ICON}
+					</button>
+					<label for='refine-collection'>Refine</label>
+					<br />
+				` : ''}
 				${this._collection?.description.isRandom ? html`
 					<button
 						id='randomize'
@@ -1252,7 +1268,10 @@ class CardView extends connect(store)(PageViewElement) {
 	_handleKeyDown(e : KeyboardEvent) {
 		//We have to hook this to issue content editable commands when we're
 		//active. But most of the time we don't want to do anything.
-		if (!this.active) return false;
+		//main-view historically marks this page active with a boolean attribute,
+		//while PageViewElement also exposes a property. Accept both forms so the
+		//document-level shortcuts work in the actually visible card view.
+		if (!this.active && !this.hasAttribute('active')) return false;
 		if (e.key == 'Escape') {
 			const activeEle = deepActiveElement();
 			if (!activeEle) return false;
@@ -1276,12 +1295,19 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}
 			return killEvent(e);
+		} else if (pressedLetter(e) == 'k' && collectionComposerEnabled()) {
+			store.dispatch(openConfigureCollectionDialog());
+			return killEvent(e);
 		} else if (pressedLetter(e) == 'l') {
 			//Ctrl-Shift-L is a way to navigate to a URL in the web app without
 			//modifying the URL bar in the browser, which will lead to a full
 			//refresh.
 			if (e.shiftKey) {
-				store.dispatch(askForPathToNavigateTo());
+				if (collectionComposerEnabled()) {
+					store.dispatch(openConfigureCollectionDialog());
+				} else {
+					store.dispatch(askForPathToNavigateTo());
+				}
 				return killEvent(e);
 			}
 			//NOTE: an old comment here warned that holding Alt composes e.key
