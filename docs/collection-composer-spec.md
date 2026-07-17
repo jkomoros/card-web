@@ -14,11 +14,13 @@ view. Collection descriptions are encoded directly in URLs, so every view can
 be navigated to, bookmarked, copied, and linked.
 
 The product should make composing a collection the primary way to navigate.
-Pressing **Ctrl-K** opens a Collection Composer initialized with the current
-collection. A user can type to add or change a condition, choose a recent or
-related collection, broaden or narrow the current collection, or navigate to a
-saved collection. **Tab** accepts a clause and continues composing; **Enter**
-navigates to the resulting collection.
+The current collection is always visible as a compact, readable sentence near
+the card drawer title and count. Clicking that sentence—or pressing **Ctrl-K**
+outside a card editor—opens a Collection Composer initialized with the current
+collection. Before the user types, it offers a small number of useful,
+destination-shaped next moves. **Tab** materializes the highlighted
+transformation and continues composing; **Enter** opens the collection that is
+currently previewed.
 
 The same collection has three synchronized representations:
 
@@ -217,6 +219,13 @@ handled by `CollectionDescription.deserialize()` and
 This model is the authority. The composer must use it rather than introduce a
 parallel query format that can drift.
 
+The current deserialization path is not yet a lossless editing parser. It can
+misclassify the final segment as a selected-card suffix, drop incomplete
+configurable filters, accept unsupported sort values, or throw on invalid view
+state. Unknown filters may also execute differently from what a source editor
+would reasonably imply. Phase 0 therefore wraps existing execution in a total,
+diagnostic parser before any composer representation claims round-trip safety.
+
 ### Current collection configurator
 
 The existing `configure-collection-dialog` is a useful proof of concept:
@@ -245,8 +254,10 @@ It also demonstrates limitations the new design must address:
 - Ctrl/Cmd-F opens card find.
 - Ctrl-Shift-L prompts for a path and navigates without a full-page browser
   load.
-- Ctrl-K is available as the proposed Collection Composer shortcut, subject to
-  a final platform-specific shortcut audit.
+- Ctrl/Cmd-K currently creates a link when focus is inside the card editor. The
+  proposed Collection Composer shortcut is available outside editable contexts,
+  subject to a final platform/browser audit. The established editor behavior
+  wins inside card content.
 
 Ctrl-Shift-L should become a direct entry into Collection Composer source mode,
 not remain a separate prompt-based feature.
@@ -275,6 +286,15 @@ adding, removing, replacing, or inverting a clause.
 
 **Filter definition:** Metadata and behavior describing a filter family,
 including how it is rendered, parsed, validated, suggested, and edited.
+
+**Destination:** A complete collection or card location that can be opened.
+
+**Action type:** The single explicit operation performed by a result: Open,
+Add, Remove, Replace, or Edit.
+
+**Context dependency:** A value on which a collection's meaning depends but
+which may not be fully contained in its source, such as the current user,
+selected cards, active card, time, similarity index, or random seed.
 
 ## Design principles
 
@@ -336,7 +356,9 @@ visible.
 ### 5. Progressive disclosure without semantic tiers
 
 Quick composer, visual builder, and source mode expose different levels of
-detail, not different capabilities or data models.
+detail over one data model. Every layer preserves all semantics. Higher layers
+may not author every semantic form, but they never conceal, discard, or silently
+rewrite one and always provide an adjacent-layer escape hatch.
 
 A source expression the builder cannot edit must still be rendered as a
 read-only/manual clause rather than discarded or corrupted.
@@ -369,33 +391,147 @@ AND Has any TODO                      184
 AND (Tag AI OR Tag Systems)            43
 ```
 
-This makes boolean structure concrete and helps expose unexpectedly broad or
-empty clauses.
+These are labeled **cards remaining after conditions above**. AND clauses are
+commutative, so the order changes the intermediate teaching counts but never
+the final collection. The final count remains visually primary.
+
+Counts alone are not sufficient. When space and cost allow, a highlighted
+transformation also shows representative cards entering, leaving, or surviving
+the change. This ties the abstract expression to concrete objects the user
+already understands.
+
+### 9. Familiar shape, delightful consequence
+
+The composer must feel recognizable on first contact: a light Card Web dialog,
+a search-like text field, a short result list, familiar filter controls,
+ordinary Back/Undo behavior, and explicit Open and Cancel actions. It should
+not ask users to learn a novel spatial metaphor, gesture language, query
+canvas, or animated mode system before they can use it.
+
+Delight comes from the system being unusually attentive within those familiar
+forms:
+
+- the current collection is already present when the surface opens;
+- useful destinations appear before typing;
+- suggestions use the user's cards and current context;
+- the effect of a choice is visible before commitment;
+- the same readable expression follows the user through quick, builder, source,
+  URL, history, and sharing;
+- mistakes are cheap to inspect and undo.
+
+The interaction should produce the reaction “of course it works this way,”
+followed by recognition that it is more capable than expected. Novelty is
+permitted only when it makes the underlying collection model easier to learn.
+
+## The signature interaction loop
+
+The defining experience uses familiar search, filtering, preview, and undo
+patterns in a continuous loop between collection, expression, destination, and
+explanation:
+
+1. The ordinary card drawer/header persistently shows a readable collection
+   sentence, for example **Working notes · Has TODO · Recent · 43 cards**.
+2. Clicking the sentence or pressing Ctrl-K opens it for composition without
+   changing the active collection.
+3. Before typing, the composer presents a few useful destinations expressed in
+   the user's domain, not in filter-system taxonomy.
+4. Highlighting a destination previews the exact clause diff, count delta, and
+   representative changed cards when available.
+5. Tab adds that transformation to the draft and keeps composing. Enter opens
+   the highlighted destination—including its visible preview—or the current
+   draft when no suggestion is highlighted.
+6. After navigation, a lightweight receipt names the change and offers Undo;
+   browser Back remains the durable underlying undo.
+7. On any card, **Why in this collection?** explains membership clause by
+   clause and offers reversible refinements.
+
+The first product release must implement this loop end to end for a small set
+of deterministic suggestions. It must not ship merely as a faster version of
+Configure Collection.
+
+### Persistent collection sentence
+
+The sentence is a modest evolution of the existing collection title/count area,
+not a replacement header, omnibox, or foreign toolbar. It:
+
+- exposes the active collection's important clauses and final count;
+- has a visible **Refine** affordance and platform-appropriate shortcut hint;
+- opens the same composer as the keyboard shortcut;
+- offers **Copy link** nearby and describes the linked view after copying;
+- uses **Show cards matching…** as the first-use/Everything invitation;
+- remains available as a compact action on mobile;
+- briefly highlights only the clause that changed after navigation.
+
+The sentence is readable rather than exhaustive. When truncated, it must
+indicate that more clauses exist and expose the complete expression on focus,
+hover, or activation.
+
+## The action grammar
+
+Every interactive result has exactly one primary action type. The UI never
+requires the user to infer whether choosing a row will modify the draft or
+leave for another destination.
+
+| Action  | Meaning                                    | Example                                |
+| ------- | ------------------------------------------ | -------------------------------------- |
+| Open    | Navigate to a complete destination         | **Open** Systems reading queue         |
+| Add     | Add one or more visible clauses            | **Add** tag Systems                    |
+| Remove  | Remove named clauses                       | **Remove** Has TODO                    |
+| Replace | Exchange one visible structure for another | **Replace** Working notes with Content |
+| Edit    | Focus an existing clause or representation | **Edit** Updated this month            |
+
+Requirements:
+
+1. Verb labels lead whenever the result could be ambiguous.
+2. **Destinations** and **Refine this collection** are visually separate.
+3. A transformation affecting multiple clauses shows a compact before/after
+   expression before it can be applied or opened.
+4. Each suggestion has a stable semantic ID, action type, immutable
+   transformation payload, and deterministic tie-breaker.
+5. Keyboard focus remains attached to suggestion identity. Asynchronous counts
+   may update a row but may not reorder the focused list until the input or
+   draft changes.
+6. The transformation accepted on keydown is the one visibly highlighted on
+   keydown, even if asynchronous data resolves before the event completes.
+7. Mouse activation, Tab, and Enter behavior are defined per action type:
+   transformations materialize into the draft; destinations open. A secondary
+   action may preview or add a destination's expression, but must be labeled.
 
 ## Primary surface: Ctrl-K quick composer
 
 ### Opening state
 
-Ctrl-K opens a modal palette over the current view. Focus is placed in the
-input. Above it, the draft collection is rendered as a concise readable
-expression.
+Ctrl-K opens a modal palette over the current view. Focus is placed in an input
+embedded at the end of the concise readable draft expression, so composing
+feels like continuing a sentence rather than filling in a separate form.
 
 Example:
 
-> **Everything** AND **Working notes** AND **Has any TODO** SORTED BY
-> **Recently updated**
+> **Everything** AND **Working notes** AND **Has any TODO** AND
+> **[type another condition…]** SORTED BY **Recently updated**
 
-The initial suggestion list appears before typing and is grouped as follows:
+The initial list contains at most 6–8 rows in two stable sections:
 
-1. **Recent collections**
-2. **Saved collections** (when implemented)
-3. **Narrow this collection**
-4. **Broaden this collection**
-5. **Related to this collection**
-6. **Discover filters**
+1. **Continue:** recent, pinned, resumable, or active-card destinations.
+2. **Refine this collection:** useful narrow, broaden, pivot, and discovery
+   transformations.
 
-Groups with no useful results are omitted. The list should remain compact; it
-is not a complete filter catalog.
+**Browse all filters** is the final durable escape hatch. Narrow, broaden,
+related, and recent remain ranking metadata; they are not a bureaucratic set of
+top-level categories the user must understand.
+
+Rows describe destinations and consequences:
+
+```
+Working notes connected to this card                         8
+Adds Working notes + References within 2 steps
+
+Updated since you were last here                            7
+Adds Updated after July 15, 2026 9:42 AM
+
+Keep only cards tagged Systems                             18
+Adds Tag is Systems
+```
 
 ### Typing modes
 
@@ -427,6 +563,8 @@ Each suggestion contains:
 - a **Why this?** explanation for contextual suggestions;
 - a **Show changes** affordance when the suggestion transforms more than one
   clause.
+- representative cards entering, leaving, or surviving the transformation
+  when that preview is inexpensive and permission-safe.
 
 Example:
 
@@ -441,22 +579,31 @@ Raw syntax may be shown as secondary help for users learning source mode.
 
 ### Keyboard behavior
 
-| Input | Behavior |
-|---|---|
-| Ctrl-K | Open composer; if already open, focus input |
-| Up/Down | Move through suggestions |
-| Tab | Accept highlighted clause and continue composing |
-| Enter with non-empty input | Accept the highlighted interpretation; if the input already represents a complete unambiguous source description, offer/open it |
-| Enter with empty input | Navigate to the current draft |
-| Shift-Enter | Open draft in a new browser tab, if browser behavior can be supported safely |
-| Backspace with empty input | Select the last editable clause; a second Backspace removes it |
-| Left/Right with empty input | Move clause focus |
-| Delete | Remove the focused clause |
-| Escape | Close without navigating; a nested picker consumes the first Escape |
-| Ctrl-Shift-L | Open directly in source mode with source selected |
+| Input                                | Behavior                                                                                                                                                      |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ctrl-K                               | Open composer; if already open, focus input                                                                                                                   |
+| Up/Down                              | Move through suggestions                                                                                                                                      |
+| Tab                                  | Materialize the highlighted transformation into the draft and continue composing; captured only while the suggestion list is open and the combobox owns focus |
+| Enter with highlighted suggestion    | Open the collection including the visibly previewed suggestion; an explicit Open destination opens directly                                                   |
+| Enter with no highlighted suggestion | Navigate to the current valid draft                                                                                                                           |
+| Shift-Enter                          | Open draft in a new browser tab, if browser behavior can be supported safely                                                                                  |
+| Backspace with empty input           | Select the last editable clause; a second Backspace removes it                                                                                                |
+| Left/Right with empty input          | Move clause focus                                                                                                                                             |
+| Delete                               | Remove the focused clause                                                                                                                                     |
+| Escape                               | Close without navigating; a nested picker consumes the first Escape                                                                                           |
+| Ctrl-Shift-L                         | Open directly in source mode with source selected                                                                                                             |
 
 Platform conventions must be audited before finalizing Ctrl versus Cmd. The UI
-should display the shortcut appropriate to the current platform.
+should display the shortcut appropriate to the current platform. A persistent,
+context-sensitive footer states the active contract, for example **Tab Add ·
+Enter Open · Esc Cancel**.
+
+Ctrl/Cmd-K keeps its existing link-creation meaning while focus is in a card
+editor or other supported editable field. The composer shortcut applies
+outside editing contexts and is always paired with the visible collection
+sentence. Opening the composer through another affordance while edits are
+pending must never cause navigation to fail silently; Open offers **Save and
+navigate**, **Discard and navigate**, or **Cancel** as appropriate.
 
 ### Clause editing
 
@@ -474,16 +621,22 @@ Operators are structural separators, not editable text tokens.
 
 ### Committing navigation
 
-When the input is empty, Enter commits the draft:
+Enter commits the visibly previewed destination, or the draft if no suggestion
+is highlighted:
 
 1. Serialize the draft through `CollectionDescription`.
 2. Navigate using client-side routing.
 3. Add one browser-history entry.
-4. Record the semantic collection in recent history.
-5. Close the composer.
+4. Wait for the destination to activate successfully.
+5. Record the semantic collection in recent history.
+6. Close the composer and show a lightweight semantic receipt with Undo.
 
 If the draft is equivalent to the active collection, Enter simply closes the
 composer. It must not add a duplicate history entry.
+
+Commit is single-flight and idempotent. A navigation token prevents double
+Enter, click/keypress overlap, or late preview state from dispatching duplicate
+navigation.
 
 ## Empty-state suggestions and ranking
 
@@ -503,6 +656,35 @@ not allowed to break the palette.
 
 Recent collections are ranked by recency with a modest frequency boost.
 Repeatedly alternating between two collections should keep both near the top.
+They are described relative to the current collection when that makes the
+destination easier to understand:
+
+> **Back to Working notes to connect**
+> Removes Systems · adds Has TODO · visited yesterday
+
+Recent entries preserve the dependency bindings and completeness state needed
+to explain whether reopening will reproduce, refresh, or reinterpret the
+collection.
+
+### First-release destination families
+
+Before typing, the first useful release generates a small deterministic set of
+candidate destinations:
+
+1. **Continue this thread:** relationship neighborhoods, nearby cards, and
+   similar cards around the active card when available.
+2. **Focus this set:** a high-information tag, section, card type, TODO state,
+   date range, or other property represented in the current result.
+3. **Pivot:** replace one tag, section, relationship direction, key card, sort,
+   or other visible clause with a nearby alternative.
+4. **Return:** revisit a recent or pinned collection, described by how it
+   differs from the current draft.
+5. **Resume:** show cards changed since the user last successfully visited this
+   collection, compiled to an explicit timestamp clause.
+
+Each family needs golden examples, deterministic candidate generation,
+suppression rules, and a stable tie-breaker. Learned ranking is not required to
+make the initial state routinely useful.
 
 ### Narrow suggestions
 
@@ -566,6 +748,20 @@ Suggestion ranking should combine:
 The list must avoid filling entirely with many near-identical tags or sections.
 At least the top several results should represent distinct interpretations when
 the input is ambiguous.
+
+Ranking may recommend an interpretation without forcing the user to resolve
+the complete Card Web ontology. Bare text uses a familiar fallback and
+progressive alternatives:
+
+- lead with **Search card text for “systems”** when no structural intent was
+  expressed;
+- group structural alternatives beneath **Use “systems” as…**;
+- show only a few diverse meanings initially, followed by **More ways to use
+  this**;
+- when the user starts with a filter family, first choose the family and then
+  its value.
+
+This is explicit ambiguity without decision fatigue.
 
 ## Expanded visual builder
 
@@ -736,10 +932,10 @@ interface CollectionClauseDraft {
 }
 
 type FilterExpression =
-  | {kind: 'filter'; filter: StructuredFilter}
-  | {kind: 'or'; alternatives: StructuredFilter[]}
-  | {kind: 'not'; child: FilterExpression}
-  | {kind: 'manual'; source: string};
+  | { kind: "filter"; filter: StructuredFilter }
+  | { kind: "or"; alternatives: StructuredFilter[] }
+  | { kind: "not"; child: FilterExpression }
+  | { kind: "manual"; source: string };
 ```
 
 The precise types may change after auditing all `combine`, `exclude`, `expand`,
@@ -767,6 +963,29 @@ Round-trip tests are mandatory for:
 - explicitly set versus elided default sets;
 - descriptions with selected-card suffixes.
 
+The current parser is not assumed to satisfy this contract. Phase 0 introduces
+a total, lossless parser that never throws and never silently drops a segment:
+
+```ts
+interface ParsedCollectionSource {
+  ast: CollectionSourceAst;
+  diagnostics: SourceDiagnostic[];
+  rawSegments: RawSourceSegment[];
+  selectedCardSuffix?: RawSourceSegment;
+}
+```
+
+Every segment is classified as **valid and executable**, **valid but
+unsupported**, **incomplete**, or **invalid**. Only a validated AST is lowered
+to `CollectionDescription`. Unsupported and legacy syntax retains its raw
+spelling so adjacent representations cannot corrupt it.
+
+Full URLs are parsed with the platform `URL` parser. The implementation
+enforces allowed origins/routes, separates path/query/hash, decodes each token
+exactly once, preserves case-sensitive values, defines duplicate-key
+precedence, and selects an explicit legacy grammar version. Any canonical
+rewrite is previewed as a diff before navigation.
+
 ## Filter metadata registry
 
 The current filter configuration contains some descriptions and argument types,
@@ -787,7 +1006,14 @@ interface FilterDefinition {
   supportsNegation: boolean;
   supportsUnion: boolean;
   availability: (state: State) => FilterAvailability;
-  cost: 'instant' | 'local-expensive' | 'remote';
+  cost: "instant" | "local-expensive" | "remote";
+  contextKind:
+    | "context-free"
+    | "context-bound"
+    | "time-relative"
+    | "ephemeral"
+    | "remote-derived";
+  completeness: (state: State) => CompletenessCapability;
   parse(source: string): StructuredFilter | ParseFailure;
   serialize(filter: StructuredFilter): string;
   describe(filter: StructuredFilter, context: DescriptionContext): string;
@@ -816,23 +1042,50 @@ separate value provider. They must not flood the primary registry list.
 The quick composer shows the count of the current valid draft. The builder may
 show progressive counts after each clause.
 
-Counts are categorized as:
+Computation status and corpus completeness are separate. A completed local
+calculation is not globally exact merely because it has finished. Every preview
+result carries:
 
-- **Exact:** current local collection engine has completed.
-- **Calculating:** debounced work is in progress.
-- **Approximate:** a cheaper preview is used for expensive or partially loaded
-  corpus state.
-- **Unavailable:** permission, corpus mode, or remote dependency prevents a
-  useful preview.
+```ts
+interface CollectionPreview<T> {
+  value?: T;
+  status: "calculating" | "complete" | "unavailable" | "failed";
+  scope: PreviewScope;
+  completeness: "exact" | "lower-bound" | "approximate" | "unknown";
+  provenance: PreviewProvenance;
+  generation: number;
+}
+```
+
+User-facing examples include:
+
+- **Exact across all available cards**;
+- **Exact for 5,000 loaded cards**;
+- **At least 83 cards**;
+- **Approximate**;
+- **Global count unavailable**.
+
+Each filter and base set declares which completeness claims it can support.
+Relationship, author, similarity, missing-concept, and remote filters may have
+different completeness even inside one expression.
 
 The UI must not show stale exact counts as though they belong to a newer draft.
 Preview results are keyed by canonical draft description and generation.
 
 ### Card preview
 
-The first release does not need a separate mini result list; the count and
-existing page behind the modal are sufficient. A later version may show up to
-five representative cards, particularly for ambiguous semantic filters.
+The first release previews up to three representative changed cards for the
+small set of signature deterministic destinations when that work is immediate
+and permission-safe. A narrowing emphasizes survivors; a broadening emphasizes
+entrants. Other suggestions may remain count-only. The preview is a compact
+extension of the familiar result row, not a second card drawer or carousel.
+
+The delta is primary:
+
+> **184 → 29 cards**
+> Keeps “Inductively knowable,” “Magic is in tension…,” and 27 others
+
+No preview is preferable to a stale, misleading, or permission-sensitive one.
 
 ### Debouncing and cancellation
 
@@ -843,6 +1096,36 @@ five representative cards, particularly for ambiguous semantic filters.
   changes.
 - Remote semantic queries run only after explicit acceptance of the semantic
   clause, not while typing its label.
+- The visible list does not reorder under keyboard focus when a count or
+  dynamic provider resolves.
+- Local preview execution runs off the UI thread. Cancellation includes
+  cooperative abort points so expensive work stops rather than merely having
+  its answer discarded.
+- Progressive counts use a costed plan and may be limited or omitted for long
+  expressions. Cache keys include corpus, permission, identity, selection,
+  active card, similarity-index, time-bucket, and random-seed dependencies.
+
+### Explain membership
+
+Every displayed card offers **Why in this collection?** from an existing card
+action location. The explanation is concrete rather than theoretical:
+
+- whether the card belongs to the base set;
+- pass, fail, or unknown for every clause;
+- which OR alternatives passed;
+- the result of negation;
+- whether partial-corpus or remote state limits certainty;
+- the sort value and resulting position when useful.
+
+An AND clause does not claim to have independently “included” a card; the card
+passes the expression as a whole. An excluded card may visibly fail multiple
+clauses. Each row may offer familiar, reversible actions such as **Remove this
+condition**, **Invert**, or **Edit**.
+
+The companion **Compose from this card** action offers deterministic object-led
+transformations such as keeping its section, following its references, or
+excluding its card type. Users can therefore learn filters from cards already
+on screen rather than beginning with an abstract catalog.
 
 ## History, saved collections, and naming
 
@@ -853,6 +1136,17 @@ Ctrl-K valuable before the user learns any syntax.
 
 History is local per user/device initially. It records navigation, not every
 draft preview. Private collection descriptions must not be sent to analytics.
+
+History is namespaced by deployment, user ID, and permission epoch and is
+purged or made inaccessible on identity change. A recent entry is recorded
+only after its destination activates successfully.
+
+Every entry stores the source plus any dependency binding needed to interpret
+it. A context-dependent collection must say whether reopening will:
+
+- preserve dynamic meaning;
+- materialize the values captured at visit time; or
+- require context that is no longer available.
 
 ### Saved collections
 
@@ -869,6 +1163,12 @@ Opening a saved collection navigates to its URL. Editing the current URL does
 not silently mutate the saved definition. If the active collection originated
 from a saved collection and diverges, the UI may offer **Update saved
 collection** or **Save as new**.
+
+Before saving or sharing a context-bound, time-relative, ephemeral, or
+remote-derived collection, the UI applies the filter family's declared policy:
+**keep dynamic**, **freeze current values**, or **cannot be made portable**.
+This is especially important for selected cards, the active card, `me`,
+relative dates, similarity state, and random ordering.
 
 ### Naming suggestions
 
@@ -1011,9 +1311,17 @@ changes:
 - a clause revealing its arguments;
 - source resolving into a readable expression.
 
-Avoid ornamental motion. The user's spatial context and clause order should
-remain stable so that expanding a layer feels like zooming in, not navigating to
-an unrelated interface.
+One restrained native transition may connect cause and effect: an accepted
+suggestion settles into its place in the readable expression, the count
+crossfades, and the composer contracts toward the persistent collection
+sentence on commit. Existing clause positions remain stable. Relationship
+transformations may use the existing teal semantics; ordinary filters remain
+purple or neutral.
+
+Avoid ornamental motion, spatial novelty, or choreography that users must
+interpret. The surface must remain fully understandable when transitions are
+disabled. Expanding a layer should feel like revealing familiar detail, not
+navigating to an unrelated interface.
 
 ### Mobile appearance
 
@@ -1037,24 +1345,43 @@ horizontally scrolling token strip.
 6. Existing components such as `dialog-element`, `tag-list`, card find/pickers,
    button styles, and shared icons are reused or deliberately evolved rather
    than visually reimplemented.
+7. A first-time user recognizes the surface as a familiar search/filter dialog
+   before noticing its more powerful composition behavior.
+8. Delight is attributable to useful context, preview, continuity, and
+   reversibility—not decorative novelty.
 
 ## Accessibility
 
-1. The composer uses a native dialog with a labeled combobox/listbox pattern.
-2. Screen readers announce the active suggestion, its semantic category, and
+An accessible dialog and button foundation is a Phase 0 prerequisite. Existing
+components may be visually reused, but they must be deliberately evolved where
+they lack semantics, focus containment/restoration, background inertness, or
+visible focus. Blanket removal of focus outlines is not acceptable.
+
+1. The composer uses native `<dialog>` or a complete ARIA dialog implementation
+   with labeling, focus trapping, inert background, and invoker restoration.
+2. The input uses a labeled combobox/listbox pattern. DOM focus remains in the
+   input and the active suggestion is exposed through `aria-activedescendant`;
+   clause editing is a separate roving-tabindex region.
+3. Screen readers announce the active suggestion, its semantic category, and
    count—not merely its position.
-3. Clauses are focusable controls with accessible names such as “Working notes
+4. Clauses are focusable controls with accessible names such as “Working notes
    filter; activate to edit.”
-4. AND, OR, and NOT are present in accessible expression text, not conveyed by
+5. AND, OR, and NOT are present in accessible expression text, not conveyed by
    indentation or color alone.
-5. Preview changes are announced politely and do not interrupt typing.
-6. All operations are keyboard accessible without requiring bespoke shortcuts.
-7. Focus returns to the invoking element on cancel and to the main collection
+6. Accepted-clause result changes are announced politely; incidental
+   asynchronous count churn is exposed without repeated live-region chatter.
+7. All operations are keyboard accessible without requiring bespoke shortcuts.
+   Tab retains normal focus traversal unless the suggestion combobox is active
+   and its visible footer says Tab will add.
+8. Focus returns to the invoking element on cancel and to the main collection
    view on navigation.
-8. Motion is unnecessary; if transitions are used, reduced-motion preferences
+9. Motion is unnecessary; if transitions are used, reduced-motion preferences
    are honored.
-9. Filter descriptions and validation errors meet contrast and text-size
-   requirements.
+10. Filter descriptions and validation errors meet contrast and text-size
+    requirements.
+11. Touch targets, persistent edit affordances, long expressions, and 200%
+    zoom meet platform accessibility expectations; no essential control is
+    hover-only or unlabeled icon-only.
 
 ## Mobile behavior
 
@@ -1086,6 +1413,13 @@ buttons, or horizontal scrolling.
    analytics payloads.
 6. Pasting a URL is parsed locally unless the selected filter explicitly
    requires remote execution.
+7. Catalog availability is presentation, not authorization. Execution, counts,
+   dynamic values, and remote previews independently authorize every request
+   against the current identity and permission epoch.
+8. Adding an inaccessible card must not change visible suggestions, counts,
+   timing classes, or error shapes. Permission noninterference is tested.
+9. Cached privileged values and history are never reused after logout, account
+   switching, or a permission-epoch change.
 
 ## Performance requirements
 
@@ -1104,14 +1438,23 @@ The Collection Composer is navigation infrastructure and must feel immediate.
 1. Filter metadata and static suggestions load with the composer code.
 2. Dynamic value providers for cards, tags, sections, and users expose indexed
    search APIs rather than rebuilding option arrays per keystroke.
-3. Preview collection computations run through the existing worker/query engine
-   where available.
+3. Preview collection computations run off the UI thread. Filters that cannot
+   yet execute safely outside the main thread do not receive live preview.
 4. Results are generation-keyed; stale preview responses are discarded.
 5. Common collection counts are cached by canonical description and relevant
    corpus generation.
 6. Expensive filter modules are loaded only when selected.
 7. Composer opening must not trigger word clouds, suggestions, or other
    unrelated full-corpus consumers.
+8. Preview execution uses a costed plan, hard CPU/time budgets, cooperative
+   cancellation, timeout states, and bounded progressive-count work.
+9. The draft records the active-description revision, permission revision,
+   corpus generation, context bindings, and a monotonic draft generation.
+10. Commit is single-flight and navigation is idempotent.
+
+Performance gates cover 5k, 20k, and 60k-card corpora. Opening, candidate
+search, keyboard focus, and clause acceptance must remain responsive even when
+counts, relationships, similarity, or remote dependencies are unavailable.
 
 ## Error and edge states
 
@@ -1142,12 +1485,35 @@ source value and mark it unresolved. Offer Remove or Replace.
 Counts may update, but clause meaning must not. The preview generation guards
 against results from an older corpus or draft being attached to a newer one.
 
+If the active collection, identity, permissions, or navigation context changes
+outside the composer, the draft does not silently commit against a new
+baseline. It freezes with **The page changed while you were composing** and
+offers **Rebase draft**, **Keep draft**, or **Cancel** where semantically safe.
+
 ### Navigation to selected card
 
 If the current URL includes a selected card and a draft transformation removes
-that card from the result, committing navigates to the default item in the new
-collection. If the card remains, preserving it may be offered, but the default
-Ctrl-K mental model is collection navigation rather than card retention.
+that card from the result, the preview says where navigation will move and
+committing navigates to the default item in the new collection. If the card
+remains, preserve it by default. This behavior is deterministic across mouse,
+keyboard, recent-history, and saved-collection navigation.
+
+### Activation failure
+
+Draft source and AST remain in session storage until the destination activates
+successfully. Worker crashes, remote timeouts, permission changes, offline
+state, or an execution failure must leave the old active collection intact and
+offer **Retry**, **Open partial results** when honest and safe, **Edit draft**,
+or **Copy source**. Every wait has a timeout and abort path; Recent is recorded
+only after successful activation.
+
+### Presentation fallback
+
+Semantic matches and presentation fallback cards are distinct. Composer counts
+and membership explanations never imply that fallback cards matched the
+expression. Prefer disabling fallback substitution for ad-hoc composed
+collections; otherwise say, for example, **0 match; 3 fallback cards will be
+shown**.
 
 ## Analytics and product learning
 
@@ -1181,18 +1547,35 @@ The most important qualitative research questions are:
 ### Phase 0: model and metadata audit
 
 1. Enumerate every legal existing collection-description shape.
-2. Add round-trip fixtures covering all normal and configurable filters.
-3. Audit `exclude`, `combine`, `expand`, union, key-card, and nested-filter
+2. Harvest representative production URLs, including legacy, malformed,
+   context-dependent, selected-card, full-URL, query, fragment, encoded-value,
+   and unsupported-filter cases.
+3. Introduce a total lossless parser with AST, raw segments, diagnostics, and
+   explicit valid/unsupported/incomplete/invalid states.
+4. Add round-trip fixtures covering all normal and configurable filters.
+5. Audit `exclude`, `combine`, `expand`, union, key-card, and nested-filter
    semantics.
-4. Define the structured draft representation.
-5. Extend filter metadata with readable titles, categories, keywords,
-   argument definitions, and describers.
-6. Inventory the existing dialog, drawer, chip, card-picker, button, typography,
-   color, icon, and responsive primitives to establish which are reused and
-   which require a general Card Web evolution.
+6. Define the structured draft representation, context-dependency model,
+   completeness model, and activation transaction.
+7. Extend filter metadata with readable titles, categories, keywords, argument
+   definitions, describers, cost, authorization, context, and completeness.
+8. Add semantic differential and property-based harnesses comparing old and new
+   parsing/execution over production fixtures and generated corpora.
+9. Run the parser in shadow mode before it becomes authoritative; version the
+   adapter and keep existing execution as the initial lowering target.
+10. Inventory the existing dialog, drawer, chip, card-picker, button, typography,
+    color, icon, and responsive primitives to establish which are reused and
+    which require a general Card Web evolution.
+11. Evolve the shared dialog/button foundations to meet the specified dialog,
+    combobox, focus, keyboard, touch-target, and visible-focus requirements.
+12. Resolve Ctrl/Cmd-K precedence with card-editor linking and define pending
+    edit navigation behavior.
 
-**Exit criterion:** every fixture can parse into a draft and serialize without
-semantic loss.
+**Exit criterion:** parsing never throws or drops input; every legal fixture can
+parse into a draft and serialize without semantic loss; old and new execution
+are semantically equivalent for the supported grammar; contextual and partial
+meaning are represented honestly; the shared interaction foundation passes its
+accessibility checks.
 
 ### Phase 1: excellent source editor
 
@@ -1208,27 +1591,39 @@ prompt for existing power users.
 
 ### Phase 2: Ctrl-K composer foundation
 
-1. Open from the active collection.
-2. Render the current expression readably.
-3. Add recent collections.
-4. Search filter definitions, tags, sections, people, and card values.
-5. Implement explicit interpretation suggestions.
-6. Implement Tab-to-add, Backspace-to-remove, and Enter-to-navigate.
-7. Add debounced exact count preview for inexpensive local filters.
+1. Add the persistent collection sentence by evolving the existing title/count
+   area, including Refine and Copy Link affordances.
+2. Open from the active collection through Ctrl-K and the visible affordance.
+3. Render the current expression as a familiar continuous sentence.
+4. Implement the normative Open/Add/Remove/Replace/Edit action grammar.
+5. Add recent collections and deterministic Continue/Focus/Pivot/Return/Resume
+   suggestions with stable IDs and golden examples.
+6. Search filter definitions, tags, sections, people, and card values.
+7. Implement explicit but progressive interpretation suggestions.
+8. Implement Tab-to-add, Backspace-to-remove, and Enter-to-open with persistent
+   key hints and accessible focus behavior.
+9. Add scoped completeness-aware count deltas and representative-card deltas
+   for the small signature suggestion set.
+10. Add the post-navigation semantic receipt and Undo.
 
-**Exit criterion:** common collections can be created without opening the
-builder or typing URL syntax.
+**Exit criterion:** the complete signature loop feels like a familiar Card Web
+search/filter interaction; common collections can be created without the
+builder or URL syntax; opening without typing routinely offers a useful,
+inspectable next destination.
 
 ### Phase 3: contextual transformations
 
-1. Add deterministic narrow and broaden suggestions.
-2. Add related collection suggestions based on the active card.
-3. Add selection-based relationship and similarity suggestions.
-4. Diversify and rank ambiguous interpretations.
-5. Add cost and partial-corpus messaging.
+1. Expand deterministic narrow, broaden, pivot, and active-card suggestions.
+2. Add **Why in this collection?** and **Compose from this card**.
+3. Add selection-based relationship and similarity suggestions after their
+   contextual portability and completeness behavior is defined.
+4. Add inspectable compound destinations compiled from ordinary clauses.
+5. Diversify and rank ambiguous interpretations without moving focused rows.
+6. Expand cost, provenance, permission, and partial-corpus messaging.
 
-**Exit criterion:** opening Ctrl-K without typing routinely presents a useful
-next destination.
+**Exit criterion:** users can move from card → collection → explanation →
+refinement without leaving the familiar interaction family or encountering
+hidden semantics.
 
 ### Phase 4: rebuilt visual builder
 
@@ -1261,6 +1656,15 @@ through the builder and explain the resulting collection.
 5. Suggestion deduplication, diversification, and redundancy suppression.
 6. Canonical equivalence detection.
 7. Dynamic value resolution and unresolved-value preservation.
+8. Property test: parse → draft → serialize → parse preserves AST semantics.
+9. Parser fuzzing: malformed and hostile URLs never throw or lose raw input.
+10. Differential execution: old and new representations produce identical
+    ordered card IDs, labels, partial matches, fallback status, and preview
+    status where semantics are intended to match.
+11. Context classification, materialization, and share/save policies.
+12. Preview scope and completeness propagation through mixed expressions.
+13. Suggestion stable identity, deterministic tie-breaking, and frozen
+    acceptance payload.
 
 ### Component tests
 
@@ -1272,6 +1676,11 @@ through the builder and explain the resulting collection.
 6. Expensive filters do not run before explicit acceptance.
 7. Unknown/manual clauses survive builder edits.
 8. Screen-reader labels include expression semantics.
+9. Async counts do not reorder the focused suggestion list.
+10. Ctrl/Cmd-K retains editor linking while invoking the composer elsewhere.
+11. Pending card edits cannot cause silent navigation failure.
+12. The persistent collection sentence exposes Refine, full expression, and
+    Copy Link at keyboard, pointer, touch, and screen-reader entry points.
 
 ### Integration tests
 
@@ -1283,6 +1692,14 @@ through the builder and explain the resulting collection.
 5. Partial corpus and permission states do not leak unavailable data.
 6. Mobile layout supports composing, editing, and opening without horizontal
    overflow.
+7. Fake-scheduler races cover rapid typing, late counts, double Enter, corpus
+   changes, permission changes, identity changes, and Back/forward while open.
+8. Draft recovery survives worker failure, remote timeout, offline activation,
+   and reload until successful navigation.
+9. Permission noninterference covers identity × permission × partial-corpus
+   combinations.
+10. 5k/20k/60k performance gates verify typing and keyboard interaction remain
+    responsive during expensive or unavailable previews.
 
 ### Manual scenario suite
 
@@ -1295,36 +1712,64 @@ through the builder and explain the resulting collection.
    source unchanged.
 7. An invalid pasted URL corrected through completion.
 8. A deleted tag or missing key card preserved as unresolved source.
+9. On “Inductively knowable,” open the composer and continue to related working
+   notes while inspecting the exact clause diff and representative entrants.
+10. Add Has TODO, inspect survivors, add Updated this month, and open the
+    durable canonical destination.
+11. Use **Why in this collection?** on an unexpected card, edit the responsible
+    clause, and return to the revised collection.
+12. Resume cards updated since the last visit and inspect the materialized
+    timestamp before copying the link.
+13. Paste a complex source expression, resolve it into readable clauses, add a
+    contextual transformation, and verify the canonical source addition.
 
 ## Acceptance criteria for the first product release
 
-1. Ctrl-K opens within 100 ms on a warm application and starts from the active
-   collection.
-2. The active collection is rendered as a readable expression.
-3. Users can discover and add common card-type, section, tag, TODO, date,
+1. The existing collection title/count area visibly and accessibly exposes a
+   familiar readable collection sentence, Refine, and Copy Link.
+2. Ctrl-K opens within 100 ms on a warm application outside editing contexts
+   and starts from the active collection; editor linking retains its established
+   shortcut behavior.
+3. The active collection is rendered as a readable continuous expression.
+4. Users can discover and add common card-type, section, tag, TODO, date,
    author, text-query, and relationship filters.
-4. Ambiguous text presents explicit interpretations.
-5. Tab adds a clause; Enter navigates; Escape cancels; all work by keyboard.
-6. Recent collections appear without requiring typed input.
-7. Draft editing does not modify the URL or browser history before commit.
-8. Committing produces one canonical, shareable collection URL.
-9. Ctrl-Shift-L opens an autocomplete-enabled source editor with inline
-   validation.
-10. Source, quick composer, and the supported builder subset round-trip without
+5. Ambiguous text presents a familiar text-search fallback and progressively
+   disclosed structural interpretations without silent commitment.
+6. Every row visibly performs Open, Add, Remove, Replace, or Edit.
+7. Tab adds a clause while the combobox is active; Enter opens the visible
+   preview; Escape cancels; the current key contract is always visible.
+8. A compact deterministic set of useful Continue and Refine destinations
+   appears without requiring typed input.
+9. Highlighting a signature suggestion reveals its exact clause diff, honest
+   scoped count delta, and representative changed cards when safe and cheap.
+10. Draft editing does not modify the URL or browser history before commit.
+11. Committing produces one canonical, shareable collection URL and one history
+    entry only after successful activation.
+12. Ctrl-Shift-L opens an autocomplete-enabled source editor with inline
+    validation.
+13. Source, quick composer, and the supported builder subset round-trip without
     semantic loss.
-11. Unsupported-but-valid clauses are preserved visibly.
-12. Preview work never blocks typing and stale results are discarded.
-13. The experience is available to non-admin users for every filter their data
+14. Unsupported, incomplete, invalid, and legacy clauses are distinguished and
+    exact source text is never silently dropped.
+15. Preview work never blocks typing, stale work is canceled/discarded, and
+    focused suggestions do not move asynchronously.
+16. The experience is available to non-admin users for every filter their data
     and permissions support.
-14. The collection-configuring affordance is visible near the collection title
-    or count, not hidden exclusively in an overflow panel.
-15. Every contextual suggestion can reveal the exact collection transformation
+17. Every contextual suggestion can reveal the exact collection transformation
     it proposes and then descend into builder and source representations.
-16. For any previewed card, the user can inspect which clauses included or
-    excluded it without learning unrelated filter families.
-17. The composer uses Card Web's existing typography, colors, iconography,
+18. For any displayed card, **Why in this collection?** reports base-set and
+    clause pass/fail/unknown state, OR/NOT behavior, completeness limits, and
+    sort position where useful.
+19. Context-bound and partial-corpus collections state their portability,
+    scope, completeness, and provenance honestly.
+20. Activation failure preserves both the old active view and recoverable
+    draft; no operation waits indefinitely.
+21. The composer uses Card Web's existing typography, colors, iconography,
     shadows, chips, buttons, and mobile dialog conventions and is visually
     coherent beside the current card stage and drawer.
+22. In first-use testing, users recognize the surface as familiar
+    search/filter navigation; delight is attributable to relevance, preview,
+    continuity, and recovery rather than unfamiliar controls or decoration.
 
 ## Decisions made by this specification
 
@@ -1333,8 +1778,9 @@ through the builder and explain the resulting collection.
    replacements.
 3. **Bare text is not silently interpreted.** The user selects among structural
    and text-query meanings.
-4. **Tab composes; Enter navigates.** This distinction is central to rapid
-   keyboard use.
+4. **Tab composes; Enter opens the visible preview.** Tab is captured only while
+   the suggestion combobox is active; otherwise it retains normal focus
+   traversal.
 5. **Preview is staged.** URL and browser history change only on commit.
 6. **AND, OR, and NOT are the UI grammar.** Encoding details remain in source
    mode.
@@ -1348,30 +1794,44 @@ through the builder and explain the resulting collection.
     learned; collection semantics may not be hidden.
 11. **The composer extends Card Web's visual language.** It does not introduce
     a visually independent command-palette design system.
+12. **Familiarity is the interaction baseline.** Delight comes from relevance,
+    preview, continuity, explainability, and reversibility—not novelty for its
+    own sake.
+13. **The action grammar is explicit.** Every result Opens, Adds, Removes,
+    Replaces, or Edits.
+14. **The persistent collection sentence is the novice entrance.** Ctrl-K is an
+    accelerator, not the only way to discover composition.
+15. **A deterministic magical layer ships with the foundation.** A small,
+    excellent set of contextual destinations is part of the first useful
+    release rather than deferred polish.
+16. **Phase 0 is a semantic safety project.** A total parser, dependency model,
+    completeness model, differential tests, accessibility foundation, and
+    shortcut resolution precede composer UI authority.
+17. **The active card is preserved when it remains in the destination.** When
+    it does not, the preview discloses the move before commit.
 
 ## Open questions for product refinement
 
 1. Should Ctrl-K use Ctrl on every platform, the platform primary modifier, or
    support both? This needs conflict testing with browser, OS, and editor
    shortcuts.
-2. When the input contains uncommitted bare text and the user presses Enter,
-   should Enter accept the highlighted interpretation or create a text-query
-   clause by default? This specification currently favors accepting the
-   explicit highlighted interpretation.
+2. How strongly should exact card destinations rank in Ctrl-K relative to text
+   filters and collection destinations? They must remain explicitly labeled as
+   **Open card**, **Show collection**, or **Filter text**.
 3. Should the first release allow editing a clause in place inside the quick
    composer, or always open a specialized popover?
-4. Should navigation preserve the active card when it matches the new
-   collection, or consistently navigate to the collection's default card?
+4. What compact form of the collection sentence remains useful at narrow drawer
+   widths without turning into an unfamiliar omnibox?
 5. How many recent collections should be retained, and should history sync
    across devices?
-6. Which contextual transformations are sufficiently predictable for the first
-   release?
+6. Which deterministic Continue/Focus/Pivot/Return/Resume examples are useful
+   often enough to earn a place in the first 6–8 rows?
 7. Should relative date syntax such as `7d` be part of the first compact typed
    grammar or remain suggestion-driven initially?
 8. How should `combine` and nested `expand` expressions appear when the visual
    builder cannot flatten them into the common AND/OR model?
-9. Should exact count computation begin after Tab accepts a clause or while a
-   complete highlighted suggestion is merely selected?
+9. For which first-release suggestions are scoped count and representative-card
+   deltas cheap and trustworthy enough to compute on highlight?
 10. Does the product call this surface **Collection Composer**, **Collection
     Bar**, or simply **Go to collection**? The internal concept can remain
     Collection Composer even if the visible title is more direct.
@@ -1390,15 +1850,20 @@ finished experience must:
 - reveal advanced relationship filters without overwhelming the default list;
 - preserve every hand-authored URL;
 - remain responsive on a very large corpus;
-- produce destinations that are always linkable and shareable;
+- produce destinations that are linkable and state their contextual portability
+  honestly when exact meaning cannot travel;
 - make every layer understandable in isolation and connected to adjacent
   layers;
 - make surprising membership traceable to explicit clauses;
 - feel visually native to Card Web while raising the quality and coherence of
   its shared interaction primitives;
+- feel familiar immediately and reveal its sophistication progressively;
 - reward increasing fluency, from clicking suggestions to composing source from
   memory.
 
-The desired feeling is that a user can think of a subset of their card web,
-press Ctrl-K, describe it, and arrive there—with the collection's precise,
-durable definition visible whenever they want it.
+The desired feeling is that a user can click the collection sentence or press
+Ctrl-K, use controls that already make sense, describe a subset of their card
+web, and arrive there—with the collection's precise definition visible whenever
+they want it. The interaction is delightful because Card Web understood the
+next useful move and made its consequence obvious, not because the interface
+behaved unlike anything the user had seen before.
