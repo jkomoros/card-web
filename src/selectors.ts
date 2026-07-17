@@ -1,4 +1,5 @@
 import { createSelector } from 'reselect';
+import type { CollectionComposerCandidate } from './collection-composer-suggestions.js';
 
 import {
 	perfCount,
@@ -1363,17 +1364,31 @@ export const selectFilterDescriptions = createSelector(
 export const selectCollectionComposerCandidates = createSelector(
 	selectSections,
 	selectTags,
-	(sections, tags) => {
+	selectAuthorAndCollaboratorUserIDs,
+	selectAuthors,
+	selectUid,
+	(sections, tags, visibleContributorIDs, authors, uid) => {
 		const reserved = new Set(Object.keys(CARD_FILTER_DESCRIPTIONS));
 		const sectionIDs = new Set(Object.keys(sections));
 		const tagIDs = new Set(Object.keys(tags));
-		const candidates = [
+		const visibleContributors = visibleContributorIDs
+			.filter(contributorID => Boolean(contributorID && authors[contributorID]?.displayName))
+			.sort();
+		const contributorNameCounts : Record<string, number> = {};
+		for (const contributorID of visibleContributors) {
+			const name = authors[contributorID].displayName.toLowerCase();
+			contributorNameCounts[name] = (contributorNameCounts[name] || 0) + 1;
+		}
+		const contributorNameOrdinals : Record<string, number> = {};
+		const candidates : CollectionComposerCandidate[] = [
 		...Object.entries(sections).filter(([id]) => !reserved.has(id) && !tagIDs.has(id)).map(([id, section]) => ({
 			filter: id,
 			category: 'section' as const,
 			label: `In section “${section.title}”`,
 			detail: `Keeps cards in the ${section.title} section`,
 			aliases: [id, section.title, 'section'],
+			valueLabel: section.title,
+			clauseLabel: `Section ${section.title}`,
 		})),
 		...Object.entries(tags).filter(([id]) => !reserved.has(id) && !sectionIDs.has(id)).map(([id, tag]) => ({
 			filter: id,
@@ -1381,6 +1396,8 @@ export const selectCollectionComposerCandidates = createSelector(
 			label: `Tagged “${tag.title}”`,
 			detail: `Keeps cards tagged ${tag.title}`,
 			aliases: [id, tag.title, 'tag', 'tagged'],
+			valueLabel: tag.title,
+			clauseLabel: `Tagged ${tag.title}`,
 		})),
 		...Object.entries(CARD_TYPE_CONFIGURATION).map(([id, configuration]) => ({
 			filter: id,
@@ -1388,6 +1405,8 @@ export const selectCollectionComposerCandidates = createSelector(
 			label: `Card type: ${toTitleCase(id.split('-').join(' '))}`,
 			detail: configuration.description || `Keeps ${id} cards`,
 			aliases: [id, 'type', 'card type'],
+			valueLabel: toTitleCase(id.split('-').join(' ')),
+			clauseLabel: `Card Type ${toTitleCase(id.split('-').join(' '))}`,
 		})),
 		{
 			filter: TODO_COMBINED_FILTER_NAME,
@@ -1396,6 +1415,25 @@ export const selectCollectionComposerCandidates = createSelector(
 			detail: 'Keeps cards with at least one unfinished TODO',
 			aliases: ['todo', 'todos', 'unfinished', 'needs work'],
 		},
+		...visibleContributors.map(contributorID => {
+			const displayName = authors[contributorID].displayName;
+			const isMe = contributorID === uid;
+			const normalizedName = displayName.toLowerCase();
+			const ordinal = (contributorNameOrdinals[normalizedName] || 0) + 1;
+			contributorNameOrdinals[normalizedName] = ordinal;
+			const disambiguatedName = contributorNameCounts[normalizedName] > 1 && !isMe ? `${displayName} (${ordinal})` : displayName;
+			return {
+				filter: `author/${contributorID.toLowerCase()}`,
+				category: 'author' as const,
+				label: isMe ? 'My cards' : `Cards ${disambiguatedName} authored or collaborated on`,
+				detail: isMe ? 'Keeps cards I authored or collaborated on' : `Keeps cards ${disambiguatedName} authored or collaborated on`,
+				aliases: isMe ? ['my cards', 'mine', 'author', 'collaborator', 'contributor'] : [displayName, 'author', 'collaborator', 'contributor'],
+				searchValues: [displayName, isMe ? 'my cards' : '', isMe ? 'mine' : '', 'author', 'collaborator', 'contributor'].filter(Boolean).map(value => value.toLowerCase()),
+				urlDetail: 'Adds a durable contributor clause; copied links keep the same person',
+				valueLabel: displayName,
+				clauseLabel: `Contributed By ${disambiguatedName}`,
+			};
+		}),
 		{
 			filter: 'updated/after/today',
 			category: 'date' as const,
@@ -1413,7 +1451,7 @@ export const selectCollectionComposerCandidates = createSelector(
 		];
 		return candidates.map(candidate => ({
 			...candidate,
-			searchValues: [candidate.label, candidate.filter, candidate.category, ...candidate.aliases].map(value => value.toLowerCase()),
+			searchValues: candidate.searchValues || [candidate.label, candidate.filter, candidate.category, ...(candidate.aliases || [])].map(value => value.toLowerCase()),
 		}));
 	}
 );

@@ -85,6 +85,29 @@ describe("Collection Composer interactions", () => {
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["inductively-knowable"]);
   });
 
+  it("surfaces a diversified, durable context from the active card", async () => {
+    dialog._composerCandidates = [
+      { filter: "systems", category: "tag", label: "Tagged “Systems”", detail: "", valueLabel: "Systems", clauseLabel: "Tagged Systems" },
+      { filter: "half-baked", category: "section", label: "In section “Half Baked”", detail: "", valueLabel: "Half Baked", clauseLabel: "Section Half Baked" },
+      { filter: "working-notes", category: "card type", label: "Card type: Working Notes", detail: "", valueLabel: "Working Notes", clauseLabel: "Card Type Working Notes" },
+    ];
+    dialog._activeCardID = "card-123";
+    dialog._activeCard = {
+      section: "half-baked",
+      tags: ["systems"],
+      card_type: "working-notes",
+      author: "",
+      collaborators: [],
+    };
+    await dialog.updateComplete;
+    const labels = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+      .slice(0, 3)
+      .map((button) => button.textContent);
+    assert.match(labels[0], /Keep only cards tagged “Systems”/);
+    assert.match(labels[1], /Keep only section “Half Baked”/);
+    assert.match(labels[2], /This card and directly connected cards/);
+  });
+
   it("explains preview counts as consequences without changing row order", async () => {
     const before = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
       .map((button) => button.id);

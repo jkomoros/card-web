@@ -18,7 +18,8 @@ import {
 	selectActiveCollectionDescription,
 	selectCardsSelected,
 	selectUid,
-	selectActiveCardID
+	selectActiveCardID,
+	selectActiveCard,
 } from '../selectors.js';
 
 import {
@@ -66,7 +67,8 @@ import {
 import {
 	TagInfos,
 	State,
-	Uid
+	Uid,
+	ProcessedCard,
 } from '../types.js';
 
 import {
@@ -91,6 +93,7 @@ import {
 import {
 	CollectionComposerSuggestion,
 	CollectionComposerCandidate,
+	activeCardMetadataCandidates,
 	activeCardRelationshipCandidates,
 	collectionExpressionParts,
 	readableCollectionFilter,
@@ -117,6 +120,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_composerCandidates: CollectionComposerCandidate[] = [];
+
+	@state()
+		_activeCard : ProcessedCard | null = null;
 
 	@state()
 		_userIDs: Uid[];
@@ -474,12 +480,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!this._collectionDescription) return html``;
 		const suggestions = this._composerSuggestions;
 		const highlighted = suggestions[this._highlightedSuggestion];
-		const expressionParts = collectionExpressionParts(this._collectionDescription);
+		const expressionParts = collectionExpressionParts(this._collectionDescription, this._composerFilterLabels);
 		const draftCount = this._previewCounts[this._draftPreviewID];
 		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
 		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
-			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription)}</div>
+			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels)}</div>
 			<div class='expression' aria-label='Draft collection clauses'>
 				<span class='expression-set'>${expressionParts.set.label}</span>
 				${expressionParts.filters.map(filter => html`
@@ -604,9 +610,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			{
 				cardsSelected: this._cardsSelected,
 				recentCollections,
-				candidates: [...this._composerCandidates, ...activeCardRelationshipCandidates(this._activeCardID)],
+				candidates: this._contextualComposerCandidates,
 			}
 		);
+	}
+
+	get _contextualComposerCandidates() : CollectionComposerCandidate[] {
+		const activeMetadata = activeCardMetadataCandidates(this._activeCard ? {
+			section: this._activeCard.section,
+			tags: this._activeCard.tags,
+			cardType: this._activeCard.card_type,
+			contributors: [this._activeCard.author, ...this._activeCard.collaborators],
+		} : null, this._composerCandidates);
+		const contextualFilters = new Set(activeMetadata.map(candidate => candidate.filter));
+		return [
+			...activeMetadata,
+			...this._composerCandidates.filter(candidate => !contextualFilters.has(candidate.filter)),
+			...activeCardRelationshipCandidates(this._activeCardID),
+		];
+	}
+
+	get _composerFilterLabels() : Record<string, string> {
+		return Object.fromEntries(this._contextualComposerCandidates.map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
+	}
+
+	_readableComposerFilter(filter : string) : string {
+		return this._composerFilterLabels[filter] || readableCollectionFilter(filter);
 	}
 
 	constructor() {
@@ -638,7 +667,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				e.stopPropagation();
 				if (this._selectedClauseIndex < 0) {
 					this._selectedClauseIndex = this._collectionDescription.filters.length - 1;
-					this._clauseSelectionMessage = `${readableCollectionFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected · Backspace again to remove`;
+					this._clauseSelectionMessage = `${this._readableComposerFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected · Backspace again to remove`;
 				} else {
 					this._removeDraftClause(this._selectedClauseIndex);
 				}
@@ -659,7 +688,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					this._selectedClauseIndex = this._selectedClauseIndex < 0 ? 0 : this._selectedClauseIndex + 1;
 					if (this._selectedClauseIndex >= this._collectionDescription.filters.length) this._selectedClauseIndex = -1;
 				}
-				this._clauseSelectionMessage = this._selectedClauseIndex < 0 ? '' : `${readableCollectionFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected`;
+				this._clauseSelectionMessage = this._selectedClauseIndex < 0 ? '' : `${this._readableComposerFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected`;
 				return;
 			}
 		}
@@ -710,7 +739,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 			store.dispatch(cancelConfigureCollectionDialog());
 			const count = this._previewCounts[suggestion.id];
-			const expression = readableCollectionExpression(suggestion.description);
+			const expression = readableCollectionExpression(suggestion.description, this._composerFilterLabels);
 			store.dispatch(showSnackbar(
 				`Now showing ${expression}${count === undefined ? '' : ` · ${count} ${count === 1 ? 'card' : 'cards'}`}`,
 				'back',
@@ -737,7 +766,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (filter === undefined) return;
 		this._commitDraftEdit(
 			collectionDescriptionWithFilterRemoved(this._collectionDescription, index),
-			`Removed ${readableCollectionFilter(filter)}`,
+			`Removed ${this._readableComposerFilter(filter)}`,
 			true
 		);
 	}
@@ -755,7 +784,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	async _handleClauseEdit(index : number) {
 		this._selectedClauseIndex = index;
-		this._clauseSelectionMessage = `Editing ${readableCollectionFilter(this._collectionDescription.filters[index])}`;
+		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(this._collectionDescription.filters[index])}`;
 		this._builderExpanded = true;
 		await this.updateComplete;
 		const controls = this.shadowRoot?.querySelectorAll('configure-collection-filter');
@@ -778,7 +807,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			kind: 'source',
 			action: 'open',
 			label: 'Open this collection',
-			detail: readableCollectionExpression(this._collectionDescription),
+			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
 			description: this._collectionDescription,
 		}, true);
 	}
@@ -870,6 +899,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			changedProps.has('_composerInput') ||
 			changedProps.has('_collectionDescription') ||
 			changedProps.has('_activeCardID') ||
+			changedProps.has('_activeCard') ||
 			changedProps.has('_filterDescriptions') ||
 			changedProps.has('_composerCandidates') ||
 			changedProps.has('_cardsSelected') ||
@@ -923,6 +953,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
 		this._activeCardID = selectActiveCardID(state);
+		this._activeCard = selectActiveCard(state);
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 
