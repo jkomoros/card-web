@@ -144,7 +144,12 @@ describe("Collection Composer history", () => {
     recordRecentCollection(description, "alex", new Date(2026, 6, 10, 12).getTime());
     recordRecentCollection(CollectionDescription.deserialize("everything/starred/"), "alex", new Date(2026, 6, 11, 12).getTime());
     recordRecentCollection(description, "alex", new Date(2026, 6, 12, 12).getTime());
-    assert.ok(!readRememberedCollections("alex").some(entry => entry.frequent && entry.relative));
+    recordRecentCollection(CollectionDescription.deserialize("everything/unread/"), "alex", new Date(2026, 6, 13, 12).getTime());
+    recordRecentCollection(description, "alex", new Date(2026, 6, 14, 12).getTime());
+    const remembered = readRememberedCollections("alex");
+    assert.ok(!remembered.some(entry => entry.frequent && entry.relative));
+    assert.ok(!remembered.some(entry => entry.canonical.includes("days-ago")));
+    assert.strictEqual(remembered.find(entry => entry.canonical === description.serialize()).visits, 3);
   });
 
   it("ignores corrupt, invalid, duplicate, and cross-semantic entries", () => {
