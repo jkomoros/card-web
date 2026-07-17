@@ -521,12 +521,14 @@ let snackbarTimer : number;
 
 export const showSnackbar = (
 	message = '',
-	action : '' | 'back' = ''
+	action : '' | 'back' = '',
+	expectedLocation = ''
 ) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: OPEN_SNACKBAR,
 		message,
 		action,
+		expectedLocation,
 	});
 	window.clearTimeout(snackbarTimer);
 	snackbarTimer = window.setTimeout(() =>

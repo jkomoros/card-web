@@ -315,7 +315,8 @@ type ActionUpdateOffline = {
 type ActionOpenSnackbar = {
 	type: typeof OPEN_SNACKBAR,
 	message: string,
-	action: '' | 'back'
+	action: '' | 'back',
+	expectedLocation: string,
 };
 
 type ActionCloseSnackbar = {

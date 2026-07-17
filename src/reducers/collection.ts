@@ -176,6 +176,9 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			collectionWordCloudVersion: state.collectionWordCloudVersion + 1
 		};
 	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+		//Opening is idempotent. In particular, a repeated Ctrl-K must not replace
+		//an in-progress draft with the active collection.
+		if (state.snapshot) return state;
 		return {
 			...state,
 			snapshot: copyCollectionConfiguration(state.active),

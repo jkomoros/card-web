@@ -185,7 +185,26 @@ export class DialogElement extends LitElement {
 	_focusableElements() : HTMLElement[] {
 		if (!this.shadowRoot) return [];
 		const selector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
-		return Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(selector)).filter(element => !element.hidden);
+		const result : HTMLElement[] = [];
+		const visitElement = (child : HTMLElement) => {
+			if (child.matches(selector) && !child.hidden && child.getAttribute('aria-hidden') !== 'true') result.push(child);
+			if (child.shadowRoot) visit(child.shadowRoot);
+			visit(child);
+		};
+		const visit = (root : ParentNode) => {
+			for (const child of Array.from(root.children)) {
+				if (!(child instanceof HTMLElement)) continue;
+				if (child instanceof HTMLSlotElement) {
+					for (const assigned of child.assignedElements({flatten: true})) {
+						if (assigned instanceof HTMLElement) visitElement(assigned);
+					}
+				} else {
+					visitElement(child);
+				}
+			}
+		};
+		visit(this.shadowRoot);
+		return result;
 	}
 
 	_setSurroundingsInert(inert : boolean) {

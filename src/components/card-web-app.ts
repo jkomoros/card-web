@@ -28,6 +28,11 @@ import './corpus-ownership-gate.js';
 import { pageRequiresMainView } from '../util.js';
 
 import {
+	collectionReceiptCanUndo,
+	currentBrowserLocation,
+} from '../collection-composer-receipt.js';
+
+import {
 	selectActiveCard,
 	selectCardModificationError,
 	selectEditingCardHasUnsavedChanges,
@@ -64,6 +69,9 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	@state()
 		_snackbarAction: '' | 'back';
+
+	@state()
+		_snackbarExpectedLocation: string;
 
 	@state()
 		_offline: boolean;
@@ -490,7 +498,7 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	_handleSnackbarUndo() {
 		store.dispatch(closeSnackbar());
-		window.history.back();
+		if (collectionReceiptCanUndo(this._snackbarExpectedLocation, currentBrowserLocation())) window.history.back();
 	}
 
 	override firstUpdated() {
@@ -597,6 +605,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		this._saveError = saveError?.message || durableError;
 		this._snackbarMessage = state.app.snackbarMessage;
 		this._snackbarAction = state.app.snackbarAction;
+		this._snackbarExpectedLocation = state.app.snackbarExpectedLocation;
 	}
 }
 

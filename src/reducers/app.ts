@@ -46,6 +46,7 @@ const INITIAL_STATE : AppState = {
 	snackbarOpened: false,
 	snackbarMessage: '',
 	snackbarAction: '',
+	snackbarExpectedLocation: '',
 	headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
 	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
@@ -85,6 +86,7 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			snackbarOpened: true,
 			snackbarMessage: action.message,
 			snackbarAction: action.action,
+			snackbarExpectedLocation: action.expectedLocation || '',
 		};
 	case CLOSE_SNACKBAR:
 		return {
@@ -92,6 +94,7 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			snackbarOpened: false,
 			snackbarMessage: '',
 			snackbarAction: '',
+			snackbarExpectedLocation: '',
 		};
 	case OPEN_HEADER_PANEL:
 		return {

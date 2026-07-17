@@ -7,6 +7,7 @@ const dom = new JSDOM('<button id="invoker">Open</button>', {url: 'https://examp
 for (const name of [
 	'window', 'document', 'Document', 'HTMLElement', 'Element', 'Node',
 	'customElements', 'CSSStyleSheet', 'Event', 'CustomEvent', 'KeyboardEvent', 'ShadowRoot',
+	'HTMLSlotElement',
 ]) globalThis[name] = name === 'window' ? dom.window : name === 'document' ? dom.window.document : dom.window[name];
 
 describe('dialog-element', () => {
@@ -44,6 +45,27 @@ describe('dialog-element', () => {
 		window.dispatchEvent(event);
 		assert.strictEqual(event.defaultPrevented, true);
 		assert.strictEqual(dialog.shadowRoot.activeElement, close);
+	});
+
+	it('includes focusable controls inside nested shadow roots', async () => {
+		if (!customElements.get('nested-focus-control')) {
+			customElements.define('nested-focus-control', class extends HTMLElement {
+				constructor() {
+					super();
+					this.attachShadow({mode: 'open'}).innerHTML = '<button>Nested control</button>';
+				}
+			});
+		}
+		const nested = document.createElement('nested-focus-control');
+		dialog.append(nested);
+		dialog.open = true;
+		await dialog.updateComplete;
+		const nestedButton = nested.shadowRoot.querySelector('button');
+		nestedButton.focus();
+		const event = new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true});
+		window.dispatchEvent(event);
+		assert.strictEqual(event.defaultPrevented, true);
+		assert.strictEqual(dialog.shadowRoot.activeElement, dialog.shadowRoot.querySelector('#close'));
 	});
 
 	it('restores focus to the element that opened it', async () => {

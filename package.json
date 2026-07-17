@@ -59,6 +59,7 @@
     "test:collection-composer-preview": "mocha -r esm test/collection-composer-preview/test.js --timeout=10000",
     "test:collection-composer-receipt": "mocha -r esm test/collection-composer-receipt/test.js --timeout=10000",
     "test:collection-composer-draft": "mocha -r esm test/collection-composer-draft/test.js --timeout=10000",
+    "test:collection-composer-interactions": "mocha -r esm test/collection-composer-interactions/test.js --timeout=10000",
     "test:collection-composer-suggestions": "mocha -r esm test/collection-composer-suggestions/test.js --timeout=10000",
 		"test:navigation-commit": "mocha -r esm test/navigation-commit/test.js --timeout=10000",
 		"test:dialog-element": "mocha -r esm test/dialog-element/test.js --timeout=10000",

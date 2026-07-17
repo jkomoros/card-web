@@ -14,18 +14,32 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 let CollectionDescription;
 let readRecentCollections;
 let recordRecentCollection;
+let collectionDescriptionActuallyVisited;
 
 describe("Collection Composer history", () => {
   before(async () => {
     ({ CollectionDescription } = await import(
       "../../lib/src/collection_description.js"
     ));
-    ({ readRecentCollections, recordRecentCollection } = await import(
+    ({ readRecentCollections, recordRecentCollection, collectionDescriptionActuallyVisited } = await import(
       "../../lib/src/collection-composer-history.js"
     ));
   });
 
   beforeEach(() => window.localStorage.clear());
+
+  it("records the retained active collection for bare-card navigation", () => {
+    const requestedFallback = CollectionDescription.deserialize("main/section-a/");
+    const retainedActive = CollectionDescription.deserialize("everything/starred/unread/");
+    assert.strictEqual(
+      collectionDescriptionActuallyVisited(requestedFallback, retainedActive, false),
+      retainedActive
+    );
+    assert.strictEqual(
+      collectionDescriptionActuallyVisited(requestedFallback, retainedActive, true),
+      requestedFallback
+    );
+  });
 
   it("records transitions newest-first and preserves authoring order", () => {
     const first = CollectionDescription.deserialize(

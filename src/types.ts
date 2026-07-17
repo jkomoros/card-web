@@ -728,6 +728,7 @@ export type AppState = {
 	snackbarOpened: boolean,
 	snackbarMessage: string,
 	snackbarAction: '' | 'back',
+	snackbarExpectedLocation: string,
 	headerPanelOpen: boolean,
 	commentsAndInfoPanelOpen: boolean,
 	cardsDrawerPanelOpen: boolean,

@@ -14,6 +14,7 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 let appReducer;
 let OPEN_SNACKBAR;
 let CLOSE_SNACKBAR;
+let collectionReceiptCanUndo;
 
 describe("Collection Composer navigation receipt", () => {
   before(async () => {
@@ -21,6 +22,15 @@ describe("Collection Composer navigation receipt", () => {
     ({ OPEN_SNACKBAR, CLOSE_SNACKBAR } = await import(
       "../../lib/src/actions.js"
     ));
+    ({ collectionReceiptCanUndo } = await import(
+      "../../lib/src/collection-composer-receipt.js"
+    ));
+  });
+
+  it("only undoes while the receipt still describes the current location", () => {
+    assert.strictEqual(collectionReceiptCanUndo("/c/everything/starred/", "/c/everything/starred/"), true);
+    assert.strictEqual(collectionReceiptCanUndo("/c/everything/starred/", "/c/everything/starred/card-a"), false);
+    assert.strictEqual(collectionReceiptCanUndo("", ""), false);
   });
 
   it("stores a semantic message and browser-back action", () => {
@@ -28,6 +38,7 @@ describe("Collection Composer navigation receipt", () => {
       type: OPEN_SNACKBAR,
       message: "Now showing Everything AND Starred · 4 cards",
       action: "back",
+      expectedLocation: "/c/everything/starred/",
     });
     assert.strictEqual(state.snackbarOpened, true);
     assert.strictEqual(
@@ -35,6 +46,7 @@ describe("Collection Composer navigation receipt", () => {
       "Now showing Everything AND Starred · 4 cards"
     );
     assert.strictEqual(state.snackbarAction, "back");
+    assert.strictEqual(state.snackbarExpectedLocation, "/c/everything/starred/");
   });
 
   it("clears receipt semantics when the snackbar closes", () => {
@@ -42,10 +54,12 @@ describe("Collection Composer navigation receipt", () => {
       type: OPEN_SNACKBAR,
       message: "Now showing Everything AND Starred",
       action: "back",
+      expectedLocation: "/c/everything/starred/",
     });
     const closed = appReducer(open, { type: CLOSE_SNACKBAR });
     assert.strictEqual(closed.snackbarOpened, false);
     assert.strictEqual(closed.snackbarMessage, "");
     assert.strictEqual(closed.snackbarAction, "");
+    assert.strictEqual(closed.snackbarExpectedLocation, "");
   });
 });

@@ -14,6 +14,7 @@ import {
 	selectAuthorAndCollaboratorUserIDs,
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
+	selectActiveCollectionDescription,
 	selectCardsSelected,
 	selectUid,
 	selectActiveCardID
@@ -94,6 +95,10 @@ import {
 	readRecentCollections,
 } from '../collection-composer-history.js';
 
+import {
+	currentBrowserLocation,
+} from '../collection-composer-receipt.js';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
@@ -135,6 +140,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_activationMessage = '';
+
+	_suppressedInverseDescription = '';
 	_cancelPreviews : (() => void) | null = null;
 
 	static override styles = [
@@ -156,9 +163,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				flex-direction: column;
 			}
 
+			.mobile .row {
+				flex-wrap: wrap;
+				gap: 0.75em;
+			}
+
+			.mobile .row > div {
+				flex: 1 1 8em;
+				min-width: 0;
+			}
+
 			.expression {
 				font-size: 1.05em;
 				line-height: 1.55;
+				overflow-wrap: anywhere;
 				padding: 0.75em 0;
 				color: var(--app-dark-text-color);
 			}
@@ -183,6 +201,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			.composer-input:focus-visible {
+				border-bottom-color: transparent;
 				outline: 2px solid var(--app-primary-color);
 				outline-offset: 2px;
 			}
@@ -233,6 +252,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.78em;
 				margin-top: 0.2em;
+				overflow-wrap: anywhere;
 			}
 
 			.suggestion-count {
@@ -240,6 +260,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				float: right;
 				font-size: 0.82em;
 				margin-left: 1em;
+			}
+
+			.suggestion-action {
+				color: var(--app-primary-color);
+				float: right;
+				font-size: 0.68em;
+				letter-spacing: 0.04em;
+				margin-left: 0.75em;
+				text-transform: uppercase;
 			}
 
 			.builder-toggle {
@@ -251,11 +280,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.builder-toggle button.small {
 				color: var(--app-primary-color);
 				margin: 0;
+				min-height: 44px;
 				padding: 0.35em 0;
 			}
 
 			.builder {
 				margin-top: 0.5em;
+			}
+
+			.composer-actions {
+				display: flex;
+				justify-content: flex-end;
+				margin-top: 0.75em;
+			}
+
+			.mobile .composer-actions {
+				background: white;
+				bottom: 0;
+				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
+				position: sticky;
+				z-index: 1;
 			}
 
 			.activation-message {
@@ -297,14 +341,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</ul>
 			<div class='row'>
 				<div>
-					<label>Set</label>
-					<select @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
+					<label for='collection-set'>Set</label>
+					<select id='collection-set' @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
 						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
 					</select>
 				</div>
 				<div>
-					<label>Sort</label>
-					<select @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
+					<label for='collection-sort'>Sort</label>
+					<select id='collection-sort' @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
 						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
 					</select>
 				</div>
@@ -323,12 +367,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_composerRender() {
 		if (!this._collectionDescription) return html``;
 		const suggestions = this._composerSuggestions;
+		const highlighted = suggestions[this._highlightedSuggestion];
 		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
 		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
-			<div class='expression' aria-label='Current collection expression'>
+			<div class='expression' aria-label='Current collection expression' aria-live='polite'>
 				<strong>${readableCollectionExpression(this._collectionDescription)}</strong>
-				 AND
 			</div>
 			<input
 				class='composer-input'
@@ -370,11 +414,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>↑↓ choose · Tab adds while typing · Enter opens</div>
+			<div class='key-hints'>${highlighted?.action === 'open' ?
+				'↑↓ choose · Click or Enter opens' :
+				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
 			<div class='builder-toggle'>
 				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
 			</div>
 			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
+			<div class='composer-actions'>
+				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>Open this collection</button>
+			</div>
 		`;
 	}
 
@@ -385,16 +434,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 							<button
 								id='collection-suggestion-${index}'
 								role='option'
+								tabindex='-1'
 								aria-selected=${index === this._highlightedSuggestion}
-								aria-label=${`${suggestion.label}. ${suggestion.detail}${count === undefined ? '' : `. ${count} ${count === 1 ? 'card' : 'cards'}`}`}
+								aria-label=${`${suggestion.action}: ${suggestion.label}. ${suggestion.detail}${count === undefined ? '' : `. ${count} ${count === 1 ? 'card' : 'cards'}`}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === this._highlightedSuggestion}
-								@mouseenter=${this._handleSuggestionHovered}
-								@click=${this._handleSuggestionClicked}
+								@mouseenter=${() => this._highlightedSuggestion = index}
+								@click=${() => this._applyComposerSuggestion(suggestion, suggestion.action === 'open')}
 							>
 								<div>
 									${suggestion.label}
+									<span class='suggestion-action'>${suggestion.action}</span>
 									${count === undefined ? '' : html`<span class='suggestion-count'>${count} ${count === 1 ? 'card' : 'cards'}</span>`}
 								</div>
 								<div class='suggestion-detail'>${suggestion.detail}</div>
@@ -414,7 +465,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._composerInput,
 			this._filterDescriptions || {},
 			{cardsSelected: this._cardsSelected, recentCollections}
-		);
+		).filter(suggestion => suggestion.description.serialize() !== this._suppressedInverseDescription);
 	}
 
 	constructor() {
@@ -426,6 +477,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const input = e.composedPath()[0];
 		if (!(input instanceof HTMLInputElement)) throw new Error('not input element');
 		this._composerInput = input.value;
+		if (this._composerInput.trim()) this._suppressedInverseDescription = '';
 		this._highlightedSuggestion = 0;
 		this._activationMessage = '';
 	}
@@ -446,7 +498,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
 			return;
 		}
-		if (e.key === 'Tab' && !e.shiftKey && suggestions.length && this._composerInput.trim()) {
+		if (e.key === 'Tab' && !e.shiftKey && suggestions.length && this._composerInput.trim() && suggestions[this._highlightedSuggestion].action !== 'open') {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
@@ -461,23 +513,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 	}
 
-	_handleSuggestionHovered(e : MouseEvent) {
-		const button = e.currentTarget;
-		if (!(button instanceof HTMLButtonElement)) return;
-		this._highlightedSuggestion = parseInt(button.dataset.index || '0');
-	}
-
-	_handleSuggestionClicked(e : MouseEvent) {
-		const button = e.currentTarget;
-		if (!(button instanceof HTMLButtonElement)) return;
-		const suggestion = this._composerSuggestions[parseInt(button.dataset.index || '0')];
-		if (suggestion) this._applyComposerSuggestion(suggestion, true);
-	}
-
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
 		if (open) {
 			if (this._activationPending) return;
-			const alreadyActive = this._collectionDescription.serialize() === suggestion.description.serialize();
+			const alreadyActive = selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize();
 			if (alreadyActive) {
 				store.dispatch(cancelConfigureCollectionDialog());
 				return;
@@ -500,10 +539,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			const expression = readableCollectionExpression(suggestion.description);
 			store.dispatch(showSnackbar(
 				`Now showing ${expression}${count === undefined ? '' : ` · ${count} ${count === 1 ? 'card' : 'cards'}`}`,
-				'back'
+				'back',
+				currentBrowserLocation()
 			));
 			return;
 		}
+		this._suppressedInverseDescription = this._collectionDescription.serialize();
 		store.dispatch(updateCollectionConfigurationSnapshot(suggestion.description));
 		this._composerInput = '';
 		this._highlightedSuggestion = 0;
@@ -511,6 +552,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_handleBuilderToggle() {
 		this._builderExpanded = !this._builderExpanded;
+	}
+
+	_handleOpenCurrentDraft() {
+		this._applyComposerSuggestion({
+			id: 'current-draft',
+			kind: 'source',
+			action: 'open',
+			label: 'Open this collection',
+			detail: readableCollectionExpression(this._collectionDescription),
+			description: this._collectionDescription,
+		}, true);
 	}
 
 	_handleModifyPath() {
@@ -565,6 +617,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	override updated(changedProps : PropertyValues<this>) {
 		super.updated(changedProps);
+		if (changedProps.has('_highlightedSuggestion')) {
+			this.shadowRoot?.querySelector(`#collection-suggestion-${this._highlightedSuggestion}`)?.scrollIntoView?.({block: 'nearest'});
+		}
 		if (changedProps.has('open')) {
 			this._activationPending = false;
 			this._activationMessage = '';
@@ -572,13 +627,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._composerInput = '';
 				this._highlightedSuggestion = 0;
 				this._builderExpanded = false;
+				this._suppressedInverseDescription = '';
 			}
 		}
 		if (
 			changedProps.has('open') ||
 			changedProps.has('_composerInput') ||
 			changedProps.has('_collectionDescription') ||
-			changedProps.has('_activeCardID')
+			changedProps.has('_activeCardID') ||
+			changedProps.has('_filterDescriptions') ||
+			changedProps.has('_cardsSelected') ||
+			changedProps.has('_userScope')
 		) this._refreshPreviewCounts();
 	}
 
