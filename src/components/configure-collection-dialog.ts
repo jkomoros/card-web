@@ -13,7 +13,8 @@ import {
 	selectAuthorAndCollaboratorUserIDs,
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
-	selectCardsSelected
+	selectCardsSelected,
+	selectUid
 } from '../selectors.js';
 
 import {
@@ -76,6 +77,10 @@ import {
 	readableCollectionExpression,
 } from '../collection-composer-suggestions.js';
 
+import {
+	readRecentCollections,
+} from '../collection-composer-history.js';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
@@ -102,6 +107,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardsSelected = false;
+
+	@state()
+		_userScope = '';
 
 	static override styles = [
 		...DialogElement.styles,
@@ -272,6 +280,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_composerRender() {
 		if (!this._collectionDescription) return html``;
 		const suggestions = this._composerSuggestions;
+		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
+		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
 			<div class='expression' aria-label='Current collection expression'>
 				<strong>${readableCollectionExpression(this._collectionDescription)}</strong>
@@ -291,11 +301,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				@input=${this._handleComposerInput}
 				@keydown=${this._handleComposerKeyDown}
 			>
-			<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 			${suggestions.length ? html`
-				<ul class='suggestions' id='collection-composer-suggestions' role='listbox'>
-					${suggestions.map((suggestion, index) => html`
-						<li class='suggestion' role='option' aria-selected=${index === this._highlightedSuggestion}>
+				<div class='suggestions' id='collection-composer-suggestions' role='listbox'>
+					${recentSuggestions.length ? html`
+						<div class='suggestion-heading'>Continue</div>
+						${recentSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+					` : ''}
+					${refinementSuggestions.length ? html`
+						<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
+						${refinementSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+					` : ''}
+				</div>
+			` : html`
+				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
+				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
+			`}
+			<div class='key-hints'>↑↓ choose · Tab adds and keeps composing · Enter opens</div>
+			<div class='builder-toggle'>
+				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
+			</div>
+			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
+		`;
+	}
+
+	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number) {
+		return html`
+						<div class='suggestion' role='option' aria-selected=${index === this._highlightedSuggestion}>
 							<button
 								id='collection-suggestion-${index}'
 								data-index=${index}
@@ -306,25 +337,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								<div>${suggestion.label}</div>
 								<div class='suggestion-detail'>${suggestion.detail}</div>
 							</button>
-						</li>
-					`)}
-				</ul>
-			` : html`<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>`}
-			<div class='key-hints'>↑↓ choose · Tab adds and keeps composing · Enter opens</div>
-			<div class='builder-toggle'>
-				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
-			</div>
-			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
+						</div>
 		`;
 	}
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
 		if (!this._collectionDescription) return [];
+		const recentCollections = readRecentCollections(this._userScope).map(entry => ({
+			description: CollectionDescription.deserialize(entry.authoring),
+			visits: entry.visits,
+		}));
 		return collectionComposerSuggestions(
 			this._collectionDescription,
 			this._composerInput,
 			this._filterDescriptions || {},
-			{cardsSelected: this._cardsSelected}
+			{cardsSelected: this._cardsSelected, recentCollections}
 		);
 	}
 
@@ -452,6 +479,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._cardsSelected = selectCardsSelected(state);
+		this._userScope = selectUid(state);
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 
