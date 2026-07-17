@@ -327,6 +327,21 @@ describe("Collection Composer interactions", () => {
     assert.match(dialog.shadowRoot.textContent, /Opens on/);
   });
 
+  it("hands visual composers into Source at the add-next position", async () => {
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Edit source")).click();
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    assert.strictEqual(input.selectionStart, input.value.length);
+    assert.strictEqual(input.selectionEnd, input.value.length);
+    input.value = `${input.value}upd`;
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "upd" }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "/c/upd/");
+    assert.match(dialog.shadowRoot.textContent, /Updated/);
+  });
+
   it("preserves invalid source and opens a valid route with its selected card", async () => {
     store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
     store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
@@ -408,6 +423,82 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(input.value, "starred/unread/");
   });
 
+  it("keeps valid Source approachable with searchable add-next choices", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    dialog._filterDescriptions = {
+      ...dialog._filterDescriptions,
+      "inductively-knowable": "Cards tagged Inductively Knowable",
+    };
+    dialog._composerCandidates = [{
+      filter: "inductively-knowable",
+      category: "tag",
+      label: "Tagged “Inductively Knowable”",
+      detail: "Keeps cards tagged Inductively Knowable",
+      aliases: ["tag", "inductively knowable"],
+    }];
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.select();
+    Array.from(dialog.shadowRoot.querySelectorAll("#collection-source-completions [role=option]"))
+      .find((button) => button.textContent.includes("Starred")).click();
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "/c/main/starred/");
+
+    input.value = "starred/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.getAttribute("aria-expanded"), "true");
+    assert.match(dialog.shadowRoot.textContent, /Add another filter or modifier/);
+    assert.match(dialog.shadowRoot.textContent, /Choose an order/);
+    assert.match(dialog.shadowRoot.textContent, /Start with Main/);
+    assert.match(dialog.shadowRoot.textContent, /Then Starred/);
+
+    input.value = "starred/induct";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const tag = Array.from(dialog.shadowRoot.querySelectorAll("#collection-source-completions [role=option]"))
+      .find((button) => button.textContent.includes("Tagged “Inductively Knowable”"));
+    assert.ok(tag);
+    assert.match(tag.textContent, /tag/i);
+    tag.click();
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "starred/inductively-knowable/");
+    assert.strictEqual(dialog.shadowRoot.querySelector(".composer-actions .primary").disabled, false);
+  });
+
+  it("keeps Enter as the fast open action while valid add-next choices are visible", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "starred/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.getAttribute("aria-expanded"), "true");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/");
+  });
+
+  it("interprets typing after a route delimiter as filter search, not a card suffix", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.value = `${input.value}upd`;
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "upd" }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "/c/main/upd/");
+    assert.match(dialog.shadowRoot.textContent, /Updated/);
+    assert.doesNotMatch(dialog.shadowRoot.textContent, /Opens on/);
+  });
+
   it("requires an explicit recovery before leaving nonvalid Source", async () => {
     store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
     store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
@@ -418,7 +509,7 @@ describe("Collection Composer interactions", () => {
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await dialog.updateComplete;
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
-      .find((button) => button.textContent.includes("Back to Compose")).click();
+      .find((button) => button.textContent.includes("Edit visually")).click();
     await dialog.updateComplete;
     assert.ok(dialog.shadowRoot.querySelector("#collection-source-input"));
     assert.match(dialog.shadowRoot.textContent, /do not form an openable collection/);
@@ -443,7 +534,7 @@ describe("Collection Composer interactions", () => {
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await dialog.updateComplete;
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
-      .find((button) => button.textContent.includes("Back to Compose")).click();
+      .find((button) => button.textContent.includes("Edit visually")).click();
     await dialog.updateComplete;
     dialog.shadowRoot.querySelector(".composer-actions .primary").click();
     await dialog.updateComplete;
@@ -461,7 +552,7 @@ describe("Collection Composer interactions", () => {
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await dialog.updateComplete;
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
-      .find((button) => button.textContent.includes("Back to Compose")).click();
+      .find((button) => button.textContent.includes("Edit visually")).click();
     await dialog.updateComplete;
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
       .find((button) => button.textContent.includes("Undo")).click();

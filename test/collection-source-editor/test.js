@@ -76,6 +76,24 @@ describe("lossless collection source editor", () => {
     assert.match(query.diagnostics[0].expectedDetails.foo, /Query text/);
   });
 
+  it("keeps valid collections discoverable and searches the live filter vocabulary", () => {
+    const valid = parse("starred/");
+    assert.strictEqual(valid.status, "valid");
+    assert.ok(valid.nextExpected.includes("sort"));
+    assert.ok(valid.nextExpected.includes("query"));
+
+    const searched = parseCollectionSource("induct/", {
+      ordinaryFilters: new Set([...Object.keys(CARD_FILTER_DESCRIPTIONS), "inductively-knowable"]),
+      filterDescriptions: { "inductively-knowable": "Cards tagged Inductively Knowable" },
+      suggestedFilters: ["inductively-knowable"],
+      filterSearchValues: { "inductively-knowable": ["Inductively Knowable", "tag"] },
+      preservedSelectedCard: "active-card",
+    });
+    assert.strictEqual(searched.status, "unsupported");
+    assert.ok(searched.diagnostics[0].expected.includes("inductively-knowable"));
+    assert.match(searched.diagnostics[0].expectedDetails["inductively-knowable"], /tagged/);
+  });
+
   it("does not reinterpret percent-encoded structural keywords", () => {
     for (const raw of ["%73ort/recent/", "sort/%72everse/recent/"]) {
       const result = parse(raw);

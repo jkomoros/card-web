@@ -161,6 +161,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		_sourceCopyMessage = '';
 
 	_sourceDirty = false;
+	_sourceAutoDelimitedSegment = false;
 	_draftSelectedCard = '';
 	_requestedCard = '';
 	_lastValidSource : ParsedCollectionSource | null = null;
@@ -484,6 +485,33 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				overflow-wrap: anywhere;
 			}
 
+			.source-suggestion-heading {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				margin: 0.65em 0 0.25em;
+			}
+
+			.source-suggestion-category {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.68em;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.source-steps {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.35em;
+				margin: 0.25em 0;
+			}
+
+			.source-step {
+				background: var(--app-primary-color-light-very-transparent);
+				border: 1px solid var(--app-divider-color);
+				border-radius: 2px;
+				padding: 0.3em 0.5em;
+			}
+
 			.mode-actions {
 				align-items: center;
 				border-top: 1px solid var(--app-divider-color);
@@ -512,9 +540,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	get _parsedSource() : ParsedCollectionSource {
+		const candidates = this._contextualComposerCandidates;
 		return parseCollectionSource(this._sourceInput, {
 			ordinaryFilters: new Set(Object.keys(this._filterDescriptions || {})),
 			filterDescriptions: this._filterDescriptions,
+			suggestedFilters: candidates.map(candidate => candidate.filter),
+			filterSearchValues: Object.fromEntries(candidates.map(candidate => [candidate.filter, [candidate.label, candidate.category, ...(candidate.aliases || [])]])),
 			preservedSelectedCard: this._draftSelectedCard,
 			allowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
 		});
@@ -530,7 +561,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			parsed.status === 'unsupported' ? 'Not supported here' : 'Can’t understand this source';
 		const diagnostic = parsed.diagnostics[0]?.message || 'This source is complete and safe to open.';
 		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
-		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || []);
+		const completionMode = completionDiagnostic ? 'complete' : 'add';
+		const completionDetails = completionDiagnostic?.expectedDetails || parsed.nextExpectedDetails || {};
+		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || parsed.nextExpected || []);
+		const expressionParts = collectionExpressionParts(description, this._composerFilterLabels);
 		const fullDestination = parsed.canonicalPath ? new URL(parsed.canonicalPath, window.location.origin).toString() : '';
 		return html`
 			<div class='source-editor'>
@@ -557,19 +591,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			</div>
 			${completions.length ? html`
+				<div class='source-suggestion-heading'>${completionMode === 'add' ? 'Add another filter or modifier — type to search all filters' : 'Choose the next value'}</div>
 				<div id='collection-source-completions' class='suggestions' role='listbox' aria-label='Legal next source values'>
-					${completions.map((completion, index) => html`
+					${completions.map((completion, index) => {
+						const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
+						return html`
 						<div class='suggestion'>
 							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @click=${() => this._acceptSourceCompletion(completion)}>
-								<div>${completion}<span class='suggestion-action'>complete</span></div>
-								<div class='suggestion-detail'>${completionDiagnostic?.expectedDetails?.[completion] || 'A legal next source value'}</div>
+								<div class='source-suggestion-category'>${presentation.category}</div>
+								<div>${presentation.label}<span class='suggestion-action'>${completionMode}</span></div>
+								<div class='suggestion-detail'>${presentation.detail} · <code>${completion}</code></div>
 							</button>
 						</div>
-					`)}
+					`})}
 				</div>
 			` : ''}
 			<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
-			<div>${readableCollectionExpression(description, this._composerFilterLabels)}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}</div>
+			<div class='source-steps' aria-label=${readableCollectionExpression(description, this._composerFilterLabels)}>
+				<span class='source-step'>Start with ${expressionParts.set.label}</span>
+				${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
+				${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
+			</div>
+			${count === undefined ? '' : html`<div>${formatCollectionCardCount(count)}</div>`}
 			${shown?.selectedCardRaw ? html`
 				<span class='source-interpretation-label'>Opens on</span>
 				<div>${shown.selectedCardRaw === '_' ? 'The first card in the collection' : shown.selectedCardRaw}</div>
@@ -586,8 +629,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			` : ''}
 			<div class='mode-actions'>
-				<button class='small' @click=${this._handleBackToCompose}>Back to Compose</button>
-				<span class='key-hints'>${completions.length ? '↑↓ Choose · Tab complete · Enter complete · Esc dismiss' : (parsed.status === 'valid' ? 'Enter opens · Esc cancels' : 'Keep editing · Esc cancels')}</span>
+				<button class='small' @click=${this._handleBackToCompose}>Edit visually</button>
+				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? '↑↓ Choose · Tab adds · Enter opens · Esc dismisses suggestions' : '↑↓ Choose · Tab or Enter completes · Esc dismisses suggestions') : (parsed.status === 'valid' ? 'Enter opens · Esc cancels' : 'Keep editing · Esc cancels')}</span>
 			</div>
 			<div class='composer-actions'>
 				<button class='primary' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
@@ -814,6 +857,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return this._composerFilterLabels[filter] || readableCollectionFilter(filter);
 	}
 
+	_sourceCompletionPresentation(token : string, grammarDetail = '') : {label: string, detail: string, category: string} {
+		const candidate = this._contextualComposerCandidates.find(item => item.filter === token);
+		if (candidate) return {label: candidate.label, detail: candidate.detail, category: candidate.category};
+		if (token === 'sort') return {label: 'Choose an order', detail: grammarDetail || 'Control the order cards appear in', category: 'ordering'};
+		if (token === 'view') return {label: 'Choose a view', detail: grammarDetail || 'Control how cards are displayed', category: 'display'};
+		if (['main', 'everything', 'reading-list'].includes(token)) return {label: readableCollectionFilter(token), detail: grammarDetail, category: 'starting set'};
+		if (['before', 'after', 'between', 'today', 'yesterday'].includes(token) || /-ago$/.test(token)) {
+			return {label: readableCollectionFilter(token), detail: grammarDetail || 'A date boundary', category: 'date'};
+		}
+		return {label: readableCollectionFilter(token), detail: grammarDetail || 'A legal collection filter', category: 'filter'};
+	}
+
 	constructor() {
 		super();
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
@@ -822,7 +877,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleSourceInput(e : InputEvent) {
 		const input = e.composedPath()[0];
 		if (!(input instanceof HTMLTextAreaElement)) throw new Error('not textarea element');
-		this._sourceInput = input.value;
+		const previous = this._sourceInput;
+		const startsNewFilter = !this._sourceAutoDelimitedSegment && previous.endsWith('/') &&
+			input.value.startsWith(previous) && input.value.length > previous.length && Boolean(this._parsedSource.nextExpected?.length);
+		let nextValue = input.value;
+		const nextCaret = input.selectionStart;
+		if (startsNewFilter) {
+			nextValue += '/';
+			this._sourceAutoDelimitedSegment = true;
+		} else if (this._sourceAutoDelimitedSegment) {
+			const extendsAutoDelimitedValue = input.value.startsWith(previous.slice(0, -1));
+			if (extendsAutoDelimitedValue && !input.value.endsWith('/')) nextValue += '/';
+			const caretBeforeDelimiter = nextValue.endsWith('/') && nextCaret === nextValue.length - 1;
+			this._sourceAutoDelimitedSegment = caretBeforeDelimiter && nextValue !== previous.slice(0, previous.lastIndexOf('/') + 1);
+		}
+		this._sourceInput = nextValue;
 		this._sourceDirty = true;
 		this._activationMessage = '';
 		this._sourceReturnWarning = false;
@@ -831,18 +900,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._sourceCopyMessage = '';
 		const parsed = this._parsedSource;
 		if (parsed.status === 'valid') this._lastValidSource = parsed;
+		if (startsNewFilter || this._sourceAutoDelimitedSegment) this.updateComplete.then(() => {
+			const sourceInput = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
+			sourceInput?.setSelectionRange(nextCaret, nextCaret);
+		});
 	}
 
 	_handleSourceKeyDown(e : KeyboardEvent) {
 		if (e.isComposing || e.keyCode === 229) return;
-		const completions = this._sourceCompletionsDismissed ? [] : (this._parsedSource.diagnostics.find(item => item.expected?.length)?.expected || []);
+		const parsed = this._parsedSource;
+		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
+		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || parsed.nextExpected || []);
 		if (completions.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
 			e.preventDefault();
 			const direction = e.key === 'ArrowDown' ? 1 : -1;
 			this._sourceCompletionIndex = (this._sourceCompletionIndex + direction + completions.length) % completions.length;
 			return;
 		}
-		if (completions.length && (e.key === 'Tab' || e.key === 'Enter')) {
+		if (completions.length && (e.key === 'Tab' || (e.key === 'Enter' && completionDiagnostic))) {
 			e.preventDefault();
 			this._acceptSourceCompletion(completions[this._sourceCompletionIndex]);
 			return;
@@ -855,22 +930,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		if (e.key !== 'Enter') return;
 		e.preventDefault();
-		if (this._parsedSource.status === 'valid') this._handleOpenSource();
+		if (parsed.status === 'valid') this._handleOpenSource();
 	}
 
 	_acceptSourceCompletion(completion : string) {
+		const parsedBefore = this._parsedSource;
+		const addingToValidSource = parsedBefore.status === 'valid' &&
+			!parsedBefore.diagnostics.some(item => item.expected?.length) && Boolean(parsedBefore.nextExpected?.includes(completion));
 		const input = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
-		const selectionStart = input?.selectionStart ?? this._sourceInput.length;
-		const selectionEnd = input?.selectionEnd ?? selectionStart;
-		const segmentStart = this._sourceInput.lastIndexOf('/', Math.max(0, selectionStart - 1)) + 1;
-		const followingSlash = this._sourceInput.indexOf('/', selectionEnd);
-		const segmentEnd = followingSlash < 0 ? this._sourceInput.length : followingSlash;
-		const prefix = this._sourceInput.slice(0, segmentStart);
-		const suffix = this._sourceInput.slice(segmentEnd);
-		const needsSlash = !suffix.startsWith('/');
-		this._sourceInput = `${prefix}${completion}${needsSlash ? '/' : ''}${suffix}`;
-		const nextCaret = prefix.length + completion.length + (needsSlash || suffix.startsWith('/') ? 1 : 0);
+		let nextCaret : number;
+		if (addingToValidSource) {
+			this._sourceInput = `${this._sourceInput}${completion}/`;
+			nextCaret = this._sourceInput.length;
+		} else {
+			const selectionStart = input?.selectionStart ?? this._sourceInput.length;
+			const selectionEnd = input?.selectionEnd ?? selectionStart;
+			const segmentStart = this._sourceInput.lastIndexOf('/', Math.max(0, selectionStart - 1)) + 1;
+			const followingSlash = this._sourceInput.indexOf('/', selectionEnd);
+			const segmentEnd = followingSlash < 0 ? this._sourceInput.length : followingSlash;
+			const prefix = this._sourceInput.slice(0, segmentStart);
+			const suffix = this._sourceInput.slice(segmentEnd);
+			const needsSlash = !suffix.startsWith('/');
+			this._sourceInput = `${prefix}${completion}${needsSlash ? '/' : ''}${suffix}`;
+			nextCaret = prefix.length + completion.length + (needsSlash || suffix.startsWith('/') ? 1 : 0);
+		}
 		this._sourceDirty = true;
+		this._sourceAutoDelimitedSegment = false;
 		this._sourceCompletionsDismissed = false;
 		this._sourceCompletionIndex = 0;
 		const parsed = this._parsedSource;
@@ -1205,6 +1290,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._draftUndoDescription = null;
 				this._draftUndoSelectedCard = null;
 				this._sourceDirty = false;
+				this._sourceAutoDelimitedSegment = false;
 				this._draftSelectedCard = this._requestedCard;
 				this._sourceInput = this._entryMode === 'source' ? window.location.pathname : '';
 				const parsed = this._entryMode === 'source' ? this._parsedSource : null;

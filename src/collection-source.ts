@@ -34,6 +34,8 @@ export type CollectionSourceSegment = {
 export type CollectionSourceContext = {
 	ordinaryFilters: ReadonlySet<string>;
 	filterDescriptions?: Readonly<Record<string, string>>;
+	suggestedFilters?: readonly string[];
+	filterSearchValues?: Readonly<Record<string, readonly string[]>>;
 	preservedSelectedCard?: string;
 	allowedOrigins?: ReadonlySet<string>;
 };
@@ -52,6 +54,8 @@ export type ParsedCollectionSource = {
 	diagnostics: CollectionSourceDiagnostic[];
 	description?: CollectionDescription;
 	canonicalPath?: string;
+	nextExpected?: string[];
+	nextExpectedDetails?: Record<string, string>;
 };
 
 const STATUS_PRIORITY : Record<CollectionSourceStatus, number> = {
@@ -103,13 +107,20 @@ export const parseCollectionSource = (
 
 	const diagnose = (status : Exclude<CollectionSourceStatus, 'valid'>, code : string, message : string, segment? : number, expected? : string[], expectedDetails? : Record<string, string>) =>
 		diagnostics.push({status, code, message, segment, expected, expectedDetails});
-	const rootTokens = Array.from(new Set([
+	const allRootTokens = Array.from(new Set([
 		...SET_NAMES,
-		...['starred', 'unread', 'query', 'updated', 'created', 'tag', 'section'].filter(token => context.ordinaryFilters.has(token) || CONFIGURABLE_FILTER_NAMES[token]),
+		...context.ordinaryFilters,
+		...Object.keys(CONFIGURABLE_FILTER_NAMES),
+		...(context.suggestedFilters || []),
 		'sort',
 		'view',
 	]));
-	const rootDetails = Object.fromEntries(rootTokens.map(token => [token,
+	const preferredFilters = Array.from(new Set([
+		...['starred', 'unread', 'query', 'updated', 'created'].filter(token => context.ordinaryFilters.has(token) || CONFIGURABLE_FILTER_NAMES[token]),
+		...(context.suggestedFilters || []).slice(0, 5),
+	]));
+	const rootTokens = [...SET_NAMES, ...preferredFilters, 'sort', 'view'];
+	const rootDetails = Object.fromEntries(allRootTokens.map(token => [token,
 		token === 'sort' ? 'Choose how cards are ordered' :
 			token === 'view' ? 'Choose how cards are displayed' :
 				SET_NAMES.includes(token as never) ? `Start from the ${token} collection set` :
@@ -335,7 +346,9 @@ export const parseCollectionSource = (
 		const union = segment.raw.split('+');
 		if (union.some(part => !part)) diagnose('invalid', 'invalid-union', 'A union cannot contain an empty filter.', segment.index);
 		for (const part of union) if (!context.ordinaryFilters.has(part)) {
-			const expected = rootTokens.filter(token => token.startsWith(part));
+			const search = part.toLowerCase();
+			const expected = allRootTokens.filter(token => token.toLowerCase().startsWith(search) ||
+				(context.filterSearchValues?.[token] || []).some(value => value.toLowerCase().includes(search))).slice(0, 12);
 			diagnose('unsupported', 'unknown-filter', `This app does not know the “${part}” filter.`, segment.index, expected.length ? expected : undefined, rootDetails);
 		}
 		filters.push(segment.raw);
@@ -346,6 +359,8 @@ export const parseCollectionSource = (
 	for (const diagnostic of diagnostics) if (STATUS_PRIORITY[diagnostic.status] > STATUS_PRIORITY[status]) status = diagnostic.status;
 	let description : CollectionDescription | undefined;
 	let canonicalPath : string | undefined;
+	let nextExpected : string[] | undefined;
+	let nextExpectedDetails : Record<string, string> | undefined;
 	if (status === 'valid') {
 		try {
 			const legacySource = [...(set ? [set] : []), ...filters];
@@ -359,6 +374,11 @@ export const parseCollectionSource = (
 				description = undefined;
 			} else {
 				canonicalPath = `/c/${description.serializeShort()}${selectedCardRaw}`;
+				if (raw.endsWith('/') && (kind === 'fragment' || routeHasTrailingSlash)) {
+					nextExpected = rootTokens.filter(token => !SET_NAMES.includes(token as never) &&
+						!(token === 'sort' && sawSort) && !(token === 'view' && sawView) && !filters.includes(token)).slice(0, 12);
+					nextExpectedDetails = rootDetails;
+				}
 			}
 		} catch {
 			diagnose('invalid', 'legacy-mismatch', 'This source cannot be opened safely.');
@@ -366,5 +386,5 @@ export const parseCollectionSource = (
 		}
 	}
 
-	return {raw, kind, collectionText, segments, selectedCardRaw, selectedCardSource, query, hash, notices, status, diagnostics, description, canonicalPath};
+	return {raw, kind, collectionText, segments, selectedCardRaw, selectedCardSource, query, hash, notices, status, diagnostics, description, canonicalPath, nextExpected, nextExpectedDetails};
 };
