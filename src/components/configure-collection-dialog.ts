@@ -22,7 +22,16 @@ import {
 	askForPathToNavigateTo,
 	closeConfigureCollectionDialog,
 	navigateToCollection,
+	registerSnackbarAction,
+	showSnackbar,
 } from '../actions/app.js';
+
+import {
+	currentBrowserLocation,
+	clearCollectionNavigationReceipt,
+	pendingCollectionNavigationReceipt,
+	recordCollectionNavigationReceipt,
+} from '../collection-composer-receipt.js';
 
 import {
 	updateCollectionConfigurationSnapshot,
@@ -90,6 +99,23 @@ import {
 import {
 	readRecentCollections,
 } from '../collection-composer-history.js';
+
+export const UNDO_COLLECTION_NAVIGATION_ACTION_ID = 'undo-collection-navigation';
+
+export const COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY = 'collection-navigation-receipt';
+
+//Registered at MODULE scope, and in the same module that shows the receipt.
+//The registry maps a serializable id to a thunk, so the mapping has to exist
+//before any message carrying that id can be pressed — putting both in one
+//module makes that true by construction rather than by boot ordering.
+registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, () => {
+	const expectedLocation = pendingCollectionNavigationReceipt();
+	clearCollectionNavigationReceipt();
+	//Still where the receipt said? If the user has moved on since, walking
+	//history back would undo something they never asked about.
+	if (!expectedLocation || expectedLocation !== currentBrowserLocation()) return;
+	window.history.back();
+});
 
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -400,17 +426,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
 			if (!suggestions.length) return;
 			e.preventDefault();
+			e.stopPropagation();
 			const direction = e.key === 'ArrowDown' ? 1 : -1;
 			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
 			return;
 		}
 		if (e.key === 'Tab' && suggestions.length) {
 			e.preventDefault();
+			e.stopPropagation();
 			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], false);
 			return;
 		}
 		if (e.key === 'Enter' && suggestions.length) {
 			e.preventDefault();
+			e.stopPropagation();
 			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], true);
 		}
 	}
@@ -430,8 +459,35 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
 		if (open) {
-			store.dispatch(closeConfigureCollectionDialog());
+			const previousPath = window.location.pathname;
+			const alreadyActive = this._collectionDescription.serialize() === suggestion.description.serialize();
+			if (alreadyActive) {
+				store.dispatch(closeConfigureCollectionDialog());
+				return;
+			}
 			store.dispatch(navigateToCollection(suggestion.description));
+			//Navigation can be blocked while editing. Keep the draft open and do
+			//not claim success unless a route was actually committed. The router
+			//may legitimately shorten the requested path; results-usable semantic
+			//confirmation belongs to the later activation state machine.
+			if (window.location.pathname === previousPath) return;
+			store.dispatch(closeConfigureCollectionDialog());
+			const count = this._previewCounts[suggestion.id];
+			const expression = readableCollectionExpression(suggestion.description);
+			recordCollectionNavigationReceipt(currentBrowserLocation());
+			//'info', not 'committed'/'queued': nothing was written to a server.
+			//Those two words are reserved for write outcomes (snackbar-copy.ts).
+			store.dispatch(showSnackbar(
+				`Now showing ${expression}${count === undefined ? '' : ` · ${count} ${count === 1 ? 'card' : 'cards'}`}`,
+				{
+					kind: 'info',
+					action: {label: 'Undo', actionID: UNDO_COLLECTION_NAVIGATION_ACTION_ID},
+					//One receipt at a time: a second navigation replaces the
+					//first message in place, which is also what invalidates the
+					//first receipt's recorded location above.
+					dedupeKey: COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
+				}
+			));
 			return;
 		}
 		store.dispatch(updateCollectionConfigurationSnapshot(suggestion.description));
