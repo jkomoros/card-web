@@ -14,7 +14,8 @@ import {
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
 	selectCardsSelected,
-	selectUid
+	selectUid,
+	selectActiveCardID
 } from '../selectors.js';
 
 import {
@@ -69,7 +70,16 @@ import {
 
 import {
 	collectionComposerEnabled,
+	collectionComposerPreviewEnabled,
 } from '../collection-composer-mode.js';
+
+import {
+	corpusWorkerRunCollection,
+} from '../corpus-bridge.js';
+
+import {
+	startCollectionComposerPreviews,
+} from '../collection-composer-preview.js';
 
 import {
 	CollectionComposerSuggestion,
@@ -110,6 +120,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_userScope = '';
+
+	@state()
+		_previewCounts: {[suggestionID : string]: number} = {};
+
+	@state()
+		_activeCardID = '';
+	_cancelPreviews : (() => void) | null = null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -203,6 +220,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.78em;
 				margin-top: 0.2em;
+			}
+
+			.suggestion-count {
+				color: var(--app-dark-text-color-light);
+				float: right;
+				font-size: 0.82em;
+				margin-left: 1em;
 			}
 
 			.builder-toggle {
@@ -325,6 +349,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number) {
+		const count = this._previewCounts[suggestion.id];
 		return html`
 						<div class='suggestion' role='option' aria-selected=${index === this._highlightedSuggestion}>
 							<button
@@ -334,7 +359,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								@mouseenter=${this._handleSuggestionHovered}
 								@click=${this._handleSuggestionClicked}
 							>
-								<div>${suggestion.label}</div>
+								<div>
+									${suggestion.label}
+									${count === undefined ? '' : html`<span class='suggestion-count'>${count} ${count === 1 ? 'card' : 'cards'}</span>`}
+								</div>
 								<div class='suggestion-detail'>${suggestion.detail}</div>
 							</button>
 						</div>
@@ -468,6 +496,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._highlightedSuggestion = 0;
 			this._builderExpanded = false;
 		}
+		if (
+			changedProps.has('open') ||
+			changedProps.has('_composerInput') ||
+			changedProps.has('_collectionDescription') ||
+			changedProps.has('_activeCardID')
+		) this._refreshPreviewCounts();
+	}
+
+	_refreshPreviewCounts() {
+		if (this._cancelPreviews) this._cancelPreviews();
+		this._cancelPreviews = null;
+		this._previewCounts = {};
+		if (!this.open || !collectionComposerPreviewEnabled()) return;
+		this._cancelPreviews = startCollectionComposerPreviews(
+			this._composerSuggestions,
+			this._activeCardID,
+			corpusWorkerRunCollection,
+			(suggestionID, count) => {
+				if (!this.open) return;
+				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
+			}
+		);
+	}
+
+	override disconnectedCallback() {
+		if (this._cancelPreviews) this._cancelPreviews();
+		this._cancelPreviews = null;
+		super.disconnectedCallback();
 	}
 
 	override stateChanged(state : State) {
@@ -480,6 +536,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
+		this._activeCardID = selectActiveCardID(state);
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 
