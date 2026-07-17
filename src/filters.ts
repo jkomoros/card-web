@@ -53,6 +53,16 @@ import {
 } from './memoize.js';
 
 import {
+	dateMatchesFilter,
+	makeFilterDateResolver,
+	parseRelativeDate,
+} from './relative-date.js';
+
+export {
+	parseRelativeDate,
+} from './relative-date.js';
+
+import {
 	SetName,
 	FilterName,
 	ConcreteFilterName,
@@ -264,81 +274,6 @@ export type RelativeDateParts = {
 };
 
 /**
- * Parses a relative date string into an absolute Date object.
- * Returns null if the string is not a recognized relative date format.
- *
- * Supported formats:
- * - today, yesterday
- * - N-days-ago, N-weeks-ago, N-months-ago, N-years-ago
- * - last-monday, last-tuesday, etc.
- */
-export const parseRelativeDate = (str: string): Date | null => {
-	if (!str) return null;
-
-	// Special keywords
-	if (str === 'today') {
-		const d = new Date();
-		d.setHours(0, 0, 0, 0);
-		return d;
-	}
-	if (str === 'yesterday') {
-		const d = new Date();
-		d.setDate(d.getDate() - 1);
-		d.setHours(0, 0, 0, 0);
-		return d;
-	}
-
-	// Offset-based: N-days-ago, N-weeks-ago, etc.
-	// Support both singular and plural: 1-day-ago, 2-days-ago
-	const offsetMatch = str.match(/^(\d+)-(day|week|month|year)s?-ago$/);
-	if (offsetMatch) {
-		const amount = parseInt(offsetMatch[1], 10);
-		const unit = offsetMatch[2];
-		const d = new Date();
-		d.setHours(0, 0, 0, 0);
-
-		switch(unit) {
-		case 'day':
-			d.setDate(d.getDate() - amount);
-			break;
-		case 'week':
-			d.setDate(d.getDate() - (amount * 7));
-			break;
-		case 'month':
-			d.setMonth(d.getMonth() - amount);
-			break;
-		case 'year':
-			d.setFullYear(d.getFullYear() - amount);
-			break;
-		}
-
-		return d;
-	}
-
-	// Weekday-based: last-monday, last-tuesday, etc.
-	const weekdayMatch = str.match(/^last-(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
-	if (weekdayMatch) {
-		const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-		const targetDay = weekdays.indexOf(weekdayMatch[1]);
-
-		const d = new Date();
-		d.setHours(0, 0, 0, 0);
-		const currentDay = d.getDay();
-
-		// Calculate days to go back
-		// If today is Wednesday (3) and we want last Monday (1): (3 - 1) = 2
-		// If today is Monday (1) and we want last Monday (1): we want 7 days back, not 0
-		let daysBack = ((currentDay - targetDay + 7) % 7) || 7;
-
-		d.setDate(d.getDate() - daysBack);
-		return d;
-	}
-
-	// Not a relative date format
-	return null;
-};
-
-/**
  * Returns true if the string is a valid relative date format.
  */
 export const isRelativeDate = (str: string): boolean => {
@@ -444,8 +379,8 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 
 	const cardKey = dateConfigurableFilterMap[propName] || propName as CardTimestampPropertyName;
 
-	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
-	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
+	const resolveFirstDate = makeFilterDateResolver(firstDateStr);
+	const resolveSecondDate = makeFilterDateResolver(secondDateStr);
 
 	let func : ((card : ProcessedCard) => FilterFuncResult) = () => ({matches: false});
 
@@ -454,27 +389,23 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			const difference = val.toMillis() - (firstDate ? firstDate.getTime() : 0);
-			return {matches: difference < 0};
+			return {matches: dateMatchesFilter(val.toMillis(), comparisonType, resolveFirstDate, resolveSecondDate)};
 		};
 		break;
 	case 'after':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			const difference = val.toMillis() - (firstDate ? firstDate.getTime() : 0);
-			return {matches: difference > 0};
+			return {matches: dateMatchesFilter(val.toMillis(), comparisonType, resolveFirstDate, resolveSecondDate)};
 		};
 		break;
 	case 'between':
 		//Bail if the second date isn't provided
-		if (secondDate) {
+		if (secondDateStr) {
 			func = function(card) {
 				const val = card[cardKey] as Timestamp;
 				if (!val) return {matches: false};
-				const firstDifference = val.toMillis() - (firstDate ? firstDate.getTime() : 0);
-				const secondDifference = val.toMillis() - secondDate.getTime();
-				return {matches: (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0)} ;
+				return {matches: dateMatchesFilter(val.toMillis(), comparisonType, resolveFirstDate, resolveSecondDate)};
 			};
 		}
 		break;

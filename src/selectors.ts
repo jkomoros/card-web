@@ -31,6 +31,10 @@ import {
 } from './filters.js';
 
 import {
+	relativeDateCacheKey,
+} from './relative-date.js';
+
+import {
 	Collection,
 	CollectionDescription,
 	defaultCollectionConfiguration
@@ -1555,6 +1559,8 @@ export const selectSortOrderForGlobalPrepend = createSelector(
 //optional editingCard, cardsSnapshot, and filtersSnapshot. See also
 //selectCollectionConstructorArgumentsWithEditingCard and
 //selectCollectionConstructorArgumentsForGhostingCollection.
+const selectRelativeDateCacheKey = () => relativeDateCacheKey();
+
 export const selectCollectionConstructorArguments = createSelector(
 	selectCards,
 	selectAllSets,
@@ -1566,7 +1572,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectRandomSalt,
 	selectCardSimilarity,
 	selectEditingCardSimilarity,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity})
+	selectRelativeDateCacheKey,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The
