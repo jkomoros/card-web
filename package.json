@@ -56,6 +56,7 @@
     "test:collection-source": "mocha -r esm test/collection-source/test.js --timeout=10000",
     "test:collection-composer-mode": "mocha -r esm test/collection-composer-mode/test.js --timeout=10000",
     "test:collection-composer-history": "mocha -r esm test/collection-composer-history/test.js --timeout=10000",
+    "test:collection-composer-preview": "mocha -r esm test/collection-composer-preview/test.js --timeout=10000",
     "test:collection-composer-suggestions": "mocha -r esm test/collection-composer-suggestions/test.js --timeout=10000",
     "test:ngram": "mocha -r esm test/ngram --timeout=10000",
     "test:contenteditable": "mocha -r esm test/contenteditable --timeout=10000",

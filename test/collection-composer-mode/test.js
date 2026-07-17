@@ -7,6 +7,8 @@ let writeCollectionComposerMode;
 let collectionComposerEnabled;
 let collectionComposerPublicEnabled;
 let collectionComposerParserShadowEnabled;
+let collectionComposerPreviewEnabled;
+let writeCollectionComposerPreviewEnabled;
 
 const storage = () => {
   const values = new Map();
@@ -28,6 +30,8 @@ describe("Collection Composer capability", () => {
       collectionComposerEnabled,
       collectionComposerPublicEnabled,
       collectionComposerParserShadowEnabled,
+      collectionComposerPreviewEnabled,
+      writeCollectionComposerPreviewEnabled,
     } = await import("../../lib/src/collection-composer-mode.js"));
   });
 
@@ -73,6 +77,15 @@ describe("Collection Composer capability", () => {
     assert.strictEqual(collectionComposerEnabled(), true);
     assert.strictEqual(collectionComposerPublicEnabled(), true);
     assert.strictEqual(collectionComposerParserShadowEnabled(), false);
+  });
+
+  it("keeps worker previews behind a subordinate capability", () => {
+    writeCollectionComposerPreviewEnabled(true);
+    assert.strictEqual(collectionComposerPreviewEnabled(), false);
+    writeCollectionComposerMode("dogfood");
+    assert.strictEqual(collectionComposerPreviewEnabled(), true);
+    writeCollectionComposerPreviewEnabled(false);
+    assert.strictEqual(collectionComposerPreviewEnabled(), false);
   });
 
   it("normalizes unknown persisted values to off", () => {

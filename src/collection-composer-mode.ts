@@ -8,6 +8,7 @@
 //  'on'                 — production-ready composer for normal users.
 
 const LOCAL_STORAGE_KEY = "collection-composer";
+const PREVIEW_LOCAL_STORAGE_KEY = "collection-composer-preview";
 
 export type CollectionComposerMode = "off" | "dogfood" | "on";
 
@@ -60,3 +61,34 @@ export const collectionComposerPublicEnabled = (): boolean =>
 //navigation. Keep them limited to the explicit dogfood mode.
 export const collectionComposerParserShadowEnabled = (): boolean =>
   readCollectionComposerMode() === "dogfood";
+
+export const collectionComposerPreviewEnabled = (): boolean => {
+  if (!collectionComposerEnabled() || typeof window === "undefined")
+    return false;
+  try {
+    if (window.localStorage.getItem(PREVIEW_LOCAL_STORAGE_KEY) === "on")
+      return true;
+    return (
+      new URLSearchParams(window.location?.hash.slice(1) || "").get(
+        PREVIEW_LOCAL_STORAGE_KEY
+      ) === "on"
+    );
+  } catch {
+    return false;
+  }
+};
+
+export const writeCollectionComposerPreviewEnabled = (
+  enabled: boolean
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    if (enabled) {
+      window.localStorage.setItem(PREVIEW_LOCAL_STORAGE_KEY, "on");
+    } else {
+      window.localStorage.removeItem(PREVIEW_LOCAL_STORAGE_KEY);
+    }
+  } catch {
+    //Best effort
+  }
+};
