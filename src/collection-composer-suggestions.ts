@@ -247,6 +247,21 @@ const emptyStateSuggestions = (
     });
   }
   result.push(...removalSuggestions(current));
+  //Teach the coherent outgoing/incoming/either-direction family only when it
+  //will not displace recents, selection, or removal actions. In denser states
+  //the same candidates remain discoverable by typing.
+  if (!result.length && !current.filters.length) {
+    for (const candidate of (context.candidates || []).filter(candidate => candidate.category === "relationship")) {
+      result.push({
+        id: `candidate:${candidate.category}:${candidate.filter}`,
+        kind: "add",
+        action: "add",
+        label: candidate.label,
+        detail: `${candidate.detail} · Adds “${candidate.filter}” to the collection URL`,
+        description: collectionDescriptionWithFilterAppended(current, candidate.filter),
+      });
+    }
+  }
   for (const filter of EMPTY_STATE_FILTERS) {
     if (current.filters.includes(filter)) continue;
     result.push({

@@ -229,6 +229,35 @@ describe("Collection Composer suggestions", () => {
       { candidates }
     );
     assert.strictEqual(byFamilyName[0].label, "This card and cards it links to");
+
+    const withoutTyping = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "",
+      descriptions,
+      { candidates }
+    );
+    assert.deepStrictEqual(
+      withoutTyping.slice(0, 3).map(suggestion => suggestion.label),
+      [
+        "This card and cards it links to",
+        "This card and cards linking here",
+        "This card and directly connected cards",
+      ]
+    );
+    const withRecent = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "",
+      descriptions,
+      {
+        candidates,
+        recentCollections: [{
+          description: CollectionDescription.deserialize("everything/starred/"),
+          visits: 1,
+        }],
+      }
+    );
+    assert.ok(!withRecent.some(suggestion => suggestion.kind === "add" && suggestion.label.includes("This card")));
+    assert.ok(withRecent.some(suggestion => suggestion.label === "Keep only Unread"));
   });
 
   it("executes durable relative-date candidates with their stated meaning", () => {
