@@ -49,6 +49,18 @@ import {
 @customElement('configure-collection-filter')
 class ConfigureCollectionFilter extends LitElement {
 
+	focusPrimaryControl() {
+		const nestedControl = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>(
+			'.pieces configure-collection-date, .pieces configure-collection-key-card, .pieces configure-collection-multiple-cards'
+		);
+		if (nestedControl?.focusPrimaryControl) {
+			nestedControl.focusPrimaryControl();
+			return;
+		}
+		const configurableControl = this.shadowRoot?.querySelector<HTMLElement>('.pieces select, .pieces input, .pieces button');
+		(configurableControl || this.shadowRoot?.querySelector<HTMLElement>('select, input, button'))?.focus();
+	}
+
 	@property({ type : Number })
 		index: number;
 
@@ -93,6 +105,19 @@ class ConfigureCollectionFilter extends LitElement {
 			select,
 			input {
 				max-width: 100%;
+			}
+
+			@media (max-width: 480px) {
+				li {
+					margin: 0.5em 0;
+					padding-left: 0.5em;
+				}
+
+				button,
+				select,
+				input {
+					min-height: 44px;
+				}
 			}
 
 		`
@@ -158,7 +183,7 @@ class ConfigureCollectionFilter extends LitElement {
 
 	_handleModifyFilterRestChanged(e : Event) {
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
+		if (!(ele instanceof HTMLSelectElement) && !(ele instanceof HTMLInputElement)) throw new Error('not input or select element');
 		this._modifyFilterChanged(parseInt(ele.dataset.subIndex || '0'), ele.value);
 	}
 

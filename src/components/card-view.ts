@@ -535,6 +535,14 @@ class CardView extends connect(store)(PageViewElement) {
 				display:none;
 			}
 
+			.collection-mobile {
+				display: none;
+			}
+
+			.mobile .collection-mobile {
+				display: block;
+			}
+
 			card-editor {
 				display:none;
 			}
@@ -833,6 +841,14 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
+				${collectionComposerEnabled() ? html`<div slot='actions' class='collection-mobile'>
+					<button
+						class='round'
+						title='Compose collection'
+						aria-label='Compose collection'
+						@click=${this._handleConfigureCollectionClicked}
+					>${RULE_ICON}</button>
+				</div>` : ''}
 				<div slot='actions' class='modify'>
 					<button class='round' @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
 					<!-- Titles on wrappers, and a reason for the disabled state:

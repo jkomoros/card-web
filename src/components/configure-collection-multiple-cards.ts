@@ -22,6 +22,12 @@ import './tag-list.js';
 @customElement('configure-collection-multiple-cards')
 class ConfigureCollectionMultipleCards extends LitElement {
 
+	focusPrimaryControl() {
+		const tagList = this.shadowRoot?.querySelector('tag-list');
+		const control = tagList?.shadowRoot?.querySelector<HTMLElement>('input, button, [tabindex="0"]');
+		(control || tagList)?.focus();
+	}
+
 	@property({ type : String })
 		value: string;
 

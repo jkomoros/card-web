@@ -42,7 +42,7 @@ const humanize = (value: string): string =>
     .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ""))
     .join(" ");
 
-const readableFilter = (filter: string): string => {
+export const readableCollectionFilter = (filter: string): string => {
   const [family, ...rawValues] = filter.split("/");
   const readableFamily = (value: string) => {
     try {
@@ -132,9 +132,9 @@ const collectionDifference = (
     (filter) => !currentFilters.has(filter)
   );
   if (removed.length)
-    changes.push(`Removes ${removed.map(readableFilter).join(", ")}`);
+    changes.push(`Removes ${removed.map(readableCollectionFilter).join(", ")}`);
   if (added.length)
-    changes.push(`Adds ${added.map(readableFilter).join(", ")}`);
+    changes.push(`Adds ${added.map(readableCollectionFilter).join(", ")}`);
   if (
     current.sort !== destination.sort ||
     current.sortReversed !== destination.sortReversed
@@ -310,17 +310,35 @@ export const collectionComposerSuggestions = (
 export const readableCollectionExpression = (
   description: CollectionDescription
 ): string => {
-  const clauses = [humanize(description.set)];
-  clauses.push(...description.filters.map(readableFilter));
+  const parts = collectionExpressionParts(description);
+  const clauses = [parts.set.label];
+  clauses.push(...parts.filters.map(filter => filter.label));
   let result = clauses.join(" AND ");
+  if (parts.modifiers.length) result += ` · ${parts.modifiers.join(" · ")}`;
+  return result;
+};
+
+export type CollectionExpressionParts = {
+  set: { raw: string; label: string };
+  filters: Array<{ raw: string; label: string; index: number }>;
+  modifiers: string[];
+};
+
+export const collectionExpressionParts = (
+  description: CollectionDescription
+): CollectionExpressionParts => {
+  const modifiers: string[] = [];
   if (description.sort !== "default" || description.sortReversed) {
-    result += ` · sorted by ${
-      description.sortReversed ? "reverse " : ""
-    }${humanize(description.sort)}`;
+    modifiers.push(`sorted by ${description.sortReversed ? "reverse " : ""}${humanize(description.sort)}`);
   }
   if (description.viewMode !== "list") {
-    result += ` · viewed as ${humanize(description.viewMode)}`;
-    if (description.viewModeExtra) result += ` (${humanize(description.viewModeExtra)})`;
+    let view = `viewed as ${humanize(description.viewMode)}`;
+    if (description.viewModeExtra) view += ` (${humanize(description.viewModeExtra)})`;
+    modifiers.push(view);
   }
-  return result;
+  return {
+    set: {raw: description.set, label: humanize(description.set)},
+    filters: description.filters.map((raw, index) => ({raw, index, label: readableCollectionFilter(raw)})),
+    modifiers,
+  };
 };

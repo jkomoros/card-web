@@ -87,6 +87,8 @@ import {
 
 import {
 	CollectionComposerSuggestion,
+	collectionExpressionParts,
+	readableCollectionFilter,
 	collectionComposerSuggestions,
 	readableCollectionExpression,
 } from '../collection-composer-suggestions.js';
@@ -141,7 +143,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_activationMessage = '';
 
-	_suppressedInverseDescription = '';
+	@state()
+		_selectedClauseIndex = -1;
+
+	@state()
+		_draftReceiptMessage = '';
+
+	@state()
+		_clauseSelectionMessage = '';
+
+	_draftUndoDescription : CollectionDescription | null = null;
 	_cancelPreviews : (() => void) | null = null;
 
 	static override styles = [
@@ -174,26 +185,77 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			.expression {
+				align-items: center;
+				color: var(--app-dark-text-color);
+				display: flex;
+				flex-wrap: wrap;
 				font-size: 1.05em;
+				gap: 0.3em;
 				line-height: 1.55;
 				overflow-wrap: anywhere;
 				padding: 0.75em 0;
-				color: var(--app-dark-text-color);
 			}
 
-			.expression strong {
+			.expression-set {
 				color: var(--app-primary-color);
 				font-weight: 500;
+			}
+
+			.expression-operator,
+			.expression-modifiers {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.8em;
+			}
+
+			.expression-clause {
+				align-items: stretch;
+				border: 1px solid var(--app-divider-color);
+				border-radius: 2px;
+				display: inline-flex;
+				min-width: 0;
+			}
+
+			.expression-clause[data-selected] {
+				border-color: var(--app-primary-color);
+				box-shadow: 0 0 0 1px var(--app-primary-color);
+			}
+
+			.expression-clause button {
+				background: transparent;
+				box-shadow: none;
+				color: var(--app-dark-text-color);
+				margin: 0;
+				min-height: 44px;
+			}
+
+			.expression-clause button:hover,
+			.expression-clause button:focus-visible {
+				background: var(--app-primary-color-light-very-transparent);
+				box-shadow: none;
+			}
+
+			.expression-clause-label {
+				max-width: 18em;
+				overflow-wrap: anywhere;
+				padding: 0.35em 0.6em;
+				text-align: left;
+			}
+
+			.expression-clause-remove {
+				border-left: 1px solid var(--app-divider-color);
+				font-size: 1.2em;
+				min-width: 44px;
+				padding: 0.35em;
 			}
 
 			.composer-input {
 				border: 0;
 				border-bottom: 1px solid var(--app-dark-text-color);
-				font: inherit;
-				font-size: 1.05em;
-				padding: 0.6em 0.2em;
-				width: 100%;
 				box-sizing: border-box;
+				flex: 1 1 14em;
+				font: inherit;
+				padding: 0.6em 0.2em;
+				width: auto;
 			}
 
 			.composer-input:focus {
@@ -206,6 +268,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				outline-offset: 2px;
 			}
 
+			.draft-receipt {
+				align-items: center;
+				color: var(--app-dark-text-color-light);
+				display: flex;
+				font-size: 0.82em;
+				gap: 0.5em;
+			}
+
+			.draft-receipt button {
+				color: var(--app-primary-color);
+				margin: 0;
+			}
+
+			.visually-hidden {
+				clip: rect(0 0 0 0);
+				clip-path: inset(50%);
+				height: 1px;
+				overflow: hidden;
+				position: absolute;
+				white-space: nowrap;
+				width: 1px;
+			}
+
 			.suggestion-heading {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.75em;
@@ -216,6 +301,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.suggestions {
 				list-style: none;
 				margin: 0.25em 0 0;
+				max-height: min(42vh, 26em);
+				overflow-y: auto;
+				overscroll-behavior: contain;
 				padding: 0;
 			}
 
@@ -288,18 +376,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin-top: 0.5em;
 			}
 
+			.mobile .builder ul {
+				padding-left: 1em;
+			}
+
+			.mobile .builder select,
+			.mobile .builder input,
+			.mobile .builder button {
+				min-height: 44px;
+				max-width: 100%;
+			}
+
 			.composer-actions {
 				display: flex;
 				justify-content: flex-end;
 				margin-top: 0.75em;
+				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
 			}
 
-			.mobile .composer-actions {
-				background: white;
-				bottom: 0;
-				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
-				position: sticky;
-				z-index: 1;
+			.composer-actions .primary {
+				min-height: 44px;
 			}
 
 			.activation-message {
@@ -368,28 +464,54 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!this._collectionDescription) return html``;
 		const suggestions = this._composerSuggestions;
 		const highlighted = suggestions[this._highlightedSuggestion];
+		const expressionParts = collectionExpressionParts(this._collectionDescription);
 		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
 		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
-			<div class='expression' aria-label='Current collection expression' aria-live='polite'>
-				<strong>${readableCollectionExpression(this._collectionDescription)}</strong>
+			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription)}</div>
+			<div class='expression' aria-label='Draft collection clauses'>
+				<span class='expression-set'>${expressionParts.set.label}</span>
+				${expressionParts.filters.map(filter => html`
+					<span class='expression-operator' aria-hidden='true'>AND</span>
+					<span class='expression-clause' role='group' aria-label=${`${filter.label} filter`} ?data-selected=${filter.index === this._selectedClauseIndex}>
+						<button
+							class='expression-clause-label'
+							aria-label=${`Edit ${filter.label} filter`}
+							@click=${() => this._handleClauseEdit(filter.index)}
+						>${filter.label}</button>
+						<button
+							class='expression-clause-remove'
+							aria-label=${`Remove ${filter.label} filter`}
+							title=${`Remove ${filter.label} filter`}
+							@click=${() => this._removeDraftClause(filter.index)}
+						>×</button>
+					</span>
+				`)}
+				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
+				<input
+					class='composer-input'
+					id='collection-composer-input'
+					type='text'
+					role='combobox'
+					aria-label='Compose collection filters'
+					aria-autocomplete='list'
+					aria-controls='collection-composer-suggestions'
+					aria-expanded=${suggestions.length > 0}
+					aria-activedescendant=${ifDefined(suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : undefined)}
+					aria-busy=${this._activationPending}
+					placeholder='Type another condition…'
+					.value=${this._composerInput}
+					@input=${this._handleComposerInput}
+					@keydown=${this._handleComposerKeyDown}
+				>
 			</div>
-			<input
-				class='composer-input'
-				id='collection-composer-input'
-				type='text'
-				role='combobox'
-				aria-label='Compose collection filters'
-				aria-autocomplete='list'
-				aria-controls='collection-composer-suggestions'
-				aria-expanded=${suggestions.length > 0}
-				aria-activedescendant=${ifDefined(suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : undefined)}
-				aria-busy=${this._activationPending}
-				placeholder='Type a filter, value, or collection source…'
-				.value=${this._composerInput}
-				@input=${this._handleComposerInput}
-				@keydown=${this._handleComposerKeyDown}
-			>
+			${this._draftReceiptMessage ? html`
+				<div class='draft-receipt' role='status'>
+					<span>${this._draftReceiptMessage}</span>
+					${this._draftUndoDescription ? html`<button class='small' @click=${this._undoDraftEdit}>Undo</button>` : ''}
+				</div>
+			` : ''}
+			${this._clauseSelectionMessage ? html`<div class='draft-receipt' role='status'>${this._clauseSelectionMessage}</div>` : ''}
 			${this._activationPending || this._activationMessage ? html`
 				<div class='activation-message' role=${this._activationMessage ? 'alert' : 'status'} aria-live=${this._activationMessage ? 'assertive' : 'polite'}>
 					${this._activationMessage || 'Opening collection…'}
@@ -414,7 +536,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>${highlighted?.action === 'open' ?
+			<div class='key-hints'>${this._selectedClauseIndex >= 0 ?
+				'←→ choose clause · Delete removes · type to continue' : highlighted?.action === 'open' ?
 				'↑↓ choose · Click or Enter opens' :
 				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
 			<div class='builder-toggle'>
@@ -465,7 +588,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._composerInput,
 			this._filterDescriptions || {},
 			{cardsSelected: this._cardsSelected, recentCollections}
-		).filter(suggestion => suggestion.description.serialize() !== this._suppressedInverseDescription);
+		);
 	}
 
 	constructor() {
@@ -477,7 +600,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const input = e.composedPath()[0];
 		if (!(input instanceof HTMLInputElement)) throw new Error('not input element');
 		this._composerInput = input.value;
-		if (this._composerInput.trim()) this._suppressedInverseDescription = '';
+		this._selectedClauseIndex = -1;
+		this._clauseSelectionMessage = '';
 		this._highlightedSuggestion = 0;
 		this._activationMessage = '';
 	}
@@ -488,7 +612,39 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			e.stopPropagation();
 			return;
 		}
+		if (e.isComposing || e.keyCode === 229) return;
 		const suggestions = this._composerSuggestions;
+		if (!this._composerInput && this._collectionDescription.filters.length) {
+			if (e.key === 'Backspace') {
+				e.preventDefault();
+				e.stopPropagation();
+				if (this._selectedClauseIndex < 0) {
+					this._selectedClauseIndex = this._collectionDescription.filters.length - 1;
+					this._clauseSelectionMessage = `${readableCollectionFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected · Backspace again to remove`;
+				} else {
+					this._removeDraftClause(this._selectedClauseIndex);
+				}
+				return;
+			}
+			if (e.key === 'Delete' && this._selectedClauseIndex >= 0) {
+				e.preventDefault();
+				e.stopPropagation();
+				this._removeDraftClause(this._selectedClauseIndex);
+				return;
+			}
+			if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+				e.preventDefault();
+				e.stopPropagation();
+				if (e.key === 'ArrowLeft') {
+					this._selectedClauseIndex = this._selectedClauseIndex < 0 ? this._collectionDescription.filters.length - 1 : Math.max(0, this._selectedClauseIndex - 1);
+				} else {
+					this._selectedClauseIndex = this._selectedClauseIndex < 0 ? 0 : this._selectedClauseIndex + 1;
+					if (this._selectedClauseIndex >= this._collectionDescription.filters.length) this._selectedClauseIndex = -1;
+				}
+				this._clauseSelectionMessage = this._selectedClauseIndex < 0 ? '' : `${readableCollectionFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected`;
+				return;
+			}
+		}
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
 			if (e.isComposing || e.keyCode === 229) return;
 			if (!suggestions.length) return;
@@ -544,14 +700,58 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			));
 			return;
 		}
-		this._suppressedInverseDescription = this._collectionDescription.serialize();
-		store.dispatch(updateCollectionConfigurationSnapshot(suggestion.description));
+		this._commitDraftEdit(suggestion.description, `${suggestion.action[0].toUpperCase() + suggestion.action.slice(1)}: ${suggestion.label}`, true);
 		this._composerInput = '';
 		this._highlightedSuggestion = 0;
 	}
 
+	_commitDraftEdit(description : CollectionDescription, message : string, focusInput = false) {
+		this._draftUndoDescription = this._collectionDescription;
+		this._draftReceiptMessage = message;
+		this._selectedClauseIndex = -1;
+		this._clauseSelectionMessage = '';
+		store.dispatch(updateCollectionConfigurationSnapshot(description));
+		if (focusInput) this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_removeDraftClause(index : number) {
+		const filter = this._collectionDescription.filters[index];
+		if (filter === undefined) return;
+		this._commitDraftEdit(
+			collectionDescriptionWithFilterRemoved(this._collectionDescription, index),
+			`Removed ${readableCollectionFilter(filter)}`,
+			true
+		);
+	}
+
+	_undoDraftEdit() {
+		if (!this._draftUndoDescription) return;
+		const description = this._draftUndoDescription;
+		this._draftUndoDescription = null;
+		this._draftReceiptMessage = 'Restored previous draft';
+		this._selectedClauseIndex = -1;
+		this._clauseSelectionMessage = '';
+		store.dispatch(updateCollectionConfigurationSnapshot(description));
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	async _handleClauseEdit(index : number) {
+		this._selectedClauseIndex = index;
+		this._clauseSelectionMessage = `Editing ${readableCollectionFilter(this._collectionDescription.filters[index])}`;
+		this._builderExpanded = true;
+		await this.updateComplete;
+		const controls = this.shadowRoot?.querySelectorAll('configure-collection-filter');
+		const control = controls?.[index];
+		if (control && 'focusPrimaryControl' in control) control.focusPrimaryControl();
+	}
+
 	_handleBuilderToggle() {
 		this._builderExpanded = !this._builderExpanded;
+		if (!this._builderExpanded) {
+			this._selectedClauseIndex = -1;
+			this._clauseSelectionMessage = '';
+			this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+		}
 	}
 
 	_handleOpenCurrentDraft() {
@@ -570,36 +770,50 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleFilterModified(e : FilterModifiedEvent) {
-		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value)));
+		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value), 'Updated filter');
 	}
 
 	_handleFilterRemoved(e : FilterModifiedEvent) {
-		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index)));
+		this._removeDraftClause(e.detail.index);
 	}
 
 	_handleAddFilterClicked() {
-		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
+		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME), 'Added filter');
 	}
 
 	_handleSetSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const set = ele.value as SetName;
-		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithSet(this._collectionDescription, set)));
+		this._commitDraftEdit(collectionDescriptionWithSet(this._collectionDescription, set), `Changed base set to ${set}`);
 	}
 
 	_handleSortSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const sort = ele.value as SortName;
-		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithSort(this._collectionDescription, sort)));
+		this._commitDraftEdit(collectionDescriptionWithSort(this._collectionDescription, sort), `Changed sort to ${sort}`);
 	}
 
 	_handleSortReversedCheckboxChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const sortReversed = ele.checked;
-		store.dispatch(updateCollectionConfigurationSnapshot(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed)));
+		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed), sortReversed ? 'Reversed sort' : 'Restored normal sort');
+	}
+
+	override _handleKeyDown(e : KeyboardEvent) {
+		if (this.open && this._builderExpanded && e.key === 'Escape' && !e.defaultPrevented) {
+			if (e.isComposing || e.keyCode === 229) return;
+			e.preventDefault();
+			e.stopPropagation();
+			this._builderExpanded = false;
+			this._selectedClauseIndex = -1;
+			this._clauseSelectionMessage = '';
+			this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+			return;
+		}
+		super._handleKeyDown(e);
 	}
 
 	_handleDoneClicked() {
@@ -627,7 +841,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._composerInput = '';
 				this._highlightedSuggestion = 0;
 				this._builderExpanded = false;
-				this._suppressedInverseDescription = '';
+				this._selectedClauseIndex = -1;
+				this._draftReceiptMessage = '';
+				this._clauseSelectionMessage = '';
+				this._draftUndoDescription = null;
 			}
 		}
 		if (
