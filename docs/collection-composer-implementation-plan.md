@@ -6,8 +6,9 @@
 
 **Product specification:** [Collection Composer](./collection-composer-spec.md)
 
-**Implementation base:** `implement/fast-corpus` at `8695f8f0`, plus the later
-shift-range-selection change from current `master`
+**Implementation base:** the fast-corpus stack rebased onto `master` at
+`b40528f9`, with rewritten fast-corpus tip `67780335`; this base includes
+shift-range selection
 
 ## Purpose
 
