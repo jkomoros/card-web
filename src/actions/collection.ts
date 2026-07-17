@@ -49,7 +49,16 @@ import {
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
 	selectExplicitlySelectedCardIDs,
+	selectUid,
 } from '../selectors.js';
+
+import {
+	recordRecentCollection,
+} from '../collection-composer-history.js';
+
+import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
@@ -171,6 +180,8 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 		}
 	}
 
+	const resolvedDescription = new CollectionDescription(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra);
+	if (collectionComposerEnabled()) recordRecentCollection(resolvedDescription, selectUid(getState()));
 	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));
 };

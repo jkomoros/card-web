@@ -67,6 +67,29 @@ describe("Collection Composer suggestions", () => {
     assert.match(selected.detail, /ordinary Selected filter/);
   });
 
+  it("describes recent destinations as explicit differences", () => {
+    const current = CollectionDescription.deserialize(
+      "everything/working-notes/"
+    );
+    const recent = CollectionDescription.deserialize(
+      "main/starred/sort/recent/"
+    );
+    const suggestions = collectionComposerSuggestions(
+      current,
+      "",
+      descriptions,
+      { recentCollections: [{ description: recent, visits: 3 }] }
+    );
+    assert.strictEqual(
+      suggestions[0].label,
+      "Back to Main AND Starred · sorted by Recent"
+    );
+    assert.match(suggestions[0].detail, /Uses Main instead of Everything/);
+    assert.match(suggestions[0].detail, /Removes Working Notes/);
+    assert.match(suggestions[0].detail, /Adds Starred/);
+    assert.match(suggestions[0].detail, /Visited 3 times/);
+  });
+
   it("shows ambiguous text as explicit interpretations", () => {
     const current = CollectionDescription.deserialize("everything/");
     const suggestions = collectionComposerSuggestions(

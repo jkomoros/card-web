@@ -14,6 +14,7 @@ export type CollectionComposerSuggestionKind =
   | "add"
   | "broaden"
   | "pivot"
+  | "recent"
   | "source"
   | "search";
 
@@ -27,6 +28,10 @@ export type CollectionComposerSuggestion = {
 
 export type CollectionComposerContext = {
   cardsSelected?: boolean;
+  recentCollections?: Array<{
+    description: CollectionDescription;
+    visits: number;
+  }>;
 };
 
 const humanize = (value: string): string =>
@@ -95,13 +100,75 @@ const removalSuggestions = (
     description: collectionDescriptionWithFilterRemoved(current, index),
   }));
 
+const collectionDifference = (
+  current: CollectionDescription,
+  destination: CollectionDescription,
+  visits: number
+): string => {
+  const changes: string[] = [];
+  if (current.set !== destination.set) {
+    changes.push(
+      `Uses ${humanize(destination.set)} instead of ${humanize(current.set)}`
+    );
+  }
+  const currentFilters = new Set(current.filters);
+  const destinationFilters = new Set(destination.filters);
+  const removed = current.filters.filter(
+    (filter) => !destinationFilters.has(filter)
+  );
+  const added = destination.filters.filter(
+    (filter) => !currentFilters.has(filter)
+  );
+  if (removed.length)
+    changes.push(`Removes ${removed.map(readableFilter).join(", ")}`);
+  if (added.length)
+    changes.push(`Adds ${added.map(readableFilter).join(", ")}`);
+  if (
+    current.sort !== destination.sort ||
+    current.sortReversed !== destination.sortReversed
+  ) {
+    changes.push(
+      `Sorts by ${destination.sortReversed ? "reverse " : ""}${humanize(
+        destination.sort
+      )}`
+    );
+  }
+  changes.push(visits > 1 ? `Visited ${visits} times` : "Recently visited");
+  return changes.join(" · ");
+};
+
+const recentSuggestions = (
+  current: CollectionDescription,
+  context: CollectionComposerContext
+): CollectionComposerSuggestion[] => {
+  const seen = new Set<string>();
+  const result: CollectionComposerSuggestion[] = [];
+  for (const recent of context.recentCollections || []) {
+    const canonical = recent.description.serialize();
+    if (canonical === current.serialize() || seen.has(canonical)) continue;
+    seen.add(canonical);
+    result.push({
+      id: `recent:${canonical}`,
+      kind: "recent",
+      label: `Back to ${readableCollectionExpression(recent.description)}`,
+      detail: collectionDifference(current, recent.description, recent.visits),
+      description: recent.description,
+    });
+    if (result.length >= 3) break;
+  }
+  return result;
+};
+
 const EMPTY_STATE_FILTERS = ["starred", "unread", "working-notes"];
 
 const emptyStateSuggestions = (
   current: CollectionDescription,
   context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
-  const result: CollectionComposerSuggestion[] = [];
+  const result: CollectionComposerSuggestion[] = recentSuggestions(
+    current,
+    context
+  );
   if (
     context.cardsSelected &&
     !current.filters.includes(SELECTED_FILTER_NAME)
