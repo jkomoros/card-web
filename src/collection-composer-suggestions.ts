@@ -3,11 +3,12 @@ import {
   collectionDescriptionWithFilterAppended,
   collectionDescriptionWithFilterRemoved,
   collectionDescriptionWithQuery,
+  collectionDescriptionWithSelected,
   collectionDescriptionWithSet,
   collectionDescriptionWithSortReversed,
 } from "./collection_description.js";
 
-import { CONFIGURABLE_FILTER_INFO } from "./filters.js";
+import { CONFIGURABLE_FILTER_INFO, SELECTED_FILTER_NAME } from "./filters.js";
 
 export type CollectionComposerSuggestionKind =
   | "add"
@@ -22,6 +23,10 @@ export type CollectionComposerSuggestion = {
   label: string;
   detail: string;
   description: CollectionDescription;
+};
+
+export type CollectionComposerContext = {
+  cardsSelected?: boolean;
 };
 
 const humanize = (value: string): string =>
@@ -93,9 +98,24 @@ const removalSuggestions = (
 const EMPTY_STATE_FILTERS = ["starred", "unread", "working-notes"];
 
 const emptyStateSuggestions = (
-  current: CollectionDescription
+  current: CollectionDescription,
+  context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
-  const result = removalSuggestions(current);
+  const result: CollectionComposerSuggestion[] = [];
+  if (
+    context.cardsSelected &&
+    !current.filters.includes(SELECTED_FILTER_NAME)
+  ) {
+    result.push({
+      id: "add:selected",
+      kind: "add",
+      label: "Keep only the selected cards",
+      detail:
+        "Adds the ordinary Selected filter; clear selection to change its members",
+      description: collectionDescriptionWithSelected(current),
+    });
+  }
+  result.push(...removalSuggestions(current));
   for (const filter of EMPTY_STATE_FILTERS) {
     if (current.filters.includes(filter)) continue;
     result.push({
@@ -135,10 +155,11 @@ const emptyStateSuggestions = (
 export const collectionComposerSuggestions = (
   current: CollectionDescription,
   input: string,
-  filterDescriptions: { [filterName: string]: string }
+  filterDescriptions: { [filterName: string]: string },
+  context: CollectionComposerContext = {}
 ): CollectionComposerSuggestion[] => {
   const query = input.trim();
-  if (!query) return emptyStateSuggestions(current);
+  if (!query) return emptyStateSuggestions(current, context);
 
   const result: CollectionComposerSuggestion[] = [];
   const looksLikeSource = query.includes("/") || /^https?:\/\//i.test(query);
