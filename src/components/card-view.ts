@@ -1558,14 +1558,15 @@ registerShortcuts([
 		id: 'navigate-to-path',
 		//Ctrl-Shift-L navigates to a URL in the web app without modifying
 		//the URL bar in the browser, which would lead to a full refresh.
-		//With the composer enabled it opens the composer instead: same job,
-		//said in the composer's vocabulary.
+		//With the composer enabled it opens the composer in SOURCE mode
+		//instead — the same job (type a destination directly), said in the
+		//composer's vocabulary and with its validation.
 		keys: SHORTCUT_COMBOS['navigate-to-path'],
 		label: 'Navigate to a path',
 		when: whenKeyboardNavigates,
 		handler: () => {
 			if (collectionComposerEnabled()) {
-				store.dispatch(openConfigureCollectionDialog());
+				store.dispatch(openConfigureCollectionDialog('source'));
 				return;
 			}
 			store.dispatch(askForPathToNavigateTo());

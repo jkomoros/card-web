@@ -8,7 +8,7 @@ for (const name of [
   "window", "document", "Document", "HTMLElement", "Element", "Node",
   "customElements", "CSSStyleSheet", "Event", "CustomEvent", "MouseEvent",
   "InputEvent", "KeyboardEvent", "ShadowRoot", "HTMLInputElement",
-  "HTMLButtonElement", "HTMLSelectElement", "HTMLSlotElement",
+  "HTMLButtonElement", "HTMLSelectElement", "HTMLTextAreaElement", "HTMLSlotElement",
 ]) globalThis[name] = name === "window" ? dom.window : name === "document" ? dom.window.document : dom.window[name];
 globalThis.location = dom.window.location;
 globalThis.history = dom.window.history;
@@ -310,5 +310,179 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
     assert.ok(dialog.shadowRoot.querySelector(".expression-clause").hasAttribute("data-selected"));
+  });
+
+  it("opens Source mode from the current route with the exact text selected", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    window.history.replaceState({}, "", "/c/everything/starred/card-7");
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    assert.ok(input);
+    assert.strictEqual(input.value, "/c/everything/starred/card-7");
+    assert.strictEqual(input.selectionStart, 0);
+    assert.strictEqual(input.selectionEnd, input.value.length);
+    assert.match(dialog.shadowRoot.querySelector(".source-status").textContent, /Ready to open/);
+    assert.match(dialog.shadowRoot.textContent, /Opens on/);
+  });
+
+  it("preserves invalid source and opens a valid route with its selected card", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    const open = () => dialog.shadowRoot.querySelector(".composer-actions .primary");
+    input.value = "updated/before/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "updated/before/");
+    assert.strictEqual(open().disabled, true);
+    assert.strictEqual(window.location.pathname, "/c/main/");
+
+    input.value = "/c/everything/starred/card-9";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(open().disabled, false);
+    open().click();
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/everything/starred/card-9");
+    assert.strictEqual(dialog.open, false);
+  });
+
+  it("keeps source intact when editing blocks navigation", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "/c/everything/starred/card-9";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    store.dispatch({ type: "TEST_SET_EDITING", value: true });
+    await dialog.updateComplete;
+    dialog.shadowRoot.querySelector(".composer-actions .primary").click();
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/main/");
+    assert.strictEqual(dialog.open, true);
+    assert.strictEqual(input.value, "/c/everything/starred/card-9");
+    assert.match(dialog.shadowRoot.querySelector(".activation-message").textContent, /Finish or cancel/);
+  });
+
+  it("makes incomplete date grammar discoverable through completion", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "updated/before/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.match(dialog.shadowRoot.textContent, /today/);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "updated/before/today/");
+    assert.strictEqual(dialog.shadowRoot.querySelector(".composer-actions .primary").disabled, false);
+  });
+
+  it("exposes completions as an announced combobox and replaces the caret segment", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.getAttribute("role"), "combobox");
+    assert.strictEqual(input.getAttribute("aria-expanded"), "true");
+    assert.ok(input.getAttribute("aria-activedescendant"));
+    assert.match(dialog.shadowRoot.querySelector("#collection-source-completions").textContent, /Choose how cards are ordered/);
+
+    input.value = "sta/unread/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(input.value, "starred/unread/");
+  });
+
+  it("requires an explicit recovery before leaving nonvalid Source", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    let input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "updated/before/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Back to Compose")).click();
+    await dialog.updateComplete;
+    assert.ok(dialog.shadowRoot.querySelector("#collection-source-input"));
+    assert.match(dialog.shadowRoot.textContent, /do not form an openable collection/);
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Return to last valid collection")).click();
+    await dialog.updateComplete;
+    assert.ok(dialog.shadowRoot.querySelector("#collection-composer-input"));
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Edit source")).click();
+    await dialog.updateComplete;
+    input = dialog.shadowRoot.querySelector("#collection-source-input");
+    assert.strictEqual(dialog.shadowRoot.querySelector(".composer-actions .primary").disabled, false);
+  });
+
+  it("preserves a Source selected card through Compose activation", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "/c/everything/starred/card-42";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Back to Compose")).click();
+    await dialog.updateComplete;
+    dialog.shadowRoot.querySelector(".composer-actions .primary").click();
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/everything/starred/card-42");
+  });
+
+  it("undoes a Source collection and selected-card suffix atomically", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    window.history.replaceState({}, "", "/c/main/");
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "/c/everything/starred/card-42";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Back to Compose")).click();
+    await dialog.updateComplete;
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Undo")).click();
+    await dialog.updateComplete;
+    dialog.shadowRoot.querySelector(".composer-actions .primary").click();
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/");
+  });
+
+  it("preserves the raw requested-card placeholder when a route becomes a fragment", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    window.history.replaceState({}, "", "/c/main/_");
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "starred/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    dialog.shadowRoot.querySelector(".composer-actions .primary").click();
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/_");
   });
 });

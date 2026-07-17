@@ -9,7 +9,8 @@ import {
   collectionDescriptionWithSortReversed,
 } from "./collection_description.js";
 
-import { CONFIGURABLE_FILTER_INFO, SELECTED_FILTER_NAME } from "./filters.js";
+import { CARD_FILTER_DESCRIPTIONS, CONFIGURABLE_FILTER_INFO, SELECTED_FILTER_NAME } from "./filters.js";
+import { parseCollectionSource } from "./collection-source.js";
 
 export type CollectionComposerSuggestionKind =
   | "add"
@@ -26,6 +27,7 @@ export type CollectionComposerSuggestion = {
   label: string;
   detail: string;
   description: CollectionDescription;
+  destinationPath?: string;
 };
 
 export type CollectionComposerCandidate = {
@@ -50,6 +52,8 @@ export type CollectionComposerContext = {
     frequent?: boolean;
     relative?: boolean;
   }>;
+  preservedSelectedCard?: string;
+  sourceAllowedOrigins?: ReadonlySet<string>;
 };
 
 export type ActiveCardMetadata = {
@@ -184,27 +188,10 @@ const defaultFilter = (name: string): string => {
 export const collectionDescriptionFromComposerSource = (
   rawSource: string
 ): CollectionDescription | null => {
-  let source = rawSource.trim();
-  if (!source) return null;
-  try {
-    let routeSource = false;
-    if (/^https?:\/\//i.test(source)) {
-      source = new URL(source).pathname;
-      routeSource = source.startsWith("/c/");
-    }
-    if (source.startsWith("/")) source = source.slice(1);
-    if (source.startsWith("c/")) {
-      source = source.slice(2);
-      routeSource = true;
-    }
-    //Fragments describe only the collection and therefore receive the
-    //default-card terminator. Routes already contain selected-card policy.
-    if (!routeSource && !source.endsWith("/")) source += "/";
-    const [description] = CollectionDescription.deserializeWithExtra(source);
-    return description;
-  } catch {
-    return null;
-  }
+  const parsed = parseCollectionSource(rawSource, {
+    ordinaryFilters: new Set(Object.keys(CARD_FILTER_DESCRIPTIONS)),
+  });
+  return parsed.description || null;
 };
 
 const removalSuggestions = (
@@ -374,8 +361,13 @@ export const collectionComposerSuggestions = (
   const result: CollectionComposerSuggestion[] = [];
   const looksLikeSource = query.includes("/") || /^https?:\/\//i.test(query);
   if (looksLikeSource) {
-    const description = collectionDescriptionFromComposerSource(query);
-    if (description) {
+    const parsedSource = parseCollectionSource(query, {
+      ordinaryFilters: new Set([...Object.keys(CARD_FILTER_DESCRIPTIONS), ...Object.keys(filterDescriptions)]),
+      preservedSelectedCard: context.preservedSelectedCard,
+      allowedOrigins: context.sourceAllowedOrigins,
+    });
+    const description = parsedSource.description;
+    if (description && parsedSource.canonicalPath) {
       result.push({
         id: `source:${description.serialize()}`,
         kind: "source",
@@ -383,6 +375,7 @@ export const collectionComposerSuggestions = (
         label: "Open this collection source",
         detail: description.serializeShortOriginalOrder(),
         description,
+        destinationPath: parsedSource.canonicalPath,
       });
     }
   }
