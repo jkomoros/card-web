@@ -137,6 +137,7 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
+	toTitleCase,
 } from './util.js';
 
 import {
@@ -1356,6 +1357,50 @@ export const selectFilterDescriptions = createSelector(
 			...Object.fromEntries(Object.entries(sections).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' section'])),
 			...Object.fromEntries(Object.entries(tags).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' tag'])),
 		};
+	}
+);
+
+export const selectCollectionComposerCandidates = createSelector(
+	selectSections,
+	selectTags,
+	(sections, tags) => {
+		const reserved = new Set(Object.keys(CARD_FILTER_DESCRIPTIONS));
+		const sectionIDs = new Set(Object.keys(sections));
+		const tagIDs = new Set(Object.keys(tags));
+		const candidates = [
+		...Object.entries(sections).filter(([id]) => !reserved.has(id) && !tagIDs.has(id)).map(([id, section]) => ({
+			filter: id,
+			category: 'section' as const,
+			label: `In section “${section.title}”`,
+			detail: `Keeps cards in the ${section.title} section`,
+			aliases: [id, section.title, 'section'],
+		})),
+		...Object.entries(tags).filter(([id]) => !reserved.has(id) && !sectionIDs.has(id)).map(([id, tag]) => ({
+			filter: id,
+			category: 'tag' as const,
+			label: `Tagged “${tag.title}”`,
+			detail: `Keeps cards tagged ${tag.title}`,
+			aliases: [id, tag.title, 'tag', 'tagged'],
+		})),
+		...Object.entries(CARD_TYPE_CONFIGURATION).map(([id, configuration]) => ({
+			filter: id,
+			category: 'card type' as const,
+			label: `Card type: ${toTitleCase(id.split('-').join(' '))}`,
+			detail: configuration.description || `Keeps ${id} cards`,
+			aliases: [id, 'type', 'card type'],
+		})),
+		{
+			filter: TODO_COMBINED_FILTER_NAME,
+			category: 'todo' as const,
+			label: 'Has any TODO',
+			detail: 'Keeps cards with at least one unfinished TODO',
+			aliases: ['todo', 'todos', 'unfinished', 'needs work'],
+		},
+		];
+		return candidates.map(candidate => ({
+			...candidate,
+			searchValues: [candidate.label, candidate.filter, candidate.category, ...candidate.aliases].map(value => value.toLowerCase()),
+		}));
 	}
 );
 

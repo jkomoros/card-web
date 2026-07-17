@@ -16,6 +16,7 @@ let collectionComposerSuggestions;
 let collectionDescriptionFromComposerSource;
 let readableCollectionExpression;
 let collectionExpressionParts;
+let selectCollectionComposerCandidates;
 
 const descriptions = {
   starred: "Cards you have starred",
@@ -34,6 +35,7 @@ describe("Collection Composer suggestions", () => {
       readableCollectionExpression,
       collectionExpressionParts,
     } = await import("../../lib/src/collection-composer-suggestions.js"));
+    ({ selectCollectionComposerCandidates } = await import("../../lib/src/selectors.js"));
   });
 
   it("starts from the current collection with deterministic transformations", () => {
@@ -116,6 +118,85 @@ describe("Collection Composer suggestions", () => {
       "working-notes": "Working notes cards",
     });
     assert.strictEqual(suggestions[0].label, "Add Working Notes");
+  });
+
+  it("discovers concrete values with deterministic, inspectable filters", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const candidates = [
+      {
+        filter: "inductively-knowable",
+        category: "tag",
+        label: "Tagged “Inductively Knowable”",
+        detail: "Keeps cards tagged Inductively Knowable",
+        aliases: ["inductively knowable", "tag"],
+      },
+      {
+        filter: "half-baked",
+        category: "section",
+        label: "In section “Half Baked”",
+        detail: "Keeps cards in the Half Baked section",
+        aliases: ["half baked", "section"],
+      },
+    ];
+    const suggestions = collectionComposerSuggestions(
+      current,
+      "tag inductively",
+      { "inductively-knowable": "Matches cards in the Inductively Knowable tag" },
+      { candidates }
+    );
+    assert.strictEqual(suggestions[0].label, "Tagged “Inductively Knowable”");
+    assert.deepStrictEqual(suggestions[0].description.filters, ["inductively-knowable"]);
+    assert.match(suggestions[0].detail, /“inductively-knowable” to the collection URL/);
+    assert.strictEqual(suggestions.at(-1).label, "Text contains “tag inductively”");
+  });
+
+  it("ranks exact built-ins over weaker concrete matches", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const suggestions = collectionComposerSuggestions(current, "starred", descriptions, {
+      candidates: [{
+        filter: "starred-ideas",
+        category: "tag",
+        label: "Tagged “Starred Ideas”",
+        detail: "Keeps cards tagged Starred Ideas",
+      }],
+    });
+    assert.strictEqual(suggestions[0].label, "Add Starred");
+  });
+
+  it("suppresses ambiguous and reserved section or tag IDs", () => {
+    const candidates = selectCollectionComposerCandidates({
+      data: {
+        sections: {
+          shared: { title: "Shared section" },
+          starred: { title: "Misleading section" },
+          safe: { title: "Safe section" },
+        },
+        tags: {
+          shared: { title: "Shared tag" },
+          unread: { title: "Misleading tag" },
+          useful: { title: "Useful tag" },
+        },
+      },
+    });
+    assert.ok(!candidates.some(candidate => ["shared", "starred", "unread"].includes(candidate.filter)));
+    assert.ok(candidates.some(candidate => candidate.filter === "safe" && candidate.category === "section"));
+    assert.ok(candidates.some(candidate => candidate.filter === "useful" && candidate.category === "tag"));
+    assert.strictEqual(candidates.find(candidate => candidate.filter === "working-notes").label, "Card type: Working Notes");
+  });
+
+  it("caps and deduplicates concrete values while retaining text search", () => {
+    const current = CollectionDescription.deserialize("everything/tag-0/");
+    const candidates = Array.from({ length: 9 }, (_, index) => ({
+      filter: `tag-${index}`,
+      category: "tag",
+      label: `Tagged “Tag ${index}”`,
+      detail: `Keeps cards tagged Tag ${index}`,
+      aliases: ["tag"],
+    }));
+    const suggestions = collectionComposerSuggestions(current, "tag", {}, { candidates });
+    assert.strictEqual(suggestions.filter(item => item.kind === "add").length, 6);
+    assert.ok(!suggestions.some(item => item.description.filters.filter(filter => filter === "tag-0").length > 1));
+    assert.strictEqual(suggestions.at(-1).kind, "search");
   });
 
   it("constructs configurable filters with visible editable defaults", () => {

@@ -28,12 +28,33 @@ export type CollectionComposerSuggestion = {
   description: CollectionDescription;
 };
 
+export type CollectionComposerCandidate = {
+  filter: string;
+  category: "section" | "tag" | "card type" | "todo" | "relationship" | "date" | "author";
+  label: string;
+  detail: string;
+  aliases?: string[];
+  searchValues?: string[];
+};
+
 export type CollectionComposerContext = {
   cardsSelected?: boolean;
+  candidates?: CollectionComposerCandidate[];
   recentCollections?: Array<{
     description: CollectionDescription;
     visits: number;
   }>;
+};
+
+const candidateRelevance = (candidate: CollectionComposerCandidate, query: string): number => {
+  const values = candidate.searchValues || [candidate.label, candidate.filter, candidate.category, ...(candidate.aliases || [])]
+    .map(value => value.toLowerCase());
+  if (values.some(value => value === query)) return 0;
+  if (values.some(value => value.startsWith(query))) return 1;
+  const tokens = query.split(/\s+/).filter(Boolean);
+  if (tokens.length && tokens.every(token => values.some(value => value.includes(token)))) return 2;
+  if (values.some(value => value.includes(query))) return 3;
+  return Number.POSITIVE_INFINITY;
 };
 
 const humanize = (value: string): string =>
@@ -262,36 +283,65 @@ export const collectionComposerSuggestions = (
   }
 
   const normalizedQuery = query.toLowerCase();
+  const matchingCandidates = (context.candidates || [])
+    .map(candidate => ({candidate, relevance: candidateRelevance(candidate, normalizedQuery)}))
+    .filter(match => Number.isFinite(match.relevance))
+    .sort((left, right) => left.relevance - right.relevance || left.candidate.label.localeCompare(right.candidate.label));
   const matchingFilters = Object.entries(filterDescriptions)
     .filter(([name, detail]) =>
       name.toLowerCase().includes(normalizedQuery) || detail.toLowerCase().includes(normalizedQuery)
     )
-    .sort(([leftName, leftDetail], [rightName, rightDetail]) => {
-      const relevance = (name: string, detail: string) => {
+    .map(([name, detail]) => {
+      const relevance = (() => {
         const normalizedName = name.toLowerCase();
         if (normalizedName === normalizedQuery) return 0;
         if (normalizedName.startsWith(normalizedQuery)) return 1;
         if (normalizedName.includes(normalizedQuery)) return 2;
         if (detail.toLowerCase().startsWith(normalizedQuery)) return 3;
         return 4;
+      })();
+      return {name, detail, relevance};
+    });
+  const interpretations = [
+    ...matchingCandidates.map(match => ({type: "candidate" as const, ...match})),
+    ...matchingFilters.map(match => ({type: "filter" as const, ...match})),
+  ].sort((left, right) => left.relevance - right.relevance ||
+    (left.type === "candidate" ? left.candidate.label : left.name).localeCompare(right.type === "candidate" ? right.candidate.label : right.name));
+  const seenDestinations = new Set(result.map(suggestion => suggestion.description.serialize()));
+  let concreteCandidateCount = 0;
+  for (const interpretation of interpretations) {
+    let suggestion: CollectionComposerSuggestion;
+    if (interpretation.type === "candidate") {
+      const candidate = interpretation.candidate;
+      if (current.filters.includes(candidate.filter) || concreteCandidateCount >= 6) continue;
+      suggestion = {
+        id: `candidate:${candidate.category}:${candidate.filter}`,
+        kind: "add",
+        action: "add",
+        label: candidate.label,
+        detail: `${candidate.detail} · Adds “${candidate.filter}” to the collection URL`,
+        description: collectionDescriptionWithFilterAppended(current, candidate.filter),
       };
-      return relevance(leftName, leftDetail) - relevance(rightName, rightDetail) || leftName.localeCompare(rightName);
-    });
-  for (const [name, detail] of matchingFilters) {
-    const filter = defaultFilter(name);
-    const configurable = CONFIGURABLE_FILTER_INFO[name];
-    const existingConfigurable = configurable && current.filters.some(currentFilter => currentFilter.startsWith(name + "/"));
-    if (!configurable && current.filters.includes(filter)) continue;
-    result.push({
-      id: `filter:${filter}`,
-      kind: "add",
-      action: existingConfigurable ? "replace" : "add",
-      label: `${existingConfigurable ? "Reset" : "Add"} ${humanize(name)}`,
-      detail: configurable
-        ? `${detail} · starts with an editable default`
-        : detail,
-      description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
-    });
+    } else {
+      const {name, detail} = interpretation;
+      const filter = defaultFilter(name);
+      const configurable = CONFIGURABLE_FILTER_INFO[name];
+      const existingConfigurable = configurable && current.filters.some(currentFilter => currentFilter.startsWith(name + "/"));
+      if (!configurable && current.filters.includes(filter)) continue;
+      suggestion = {
+        id: `filter:${filter}`,
+        kind: "add",
+        action: existingConfigurable ? "replace" : "add",
+        label: `${existingConfigurable ? "Reset" : "Add"} ${humanize(name)}`,
+        detail: configurable ? `${detail} · starts with an editable default` : detail,
+        description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
+      };
+    }
+    const destination = suggestion.description.serialize();
+    if (seenDestinations.has(destination)) continue;
+    seenDestinations.add(destination);
+    if (interpretation.type === "candidate") concreteCandidateCount++;
+    result.push(suggestion);
     if (result.length >= 7) break;
   }
 

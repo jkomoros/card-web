@@ -64,6 +64,27 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(dialog.open, true);
   });
 
+  it("adds a discovered concrete value as its exact URL-native filter", async () => {
+    dialog._composerCandidates = [{
+      filter: "inductively-knowable",
+      category: "tag",
+      label: "Tagged “Inductively Knowable”",
+      detail: "Keeps cards tagged Inductively Knowable",
+      aliases: ["tag", "inductively knowable"],
+    }];
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "tag inductively";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+      .find((button) => button.textContent.includes("Tagged “Inductively Knowable”"));
+    assert.ok(suggestion);
+    assert.match(suggestion.textContent, /inductively-knowable/);
+    suggestion.click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["inductively-knowable"]);
+  });
+
   it("explains preview counts as consequences without changing row order", async () => {
     const before = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
       .map((button) => button.id);

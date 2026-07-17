@@ -11,6 +11,7 @@ import { DialogElement } from './dialog-element.js';
 import {
 	selectConfigureCollectionDialogOpen,
 	selectFilterDescriptions,
+	selectCollectionComposerCandidates,
 	selectAuthorAndCollaboratorUserIDs,
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
@@ -89,6 +90,7 @@ import {
 
 import {
 	CollectionComposerSuggestion,
+	CollectionComposerCandidate,
 	collectionExpressionParts,
 	readableCollectionFilter,
 	collectionComposerSuggestions,
@@ -111,6 +113,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_filterDescriptions: {[filterName : string]: string};
+
+	@state()
+		_composerCandidates: CollectionComposerCandidate[] = [];
 
 	@state()
 		_userIDs: Uid[];
@@ -595,7 +600,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._collectionDescription,
 			this._composerInput,
 			this._filterDescriptions || {},
-			{cardsSelected: this._cardsSelected, recentCollections}
+			{cardsSelected: this._cardsSelected, recentCollections, candidates: this._composerCandidates}
 		);
 	}
 
@@ -861,6 +866,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			changedProps.has('_collectionDescription') ||
 			changedProps.has('_activeCardID') ||
 			changedProps.has('_filterDescriptions') ||
+			changedProps.has('_composerCandidates') ||
 			changedProps.has('_cardsSelected') ||
 			changedProps.has('_userScope')
 		) this._refreshPreviewCounts();
@@ -906,6 +912,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.mobile = state.app ? state.app.mobileMode : false;
 		this._collectionDescription = selectSnapshotCollectionDescription(state);
 		this._filterDescriptions = selectFilterDescriptions(state);
+		this._composerCandidates = selectCollectionComposerCandidates(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._cardsSelected = selectCardsSelected(state);
