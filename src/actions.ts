@@ -312,7 +312,9 @@ type ActionUpdateOffline = {
 };
 
 type ActionOpenSnackbar = {
-	type: typeof OPEN_SNACKBAR
+	type: typeof OPEN_SNACKBAR,
+	message: string,
+	action: '' | 'back'
 };
 
 type ActionCloseSnackbar = {

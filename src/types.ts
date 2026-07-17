@@ -726,6 +726,8 @@ export type AppState = {
 	pageExtra: string,
 	offline: boolean,
 	snackbarOpened: boolean,
+	snackbarMessage: string,
+	snackbarAction: '' | 'back',
 	headerPanelOpen: boolean,
 	commentsAndInfoPanelOpen: boolean,
 	cardsDrawerPanelOpen: boolean,

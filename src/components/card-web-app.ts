@@ -16,6 +16,7 @@ import { store } from '../store.js';
 import {
 	navigated,
 	updateOffline,
+	closeSnackbar,
 	turnMobileMode,
 	ctrlKeyPressed,
 	PAGE_BASIC_CARD,
@@ -57,6 +58,12 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	@state()
 		_snackbarOpened: boolean;
+
+	@state()
+		_snackbarMessage: string;
+
+	@state()
+		_snackbarAction: '' | 'back';
 
 	@state()
 		_offline: boolean;
@@ -281,6 +288,34 @@ class CardWebApp extends connect(store)(LitElement) {
 		}
 
 		.save-status button { border: 0; background: transparent; color: var(--app-primary-color); text-decoration: underline; cursor: pointer; font: inherit; }
+
+			.snackbar-content {
+				display: flex;
+				align-items: center;
+				gap: 1em;
+				justify-content: center;
+			}
+
+			.snackbar-content span {
+				min-width: 0;
+			}
+
+			.snackbar-content button {
+				background: transparent;
+				border: 0;
+				color: white;
+				cursor: pointer;
+				font: inherit;
+				font-weight: bold;
+				padding: 0.25em;
+				text-decoration: underline;
+				text-underline-offset: 0.2em;
+			}
+
+			.snackbar-content button:focus-visible {
+				outline: 2px solid white;
+				outline-offset: 2px;
+			}
 		`
 	];
 
@@ -290,7 +325,11 @@ class CardWebApp extends connect(store)(LitElement) {
 		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar .active="${this._snackbarOpened}">
-				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
+			<div class='snackbar-content'>
+				<span role='status' aria-live='polite'>${this._snackbarMessage || `You are now ${this._offline ? 'offline' : 'online'}.`}</span>
+				${this._snackbarAction === 'back' ? html`<button @click=${this._handleSnackbarUndo}>Undo</button>` : ''}
+			</div>
+		</snack-bar>
 		${this._updateRegistration || this._updateActivated ? html`
 			<div class='update-ready ${this._editorOpen ? 'editor-open' : ''}' role='status' aria-live='polite'>
 				<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
@@ -449,6 +488,11 @@ class CardWebApp extends connect(store)(LitElement) {
 		await this._refreshDraftAvailability();
 	};
 
+	_handleSnackbarUndo() {
+		store.dispatch(closeSnackbar());
+		window.history.back();
+	}
+
 	override firstUpdated() {
 		// Install recovery only after the root module graph has initialized.
 		// Running actions/data's watcher during store construction would execute
@@ -551,6 +595,8 @@ class CardWebApp extends connect(store)(LitElement) {
 			? saveError || durableError ? 'paused' : 'saving'
 			: 'idle';
 		this._saveError = saveError?.message || durableError;
+		this._snackbarMessage = state.app.snackbarMessage;
+		this._snackbarAction = state.app.snackbarAction;
 	}
 }
 

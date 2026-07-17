@@ -10,6 +10,7 @@ class SnackBar extends LitElement {
 	static override styles = [
 		css`
 			:host {
+				box-sizing: border-box;
 				display: block;
 				position: fixed;
 				bottom: 0;
@@ -32,7 +33,8 @@ class SnackBar extends LitElement {
 			}
 			@media (min-width: 460px) {
 				:host {
-					width: 320px;
+					max-width: 420px;
+					width: calc(100% - 2em);
 					margin: auto;
 				}
 			}

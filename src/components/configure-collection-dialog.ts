@@ -22,6 +22,7 @@ import {
 	askForPathToNavigateTo,
 	closeConfigureCollectionDialog,
 	navigateToCollection,
+	showSnackbar,
 } from '../actions/app.js';
 
 import {
@@ -400,17 +401,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
 			if (!suggestions.length) return;
 			e.preventDefault();
+			e.stopPropagation();
 			const direction = e.key === 'ArrowDown' ? 1 : -1;
 			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
 			return;
 		}
 		if (e.key === 'Tab' && suggestions.length) {
 			e.preventDefault();
+			e.stopPropagation();
 			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], false);
 			return;
 		}
 		if (e.key === 'Enter' && suggestions.length) {
 			e.preventDefault();
+			e.stopPropagation();
 			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], true);
 		}
 	}
@@ -430,8 +434,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
 		if (open) {
-			store.dispatch(closeConfigureCollectionDialog());
+			const previousPath = window.location.pathname;
+			const alreadyActive = this._collectionDescription.serialize() === suggestion.description.serialize();
+			if (alreadyActive) {
+				store.dispatch(closeConfigureCollectionDialog());
+				return;
+			}
 			store.dispatch(navigateToCollection(suggestion.description));
+			//Navigation can be blocked while editing. Keep the draft open and do
+			//not claim success unless a route was actually committed. The router
+			//may legitimately shorten the requested path; results-usable semantic
+			//confirmation belongs to the later activation state machine.
+			if (window.location.pathname === previousPath) return;
+			store.dispatch(closeConfigureCollectionDialog());
+			const count = this._previewCounts[suggestion.id];
+			const expression = readableCollectionExpression(suggestion.description);
+			store.dispatch(showSnackbar(
+				`Now showing ${expression}${count === undefined ? '' : ` · ${count} ${count === 1 ? 'card' : 'cards'}`}`,
+				'back'
+			));
 			return;
 		}
 		store.dispatch(updateCollectionConfigurationSnapshot(suggestion.description));

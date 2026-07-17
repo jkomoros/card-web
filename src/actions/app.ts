@@ -495,14 +495,21 @@ export const updateHoveredCard = (x : number,y : number,cardId : CardID) : Thunk
 
 let snackbarTimer : number;
 
-export const showSnackbar = () : ThunkSomeAction => (dispatch) => {
+export const showSnackbar = (
+	message = '',
+	action : '' | 'back' = ''
+) : ThunkSomeAction => (dispatch) => {
 	dispatch({
-		type: OPEN_SNACKBAR
+		type: OPEN_SNACKBAR,
+		message,
+		action,
 	});
 	window.clearTimeout(snackbarTimer);
 	snackbarTimer = window.setTimeout(() =>
-		dispatch({ type: CLOSE_SNACKBAR }), 3000);
+		dispatch({ type: CLOSE_SNACKBAR }), action ? 10000 : 3000);
 };
+
+export const closeSnackbar = () : SomeAction => ({type: CLOSE_SNACKBAR});
 
 export const updateOffline = (offline : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	// Show the snackbar only if offline status changes.
