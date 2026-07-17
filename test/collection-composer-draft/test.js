@@ -60,4 +60,15 @@ describe("Collection Composer draft lifecycle", () => {
     assert.deepStrictEqual(committed.active, draft);
     assert.strictEqual(committed.snapshot, null);
   });
+
+  it("does not erase a draft when the composer is opened again", () => {
+    const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+    const changed = reducer(opened, {
+      type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+      collection: draft,
+    });
+    const reopened = reducer(changed, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+    assert.strictEqual(reopened, changed);
+    assert.deepStrictEqual(reopened.snapshot, draft);
+  });
 });

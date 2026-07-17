@@ -109,4 +109,22 @@ describe("Collection Composer navigation receipt", () => {
       "/c/everything/starred/"
     );
   });
+
+  it("only undoes while the receipt still describes the current location", () => {
+    assert.strictEqual(
+      receipt.collectionReceiptCanUndo(
+        "/c/everything/starred/",
+        "/c/everything/starred/"
+      ),
+      true
+    );
+    assert.strictEqual(
+      receipt.collectionReceiptCanUndo(
+        "/c/everything/starred/",
+        "/c/everything/starred/card-a"
+      ),
+      false
+    );
+    assert.strictEqual(receipt.collectionReceiptCanUndo("", ""), false);
+  });
 });

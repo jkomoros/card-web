@@ -9,6 +9,8 @@
 
 const LOCAL_STORAGE_KEY = "collection-composer";
 const PREVIEW_LOCAL_STORAGE_KEY = "collection-composer-preview";
+const SESSION_STORAGE_KEY = "collection-composer-session";
+const PREVIEW_SESSION_STORAGE_KEY = "collection-composer-preview-session";
 
 export type CollectionComposerMode = "off" | "dogfood" | "on";
 
@@ -20,14 +22,27 @@ export const readCollectionComposerMode = (): CollectionComposerMode => {
   } catch {
     //Best effort: capability remains safely disabled.
   }
-  //A non-persistent development/admin override makes a dogfood URL easy to
-  //open and share without changing a browser profile. Hash state is ignored by
-  //the collection router and vanishes when the hash is removed.
+  try {
+    const value = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (value === "dogfood" || value === "on") return value;
+  } catch {
+    //Best effort
+  }
+  //A tab-scoped development/admin override makes a dogfood URL easy to open
+  //and share without changing a browser profile. Seed session storage because
+  //ordinary collection navigation correctly replaces the URL hash.
   try {
     const value = new URLSearchParams(window.location?.hash.slice(1) || "").get(
       LOCAL_STORAGE_KEY
     );
-    if (value === "dogfood" || value === "on") return value;
+    if (value === "dogfood" || value === "on") {
+      try {
+        window.sessionStorage.setItem(SESSION_STORAGE_KEY, value);
+      } catch {
+        //Best effort
+      }
+      return value;
+    }
   } catch {
     //Best effort
   }
@@ -41,6 +56,7 @@ export const writeCollectionComposerMode = (
   try {
     if (mode === "off") {
       window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     } else {
       window.localStorage.setItem(LOCAL_STORAGE_KEY, mode);
     }
@@ -68,11 +84,12 @@ export const collectionComposerPreviewEnabled = (): boolean => {
   try {
     if (window.localStorage.getItem(PREVIEW_LOCAL_STORAGE_KEY) === "on")
       return true;
-    return (
-      new URLSearchParams(window.location?.hash.slice(1) || "").get(
-        PREVIEW_LOCAL_STORAGE_KEY
-      ) === "on"
-    );
+    if (window.sessionStorage.getItem(PREVIEW_SESSION_STORAGE_KEY) === "on") return true;
+    const hashEnabled = new URLSearchParams(window.location?.hash.slice(1) || "").get(
+      PREVIEW_LOCAL_STORAGE_KEY
+    ) === "on";
+    if (hashEnabled) window.sessionStorage.setItem(PREVIEW_SESSION_STORAGE_KEY, "on");
+    return hashEnabled;
   } catch {
     return false;
   }
@@ -87,6 +104,7 @@ export const writeCollectionComposerPreviewEnabled = (
       window.localStorage.setItem(PREVIEW_LOCAL_STORAGE_KEY, "on");
     } else {
       window.localStorage.removeItem(PREVIEW_LOCAL_STORAGE_KEY);
+      window.sessionStorage.removeItem(PREVIEW_SESSION_STORAGE_KEY);
     }
   } catch {
     //Best effort

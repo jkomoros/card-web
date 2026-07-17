@@ -25,3 +25,11 @@ export const pendingCollectionNavigationReceipt = () : string => pendingReceiptL
 export const clearCollectionNavigationReceipt = () : void => {
 	pendingReceiptLocation = '';
 };
+
+//Undo only while the user is still where the receipt said they were. If they
+//have navigated on since, walking history back would reverse something they
+//never asked about.
+export const collectionReceiptCanUndo = (
+	expectedLocation: string,
+	currentLocation: string
+) : boolean => Boolean(expectedLocation) && expectedLocation === currentLocation;

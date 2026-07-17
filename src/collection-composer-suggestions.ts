@@ -1,6 +1,7 @@
 import {
   CollectionDescription,
   collectionDescriptionWithFilterAppended,
+  collectionDescriptionWithConfigurableFilter,
   collectionDescriptionWithFilterRemoved,
   collectionDescriptionWithQuery,
   collectionDescriptionWithSelected,
@@ -21,6 +22,7 @@ export type CollectionComposerSuggestionKind =
 export type CollectionComposerSuggestion = {
   id: string;
   kind: CollectionComposerSuggestionKind;
+  action: "open" | "add" | "remove" | "replace";
   label: string;
   detail: string;
   description: CollectionDescription;
@@ -42,15 +44,24 @@ const humanize = (value: string): string =>
 
 const readableFilter = (filter: string): string => {
   const [family, ...rawValues] = filter.split("/");
-  if (!rawValues.length) return humanize(family);
-  const values = rawValues.map((value) => {
+  const readableFamily = (value: string) => {
+    try {
+      const alternatives = decodeURIComponent(value).split("+").map(humanize);
+      return alternatives.length > 1 ? `(${alternatives.join(" OR ")})` : alternatives[0];
+    } catch {
+      const alternatives = value.split("+").map(humanize);
+      return alternatives.length > 1 ? `(${alternatives.join(" OR ")})` : alternatives[0];
+    }
+  };
+  const readableValue = (value: string) => {
     try {
       return humanize(decodeURIComponent(value).split("+").join(" "));
     } catch {
-      return humanize(value);
+      return humanize(value.split("+").join(" "));
     }
-  });
-  return `${humanize(family)} ${values.join(" · ")}`;
+  };
+  if (!rawValues.length) return readableFamily(family);
+  return `${readableFamily(family)} ${rawValues.map(readableValue).join(" · ")}`;
 };
 
 const defaultFilter = (name: string): string => {
@@ -95,6 +106,7 @@ const removalSuggestions = (
   current.filters.map((filter, index) => ({
     id: `remove:${index}:${filter}`,
     kind: "broaden",
+    action: "remove",
     label: `Remove ${humanize(filter.split("/")[0])}`,
     detail: `Broadens this collection by removing ${filter}`,
     description: collectionDescriptionWithFilterRemoved(current, index),
@@ -150,6 +162,7 @@ const recentSuggestions = (
     result.push({
       id: `recent:${canonical}`,
       kind: "recent",
+      action: "open",
       label: `Back to ${readableCollectionExpression(recent.description)}`,
       detail: collectionDifference(current, recent.description, recent.visits),
       description: recent.description,
@@ -176,6 +189,7 @@ const emptyStateSuggestions = (
     result.push({
       id: "add:selected",
       kind: "add",
+      action: "add",
       label: "Keep only the selected cards",
       detail:
         "Adds the ordinary Selected filter; clear selection to change its members",
@@ -188,6 +202,7 @@ const emptyStateSuggestions = (
     result.push({
       id: `add:${filter}`,
       kind: "add",
+      action: "add",
       label: `Keep only ${humanize(filter)}`,
       detail: `Adds ${filter} to this collection`,
       description: collectionDescriptionWithFilterAppended(current, filter),
@@ -197,6 +212,7 @@ const emptyStateSuggestions = (
     result.push({
       id: "set:everything",
       kind: "broaden",
+      action: "replace",
       label: "Start from Everything",
       detail: `Replaces the ${humanize(current.set)} set with Everything`,
       description: collectionDescriptionWithSet(current, "everything"),
@@ -205,6 +221,7 @@ const emptyStateSuggestions = (
   result.push({
     id: "sort:reverse",
     kind: "pivot",
+    action: "replace",
     label: current.sortReversed
       ? "Use normal sort direction"
       : "Reverse the current sort",
@@ -236,6 +253,7 @@ export const collectionComposerSuggestions = (
       result.push({
         id: `source:${description.serialize()}`,
         kind: "source",
+        action: "open",
         label: "Open this collection source",
         detail: description.serializeShortOriginalOrder(),
         description,
@@ -244,34 +262,47 @@ export const collectionComposerSuggestions = (
   }
 
   const normalizedQuery = query.toLowerCase();
-  for (const [name, detail] of Object.entries(filterDescriptions)) {
-    if (
-      !name.toLowerCase().includes(normalizedQuery) &&
-      !detail.toLowerCase().includes(normalizedQuery)
+  const matchingFilters = Object.entries(filterDescriptions)
+    .filter(([name, detail]) =>
+      name.toLowerCase().includes(normalizedQuery) || detail.toLowerCase().includes(normalizedQuery)
     )
-      continue;
+    .sort(([leftName, leftDetail], [rightName, rightDetail]) => {
+      const relevance = (name: string, detail: string) => {
+        const normalizedName = name.toLowerCase();
+        if (normalizedName === normalizedQuery) return 0;
+        if (normalizedName.startsWith(normalizedQuery)) return 1;
+        if (normalizedName.includes(normalizedQuery)) return 2;
+        if (detail.toLowerCase().startsWith(normalizedQuery)) return 3;
+        return 4;
+      };
+      return relevance(leftName, leftDetail) - relevance(rightName, rightDetail) || leftName.localeCompare(rightName);
+    });
+  for (const [name, detail] of matchingFilters) {
     const filter = defaultFilter(name);
+    const configurable = CONFIGURABLE_FILTER_INFO[name];
+    const existingConfigurable = configurable && current.filters.some(currentFilter => currentFilter.startsWith(name + "/"));
+    if (!configurable && current.filters.includes(filter)) continue;
     result.push({
       id: `filter:${filter}`,
       kind: "add",
-      label: `Add ${humanize(name)}`,
-      detail: CONFIGURABLE_FILTER_INFO[name]
+      action: existingConfigurable ? "replace" : "add",
+      label: `${existingConfigurable ? "Reset" : "Add"} ${humanize(name)}`,
+      detail: configurable
         ? `${detail} · starts with an editable default`
         : detail,
-      description: collectionDescriptionWithFilterAppended(current, filter),
+      description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
     });
     if (result.length >= 7) break;
   }
 
-  if (!looksLikeSource) {
-    result.push({
-      id: `query:${normalizedQuery}`,
-      kind: "search",
-      label: `Text contains “${query}”`,
-      detail: "Explicitly adds a text-query clause to this collection",
-      description: collectionDescriptionWithQuery(current, query),
-    });
-  }
+  result.push({
+    id: `query:${normalizedQuery}`,
+    kind: "search",
+    action: current.filters.some(filter => filter.startsWith("query/")) ? "replace" : "add",
+    label: `Text contains “${query}”`,
+    detail: "Explicitly adds a text-query clause to this collection",
+    description: collectionDescriptionWithQuery(current, query),
+  });
 
   return result.slice(0, 8);
 };
@@ -286,6 +317,10 @@ export const readableCollectionExpression = (
     result += ` · sorted by ${
       description.sortReversed ? "reverse " : ""
     }${humanize(description.sort)}`;
+  }
+  if (description.viewMode !== "list") {
+    result += ` · viewed as ${humanize(description.viewMode)}`;
+    if (description.viewModeExtra) result += ` (${humanize(description.viewModeExtra)})`;
   }
   return result;
 };

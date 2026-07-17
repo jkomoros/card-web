@@ -53,6 +53,7 @@ import {
 } from '../selectors.js';
 
 import {
+	collectionDescriptionActuallyVisited,
 	recordRecentCollection,
 } from '../collection-composer-history.js';
 
@@ -181,7 +182,12 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 	}
 
 	const resolvedDescription = new CollectionDescription(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra);
-	if (collectionComposerEnabled()) recordRecentCollection(resolvedDescription, selectUid(getState()));
+	const descriptionActuallyVisited = collectionDescriptionActuallyVisited(
+		resolvedDescription,
+		selectActiveCollectionDescription(getState()),
+		doUpdateCollection || forceUpdateCollection
+	);
+	if (collectionComposerEnabled()) recordRecentCollection(descriptionActuallyVisited, selectUid(getState()));
 	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));
 };

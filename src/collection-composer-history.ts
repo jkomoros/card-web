@@ -10,6 +10,12 @@ export type RecentCollectionEntry = {
   visits: number;
 };
 
+export const collectionDescriptionActuallyVisited = (
+	requested: CollectionDescription,
+	active: CollectionDescription,
+	updatesCollection: boolean
+) : CollectionDescription => updatesCollection ? requested : active;
+
 const storageKey = (scope: string): string =>
   STORAGE_PREFIX + encodeURIComponent(scope || "public");
 

@@ -116,7 +116,9 @@ import {
 	toggleCardsDrawerInfo,
 	openConfigureCollectionDialog,
 	navigateToCollectionWithSelected,
-	askForPathToNavigateTo
+	askForPathToNavigateTo,
+	showSnackbar,
+	urlForCollection,
 } from '../actions/app.js';
 
 import {
@@ -126,6 +128,10 @@ import {
 import {
 	collectionComposerEnabled,
 } from '../collection-composer-mode.js';
+
+import {
+	readableCollectionExpression,
+} from '../collection-composer-suggestions.js';
 
 import {
 	addStar,
@@ -194,7 +200,8 @@ import {
 	PLUS_ICON,
 	FILTER_ALT_ICON,
 	SAVE_ICON,
-	REPEAT_ICON
+	REPEAT_ICON,
+	COPY_ALL_ICON,
 } from '../../shared/icons.js';
 
 import {
@@ -580,6 +587,53 @@ class CardView extends connect(store)(PageViewElement) {
 				vertical-align: middle;
 			}
 
+			.collection-summary {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) 44px;
+				align-items: center;
+				gap: 0.15em;
+				margin: 0.35em 0.4em 0.65em;
+				text-align: left;
+			}
+
+			.collection-summary-main {
+				background: transparent;
+				box-shadow: none;
+				color: var(--app-dark-text-color);
+				margin: 0;
+				min-width: 0;
+				padding: 0.4em;
+				text-align: left;
+			}
+
+			.collection-summary-main:hover {
+				background: var(--app-primary-color-light-very-transparent);
+				box-shadow: none;
+			}
+
+			.collection-summary-expression {
+				display: -webkit-box;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 2;
+				overflow: hidden;
+				font-size: 0.82em;
+				line-height: 1.25;
+			}
+
+			.collection-summary-action {
+				color: var(--app-primary-color);
+				display: block;
+				font-size: 0.7em;
+				margin-top: 0.25em;
+			}
+
+			#copy-collection-link {
+				height: 44px;
+				width: 44px;
+				display: grid;
+				place-items: center;
+			}
+
 			card-drawer.showing {
 				border-right: 1px solid var(--app-divider-color);
 				/* Reserve the loaded column width. The drawer is shrink-to-fit,
@@ -707,6 +761,33 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			<div slot='visible-info'>
+				${collectionComposerEnabled() && this._collection ? html`
+					<div class='collection-summary'>
+						<button
+							class='collection-summary-main'
+							title=${readableCollectionExpression(this._collection.description)}
+							aria-label=${`Refine collection: ${readableCollectionExpression(this._collection.description)}`}
+							@click=${this._handleConfigureCollectionClicked}
+						>
+							<span class='collection-summary-expression'>${readableCollectionExpression(this._collection.description)}</span>
+							<span class='collection-summary-action'>${
+								this._collection.description.filters.length ||
+								this._collection.description.set !== 'main' ||
+								this._collection.description.sort !== 'default' ||
+								this._collection.description.sortReversed ||
+								this._collection.description.viewMode !== 'list' ?
+									'Refine · Ctrl K' : 'Show cards matching… · Ctrl K'
+							}</span>
+						</button>
+						<button
+							id='copy-collection-link'
+							class='small'
+							title='Copy link to this collection'
+							aria-label='Copy link to this collection'
+							@click=${this._handleCopyCollectionLink}
+						>${COPY_ALL_ICON}</button>
+					</div>
+				` : ''}
 				${this._cardsSelected ? 
 		html`<button
 				id='clear-selection'
@@ -748,18 +829,6 @@ class CardView extends connect(store)(PageViewElement) {
 			`
 		: ''
 }
-				${collectionComposerEnabled() ? html`
-					<button
-						id='refine-collection'
-						class='small'
-						title='Refine this collection (Ctrl-K)'
-						@click=${this._handleConfigureCollectionClicked}
-					>
-						${RULE_ICON}
-					</button>
-					<label for='refine-collection'>Refine</label>
-					<br />
-				` : ''}
 				${this._collection?.description.isRandom ? html`
 					<button
 						id='randomize'
@@ -905,6 +974,17 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleConfigureCollectionClicked() {
 		store.dispatch(openConfigureCollectionDialog());
+	}
+
+	async _handleCopyCollectionLink() {
+		if (!this._collection) return;
+		const url = new URL(urlForCollection(this._collection.description), window.location.origin).toString();
+		try {
+			await navigator.clipboard.writeText(url);
+			store.dispatch(showSnackbar('Collection link copied'));
+		} catch {
+			store.dispatch(showSnackbar('Could not copy the collection link'));
+		}
 	}
 
 	_handleAIAssistantSummaryClicked() {

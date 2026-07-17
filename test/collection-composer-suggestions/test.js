@@ -44,6 +44,7 @@ describe("Collection Composer suggestions", () => {
       descriptions
     );
     assert.strictEqual(suggestions[0].label, "Remove Working Notes");
+    assert.strictEqual(suggestions[0].action, "remove");
     assert.strictEqual(suggestions[0].description.serialize(), "everything/");
     assert.ok(suggestions.some((item) => item.label === "Keep only Starred"));
     assert.ok(
@@ -84,6 +85,7 @@ describe("Collection Composer suggestions", () => {
       suggestions[0].label,
       "Back to Main AND Starred · sorted by Recent"
     );
+    assert.strictEqual(suggestions[0].action, "open");
     assert.match(suggestions[0].detail, /Uses Main instead of Everything/);
     assert.match(suggestions[0].detail, /Removes Working Notes/);
     assert.match(suggestions[0].detail, /Adds Starred/);
@@ -103,6 +105,15 @@ describe("Collection Composer suggestions", () => {
       suggestions[0].description.serialize(),
       suggestions.at(-1).description.serialize()
     );
+  });
+
+  it("ranks name matches ahead of incidental description matches", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const suggestions = collectionComposerSuggestions(current, "working", {
+      "mined-for-content": "Cards with working source material",
+      "working-notes": "Working notes cards",
+    });
+    assert.strictEqual(suggestions[0].label, "Add Working Notes");
   });
 
   it("constructs configurable filters with visible editable defaults", () => {
@@ -142,6 +153,25 @@ describe("Collection Composer suggestions", () => {
     );
   });
 
+  it("keeps text search available when slash-containing source is invalid", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const suggestions = collectionComposerSuggestions(current, "view/grid/", descriptions);
+    assert.ok(suggestions.some((suggestion) => suggestion.label === "Text contains “view/grid/”"));
+  });
+
+  it("keeps text search available beside a valid slash source", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const suggestions = collectionComposerSuggestions(current, "starred/unread/", descriptions);
+    assert.strictEqual(suggestions[0].action, "open");
+    assert.ok(suggestions.some((suggestion) => suggestion.label === "Text contains “starred/unread/”"));
+  });
+
+  it("does not offer to append an already applied filter", () => {
+    const current = CollectionDescription.deserialize("everything/starred/");
+    const suggestions = collectionComposerSuggestions(current, "starred", descriptions);
+    assert.ok(!suggestions.some((suggestion) => suggestion.label === "Add Starred"));
+  });
+
   it("renders a compact readable expression", () => {
     const description = CollectionDescription.deserialize(
       "everything/starred/working-notes/sort/reverse/updated/"
@@ -156,6 +186,16 @@ describe("Collection Composer suggestions", () => {
     assert.strictEqual(
       readableCollectionExpression(query),
       "Everything AND Query Inductively Knowable"
+    );
+    const web = CollectionDescription.deserialize("everything/view/web/graph/");
+    assert.strictEqual(
+      readableCollectionExpression(web),
+      "Everything · viewed as Web (Graph)"
+    );
+    const union = CollectionDescription.deserialize("everything/starred+unread/");
+    assert.strictEqual(
+      readableCollectionExpression(union),
+      "Everything AND (Starred OR Unread)"
     );
   });
 });

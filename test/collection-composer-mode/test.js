@@ -36,7 +36,7 @@ describe("Collection Composer capability", () => {
   });
 
   beforeEach(() => {
-    globalThis.window = { localStorage: storage() };
+    globalThis.window = { localStorage: storage(), sessionStorage: storage() };
   });
 
   after(() => {
@@ -62,13 +62,22 @@ describe("Collection Composer capability", () => {
     assert.strictEqual(collectionComposerParserShadowEnabled(), true);
   });
 
-  it("supports a non-persistent hash override for development", () => {
+  it("keeps a hash override for the current tab after navigation", () => {
     globalThis.window.location = { hash: "#collection-composer=dogfood" };
     assert.strictEqual(readCollectionComposerMode(), "dogfood");
     assert.strictEqual(
       globalThis.window.localStorage.getItem("collection-composer"),
       null
     );
+    globalThis.window.location.hash = "";
+    assert.strictEqual(readCollectionComposerMode(), "dogfood");
+  });
+
+  it("keeps hash-enabled previews for the current tab", () => {
+    globalThis.window.location = { hash: "#collection-composer=on&collection-composer-preview=on" };
+    assert.strictEqual(collectionComposerPreviewEnabled(), true);
+    globalThis.window.location.hash = "";
+    assert.strictEqual(collectionComposerPreviewEnabled(), true);
   });
 
   it("supports the public-on bundle without diagnostics", () => {
