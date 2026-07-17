@@ -13,16 +13,21 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 
 let CollectionDescription;
 let readRecentCollections;
+let readRememberedCollections;
 let recordRecentCollection;
 let collectionDescriptionActuallyVisited;
+let collectionDescriptionWithRelativeDateMemory;
 
 describe("Collection Composer history", () => {
   before(async () => {
     ({ CollectionDescription } = await import(
       "../../lib/src/collection_description.js"
     ));
-    ({ readRecentCollections, recordRecentCollection, collectionDescriptionActuallyVisited } = await import(
+    ({ readRecentCollections, readRememberedCollections, recordRecentCollection, collectionDescriptionActuallyVisited } = await import(
       "../../lib/src/collection-composer-history.js"
+    ));
+    ({ collectionDescriptionWithRelativeDateMemory } = await import(
+      "../../lib/src/collection-composer-memory.js"
     ));
   });
 
@@ -84,6 +89,62 @@ describe("Collection Composer history", () => {
       readRecentCollections("other-user").map((entry) => entry.canonical),
       [second.serialize()]
     );
+  });
+
+  it("recognizes a frequently revisited moving date window", () => {
+    recordRecentCollection(
+      CollectionDescription.deserialize("everything/created/after/2026-7-7/"),
+      "alex",
+      new Date(2026, 6, 10, 12).getTime()
+    );
+    recordRecentCollection(
+      CollectionDescription.deserialize("everything/created/after/2026-7-8/"),
+      "alex",
+      new Date(2026, 6, 11, 12).getTime()
+    );
+    recordRecentCollection(
+      CollectionDescription.deserialize("everything/created/after/2026-7-9/"),
+      "alex",
+      new Date(2026, 6, 12, 12).getTime()
+    );
+    const remembered = readRememberedCollections("alex");
+    assert.deepStrictEqual(remembered.slice(0, 2).map(entry => entry.authoring), [
+      "everything/created/after/2026-7-9/",
+      "everything/created/after/2026-7-8/",
+    ]);
+    assert.strictEqual(remembered[2].authoring, "everything/created/after/3-days-ago/");
+    assert.strictEqual(remembered[2].visits, 3);
+    assert.strictEqual(remembered[2].frequent, true);
+    assert.strictEqual(remembered[2].relative, true);
+  });
+
+  it("keeps an often-used exact collection available beyond immediate recents", () => {
+    const favorite = CollectionDescription.deserialize("everything/starred/unread/");
+    const other = (name) => CollectionDescription.deserialize(`everything/${name}/`);
+    recordRecentCollection(favorite, "alex", 100);
+    recordRecentCollection(other("working-notes"), "alex", 200);
+    recordRecentCollection(favorite, "alex", 300);
+    recordRecentCollection(other("has-todo"), "alex", 400);
+    recordRecentCollection(favorite, "alex", 500);
+    recordRecentCollection(other("published"), "alex", 600);
+    recordRecentCollection(other("unread"), "alex", 700);
+    const remembered = readRememberedCollections("alex");
+    assert.strictEqual(remembered[2].canonical, favorite.serialize());
+    assert.strictEqual(remembered[2].visits, 3);
+    assert.strictEqual(remembered[2].frequent, true);
+    assert.ok(!remembered[2].relative);
+  });
+
+  it("does not reinterpret a fixed absolute milestone as a rolling window", () => {
+    const description = CollectionDescription.deserialize("everything/created/after/2026-7-7/");
+    assert.strictEqual(
+      collectionDescriptionWithRelativeDateMemory(description, new Date(2026, 6, 10, 12)).filters[0],
+      "created/after/3-days-ago"
+    );
+    recordRecentCollection(description, "alex", new Date(2026, 6, 10, 12).getTime());
+    recordRecentCollection(CollectionDescription.deserialize("everything/starred/"), "alex", new Date(2026, 6, 11, 12).getTime());
+    recordRecentCollection(description, "alex", new Date(2026, 6, 12, 12).getTime());
+    assert.ok(!readRememberedCollections("alex").some(entry => entry.frequent && entry.relative));
   });
 
   it("ignores corrupt, invalid, duplicate, and cross-semantic entries", () => {

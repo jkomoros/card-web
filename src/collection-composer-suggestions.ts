@@ -47,6 +47,8 @@ export type CollectionComposerContext = {
   recentCollections?: Array<{
     description: CollectionDescription;
     visits: number;
+    frequent?: boolean;
+    relative?: boolean;
   }>;
 };
 
@@ -271,8 +273,8 @@ const recentSuggestions = (
       id: `recent:${canonical}`,
       kind: "recent",
       action: "open",
-      label: `Back to ${readableCollectionExpression(recent.description, filterLabels)}`,
-      detail: collectionDifference(current, recent.description, recent.visits, filterLabels),
+      label: `${recent.frequent ? "Often: " : "Back to "}${readableCollectionExpression(recent.description, filterLabels)}`,
+      detail: `${collectionDifference(current, recent.description, recent.visits, filterLabels)}${recent.relative ? " · Recognized as the same rolling date window" : ""}`,
       description: recent.description,
     });
     if (result.length >= 3) break;

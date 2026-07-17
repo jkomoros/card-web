@@ -122,6 +122,25 @@ describe("Collection Composer suggestions", () => {
     assert.match(suggestions[0].detail, /Visited 3 times/);
   });
 
+  it("explains promoted rolling-date memories mechanistically", () => {
+    const suggestions = collectionComposerSuggestions(
+      CollectionDescription.deserialize("everything/"),
+      "",
+      descriptions,
+      {
+        recentCollections: [{
+          description: CollectionDescription.deserialize("everything/created/after/3-days-ago/"),
+          visits: 3,
+          frequent: true,
+          relative: true,
+        }],
+      }
+    );
+    assert.match(suggestions[0].label, /^Often: /);
+    assert.match(suggestions[0].detail, /rolling date window/);
+    assert.match(suggestions[0].detail, /Visited 3 times/);
+  });
+
   it("shows ambiguous text as explicit interpretations", () => {
     const current = CollectionDescription.deserialize("everything/");
     const suggestions = collectionComposerSuggestions(
