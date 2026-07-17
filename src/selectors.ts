@@ -236,6 +236,7 @@ export const selectFetchedCard = (state : State) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state : State) => state.app.cardBeingFetched;
 export const selectCardsDrawerInfoExpanded = (state : State) => state.app.cardsDrawerInfoExpanded;
 export const selectConfigureCollectionDialogOpen = (state : State) => state.app ? state.app.configureCollectionDialogOpen : false;
+export const selectConfigureCollectionDialogMode = (state : State) => state.app ? state.app.configureCollectionDialogMode : 'compose';
 export const selectCollectionWordCloudVersion = (state : State) => state.collection ? state.collection.collectionWordCloudVersion : 0;
 export const selectSuggestMissingConceptsEnabled = (state : State) => state.app.suggestMissingConceptsEnabled;
 

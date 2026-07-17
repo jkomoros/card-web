@@ -52,6 +52,7 @@ const INITIAL_STATE : AppState = {
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
 	cardsDrawerInfoExpanded: false,
 	configureCollectionDialogOpen: false,
+	configureCollectionDialogMode: 'compose',
 	presentationMode: false,
 	mobileMode: false,
 	hoverX: 0,
@@ -130,12 +131,14 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 		return {
 			...state,
 			configureCollectionDialogOpen: true,
+			configureCollectionDialogMode: action.mode || 'compose',
 		};
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
 	case CANCEL_CONFIGURE_COLLECTION_DIALOG:
 		return {
 			...state,
 			configureCollectionDialogOpen: false,
+			configureCollectionDialogMode: 'compose',
 		};
 	case ENABLE_PRESENTATION_MODE:
 		return {

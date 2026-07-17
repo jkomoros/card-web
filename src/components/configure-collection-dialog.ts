@@ -10,6 +10,7 @@ import { DialogElement } from './dialog-element.js';
 
 import {
 	selectConfigureCollectionDialogOpen,
+	selectConfigureCollectionDialogMode,
 	selectFilterDescriptions,
 	selectCollectionComposerCandidates,
 	selectAuthorAndCollaboratorUserIDs,
@@ -19,6 +20,7 @@ import {
 	selectCardsSelected,
 	selectUid,
 	selectActiveCardID,
+	selectRequestedCard,
 	selectActiveCard,
 } from '../selectors.js';
 
@@ -26,6 +28,8 @@ import {
 	askForPathToNavigateTo,
 	cancelConfigureCollectionDialog,
 	closeConfigureCollectionDialog,
+	openConfigureCollectionDialog,
+	navigatePathToResult,
 	navigateToCollectionWithResult,
 	showSnackbar,
 } from '../actions/app.js';
@@ -109,6 +113,11 @@ import {
 	currentBrowserLocation,
 } from '../collection-composer-receipt.js';
 
+import {
+	parseCollectionSource,
+	ParsedCollectionSource,
+} from '../collection-source.js';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
@@ -132,6 +141,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_composerInput = '';
+
+	@state()
+		_entryMode : 'compose' | 'source' = 'compose';
+
+	@state()
+		_sourceInput = '';
+
+	@state()
+		_sourceCompletionIndex = 0;
+
+	@state()
+		_sourceCompletionsDismissed = false;
+
+	@state()
+		_sourceReturnWarning = false;
+
+	@state()
+		_sourceCopyMessage = '';
+
+	_sourceDirty = false;
+	_draftSelectedCard = '';
+	_requestedCard = '';
+	_lastValidSource : ParsedCollectionSource | null = null;
 
 	@state()
 		_highlightedSuggestion = 0;
@@ -167,6 +199,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		_clauseSelectionMessage = '';
 
 	_draftUndoDescription : CollectionDescription | null = null;
+	_draftUndoSelectedCard : string | null = null;
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
 	_draftPreviewCache : {description: string, count: number} | null = null;
@@ -414,6 +447,57 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-height: 44px;
 			}
 
+			.source-editor label,
+			.source-interpretation-label {
+				display: block;
+				font-size: 0.78em;
+				font-weight: 500;
+				margin: 0.8em 0 0.35em;
+				text-transform: uppercase;
+			}
+
+			.source-input {
+				box-sizing: border-box;
+				font-family: monospace;
+				line-height: 1.45;
+				min-height: 5.5em;
+				overflow-wrap: anywhere;
+				padding: 0.65em;
+				resize: vertical;
+				white-space: pre-wrap;
+				width: 100%;
+			}
+
+			.source-status {
+				border-left: 3px solid var(--app-divider-color);
+				font-size: 0.85em;
+				margin-top: 0.6em;
+				padding: 0.35em 0.6em;
+			}
+
+			.source-status[data-valid] {
+				border-left-color: var(--app-primary-color);
+			}
+
+			.source-link {
+				font-family: monospace;
+				overflow-wrap: anywhere;
+			}
+
+			.mode-actions {
+				align-items: center;
+				border-top: 1px solid var(--app-divider-color);
+				display: flex;
+				justify-content: space-between;
+				margin-top: 0.75em;
+				padding-top: 0.5em;
+			}
+
+			.mode-actions button.small {
+				color: var(--app-primary-color);
+				min-height: 44px;
+			}
+
 			.activation-message {
 				color: var(--app-primary-color);
 				font-size: 0.85em;
@@ -423,8 +507,95 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	];
 
 	override innerRender() {
-		if (collectionComposerEnabled()) return this._composerRender();
+		if (collectionComposerEnabled()) return this._entryMode === 'source' ? this._sourceRender() : this._composerRender();
 		return this._builderRender();
+	}
+
+	get _parsedSource() : ParsedCollectionSource {
+		return parseCollectionSource(this._sourceInput, {
+			ordinaryFilters: new Set(Object.keys(this._filterDescriptions || {})),
+			filterDescriptions: this._filterDescriptions,
+			preservedSelectedCard: this._draftSelectedCard,
+			allowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
+		});
+	}
+
+	_sourceRender() {
+		const parsed = this._parsedSource;
+		const shown = parsed.status === 'valid' ? parsed : this._lastValidSource;
+		const description = shown?.description || this._collectionDescription;
+		const count = this._previewCounts[this._draftPreviewID];
+		const statusLabel = parsed.status === 'valid' ? 'Ready to open' :
+			parsed.status === 'incomplete' ? 'Keep typing' :
+			parsed.status === 'unsupported' ? 'Not supported here' : 'Can’t understand this source';
+		const diagnostic = parsed.diagnostics[0]?.message || 'This source is complete and safe to open.';
+		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
+		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || []);
+		const fullDestination = parsed.canonicalPath ? new URL(parsed.canonicalPath, window.location.origin).toString() : '';
+		return html`
+			<div class='source-editor'>
+				<label for='collection-source-input'>Collection source</label>
+				<textarea
+					id='collection-source-input'
+					class='source-input'
+					rows='3'
+					spellcheck='false'
+					role='combobox'
+					aria-autocomplete='list'
+					aria-controls='collection-source-completions'
+					aria-expanded=${completions.length > 0}
+					aria-activedescendant=${ifDefined(completions.length ? `collection-source-completion-${this._sourceCompletionIndex}` : undefined)}
+					aria-describedby='collection-source-status collection-source-destination'
+					aria-invalid=${parsed.status !== 'valid'}
+					placeholder='everything/starred/updated/after/3-days-ago/'
+					.value=${this._sourceInput}
+					@input=${this._handleSourceInput}
+					@keydown=${this._handleSourceKeyDown}
+				></textarea>
+				<div id='collection-source-status' class='source-status' role='status' ?data-valid=${parsed.status === 'valid'}>
+					<strong>${statusLabel}</strong> — ${diagnostic}
+				</div>
+			</div>
+			${completions.length ? html`
+				<div id='collection-source-completions' class='suggestions' role='listbox' aria-label='Legal next source values'>
+					${completions.map((completion, index) => html`
+						<div class='suggestion'>
+							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @click=${() => this._acceptSourceCompletion(completion)}>
+								<div>${completion}<span class='suggestion-action'>complete</span></div>
+								<div class='suggestion-detail'>${completionDiagnostic?.expectedDetails?.[completion] || 'A legal next source value'}</div>
+							</button>
+						</div>
+					`)}
+				</div>
+			` : ''}
+			<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
+			<div>${readableCollectionExpression(description, this._composerFilterLabels)}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}</div>
+			${shown?.selectedCardRaw ? html`
+				<span class='source-interpretation-label'>Opens on</span>
+				<div>${shown.selectedCardRaw === '_' ? 'The first card in the collection' : shown.selectedCardRaw}</div>
+			` : ''}
+			<span class='source-interpretation-label'>${parsed.canonicalPath === this._sourceInput ? 'Link' : 'Will open as'}</span>
+			<div id='collection-source-destination' class='source-link'>${fullDestination || 'Open is unavailable until the current source is valid.'}</div>
+			${parsed.notices.map(notice => html`<div class='key-hints'>${notice} ${parsed.query}${parsed.hash}</div>`)}
+			${fullDestination ? html`<button class='small' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
+			${this._sourceCopyMessage ? html`<span class='draft-receipt' role='status'>${this._sourceCopyMessage}</span>` : ''}
+			${this._sourceReturnWarning ? html`
+				<div id='collection-source-return-warning' class='source-status' role='alert' tabindex='-1'>
+					These source edits do not form an openable collection.
+					<div><button class='small' @click=${() => this._sourceReturnWarning = false}>Keep editing</button><button class='small' @click=${this._returnToLastValidSource}>Return to last valid collection</button></div>
+				</div>
+			` : ''}
+			<div class='mode-actions'>
+				<button class='small' @click=${this._handleBackToCompose}>Back to Compose</button>
+				<span class='key-hints'>${completions.length ? '↑↓ Choose · Tab complete · Enter complete · Esc dismiss' : (parsed.status === 'valid' ? 'Enter opens · Esc cancels' : 'Keep editing · Esc cancels')}</span>
+			</div>
+			<div class='composer-actions'>
+				<button class='primary' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
+					${count === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(count)}`}
+				</button>
+			</div>
+			${this._activationMessage ? html`<div class='activation-message' role='alert'>${this._activationMessage}</div>` : ''}
+		`;
 	}
 
 	_builderRender() {
@@ -558,8 +729,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				'←→ choose clause · Delete removes · type to continue' : highlighted?.action === 'open' ?
 				'↑↓ choose · Click or Enter opens' :
 				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
-			<div class='builder-toggle'>
+			<div class='builder-toggle mode-actions'>
 				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
+				<button class='small' @click=${this._handleEditSource}>Edit source</button>
 			</div>
 			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
 			<div class='composer-actions'>
@@ -612,6 +784,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			{
 				cardsSelected: this._cardsSelected,
 				recentCollections,
+				preservedSelectedCard: this._draftSelectedCard,
+				sourceAllowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
 				candidates: this._contextualComposerCandidates,
 			}
 		);
@@ -643,6 +817,135 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
+	}
+
+	_handleSourceInput(e : InputEvent) {
+		const input = e.composedPath()[0];
+		if (!(input instanceof HTMLTextAreaElement)) throw new Error('not textarea element');
+		this._sourceInput = input.value;
+		this._sourceDirty = true;
+		this._activationMessage = '';
+		this._sourceReturnWarning = false;
+		this._sourceCompletionsDismissed = false;
+		this._sourceCompletionIndex = 0;
+		this._sourceCopyMessage = '';
+		const parsed = this._parsedSource;
+		if (parsed.status === 'valid') this._lastValidSource = parsed;
+	}
+
+	_handleSourceKeyDown(e : KeyboardEvent) {
+		if (e.isComposing || e.keyCode === 229) return;
+		const completions = this._sourceCompletionsDismissed ? [] : (this._parsedSource.diagnostics.find(item => item.expected?.length)?.expected || []);
+		if (completions.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+			e.preventDefault();
+			const direction = e.key === 'ArrowDown' ? 1 : -1;
+			this._sourceCompletionIndex = (this._sourceCompletionIndex + direction + completions.length) % completions.length;
+			return;
+		}
+		if (completions.length && (e.key === 'Tab' || e.key === 'Enter')) {
+			e.preventDefault();
+			this._acceptSourceCompletion(completions[this._sourceCompletionIndex]);
+			return;
+		}
+		if (completions.length && e.key === 'Escape') {
+			e.preventDefault();
+			e.stopPropagation();
+			this._sourceCompletionsDismissed = true;
+			return;
+		}
+		if (e.key !== 'Enter') return;
+		e.preventDefault();
+		if (this._parsedSource.status === 'valid') this._handleOpenSource();
+	}
+
+	_acceptSourceCompletion(completion : string) {
+		const input = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
+		const selectionStart = input?.selectionStart ?? this._sourceInput.length;
+		const selectionEnd = input?.selectionEnd ?? selectionStart;
+		const segmentStart = this._sourceInput.lastIndexOf('/', Math.max(0, selectionStart - 1)) + 1;
+		const followingSlash = this._sourceInput.indexOf('/', selectionEnd);
+		const segmentEnd = followingSlash < 0 ? this._sourceInput.length : followingSlash;
+		const prefix = this._sourceInput.slice(0, segmentStart);
+		const suffix = this._sourceInput.slice(segmentEnd);
+		const needsSlash = !suffix.startsWith('/');
+		this._sourceInput = `${prefix}${completion}${needsSlash ? '/' : ''}${suffix}`;
+		const nextCaret = prefix.length + completion.length + (needsSlash || suffix.startsWith('/') ? 1 : 0);
+		this._sourceDirty = true;
+		this._sourceCompletionsDismissed = false;
+		this._sourceCompletionIndex = 0;
+		const parsed = this._parsedSource;
+		if (parsed.status === 'valid') this._lastValidSource = parsed;
+		this.updateComplete.then(() => {
+			const sourceInput = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
+			sourceInput?.focus();
+			sourceInput?.setSelectionRange(nextCaret, nextCaret);
+		});
+	}
+
+	_handleEditSource() {
+		if (!this._sourceDirty) this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+		store.dispatch(openConfigureCollectionDialog('source'));
+	}
+
+	_handleBackToCompose() {
+		const parsed = this._parsedSource;
+		if (parsed.status === 'valid' && parsed.description) {
+			this._commitDraftEdit(parsed.description, 'Applied source to the visual draft', false, parsed.selectedCardRaw);
+			this._sourceDirty = false;
+		} else {
+			this._sourceReturnWarning = true;
+			this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLElement>('#collection-source-return-warning')?.focus());
+			return;
+		}
+		store.dispatch(openConfigureCollectionDialog('compose'));
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_returnToLastValidSource() {
+		if (this._lastValidSource?.description) {
+			this._commitDraftEdit(this._lastValidSource.description, 'Returned to the last valid source', false, this._lastValidSource.selectedCardRaw);
+			this._sourceInput = this._lastValidSource.canonicalPath || this._sourceInput;
+			this._sourceDirty = false;
+		}
+		this._sourceReturnWarning = false;
+		store.dispatch(openConfigureCollectionDialog('compose'));
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	async _handleCopySourceLink() {
+		const path = this._parsedSource.canonicalPath;
+		if (!path) return;
+		try {
+			await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
+			this._sourceCopyMessage = 'Collection link copied';
+		} catch {
+			this._sourceCopyMessage = 'Could not copy the collection link';
+		}
+	}
+
+	_handleOpenSource() {
+		const parsed = this._parsedSource;
+		if (parsed.status !== 'valid' || !parsed.description || !parsed.canonicalPath || this._activationPending) return;
+		this._activationPending = true;
+		this._activationMessage = '';
+		const result = store.dispatch(navigatePathToResult(parsed.canonicalPath));
+		if (result.status === 'blocked-editing') {
+			this._activationPending = false;
+			this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
+			return;
+		}
+		if (result.status === 'unchanged') {
+			this._activationPending = false;
+			store.dispatch(cancelConfigureCollectionDialog());
+			return;
+		}
+		store.dispatch(cancelConfigureCollectionDialog());
+		const count = this._previewCounts[this._draftPreviewID];
+		store.dispatch(showSnackbar(
+			`Now showing ${readableCollectionExpression(parsed.description, this._composerFilterLabels)}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}`,
+			'back',
+			currentBrowserLocation()
+		));
 	}
 
 	_handleComposerInput(e : InputEvent) {
@@ -721,14 +1024,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
 		if (open) {
 			if (this._activationPending) return;
-			const alreadyActive = selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize();
+			const alreadyActive = !suggestion.destinationPath && selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize();
 			if (alreadyActive) {
 				store.dispatch(cancelConfigureCollectionDialog());
 				return;
 			}
 			this._activationPending = true;
 			this._activationMessage = '';
-			const result = store.dispatch(navigateToCollectionWithResult(suggestion.description));
+			const result = store.dispatch(suggestion.destinationPath ? navigatePathToResult(suggestion.destinationPath) : navigateToCollectionWithResult(suggestion.description));
 			if (result.status === 'blocked-editing') {
 				this._activationPending = false;
 				this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
@@ -754,8 +1057,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._highlightedSuggestion = 0;
 	}
 
-	_commitDraftEdit(description : CollectionDescription, message : string, focusInput = false) {
+	_commitDraftEdit(description : CollectionDescription, message : string, focusInput = false, selectedCard = this._draftSelectedCard) {
 		this._draftUndoDescription = this._collectionDescription;
+		this._draftUndoSelectedCard = this._draftSelectedCard;
+		this._draftSelectedCard = selectedCard;
 		this._draftReceiptMessage = message;
 		this._selectedClauseIndex = -1;
 		this._clauseSelectionMessage = '';
@@ -776,7 +1081,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_undoDraftEdit() {
 		if (!this._draftUndoDescription) return;
 		const description = this._draftUndoDescription;
+		const selectedCard = this._draftUndoSelectedCard;
 		this._draftUndoDescription = null;
+		this._draftUndoSelectedCard = null;
+		if (selectedCard !== null) this._draftSelectedCard = selectedCard;
 		this._draftReceiptMessage = 'Restored previous draft';
 		this._selectedClauseIndex = -1;
 		this._clauseSelectionMessage = '';
@@ -811,6 +1119,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			label: 'Open this collection',
 			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
 			description: this._collectionDescription,
+			destinationPath: `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`,
 		}, true);
 	}
 
@@ -894,11 +1203,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';
 				this._draftUndoDescription = null;
+				this._draftUndoSelectedCard = null;
+				this._sourceDirty = false;
+				this._draftSelectedCard = this._requestedCard;
+				this._sourceInput = this._entryMode === 'source' ? window.location.pathname : '';
+				const parsed = this._entryMode === 'source' ? this._parsedSource : null;
+				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
+				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
 			}
+		}
+		if (this.open && changedProps.has('_entryMode') && this._entryMode === 'source') {
+			if (!this._sourceDirty && !this._sourceInput) this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+			this.updateComplete.then(() => {
+				const input = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
+				if (!input) return;
+				input.focus();
+				if (changedProps.has('open')) input.select();
+				else input.setSelectionRange(input.value.length, input.value.length);
+			});
 		}
 		if (
 			changedProps.has('open') ||
 			changedProps.has('_composerInput') ||
+			changedProps.has('_sourceInput') ||
+			changedProps.has('_entryMode') ||
 			changedProps.has('_collectionDescription') ||
 			changedProps.has('_activeCardID') ||
 			changedProps.has('_activeCard') ||
@@ -912,18 +1240,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_refreshPreviewCounts() {
 		if (this._cancelPreviews) this._cancelPreviews();
 		this._cancelPreviews = null;
-		const draftDescription = this._collectionDescription?.serialize();
+		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
+		const previewDescription = sourceDescription || this._collectionDescription;
+		const draftDescription = previewDescription?.serialize();
 		const cachedDraftCount = draftDescription && this._draftPreviewCache?.description === draftDescription ? this._draftPreviewCache.count : undefined;
 		this._previewCounts = cachedDraftCount === undefined ? {} : {[this._draftPreviewID]: cachedDraftCount};
 		if (!this.open || !collectionComposerPreviewEnabled()) return;
-		const previewSuggestions = [...this._composerSuggestions];
+		const previewSuggestions = this._entryMode === 'source' ? [] : [...this._composerSuggestions];
 		if (cachedDraftCount === undefined) previewSuggestions.unshift({
 			id: this._draftPreviewID,
 			kind: 'source',
 			action: 'open',
 			label: 'Current draft',
 			detail: '',
-			description: this._collectionDescription,
+			description: previewDescription,
 		});
 		this._cancelPreviews = startCollectionComposerPreviews(
 			previewSuggestions,
@@ -955,7 +1285,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
 		this._activeCardID = selectActiveCardID(state);
+		this._requestedCard = selectRequestedCard(state) || '';
 		this._activeCard = selectActiveCard(state);
+		this._entryMode = selectConfigureCollectionDialogMode(state);
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 

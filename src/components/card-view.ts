@@ -1404,7 +1404,7 @@ class CardView extends connect(store)(PageViewElement) {
 			//refresh.
 			if (e.shiftKey) {
 				if (collectionComposerEnabled()) {
-					store.dispatch(openConfigureCollectionDialog());
+					store.dispatch(openConfigureCollectionDialog('source'));
 				} else {
 					store.dispatch(askForPathToNavigateTo());
 				}

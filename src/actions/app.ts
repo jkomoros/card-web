@@ -584,9 +584,10 @@ export const closeCardsDrawerPanel = () : SomeAction => {
 	};
 };
 
-export const openConfigureCollectionDialog = () : SomeAction => {
+export const openConfigureCollectionDialog = (mode : 'compose' | 'source' = 'compose') : SomeAction => {
 	return {
 		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
+		mode,
 	};
 };
 

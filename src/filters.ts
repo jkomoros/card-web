@@ -1465,6 +1465,21 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 //The configurable filters that are allowed to start a multi-part filter.
 export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], true]));
 
+// A deliberately data-only view of configurable filter arguments. Collection
+// source tooling can validate and explain the URL grammar without invoking a
+// filter factory (some factories assume a fully initialized corpus).
+export const CONFIGURABLE_FILTER_ARGUMENTS : Record<string, readonly {
+	type: string;
+	description: string;
+	default: string;
+}[]> = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(([name, info]) => [name,
+	info.arguments.map(argument => ({
+		type: argument.type,
+		description: argument.description,
+		default: String(argument.default),
+	}))
+]));
+
 const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).filter(entry => entry[1].factory == makeCardLinksConfigurableFilter).map(entry => [entry[0], true]));
 
 const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : ConfigurableFilterFuncFactoryResult} = {};

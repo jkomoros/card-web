@@ -734,6 +734,7 @@ export type AppState = {
 	cardsDrawerPanelOpen: boolean,
 	cardsDrawerInfoExpanded: boolean,
 	configureCollectionDialogOpen: boolean,
+	configureCollectionDialogMode: 'compose' | 'source',
 	presentationMode: boolean,
 	mobileMode: boolean,
 	hoverX: number,

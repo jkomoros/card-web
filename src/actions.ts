@@ -348,7 +348,8 @@ type ActionCloseCardsDrawerPanel = {
 };
 
 type ActionOpenConfigureCollectionDialog = {
-	type: typeof OPEN_CONFIGURE_COLLECTION_DIALOG
+	type: typeof OPEN_CONFIGURE_COLLECTION_DIALOG,
+	mode?: 'compose' | 'source'
 };
 
 type ActionCloseConfigureCollectionDialog = {

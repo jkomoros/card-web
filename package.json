@@ -54,6 +54,7 @@
     "pretest:deferred-work": "node tools/assert-build-fresh.cjs",
     "test:deferred-work": "node --import tsx --test test/deferred-work/test.js",
     "test:collection-source": "mocha -r esm test/collection-source/test.js --timeout=10000",
+    "test:collection-source-editor": "mocha -r esm test/collection-source-editor/test.js --timeout=10000",
     "test:collection-composer-mode": "mocha -r esm test/collection-composer-mode/test.js --timeout=10000",
     "test:collection-composer-history": "mocha -r esm test/collection-composer-history/test.js --timeout=10000",
     "test:collection-composer-preview": "mocha -r esm test/collection-composer-preview/test.js --timeout=10000",
