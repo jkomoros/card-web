@@ -34,8 +34,12 @@ export const ButtonSharedStyles = css`
 		background-color: var(--app-dark-text-color-light);
 	}
 
-	button:focus {
+	button:focus:not(:focus-visible) {
 		outline:none;
+	}
+	button:focus-visible {
+		outline: 2px solid var(--app-primary-color);
+		outline-offset: 2px;
 	}
 
 	button.primary {
@@ -98,5 +102,11 @@ export const ButtonSharedStyles = css`
 		margin:0;
 		margin-top:1em;
 		cursor: pointer;
+	}
+
+	@media (forced-colors: active) {
+		button:focus-visible {
+			outline: 2px solid CanvasText;
+		}
 	}
 `;

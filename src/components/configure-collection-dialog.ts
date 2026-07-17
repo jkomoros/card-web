@@ -1,4 +1,5 @@
 import { html, css, PropertyValues } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -179,7 +180,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			.composer-input:focus {
 				border-bottom-color: var(--app-primary-color);
-				outline: none;
+			}
+
+			.composer-input:focus-visible {
+				outline: 2px solid var(--app-primary-color);
+				outline-offset: 2px;
 			}
 
 			.suggestion-heading {
@@ -250,6 +255,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			.builder {
+				margin-top: 0.5em;
+			}
+
+			.activation-message {
+				color: var(--app-primary-color);
+				font-size: 0.85em;
 				margin-top: 0.5em;
 			}
 		`
@@ -324,34 +335,42 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				id='collection-composer-input'
 				type='text'
 				role='combobox'
+				aria-label='Compose collection filters'
 				aria-autocomplete='list'
 				aria-controls='collection-composer-suggestions'
 				aria-expanded=${suggestions.length > 0}
-				aria-activedescendant=${suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : ''}
+				aria-activedescendant=${ifDefined(suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : undefined)}
 				aria-busy=${this._activationPending}
-				?disabled=${this._activationPending}
 				placeholder='Type a filter, value, or collection source…'
 				.value=${this._composerInput}
 				@input=${this._handleComposerInput}
 				@keydown=${this._handleComposerKeyDown}
 			>
-			${this._activationMessage ? html`<div class='activation-message' role='alert'>${this._activationMessage}</div>` : ''}
+			${this._activationPending || this._activationMessage ? html`
+				<div class='activation-message' role=${this._activationMessage ? 'alert' : 'status'} aria-live=${this._activationMessage ? 'assertive' : 'polite'}>
+					${this._activationMessage || 'Opening collection…'}
+				</div>
+			` : ''}
 			${suggestions.length ? html`
 				<div class='suggestions' id='collection-composer-suggestions' role='listbox'>
 					${recentSuggestions.length ? html`
-						<div class='suggestion-heading'>Continue</div>
-						${recentSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+						<div role='group' aria-labelledby='recent-suggestion-heading'>
+							<div class='suggestion-heading' id='recent-suggestion-heading'>Continue</div>
+							${recentSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+						</div>
 					` : ''}
 					${refinementSuggestions.length ? html`
-						<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
-						${refinementSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+						<div role='group' aria-labelledby='refinement-suggestion-heading'>
+							<div class='suggestion-heading' id='refinement-suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
+							${refinementSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+						</div>
 					` : ''}
 				</div>
 			` : html`
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>↑↓ choose · Tab adds and keeps composing · Enter opens</div>
+			<div class='key-hints'>↑↓ choose · Tab adds while typing · Enter opens</div>
 			<div class='builder-toggle'>
 				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
 			</div>
@@ -362,9 +381,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number) {
 		const count = this._previewCounts[suggestion.id];
 		return html`
-						<div class='suggestion' role='option' aria-selected=${index === this._highlightedSuggestion}>
+						<div class='suggestion'>
 							<button
 								id='collection-suggestion-${index}'
+								role='option'
+								aria-selected=${index === this._highlightedSuggestion}
+								aria-label=${`${suggestion.label}. ${suggestion.detail}${count === undefined ? '' : `. ${count} ${count === 1 ? 'card' : 'cards'}`}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === this._highlightedSuggestion}
@@ -424,7 +446,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
 			return;
 		}
-		if (e.key === 'Tab' && !e.shiftKey && suggestions.length) {
+		if (e.key === 'Tab' && !e.shiftKey && suggestions.length && this._composerInput.trim()) {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();

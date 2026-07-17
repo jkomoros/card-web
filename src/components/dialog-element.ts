@@ -13,8 +13,15 @@ import {
 	makeDialogShouldCloseEvent
 } from '../events.js';
 
+import {
+	deepActiveElement
+} from '../util.js';
+
 @customElement('dialog-element')
 export class DialogElement extends LitElement {
+	_invoker: HTMLElement | null = null;
+	_inertedElements: Array<{element: HTMLElement, wasInert: boolean}> = [];
+	_boundHandleKeyDown = (e : KeyboardEvent) => this._handleKeyDown(e);
 
 	@property({ type : Boolean })
 		open: boolean;
@@ -30,8 +37,9 @@ export class DialogElement extends LitElement {
 		SharedStyles,
 		css`
 			.container {
-				position: absolute;
-				height: 100%;
+				position: fixed;
+				height: 100vh;
+				height: 100dvh;
 				width: 100%;
 				top: 0;
 				left: 0;
@@ -43,6 +51,10 @@ export class DialogElement extends LitElement {
 
 			.container.open {
 				display: block;
+			}
+
+			.container[hidden] {
+				display: none;
 			}
 
 			.background {
@@ -77,6 +89,7 @@ export class DialogElement extends LitElement {
 				width:100%;
 				max-height:none;
 				max-width:none;
+				padding-bottom:max(1em, env(safe-area-inset-bottom));
 			}
 
 			h2 {
@@ -88,8 +101,13 @@ export class DialogElement extends LitElement {
 
 			#close {
 				position: absolute;
-				top: 0.5em;
-				right: 0.5em;
+				top: 0.25em;
+				right: 0.25em;
+				height: 44px;
+				width: 44px;
+				display: grid;
+				place-items: center;
+				z-index: 1;
 			}
 
 			#inner {
@@ -103,11 +121,11 @@ export class DialogElement extends LitElement {
 
 	override render() {
 		return html`
-			<div class='container ${this.open ? 'open' : 'closed'}'>
+			<div class='container ${this.open ? 'open' : 'closed'}' ?hidden=${!this.open} aria-hidden=${!this.open}>
 				<div class='background ${this.mobile ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
-					<div class='content'>
-						<button class='small' id='close' @click=${this.cancel}>${CANCEL_ICON}</button>
-						<h2>${this.title || ''}</h2>
+					<div class='content' role='dialog' aria-modal='true' aria-labelledby='dialog-title' tabindex='-1'>
+						<button class='small' id='close' aria-label=${`Close ${this.title || 'dialog'}`} @click=${this.cancel}>${CANCEL_ICON}</button>
+						<h2 id='dialog-title'>${this.title || ''}</h2>
 						<div id='inner'>
 						${this.innerRender()}
 						</div>
@@ -122,15 +140,73 @@ export class DialogElement extends LitElement {
 		return html`<slot></slot>`;
 	}
 
-	override firstUpdated() {
-		window.addEventListener('keydown', e => this._handleKeyDown(e));
+	override connectedCallback() {
+		super.connectedCallback();
+		window.addEventListener('keydown', this._boundHandleKeyDown);
+	}
+
+	override disconnectedCallback() {
+		this._setSurroundingsInert(false);
+		window.removeEventListener('keydown', this._boundHandleKeyDown);
+		super.disconnectedCallback();
 	}
 
 	_handleKeyDown(e : KeyboardEvent) {
-		if (!this.open) return;
+		if (!this.open || e.defaultPrevented) return;
 		if (e.key == 'Escape') {
+			if (e.isComposing || e.keyCode === 229) return;
+			e.preventDefault();
+			e.stopPropagation();
 			this.cancel();
 			return;
+		}
+		if (e.key !== 'Tab') return;
+		const focusable = this._focusableElements();
+		if (!focusable.length) {
+			e.preventDefault();
+			this._dialogElement()?.focus();
+			return;
+		}
+		const active = deepActiveElement();
+		const currentIndex = focusable.indexOf(active as HTMLElement);
+		if (e.shiftKey && (currentIndex <= 0)) {
+			e.preventDefault();
+			focusable[focusable.length - 1].focus();
+		} else if (!e.shiftKey && currentIndex === focusable.length - 1) {
+			e.preventDefault();
+			focusable[0].focus();
+		}
+	}
+
+	_dialogElement() : HTMLElement | null {
+		return this.shadowRoot?.querySelector<HTMLElement>('[role="dialog"]') || null;
+	}
+
+	_focusableElements() : HTMLElement[] {
+		if (!this.shadowRoot) return [];
+		const selector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+		return Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(selector)).filter(element => !element.hidden);
+	}
+
+	_setSurroundingsInert(inert : boolean) {
+		if (!inert) {
+			for (const {element, wasInert} of this._inertedElements) {
+				if (element.isConnected) element.inert = wasInert;
+			}
+			this._inertedElements = [];
+			return;
+		}
+		this._inertedElements = [];
+		let current : Node = this;
+		while (current.parentNode) {
+			const parent = current.parentNode;
+			for (const sibling of Array.from(parent.children || [])) {
+				if (sibling === current || !(sibling instanceof HTMLElement)) continue;
+				this._inertedElements.push({element: sibling, wasInert: sibling.inert});
+				sibling.inert = true;
+			}
+			current = parent instanceof ShadowRoot ? parent.host : parent;
+			if (current === document.documentElement) break;
 		}
 	}
 
@@ -168,8 +244,20 @@ export class DialogElement extends LitElement {
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('open') && this.open) {
-			this._focusInputOnOpen();
+		if (changedProps.has('open')) {
+			if (this.open) {
+				const active = deepActiveElement();
+				this._invoker = active instanceof HTMLElement ? active : null;
+				this._setSurroundingsInert(true);
+				this._focusInputOnOpen();
+				if (!this.shadowRoot?.activeElement) this._dialogElement()?.focus();
+			} else {
+				this._setSurroundingsInert(false);
+				if (!this._invoker) return;
+				const invoker = this._invoker;
+				this._invoker = null;
+				if (invoker.isConnected) invoker.focus();
+			}
 		}
 	}
 
