@@ -6,7 +6,7 @@ export type CardRequestResolution = {
 
 export type InvalidCollectionCardResolution =
 	| {action: 'stay'}
-	| {action: 'select-first'; cardID: string}
+	| {action: 'select-first'}
 	| {action: 'default-card'};
 
 export const cardIDIsPlaceholder = (cardID : string): boolean =>
@@ -43,8 +43,26 @@ export const resolveInvalidCollectionCard = (
 	collectionCardIDs : string[]
 ) : InvalidCollectionCardResolution => {
 	if (!collectionCardIDs.length || collectionCardIDs.includes(activeCardID)) return {action: 'stay'};
-	if (cardIDIsPlaceholder(requestedCard)) {
-		return {action: 'select-first', cardID: collectionCardIDs[0]};
-	}
+	if (cardIDIsPlaceholder(requestedCard)) return {action: 'select-first'};
 	return {action: 'default-card'};
 };
+
+export type CollectionSnapshotRefreshState = {
+	dataFullyLoaded: boolean;
+	alreadyCommittedWhenFullyLoaded: boolean;
+	forceCommit: boolean;
+	requestedCard: string;
+	activeCollectionSize: number;
+};
+
+export const shouldRefreshCollectionSnapshot = ({
+	dataFullyLoaded,
+	alreadyCommittedWhenFullyLoaded,
+	forceCommit,
+	requestedCard,
+	activeCollectionSize,
+} : CollectionSnapshotRefreshState): boolean =>
+	!dataFullyLoaded ||
+	!alreadyCommittedWhenFullyLoaded ||
+	forceCommit ||
+	(cardIDIsPlaceholder(requestedCard) && activeCollectionSize === 0);

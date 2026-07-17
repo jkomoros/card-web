@@ -6,6 +6,7 @@ import {describe, it} from 'node:test';
 import {
 	resolveCardRequest,
 	resolveInvalidCollectionCard,
+	shouldRefreshCollectionSnapshot,
 } from '../../src/collection-navigation.ts';
 
 describe('collection placeholder navigation', () => {
@@ -19,12 +20,32 @@ describe('collection placeholder navigation', () => {
 	it('selects the first card when target membership arrives', () => {
 		assert.deepStrictEqual(
 			resolveInvalidCollectionCard('_', 'previous-card', ['new-card', 'another-card']),
-			{action: 'select-first', cardID: 'new-card'}
+			{action: 'select-first'}
 		);
 		assert.deepStrictEqual(
 			resolveCardRequest('_', '_', 'previous-card', ['new-card', 'another-card']),
 			{cardID: 'new-card', commit: true, collectionPending: false}
 		);
+	});
+
+	it('refreshes a fully-loaded snapshot while placeholder navigation is pending', () => {
+		assert.strictEqual(shouldRefreshCollectionSnapshot({
+			dataFullyLoaded: true,
+			alreadyCommittedWhenFullyLoaded: true,
+			forceCommit: false,
+			requestedCard: '_',
+			activeCollectionSize: 0,
+		}), true);
+	});
+
+	it('preserves stable snapshots for nonempty collections', () => {
+		assert.strictEqual(shouldRefreshCollectionSnapshot({
+			dataFullyLoaded: true,
+			alreadyCommittedWhenFullyLoaded: true,
+			forceCommit: false,
+			requestedCard: '_',
+			activeCollectionSize: 2,
+		}), false);
 	});
 
 	it('stays in the collection after selecting one of its cards', () => {

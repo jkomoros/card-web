@@ -28,6 +28,7 @@ import {
 	cardIDIsPlaceholder,
 	resolveCardRequest,
 	resolveInvalidCollectionCard,
+	shouldRefreshCollectionSnapshot,
 } from '../collection-navigation.js';
 
 import {
@@ -250,7 +251,13 @@ export const refreshCardSelector = (forceCommit? : boolean) : ThunkSomeAction =>
 	const dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 	const alreadyCommittedModificationsWhenFullyLoaded = selectAlreadyCommittedModificationsWhenFullyLoaded(state);
 
-	if (!dataIsFullyLoaded || (dataIsFullyLoaded && !alreadyCommittedModificationsWhenFullyLoaded) || forceCommit) {
+	if (shouldRefreshCollectionSnapshot({
+		dataFullyLoaded: dataIsFullyLoaded,
+		alreadyCommittedWhenFullyLoaded: alreadyCommittedModificationsWhenFullyLoaded,
+		forceCommit: Boolean(forceCommit),
+		requestedCard: selectRequestedCard(state),
+		activeCollectionSize: selectActiveCollectionCards(state).length,
+	})) {
 		//This action creator gets called when ANYTHING that could have changed
 		//the collection gets called. If we got called before everything is
 		//fully loaded, then we should make sure that the more recent
@@ -263,7 +270,9 @@ export const refreshCardSelector = (forceCommit? : boolean) : ThunkSomeAction =>
 		//that we've run since the data has been fully loaded. This will happen
 		//for the last item that has loaded that has made the data fully loaded;
 		//often, reads. Basically, as soon as the data is fully loaded we want
-		//to run it once.
+		//to run it once. An empty collection reached through the default-card
+		//placeholder is the other exception: it may be waiting for a just-written
+		//tag/card echo, so refresh its snapshot until the first match appears.
 		dispatch(updateCollectionSnapshot());
 	}
 
