@@ -672,7 +672,13 @@ const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, 
 	const sortExtras : SortExtras = {};
 	let partialExtras : CardBooleanMap = {};
 	let hasPreview = false;
-	for (const name of filterDefinition) {
+	//CollectionDescription.serialize() canonicalizes filter order. Evaluate in
+	//that same order so descriptions with the same canonical serialization
+	//cannot diverge when configurable filters emit ranking metadata. Previously,
+	//the URL's authoring order accidentally decided which same-family metadata
+	//won and which configurable family supplied the default sort.
+	const canonicalFilterDefinition = [...filterDefinition].sort();
+	for (const name of canonicalFilterDefinition) {
 		const [filterSet, reverse, sortInfos, partialMatches, preview] = filterSetForFilterDefinitionItem(name, extras);
 		if (reverse) {
 			excludeSets.push(filterSet);
