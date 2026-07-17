@@ -11,6 +11,14 @@ type PreviewOptions = {
 	maxConcurrent?: number;
 };
 
+export const formatCollectionCardCount = (count: number) => `${count} ${count === 1 ? 'card' : 'cards'}`;
+
+export const formatCollectionCountDelta = (destinationCount: number, currentCount: number) => {
+	const delta = destinationCount - currentCount;
+	if (!delta) return 'same number of cards';
+	return `${Math.abs(delta)} ${delta > 0 ? 'more' : 'fewer'}`;
+};
+
 //A restarted composer generation can share work already in the corpus worker,
 //but completed results are not cached because corpus membership can change.
 const inFlight = new Map<string, Promise<PreviewResult | null>>();

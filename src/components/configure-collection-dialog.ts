@@ -82,6 +82,8 @@ import {
 } from '../corpus-bridge.js';
 
 import {
+	formatCollectionCardCount,
+	formatCollectionCountDelta,
 	startCollectionComposerPreviews,
 } from '../collection-composer-preview.js';
 
@@ -154,6 +156,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_draftUndoDescription : CollectionDescription | null = null;
 	_cancelPreviews : (() => void) | null = null;
+	readonly _draftPreviewID = 'current-draft-preview';
+	_draftPreviewCache : {description: string, count: number} | null = null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -465,6 +469,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const suggestions = this._composerSuggestions;
 		const highlighted = suggestions[this._highlightedSuggestion];
 		const expressionParts = collectionExpressionParts(this._collectionDescription);
+		const draftCount = this._previewCounts[this._draftPreviewID];
 		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
 		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
@@ -488,6 +493,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					</span>
 				`)}
 				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
+				${draftCount === undefined ? '' : html`<span class='expression-count'>· ${formatCollectionCardCount(draftCount)}</span>`}
 				<input
 					class='composer-input'
 					id='collection-composer-input'
@@ -545,13 +551,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</div>
 			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
 			<div class='composer-actions'>
-				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>Open this collection</button>
+				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
 			</div>
 		`;
 	}
 
 	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number) {
 		const count = this._previewCounts[suggestion.id];
+		const draftCount = this._previewCounts[this._draftPreviewID];
+		const countDescription = count === undefined ? '' : `${formatCollectionCardCount(count)}${draftCount === undefined ? '' : ` · ${formatCollectionCountDelta(count, draftCount)}`}`;
 		return html`
 						<div class='suggestion'>
 							<button
@@ -559,7 +567,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								role='option'
 								tabindex='-1'
 								aria-selected=${index === this._highlightedSuggestion}
-								aria-label=${`${suggestion.action}: ${suggestion.label}. ${suggestion.detail}${count === undefined ? '' : `. ${count} ${count === 1 ? 'card' : 'cards'}`}`}
+								aria-label=${`${suggestion.action}: ${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === this._highlightedSuggestion}
@@ -569,7 +577,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								<div>
 									${suggestion.label}
 									<span class='suggestion-action'>${suggestion.action}</span>
-									${count === undefined ? '' : html`<span class='suggestion-count'>${count} ${count === 1 ? 'card' : 'cards'}</span>`}
+									${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
 								</div>
 								<div class='suggestion-detail'>${suggestion.detail}</div>
 							</button>
@@ -861,14 +869,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_refreshPreviewCounts() {
 		if (this._cancelPreviews) this._cancelPreviews();
 		this._cancelPreviews = null;
-		this._previewCounts = {};
+		const draftDescription = this._collectionDescription?.serialize();
+		const cachedDraftCount = draftDescription && this._draftPreviewCache?.description === draftDescription ? this._draftPreviewCache.count : undefined;
+		this._previewCounts = cachedDraftCount === undefined ? {} : {[this._draftPreviewID]: cachedDraftCount};
 		if (!this.open || !collectionComposerPreviewEnabled()) return;
+		const previewSuggestions = [...this._composerSuggestions];
+		if (cachedDraftCount === undefined) previewSuggestions.unshift({
+			id: this._draftPreviewID,
+			kind: 'source',
+			action: 'open',
+			label: 'Current draft',
+			detail: '',
+			description: this._collectionDescription,
+		});
 		this._cancelPreviews = startCollectionComposerPreviews(
-			this._composerSuggestions,
+			previewSuggestions,
 			this._activeCardID,
 			corpusWorkerRunCollection,
 			(suggestionID, count) => {
 				if (!this.open) return;
+				if (suggestionID === this._draftPreviewID) this._draftPreviewCache = {description: draftDescription, count};
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}
 		);

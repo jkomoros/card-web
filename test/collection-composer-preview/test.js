@@ -13,15 +13,25 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 
 let CollectionDescription;
 let startCollectionComposerPreviews;
+let formatCollectionCardCount;
+let formatCollectionCountDelta;
 
 describe("Collection Composer preview coordinator", () => {
   before(async () => {
     ({ CollectionDescription } = await import(
       "../../lib/src/collection_description.js"
     ));
-    ({ startCollectionComposerPreviews } = await import(
+    ({ startCollectionComposerPreviews, formatCollectionCardCount, formatCollectionCountDelta } = await import(
       "../../lib/src/collection-composer-preview.js"
     ));
+  });
+
+  it("formats counts and their consequences in plain language", () => {
+    assert.strictEqual(formatCollectionCardCount(1), "1 card");
+    assert.strictEqual(formatCollectionCardCount(12), "12 cards");
+    assert.strictEqual(formatCollectionCountDelta(7, 12), "5 fewer");
+    assert.strictEqual(formatCollectionCountDelta(19, 12), "7 more");
+    assert.strictEqual(formatCollectionCountDelta(12, 12), "same number of cards");
   });
 
   const suggestion = (id, source) => ({

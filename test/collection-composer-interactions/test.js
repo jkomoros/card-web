@@ -64,6 +64,36 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(dialog.open, true);
   });
 
+  it("explains preview counts as consequences without changing row order", async () => {
+    const before = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+      .map((button) => button.id);
+    dialog._previewCounts = {
+      "current-draft-preview": 12,
+      "add:starred": 5,
+      "add:unread": 19,
+    };
+    await dialog.updateComplete;
+    const after = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
+    assert.deepStrictEqual(after.map((button) => button.id), before);
+    assert.match(dialog.shadowRoot.querySelector(".expression").textContent, /12 cards/);
+    assert.match(after.find((button) => button.textContent.includes("Keep only Starred")).textContent, /5 cards · 7 fewer/);
+    assert.match(after.find((button) => button.textContent.includes("Keep only Unread")).textContent, /19 cards · 7 more/);
+    assert.strictEqual(
+      Array.from(dialog.shadowRoot.querySelectorAll("button"))
+        .find((button) => button.classList.contains("primary")).textContent,
+      "Open 12 cards"
+    );
+    dialog._draftPreviewCache = {
+      description: dialog._collectionDescription.serialize(),
+      count: 12,
+    };
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.match(dialog.shadowRoot.querySelector(".expression").textContent, /12 cards/);
+  });
+
   it("opens the edited draft only from the explicit primary action", async () => {
     const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
     buttons.find((button) => button.textContent.includes("Keep only Starred")).click();
