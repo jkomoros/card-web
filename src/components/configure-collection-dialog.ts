@@ -42,6 +42,7 @@ import {
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSort,
 	collectionDescriptionWithSortReversed,
+	collectionDescriptionWithViewMode,
 	collectionDescriptionWithFilterRemoved,
 	collectionDescriptionWithFilterModified,
 	collectionDescriptionWithFilterAppended,
@@ -52,6 +53,8 @@ import {
 	SET_INFOS,
 	SORTS,
 	ALL_FILTER_NAME,
+	CONFIGURABLE_FILTER_INFO,
+	LEGAL_VIEW_MODES,
 } from '../filters.js';
 
 import {
@@ -65,7 +68,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	SetName,
-	SortName
+	SortName,
+	ViewMode,
 } from '../../shared/types.js';
 
 import {
@@ -117,6 +121,12 @@ import {
 	parseCollectionSource,
 	ParsedCollectionSource,
 } from '../collection-source.js';
+
+import {
+	buildCollectionFilterCatalog,
+	collectionFilterCatalogCategories,
+	CollectionFilterCatalogItem,
+} from '../collection-filter-catalog.js';
 
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -171,6 +181,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_builderExpanded = false;
+
+	@state()
+		_catalogOpen = false;
+
+	@state()
+		_catalogHighlightedIndex = 0;
+
+	@state()
+		_pendingCatalogFilter = '';
+
+	@state()
+		_pendingCatalogChanged = false;
 
 	@state()
 		_cardsSelected = false;
@@ -423,6 +445,46 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			.builder {
+				margin-top: 0.5em;
+			}
+
+			.catalog-setup,
+			.pending-filter-editor,
+			.clause-editor {
+				background: var(--app-primary-color-light-very-transparent);
+				border: 1px solid var(--app-divider-color);
+				border-radius: 2px;
+				margin: 0.5em 0;
+				padding: 0.65em;
+			}
+
+			.catalog-setup {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.65em 1em;
+			}
+
+			.catalog-setup label {
+				display: flex;
+				flex-direction: column;
+				font-size: 0.78em;
+				gap: 0.25em;
+			}
+
+			.catalog-list {
+				max-height: min(36vh, 22em);
+				overflow-y: auto;
+			}
+
+			.catalog-item-applied {
+				color: var(--app-primary-color);
+				font-size: 0.75em;
+			}
+
+			.pending-filter-actions {
+				display: flex;
+				gap: 0.5em;
+				justify-content: flex-end;
 				margin-top: 0.5em;
 			}
 
@@ -690,9 +752,137 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
+	_selectedClauseEditorRender() {
+		const index = this._selectedClauseIndex;
+		const filterName = this._collectionDescription.filters[index];
+		if (index < 0 || !filterName) return '';
+		return html`
+			<div class='clause-editor'>
+				<div>
+					<strong>Editing ${this._readableComposerFilter(filterName)}</strong>
+					<div class='suggestion-detail'>Changes update the draft immediately. You can undo them before opening.</div>
+				</div>
+				<configure-collection-filter
+					.value=${filterName}
+					.index=${index}
+					.filterDescriptions=${this._filterDescriptions}
+					.cardTagInfos=${this._cardTagInfos}
+					.userIDs=${this._userIDs}
+					@filter-modified=${this._handleFilterModified}
+					@filter-removed=${this._handleFilterRemoved}>
+				</configure-collection-filter>
+				<button class='small' @click=${this._handleBuilderToggle}>Hide visual builder</button>
+			</div>
+		`;
+	}
+
+	get _catalogItems() : CollectionFilterCatalogItem[] {
+		return buildCollectionFilterCatalog(
+			this._filterDescriptions || {},
+			this._contextualComposerCandidates,
+			this._collectionDescription?.filters || [],
+			this._composerInput
+		);
+	}
+
+	get _visibleCatalogItems() : CollectionFilterCatalogItem[] {
+		const items = this._catalogItems;
+		if (this._composerInput.trim()) return items;
+		return collectionFilterCatalogCategories.flatMap(category => items.filter(item => item.category === category).slice(0, 6));
+	}
+
+	_catalogRender() {
+		const items = this._visibleCatalogItems;
+		return html`
+			<div class='catalog-setup' aria-label='Collection setup'>
+				<label>Start from
+					<select aria-label='Starting collection set' @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
+						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					</select>
+				</label>
+				<label>Order by
+					<select aria-label='Card order' @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
+						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					</select>
+				</label>
+				<label>Direction
+					<select aria-label='Sort direction' @change=${this._handleCatalogDirectionChanged} .value=${this._collectionDescription.sortReversed ? 'reverse' : 'normal'}>
+						<option value='normal'>Normal</option>
+						<option value='reverse'>Reverse</option>
+					</select>
+				</label>
+				<label>Display as
+					<select aria-label='Collection view' @change=${this._handleViewModeChanged} .value=${this._collectionDescription.viewMode}>
+						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode}>${mode}</option>`)}
+					</select>
+				</label>
+				${LEGAL_VIEW_MODES[this._collectionDescription.viewMode] ? html`
+					<label>Web focus card
+						<input aria-label='Web focus card' .value=${this._collectionDescription.viewModeExtra} @change=${this._handleViewExtraChanged}>
+					</label>
+				` : ''}
+			</div>
+			${this._pendingCatalogFilter ? this._pendingCatalogFilterRender() : ''}
+			<div id='collection-filter-catalog' class='catalog-list' role='listbox' aria-label='Filter catalog'>
+				${collectionFilterCatalogCategories.map(category => {
+					const categoryItems = items.filter(item => item.category === category);
+					const shown = categoryItems;
+					if (!shown.length) return '';
+					return html`
+						<div role='group' aria-label=${category}>
+							<div class='suggestion-heading'>${category}</div>
+							${shown.map(item => {
+								const index = items.indexOf(item);
+								return html`
+									<div class='suggestion'>
+										<button
+											id=${`collection-filter-catalog-item-${index}`}
+											role='option'
+											aria-selected=${index === this._catalogHighlightedIndex}
+											?data-highlighted=${index === this._catalogHighlightedIndex}
+											@click=${() => this._handleCatalogItem(item)}
+										>
+											<div>${item.label}<span class='suggestion-action'>${item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span></div>
+											<div class='suggestion-detail'>${item.detail}</div>
+											${item.appliedIndex >= 0 ? html`<div class='catalog-item-applied'>Already in this collection</div>` : ''}
+										</button>
+									</div>
+								`;
+							})}
+						</div>
+					`;
+				})}
+			</div>
+			${!items.length ? html`<div class='no-suggestions'>No filters match yet. Try a broader word such as date, tag, author, relationship, or text.</div>` : ''}
+		`;
+	}
+
+	_pendingCatalogFilterRender() {
+		const family = this._pendingCatalogFilter.split('/')[0];
+		return html`
+			<div class='pending-filter-editor' role='group' aria-label=${`Configure ${this._readableComposerFilter(family)}`}>
+				<div><strong>Configure ${this._readableComposerFilter(family)}</strong></div>
+				<div class='suggestion-detail'>Choose the values below before this filter is added. The collection will not change until you confirm.</div>
+				<configure-collection-filter
+					.value=${this._pendingCatalogFilter}
+					.index=${-1}
+					.filterDescriptions=${this._filterDescriptions}
+					.cardTagInfos=${this._cardTagInfos}
+					.userIDs=${this._userIDs}
+					@filter-modified=${this._handlePendingCatalogFilterModified}
+					@filter-removed=${this._cancelPendingCatalogFilter}>
+				</configure-collection-filter>
+				<div class='pending-filter-actions'>
+					<button class='small' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
+					<button class='primary' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>Add configured filter</button>
+				</div>
+			</div>
+		`;
+	}
+
 	_composerRender() {
 		if (!this._collectionDescription) return html``;
-		const suggestions = this._composerSuggestions;
+		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
 		const highlighted = suggestions[this._highlightedSuggestion];
 		const expressionParts = collectionExpressionParts(this._collectionDescription, this._composerFilterLabels);
 		const draftCount = this._previewCounts[this._draftPreviewID];
@@ -727,11 +917,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					role='combobox'
 					aria-label='Compose collection filters'
 					aria-autocomplete='list'
-					aria-controls='collection-composer-suggestions'
-					aria-expanded=${suggestions.length > 0}
-					aria-activedescendant=${ifDefined(suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : undefined)}
+					aria-controls=${this._catalogOpen ? 'collection-filter-catalog' : 'collection-composer-suggestions'}
+					aria-expanded=${this._catalogOpen ? this._visibleCatalogItems.length > 0 : suggestions.length > 0}
+					aria-activedescendant=${ifDefined(this._catalogOpen ?
+						(this._visibleCatalogItems[this._catalogHighlightedIndex] ? `collection-filter-catalog-item-${this._catalogHighlightedIndex}` : undefined) :
+						(suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : undefined))}
 					aria-busy=${this._activationPending}
-					placeholder='Type another condition…'
+					placeholder=${this._catalogOpen ? 'Search dates, tags, authors, relationships…' : 'Type another condition…'}
 					.value=${this._composerInput}
 					@input=${this._handleComposerInput}
 					@keydown=${this._handleComposerKeyDown}
@@ -749,7 +941,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					${this._activationMessage || 'Opening collection…'}
 				</div>
 			` : ''}
-			${suggestions.length ? html`
+			${this._catalogOpen ? '' : suggestions.length ? html`
 				<div class='suggestions' id='collection-composer-suggestions' role='listbox'>
 					${recentSuggestions.length ? html`
 						<div role='group' aria-labelledby='recent-suggestion-heading'>
@@ -768,15 +960,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>${this._selectedClauseIndex >= 0 ?
+			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter configures or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
 				'←→ choose clause · Delete removes · type to continue' : highlighted?.action === 'open' ?
 				'↑↓ choose · Click or Enter opens' :
 				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
-				<button class='small' @click=${this._handleBuilderToggle}>${this._builderExpanded ? 'Hide visual builder' : 'Browse all filters'}</button>
+				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small' @click=${this._handleEditSource}>Edit source</button>
 			</div>
-			${this._builderExpanded ? html`<div class='builder'>${this._builderRender()}</div>` : ''}
+			${this._catalogOpen ? html`<div class='builder'>${this._catalogRender()}</div>` : ''}
+			${this._builderExpanded ? html`<div class='builder'>${this._selectedClauseEditorRender()}</div>` : ''}
 			<div class='composer-actions'>
 				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
 			</div>
@@ -1040,6 +1233,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._selectedClauseIndex = -1;
 		this._clauseSelectionMessage = '';
 		this._highlightedSuggestion = 0;
+		this._catalogHighlightedIndex = 0;
 		this._activationMessage = '';
 	}
 
@@ -1050,6 +1244,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		if (e.isComposing || e.keyCode === 229) return;
+		if (this._catalogOpen) {
+			const items = this._visibleCatalogItems;
+			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length) {
+				e.preventDefault();
+				e.stopPropagation();
+				const direction = e.key === 'ArrowDown' ? 1 : -1;
+				this._catalogHighlightedIndex = (this._catalogHighlightedIndex + direction + items.length) % items.length;
+				return;
+			}
+			if (e.key === 'Enter' && items[this._catalogHighlightedIndex]) {
+				e.preventDefault();
+				e.stopPropagation();
+				this._handleCatalogItem(items[this._catalogHighlightedIndex]);
+				return;
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				e.stopPropagation();
+				this._handleCatalogToggle();
+				return;
+			}
+		}
 		const suggestions = this._composerSuggestions;
 		if (!this._composerInput && this._collectionDescription.filters.length) {
 			if (e.key === 'Backspace') {
@@ -1178,13 +1394,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	async _handleClauseEdit(index : number) {
+		this._catalogOpen = false;
+		this._pendingCatalogFilter = '';
 		this._selectedClauseIndex = index;
 		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(this._collectionDescription.filters[index])}`;
 		this._builderExpanded = true;
 		await this.updateComplete;
-		const controls = this.shadowRoot?.querySelectorAll('configure-collection-filter');
-		const control = controls?.[index];
-		if (control && 'focusPrimaryControl' in control) control.focusPrimaryControl();
+		const control = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.clause-editor configure-collection-filter');
+		control?.focusPrimaryControl?.();
 	}
 
 	_handleBuilderToggle() {
@@ -1194,6 +1411,87 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._clauseSelectionMessage = '';
 			this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 		}
+	}
+
+	_handleCatalogToggle() {
+		this._catalogOpen = !this._catalogOpen;
+		this._catalogHighlightedIndex = 0;
+		this._pendingCatalogFilter = '';
+		this._pendingCatalogChanged = false;
+		if (this._catalogOpen) {
+			this._builderExpanded = false;
+			this._selectedClauseIndex = -1;
+			this._clauseSelectionMessage = '';
+		}
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_defaultCatalogFilter(family : string) : string {
+		if (['created', 'updated', 'last-tweeted'].includes(family)) return `${family}/after/7-days-ago`;
+		const info = CONFIGURABLE_FILTER_INFO[family];
+		return info ? `${family}/${info.arguments.map(argument => argument.default).join('/')}` : family;
+	}
+
+	async _handleCatalogItem(item : CollectionFilterCatalogItem) {
+		if (item.appliedIndex >= 0) {
+			this._catalogOpen = false;
+			await this._handleClauseEdit(item.appliedIndex);
+			return;
+		}
+		const family = item.filter.split('/')[0];
+		if (item.configurable && item.filter === family) {
+			this._pendingCatalogFilter = this._defaultCatalogFilter(family);
+			this._pendingCatalogChanged = false;
+			await this.updateComplete;
+			this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.pending-filter-editor configure-collection-filter')?.focusPrimaryControl?.();
+			return;
+		}
+		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, item.filter), `Added ${item.label}`);
+		this._composerInput = '';
+		this._catalogHighlightedIndex = 0;
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_handlePendingCatalogFilterModified(e : FilterModifiedEvent) {
+		this._pendingCatalogFilter = e.detail.value;
+		this._pendingCatalogChanged = true;
+	}
+
+	_cancelPendingCatalogFilter() {
+		this._pendingCatalogFilter = '';
+		this._pendingCatalogChanged = false;
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_commitPendingCatalogFilter() {
+		if (!this._pendingCatalogFilter || !this._pendingCatalogChanged) return;
+		const filter = this._pendingCatalogFilter;
+		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, filter), `Added ${this._readableComposerFilter(filter)}`);
+		this._pendingCatalogFilter = '';
+		this._pendingCatalogChanged = false;
+		this._composerInput = '';
+		this._catalogHighlightedIndex = 0;
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_handleCatalogDirectionChanged(e : Event) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
+		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, ele.value === 'reverse'), ele.value === 'reverse' ? 'Reversed sort' : 'Restored normal sort');
+	}
+
+	_handleViewModeChanged(e : Event) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
+		const viewMode = ele.value as ViewMode;
+		const extra = LEGAL_VIEW_MODES[viewMode] ? (this._collectionDescription.viewModeExtra || this._activeCardID || '_') : '';
+		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, viewMode, extra), `Changed view to ${ele.value}`);
+	}
+
+	_handleViewExtraChanged(e : Event) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
+		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, this._collectionDescription.viewMode, ele.value), 'Changed web focus card');
 	}
 
 	_handleOpenCurrentDraft() {
@@ -1246,6 +1544,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	override _handleKeyDown(e : KeyboardEvent) {
+		if (this.open && this._catalogOpen && e.key === 'Escape' && !e.defaultPrevented) {
+			if (e.isComposing || e.keyCode === 229) return;
+			e.preventDefault();
+			e.stopPropagation();
+			if (this._pendingCatalogFilter) this._cancelPendingCatalogFilter();
+			else this._handleCatalogToggle();
+			return;
+		}
 		if (this.open && this._builderExpanded && e.key === 'Escape' && !e.defaultPrevented) {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
@@ -1284,6 +1590,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._composerInput = '';
 				this._highlightedSuggestion = 0;
 				this._builderExpanded = false;
+				this._catalogOpen = false;
+				this._catalogHighlightedIndex = 0;
+				this._pendingCatalogFilter = '';
+				this._pendingCatalogChanged = false;
 				this._selectedClauseIndex = -1;
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';

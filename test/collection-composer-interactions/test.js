@@ -312,6 +312,110 @@ describe("Collection Composer interactions", () => {
     assert.ok(dialog.shadowRoot.querySelector(".expression-clause").hasAttribute("data-selected"));
   });
 
+  it("browses a categorized catalog and adds an ordinary filter without opening", async () => {
+    dialog._composerCandidates = [{
+      filter: "inductively-knowable",
+      category: "tag",
+      label: "Tagged “Inductively Knowable”",
+      detail: "Keeps cards tagged Inductively Knowable",
+      aliases: ["tag", "inductively knowable"],
+    }];
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    assert.strictEqual(input.getAttribute("aria-controls"), "collection-filter-catalog");
+    assert.match(dialog.shadowRoot.textContent, /Dates/);
+    assert.match(dialog.shadowRoot.textContent, /Tags and sections/);
+    assert.ok(dialog.shadowRoot.querySelector("[aria-label='Starting collection set']"));
+    assert.ok(dialog.shadowRoot.querySelector("[aria-label='Card order']"));
+    assert.ok(dialog.shadowRoot.querySelector("[aria-label='Collection view']"));
+    const starred = Array.from(dialog.shadowRoot.querySelectorAll("#collection-filter-catalog [role=option]"))
+      .find((button) => button.textContent.includes("Starred"));
+    assert.ok(starred);
+    starred.click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
+    assert.strictEqual(window.location.pathname, "/c/main/");
+    assert.match(dialog.shadowRoot.querySelector("#collection-filter-catalog").textContent, /Already in this collection/);
+  });
+
+  it("searches catalog aliases and configures a filter before committing it", async () => {
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "text";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const query = Array.from(dialog.shadowRoot.querySelectorAll("#collection-filter-catalog [role=option]"))
+      .find((button) => button.textContent.includes("Query"));
+    assert.ok(query);
+    assert.match(query.textContent, /configure/i);
+    query.click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+    const pending = dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter");
+    assert.ok(pending);
+    const add = Array.from(dialog.shadowRoot.querySelectorAll(".pending-filter-actions button"))
+      .find((button) => button.textContent.includes("Add configured filter"));
+    assert.strictEqual(add.disabled, true);
+    const queryInput = pending.shadowRoot.querySelector(".pieces input");
+    queryInput.value = "inductively knowable";
+    queryInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(add.disabled, false);
+    add.click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["query/inductively knowable"]);
+    assert.match(dialog.shadowRoot.textContent, /Added Query Inductively Knowable/);
+  });
+
+  it("supports keyboard catalog search and lets Escape back out one layer", async () => {
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "query";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await dialog.updateComplete;
+    assert.ok(dialog.shadowRoot.querySelector(".pending-filter-editor"));
+    const pendingInput = dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter").shadowRoot.querySelector("input");
+    pendingInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(dialog.shadowRoot.querySelector(".pending-filter-editor"), null);
+    assert.ok(dialog.shadowRoot.querySelector("#collection-filter-catalog"));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-filter-catalog"), null);
+    assert.strictEqual(dialog.open, true);
+  });
+
+  it("edits setup and applied catalog items through the same visual surface", async () => {
+    const starred = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+      .find((button) => button.textContent.includes("Keep only Starred"));
+    starred.click();
+    await dialog.updateComplete;
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const view = dialog.shadowRoot.querySelector("[aria-label='Collection view']");
+    view.value = "web";
+    view.dispatchEvent(new Event("change", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(store.getState().collection.snapshot.viewMode, "web");
+    assert.ok(store.getState().collection.snapshot.viewModeExtra);
+    const appliedStarred = Array.from(dialog.shadowRoot.querySelectorAll("#collection-filter-catalog [role=option]"))
+      .find((button) => button.textContent.includes("Starred"));
+    appliedStarred.click();
+    await dialog.updateComplete;
+    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-filter-catalog"), null);
+    assert.ok(dialog.shadowRoot.querySelector("configure-collection-filter"));
+    assert.match(dialog.shadowRoot.textContent, /Hide visual builder/);
+  });
+
   it("opens Source mode from the current route with the exact text selected", async () => {
     store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
     window.history.replaceState({}, "", "/c/everything/starred/card-7");

@@ -173,6 +173,10 @@ export const collectionDescriptionWithSortReversed = (description : CollectionDe
 	return collectionDescriptionWithOverrides(description, {sortReversed});
 };
 
+export const collectionDescriptionWithViewMode = (description : CollectionDescription, viewMode : ViewMode, viewModeExtra = '') : CollectionDescription => {
+	return collectionDescriptionWithOverrides(description, {viewMode, viewModeExtra});
+};
+
 //collectionDescriptionWithQuery returns a new cloned collection description,
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
