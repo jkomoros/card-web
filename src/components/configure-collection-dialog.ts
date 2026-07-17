@@ -102,7 +102,7 @@ import {
 } from '../collection-composer-suggestions.js';
 
 import {
-	readRecentCollections,
+	readRememberedCollections,
 } from '../collection-composer-history.js';
 
 import {
@@ -599,9 +599,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
 		if (!this._collectionDescription) return [];
-		const recentCollections = readRecentCollections(this._userScope).map(entry => ({
+		const recentCollections = readRememberedCollections(this._userScope).map(entry => ({
 			description: CollectionDescription.deserialize(entry.authoring),
 			visits: entry.visits,
+			frequent: entry.frequent,
+			relative: entry.relative,
 		}));
 		return collectionComposerSuggestions(
 			this._collectionDescription,
