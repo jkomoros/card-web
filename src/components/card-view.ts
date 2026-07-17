@@ -555,6 +555,14 @@ class CardView extends connect(store)(PageViewElement) {
 				display:none;
 			}
 
+			.collection-mobile {
+				display: none;
+			}
+
+			.mobile .collection-mobile {
+				display: block;
+			}
+
 			card-editor {
 				display:none;
 			}
@@ -855,6 +863,14 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
+				${collectionComposerEnabled() ? html`<div slot='actions' class='collection-mobile'>
+					<button
+						class='round'
+						title='Compose collection'
+						aria-label='Compose collection'
+						@click=${this._handleConfigureCollectionClicked}
+					>${RULE_ICON}</button>
+				</div>` : ''}
 				<div slot='actions' class='modify'>
 					<button class='round' title=${`Find a card (${shortcutKeys('find-card')})`} aria-label=${`Find a card (${shortcutKeys('find-card')})`} @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
 					<!-- Titles on wrappers, and a reason for the disabled state:

@@ -15,6 +15,7 @@ let CollectionDescription;
 let collectionComposerSuggestions;
 let collectionDescriptionFromComposerSource;
 let readableCollectionExpression;
+let collectionExpressionParts;
 
 const descriptions = {
   starred: "Cards you have starred",
@@ -31,6 +32,7 @@ describe("Collection Composer suggestions", () => {
       collectionComposerSuggestions,
       collectionDescriptionFromComposerSource,
       readableCollectionExpression,
+      collectionExpressionParts,
     } = await import("../../lib/src/collection-composer-suggestions.js"));
   });
 
@@ -197,5 +199,18 @@ describe("Collection Composer suggestions", () => {
       readableCollectionExpression(union),
       "Everything AND (Starred OR Unread)"
     );
+  });
+
+  it("exposes structured expression parts without reparsing display text", () => {
+    const description = CollectionDescription.deserialize(
+      "everything/starred+unread/query/inductively+knowable/sort/reverse/recent/view/web/graph/"
+    );
+    const parts = collectionExpressionParts(description);
+    assert.deepStrictEqual(parts.set, { raw: "everything", label: "Everything" });
+    assert.deepStrictEqual(parts.filters.map(({ raw, label, index }) => ({ raw, label, index })), [
+      { raw: "starred+unread", label: "(Starred OR Unread)", index: 0 },
+      { raw: "query/inductively+knowable", label: "Query Inductively Knowable", index: 1 },
+    ]);
+    assert.deepStrictEqual(parts.modifiers, ["sorted by reverse Recent", "viewed as Web (Graph)"]);
   });
 });

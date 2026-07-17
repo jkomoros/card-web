@@ -25,6 +25,10 @@ import {
 @customElement('configure-collection-key-card')
 class ConfigureCollectionKeyCard extends LitElement {
 
+	focusPrimaryControl() {
+		this.shadowRoot?.querySelector<HTMLButtonElement>('button')?.focus();
+	}
+
 	@property({ type : String })
 		value: string;
 

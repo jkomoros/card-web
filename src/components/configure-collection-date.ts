@@ -26,6 +26,12 @@ import {
 @customElement('configure-collection-date')
 class ConfigureCollectionDate extends LitElement {
 
+	focusPrimaryControl() {
+		this.shadowRoot?.querySelector<HTMLElement>(
+			'.container input[type="date"], .relative-date-controls input, .relative-date-controls select, .container select'
+		)?.focus();
+	}
+
 	@property({ type : String })
 		value: string;
 
