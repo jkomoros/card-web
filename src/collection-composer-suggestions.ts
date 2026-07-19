@@ -29,6 +29,7 @@ export type CollectionComposerSuggestion = {
   description: CollectionDescription;
   destinationPath?: string;
   configureFilter?: string;
+  sourceFilter?: string;
 };
 
 export type CollectionComposerCandidate = {
@@ -56,6 +57,8 @@ export type CollectionComposerContext = {
   preservedSelectedCard?: string;
   sourceAllowedOrigins?: ReadonlySet<string>;
 };
+
+const SOURCE_ONLY_CONFIGURABLE_FILTERS = new Set(["combine", "exclude", "expand"]);
 
 export type ActiveCardMetadata = {
   section: string;
@@ -426,16 +429,18 @@ export const collectionComposerSuggestions = (
       const {name, detail} = interpretation;
       const filter = defaultFilter(name);
       const configurable = CONFIGURABLE_FILTER_INFO[name];
+      const sourceOnly = configurable && SOURCE_ONLY_CONFIGURABLE_FILTERS.has(name);
       const existingConfigurable = configurable && current.filters.some(currentFilter => currentFilter.startsWith(name + "/"));
       if (!configurable && current.filters.includes(filter)) continue;
       suggestion = {
         id: `filter:${filter}`,
         kind: "add",
         action: existingConfigurable ? "replace" : "add",
-        label: configurable ? `${existingConfigurable ? "Edit" : "Configure"} ${humanize(name)}` : `Add ${humanize(name)}`,
-        detail: configurable ? `${detail} · choose its values before changing the draft` : detail,
+        label: sourceOnly ? `Edit ${humanize(name)} in Source` : configurable ? `${existingConfigurable ? "Edit" : "Configure"} ${humanize(name)}` : `Add ${humanize(name)}`,
+        detail: sourceOnly ? `${detail} · nested expressions use lossless Source mode with completions` : configurable ? `${detail} · choose its values before changing the draft` : detail,
         description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
-        configureFilter: configurable ? name : undefined,
+        configureFilter: configurable && !sourceOnly ? name : undefined,
+        sourceFilter: sourceOnly ? name : undefined,
       };
     }
     const destination = suggestion.description.serialize();

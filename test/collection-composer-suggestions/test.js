@@ -25,6 +25,7 @@ let configurableFilterCacheKey;
 const descriptions = {
   starred: "Cards you have starred",
   updated: "Cards updated in a date range",
+  exclude: "Cards outside another collection",
   "working-notes": "Working notes cards",
 };
 
@@ -441,6 +442,19 @@ describe("Collection Composer suggestions", () => {
     assert.strictEqual(suggestion.configureFilter, "updated");
     assert.strictEqual(suggestion.label, "Configure Updated");
     assert.match(suggestion.detail, /choose its values before changing the draft/);
+  });
+
+  it("routes nested collection expressions to lossless Source editing", () => {
+    const current = CollectionDescription.deserialize("everything/");
+    const [suggestion] = collectionComposerSuggestions(
+      current,
+      "exclude",
+      descriptions
+    );
+    assert.strictEqual(suggestion.sourceFilter, "exclude");
+    assert.strictEqual(suggestion.configureFilter, undefined);
+    assert.strictEqual(suggestion.label, "Edit Exclude in Source");
+    assert.match(suggestion.detail, /completions/);
   });
 
   it("accepts fragments, routes, and full URLs as collection source", () => {

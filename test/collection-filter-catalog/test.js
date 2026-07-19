@@ -24,6 +24,7 @@ describe("Collection filter catalog", () => {
     author: "Cards by a contributor",
     query: "Cards containing text",
     similar: "Cards similar to a card",
+    exclude: "Cards outside another collection",
   };
 
   const candidates = [{
@@ -50,6 +51,9 @@ describe("Collection filter catalog", () => {
     assert.strictEqual(result.find(item => item.filter === "inductively-knowable").category, "Tags and sections");
     assert.strictEqual(result.find(item => item.filter.startsWith("direct-connections/")).category, "Suggested for this card");
     assert.match(result.find(item => item.filter === "updated").example, /last 7 days/);
+    assert.strictEqual(result.find(item => item.filter === "updated").guided, true);
+    assert.strictEqual(result.find(item => item.filter === "exclude").guided, false);
+    assert.match(result.find(item => item.filter === "exclude").example, /NOT Working Notes/);
     assert.strictEqual(result.find(item => item.filter === "inductively-knowable").example, "Everything AND Tagged “Inductively Knowable”");
   });
 
