@@ -871,7 +871,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 											?data-highlighted=${index === this._catalogHighlightedIndex}
 											@click=${() => this._handleCatalogItem(item)}
 										>
-											<div>${item.label}<span class='suggestion-action'>${item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span></div>
+											<div>${item.label}<span class='suggestion-action'>${!item.guided || item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span></div>
 											<div class='suggestion-detail'>${item.detail}</div>
 											<div class='catalog-example'>Example: ${item.example}</div>
 											${item.appliedIndex >= 0 ? html`<div class='catalog-item-applied'>Already in this collection</div>` : ''}
@@ -998,9 +998,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter configures or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
+			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter opens Source, configures, or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
 				'←→ choose clause · Delete removes · type to continue' : highlighted?.action === 'open' ?
 				'↑↓ choose · Click or Enter opens' :
+				highlighted?.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
 				highlighted?.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
 				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
@@ -1019,7 +1020,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const count = this._previewCounts[suggestion.id];
 		const draftCount = this._previewCounts[this._draftPreviewID];
 		const countDescription = count === undefined ? '' : `${formatCollectionCardCount(count)}${draftCount === undefined ? '' : ` · ${formatCollectionCountDelta(count, draftCount)}`}`;
-		const visibleAction = suggestion.configureFilter ? (suggestion.action === 'replace' ? 'edit' : 'configure') : suggestion.action;
+		const visibleAction = suggestion.sourceFilter ? 'edit' : suggestion.configureFilter ? (suggestion.action === 'replace' ? 'edit' : 'configure') : suggestion.action;
 		return html`
 						<div class='suggestion'>
 							<button
@@ -1363,6 +1364,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
+		if (suggestion.sourceFilter) {
+			this._handleEditSource();
+			return;
+		}
 		if (suggestion.configureFilter) {
 			void this._configureFilterFamily(suggestion.configureFilter);
 			return;
@@ -1509,6 +1514,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	async _handleCatalogItem(item : CollectionFilterCatalogItem) {
+		if (!item.guided) {
+			this._handleEditSource();
+			return;
+		}
 		if (item.appliedIndex >= 0) {
 			this._catalogOpen = false;
 			await this._handleClauseEdit(item.appliedIndex);
@@ -1714,7 +1723,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const cachedDraftCount = draftDescription && this._draftPreviewCache?.description === draftDescription ? this._draftPreviewCache.count : undefined;
 		this._previewCounts = cachedDraftCount === undefined ? {} : {[this._draftPreviewID]: cachedDraftCount};
 		if (!this.open || !collectionComposerPreviewEnabled()) return;
-		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter);
+		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter && !suggestion.sourceFilter);
 		if (cachedDraftCount === undefined) previewSuggestions.unshift({
 			id: this._draftPreviewID,
 			kind: 'source',

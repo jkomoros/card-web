@@ -406,6 +406,23 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter").value, "updated/after/7-days-ago");
   });
 
+  it("routes nested collection expressions to discoverable Source mode without changing the draft", async () => {
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "exclude";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const suggestion = Array.from(dialog.shadowRoot.querySelectorAll("[role=option]"))
+      .find((button) => button.textContent.includes("Edit Exclude in Source"));
+    assert.ok(suggestion);
+    assert.match(suggestion.textContent, /source/i);
+    assert.strictEqual(suggestion.querySelector(".suggestion-action").textContent, "edit");
+    suggestion.click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+    assert.strictEqual(dialog._entryMode, "source");
+    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-source-input").value, "/c/");
+  });
+
   it("supports keyboard catalog search and lets Escape back out one layer", async () => {
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
       .find((button) => button.textContent.includes("Browse all filters")).click();

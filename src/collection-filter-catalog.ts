@@ -27,6 +27,7 @@ export type CollectionFilterCatalogItem = {
 	example: string;
 	category: CollectionFilterCatalogCategory;
 	configurable: boolean;
+	guided: boolean;
 	appliedIndex: number;
 	searchValues: string[];
 };
@@ -64,6 +65,7 @@ const COMMON_FILTER_ORDER = [
 const COMMON_FILTERS = new Set(COMMON_FILTER_ORDER);
 const SIMILARITY_FILTERS = new Set(['similar', 'similar-cutoff', 'same-type', 'different-type']);
 const STRUCTURAL_FILTERS = new Set(['combine', 'exclude', 'expand', 'limit', 'offset']);
+const SOURCE_ONLY_FILTERS = new Set(['combine', 'exclude', 'expand']);
 
 const commonFilterRank = (filter : string) => {
 	const rank = COMMON_FILTER_ORDER.indexOf(filter);
@@ -104,6 +106,9 @@ const exampleFor = (filter : string, candidate? : CollectionComposerCandidate) :
 	if (family === 'query') return 'Everything AND Text contains “systems”';
 	if (family === 'query-strict') return 'Everything AND Text exactly contains “systems thinking”';
 	if (family === 'author') return 'Everything AND Authored by me';
+	if (family === 'exclude') return 'Everything AND NOT Working Notes';
+	if (family === 'combine') return 'Everything AND (Tagged AI OR Tagged Systems)';
+	if (family === 'expand') return 'Start with Tagged AI, then include linked cards';
 	const argumentsInfo = CONFIGURABLE_FILTER_ARGUMENTS[family] || [];
 	const configured = argumentsInfo.length ? `${family}/${argumentsInfo.map(argument => argument.default).join('/')}` : filter;
 	return `Everything AND ${readableCollectionFilter(configured)}`;
@@ -143,6 +148,7 @@ export const buildCollectionFilterCatalog = (
 			example,
 			category: categoryFor(filter, candidate),
 			configurable: Boolean(CONFIGURABLE_FILTER_NAMES[family]),
+			guided: !SOURCE_ONLY_FILTERS.has(family),
 			appliedIndex,
 			searchValues: [filter, family, label, detail, example, candidate?.category || '', ...(candidate?.aliases || [])],
 		};
