@@ -146,6 +146,7 @@ import {
 import {
 	buildCollectionFilterCatalog,
 	collectionFilterCatalogCategories,
+	CollectionFilterCatalogCategory,
 	CollectionFilterCatalogItem,
 } from '../collection-filter-catalog.js';
 
@@ -217,6 +218,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_pendingCatalogChanged = false;
+
+	@state()
+		_expandedCatalogCategories = new Set<CollectionFilterCatalogCategory>();
 
 	@state()
 		_cardsSelected = false;
@@ -821,11 +825,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	get _visibleCatalogItems() : CollectionFilterCatalogItem[] {
 		const items = this._catalogItems;
 		if (this._composerInput.trim()) return items;
-		return collectionFilterCatalogCategories.flatMap(category => items.filter(item => item.category === category).slice(0, 6));
+		return collectionFilterCatalogCategories.flatMap(category => {
+			const categoryItems = items.filter(item => item.category === category);
+			return this._expandedCatalogCategories.has(category) ? categoryItems : categoryItems.slice(0, 6);
+		});
 	}
 
 	_catalogRender() {
 		const items = this._visibleCatalogItems;
+		const allItems = this._catalogItems;
 		return html`
 			<div class='catalog-setup' aria-label='Collection setup'>
 				<label>Start from
@@ -865,6 +873,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				${collectionFilterCatalogCategories.map(category => {
 					const categoryItems = items.filter(item => item.category === category);
 					const shown = categoryItems;
+					const total = allItems.filter(item => item.category === category).length;
+					const expanded = this._expandedCatalogCategories.has(category);
 					if (!shown.length) return '';
 					return html`
 						<div role='group' aria-label=${category}>
@@ -889,6 +899,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 									</div>
 								`;
 							})}
+							${!this._composerInput.trim() && total > 6 ? html`
+								<button class='small catalog-more' @click=${() => this._handleCatalogCategoryToggle(category)}>
+									${expanded ? `Show fewer ${category.toLowerCase()} filters` : `Show ${total - shown.length} more ${category.toLowerCase()} filters`}
+								</button>
+							` : ''}
 						</div>
 					`;
 				})}
@@ -1476,12 +1491,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._catalogHighlightedIndex = 0;
 		this._pendingCatalogFilter = '';
 		this._pendingCatalogChanged = false;
+		if (this._catalogOpen) this._expandedCatalogCategories = new Set();
 		if (this._catalogOpen) {
 			this._builderExpanded = false;
 			this._selectedClauseIndex = -1;
 			this._clauseSelectionMessage = '';
 		}
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+	}
+
+	_handleCatalogCategoryToggle(category : CollectionFilterCatalogCategory) {
+		const expanded = new Set(this._expandedCatalogCategories);
+		if (expanded.has(category)) expanded.delete(category);
+		else expanded.add(category);
+		this._expandedCatalogCategories = expanded;
+		this._catalogHighlightedIndex = 0;
 	}
 
 	_defaultCatalogFilter(family : string) : string {
@@ -1504,6 +1528,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._pendingCatalogChanged = this._catalogDefaultIsReady(family);
 		this._composerInput = '';
 		this._catalogHighlightedIndex = 0;
+		this._expandedCatalogCategories = new Set();
 		await this.updateComplete;
 		this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.pending-filter-editor configure-collection-filter')?.focusPrimaryControl?.();
 	}
@@ -1669,6 +1694,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._catalogHighlightedIndex = 0;
 				this._pendingCatalogFilter = '';
 				this._pendingCatalogChanged = false;
+				this._expandedCatalogCategories = new Set();
 				this._selectedClauseIndex = -1;
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';
