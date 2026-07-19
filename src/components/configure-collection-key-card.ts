@@ -2,17 +2,11 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import {
-	EDIT_ICON
-} from '../../shared/icons.js';
-
-import {
 	parseKeyCardID,
 	keyCardID
 } from '../filters.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
-
-import './tag-list.js';
 
 import {
 	TagInfos
@@ -26,7 +20,7 @@ import {
 class ConfigureCollectionKeyCard extends LitElement {
 
 	focusPrimaryControl() {
-		this.shadowRoot?.querySelector<HTMLButtonElement>('button')?.focus();
+		this.shadowRoot?.querySelector<HTMLSelectElement>('select')?.focus();
 	}
 
 	@property({ type : String })
@@ -35,27 +29,55 @@ class ConfigureCollectionKeyCard extends LitElement {
 	@property({ type : Object })
 		cardTagInfos: TagInfos;
 
+	@property({ type : Boolean })
+		allowIncludeKeyCard = true;
+
 	static override styles = [
 		ButtonSharedStyles,
 		css`
 			:host {
 				display:inline-block;
 			}
-			div {
+			div,
+			label {
 				display:flex;
 				flex-direction: row;
+				align-items: center;
+				gap: 0.4em;
+			}
+			div {
+				flex-wrap: wrap;
+			}
+			select {
+				max-width: 22em;
 			}
 		`
 	];
 
 	override render() {
-		const [cardID, includeKeyCard] = parseKeyCardID(this.value);
+		const [cardID, includeKeyCard] = this._valueParts();
+		const cardInfos = this.cardTagInfos || {};
+		const currentIsKnown = Boolean(cardInfos[cardID]);
 		return html`
 			<div>
-				<input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
-				<tag-list .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []} .tapEvents=${true}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
+				<select aria-label='Key card' .value=${cardID} @change=${this._handleCardChanged}>
+					${this.allowIncludeKeyCard ? '' : html`<option value='_'>First card in the collection</option>`}
+					${currentIsKnown || (!this.allowIncludeKeyCard && cardID === '_') ? '' : html`<option .value=${cardID}>${cardID && cardID !== 'key-card-id' ? `Unavailable card (${cardID})` : 'Choose a card…'}</option>`}
+					${Object.values(cardInfos).map(info => html`<option .value=${info.id}>${info.title}</option>`)}
+				</select>
+				${this.allowIncludeKeyCard ? html`<label><input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}> Include the key card itself</label>` : ''}
 			</div>
 		`;
+	}
+
+	_valueParts() : [string, boolean] {
+		if (!this.allowIncludeKeyCard) return [this.value || '_', false];
+		const [cardID, includeKeyCard] = parseKeyCardID(this.value);
+		return [cardID, includeKeyCard];
+	}
+
+	_valueFor(cardID : string, includeKeyCard : boolean) : string {
+		return this.allowIncludeKeyCard ? keyCardID(cardID, includeKeyCard) : cardID;
 	}
 
 	_dispatchNewValue(newValue : string) {
@@ -65,19 +87,15 @@ class ConfigureCollectionKeyCard extends LitElement {
 	_handleKeyCardChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
-		const [oldCardID] = parseKeyCardID(this.value);
-		this._dispatchNewValue(keyCardID(oldCardID, ele.checked));
+		const [oldCardID] = this._valueParts();
+		this._dispatchNewValue(this._valueFor(oldCardID, ele.checked));
 	}
 
-	_handleEditClicked() {
-		//TODO: pop a dialog
-		const cardID = prompt('What is the ID of the card?');
-		if (!cardID) {
-			console.warn('No key card');
-			return;
-		}
-		const [, includeKeyCard] = parseKeyCardID(this.value);
-		this._dispatchNewValue(keyCardID(cardID, includeKeyCard));
+	_handleCardChanged(e : Event) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
+		const [, includeKeyCard] = this._valueParts();
+		this._dispatchNewValue(this._valueFor(ele.value, includeKeyCard));
 	}
 
 }

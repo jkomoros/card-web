@@ -481,6 +481,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				font-size: 0.75em;
 			}
 
+			.catalog-example {
+				color: var(--app-secondary-color);
+				font-size: 0.78em;
+				margin-top: 0.15em;
+			}
+
 			.pending-filter-actions {
 				display: flex;
 				gap: 0.5em;
@@ -765,13 +771,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<configure-collection-filter
 					.value=${filterName}
 					.index=${index}
+					.lockFilterFamily=${true}
 					.filterDescriptions=${this._filterDescriptions}
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
 					@filter-modified=${this._handleFilterModified}
 					@filter-removed=${this._handleFilterRemoved}>
 				</configure-collection-filter>
-				<button class='small' @click=${this._handleBuilderToggle}>Hide visual builder</button>
+				<button class='small done-editing' @click=${this._handleBuilderToggle}>Done editing</button>
 			</div>
 		`;
 	}
@@ -818,7 +825,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</label>
 				${LEGAL_VIEW_MODES[this._collectionDescription.viewMode] ? html`
 					<label>Web focus card
-						<input aria-label='Web focus card' .value=${this._collectionDescription.viewModeExtra} @change=${this._handleViewExtraChanged}>
+						<configure-collection-key-card
+							.value=${this._collectionDescription.viewModeExtra || '_'}
+							.cardTagInfos=${this._cardTagInfos}
+							.allowIncludeKeyCard=${false}
+							@filter-modified-complex=${this._handleViewCardChanged}>
+						</configure-collection-key-card>
 					</label>
 				` : ''}
 			</div>
@@ -838,12 +850,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 										<button
 											id=${`collection-filter-catalog-item-${index}`}
 											role='option'
+											data-filter=${item.filter}
 											aria-selected=${index === this._catalogHighlightedIndex}
 											?data-highlighted=${index === this._catalogHighlightedIndex}
 											@click=${() => this._handleCatalogItem(item)}
 										>
 											<div>${item.label}<span class='suggestion-action'>${item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span></div>
 											<div class='suggestion-detail'>${item.detail}</div>
+											<div class='catalog-example'>Example: ${item.example}</div>
 											${item.appliedIndex >= 0 ? html`<div class='catalog-item-applied'>Already in this collection</div>` : ''}
 										</button>
 									</div>
@@ -866,6 +880,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<configure-collection-filter
 					.value=${this._pendingCatalogFilter}
 					.index=${-1}
+					.lockFilterFamily=${true}
+					.allowRemove=${false}
 					.filterDescriptions=${this._filterDescriptions}
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
@@ -1400,8 +1416,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(this._collectionDescription.filters[index])}`;
 		this._builderExpanded = true;
 		await this.updateComplete;
-		const control = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.clause-editor configure-collection-filter');
-		control?.focusPrimaryControl?.();
+		const control = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => boolean}>('.clause-editor configure-collection-filter');
+		if (!control?.focusPrimaryControl?.()) this.shadowRoot?.querySelector<HTMLElement>('.clause-editor .done-editing')?.focus();
 	}
 
 	_handleBuilderToggle() {
@@ -1432,6 +1448,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return info ? `${family}/${info.arguments.map(argument => argument.default).join('/')}` : family;
 	}
 
+	_catalogDefaultIsReady(family : string) : boolean {
+		return ['created', 'updated', 'last-tweeted', 'author', 'limit', 'offset'].includes(family);
+	}
+
 	async _handleCatalogItem(item : CollectionFilterCatalogItem) {
 		if (item.appliedIndex >= 0) {
 			this._catalogOpen = false;
@@ -1441,7 +1461,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const family = item.filter.split('/')[0];
 		if (item.configurable && item.filter === family) {
 			this._pendingCatalogFilter = this._defaultCatalogFilter(family);
-			this._pendingCatalogChanged = false;
+			this._pendingCatalogChanged = this._catalogDefaultIsReady(family);
 			await this.updateComplete;
 			this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.pending-filter-editor configure-collection-filter')?.focusPrimaryControl?.();
 			return;
@@ -1488,10 +1508,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, viewMode, extra), `Changed view to ${ele.value}`);
 	}
 
-	_handleViewExtraChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
-		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, this._collectionDescription.viewMode, ele.value), 'Changed web focus card');
+	_handleViewCardChanged(e : FilterModifiedEvent) {
+		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, this._collectionDescription.viewMode, e.detail.value), 'Changed web focus card');
 	}
 
 	_handleOpenCurrentDraft() {
