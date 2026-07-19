@@ -341,6 +341,23 @@ describe("Collection Composer interactions", () => {
     assert.match(dialog.shadowRoot.querySelector("#collection-filter-catalog").textContent, /Already in this collection/);
   });
 
+  it("makes capped catalog categories explicit and expandable", async () => {
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const catalog = dialog.shadowRoot.querySelector("#collection-filter-catalog");
+    const before = catalog.querySelectorAll("[data-filter]").length;
+    const more = Array.from(catalog.querySelectorAll(".catalog-more"))
+      .find((button) => button.textContent.includes("more card properties filters"));
+    assert.ok(more);
+    assert.match(more.textContent, /Show \d+ more/);
+    more.click();
+    await dialog.updateComplete;
+    const after = dialog.shadowRoot.querySelectorAll("#collection-filter-catalog [data-filter]").length;
+    assert.ok(after > before);
+    assert.match(dialog.shadowRoot.querySelector("#collection-filter-catalog").textContent, /Show fewer card properties filters/);
+  });
+
   it("searches catalog aliases and configures a filter before committing it", async () => {
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
       .find((button) => button.textContent.includes("Browse all filters")).click();
