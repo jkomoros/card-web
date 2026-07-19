@@ -140,8 +140,8 @@ class ConfigureCollectionDate extends LitElement {
 		return html`
 			<div class="container">
 				<!-- Comparison type selector -->
-				<select .value=${typ} @change=${this._handleTypeChanged}>
-					${dateRangeType.options.map(t => html`<option .value=${t}>${t}</option>`)}
+				<select aria-label='Date comparison' .value=${typ} @change=${this._handleTypeChanged}>
+					${dateRangeType.options.map(t => html`<option .value=${t}>${t[0].toUpperCase() + t.slice(1)}</option>`)}
 				</select>
 
 				<!-- Mode selector -->
@@ -154,7 +154,7 @@ class ConfigureCollectionDate extends LitElement {
 							?checked=${!this._relativeMode}
 							@change=${this._handleModeChanged}
 						>
-						Absolute
+						Fixed date
 					</label>
 					<label>
 						<input
@@ -164,7 +164,7 @@ class ConfigureCollectionDate extends LitElement {
 							?checked=${this._relativeMode}
 							@change=${this._handleModeChanged}
 						>
-						Relative
+						Rolling date
 					</label>
 				</div>
 
@@ -189,6 +189,7 @@ class ConfigureCollectionDate extends LitElement {
 		const formatted = this._formatDateForInput(dateObj);
 		return html`
 			<input
+				aria-label=${isFirst ? 'First fixed date' : 'Second fixed date'}
 				type="date"
 				.value=${formatted}
 				?data-first=${isFirst}
@@ -202,18 +203,20 @@ class ConfigureCollectionDate extends LitElement {
 			<div class="relative-date-controls">
 				<!-- Type selector -->
 				<select
+					aria-label=${isFirst ? 'First rolling date kind' : 'Second rolling date kind'}
 					.value=${this._relativeType}
 					?data-first=${isFirst}
 					@change=${this._handleRelativeTypeChanged}
 				>
-					<option value="offset">Offset</option>
-					<option value="weekday">Weekday</option>
-					<option value="special">Special</option>
+					<option value="offset">A time ago</option>
+					<option value="weekday">Previous weekday</option>
+					<option value="special">Today or yesterday</option>
 				</select>
 
 				<!-- Controls based on type -->
 				${this._relativeType === 'offset' ? html`
 					<input
+						aria-label=${isFirst ? 'First rolling date amount' : 'Second rolling date amount'}
 						type="number"
 						min="1"
 						.value=${String(this._offsetAmount)}
@@ -221,6 +224,7 @@ class ConfigureCollectionDate extends LitElement {
 						@input=${this._handleOffsetAmountChanged}
 					>
 					<select
+						aria-label=${isFirst ? 'First rolling date unit' : 'Second rolling date unit'}
 						.value=${this._offsetUnit}
 						?data-first=${isFirst}
 						@change=${this._handleOffsetUnitChanged}
@@ -236,6 +240,7 @@ class ConfigureCollectionDate extends LitElement {
 				${this._relativeType === 'weekday' ? html`
 					<span>last</span>
 					<select
+						aria-label=${isFirst ? 'First rolling weekday' : 'Second rolling weekday'}
 						.value=${this._weekday}
 						?data-first=${isFirst}
 						@change=${this._handleWeekdayChanged}
@@ -252,6 +257,7 @@ class ConfigureCollectionDate extends LitElement {
 
 				${this._relativeType === 'special' ? html`
 					<select
+						aria-label=${isFirst ? 'First rolling special date' : 'Second rolling special date'}
 						.value=${this._special}
 						?data-first=${isFirst}
 						@change=${this._handleSpecialChanged}

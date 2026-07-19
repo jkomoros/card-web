@@ -14,6 +14,7 @@ import {
 	selectFilterDescriptions,
 	selectCollectionComposerCandidates,
 	selectAuthorAndCollaboratorUserIDs,
+	selectAuthorsForTagList,
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
 	selectActiveCollectionDescription,
@@ -165,6 +166,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_userIDs: Uid[];
+
+	@state()
+		_userInfos: TagInfos;
 
 	@state()
 		_cardTagInfos: TagInfos;
@@ -740,6 +744,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 						.filterDescriptions=${this._filterDescriptions}
 						.cardTagInfos=${this._cardTagInfos}
 						.userIDs=${this._userIDs}
+						.userInfos=${this._userInfos}
 						@filter-modified=${this._handleFilterModified}
 						@filter-removed=${this._handleFilterRemoved}>
 					</configure-collection-filter>`)}
@@ -795,6 +800,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					.filterDescriptions=${this._filterDescriptions}
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
+					.userInfos=${this._userInfos}
 					@filter-modified=${this._handleFilterModified}
 					@filter-removed=${this._handleFilterRemoved}>
 				</configure-collection-filter>
@@ -905,6 +911,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					.filterDescriptions=${this._filterDescriptions}
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
+					.userInfos=${this._userInfos}
 					@filter-modified=${this._handlePendingCatalogFilterModified}
 					@filter-removed=${this._cancelPendingCatalogFilter}>
 				</configure-collection-filter>
@@ -1724,6 +1731,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._filterDescriptions = selectFilterDescriptions(state);
 		this._composerCandidates = selectCollectionComposerCandidates(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
+		this._userInfos = selectAuthorsForTagList(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
