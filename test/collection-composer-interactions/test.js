@@ -420,7 +420,14 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
     assert.strictEqual(dialog._entryMode, "source");
-    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-source-input").value, "/c/");
+    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-source-input").value, "/c/exclude/");
+    assert.match(dialog.shadowRoot.querySelector(".source-status").textContent, /needs 1 more value/);
+    assert.match(dialog.shadowRoot.querySelector("#collection-source-completions").textContent, /Working Notes/);
+    const source = dialog.shadowRoot.querySelector("#collection-source-input");
+    source.value = "/c/exclude/working-n/";
+    source.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.match(dialog.shadowRoot.querySelector("#collection-source-completions").textContent, /Working Notes/);
   });
 
   it("supports keyboard catalog search and lets Escape back out one layer", async () => {

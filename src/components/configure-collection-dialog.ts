@@ -1202,7 +1202,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleEditSource() {
-		if (!this._sourceDirty) this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+		this._openSource();
+	}
+
+	_openSource(filterToAppend = '') {
+		if (!this._sourceDirty) {
+			const appendedFilter = filterToAppend ? `${filterToAppend}/` : '';
+			this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${appendedFilter}${this._draftSelectedCard}`;
+			this._sourceDirty = Boolean(filterToAppend);
+		}
 		store.dispatch(openConfigureCollectionDialog('source'));
 	}
 
@@ -1365,7 +1373,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
 		if (suggestion.sourceFilter) {
-			this._handleEditSource();
+			this._openSource(suggestion.action === 'replace' ? '' : suggestion.sourceFilter);
 			return;
 		}
 		if (suggestion.configureFilter) {
@@ -1515,7 +1523,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	async _handleCatalogItem(item : CollectionFilterCatalogItem) {
 		if (!item.guided) {
-			this._handleEditSource();
+			this._openSource(item.appliedIndex >= 0 ? '' : item.filter.split('/')[0]);
 			return;
 		}
 		if (item.appliedIndex >= 0) {
