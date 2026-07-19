@@ -47,17 +47,17 @@ import {
 //Removes only the similarity entries that mention one of the changed cards,
 //either as the key card or within the ranked results. Preserves the map's
 //identity when no entry is affected.
-const pruneCardSimilarity = (similarity : CardSimilarityMap, changedCards : Cards) : CardSimilarityMap => {
-	const changedIDs = Object.keys(changedCards);
+const pruneCardSimilarityByIDs = (similarity : CardSimilarityMap, changedIDs : CardID[]) : CardSimilarityMap => {
 	if (changedIDs.length === 0) return similarity;
+	const changedIDSet = new Set(changedIDs);
 	const keysToDelete : CardID[] = [];
 	for (const [keyCardID, scores] of TypedObject.entries(similarity)) {
-		if (changedCards[keyCardID]) {
+		if (changedIDSet.has(keyCardID)) {
 			keysToDelete.push(keyCardID);
 			continue;
 		}
-		for (const id of changedIDs) {
-			if (scores[id] !== undefined) {
+		for (const id of Object.keys(scores)) {
+			if (changedIDSet.has(id)) {
 				keysToDelete.push(keyCardID);
 				break;
 			}
@@ -68,6 +68,9 @@ const pruneCardSimilarity = (similarity : CardSimilarityMap, changedCards : Card
 	for (const key of keysToDelete) delete result[key];
 	return result;
 };
+
+const pruneCardSimilarity = (similarity : CardSimilarityMap, changedCards : Cards) : CardSimilarityMap =>
+	pruneCardSimilarityByIDs(similarity, Object.keys(changedCards));
 
 const INITIAL_STATE : DataState = {
 	cards:{},
@@ -316,22 +319,49 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 //return a copy. cardIDs is an array of cardIDs to remove
 const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => {
 	const newCards = {...subState.cards};
+	const newCardsSnapshot = {...subState.cardsSnapshot};
 	const newSlugIndex = {...subState.slugIndex};
 	const newExpectedDeletions = {...subState.pendingDeletions};
+	const newCardMeta = {...subState.cardMeta};
+	const newEnqueuedCards = Object.fromEntries(
+		TypedObject.entries(subState.enqueuedCards).map(([fetchType, cards]) => [fetchType, {...cards}])
+	) as DataState['enqueuedCards'];
 	let changesMade = false;
 	for (const id of cardIDs) {
-		if (!newCards[id]) continue;
 		const cardToDelete = newCards[id];
-		delete newCards[id];
-		if(newExpectedDeletions[id]) delete newExpectedDeletions[id];
-		const slugs = cardToDelete.slugs || [];
-		for (const slug of slugs) {
-			delete newSlugIndex[slug];
+		if (cardToDelete) {
+			delete newCards[id];
+			for (const slug of cardToDelete.slugs || []) delete newSlugIndex[slug];
+			changesMade = true;
 		}
-		changesMade = true;
+		if (newCardsSnapshot[id]) { delete newCardsSnapshot[id]; changesMade = true; }
+		if (newExpectedDeletions[id]) { delete newExpectedDeletions[id]; changesMade = true; }
+		if (newCardMeta[id]) { delete newCardMeta[id]; changesMade = true; }
+		for (const cards of Object.values(newEnqueuedCards)) {
+			if (cards?.[id]) { delete cards[id]; changesMade = true; }
+		}
 	}
+	const cardSimilarity = pruneCardSimilarityByIDs(subState.cardSimilarity, cardIDs);
+	if (cardSimilarity !== subState.cardSimilarity) changesMade = true;
 	if (!changesMade) return subState;
-	return {...subState, cards: newCards, slugIndex: newSlugIndex, pendingDeletions: newExpectedDeletions};
+	return {
+		...subState,
+		cards: newCards,
+		cardsSnapshot: newCardsSnapshot,
+		slugIndex: newSlugIndex,
+		pendingDeletions: newExpectedDeletions,
+		cardMeta: newCardMeta,
+		enqueuedCards: newEnqueuedCards,
+		cardSimilarity,
+		...(cardIDs.includes(subState.pendingNewCardID) ? {
+			pendingNewCardID: '',
+			pendingNewCardType: 'content' as const,
+		} : {}),
+		...(cardIDs.includes(subState.pendingNewCardIDToNavigateTo) ? {
+			pendingNewCardIDToNavigateTo: '',
+			pendingReorder: false,
+		} : {}),
+	};
 };
 
 const extractSlugIndex = (cards : Cards) : {[slug : Slug]: CardID} => {

@@ -23,6 +23,7 @@ import {
 
 // These are the elements needed by this element.
 import './snack-bar.js';
+import './corpus-ownership-gate.js';
 import { pageRequiresMainView } from '../util.js';
 
 import {
@@ -117,6 +118,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar .active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
+		<corpus-ownership-gate></corpus-ownership-gate>
 		`;
 	}
 

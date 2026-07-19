@@ -1,10 +1,8 @@
 /*eslint-env browser*/
 
-//Functions executed IN THE PAGE (serialized into page.evaluate). They may only
-//use browser globals and may `import('/lib/src/...js')` (absolute URL — wds
-//serves it and rewrites its internal bare specifiers), but must NEVER
-//`import('firebase/...')` or any other bare specifier at runtime — the browser
-//has no import map and wds does not rewrite a bare specifier from injected code.
+//Functions executed IN THE PAGE (serialized into page.evaluate). They use only
+//browser globals and the acceptance hooks installed in the production bundle;
+//importing unbundled source here would create a second store/action graph.
 
 //Read load-state + card count. Uses the app's OWN served selectDataIsFullyLoaded
 //(which correctly gates on permissionsFinal + userDataLoaded, src/selectors.ts)
@@ -13,9 +11,13 @@
 export const readStateInPage = async () => {
 	const store = window.DEBUG_STORE;
 	if (!store) return {ready: false, reason: 'no DEBUG_STORE'};
-	const selectors = await import('/lib/src/selectors.js');
 	const s = store.getState();
 	const data = s.data || {};
+	const userState = s.user || {};
+	const userExists = Boolean(userState.user);
+	const permissionsFinal = !userState.pending && (!userExists || userState.userPermissionsLoaded);
+	const userDataLoaded = !userState.pending && (!userExists || (userState.starsLoaded && userState.readsLoaded && userState.readingListLoaded && userState.userPermissionsLoaded));
+	const dataFullyLoaded = permissionsFinal && Object.keys(data.loadingCardFetchTypes || {}).length === 0 && data.sectionsLoaded && data.tagsLoaded && userDataLoaded;
 	//In worker (shadow/on) modes the worker's own signals are the real readiness
 	//gate — the main store can hold a cache-primed corpus the worker hasn't
 	//finished/blessed. loadComplete = corpus as complete as this connection can
@@ -31,7 +33,7 @@ export const readStateInPage = async () => {
 	return {
 		ready: true,
 		cardCount: Object.keys(data.cards || {}).length,
-		dataFullyLoaded: !!selectors.selectDataIsFullyLoaded(s),
+		dataFullyLoaded: Boolean(dataFullyLoaded),
 		loadingFetchTypes: Object.keys(data.loadingCardFetchTypes || {}),
 		syncState,
 		workerLoadComplete,
@@ -47,7 +49,7 @@ export const readStateInPage = async () => {
 //untrusted worker corpus and silently inflate the numbers. loadComplete is the
 //universal signal (both sync modes); sync==='unverified' only occurs in
 //watermark mode, where we additionally require the trust gate to have passed.
-export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500, requireWorkerLive = false, progressEveryMs = 0} = {}) => {
+export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pollMs = 500, requireWorkerLive = false, expectedSyncState = null, progressEveryMs = 0} = {}) => {
 	const start = Date.now();
 	let last = null;
 	let lastProgress = 0;
@@ -58,7 +60,8 @@ export const waitForCorpus = async (page, {minCards = 1, timeoutMs = 180000, pol
 			lastProgress = Date.now();
 			console.log('[waitForCorpus] +' + Math.round((Date.now() - start) / 1000) + 's mainCards=' + last.cardCount + ' workerCorpus=' + last.workerCorpusSize + ' loadComplete=' + last.workerLoadComplete + ' syncState="' + last.syncState + '" dataFullyLoaded=' + last.dataFullyLoaded);
 		}
-		const workerReady = !requireWorkerLive || (last.workerLoadComplete === true && last.syncState !== 'unverified');
+		const syncReady = expectedSyncState === null ? (last.syncState === '' || last.syncState === 'live') : last.syncState === expectedSyncState;
+		const workerReady = !requireWorkerLive || (last.workerLoadComplete === true && syncReady);
 		if (last.ready && last.dataFullyLoaded && last.cardCount >= minCards && workerReady) return last;
 		await page.waitForTimeout(pollMs);
 	}

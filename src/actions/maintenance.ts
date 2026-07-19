@@ -119,6 +119,10 @@ import {
 	UPDATE_MAINTENANCE_TASK_ACTIVE
 } from '../actions.js';
 
+import {
+	trackMutation
+} from '../mutation-barrier.js';
+
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
 
@@ -161,11 +165,11 @@ const normalizeContentBody : MaintenanceTaskFunction = async() => {
 			//updated-invariant: bumps `updated` (a body rewrite is a content
 			//change that must resync). This is a raw updateDoc, not MultiBatch,
 			//so the structural guard does not cover it — enforced by review.
-			await updateDoc(doc.ref,{
+			await trackMutation(() => updateDoc(doc.ref,{
 				body: normalizeBodyHTML(body, config.overrideLegalTopLevelNodes?.[card_type]),
 				updated: serverTimestamp(),
 				updated_normalize_body: serverTimestamp(),
-			});
+			}));
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}
@@ -670,10 +674,10 @@ const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig :
 			return;
 		}
 
-		await setDoc(doc(db, MAINTENANCE_COLLECTION, taskName), {
+		await trackMutation(() => setDoc(doc(db, MAINTENANCE_COLLECTION, taskName), {
 			timestamp: serverTimestamp(),
 			version: MAINTENANCE_TASK_VERSION,
-		});
+		}));
 		console.log('done');
 
 		dispatch({

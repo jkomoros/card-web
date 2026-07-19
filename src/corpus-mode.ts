@@ -15,10 +15,10 @@
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
-//Session-only circuit breaker. If the worker cannot start or crashes, the
-//bridge flips this and reconnects the legacy main-thread listeners. Keeping
-//the persisted preference unchanged means the next reload can try the worker
-//again after a transient deployment/cache problem.
+//Session-only circuit breaker for diagnostic modes. Normal `on` mode fails
+//closed instead: it never reconnects the legacy main-thread corpus listeners.
+//Keeping the persisted preference unchanged means a reload can retry after a
+//transient deployment/cache problem.
 let corpusWorkerUnavailable = false;
 
 export const markCorpusWorkerUnavailable = () : void => {

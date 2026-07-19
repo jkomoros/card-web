@@ -30,7 +30,7 @@
     "backup": "npx tsx tools/cli.ts backup",
     "reset-dev": "npx tsx tools/cli.ts reset-dev",
     "set-up-deploy": "npx tsx tools/cli.ts set-up-deploy",
-    "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:edit-recovery && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format && npm run test:query-engine && npm run test:subscription-manager && npm run test:worker-retry && npm run test:corpus-readiness && npm run test:watermark && npm run test:cold-pace && npm run test:updated-invariant && npm run test:perf-harness",
+    "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:edit-recovery && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format && npm run test:query-engine && npm run test:subscription-manager && npm run test:worker-retry && npm run test:corpus-readiness && npm run test:watermark && npm run test:cold-pace && npm run test:updated-invariant && npm run test:mutation-barrier && npm run test:perf-harness",
     "test:security": "npm run generate:config && npm run generate:seo:config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
     "test:security-impl": "mocha -r esm test/security --timeout=10000",
     "test:url": "mocha -r esm test/url --timeout=10000",
@@ -59,10 +59,11 @@
     "test:watermark": "mocha -r esm test/watermark --timeout=10000",
     "test:cold-pace": "mocha -r esm test/cold-pace --timeout=10000",
     "test:updated-invariant": "mocha -r esm test/updated-invariant --timeout=10000",
+    "test:mutation-barrier": "node --import tsx --test test/mutation-barrier/test.js",
     "test:perf-harness": "mocha -r esm test/perf-harness/*.test.js --timeout=30000",
     "test:mutation": "stryker run",
-    "perf:build": "npm run generate:config && npm run build:shared && npx tsc",
-    "perf:local": "npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \"node test/perf-harness/run.js --count 12000 --published-p 0.02 --auth admin --corpus-worker on --corpus-sync watermark --load-timeout 300000 --assert\""
+    "perf:build": "npm run generate:config && npm run build",
+    "perf:local": "npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \"node test/perf-harness/run.js --count 12000 --published-p 0.02 --auth admin --corpus-worker on --corpus-sync watermark --service-workers allow --load-timeout 300000 --test-takeover --assert\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

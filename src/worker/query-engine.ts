@@ -18,7 +18,11 @@ import {
 	UPDATE_CARDS,
 	REMOVE_CARDS,
 	UPDATE_SECTIONS,
+	UPDATE_TAGS,
+	UPDATE_STARS,
+	UPDATE_READS,
 	UPDATE_READING_LIST,
+	SELECT_CARDS,
 	SomeAction
 } from '../actions.js';
 
@@ -54,6 +58,10 @@ import {
 	SerializedDescriptionToCardList,
 	Uid
 } from '../types.js';
+
+import {
+	CollectionStateHydration
+} from './worker-protocol.js';
 
 export type RunCollectionOptions = {
 	keyCardID? : CardID,
@@ -107,6 +115,27 @@ export class QueryEngine {
 
 	get cardCount() : number {
 		return Object.keys(this._cards).length;
+	}
+
+	hydrateCollectionState(hydration : CollectionStateHydration) : void {
+		this._collectionState = INITIAL_STATE;
+		//Rebuild card-derived filters from the corpus already held by this worker,
+		//then layer the complete main-thread snapshot on top. Merely resetting
+		//INITIAL_STATE would silently empty filters until every card changed again.
+		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_CARDS, cards: this._cards, fetchType: 'published'});
+		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_SECTIONS, sections: hydration.sections});
+		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_TAGS, tags: hydration.tags});
+		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_STARS, starsToAdd: hydration.starredCardIDs, starsToRemove: []});
+		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_READS, readsToAdd: hydration.readCardIDs, readsToRemove: []});
+		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_READING_LIST, list: hydration.readingList});
+		this._collectionState = collectionReducer(this._collectionState, {type: SELECT_CARDS, cards: hydration.selectedCardIDs});
+		this._sections = {...hydration.sections};
+		this._readingList = [...hydration.readingList];
+		this._setsForSections = null;
+		this._setsForReadingList = null;
+		this._sets = null;
+		this._editingCard = null;
+		this._editingCardSimilarity = null;
 	}
 
 	//Replays a forwarded (already whitelisted, wire-decoded) action through

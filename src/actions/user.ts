@@ -79,6 +79,10 @@ import {
 } from '../multi_batch.js';
 
 import {
+	MutationFencedError
+} from '../mutation-barrier.js';
+
+import {
 	CARDS_COLLECTION,
 	STARS_COLLECTION,
 	READS_COLLECTION,
@@ -116,7 +120,14 @@ export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
 	const batch = new MultiBatch(db);
 	ensureUserInfo(batch, user);
 	//If we had a merge user, null it out on successful save, so we don't keep saving it.
-	batch.commit().then(() => prevAnonymousMergeUser = null);
+	batch.commit()
+		.then(() => prevAnonymousMergeUser = null)
+		.catch(error => {
+			//Auth restoration also runs in a deliberately inactive superseded tab.
+			//That background bookkeeping is the one safe write to cancel quietly;
+			//interactive workflows must continue to observe a failed commit.
+			if (!(error instanceof MutationFencedError)) throw error;
+		});
 
 };
 

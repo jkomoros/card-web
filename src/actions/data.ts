@@ -99,7 +99,8 @@ import {
 	selectEditingCard,
 	selectEnqueuedCards,
 	selectPendingModificationCount,
-	selectExpectedCardFetchTypeForNewUnpublishedCard
+	selectExpectedCardFetchTypeForNewUnpublishedCard,
+	selectUserMayViewUnpublished,
 } from '../selectors.js';
 
 import {
@@ -322,6 +323,9 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 
 export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID] : CardDiff}, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
+	const startingUid = selectUid(state);
+	const startingMayViewUnpublished = selectUserMayViewUnpublished(state);
+	const startingScope = {uid: startingUid, mayViewUnpublished: startingMayViewUnpublished};
 
 	if (selectCardModificationPending(state)) {
 		console.log('Can\'t modify card; another card is being modified.');
@@ -408,12 +412,20 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		for (const id of Object.keys(localEchoes)) {
 			if (rawCards[id]) priorCards[id] = rawCards[id];
 		}
-		await dispatch(echoLocalCardModifications(localEchoes));
+		await dispatch(echoLocalCardModifications(localEchoes, startingScope));
 	}
 
 	try {
 		await batch.commit();
 	} catch(err) {
+		const currentState = getState();
+		if (selectUid(currentState) !== startingUid ||
+			selectUserMayViewUnpublished(currentState) !== startingMayViewUnpublished) {
+			//Never replay optimistic or queued data from a more privileged auth
+			//scope into the newly restricted store.
+			dispatch(modifyCardFailure(new Error('Couldn\'t save card after account permissions changed: ' + err)));
+			return;
+		}
 		const {ambiguousIDs, failedOnlyIDs} = recoveryIDsForGroupOutcomes(
 			echoIDsByCard,
 			err instanceof MultiBatchCommitError ? err.succeededGroupIDs : [],
@@ -437,7 +449,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 					current.updated instanceof Timestamp && optimistic.updated instanceof Timestamp &&
 					current.updated.isEqual(optimistic.updated),
 			);
-			if (Object.keys(rollbackCards).length) await dispatch(echoLocalCardModifications(rollbackCards));
+			if (Object.keys(rollbackCards).length) await dispatch(echoLocalCardModifications(rollbackCards, startingScope));
 		}
 
 		//MultiBatch may have partially succeeded. After it has fully settled,
@@ -495,13 +507,20 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 //outside worker modes.
 const LOCAL_ECHO_WORKER_CHUNK_SIZE = 500;
 
-const echoLocalCardModifications = (localEchoes : Cards) => async (dispatch: AppThunkDispatch): Promise<void> => {
+type EchoAuthScope = {uid : string, mayViewUnpublished : boolean};
+
+const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAuthScope) => async (dispatch: AppThunkDispatch, getState : () => State): Promise<void> => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
+	const scopeStillCurrent = () => !expectedScope || (
+		selectUid(getState()) === expectedScope.uid &&
+		selectUserMayViewUnpublished(getState()) === expectedScope.mayViewUnpublished
+	);
 	const entries = Object.entries(localEchoes);
 	if (!entries.length) return;
 	const published : Cards = {};
 	const unpublished : Cards = {};
 	for (let index = 0; index < entries.length; index += LOCAL_ECHO_WORKER_CHUNK_SIZE) {
+		if (!scopeStillCurrent()) return;
 		const chunk = entries.slice(index, index + LOCAL_ECHO_WORKER_CHUNK_SIZE);
 		dispatch({type: ECHO_LOCAL_CARD_MODIFICATIONS, cards: Object.fromEntries(chunk)});
 		for (const [, echoCard] of chunk) {
@@ -515,6 +534,7 @@ const echoLocalCardModifications = (localEchoes : Cards) => async (dispatch: App
 			await new Promise<void>(resolve => setTimeout(resolve, 0));
 		}
 	}
+	if (!scopeStillCurrent()) return;
 	if (Object.keys(published).length) dispatch(receiveCards(published, 'published'));
 	if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
 };
@@ -1269,6 +1289,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	} catch (err) {
 		console.warn(err);
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
 	}
 
 	//updateSections will be called and update the current view. card-view's
@@ -1448,6 +1469,12 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		return;
 	}
 
+	//Mark the whole asynchronous delete transaction as in flight, including
+	//the reads performed before batch.commit(). The single-tab ownership
+	//handoff uses this marker to avoid deactivating a page while it can still
+	//issue the delete. A false value below cancels the marker on failure.
+	dispatch({type: EXPECT_CARD_DELETIONS, cards: {[card.id]: true}});
+
 	//If editing, cancel editing
 	if (selectIsEditing(state)) {
 		dispatch(editingFinish());
@@ -1477,29 +1504,26 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 	});
 	batch.delete(ref);
 
-	const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
-	for (const update of updates.docs) {
-		batch.delete(update.ref);
-	}
-
-	//Clean up inbound reference entries on other cards that this card pointed to.
-	//Passing null as afterCard makes referencesCardsDiff treat all outbound
-	//references as deletions, generating deleteField() updates.
-	const inboundUpdates = inboundLinksUpdates(card.id, card, null);
-	for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
-		const otherRef = doc(db, CARDS_COLLECTION, otherCardID);
-		batch.update(otherRef, otherCardUpdate);
-	}
-
-	await batch.commit();
-
-	//Tell the system to expect those cards to be deleted.
-	dispatch({
-		type: EXPECT_CARD_DELETIONS,
-		cards: {
-			[card.id]: true,
+	try {
+		const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
+		for (const update of updates.docs) {
+			batch.delete(update.ref);
 		}
-	});
+
+		//Clean up inbound reference entries on other cards that this card pointed to.
+		//Passing null as afterCard makes referencesCardsDiff treat all outbound
+		//references as deletions, generating deleteField() updates.
+		const inboundUpdates = inboundLinksUpdates(card.id, card, null);
+		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+			const otherRef = doc(db, CARDS_COLLECTION, otherCardID);
+			batch.update(otherRef, otherCardUpdate);
+		}
+
+		await batch.commit();
+	} catch (error) {
+		dispatch({type: EXPECT_CARD_DELETIONS, cards: {[card.id]: false}});
+		throw error;
+	}
 
 	//The card update will lead to removeCards being called later
 

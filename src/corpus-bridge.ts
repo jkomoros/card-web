@@ -1,8 +1,9 @@
 //Main-thread client for the corpus worker. See
 //docs/fast-corpus-implementation-log.md (Plan B).
 //
-//Rollout is gated by localStorage key 'corpus-worker':
-//  'off' (or unset) — worker never spawns; zero behavior change.
+//The worker is the default runtime; localStorage key 'corpus-worker' exposes
+//explicit diagnostic modes:
+//  'off'            — worker never spawns; legacy diagnostic behavior.
 //  'spike'          — worker spawns and loads cards + index in the
 //                     background, purely for benchmarking via the
 //                     window.CORPUS_WORKER console API. The main thread's own
@@ -12,7 +13,8 @@
 //                     card batches which the bridge dispatches through the
 //                     exact same receiveCards path. Redux/selector behavior
 //                     is unchanged; only who talks to Firestore changes.
-//  'on'             — reserved for B3 cutover.
+//  'on' (or unset)  — required worker owns ingestion and collections; failure
+//                     degrades visibly and never falls back to UI-thread scans.
 //
 //Console API (any mode): CORPUS_WORKER.setMode('shadow'), .spike(),
 //.query('some text'), .setMode('off'). Mode changes require a reload to fully
@@ -36,7 +38,8 @@ import {
 	UPDATE_CARD_META,
 	REMOVE_CARDS,
 	STOP_EXPECTING_FETCHED_CARDS,
-	UPDATE_CORPUS_STATUS
+	UPDATE_CORPUS_STATUS,
+	EDITING_FINISH,
 } from './actions.js';
 
 import {
@@ -53,7 +56,10 @@ import {
 	WorkerActionStats,
 	WorkerGeneration,
 	CardBatch,
-	FORWARDED_ACTION_TYPES
+	FORWARDED_ACTION_TYPES,
+	CORPUS_WORKER_PROTOCOL_VERSION,
+	corpusWorkerProtocolCompatible,
+	corpusWorkerProtocolVersion
 } from './worker/worker-protocol.js';
 
 import {
@@ -91,13 +97,20 @@ import {
 	selectCollectionConstructorArguments,
 	selectCollectionDescriptionForQuery,
 	selectEditingCardSimilarity,
+	selectEditingCardHasUnsavedChanges,
 	selectEditingNormalizedCard,
 	selectFindDialogOpen,
 	selectIsEditing,
+	selectPendingModificationCount,
+	selectPendingDeletions,
 	selectRandomSalt,
 	selectCardSimilarity,
 	selectLoadingCardFetchTypes,
+	selectRequestedCard,
 	selectRawCards,
+	selectSections,
+	selectTags,
+	selectExplicitlySelectedCardIDs,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards
 } from './selectors.js';
@@ -115,6 +128,12 @@ import {
 import {
 	CollectionDescription
 } from './collection_description.js';
+
+import {
+	inFlightMutationCount,
+	fenceMutations,
+	allowMutations
+} from './mutation-barrier.js';
 
 //Absolute path that resolves in both dev (wds serves the repo root; tsc
 //emits to lib/) and prod (build/ is the web root; rollup emits a
@@ -140,6 +159,46 @@ let lastUid = '';
 let connectSent = false;
 let workerStartupTimeout : ReturnType<typeof setTimeout> | null = null;
 let workerFailureRecoveryStarted = false;
+
+//The page, rather than the worker, owns the origin-wide lease. That lets a
+//second page ask the current owner to shut down cleanly before the lease is
+//released; Web Locks' `steal` option would release the lock while the old
+//owner's JavaScript can still be running, which is exactly the overlap this
+//guard exists to prevent.
+const OWNERSHIP_LOCK_NAME = 'corpus-worker-owner';
+const OWNERSHIP_CHANNEL_NAME = 'corpus-worker-control-v1';
+const OWNERSHIP_RETRY_ATTEMPTS = 20;
+const OWNERSHIP_RETRY_DELAY_MS = 250;
+const TAKEOVER_TIMEOUT_MS = 12000;
+const SUPERSEDED_SESSION_KEY = 'corpus-worker-superseded';
+
+type OwnershipState = 'starting' | 'checking' | 'active' | 'contended' | 'takeover' | 'inactive' | 'unsupported' | 'ownership-error';
+type OwnershipMessage = {
+	type : 'request' | 'grant' | 'ready' | 'deny' | 'released' | 'acquired',
+	requestID : string,
+	requesterID : string,
+	ownerID? : string,
+	reason? : 'editing' | 'pending' | 'busy'
+};
+
+const tabID = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+let ownershipState : OwnershipState = 'starting';
+let releaseOwnershipLock : (() => void) | null = null;
+let ownershipAcquisitionStarted = false;
+let pendingConnection : {mayViewUnpublished : boolean, uid : string} | null = null;
+let grantedTakeover : {requestID : string, requesterID : string, timeout : ReturnType<typeof setTimeout>} | null = null;
+let takeoverAttempt : {requestID : string, timeout : ReturnType<typeof setTimeout>, abort : AbortController | null} | null = null;
+let handoffRecovery : {requestID : string, timeout : ReturnType<typeof setTimeout>} | null = null;
+const ownershipChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(OWNERSHIP_CHANNEL_NAME);
+
+const setOwnershipStatus = (status : OwnershipState, message : string) => {
+	ownershipState = status;
+	if (status === 'checking' || status === 'contended' || status === 'takeover' || status === 'inactive' || status === 'unsupported' || status === 'ownership-error') fenceMutations();
+	const corpusStatus = status === 'active' || status === 'starting' ? 'loading' : status;
+	store.dispatch({type: UPDATE_CORPUS_STATUS, status: corpusStatus, message});
+};
+
+const postOwnershipMessage = (message : OwnershipMessage) => ownershipChannel?.postMessage(message);
 
 const clearWorkerStartupTimeout = () => {
 	if (!workerStartupTimeout) return;
@@ -169,6 +228,10 @@ const bufferedActions : unknown[] = [];
 const forwardAction = (action : unknown) => {
 	const type = (action as {type : string}).type;
 	if (!FORWARDED_ACTION_TYPES[type]) return;
+	//A waiting contender still receives ordinary Redux data/user actions. Keep
+	//those buffered so its eventual worker starts from the state it actually
+	//shows. Only a superseded/unsupported page is terminal and drops them.
+	if (corpusWorkerOwnsCardIngestion() && (ownershipState === 'inactive' || ownershipState === 'unsupported' || ownershipState === 'ownership-error')) return;
 	const wireAction = toWire(action, isTimestamp, getTime);
 	if (worker) {
 		post({type: 'action', generation, action: wireAction});
@@ -177,11 +240,21 @@ const forwardAction = (action : unknown) => {
 	}
 };
 
-const flushBufferedActions = () => {
+const hydrateWorkerCollectionState = () => {
 	if (!worker) return;
-	for (const action of bufferedActions) {
-		post({type: 'action', generation, action});
-	}
+	const state = store.getState() as State;
+	const hydration = {
+		sections: selectSections(state),
+		tags: selectTags(state),
+		starredCardIDs: Object.keys(state.user?.stars || {}),
+		readCardIDs: Object.keys(state.user?.reads || {}),
+		readingList: state.user?.readingList || [],
+		selectedCardIDs: Object.keys(selectExplicitlySelectedCardIDs(state)),
+	};
+	post({type: 'hydrateCollectionState', generation, hydration: toWire(hydration, isTimestamp, getTime)});
+	//The snapshot supersedes every historical delta collected before this
+	//connection. Actions dispatched after this synchronous point go directly
+	//to the worker and therefore cannot be lost.
 	bufferedActions.length = 0;
 };
 
@@ -366,6 +439,16 @@ const handleCollectionResult = (message : {subscriptionID : number, ids : string
 				partialMatches: message.partialMatches
 			}
 		});
+		// A placeholder route is initially resolved while the required worker is
+		// still hydrating, so its collection is deliberately empty. Once the
+		// first authoritative result arrives, run the normal selector machinery
+		// again so it can choose the first card (and schedule the usual URL/read
+		// side effects) without ever computing the collection on the UI thread.
+		if (subscription.slot === 'active' && message.ids.length && selectRequestedCard(store.getState() as State).startsWith('_')) {
+			void import('./actions/collection.js').then(({refreshCardSelector}) => {
+				store.dispatch(refreshCardSelector(false));
+			});
+		}
 	}
 	scheduleShadowCompare();
 };
@@ -623,7 +706,13 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	//what the startup timeout watches for (the module loaded and is
 	//running), so clear the timeout BEFORE the generation gate or a slow
 	//module init gets a healthy worker terminated at 15s.
-	if (message.type === 'ready') clearWorkerStartupTimeout();
+	if (message.type === 'ready') {
+		clearWorkerStartupTimeout();
+		if (!corpusWorkerProtocolCompatible(message.protocolVersion)) {
+			recoverFromWorkerFailure(`protocol version ${corpusWorkerProtocolVersion(message.protocolVersion)} does not match page version ${CORPUS_WORKER_PROTOCOL_VERSION}`);
+			return;
+		}
+	}
 	if (message.generation !== generation) {
 		console.log('[corpus-worker] dropped stale message', message.type);
 		return;
@@ -634,6 +723,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	switch (message.type) {
 	case 'ready':
 		console.log('[corpus-worker] ready');
+		break;
+	case 'protocolMismatch':
+		recoverFromWorkerFailure(`worker expected protocol version ${message.expectedProtocolVersion}, received ${message.receivedProtocolVersion}`);
 		break;
 	case 'status':
 		console.log('[corpus-worker]', message.message);
@@ -710,7 +802,7 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 			type: UPDATE_CORPUS_STATUS,
 			status: message.state === 'live' ? 'live' : message.state === 'stale' ? 'stale' : 'loading',
 			message: message.state === 'stale'
-				? 'Card sync is interrupted; showing the latest locally available data.'
+				? 'Card sync is interrupted. Lists and search are temporarily unavailable; retrying automatically.'
 				: message.state === 'unverified' ? 'Verifying the local card corpus…' : ''
 		});
 		if (message.state !== 'live') invalidateWorkerCollections();
@@ -762,9 +854,16 @@ const post = (message : MainToWorkerMessage) => {
 const recoverFromWorkerFailure = (reason : string) => {
 	if (workerFailureRecoveryStarted) return;
 	workerFailureRecoveryStarted = true;
-	console.warn(`[corpus-worker] unavailable (${reason}); falling back to main-thread card listeners`);
+	const workerRequired = readCorpusWorkerMode() === 'on';
+	console.warn(`[corpus-worker] unavailable (${reason})${workerRequired ? '; worker is required in on mode' : '; falling back to main-thread card listeners'}`);
 	clearWorkerStartupTimeout();
 	stopWorker();
+	if (workerRequired) {
+		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: 'Cards could not load because card sync failed. Reload to retry. If this continues, contact support.'});
+		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
+		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
+		return;
+	}
 	markCorpusWorkerUnavailable();
 	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'fallback', message: 'Background card sync is unavailable; using standard loading. Reload to retry.'});
 	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
@@ -780,6 +879,7 @@ const recoverFromWorkerFailure = (reason : string) => {
 
 const spawnWorker = () : boolean => {
 	if (worker) return true;
+	if (workerFailureRecoveryStarted && readCorpusWorkerMode() === 'on') return false;
 	try {
 		worker = new Worker(WORKER_URL, {type: 'module'});
 	} catch (error) {
@@ -805,6 +905,7 @@ const spawnWorker = () : boolean => {
 };
 
 const stopWorker = () => {
+	clearWorkerStartupTimeout();
 	if (worker) worker.terminate();
 	worker = null;
 	connectSent = false;
@@ -814,6 +915,276 @@ const stopWorker = () => {
 	workerLoadComplete = false;
 	workerCorpusSize = 0;
 };
+
+const ownershipAPIs = () => {
+	if (typeof navigator === 'undefined' || !navigator.locks || !ownershipChannel) return null;
+	return navigator.locks;
+};
+
+//Resolve as soon as the callback receives the lock, while keeping the
+//callback pending until releaseOwnershipLock is invoked. A queued request is
+//used only after the current owner explicitly grants a takeover.
+const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal) : Promise<'acquired' | 'contended' | 'unsupported' | 'error'> => {
+	const locks = ownershipAPIs();
+	if (!locks) return Promise.resolve('unsupported');
+	return new Promise(resolve => {
+		try {
+			void locks.request(
+				OWNERSHIP_LOCK_NAME,
+				{...(ifAvailable ? {ifAvailable: true} : {}), ...(signal ? {signal} : {})},
+				lock => {
+					if (!lock) {
+						resolve('contended');
+						return;
+					}
+					resolve('acquired');
+					return new Promise<void>(release => {
+						releaseOwnershipLock = release;
+					});
+				}
+			).catch(error => {
+				if ((error as DOMException).name === 'AbortError') resolve('contended');
+				else resolve('error');
+			});
+		} catch {
+			resolve('error');
+		}
+	});
+};
+
+const purgeAndDeactivate = () => {
+	//Fence all outstanding worker replies before termination, then remove the
+	//old tab's corpus so it cannot look usable behind the blocking gate.
+	fenceMutations();
+	generation++;
+	stopWorker();
+	bufferedActions.length = 0;
+	const state = store.getState() as State;
+	if (selectIsEditing(state)) store.dispatch({type: EDITING_FINISH});
+	const cardIDs = Object.keys(selectRawCards(store.getState() as State));
+	if (cardIDs.length) store.dispatch({type: REMOVE_CARDS, cardIDs});
+	resetSubscriptionsForReconnect();
+	try { sessionStorage.setItem(SUPERSEDED_SESSION_KEY, '1'); } catch { /* storage may be disabled */ }
+	setOwnershipStatus('inactive', 'Compendium moved to another tab. This tab is inactive so card sync stays safe.');
+};
+
+const finishTakeoverFailure = (message : string, status : 'contended' | 'ownership-error' = 'contended') => {
+	if (takeoverAttempt) {
+		clearTimeout(takeoverAttempt.timeout);
+		takeoverAttempt.abort?.abort();
+		takeoverAttempt = null;
+	}
+	setOwnershipStatus(status, message);
+};
+
+const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
+	if (ownershipState !== 'active') return;
+	if (!spawnWorker()) return;
+	//Both published and unpublished connect paths funnel here; don't tear
+	//down and reconnect when nothing changed.
+	if (connectSent && mayViewUnpublished === lastMayViewUnpublished && uid === lastUid) return;
+	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'loading', message: 'Loading card corpus…'});
+	if (connectSent) {
+		//Authorization scope changed without a page reload. Redux is deliberately
+		//long-lived, so remove every unpublished card received under the previous
+		//scope immediately; the new worker connection will re-deliver only those
+		//the new identity may see. Do not use removeCards() here: its delayed
+		//published/unpublished transition guard could remove a newly re-authorized
+		//card three seconds after it is delivered.
+		const staleUnpublishedIDs = Object.values(selectRawCards(store.getState() as State))
+			.filter(card => !card.published)
+			.map(card => card.id);
+		if (staleUnpublishedIDs.length) {
+			const editingCard = selectEditingNormalizedCard(store.getState() as State);
+			if (editingCard && staleUnpublishedIDs.includes(editingCard.id)) {
+				store.dispatch({type: EDITING_FINISH});
+			}
+			store.dispatch({type: REMOVE_CARDS, cardIDs: staleUnpublishedIDs});
+		}
+	}
+	lastMayViewUnpublished = mayViewUnpublished;
+	lastUid = uid;
+	generation++;
+	workerLoadComplete = false;
+	workerCorpusSize = 0;
+	lastSyncState = '';
+	flushPendingRunCollections();
+	resetSubscriptionsForReconnect();
+	if (!connectSent) {
+		connectSent = true;
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		clearWorkerStartupTimeout();
+		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
+	} else {
+		post({type: 'reconnect', generation, mayViewUnpublished, uid});
+	}
+	hydrateWorkerCollectionState();
+	if (corpusWorkerOwnsCardIngestion()) {
+		sentFallbacks = null;
+		sentStartCards = null;
+		sendCollectionConfigIfChanged(store.getState() as State);
+		startShadowComparator();
+	}
+};
+
+const activateOwnedConnection = (takeoverRequestID? : string) => {
+	allowMutations();
+	ownershipState = 'active';
+	try { sessionStorage.removeItem(SUPERSEDED_SESSION_KEY); } catch { /* storage may be disabled */ }
+	if (pendingConnection) connectWorkerNow(pendingConnection.mayViewUnpublished, pendingConnection.uid);
+	if (takeoverRequestID) postOwnershipMessage({type: 'acquired', requestID: takeoverRequestID, requesterID: tabID});
+};
+
+const takeoverBlockReason = (state : State) : 'editing' | 'pending' | null => {
+	if (selectEditingCardHasUnsavedChanges(state)) return 'editing';
+	if (inFlightMutationCount() > 0 || selectPendingModificationCount(state) > 0 || state.data?.pendingReorder || Object.values(selectPendingDeletions(state)).some(Boolean)) return 'pending';
+	return null;
+};
+
+const beginInitialOwnership = async () => {
+	if (ownershipAcquisitionStarted) return;
+	ownershipAcquisitionStarted = true;
+	//The first ifAvailable probe can legitimately retry for several seconds.
+	//Block before the first await so a second booting tab never has an
+	//interactive, mutation-capable window while ownership is still unknown.
+	setOwnershipStatus('checking', 'Checking whether this tab can safely start card sync…');
+	if (!ownershipAPIs()) {
+		setOwnershipStatus('unsupported', 'Compendium requires a current version of Chrome to keep card sync safe. Open this page in Chrome.');
+		return;
+	}
+	try {
+		if (sessionStorage.getItem(SUPERSEDED_SESSION_KEY) === '1') {
+			setOwnershipStatus('inactive', 'Compendium was moved to another tab. This tab remains inactive so card sync stays safe.');
+			return;
+		}
+	} catch { /* continue without the reload marker */ }
+	for (let attempt = 0; attempt < OWNERSHIP_RETRY_ATTEMPTS; attempt++) {
+		const result = await acquireOwnershipLock(true);
+		if (result === 'acquired') {
+			activateOwnedConnection();
+			return;
+		}
+		if (result !== 'contended') {
+			setOwnershipStatus('ownership-error', 'Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart Chrome.');
+			return;
+		}
+		if (attempt + 1 < OWNERSHIP_RETRY_ATTEMPTS) await new Promise(resolve => setTimeout(resolve, OWNERSHIP_RETRY_DELAY_MS));
+	}
+	setOwnershipStatus('contended', 'Compendium can be active in only one tab at a time. Use this tab to continue here; the other tab will become inactive.');
+};
+
+const takeOverOwnership = async () => {
+	if (ownershipState === 'active' || ownershipState === 'takeover') return;
+	if (!ownershipAPIs()) {
+		setOwnershipStatus('unsupported', 'Compendium requires a current version of Chrome to keep card sync safe. Open this page in Chrome.');
+		return;
+	}
+	setOwnershipStatus('takeover', 'Waiting for the other tab to finish. When the move completes, this tab will become active and the other will become inactive.');
+	//If the former owner crashed or was closed, no cooperation is necessary.
+	const direct = await acquireOwnershipLock(true);
+	if (direct === 'acquired') {
+		activateOwnedConnection();
+		return;
+	}
+	if (direct !== 'contended') {
+		finishTakeoverFailure('Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart Chrome.', 'ownership-error');
+		return;
+	}
+	const requestID = crypto.randomUUID();
+	const timeout = setTimeout(() => finishTakeoverFailure('The other tab did not respond. Close other Compendium tabs, then try again. If it is hard to find, restart Chrome.'), TAKEOVER_TIMEOUT_MS);
+	takeoverAttempt = {requestID, timeout, abort: null};
+	postOwnershipMessage({type: 'request', requestID, requesterID: tabID});
+};
+
+ownershipChannel?.addEventListener('message', event => {
+	const message = event.data as OwnershipMessage;
+	if (!message) return;
+	if (message.type === 'request' && ownershipState === 'active') {
+		if (grantedTakeover) {
+			postOwnershipMessage({...message, type: 'deny', ownerID: tabID, reason: 'busy'});
+			return;
+		}
+		const state = store.getState() as State;
+		const reason = takeoverBlockReason(state);
+		if (reason) {
+			postOwnershipMessage({...message, type: 'deny', ownerID: tabID, reason});
+			return;
+		}
+		const timeout = setTimeout(() => { grantedTakeover = null; }, TAKEOVER_TIMEOUT_MS);
+		grantedTakeover = {requestID: message.requestID, requesterID: message.requesterID, timeout};
+		postOwnershipMessage({...message, type: 'grant', ownerID: tabID});
+		return;
+	}
+	if (message.type === 'grant' && takeoverAttempt?.requestID === message.requestID) {
+		const abort = new AbortController();
+		takeoverAttempt.abort = abort;
+		//Queue the normal lock request before declaring readiness, so release by
+		//the old owner hands the lock directly to this granted requester.
+		void acquireOwnershipLock(false, abort.signal).then(result => {
+			if (result !== 'acquired') {
+				if (result !== 'contended' && takeoverAttempt?.requestID === message.requestID) {
+					finishTakeoverFailure('Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart Chrome.', 'ownership-error');
+				}
+				return;
+			}
+			if (takeoverAttempt?.requestID !== message.requestID) {
+				//The request timed out or was denied at the handoff boundary. Do
+				//not strand a lock that arrived just after cancellation.
+				const release = releaseOwnershipLock;
+				releaseOwnershipLock = null;
+				release?.();
+				return;
+			}
+			clearTimeout(takeoverAttempt.timeout);
+			takeoverAttempt = null;
+			activateOwnedConnection(message.requestID);
+		});
+		postOwnershipMessage({...message, type: 'ready'});
+		return;
+	}
+	if (message.type === 'ready' && grantedTakeover?.requestID === message.requestID && grantedTakeover.requesterID === message.requesterID) {
+		const state = store.getState() as State;
+		const reason = takeoverBlockReason(state);
+		if (reason) {
+			clearTimeout(grantedTakeover.timeout);
+			grantedTakeover = null;
+			postOwnershipMessage({...message, type: 'deny', ownerID: tabID, reason});
+			return;
+		}
+		clearTimeout(grantedTakeover.timeout);
+		grantedTakeover = null;
+		purgeAndDeactivate();
+		//If the requester disappears after saying READY but before it actually
+		//acquires, the former owner reclaims the now-free lease. This preserves
+		//the invariant that a failed handoff does not strand every open tab.
+		const recoveryTimeout = setTimeout(() => {
+			if (ownershipState !== 'inactive' || handoffRecovery?.requestID !== message.requestID) return;
+			handoffRecovery = null;
+			void acquireOwnershipLock(true).then(result => {
+				if (result === 'acquired' && ownershipState === 'inactive') activateOwnedConnection();
+			});
+		}, 1500);
+		handoffRecovery = {requestID: message.requestID, timeout: recoveryTimeout};
+		const release = releaseOwnershipLock;
+		releaseOwnershipLock = null;
+		release?.();
+		postOwnershipMessage({...message, type: 'released', ownerID: tabID});
+		return;
+	}
+	if (message.type === 'acquired' && handoffRecovery?.requestID === message.requestID) {
+		clearTimeout(handoffRecovery.timeout);
+		handoffRecovery = null;
+		return;
+	}
+	if (message.type === 'deny' && takeoverAttempt?.requestID === message.requestID) {
+		const detail = message.reason === 'editing'
+			? 'The other tab has an unsaved edit. Finish or cancel it there, then try again.'
+			: message.reason === 'pending'
+				? 'The other tab has changes waiting to save. Return to it and, if it is offline, reconnect. After saving finishes, try again.'
+				: 'Another tab is already moving card sync. Wait a moment, then try again.';
+		finishTakeoverFailure(detail);
+	}
+});
 
 //Resets local subscription bookkeeping across a (re)connect. The worker
 //clears its own SubscriptionManager on connect/reconnect, so the old
@@ -841,61 +1212,19 @@ const resetSubscriptionsForReconnect = () => {
 //ingestion, in exactly the places the main-thread listeners would otherwise
 //attach; also used by spike mode with default (published-only) parameters.
 export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : string) => {
-	if (!spawnWorker()) return;
-	//Both published and unpublished connect paths funnel here; don't tear
-	//down and reconnect when nothing changed.
-	if (connectSent && mayViewUnpublished === lastMayViewUnpublished && uid === lastUid) return;
-	store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'loading', message: 'Loading card corpus…'});
-	if (connectSent) {
-		//Authorization scope changed without a page reload. Redux is deliberately
-		//long-lived, so remove every unpublished card received under the previous
-		//scope immediately; the new worker connection will re-deliver only those
-		//the new identity may see. Do not use removeCards() here: its delayed
-		//published/unpublished transition guard could remove a newly re-authorized
-		//card three seconds after it is delivered.
-		const staleUnpublishedIDs = Object.values(selectRawCards(store.getState() as State))
-			.filter(card => !card.published)
-			.map(card => card.id);
-		if (staleUnpublishedIDs.length) {
-			store.dispatch({type: REMOVE_CARDS, cardIDs: staleUnpublishedIDs});
-		}
+	pendingConnection = {mayViewUnpublished, uid};
+	if (!corpusWorkerOwnsCardIngestion()) {
+		//Diagnostic spike mode deliberately coexists with the main-thread
+		//listeners and does not claim the production ingestion lease.
+		ownershipState = 'active';
+		connectWorkerNow(mayViewUnpublished, uid);
+		return;
 	}
-	lastMayViewUnpublished = mayViewUnpublished;
-	lastUid = uid;
-	generation++;
-	//A (re)connect restarts the worker's ingestion from scratch; its corpus
-	//is incomplete again until it announces loadComplete for the new
-	//parameters. In-flight one-shot runs would reply under the old
-	//generation (dropped as stale) — resolve them to their fallbacks now.
-	workerLoadComplete = false;
-	workerCorpusSize = 0;
-	flushPendingRunCollections();
-	resetSubscriptionsForReconnect();
-	if (!connectSent) {
-		connectSent = true;
-		//DEV_MODE comes from src/firebase.ts — the SAME flag that chose the
-		//main thread's Firebase project, not a re-derived hostname sniff
-		//(the two copies of that heuristic could drift, silently pointing
-		//the worker's 40k-doc-per-boot loader at a different project).
-		//persist: the worker claims the persistent cache only when it owns
-		//ingestion — in spike mode the main thread still holds that cache.
-		//emulatorTarget (PERF HARNESS ONLY): forward the main thread's
-		//`firebase-emulator` flag so the worker points at the SAME emulator; null
-		//→ omitted, so real connections are unaffected.
-		post({type: 'connect', generation, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
-		clearWorkerStartupTimeout();
-		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
-	} else {
-		post({type: 'reconnect', generation, mayViewUnpublished, uid});
+	if (ownershipState === 'active') {
+		connectWorkerNow(mayViewUnpublished, uid);
+		return;
 	}
-	flushBufferedActions();
-	if (corpusWorkerOwnsCardIngestion()) {
-		//Reset so the config is re-sent under the new generation.
-		sentFallbacks = null;
-		sentStartCards = null;
-		sendCollectionConfigIfChanged(store.getState() as State);
-		startShadowComparator();
-	}
+	void beginInitialOwnership();
 };
 
 //Called once at app startup (from main-view). Spawns the worker only when the
@@ -930,6 +1259,9 @@ declare global {
 			//main thread). perfReset() before driving, perfData() after.
 			perfData: () => Promise<{actionStats : WorkerActionStats, indexBuildMs : number}>,
 			perfReset: () => void,
+			takeOver: () => Promise<void>,
+			ownershipState: () => OwnershipState,
+			workerRunning: () => boolean,
 		};
 	}
 }
@@ -986,5 +1318,8 @@ if (typeof window !== 'undefined') {
 			if (!worker) return;
 			post({type: 'perfReset', generation});
 		},
+		takeOver: takeOverOwnership,
+		ownershipState: () => ownershipState,
+		workerRunning: () => Boolean(worker),
 	};
 }

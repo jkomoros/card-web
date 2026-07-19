@@ -212,6 +212,10 @@ import {
 } from '../corpus-bridge.js';
 
 import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
+
+import {
 	CardSelectedEvent,
 	CardSwipedEvent,
 	DisabledCardHighlightClickedEvent,
@@ -916,6 +920,11 @@ class CardView extends connect(store)(PageViewElement) {
 				);
 				workerPromise.then(blocks => {
 					if (blocks === null) {
+						if (corpusWorkerServesCollections()) {
+							this._cardReferenceBlocks = [];
+							this._cardReferenceBlocksForCardID = cardID;
+							return;
+						}
 						//Worker went away mid-flight: local fallback, computed
 						//from FRESH state — so label ownership with the fresh
 						//card, not the captured one (a stale label makes the
@@ -937,6 +946,12 @@ class CardView extends connect(store)(PageViewElement) {
 				});
 				return;
 			}
+			//In worker-on mode, empty-until-ready is vastly safer than a
+			//synchronous whole-corpus fallback while the cold worker is loading.
+			//The live-status Redux update schedules this method again once the
+			//worker can serve. If the worker circuit-breaks, servesCollections()
+			//becomes false and the legacy fallback below remains available.
+			if (corpusWorkerServesCollections()) return;
 			this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
 			this._cardReferenceBlocksForCardID = selectActiveCard(state)?.id || '';
 		}, overdue ? 0 : REFERENCE_BLOCKS_DEBOUNCE_MS);
@@ -1047,7 +1062,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!e.metaKey && !e.ctrlKey) return false;
 		if (this._editing) return false;
 
-		if (e.key == 'm') {
+		if (e.code == 'KeyM') {
 			//these action creators will fail if the user may not do these now.
 			if (e.shiftKey) {
 				store.dispatch(createCard({cardType: 'working-notes'}));
@@ -1055,7 +1070,7 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}
 			return killEvent(e);
-		} else if (e.key == 'l') {
+		} else if (e.code == 'KeyL') {
 			//Ctrl-Shift-L is a way to navigate to a URL in the web app without
 			//modifying the URL bar in the browser, which will lead to a full
 			//refresh.

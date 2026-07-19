@@ -84,6 +84,7 @@ import {
 
 // These are the elements needed by this element.
 import './user-chip.js';
+import './corpus-status-indicator.js';
 import './find-dialog.js';
 import './compose-dialog.js';
 import './configure-collection-dialog.js';
@@ -367,9 +368,11 @@ class MainView extends connect(store)(PageViewElement) {
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
 					</div>
+					<corpus-status-indicator></corpus-status-indicator>
 					<user-chip></user-chip>
 				</div>
 			</div>
+			<corpus-status-indicator floating ?hidden=${this._headerPanelOpen}></corpus-status-indicator>
 
 			<!-- Main content -->
 			<div role="main" class="main-content">
@@ -431,7 +434,7 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveThreads();
 		connectLiveMessages();
 		store.dispatch(loadServerIDFMap());
-		//No-op unless the user has opted in via localStorage 'corpus-worker'.
+		//Starts the default required corpus worker (or the selected diagnostic mode).
 		maybeStartCorpusWorker();
 	}
 
@@ -476,7 +479,8 @@ class MainView extends connect(store)(PageViewElement) {
 	}
 
 	_handleKeyPressed(e : KeyboardEvent) {
-		if (e.key == 'Enter' && e.metaKey) {
+		if (e.isComposing) return;
+		if (e.key == 'Enter' && (e.metaKey || e.ctrlKey)) {
 			e.stopPropagation();
 			e.preventDefault();
 			store.dispatch(doCommit());

@@ -101,8 +101,7 @@ class LimitWarning extends connect(store)(LitElement) {
 				return html`
 					<div
 						class=${classMap(classes)}
-						role='status'
-						aria-live='polite'
+						role='note'
 						title=${showCorpusStatus ? this._corpusStatusMessage : 'Fetching unpublished cards'}
 					>
 						<span

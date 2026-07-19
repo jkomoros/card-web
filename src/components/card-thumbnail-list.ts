@@ -597,7 +597,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
-		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
 		const cardsSelected = selectCardsSelected(state);
 		if (this._cardsSelected && !cardsSelected) this._selectionAnchor.reset();
 		this._cardsSelected = cardsSelected;

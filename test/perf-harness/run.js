@@ -2,7 +2,9 @@
 import {spawn} from 'child_process';
 import fs from 'fs';
 import {chromium} from 'playwright';
-import {waitForCorpus, waitForWorkerIdle, signInAsAdminInPage} from './page-agent.js';
+import {initializeApp} from 'firebase-admin/app';
+import {getFirestore} from 'firebase-admin/firestore';
+import {waitForCorpus, waitForWorkerIdle} from './page-agent.js';
 import {runInteractions} from './interactions.js';
 
 const args = process.argv.slice(2);
@@ -28,12 +30,19 @@ const workerModeActive = workerMode === 'shadow' || workerMode === 'on';
 //Corpus load can be slow at scale (the app's ingestion cost is itself part of
 //what we measure); large runs need a longer budget than the 180s default.
 const loadTimeoutMs = parseInt(getArg('load-timeout', '180000'), 10);
+const serviceWorkers = getArg('service-workers', 'block');
+const testTakeover = args.includes('--test-takeover');
+if (serviceWorkers !== 'block' && serviceWorkers !== 'allow') throw new Error('--service-workers must be block or allow');
 const PORT = 8081;
 const URL = `http://localhost:${PORT}`;
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
 	console.error('run.js must run inside `firebase emulators:exec` (FIRESTORE_EMULATOR_HOST unset).');
 	process.exit(1);
+}
+
+for (const artifact of ['build/index.html', 'build/service-worker.js', 'build/lib/src/worker/corpus-worker.js']) {
+	if (!fs.existsSync(artifact)) throw new Error(`missing production artifact ${artifact}; run npm run perf:build first`);
 }
 
 const sh = (cmd, cmdArgs) => new Promise((res, rej) => {
@@ -50,15 +59,17 @@ const waitForServer = async (url, timeoutMs = 60000) => {
 	throw new Error('wds did not come up at ' + url);
 };
 
+const verifierDB = getFirestore(initializeApp({projectId}, 'perf-run-verifier'));
+const readEmulatorCardBody = async (cardID) => (await verifierDB.collection('cards').doc(cardID).get()).data()?.body ?? '';
+
 const main = async () => {
 	//1. Seed the emulator (inherits the emulator env from emulators:exec).
 	await sh('node', ['test/perf-harness/load-emulator.js', '--count', String(count), '--seed', String(seed), '--project', projectId, ...(publishedP ? ['--published-p', publishedP] : [])]);
 
-	//2. Start wds. `detached` + kill(-pid) so we reap the WHOLE tree — `npx`
-	//spawns a child node; killing only the npx wrapper orphans the real server
-	//on 8081 and wedges the next run.
+	//2. Start the project-local wds. `detached` + kill(-pid) reaps the whole
+	//server process group and prevents a failed run from wedging port 8081.
 	const wdsErr = [];
-	const wds = spawn('npx', ['wds', '--node-resolve', '--port', String(PORT)], {detached: true, stdio: ['ignore', 'ignore', 'pipe']});
+	const wds = spawn('node_modules/.bin/wds', ['--root-dir', 'build', '--app-index', 'build/index.html', '--node-resolve', '--port', String(PORT)], {detached: true, stdio: ['ignore', 'ignore', 'pipe']});
 	wds.stderr.on('data', d => wdsErr.push(d.toString()));
 	let killed = false;
 	const cleanup = () => { if (killed) return; killed = true; try { process.kill(-wds.pid, 'SIGTERM'); } catch { /* noop */ } };
@@ -70,7 +81,14 @@ const main = async () => {
 		await waitForServer(URL).catch(e => { throw new Error(e.message + '\nwds stderr:\n' + wdsErr.join('')); });
 
 		const browser = await chromium.launch();
-		const context = await browser.newContext({serviceWorkers: 'block'}); //stops service-worker.js registering/caching across runs
+		const context = await browser.newContext({serviceWorkers});
+		//Analytics is outside this local performance test and commonly blocked by
+		//CI/network policy; fulfill it locally so a harmless beacon cannot mask a
+		//real application request failure.
+		await context.route('https://www.google-analytics.com/**', route => route.fulfill({status: 204, body: ''}));
+		await context.route('https://www.googletagmanager.com/**', route => route.fulfill({status: 204, body: ''}));
+		await context.route('https://fonts.googleapis.com/**', route => route.fulfill({status: 200, contentType: 'text/css', body: ''}));
+		await context.route('https://fonts.gstatic.com/**', route => route.fulfill({status: 204, body: ''}));
 		await context.addInitScript((cfg) => {
 			try {
 				window.localStorage.setItem('firebase-emulator', 'localhost:8089');
@@ -86,7 +104,8 @@ const main = async () => {
 			} catch { /* noop */ }
 		}, {workerMode, syncMode});
 
-		const page = await context.newPage();
+		let page = await context.newPage();
+		let takeoverScenariosPassed = false;
 		page.on('dialog', d => d.accept().catch(() => {})); //editingCommit() confirm()/alert() (src/actions/editor.ts)
 		const consoleMsgs = [];
 		page.on('console', m => {
@@ -99,14 +118,17 @@ const main = async () => {
 			if ((m.type() === 'error' || t.includes('[corpus-worker]') || t.includes('[corpus-shadow]') || t.includes('transport errored') || t.includes('reconcil')) && !t.includes('[PERF]')) {
 				console.log('  ' + line.slice(0, 240));
 			}
+			if (t.includes('[PERF] main collection ')) console.log('  [main-collection-source] ' + (m.location().url || '(unknown)'));
 		});
-		page.on('response', r => { if (r.status() === 400) consoleMsgs.push('[400] ' + r.url().slice(0, 160)); });
+		page.on('pageerror', error => { consoleMsgs.push('[pageerror] ' + (error.stack || error.message)); });
+		page.on('response', r => { if (r.status() >= 400) { const line = '[' + r.status() + '] ' + r.url().slice(0, 200); consoleMsgs.push(line); console.log('  ' + line); } });
 		page.on('requestfailed', r => { consoleMsgs.push('[reqfail] ' + (r.failure() ? r.failure().errorText : '') + ' ' + r.url().slice(0, 160)); });
 
 		await page.goto(URL, {waitUntil: 'domcontentloaded'});
+		await page.waitForFunction(() => Boolean(window.PERF_HARNESS), {timeout: 30000});
 
 		if (authMode === 'admin') {
-			const signed = await page.evaluate(signInAsAdminInPage, {uid: 'perf-admin', email: 'perf-admin@example.com'});
+			const signed = await page.evaluate(() => window.PERF_HARNESS.signInAsAdmin('perf-admin'));
 			console.log('[run] signed in:', JSON.stringify(signed));
 		}
 
@@ -115,8 +137,9 @@ const main = async () => {
 		//must track the ACTUAL published ratio the seeder used (the old
 		//hardcoded 0.15 guaranteed a timeout for any --published-p below it).
 		const effectivePublishedP = publishedP ? parseFloat(publishedP) : 0.05;
-		const minCards = authMode === 'admin' ? Math.floor(count * 0.9) : Math.floor(count * effectivePublishedP * 0.8);
-		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, progressEveryMs: 15000}).catch(e => {
+		const minCards = authMode === 'admin' ? count : Math.floor(count * effectivePublishedP * 0.8);
+		const expectedSyncState = syncMode === 'watermark' ? 'live' : '';
+		const state = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000}).catch(e => {
 			//Dump the distinct signal lines (not raw last-N, which is dominated by
 			//repeating transport errors) so a timeout is diagnosable.
 			const signal = consoleMsgs.filter(m => m.startsWith('[error]') || m.includes('[corpus-worker]') || m.includes('reconcil') || m.includes('transport errored'));
@@ -126,14 +149,173 @@ const main = async () => {
 			throw e;
 		});
 		console.log('[run] BOOT OK: mainCards=' + state.cardCount + ' workerCorpus=' + state.workerCorpusSize + ' dataFullyLoaded=' + state.dataFullyLoaded + ' loadComplete=' + state.workerLoadComplete + ' syncState="' + state.syncState + '" user=' + JSON.stringify(state.user));
+		if (authMode === 'admin' && (state.cardCount !== count || (workerModeActive && state.workerCorpusSize !== count))) {
+			throw new Error(`exact corpus mismatch: seeded=${count} main=${state.cardCount} worker=${state.workerCorpusSize}`);
+		}
+		let serviceWorkerControlled = false;
+		let warmState = null;
+		if (serviceWorkers === 'allow') {
+			await page.waitForFunction(async () => Boolean((await navigator.serviceWorker.getRegistration())?.active), {timeout: 30000});
+			const registration = await page.evaluate(async () => {
+				const reg = await navigator.serviceWorker.getRegistration();
+				const scriptURL = reg?.active?.scriptURL || '';
+				const script = scriptURL ? await (await fetch(scriptURL, {cache: 'no-store'})).text() : '';
+				return {state: reg?.active?.state || '', scriptURL, productionWorkbox: script.length > 1000 && script.includes('precacheAndRoute')};
+			});
+			if (registration.state !== 'activated' || !registration.scriptURL.endsWith('/service-worker.js') || !registration.productionWorkbox) {
+				throw new Error('wrong service worker artifact: ' + JSON.stringify(registration));
+			}
+			const warmLogStart = consoleMsgs.length;
+			await page.reload({waitUntil: 'domcontentloaded'});
+			await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
+			serviceWorkerControlled = await page.evaluate(() => Boolean(navigator.serviceWorker.controller));
+			warmState = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000});
+			const warmLogs = consoleMsgs.slice(warmLogStart);
+			const warmPrimeLine = warmLogs.find(m => m.includes('[corpus-worker] watermark prime:')) || '';
+			const warmCachePrime = Number(warmPrimeLine.match(/watermark prime: ([0-9]+) unpublished cards/)?.[1] || 0);
+			if (workerModeActive && (!warmCachePrime || warmLogs.some(m => m.includes('[corpus-worker] cold corpus')))) {
+				throw new Error(`controlled reload did not use the persistent corpus cache: prime=${warmCachePrime} coldSweep=${warmLogs.some(m => m.includes('[corpus-worker] cold corpus'))}`);
+			}
+			if (authMode === 'admin' && (warmState.cardCount !== count || (workerModeActive && warmState.workerCorpusSize !== count))) {
+				throw new Error(`service-worker warm corpus mismatch: seeded=${count} main=${warmState.cardCount} worker=${warmState.workerCorpusSize}`);
+			}
+			console.log('[run] PRODUCTION SERVICE WORKER CONTROLLED + WARM CACHE OK: mainCards=' + warmState.cardCount + ' workerCorpus=' + warmState.workerCorpusSize + ' syncState="' + warmState.syncState + '" cachePrime=' + warmCachePrime);
+		}
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
+		//The root URL performs a data-dependent canonical navigation. At large
+		//corpora it can happen after sync becomes live; starting interactions in
+		//that navigation destroys Playwright's execution context and makes the
+		//gate flaky. Wait for the app's canonical route first.
+		if (new globalThis.URL(page.url()).pathname === '/') {
+			await page.waitForFunction(() => window.location.pathname !== '/', {timeout: 30000});
+		}
 
 		//Let the worker's one-time post-load collection computation finish before
 		//measuring, so it isn't mis-attributed as a per-interaction cost.
 		if (workerModeActive) {
 			const idle = await waitForWorkerIdle(page);
 			console.log('[run] worker settle: ' + JSON.stringify(idle));
+			if (!idle.idle) throw new Error('worker did not settle before the measurement window: ' + JSON.stringify(idle));
+		}
+
+		if (testTakeover) {
+			if (!workerModeActive) throw new Error('--test-takeover requires --corpus-worker on or shadow');
+			console.log('[run] TWO-TAB TAKEOVER: opening contender');
+			const oldOwner = page;
+			const contender = await context.newPage();
+			contender.on('dialog', d => d.accept().catch(() => {}));
+			contender.on('console', m => {
+				const line = '[tab-b ' + m.type() + '] ' + m.text();
+				consoleMsgs.push(line);
+				if (m.type() === 'error' || m.text().includes('[corpus-worker]')) console.log('  ' + line.slice(0, 240));
+			});
+			contender.on('pageerror', error => consoleMsgs.push('[tab-b pageerror] ' + (error.stack || error.message)));
+			contender.on('response', r => { if (r.status() >= 400) consoleMsgs.push('[tab-b ' + r.status() + '] ' + r.url().slice(0, 200)); });
+			contender.on('requestfailed', r => consoleMsgs.push('[tab-b reqfail] ' + (r.failure()?.errorText || '') + ' ' + r.url().slice(0, 160)));
+			await contender.goto(URL, {waitUntil: 'domcontentloaded'});
+			await contender.waitForFunction(() => Boolean(window.PERF_HARNESS && window.CORPUS_WORKER), {timeout: 30000});
+			if (serviceWorkers === 'allow') await contender.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
+			await contender.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'contended', {timeout: 30000});
+			await contender.bringToFront();
+			//Headless Chromium does not emit a window focus event for
+			//bringToFront(); dispatch the same event real Chrome emits so the
+			//gate's foreground-refocus behavior is exercised deterministically.
+			await contender.evaluate(() => window.dispatchEvent(new Event('focus')));
+			await contender.waitForFunction(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('data-testid') === 'corpus-use-this-tab');
+			await contender.keyboard.press('Tab');
+			if (!await contender.evaluate(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('data-testid') === 'corpus-use-this-tab')) throw new Error('ownership gate did not contain forward Tab focus on its CTA');
+			await contender.keyboard.press('Shift+Tab');
+			if (!await contender.evaluate(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('data-testid') === 'corpus-use-this-tab')) throw new Error('ownership gate did not contain reverse Tab focus on its CTA');
+			const blocked = await contender.evaluate(async () => {
+				const locks = await navigator.locks.query();
+				const appRoot = document.querySelector('card-web-app')?.shadowRoot;
+				const gate = appRoot?.querySelector('corpus-ownership-gate');
+				const button = gate?.shadowRoot?.querySelector('[data-testid="corpus-use-this-tab"]');
+				const panel = gate?.shadowRoot?.querySelector('.panel');
+				return {state: window.CORPUS_WORKER.ownershipState(), workerRunning: window.CORPUS_WORKER.workerRunning(), held: locks.held?.filter(lock => lock.name === 'corpus-worker-owner').length || 0, gateOpen: gate?.hasAttribute('open'), button: Boolean(button), focusablePanel: panel?.getAttribute('tabindex') === '-1', backgroundInert: Boolean(appRoot && [...appRoot.children].filter(child => child !== gate).every(child => child.inert))};
+			});
+			if (blocked.state !== 'contended' || blocked.workerRunning || blocked.held !== 1 || !blocked.gateOpen || !blocked.button || !blocked.focusablePanel || !blocked.backgroundInert) throw new Error('second tab was not safely blocked: ' + JSON.stringify(blocked));
+			const clickUseThisTab = pageToClick => pageToClick.getByRole('button', {name: 'Use this tab', exact: true}).click();
+			const pressUseThisTab = pageToPress => pageToPress.keyboard.press('Enter');
+
+			//An active edit is a deliberate veto: takeover must never discard it.
+			await oldOwner.evaluate(() => window.PERF_HARNESS.startEditingContent());
+			await oldOwner.waitForFunction(() => Boolean(window.DEBUG_STORE.getState().editor?.editing));
+			const dirtyMarker = `takeover-draft-${Date.now()}`;
+			await oldOwner.evaluate(marker => window.PERF_HARNESS.dirtyEditingBody(marker), dirtyMarker);
+			await pressUseThisTab(contender);
+			await contender.waitForFunction(() => window.DEBUG_STORE.getState().data?.corpusStatus === 'contended' && /unsaved edit/.test(window.DEBUG_STORE.getState().data?.corpusStatusMessage || ''), {timeout: 10000});
+			if (!await oldOwner.evaluate(() => Boolean(window.CORPUS_WORKER.workerRunning()))) throw new Error('dirty-edit denial displaced the owner');
+			if (!await oldOwner.evaluate(marker => window.DEBUG_STORE.getState().editor?.card?.body?.includes(marker), dirtyMarker)) throw new Error('dirty-edit denial did not preserve the draft');
+			await oldOwner.evaluate(() => window.PERF_HARNESS.finishEditing());
+
+			await clickUseThisTab(contender);
+			await contender.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'active', {timeout: 20000});
+			await oldOwner.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'inactive' && !window.CORPUS_WORKER.workerRunning() && Object.keys(window.DEBUG_STORE.getState().data?.cards || {}).length === 0, {timeout: 10000});
+			const takeoverState = await waitForCorpus(contender, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: true, expectedSyncState, progressEveryMs: 15000});
+			if (authMode === 'admin' && (takeoverState.cardCount !== count || takeoverState.workerCorpusSize !== count)) throw new Error('takeover corpus mismatch: ' + JSON.stringify(takeoverState));
+			const contenderOwnerLogs = consoleMsgs.filter(line => line.startsWith('[tab-b '));
+			if (!contenderOwnerLogs.some(line => line.includes('watermark prime:')) || contenderOwnerLogs.some(line => line.includes('cold corpus'))) throw new Error('takeover did not use the persistent warm corpus');
+			const ownership = await contender.evaluate(async () => {
+				const locks = await navigator.locks.query();
+				return {held: locks.held?.filter(lock => lock.name === 'corpus-worker-owner').length || 0, pending: locks.pending?.filter(lock => lock.name === 'corpus-worker-owner').length || 0};
+			});
+			if (ownership.held !== 1 || ownership.pending !== 0) throw new Error('takeover left invalid lock state: ' + JSON.stringify(ownership));
+			console.log('[run] TWO-TAB TAKEOVER OK: dirty edit preserved; old owner purged; new owner exact + live; lock=' + JSON.stringify(ownership));
+			await oldOwner.reload({waitUntil: 'domcontentloaded'});
+			await oldOwner.waitForFunction(() => window.CORPUS_WORKER?.ownershipState() === 'inactive' && !window.CORPUS_WORKER.workerRunning(), {timeout: 30000});
+			if (serviceWorkers === 'allow') await oldOwner.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
+			console.log('[run] SUPERSEDED RELOAD OK: old tab remained inactive + workerless');
+
+			//Two simultaneous requesters must not both start workers. The owner
+			//grants one request and explicitly rejects the other as busy.
+			const racers = await Promise.all([context.newPage(), context.newPage()]);
+			for (const [index, racer] of racers.entries()) {
+				racer.on('dialog', d => d.accept().catch(() => {}));
+				racer.on('console', m => consoleMsgs.push(`[tab-racer-${index} ${m.type()}] ` + m.text()));
+				racer.on('pageerror', error => consoleMsgs.push(`[tab-racer-${index} pageerror] ` + (error.stack || error.message)));
+				racer.on('response', r => { if (r.status() >= 400) consoleMsgs.push(`[tab-racer-${index} ${r.status()}] ` + r.url().slice(0, 200)); });
+				racer.on('requestfailed', r => consoleMsgs.push(`[tab-racer-${index} reqfail] ` + (r.failure()?.errorText || '') + ' ' + r.url().slice(0, 160)));
+				await racer.goto(URL, {waitUntil: 'domcontentloaded'});
+				if (serviceWorkers === 'allow') await racer.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
+			}
+			await Promise.all(racers.map(racer => racer.waitForFunction(() => window.CORPUS_WORKER?.ownershipState() === 'contended', {timeout: 30000})));
+			await Promise.all(racers.map(racer => racer.evaluate(() => window.CORPUS_WORKER.takeOver())));
+			const raceDeadline = Date.now() + 20000;
+			let raceStates = [];
+			while (Date.now() < raceDeadline) {
+				raceStates = await Promise.all(racers.map(racer => racer.evaluate(() => ({state: window.CORPUS_WORKER.ownershipState(), running: window.CORPUS_WORKER.workerRunning()}))));
+				if (raceStates.filter(value => value.state === 'active').length === 1 && raceStates.filter(value => value.state === 'contended').length === 1) break;
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+			if (raceStates.filter(value => value.state === 'active').length !== 1 || raceStates.filter(value => value.state === 'contended').length !== 1) throw new Error('simultaneous takeover did not select exactly one winner: ' + JSON.stringify(raceStates));
+			if (raceStates.find(value => value.state === 'contended')?.running) throw new Error('losing simultaneous contender started a worker');
+			await contender.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'inactive' && !window.CORPUS_WORKER.workerRunning(), {timeout: 10000});
+			const raceWinnerIndex = raceStates.findIndex(value => value.state === 'active');
+			const raceLoserIndex = raceWinnerIndex === 0 ? 1 : 0;
+			const raceWinner = racers[raceWinnerIndex];
+			const raceLoser = racers[raceLoserIndex];
+			const raceWinnerState = await waitForCorpus(raceWinner, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: true, expectedSyncState});
+			if (authMode === 'admin' && (raceWinnerState.cardCount !== count || raceWinnerState.workerCorpusSize !== count)) throw new Error('simultaneous winner corpus mismatch: ' + JSON.stringify(raceWinnerState));
+			const raceWinnerLogs = consoleMsgs.filter(line => line.startsWith(`[tab-racer-${raceWinnerIndex} `));
+			if (!raceWinnerLogs.some(line => line.includes('watermark prime:')) || raceWinnerLogs.some(line => line.includes('cold corpus'))) throw new Error('simultaneous winner did not use the persistent warm corpus');
+			console.log('[run] SIMULTANEOUS TAKEOVER OK: exactly one winner; loser workerless');
+
+			//A dead owner cannot cooperate, so the remaining contender must be able
+			//to acquire the automatically released Web Lock directly.
+			await raceWinner.close();
+			await raceLoser.evaluate(() => window.CORPUS_WORKER.takeOver());
+			await raceLoser.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'active', {timeout: 20000});
+			const crashRecoveryState = await waitForCorpus(raceLoser, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: true, expectedSyncState});
+			if (authMode === 'admin' && (crashRecoveryState.cardCount !== count || crashRecoveryState.workerCorpusSize !== count)) throw new Error('crash recovery corpus mismatch: ' + JSON.stringify(crashRecoveryState));
+			const crashRecoveryLogs = consoleMsgs.filter(line => line.startsWith(`[tab-racer-${raceLoserIndex} `));
+			if (!crashRecoveryLogs.some(line => line.includes('watermark prime:')) || crashRecoveryLogs.some(line => line.includes('cold corpus'))) throw new Error('crash recovery did not use the persistent warm corpus');
+			page = raceLoser;
+			console.log('[run] OWNER CRASH RECOVERY OK: surviving contender acquired directly and recovered exact corpus');
+			takeoverScenariosPassed = true;
+			const idle = await waitForWorkerIdle(page);
+			if (!idle.idle) throw new Error('takeover worker did not settle: ' + JSON.stringify(idle));
 		}
 
 		//The Appendix-A interaction script needs an editable card (admin).
@@ -142,8 +324,14 @@ const main = async () => {
 				console.log('[run] interactions failed. url=' + page.url() + '\ntail:\n' + consoleMsgs.slice(-18).join('\n'));
 				throw e;
 			});
+			const persistedBody = await readEmulatorCardBody(results.committedCard.id);
+			results.commitPersistence = {
+				cardID: results.committedCard.id,
+				exactBodyMatch: persistedBody === results.committedCard.expectedBody,
+			};
 			const baseline = {
-				count, seed, authMode, workerMode, syncMode: syncMode || '(default)', cardCount: state.cardCount, syncState: state.syncState, results,
+				count, seed, authMode, workerMode, syncMode: syncMode || '(default)', serviceWorkers, serviceWorkerControlled, testTakeover, cardCount: state.cardCount, syncState: state.syncState, warmCardCount: warmState?.cardCount ?? null, results,
+				passed: !(args.includes('--assert') || args.includes('--assert-budgets')),
 				note: 'commit/find wall-clock is EMULATOR-OPTIMISTIC (near-zero local write-echo); budget-authoritative = results.dispatch.* (main-thread) + results.worker.* (worker-thread) attributed together. Only corpus-worker=on is a ship gate.',
 			};
 			const outPath = getArg('out', `test/perf-harness/baselines/${authMode}-${workerMode}-${count}.json`);
@@ -164,7 +352,42 @@ const main = async () => {
 				const failures = [];
 				const advisories = [];
 				const counters = results.counters || {};
+				//The local harness intentionally does not emulate callable Functions;
+				//the app's optional legal/similarity probes therefore produce a CORS
+				//line, Chrome's generic ERR_FAILED companion, and the Functions SDK's
+				//generic `internal` rejection. Analytics may also originate in the
+				//service worker outside context routing. Keep these exact known local
+				//misses out of the sync/runtime gate.
+				const normalizedBrowserMessage = m => m.replace(/^\[tab-[^ ]+ /, '[');
+				const knownEmulatorFunctionMiss = raw => {
+					const m = normalizedBrowserMessage(raw);
+					return m.includes('us-central1-demo-perf.cloudfunctions.net') ||
+						m === '[error] Failed to load resource: net::ERR_FAILED' ||
+						m === '[pageerror] internal' ||
+						(takeoverScenariosPassed && m.startsWith('[error] [') && m.includes('@firebase/firestore: Firestore (10.11.0): Could not reach Cloud Firestore backend. Backend didn\'t respond within 10 seconds.')) ||
+						(m.startsWith('[reqfail]') && m.includes('www.google-analytics.com/g/collect')) ||
+						(serviceWorkerControlled && m.startsWith('[reqfail] net::ERR_ABORTED ') && m.includes('/google.firestore.v1.Firestore/Listen/channel?')) ||
+						(results.commitPersistence.exactBodyMatch && m.startsWith('[reqfail] net::ERR_ABORTED ') && m.includes('/google.firestore.v1.Firestore/Write/channel?'));
+				};
+				//The Firestore emulator occasionally rejects the first Listen WebChannel
+				//with one 400 while it finishes coming up. Treat that exact, one-attempt
+				//bootstrap triplet as recovered only after BOTH cold and controlled-warm
+				//passes reached exact/live state; real endpoints and repeated failures
+				//remain fatal.
+				const exactWarmRecovery = serviceWorkerControlled && warmState?.cardCount === count && warmState?.workerCorpusSize === count && warmState?.syncState === expectedSyncState;
+				const recoveredEmulatorBootstrap = raw => { const m = normalizedBrowserMessage(raw); return exactWarmRecovery && (
+					(/^\[400\] http:\/\/localhost:8089\/google\.firestore\.v1\.Firestore\/Listen\/channel\?/.test(m)) ||
+					m === '[error] Failed to load resource: the server responded with a status of 400 (Bad Request)' ||
+					(m.startsWith('[error] [') && m.includes('@firebase/firestore: Firestore (10.11.0): Could not reach Cloud Firestore backend. Connection failed 1 times.'))
+				); };
+				const unexpectedRuntimeErrors = consoleMsgs.filter(m => {
+					const normalized = normalizedBrowserMessage(m);
+					return !knownEmulatorFunctionMiss(m) && !recoveredEmulatorBootstrap(m) && (normalized.startsWith('[error]') || normalized.startsWith('[pageerror]') || /^\[[45][0-9][0-9]\]/.test(normalized) || normalized.startsWith('[reqfail]') || normalized.startsWith('[warning] [corpus-worker]'));
+				});
+				if (unexpectedRuntimeErrors.length) failures.push(`browser emitted ${unexpectedRuntimeErrors.length} console/network errors: ${unexpectedRuntimeErrors.slice(0, 3).join(' | ')}`);
 				const requiredSamples = {nav: 20, keystroke: 30, editorOpen: 1, commit: 1, find: 1};
+				if (serviceWorkers === 'allow' && !serviceWorkerControlled) failures.push('service worker was allowed but did not control the measured page');
+				if (!results.commitPersistence.exactBodyMatch) failures.push(`committed body for ${results.commitPersistence.cardID} did not exactly match the authoritative emulator document`);
 				for (const [metric, minimum] of Object.entries(requiredSamples)) {
 					const count = results.wall?.[metric]?.n ?? 0;
 					if (count < minimum) failures.push(`${metric} produced ${count} samples (expected at least ${minimum})`);
@@ -183,6 +406,11 @@ const main = async () => {
 				if (filterCalls > 6) {
 					failures.push(`makeFilterFromCards ran ${filterCalls}x across the script (expected <=6: card batches only, never per-navigation over ${NAV_PRESSES} presses)`);
 				}
+				const collectionFilterMax = results.mainWork?.collectionFilter?.maxMs ?? 0;
+				//Duration is hardware/scheduling-sensitive (and the editing-card
+				//variant intentionally stays local), so keep this visible without
+				//misclassifying it as a deterministic correctness invariant.
+				if (collectionFilterMax > 100) advisories.push(`main-thread collection filtering max=${collectionFilterMax}ms exceeds 100ms`);
 				//Wall-clock budgets (Appendix A), advisory by default.
 				const budgets = [['nav', 16], ['keystroke', 16], ['editorOpen', 100], ['find', 100]];
 				for (const [metric, budgetMs] of budgets) {
@@ -196,9 +424,14 @@ const main = async () => {
 					if (args.includes('--assert-budgets')) failures.push(...advisories);
 				}
 				if (failures.length) {
+					baseline.passed = false;
+					baseline.failures = failures;
+					fs.writeFileSync(outPath, JSON.stringify(baseline, null, 2));
 					console.error('[run] ASSERT FAILED:\n  ' + failures.join('\n  '));
 					process.exitCode = 1;
 				} else {
+					baseline.passed = true;
+					fs.writeFileSync(outPath, JSON.stringify(baseline, null, 2));
 					console.log('[run] ASSERT OK (counter invariants' + (args.includes('--assert-budgets') ? ' + budgets' : '') + ')');
 				}
 			}

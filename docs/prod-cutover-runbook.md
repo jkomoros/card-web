@@ -114,8 +114,11 @@ see README "Firebase Functions Configuration".)
       trickle (<100 reads), not another full read.
 - [ ] Edit a card: commit lands, `delta: 1 changed cards` appears, the
       edit survives a reload.
-- [ ] Second tab: opens published-only (known v1 degradation, console
-      message only). Close it; primary tab unaffected.
+- [ ] Second tab: shows the blocking single-tab gate and starts no corpus
+      worker. Choose **Use this tab**; the new tab reaches live/exact corpus
+      state and the old tab becomes inactive. Reload the old tab and verify it
+      stays inactive. Repeat while the old tab has an unsaved edit and verify
+      the transfer is refused without losing the draft.
 
 **Rollback if broken:** Firebase console → Hosting → Release history →
 roll back to the previous release (instant, client-only). The Phase 2

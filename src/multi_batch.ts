@@ -38,6 +38,10 @@ import {
 	FirestoreLeafValue
 } from './types.js';
 
+import {
+	beginMutation
+} from './mutation-barrier.js';
+
 const FIRESTORE_BATCH_LIMIT = 500;
 
 //serverTimestampSentinel is the most basic one.
@@ -90,7 +94,6 @@ const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT 
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
 export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
-
 	constructor(db : Firestore) {
 		super({
 			createBatch: () => writeBatch(db),
@@ -111,5 +114,19 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				isServerTimestampValue: (value : unknown) => isServerTimestampSentinel(value as FirestoreLeafValue),
 			},
 		}, EFFECTIVE_BATCH_LIMIT);
+	}
+
+	override async commit() : Promise<void> {
+		//Claim immediately before the first SDK write can begin. If ownership was
+		//lost while a workflow assembled this local batch, the fence cancels it
+		//without sending any write; once commit starts, handoff waits for it. A
+		//The resulting MutationFencedError is important to callers: a workflow
+		//must never continue as though a requested write succeeded.
+		const finishMutation = beginMutation();
+		try {
+			await super.commit();
+		} finally {
+			finishMutation();
+		}
 	}
 }

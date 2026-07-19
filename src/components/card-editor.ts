@@ -1257,12 +1257,12 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		if (!e.metaKey && !e.ctrlKey) return;
 
-		if (e.shiftKey && e.key == 'c') {
+		if (e.shiftKey && e.code == 'KeyC') {
 			this._handleAddAllConceptsClicked();
 			return killEvent(e);
 		}
 
-		if (e.shiftKey && e.key == 'i') {
+		if (e.shiftKey && e.code == 'KeyI') {
 			this._handleIgnoreAllConceptsClicked();
 			return killEvent(e);
 		}

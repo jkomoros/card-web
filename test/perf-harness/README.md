@@ -7,7 +7,11 @@ largest scale this emulator has repeatedly completed inside a practical
 timeout), signs in as an admin, runs the shipping `on` + `watermark`
 configuration, drives the interaction script, and fails on invariant or
 missing-sample regressions while reporting hardware-sensitive wall-clock
-budgets. Real 40k–60k acceptance remains the dev run;
+budgets. The gate installs the service worker, reloads into a page it actually
+controls, rechecks exact warm-cache corpus parity/live sync, and then exercises
+dirty-draft refusal, cooperative handoff, simultaneous contenders, old-tab
+purge, and owner-close recovery before the measured interactions. Real
+40k–60k acceptance remains the dev run;
 the emulator delivered only ~22k/40k within ten minutes in a 2026-07-13 gate
 attempt. For a smaller exploratory admin run:
 ```
@@ -23,7 +27,11 @@ Baseline lands in `test/perf-harness/baselines/<authMode>-<workerMode>-<count>.j
 - `gen-corpus.js` — the deterministic, worst-case synthetic corpus generator (below), with `gen-corpus.test.js` (7 cases) wired into `npm run test:perf-harness` and the full `npm test`.
 - `load-emulator.js` — seeds a generated corpus into the Firestore **emulator** via `firebase-admin` (converts the generator's plain timestamps to real `Timestamp`s, batches at 400, verifies the `count()`). Refuses to run without `FIRESTORE_EMULATOR_HOST` (never a real project). **Verified**: 2000 cards → emulator → count matches. Runs on a dedicated port via `firebase.perf.json` (8089) so it never touches the default 8080.
 
-**Not yet built (next increment — real complications, see Open Questions):** the app-side emulator wiring and the Playwright browser runner + auth.
+**Current gate:** app-side emulator wiring, worker emulator forwarding, admin
+auth, the production Rollup bundle, the generated Workbox service worker,
+controlled warm reload, and browser interactions are all exercised together.
+The gate also requires an exact persistent-cache prime without a second cold
+sweep and independently verifies the committed card through Admin Firestore.
 
 ## Why it exists
 
@@ -41,6 +49,12 @@ Baseline lands in `test/perf-harness/baselines/<authMode>-<workerMode>-<count>.j
   does, the live-dev measurements in docs/fast-corpus-implementation-log.md
   are the acceptance evidence; this harness is a regression detector for
   relative deltas between harness runs only.
+- The worker's IndexedDB cache is deliberately single-owner because Firebase's
+  multi-tab persistence manager is unavailable in a dedicated worker. A second
+  tab is blocked before starting a worker and can explicitly move ownership to
+  itself; unsaved edits and pending writes in the old owner veto the handoff.
+  The takeover suite covers clean handoff, dirty-edit refusal, simultaneous
+  contenders, superseded reload, and owner-crash recovery.
 - The synthetic corpus now includes nlp_search_tokens, a Zipf-ish ~800-word
   vocabulary, sort_order, and a realistic published ratio (~5%) — earlier
   runs exercised the worker's full-scan fallback exclusively and a
@@ -78,7 +92,7 @@ The commit path already emits `dispatch:<TYPE>` timings via `perfMiddleware`. Th
 
 ## How to run (target)
 - `npm run perf:local` — 12k-card emulator ship gate (admin, worker-on,
-  watermark). Hard-fails on the DETERMINISTIC invariants only
+  watermark, service-worker controlled). Hard-fails on the DETERMINISTIC invariants only
   (sample-count minimums, makeFilterFromCards call count); the wall-clock
   budgets are advisory prints unless you add `--assert-budgets` (emulator
   wall-clock is hardware/load-noisy by design — see Status honesty).

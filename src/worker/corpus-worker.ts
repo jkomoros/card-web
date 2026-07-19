@@ -101,7 +101,10 @@ import {
 	WorkerGeneration,
 	searchTokensForCard,
 	metaForCard,
-	metasEquivalent
+	metasEquivalent,
+	CORPUS_WORKER_PROTOCOL_VERSION,
+	corpusWorkerProtocolCompatible,
+	corpusWorkerProtocolVersion
 } from './worker-protocol.js';
 
 import {
@@ -166,6 +169,7 @@ const workerScope = globalThis as unknown as {
 let app : FirebaseApp | null = null;
 let db : Firestore | null = null;
 let auth : Auth | null = null;
+let firebaseReady : Promise<void> | null = null;
 
 let generation : WorkerGeneration = 0;
 //Internal connection generation, bumped on every (re)connect to invalidate
@@ -414,6 +418,7 @@ const attachResilientListener = (
 		const handler = makeHandler();
 		unsubscribes.push(onSnapshot(
 			makeQuery(),
+			{includeMetadataChanges: true},
 			snapshot => {
 				delay = LISTENER_RETRY_BASE_MS;
 				handler(snapshot);
@@ -498,10 +503,9 @@ const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? :
 	//per-query resume tokens persisted across sessions make listener
 	//re-attach bill ~deltas instead of the full result set.
 	//
-	//Persistence failures (or a second worker-mode tab, whose worker will
-	//lose the ownership fight) fall back to the memory cache: the boot works
-	//but pays the full network load — and the bridge's loadComplete +
-	//trustworthy gating keeps even a failed/empty load safe.
+	//Persistence failures fall back to the memory cache: the boot works but
+	//pays the full network load. A second tab never gets this far: the bridge's
+	//Web Lock gate keeps it workerless until ownership is transferred.
 	if (persist) {
 		try {
 			db = initializeFirestore(app, {
@@ -534,7 +538,11 @@ const connectPublished = () => {
 	const database = db;
 	attachResilientListener('published listener', 'published',
 		() => query(collection(database, CARDS_COLLECTION), where('published', '==', true)),
-		() => snapshot => ingestSnapshot(snapshot, 'published'));
+		() => snapshot => {
+			ingestSnapshot(snapshot, 'published');
+			if (!snapshot.metadata.fromCache) markWatermarkPlane('published', true);
+		},
+		() => markWatermarkPlane('published', false));
 	status('published listener attached');
 };
 
@@ -720,11 +728,27 @@ let sessionWatermark : WireTimestamp | null = null;
 let syncMetaStore : SyncMetaStore | null = null;
 let syncMetaState : SyncMeta | null = null;
 let currentSyncState : 'unverified' | 'live' | 'stale' | '' = '';
+let currentMayViewUnpublished = false;
+type WatermarkPlane = 'published' | 'tombstone' | 'delta';
+const healthyWatermarkPlanes = new Set<WatermarkPlane>();
 
 const setSyncState = (state : 'unverified' | 'live' | 'stale') => {
 	if (currentSyncState === state) return;
 	currentSyncState = state;
 	send({type: 'syncState', generation, state});
+};
+
+const markWatermarkPlane = (plane : WatermarkPlane, healthy : boolean) => {
+	if (syncMode !== 'watermark' || !currentMayViewUnpublished) return;
+	if (healthy) healthyWatermarkPlanes.add(plane);
+	else healthyWatermarkPlanes.delete(plane);
+	status(`watermark plane ${plane} ${healthy ? 'healthy' : 'stale'} (${[...healthyWatermarkPlanes].join(',') || 'none'})`);
+	if (healthyWatermarkPlanes.size === 3) {
+		markInitialDelivered('unpublished');
+		setSyncState('live');
+	} else if (currentSyncState === 'live') {
+		setSyncState('stale');
+	}
 };
 
 //Per-partition tolerance for the trust gate: writes can land between the
@@ -851,34 +875,64 @@ const deriveClampedWatermark = () : WireTimestamp | null => {
 //Once the delta listener is attached under the clamped watermark the clamp
 //has served its purpose; clearing it keeps later boots from re-replaying
 //everything since the sweep forever.
-const clearWatermarkClamp = () => {
+const clearWatermarkClamp = async () : Promise<void> => {
 	if (!syncMetaState || !syncMetaState.watermarkClamp) return;
 	syncMetaState.watermarkClamp = null;
-	if (syncMetaStore) void syncMetaStore.save(syncMetaState);
+	if (syncMetaStore) await syncMetaStore.save(syncMetaState);
 };
 
 //Processes tombstone docs: remove from corpus/engine, forward removals,
 //launder the SDK cache (getDocFromServer overwrites the cached ghost with
 //not-exists — client code cannot delete cache entries directly), and track
 //unlaundered IDs so a re-prime can't resurrect a ghost.
-const processTombstones = (database : Firestore, tombstones : {id : CardID, deleted : WireTimestamp}[]) => {
+type CorpusTombstone = {id : CardID, deleted : WireTimestamp, published? : boolean};
+
+const processTombstones = (database : Firestore, tombstones : CorpusTombstone[]) => {
 	if (!tombstones.length || !syncMetaState || !syncMetaStore) return;
+	const myConnectionGeneration = connectionGeneration;
 	const meta = syncMetaState;
-	const removals = tombstones.map(tombstone => tombstone.id).filter(id => corpus.has(id));
+	const publishedRemovals : CardID[] = [];
+	const unpublishedRemovals : CardID[] = [];
+	const newerResidentIDs = new Set<CardID>();
+	for (const tombstone of tombstones) {
+		const existing = corpus.get(tombstone.id);
+		if (!existing) continue;
+		const updated = existing.updated as Timestamp | undefined;
+		if (updated && compareTimestamps(
+			{seconds: updated.seconds, nanoseconds: updated.nanoseconds},
+			tombstone.deleted,
+		) > 0) {
+			newerResidentIDs.add(tombstone.id);
+			continue;
+		}
+		const wasPublished = tombstone.published ?? existing.published;
+		(wasPublished ? publishedRemovals : unpublishedRemovals).push(tombstone.id);
+	}
+	const removals = [...publishedRemovals, ...unpublishedRemovals];
 	if (removals.length) {
 		updateLocalState({}, removals);
-		forwardBatch({}, removals, 'unpublished', false);
+		if (publishedRemovals.length) forwardBatch({}, publishedRemovals, 'published', false);
+		if (unpublishedRemovals.length) forwardBatch({}, unpublishedRemovals, 'unpublished', false);
 	}
 	for (const tombstone of tombstones) {
 		meta.tombstoneCursor = advanceWatermark(meta.tombstoneCursor, tombstone.deleted);
-		if (!meta.processedTombstoneIDs.includes(tombstone.id)) meta.processedTombstoneIDs.push(tombstone.id);
+		if (!newerResidentIDs.has(tombstone.id) && !meta.processedTombstoneIDs.includes(tombstone.id)) meta.processedTombstoneIDs.push(tombstone.id);
 		//Launder asynchronously; on confirmation the suppress entry drops.
-		getDocFromServer(doc(database, CARDS_COLLECTION, tombstone.id)).then(() => {
+		getDocFromServer(doc(database, CARDS_COLLECTION, tombstone.id)).then(snapshot => {
+			if (myConnectionGeneration !== connectionGeneration) return;
 			//Laundered (not-exists overwrote the cached ghost) OR the card
 			//was recreated under the same ID — either way suppression must
 			//lift (suppressing a recreated card made it permanently
 			//invisible on this device).
 			meta.processedTombstoneIDs = meta.processedTombstoneIDs.filter(id => id !== tombstone.id);
+			if (snapshot.exists()) {
+				const card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+				const updated = card.updated as Timestamp | undefined;
+				if (updated && compareTimestamps({seconds: updated.seconds, nanoseconds: updated.nanoseconds}, tombstone.deleted) > 0) {
+					updateLocalState({[card.id]: card}, []);
+					forwardBatch({[card.id]: card}, [], card.published ? 'published' : 'unpublished', false);
+				}
+			}
 			if (syncMetaStore) void syncMetaStore.save(meta);
 		}).catch(() => {
 			//Launder unconfirmed: keep suppressing; retryPendingLaunders
@@ -899,11 +953,12 @@ const catchUpTombstones = async (database : Firestore) : Promise<void> => {
 		const cursor = syncMetaState?.tombstoneCursor;
 		const bound = cursor ? watermarkQueryBound(cursor) : {seconds: 0, nanoseconds: 0};
 		const snapshot = await getDocsFromServer(query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds))));
-		const tombstones : {id : CardID, deleted : WireTimestamp}[] = [];
+		const tombstones : CorpusTombstone[] = [];
 		snapshot.docs.forEach(docSnapshot => {
-			const deleted = docSnapshot.data({serverTimestamps: 'estimate'}).deleted as Timestamp | undefined;
+			const data = docSnapshot.data({serverTimestamps: 'estimate'});
+			const deleted = data.deleted as Timestamp | undefined;
 			if (!deleted || typeof deleted.seconds !== 'number') return;
-			tombstones.push({id: docSnapshot.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}});
+			tombstones.push({id: docSnapshot.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}, published: typeof data.published === 'boolean' ? data.published : undefined});
 		});
 		processTombstones(database, tombstones);
 	} catch (e) {
@@ -942,27 +997,22 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 			return query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds)));
 		},
 		() => snapshot => {
-			const tombstones : {id : CardID, deleted : WireTimestamp}[] = [];
+			const tombstones : CorpusTombstone[] = [];
 			snapshot.docChanges().forEach(change => {
 				if (change.type === 'removed') return; //pruning, not un-deletion
-				const deleted = change.doc.data({serverTimestamps: 'estimate'}).deleted as Timestamp | undefined;
+				const data = change.doc.data({serverTimestamps: 'estimate'});
+				const deleted = data.deleted as Timestamp | undefined;
 				if (!deleted || typeof deleted.seconds !== 'number') return;
-				tombstones.push({id: change.doc.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}});
+				tombstones.push({id: change.doc.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}, published: typeof data.published === 'boolean' ? data.published : undefined});
 			});
 			processTombstones(database, tombstones);
-			//A healthy server-confirmed delivery on the unpublished plane
-			//clears a listener-blip 'stale' — without this, a transient
-			//TOMBSTONE stream error latched 'stale' for the whole session
-			//(the delta handler only restored 'live' on non-empty
-			//deliveries, which a quiet corpus never produces), which under
-			//coverage gating means main-thread slow-path forever.
-			if (!snapshot.metadata.fromCache && currentSyncState === 'stale') setSyncState('live');
-			if (first) {
+			if (!snapshot.metadata.fromCache) markWatermarkPlane('tombstone', true);
+			if (first && !snapshot.metadata.fromCache) {
 				first = false;
 				onInitialDelivery();
 			}
 		},
-		() => { if (currentSyncState === 'live') setSyncState('stale'); },
+		() => markWatermarkPlane('tombstone', false),
 		//The delta listener is attached only after the tombstone listener's
 		//real initial snapshot. An error must never satisfy unpublished
 		//completeness or let a stale cache be served as live.
@@ -970,6 +1020,8 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 };
 
 const attachDeltaListener = (database : Firestore) => {
+	let firstServerDelivery = true;
+	const myConnectionGeneration = connectionGeneration;
 	attachResilientListener('unpublished delta listener', 'unpublished',
 		() => {
 			//Read the CURRENT watermark at (re)attach, so a re-attach after a
@@ -988,22 +1040,32 @@ const attachDeltaListener = (database : Firestore) => {
 			//re-attach after a blip in a quiet period delivers an empty (or
 			//tiny) snapshot, and gating the restore on count>0 left 'stale'
 			//latched until the next real edit.
-			if (!snapshot.metadata.fromCache && currentSyncState === 'stale') setSyncState('live');
 			const {cards} = parseSnapshot(snapshot);
 			const count = Object.keys(cards).length;
-			if (!count) return;
-			for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
-			updateLocalState(cards, []);
-			forwardBatch(cards, [], 'unpublished', false);
-			for (const card of Object.values(cards)) {
-				const updated = card.updated as Timestamp | undefined;
-				if (updated && typeof updated.seconds === 'number') {
-					sessionWatermark = advanceWatermark(sessionWatermark, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
+			if (count) {
+				for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
+				updateLocalState(cards, []);
+				forwardBatch(cards, [], 'unpublished', false);
+				for (const card of Object.values(cards)) {
+					const updated = card.updated as Timestamp | undefined;
+					if (updated && typeof updated.seconds === 'number') {
+						sessionWatermark = advanceWatermark(sessionWatermark, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
+					}
+				}
+				status(`delta: ${count} changed cards; corpus=${corpus.size}`);
+			}
+			if (!snapshot.metadata.fromCache) {
+				if (firstServerDelivery) {
+					firstServerDelivery = false;
+					void clearWatermarkClamp().then(() => {
+						if (myConnectionGeneration === connectionGeneration) markWatermarkPlane('delta', true);
+					});
+				} else {
+					markWatermarkPlane('delta', true);
 				}
 			}
-			status(`delta: ${count} changed cards; corpus=${corpus.size}`);
 		},
-		() => { if (currentSyncState === 'live') setSyncState('stale'); });
+		() => markWatermarkPlane('delta', false));
 };
 
 //----------------------------------------------------------------------------
@@ -1190,9 +1252,6 @@ const afterColdSweep = async (database : Firestore, myConnectionGeneration : num
 	sessionWatermark = deriveClampedWatermark();
 	attachTombstoneListener(database, () => {
 		attachDeltaListener(database);
-		clearWatermarkClamp();
-		markInitialDelivered('unpublished');
-		setSyncState('live');
 	});
 };
 
@@ -1307,42 +1366,9 @@ const connectUnpublishedWatermark = async () => {
 		//listener from the watermark; then complete.
 		attachTombstoneListener(database, () => {
 			attachDeltaListener(database);
-			clearWatermarkClamp();
-			markInitialDelivered('unpublished');
-			setSyncState('live');
 		});
 	};
 	void gateAndProceed();
-};
-
-//----------------------------------------------------------------------------
-// Second-tab guard: exactly one worker per origin may own the unpublished
-// sync (the persistence DB is single-owner, and a second full sync would
-// double the quota footprint). The loser serves published-only, degraded —
-// it must NEVER cold-load or delta-listen. Web Locks auto-release when the
-// owning context dies. v1: the loser doesn't retry (reload to re-contend);
-// the long-term fix is a SharedWorker.
-//----------------------------------------------------------------------------
-
-let ownershipLockHeld = false;
-
-const acquireOwnershipLock = () : Promise<boolean> => {
-	if (ownershipLockHeld) return Promise.resolve(true);
-	const locks = (globalThis as unknown as {navigator? : {locks? : {request : (name : string, options : {ifAvailable : boolean}, callback : (lock : unknown) => Promise<void> | void) => Promise<void>}}}).navigator?.locks;
-	//No Web Locks support: proceed as owner (pre-guard behavior).
-	if (!locks) return Promise.resolve(true);
-	return new Promise<boolean>(resolve => {
-		locks.request('corpus-worker-owner', {ifAvailable: true}, lock => {
-			if (!lock) {
-				resolve(false);
-				return;
-			}
-			ownershipLockHeld = true;
-			resolve(true);
-			//Hold the lock for the worker's lifetime.
-			return new Promise<void>(() => { /* never resolves */ });
-		}).catch(() => resolve(true));
-	});
 };
 
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
@@ -1363,6 +1389,9 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	const staleCardIDs = [...corpus.keys()];
 	if (staleCardIDs.length) updateLocalState({}, staleCardIDs);
 	currentUid = uid;
+	currentMayViewUnpublished = mayViewUnpublished;
+	healthyWatermarkPlanes.clear();
+	currentSyncState = '';
 	sessionWatermark = null;
 	clientClockCardIDs.clear();
 	const expected : CardFetchType[] = ['published'];
@@ -1371,26 +1400,8 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	expectInitialLoad(expected);
 	connectPublished();
 	if (mayViewUnpublished) {
-		const myConnectionGeneration = connectionGeneration;
-		void acquireOwnershipLock().then(owner => {
-			if (myConnectionGeneration !== connectionGeneration) return;
-			if (!owner) {
-				//Another tab owns the corpus sync. Serve published-only,
-				//degraded: clear the unpublished loading indicator with an
-				//errorFallback batch (NOT completeness evidence) and withhold
-				//loadComplete so this tab never claims a trustworthy corpus.
-				status('another tab owns the corpus sync; serving published-only (reload to re-contend)');
-				forwardBatch({}, [], 'unpublished', false, true);
-				setSyncState('unverified');
-				send({type: 'degraded', generation, reason: 'Another tab is syncing all cards; this tab shows published cards only. Reload this tab to take over.'});
-				return;
-			}
-			if (syncMode === 'watermark') {
-				void connectUnpublishedWatermark();
-			} else {
-				void connectUnpublishedPrivileged();
-			}
-		});
+		if (syncMode === 'watermark') void connectUnpublishedWatermark();
+		else void connectUnpublishedPrivileged();
 	} else if (uid) {
 		connectUnpublishedAuthorEditor(uid);
 	}
@@ -1441,15 +1452,32 @@ workerScope.addEventListener('message', event => {
 	const message = event.data;
 	switch (message.type) {
 	case 'connect':
+		if (!corpusWorkerProtocolCompatible(message.protocolVersion)) {
+			send({
+				type: 'protocolMismatch',
+				generation: message.generation,
+				expectedProtocolVersion: CORPUS_WORKER_PROTOCOL_VERSION,
+				receivedProtocolVersion: corpusWorkerProtocolVersion(message.protocolVersion)
+			});
+			break;
+		}
 		generation = message.generation;
 		syncMode = message.syncMode;
 		currentDevMode = message.devMode;
-		connectFirebase(message.devMode, message.persist, message.emulatorTarget);
-		connectCards(message.mayViewUnpublished, message.uid);
+		if (!firebaseReady) {
+			//The page acquired the origin-wide lease before this worker was
+			//created, so persistent single-tab ownership is safe to claim here.
+			firebaseReady = Promise.resolve(connectFirebase(message.devMode, message.persist, message.emulatorTarget));
+		}
+		void firebaseReady.then(() => {
+			if (generation === message.generation) connectCards(message.mayViewUnpublished, message.uid);
+		});
 		break;
 	case 'reconnect':
 		generation = message.generation;
-		connectCards(message.mayViewUnpublished, message.uid);
+		void (firebaseReady || Promise.resolve()).then(() => {
+			if (generation === message.generation) connectCards(message.mayViewUnpublished, message.uid);
+		});
 		break;
 	case 'spike':
 		spike();
@@ -1496,6 +1524,10 @@ workerScope.addEventListener('message', event => {
 		subscriptions.markDirty();
 		break;
 	}
+	case 'hydrateCollectionState':
+		engine.hydrateCollectionState(fromWire(message.hydration, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as import('./worker-protocol.js').CollectionStateHydration);
+		subscriptions.markDirty();
+		break;
 	case 'configureCollections':
 		engine.configureCollections(message.fallbacks, message.startCards);
 		subscriptions.markDirty();
@@ -1592,4 +1624,4 @@ setSimilarityRequestHandler((cardID, editingCard) => {
 	send({type: 'requestSimilarity', generation, cardID});
 });
 
-send({type: 'ready', generation});
+send({type: 'ready', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION});

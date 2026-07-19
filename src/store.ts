@@ -15,7 +15,7 @@ import { State } from './types.js';
 import app from './reducers/app.js';
 import data from './reducers/data.js';
 import { SomeAction } from './actions.js';
-import { perfMiddleware } from './perf.js';
+import { perfEnabled, perfMiddleware } from './perf.js';
 import { actionForwarderMiddleware } from './action-forwarder.js';
 import { setSimilarityRequestHandler } from './similarity-request.js';
 
@@ -56,6 +56,10 @@ store.addReducers({
 
 //Stash this here so it's easy to get access to it via console.
 window['DEBUG_STORE'] = store;
+
+if (perfEnabled()) {
+	void import('./perf-harness-api.js').then(({installPerfHarnessAPI}) => installPerfHarnessAPI());
+}
 
 //Install the main-thread handler for the similar-card filters' fetch-trigger
 //side effect (see src/similarity-request.ts: filters.ts also runs inside the

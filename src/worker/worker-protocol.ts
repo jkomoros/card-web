@@ -14,8 +14,22 @@ import {
 	CardSimilarityMap,
 	ProcessedCard,
 	SerializedDescriptionToCardList,
-	SortExtra
+	SortExtra,
+	Sections,
+	Tags
 } from '../types.js';
+
+//Increment this for a wire-incompatible change. Missing version means a
+//pre-handshake worker/page (v0), which must be rejected: silently accepting it
+//would skip authoritative collection hydration on a mixed cached build.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 1;
+export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
+
+export const corpusWorkerProtocolVersion = (value : unknown) : number =>
+	typeof value === 'number' ? value : LEGACY_CORPUS_WORKER_PROTOCOL_VERSION;
+
+export const corpusWorkerProtocolCompatible = (value : unknown) : boolean =>
+	corpusWorkerProtocolVersion(value) === CORPUS_WORKER_PROTOCOL_VERSION;
 
 //Extracts the compact metadata the main thread keeps for every card.
 export const metaForCard = (card : Card) : CardMeta => ({
@@ -78,6 +92,15 @@ export const FORWARDED_ACTION_TYPES : {[actionType : string] : true} = {
 //teardown/reconnect can never interleave stale data.
 export type WorkerGeneration = number;
 
+export type CollectionStateHydration = {
+	sections : Sections,
+	tags : Tags,
+	starredCardIDs : CardID[],
+	readCardIDs : CardID[],
+	readingList : CardID[],
+	selectedCardIDs : CardID[]
+};
+
 //--------------------------------------------------------------------------
 // Main thread → worker
 //--------------------------------------------------------------------------
@@ -101,7 +124,7 @@ export type MainToWorkerMessage =
 	//is forwarded from the main thread's `firebase-emulator` localStorage flag —
 	//the worker has no localStorage, so the bridge reads it and passes it here.
 	//Absent (undefined) in every real dev/prod connection.
-	| {type: 'connect', generation: WorkerGeneration, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, emulatorTarget? : string}
+	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, emulatorTarget? : string}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}
@@ -113,6 +136,11 @@ export type MainToWorkerMessage =
 	//A whitelisted user-state Redux action (wire-encoded), replayed through
 	//the worker's collection reducer.
 	| {type: 'action', generation: WorkerGeneration, action : unknown}
+	//Replace the query engine's user/config state from one authoritative Redux
+	//snapshot. Used on every activation/reconnect so handoff and auth changes
+	//never depend on which incremental actions happened to be buffered here.
+	//Wire-encoded because section/tag documents contain Firestore Timestamps.
+	| {type: 'hydrateCollectionState', generation: WorkerGeneration, hydration : unknown}
 	//Tab-config fallbacks/startCards needed by the Collection machinery.
 	| {type: 'configureCollections', generation: WorkerGeneration, fallbacks : SerializedDescriptionToCardList, startCards : SerializedDescriptionToCardList}
 	//Subscribe to live results for a collection description; the worker
@@ -183,7 +211,8 @@ export type SpikeReport = {
 export type WorkerActionStats = {[label : string] : {count : number, totalMs : number, maxMs : number}};
 
 export type WorkerToMainMessage =
-	| {type: 'ready', generation: WorkerGeneration}
+	| {type: 'ready', generation: WorkerGeneration, protocolVersion? : number}
+	| {type: 'protocolMismatch', generation: WorkerGeneration, expectedProtocolVersion : number, receivedProtocolVersion : number}
 	| {type: 'status', generation: WorkerGeneration, message : string}
 	| {type: 'error', generation: WorkerGeneration, message : string}
 	| {type: 'degraded', generation: WorkerGeneration, reason : string}

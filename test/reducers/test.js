@@ -29,6 +29,10 @@ let MODIFY_CARD_SUCCESS;
 let MODIFY_CARD_FAILURE;
 let CLEAR_ENQUEUED_CARD_UPDATES;
 let UPDATE_CORPUS_STATUS;
+let REMOVE_CARDS;
+let ENQUEUE_CARD_UPDATES;
+let UPDATE_COLLECTION_SHAPSHOT;
+let UPDATE_CARD_META;
 let INITIAL_COLLECTION_STATE;
 
 const makeCard = (id, extras) => ({
@@ -70,6 +74,10 @@ describe('reducer identity preservation', () => {
 			MODIFY_CARD_FAILURE,
 			CLEAR_ENQUEUED_CARD_UPDATES,
 			UPDATE_CORPUS_STATUS,
+			REMOVE_CARDS,
+			ENQUEUE_CARD_UPDATES,
+			UPDATE_COLLECTION_SHAPSHOT,
+			UPDATE_CARD_META,
 		} = await import('../../lib/src/actions.js'));
 		({
 			INITIAL_STATE: INITIAL_COLLECTION_STATE
@@ -213,5 +221,31 @@ describe('reducer identity preservation', () => {
 		//Updating a card mentioned nowhere keeps the whole map's identity.
 		const unrelated = dataReducer(primed, {type: UPDATE_CARDS, cards: {'card-nine': makeCard('card-nine')}, fetchType: 'published'});
 		assert.strictEqual(unrelated.cardSimilarity, primed.cardSimilarity);
+	});
+
+	it('REMOVE_CARDS purges every cached and queued representation', () => {
+		const card = makeCard('secret-card', {published: false, slugs: ['secret-slug']});
+		let state = dataReducer(undefined, {type: '@@INIT'});
+		state = dataReducer(state, {type: UPDATE_CARDS, cards: {'secret-card': card}, fetchType: 'unpublished'});
+		state = dataReducer(state, {type: UPDATE_COLLECTION_SHAPSHOT});
+		state = dataReducer(state, {type: UPDATE_CARD_META, metas: {'secret-card': {id: 'secret-card'}}, removedIDs: []});
+		state = dataReducer(state, {type: ENQUEUE_CARD_UPDATES, cards: {'secret-card': card}, fetchType: 'unpublished'});
+		state = {
+			...state,
+			pendingDeletions: {'secret-card': true},
+			cardSimilarity: {
+				'secret-card': {'other-card': 0.9},
+				'other-card': {'secret-card': 0.8},
+			},
+		};
+		state = dataReducer(state, {type: REMOVE_CARDS, cardIDs: ['secret-card']});
+		assert.strictEqual(state.cards['secret-card'], undefined);
+		assert.strictEqual(state.cardsSnapshot['secret-card'], undefined);
+		assert.strictEqual(state.slugIndex['secret-slug'], undefined);
+		assert.strictEqual(state.cardMeta['secret-card'], undefined);
+		assert.strictEqual(state.enqueuedCards.unpublished['secret-card'], undefined);
+		assert.strictEqual(state.pendingDeletions['secret-card'], undefined);
+		assert.strictEqual(state.cardSimilarity['secret-card'], undefined);
+		assert.strictEqual(state.cardSimilarity['other-card'], undefined);
 	});
 });

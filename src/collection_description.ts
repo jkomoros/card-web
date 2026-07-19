@@ -81,7 +81,8 @@ const logSlowCollectionWork = (operation : string, description : CollectionDescr
 	perfCount('collection:' + operation);
 	perfRecord('collection:' + operation, duration);
 	if (duration < SLOW_COLLECTION_WORK_THRESHOLD_MS) return;
-	console.log(`[PERF] collection ${operation}: ${duration.toFixed(1)}ms over ${count} cards for ${description.serialize()}`);
+	const executionContext = typeof document === 'undefined' ? 'worker' : 'main';
+	console.log(`[PERF] ${executionContext} collection ${operation}: ${duration.toFixed(1)}ms over ${count} cards for ${description.serialize()}`);
 };
 
 export const queryTextFromCollectionDescription = (description : CollectionDescription) : string => {

@@ -56,6 +56,10 @@ import {
 	COMMENTS_UPDATE_THREADS
 } from '../actions.js';
 
+import {
+	trackMutation
+} from '../mutation-barrier.js';
+
 type BatchLikeSet = {
 	set(ref : DocumentReference, data : object) : void
 }
@@ -95,7 +99,7 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 	const cardRef = doc(db, CARDS_COLLECTION, thread.card);
 	const threadRef = doc(db, THREADS_COLLECTION, thread.id);
 
-	runTransaction(db, async transaction => {
+	void trackMutation(() => runTransaction(db, async transaction => {
 		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
@@ -111,7 +115,7 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 			resolved: true,
 			updated: serverTimestamp()
 		});
-	});
+	}));
 };
 
 export const deleteMessage = (message : CommentMessage) : ThunkSomeAction => (_, getState) => {
@@ -269,7 +273,7 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 	const threadRef = doc(db, THREADS_COLLECTION, threadId);
 	const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
 
-	runTransaction(db, async transaction => {
+	void trackMutation(() => runTransaction(db, async transaction => {
 		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
@@ -306,7 +310,7 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 			deleted: false
 		});
 
-	});
+	}));
 
 };
 

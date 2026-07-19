@@ -106,6 +106,28 @@ describe('QueryEngine', () => {
 		assert.deepStrictEqual(result.ids, ['b']);
 	});
 
+	it('authoritatively replaces user state while retaining card-derived filters', async () => {
+		const engine = makeEngine();
+		engine.applyAction({type: UPDATE_STARS, starsToAdd: ['a'], starsToRemove: []});
+		engine.applyAction({type: UPDATE_READS, readsToAdd: ['c'], readsToRemove: []});
+		engine.applyAction({type: SELECT_CARDS, cards: ['a']});
+
+		engine.hydrateCollectionState({
+			sections: {main: {id: 'main', title: 'Main', cards: ['b', 'c'], order: 0, start_cards: [], default: true}},
+			tags: {},
+			starredCardIDs: ['b'],
+			readCardIDs: ['a'],
+			readingList: ['c'],
+			selectedCardIDs: ['c'],
+		});
+
+		assert.deepStrictEqual(engine.runCollection('everything/starred/').ids, ['b']);
+		assert.deepStrictEqual(engine.runCollection('everything/unread/').ids, ['b', 'c']);
+		assert.deepStrictEqual(engine.runCollection('main/').ids, ['a', 'b', 'c']);
+		assert.deepStrictEqual(engine.runCollection('reading-list/').ids, ['c']);
+		assert.deepStrictEqual(engine.runCollection('everything/selected/').ids, ['c']);
+	});
+
 	it('runs query filters over card text', async () => {
 		const engine = makeEngine();
 		engine.updateCards({

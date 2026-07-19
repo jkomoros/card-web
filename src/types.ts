@@ -938,7 +938,7 @@ export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;
 
 export type CardFetchTypeMap = {[type in CardFetchType]+?: true};
 
-export type CorpusStatus = 'off' | 'loading' | 'live' | 'stale' | 'degraded' | 'fallback';
+export type CorpusStatus = 'off' | 'loading' | 'live' | 'stale' | 'degraded' | 'fallback' | 'checking' | 'contended' | 'inactive' | 'takeover' | 'unsupported' | 'ownership-error';
 
 export type DataState = {
 	cards: Cards,

@@ -89,6 +89,10 @@ import {
 	corpusWorkerRunCollection
 } from '../corpus-bridge.js';
 
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
+
 //Matches card-view's reference-blocks debounce: long enough that navigation
 //keystrokes never pay the whole-corpus reference-block cost.
 const EXPENSIVE_PROPERTIES_DEBOUNCE_MS = 250;
@@ -356,6 +360,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					corpusWorkerRunCollection
 				).then(blocks => {
 					if (blocks === null) {
+						if (corpusWorkerServesCollections()) {
+							this._referenceBlocks = [];
+							this._expensivePropertiesForCardID = cardID;
+							return;
+						}
 						//Fallback computes from FRESH state — label ownership
 						//with the fresh card, or the next stateChanged clears
 						//correct content (stale-label flash bug).
@@ -373,6 +382,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				});
 				return;
 			}
+			//Do not replace a loading worker with a synchronous whole-corpus
+			//fallback; keep the optional panel content empty until live. A worker
+			//circuit-break flips servesCollections() false, preserving recovery.
+			if (corpusWorkerServesCollections()) return;
 			//While editing, use the active-card variant: the editing-card
 			//variant re-runs ~10 whole-corpus collections at every typing
 			//pause because the editing card changes per keystroke.

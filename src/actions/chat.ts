@@ -97,6 +97,10 @@ import {
 	CHAT_STREAM_MESSAGE_ROUTE
 } from '../../shared/env-constants.js';
 
+import {
+	trackMutation
+} from '../mutation-barrier.js';
+
 // Default background length
 const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
 
@@ -455,9 +459,9 @@ export const togglePublishedForCurrentChat = () : ThunkSomeAction => async (_, g
 		return;
 	}
 
-	await updateDoc(chatRef, {
+	await trackMutation(() => updateDoc(chatRef, {
 		published: !currentchat.published
-	});
+	}));
 
 	//The live update should take care of updating the state.
 	return;

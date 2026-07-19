@@ -22,6 +22,11 @@ const stat = (actionStats, type) => {
 	if (!s || !s.count) return null;
 	return {count: s.count, avgMs: +(s.totalMs / s.count).toFixed(2), maxMs: +s.maxMs.toFixed(2)};
 };
+const rawStat = (actionStats, name) => {
+	const s = actionStats && actionStats[name];
+	if (!s || !s.count) return null;
+	return {count: s.count, avgMs: +(s.totalMs / s.count).toFixed(2), maxMs: +s.maxMs.toFixed(2)};
+};
 //Worker-scoped stats use raw phase labels (no 'dispatch:' prefix — they aren't
 //Redux dispatches). Same {count,totalMs,maxMs} shape as src/perf.ts actionStats.
 const wstat = (workerStats, label) => {
@@ -35,30 +40,27 @@ const wall = (a) => ({n: a.length, p50: pctl(a, 50), p95: pctl(a, 95), max: a.le
 
 //Atomic nav+echo: advance a card and mark it read, driving SHOW_CARD +
 //UPDATE_READS (makeFilterFromCards) in one context (no keyboard/pushState race).
-const navAndRead = (page) => page.evaluate(async () => {
-	const app = await import('/lib/src/actions/app.js');
-	const user = await import('/lib/src/actions/user.js');
-	window.DEBUG_STORE.dispatch(app.navigateToNextCard());
-	window.DEBUG_STORE.dispatch(user.markActiveCardReadIfLoggedIn());
-});
+const navAndRead = (page) => page.evaluate(() => window.PERF_HARNESS.navigateAndRead());
 
-//Poll (deep-walk) until the editor body is contenteditable.
+//Poll (deep-walk) until the editor's actual body textarea exists. Older
+//versions looked for an unrelated contenteditable node and could type into
+//the rendered card instead of the editor, producing a false-positive save.
 const waitForBody = async (page, timeoutMs = 10000) => {
 	const start = Date.now();
 	while (Date.now() - start < timeoutMs) {
 		const found = await page.evaluate(() => {
-			const walk = (root) => { if (root.querySelector('[data-field="body"][contenteditable="true"]')) return true; for (const el of root.querySelectorAll('*')) { if (el.shadowRoot && walk(el.shadowRoot)) return true; } return false; };
+			const walk = (root) => { if (root.querySelector('textarea[data-field="body"]')) return true; for (const el of root.querySelectorAll('*')) { if (el.shadowRoot && walk(el.shadowRoot)) return true; } return false; };
 			return walk(document);
 		});
 		if (found) return;
 		await page.waitForTimeout(200);
 	}
-	throw new Error('editor body did not become contenteditable within ' + timeoutMs + 'ms');
+	throw new Error('editor body textarea did not appear within ' + timeoutMs + 'ms');
 };
 
 //Focus the editor body (deep-walk). Returns whether it was found.
 const focusBody = (page) => page.evaluate(() => {
-	const walk = (root) => { const h = root.querySelector('[data-field="body"][contenteditable="true"]'); if (h) return h; for (const el of root.querySelectorAll('*')) { if (el.shadowRoot) { const r = walk(el.shadowRoot); if (r) return r; } } return null; };
+	const walk = (root) => { const h = root.querySelector('textarea[data-field="body"]'); if (h) return h; for (const el of root.querySelectorAll('*')) { if (el.shadowRoot) { const r = walk(el.shadowRoot); if (r) return r; } } return null; };
 	const b = walk(document); if (b) b.focus();
 	return !!b;
 });
@@ -70,30 +72,38 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 		//covers only the interaction script (no-op / absent in off mode).
 		if (window.CORPUS_WORKER && window.CORPUS_WORKER.perfReset) window.CORPUS_WORKER.perfReset();
 	});
+	await page.waitForFunction(() => Boolean(window.PERF_HARNESS));
+	const initialCard = await page.evaluate(() => window.PERF_HARNESS.activeRawCard());
+	const committedCardID = initialCard.id;
 
 	//NOTE on ordering: editingStart is reliable on the boot card but not after a
 	//run of direct navigateToNextCard dispatches (a card-view render-timing
 	//quirk). The Appendix-A budgets are independent, so we edit/type/commit
 	//FIRST (commit closes the editor) and nav AFTER — each measured cleanly.
 
-	//--- Editor open (dispatch editingStart; wait for the contenteditable body) ---
+	//--- Editor open (dispatch editingStart, select Content, wait for body) ---
 	const editorWall = [await timed(async () => {
-		await page.evaluate(async () => { const e = await import('/lib/src/actions/editor.js'); window.DEBUG_STORE.dispatch(e.editingStart()); });
+		await page.evaluate(() => window.PERF_HARNESS.startEditingContent());
 		await waitForBody(page);
 	})];
 
 	//--- 30 keystrokes into the focused body ---
 	await focusBody(page);
+	const marker = (`perf${Date.now().toString(36)}marker`).padEnd(keystrokes, 'x').slice(0, keystrokes);
 	const keyWall = [];
-	for (let i = 0; i < keystrokes; i++) keyWall.push(await timed(() => page.keyboard.type('x')));
+	for (const character of marker) keyWall.push(await timed(() => page.keyboard.type(character)));
 
 	//--- Commit: dispatch editingCommit; wait pendingModificationCount==0 (the
 	//    true "interactive again" marker); this also closes the editor.
 	//    EMULATOR-OPTIMISTIC wall-clock. ---
 	const commitWall = [await timed(async () => {
-		await page.evaluate(async () => { const e = await import('/lib/src/actions/editor.js'); window.DEBUG_STORE.dispatch(e.editingCommit()); });
+		await page.evaluate(() => window.PERF_HARNESS.commitEditing());
 		await page.waitForFunction(() => { const s = window.DEBUG_STORE.getState(); return s.data && s.data.pendingModificationCount === 0; }, {timeout: 30000});
 	})];
+	const committedCard = await page.evaluate(() => window.PERF_HARNESS.activeRawCard());
+	if (committedCard.modificationError) throw new Error('commit reported modification error: ' + committedCard.modificationError);
+	if (committedCard.body === initialCard.body || !committedCard.body.includes(marker)) throw new Error('commit did not add the unique interaction marker');
+	const committedBody = committedCard.body;
 
 	//--- Arrow-nav x20 (editor now closed): SHOW_CARD + the real auto-mark-read
 	//    echo (UPDATE_READS -> makeFilterFromCards) per step ---
@@ -103,10 +113,8 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 	//--- Find dialog: dispatch openFindDialog + set a query (avoids shadow-DOM
 	//    keyboard routing); waits past the 250ms debounce. ---
 	const findWall = [await timed(async () => {
-		await page.evaluate(async () => {
-			try { const f = await import('/lib/src/actions/find.js'); if (f.openFindDialog) window.DEBUG_STORE.dispatch(f.openFindDialog()); if (f.updateQuery) window.DEBUG_STORE.dispatch(f.updateQuery('perf')); } catch { /* find is optional / export names unverified */ }
-		});
-		await page.waitForTimeout(400);
+		await page.evaluate(() => window.PERF_HARNESS.openFind('perf'));
+		await page.waitForFunction(() => window.DEBUG_STORE.getState().find.activeQuery === 'perf', {timeout: 5000});
 	})];
 
 	const perf = await page.evaluate(() => window.DEBUG_PERF ? window.DEBUG_PERF.data() : null);
@@ -139,8 +147,13 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 			query: wstat(W, 'query'),
 			indexBuildMsCumulative: workerPerf.indexBuildMs,
 		} : null,
+		mainWork: {
+			collectionFilter: rawStat(A, 'collection:filter'),
+			collectionSort: rawStat(A, 'collection:sort'),
+		},
 		//COARSE wall-clock (incl. Playwright IPC; commit/find emulator-optimistic).
 		wall: {nav: wall(navWall), editorOpen: wall(editorWall), keystroke: wall(keyWall), commit: wall(commitWall), find: wall(findWall)},
+		committedCard: {id: committedCardID, expectedBody: committedBody},
 		counters: perf ? perf.counters : {},
 	};
 };

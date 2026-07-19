@@ -32,7 +32,7 @@ export type SyncMeta = {
 		done : boolean[]
 	} | null,
 	//Pending watermark clamp from a completed sweep, cleared once the delta
-	//listener is attached under it. The parallel sweep pages by documentId,
+	//listener confirms its first server catch-up under it. The parallel sweep pages by documentId,
 	//so a doc can be read BEFORE a mid-sweep edit lands on it while
 	//max(updated) over the swept corpus advances past that edit — deriving
 	//the watermark unclamped could then permanently skip the edit. Clamping

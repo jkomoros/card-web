@@ -1660,9 +1660,14 @@ export const selectActiveCollection = createSelector(
 		//Cutover mode: when the corpus worker has pushed a result for exactly
 		//this description, build the collection from it — no UI-thread
 		//filtering or sorting. During transitions (boot, description just
-		//changed) fall through to the local computation.
-		if (workerResult && corpusWorkerServesCollections() && workerResult.description === description.serialize()) {
-			const collection = Collection.fromWorkerResult(description, args, workerResult);
+		//changed) expose an empty placeholder until the matching authoritative
+		//worker result arrives. Never compute the corpus collection on the UI
+		//thread in cutover mode.
+		if (corpusWorkerServesCollections()) {
+			const result = workerResult && workerResult.description === description.serialize()
+				? workerResult
+				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}};
+			const collection = Collection.fromWorkerResult(description, args, result);
 			_previousActiveCollection = collection;
 			return collection;
 		}
@@ -1934,8 +1939,11 @@ export const selectCollectionForQuery = createSelector(
 		//worker doesn't have the editing card), which the bridge enforces by
 		//not subscribing while editing — the description match below then
 		//simply fails and we compute locally.
-		if (workerResult && corpusWorkerServesCollections() && !args.editingCard && workerResult.description === description.serialize()) {
-			return Collection.fromWorkerResult(description, args, workerResult);
+		if (corpusWorkerServesCollections() && !args.editingCard) {
+			const result = workerResult && workerResult.description === description.serialize()
+				? workerResult
+				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}};
+			return Collection.fromWorkerResult(description, args, result);
 		}
 		return description.collection(args);
 	}

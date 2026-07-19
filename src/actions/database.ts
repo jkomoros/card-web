@@ -447,6 +447,10 @@ const disconnectLiveUnpublishedCards = () => {
 export const connectLiveUnpublishedCards = async () => {
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) {
+		//The Redux store outlives an auth/permission change. Tell the worker to
+		//drop its privileged scope before returning, so cards loaded for the
+		//previous identity cannot remain visible behind the access-denied view.
+		if (corpusWorkerOwnsCardIngestion()) corpusWorkerConnectCards(false, '');
 		if (perfEnabled()) console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
 		return;
 	}
