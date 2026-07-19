@@ -23,6 +23,7 @@ describe("Collection filter catalog", () => {
     updated: "Cards updated in a date range",
     author: "Cards by a contributor",
     query: "Cards containing text",
+    similar: "Cards similar to a card",
   };
 
   const candidates = [{
@@ -45,8 +46,11 @@ describe("Collection filter catalog", () => {
     assert.strictEqual(result.find(item => item.filter === "updated").category, "Dates");
     assert.strictEqual(result.find(item => item.filter === "author").category, "People");
     assert.strictEqual(result.find(item => item.filter === "query").category, "Text and specific cards");
+    assert.strictEqual(result.find(item => item.filter === "similar").category, "Similarity");
     assert.strictEqual(result.find(item => item.filter === "inductively-knowable").category, "Tags and sections");
     assert.strictEqual(result.find(item => item.filter.startsWith("direct-connections/")).category, "Suggested for this card");
+    assert.match(result.find(item => item.filter === "updated").example, /last 7 days/);
+    assert.strictEqual(result.find(item => item.filter === "inductively-knowable").example, "Everything AND Tagged “Inductively Knowable”");
   });
 
   it("searches labels, descriptions, categories, and aliases", () => {
@@ -66,10 +70,10 @@ describe("Collection filter catalog", () => {
     const result = buildCollectionFilterCatalog({
       alpha: "Alpha",
       beta: "Beta",
-      gamma: "Gamma",
+      content: "Content",
       starred: "Starred",
       unread: "Unread",
-    }, [], ["gamma"]);
-    assert.deepStrictEqual(result.map(item => item.filter), ["gamma", "starred", "unread", "alpha", "beta"]);
+    }, [], ["content"]);
+    assert.deepStrictEqual(result.map(item => item.filter), ["content", "unread", "starred", "alpha", "beta"]);
   });
 });

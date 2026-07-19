@@ -51,7 +51,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		const cardIDs = parseMultipleCardIDs(this.value);
 		return html`
 			<div>
-				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @tag-new=${this._handleNewTag} @tag-removed=${this._handleRemoveTag}></tag-list>
+				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .editing=${true} .disableNew=${true} @tag-added=${this._handleAddTag} @tag-removed=${this._handleRemoveTag}></tag-list>
 			</div>
 		`;
 	}
@@ -69,19 +69,9 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		this._dispatchNewValue(combineMultipleCardIDs(oldValues.filter(item => item != e.detail.tag)));
 	}
 
-	_handleNewTag() {
-		const cardID = prompt('What is the ID of the card?');
-		if (!cardID) return;
+	_handleAddTag(e : TagEvent) {
 		const oldValues = parseMultipleCardIDs(this.value);
-		this._dispatchNewValue(combineMultipleCardIDs([...oldValues, cardID]));
-	}
-
-	_handleTagTapped(e : TagEvent) {
-		//TODO: pop a dialog
-		const cardID = prompt('What is the ID of the card?');
-		if (!cardID) return;
-		const oldValues = parseMultipleCardIDs(this.value);
-		this._dispatchNewValue(combineMultipleCardIDs(oldValues.map(item => item == e.detail.tag ? cardID : item)));
+		this._dispatchNewValue(combineMultipleCardIDs([...oldValues, e.detail.tag]));
 	}
 
 }

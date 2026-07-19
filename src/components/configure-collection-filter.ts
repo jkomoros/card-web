@@ -49,16 +49,18 @@ import {
 @customElement('configure-collection-filter')
 class ConfigureCollectionFilter extends LitElement {
 
-	focusPrimaryControl() {
+	focusPrimaryControl() : boolean {
 		const nestedControl = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>(
 			'.pieces configure-collection-date, .pieces configure-collection-key-card, .pieces configure-collection-multiple-cards'
 		);
 		if (nestedControl?.focusPrimaryControl) {
 			nestedControl.focusPrimaryControl();
-			return;
+			return true;
 		}
 		const configurableControl = this.shadowRoot?.querySelector<HTMLElement>('.pieces select, .pieces input, .pieces button');
-		(configurableControl || this.shadowRoot?.querySelector<HTMLElement>('select, input, button'))?.focus();
+		const control = configurableControl || (this.lockFilterFamily ? null : this.shadowRoot?.querySelector<HTMLElement>('select, input, button'));
+		control?.focus();
+		return Boolean(control);
 	}
 
 	@property({ type : Number })
@@ -75,6 +77,14 @@ class ConfigureCollectionFilter extends LitElement {
 
 	@property({ type : Object })
 		cardTagInfos: TagInfos;
+
+	// Focused composer editors already name the selected family. Locking it
+	// removes the legacy all-filters dropdown and exposes only its useful values.
+	@property({ type : Boolean })
+		lockFilterFamily = false;
+
+	@property({ type : Boolean })
+		allowRemove = true;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -100,6 +110,16 @@ class ConfigureCollectionFilter extends LitElement {
 				flex-direction: column;
 				min-width: 0;
 				max-width: 100%;
+			}
+
+			.locked {
+				display: flex;
+				flex-direction: column;
+				gap: 0.75em;
+			}
+
+			.locked .remove-filter {
+				align-self: flex-start;
 			}
 
 			select,
@@ -128,16 +148,29 @@ class ConfigureCollectionFilter extends LitElement {
 		//TODO: handle combined normal filters e.g. `working-notes+content`
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
+		if (this.lockFilterFamily) return html`
+			<div class='main locked'>
+				${isConfigurableFilter ? this._argumentEditors() : html`<div>This filter has no additional settings.</div>`}
+				${this.allowRemove ? html`<button class='small remove-filter' @click=${this._handleRemoveWholeFilterClicked}>Remove filter</button>` : ''}
+			</div>
+		`;
 		return html`
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li class='main'>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${filterPiece}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' aria-label=${`Remove ${filterPiece} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
-			${isConfigurableFilter ? 
-		html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<label class='piece'><span>${piece.description}</span>${this._configurableFilterPart(piece, i)}</label>`)}</div>`:
+			${isConfigurableFilter ? this._argumentEditors() :
 		html`<button class='small' aria-label='Add an OR filter' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
 		</li>
 		`;
+	}
+
+	_argumentEditors() {
+		return html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<label class='piece'><span>${piece.description}</span>${this._configurableFilterPart(piece, i)}</label>`)}</div>`;
+	}
+
+	_handleRemoveWholeFilterClicked() {
+		this.dispatchEvent(makeFilterRemovedEvent(this.index));
 	}
 
 	_configurableFilterPart(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {
