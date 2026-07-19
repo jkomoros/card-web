@@ -986,6 +986,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter configures or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
 				'←→ choose clause · Delete removes · type to continue' : highlighted?.action === 'open' ?
 				'↑↓ choose · Click or Enter opens' :
+				highlighted?.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
 				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
 				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
@@ -1003,6 +1004,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const count = this._previewCounts[suggestion.id];
 		const draftCount = this._previewCounts[this._draftPreviewID];
 		const countDescription = count === undefined ? '' : `${formatCollectionCardCount(count)}${draftCount === undefined ? '' : ` · ${formatCollectionCountDelta(count, draftCount)}`}`;
+		const visibleAction = suggestion.configureFilter ? (suggestion.action === 'replace' ? 'edit' : 'configure') : suggestion.action;
 		return html`
 						<div class='suggestion'>
 							<button
@@ -1010,7 +1012,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								role='option'
 								tabindex='-1'
 								aria-selected=${index === this._highlightedSuggestion}
-								aria-label=${`${suggestion.action}: ${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
+								aria-label=${`${visibleAction}: ${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === this._highlightedSuggestion}
@@ -1019,7 +1021,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 							>
 								<div>
 									${suggestion.label}
-									<span class='suggestion-action'>${suggestion.action}</span>
+									<span class='suggestion-action'>${visibleAction}</span>
 									${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
 								</div>
 								<div class='suggestion-detail'>${suggestion.detail}</div>
@@ -1346,6 +1348,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
+		if (suggestion.configureFilter) {
+			void this._configureFilterFamily(suggestion.configureFilter);
+			return;
+		}
 		if (open) {
 			if (this._activationPending) return;
 			const alreadyActive = !suggestion.destinationPath && selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize();
@@ -1455,6 +1461,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return info ? `${family}/${info.arguments.map(argument => argument.default).join('/')}` : family;
 	}
 
+	async _configureFilterFamily(family : string) {
+		const appliedIndex = this._collectionDescription.filters.findIndex(filter => filter === family || filter.startsWith(`${family}/`));
+		if (appliedIndex >= 0) {
+			await this._handleClauseEdit(appliedIndex);
+			return;
+		}
+		this._catalogOpen = true;
+		this._builderExpanded = false;
+		this._selectedClauseIndex = -1;
+		this._clauseSelectionMessage = '';
+		this._pendingCatalogFilter = this._defaultCatalogFilter(family);
+		this._pendingCatalogChanged = this._catalogDefaultIsReady(family);
+		this._composerInput = '';
+		this._catalogHighlightedIndex = 0;
+		await this.updateComplete;
+		this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.pending-filter-editor configure-collection-filter')?.focusPrimaryControl?.();
+	}
+
 	_catalogDefaultIsReady(family : string) : boolean {
 		return ['created', 'updated', 'last-tweeted', 'author', 'limit', 'offset'].includes(family);
 	}
@@ -1467,10 +1491,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		const family = item.filter.split('/')[0];
 		if (item.configurable && item.filter === family) {
-			this._pendingCatalogFilter = this._defaultCatalogFilter(family);
-			this._pendingCatalogChanged = this._catalogDefaultIsReady(family);
-			await this.updateComplete;
-			this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.pending-filter-editor configure-collection-filter')?.focusPrimaryControl?.();
+			await this._configureFilterFamily(family);
 			return;
 		}
 		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, item.filter), `Added ${item.label}`);
@@ -1667,7 +1688,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const cachedDraftCount = draftDescription && this._draftPreviewCache?.description === draftDescription ? this._draftPreviewCache.count : undefined;
 		this._previewCounts = cachedDraftCount === undefined ? {} : {[this._draftPreviewID]: cachedDraftCount};
 		if (!this.open || !collectionComposerPreviewEnabled()) return;
-		const previewSuggestions = this._entryMode === 'source' ? [] : [...this._composerSuggestions];
+		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter);
 		if (cachedDraftCount === undefined) previewSuggestions.unshift({
 			id: this._draftPreviewID,
 			kind: 'source',

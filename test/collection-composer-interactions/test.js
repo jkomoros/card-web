@@ -373,6 +373,22 @@ describe("Collection Composer interactions", () => {
     assert.match(dialog.shadowRoot.textContent, /Added Query Inductively Knowable/);
   });
 
+  it("routes typed configurable families through guided controls before changing the draft", async () => {
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "updated";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const suggestion = Array.from(dialog.shadowRoot.querySelectorAll("[role=option]"))
+      .find((button) => button.textContent.includes("Configure Updated"));
+    assert.ok(suggestion);
+    assert.match(suggestion.textContent, /configure/i);
+    suggestion.click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+    assert.ok(dialog.shadowRoot.querySelector(".pending-filter-editor"));
+    assert.strictEqual(dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter").value, "updated/after/7-days-ago");
+  });
+
   it("supports keyboard catalog search and lets Escape back out one layer", async () => {
     Array.from(dialog.shadowRoot.querySelectorAll("button"))
       .find((button) => button.textContent.includes("Browse all filters")).click();
