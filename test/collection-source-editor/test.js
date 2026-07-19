@@ -113,6 +113,13 @@ describe("lossless collection source editor", () => {
     assert.strictEqual(parse("exclude/query/encoded%20text/").status, "valid");
   });
 
+  it("searches the full filter vocabulary inside nested expressions", () => {
+    const result = parse("exclude/working-n/");
+    assert.strictEqual(result.status, "unsupported");
+    assert.strictEqual(result.diagnostics[0].code, "unknown-nested-filter");
+    assert.ok(result.diagnostics[0].expected.includes("working-notes"));
+  });
+
   it("requires /c for app-relative routes and canonicalizes only the destination", () => {
     assert.strictEqual(parse("/everything/starred/").status, "invalid");
     const result = parse("everything/unread/starred/");

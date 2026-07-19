@@ -132,7 +132,11 @@ export const parseCollectionSource = (
 		if (!CONFIGURABLE_FILTER_NAMES[name]) {
 			for (const member of name.split('+')) {
 				if (!member || !context.ordinaryFilters.has(member)) {
-					diagnose('unsupported', 'unknown-nested-filter', `This app does not know the nested “${member || name}” filter.`, diagnosticSegment);
+					const search = member.toLowerCase();
+					const expected = allRootTokens.filter(token => token !== 'sort' && token !== 'view' && !SET_NAMES.includes(token as never) &&
+						(token.toLowerCase().startsWith(search) ||
+							(context.filterSearchValues?.[token] || []).some(value => value.toLowerCase().includes(search)))).slice(0, 12);
+					diagnose('unsupported', 'unknown-nested-filter', `This app does not know the nested “${member || name}” filter.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails);
 				}
 			}
 			return start + 1;
