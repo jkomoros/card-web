@@ -407,7 +407,12 @@ describe("Collection Composer interactions", () => {
     const add = Array.from(dialog.shadowRoot.querySelectorAll(".pending-filter-actions button"))
       .find((button) => button.textContent.includes("Add configured filter"));
     assert.strictEqual(add.disabled, false);
-    assert.strictEqual(dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter").value, "updated/after/7-days-ago");
+    const pending = dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter");
+    assert.strictEqual(pending.value, "updated/after/7-days-ago");
+    const dateControl = pending.shadowRoot.querySelector("configure-collection-date");
+    await dateControl.updateComplete;
+    assert.match(dateControl.shadowRoot.textContent, /Rolling date/);
+    assert.match(dateControl.shadowRoot.textContent, /A time ago/);
     add.click();
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["updated/after/7-days-ago"]);
@@ -440,6 +445,32 @@ describe("Collection Composer interactions", () => {
     const add = Array.from(dialog.shadowRoot.querySelectorAll(".pending-filter-actions button"))
       .find((button) => button.textContent.includes("Add configured filter"));
     assert.strictEqual(add.disabled, false);
+  });
+
+  it("shows contributor names while preserving durable author IDs", async () => {
+    dialog._userIDs = ["alex-uid", "sam-uid"];
+    dialog._userInfos = {
+      "alex-uid": { id: "alex-uid", title: "Alex Komoroske" },
+      "sam-uid": { id: "sam-uid", title: "Sam Example" },
+    };
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "author";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    dialog.shadowRoot.querySelector("[data-filter='author']").click();
+    await dialog.updateComplete;
+    const pending = dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter");
+    const authorSelect = pending.shadowRoot.querySelector(".pieces select");
+    assert.match(authorSelect.textContent, /Me/);
+    assert.match(authorSelect.textContent, /Alex Komoroske/);
+    assert.match(authorSelect.textContent, /Sam Example/);
+    authorSelect.value = "sam-uid";
+    authorSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(pending.value, "author/sam-uid");
   });
 
   it("edits setup and applied catalog items through the same visual surface", async () => {

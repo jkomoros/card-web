@@ -76,6 +76,9 @@ class ConfigureCollectionFilter extends LitElement {
 		userIDs: Uid[];
 
 	@property({ type : Object })
+		userInfos: TagInfos;
+
+	@property({ type : Object })
 		cardTagInfos: TagInfos;
 
 	// Focused composer editors already name the selected family. Locking it
@@ -183,9 +186,9 @@ class ConfigureCollectionFilter extends LitElement {
 		case 'key-card':
 			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-key-card>`;
 		case 'user-id':
-			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
+			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item === ME_AUTHOR_ID ? 'Me' : (this.userInfos?.[item]?.title || item)}</option>`)}</select>`;
 		case 'reference-type':
-			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
+			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[1].name}</option>`)}</select>`;
 		default:
 			return html`<input aria-label=${piece.description} type=${piece.controlType == 'int' ? 'number' : 'text'} min='0' step=${piece.controlType == 'float' ? 0.0001 : 1} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 		}
