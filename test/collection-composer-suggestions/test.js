@@ -430,7 +430,7 @@ describe("Collection Composer suggestions", () => {
     );
   });
 
-  it("constructs configurable filters with visible editable defaults", () => {
+  it("marks configurable families for guided editing before commitment", () => {
     const current = CollectionDescription.deserialize("everything/");
     const [suggestion] = collectionComposerSuggestions(
       current,
@@ -438,7 +438,9 @@ describe("Collection Composer suggestions", () => {
       descriptions
     );
     assert.match(suggestion.description.filters[0], /^updated\//);
-    assert.match(suggestion.detail, /editable default/);
+    assert.strictEqual(suggestion.configureFilter, "updated");
+    assert.strictEqual(suggestion.label, "Configure Updated");
+    assert.match(suggestion.detail, /choose its values before changing the draft/);
   });
 
   it("accepts fragments, routes, and full URLs as collection source", () => {

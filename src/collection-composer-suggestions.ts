@@ -28,6 +28,7 @@ export type CollectionComposerSuggestion = {
   detail: string;
   description: CollectionDescription;
   destinationPath?: string;
+  configureFilter?: string;
 };
 
 export type CollectionComposerCandidate = {
@@ -431,9 +432,10 @@ export const collectionComposerSuggestions = (
         id: `filter:${filter}`,
         kind: "add",
         action: existingConfigurable ? "replace" : "add",
-        label: `${existingConfigurable ? "Reset" : "Add"} ${humanize(name)}`,
-        detail: configurable ? `${detail} · starts with an editable default` : detail,
+        label: configurable ? `${existingConfigurable ? "Edit" : "Configure"} ${humanize(name)}` : `Add ${humanize(name)}`,
+        detail: configurable ? `${detail} · choose its values before changing the draft` : detail,
         description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
+        configureFilter: configurable ? name : undefined,
       };
     }
     const destination = suggestion.description.serialize();
