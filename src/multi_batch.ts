@@ -94,7 +94,7 @@ const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT 
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
 export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
-	constructor(db : Firestore) {
+	constructor(db : Firestore, batchID? : string) {
 		super({
 			createBatch: () => writeBatch(db),
 			batchSet: (batch, ref, data, options?) => batch.set(ref, data, (options as SetOptions) || {}),
@@ -113,7 +113,7 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				refPath: (ref : DocumentReference) => ref.path,
 				isServerTimestampValue: (value : unknown) => isServerTimestampSentinel(value as FirestoreLeafValue),
 			},
-		}, EFFECTIVE_BATCH_LIMIT);
+		}, EFFECTIVE_BATCH_LIMIT, batchID);
 	}
 
 	override async commit() : Promise<void> {

@@ -10,6 +10,7 @@ import {
 	MODIFY_CARD,
 	MODIFY_CARD_SUCCESS,
 	MODIFY_CARD_FAILURE,
+	BULK_TAG_OPERATION_PROGRESS,
 	REORDER_STATUS,
 	EXPECT_NEW_CARD,
 	EXPECTED_NEW_CARD_FAILED,
@@ -94,6 +95,7 @@ const INITIAL_STATE : DataState = {
 	cardModificationError: null,
 	pendingModifications: false,
 	pendingModificationCount: 0,
+	bulkTagOperationProgress: null,
 	pendingNewCardID: '',
 	pendingNewCardType: 'content',
 	pendingNewCardIDToNavigateTo: '',
@@ -249,6 +251,18 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			pendingModificationCount: action.modificationCount,
 			cardModificationError: null,
 		}; 
+	case BULK_TAG_OPERATION_PROGRESS:
+		return {
+			...state,
+			bulkTagOperationProgress: {
+				total: action.total,
+				completed: action.completed,
+				tag: action.tag,
+				adding: action.adding,
+				description: action.description,
+				serverConfirmed: action.serverConfirmed,
+			},
+		};
 	case MODIFY_CARD_SUCCESS:
 		return {
 			...state,
@@ -262,12 +276,14 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			//planned count and every subsequent listener delivery froze in
 			//the queue.
 			pendingModificationCount: 0,
+			bulkTagOperationProgress: null,
 		};
 	case MODIFY_CARD_FAILURE:
 		return {
 			...state,
 			pendingModifications: false,
 			pendingModificationCount: 0,
+			bulkTagOperationProgress: null,
 			cardModificationError: action.error
 		};
 	case REORDER_STATUS:

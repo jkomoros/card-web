@@ -268,6 +268,15 @@ after(async () => {
 });
 
 describe('Compendium Rules', () => {
+	it('allows a user to read and write only their own multi-edit chunk markers', async() => {
+		const bobDB = authedApp(bobAuth);
+		const own = bobDB.collection(USERS_COLLECTION).doc(bobUid).collection('multi_edit_chunks').doc('chunk');
+		await firebase.assertSucceeds(own.set({next_index: 10}));
+		await firebase.assertSucceeds(own.get());
+		const other = bobDB.collection(USERS_COLLECTION).doc(sallyUid).collection('multi_edit_chunks').doc('chunk');
+		await firebase.assertFails(other.set({next_index: 10}));
+		await firebase.assertFails(other.get());
+	});
 	it('allows anyone to read a published card', async () => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);

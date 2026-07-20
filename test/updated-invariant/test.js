@@ -669,6 +669,28 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 		assert.strictEqual(maximumActive, MULTI_BATCH_COMMIT_CONCURRENCY);
 	});
 
+	it('allows callers to serialize conflict-prone underlying commits', async () => {
+		let active = 0;
+		let maximumActive = 0;
+		const config = {
+			createBatch: () => ({}),
+			batchSet: () => {},
+			batchUpdate: () => {},
+			batchDelete: () => {},
+			commitConcurrency: 1,
+			commitBatch: async () => {
+				active++;
+				maximumActive = Math.max(maximumActive, active);
+				await new Promise(resolve => setTimeout(resolve, 2));
+				active--;
+			},
+		};
+		const batch = new MultiBatchBase(config, 1);
+		for (let i = 0; i < 4; i++) batch.update(ref(`sections/${i}`), {});
+		await batch.commit();
+		assert.strictEqual(maximumActive, 1);
+	});
+
 	it('reports card-group membership for successful and failed split batches', async () => {
 		let commitIndex = 0;
 		const config = {

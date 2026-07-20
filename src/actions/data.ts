@@ -23,6 +23,7 @@ import {
 	collection,
 	arrayUnion,
 	arrayRemove,
+	deleteField,
 	serverTimestamp,
 	Timestamp
 } from 'firebase/firestore';
@@ -34,7 +35,8 @@ import {
 } from './app.js';
 
 import {
-	closeMultiEditDialog
+	closeMultiEditDialog,
+	openMultiEditDialog,
 } from './multiedit.js';
 
 import {
@@ -224,6 +226,7 @@ import {
 	MODIFY_CARD,
 	MODIFY_CARD_FAILURE,
 	MODIFY_CARD_SUCCESS,
+	BULK_TAG_OPERATION_PROGRESS,
 	NAVIGATED_TO_NEW_CARD,
 	REMOVE_CARDS,
 	REORDER_STATUS,
@@ -288,6 +291,462 @@ export const modifyCard = (card : Card, update : CardDiff, substantive = false) 
 export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) => {
 	const updates = Object.fromEntries(cards.map(card => [card.id, update]));
 	return modifyCardsIndividually(cards, updates, substantive, failOnError);
+};
+
+// Large label sweeps are the common multi-edit case and need stronger
+// guarantees than a best-effort collection of independent Firestore batches.
+// Persist the immutable intent locally before the first write, then commit
+// small, idempotent chunks. A reload or ownership transfer on this browser can
+// safely retry any chunk whose acknowledgement was lost.
+const BULK_TAG_OPERATION_STORAGE_KEY = 'card-web-pending-bulk-tag-operation-v1';
+const DURABLE_MULTI_EDIT_STORAGE_KEY = 'card-web-pending-multi-edit-v1';
+// 30 cards cost ~184 effective operations. This remains atomic even when the
+// SDK sentinel detector fails closed to MultiBatch's supported 249-op limit.
+// Non-admin rules can spend one access call/card, so use an even smaller chunk.
+const BULK_TAG_ADMIN_CHUNK_SIZE = 40;
+const BULK_TAG_EDITOR_CHUNK_SIZE = 15;
+
+type BulkTagOperation = {
+	version: 1,
+	id: string,
+	uid: string,
+	tag: TagID,
+	adding: boolean,
+	targetIDs: CardID[],
+	nextIndex: number,
+};
+
+let bulkTagOperationRunning = false;
+let bulkTagResumeAttemptedThisPage = false;
+
+const readBulkTagOperation = () : BulkTagOperation | null => {
+	if (typeof localStorage === 'undefined') return null;
+	const raw = localStorage.getItem(BULK_TAG_OPERATION_STORAGE_KEY);
+	if (!raw) return null;
+	try {
+		const value = JSON.parse(raw) as BulkTagOperation;
+		if (value.version !== 1 || !value.id || !value.uid || !value.tag ||
+			typeof value.adding !== 'boolean' || !Array.isArray(value.targetIDs) ||
+			!Number.isInteger(value.nextIndex) || value.nextIndex < 0 || value.nextIndex > value.targetIDs.length ||
+			value.targetIDs.some(id => typeof id !== 'string' || !id) ||
+			new Set(value.targetIDs).size !== value.targetIDs.length) throw new Error('invalid shape');
+		return value;
+	} catch (err) {
+		throw new Error(`The saved bulk-label operation is corrupt and was not discarded: ${err}`);
+	}
+};
+
+const persistBulkTagOperation = (operation : BulkTagOperation) => {
+	if (typeof localStorage === 'undefined') throw new Error('Bulk label edits require durable browser storage');
+	localStorage.setItem(BULK_TAG_OPERATION_STORAGE_KEY, JSON.stringify(operation));
+};
+
+const clearBulkTagOperation = () => {
+	if (typeof localStorage !== 'undefined') localStorage.removeItem(BULK_TAG_OPERATION_STORAGE_KEY);
+};
+
+const bulkTagProgressAction = (operation : BulkTagOperation) : SomeAction => ({
+	type: BULK_TAG_OPERATION_PROGRESS,
+	total: operation.targetIDs.length,
+	completed: operation.nextIndex,
+	tag: operation.tag,
+	adding: operation.adding,
+	description: `${operation.adding ? 'Adding' : 'Removing'} “${operation.tag}”`,
+	serverConfirmed: true,
+});
+
+export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean) : ThunkSomeAction => async (dispatch, getState) => {
+	if (bulkTagOperationRunning) return;
+	bulkTagOperationRunning = true;
+	bulkTagResumeAttemptedThisPage = true;
+	let operation : BulkTagOperation | null = null;
+	try {
+		const state = getState();
+		const uid = selectUid(state);
+		if (!uid) throw new Error('You must be signed in to modify labels');
+		operation = readBulkTagOperation();
+		let checkingServerMarker = Boolean(operation);
+		if (!operation && readDurableMultiEdit()) throw new Error('Finish the pending multi-edit before starting another operation');
+		if (operation && operation.uid !== uid) {
+			throw new Error('A bulk-label operation from another account is pending in this browser. Sign back into that account to finish it.');
+		}
+		if (!operation) {
+			dispatch(modifyCardAction(cards.length));
+			operation = {
+				version: 1,
+				id: `bulk-tag-${Date.now()}-${newID()}`,
+				uid,
+				tag,
+				adding,
+				targetIDs: cards.map(card => card.id),
+				nextIndex: 0,
+			};
+			// This is the write-ahead record: no server mutation may happen first.
+			persistBulkTagOperation(operation);
+		} else if (operation.tag !== tag || operation.adding !== adding) {
+			throw new Error(`Finish the pending ${operation.adding ? 'add' : 'remove'} “${operation.tag}” operation before starting another bulk edit.`);
+		}
+		if (!operation.targetIDs.length) {
+			clearBulkTagOperation();
+			dispatch(modifyCardAction(0));
+			dispatch(modifyCardSuccess(0));
+			return;
+		}
+
+		dispatch(modifyCardAction(operation.targetIDs.length));
+		dispatch(bulkTagProgressAction(operation));
+		const remaining = operation.targetIDs.slice(operation.nextIndex);
+		const chunkSize = selectUserIsAdmin(getState()) ? BULK_TAG_ADMIN_CHUNK_SIZE : BULK_TAG_EDITOR_CHUNK_SIZE;
+		let tagPreflightComplete = false;
+		for (let offset = 0; offset < remaining.length; offset += chunkSize) {
+			const chunkIDs = remaining.slice(offset, offset + chunkSize);
+			const chunkStart = operation.nextIndex;
+			const markerRef = doc(db, 'users', operation.uid, 'multi_edit_chunks', `${operation.id}-${chunkStart}`);
+			if (checkingServerMarker) {
+				const marker = await getDocFromServer(markerRef);
+				checkingServerMarker = false;
+				if (marker.exists() && marker.data().operation_id === operation.id &&
+					marker.data().next_index === chunkStart + chunkIDs.length) {
+					operation.nextIndex += chunkIDs.length;
+					persistBulkTagOperation(operation);
+					dispatch(bulkTagProgressAction(operation));
+					continue;
+				}
+			}
+			// Check completion first. A chunk may have committed before this tab
+			// lost its acknowledgement; a later label deletion or permission
+			// change must not prevent us from recognizing that durable marker.
+			if (!tagPreflightComplete) {
+				const tagSnapshot = await getDocFromServer(doc(db, TAGS_COLLECTION, operation.tag));
+				if (!tagSnapshot.exists()) throw new Error(`The “${operation.tag}” label no longer exists`);
+				if (!getUserMayEditTag(getState(), operation.tag)) throw new Error(`You do not have permission to edit the “${operation.tag}” label`);
+				tagPreflightComplete = true;
+			}
+			const currentState = getState();
+			if (selectUid(currentState) !== operation.uid) throw new Error('Account changed while the bulk-label operation was running');
+			const rawCards = selectRawCards(currentState);
+			const chunkCards = chunkIDs.map(id => rawCards[id]);
+			const missingIDs = chunkIDs.filter((_, index) => !chunkCards[index]);
+			if (missingIDs.length) throw new Error(`Cannot safely continue: ${missingIDs.length} target cards are not loaded (${missingIDs.slice(0, 3).join(', ')}${missingIDs.length > 3 ? ', …' : ''})`);
+
+			const batch = new MultiBatch(db);
+			batch.beginAtomicGroup(`${operation.id}-${offset}`);
+			for (const card of chunkCards as Card[]) {
+				if (!selectCardIDsUserMayEdit(currentState)[card.id]) throw new Error(`You no longer have permission to edit ${card.id}`);
+				const diff : CardDiff = adding ? {add_tags: [operation.tag]} : {remove_tags: [operation.tag]};
+				const updateObject = {
+					...diff,
+					batch: operation.id,
+					substantive: false,
+					timestamp: serverTimestamp(),
+				};
+				const cardUpdateObject = {
+					tags: adding ? arrayUnion(operation.tag) : arrayRemove(operation.tag),
+					updated: serverTimestamp(),
+				};
+				const cardRef = doc(db, CARDS_COLLECTION, card.id);
+				batch.set(doc(cardRef, CARD_UPDATES_COLLECTION, `${operation.id}-${card.id}`), updateObject);
+				batch.update(cardRef, cardUpdateObject);
+				const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
+				batch.set(doc(tagRef, TAG_UPDATES_COLLECTION, `${operation.id}-${card.id}`), adding ? {
+					timestamp: serverTimestamp(), add_card: card.id,
+				} : {
+					timestamp: serverTimestamp(), remove_card: card.id,
+				});
+			}
+			const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
+			batch.update(tagRef, {
+				cards: adding ? arrayUnion(...chunkIDs) : arrayRemove(...chunkIDs),
+				updated: serverTimestamp(),
+			});
+			ensureAuthor(batch, selectUser(currentState) as UserInfo);
+			batch.set(markerRef, {
+				operation_id: operation.id,
+				next_index: chunkStart + chunkIDs.length,
+				updated: serverTimestamp(),
+			});
+			batch.endAtomicGroup();
+			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next bulk-label chunk could commit');
+			await batch.commit();
+
+			operation.nextIndex += chunkIDs.length;
+			persistBulkTagOperation(operation);
+			dispatch(bulkTagProgressAction(operation));
+		}
+
+		clearBulkTagOperation();
+		const total = operation.targetIDs.length;
+		if (total > 1) alert(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.`);
+		dispatch(modifyCardSuccess(total));
+	} catch (err) {
+		const error = err instanceof Error ? err : new Error(String(err));
+		const completed = operation?.nextIndex || 0;
+		const total = operation?.targetIDs.length || 0;
+		const detail = total ? ` ${completed} of ${total} cards are server-confirmed; ${total - completed} remain safely retryable.` : '';
+		dispatch(modifyCardFailure(new Error(`Bulk-label save paused.${detail} ${error.message}`)));
+		const enqueuedUpdates = selectEnqueuedCards(getState());
+		if (Object.values(enqueuedUpdates).some(cards => Object.keys(cards).length)) dispatch(updateEnqueuedCards());
+		if (operation) dispatch(bulkTagProgressAction(operation));
+	} finally {
+		bulkTagOperationRunning = false;
+	}
+};
+
+const resumePendingBulkTagOperation = () : ThunkSomeAction => async (dispatch, getState) => {
+	if (bulkTagResumeAttemptedThisPage || bulkTagOperationRunning || !selectDataIsFullyLoaded(getState())) return;
+	try {
+		const operation = readBulkTagOperation();
+		if (!operation) {
+			await dispatch(resumePendingDurableMultiEdit());
+			return;
+		}
+		if (operation.uid !== selectUid(getState())) return;
+		bulkTagResumeAttemptedThisPage = true;
+		dispatch(openMultiEditDialog());
+		const rawCards = selectRawCards(getState());
+		await dispatch(modifyCardsWithDurableTagOperation(
+			operation.targetIDs.map(id => rawCards[id]).filter((card): card is Card => Boolean(card)),
+			operation.tag,
+			operation.adding,
+		));
+	} catch (err) {
+		bulkTagResumeAttemptedThisPage = true;
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+	}
+};
+
+export const retryPendingBulkTagOperation = () : ThunkSomeAction => async (dispatch, getState) => {
+	if (bulkTagOperationRunning) return;
+	let operation : BulkTagOperation | null;
+	try {
+		const pending = readBulkTagOperation();
+		if (!pending) {
+			await dispatch(resumePendingDurableMultiEdit(true));
+			return;
+		}
+		operation = pending;
+	} catch (err) {
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		return;
+	}
+	const rawCards = selectRawCards(getState());
+	await dispatch(modifyCardsWithDurableTagOperation(
+		operation.targetIDs.map(id => rawCards[id]).filter((card): card is Card => Boolean(card)),
+		operation.tag,
+		operation.adding,
+	));
+};
+
+export const abandonPendingBulkTagOperation = () : ThunkSomeAction => (dispatch) => {
+	const operation = readBulkTagOperation();
+	if (!operation) {
+		const generic = readDurableMultiEdit();
+		if (!generic) return;
+		const remaining = generic.targetIDs.length - generic.nextIndex;
+		if (!confirm(`Stop this operation? ${generic.nextIndex} cards were processed safely and this operation will not attempt the remaining ${remaining}. This cannot undo confirmed changes.`)) return;
+		clearDurableMultiEdit();
+		dispatch(modifyCardSuccess(0));
+		return;
+	}
+	const remaining = operation.targetIDs.length - operation.nextIndex;
+	if (!confirm(`Stop this operation? ${operation.nextIndex} cards are server-confirmed and ${remaining} will be left unchanged. This cannot undo the confirmed changes.`)) return;
+	clearBulkTagOperation();
+	dispatch(modifyCardSuccess(0));
+};
+
+type DurableMultiEdit = {
+	version: 1,
+	id: string,
+	uid: string,
+	targetIDs: CardID[],
+	nextIndex: number,
+	modifiedCount: number,
+	update: CardDiff,
+};
+
+let durableMultiEditRunning = false;
+
+const readDurableMultiEdit = () : DurableMultiEdit | null => {
+	if (typeof localStorage === 'undefined') return null;
+	const raw = localStorage.getItem(DURABLE_MULTI_EDIT_STORAGE_KEY);
+	if (!raw) return null;
+	try {
+		const value = JSON.parse(raw) as DurableMultiEdit;
+		if (value.version !== 1 || !value.id || !value.uid || !Array.isArray(value.targetIDs) ||
+			!Number.isInteger(value.nextIndex) || value.nextIndex < 0 || value.nextIndex > value.targetIDs.length ||
+			!Number.isInteger(value.modifiedCount) || value.modifiedCount < 0 || value.modifiedCount > value.nextIndex ||
+			!value.update || typeof value.update !== 'object' || Array.isArray(value.update) ||
+			value.targetIDs.some(id => typeof id !== 'string' || !id) || new Set(value.targetIDs).size !== value.targetIDs.length) {
+			throw new Error('invalid shape');
+		}
+		return value;
+	} catch (err) {
+		throw new Error(`The saved multi-edit operation is corrupt and was not discarded: ${err}`);
+	}
+};
+
+const persistDurableMultiEdit = (operation : DurableMultiEdit) => {
+	if (typeof localStorage === 'undefined') throw new Error('Multi-edit requires browser storage');
+	localStorage.setItem(DURABLE_MULTI_EDIT_STORAGE_KEY, JSON.stringify(operation));
+};
+
+const clearDurableMultiEdit = () => {
+	if (typeof localStorage !== 'undefined') localStorage.removeItem(DURABLE_MULTI_EDIT_STORAGE_KEY);
+};
+
+const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => ({
+	type: BULK_TAG_OPERATION_PROGRESS,
+	total: operation.targetIDs.length,
+	completed: operation.nextIndex,
+	tag: '',
+	adding: true,
+	description: 'Saving multi-edit',
+	serverConfirmed: false,
+});
+
+export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff) : ThunkSomeAction => async (dispatch, getState) => {
+	if (durableMultiEditRunning || bulkTagOperationRunning) return;
+	durableMultiEditRunning = true;
+	let operation : DurableMultiEdit | null = null;
+	try {
+		const uid = selectUid(getState());
+		if (!uid) throw new Error('You must be signed in to modify cards');
+		if (readBulkTagOperation()) throw new Error('Finish the pending label operation before starting another multi-edit');
+		operation = readDurableMultiEdit();
+		let checkingServerMarker = Boolean(operation);
+		if (operation && operation.uid !== uid) throw new Error('A multi-edit from another account is pending in this browser');
+		if (!operation) {
+			dispatch(modifyCardAction(cards.length));
+			const targetIDs = cards.map(card => card.id);
+			operation = {version: 1, id: `multi-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update};
+			persistDurableMultiEdit(operation);
+		} else if (JSON.stringify(operation.update) !== JSON.stringify(update) ||
+			JSON.stringify(operation.targetIDs) !== JSON.stringify(cards.map(card => card.id))) {
+			throw new Error('A different multi-edit is already pending. Retry or stop that saved operation first.');
+		}
+		dispatch(modifyCardAction(operation.targetIDs.length));
+		dispatch(durableMultiEditProgress(operation));
+
+		while (operation.nextIndex < operation.targetIDs.length) {
+			const chunkStart = operation.nextIndex;
+			const markerRef = doc(db, 'users', operation.uid, 'multi_edit_chunks', `${operation.id}-${chunkStart}`);
+			if (checkingServerMarker) {
+				const marker = await getDocFromServer(markerRef);
+				checkingServerMarker = false;
+				const markerNextIndex = marker.data()?.next_index;
+				const markerModifiedCount = marker.data()?.modified_count;
+				if (marker.exists() && marker.data().operation_id === operation.id &&
+					Number.isInteger(markerNextIndex) && markerNextIndex > chunkStart && markerNextIndex <= operation.targetIDs.length &&
+					Number.isInteger(markerModifiedCount) && markerModifiedCount >= 0 && markerModifiedCount <= markerNextIndex - chunkStart) {
+					operation.nextIndex = markerNextIndex;
+					operation.modifiedCount += markerModifiedCount;
+					persistDurableMultiEdit(operation);
+					dispatch(durableMultiEditProgress(operation));
+					continue;
+				}
+			}
+			let candidateSize = Math.min(selectUserIsAdmin(getState()) ? 20 : 10, operation.targetIDs.length - operation.nextIndex);
+			let batch : MultiBatch | null = null;
+			let chunkIDs : CardID[] = [];
+			let modifiedCount = 0;
+			while (candidateSize >= 1) {
+				chunkIDs = operation.targetIDs.slice(operation.nextIndex, operation.nextIndex + candidateSize);
+				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
+				if (authoritative.failedIDs.length || authoritative.removedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length + authoritative.removedIDs.length} target cards`);
+				const state = getState();
+				batch = new MultiBatch(db, `${operation.id}-${operation.nextIndex}`);
+				modifiedCount = 0;
+				for (const id of chunkIDs) {
+					batch.beginAtomicGroup(id);
+					const modified = await modifyCardWithBatch(state, authoritative.cards[id], operation.update, false, batch, undefined, undefined, false, true);
+					if (modified) {
+						batch.endAtomicGroup();
+						modifiedCount++;
+					} else {
+						batch.abortAtomicGroup();
+					}
+				}
+				if (modifiedCount) {
+					batch.beginAtomicGroup();
+					ensureAuthor(batch, selectUser(state) as UserInfo);
+					batch.endAtomicGroup();
+				}
+				batch.beginAtomicGroup();
+				batch.set(markerRef, {
+					operation_id: operation.id,
+					next_index: chunkStart + chunkIDs.length,
+					modified_count: modifiedCount,
+					updated: serverTimestamp(),
+				});
+				batch.endAtomicGroup();
+				if (batch.pendingUnderlyingBatchCount <= 1) break;
+				if (candidateSize === 1) throw new Error(`The edit to ${chunkIDs[0]} exceeds Firestore's atomic batch limit`);
+				candidateSize = Math.max(1, Math.floor(candidateSize / 2));
+			}
+			if (!batch) throw new Error('Could not prepare a safe multi-edit batch');
+			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next multi-edit chunk could commit');
+			await batch.commit();
+			operation.nextIndex += chunkIDs.length;
+			operation.modifiedCount += modifiedCount;
+			persistDurableMultiEdit(operation);
+			dispatch(durableMultiEditProgress(operation));
+		}
+		clearDurableMultiEdit();
+		if (operation.targetIDs.length > 1) alert(`${operation.modifiedCount} cards modified.${operation.targetIDs.length - operation.modifiedCount ? ` ${operation.targetIDs.length - operation.modifiedCount} already matched.` : ''}`);
+		dispatch(modifyCardSuccess(operation.modifiedCount));
+	} catch (err) {
+		const error = err instanceof Error ? err : new Error(String(err));
+		const completed = operation?.nextIndex || 0;
+		const total = operation?.targetIDs.length || 0;
+		dispatch(modifyCardFailure(new Error(`Multi-edit paused. ${completed} of ${total} cards were processed safely; ${total - completed} remain retryable. ${error.message}`), true));
+		const enqueued = selectEnqueuedCards(getState());
+		if (Object.values(enqueued).some(group => Object.keys(group).length)) dispatch(updateEnqueuedCards());
+		if (operation) dispatch(durableMultiEditProgress(operation));
+	} finally {
+		durableMultiEditRunning = false;
+	}
+};
+
+const resumePendingDurableMultiEdit = (force = false) : ThunkSomeAction => async (dispatch, getState) => {
+	if (durableMultiEditRunning || bulkTagOperationRunning || (!force && !selectDataIsFullyLoaded(getState()))) return;
+	try {
+		const operation = readDurableMultiEdit();
+		if (!operation || operation.uid !== selectUid(getState())) return;
+		dispatch(openMultiEditDialog());
+		const raw = selectRawCards(getState());
+		await dispatch(modifyCardsWithDurableMultiEdit(operation.targetIDs.map(id => raw[id]).filter((card): card is Card => Boolean(card)), operation.update));
+	} catch (err) {
+		const error = err instanceof Error ? err : new Error(String(err));
+		if (/corrupt/.test(error.message) && confirm(`${error.message}\n\nDiscard this unreadable saved operation? This may leave already-completed changes in place.`)) {
+			clearDurableMultiEdit();
+			return;
+		}
+		dispatch(modifyCardFailure(error));
+	}
+};
+
+// Resume from the readiness transition itself; card delivery is not
+// necessarily the last thing that makes the corpus ready (tags, permissions,
+// or sections may arrive later). Also retry a paused transient failure when
+// this browser comes back online.
+let bulkTagResumeWatcherInstalled = false;
+export const installBulkTagResumeWatcher = () => {
+	if (bulkTagResumeWatcherInstalled) return;
+	bulkTagResumeWatcherInstalled = true;
+	let readinessWasLive = selectDataIsFullyLoaded(store.getState() as State);
+	const scheduleResume = () => setTimeout(() => {
+		void store.dispatch(resumePendingBulkTagOperation());
+	}, 0);
+	store.subscribe(() => {
+		const ready = selectDataIsFullyLoaded(store.getState() as State);
+		if (ready && !readinessWasLive) scheduleResume();
+		readinessWasLive = ready;
+	});
+	if (readinessWasLive) scheduleResume();
+	window.addEventListener('online', () => {
+		bulkTagResumeAttemptedThisPage = false;
+		scheduleResume();
+	});
 };
 
 //Bound one-document server reads so a failed very-large multi-edit doesn't
@@ -544,7 +1003,7 @@ const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAu
 //provided, the locally-materialized post-write cards (the modified card plus
 //any cards whose inbound links changed) are accumulated into it, so callers
 //can apply them without waiting for the server echo.
-export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards, ensureAuthorForCard = true) : Promise<boolean> => {
+export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards, ensureAuthorForCard = true, explicitFieldsOnly = false) : Promise<boolean> => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -561,7 +1020,18 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	}
 
 	//This is where cardFinishers and fontSizeBoosts are actually applied.
-	const update = await generateFinalCardDiff(state, card, rawUpdate);
+	let update = await generateFinalCardDiff(state, card, rawUpdate);
+	// A dialog multi-edit promises to touch only the fields the user selected.
+	// Card-type finishers are still run for validation/no-op normalization, but
+	// derived edits to unrelated fields (notably working-notes/quote titles)
+	// must not leak into a label, TODO, reference, or publication operation.
+	if (explicitFieldsOnly) {
+		update = Object.fromEntries(TypedObject.entries(update).filter(([field]) => field in rawUpdate)) as CardDiff;
+	}
+	//Finalization removes redundant set-like changes (for example, adding a
+	//tag the card already has). Do not create audit entries or bump `updated`
+	//for a true no-op.
+	if (!cardDiffHasChanges(update)) return false;
 
 	const updateObject = {
 		...update,
@@ -574,6 +1044,20 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	const sectionUpdated = validateCardDiff(state, card, update);
 
 	const cardUpdateObject = applyCardDiff(card, update);
+	// Preserve unrelated concurrent set/map edits. The generic diff materializer
+	// normally emits the complete tags array / TODO override map; multi-edit
+	// intentions are safely expressible as Firestore transforms and dotted
+	// fields. Mixed tag removals/additions are emitted as two ordered writes in
+	// the same atomic batch below, rather than replacing the whole array.
+	const hasMixedTagChanges = Boolean(update.add_tags?.length && update.remove_tags?.length);
+	if (update.add_tags?.length && !update.remove_tags?.length) cardUpdateObject.tags = arrayUnion(...update.add_tags);
+	if (update.remove_tags?.length && !update.add_tags?.length) cardUpdateObject.tags = arrayRemove(...update.remove_tags);
+	if (update.auto_todo_overrides_enablements?.length || update.auto_todo_overrides_disablements?.length || update.auto_todo_overrides_removals?.length) {
+		delete cardUpdateObject.auto_todo_overrides;
+		for (const todo of update.auto_todo_overrides_enablements || []) cardUpdateObject[`auto_todo_overrides.${todo}`] = true;
+		for (const todo of update.auto_todo_overrides_disablements || []) cardUpdateObject[`auto_todo_overrides.${todo}`] = false;
+		for (const todo of update.auto_todo_overrides_removals || []) cardUpdateObject[`auto_todo_overrides.${todo}`] = deleteField();
+	}
 	cardUpdateObject.updated = serverTimestamp();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
 
@@ -583,8 +1067,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 			update.commentary !== undefined ||
 			update.subtitle !== undefined ||
 			update.title_alternates !== undefined ||
-			update.external_link !== undefined ||
-			update.references_diff !== undefined;
+			update.external_link !== undefined;
 
 	if (contentFieldsChanged) {
 		//Create a temporary updated card for NLP processing
@@ -649,10 +1132,20 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 
 	const cardRef = doc(db, CARDS_COLLECTION, card.id);
 
-	const updateRef = doc(cardRef, CARD_UPDATES_COLLECTION, '' + Date.now());
+	const updateRef = doc(cardRef, CARD_UPDATES_COLLECTION, `${batch.batchID}-${card.id}`);
 
 	batch.set(updateRef, updateObject);
-	batch.update(cardRef, cardUpdateObject);
+	if (hasMixedTagChanges) {
+		// Keep cardUpdateObject intact for the materialized local/worker card
+		// above, but never send its stale complete tags array to Firestore.
+		const cardWriteObject = {...cardUpdateObject};
+		delete cardWriteObject.tags;
+		batch.update(cardRef, cardWriteObject);
+		batch.update(cardRef, {tags: arrayRemove(...(update.remove_tags || [])), updated: serverTimestamp()});
+		batch.update(cardRef, {tags: arrayUnion(...(update.add_tags || [])), updated: serverTimestamp()});
+	} else {
+		batch.update(cardRef, cardUpdateObject);
+	}
 
 	for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
 		const ref = doc(db, CARDS_COLLECTION, otherCardID);
@@ -666,7 +1159,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		const newSection = cardUpdateObject.section;
 		if (newSection) {
 			const newSectionRef = doc(db, SECTIONS_COLLECTION, newSection);
-			const newSectionUpdateRef = doc(newSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
+			const newSectionUpdateRef = doc(newSectionRef, SECTION_UPDATES_COLLECTION, `${batch.batchID}-${card.id}-add`);
 			const newSectionObject = {
 				cards: arrayUnion(card.id),
 				updated: serverTimestamp()
@@ -681,7 +1174,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		const oldSection = card.section;
 		if (oldSection) {
 			const oldSectionRef = doc(db, SECTIONS_COLLECTION, oldSection);
-			const oldSectionUpdateRef = doc(oldSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
+			const oldSectionUpdateRef = doc(oldSectionRef, SECTION_UPDATES_COLLECTION, `${batch.batchID}-${card.id}-remove`);
 			const oldSectionObject = {
 				cards: arrayRemove(card.id),
 				updated: serverTimestamp()
@@ -699,7 +1192,10 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		//Note: similar logic is replicated in createForkedCard
 		for (const tagName of update.add_tags) {
 			const tagRef = doc(db, TAGS_COLLECTION, tagName);
-			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
+			// Date.now() alone collides for many cards prepared in the same
+			// millisecond, silently overwriting tag history. Operation + card is
+			// unique and stable for this logical batch.
+			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, `${batch.batchID}-${card.id}-add`);
 			const newTagObject = {
 				cards: arrayUnion(card.id),
 				updated: serverTimestamp()
@@ -716,7 +1212,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	if (update.remove_tags && update.remove_tags.length) {
 		for (const tagName of update.remove_tags) {
 			const tagRef = doc(db, TAGS_COLLECTION, tagName);
-			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
+			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, `${batch.batchID}-${card.id}-remove`);
 			const newTagObject = {
 				cards: arrayRemove(card.id),
 				updated: serverTimestamp()

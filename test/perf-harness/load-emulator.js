@@ -74,6 +74,17 @@ const main = async () => {
 		title: 'Main', subtitle: 'perf corpus', cards: [], start_cards: [], order: 0,
 		updated: Timestamp.now(),
 	});
+	const tagCards = {};
+	for (const card of Object.values(cards)) {
+		for (const tag of card.tags || []) (tagCards[tag] ||= []).push(card.id);
+	}
+	for (const [tag, cardIDs] of Object.entries(tagCards)) {
+		await db.collection('tags').doc(tag).set({
+			title: tag,
+			cards: cardIDs,
+			updated: Timestamp.now(),
+		});
+	}
 
 	const ids = Object.keys(cards);
 	const CHUNK = 400; //under the 500-op batch limit

@@ -143,6 +143,7 @@ export const TWEETS_LOADING = 'TWEETS_LOADING';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
+export const BULK_TAG_OPERATION_PROGRESS = 'BULK_TAG_OPERATION_PROGRESS';
 export const ECHO_LOCAL_CARD_MODIFICATIONS = 'ECHO_LOCAL_CARD_MODIFICATIONS';
 export const RECONCILE_CARDS_AFTER_FAILED_COMMIT = 'RECONCILE_CARDS_AFTER_FAILED_COMMIT';
 export const REORDER_STATUS = 'REORDER_STATUS';
@@ -625,6 +626,16 @@ type ActionModifyCardSuccess = {
 type ActionModifyCardFailure = {
 	type: typeof MODIFY_CARD_FAILURE,
 	error: Error
+};
+
+type ActionBulkTagOperationProgress = {
+	type: typeof BULK_TAG_OPERATION_PROGRESS,
+	total: number,
+	completed: number,
+	tag: TagID,
+	adding: boolean,
+	description: string,
+	serverConfirmed: boolean,
 };
 
 type ActionReorderStatus = {
@@ -1230,6 +1241,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionEchoLocalCardModifications
 	| ActionReconcileCardsAfterFailedCommit
 	| ActionModifyCardFailure
+	| ActionBulkTagOperationProgress
 	| ActionReorderStatus
 	| ActionSetPendingSlug
 	| ActionExpectNewCard

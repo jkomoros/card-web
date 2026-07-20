@@ -33,7 +33,9 @@ import {
 } from '../actions/editor.js';
 
 import {
-	createTag
+	createTag,
+	retryPendingBulkTagOperation,
+	abandonPendingBulkTagOperation,
 } from '../actions/data.js';
 
 import {
@@ -47,6 +49,8 @@ import {
 	selectMultiEditReferencesDiff,
 	selectSelectedCards,
 	selectCardModificationPending,
+	selectBulkTagOperationProgress,
+	selectCardModificationError,
 	selectSelectedCardsReferencesIntersection,
 	selectMultiEditAddTags,
 	selectMultiEditRemoveTags,
@@ -90,7 +94,8 @@ import {
 	referenceTypeSchema,
 	State,
 	TagID,
-	TagInfos
+	TagInfos,
+	BulkTagOperationProgress,
 } from '../types.js';
 
 import {
@@ -155,7 +160,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		_selectedCards: Card[];
 
 	@state()
-		_cardModificationPending: boolean;
+	_cardModificationPending: boolean;
+
+	@state()
+	_bulkTagProgress: BulkTagOperationProgress | null;
+
+	@state()
+	_cardModificationError: Error | null;
 
 	@state()
 		_offline: boolean;
@@ -195,6 +206,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	override innerRender() {
 
 		if (!this.open) return html``;
+		if (this._bulkTagProgress && this._cardModificationError) return html`
+			<div class='bulk-error recovery' role='alert'>
+				<h3>Saved multi-edit needs attention</h3>
+				<p>${this._cardModificationError.message}</p>
+				<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
+				<button @click=${this._handleRetryBulkTag}>Retry remaining ${this._bulkTagProgress.total - this._bulkTagProgress.completed} cards</button>
+				<button @click=${this._handleAbandonBulkTag}>Stop and leave partial result</button>
+			</div>`;
 
 		const refs = referencesNonModifying(this._unionReferencesCard);
 		refs.applyEntriesDiff(this._referencesDiff);
@@ -215,8 +234,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 				<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
-					${this._offline ? 'Waiting for a connection to save. Keep this tab open; your changes are still here.' : 'Saving selected cards…'}
+					${this._offline
+						? 'Waiting for a connection to save. The target list is saved in this browser and will resume here.'
+						: this._bulkTagProgress
+							? html`<span>${this._bulkTagProgress.description}: ${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}…
+								<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress></span>`
+							: 'Saving selected cards…'}
 				</div>
+			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
 			<select @change=${this._handleAddReference}>
 				<option value=''><em>Add a reference to a card type...</option>
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
@@ -295,7 +320,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				</ul>
 			</details>
 			<div class='buttons'>
-				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<button class='round' aria-label='Save changes' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+			</div>
 			</div>
 		</div>`;
 	}
@@ -309,8 +335,17 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(commitMultiEditDialog());
 	}
 
+	_handleRetryBulkTag() {
+		store.dispatch(retryPendingBulkTagOperation());
+	}
+
+	_handleAbandonBulkTag() {
+		store.dispatch(abandonPendingBulkTagOperation());
+	}
+
 	override _shouldClose() {
 		//Override base class.
+		if (this._cardModificationPending || this._bulkTagProgress) return;
 		store.dispatch(closeMultiEditDialog());
 	}
 
@@ -451,6 +486,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._published = selectMultiEditPublished(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._bulkTagProgress = selectBulkTagOperationProgress(state);
+		this._cardModificationError = selectCardModificationError(state);
 		this._offline = state.app.offline;
 		this._diff = selectMultiEditCardDiff(state);
 	}

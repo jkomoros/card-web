@@ -310,6 +310,7 @@ export const selectPendingDeletions = (state : State) => state.data ? state.data
 export const selectEnqueuedCards = (state : State) => state.data ? state.data.enqueuedCards : {};
 export const selectPendingModificationCount = (state : State) => state.data ? state.data.pendingModificationCount : 0;
 export const selectCardModificationPending = (state : State) => state.data ? state.data.pendingModifications : false;
+export const selectBulkTagOperationProgress = (state : State) => state.data ? state.data.bulkTagOperationProgress : null;
 export const selectCardModificationError = (state : State) => state.data ? state.data.cardModificationError : null;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 //rawCards means they don't yet have their nlp data cached. See selectCards which returns that.

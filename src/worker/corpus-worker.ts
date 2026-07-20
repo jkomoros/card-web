@@ -19,6 +19,8 @@ import {
 	persistentLocalCache,
 	persistentSingleTabManager,
 	CACHE_SIZE_UNLIMITED,
+	getPersistentCacheIndexManager,
+	enablePersistentCacheIndexAutoCreation,
 	connectFirestoreEmulator,
 	onSnapshot,
 	getDocsFromServer,
@@ -148,6 +150,10 @@ import {
 	fromWire
 } from './wire-format.js';
 
+import {
+	CorpusSnapshotStore
+} from './corpus-snapshot.js';
+
 //The name of the cards collection; mirrored from src/actions/database.ts
 //(not imported: that module pulls in the store and DOM-touching deps).
 const CARDS_COLLECTION = 'cards';
@@ -179,6 +185,9 @@ let connectionGeneration = 0;
 const corpus : Map<CardID, Card> = new Map();
 const index = new SearchIndex();
 const engine = new QueryEngine();
+//See the watermark invariant below. Kept next to corpus because the compact
+//snapshot must persist and restore this set atomically with the cards.
+const clientClockCardIDs : Set<CardID> = new Set();
 const subscriptions = new SubscriptionManager(engine, push => {
 	recordWorkerPerf('collectionPush', push.ms);
 	send({
@@ -234,6 +243,70 @@ const stripForWire = (card : Card) : Card => {
 	return result;
 };
 
+//Compact snapshot persistence is enabled only after the server trust gate and
+//all three watermark planes are healthy. Until then the loaded snapshot is
+//merely an unverified fast prime and must not overwrite the last known-good
+//record. Subsequent edits are coalesced into a background atomic replacement.
+const SNAPSHOT_SAVE_DELAY_MS = 15 * 1000;
+let corpusSnapshotStore : CorpusSnapshotStore | null = null;
+let corpusSnapshotPersistenceEnabled = false;
+let corpusSnapshotSaveTimer : ReturnType<typeof setTimeout> | null = null;
+let corpusSnapshotSaveInFlight = false;
+let corpusSnapshotSavePending = false;
+
+const saveCorpusSnapshot = async () : Promise<void> => {
+	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore) return;
+	if (corpusSnapshotSaveInFlight) {
+		corpusSnapshotSavePending = true;
+		return;
+	}
+	corpusSnapshotSaveInFlight = true;
+	corpusSnapshotSavePending = false;
+	const startedAt = performance.now();
+	//Keep search tokens in this worker-only representation: rebuilding them
+	//from content would erase most of the warm-boot win. Timestamp markers make
+	//the record independent of Firestore prototype structured-cloning behavior.
+	const cards = Object.fromEntries([...corpus.entries()].map(([id, card]) =>
+		[id, toWire(card, isTimestamp, getTime)]));
+	const contaminatedIDs = [...clientClockCardIDs].filter(id => corpus.has(id));
+	try {
+		await corpusSnapshotStore.save(cards, contaminatedIDs, syncMetaState?.processedTombstoneIDs || []);
+		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
+	} catch (e) {
+		status(`compact snapshot save unavailable (${String(e)})`);
+	} finally {
+		corpusSnapshotSaveInFlight = false;
+		if (corpusSnapshotSavePending) {
+			corpusSnapshotSavePending = false;
+			corpusSnapshotSaveTimer = setTimeout(() => {
+				corpusSnapshotSaveTimer = null;
+				void saveCorpusSnapshot();
+			}, SNAPSHOT_SAVE_DELAY_MS);
+		}
+	}
+};
+
+const scheduleCorpusSnapshotSave = (delayMs = SNAPSHOT_SAVE_DELAY_MS) => {
+	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore) return;
+	if (corpusSnapshotSaveInFlight) {
+		corpusSnapshotSavePending = true;
+		return;
+	}
+	if (corpusSnapshotSaveTimer) clearTimeout(corpusSnapshotSaveTimer);
+	corpusSnapshotSaveTimer = setTimeout(() => {
+		corpusSnapshotSaveTimer = null;
+		void saveCorpusSnapshot();
+	}, delayMs);
+};
+
+const disableCorpusSnapshotPersistence = () => {
+	corpusSnapshotPersistenceEnabled = false;
+	corpusSnapshotSavePending = false;
+	if (corpusSnapshotSaveTimer) clearTimeout(corpusSnapshotSaveTimer);
+	corpusSnapshotSaveTimer = null;
+	corpusSnapshotStore = null;
+};
+
 const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[]} => {
 	const cards : Cards = {};
 	const removedIDs : CardID[] = [];
@@ -277,6 +350,7 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 	const indexElapsed = performance.now() - indexStart;
 	indexBuildMs += indexElapsed;
 	recordWorkerPerf('indexBuild', indexElapsed);
+	scheduleCorpusSnapshotSave();
 };
 
 //The compact metadata already pushed to the main thread; only genuinely
@@ -519,7 +593,23 @@ const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? :
 					cacheSizeBytes: CACHE_SIZE_UNLIMITED
 				})
 			});
+			// Emulator settings must be applied before any Firestore API starts
+			// this instance. Reading the index manager below counts as first use.
 			hookEmulator();
+			//Firestore does not build persistent local-query indexes unless an
+			//application opts in. Without them, both published==true and
+			//published==false warm primes scan and decode the entire 40k-card
+			//remote-document cache on every reload (observed on DEV: ~8s for the
+			//published listener plus ~21s for the unpublished prime, again on an
+			//immediate second reload). The worker is the sole persistent-cache
+			//owner, so it is also the correct place to enable the index manager.
+			//The first query can still pay to build its index; later warm boots
+			//reuse the persisted index instead of repeating the full scan.
+			const indexManager = getPersistentCacheIndexManager(db);
+			if (indexManager) {
+				enablePersistentCacheIndexAutoCreation(indexManager);
+				status('persistent cache query indexes enabled');
+			}
 			status('persistent single-tab cache (force-ownership) initialized');
 			return;
 		} catch (e) {
@@ -538,9 +628,31 @@ const connectPublished = () => {
 	const database = db;
 	attachResilientListener('published listener', 'published',
 		() => query(collection(database, CARDS_COLLECTION), where('published', '==', true)),
-		() => snapshot => {
-			ingestSnapshot(snapshot, 'published');
-			if (!snapshot.metadata.fromCache) markWatermarkPlane('published', true);
+		() => {
+			let firstServerDelivery = true;
+			return snapshot => {
+				ingestSnapshot(snapshot, 'published');
+				if (!snapshot.metadata.fromCache) {
+					//The compact snapshot is outside Firestore's query view, so its
+					//published ghosts cannot produce Firestore `removed` changes.
+					//The first server-confirmed snapshot contains the authoritative
+					//full result set; explicitly reconcile those ghosts before this
+					//plane can contribute to `live`.
+					if (firstServerDelivery) {
+						firstServerDelivery = false;
+						const serverIDs = new Set(snapshot.docs.map(docSnapshot => docSnapshot.id));
+						const ghosts = [...corpus.entries()]
+							.filter(([id, card]) => card.published && !serverIDs.has(id))
+							.map(([id]) => id);
+						if (ghosts.length) {
+							updateLocalState({}, ghosts);
+							forwardBatch({}, ghosts, 'published', false);
+							status(`published reconciliation removed ${ghosts.length} snapshot ghosts`);
+						}
+					}
+					markWatermarkPlane('published', true);
+				}
+			};
 		},
 		() => markWatermarkPlane('published', false));
 	status('published listener attached');
@@ -745,7 +857,14 @@ const markWatermarkPlane = (plane : WatermarkPlane, healthy : boolean) => {
 	status(`watermark plane ${plane} ${healthy ? 'healthy' : 'stale'} (${[...healthyWatermarkPlanes].join(',') || 'none'})`);
 	if (healthyWatermarkPlanes.size === 3) {
 		markInitialDelivered('unpublished');
+		const becameLive = currentSyncState !== 'live';
 		setSyncState('live');
+		//Only a server-verified, fully-live corpus may replace the last known-good
+		//compact snapshot. Save immediately once; later changes are debounced.
+		if (becameLive && corpusSnapshotStore) {
+			corpusSnapshotPersistenceEnabled = true;
+			scheduleCorpusSnapshotSave(0);
+		}
 	} else if (currentSyncState === 'live') {
 		setSyncState('stale');
 	}
@@ -846,8 +965,6 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 //  persistence DB can hold an unacknowledged offline write from a prior
 //  session; serverTimestamps:'estimate' fills it with localWriteTime).
 //Entries clear when a server-confirmed snapshot delivers the doc.
-const clientClockCardIDs : Set<CardID> = new Set();
-
 //Derive the session watermark from the corpus actually in hand — NEVER from
 //clocks, read times, or client-clock-contaminated entries (see
 //src/worker/watermark.ts for the invariant).
@@ -1266,33 +1383,86 @@ const connectUnpublishedWatermark = async () => {
 	setSyncState('unverified');
 
 	syncMetaStore = new SyncMetaStore(`${currentDevMode ? 'dev' : 'prod'}:${currentUid}:privileged`);
-	syncMetaState = await syncMetaStore.load();
-	if (myConnectionGeneration !== connectionGeneration) return;
+	//Chromium serializes IndexedDB opens aggressively during Firestore startup.
+	//Do not even enqueue the tiny sync-meta open until the compact snapshot has
+	//loaded and forwarded; enqueueing it first delayed the snapshot by ~16s on
+	//the real 40k-card DEV corpus. The snapshot carries its own last-known
+	//tombstone suppressions, and newer metadata is still reconciled before live.
+	let syncMetaLoad : ReturnType<SyncMetaStore['load']> | null = null;
+	const loadSyncMeta = () => syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
+	const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
+	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`);
 
-	//1. Prime from the persistent cache — free, instant, served immediately
-	//in the 'unverified' state (trust slow, serve fast).
+	//1. Prime from the compact materialized snapshot. On its first-ever run,
+	//fall back to Firestore's persistent cache and create the compact snapshot
+	//only after this corpus passes the trust gate. Either source is served in
+	//the 'unverified' state (trust slow, serve fast).
+	const primeStartedAt = performance.now();
+	let cacheQueryFinishedAt = primeStartedAt;
 	const primedCards : Cards = {};
+	let primeSource = 'persistent cache';
+	let compactTombstoneIDs : string[] = [];
 	try {
-		const snapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
-		for (const docSnapshot of snapshot.docs) {
-			const id : CardID = docSnapshot.id;
-			primedCards[id] = {...docSnapshot.data({serverTimestamps: 'estimate'}), id} as Card;
-			//A pending persisted mutation overlays the cached doc with its
-			//LOCAL write time — poison for the watermark (see
-			//clientClockCardIDs). The doc still serves; it just can't set
-			//the delta bound until server-confirmed.
-			if (docSnapshot.metadata.hasPendingWrites) clientClockCardIDs.add(id);
+		const compactSnapshot = await corpusSnapshotStore.load();
+		if (myConnectionGeneration !== connectionGeneration) return;
+		if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
+			primeSource = 'compact snapshot';
+			compactTombstoneIDs = compactSnapshot.processedTombstoneIDs || [];
+			const restored = fromWire(compactSnapshot.cards,
+				(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
+			//A published cache listener may have won the race while IndexedDB
+			//loaded. Never overwrite fresher listener data with the saved base.
+			for (const [id, card] of Object.entries(restored)) {
+				if (!corpus.has(id)) primedCards[id] = card;
+			}
+			for (const id of compactSnapshot.clientClockCardIDs) {
+				if (primedCards[id]) clientClockCardIDs.add(id);
+			}
+			for (const id of compactTombstoneIDs) delete primedCards[id];
+		} else {
+			syncMetaState = await loadSyncMeta();
+			if (myConnectionGeneration !== connectionGeneration) return;
+			const snapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
+			for (const docSnapshot of snapshot.docs) {
+				const id : CardID = docSnapshot.id;
+				primedCards[id] = {...docSnapshot.data({serverTimestamps: 'estimate'}), id} as Card;
+				//A pending persisted mutation overlays the cached doc with its
+				//LOCAL write time — poison for the watermark (see
+				//clientClockCardIDs). The doc still serves; it just can't set
+				//the delta bound until server-confirmed.
+				if (docSnapshot.metadata.hasPendingWrites) clientClockCardIDs.add(id);
+			}
 		}
+		cacheQueryFinishedAt = performance.now();
 	} catch {
 		//Empty/unavailable cache: the gate below classifies this as cold.
 	}
 	if (myConnectionGeneration !== connectionGeneration) return;
-	for (const id of syncMetaState.processedTombstoneIDs) delete primedCards[id];
+	if (syncMetaState) for (const id of syncMetaState.processedTombstoneIDs) delete primedCards[id];
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
+		const parseFinishedAt = performance.now();
 		updateLocalState(primedCards, []);
-		forwardBatch(primedCards, [], 'unpublished', false);
-		status(`watermark prime: ${primedCount} unpublished cards from the persistent cache`);
+		const workerStateFinishedAt = performance.now();
+		const primedPublished = Object.fromEntries(Object.entries(primedCards).filter(([, card]) => card.published)) as Cards;
+		const primedUnpublished = Object.fromEntries(Object.entries(primedCards).filter(([, card]) => !card.published)) as Cards;
+		if (Object.keys(primedPublished).length) forwardBatch(primedPublished, [], 'published', true);
+		if (Object.keys(primedUnpublished).length) forwardBatch(primedUnpublished, [], 'unpublished', false);
+		const forwardFinishedAt = performance.now();
+		status(`watermark prime: ${primedCount} cards from the ${primeSource}; load=${(cacheQueryFinishedAt - primeStartedAt).toFixed(0)}ms parse=${(parseFinishedAt - cacheQueryFinishedAt).toFixed(0)}ms workerState=${(workerStateFinishedAt - parseFinishedAt).toFixed(0)}ms forward=${(forwardFinishedAt - workerStateFinishedAt).toFixed(0)}ms total=${(forwardFinishedAt - primeStartedAt).toFixed(0)}ms`);
+	}
+	if (!syncMetaState) syncMetaState = await loadSyncMeta();
+	if (myConnectionGeneration !== connectionGeneration) return;
+	//The separately-persisted metadata may be newer than the snapshot (for
+	//example, a crash during the snapshot's debounce window). Remove any newly
+	//known ghosts before catch-up, the server trust gate, or live readiness.
+	const lateTombstoneIDs = syncMetaState.processedTombstoneIDs.filter(id => corpus.has(id) && !compactTombstoneIDs.includes(id));
+	if (lateTombstoneIDs.length) {
+		const publishedRemovals = lateTombstoneIDs.filter(id => corpus.get(id)?.published);
+		const unpublishedRemovals = lateTombstoneIDs.filter(id => !corpus.get(id)?.published);
+		updateLocalState({}, lateTombstoneIDs);
+		if (publishedRemovals.length) forwardBatch({}, publishedRemovals, 'published', false);
+		if (unpublishedRemovals.length) forwardBatch({}, unpublishedRemovals, 'unpublished', false);
 	}
 
 	//2. Tombstone catch-up FIRST (deletions-while-away must not read as
@@ -1373,6 +1543,7 @@ const connectUnpublishedWatermark = async () => {
 
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
+	disableCorpusSnapshotPersistence();
 	//A (re)connect changes what this corpus MEANS (different permissions ⇒
 	//different visible card set): live subscriptions computed under the old
 	//parameters must not keep pushing (they survived reconnects before,
@@ -1392,6 +1563,7 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	currentMayViewUnpublished = mayViewUnpublished;
 	healthyWatermarkPlanes.clear();
 	currentSyncState = '';
+	syncMetaState = null;
 	sessionWatermark = null;
 	clientClockCardIDs.clear();
 	const expected : CardFetchType[] = ['published'];

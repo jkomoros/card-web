@@ -32,7 +32,8 @@ import {
 } from '../actions.js';
 
 import {
-	modifyCards
+	modifyCardsWithDurableTagOperation,
+	modifyCardsWithDurableMultiEdit,
 } from './data.js';
 
 export const openMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
@@ -68,8 +69,16 @@ export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState
 	//There's a change to make. modifyCardsSuccess will close the dialog.
 
 	const selectedCards = selectSelectedCards(state);
-
-	dispatch(modifyCards(selectedCards, update, false, false));
+	const keys = Object.keys(update);
+	const pureTagAddition = keys.length === 1 && update.add_tags?.length === 1;
+	const pureTagRemoval = keys.length === 1 && update.remove_tags?.length === 1;
+	if (pureTagAddition || pureTagRemoval) {
+		const tag = pureTagAddition ? update.add_tags?.[0] : update.remove_tags?.[0];
+		if (!tag) throw new Error('Missing tag for bulk edit');
+		dispatch(modifyCardsWithDurableTagOperation(selectedCards, tag, pureTagAddition));
+		return;
+	}
+	dispatch(modifyCardsWithDurableMultiEdit(selectedCards, update));
 
 };
 

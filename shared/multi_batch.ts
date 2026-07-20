@@ -20,6 +20,10 @@ export interface MultiBatchConfig<TBatch, TRef> {
 	batchUpdate: (batch: TBatch, ref: TRef, data: object) => void;
 	batchDelete: (batch: TBatch, ref: TRef) => void;
 	commitBatch: (batch: TBatch) => Promise<void>;
+	// Client-side denormalized writes frequently make every underlying batch
+	// touch the same tag/section document. Firestore retries those conflicting
+	// commits aggressively, so callers may lower concurrency for reliability.
+	commitConcurrency?: number;
 	// Optional: preprocess data before writing (e.g. installServerTimestamps)
 	preprocessData?: (data: object) => object;
 	// Optional: count write operations for sentinel-heavy updates.
@@ -74,12 +78,12 @@ export class MultiBatchBase<TBatch, TRef> {
 	protected _atomicGroupID: string | null;
 	protected _atomicBatches: {count: number, operations: {count: number, apply: (batch: TBatch) => void}[], groupIDs: string[]}[];
 
-	constructor(config: MultiBatchConfig<TBatch, TRef>, effectiveBatchLimit: number = FIRESTORE_BATCH_LIMIT) {
+	constructor(config: MultiBatchConfig<TBatch, TRef>, effectiveBatchLimit: number = FIRESTORE_BATCH_LIMIT, batchID?: string) {
 		this._config = config;
 		this._currentBatchOperationCount = 0;
 		this._currentBatch = null;
 		this._batches = [];
-		this._id = randomString(8);
+		this._id = batchID || randomString(8);
 		this._effectiveBatchLimit = effectiveBatchLimit;
 		this._atomicGroup = null;
 		this._atomicGroupID = null;
@@ -88,6 +92,12 @@ export class MultiBatchBase<TBatch, TRef> {
 
 	get batchID() {
 		return this._id;
+	}
+
+	// Safe preflight for durable executors: they may discard and rebuild a
+	// staged chunk until it fits exactly one atomic Firestore batch.
+	get pendingUnderlyingBatchCount() {
+		return this._batches.length + this._atomicBatches.length;
 	}
 
 	protected get _batch(): TBatch {
@@ -253,7 +263,10 @@ export class MultiBatchBase<TBatch, TRef> {
 			}
 		};
 		await Promise.all(Array.from(
-			{length: Math.min(MULTI_BATCH_COMMIT_CONCURRENCY, batches.length)},
+			{length: Math.min(
+				this._config.commitConcurrency || MULTI_BATCH_COMMIT_CONCURRENCY,
+				batches.length,
+			)},
 			() => commitWorker(),
 		));
 		const reasons = results

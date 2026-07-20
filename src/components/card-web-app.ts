@@ -155,6 +155,10 @@ class CardWebApp extends connect(store)(LitElement) {
 	}
 
 	override firstUpdated() {
+		// Install recovery only after the root module graph has initialized.
+		// Running actions/data's watcher during store construction would execute
+		// a circular module before all of its bindings exist.
+		void import('../actions/data.js').then(module => module.installBulkTagResumeWatcher());
 		installRouter((location) => store.dispatch(navigated(location.pathname, location.search)));
 		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
 		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {

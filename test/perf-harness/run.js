@@ -1,9 +1,10 @@
 /*eslint-env node*/
 import {spawn} from 'child_process';
 import fs from 'fs';
+import {isDeepStrictEqual} from 'util';
 import {chromium} from 'playwright';
 import {initializeApp} from 'firebase-admin/app';
-import {getFirestore} from 'firebase-admin/firestore';
+import {getFirestore, FieldValue} from 'firebase-admin/firestore';
 import {waitForCorpus, waitForWorkerIdle} from './page-agent.js';
 import {runInteractions} from './interactions.js';
 
@@ -32,6 +33,7 @@ const workerModeActive = workerMode === 'shadow' || workerMode === 'on';
 const loadTimeoutMs = parseInt(getArg('load-timeout', '180000'), 10);
 const serviceWorkers = getArg('service-workers', 'block');
 const testTakeover = args.includes('--test-takeover');
+const testMultiEdit = args.includes('--test-multiedit');
 if (serviceWorkers !== 'block' && serviceWorkers !== 'allow') throw new Error('--service-workers must be block or allow');
 const PORT = 8081;
 const URL = `http://localhost:${PORT}`;
@@ -57,6 +59,16 @@ const waitForServer = async (url, timeoutMs = 60000) => {
 		await new Promise(r => setTimeout(r, 500));
 	}
 	throw new Error('wds did not come up at ' + url);
+};
+
+const waitForConsoleLine = async (messages, predicate, timeoutMs = 30000) => {
+	const start = Date.now();
+	while (Date.now() - start < timeoutMs) {
+		const match = messages.find(predicate);
+		if (match) return match;
+		await new Promise(resolve => setTimeout(resolve, 100));
+	}
+	throw new Error('timed out waiting for expected console line');
 };
 
 const verifierDB = getFirestore(initializeApp({projectId}, 'perf-run-verifier'));
@@ -165,6 +177,12 @@ const main = async () => {
 			if (registration.state !== 'activated' || !registration.scriptURL.endsWith('/service-worker.js') || !registration.productionWorkbox) {
 				throw new Error('wrong service worker artifact: ' + JSON.stringify(registration));
 			}
+			//The first verified live boot creates the worker-owned compact corpus.
+			//Wait for its atomic write before reloading so this is a true warm-boot
+			//acceptance test, not merely another Firestore-cache boot.
+			if (workerModeActive && syncMode === 'watermark' && authMode === 'admin') {
+				await waitForConsoleLine(consoleMsgs, line => line.includes('[corpus-worker] compact snapshot saved:'), 60000);
+			}
 			const warmLogStart = consoleMsgs.length;
 			await page.reload({waitUntil: 'domcontentloaded'});
 			await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
@@ -172,14 +190,19 @@ const main = async () => {
 			warmState = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000});
 			const warmLogs = consoleMsgs.slice(warmLogStart);
 			const warmPrimeLine = warmLogs.find(m => m.includes('[corpus-worker] watermark prime:')) || '';
-			const warmCachePrime = Number(warmPrimeLine.match(/watermark prime: ([0-9]+) unpublished cards/)?.[1] || 0);
+			const warmPrimeMatch = warmPrimeLine.match(/watermark prime: ([0-9]+) cards from the (persistent cache|compact snapshot)/);
+			const warmCachePrime = Number(warmPrimeMatch?.[1] || 0);
+			const warmPrimeSource = warmPrimeMatch?.[2] || '';
 			if (workerModeActive && (!warmCachePrime || warmLogs.some(m => m.includes('[corpus-worker] cold corpus')))) {
 				throw new Error(`controlled reload did not use the persistent corpus cache: prime=${warmCachePrime} coldSweep=${warmLogs.some(m => m.includes('[corpus-worker] cold corpus'))}`);
+			}
+			if (workerModeActive && syncMode === 'watermark' && authMode === 'admin' && warmPrimeSource !== 'compact snapshot') {
+				throw new Error(`controlled warm reload did not use compact snapshot: ${warmPrimeLine}`);
 			}
 			if (authMode === 'admin' && (warmState.cardCount !== count || (workerModeActive && warmState.workerCorpusSize !== count))) {
 				throw new Error(`service-worker warm corpus mismatch: seeded=${count} main=${warmState.cardCount} worker=${warmState.workerCorpusSize}`);
 			}
-			console.log('[run] PRODUCTION SERVICE WORKER CONTROLLED + WARM CACHE OK: mainCards=' + warmState.cardCount + ' workerCorpus=' + warmState.workerCorpusSize + ' syncState="' + warmState.syncState + '" cachePrime=' + warmCachePrime);
+			console.log('[run] PRODUCTION SERVICE WORKER CONTROLLED + WARM CACHE OK: mainCards=' + warmState.cardCount + ' workerCorpus=' + warmState.workerCorpusSize + ' syncState="' + warmState.syncState + '" cachePrime=' + warmCachePrime + ' source="' + warmPrimeSource + '"');
 		}
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
@@ -197,6 +220,95 @@ const main = async () => {
 			const idle = await waitForWorkerIdle(page);
 			console.log('[run] worker settle: ' + JSON.stringify(idle));
 			if (!idle.idle) throw new Error('worker did not settle before the measurement window: ' + JSON.stringify(idle));
+		}
+
+		if (testMultiEdit) {
+			if (authMode !== 'admin') throw new Error('--test-multiedit requires --auth admin');
+			console.log('[run] BULK TAG: add/remove 500 cards with authoritative verification');
+			const result = await page.evaluate(() => window.PERF_HARNESS.bulkTagRoundTrip(500));
+			const refs = result.ids.map(id => verifierDB.collection('cards').doc(id));
+			const snapshots = await verifierDB.getAll(...refs);
+			for (const snapshot of snapshots) {
+				const actual = snapshot.data();
+				const expected = result.originals[snapshot.id];
+				if (!actual || actual.body !== expected.body || actual.title !== expected.title ||
+					JSON.stringify([...(actual.tags || [])].sort()) !== JSON.stringify([...(expected.tags || [])].sort()) ||
+					JSON.stringify(actual.references || {}) !== JSON.stringify(expected.references)) {
+					throw new Error(`bulk tag round-trip changed non-target state for ${snapshot.id}`);
+				}
+			}
+			const tag = (await verifierDB.collection('tags').doc(result.tag).get()).data();
+			const leaked = result.ids.filter(id => (tag?.cards || []).includes(id));
+			if (leaked.length) throw new Error(`tag mirror retained ${leaked.length} removed cards`);
+			if (result.addMs > 20000 || result.removeMs > 20000) throw new Error(`bulk tag latency exceeded 20s gate: ${JSON.stringify({addMs: result.addMs, removeMs: result.removeMs})}`);
+			console.log('[run] BULK TAG OK: ' + JSON.stringify({count: result.ids.length, addMs: +result.addMs.toFixed(1), removeMs: +result.removeMs.toFixed(1)}));
+			console.log('[run] GENERAL MULTI-EDIT: every UI-expressible change round-trip on 100 cards');
+			const general = await page.evaluate(() => window.PERF_HARNESS.durableMultiEditRoundTrip(100));
+			if (general.applyMs > 20000 || general.restoreMs > 20000) throw new Error('general multi-edit exceeded 20s gate: ' + JSON.stringify({applyMs: general.applyMs, restoreMs: general.restoreMs}));
+			const generalSnapshots = await verifierDB.getAll(...general.ids.map(id => verifierDB.collection('cards').doc(id)));
+			for (const snapshot of generalSnapshots) {
+				const actual = snapshot.data();
+				const expected = general.originals[snapshot.id];
+				const mismatches = !actual ? ['missing'] : [
+					actual.body !== expected.body && 'body',
+					actual.title !== expected.title && 'title',
+					JSON.stringify([...(actual.tags || [])].sort()) !== JSON.stringify([...(expected.tags || [])].sort()) && 'tags',
+					!isDeepStrictEqual(actual.references || {}, expected.references) && 'references',
+					!isDeepStrictEqual(actual.references_info || {}, expected.references_info) && 'references_info',
+					!isDeepStrictEqual(actual.auto_todo_overrides || {}, expected.auto_todo_overrides) && 'auto_todo_overrides',
+					actual.published !== expected.published && 'published',
+				].filter(Boolean);
+				if (mismatches.length) {
+					throw new Error(`general multi-edit round-trip changed ${mismatches.join(', ')} for ${snapshot.id}`);
+				}
+			}
+			const generalTagSnapshots = await verifierDB.getAll(...general.tags.map(tag => verifierDB.collection('tags').doc(tag)));
+			for (const tagSnapshot of generalTagSnapshots) {
+				const mirroredIDs = new Set(tagSnapshot.data()?.cards || []);
+				for (const id of general.ids) {
+					const expected = (general.originals[id].tags || []).includes(tagSnapshot.id);
+					if (mirroredIDs.has(id) !== expected) throw new Error(`general multi-edit tag mirror mismatch for ${tagSnapshot.id}/${id}`);
+				}
+			}
+			console.log('[run] GENERAL MULTI-EDIT OK: ' + JSON.stringify({count: general.count, applyMs: +general.applyMs.toFixed(1), restoreMs: +general.restoreMs.toFixed(1)}));
+
+			// Lost-ack/checkpoint recovery: atomically install a completed chunk +
+			// marker, apply a later conflicting edit, then resurrect an old local
+			// checkpoint. Resume must trust the marker and NOT replay over the later
+			// edit.
+			const prepared = await page.evaluate(() => window.PERF_HARNESS.prepareBulkTag(10));
+			const operationID = `perf-lost-ack-${Date.now()}`;
+			const committed = verifierDB.batch();
+			for (const id of prepared.ids) committed.update(verifierDB.collection('cards').doc(id), {
+				tags: FieldValue.arrayUnion(prepared.tag), updated: FieldValue.serverTimestamp(),
+			});
+			committed.update(verifierDB.collection('tags').doc(prepared.tag), {
+				cards: FieldValue.arrayUnion(...prepared.ids), updated: FieldValue.serverTimestamp(),
+			});
+			committed.set(verifierDB.collection('users').doc('perf-admin').collection('multi_edit_chunks').doc(`${operationID}-0`), {
+				operation_id: operationID, next_index: prepared.ids.length, modified_count: prepared.ids.length, updated: FieldValue.serverTimestamp(),
+			});
+			await committed.commit();
+			await verifierDB.collection('cards').doc(prepared.ids[0]).update({tags: FieldValue.arrayRemove(prepared.tag), updated: FieldValue.serverTimestamp()});
+			await verifierDB.collection('tags').doc(prepared.tag).update({cards: FieldValue.arrayRemove(prepared.ids[0]), updated: FieldValue.serverTimestamp()});
+			await page.evaluate(({operationID, prepared}) => {
+				localStorage.setItem('card-web-pending-multi-edit-v1', JSON.stringify({
+					version: 1, id: operationID, uid: 'perf-admin', targetIDs: prepared.ids,
+					nextIndex: 0, modifiedCount: 0, update: {add_tags: [prepared.tag]},
+				}));
+			}, {operationID, prepared});
+			await page.reload({waitUntil: 'domcontentloaded'});
+			await page.waitForFunction(() => Boolean(window.PERF_HARNESS), {timeout: 30000});
+			await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000});
+			await page.waitForFunction(() => !localStorage.getItem('card-web-pending-multi-edit-v1'), {timeout: 30000});
+			const recovered = await verifierDB.getAll(...prepared.ids.map(id => verifierDB.collection('cards').doc(id)));
+			if ((recovered[0].data()?.tags || []).includes(prepared.tag)) throw new Error('lost-ack resume replayed over a later tag removal');
+			if (recovered.slice(1).some(doc => !(doc.data()?.tags || []).includes(prepared.tag))) throw new Error('lost-ack committed chunk fixture was incomplete');
+			const cleanup = verifierDB.batch();
+			for (const id of prepared.ids) cleanup.update(verifierDB.collection('cards').doc(id), {tags: FieldValue.arrayRemove(prepared.tag), updated: FieldValue.serverTimestamp()});
+			cleanup.update(verifierDB.collection('tags').doc(prepared.tag), {cards: FieldValue.arrayRemove(...prepared.ids), updated: FieldValue.serverTimestamp()});
+			await cleanup.commit();
+			console.log('[run] LOST-ACK RESUME OK: server marker prevented replay over a later edit');
 		}
 
 		if (testTakeover) {

@@ -940,6 +940,15 @@ export type CardFetchTypeMap = {[type in CardFetchType]+?: true};
 
 export type CorpusStatus = 'off' | 'loading' | 'live' | 'stale' | 'degraded' | 'fallback' | 'checking' | 'contended' | 'inactive' | 'takeover' | 'unsupported' | 'ownership-error';
 
+export type BulkTagOperationProgress = {
+	total: number,
+	completed: number,
+	tag: TagID,
+	adding: boolean,
+	description: string,
+	serverConfirmed: boolean,
+};
+
 export type DataState = {
 	cards: Cards,
 	authors: AuthorsMap,
@@ -977,6 +986,7 @@ export type DataState = {
 	//receive all of the cards, but need to remember how many we're expecting.
 	pendingModifications: boolean,
 	pendingModificationCount: number,
+	bulkTagOperationProgress: BulkTagOperationProgress | null,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.
 	pendingNewCardID: CardID,
