@@ -168,6 +168,41 @@ describe('reducer identity preservation', () => {
 		assert.deepStrictEqual(fallback.filters.content, {'card-one': true});
 	});
 
+	it('large initial card-major projection matches every filter predicate and preserves non-card map identity', async () => {
+		const {CARD_FILTER_FUNCS} = await import('../../lib/src/filters.js');
+		const cards = {};
+		for (let i = 0; i < 1000; i++) {
+			const id = `large-prime-${i}`;
+			cards[id] = makeCard(id, {
+				card_type: i % 7 === 0 ? 'working-notes' : 'content',
+				notes: i % 11 === 0 ? `note ${i}` : '',
+				todo: i % 13 === 0 ? `todo ${i}` : '',
+				published: i % 5 !== 0,
+				tags: i % 3 === 0 ? ['tag-a'] : [],
+			});
+		}
+
+		const before = collectionReducer(INITIAL_COLLECTION_STATE, {
+			type: UPDATE_STARS,
+			starsToAdd: ['large-prime-1'],
+			starsToRemove: [],
+		});
+		const next = collectionReducer(before, {type: UPDATE_CARDS, cards, fetchType: 'published'});
+
+		for (const [name, info] of Object.entries(CARD_FILTER_FUNCS)) {
+			const expected = Object.fromEntries(Object.values(cards)
+				.filter(card => Boolean(info.func(card)))
+				.map(card => [card.id, true]));
+			assert.deepStrictEqual(next.filters[name], expected, name);
+			//The direct projection installs a complete, independently-owned set
+			//of card-derived maps rather than mutating the empty initial maps.
+			assert.notStrictEqual(next.filters[name], before.filters[name], name);
+		}
+		assert.strictEqual(next.filters.starred, before.filters.starred);
+		assert.strictEqual(next.filters.read, before.filters.read);
+		assert.deepStrictEqual(next.filters.starred, {'large-prime-1': true});
+	});
+
 	it('no-op UPDATE_READS preserves state identity', async () => {
 		const card = makeCard('card-one');
 		let state = primedCollectionState({'card-one': card});

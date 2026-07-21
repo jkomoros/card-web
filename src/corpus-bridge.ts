@@ -903,8 +903,8 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//UPDATE_CARD_SIMILARITY changes selectCardSimilarity's identity,
 		//which re-keys the live subscriptions below so the worker recomputes
 		//with the fresh data. Failures are logged, not rethrown — the
-		//worker's TTL dedupe re-requests after a minute, restoring the
-		//retry-per-filter-run behavior off mode always had.
+		//worker's TTL dedupe permits a later filter run to request again after
+		//a minute. The TTL itself does not schedule background work.
 		void import('./actions/similarity.js').then(module => {
 			try {
 				if (message.forEditingCard) {

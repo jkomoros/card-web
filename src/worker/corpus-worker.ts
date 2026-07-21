@@ -71,6 +71,10 @@ import {
 } from './retry.js';
 
 import {
+	dropCardsAlreadyAtUpdatedVersion
+} from './fast-dedupe.js';
+
+import {
 	initializeAuth,
 	indexedDBLocalPersistence,
 	connectAuthEmulator,
@@ -184,7 +188,13 @@ let generation : WorkerGeneration = 0;
 let connectionGeneration = 0;
 
 const corpus : Map<CardID, Card> = new Map();
-const index = new SearchIndex();
+let index = new SearchIndex();
+//The compact snapshot already carries the server-generated search tokens, but
+//rebuilding their inverted index eagerly costs several seconds on a 40k-card
+//warm boot. Navigation, collections, editing, and saves do not consult this
+//index, so defer that purely-derived work until the first search request. The
+//worker event loop makes the rebuild atomic with respect to card deltas.
+let searchIndexNeedsRebuild = false;
 const engine = new QueryEngine();
 //See the watermark invariant below. Kept next to corpus because the compact
 //snapshot must persist and restore this set atomically with the cards.
@@ -330,8 +340,9 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 	return {cards, removedIDs};
 };
 
-const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
+const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false, deferSearchIndex = false) => {
 	const indexStart = performance.now();
+	if (deferSearchIndex) searchIndexNeedsRebuild = true;
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
 		if (previous && searchTokensForCard(previous).length) cardsWithStoredTokens--;
@@ -339,14 +350,14 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend
 		const tokens = searchTokensForCard(card);
 		if (tokens.length) {
 			cardsWithStoredTokens++;
-			index.updateCard(id, tokens);
-		} else {
+			if (!searchIndexNeedsRebuild) index.updateCard(id, tokens);
+		} else if (!searchIndexNeedsRebuild) {
 			index.removeCard(id);
 		}
 	}
 	for (const id of removedIDs) {
 		corpus.delete(id);
-		index.removeCard(id);
+		if (!searchIndexNeedsRebuild) index.removeCard(id);
 	}
 	//The engine keeps its own plain-object mirror (identity-preserving per
 	//card) plus filter membership via the real reducer. Strip the ephemeral
@@ -440,6 +451,13 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 	//Server delivery: these entries are no longer client-clock contaminated.
 	for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
 	for (const id of removedIDs) clientClockCardIDs.delete(id);
+	//Initial listeners following an exact prime overwhelmingly redeliver the
+	//same documents. `updated` is enforced on every persisted card mutation;
+	//matching server timestamps therefore prove the worker already has this
+	//version. Drop those cards before the search/filter engines instead of
+	//re-running every derived predicate. The empty batch is still forwarded so
+	//normal listener-completion semantics remain intact.
+	if (fastDedupe) dropCardsAlreadyAtUpdatedVersion(cards, corpus);
 	updateLocalState(cards, removedIDs);
 	const count = Object.keys(cards).length;
 	forwardBatch(cards, removedIDs, fetchType, fastDedupe);
@@ -642,9 +660,11 @@ const connectPublished = () => {
 	attachResilientListener('published listener', 'published',
 		() => query(collection(database, CARDS_COLLECTION), where('published', '==', true)),
 		() => {
+			let firstDelivery = true;
 			let firstServerDelivery = true;
 			return snapshot => {
-				ingestSnapshot(snapshot, 'published');
+				ingestSnapshot(snapshot, 'published', firstDelivery);
+				firstDelivery = false;
 				if (!snapshot.metadata.fromCache) {
 					//The compact snapshot is outside Firestore's query view, so its
 					//published ghosts cannot produce Firestore `removed` changes.
@@ -1466,10 +1486,13 @@ const connectUnpublishedWatermark = async () => {
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
 		const parseFinishedAt = performance.now();
-		updateLocalState(primedCards, [], true);
+		updateLocalState(primedCards, [], true, primeSource === 'compact snapshot');
 		const workerStateFinishedAt = performance.now();
-		const primedPublished = Object.fromEntries(Object.entries(primedCards).filter(([, card]) => card.published)) as Cards;
-		const primedUnpublished = Object.fromEntries(Object.entries(primedCards).filter(([, card]) => !card.published)) as Cards;
+		const primedPublished : Cards = {};
+		const primedUnpublished : Cards = {};
+		for (const [id, card] of Object.entries(primedCards)) {
+			(card.published ? primedPublished : primedUnpublished)[id] = card;
+		}
 		const cardFilters = engine.cardDerivedFilters();
 		const cardFilterCorpusIDs = [...corpus.keys()];
 		if (primedCount >= 10000) status(`watermark prime handoff starting: ${primedCount} cards`);
@@ -1632,9 +1655,28 @@ const queryTokens = (text : string) : string[] => {
 	return [...unigrams, ...ngrams(normalized, 2)];
 };
 
+const ensureSearchIndex = () => {
+	if (!searchIndexNeedsRebuild) return;
+	const startedAt = performance.now();
+	const rebuilt = new SearchIndex();
+	for (const [id, card] of corpus) {
+		const tokens = searchTokensForCard(card);
+		if (tokens.length) rebuilt.updateCard(id, tokens);
+	}
+	index = rebuilt;
+	searchIndexNeedsRebuild = false;
+	const elapsed = performance.now() - startedAt;
+	indexBuildMs += elapsed;
+	recordWorkerPerf('indexBuild', elapsed);
+	status(`search index built on demand: ${index.cardCount} cards in ${elapsed.toFixed(0)}ms`);
+};
+
 const runQuery = (id : number, text : string) => {
 	const start = performance.now();
 	const tokens = queryTokens(text);
+	//An empty/stop-word-only query has no index candidates and uses the existing
+	//full-scan fallback, so it should not accidentally trigger the deferred work.
+	if (tokens.length) ensureSearchIndex();
 	const candidates = index.candidates(tokens);
 	const ms = performance.now() - start;
 	recordWorkerPerf('query', ms);
@@ -1804,8 +1846,9 @@ workerScope.addEventListener('message', event => {
 //the bridge. Deduped with a TTL rather than a permanent set: the filter
 //re-fires on every run until similarity data arrives, so a permanent entry
 //meant one failed fetch disabled similarity for that card until reload.
-//After the TTL the next filter run re-requests; once data lands the filter
-//stops asking entirely, so a satisfied request generates no further
+//After the TTL, a later filter run may re-request; the TTL itself is not a
+//timer and deliberately does not create background work. Once data lands the
+//filter stops asking entirely, so a satisfied request generates no further
 //traffic.
 const SIMILARITY_REQUEST_RETRY_MS = 60 * 1000;
 const requestedSimilarityCardIDs : Map<CardID, number> = new Map();

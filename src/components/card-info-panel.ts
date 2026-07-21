@@ -93,6 +93,11 @@ import {
 	corpusWorkerServesCollections
 } from '../corpus-mode.js';
 
+import {
+	deferredWorkIsOverdue,
+	deferredWorkStartedAt
+} from '../deferred-work.js';
+
 //Matches card-view's reference-blocks debounce: long enough that navigation
 //keystrokes never pay the whole-corpus reference-block cost.
 const EXPENSIVE_PROPERTIES_DEBOUNCE_MS = 250;
@@ -302,7 +307,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			window.clearTimeout(this._expensivePropertiesTimeout);
 			return;
 		}
+		const previousCardID = this._card?.id || '';
 		this._card = selectActiveCard(state);
+		const activeCardChanged = previousCardID !== (this._card?.id || '');
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = getAuthorForId(state, this._card?.author || '');
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
@@ -333,11 +340,19 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//past the bound (the debounce resets on EVERY state change and could
 		//otherwise be starved by store churn).
 		const now = Date.now();
-		if (!this._expensivePropertiesFirstDeferredAt) this._expensivePropertiesFirstDeferredAt = now;
+		//A max-wait window belongs to one card. Carrying an already-overdue
+		//window across ArrowRight made the first navigation dispatch launch all
+		//info-panel collections immediately; their worker replies and cloned ID
+		//arrays could then land in one renderer-blocking burst.
+		this._expensivePropertiesFirstDeferredAt = deferredWorkStartedAt(
+			this._expensivePropertiesFirstDeferredAt,
+			now,
+			activeCardChanged
+		);
 		//Only short-circuit when the worker can serve (async): an early fire
 		//onto the SYNC 1-2s local fallback is a mid-interaction freeze, and
 		//starvation only arises from worker-mode store churn anyway.
-		const overdue = now - this._expensivePropertiesFirstDeferredAt >= EXPENSIVE_PROPERTIES_MAX_WAIT_MS && corpusWorkerCanRunCollections();
+		const overdue = deferredWorkIsOverdue(this._expensivePropertiesFirstDeferredAt, now, EXPENSIVE_PROPERTIES_MAX_WAIT_MS) && corpusWorkerCanRunCollections();
 		this._expensivePropertiesTimeout = window.setTimeout(() => {
 			this._expensivePropertiesFirstDeferredAt = 0;
 			const freshState = store.getState() as State;

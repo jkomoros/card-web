@@ -259,7 +259,25 @@ const updateFilterMap = (previous : FilterMap, toRemove : CardID[], toAdd : Card
 const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters => {
 	const result : Filters = {};
 	const cardValues = Object.values(cards);
-	for (const [filterName, func] of TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string,  CardTestFunc])) {
+	const filterFuncs = TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string, CardTestFunc]);
+	//The worker's full-corpus prime starts from the initial empty card-derived
+	//maps. Build that projection directly in one card-major pass: the generic
+	//incremental algorithm below repeatedly checks empty prior membership,
+	//allocates add lists, and then copies maps. Card-major construction is
+	//semantically identical here and substantially cheaper for a 40k-card boot.
+	if (cardValues.length >= 1000 && filterFuncs.every(([name]) => Object.keys(previousFilters[name] || {}).length === 0)) {
+		for (const [name] of filterFuncs) result[name] = {};
+		for (const card of cardValues) {
+			for (const [name, func] of filterFuncs) {
+				if (!func) throw new Error('Invalid func name: ' + name);
+				if (func(card)) result[name][card.id] = true;
+			}
+		}
+		perfCount('makeFilterFromCards:calls');
+		perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
+		return result;
+	}
+	for (const [filterName, func] of filterFuncs) {
 		if(!func) throw new Error('Invalid func name: ' + filterName);
 		const previous = previousFilters[filterName] || {};
 		let toAdd : CardID[] | null = null;

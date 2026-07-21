@@ -72,14 +72,15 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		return 'Compendium is open in another tab';
 	}
 
-	private _activate() {
+	//Keep activation bound to the gate across shadow-DOM event dispatchers.
+	private _activate = () => {
 		if (this._status === 'unsupported') return;
 		if (this._status === 'degraded' || this._status === 'ownership-error') {
 			window.location.reload();
 			return;
 		}
 		void window.CORPUS_WORKER.takeOver();
-	}
+	};
 
 	private _focusTarget() : HTMLElement | null {
 		return this.renderRoot.querySelector<HTMLElement>('button:not([disabled])') ||

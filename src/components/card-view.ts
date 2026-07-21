@@ -218,6 +218,11 @@ import {
 } from '../corpus-mode.js';
 
 import {
+	deferredWorkIsOverdue,
+	deferredWorkStartedAt
+} from '../deferred-work.js';
+
+import {
 	CardSelectedEvent,
 	CardSwipedEvent,
 	DisabledCardHighlightClickedEvent,
@@ -887,10 +892,10 @@ class CardView extends connect(store)(PageViewElement) {
 	//Debounced recompute of the active card's reference blocks. Cleared and
 	//rescheduled on every state change, so rapid navigation never pays the
 	//cost; it lands once the user settles on a card.
-	_scheduleReferenceBlocksUpdate() {
+	_scheduleReferenceBlocksUpdate(cardChanged = false) {
 		if (this._referenceBlocksTimeout) window.clearTimeout(this._referenceBlocksTimeout);
 		const now = Date.now();
-		if (!this._referenceBlocksFirstDeferredAt) this._referenceBlocksFirstDeferredAt = now;
+		this._referenceBlocksFirstDeferredAt = deferredWorkStartedAt(this._referenceBlocksFirstDeferredAt, now, cardChanged);
 		//Fire immediately (next tick) if deferrals have been piling up past
 		//the max-wait — but ONLY when the worker can serve (async,
 		//off-thread). When the fallback would be the SYNCHRONOUS 1-2s local
@@ -898,7 +903,7 @@ class CardView extends connect(store)(PageViewElement) {
 		//freeze — the exact jank the debounce exists to prevent — and the
 		//starvation this guards against only occurs from worker-mode store
 		//churn anyway.
-		const overdue = now - this._referenceBlocksFirstDeferredAt >= REFERENCE_BLOCKS_MAX_WAIT_MS && corpusWorkerCanRunCollections();
+		const overdue = deferredWorkIsOverdue(this._referenceBlocksFirstDeferredAt, now, REFERENCE_BLOCKS_MAX_WAIT_MS) && corpusWorkerCanRunCollections();
 		this._referenceBlocksTimeout = window.setTimeout(() => {
 			this._referenceBlocksTimeout = 0;
 			this._referenceBlocksFirstDeferredAt = 0;
@@ -963,8 +968,10 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	override stateChanged(state : State) {
+		const previousCardID = this._card?.id || '';
 		this._editingCard = selectEditingCardForDisplay(state);
 		this._card = selectActiveCard(state);
+		const activeCardChanged = previousCardID !== (this._card?.id || '');
 		this._editing = selectIsEditing(state);
 		//Reference blocks run ~10 key-card collections over the whole corpus
 		//(~1-2s at 40k cards), so they must never compute synchronously on the
@@ -976,7 +983,7 @@ class CardView extends connect(store)(PageViewElement) {
 			this._cardReferenceBlocks = [];
 			this._cardReferenceBlocksForCardID = '';
 		}
-		this._scheduleReferenceBlocksUpdate();
+		this._scheduleReferenceBlocksUpdate(activeCardChanged);
 		//Use enriched card for display when not editing. While editing, avoid
 		//semantic enrichment on the keystroke path and keep the active card's
 		//previous NLP block only as a display fallback.
