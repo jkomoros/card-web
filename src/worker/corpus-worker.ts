@@ -93,7 +93,8 @@ import {
 	Card,
 	Cards,
 	CardID,
-	CardFetchType
+	CardFetchType,
+	Filters
 } from '../types.js';
 
 import {
@@ -255,7 +256,7 @@ let corpusSnapshotSaveInFlight = false;
 let corpusSnapshotSavePending = false;
 
 const saveCorpusSnapshot = async () : Promise<void> => {
-	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore) return;
+	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore || !syncMetaState) return;
 	if (corpusSnapshotSaveInFlight) {
 		corpusSnapshotSavePending = true;
 		return;
@@ -269,8 +270,15 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	const cards = Object.fromEntries([...corpus.entries()].map(([id, card]) =>
 		[id, toWire(card, isTimestamp, getTime)]));
 	const contaminatedIDs = [...clientClockCardIDs].filter(id => corpus.has(id));
+	//Capture every safety field synchronously with the cards, before the first
+	//await. A later worker event may mutate live state, but the record remains a
+	//coherent earlier checkpoint rather than cards from one instant plus bounds
+	//from another.
+	const processedTombstoneIDs = [...syncMetaState.processedTombstoneIDs];
+	const tombstoneCursor = syncMetaState.tombstoneCursor ? {...syncMetaState.tombstoneCursor} : null;
+	const watermarkClamp = syncMetaState.watermarkClamp ? {...syncMetaState.watermarkClamp} : null;
 	try {
-		await corpusSnapshotStore.save(cards, contaminatedIDs, syncMetaState?.processedTombstoneIDs || []);
+		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp);
 		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
 	} catch (e) {
 		status(`compact snapshot save unavailable (${String(e)})`);
@@ -322,7 +330,7 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 	return {cards, removedIDs};
 };
 
-const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
+const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
 	const indexStart = performance.now();
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
@@ -346,7 +354,7 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 	//behavior match exactly.
 	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
 	subscriptions.markDirty();
-	pushMetaDeltas(cards, removedIDs);
+	pushMetaDeltas(cards, removedIDs, suppressMetaSend);
 	const indexElapsed = performance.now() - indexStart;
 	indexBuildMs += indexElapsed;
 	recordWorkerPerf('indexBuild', indexElapsed);
@@ -357,31 +365,36 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[]) => {
 //changed entries are re-pushed.
 const pushedMetas : CardMetas = {};
 
-const pushMetaDeltas = (cards : Cards, removedIDs : CardID[]) => {
+const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = false) => {
 	const changed : CardMetas = {};
 	for (const [id, card] of Object.entries(cards)) {
 		const meta = metaForCard(card);
 		const previous = pushedMetas[id];
 		if (previous && metasEquivalent(previous, meta)) continue;
 		pushedMetas[id] = meta;
-		changed[id] = meta;
+		if (!suppressSend) changed[id] = meta;
 	}
 	const removed : CardID[] = [];
 	for (const id of removedIDs) {
 		if (!pushedMetas[id]) continue;
 		delete pushedMetas[id];
-		removed.push(id);
+		if (!suppressSend) removed.push(id);
 	}
-	if (Object.keys(changed).length === 0 && removed.length === 0) return;
+	//The compact warm prime is followed immediately (in the same worker turn)
+	//by an atomic full-card handoff. Recording the metas keeps later deltas
+	//correct, but sending and Redux-installing a second 40k-entry corpus first
+	//only blocks the UI; card-link safely falls back to the full card map until
+	//a genuinely changed meta arrives.
+	if (suppressSend || (Object.keys(changed).length === 0 && removed.length === 0)) return;
 	send({type: 'cardMeta', generation, metas: changed, removedIDs: removed});
 };
 
-const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean, errorFallback = false) => {
+const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean, errorFallback = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) => {
 	const wireCards = Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, toWire(stripForWire(card), isTimestamp, getTime)])) as Cards;
 	send({
 		type: 'cards',
 		generation,
-		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size}
+		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size, cardFilters, cardFilterCorpusIDs}
 	});
 };
 
@@ -1408,6 +1421,17 @@ const connectUnpublishedWatermark = async () => {
 		if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
 			primeSource = 'compact snapshot';
 			compactTombstoneIDs = compactSnapshot.processedTombstoneIDs || [];
+			if (compactSnapshot.schemaVersion === 2) {
+				//Cards and safety bounds are one atomic checkpoint. Ignore any newer
+				//separate-DB progress and conservatively replay from this checkpoint.
+				syncMetaState = {
+					schemaVersion: 1,
+					tombstoneCursor: compactSnapshot.tombstoneCursor,
+					processedTombstoneIDs: [...compactSnapshot.processedTombstoneIDs],
+					coldSweep: null,
+					watermarkClamp: compactSnapshot.watermarkClamp,
+				};
+			}
 			const restored = fromWire(compactSnapshot.cards,
 				(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
 			//A published cache listener may have won the race while IndexedDB
@@ -1442,12 +1466,16 @@ const connectUnpublishedWatermark = async () => {
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
 		const parseFinishedAt = performance.now();
-		updateLocalState(primedCards, []);
+		updateLocalState(primedCards, [], true);
 		const workerStateFinishedAt = performance.now();
 		const primedPublished = Object.fromEntries(Object.entries(primedCards).filter(([, card]) => card.published)) as Cards;
 		const primedUnpublished = Object.fromEntries(Object.entries(primedCards).filter(([, card]) => !card.published)) as Cards;
-		if (Object.keys(primedPublished).length) forwardBatch(primedPublished, [], 'published', true);
-		if (Object.keys(primedUnpublished).length) forwardBatch(primedUnpublished, [], 'unpublished', false);
+		const cardFilters = engine.cardDerivedFilters();
+		const cardFilterCorpusIDs = [...corpus.keys()];
+		if (primedCount >= 10000) status(`watermark prime handoff starting: ${primedCount} cards`);
+		const hasUnpublished = Object.keys(primedUnpublished).length > 0;
+		if (Object.keys(primedPublished).length) forwardBatch(primedPublished, [], 'published', true, false, hasUnpublished ? undefined : cardFilters, hasUnpublished ? undefined : cardFilterCorpusIDs);
+		if (hasUnpublished) forwardBatch(primedUnpublished, [], 'unpublished', false, false, cardFilters, cardFilterCorpusIDs);
 		const forwardFinishedAt = performance.now();
 		status(`watermark prime: ${primedCount} cards from the ${primeSource}; load=${(cacheQueryFinishedAt - primeStartedAt).toFixed(0)}ms parse=${(parseFinishedAt - cacheQueryFinishedAt).toFixed(0)}ms workerState=${(workerStateFinishedAt - parseFinishedAt).toFixed(0)}ms forward=${(forwardFinishedAt - workerStateFinishedAt).toFixed(0)}ms total=${(forwardFinishedAt - primeStartedAt).toFixed(0)}ms`);
 	}

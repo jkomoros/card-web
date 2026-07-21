@@ -27,7 +27,12 @@ import './corpus-ownership-gate.js';
 import { pageRequiresMainView } from '../util.js';
 
 import {
-	selectActiveCard
+	selectActiveCard,
+	selectCardModificationError,
+	selectEditingCardHasUnsavedChanges,
+	selectPendingDeletions,
+	selectPendingModificationCount,
+	selectUid,
 } from '../selectors.js';
 
 import {
@@ -49,6 +54,40 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	@state()
 		_offline: boolean;
+
+	@state()
+		_updateRegistration : ServiceWorkerRegistration | null = null;
+
+	@state()
+	_unsafeExitReason = '';
+
+	@state()
+	_draftAvailable = false;
+
+	@state()
+	_draftBusy = false;
+
+	@state()
+	_draftError = '';
+
+	@state()
+	_saveStatus : 'idle' | 'saving' | 'paused' = 'idle';
+
+	@state()
+	_saveError = '';
+
+	private _updateReloading = false;
+	private _lastDraftUid = '';
+	private _updateEventHandler = (event : Event) => {
+		const registration = (event as CustomEvent<ServiceWorkerRegistration>).detail;
+		if (registration) this._updateRegistration = registration;
+	};
+	private _beforeUnloadHandler = (event : BeforeUnloadEvent) => {
+		if (!this._unsafeExitReason) return;
+		event.preventDefault();
+		event.returnValue = '';
+	};
+	private _draftEventHandler = () => { void this._refreshDraftAvailability(); };
 
 	static override styles = [
 		css`
@@ -108,6 +147,52 @@ class CardWebApp extends connect(store)(LitElement) {
 
 				--transition-fade: 0.25s linear;
 			}
+			.update-ready {
+				position: fixed;
+				right: 0.75rem;
+				bottom: 0.75rem;
+				z-index: 950;
+				display: flex;
+				align-items: center;
+				gap: 0.65rem;
+				padding: 0.55rem 0.7rem;
+				border-radius: 0.45rem;
+				background: white;
+				box-shadow: 0 2px 12px rgb(0 0 0 / 20%);
+				font: 0.85rem var(--app-default-font-family, sans-serif);
+			}
+			.update-ready button {
+				border: 0;
+				border-radius: 0.3rem;
+				padding: 0.4rem 0.6rem;
+				background: var(--app-primary-color);
+				color: white;
+				font: inherit;
+				font-weight: 600;
+				cursor: pointer;
+			}
+			.update-ready button[disabled] { opacity: 0.55; cursor: not-allowed; }
+			.draft-recovery { bottom: 4.25rem; }
+			.draft-recovery .discard { background: transparent; color: inherit; text-decoration: underline; }
+			.draft-error { color: var(--app-warning-color-light); }
+			.save-status {
+				position: fixed;
+				left: 0.75rem;
+				bottom: 0.75rem;
+				z-index: 940;
+				display: flex;
+				align-items: center;
+				gap: 0.4rem;
+				padding: 0.25rem 0.45rem;
+				border-radius: 1rem;
+				background: rgba(255, 255, 255, 0.94);
+				box-shadow: 0 1px 5px rgba(0, 0, 0, 0.18);
+				font: 0.78rem var(--app-default-font-family);
+				color: var(--app-dark-text-color);
+			}
+			.save-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--app-secondary-color); }
+			.save-status.paused .save-dot { background: var(--app-warning-color); }
+			.save-status button { border: 0; background: transparent; color: var(--app-primary-color); text-decoration: underline; cursor: pointer; font: inherit; }
 		`
 	];
 
@@ -118,6 +203,26 @@ class CardWebApp extends connect(store)(LitElement) {
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar .active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
+		${this._updateRegistration ? html`
+			<div class='update-ready' role='status' aria-live='polite'>
+				<span>${this._unsafeExitReason ? `Update ready — ${this._unsafeExitReason}` : 'Update ready'}</span>
+				<button ?disabled=${Boolean(this._unsafeExitReason) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
+			</div>` : ''}
+		${this._draftAvailable ? html`
+			<div class='update-ready draft-recovery' role='alert' aria-live='assertive'>
+				<span>${this._draftError || 'An unsaved card draft is available.'}</span>
+				<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
+				<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
+			</div>` : ''}
+		${this._saveStatus !== 'idle' ? html`
+			<div class='save-status ${this._saveStatus}' role='status' aria-live='polite' title=${this._saveError}>
+				<span class='save-dot' aria-hidden='true'></span>
+				<span>${this._saveStatus === 'saving' ? 'Saving card…' : 'Save paused'}</span>
+				${this._saveStatus === 'paused' ? html`
+					<button @click=${this._retrySave}>Retry</button>
+					<button @click=${this._stopRetryingSave}>Stop retrying</button>
+				` : ''}
+			</div>` : ''}
 		<corpus-ownership-gate></corpus-ownership-gate>
 		`;
 	}
@@ -154,11 +259,69 @@ class CardWebApp extends connect(store)(LitElement) {
 		store.dispatch(ctrlKeyPressed(false));
 	}
 
+	private _activateUpdate = () => {
+		if (!this._updateRegistration?.waiting || this._unsafeExitReason || this._updateReloading) return;
+		this._updateReloading = true;
+		let reloaded = false;
+		navigator.serviceWorker.addEventListener('controllerchange', () => {
+			if (reloaded) return;
+			reloaded = true;
+			window.location.reload();
+		}, {once: true});
+		this._updateRegistration.waiting.postMessage({type: 'SKIP_WAITING'});
+	};
+
+	private _refreshDraftAvailability = async () => {
+		const {readEditDraft} = await import('../edit-draft.js');
+		const draft = readEditDraft();
+		const state = store.getState() as State;
+		this._draftAvailable = Boolean(draft && draft.uid === selectUid(state) && !state.editor?.editing);
+		if (!this._draftAvailable) this._draftError = '';
+	};
+
+	private _recoverDraft = async () => {
+		this._draftBusy = true;
+		this._draftError = '';
+		try {
+			const {recoverEditDraft} = await import('../edit-draft.js');
+			await recoverEditDraft();
+		} catch (error) {
+			this._draftError = error instanceof Error ? error.message : String(error);
+		} finally {
+			this._draftBusy = false;
+			await this._refreshDraftAvailability();
+		}
+	};
+
+	private _discardDraft = async () => {
+		if (!confirm('Permanently discard this unsaved draft?')) return;
+		const {clearEditDraft} = await import('../edit-draft.js');
+		clearEditDraft();
+	};
+
+	private _retrySave = async () => {
+		const {retryPendingBulkTagOperation} = await import('../actions/data.js');
+		store.dispatch(retryPendingBulkTagOperation());
+	};
+
+	private _stopRetryingSave = async () => {
+		const {abandonPendingBulkTagOperation} = await import('../actions/data.js');
+		store.dispatch(abandonPendingBulkTagOperation());
+		//The original draft deliberately survives until a server-confirmed save.
+		//Once the durable retry is stopped, surface that draft so the user can
+		//recover it, change the now-invalid edit, and try again.
+		await this._refreshDraftAvailability();
+	};
+
 	override firstUpdated() {
 		// Install recovery only after the root module graph has initialized.
 		// Running actions/data's watcher during store construction would execute
 		// a circular module before all of its bindings exist.
 		void import('../actions/data.js').then(module => module.installBulkTagResumeWatcher());
+		void import('../edit-draft.js').then(module => {
+			module.installEditDraftWatcher();
+			void this._refreshDraftAvailability();
+		});
 		installRouter((location) => store.dispatch(navigated(location.pathname, location.search)));
 		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
 		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
@@ -167,6 +330,17 @@ class CardWebApp extends connect(store)(LitElement) {
 		document.addEventListener('keydown', this._handleKeyDown.bind(this));
 		document.addEventListener('keyup', this._handleKeyUp.bind(this));
 		window.addEventListener('blur', this._handleBlur.bind(this));
+		window.addEventListener('card-web-service-worker-update', this._updateEventHandler);
+		window.addEventListener('beforeunload', this._beforeUnloadHandler);
+		window.addEventListener('card-web-edit-draft-changed', this._draftEventHandler);
+		if (window.CARD_WEB_SW_UPDATE_REGISTRATION) this._updateRegistration = window.CARD_WEB_SW_UPDATE_REGISTRATION;
+	}
+
+	override disconnectedCallback() {
+		window.removeEventListener('card-web-service-worker-update', this._updateEventHandler);
+		window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+		window.removeEventListener('card-web-edit-draft-changed', this._draftEventHandler);
+		super.disconnectedCallback();
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
@@ -185,10 +359,43 @@ class CardWebApp extends connect(store)(LitElement) {
 		this._page = state.app.page;
 		this._offline = state.app.offline;
 		this._snackbarOpened = state.app.snackbarOpened;
+		const uid = selectUid(state);
+		if (uid !== this._lastDraftUid) {
+			this._lastDraftUid = uid;
+			void this._refreshDraftAvailability();
+		}
+		let hasDurableBulkIntent = false;
+		let hasDurableSingleIntent = false;
+		try {
+			const genericIntent = localStorage.getItem('card-web-pending-multi-edit-v1');
+			if (genericIntent) {
+				try { hasDurableSingleIntent = JSON.parse(genericIntent).kind === 'single'; } catch { /* surfaced by resume */ }
+			}
+			hasDurableBulkIntent = Boolean(
+				localStorage.getItem('card-web-pending-bulk-tag-operation-v1') ||
+				genericIntent
+			);
+		} catch {
+			//A browser that denies durable storage is already rejected when a bulk
+			//operation tries to persist. Do not make ordinary rendering fail too.
+		}
+		this._unsafeExitReason = selectEditingCardHasUnsavedChanges(state)
+			? 'save or cancel your draft first'
+			: selectPendingModificationCount(state) > 0 || state.data?.pendingReorder || Object.values(selectPendingDeletions(state)).some(Boolean) || hasDurableBulkIntent
+				? 'wait for pending changes to finish'
+				: '';
+		const saveError = selectCardModificationError(state);
+		this._saveStatus = hasDurableSingleIntent
+			? saveError ? 'paused' : 'saving'
+			: 'idle';
+		this._saveError = saveError?.message || '';
 	}
 }
 
 declare global {
+	interface Window {
+		CARD_WEB_SW_UPDATE_REGISTRATION? : ServiceWorkerRegistration;
+	}
 	interface HTMLElementTagNameMap {
 		'card-web-app': CardWebApp;
 	}

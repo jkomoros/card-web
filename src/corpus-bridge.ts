@@ -132,7 +132,8 @@ import {
 import {
 	inFlightMutationCount,
 	fenceMutations,
-	allowMutations
+	allowMutations,
+	configureMutationOwnership,
 } from './mutation-barrier.js';
 
 //Absolute path that resolves in both dev (wds serves the repo root; tsc
@@ -171,6 +172,19 @@ const OWNERSHIP_RETRY_ATTEMPTS = 20;
 const OWNERSHIP_RETRY_DELAY_MS = 250;
 const TAKEOVER_TIMEOUT_MS = 12000;
 const SUPERSEDED_SESSION_KEY = 'corpus-worker-superseded';
+const OWNERSHIP_LEASE_KEY = 'corpus-worker-owner-lease-v1';
+const OWNERSHIP_HEARTBEAT_MS = 1000;
+const OWNERSHIP_STALE_MS = 5000;
+const OWNERSHIP_ELECTION_LOCK_NAME = 'corpus-worker-takeover-election';
+
+type OwnershipLease = {
+	version: 1,
+	tabID: string,
+	epoch: number,
+	heartbeatAt: number,
+	dirty: boolean,
+	pending: boolean,
+};
 
 type OwnershipState = 'starting' | 'checking' | 'active' | 'contended' | 'takeover' | 'inactive' | 'unsupported' | 'ownership-error';
 type OwnershipMessage = {
@@ -189,7 +203,66 @@ let pendingConnection : {mayViewUnpublished : boolean, uid : string} | null = nu
 let grantedTakeover : {requestID : string, requesterID : string, timeout : ReturnType<typeof setTimeout>} | null = null;
 let takeoverAttempt : {requestID : string, timeout : ReturnType<typeof setTimeout>, abort : AbortController | null} | null = null;
 let handoffRecovery : {requestID : string, timeout : ReturnType<typeof setTimeout>} | null = null;
+let ownershipEpoch = 0;
+let ownershipHeartbeat : ReturnType<typeof setInterval> | null = null;
+let lastLeaseSafety = '';
 const ownershipChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(OWNERSHIP_CHANNEL_NAME);
+
+const readOwnershipLease = () : OwnershipLease | null => {
+	try {
+		const raw = localStorage.getItem(OWNERSHIP_LEASE_KEY);
+		if (!raw) return null;
+		const value = JSON.parse(raw) as OwnershipLease;
+		if (value.version !== 1 || !value.tabID || !Number.isInteger(value.epoch) ||
+			typeof value.heartbeatAt !== 'number' || typeof value.dirty !== 'boolean' || typeof value.pending !== 'boolean') return null;
+		return value;
+	} catch { return null; }
+};
+
+const leaseSafety = () => {
+	const state = store.getState() as State;
+	return {
+		dirty: selectEditingCardHasUnsavedChanges(state),
+		pending: inFlightMutationCount() > 0 || selectPendingModificationCount(state) > 0 ||
+			Boolean(state.data?.pendingReorder) || Object.values(selectPendingDeletions(state)).some(Boolean),
+	};
+};
+
+const writeOwnershipHeartbeat = (force = false) => {
+	if (ownershipState !== 'active' || !ownershipEpoch) return;
+	const safety = leaseSafety();
+	const safetyKey = `${safety.dirty}:${safety.pending}`;
+	if (!force && safetyKey === lastLeaseSafety) return;
+	lastLeaseSafety = safetyKey;
+	try {
+		localStorage.setItem(OWNERSHIP_LEASE_KEY, JSON.stringify({
+			version: 1, tabID, epoch: ownershipEpoch, heartbeatAt: Date.now(), ...safety,
+		} satisfies OwnershipLease));
+	} catch { /* Web Locks remains the primary safety primitive. */ }
+};
+
+const stopOwnershipHeartbeat = () => {
+	if (ownershipHeartbeat) clearInterval(ownershipHeartbeat);
+	ownershipHeartbeat = null;
+	lastLeaseSafety = '';
+};
+
+const startOwnershipHeartbeat = () => {
+	stopOwnershipHeartbeat();
+	writeOwnershipHeartbeat(true);
+	ownershipHeartbeat = setInterval(() => writeOwnershipHeartbeat(true), OWNERSHIP_HEARTBEAT_MS);
+};
+
+const establishOwnershipEpoch = () => {
+	const prior = readOwnershipLease();
+	ownershipEpoch = Math.max(ownershipEpoch, prior?.epoch || 0) + 1;
+};
+
+const ownsCurrentEpoch = () => {
+	const lease = readOwnershipLease();
+	//If durable storage is unavailable, the held Web Lock still fences tabs.
+	return !lease || (lease.tabID === tabID && lease.epoch === ownershipEpoch);
+};
 
 const setOwnershipStatus = (status : OwnershipState, message : string) => {
 	ownershipState = status;
@@ -639,12 +712,20 @@ const maybeRequestReconciliation = () => {
 
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
+	const handleStartedAt = performance.now();
+	const inputCount = Object.keys(batch.cards).length;
 	workerCorpusSize = batch.corpusSize;
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
+	const decodedAt = performance.now();
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
 	//the fetchType regardless of card count, exactly like a main-thread
 	//listener receiving an empty snapshot.
-	store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe));
+	//fromWire just created this private map, so receiveCards may reuse it while
+	//deduping instead of copying every card into another giant object.
+	store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe, true, batch.cardFilters, batch.cardFilterCorpusIDs));
+	if (inputCount >= 10000) {
+		console.log(`[corpus-worker] main handoff: ${inputCount} cards decode=${(decodedAt - handleStartedAt).toFixed(0)}ms dispatch=${(performance.now() - decodedAt).toFixed(0)}ms`);
+	}
 	//NOTE: an earlier revision re-raised EXPECT_FETCHED_CARDS here after
 	//every pre-loadComplete batch ("first batch is progress, not
 	//completion"). That was REMOVED: the worker has designed paths that
@@ -924,19 +1005,20 @@ const ownershipAPIs = () => {
 //Resolve as soon as the callback receives the lock, while keeping the
 //callback pending until releaseOwnershipLock is invoked. A queued request is
 //used only after the current owner explicitly grants a takeover.
-const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal) : Promise<'acquired' | 'contended' | 'unsupported' | 'error'> => {
+const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal, steal = false, onAcquired? : () => void) : Promise<'acquired' | 'contended' | 'unsupported' | 'error'> => {
 	const locks = ownershipAPIs();
 	if (!locks) return Promise.resolve('unsupported');
 	return new Promise(resolve => {
 		try {
 			void locks.request(
 				OWNERSHIP_LOCK_NAME,
-				{...(ifAvailable ? {ifAvailable: true} : {}), ...(signal ? {signal} : {})},
+				{...(ifAvailable ? {ifAvailable: true} : {}), ...(steal ? {steal: true} : {}), ...(signal ? {signal} : {})},
 				lock => {
 					if (!lock) {
 						resolve('contended');
 						return;
 					}
+					onAcquired?.();
 					resolve('acquired');
 					return new Promise<void>(release => {
 						releaseOwnershipLock = release;
@@ -956,6 +1038,7 @@ const purgeAndDeactivate = () => {
 	//Fence all outstanding worker replies before termination, then remove the
 	//old tab's corpus so it cannot look usable behind the blocking gate.
 	fenceMutations();
+	stopOwnershipHeartbeat();
 	generation++;
 	stopWorker();
 	bufferedActions.length = 0;
@@ -1027,12 +1110,68 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	}
 };
 
-const activateOwnedConnection = (takeoverRequestID? : string) => {
+const activateOwnedConnection = (takeoverRequestID? : string, epochEstablished = false) => {
+	if (!epochEstablished) establishOwnershipEpoch();
 	allowMutations();
 	ownershipState = 'active';
+	configureMutationOwnership(ownsCurrentEpoch, () => writeOwnershipHeartbeat(true));
+	startOwnershipHeartbeat();
 	try { sessionStorage.removeItem(SUPERSEDED_SESSION_KEY); } catch { /* storage may be disabled */ }
 	if (pendingConnection) connectWorkerNow(pendingConnection.mayViewUnpublished, pendingConnection.uid);
 	if (takeoverRequestID) postOwnershipMessage({type: 'acquired', requestID: takeoverRequestID, requesterID: tabID});
+};
+
+const forceStaleTakeover = async (requestID : string) : Promise<'acquired' | 'unsafe' | 'fresh' | 'lost' | 'error'> => {
+	const locks = ownershipAPIs();
+	if (!locks) return 'error';
+	return new Promise(resolve => {
+		void locks.request(OWNERSHIP_ELECTION_LOCK_NAME, {ifAvailable: true}, async election => {
+			if (!election) {
+				resolve('lost');
+				return;
+			}
+			const lease = readOwnershipLease();
+			if (!lease || Date.now() - lease.heartbeatAt <= OWNERSHIP_STALE_MS) {
+				resolve('fresh');
+				return;
+			}
+			if (lease.dirty || lease.pending) {
+				resolve('unsafe');
+				return;
+			}
+			const forcedEpoch = lease.epoch + 1;
+			const result = await acquireOwnershipLock(false, undefined, true, () => {
+				ownershipEpoch = forcedEpoch;
+				try {
+					localStorage.setItem(OWNERSHIP_LEASE_KEY, JSON.stringify({
+						version: 1, tabID, epoch: forcedEpoch, heartbeatAt: Date.now(), dirty: false, pending: false,
+					} satisfies OwnershipLease));
+				} catch { /* the stolen Web Lock still excludes the old page */ }
+			});
+			if (result === 'acquired') {
+				activateOwnedConnection(requestID, true);
+				resolve('acquired');
+			} else resolve(result === 'error' || result === 'unsupported' ? 'error' : 'lost');
+		}).catch(() => resolve('error'));
+	});
+};
+
+const finishUnresponsiveTakeover = async (requestID : string) => {
+	if (takeoverAttempt?.requestID !== requestID) return;
+	const result = await forceStaleTakeover(requestID);
+	if (result === 'acquired') {
+		if (takeoverAttempt?.requestID === requestID) {
+			clearTimeout(takeoverAttempt.timeout);
+			takeoverAttempt = null;
+		}
+		return;
+	}
+	const detail = result === 'unsafe'
+		? 'The other tab stopped responding after reporting an unsaved edit or pending save. For safety, find or close that tab before continuing.'
+		: result === 'fresh'
+			? 'The other tab is still active but did not answer. Try again, or close the other tab.'
+			: 'The other tab could not be safely replaced. Close other Compendium tabs, then try again. If it is hard to find, restart Chrome.';
+	finishTakeoverFailure(detail, result === 'error' ? 'ownership-error' : 'contended');
 };
 
 const takeoverBlockReason = (state : State) : 'editing' | 'pending' | null => {
@@ -1091,7 +1230,7 @@ const takeOverOwnership = async () => {
 		return;
 	}
 	const requestID = crypto.randomUUID();
-	const timeout = setTimeout(() => finishTakeoverFailure('The other tab did not respond. Close other Compendium tabs, then try again. If it is hard to find, restart Chrome.'), TAKEOVER_TIMEOUT_MS);
+	const timeout = setTimeout(() => { void finishUnresponsiveTakeover(requestID); }, TAKEOVER_TIMEOUT_MS);
 	takeoverAttempt = {requestID, timeout, abort: null};
 	postOwnershipMessage({type: 'request', requestID, requesterID: tabID});
 };
@@ -1184,6 +1323,24 @@ ownershipChannel?.addEventListener('message', event => {
 				: 'Another tab is already moving card sync. Wait a moment, then try again.';
 		finishTakeoverFailure(detail);
 	}
+});
+
+//A force-superseded frozen tab receives this when it becomes runnable again.
+//The synchronous validator in beginMutation already blocks writes even before
+//this event; this handler makes the stale UI visibly and permanently inert.
+window.addEventListener('storage', event => {
+	if (event.key !== OWNERSHIP_LEASE_KEY || ownershipState !== 'active' || ownsCurrentEpoch()) return;
+	const release = releaseOwnershipLock;
+	releaseOwnershipLock = null;
+	purgeAndDeactivate();
+	release?.();
+});
+
+store.subscribe(() => {
+	if (ownershipState !== 'active') return;
+	const safety = leaseSafety();
+	const key = `${safety.dirty}:${safety.pending}`;
+	if (key !== lastLeaseSafety) writeOwnershipHeartbeat(true);
 });
 
 //Resets local subscription bookkeeping across a (re)connect. The worker

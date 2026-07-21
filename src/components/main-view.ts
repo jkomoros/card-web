@@ -67,6 +67,10 @@ import {
 	openFindDialog
 } from '../actions/find.js';
 
+import {
+	editingStart
+} from '../actions/editor.js';
+
 // These are the actions needed by this element.
 import {
 	navigateToNextCard,
@@ -489,6 +493,12 @@ class MainView extends connect(store)(PageViewElement) {
 		//Don't move the slide selection when editing!
 		if (!this._keyboardNavigates) return;
 		switch (e.key) {
+		case 'e':
+			if (e.metaKey || e.ctrlKey || e.altKey) return;
+			e.stopPropagation();
+			e.preventDefault();
+			store.dispatch(editingStart());
+			break;
 		case 'f':
 			if (!e.metaKey && !e.ctrlKey) return;
 			e.stopPropagation();

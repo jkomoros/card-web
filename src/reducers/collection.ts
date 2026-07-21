@@ -108,6 +108,12 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			filters: {...state.filters, ...makeFilterFromSection(action.tags, false)}
 		};
 	case UPDATE_CARDS: {
+		if (completeCardFilterProjection(action.cardFilters)) {
+			return {
+				...state,
+				filters: {...state.filters, ...action.cardFilters}
+			};
+		}
 		const changedFilters = makeFilterFromCards(action.cards, state.filters);
 		//If no filter membership actually changed, keep state identity so
 		//downstream selectors keyed on filters don't reevaluate.
@@ -209,6 +215,15 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 	}
 	if (includeDefaultSet) result[SET_INFOS.main.filterEquivalent] = combinedSet;
 	return result;
+};
+
+const completeCardFilterProjection = (filters? : Filters) : filters is Filters => {
+	if (!filters) return false;
+	const expected = Object.keys(CARD_FILTER_FUNCS);
+	const actual = Object.keys(filters);
+	return actual.length === expected.length &&
+		expected.every(name => Object.prototype.hasOwnProperty.call(filters, name) &&
+			typeof filters[name] === 'object' && filters[name] !== null && !Array.isArray(filters[name]));
 };
 
 //Applies removals then additions to a filter map, returning the previous map

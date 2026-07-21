@@ -57,17 +57,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 			scope: '/',
 		  }).then(reg => {
 			if (!reg) return;
-			//Based on this stack overflow answer: https://stackoverflow.com/questions/41891031/refresh-page-on-controllerchange-in-service-worker/41896649#41896649
-			reg.onupdatefound = () => {
+				const announceWaitingUpdate = () => {
+				  if (!reg.waiting || !navigator.serviceWorker.controller) return;
+				  window.CARD_WEB_SW_UPDATE_REGISTRATION = reg;
+				  window.dispatchEvent(new CustomEvent('card-web-service-worker-update', {detail: reg}));
+				};
+				//Never reload from this bootstrap script. The application owns the
+				//dirty-draft/pending-write checks and explicitly activates the waiting
+				//worker only when losing page state is safe.
+				announceWaitingUpdate();
+				reg.onupdatefound = () => {
 			  const installingWorker = reg.installing;
 			  if (!installingWorker) return;
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Preferably, display a message asking the user to reload...
-                  location.reload();
-                }
-              };
-            };
+	              installingWorker.onstatechange = () => {
+	                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+	                  announceWaitingUpdate();
+	                }
+	              };
+	            };
+				//register() may defer its network update check for up to a day when
+				//the same registration was checked recently. An explicit check keeps
+				//rapid DEV deploys and ordinary warm boots from remaining indefinitely
+				//on an old shell; activation is still guarded by the application UI.
+				void reg.update().then(announceWaitingUpdate).catch(error =>
+				  console.warn('Service worker update check failed', error));
 		  }).catch(error => console.warn('Service worker registration failed', error));
         });
       }

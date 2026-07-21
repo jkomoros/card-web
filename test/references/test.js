@@ -12,6 +12,8 @@ import {
 	referencesCardsDiff,
 	applyReferencesDiff,
 	referencesEntriesDiff,
+	referencesEntriesDiffWithSet,
+	referencesEntriesDiffWithRemove,
 	unionReferences,
 	intersectionReferences
 } from '../../lib/src/references.js';
@@ -30,6 +32,31 @@ import {
 const REFERENCE_TYPE_ACK = referenceType('ack');
 const REFERENCE_TYPE_DUPE_OF = referenceType('dupe-of');
 const REFERENCE_TYPE_LINK = referenceType('link');
+
+describe('multi-edit reference intent accumulation', () => {
+	it('preserves unrelated operations while adding and removing multiple references', () => {
+		let diff = referencesEntriesDiffWithSet([], 'card-a', REFERENCE_TYPE_LINK);
+		diff = referencesEntriesDiffWithSet(diff, 'card-b', REFERENCE_TYPE_ACK);
+		diff = referencesEntriesDiffWithRemove(diff, 'card-c', REFERENCE_TYPE_DUPE_OF);
+		assert.deepStrictEqual(diff, [
+			{cardID: 'card-c', referenceType: REFERENCE_TYPE_DUPE_OF, delete: true},
+			{cardID: 'card-a', referenceType: REFERENCE_TYPE_LINK, value: ''},
+			{cardID: 'card-b', referenceType: REFERENCE_TYPE_ACK, value: ''},
+		]);
+	});
+
+	it('cancels inverse operations and replaces repeated sets without duplicates', () => {
+		let diff = referencesEntriesDiffWithSet([], 'card-a', REFERENCE_TYPE_LINK, 'first');
+		diff = referencesEntriesDiffWithSet(diff, 'card-a', REFERENCE_TYPE_LINK, 'second');
+		assert.deepStrictEqual(diff, [{cardID: 'card-a', referenceType: REFERENCE_TYPE_LINK, value: 'second'}]);
+		diff = referencesEntriesDiffWithRemove(diff, 'card-a', REFERENCE_TYPE_LINK);
+		assert.deepStrictEqual(diff, []);
+		diff = referencesEntriesDiffWithRemove(diff, 'card-a', REFERENCE_TYPE_LINK);
+		assert.deepStrictEqual(diff, [{cardID: 'card-a', referenceType: REFERENCE_TYPE_LINK, delete: true}]);
+		diff = referencesEntriesDiffWithSet(diff, 'card-a', REFERENCE_TYPE_LINK);
+		assert.deepStrictEqual(diff, []);
+	});
+});
 
 describe('card referencesLegalShape util functions', () => {
 	it('missing either references and references_info not legal', async () => {

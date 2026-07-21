@@ -1,5 +1,6 @@
 import { 
 	EDITING_START,
+	EDITING_RESTORE_DRAFT,
 	EDITING_FINISH,
 	EDITING_EDITOR_MINIMIZED,
 	EDITING_SELECT_TAB,
@@ -120,6 +121,16 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			selectedEditorTab: DEFAULT_EDITOR_TAB,
 			//Throw out any editing card similarity
 			editingCardSimilarity: undefined
+		};
+	case EDITING_RESTORE_DRAFT:
+		if (!state.editing || !state.underlyingCardSnapshot ||
+			action.card.id !== state.underlyingCardSnapshot.id) return state;
+		return {
+			...state,
+			card: action.card,
+			substantive: action.substantive,
+			cardExtractionVersion: state.cardExtractionVersion + 1,
+			updatedFromContentEditable: {},
 		};
 	case EDITING_FINISH:
 		return {

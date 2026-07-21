@@ -17,7 +17,14 @@ module.exports = {
 		'manifest.json',
 		'lib/src/**/*',
 	],
-	skipWaiting: true,
+	//The production Firebase chunk is currently ~2.3 MB. Workbox's 2 MB
+	//default silently omitted it, defeating warm/offline boots despite a
+	//successfully installed service worker.
+	maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+	//Updates wait until the app confirms there is no dirty draft or pending
+	//mutation, then receive the standard SKIP_WAITING message.
+	skipWaiting: false,
+	clientsClaim: true,
 	runtimeCaching: [
 		{
 			urlPattern: /\/@webcomponents\/webcomponentsjs\//,

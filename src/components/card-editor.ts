@@ -19,7 +19,6 @@ import {
 	selectEditingUnderlyingCardSnapshot,
 	selectEditingCard,
 	selectEditingCardAutoTodos,
-	selectEditingCardSuggestedTags,
 	selectAuthorsForTagList,
 	selectUserIsAdmin,
 	selectRawCards,
@@ -517,10 +516,10 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
         <div class='inputs'>
 		  ${this._selectedTab == 'content' ? html`<div class='flex body'>
-			<div class='tabs' @click=${this._handleEditorTabClicked}>
-				<label data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
-				<label data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
-				<label data-name='${editorContentTab('todo')}' ?data-selected=${this._selectedEditorTab == 'todo'} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
+			<div class='tabs' @click=${this._handleEditorTabClicked} @keydown=${this._handleEditorTabKeyDown}>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedEditorTab == 'content'} data-testid='editor-tab-content' data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedEditorTab == 'notes'} data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedEditorTab == 'todo'} data-name='${editorContentTab('todo')}' ?data-selected=${this._selectedEditorTab == 'todo'} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
 				<label class='help' ?hidden=${this._selectedEditorTab !== 'content'}>Content is what shows up on the main body of the card</label>
 				<label class='help' ?hidden=${this._selectedEditorTab !== 'notes'}>Notes are visible in the info panel to all readers and are for permanent asides</label>
@@ -860,9 +859,9 @@ class CardEditor extends connect(store)(LitElement) {
 				</select>
 			</div>
 		` :
-		html`<div class='tabs main' @click=${this._handleTabClicked}>
-				<label data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
-				<label data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
+		html`<div class='tabs main' @click=${this._handleTabClicked} @keydown=${this._handleTabKeyDown}>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedTab == 'config'} data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedTab == 'content'} data-testid='editor-main-content' data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
 			</div>
 			<div class='flex'>
 			</div>
@@ -881,9 +880,9 @@ class CardEditor extends connect(store)(LitElement) {
 					<input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
 				</div>
 			</div>
-			<button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
+			<button class='round' data-testid='cancel-card-edit' aria-label='Cancel editing' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
 			<button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
-			<button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
+			<button class='round primary' data-testid='save-card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
         </div>
       </div>
     `;
@@ -944,7 +943,11 @@ class CardEditor extends connect(store)(LitElement) {
 		this._suggestionsTimeout = window.setTimeout(() => {
 			const latestState = store.getState() as State;
 			if (this._suggestionKeyForState(latestState) != key) return;
-			this._suggestedTags = selectEditingCardSuggestedTags(latestState);
+			//Suggested-tag calculation fingerprints every card in every tag. At
+			//production corpus size that blocks the main thread for seconds, so it
+			//must not run from editor startup or typing. Keep this optional UI empty
+			//until suggestions are served by the corpus worker.
+			this._suggestedTags = [];
 			this._suggestedConcepts = selectEditingCardSuggestedConceptReferences(latestState);
 			this._cardTagInfos = this._makeVisibleCardTagInfos(latestState, this._suggestedConcepts);
 			this._cardTagInfosForReferenceTypes = this._makeCardTagInfosForReferenceTypes();
@@ -1174,11 +1177,31 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(editingSelectTab(name));
 	}
 
+	_handleTabKeyDown(e : KeyboardEvent) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) return;
+		const name = ele.getAttribute('data-name') as EditorTab;
+		if (!name) return;
+		killEvent(e);
+		store.dispatch(editingSelectTab(name));
+	}
+
 	_handleEditorTabClicked(e : MouseEvent) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('ele not html element');
 		const name = ele.getAttribute('data-name') as EditorContentTab;
 		if (!name) return;
+		store.dispatch(editingSelectEditorTab(name));
+	}
+
+	_handleEditorTabKeyDown(e : KeyboardEvent) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) return;
+		const name = ele.getAttribute('data-name') as EditorContentTab;
+		if (!name) return;
+		killEvent(e);
 		store.dispatch(editingSelectEditorTab(name));
 	}
 

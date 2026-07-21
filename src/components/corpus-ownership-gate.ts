@@ -12,6 +12,8 @@ const BLOCKING = new Set<CorpusStatus>(['checking', 'contended', 'inactive', 'ta
 class CorpusOwnershipGate extends connect(store)(LitElement) {
 	@state() _status : CorpusStatus = 'off';
 	@state() _message = '';
+	private _wasOpen = false;
+	private _returnFocus : HTMLElement | null = null;
 
 	static override styles = css`
 		:host { display: none; }
@@ -142,8 +144,22 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 
 	override updated() {
 		const open = BLOCKING.has(this._status);
+		if (open && !this._wasOpen) {
+			const active = document.activeElement;
+			this._returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
+		}
 		this._setBackgroundInert(open);
-		if (open) this._focusGate();
+		if (open) {
+			this._focusGate();
+		} else if (this._wasOpen) {
+			const target = this._returnFocus;
+			this._returnFocus = null;
+			requestAnimationFrame(() => {
+				if (target?.isConnected) target.focus({preventScroll: true});
+				else (this.parentNode as ParentNode | null)?.querySelector<HTMLElement>('main-view')?.focus({preventScroll: true});
+			});
+		}
+		this._wasOpen = open;
 	}
 
 	override connectedCallback() {

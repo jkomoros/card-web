@@ -144,4 +144,14 @@ describe('QueryEngine', () => {
 		assert.deepStrictEqual(result.ids, ['b', 'a']);
 		assert.strictEqual(engine.cardCount, 2);
 	});
+
+	it('exports only complete card-derived filter maps', () => {
+		const engine = makeEngine();
+		engine.applyAction({type: UPDATE_STARS, starsToAdd: ['a'], starsToRemove: []});
+		const filters = engine.cardDerivedFilters();
+		assert.ok(Object.keys(filters).length > 50);
+		assert.deepStrictEqual(Object.keys(filters.content || {}).sort(), ['a', 'b', 'c']);
+		assert.strictEqual(Object.prototype.hasOwnProperty.call(filters, 'starred'), false);
+		for (const value of Object.values(filters)) assert.ok(value && typeof value === 'object' && !Array.isArray(value));
+	});
 });

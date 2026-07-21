@@ -6,9 +6,11 @@ import {
 	selectUid,
 	selectPendingSlug,
 	selectIsEditing,
+	selectCardModificationPending,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
+	selectSelectedCards,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
@@ -22,6 +24,7 @@ import {
 
 import {
 	modifyCard,
+	durableCardMutationPending,
 } from './data.js';
 
 import {
@@ -293,6 +296,16 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
+		return;
+	}
+	//A durable single-card save releases the editor before its server commit
+	//finishes. Do not allow another editor session to start during that short
+	//window: the mutation runner intentionally serializes durable operations,
+	//so a second Save could not be accepted yet. More importantly, keeping the
+	//sessions disjoint prevents a late acknowledgement from the first save from
+	//being mistaken for completion of a newer edit.
+	if (selectCardModificationPending(state) || durableCardMutationPending()) {
+		console.warn('Can\'t start editing while another card save is pending');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
@@ -865,6 +878,16 @@ export const setCardToReference = (cardID : CardID) : ThunkSomeAction => (dispat
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
 	if (selectMultiEditDialogOpen(state)) {
+		//A reference added by the multi-edit dialog promises to apply to every
+		//selected card. A selected target would make one of those cards reference
+		//itself, which is invalid and could otherwise pause a later chunk after
+		//earlier chunks had already committed. Reject the intent before any durable
+		//operation begins instead of leaving a surprising partial result.
+		if (selectSelectedCards(state).some(card => card.id === cardID)) {
+			alert('Choose a card outside the current selection. A card cannot reference itself.');
+			dispatch({type: EDITING_RESET_REFERENCE_CARD});
+			return;
+		}
 		dispatch(addReference(cardID, referenceType));
 	} else {
 		dispatch(addReferenceToCard(cardID, referenceType));

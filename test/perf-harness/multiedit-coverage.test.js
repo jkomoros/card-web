@@ -43,6 +43,8 @@ describe('multi-edit acceptance coverage', () => {
 		const runner = read('test/perf-harness/run.js');
 		assert.match(runner, /result\.addMs > 20000 \|\| result\.removeMs > 20000/);
 		assert.match(runner, /general\.applyMs > 20000 \|\| general\.restoreMs > 20000/);
+		assert.match(runner, /durableMultiEditRoundTrip\(count\), multiEditCount/,
+			'the all-fields path must cover the same requested selection size as the label path');
 	});
 
 	it('keeps active progress truthful and the covered edit form unreachable', () => {
@@ -64,7 +66,27 @@ describe('multi-edit acceptance coverage', () => {
 			'could not isolate the stored-NLP regeneration predicate');
 		assert.doesNotMatch(actions.slice(changedStart, changedEnd), /references_diff/,
 			'reference-only edits must not regenerate stored NLP from a stale body snapshot');
-		assert.match(actions, /modifyCardWithBatch\(state, authoritative\.cards\[id\],[\s\S]*false, true\)/,
+		assert.match(actions, /modifyCardWithBatch\(state, authoritative\.cards\[id\],[\s\S]*false, compactMultiEdit, false\)/,
 			'durable dialog edits must suppress unrelated card-finisher fields');
+	});
+
+	it('retains canonical audits for generic all-fields multi-edit', () => {
+		const actions = read('src/actions/data.ts');
+		assert.match(actions, /modifyCardWithBatch\(state, authoritative\.cards\[id\],[\s\S]*false, compactMultiEdit, false\)/,
+			'the recovery marker must not replace card/tag audit history');
+	});
+
+	it('preserves card and tag audit history on the specialized label path', () => {
+		const actions = read('src/actions/data.ts');
+		const start = actions.indexOf('export const modifyCardsWithDurableTagOperation');
+		const end = actions.indexOf('const resumePendingBulkTagOperation', start);
+		assert.ok(start >= 0 && end > start, 'could not isolate the durable label executor');
+		const executor = actions.slice(start, end);
+		assert.match(executor, /CARD_UPDATES_COLLECTION[\s\S]*add_tags[\s\S]*remove_tags|CARD_UPDATES_COLLECTION[\s\S]*adding \? 'add_tags' : 'remove_tags'/,
+			'fast label edits must retain per-card audit records');
+		assert.match(executor, /TAG_UPDATES_COLLECTION[\s\S]*adding \? 'add_card' : 'remove_card'/,
+			'fast label edits must retain tag mirror audit records');
+		assert.match(executor, /ensureAuthor\(batch/,
+			'fast label edits must retain author metadata');
 	});
 });

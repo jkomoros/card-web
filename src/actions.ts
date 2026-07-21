@@ -59,7 +59,8 @@ import {
 	WorkerCollectionResult,
 	WorkerCollectionSlot,
 	CardMetas,
-	CorpusStatus
+	CorpusStatus,
+	Filters
 } from './types.js';
 
 //AI
@@ -160,6 +161,7 @@ export const UPDATE_SERVER_IDF = 'UPDATE_SERVER_IDF';
 export const UPDATE_CORPUS_STATUS = 'UPDATE_CORPUS_STATUS';
 //Editor
 export const EDITING_START = 'EDITING_START';
+export const EDITING_RESTORE_DRAFT = 'EDITING_RESTORE_DRAFT';
 export const EDITING_FINISH = 'EDITING_FINISH';
 export const EDITING_EDITOR_MINIMIZED = 'EDITING_EDITOR_MINIMIZED';
 export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
@@ -548,7 +550,8 @@ type ActionChatUpdateComposingMessage = {
 type ActionUpdateCards = {
 	type: typeof UPDATE_CARDS,
 	cards: Cards,
-	fetchType: CardFetchType
+	fetchType: CardFetchType,
+	cardFilters?: Filters
 };
 
 type ActionEnqueueCardUpdates = {
@@ -705,6 +708,12 @@ type ActionStopExpectingFetchedCards = {
 type ActionEditingStart = {
 	type: typeof EDITING_START,
 	card: ProcessedCard
+};
+
+type ActionEditingRestoreDraft = {
+	type: typeof EDITING_RESTORE_DRAFT,
+	card: Card,
+	substantive: boolean
 };
 
 type ActionEditingFinish = {
@@ -1254,6 +1263,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCardSimilarity
 	| ActionUpdateServerIDF
 	| ActionEditingStart
+	| ActionEditingRestoreDraft
 	| ActionEditingFinish
 	| ActionEditingEditorMinimized
 	| ActionEditingSelectTab

@@ -12,6 +12,7 @@ import {
 	CardMeta,
 	CardMetas,
 	CardSimilarityMap,
+	Filters,
 	ProcessedCard,
 	SerializedDescriptionToCardList,
 	SortExtra,
@@ -22,7 +23,7 @@ import {
 //Increment this for a wire-incompatible change. Missing version means a
 //pre-handshake worker/page (v0), which must be rejected: silently accepting it
 //would skip authoritative collection hydration on a mixed cached build.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 1;
+export const CORPUS_WORKER_PROTOCOL_VERSION = 2;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -174,6 +175,12 @@ export type MainToWorkerMessage =
 
 export type CardBatch = {
 	cards : Cards,
+	//Present only on the final compact-prime batch. These are the worker's
+	//complete card-derived filter maps for the same atomic corpus generation.
+	cardFilters? : Filters,
+	//Exact domain for cardFilters. Main Redux must already hold or receive
+	//every one of these IDs and no extras before it may install the snapshot.
+	cardFilterCorpusIDs? : CardID[],
 	removedIDs : CardID[],
 	fetchType : CardFetchType,
 	//True for deliveries that are expected to be redeliveries of cards the

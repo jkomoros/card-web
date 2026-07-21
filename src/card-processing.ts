@@ -126,3 +126,49 @@ export const processCards = (rawCards : Cards) : ProcessedCards => {
 	}
 	return result;
 };
+
+//The corpus worker genuinely needs every processed card to build its indexes,
+//so processCards above deliberately remains eager. The main thread is
+//different: in worker-owned mode most consumers either look up one card by ID
+//or expand the comparatively small list of IDs the worker returned. Eagerly
+//materializing the whole 40k-card map on the first such lookup made a warm boot
+//spend many seconds in one uninterruptible selector call.
+//
+//This proxy preserves the ordinary object surface. Direct property access is
+//lazy, while Object.keys/values/entries, spread, and JSON serialization still
+//enumerate the complete map and therefore produce the same result as
+//processCards when a caller really needs the whole corpus.
+const _lazyProcessedCardsCache = new WeakMap<Cards, ProcessedCards>();
+
+export const lazyProcessCards = (rawCards : Cards) : ProcessedCards => {
+	const cached = _lazyProcessedCardsCache.get(rawCards);
+	if (cached) return cached;
+
+	const target = {} as ProcessedCards;
+	const result = new Proxy(target, {
+		get: (_target, property, receiver) => {
+			if (typeof property === 'string' && Object.prototype.hasOwnProperty.call(rawCards, property)) {
+				return processCard(rawCards[property] as Card, rawCards);
+			}
+			return Reflect.get(target, property, receiver);
+		},
+		has: (_target, property) => Object.prototype.hasOwnProperty.call(rawCards, property) || Reflect.has(target, property),
+		ownKeys: () => Reflect.ownKeys(rawCards),
+		getOwnPropertyDescriptor: (_target, property) => {
+			if (!Object.prototype.hasOwnProperty.call(rawCards, property)) return undefined;
+			//An accessor descriptor keeps Object.keys cheap: it can inspect
+			//enumerability without processing the card. Object.values/entries,
+			//spread, and JSON subsequently perform [[Get]], which hits the trap.
+			return {
+				configurable: true,
+				enumerable: true,
+				get: () => typeof property === 'string'
+					? processCard(rawCards[property] as Card, rawCards)
+					: undefined,
+			};
+		},
+	}) as ProcessedCards;
+
+	_lazyProcessedCardsCache.set(rawCards, result);
+	return result;
+};

@@ -10,6 +10,7 @@ import {
 	MutationFencedError,
 	allowMutations,
 	beginMutation,
+	configureMutationOwnership,
 	fenceMutations,
 	inFlightMutationCount,
 	mutationsFenced,
@@ -55,6 +56,22 @@ describe('Firestore mutation barrier', () => {
 		finish();
 		finish();
 		assert.equal(inFlightMutationCount(), 0);
+	});
+
+	it('synchronously fences a tab whose ownership epoch was superseded', () => {
+		allowMutations();
+		let valid = true;
+		let transitions = 0;
+		configureMutationOwnership(() => valid, () => { transitions++; });
+		const finish = beginMutation();
+		assert.equal(transitions, 1);
+		finish();
+		assert.equal(transitions, 2);
+		valid = false;
+		assert.throws(() => beginMutation(), MutationFencedError);
+		assert.equal(mutationsFenced(), true);
+		configureMutationOwnership(null, null);
+		allowMutations();
 	});
 });
 

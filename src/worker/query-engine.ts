@@ -28,6 +28,7 @@ import {
 
 import {
 	INITIAL_STATE,
+	CARD_FILTER_FUNCS,
 	SELECTED_FILTER_NAME
 } from '../filters.js';
 
@@ -36,7 +37,7 @@ import {
 } from '../collection_description.js';
 
 import {
-	processCards
+	lazyProcessCards
 } from '../card-processing.js';
 
 import {
@@ -55,6 +56,7 @@ import {
 	Sections,
 	CardSimilarityMap,
 	Filters,
+	ProcessedCards,
 	SerializedDescriptionToCardList,
 	Uid
 } from '../types.js';
@@ -92,7 +94,7 @@ export class QueryEngine {
 	//Identity-keyed memos so repeated runCollection calls don't redo
 	//O(corpus) work when nothing changed.
 	_processedForCards : Cards | null;
-	_processedCards : ReturnType<typeof processCards> | null;
+	_processedCards : ProcessedCards | null;
 	_setsForCards : Cards | null;
 	_setsForSections : Sections | null;
 	_setsForReadingList : CardID[] | null;
@@ -115,6 +117,16 @@ export class QueryEngine {
 
 	get cardCount() : number {
 		return Object.keys(this._cards).length;
+	}
+
+	//The main thread needs these exact maps for badges, counts, editing
+	//fallbacks, and worker-failure fallback. The worker has already paid to
+	//derive them while ingesting the prime, so hand them across rather than
+	//running every card test over the 40k corpus a second time.
+	cardDerivedFilters() : Filters {
+		return Object.fromEntries(Object.keys(CARD_FILTER_FUNCS).map(name =>
+			[name, this._collectionState.filters[name] || {}]
+		)) as Filters;
 	}
 
 	hydrateCollectionState(hydration : CollectionStateHydration) : void {
@@ -168,7 +180,11 @@ export class QueryEngine {
 
 	_ensureProcessedCards() {
 		if (this._processedForCards === this._cards && this._processedCards) return this._processedCards;
-		this._processedCards = processCards(this._cards);
+		//Most collections start from a bounded set/filter and only need to
+		//process the IDs that survive to filtering/sorting. The lazy view remains
+		//fully enumerable for global query/concept filters, preserving exactness,
+		//without making every ordinary 90-card subscription eagerly process 40k.
+		this._processedCards = lazyProcessCards(this._cards);
 		this._processedForCards = this._cards;
 		return this._processedCards;
 	}

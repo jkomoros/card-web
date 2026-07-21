@@ -34,6 +34,10 @@ const loadTimeoutMs = parseInt(getArg('load-timeout', '180000'), 10);
 const serviceWorkers = getArg('service-workers', 'block');
 const testTakeover = args.includes('--test-takeover');
 const testMultiEdit = args.includes('--test-multiedit');
+const multiEditCount = parseInt(getArg('multi-count', '500'), 10);
+//The app waits 12s for a cooperative handoff before considering a clean lease
+//stale and stealing it. Leave ample scheduler margin for the browser test.
+const FROZEN_OWNER_TAKEOVER_TIMEOUT_MS = 27000;
 if (serviceWorkers !== 'block' && serviceWorkers !== 'allow') throw new Error('--service-workers must be block or allow');
 const PORT = 8081;
 const URL = `http://localhost:${PORT}`;
@@ -76,12 +80,12 @@ const readEmulatorCardBody = async (cardID) => (await verifierDB.collection('car
 
 const main = async () => {
 	//1. Seed the emulator (inherits the emulator env from emulators:exec).
-	await sh('node', ['test/perf-harness/load-emulator.js', '--count', String(count), '--seed', String(seed), '--project', projectId, ...(publishedP ? ['--published-p', publishedP] : [])]);
+	await sh(process.execPath, ['test/perf-harness/load-emulator.js', '--count', String(count), '--seed', String(seed), '--project', projectId, ...(publishedP ? ['--published-p', publishedP] : [])]);
 
 	//2. Start the project-local wds. `detached` + kill(-pid) reaps the whole
 	//server process group and prevents a failed run from wedging port 8081.
 	const wdsErr = [];
-	const wds = spawn('node_modules/.bin/wds', ['--root-dir', 'build', '--app-index', 'build/index.html', '--node-resolve', '--port', String(PORT)], {detached: true, stdio: ['ignore', 'ignore', 'pipe']});
+	const wds = spawn(process.execPath, ['node_modules/@web/dev-server/dist/bin.js', '--root-dir', 'build', '--app-index', 'build/index.html', '--node-resolve', '--port', String(PORT)], {detached: true, stdio: ['ignore', 'ignore', 'pipe']});
 	wds.stderr.on('data', d => wdsErr.push(d.toString()));
 	let killed = false;
 	const cleanup = () => { if (killed) return; killed = true; try { process.kill(-wds.pid, 'SIGTERM'); } catch { /* noop */ } };
@@ -166,6 +170,7 @@ const main = async () => {
 		}
 		let serviceWorkerControlled = false;
 		let warmState = null;
+		let warmBoot = null;
 		if (serviceWorkers === 'allow') {
 			await page.waitForFunction(async () => Boolean((await navigator.serviceWorker.getRegistration())?.active), {timeout: 30000});
 			const registration = await page.evaluate(async () => {
@@ -184,10 +189,17 @@ const main = async () => {
 				await waitForConsoleLine(consoleMsgs, line => line.includes('[corpus-worker] compact snapshot saved:'), 60000);
 			}
 			const warmLogStart = consoleMsgs.length;
+			const warmStartedAt = Date.now();
 			await page.reload({waitUntil: 'domcontentloaded'});
+			const domContentMs = Date.now() - warmStartedAt;
 			await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
 			serviceWorkerControlled = await page.evaluate(() => Boolean(navigator.serviceWorker.controller));
+			await page.waitForFunction(() => {
+				try { return Boolean(window.PERF_HARNESS?.activeRawCard()?.id); } catch { return false; }
+			}, {timeout: 30000});
+			const usableMs = Date.now() - warmStartedAt;
 			warmState = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000});
+			warmBoot = {domContentMs, usableMs, liveMs: Date.now() - warmStartedAt};
 			const warmLogs = consoleMsgs.slice(warmLogStart);
 			const warmPrimeLine = warmLogs.find(m => m.includes('[corpus-worker] watermark prime:')) || '';
 			const warmPrimeMatch = warmPrimeLine.match(/watermark prime: ([0-9]+) cards from the (persistent cache|compact snapshot)/);
@@ -202,7 +214,7 @@ const main = async () => {
 			if (authMode === 'admin' && (warmState.cardCount !== count || (workerModeActive && warmState.workerCorpusSize !== count))) {
 				throw new Error(`service-worker warm corpus mismatch: seeded=${count} main=${warmState.cardCount} worker=${warmState.workerCorpusSize}`);
 			}
-			console.log('[run] PRODUCTION SERVICE WORKER CONTROLLED + WARM CACHE OK: mainCards=' + warmState.cardCount + ' workerCorpus=' + warmState.workerCorpusSize + ' syncState="' + warmState.syncState + '" cachePrime=' + warmCachePrime + ' source="' + warmPrimeSource + '"');
+			console.log('[run] PRODUCTION SERVICE WORKER CONTROLLED + WARM CACHE OK: mainCards=' + warmState.cardCount + ' workerCorpus=' + warmState.workerCorpusSize + ' syncState="' + warmState.syncState + '" cachePrime=' + warmCachePrime + ' source="' + warmPrimeSource + '" timing=' + JSON.stringify(warmBoot));
 		}
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));
@@ -224,8 +236,8 @@ const main = async () => {
 
 		if (testMultiEdit) {
 			if (authMode !== 'admin') throw new Error('--test-multiedit requires --auth admin');
-			console.log('[run] BULK TAG: add/remove 500 cards with authoritative verification');
-			const result = await page.evaluate(() => window.PERF_HARNESS.bulkTagRoundTrip(500));
+			console.log(`[run] BULK TAG: add/remove ${multiEditCount} cards with authoritative verification`);
+			const result = await page.evaluate(count => window.PERF_HARNESS.bulkTagRoundTrip(count), multiEditCount);
 			const refs = result.ids.map(id => verifierDB.collection('cards').doc(id));
 			const snapshots = await verifierDB.getAll(...refs);
 			for (const snapshot of snapshots) {
@@ -242,8 +254,8 @@ const main = async () => {
 			if (leaked.length) throw new Error(`tag mirror retained ${leaked.length} removed cards`);
 			if (result.addMs > 20000 || result.removeMs > 20000) throw new Error(`bulk tag latency exceeded 20s gate: ${JSON.stringify({addMs: result.addMs, removeMs: result.removeMs})}`);
 			console.log('[run] BULK TAG OK: ' + JSON.stringify({count: result.ids.length, addMs: +result.addMs.toFixed(1), removeMs: +result.removeMs.toFixed(1)}));
-			console.log('[run] GENERAL MULTI-EDIT: every UI-expressible change round-trip on 100 cards');
-			const general = await page.evaluate(() => window.PERF_HARNESS.durableMultiEditRoundTrip(100));
+			console.log(`[run] GENERAL MULTI-EDIT: every UI-expressible change round-trip on ${multiEditCount} cards`);
+			const general = await page.evaluate(count => window.PERF_HARNESS.durableMultiEditRoundTrip(count), multiEditCount);
 			if (general.applyMs > 20000 || general.restoreMs > 20000) throw new Error('general multi-edit exceeded 20s gate: ' + JSON.stringify({applyMs: general.applyMs, restoreMs: general.restoreMs}));
 			const generalSnapshots = await verifierDB.getAll(...general.ids.map(id => verifierDB.collection('cards').doc(id)));
 			for (const snapshot of generalSnapshots) {
@@ -268,6 +280,41 @@ const main = async () => {
 				for (const id of general.ids) {
 					const expected = (general.originals[id].tags || []).includes(tagSnapshot.id);
 					if (mirroredIDs.has(id) !== expected) throw new Error(`general multi-edit tag mirror mismatch for ${tagSnapshot.id}/${id}`);
+				}
+			}
+			// Recovery markers are not a substitute for the application's canonical
+			// history. Certify that both halves of the round trip left a card audit
+			// and that every tag mirror mutation left its matching tag audit.
+			const cardAuditSnapshots = await Promise.all(general.ids.map(id =>
+				verifierDB.collection('cards').doc(id).collection('updates').get()));
+			for (let i = 0; i < general.ids.length; i++) {
+				const id = general.ids[i];
+				const audits = cardAuditSnapshots[i].docs.map(snapshot => snapshot.data());
+				const apply = audits.find(audit => audit.published === true &&
+					isDeepStrictEqual([...(audit.add_tags || [])].sort(), [...general.tags.slice(1)].sort()) &&
+					isDeepStrictEqual(audit.remove_tags || [], [general.tags[0]]) &&
+					isDeepStrictEqual(audit.auto_todo_overrides_enablements || [], ['prioritized']) &&
+					isDeepStrictEqual(audit.auto_todo_overrides_disablements || [], ['prose']) &&
+					(audit.references_diff || []).some(diff => diff.cardID === general.referenceTargetID && diff.referenceType === 'generic' && diff.value === ''));
+				const restore = audits.find(audit => audit.published === false &&
+					isDeepStrictEqual(audit.add_tags || [], [general.tags[0]]) &&
+					isDeepStrictEqual([...(audit.remove_tags || [])].sort(), [...general.tags.slice(1)].sort()) &&
+					isDeepStrictEqual([...(audit.auto_todo_overrides_removals || [])].sort(), ['prioritized', 'prose']) &&
+					(audit.references_diff || []).some(diff => diff.cardID === general.referenceTargetID && diff.referenceType === 'generic' && diff.delete === true));
+				if (!apply || !restore || !apply.timestamp || !restore.timestamp) {
+					throw new Error(`general multi-edit canonical card audit incomplete for ${id}`);
+				}
+			}
+			const tagAuditSnapshots = await Promise.all(general.tags.map(tag =>
+				verifierDB.collection('tags').doc(tag).collection('updates').get()));
+			for (let tagIndex = 0; tagIndex < general.tags.length; tagIndex++) {
+				const tag = general.tags[tagIndex];
+				const audits = tagAuditSnapshots[tagIndex].docs.map(snapshot => snapshot.data());
+				for (const id of general.ids) {
+					if (!audits.some(audit => audit.add_card === id && audit.timestamp) ||
+						!audits.some(audit => audit.remove_card === id && audit.timestamp)) {
+						throw new Error(`general multi-edit canonical tag audit incomplete for ${tag}/${id}`);
+					}
 				}
 			}
 			console.log('[run] GENERAL MULTI-EDIT OK: ' + JSON.stringify({count: general.count, applyMs: +general.applyMs.toFixed(1), restoreMs: +general.restoreMs.toFixed(1)}));
@@ -380,6 +427,21 @@ const main = async () => {
 			if (serviceWorkers === 'allow') await oldOwner.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
 			console.log('[run] SUPERSEDED RELOAD OK: old tab remained inactive + workerless');
 
+			//A live tab can be suspended by Chrome so completely that it cannot answer
+			//the cooperative BroadcastChannel request. Freeze the current owner through
+			//CDP and prove the contender can replace its stale, explicitly-safe lease.
+			//When Chrome resumes the old tab, the synchronously-published ownership epoch
+			//must fence and purge it before it can mutate anything.
+			const frozenOwnerSession = await context.newCDPSession(contender);
+			await frozenOwnerSession.send('Page.setWebLifecycleState', {state: 'frozen'});
+			await oldOwner.evaluate(() => window.CORPUS_WORKER.takeOver());
+			await oldOwner.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'active', {timeout: FROZEN_OWNER_TAKEOVER_TIMEOUT_MS});
+			await frozenOwnerSession.send('Page.setWebLifecycleState', {state: 'active'});
+			await contender.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'inactive' && !window.CORPUS_WORKER.workerRunning() && Object.keys(window.DEBUG_STORE.getState().data?.cards || {}).length === 0, {timeout: 10000});
+			const frozenTakeoverState = await waitForCorpus(oldOwner, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: true, expectedSyncState});
+			if (authMode === 'admin' && (frozenTakeoverState.cardCount !== count || frozenTakeoverState.workerCorpusSize !== count)) throw new Error('frozen-owner takeover corpus mismatch: ' + JSON.stringify(frozenTakeoverState));
+			console.log('[run] FROZEN OWNER TAKEOVER OK: stale clean lease stolen; resumed owner fenced + purged');
+
 			//Two simultaneous requesters must not both start workers. The owner
 			//grants one request and explicitly rejects the other as busy.
 			const racers = await Promise.all([context.newPage(), context.newPage()]);
@@ -403,7 +465,7 @@ const main = async () => {
 			}
 			if (raceStates.filter(value => value.state === 'active').length !== 1 || raceStates.filter(value => value.state === 'contended').length !== 1) throw new Error('simultaneous takeover did not select exactly one winner: ' + JSON.stringify(raceStates));
 			if (raceStates.find(value => value.state === 'contended')?.running) throw new Error('losing simultaneous contender started a worker');
-			await contender.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'inactive' && !window.CORPUS_WORKER.workerRunning(), {timeout: 10000});
+			await oldOwner.waitForFunction(() => window.CORPUS_WORKER.ownershipState() === 'inactive' && !window.CORPUS_WORKER.workerRunning(), {timeout: 10000});
 			const raceWinnerIndex = raceStates.findIndex(value => value.state === 'active');
 			const raceLoserIndex = raceWinnerIndex === 0 ? 1 : 0;
 			const raceWinner = racers[raceWinnerIndex];
@@ -442,7 +504,7 @@ const main = async () => {
 				exactBodyMatch: persistedBody === results.committedCard.expectedBody,
 			};
 			const baseline = {
-				count, seed, authMode, workerMode, syncMode: syncMode || '(default)', serviceWorkers, serviceWorkerControlled, testTakeover, cardCount: state.cardCount, syncState: state.syncState, warmCardCount: warmState?.cardCount ?? null, results,
+				count, seed, authMode, workerMode, syncMode: syncMode || '(default)', serviceWorkers, serviceWorkerControlled, testTakeover, cardCount: state.cardCount, syncState: state.syncState, warmCardCount: warmState?.cardCount ?? null, warmBoot, results,
 				passed: !(args.includes('--assert') || args.includes('--assert-budgets')),
 				note: 'commit/find wall-clock is EMULATOR-OPTIMISTIC (near-zero local write-echo); budget-authoritative = results.dispatch.* (main-thread) + results.worker.* (worker-thread) attributed together. Only corpus-worker=on is a ship gate.',
 			};
@@ -524,13 +586,20 @@ const main = async () => {
 				//misclassifying it as a deterministic correctness invariant.
 				if (collectionFilterMax > 100) advisories.push(`main-thread collection filtering max=${collectionFilterMax}ms exceeds 100ms`);
 				//Wall-clock budgets (Appendix A), advisory by default.
-				const budgets = [['nav', 16], ['keystroke', 16], ['editorOpen', 100], ['find', 100]];
+				//Find deliberately includes its 250ms query debounce. Editor-open is a
+				//secondary first-use affordance; the acceptance-critical interaction
+				//budgets are navigation, typing, and perceived save.
+				const budgets = [['nav', 16], ['keystroke', 16], ['commit', 1000], ['editorOpen', 1500], ['find', 350]];
 				for (const [metric, budgetMs] of budgets) {
 					const wall = results.wall?.[metric];
 					if (wall && typeof wall.p95 === 'number' && wall.p95 > budgetMs) {
 						advisories.push(`${metric} p95=${wall.p95}ms exceeds ${budgetMs}ms budget`);
 					}
 				}
+				if ((results.wall?.nav?.max ?? 0) > 50) advisories.push(`nav max=${results.wall.nav.max}ms exceeds 50ms worst-case budget`);
+				if ((results.wall?.keystroke?.max ?? 0) > 50) advisories.push(`keystroke max=${results.wall.keystroke.max}ms exceeds 50ms long-task budget`);
+				if (warmBoot?.usableMs > 10000) advisories.push(`warm usable=${warmBoot.usableMs}ms exceeds 10000ms budget`);
+				if (warmBoot?.liveMs > 15000) advisories.push(`warm live=${warmBoot.liveMs}ms exceeds 15000ms budget`);
 				if (advisories.length) {
 					console.log('[run] BUDGET BREACHES (advisory' + (args.includes('--assert-budgets') ? ', FAILING per --assert-budgets' : '') + '):\n  ' + advisories.join('\n  '));
 					if (args.includes('--assert-budgets')) failures.push(...advisories);

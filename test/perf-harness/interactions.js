@@ -38,10 +38,6 @@ const timed = async (fn) => { const t = Date.now(); await fn(); return Date.now(
 const pctl = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p / 100 * s.length))].toFixed(2); };
 const wall = (a) => ({n: a.length, p50: pctl(a, 50), p95: pctl(a, 95), max: a.length ? +Math.max(...a).toFixed(2) : null});
 
-//Atomic nav+echo: advance a card and mark it read, driving SHOW_CARD +
-//UPDATE_READS (makeFilterFromCards) in one context (no keyboard/pushState race).
-const navAndRead = (page) => page.evaluate(() => window.PERF_HARNESS.navigateAndRead());
-
 //Poll (deep-walk) until the editor's actual body textarea exists. Older
 //versions looked for an unrelated contenteditable node and could type into
 //the rendered card instead of the editor, producing a false-positive save.
@@ -74,16 +70,16 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 	});
 	await page.waitForFunction(() => Boolean(window.PERF_HARNESS));
 	const initialCard = await page.evaluate(() => window.PERF_HARNESS.activeRawCard());
-	const committedCardID = initialCard.id;
 
 	//NOTE on ordering: editingStart is reliable on the boot card but not after a
 	//run of direct navigateToNextCard dispatches (a card-view render-timing
 	//quirk). The Appendix-A budgets are independent, so we edit/type/commit
 	//FIRST (commit closes the editor) and nav AFTER — each measured cleanly.
 
-	//--- Editor open (dispatch editingStart, select Content, wait for body) ---
+	//--- Editor open through the visible card action, then select Content. ---
 	const editorWall = [await timed(async () => {
-		await page.evaluate(() => window.PERF_HARNESS.startEditingContent());
+		await page.getByTestId('edit-card').click();
+		await page.getByTestId('editor-main-content').click();
 		await waitForBody(page);
 	})];
 
@@ -93,22 +89,31 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 	const keyWall = [];
 	for (const character of marker) keyWall.push(await timed(() => page.keyboard.type(character)));
 
-	//--- Commit: dispatch editingCommit; wait pendingModificationCount==0 (the
-	//    true "interactive again" marker); this also closes the editor.
-	//    EMULATOR-OPTIMISTIC wall-clock. ---
-	const commitWall = [await timed(async () => {
-		await page.evaluate(() => window.PERF_HARNESS.commitEditing());
-		await page.waitForFunction(() => { const s = window.DEBUG_STORE.getState(); return s.data && s.data.pendingModificationCount === 0; }, {timeout: 30000});
+	//--- Commit through the visible Save button. Perceived time ends when the
+	//blocking editor releases; server time ends only after the durable intent is
+	//confirmed and removed. These are intentionally distinct UX promises. ---
+	const commitPerceivedWall = [await timed(async () => {
+		await page.getByTestId('save-card').click();
+		await page.waitForFunction(() => !window.DEBUG_STORE.getState().editor?.editing, {timeout: 5000});
 	})];
+	const commitServerWall = [await timed(async () => {
+		await page.waitForFunction(() => { const s = window.DEBUG_STORE.getState(); return s.data && s.data.pendingModificationCount === 0; }, {timeout: 30000});
+		await page.waitForFunction(() => !localStorage.getItem('card-web-pending-multi-edit-v1'), {timeout: 30000});
+	})];
+	await page.waitForFunction(marker => window.PERF_HARNESS.activeRawCard().body.includes(marker), marker, {timeout: 10000});
 	const committedCard = await page.evaluate(() => window.PERF_HARNESS.activeRawCard());
 	if (committedCard.modificationError) throw new Error('commit reported modification error: ' + committedCard.modificationError);
 	if (committedCard.body === initialCard.body || !committedCard.body.includes(marker)) throw new Error('commit did not add the unique interaction marker');
 	const committedBody = committedCard.body;
 
-	//--- Arrow-nav x20 (editor now closed): SHOW_CARD + the real auto-mark-read
-	//    echo (UPDATE_READS -> makeFilterFromCards) per step ---
+	//--- Arrow-nav x20 through the real keyboard listener. PERF_HARNESS is used
+	//only to observe the active ID, never to trigger the interaction. ---
 	const navWall = [];
-	for (let i = 0; i < 20; i++) navWall.push(await timed(() => navAndRead(page)));
+	for (let i = 0; i < 20; i++) navWall.push(await timed(async () => {
+		const before = await page.evaluate(() => window.PERF_HARNESS.activeRawCard().id);
+		await page.keyboard.press('ArrowRight');
+		await page.waitForFunction(id => window.PERF_HARNESS.activeRawCard().id !== id, before, {timeout: 5000});
+	}));
 
 	//--- Find dialog: dispatch openFindDialog + set a query (avoids shadow-DOM
 	//    keyboard routing); waits past the 250ms debounce. ---
@@ -152,8 +157,8 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 			collectionSort: rawStat(A, 'collection:sort'),
 		},
 		//COARSE wall-clock (incl. Playwright IPC; commit/find emulator-optimistic).
-		wall: {nav: wall(navWall), editorOpen: wall(editorWall), keystroke: wall(keyWall), commit: wall(commitWall), find: wall(findWall)},
-		committedCard: {id: committedCardID, expectedBody: committedBody},
+		wall: {nav: wall(navWall), editorOpen: wall(editorWall), keystroke: wall(keyWall), commit: wall(commitPerceivedWall), serverCommit: wall(commitServerWall), find: wall(findWall)},
+		committedCard: {id: committedCard.id, expectedBody: committedBody},
 		counters: perf ? perf.counters : {},
 	};
 };

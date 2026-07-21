@@ -215,6 +215,7 @@ import {
 	TweetMap,
 	CardFetchType,
 	CardFlags,
+	Filters,
 } from '../types.js';
 
 import {
@@ -285,7 +286,7 @@ export const waitForCardToExist = (cardID : CardID) => {
 const TAG_COLORS = Object.values(COLORS);
 
 export const modifyCard = (card : Card, update : CardDiff, substantive = false) => {
-	return modifyCards([card], update, substantive, true);
+	return modifyCardsWithDurableMultiEdit([card], update, substantive, 'single');
 };
 
 export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) => {
@@ -300,10 +301,30 @@ export const modifyCards = (cards : Card[], update : CardDiff, substantive = fal
 // safely retry any chunk whose acknowledgement was lost.
 const BULK_TAG_OPERATION_STORAGE_KEY = 'card-web-pending-bulk-tag-operation-v1';
 const DURABLE_MULTI_EDIT_STORAGE_KEY = 'card-web-pending-multi-edit-v1';
+
+//An in-memory request may have paused while its durable intent remains. UI
+//entry points use this in addition to Redux's active-request flag so a user
+//cannot begin a second edit that the serialized mutation runner cannot yet
+//accept. Treat unreadable storage as pending: the recovery UI must resolve it
+//explicitly rather than risking an overlapping edit.
+export const durableCardMutationPending = () : boolean => {
+	if (typeof localStorage === 'undefined') return false;
+	try {
+		return Boolean(
+			localStorage.getItem(BULK_TAG_OPERATION_STORAGE_KEY) ||
+			localStorage.getItem(DURABLE_MULTI_EDIT_STORAGE_KEY)
+		);
+	} catch {
+		return true;
+	}
+};
 // 30 cards cost ~184 effective operations. This remains atomic even when the
 // SDK sentinel detector fails closed to MultiBatch's supported 249-op limit.
 // Non-admin rules can spend one access call/card, so use an even smaller chunk.
-const BULK_TAG_ADMIN_CHUNK_SIZE = 40;
+//Rules evaluate card-scoped permission helpers for both the card and audit
+//document. Even admins can therefore spend one distinct access call/card;
+//stay under Firestore's 20-call atomic-operation ceiling for every role.
+const BULK_TAG_ADMIN_CHUNK_SIZE = 15;
 const BULK_TAG_EDITOR_CHUNK_SIZE = 15;
 
 type BulkTagOperation = {
@@ -371,14 +392,21 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			throw new Error('A bulk-label operation from another account is pending in this browser. Sign back into that account to finish it.');
 		}
 		if (!operation) {
-			dispatch(modifyCardAction(cards.length));
+			//A heterogeneous selection is the normal UI case. Persist and audit only
+			//cards whose current label state actually needs the requested transform;
+			//arrayUnion/arrayRemove would be state-idempotent but would still bump
+			//updated and create misleading history for already-matching cards.
+			const cardsNeedingChange = cards.filter(card => adding
+				? !(card.tags || []).includes(tag)
+				: (card.tags || []).includes(tag));
+			dispatch(modifyCardAction(cardsNeedingChange.length));
 			operation = {
 				version: 1,
 				id: `bulk-tag-${Date.now()}-${newID()}`,
 				uid,
 				tag,
 				adding,
-				targetIDs: cards.map(card => card.id),
+				targetIDs: cardsNeedingChange.map(card => card.id),
 				nextIndex: 0,
 			};
 			// This is the write-ahead record: no server mutation may happen first.
@@ -433,36 +461,39 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			batch.beginAtomicGroup(`${operation.id}-${offset}`);
 			for (const card of chunkCards as Card[]) {
 				if (!selectCardIDsUserMayEdit(currentState)[card.id]) throw new Error(`You no longer have permission to edit ${card.id}`);
-				const diff : CardDiff = adding ? {add_tags: [operation.tag]} : {remove_tags: [operation.tag]};
-				const updateObject = {
-					...diff,
-					batch: operation.id,
-					substantive: false,
-					timestamp: serverTimestamp(),
-				};
+				const auditID = `${operation.id}-${card.id}-${operation.adding ? 'add' : 'remove'}`;
 				const cardUpdateObject = {
 					tags: adding ? arrayUnion(operation.tag) : arrayRemove(operation.tag),
 					updated: serverTimestamp(),
 				};
 				const cardRef = doc(db, CARDS_COLLECTION, card.id);
-				batch.set(doc(cardRef, CARD_UPDATES_COLLECTION, `${operation.id}-${card.id}`), updateObject);
 				batch.update(cardRef, cardUpdateObject);
-				const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
-				batch.set(doc(tagRef, TAG_UPDATES_COLLECTION, `${operation.id}-${card.id}`), adding ? {
-					timestamp: serverTimestamp(), add_card: card.id,
-				} : {
-					timestamp: serverTimestamp(), remove_card: card.id,
+				//The fast path must preserve the same canonical audit history as an
+				//ordinary card edit. Stable operation/card IDs make a retried chunk
+				//idempotent if the commit acknowledgement was lost.
+				batch.set(doc(cardRef, CARD_UPDATES_COLLECTION, auditID), {
+					[adding ? 'add_tags' : 'remove_tags']: [operation.tag],
+					batch: operation.id,
+					substantive: false,
+					timestamp: serverTimestamp(),
+				});
+				batch.set(doc(db, TAGS_COLLECTION, operation.tag, TAG_UPDATES_COLLECTION, auditID), {
+					timestamp: serverTimestamp(),
+					[adding ? 'add_card' : 'remove_card']: card.id,
 				});
 			}
+			ensureAuthor(batch, selectUser(currentState) as UserInfo);
 			const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
 			batch.update(tagRef, {
 				cards: adding ? arrayUnion(...chunkIDs) : arrayRemove(...chunkIDs),
 				updated: serverTimestamp(),
 			});
-			ensureAuthor(batch, selectUser(currentState) as UserInfo);
 			batch.set(markerRef, {
 				operation_id: operation.id,
 				next_index: chunkStart + chunkIDs.length,
+				tag: operation.tag,
+				adding: operation.adding,
+				card_ids: chunkIDs,
 				updated: serverTimestamp(),
 			});
 			batch.endAtomicGroup();
@@ -562,6 +593,8 @@ type DurableMultiEdit = {
 	nextIndex: number,
 	modifiedCount: number,
 	update: CardDiff,
+	substantive?: boolean,
+	kind?: 'single' | 'multi',
 };
 
 let durableMultiEditRunning = false;
@@ -604,7 +637,7 @@ const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => 
 	serverConfirmed: false,
 });
 
-export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff) : ThunkSomeAction => async (dispatch, getState) => {
+export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff, substantive = false, kind : 'single' | 'multi' = 'multi') : ThunkSomeAction => async (dispatch, getState) => {
 	if (durableMultiEditRunning || bulkTagOperationRunning) return;
 	durableMultiEditRunning = true;
 	let operation : DurableMultiEdit | null = null;
@@ -616,12 +649,20 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		let checkingServerMarker = Boolean(operation);
 		if (operation && operation.uid !== uid) throw new Error('A multi-edit from another account is pending in this browser');
 		if (!operation) {
-			dispatch(modifyCardAction(cards.length));
 			const targetIDs = cards.map(card => card.id);
-			operation = {version: 1, id: `multi-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update};
+			if (kind === 'single' && targetIDs.length !== 1) throw new Error('A single-card save must contain exactly one card');
+			operation = {version: 1, id: `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind};
 			persistDurableMultiEdit(operation);
+			//The write-ahead intent is durable now. Release the blocking editor
+			//immediately, retain its draft until server confirmation, and report
+			//truthfully as Saving rather than Saved.
+			if (kind === 'single' && selectIsEditing(getState())) {
+				window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save'));
+				dispatch(editingFinish());
+			}
 		} else if (JSON.stringify(operation.update) !== JSON.stringify(update) ||
-			JSON.stringify(operation.targetIDs) !== JSON.stringify(cards.map(card => card.id))) {
+			JSON.stringify(operation.targetIDs) !== JSON.stringify(cards.map(card => card.id)) ||
+			Boolean(operation.substantive) !== substantive || (operation.kind || 'multi') !== kind) {
 			throw new Error('A different multi-edit is already pending. Retry or stop that saved operation first.');
 		}
 		dispatch(modifyCardAction(operation.targetIDs.length));
@@ -645,7 +686,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					continue;
 				}
 			}
-			let candidateSize = Math.min(selectUserIsAdmin(getState()) ? 20 : 10, operation.targetIDs.length - operation.nextIndex);
+			let candidateSize = Math.min(10, operation.targetIDs.length - operation.nextIndex);
 			let batch : MultiBatch | null = null;
 			let chunkIDs : CardID[] = [];
 			let modifiedCount = 0;
@@ -658,7 +699,15 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				modifiedCount = 0;
 				for (const id of chunkIDs) {
 					batch.beginAtomicGroup(id);
-					const modified = await modifyCardWithBatch(state, authoritative.cards[id], operation.update, false, batch, undefined, undefined, false, true);
+					//A normal one-card editor save retains the canonical per-card and
+					//section/tag audit documents and all derived finisher fields. The
+					//Dialog multi-edit still uses explicit fields so unrelated finisher output
+					//cannot leak into the operation. It must retain the normal audit records:
+					//the chunk marker is a recovery checkpoint, not a replacement for the
+					//canonical card/tag history read by the rest of the application. Candidate
+					//sizing below keeps that complete atomic group within Firestore's limit.
+					const compactMultiEdit = operation.kind !== 'single';
+					const modified = await modifyCardWithBatch(state, authoritative.cards[id], operation.update, Boolean(operation.substantive), batch, undefined, undefined, false, compactMultiEdit, false);
 					if (modified) {
 						batch.endAtomicGroup();
 						modifiedCount++;
@@ -676,6 +725,8 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					operation_id: operation.id,
 					next_index: chunkStart + chunkIDs.length,
 					modified_count: modifiedCount,
+					card_ids: chunkIDs,
+					update: operation.update,
 					updated: serverTimestamp(),
 				});
 				batch.endAtomicGroup();
@@ -692,6 +743,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			dispatch(durableMultiEditProgress(operation));
 		}
 		clearDurableMultiEdit();
+		if (operation.kind === 'single') window.dispatchEvent(new CustomEvent('card-web-single-save-confirmed'));
 		if (operation.targetIDs.length > 1) alert(`${operation.modifiedCount} cards modified.${operation.targetIDs.length - operation.modifiedCount ? ` ${operation.targetIDs.length - operation.modifiedCount} already matched.` : ''}`);
 		dispatch(modifyCardSuccess(operation.modifiedCount));
 	} catch (err) {
@@ -712,9 +764,14 @@ const resumePendingDurableMultiEdit = (force = false) : ThunkSomeAction => async
 	try {
 		const operation = readDurableMultiEdit();
 		if (!operation || operation.uid !== selectUid(getState())) return;
-		dispatch(openMultiEditDialog());
+		if (operation.kind !== 'single') dispatch(openMultiEditDialog());
 		const raw = selectRawCards(getState());
-		await dispatch(modifyCardsWithDurableMultiEdit(operation.targetIDs.map(id => raw[id]).filter((card): card is Card => Boolean(card)), operation.update));
+		await dispatch(modifyCardsWithDurableMultiEdit(
+			operation.targetIDs.map(id => raw[id]).filter((card): card is Card => Boolean(card)),
+			operation.update,
+			Boolean(operation.substantive),
+			operation.kind || 'multi',
+		));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));
 		if (/corrupt/.test(error.message) && confirm(`${error.message}\n\nDiscard this unreadable saved operation? This may leave already-completed changes in place.`)) {
@@ -1003,7 +1060,7 @@ const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAu
 //provided, the locally-materialized post-write cards (the modified card plus
 //any cards whose inbound links changed) are accumulated into it, so callers
 //can apply them without waiting for the server echo.
-export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards, ensureAuthorForCard = true, explicitFieldsOnly = false) : Promise<boolean> => {
+export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch, echoCards? : Cards, priorEchoCards? : Cards, ensureAuthorForCard = true, explicitFieldsOnly = false, skipAudit = false) : Promise<boolean> => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -1134,7 +1191,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 
 	const updateRef = doc(cardRef, CARD_UPDATES_COLLECTION, `${batch.batchID}-${card.id}`);
 
-	batch.set(updateRef, updateObject);
+	if (!skipAudit) batch.set(updateRef, updateObject);
 	if (hasMixedTagChanges) {
 		// Keep cardUpdateObject intact for the materialized local/worker card
 		// above, but never send its stale complete tags array to Firestore.
@@ -1169,7 +1226,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 				add_card: card.id
 			};
 			batch.update(newSectionRef, newSectionObject);
-			batch.set(newSectionUpdateRef, newSectionUpdateObject);
+			if (!skipAudit) batch.set(newSectionUpdateRef, newSectionUpdateObject);
 		}
 		const oldSection = card.section;
 		if (oldSection) {
@@ -1184,7 +1241,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 				remove_card: card.id
 			};
 			batch.update(oldSectionRef, oldSectionObject);
-			batch.set(oldSectionUpdateRef, oldSectionUpdateObject);
+			if (!skipAudit) batch.set(oldSectionUpdateRef, oldSectionUpdateObject);
 		}
 	}
 
@@ -1205,7 +1262,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 				add_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
-			batch.set(tagUpdateRef, newTagUpdateObject);
+			if (!skipAudit) batch.set(tagUpdateRef, newTagUpdateObject);
 		}
 	}
 
@@ -1222,7 +1279,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 				remove_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
-			batch.set(tagUpdateRef, newTagUpdateObject);
+			if (!skipAudit) batch.set(tagUpdateRef, newTagUpdateObject);
 		}
 	}
 
@@ -2055,10 +2112,11 @@ const modifyCardAction = (modificationCount : number) : SomeAction => {
 };
 
 const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dispatch, getState) => {
+	//Durable single-card saves release their own editor immediately after the
+	//write-ahead intent is persisted. Do not close whatever editor happens to
+	//be open when a later server acknowledgement arrives: it may be a distinct
+	//session started after another kind of mutation.
 	const state = getState();
-	if (selectIsEditing(state)) {
-		dispatch(editingFinish());
-	}
 	if (selectMultiEditDialogOpen(state)) {
 		dispatch(closeMultiEditDialog());
 	}
@@ -2164,24 +2222,45 @@ const FAST_DEDUPE_VALIDATION_RATE = 0.01;
 //timestamps are then treated as proof of equivalence, replacing an O(full
 //card) deep compare per doc with a two-number compare. A small sample is
 //still deep-checked and logged (and applied) on mismatch.
-export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe = false) : ThunkSomeAction => (dispatch, getState) => {
+export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
 	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
-	const cardsToUpdate : Cards = {};
+	//A full replacement is safe only when the worker snapshot and the atomic
+	//post-action Redux corpus have the exact same ID domain. Otherwise a stale
+	//Redux ghost (or a partial prime) would silently disappear from filters
+	//before authoritative reconciliation.
+	let safeCardFilters : Filters | undefined;
+	if (cardFilters && cardFilterCorpusIDs) {
+		const existingIDs = Object.keys(existingCards);
+		const incomingIDs = Object.keys(cards);
+		const combinedCount = existingIDs.length + incomingIDs.filter(id => !existingCards[id]).length;
+		if (combinedCount === cardFilterCorpusIDs.length && cardFilterCorpusIDs.every(id => existingCards[id] || cards[id])) {
+			safeCardFilters = cardFilters;
+		}
+	}
+	//Worker wire decoding creates a private object for this call. Reuse that
+	//object instead of allocating and populating a second ~40k-entry map during
+	//the atomic warm-corpus handoff. Other callers retain the non-mutating
+	//default because their input ownership is not guaranteed.
+	const cardsToUpdate : Cards = ownsInput ? cards : {};
 	const inputCount = Object.keys(cards).length;
 	for (const card of Object.values(cards)) {
 		const existing = existingCards[card.id];
 		if (existing) {
 			if (fastDedupe && timestampsEquivalent(existing.updated as TimestampLike, card.updated as TimestampLike)) {
 				const validate = Math.random() < FAST_DEDUPE_VALIDATION_RATE;
-				if (!validate || deepEqualIgnoringTimestamps(existing, card)) continue;
+				if (!validate || deepEqualIgnoringTimestamps(existing, card)) {
+					if (ownsInput) delete cardsToUpdate[card.id];
+					continue;
+				}
 				console.warn(`[PERF] receiveCards fast dedupe mismatch for ${card.id}; applying update`);
 			} else if (deepEqualIgnoringTimestamps(existing, card)) {
 				//Check ot see if we already have effectively the same card locally with no notional changes.
+				if (ownsInput) delete cardsToUpdate[card.id];
 				continue;
 			}
 		}
-		cardsToUpdate[card.id] = card;
+		if (!ownsInput) cardsToUpdate[card.id] = card;
 	}
 	const diffCount = Object.keys(cardsToUpdate).length;
 	const diffTime = performance.now() - startTime;
@@ -2201,18 +2280,19 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 		if (Object.values(leftovers).some(cards => Object.keys(cards).length)) {
 			dispatch(updateEnqueuedCards());
 		}
-		dispatch(updateCards(cardsToUpdate, fetchType));
+		dispatch(updateCards(cardsToUpdate, fetchType, safeCardFilters));
 	} else {
 		dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
 	}
 	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
-const updateCards = (cards : Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch) => {
+const updateCards = (cards : Cards, fetchType : CardFetchType, cardFilters? : Filters) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_CARDS,
 		cards,
-		fetchType
+		fetchType,
+		cardFilters
 	});
 	dispatch(refreshCardSelector(false));
 };

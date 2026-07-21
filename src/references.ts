@@ -219,22 +219,23 @@ export const applyReferencesDiff = (beforeCard : Card, afterCard : Card, update 
 // Functions only used in src/ context (not extracted to shared)
 
 const referencesEntriesDiffWithoutItem = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType, isDelete : boolean) : ReferencesEntriesDiff => {
-	return diff.filter(item => {
-		if (item.cardID != cardID) return false;
-		if (item.referenceType != referenceType) return false;
-		if (isExpandedReferenceDelete(item) != isDelete) return false;
-		return true;
-	});
+	return diff.filter(item => !(item.cardID === cardID &&
+		item.referenceType === referenceType &&
+		isExpandedReferenceDelete(item) === isDelete));
 };
 
 export const referencesEntriesDiffWithSet = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType, value  = '') : ReferencesEntriesDiff => {
 	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, true);
+	//Adding back a reference that this dialog removed cancels that intent.
 	if (trimmedDiff.length < diff.length) return trimmedDiff;
-	return [...diff, {cardID, referenceType, value}];
+	//A repeated set replaces its prior value without duplicating the key while
+	//preserving every unrelated reference operation.
+	return [...referencesEntriesDiffWithoutItem(diff, cardID, referenceType, false), {cardID, referenceType, value}];
 };
 
 export const referencesEntriesDiffWithRemove = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType) : ReferencesEntriesDiff => {
 	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, false);
+	//Removing a reference newly added by this dialog cancels that intent.
 	if (trimmedDiff.length < diff.length) return trimmedDiff;
-	return [{cardID, referenceType, delete: true as const}, ...diff];
+	return [{cardID, referenceType, delete: true as const}, ...referencesEntriesDiffWithoutItem(diff, cardID, referenceType, true)];
 };

@@ -15,7 +15,7 @@ import {
 } from './incremental-selectors.js';
 
 import {
-	processCards
+	lazyProcessCards
 } from './card-processing.js';
 
 import {
@@ -424,12 +424,12 @@ export const selectConcepts = createSelector(
 // ALL 40k per-key caches on every card change, causing 600ms+ of blocking work.
 export const selectCards : (state : State) => ProcessedCards = createSelector(
 	selectRawCards,
-	processCards
+	lazyProcessCards
 );
 
 const selectCardsSnapshot : (state : State) => ProcessedCards = createSelector(
 	selectRawCardsSnapshot,
-	processCards
+	lazyProcessCards
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
@@ -601,7 +601,10 @@ const selectUserMayEditCards = createSelector(
 );
 
 export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = createObjectSelector(
-	selectCards,
+	//Permission checks use only raw card fields. Feeding the lazy processed-card
+	//view here still forced processing every card because createObjectSelector
+	//enumerates the entire map during each corpus install.
+	selectRawCards,
 	selectUserMayEditCards,
 	selectUid,
 	(card, userMayEditCards, uid) => {
@@ -778,7 +781,9 @@ export const selectCollaboratorInfosForActiveCard = createSelector(
 
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
 export const selectUserPermissionsForCardsMap = createSelector(
-	selectCards,
+	//This projection reads only card.permissions. Using selectCards caused a
+	//40k-card processed-map enumeration during warm boot for no semantic gain.
+	selectRawCards,
 	(cards : Cards) : UserPermissionsForCards => {
 		const result : UserPermissionsForCards = {};
 		for (const card of Object.values(cards)) {
@@ -1643,7 +1648,13 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 //the already-computed filter/sort work instead of rebuilding from scratch.
 let _previousActiveCollection : Collection | null = null;
 
-const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
+export const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
+
+export const selectWorkerActiveCollectionReady = createSelector(
+	selectActiveCollectionDescription,
+	selectWorkerActiveCollectionResult,
+	(description, result) => Boolean(description && result && result.description === description.serialize())
+);
 
 //Compact per-card metadata pushed by the corpus worker; empty unless the
 //worker owns ingestion.

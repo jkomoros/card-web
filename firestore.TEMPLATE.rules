@@ -5,7 +5,11 @@ service cloud.firestore {
 
     function userMatchesDomain() {
       //inject here:domain
-      return loggedIn() && !isAnonymous() && request.auth.token.email.lower().split('@')[1] == domain;
+      //A custom/OIDC account may have no email claim. Missing email means no
+      //domain match; it must not throw and poison unrelated permission checks.
+      let email=request.auth.token.get('email', '');
+      let emailParts=email.lower().split('@');
+      return loggedIn() && !isAnonymous() && emailParts.size() == 2 && emailParts[1] == domain;
     }
 
     function userTypeAllComposedPermissions() {
@@ -257,10 +261,10 @@ service cloud.firestore {
 
     match /tags/{tag} {
       allow read: if userMayViewApp();
-      allow write: if userMayEditTag(tag);
+      allow write: if userIsAdmin() ? true : getPermissions(['edit', 'editTag']);
 
       match /updates/{update} {
-        allow read, write: if userMayEditTag(tag);
+        allow read, write: if userIsAdmin() ? true : getPermissions(['edit', 'editTag']);
       }
     }
     
@@ -281,17 +285,28 @@ service cloud.firestore {
     match /users/{user} {
       allow read: if request.auth.uid == user;
       allow write: if request.auth.uid == user;
+
+      //Durable single- and multi-card executors atomically write a completion
+	  //marker with the denormalized card changes. Parent document rules do not
+	  //inherit into subcollections, so this needs an explicit own-user rule.
+	  match /multi_edit_chunks/{chunk} {
+		allow read, write: if request.auth.uid == user;
+	  }
     }
     
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userMayCreateCard() && createIsAuthor() && bumpsUpdated();
-      allow update: if cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated());
+      //Keep the common admin path first. The emulator and production rules
+      //engine have a finite expression budget per atomic write; evaluating
+      //every minor/inbound branch before an already-authorized admin made even
+      //a one-card denormalized edit exceed that budget.
+      allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor()) : (cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
     
       match /updates/{update} {
-        allow read, write: if userMayEditCard(card);
+        allow read, write: if userIsAdmin() ? true : (getPermissions(['edit', 'editCard']) || userIsAuthorOrEditorForCard(card));
       }
     }
 

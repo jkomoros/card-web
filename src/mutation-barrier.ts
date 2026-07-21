@@ -4,6 +4,8 @@
 
 let inFlight = 0;
 let fenced = false;
+let ownershipValidator : (() => boolean) | null = null;
+let stateListener : (() => void) | null = null;
 
 export class MutationFencedError extends Error {
 	constructor() {
@@ -13,13 +15,18 @@ export class MutationFencedError extends Error {
 }
 
 export const beginMutation = () : (() => void) => {
-	if (fenced) throw new MutationFencedError();
+	if (fenced || (ownershipValidator && !ownershipValidator())) {
+		fenced = true;
+		throw new MutationFencedError();
+	}
 	inFlight++;
+	stateListener?.();
 	let finished = false;
 	return () => {
 		if (finished) return;
 		finished = true;
 		inFlight = Math.max(0, inFlight - 1);
+		stateListener?.();
 	};
 };
 
@@ -40,3 +47,12 @@ export const inFlightMutationCount = () : number => inFlight;
 export const fenceMutations = () => { fenced = true; };
 export const allowMutations = () => { fenced = false; };
 export const mutationsFenced = () : boolean => fenced;
+
+//The corpus ownership layer installs a synchronous generation validator and
+//heartbeat updater. Keeping these optional preserves this module's use in
+//workers/tests while ensuring a force-superseded tab cannot issue a write in
+//the gap before its storage event is delivered.
+export const configureMutationOwnership = (validator : (() => boolean) | null, listener : (() => void) | null) => {
+	ownershipValidator = validator;
+	stateListener = listener;
+};

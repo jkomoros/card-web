@@ -185,7 +185,10 @@ export const generateCorpus = (opts = {}) => {
 			updated: ts,
 			updated_substantive: ts,
 			author: 'perf-author',
-			permissions: {},
+			//Rules inspect membership in permissions.editCard even on the admin
+			//path; preserve the production card shape so write tests exercise the
+			//intended allow branch rather than a missing-map evaluation error.
+			permissions: {editCard: []},
 			collaborators: [],
 			slugs: [],
 			name: id,

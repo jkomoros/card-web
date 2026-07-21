@@ -19,8 +19,19 @@ globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.customElements = dom.window.customElements;
 globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 
+after(() => {
+	dom.window.close();
+	//Importing the editor reducer pulls in Firebase's Node transport, which
+	//keeps a MessagePort referenced even though this pure reducer suite never
+	//uses it. Unref only that transport handle so the full npm test chain exits.
+	for (const handle of process._getActiveHandles()) {
+		if (handle.constructor?.name === 'MessagePort' && typeof handle.unref === 'function') handle.unref();
+	}
+});
+
 let collectionReducer;
 let dataReducer;
+let editorReducer;
 let UPDATE_CARDS;
 let UPDATE_READS;
 let UPDATE_STARS;
@@ -33,6 +44,8 @@ let REMOVE_CARDS;
 let ENQUEUE_CARD_UPDATES;
 let UPDATE_COLLECTION_SHAPSHOT;
 let UPDATE_CARD_META;
+let EDITING_START;
+let EDITING_RESTORE_DRAFT;
 let INITIAL_COLLECTION_STATE;
 
 const makeCard = (id, extras) => ({
@@ -65,6 +78,7 @@ describe('reducer identity preservation', () => {
 	before(async () => {
 		collectionReducer = (await import('../../lib/src/reducers/collection.js')).default;
 		dataReducer = (await import('../../lib/src/reducers/data.js')).default;
+		editorReducer = (await import('../../lib/src/reducers/editor.js')).default;
 		({
 			UPDATE_CARDS,
 			UPDATE_READS,
@@ -78,10 +92,25 @@ describe('reducer identity preservation', () => {
 			ENQUEUE_CARD_UPDATES,
 			UPDATE_COLLECTION_SHAPSHOT,
 			UPDATE_CARD_META,
+			EDITING_START,
+			EDITING_RESTORE_DRAFT,
 		} = await import('../../lib/src/actions.js'));
 		({
 			INITIAL_STATE: INITIAL_COLLECTION_STATE
 		} = await import('../../lib/src/filters.js'));
+	});
+
+	it('restores a draft only onto its matching active editor snapshot', () => {
+		const base = makeCard('draft-card');
+		const restored = {...base, title: 'Recovered title'};
+		const editing = editorReducer(undefined, {type: EDITING_START, card: base});
+		const result = editorReducer(editing, {type: EDITING_RESTORE_DRAFT, card: restored, substantive: true});
+		assert.strictEqual(result.card.title, 'Recovered title');
+		assert.strictEqual(result.substantive, true);
+		assert.strictEqual(result.underlyingCardSnapshot, base);
+
+		const rejected = editorReducer(editing, {type: EDITING_RESTORE_DRAFT, card: {...restored, id: 'other'}, substantive: true});
+		assert.strictEqual(rejected, editing);
 	});
 
 	const primedCollectionState = (cards) => {
@@ -120,6 +149,23 @@ describe('reducer identity preservation', () => {
 		assert.ok(changedMaps > 0, 'expected at least one filter map to change');
 		assert.ok(changedMaps <= 6, 'expected few filter maps to change, got ' + changedMaps);
 		assert.ok(sharedMaps > 50, 'expected most filter maps to keep identity, got ' + sharedMaps);
+	});
+
+	it('atomically installs a complete worker card-filter projection and preserves user filters', async () => {
+		const card = makeCard('card-one');
+		let baseline = primedCollectionState({'card-one': card});
+		baseline = collectionReducer(baseline, {type: UPDATE_STARS, starsToAdd: ['card-one'], starsToRemove: []});
+		const cardFilterNames = Object.keys((await import('../../lib/src/filters.js')).CARD_FILTER_FUNCS);
+		const projection = Object.fromEntries(cardFilterNames.map(name => [name, baseline.filters[name]]));
+		const empty = collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_STARS, starsToAdd: ['card-one'], starsToRemove: []});
+		const installed = collectionReducer(empty, {type: UPDATE_CARDS, cards: {'card-one': card}, fetchType: 'published', cardFilters: projection});
+		for (const name of cardFilterNames) assert.deepStrictEqual(installed.filters[name], baseline.filters[name], name);
+		assert.deepStrictEqual(installed.filters.starred, {'card-one': true});
+
+		const incomplete = {...projection};
+		delete incomplete[cardFilterNames[0]];
+		const fallback = collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_CARDS, cards: {'card-one': card}, fetchType: 'published', cardFilters: incomplete});
+		assert.deepStrictEqual(fallback.filters.content, {'card-one': true});
 	});
 
 	it('no-op UPDATE_READS preserves state identity', async () => {

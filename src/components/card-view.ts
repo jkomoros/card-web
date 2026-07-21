@@ -53,6 +53,7 @@ import {
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
 	selectCardModificationPending,
+	selectWorkerActiveCollectionReady,
 } from '../selectors.js';
 
 import {
@@ -74,7 +75,8 @@ import {
 import {
 	createCard,
 	navigateToNewCard,
-	createForkedCard
+	createForkedCard,
+	durableCardMutationPending,
 } from '../actions/data.js';
 
 import {
@@ -260,7 +262,10 @@ class CardView extends connect(store)(PageViewElement) {
 		_editing: boolean;
 
 	@state()
-		_cardModificationsPending: boolean;
+	_cardModificationsPending: boolean;
+
+	@state()
+	_durableCardMutationPending: boolean;
 
 	@state()
 		_hideActions: boolean;
@@ -652,7 +657,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
 					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
 					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${PSYCHOLOGY_ICON}</button>
-					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>					
+					<button class='round' data-testid='edit-card' aria-label='Edit card (E)' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'Resolve the current saved operation before editing another card' : 'Edit card (E)'} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 				</div>
 				<div slot='actions' class='next-prev'>
 					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
@@ -978,6 +983,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : selectActiveCardEnriched(state);
 		this._pageExtra = state.app.pageExtra;
 		this._cardModificationsPending = selectCardModificationPending(state);
+		this._durableCardMutationPending = durableCardMutationPending();
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
 		this._collectionNotFilteredToSelected = selectActiveCollectionNotFilteredToSelected(state);
@@ -1014,7 +1020,11 @@ class CardView extends connect(store)(PageViewElement) {
 		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.pendingReorder;
 		this._activeSectionId = selectActiveSectionId(state);
-		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+		//Raw cards finish installing before the worker's authoritative collection
+		//result arrives. Keep the honest loading placeholder during that short gap
+		//instead of flashing the false "No card by that name" error.
+		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state) &&
+			(!corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state));
 		this._sectionsAndTagsLoaded = selectSectionsAndTagsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
