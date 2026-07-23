@@ -58,7 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 		  }).then(reg => {
 			if (!reg) return;
 				const announceWaitingUpdate = () => {
-				  if (!reg.waiting || !navigator.serviceWorker.controller) return;
+				  if (!reg.waiting) return;
 				  window.CARD_WEB_SW_UPDATE_REGISTRATION = reg;
 				  window.dispatchEvent(new CustomEvent('card-web-service-worker-update', {detail: reg}));
 				};

@@ -15,6 +15,12 @@
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
+const diagnosticModesAllowed = () => {
+	if (typeof window === 'undefined') return true;
+	const host = window.location.hostname;
+	return host === 'localhost' || host === '127.0.0.1' || host === 'dev-complexity-compendium.web.app';
+};
+
 //Session-only circuit breaker for diagnostic modes. Normal `on` mode fails
 //closed instead: it never reconnects the legacy main-thread corpus listeners.
 //Keeping the persisted preference unchanged means a reload can retry after a
@@ -29,6 +35,7 @@ export type CorpusWorkerMode = 'off' | 'spike' | 'shadow' | 'on';
 
 export const readCorpusWorkerMode = () : CorpusWorkerMode => {
 	if (typeof window === 'undefined') return 'off';
+	if (!diagnosticModesAllowed()) return 'on';
 	try {
 		const value = window.localStorage.getItem(LOCAL_STORAGE_KEY);
 		if (value === 'off' || value === 'spike' || value === 'shadow' || value === 'on') return value;
@@ -39,6 +46,10 @@ export const readCorpusWorkerMode = () : CorpusWorkerMode => {
 };
 
 export const writeCorpusWorkerMode = (mode : CorpusWorkerMode) : void => {
+	if (!diagnosticModesAllowed() && mode !== 'on') {
+		console.warn('Diagnostic corpus modes are disabled on production hosting');
+		return;
+	}
 	try {
 		if (mode === 'on') {
 			//The default: clearing the key keeps fresh and reset profiles
@@ -73,6 +84,7 @@ export type CorpusSyncMode = 'listen' | 'watermark';
 
 export const readCorpusSyncMode = () : CorpusSyncMode => {
 	if (typeof window === 'undefined') return 'listen';
+	if (!diagnosticModesAllowed()) return 'watermark';
 	try {
 		const value = window.localStorage.getItem(SYNC_LOCAL_STORAGE_KEY);
 		if (value === 'listen' || value === 'watermark') return value;
@@ -83,6 +95,10 @@ export const readCorpusSyncMode = () : CorpusSyncMode => {
 };
 
 export const writeCorpusSyncMode = (mode : CorpusSyncMode) : void => {
+	if (!diagnosticModesAllowed() && mode !== 'watermark') {
+		console.warn('Diagnostic corpus sync modes are disabled on production hosting');
+		return;
+	}
 	try {
 		if (mode === 'watermark') {
 			//The default: clearing the key keeps fresh and reset profiles

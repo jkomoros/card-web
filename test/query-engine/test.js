@@ -66,6 +66,20 @@ describe('QueryEngine', () => {
 		assert.strictEqual(result.isFallback, false);
 	});
 
+	it('runs the landing stars sort directly from raw card fields', () => {
+		const engine = makeEngine();
+		engine.updateCards({
+			a: card('a', {sort_order: 3.0, star_count: 2}),
+			b: card('b', {sort_order: 2.0, star_count: 9}),
+			c: card('c', {sort_order: 1.0, star_count: 2}),
+		}, []);
+		const result = engine.runCollection('everything/sort/stars/');
+		assert.deepStrictEqual(result.ids, ['b', 'a', 'c']);
+		assert.deepStrictEqual(result.labels, ['', '', '']);
+		assert.strictEqual(result.numCards, 3);
+		assert.strictEqual(result.numStartCards, 0);
+	});
+
 	it('applies starred filter from replayed star actions', async () => {
 		const engine = makeEngine();
 		engine.applyAction({type: UPDATE_STARS, starsToAdd: ['b', 'c'], starsToRemove: []});

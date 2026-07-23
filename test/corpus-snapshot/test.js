@@ -77,4 +77,15 @@ describe('corpus snapshot', () => {
 			savedAt: 123
 		}), false);
 	});
+
+	it('rejects malformed card records instead of hydrating junk into Redux', () => {
+		const base = {
+			schemaVersion: 1,
+			clientClockCardIDs: [],
+			savedAt: 123,
+		};
+		assert.strictEqual(validCorpusSnapshot({...base, cards: {a: null}}), false);
+		assert.strictEqual(validCorpusSnapshot({...base, cards: {a: []}}), false);
+		assert.strictEqual(validCorpusSnapshot({...base, cards: {a: {id: 'b'}}}), false);
+	});
 });

@@ -44,6 +44,8 @@ const DB_NAME = 'corpus-worker-snapshot';
 const STORE_NAME = 'snapshots';
 const SCHEMA_VERSION = 2;
 
+type OwnershipToken = {ownerID : string, epoch : number};
+
 const validWireTimestamp = (value : unknown) : value is WireTimestamp => {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const candidate = value as Partial<WireTimestamp>;
@@ -67,6 +69,8 @@ export const validCorpusSnapshot = (value : unknown) : value is CorpusSnapshot =
 	const snapshot = value as Partial<CorpusSnapshot>;
 	const baseValid = (snapshot.schemaVersion === 1 || snapshot.schemaVersion === SCHEMA_VERSION) &&
 		Boolean(snapshot.cards && typeof snapshot.cards === 'object' && !Array.isArray(snapshot.cards)) &&
+		Object.entries(snapshot.cards || {}).every(([id, card]) => Boolean(id) && Boolean(card) &&
+			typeof card === 'object' && !Array.isArray(card) && (card as {id?: unknown}).id === id) &&
 		Array.isArray(snapshot.clientClockCardIDs) &&
 		snapshot.clientClockCardIDs.every(id => typeof id === 'string') &&
 		(snapshot.processedTombstoneIDs === undefined ||
@@ -83,10 +87,48 @@ export class CorpusSnapshotStore {
 
 	_key : string;
 	_db : Promise<IDBDatabase> | null;
+	_ownership : OwnershipToken;
 
-	constructor(key : string) {
+	constructor(key : string, ownership : OwnershipToken = {ownerID: '', epoch: 0}) {
 		this._key = key;
 		this._db = null;
+		this._ownership = ownership;
+	}
+
+	async claimOwnership() : Promise<boolean> {
+		const database = await this._database();
+		return new Promise<boolean>((resolve, reject) => {
+			const transaction = database.transaction(STORE_NAME, 'readwrite');
+			const store = transaction.objectStore(STORE_NAME);
+			const ownerKey = `${this._key}:owner`;
+			const request = store.get(ownerKey);
+			let accepted = false;
+			request.onsuccess = () => {
+				const current = request.result as OwnershipToken | undefined;
+				if (!current || current.epoch <= this._ownership.epoch) {
+					store.put({...this._ownership}, ownerKey);
+					accepted = true;
+				}
+			};
+			transaction.oncomplete = () => resolve(accepted);
+			transaction.onerror = () => reject(transaction.error);
+		});
+	}
+
+	async ownsCurrentOwnership() : Promise<boolean> {
+		try {
+			const database = await this._database();
+			return await new Promise<boolean>(resolve => {
+				const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(`${this._key}:owner`);
+				request.onsuccess = () => {
+					const owner = request.result as OwnershipToken | undefined;
+					resolve(Boolean(owner && owner.ownerID === this._ownership.ownerID && owner.epoch === this._ownership.epoch));
+				};
+				request.onerror = () => resolve(false);
+			});
+		} catch {
+			return false;
+		}
 	}
 
 	_database() : Promise<IDBDatabase> {
@@ -123,10 +165,33 @@ export class CorpusSnapshotStore {
 		const database = await this._database();
 		await new Promise<void>((resolve, reject) => {
 			const transaction = database.transaction(STORE_NAME, 'readwrite');
-			transaction.objectStore(STORE_NAME).put(snapshot, this._key);
+			const store = transaction.objectStore(STORE_NAME);
+			const ownerRequest = store.get(`${this._key}:owner`);
+			ownerRequest.onsuccess = () => {
+				const owner = ownerRequest.result as OwnershipToken | undefined;
+				if (owner && owner.ownerID === this._ownership.ownerID && owner.epoch === this._ownership.epoch) {
+					store.put(snapshot, this._key);
+				} else {
+					transaction.abort();
+				}
+			};
 			transaction.oncomplete = () => resolve();
 			transaction.onerror = () => reject(transaction.error);
 			transaction.onabort = () => reject(transaction.error);
 		});
+	}
+
+	async clear() : Promise<void> {
+		try {
+			const database = await this._database();
+			await new Promise<void>((resolve, reject) => {
+				const transaction = database.transaction(STORE_NAME, 'readwrite');
+				transaction.objectStore(STORE_NAME).delete(this._key);
+				transaction.oncomplete = () => resolve();
+				transaction.onerror = () => reject(transaction.error);
+			});
+		} catch {
+			//Best effort on auth revocation; the in-memory corpus is still purged.
+		}
 	}
 }

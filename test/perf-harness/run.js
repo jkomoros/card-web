@@ -194,9 +194,13 @@ const main = async () => {
 			const domContentMs = Date.now() - warmStartedAt;
 			await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), {timeout: 30000});
 			serviceWorkerControlled = await page.evaluate(() => Boolean(navigator.serviceWorker.controller));
+			await page.waitForFunction(() => Boolean(window.PERF_HARNESS), {timeout: 30000});
 			await page.waitForFunction(() => {
 				try { return Boolean(window.PERF_HARNESS?.activeRawCard()?.id); } catch { return false; }
-			}, {timeout: 30000});
+			}, {timeout: 30000}).catch(async error => {
+				const bootState = await page.evaluate(() => window.PERF_HARNESS?.bootState?.()).catch(() => null);
+				throw new Error(`${error.message}; warm boot state=${JSON.stringify(bootState)}; console tail=${JSON.stringify(consoleMsgs.slice(-20))}`);
+			});
 			const usableMs = Date.now() - warmStartedAt;
 			warmState = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000});
 			warmBoot = {domContentMs, usableMs, liveMs: Date.now() - warmStartedAt};
@@ -245,7 +249,7 @@ const main = async () => {
 				const expected = result.originals[snapshot.id];
 				if (!actual || actual.body !== expected.body || actual.title !== expected.title ||
 					JSON.stringify([...(actual.tags || [])].sort()) !== JSON.stringify([...(expected.tags || [])].sort()) ||
-					JSON.stringify(actual.references || {}) !== JSON.stringify(expected.references)) {
+					!isDeepStrictEqual(actual.references || {}, expected.references)) {
 					throw new Error(`bulk tag round-trip changed non-target state for ${snapshot.id}`);
 				}
 			}

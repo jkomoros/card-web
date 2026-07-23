@@ -22,7 +22,7 @@ describe('corpus worker protocol compatibility', () => {
 	});
 
 	it('rejects a pre-handshake worker as legacy protocol zero', () => {
-		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 2);
+		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 3);
 		assert.strictEqual(LEGACY_CORPUS_WORKER_PROTOCOL_VERSION, 0);
 		assert.strictEqual(corpusWorkerProtocolVersion(undefined), 0);
 		assert.strictEqual(corpusWorkerProtocolCompatible(undefined), false);

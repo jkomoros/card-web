@@ -13,6 +13,7 @@ import {auth, db, signInWithCustomToken} from './firebase.js';
 import {EDITING_FINISH} from './actions.js';
 import {modifyCardsWithDurableTagOperation, modifyCardsWithDurableMultiEdit} from './actions/data.js';
 import {doc, getDocFromServer} from 'firebase/firestore';
+import {deepEqual} from './util.js';
 
 //Watermark mode deliberately batches listener reconciliation. A multi-edit's
 //server commit budget is measured separately; allow the UI echo to arrive on
@@ -28,6 +29,17 @@ const waitFor = async (condition : () => boolean, timeoutMs = 60000) => {
 
 export const installPerfHarnessAPI = () : void => {
 	window.PERF_HARNESS = {
+		bootState: () => {
+			const state = store.getState() as State;
+			return {
+				uid: auth.currentUser?.uid || '',
+				ownership: window.CORPUS_WORKER?.ownershipState?.() || '',
+				cardCount: Object.keys(selectRawCards(state)).length,
+				syncStatus: state.data?.corpusStatus || '',
+				activeCardID: state.collection?.activeCardID || '',
+				path: location.pathname,
+			};
+		},
 		navigateAndRead: () => {
 			store.dispatch(navigateToNextCard());
 			store.dispatch(markActiveCardReadIfLoggedIn());
@@ -120,7 +132,7 @@ export const installPerfHarnessAPI = () : void => {
 				const current = afterRemove[card.id];
 				if (JSON.stringify(current?.tags || []) !== JSON.stringify(originals[card.id].tags)) throw new Error(`local tags not restored for ${card.id}`);
 				if (current?.body !== originals[card.id].body || current?.title !== originals[card.id].title ||
-					JSON.stringify(current?.references || {}) !== JSON.stringify(originals[card.id].references)) throw new Error(`non-tag field changed for ${card.id}`);
+					!deepEqual(current?.references || {}, originals[card.id].references)) throw new Error(`non-tag field changed for ${card.id}`);
 			}
 			return {tag, ids: cards.map(card => card.id), originals, addMs, removeMs};
 		},
@@ -185,6 +197,7 @@ export const installPerfHarnessAPI = () : void => {
 declare global {
 	interface Window {
 		PERF_HARNESS: {
+			bootState: () => {uid: string, ownership: string, cardCount: number, syncStatus: string, activeCardID: string, path: string},
 			navigateAndRead: () => void,
 			startEditingContent: () => void,
 			finishEditing: () => void,

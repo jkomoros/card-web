@@ -321,13 +321,44 @@ export type WorkerRunCollectionResolution = {
 //available.
 export type WorkerCollectionRunner = (description : string, keyCardID : string) => Promise<WorkerRunCollectionResolution | null> | null;
 
+type WorkerExpansionMemo = {
+	card: Card,
+	blockKey: string,
+	args: CollectionConstructorArguments,
+	editable: CardBooleanMap,
+	runner: WorkerCollectionRunner,
+	result: Promise<ExpandedReferenceBlocks | null>,
+};
+const workerExpansionMemo : WorkerExpansionMemo[] = [];
+const WORKER_EXPANSION_MEMO_LIMIT = 8;
+
 //Like expandReferenceBlocks, but each block's collection is computed in the
 //corpus worker (off the UI thread) and reconstituted as a pre-seeded real
 //Collection via Collection.fromWorkerResult. Resolves to null if the worker
 //becomes unavailable mid-flight — callers should fall back to the sync path.
-export const expandReferenceBlocksViaRunner = async (card : Card | null, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap, runner : WorkerCollectionRunner) : Promise<ExpandedReferenceBlocks | null> => {
-	if (!card) return EMPTY_ARRAY;
-	if (blocks.length == 0) return EMPTY_ARRAY;
+export const expandReferenceBlocksViaRunner = (card : Card | null, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap, runner : WorkerCollectionRunner) : Promise<ExpandedReferenceBlocks | null> => {
+	if (!card) return Promise.resolve(EMPTY_ARRAY);
+	if (blocks.length == 0) return Promise.resolve(EMPTY_ARRAY);
+	const blockKey = blocks.map(block => block.collectionDescription.serialize()).join('\n');
+	const cachedIndex = workerExpansionMemo.findIndex(entry => entry.card === card && entry.blockKey === blockKey &&
+		entry.args === collectionConstructorArgs && entry.editable === cardIDsUserMayEdit && entry.runner === runner);
+	if (cachedIndex >= 0) {
+		const [cached] = workerExpansionMemo.splice(cachedIndex, 1);
+		workerExpansionMemo.push(cached);
+		return cached.result;
+	}
+	const result = expandReferenceBlocksViaRunnerUncached(card, blocks, collectionConstructorArgs, cardIDsUserMayEdit, runner);
+	workerExpansionMemo.push({card, blockKey, args: collectionConstructorArgs, editable: cardIDsUserMayEdit, runner, result});
+	while (workerExpansionMemo.length > WORKER_EXPANSION_MEMO_LIMIT) workerExpansionMemo.shift();
+	void result.then(value => {
+		if (value !== null) return;
+		const index = workerExpansionMemo.findIndex(entry => entry.result === result);
+		if (index >= 0) workerExpansionMemo.splice(index, 1);
+	});
+	return result;
+};
+
+const expandReferenceBlocksViaRunnerUncached = async (card : Card, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap, runner : WorkerCollectionRunner) : Promise<ExpandedReferenceBlocks | null> => {
 	const keyCardCollectionConstructorArgs = {
 		...collectionConstructorArgs,
 		keyCardID: card.id,

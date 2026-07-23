@@ -103,7 +103,12 @@ import {
 	selectPendingModificationCount,
 	selectExpectedCardFetchTypeForNewUnpublishedCard,
 	selectUserMayViewUnpublished,
+	selectCorpusStatus,
 } from '../selectors.js';
+
+import {
+	inspectSavedOperation
+} from '../durable-operation-recovery.js';
 
 import {
 	INVERSE_FILTER_NAMES,
@@ -377,7 +382,14 @@ const bulkTagProgressAction = (operation : BulkTagOperation) : SomeAction => ({
 });
 
 export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean) : ThunkSomeAction => async (dispatch, getState) => {
-	if (bulkTagOperationRunning) return;
+	if (selectCorpusStatus(getState()) !== 'live') {
+		dispatch(modifyCardFailure(new Error('Card sync must be live before saving. Wait for sync to finish, then retry.')));
+		return;
+	}
+	if (bulkTagOperationRunning || durableMultiEditRunning) {
+		dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+		return;
+	}
 	bulkTagOperationRunning = true;
 	bulkTagResumeAttemptedThisPage = true;
 	let operation : BulkTagOperation | null = null;
@@ -569,9 +581,23 @@ export const retryPendingBulkTagOperation = () : ThunkSomeAction => async (dispa
 };
 
 export const abandonPendingBulkTagOperation = () : ThunkSomeAction => (dispatch) => {
-	const operation = readBulkTagOperation();
+	const bulkInspection = inspectSavedOperation(readBulkTagOperation);
+	if (bulkInspection.error) {
+		if (!confirm(`${bulkInspection.error.message}\n\nDiscard this unreadable saved label operation? This may leave already-completed changes in place.`)) return;
+		clearBulkTagOperation();
+		dispatch(modifyCardSuccess(0));
+		return;
+	}
+	const operation = bulkInspection.operation;
 	if (!operation) {
-		const generic = readDurableMultiEdit();
+		const genericInspection = inspectSavedOperation(readDurableMultiEdit);
+		if (genericInspection.error) {
+			if (!confirm(`${genericInspection.error.message}\n\nDiscard this unreadable saved operation? This may leave already-completed changes in place.`)) return;
+			clearDurableMultiEdit();
+			dispatch(modifyCardSuccess(0));
+			return;
+		}
+		const generic = genericInspection.operation;
 		if (!generic) return;
 		const remaining = generic.targetIDs.length - generic.nextIndex;
 		if (!confirm(`Stop this operation? ${generic.nextIndex} cards were processed safely and this operation will not attempt the remaining ${remaining}. This cannot undo confirmed changes.`)) return;
@@ -592,6 +618,7 @@ type DurableMultiEdit = {
 	targetIDs: CardID[],
 	nextIndex: number,
 	modifiedCount: number,
+	skippedCount?: number,
 	update: CardDiff,
 	substantive?: boolean,
 	kind?: 'single' | 'multi',
@@ -608,6 +635,7 @@ const readDurableMultiEdit = () : DurableMultiEdit | null => {
 		if (value.version !== 1 || !value.id || !value.uid || !Array.isArray(value.targetIDs) ||
 			!Number.isInteger(value.nextIndex) || value.nextIndex < 0 || value.nextIndex > value.targetIDs.length ||
 			!Number.isInteger(value.modifiedCount) || value.modifiedCount < 0 || value.modifiedCount > value.nextIndex ||
+			(value.skippedCount !== undefined && (!Number.isInteger(value.skippedCount) || value.skippedCount < 0 || value.modifiedCount + value.skippedCount > value.nextIndex)) ||
 			!value.update || typeof value.update !== 'object' || Array.isArray(value.update) ||
 			value.targetIDs.some(id => typeof id !== 'string' || !id) || new Set(value.targetIDs).size !== value.targetIDs.length) {
 			throw new Error('invalid shape');
@@ -637,8 +665,15 @@ const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => 
 	serverConfirmed: false,
 });
 
-export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff, substantive = false, kind : 'single' | 'multi' = 'multi') : ThunkSomeAction => async (dispatch, getState) => {
-	if (durableMultiEditRunning || bulkTagOperationRunning) return;
+export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff, substantive = false, kind : 'single' | 'multi' = 'multi', resumeTargetIDs? : CardID[]) : ThunkSomeAction => async (dispatch, getState) => {
+	if (selectCorpusStatus(getState()) !== 'live') {
+		dispatch(modifyCardFailure(new Error('Card sync must be live before saving. Wait for sync to finish, then retry.')));
+		return;
+	}
+	if (durableMultiEditRunning || bulkTagOperationRunning) {
+		dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+		return;
+	}
 	durableMultiEditRunning = true;
 	let operation : DurableMultiEdit | null = null;
 	try {
@@ -649,7 +684,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		let checkingServerMarker = Boolean(operation);
 		if (operation && operation.uid !== uid) throw new Error('A multi-edit from another account is pending in this browser');
 		if (!operation) {
-			const targetIDs = cards.map(card => card.id);
+			const targetIDs = resumeTargetIDs || cards.map(card => card.id);
 			if (kind === 'single' && targetIDs.length !== 1) throw new Error('A single-card save must contain exactly one card');
 			operation = {version: 1, id: `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind};
 			persistDurableMultiEdit(operation);
@@ -657,11 +692,13 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			//immediately, retain its draft until server confirmation, and report
 			//truthfully as Saving rather than Saved.
 			if (kind === 'single' && selectIsEditing(getState())) {
-				window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save'));
+				window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save', {
+					detail: {cardID: operation.targetIDs[0], operationID: operation.id},
+				}));
 				dispatch(editingFinish());
 			}
 		} else if (JSON.stringify(operation.update) !== JSON.stringify(update) ||
-			JSON.stringify(operation.targetIDs) !== JSON.stringify(cards.map(card => card.id)) ||
+			JSON.stringify(operation.targetIDs) !== JSON.stringify(resumeTargetIDs || cards.map(card => card.id)) ||
 			Boolean(operation.substantive) !== substantive || (operation.kind || 'multi') !== kind) {
 			throw new Error('A different multi-edit is already pending. Retry or stop that saved operation first.');
 		}
@@ -676,11 +713,14 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				checkingServerMarker = false;
 				const markerNextIndex = marker.data()?.next_index;
 				const markerModifiedCount = marker.data()?.modified_count;
+				const markerSkippedCount = marker.data()?.skipped_count || 0;
 				if (marker.exists() && marker.data().operation_id === operation.id &&
 					Number.isInteger(markerNextIndex) && markerNextIndex > chunkStart && markerNextIndex <= operation.targetIDs.length &&
-					Number.isInteger(markerModifiedCount) && markerModifiedCount >= 0 && markerModifiedCount <= markerNextIndex - chunkStart) {
+					Number.isInteger(markerModifiedCount) && markerModifiedCount >= 0 && markerModifiedCount <= markerNextIndex - chunkStart &&
+					Number.isInteger(markerSkippedCount) && markerSkippedCount >= 0 && markerSkippedCount <= markerNextIndex - chunkStart) {
 					operation.nextIndex = markerNextIndex;
 					operation.modifiedCount += markerModifiedCount;
+					operation.skippedCount = (operation.skippedCount || 0) + markerSkippedCount;
 					persistDurableMultiEdit(operation);
 					dispatch(durableMultiEditProgress(operation));
 					continue;
@@ -690,14 +730,17 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			let batch : MultiBatch | null = null;
 			let chunkIDs : CardID[] = [];
 			let modifiedCount = 0;
+			let skippedCount = 0;
 			while (candidateSize >= 1) {
 				chunkIDs = operation.targetIDs.slice(operation.nextIndex, operation.nextIndex + candidateSize);
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
-				if (authoritative.failedIDs.length || authoritative.removedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length + authoritative.removedIDs.length} target cards`);
+				if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
+				skippedCount = authoritative.removedIDs.length;
 				const state = getState();
 				batch = new MultiBatch(db, `${operation.id}-${operation.nextIndex}`);
 				modifiedCount = 0;
 				for (const id of chunkIDs) {
+					if (!authoritative.cards[id]) continue;
 					batch.beginAtomicGroup(id);
 					//A normal one-card editor save retains the canonical per-card and
 					//section/tag audit documents and all derived finisher fields. The
@@ -725,26 +768,36 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					operation_id: operation.id,
 					next_index: chunkStart + chunkIDs.length,
 					modified_count: modifiedCount,
+					skipped_count: skippedCount,
 					card_ids: chunkIDs,
 					update: operation.update,
 					updated: serverTimestamp(),
 				});
 				batch.endAtomicGroup();
-				if (batch.pendingUnderlyingBatchCount <= 1) break;
-				if (candidateSize === 1) throw new Error(`The edit to ${chunkIDs[0]} exceeds Firestore's atomic batch limit`);
+				if (batch.pendingUnderlyingBatchCount <= 1 || candidateSize === 1) break;
 				candidateSize = Math.max(1, Math.floor(candidateSize / 2));
 			}
 			if (!batch) throw new Error('Could not prepare a safe multi-edit batch');
 			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next multi-edit chunk could commit');
+			if (selectCorpusStatus(getState()) !== 'live') throw new Error('Card sync stopped being live before the next chunk. Reconnect, then retry.');
 			await batch.commit();
 			operation.nextIndex += chunkIDs.length;
 			operation.modifiedCount += modifiedCount;
+			operation.skippedCount = (operation.skippedCount || 0) + skippedCount;
 			persistDurableMultiEdit(operation);
 			dispatch(durableMultiEditProgress(operation));
 		}
 		clearDurableMultiEdit();
-		if (operation.kind === 'single') window.dispatchEvent(new CustomEvent('card-web-single-save-confirmed'));
-		if (operation.targetIDs.length > 1) alert(`${operation.modifiedCount} cards modified.${operation.targetIDs.length - operation.modifiedCount ? ` ${operation.targetIDs.length - operation.modifiedCount} already matched.` : ''}`);
+		if (operation.kind === 'single') {
+			window.dispatchEvent(new CustomEvent('card-web-single-save-confirmed', {
+				detail: {cardID: operation.targetIDs[0], operationID: operation.id},
+			}));
+		}
+		if (operation.targetIDs.length > 1) {
+			const skipped = operation.skippedCount || 0;
+			const matched = operation.targetIDs.length - operation.modifiedCount - skipped;
+			alert(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`);
+		}
 		dispatch(modifyCardSuccess(operation.modifiedCount));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));
@@ -765,12 +818,12 @@ const resumePendingDurableMultiEdit = (force = false) : ThunkSomeAction => async
 		const operation = readDurableMultiEdit();
 		if (!operation || operation.uid !== selectUid(getState())) return;
 		if (operation.kind !== 'single') dispatch(openMultiEditDialog());
-		const raw = selectRawCards(getState());
 		await dispatch(modifyCardsWithDurableMultiEdit(
-			operation.targetIDs.map(id => raw[id]).filter((card): card is Card => Boolean(card)),
+			[],
 			operation.update,
 			Boolean(operation.substantive),
 			operation.kind || 'multi',
+			operation.targetIDs,
 		));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));

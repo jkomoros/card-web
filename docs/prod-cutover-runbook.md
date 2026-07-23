@@ -29,7 +29,8 @@ Do not start until ALL of these are true:
         `unverified` are NOT fine.
       - Editing: typing in a card refreshes sidebar related-cards within
         a few seconds, no typing jank.
-      - Warm boot (reload after sweep): near-instant, syncState `live`,
+      - Warm boot (reload after sweep): roughly 10 seconds or better,
+        syncState `live`,
         and low billed reads (spot-check Firestore usage console: a warm
         boot should be <100 reads, not ~40k).
 - [ ] Several days of normal dev usage without: stuck `unverified`/`stale`
@@ -39,6 +40,10 @@ Do not start until ALL of these are true:
       overrides — clear them to soak the real defaults.)
 - [ ] Branch merged to master; you are deploying from master.
 - [ ] Full `npm test` green on the merge result.
+- [ ] Audit every admin/maintenance script that writes `cards/*`: all
+      content/metadata mutations must stamp `updated` with a server timestamp;
+      every delete must atomically create its tombstone. Rule-bypassing Admin
+      SDK scripts are part of the watermark correctness boundary.
 
 ## Phase 1 — Prod backup
 
@@ -123,8 +128,8 @@ see README "Firebase Functions Configuration".)
 **Rollback if broken:** Firebase console → Hosting → Release history →
 roll back to the previous release (instant, client-only). The Phase 2
 rules/indexes are backward-compatible with the old client, so they can
-stay. Users can also self-serve opt out: `localStorage.setItem('corpus-worker','off')`
-+ `localStorage.setItem('corpus-sync','listen')` and reload.
+stay. Do not use the diagnostic localStorage modes as a production fallback;
+the supported client requires the worker and its single-tab ownership fence.
 
 ## Phase 6 — Next day: tighten the inbound-reference rule
 
@@ -134,7 +139,8 @@ old client have aged out):
 1. In `firestore.TEMPLATE.rules`, `cardEditInboundReferences()` (~line
    163): make `updated` REQUIRED — follow the TIGHTEN comment in place
    (`affectedKeys.hasAny(['updated']) && …` form), and update the
-   security tests that cover the staged form (test/security).
+   security tests that cover the staged form for both generic and admin users
+   (test/security). Both staged success tests must flip to `assertFails`.
 2. `npm test` (the 176 security tests run against the emulator).
 3. Deploy rules to BOTH projects:
    ```bash
@@ -150,6 +156,8 @@ Not part of cutover day; tracked so it isn't forgotten:
 - Remove the legacy partitioned unpublished LISTENERS path
   (corpus-sync='listen') once watermark has soaked on prod.
 - Tombstone pruning maintenance task (tombstones currently accumulate).
+- Tighten card-delete rules so a top-level delete requires the matching
+  tombstone to exist after the atomic write; add emulator coverage first.
 - UX polish queue (implementation log 2026-07-11): sync/staleness pill,
   second-tab snack-bar, sidebar skeleton, find-drawer dimming.
 - P2 windowed memory (docs/p2-windowed-memory-spec.md) and remaining P3

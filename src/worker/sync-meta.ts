@@ -53,6 +53,8 @@ const EMPTY_META : SyncMeta = {
 const DB_NAME = 'corpus-worker-meta';
 const STORE_NAME = 'sync';
 
+type OwnershipToken = {ownerID : string, epoch : number};
+
 const openDB = () : Promise<IDBDatabase> => new Promise((resolve, reject) => {
 	const request = indexedDB.open(DB_NAME, 1);
 	request.onupgradeneeded = () => {
@@ -70,10 +72,32 @@ export class SyncMetaStore {
 	//under different parameters reads different state.
 	_key : string;
 	_db : Promise<IDBDatabase> | null;
+	_ownership : OwnershipToken;
 
-	constructor(key : string) {
+	constructor(key : string, ownership : OwnershipToken = {ownerID: '', epoch: 0}) {
 		this._key = key;
 		this._db = null;
+		this._ownership = ownership;
+	}
+
+	async claimOwnership() : Promise<boolean> {
+		const database = await this._database();
+		return new Promise<boolean>((resolve, reject) => {
+			const transaction = database.transaction(STORE_NAME, 'readwrite');
+			const store = transaction.objectStore(STORE_NAME);
+			const ownerKey = `${this._key}:owner`;
+			const request = store.get(ownerKey);
+			let accepted = false;
+			request.onsuccess = () => {
+				const current = request.result as OwnershipToken | undefined;
+				if (!current || current.epoch <= this._ownership.epoch) {
+					store.put({...this._ownership}, ownerKey);
+					accepted = true;
+				}
+			};
+			transaction.oncomplete = () => resolve(accepted);
+			transaction.onerror = () => reject(transaction.error);
+		});
 	}
 
 	_database() : Promise<IDBDatabase> {
@@ -106,7 +130,16 @@ export class SyncMetaStore {
 			const database = await this._database();
 			await new Promise<void>((resolve, reject) => {
 				const transaction = database.transaction(STORE_NAME, 'readwrite');
-				transaction.objectStore(STORE_NAME).put(meta, this._key);
+				const store = transaction.objectStore(STORE_NAME);
+				const ownerRequest = store.get(`${this._key}:owner`);
+				ownerRequest.onsuccess = () => {
+					const owner = ownerRequest.result as OwnershipToken | undefined;
+					if (owner && owner.ownerID === this._ownership.ownerID && owner.epoch === this._ownership.epoch) {
+						store.put(meta, this._key);
+					} else {
+						transaction.abort();
+					}
+				};
 				transaction.oncomplete = () => resolve();
 				transaction.onerror = () => reject(transaction.error);
 			});

@@ -301,7 +301,7 @@ service cloud.firestore {
       //engine have a finite expression budget per atomic write; evaluating
       //every minor/inbound branch before an already-authorized admin made even
       //a one-card denormalized edit exceed that budget.
-      allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor()) : (cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
+      allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor() || cardEditInboundReferences()) : (cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
     

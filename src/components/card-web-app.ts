@@ -40,6 +40,12 @@ import {
 	State
 } from '../types.js';
 
+import {
+	inFlightMutationCount
+} from '../mutation-barrier.js';
+
+const SERVICE_WORKER_UPDATE_CHANNEL = 'card-web-service-worker-update-v1';
+
 @customElement('card-web-app')
 class CardWebApp extends connect(store)(LitElement) {
 
@@ -76,18 +82,50 @@ class CardWebApp extends connect(store)(LitElement) {
 	@state()
 	_saveError = '';
 
+	@state()
 	private _updateReloading = false;
+
+	@state()
+	private _updateActivated = false;
+
 	private _lastDraftUid = '';
+	private _updateActivationTimeout : number | undefined;
+	private _updateChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(SERVICE_WORKER_UPDATE_CHANNEL);
 	private _updateEventHandler = (event : Event) => {
 		const registration = (event as CustomEvent<ServiceWorkerRegistration>).detail;
-		if (registration) this._updateRegistration = registration;
+		if (registration) {
+			this._updateActivated = false;
+			this._updateRegistration = registration;
+		}
 	};
+	private _currentUnsafeExitReason = () => this._unsafeExitReason ||
+		(inFlightMutationCount() > 0 ? 'wait for the current change to finish' : '');
 	private _beforeUnloadHandler = (event : BeforeUnloadEvent) => {
-		if (!this._unsafeExitReason) return;
+		if (!this._currentUnsafeExitReason()) return;
 		event.preventDefault();
 		event.returnValue = '';
 	};
 	private _draftEventHandler = () => { void this._refreshDraftAvailability(); };
+	private _durableStorageHandler = (event : StorageEvent) => {
+		if (event.key === 'card-web-pending-multi-edit-v1' || event.key === 'card-web-pending-bulk-tag-operation-v1') {
+			this.stateChanged(store.getState() as State);
+		}
+	};
+	private _updateChannelHandler = (event : MessageEvent) => {
+		if (event.data?.type !== 'activating') return;
+		this._updateActivated = true;
+		this._waitForUpdatedController();
+	};
+	private _controllerChangeHandler = () => {
+		if (this._updateActivationTimeout !== undefined) window.clearTimeout(this._updateActivationTimeout);
+		this._updateActivationTimeout = undefined;
+		this._updateActivated = true;
+		this._updateReloading = false;
+		//Activation affects the entire origin. Reload this client only when its
+		//own dirty/pending checks still pass; otherwise retain the banner until
+		//the user finishes the protected work.
+		if (!this._currentUnsafeExitReason()) window.location.reload();
+	};
 
 	static override styles = [
 		css`
@@ -203,10 +241,10 @@ class CardWebApp extends connect(store)(LitElement) {
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar .active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
-		${this._updateRegistration ? html`
+		${this._updateRegistration || this._updateActivated ? html`
 			<div class='update-ready' role='status' aria-live='polite'>
-				<span>${this._unsafeExitReason ? `Update ready — ${this._unsafeExitReason}` : 'Update ready'}</span>
-				<button ?disabled=${Boolean(this._unsafeExitReason) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
+				<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
+				<button ?disabled=${Boolean(this._currentUnsafeExitReason()) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
 			</div>` : ''}
 		${this._draftAvailable ? html`
 			<div class='update-ready draft-recovery' role='alert' aria-live='assertive'>
@@ -259,16 +297,34 @@ class CardWebApp extends connect(store)(LitElement) {
 		store.dispatch(ctrlKeyPressed(false));
 	}
 
-	private _activateUpdate = () => {
-		if (!this._updateRegistration?.waiting || this._unsafeExitReason || this._updateReloading) return;
+	private _waitForUpdatedController = () => {
+		if (this._updateReloading) return;
 		this._updateReloading = true;
-		let reloaded = false;
-		navigator.serviceWorker.addEventListener('controllerchange', () => {
-			if (reloaded) return;
-			reloaded = true;
-			window.location.reload();
-		}, {once: true});
-		this._updateRegistration.waiting.postMessage({type: 'SKIP_WAITING'});
+		navigator.serviceWorker.addEventListener('controllerchange', this._controllerChangeHandler, {once: true});
+		if (this._updateActivationTimeout !== undefined) window.clearTimeout(this._updateActivationTimeout);
+		this._updateActivationTimeout = window.setTimeout(() => {
+			this._updateActivationTimeout = undefined;
+			this._updateReloading = false;
+		}, 15000);
+	};
+
+	private _activateUpdate = () => {
+		if (this._currentUnsafeExitReason() || this._updateReloading) return;
+		const waiting = this._updateRegistration?.waiting;
+		if (!waiting) {
+			if (this._updateActivated) window.location.reload();
+			return;
+		}
+		this._waitForUpdatedController();
+		this._updateChannel?.postMessage({type: 'activating'});
+		try {
+			waiting.postMessage({type: 'SKIP_WAITING'});
+		} catch (error) {
+			if (this._updateActivationTimeout !== undefined) window.clearTimeout(this._updateActivationTimeout);
+			this._updateActivationTimeout = undefined;
+			this._updateReloading = false;
+			console.warn('Service worker activation failed', error);
+		}
 	};
 
 	private _refreshDraftAvailability = async () => {
@@ -333,6 +389,8 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.addEventListener('card-web-service-worker-update', this._updateEventHandler);
 		window.addEventListener('beforeunload', this._beforeUnloadHandler);
 		window.addEventListener('card-web-edit-draft-changed', this._draftEventHandler);
+		window.addEventListener('storage', this._durableStorageHandler);
+		this._updateChannel?.addEventListener('message', this._updateChannelHandler);
 		if (window.CARD_WEB_SW_UPDATE_REGISTRATION) this._updateRegistration = window.CARD_WEB_SW_UPDATE_REGISTRATION;
 	}
 
@@ -340,6 +398,9 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.removeEventListener('card-web-service-worker-update', this._updateEventHandler);
 		window.removeEventListener('beforeunload', this._beforeUnloadHandler);
 		window.removeEventListener('card-web-edit-draft-changed', this._draftEventHandler);
+		window.removeEventListener('storage', this._durableStorageHandler);
+		this._updateChannel?.removeEventListener('message', this._updateChannelHandler);
+		if (this._updateActivationTimeout !== undefined) window.clearTimeout(this._updateActivationTimeout);
 		super.disconnectedCallback();
 	}
 

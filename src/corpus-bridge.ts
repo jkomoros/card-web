@@ -136,6 +136,13 @@ import {
 	configureMutationOwnership,
 } from './mutation-barrier.js';
 
+import {
+	heartbeatDecision,
+	leaseBelongsTo,
+	nextOwnershipLease,
+	OwnershipLease,
+} from './ownership-lease.js';
+
 //Absolute path that resolves in both dev (wds serves the repo root; tsc
 //emits to lib/) and prod (build/ is the web root; rollup emits a
 //self-contained worker bundle at the same relative location).
@@ -177,15 +184,6 @@ const OWNERSHIP_HEARTBEAT_MS = 1000;
 const OWNERSHIP_STALE_MS = 5000;
 const OWNERSHIP_ELECTION_LOCK_NAME = 'corpus-worker-takeover-election';
 
-type OwnershipLease = {
-	version: 1,
-	tabID: string,
-	epoch: number,
-	heartbeatAt: number,
-	dirty: boolean,
-	pending: boolean,
-};
-
 type OwnershipState = 'starting' | 'checking' | 'active' | 'contended' | 'takeover' | 'inactive' | 'unsupported' | 'ownership-error';
 type OwnershipMessage = {
 	type : 'request' | 'grant' | 'ready' | 'deny' | 'released' | 'acquired',
@@ -206,6 +204,7 @@ let handoffRecovery : {requestID : string, timeout : ReturnType<typeof setTimeou
 let ownershipEpoch = 0;
 let ownershipHeartbeat : ReturnType<typeof setInterval> | null = null;
 let lastLeaseSafety = '';
+let ownershipDeactivationStarted = false;
 const ownershipChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(OWNERSHIP_CHANNEL_NAME);
 
 const readOwnershipLease = () : OwnershipLease | null => {
@@ -229,7 +228,12 @@ const leaseSafety = () => {
 };
 
 const writeOwnershipHeartbeat = (force = false) => {
-	if (ownershipState !== 'active' || !ownershipEpoch) return;
+	const decision = heartbeatDecision(ownershipState === 'active', tabID, ownershipEpoch, readOwnershipLease());
+	if (decision === 'skip') return;
+	if (decision === 'deactivate') {
+		deactivateSupersededOwnership();
+		return;
+	}
 	const safety = leaseSafety();
 	const safetyKey = `${safety.dirty}:${safety.pending}`;
 	if (!force && safetyKey === lastLeaseSafety) return;
@@ -254,14 +258,18 @@ const startOwnershipHeartbeat = () => {
 };
 
 const establishOwnershipEpoch = () => {
-	const prior = readOwnershipLease();
-	ownershipEpoch = Math.max(ownershipEpoch, prior?.epoch || 0) + 1;
+	//Acquiring the Web Lock proves the previous page can no longer own the
+	//normal (non-steal) path. Claim the durable epoch before starting the
+	//heartbeat: otherwise its first defensive read sees the previous page's
+	//lease and deactivates this freshly acquired reload as if it were stale.
+	const lease = nextOwnershipLease(tabID, ownershipEpoch, readOwnershipLease(), Date.now(), leaseSafety());
+	ownershipEpoch = lease.epoch;
+	lastLeaseSafety = `${lease.dirty}:${lease.pending}`;
+	try { localStorage.setItem(OWNERSHIP_LEASE_KEY, JSON.stringify(lease)); } catch { /* Web Lock remains authoritative. */ }
 };
 
 const ownsCurrentEpoch = () => {
-	const lease = readOwnershipLease();
-	//If durable storage is unavailable, the held Web Lock still fences tabs.
-	return !lease || (lease.tabID === tabID && lease.epoch === ownershipEpoch);
+	return leaseBelongsTo(readOwnershipLease(), tabID, ownershipEpoch);
 };
 
 const setOwnershipStatus = (status : OwnershipState, message : string) => {
@@ -636,13 +644,9 @@ const compareShadowResult = (description : string, uiIDs : string[], workerIDs :
 	}
 };
 
-//Resubscribe the active-collection slot IMMEDIATELY when its description
-//changes, instead of waiting for the debounced comparator tick: that tick
-//(up to 1s) plus worker compute was the first-paint lag on every collection
-//switch in 'on' mode — the UI fell back to a ~3s local filter+sort at 40k
-//while a worker result was only a subscription away. Cheap on every state
-//change (one serialize + string compare; ensureSubscription dedupes by
-//key), heavy work only when the description ACTUALLY changed.
+//Resubscribe visible collection slots immediately when their descriptions
+//change. In particular, the find query must not sit empty behind the 1s
+//shadow-comparison throttle after every keystroke.
 const fastResubscribeOnDescriptionChange = () => {
 	if (!worker) return;
 	//CHEAP check first: this runs on every dispatch, and
@@ -651,12 +655,17 @@ const fastResubscribeOnDescriptionChange = () => {
 	//batch) is a hot-path tax. The memoized description + precomputed
 	//serialize costs a string compare.
 	const state = store.getState() as State;
-	const description = selectActiveCollectionDescription(state);
-	if (!description) return;
-	if (description.serialize() === bridgeSubscriptions.active.descriptionSerialized) return;
+	const activeDescription = selectActiveCollectionDescription(state);
+	const queryDescription = readMode() === 'on' && selectFindDialogOpen(state) && !selectIsEditing(state)
+		? selectCollectionDescriptionForQuery(state)
+		: null;
+	const activeChanged = Boolean(activeDescription && activeDescription.serialize() !== bridgeSubscriptions.active.descriptionSerialized);
+	const queryChanged = (queryDescription?.serialize() || '') !== bridgeSubscriptions.query.descriptionSerialized;
+	if (!activeChanged && !queryChanged) return;
 	if (!corpusWorkerCanRunCollections()) return;
 	sendCollectionConfigIfChanged(state);
-	ensureSubscription('active', description, state);
+	if (activeChanged) ensureSubscription('active', activeDescription, state);
+	if (queryChanged) ensureSubscription('query', queryDescription, state);
 };
 
 //Identity of the last editing card + similarity sent to the worker, so the
@@ -702,6 +711,7 @@ const startShadowComparator = () => {
 //(where the mass-removal guard would skip it and, being once-per-generation,
 //it would never retry).
 let reconciliationRequestedGeneration : WorkerGeneration = -1;
+let pendingMassReconciliationSignature = '';
 
 const maybeRequestReconciliation = () => {
 	if (reconciliationRequestedGeneration === generation) return;
@@ -729,9 +739,9 @@ const handleCardBatch = (batch : CardBatch) => {
 	//NOTE: an earlier revision re-raised EXPECT_FETCHED_CARDS here after
 	//every pre-loadComplete batch ("first batch is progress, not
 	//completion"). That was REMOVED: the worker has designed paths that
-	//withhold loadComplete indefinitely while still forwarding batches (the
-	//second-tab Web-Locks loser; a boot whose trust gate is unreachable and
-	//retrying) — the re-raise turned both into a permanently
+	//withhold loadComplete indefinitely while still forwarding batches (for
+	//example, a boot whose trust gate is unreachable and retrying) — the
+	//re-raise turned that into a permanently
 	//never-fully-loaded app (dead new-card/random navigation, suggestions,
 	//snapshot commits). It also ran AFTER receiveCards, too late to stop
 	//the same-tick observers it was written for. First-batch-clears-loading
@@ -766,15 +776,23 @@ const handleCorpusIDs = (ids : CardID[]) => {
 		console.log(`[corpus-worker] corpus reconciliation: clean (${workerIDs.size} cards)`);
 		return;
 	}
-	//Sanity guard: genuine while-you-were-away deletions are rare and small.
-	//A large stale set means the worker corpus is somehow partial despite
-	//claiming completeness — never mass-remove on that signal.
 	const staleCount = stalePublished.length + staleUnpublished.length;
 	const reduxCount = Object.keys(cards).length;
 	if (staleCount > Math.max(50, reduxCount * 0.1)) {
-		console.warn(`[corpus-worker] corpus reconciliation: SKIPPED — ${staleCount} of ${reduxCount} Redux cards missing from the worker corpus (${workerIDs.size} ids); corpus looks partial`);
-		return;
+		//Large legitimate deletions must heal without a reload, but require the
+		//same fully-live worker result twice so a transient/partial response can
+		//never trigger a one-shot mass purge.
+		const signature = [...stalePublished, ...staleUnpublished].sort().join('\n');
+		if (signature !== pendingMassReconciliationSignature) {
+			pendingMassReconciliationSignature = signature;
+			console.warn(`[corpus-worker] corpus reconciliation: verifying large removal — ${staleCount} of ${reduxCount} cards`);
+			setTimeout(() => {
+				if (generation === reconciliationRequestedGeneration) post({type: 'requestCorpusIDs', generation});
+			}, 1000);
+			return;
+		}
 	}
+	pendingMassReconciliationSignature = '';
 	console.log(`[corpus-worker] corpus reconciliation: removing ${stalePublished.length} published + ${staleUnpublished.length} unpublished cards the worker corpus doesn't have`);
 	if (stalePublished.length) store.dispatch(removeCards(stalePublished, false));
 	if (staleUnpublished.length) store.dispatch(removeCards(staleUnpublished, true));
@@ -939,6 +957,7 @@ const recoverFromWorkerFailure = (reason : string) => {
 	console.warn(`[corpus-worker] unavailable (${reason})${workerRequired ? '; worker is required in on mode' : '; falling back to main-thread card listeners'}`);
 	clearWorkerStartupTimeout();
 	stopWorker();
+	void import('./actions/database.js').then(module => module.disconnectBackgroundDataForInactiveTab());
 	if (workerRequired) {
 		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: 'Cards could not load because card sync failed. Reload to retry. If this continues, contact support.'});
 		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
@@ -1035,6 +1054,11 @@ const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal, stea
 };
 
 const purgeAndDeactivate = () => {
+	if (ownershipDeactivationStarted) return;
+	ownershipDeactivationStarted = true;
+	//Change local state before dispatching: store subscribers also refresh the
+	//heartbeat and must not recursively revive a superseded owner.
+	ownershipState = 'inactive';
 	//Fence all outstanding worker replies before termination, then remove the
 	//old tab's corpus so it cannot look usable behind the blocking gate.
 	fenceMutations();
@@ -1049,6 +1073,22 @@ const purgeAndDeactivate = () => {
 	resetSubscriptionsForReconnect();
 	try { sessionStorage.setItem(SUPERSEDED_SESSION_KEY, '1'); } catch { /* storage may be disabled */ }
 	setOwnershipStatus('inactive', 'Compendium moved to another tab. This tab is inactive so card sync stays safe.');
+};
+
+//Run synchronously from heartbeat, storage, and page-resume paths. Terminate
+//the worker and fence mutations before releasing any surviving lock callback;
+//a thawed worker must not touch shared persistence after a newer epoch exists.
+function deactivateSupersededOwnership() {
+	if (ownershipState !== 'active' || ownsCurrentEpoch()) return false;
+	const release = releaseOwnershipLock;
+	releaseOwnershipLock = null;
+	purgeAndDeactivate();
+	release?.();
+	return true;
+}
+
+const revalidateOwnership = () => {
+	if (ownershipState === 'active') deactivateSupersededOwnership();
 };
 
 const finishTakeoverFailure = (message : string, status : 'contended' | 'ownership-error' = 'contended') => {
@@ -1091,11 +1131,12 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	workerLoadComplete = false;
 	workerCorpusSize = 0;
 	lastSyncState = '';
+	pendingMassReconciliationSignature = '';
 	flushPendingRunCollections();
 	resetSubscriptionsForReconnect();
 	if (!connectSent) {
 		connectSent = true;
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
@@ -1112,6 +1153,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 
 const activateOwnedConnection = (takeoverRequestID? : string, epochEstablished = false) => {
 	if (!epochEstablished) establishOwnershipEpoch();
+	ownershipDeactivationStarted = false;
 	allowMutations();
 	ownershipState = 'active';
 	configureMutationOwnership(ownsCurrentEpoch, () => writeOwnershipHeartbeat(true));
@@ -1325,15 +1367,16 @@ ownershipChannel?.addEventListener('message', event => {
 	}
 });
 
-//A force-superseded frozen tab receives this when it becomes runnable again.
-//The synchronous validator in beginMutation already blocks writes even before
-//this event; this handler makes the stale UI visibly and permanently inert.
+//Storage delivery is only one possible thaw ordering. Heartbeats and every
+//page-resume signal run the same synchronous epoch validation so an interval
+//callback can never overwrite the newer owner's fencing token first.
 window.addEventListener('storage', event => {
-	if (event.key !== OWNERSHIP_LEASE_KEY || ownershipState !== 'active' || ownsCurrentEpoch()) return;
-	const release = releaseOwnershipLock;
-	releaseOwnershipLock = null;
-	purgeAndDeactivate();
-	release?.();
+	if (event.key === OWNERSHIP_LEASE_KEY) revalidateOwnership();
+});
+window.addEventListener('pageshow', revalidateOwnership);
+window.addEventListener('focus', revalidateOwnership);
+document.addEventListener('visibilitychange', () => {
+	if (document.visibilityState === 'visible') revalidateOwnership();
 });
 
 store.subscribe(() => {

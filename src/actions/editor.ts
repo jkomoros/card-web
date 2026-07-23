@@ -28,6 +28,10 @@ import {
 } from './data.js';
 
 import {
+	trackMutation
+} from '../mutation-barrier.js';
+
+import {
 	confirmationsForCardDiff,
 	cardDiffHasChanges,
 	cardDiffDescription,
@@ -760,7 +764,7 @@ export const addImageWithFile = (file : File, index : number | undefined) : Thun
 	const fileRef = ref(userUploadRef, fileName);
 
 	try {
-		await uploadBytes(fileRef, file);
+		await trackMutation(() => uploadBytes(fileRef, file));
 	} catch (err) {
 		console.warn(err);
 		alert('Failed to upload');

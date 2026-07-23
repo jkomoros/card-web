@@ -25,6 +25,7 @@ export type SimilarityRetryOptions = {
 	maxPending?: number;
 	maxConcurrent?: number;
 	now?: () => number;
+	random?: () => number;
 	schedule?: (callback : () => void, delayMs : number) => Timer;
 	cancelTimer?: (timer : Timer) => void;
 	onRetry?: (key : string, attempt : number, delayMs : number) => void;
@@ -43,6 +44,7 @@ export class SimilarityRetryCoordinator {
 	private readonly _maxPending : number;
 	private readonly _maxConcurrent : number;
 	private readonly _now : () => number;
+	private readonly _random : () => number;
 	private readonly _schedule : (callback : () => void, delayMs : number) => Timer;
 	private readonly _cancelTimer : (timer : Timer) => void;
 	private readonly _onRetry? : (key : string, attempt : number, delayMs : number) => void;
@@ -54,6 +56,7 @@ export class SimilarityRetryCoordinator {
 		this._maxPending = options.maxPending ?? DEFAULT_MAX_PENDING;
 		this._maxConcurrent = options.maxConcurrent ?? this._maxPending;
 		this._now = options.now ?? Date.now;
+		this._random = options.random ?? Math.random;
 		this._schedule = options.schedule ?? ((callback, delayMs) => setTimeout(callback, delayMs));
 		this._cancelTimer = options.cancelTimer ?? clearTimeout;
 		this._onRetry = options.onRetry;
@@ -166,7 +169,10 @@ export class SimilarityRetryCoordinator {
 			return;
 		}
 
-		const delayMs = Math.min(this._maxDelayMs, this._baseDelayMs * Math.pow(2, entry.attempt));
+		const exponentialDelay = this._baseDelayMs * Math.pow(2, entry.attempt);
+		//±20% jitter prevents the bounded requests from re-forming a lockstep
+		//burst when connectivity returns after a shared outage.
+		const delayMs = Math.min(this._maxDelayMs, Math.round(exponentialDelay * (0.8 + this._random() * 0.4)));
 		this._onRetry?.(key, entry.attempt + 1, delayMs);
 		entry.timer = this._schedule(() => {
 			entry.timer = null;

@@ -288,8 +288,8 @@ const setUpDeploy = (): void => {
 
 const devDeploy = async (): Promise<void> => {
 	injectConfig();
-	build();
 	generateSeoPagesOptionally();
+	build();
 	firebaseEnsureDev();
 	await setConfigLastDeploy();
 	await configureQdrantCommand();
@@ -300,8 +300,8 @@ const devDeploy = async (): Promise<void> => {
 
 const deploy = async (): Promise<void> => {
 	injectConfig();
-	build();
 	generateSeoPagesOptionally();
+	build();
 	firebaseEnsureProd();
 	await setConfigLastDeploy();
 	await configureQdrantCommand();

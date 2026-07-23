@@ -12,6 +12,7 @@ import {
 } from './selectors.js';
 import {store} from './store.js';
 import type {CardDiff, CardID, State, Uid} from './types.js';
+import {draftMatchesConfirmedSave, SingleSaveIdentity} from './edit-draft-confirmation.js';
 
 export const EDIT_DRAFT_STORAGE_KEY = 'card-web-edit-draft-v1';
 export const EDIT_DRAFT_CHANGED_EVENT = 'card-web-edit-draft-changed';
@@ -24,6 +25,7 @@ export type StoredEditDraft = {
 	substantive: boolean,
 	baseUpdated: {seconds: number, nanoseconds: number} | null,
 	savedAt: number,
+	operationID?: string,
 };
 
 const currentState = () => store.getState() as State;
@@ -57,6 +59,11 @@ export const readEditDraft = () : StoredEditDraft | null => {
 
 const announceDraftChanged = () => window.dispatchEvent(new CustomEvent(EDIT_DRAFT_CHANGED_EVENT));
 
+const persistDraft = (draft : StoredEditDraft) => {
+	localStorage.setItem(EDIT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+	announceDraftChanged();
+};
+
 export const clearEditDraft = () => {
 	try {
 		localStorage.removeItem(EDIT_DRAFT_STORAGE_KEY);
@@ -81,8 +88,14 @@ const writeDraftForState = (state : State) => {
 		baseUpdated: timestampParts(base.updated),
 		savedAt: Date.now(),
 	};
-	localStorage.setItem(EDIT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
-	announceDraftChanged();
+	persistDraft(draft);
+};
+
+const stampDraftForSave = (identity : SingleSaveIdentity | null) => {
+	if (!identity) return;
+	const draft = readEditDraft();
+	if (!draft || draft.cardID !== identity.cardID || draft.uid !== selectUid(currentState())) return;
+	persistDraft({...draft, operationID: identity.operationID});
 };
 
 let installed = false;
@@ -124,15 +137,16 @@ export const installEditDraftWatcher = () => {
 	window.addEventListener('storage', event => {
 		if (event.key === EDIT_DRAFT_STORAGE_KEY) announceDraftChanged();
 	});
-	window.addEventListener('card-web-preserve-edit-draft-for-save', () => {
+	window.addEventListener('card-web-preserve-edit-draft-for-save', event => {
 		flushPendingDraft();
+		stampDraftForSave((event as CustomEvent<SingleSaveIdentity>).detail || null);
 		previouslyDirty = false;
 	});
-	window.addEventListener('card-web-single-save-confirmed', () => {
-		//The acknowledgement belongs to the persisted operation, not
-		//necessarily to whatever editor session is active by the time the server
-		//responds. Never erase a newer active session's recoverable draft.
-		if (!selectIsEditing(currentState())) clearEditDraft();
+	window.addEventListener('card-web-single-save-confirmed', event => {
+		const confirmation = (event as CustomEvent<SingleSaveIdentity>).detail || null;
+		//Only the exact operation that preserved this draft may clear it. An
+		//unrelated permissions save—or a late acknowledgement—must leave it alone.
+		if (draftMatchesConfirmedSave(readEditDraft(), confirmation)) clearEditDraft();
 	});
 	window.addEventListener('beforeunload', flushPendingDraft);
 	document.addEventListener('visibilitychange', () => {

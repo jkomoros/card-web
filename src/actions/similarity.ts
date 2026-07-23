@@ -96,6 +96,8 @@ const similarCardsForRawCard = async (card : EmbeddableCard) : Promise<SimilarCa
 
 const TIME_TO_WAIT_FOR_STALE : MillisecondsSinceEpoch = 10 * 60 * 1000;
 const MAX_CONSECUTIVE_TRANSPORT_ERRORS = 3;
+const transportFailedVersions = new Map<CardID, MillisecondsSinceEpoch>();
+let transportFailedEditingCard : Card | null = null;
 
 const retryCoordinator = new SimilarityRetryCoordinator({
 	onRetry: (cardID, attempt, delayMs) => {
@@ -140,9 +142,11 @@ const fetchSimilarCards = (cardID : CardID, lastUpdated : MillisecondsSinceEpoch
 				return 'retry';
 			}
 			console.warn(`[similarity] transport failure for ${cardID}; giving up after ${consecutiveTransportErrors} attempts:`, error);
-			//Do not install the permanent empty-result sentinel for a transport
-			//failure. A later filter run may demand it again after connectivity
-			//recovers; the worker TTL permits that retry but does not schedule one.
+			if (!isCurrent()) return 'done';
+			//Settle preview consumers now, but remember this was transport—not a
+			//semantic empty result—so online recovery can demand it again.
+			transportFailedVersions.set(cardID, lastUpdated);
+			dispatch({type: UPDATE_CARD_SIMILARITY, card_id: cardID, similarity: {}});
 			return 'done';
 		}
 		if (!isCurrent()) return 'done';
@@ -166,6 +170,7 @@ const fetchSimilarCards = (cardID : CardID, lastUpdated : MillisecondsSinceEpoch
 			card_id: cardID,
 			similarity: Object.fromEntries(result.cards)
 		});
+		transportFailedVersions.delete(cardID);
 		return 'done';
 	});
 };
@@ -183,12 +188,40 @@ export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 
 	const cards = selectRawCards(state);
 	const card = cards[cardID];
-	if (!card) throw new Error(`Couldn't find card ${cardID}`);
+	if (!card) {
+		console.warn(`Couldn't fetch similarity for missing card ${cardID}`);
+		return false;
+	}
 	//This will return immediately. The coordinator coalesces the main-thread
 	//and corpus-worker triggers for this exact card version.
 	fetchSimilarCards(cardID, card?.updated?.toMillis() || 0, store.dispatch);
 	return true;
 };
+
+if (typeof window !== 'undefined') {
+	window.addEventListener('online', () => {
+		//The coordinator removes completed entries immediately after their run
+		//settles; defer one task so an online event racing the final failure can
+		//start a fresh request instead of coalescing into that completed run.
+		setTimeout(() => {
+			for (const [cardID, version] of transportFailedVersions) {
+				const card = selectRawCards(store.getState() as State)[cardID];
+				if (!card || (card.updated?.toMillis() || 0) !== version) {
+					transportFailedVersions.delete(cardID);
+					continue;
+				}
+				transportFailedVersions.delete(cardID);
+				fetchSimilarCards(cardID, version, store.dispatch);
+			}
+			const editingCard = transportFailedEditingCard;
+			if (editingCard) {
+				transportFailedEditingCard = null;
+				const current = (store.getState() as State).editor?.card;
+				if (current?.id === editingCard.id) fetchSimilarCardsToCardContent(editingCard, store.dispatch);
+			}
+		}, 0);
+	});
+}
 
 const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknown) => unknown) => {
 	const embeddableCard = pickEmbeddableCard(card);
@@ -205,8 +238,9 @@ const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknow
 				return 'retry';
 			}
 			console.warn(`[similarity] transport failure for editing card ${card.id}; giving up after ${consecutiveTransportErrors} attempts:`, error);
-			//The coordinator removes this request on `done`, so a later demand
-			//for this same content version can start a fresh bounded chain.
+			if (!isCurrent()) return 'done';
+			transportFailedEditingCard = card;
+			dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}});
 			return 'done';
 		}
 		if (!isCurrent()) return 'done';
@@ -225,6 +259,7 @@ const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknow
 			type: EDITING_UPDATE_SIMILAR_CARDS,
 			similarity: Object.fromEntries(result.cards)
 		});
+		transportFailedEditingCard = null;
 		return 'done';
 	});
 };

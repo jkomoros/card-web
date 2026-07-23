@@ -1319,6 +1319,15 @@ describe('Compendium Rules', () => {
 		}));
 	});
 
+	it('allows the staged no-updated inbound-link write for an admin client too', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+		}));
+	});
+
 	it('disallows updating inbound links with a non-servertime updated', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);

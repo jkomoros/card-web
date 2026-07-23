@@ -2,6 +2,7 @@
 
 import assert from 'assert';
 import fs from 'fs';
+import {draftMatchesConfirmedSave} from '../../lib/src/edit-draft-confirmation.js';
 
 describe('durable single-card editing', () => {
 	it('persists before releasing the editor and keeps the draft until confirmation', () => {
@@ -34,8 +35,18 @@ describe('durable single-card editing', () => {
 		const finish = editor.indexOf('export const editingFinish', start);
 		const editingStart = editor.slice(start, finish);
 		assert.ok(editingStart.includes('selectCardModificationPending(state) || durableCardMutationPending()'));
-		const draft = fs.readFileSync('src/edit-draft.ts', 'utf8');
-		assert.ok(draft.includes('if (!selectIsEditing(currentState())) clearEditDraft();'));
+		assert.equal(draftMatchesConfirmedSave(
+			{cardID: 'card-a', operationID: 'save-new'},
+			{cardID: 'card-a', operationID: 'save-old'},
+		), false);
+	});
+
+	it('clears a draft only for its exact card and durable operation', () => {
+		const draft = {cardID: 'card-a', operationID: 'save-a'};
+		assert.equal(draftMatchesConfirmedSave(draft, {cardID: 'card-b', operationID: 'save-b'}), false);
+		assert.equal(draftMatchesConfirmedSave(draft, {cardID: 'card-a', operationID: 'save-b'}), false);
+		assert.equal(draftMatchesConfirmedSave(draft, {cardID: 'card-a', operationID: 'save-a'}), true);
+		assert.equal(draftMatchesConfirmedSave({cardID: 'card-a'}, {cardID: 'card-a', operationID: 'save-a'}), false);
 	});
 
 	it('retains canonical audit history and finishers for ordinary card saves', () => {

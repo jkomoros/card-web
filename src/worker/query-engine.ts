@@ -211,6 +211,39 @@ export class QueryEngine {
 		};
 	}
 
+	//The signed-in landing tab is the unfiltered everything set ordered by the
+	//raw star_count field. Running that through lazyProcessCards needlessly
+	//normalizes every card in the corpus before the first card can render. At
+	//12k cards that dominates warm boot (~17s) even though this sort needs no
+	//processed fields. Keep this deliberately narrow so every richer filter or
+	//sort continues through the shared Collection implementation.
+	_runRawStarsCollection(description : CollectionDescription) : RunCollectionResult | null {
+		if (description.set !== 'everything' || description.filters.length || description.sort !== 'stars') return null;
+		const sets = this._ensureSets();
+		const baseIDs = sets.everything || [];
+		const preLimitLength = baseIDs.length;
+		const sourceIDs = preLimitLength ? baseIDs : (this._fallbacks[description.serialize()] || []);
+		const sorted = [...sourceIDs].sort((left, right) =>
+			(this._cards[right]?.star_count || 0) - (this._cards[left]?.star_count || 0)
+		);
+		if (description.sortReversed) sorted.reverse();
+		let limited = sorted.slice(description.offset);
+		if (description.limit) limited = limited.slice(0, description.limit);
+		const startIDs = this._startCards[description.serialize()] || [];
+		const ids = [...startIDs, ...limited];
+		let numCards = preLimitLength - description.offset;
+		if (description.limit) numCards = Math.min(numCards, description.limit);
+		return {
+			ids,
+			labels: ids.map(() => ''),
+			numCards,
+			numStartCards: startIDs.length,
+			isFallback: preLimitLength === 0,
+			preview: false,
+			partialMatches: {},
+		};
+	}
+
 	//The card currently being edited on the main thread (normalized), plus
 	//its content-derived similarity — threaded into every collection run so
 	//similar-card filters reflect live editing content, exactly like the
@@ -229,6 +262,8 @@ export class QueryEngine {
 
 	runCollection(serializedDescription : string, options : RunCollectionOptions = {}) : RunCollectionResult {
 		const description = CollectionDescription.deserialize(serializedDescription);
+		const rawStarsResult = this._runRawStarsCollection(description);
+		if (rawStarsResult) return rawStarsResult;
 		const processed = this._ensureProcessedCards();
 		const sets = this._ensureSets();
 		const args = {

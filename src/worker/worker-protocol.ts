@@ -23,7 +23,7 @@ import {
 //Increment this for a wire-incompatible change. Missing version means a
 //pre-handshake worker/page (v0), which must be rejected: silently accepting it
 //would skip authoritative collection hydration on a mixed cached build.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 2;
+export const CORPUS_WORKER_PROTOCOL_VERSION = 3;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -125,7 +125,7 @@ export type MainToWorkerMessage =
 	//is forwarded from the main thread's `firebase-emulator` localStorage flag —
 	//the worker has no localStorage, so the bridge reads it and passes it here.
 	//Absent (undefined) in every real dev/prod connection.
-	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, emulatorTarget? : string}
+	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}

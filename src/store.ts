@@ -69,7 +69,7 @@ setSimilarityRequestHandler((cardID, editingCard) => {
 	void import('./actions/similarity.js').then(module => {
 		if (editingCard) module.fetchSimilarCardsForCardIfEnabled(editingCard);
 		else module.fetchSimilarCardsIfEnabled(cardID);
-	});
+	}).catch(error => console.warn('Could not request similar cards', error));
 });
 
 export type AppThunkDispatch = ThunkDispatch<State, undefined, SomeAction>;

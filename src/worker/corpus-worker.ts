@@ -75,6 +75,15 @@ import {
 } from './fast-dedupe.js';
 
 import {
+	listenerDocumentTrusted
+} from './listener-trust.js';
+
+import {
+	safePublishedRemovals,
+	publishedGhostIDs
+} from './published-removals.js';
+
+import {
 	initializeAuth,
 	indexedDBLocalPersistence,
 	connectAuthEmulator,
@@ -175,6 +184,7 @@ const COALESCE_INTERVAL_MS = 750;
 const workerScope = globalThis as unknown as {
 	postMessage: (message : WorkerToMainMessage) => void,
 	addEventListener: (type : 'message', listener : (event : {data : MainToWorkerMessage}) => void) => void,
+	close: () => void,
 };
 
 let app : FirebaseApp | null = null;
@@ -188,6 +198,7 @@ let generation : WorkerGeneration = 0;
 let connectionGeneration = 0;
 
 const corpus : Map<CardID, Card> = new Map();
+let authoritativePublishedIDs : Set<CardID> | null = null;
 let index = new SearchIndex();
 //The compact snapshot already carries the server-generated search tokens, but
 //rebuilding their inverted index eagerly costs several seconds on a 40k-card
@@ -264,6 +275,7 @@ let corpusSnapshotPersistenceEnabled = false;
 let corpusSnapshotSaveTimer : ReturnType<typeof setTimeout> | null = null;
 let corpusSnapshotSaveInFlight = false;
 let corpusSnapshotSavePending = false;
+let ownershipEpochGuard : ReturnType<typeof setInterval> | null = null;
 
 const saveCorpusSnapshot = async () : Promise<void> => {
 	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore || !syncMetaState) return;
@@ -323,6 +335,8 @@ const disableCorpusSnapshotPersistence = () => {
 	if (corpusSnapshotSaveTimer) clearTimeout(corpusSnapshotSaveTimer);
 	corpusSnapshotSaveTimer = null;
 	corpusSnapshotStore = null;
+	if (ownershipEpochGuard) clearInterval(ownershipEpochGuard);
+	ownershipEpochGuard = null;
 };
 
 const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[]} => {
@@ -447,7 +461,11 @@ const markInitialDelivered = (fetchType : CardFetchType) => {
 //matching the behavior of a main-thread listener receiving an empty snapshot.
 const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fastDedupe = false) => {
 	const start = performance.now();
-	const {cards, removedIDs} = parseSnapshot(snapshot);
+	const parsed = parseSnapshot(snapshot);
+	const cards = parsed.cards;
+	const removedIDs = fetchType === 'published'
+		? safePublishedRemovals(parsed.removedIDs, corpus)
+		: parsed.removedIDs;
 	//Server delivery: these entries are no longer client-clock contaminated.
 	for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
 	for (const id of removedIDs) clientClockCardIDs.delete(id);
@@ -674,9 +692,8 @@ const connectPublished = () => {
 					if (firstServerDelivery) {
 						firstServerDelivery = false;
 						const serverIDs = new Set(snapshot.docs.map(docSnapshot => docSnapshot.id));
-						const ghosts = [...corpus.entries()]
-							.filter(([id, card]) => card.published && !serverIDs.has(id))
-							.map(([id]) => id);
+						authoritativePublishedIDs = serverIDs;
+						const ghosts = publishedGhostIDs(corpus, serverIDs);
 						if (ghosts.length) {
 							updateLocalState({}, ghosts);
 							forwardBatch({}, ghosts, 'published', false);
@@ -869,6 +886,8 @@ const connectUnpublishedAuthorEditor = (uid : string) => {
 let syncMode : 'listen' | 'watermark' = 'listen';
 let currentDevMode = false;
 let currentUid = '';
+let currentOwnerID = '';
+let currentOwnershipEpoch = 0;
 let sessionWatermark : WireTimestamp | null = null;
 let syncMetaStore : SyncMetaStore | null = null;
 let syncMetaState : SyncMeta | null = null;
@@ -1147,6 +1166,10 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 			return query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds)));
 		},
 		() => snapshot => {
+			//A cached tombstone can carry a locally-estimated serverTimestamp.
+			//Wait for its server-confirmed delivery before deleting or advancing
+			//the durable cursor.
+			if (snapshot.metadata.fromCache) return;
 			const tombstones : CorpusTombstone[] = [];
 			snapshot.docChanges().forEach(change => {
 				if (change.type === 'removed') return; //pruning, not un-deletion
@@ -1156,8 +1179,8 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 				tombstones.push({id: change.doc.id, deleted: {seconds: deleted.seconds, nanoseconds: deleted.nanoseconds}, published: typeof data.published === 'boolean' ? data.published : undefined});
 			});
 			processTombstones(database, tombstones);
-			if (!snapshot.metadata.fromCache) markWatermarkPlane('tombstone', true);
-			if (first && !snapshot.metadata.fromCache) {
+			markWatermarkPlane('tombstone', true);
+			if (first) {
 				first = false;
 				onInitialDelivery();
 			}
@@ -1191,12 +1214,22 @@ const attachDeltaListener = (database : Firestore) => {
 			//tiny) snapshot, and gating the restore on count>0 left 'stale'
 			//latched until the next real edit.
 			const {cards} = parseSnapshot(snapshot);
+			const untrustedIDs = new Set(snapshot.docChanges()
+				.filter(change => change.type !== 'removed' && !listenerDocumentTrusted(
+					snapshot.metadata.fromCache,
+					change.doc.metadata.hasPendingWrites,
+				))
+				.map(change => change.doc.id));
 			const count = Object.keys(cards).length;
 			if (count) {
-				for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
+				for (const id of Object.keys(cards)) {
+					if (untrustedIDs.has(id)) clientClockCardIDs.add(id);
+					else clientClockCardIDs.delete(id);
+				}
 				updateLocalState(cards, []);
 				forwardBatch(cards, [], 'unpublished', false);
-				for (const card of Object.values(cards)) {
+				for (const [id, card] of Object.entries(cards)) {
+					if (untrustedIDs.has(id)) continue;
 					const updated = card.updated as Timestamp | undefined;
 					if (updated && typeof updated.seconds === 'number') {
 						sessionWatermark = advanceWatermark(sessionWatermark, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
@@ -1415,16 +1448,41 @@ const connectUnpublishedWatermark = async () => {
 	const myConnectionGeneration = connectionGeneration;
 	setSyncState('unverified');
 
-	syncMetaStore = new SyncMetaStore(`${currentDevMode ? 'dev' : 'prod'}:${currentUid}:privileged`);
+	const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
+	const ownership = {ownerID: currentOwnerID, epoch: currentOwnershipEpoch};
+	syncMetaStore = new SyncMetaStore(`${projectID}:${currentUid}:privileged`, ownership);
 	//Chromium serializes IndexedDB opens aggressively during Firestore startup.
 	//Do not even enqueue the tiny sync-meta open until the compact snapshot has
 	//loaded and forwarded; enqueueing it first delayed the snapshot by ~16s on
 	//the real 40k-card DEV corpus. The snapshot carries its own last-known
 	//tombstone suppressions, and newer metadata is still reconciled before live.
 	let syncMetaLoad : ReturnType<SyncMetaStore['load']> | null = null;
-	const loadSyncMeta = () => syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
-	const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
-	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`);
+	let syncMetaOwnershipClaim : Promise<boolean> | null = null;
+	const loadSyncMeta = async () => {
+		//Do not open the sync-meta DB until the compact-snapshot DB has loaded;
+		//Chromium serializes these opens and the competing open added ~16s to
+		//warm boot on the real corpus.
+		syncMetaOwnershipClaim ||= syncMetaStore!.claimOwnership();
+		if (!await syncMetaOwnershipClaim) throw new Error('worker sync metadata ownership was superseded');
+		return syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
+	};
+	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`, ownership);
+	if (!await corpusSnapshotStore.claimOwnership()) {
+		status('worker superseded by a newer ownership epoch; stopping before local persistence writes');
+		workerScope.close();
+		return;
+	}
+	ownershipEpochGuard = setInterval(() => {
+		const store = corpusSnapshotStore;
+		if (!store) return;
+		void store.ownsCurrentOwnership().then(current => {
+			if (current) return;
+			teardownListeners();
+			disableCorpusSnapshotPersistence();
+			status('worker ownership epoch changed; listeners stopped before further application persistence');
+			workerScope.close();
+		});
+	}, 1000);
 
 	//1. Prime from the compact materialized snapshot. On its first-ever run,
 	//fall back to Firestore's persistent cache and create the compact snapshot
@@ -1483,6 +1541,14 @@ const connectUnpublishedWatermark = async () => {
 	}
 	if (myConnectionGeneration !== connectionGeneration) return;
 	if (syncMetaState) for (const id of syncMetaState.processedTombstoneIDs) delete primedCards[id];
+	//The published server snapshot can beat this independent IndexedDB load.
+	//Apply its authoritative ID set before merging the compact prime so ghosts
+	//cannot arrive after the listener's one-shot reconciliation.
+	if (authoritativePublishedIDs) {
+		for (const [id, card] of Object.entries(primedCards)) {
+			if (card.published && !authoritativePublishedIDs.has(id)) delete primedCards[id];
+		}
+	}
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
 		const parseFinishedAt = performance.now();
@@ -1594,6 +1660,7 @@ const connectUnpublishedWatermark = async () => {
 
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
+	if (!uid && currentUid && corpusSnapshotStore) void corpusSnapshotStore.clear();
 	disableCorpusSnapshotPersistence();
 	//A (re)connect changes what this corpus MEANS (different permissions ⇒
 	//different visible card set): live subscriptions computed under the old
@@ -1614,6 +1681,7 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	currentMayViewUnpublished = mayViewUnpublished;
 	healthyWatermarkPlanes.clear();
 	currentSyncState = '';
+	authoritativePublishedIDs = null;
 	syncMetaState = null;
 	sessionWatermark = null;
 	clientClockCardIDs.clear();
@@ -1706,6 +1774,8 @@ workerScope.addEventListener('message', event => {
 		generation = message.generation;
 		syncMode = message.syncMode;
 		currentDevMode = message.devMode;
+		currentOwnerID = message.ownerID;
+		currentOwnershipEpoch = message.ownershipEpoch;
 		if (!firebaseReady) {
 			//The page acquired the origin-wide lease before this worker was
 			//created, so persistent single-tab ownership is safe to claim here.

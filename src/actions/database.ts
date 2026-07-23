@@ -157,6 +157,10 @@ const warmupSlugLegal = (force = false) : void => {
 
 let slugLegalInterval = 0;
 const KEEP_WARM_INTERVAL = 2 * 60 * 1000;
+const supplementalLiveUnsubscribes : (() => void)[] = [];
+const rememberSupplementalListener = (unsubscribe : () => void) => {
+	supplementalLiveUnsubscribes.push(unsubscribe);
+};
 
 let userHadActivity = false;
 
@@ -180,7 +184,7 @@ export const keepSlugLegalWarm = () => {
 export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
-	onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
+	rememberSupplementalListener(onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
 		const messages : CommentMessages = {};
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
@@ -191,12 +195,12 @@ export const connectLiveMessages = () => {
 		});
 
 		store.dispatch(updateMessages(messages));
-	});
+	}));
 };
 
 export const connectLiveThreads = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
+	rememberSupplementalListener(onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
 		const threads : CommentThreads = {};
 		const threadsToAdd : CommentThreadID[] = [];
 		const threadsToRemove : CommentThreadID[] = [];
@@ -212,7 +216,7 @@ export const connectLiveThreads = () => {
 			threads[id] = thread;
 		});
 		store.dispatch(updateThreads(threads));
-	});
+	}));
 };
 
 let liveStarsUnsubscribe : (() => void) | null = null;
@@ -318,7 +322,7 @@ export const connectLivePermissions = (uid : Uid) => {
 
 export const connectLiveAuthors = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
+	rememberSupplementalListener(onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
 		const authors : AuthorsMap = {};
 
@@ -332,7 +336,7 @@ export const connectLiveAuthors = () => {
 
 		store.dispatch(updateAuthors(authors));
 
-	});
+	}));
 };
 
 const parseCardSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, cardIDsToRemove : CardID[]} => {
@@ -399,12 +403,13 @@ export const connectLivePublishedCards = () => {
 	if (perfEnabled()) console.log('[PERF] connectLivePublishedCards: starting listener');
 	if (perfEnabled()) console.time('[PERF] published-cards-first-snapshot');
 	let first = true;
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
+	livePublishedCardsUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
 		if (first) { console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
 		cardSnapshotReceiver('published')(snapshot);
 	});
 };
 
+let livePublishedCardsUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
@@ -625,7 +630,7 @@ export const connectLiveUnpublishedCards = async () => {
 
 export const connectLiveSections = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
+	rememberSupplementalListener(onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
 		const sections : Sections = {};
 
@@ -639,13 +644,13 @@ export const connectLiveSections = () => {
 
 		store.dispatch(updateSections(sections));
 
-	});
+	}));
 };
 
 export const connectLiveTags = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	console.log('[connectLiveTags] Setting up live tags listener');
-	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
+	rememberSupplementalListener(onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
 		const tags : Tags = {};
 
@@ -662,5 +667,23 @@ export const connectLiveTags = () => {
 
 	}, error => {
 		console.error('[connectLiveTags] Error in onSnapshot:', error);
-	});
+	}));
+};
+
+//A superseded single-tab session is permanently inert. Tear down all ambient
+//listeners and warmup traffic as well as the corpus worker so it is genuinely
+//quiet—not merely hidden behind the ownership gate.
+export const disconnectBackgroundDataForInactiveTab = () => {
+	if (slugLegalInterval) window.clearInterval(slugLegalInterval);
+	slugLegalInterval = 0;
+	document.removeEventListener('mousemove', userActivity);
+	document.removeEventListener('keydown', userActivity);
+	for (const unsubscribe of supplementalLiveUnsubscribes.splice(0)) unsubscribe();
+	if (livePublishedCardsUnsubscribe) livePublishedCardsUnsubscribe();
+	livePublishedCardsUnsubscribe = null;
+	disconnectLiveUnpublishedCards();
+	disconnectLiveStars();
+	disconnectLiveReads();
+	disconnectLiveReadingList();
+	disconnectLivePermissions();
 };

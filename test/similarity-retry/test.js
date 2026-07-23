@@ -15,6 +15,7 @@ const harness = (options = {}) => {
 		maxPending: options.maxPending ?? 8,
 		maxConcurrent: options.maxConcurrent ?? options.maxPending ?? 8,
 		now: () => now++,
+		random: () => 0.5,
 		schedule: (callback, delayMs) => {
 			const id = nextTimer++;
 			timers.set(id, {callback, delayMs});
