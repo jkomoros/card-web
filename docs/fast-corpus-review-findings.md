@@ -16,6 +16,8 @@
 > - Pinning tests added to `test/worker-listener-trust`, `test/perf-harness/multiedit-coverage.test.js`, and `test/ownership-lease` (source-pinning style, consistent with the suite; the behavioral-coverage debt below still stands). Full `npm test` + `tsc --noEmit` + production build green after the fixes.
 >
 > Not addressed in this pass (tracked below, non-blocking): the #17 contended-at-boot listener disconnect, the null-lease resurrection path, the bulk-tag sibling of #6, the Firestore-SDK dual-`forceOwnership` overlap window, and the first-filtered-query index-build stall.
+>
+> **Post-fix validation (2026-07-24):** full `npm test` (35 suites incl. the new pins) + `tsc --noEmit` + production build green; 12k emulator harness fully green over the committed fixes (all takeover/crash/boot correctness gates, counter invariants; only emulator-typical warm-boot advisory breaches). **Deployed to DEV** via the fixed deploy ordering and re-verified live signed-in against the real 40,225-card corpus: warm boot went `live` with trust gate 0-mismatch and the delta plane delivered exactly the 100 cards changed by earlier testing; the SW "Update ready" banner appeared (no auto-reload), activated cleanly, and the reload landed the new build; **`bulkTagRoundTrip(100)` now passes its full field-fidelity audit** (previously deterministically false-failed — finding #19's re-run requirement met). Find-dialog steady-state latency measured 3.8-8.9s in the review pane, but that environment background-throttles tabs; a human foreground check of find feel (and one human click of the takeover CTA) are the remaining manual sign-offs.
 
 ## Remaining blockers — all FIXED in round 2.5, kept for the record
 
