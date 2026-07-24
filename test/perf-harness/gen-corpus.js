@@ -19,6 +19,15 @@
 
 import fs from 'fs';
 
+//The one permitted app import: pure token/fingerprint helpers (no firebase,
+//no DOM). Generated cards must pass the worker's token-currency predicate
+//(nlp_version + source fingerprint) or search-recall narrowing degrades to
+//always-scan and the harness stops exercising it.
+import {
+	CURRENT_NLP_VERSION,
+	nlpSourceFingerprintForCard
+} from '../../shared/dist/nlp.js';
+
 //mulberry32: tiny deterministic PRNG. Seeded; no global randomness.
 const mulberry32 = (seed) => {
 	let a = seed >>> 0;
@@ -200,6 +209,9 @@ export const generateCorpus = (opts = {}) => {
 			//Stored search tokens: what the worker's inverted index indexes.
 			nlp_search_tokens: makeSearchTokens(title, body),
 		};
+		//Stamp currency so the worker's recall predicate trusts the tokens.
+		cards[id].nlp_version = CURRENT_NLP_VERSION;
+		cards[id].nlp_source_fingerprint = nlpSourceFingerprintForCard(cards[id]);
 	}
 
 	//Second pass: derive references_inbound / references_info_inbound so the
