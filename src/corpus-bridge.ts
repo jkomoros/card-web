@@ -39,6 +39,7 @@ import {
 	REMOVE_CARDS,
 	STOP_EXPECTING_FETCHED_CARDS,
 	UPDATE_CORPUS_STATUS,
+	FIND_UPDATE_SEARCH_RECALL,
 	EDITING_FINISH,
 } from './actions.js';
 
@@ -884,6 +885,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		}
 		break;
 	}
+	case 'searchRecall':
+		store.dispatch({type: FIND_UPDATE_SEARCH_RECALL, built: message.built, total: message.total, ready: message.ready});
+		break;
 	case 'loadComplete':
 		workerLoadComplete = true;
 		workerCorpusSize = message.corpusSize;

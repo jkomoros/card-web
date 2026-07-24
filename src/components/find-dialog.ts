@@ -53,6 +53,7 @@ import {
 	selectFindPermissions,
 	selectFindLinking,
 	selectFindSortByRecent,
+	selectFindSearchPreparing,
 	selectFindRenderOffset,
 	selectFindDialogOpen,
 } from '../selectors.js';
@@ -111,6 +112,9 @@ class FindDialog extends connect(store)(DialogElement) {
 		_collection: Collection | null;
 
 	@state()
+		_searchPreparing: {built : number, total : number} | null;
+
+	@state()
 		_renderOffset: number;
 
 	@state()
@@ -149,6 +153,13 @@ class FindDialog extends connect(store)(DialogElement) {
 		css`
 			card-drawer {
 				font-size:14px;
+			}
+
+			.search-preparing {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				font-style: italic;
+				margin: 0.25em 0;
 			}
 
 			.row {
@@ -202,6 +213,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
+		${this._searchPreparing ? html`<div class='search-preparing'>Preparing search (${this._searchPreparing.built.toLocaleString()} of ${this._searchPreparing.total.toLocaleString()} cards indexed)…</div>` : ''}
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
@@ -381,6 +393,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
 		this._sortByRecent = selectFindSortByRecent(state);
+		this._searchPreparing = this.open ? selectFindSearchPreparing(state) : null;
 	}
 
 }

@@ -168,4 +168,61 @@ describe('QueryEngine', () => {
 		assert.strictEqual(Object.prototype.hasOwnProperty.call(filters, 'starred'), false);
 		for (const value of Object.values(filters)) assert.ok(value && typeof value === 'object' && !Array.isArray(value));
 	});
+
+	describe('search recall narrowing', () => {
+		const zebraCorpus = () => {
+			const cards = {};
+			for (let i = 0; i < 8; i++) {
+				const id = 'card' + i;
+				cards[id] = card(id, {sort_order: i, title: 'Filler topic ' + i});
+			}
+			//Node has no DOM so body HTML extracts to empty text; use titles for
+			//matchable content (the narrowing logic is field-agnostic).
+			cards.card1 = card('card1', {title: 'Zebra migration patterns'});
+			cards.card2 = card('card2', {title: 'A zebra crossing story'});
+			cards.card3 = card('card3', {title: 'Zebra keeper notes'});
+			return cards;
+		};
+
+		it('produces bit-identical results with a sound universe, and actually narrows', async () => {
+			const {SearchIndex} = await import('../../lib/src/worker/search-index.js');
+			const {queryTokensForText} = await import('../../lib/src/worker/query-engine.js');
+			for (const description of ['everything/query/zebra/', 'everything/has-body/query/zebra/']) {
+				const engine = new QueryEngine();
+				engine.updateCards(zebraCorpus(), []);
+				const full = engine.runCollection(description);
+				assert.ok(full.ids.includes('card1') && full.ids.includes('card2') && full.ids.includes('card3'),
+					`query should match all three zebra cards for ${description}: ${JSON.stringify(full.ids)}`);
+				const index = new SearchIndex();
+				index.updateCard('card1', queryTokensForText('Zebra migration patterns'));
+				index.updateCard('card2', queryTokensForText('A zebra crossing story'));
+				//card3 deliberately unindexed: it must be recalled via always-scan.
+				engine.setSearchRecall(index, new Set(['card3']));
+				assert.ok(engine.searchRecallEnabled);
+				const narrowed = engine.runCollection(description);
+				assert.deepStrictEqual(narrowed, full, `narrowed result must equal full scan for ${description}`);
+				//Prove the narrowing engaged: with card3 dropped from the universe
+				//its match must disappear (guards against a silently-dead fast path).
+				engine.setSearchRecall(index, new Set());
+				const unsound = engine.runCollection(description);
+				assert.ok(!unsound.ids.includes('card3'), 'narrowing did not actually restrict the universe');
+				//And disabling recall restores the full path.
+				engine.setSearchRecall(null, null);
+				assert.deepStrictEqual(engine.runCollection(description), full);
+			}
+		});
+
+		it('falls back to the full path for stop-word-only queries and non-query collections', async () => {
+			const {SearchIndex} = await import('../../lib/src/worker/search-index.js');
+			const engine = new QueryEngine();
+			engine.updateCards(zebraCorpus(), []);
+			const fullEverything = engine.runCollection('everything/');
+			engine.setSearchRecall(new SearchIndex(), new Set());
+			assert.deepStrictEqual(engine.runCollection('everything/'), fullEverything);
+			//'the' is all stop words -> no tokens -> full scan despite empty index.
+			const stopWordResult = engine.runCollection('everything/query/the/');
+			assert.ok(Array.isArray(stopWordResult.ids));
+		});
+	});
+
 });

@@ -1941,6 +1941,28 @@ export const selectCollectionDescriptionForQuery = createSelector(
 
 const selectWorkerQueryCollectionResult = (state : State) => state.collection ? state.collection.workerQueryCollection : null;
 
+const selectFindSearchRecall = (state : State) => state.find ? state.find.searchRecall : null;
+
+//Non-null while the find dialog is waiting on a worker query result AND the
+//worker's background search-recall index is still building — the only window
+//where "the search is slow because indexing is incomplete" is the honest
+//explanation. Self-retires once the build reports ready.
+export const selectFindSearchPreparing = createSelector(
+	selectFindDialogOpen,
+	selectActiveQueryText,
+	selectCollectionDescriptionForQuery,
+	selectCollectionConstructorArgumentsWithEditingCard,
+	selectWorkerQueryCollectionResult,
+	selectFindSearchRecall,
+	(open, queryText, description, args, workerResult, recall) : {built : number, total : number} | null => {
+		if (!open || !queryText) return null;
+		if (!corpusWorkerServesCollections() || args.editingCard) return null;
+		if (!recall || recall.ready) return null;
+		if (workerResult && workerResult.description === description.serialize()) return null;
+		return {built: recall.built, total: recall.total};
+	}
+);
+
 export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArgumentsWithEditingCard,

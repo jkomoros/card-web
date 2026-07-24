@@ -98,11 +98,18 @@ import {
 } from '../config.GENERATED.SECRET.js';
 
 import {
-	normalizedWords,
-	stemmedNormalizedWords,
-	withoutStopWords,
-	ngrams
+	ngrams,
+	CURRENT_NLP_VERSION,
+	nlpSourceFingerprintForCard
 } from '../../shared/nlp.js';
+
+import {
+	processedRunsForCardField
+} from '../nlp.js';
+
+import {
+	backportFallbackTextMapForCard
+} from '../util.js';
 
 import {
 	Card,
@@ -134,7 +141,8 @@ import {
 } from './search-index.js';
 
 import {
-	QueryEngine
+	QueryEngine,
+	queryTokensForText
 } from './query-engine.js';
 
 import {
@@ -202,12 +210,17 @@ let connectionGeneration = 0;
 const corpus : Map<CardID, Card> = new Map();
 let authoritativePublishedIDs : Set<CardID> | null = null;
 let index = new SearchIndex();
-//The compact snapshot already carries the server-generated search tokens, but
-//rebuilding their inverted index eagerly costs several seconds on a 40k-card
-//warm boot. Navigation, collections, editing, and saves do not consult this
-//index, so defer that purely-derived work until the first search request. The
-//worker event loop makes the rebuild atomic with respect to card deltas.
-let searchIndexNeedsRebuild = false;
+//Search-recall lifecycle. The index narrows every find query from O(corpus)
+//to O(candidates) (see search-index.ts), but building it over 40k cards costs
+//seconds — so it is built CHUNKED in the background after the prime hands
+//off, never synchronously on a query. Until 'ready' the engine runs full
+//scans exactly as before; card updates meanwhile accumulate in the dirty set
+//and are drained before the flip to ready.
+type SearchRecallState = 'idle' | 'building' | 'ready';
+let searchRecallState : SearchRecallState = 'idle';
+let searchRecallBuildToken = 0;
+const searchRecallAlwaysScan : Set<CardID> = new Set();
+const searchRecallDirtyIDs : Set<CardID> = new Set();
 const engine = new QueryEngine();
 //See the watermark invariant below. Kept next to corpus because the compact
 //snapshot must persist and restore this set atomically with the cards.
@@ -242,6 +255,138 @@ let indexBuildMs = 0;
 const unsubscribes : (() => void)[] = [];
 
 const send = (message : WorkerToMainMessage) => workerScope.postMessage(message);
+
+//--- Search recall (find narrowing) -----------------------------------------
+
+//Fields whose query-scorable text is derived locally at load time (from
+//references/backported titles) rather than covered by the save-time
+//nlp_search_tokens or the nlp fingerprint. Their tokens must be indexed here
+//or a card matching only via, say, a newly added inbound reference title
+//would be recall-missed.
+const REFERENCE_RECALL_FIELDS = ['references_info_inbound', 'non_link_references', 'concept_references'] as const;
+
+const referenceRecallTokens = (card : Card) : string[] => {
+	const allCards = engine.rawCards;
+	const fallbackText = backportFallbackTextMapForCard(card, allCards) || {};
+	const withFallback = {...card, fallbackText};
+	const out : string[] = [];
+	for (const fieldName of REFERENCE_RECALL_FIELDS) {
+		for (const run of processedRunsForCardField(withFallback, fieldName)) {
+			const stemmed = run.stemmed;
+			if (!stemmed) continue;
+			for (const word of stemmed.split(' ')) {
+				if (word) out.push(word);
+			}
+			for (const bigram of ngrams(stemmed, 2)) out.push(bigram);
+		}
+	}
+	return out;
+};
+
+//null → the card must always be scanned: missing or stale stored tokens mean
+//the full processing path would re-derive text the index cannot see. The
+//currency predicate matches card-processing's fast-path check exactly.
+const recallTokensForCard = (card : Card) : string[] | null => {
+	if (card.nlp_version !== CURRENT_NLP_VERSION) return null;
+	if (card.nlp_source_fingerprint !== nlpSourceFingerprintForCard(card)) return null;
+	const stored = searchTokensForCard(card);
+	if (!stored.length) return null;
+	return [...stored, ...referenceRecallTokens(card)];
+};
+
+const applyRecallEntry = (id : CardID, card : Card) => {
+	const tokens = recallTokensForCard(card);
+	if (tokens) {
+		searchRecallAlwaysScan.delete(id);
+		index.updateCard(id, tokens);
+	} else {
+		index.removeCard(id);
+		searchRecallAlwaysScan.add(id);
+	}
+};
+
+//MessageChannel yield: unlike nested setTimeout(0) it is not 4ms-clamped, so
+//slices keep a high duty cycle while still letting every queued message
+//(runCollection, deltas, teardown) run between them.
+const yieldToWorkerQueue = () : Promise<void> => new Promise(resolve => {
+	const channel = new MessageChannel();
+	channel.port1.onmessage = () => resolve();
+	channel.port2.postMessage(0);
+});
+
+const SEARCH_RECALL_SLICE_MS = 12;
+//Low duty cycle while the initial load is still delivering: boot work owns
+//the loop; recall is strictly background.
+const SEARCH_RECALL_BOOT_GAP_MS = 40;
+let searchRecallProgressSentAt = 0;
+
+const sendSearchRecallProgress = (built : number, total : number, force = false) => {
+	const now = performance.now();
+	if (!force && now - searchRecallProgressSentAt < 400) return;
+	searchRecallProgressSentAt = now;
+	send({type: 'searchRecall', generation, built, total, ready: searchRecallState === 'ready'});
+};
+
+const scheduleSearchRecallBuild = () => {
+	if (searchRecallState !== 'idle') return;
+	searchRecallState = 'building';
+	void buildSearchRecall();
+};
+
+const resetSearchRecall = () => {
+	searchRecallBuildToken++;
+	searchRecallState = 'idle';
+	searchRecallDirtyIDs.clear();
+	searchRecallAlwaysScan.clear();
+	index = new SearchIndex();
+	engine.setSearchRecall(null, null);
+};
+
+const buildSearchRecall = async () => {
+	const myConnectionGeneration = connectionGeneration;
+	const myToken = ++searchRecallBuildToken;
+	const startedAt = performance.now();
+	const ids = [...corpus.keys()];
+	const total = ids.length;
+	let built = 0;
+	let sliceStart = performance.now();
+	const aborted = () => myConnectionGeneration !== connectionGeneration || myToken !== searchRecallBuildToken;
+	for (const id of ids) {
+		if (aborted()) return;
+		const card = corpus.get(id);
+		if (card) applyRecallEntry(id, card);
+		searchRecallDirtyIDs.delete(id);
+		built++;
+		if (performance.now() - sliceStart >= SEARCH_RECALL_SLICE_MS) {
+			sendSearchRecallProgress(built, total);
+			if (initialLoadPending) await new Promise<void>(resolve => setTimeout(resolve, SEARCH_RECALL_BOOT_GAP_MS));
+			await yieldToWorkerQueue();
+			sliceStart = performance.now();
+		}
+	}
+	//Drain updates that landed mid-build before declaring the index complete.
+	while (searchRecallDirtyIDs.size) {
+		if (aborted()) return;
+		for (const id of [...searchRecallDirtyIDs].slice(0, 200)) {
+			searchRecallDirtyIDs.delete(id);
+			const card = corpus.get(id);
+			if (card) applyRecallEntry(id, card);
+			else {
+				index.removeCard(id);
+				searchRecallAlwaysScan.delete(id);
+			}
+		}
+		await yieldToWorkerQueue();
+	}
+	if (aborted()) return;
+	searchRecallState = 'ready';
+	engine.setSearchRecall(index, searchRecallAlwaysScan);
+	const elapsed = performance.now() - startedAt;
+	indexBuildMs += elapsed;
+	recordWorkerPerf('indexBuild', elapsed);
+	sendSearchRecallProgress(total, total, true);
+	status(`search recall ready: ${index.cardCount} indexed, ${searchRecallAlwaysScan.size} always-scan, in ${elapsed.toFixed(0)}ms wall (chunked)`);
+};
 
 const status = (message : string) => send({type: 'status', generation, message});
 
@@ -389,30 +534,34 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 	return {cards, removedIDs, pendingWriteIDs};
 };
 
-const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false, deferSearchIndex = false) => {
+const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
 	const indexStart = performance.now();
-	if (deferSearchIndex) searchIndexNeedsRebuild = true;
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
 		if (previous && searchTokensForCard(previous).length) cardsWithStoredTokens--;
 		corpus.set(id, card);
-		const tokens = searchTokensForCard(card);
-		if (tokens.length) {
-			cardsWithStoredTokens++;
-			if (!searchIndexNeedsRebuild) index.updateCard(id, tokens);
-		} else if (!searchIndexNeedsRebuild) {
-			index.removeCard(id);
-		}
+		if (searchTokensForCard(card).length) cardsWithStoredTokens++;
 	}
 	for (const id of removedIDs) {
 		corpus.delete(id);
-		if (!searchIndexNeedsRebuild) index.removeCard(id);
 	}
 	//The engine keeps its own plain-object mirror (identity-preserving per
 	//card) plus filter membership via the real reducer. Strip the ephemeral
 	//search tokens just like main-thread Redux does, so processing and filter
 	//behavior match exactly.
 	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
+	//Recall maintenance runs AFTER the engine mirror updates so reference
+	//backport for this batch resolves against current sibling cards.
+	if (searchRecallState === 'ready') {
+		for (const [id, card] of Object.entries(cards)) applyRecallEntry(id, card);
+		for (const id of removedIDs) {
+			index.removeCard(id);
+			searchRecallAlwaysScan.delete(id);
+		}
+	} else {
+		for (const id of Object.keys(cards)) searchRecallDirtyIDs.add(id);
+		for (const id of removedIDs) searchRecallDirtyIDs.add(id);
+	}
 	subscriptions.markDirty();
 	pushMetaDeltas(cards, removedIDs, suppressMetaSend);
 	const indexElapsed = performance.now() - indexStart;
@@ -488,6 +637,9 @@ const markInitialDelivered = (fetchType : CardFetchType) => {
 	initialLoadPending = null;
 	send({type: 'loadComplete', generation, corpusSize: corpus.size});
 	status(`initial load complete: ${corpus.size} cards in corpus`);
+	//The corpus is settled: promote the background search-recall build to its
+	//full duty cycle (idempotent if the prime handoff already kicked it).
+	scheduleSearchRecallBuild();
 };
 
 //Ingests a snapshot: updates worker-local corpus/index and forwards the batch
@@ -1635,7 +1787,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
 		const parseFinishedAt = performance.now();
-		updateLocalState(primedCards, [], true, primeSource === 'compact snapshot');
+		updateLocalState(primedCards, [], true);
 		const workerStateFinishedAt = performance.now();
 		const primedPublished : Cards = {};
 		const primedUnpublished : Cards = {};
@@ -1650,6 +1802,9 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		if (hasUnpublished) forwardBatch(primedUnpublished, [], 'unpublished', false, false, cardFilters, cardFilterCorpusIDs);
 		const forwardFinishedAt = performance.now();
 		status(`watermark prime: ${primedCount} cards from the ${primeSource}; load=${(cacheQueryFinishedAt - primeStartedAt).toFixed(0)}ms parse=${(parseFinishedAt - cacheQueryFinishedAt).toFixed(0)}ms workerState=${(workerStateFinishedAt - parseFinishedAt).toFixed(0)}ms forward=${(forwardFinishedAt - workerStateFinishedAt).toFixed(0)}ms total=${(forwardFinishedAt - primeStartedAt).toFixed(0)}ms`);
+		//Start the background search-recall build now, at low duty: the trust
+		//gate ahead is network-bound dead time, ideal for chunked CPU work.
+		scheduleSearchRecallBuild();
 	}
 	//The published listener's first persistent-cache query can scan and decode
 	//nearly the whole Firestore cache. Starting it beside the compact-snapshot
@@ -1769,6 +1924,10 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	//collection results. Rebuild every corpus-derived structure from the new
 	//listeners instead. Published cards are harmless to retain in Redux on the
 	//main thread, but the worker must start from a single, coherent scope.
+	//Reset recall FIRST so the mass removal below is bookkeeping-free rather
+	//than 40k incremental index removals, and so no in-flight chunked build
+	//survives into the new authorization scope.
+	resetSearchRecall();
 	const staleCardIDs = [...corpus.keys()];
 	if (staleCardIDs.length) updateLocalState({}, staleCardIDs);
 	currentUid = uid;
@@ -1813,38 +1972,14 @@ const spike = () => {
 	});
 };
 
-//Tokenize a query string the same way nlp_search_tokens are generated at save
-//time: stemmed, stop-word-free unigrams plus bigrams.
-const queryTokens = (text : string) : string[] => {
-	const normalized = withoutStopWords(stemmedNormalizedWords(normalizedWords(text)));
-	if (!normalized) return [];
-	const unigrams = normalized.split(' ').filter(word => Boolean(word));
-	return [...unigrams, ...ngrams(normalized, 2)];
-};
-
-const ensureSearchIndex = () => {
-	if (!searchIndexNeedsRebuild) return;
-	const startedAt = performance.now();
-	const rebuilt = new SearchIndex();
-	for (const [id, card] of corpus) {
-		const tokens = searchTokensForCard(card);
-		if (tokens.length) rebuilt.updateCard(id, tokens);
-	}
-	index = rebuilt;
-	searchIndexNeedsRebuild = false;
-	const elapsed = performance.now() - startedAt;
-	indexBuildMs += elapsed;
-	recordWorkerPerf('indexBuild', elapsed);
-	status(`search index built on demand: ${index.cardCount} cards in ${elapsed.toFixed(0)}ms`);
-};
-
 const runQuery = (id : number, text : string) => {
 	const start = performance.now();
-	const tokens = queryTokens(text);
-	//An empty/stop-word-only query has no index candidates and uses the existing
-	//full-scan fallback, so it should not accidentally trigger the deferred work.
-	if (tokens.length) ensureSearchIndex();
-	const candidates = index.candidates(tokens);
+	const tokens = queryTokensForText(text);
+	//A query is the strongest possible intent signal for the chunked build;
+	//until it completes, answer with the full-scan fallback rather than
+	//stalling the worker loop on a synchronous rebuild.
+	if (tokens.length) scheduleSearchRecallBuild();
+	const candidates = searchRecallState === 'ready' ? index.candidates(tokens) : null;
 	const ms = performance.now() - start;
 	recordWorkerPerf('query', ms);
 	send({
@@ -1944,6 +2079,9 @@ workerScope.addEventListener('message', event => {
 		subscriptions.markDirty();
 		break;
 	case 'subscribeCollection':
+		//A query subscription (find dialog) is an intent signal: kick the
+		//chunked recall build so by the next keystroke it may be narrowing.
+		if (message.description.includes('query/')) scheduleSearchRecallBuild();
 		subscriptions.subscribe(message.subscriptionID, {
 			description: message.description,
 			keyCardID: message.keyCardID,

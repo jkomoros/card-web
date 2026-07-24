@@ -184,7 +184,7 @@ const AUTHOR_FILTER_NAME = 'author';
 const CARDS_FILTER_NAME = 'cards';
 // (filter constants re-exported at top of file)
 const EXPAND_FILTER_NAME = 'expand';
-const QUERY_STRICT_FILTER_NAME = 'query-strict';
+export const QUERY_STRICT_FILTER_NAME = 'query-strict';
 const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //About as in 'about this concept'. Ideally it would have been 'concept', but

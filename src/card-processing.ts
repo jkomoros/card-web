@@ -140,15 +140,20 @@ export const processCards = (rawCards : Cards) : ProcessedCards => {
 //processCards when a caller really needs the whole corpus.
 const _lazyProcessedCardsCache = new WeakMap<Cards, ProcessedCards>();
 
-export const lazyProcessCards = (rawCards : Cards) : ProcessedCards => {
-	const cached = _lazyProcessedCardsCache.get(rawCards);
+//allCards defaults to rawCards but may be the full corpus when rawCards is a
+//narrowed view (e.g. search-recall candidates): reference/fallback backport
+//must always resolve against every card, both for correctness and because the
+//per-card cache is shared — an entry backported against a partial map would
+//poison later full-corpus consumers.
+export const lazyProcessCards = (rawCards : Cards, allCards : Cards = rawCards) : ProcessedCards => {
+	const cached = allCards === rawCards ? _lazyProcessedCardsCache.get(rawCards) : undefined;
 	if (cached) return cached;
 
 	const target = {} as ProcessedCards;
 	const result = new Proxy(target, {
 		get: (_target, property, receiver) => {
 			if (typeof property === 'string' && Object.prototype.hasOwnProperty.call(rawCards, property)) {
-				return processCard(rawCards[property] as Card, rawCards);
+				return processCard(rawCards[property] as Card, allCards);
 			}
 			return Reflect.get(target, property, receiver);
 		},
@@ -163,12 +168,12 @@ export const lazyProcessCards = (rawCards : Cards) : ProcessedCards => {
 				configurable: true,
 				enumerable: true,
 				get: () => typeof property === 'string'
-					? processCard(rawCards[property] as Card, rawCards)
+					? processCard(rawCards[property] as Card, allCards)
 					: undefined,
 			};
 		},
 	}) as ProcessedCards;
 
-	_lazyProcessedCardsCache.set(rawCards, result);
+	if (allCards === rawCards) _lazyProcessedCardsCache.set(rawCards, result);
 	return result;
 };

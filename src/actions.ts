@@ -208,6 +208,7 @@ export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
 export const FIND_CARD_TO_LINK = LINK;
 export const FIND_UPDATE_RENDER_OFFSET = 'FIND_UPDATE_RENDER_OFFSET';
 export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
+export const FIND_UPDATE_SEARCH_RECALL = 'FIND_UPDATE_SEARCH_RECALL';
 export const FIND_CARD_TO_PERMISSION = PERMISSION;
 export const FIND_CARD_TO_REFERENCE = REFRENCE;
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
@@ -948,6 +949,13 @@ type ActionFindUpdateActiveQuery = {
 	type: typeof FIND_UPDATE_ACTIVE_QUERY
 };
 
+type ActionFindUpdateSearchRecall = {
+	type: typeof FIND_UPDATE_SEARCH_RECALL,
+	built: number,
+	total: number,
+	ready: boolean
+};
+
 type ActionFindCardToPermission = {
 	type: typeof FIND_CARD_TO_PERMISSION,
 	query: string,
@@ -1309,6 +1317,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionFindCardToLink
 	| ActionFindUpdateRenderOffset
 	| ActionFindUpdateActiveQuery
+	| ActionFindUpdateSearchRecall
 	| ActionFindCardToPermission
 	| ActionFindCardToReference
 	| ActionFindUpdateCardTypeFilter

@@ -1053,6 +1053,9 @@ export type EditorState = {
 
 export type FindState = {
 	open: boolean,
+	//Progress of the worker's background search-recall index build. null until
+	//the first progress report of a session; ready flips true when complete.
+	searchRecall: {built : number, total : number, ready : boolean} | null,
 	//query is the query as input by the user, as quick as we can update state.
 	query: string,
 	//activeQuery is the query that goes into the processing pipeline. We only

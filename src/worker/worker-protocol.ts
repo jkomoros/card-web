@@ -240,6 +240,9 @@ export type WorkerToMainMessage =
 	//arrivals declared partial corpora ready (the first of five partition
 	//flushes, or an offline worker's empty from-cache snapshots).
 	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number}
+	//Progress of the background search-recall build (find narrowing). `ready`
+	//flips true exactly once per connection when the whole corpus is indexed.
+	| {type: 'searchRecall', generation: WorkerGeneration, built : number, total : number, ready : boolean}
 	//Delta-sync health: 'unverified' = serving a cache prime the trust gate
 	//hasn't blessed yet (e.g. offline); 'live' = gate passed, listeners
 	//healthy; 'stale' = corpus complete but the delta channel is erroring

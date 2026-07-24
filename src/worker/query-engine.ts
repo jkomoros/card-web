@@ -29,8 +29,24 @@ import {
 import {
 	INITIAL_STATE,
 	CARD_FILTER_FUNCS,
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	QUERY_STRICT_FILTER_NAME
 } from '../filters.js';
+
+import {
+	QUERY_FILTER_NAME
+} from '../filter-constants.js';
+
+import {
+	normalizedWords,
+	stemmedNormalizedWords,
+	withoutStopWords,
+	ngrams
+} from '../../shared/nlp.js';
+
+import {
+	SearchIndex
+} from './search-index.js';
 
 import {
 	CollectionDescription
@@ -71,6 +87,20 @@ export type RunCollectionOptions = {
 	randomSalt? : string,
 	cardSimilarity? : CardSimilarityMap
 };
+
+//Tokenize a query string into the same space as nlp_search_tokens (stemmed,
+//stop-word-free unigrams plus bigrams). Used for search-recall narrowing and
+//by the worker's debug query API.
+export const queryTokensForText = (text : string) : string[] => {
+	const normalized = withoutStopWords(stemmedNormalizedWords(normalizedWords(text)));
+	if (!normalized) return [];
+	const unigrams = normalized.split(' ').filter(word => Boolean(word));
+	return [...unigrams, ...ngrams(normalized, 2)];
+};
+
+//Above this fraction of the corpus, narrowing saves too little to justify the
+//restricted-view bookkeeping; run the ordinary full path instead.
+const RECALL_NARROWING_MAX_FRACTION = 0.75;
 
 export type RunCollectionResult = {
 	ids : CardID[],
@@ -117,6 +147,12 @@ export class QueryEngine {
 
 	get cardCount() : number {
 		return Object.keys(this._cards).length;
+	}
+
+	//The engine's raw (stripped) card mirror — the backport source for
+	//reference-derived recall tokens.
+	get rawCards() : Cards {
+		return this._cards;
 	}
 
 	//The main thread needs these exact maps for badges, counts, editing
@@ -251,6 +287,51 @@ export class QueryEngine {
 	_editingCard : ProcessedCard | null = null;
 	_editingCardSimilarity : SortExtra | null = null;
 
+	//Search-recall narrowing: an inverted index over token-current cards plus
+	//the set of cards that must ALWAYS be scanned (missing/stale tokens).
+	//Configured by the worker only once its chunked build covers the whole
+	//corpus; null means every query takes the full-scan path.
+	_searchRecallIndex : SearchIndex | null = null;
+	_searchRecallAlwaysScan : Set<CardID> | null = null;
+
+	setSearchRecall(index : SearchIndex | null, alwaysScanIDs : Set<CardID> | null) : void {
+		this._searchRecallIndex = index;
+		this._searchRecallAlwaysScan = alwaysScanIDs;
+	}
+
+	get searchRecallEnabled() : boolean {
+		return Boolean(this._searchRecallIndex);
+	}
+
+	//Recall is sound because precision stays with PreparedQuery.cardScore: the
+	//narrowed universe only ever excludes cards that cannot score. It must be
+	//a SUPERSET of every card that could match: index candidates (any query
+	//token, union) plus every always-scan card plus this description's
+	//fallback/start cards (the Collection maps those through `cards`).
+	_narrowedUniverseForQuery(description : CollectionDescription) : Set<CardID> | null {
+		if (!this._searchRecallIndex) return null;
+		if (description.set !== 'everything') return null;
+		const queryFilters = description.filters.filter(filterName =>
+			filterName.startsWith(QUERY_FILTER_NAME + '/') || filterName.startsWith(QUERY_STRICT_FILTER_NAME + '/'));
+		if (queryFilters.length !== 1) return null;
+		//Filter shape is `<name>/<encodeURIComponent text>`; '/' inside the text
+		//is percent-escaped, so the payload is exactly the second segment.
+		const rawQueryString = queryFilters[0].split('/')[1] || '';
+		const text = decodeURIComponent(rawQueryString).split('+').join(' ');
+		const tokens = queryTokensForText(text);
+		//Stop-word-only/empty queries have no index signal; full scan.
+		if (!tokens.length) return null;
+		const universe = this._searchRecallIndex.candidatesUnion(tokens);
+		if (this._searchRecallAlwaysScan) {
+			for (const id of this._searchRecallAlwaysScan) universe.add(id);
+		}
+		if (universe.size >= this.cardCount * RECALL_NARROWING_MAX_FRACTION) return null;
+		const serialized = description.serialize();
+		for (const id of this._fallbacks[serialized] || []) universe.add(id);
+		for (const id of this._startCards[serialized] || []) universe.add(id);
+		return universe;
+	}
+
 	//Returns whether anything changed, so callers know to re-push
 	//subscriptions.
 	setEditingCard(card : ProcessedCard | null, similarity : SortExtra | null) : boolean {
@@ -264,8 +345,30 @@ export class QueryEngine {
 		const description = CollectionDescription.deserialize(serializedDescription);
 		const rawStarsResult = this._runRawStarsCollection(description);
 		if (rawStarsResult) return rawStarsResult;
-		const processed = this._ensureProcessedCards();
-		const sets = this._ensureSets();
+		const universe = this._narrowedUniverseForQuery(description);
+		let processed : ProcessedCards;
+		let sets : {[name : string] : CardID[]};
+		if (universe) {
+			const restrictedRaw : Cards = {};
+			for (const id of universe) {
+				const card = this._cards[id];
+				if (card) restrictedRaw[id] = card;
+			}
+			const fullSets = this._ensureSets();
+			sets = {
+				...fullSets,
+				//Preserve the full set's relative order so tie-breaking and
+				//labeling match the unnarrowed path bit-for-bit.
+				everything: (fullSets.everything || []).filter(id => universe.has(id)),
+			};
+			//The full corpus stays the backport source so processed entries are
+			//identical to (and shared with, via the per-card cache) the ones the
+			//full-scan path would produce.
+			processed = lazyProcessCards(restrictedRaw, this._cards);
+		} else {
+			processed = this._ensureProcessedCards();
+			sets = this._ensureSets();
+		}
 		const args = {
 			cards: processed,
 			sets,
