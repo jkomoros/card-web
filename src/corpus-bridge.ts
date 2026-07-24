@@ -1065,6 +1065,11 @@ const purgeAndDeactivate = () => {
 	stopOwnershipHeartbeat();
 	generation++;
 	stopWorker();
+	//Dynamic import avoids making the database↔bridge cycle eager. A
+	//superseded tab must be network-inert, not merely unable to mutate.
+	void import('./actions/database.js')
+		.then(module => module.disconnectBackgroundDataForInactiveTab())
+		.catch(error => console.warn('[corpus-worker] could not disconnect superseded tab listeners:', error));
 	bufferedActions.length = 0;
 	const state = store.getState() as State;
 	if (selectIsEditing(state)) store.dispatch({type: EDITING_FINISH});

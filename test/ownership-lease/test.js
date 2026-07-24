@@ -1,6 +1,7 @@
 /*eslint-env node*/
 
 import assert from 'assert';
+import fs from 'fs';
 
 import {heartbeatDecision, leaseBelongsTo, nextOwnershipLease} from '../../lib/src/ownership-lease.js';
 
@@ -41,5 +42,17 @@ describe('ownership heartbeat fencing', () => {
 			pending: false,
 		});
 		assert.equal(heartbeatDecision(true, claim.tabID, claim.epoch, claim), 'write');
+	});
+
+	it('disconnects ambient listeners on the normal supersession path', () => {
+		const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
+		const start = bridge.indexOf('const purgeAndDeactivate');
+		const end = bridge.indexOf('function deactivateSupersededOwnership', start);
+		assert.ok(start >= 0 && end > start, 'could not isolate purgeAndDeactivate');
+		assert.match(
+			bridge.slice(start, end),
+			/disconnectBackgroundDataForInactiveTab/,
+			'a superseded tab must stop supplemental listeners and warmup traffic',
+		);
 	});
 });

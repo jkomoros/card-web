@@ -473,9 +473,11 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 	//regression in the wiring itself fails loudly here.
 	let MultiBatchBase;
 	let MULTI_BATCH_COMMIT_CONCURRENCY;
+	let commitFanoutThenMarker;
 
 	before(async () => {
 		({MultiBatchBase, MULTI_BATCH_COMMIT_CONCURRENCY} = await import('../../lib/shared/multi_batch.js'));
+		({commitFanoutThenMarker} = await import('../../lib/src/durable-fanout.js'));
 	});
 
 	const SENTINEL = {__serverTimestamp: true};
@@ -623,6 +625,28 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 			['huge'],
 			['huge'],
 		]);
+	});
+
+	it('never commits an oversized-operation marker after a partial fanout failure', async () => {
+		const calls = [];
+		const fanout = {
+			commit: async () => {
+				calls.push('fanout-prefix');
+				throw new Error('one split batch failed');
+			},
+		};
+		const marker = {commit: async () => { calls.push('marker'); }};
+		await assert.rejects(commitFanoutThenMarker(fanout, marker), /split batch failed/);
+		assert.deepStrictEqual(calls, ['fanout-prefix']);
+	});
+
+	it('commits an oversized-operation marker only after the complete fanout', async () => {
+		const calls = [];
+		await commitFanoutThenMarker(
+			{commit: async () => { calls.push('fanout-complete'); }},
+			{commit: async () => { calls.push('marker'); }},
+		);
+		assert.deepStrictEqual(calls, ['fanout-complete', 'marker']);
 	});
 
 	it('starts no commits when SDK validation throws while materializing an atomic batch', async () => {

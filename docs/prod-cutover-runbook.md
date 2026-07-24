@@ -156,8 +156,9 @@ Not part of cutover day; tracked so it isn't forgotten:
 - Remove the legacy partitioned unpublished LISTENERS path
   (corpus-sync='listen') once watermark has soaked on prod.
 - Tombstone pruning maintenance task (tombstones currently accumulate).
-- Tighten card-delete rules so a top-level delete requires the matching
-  tombstone to exist after the atomic write; add emulator coverage first.
+- Card-delete rules already require a matching server-timestamped tombstone
+  in the same atomic write. Keep the emulator coverage as a permanent
+  regression gate; do not relax this for legacy clients.
 - UX polish queue (implementation log 2026-07-11): sync/staleness pill,
   second-tab snack-bar, sidebar skeleton, find-drawer dimming.
 - P2 windowed memory (docs/p2-windowed-memory-spec.md) and remaining P3

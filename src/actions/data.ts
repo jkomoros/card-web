@@ -197,9 +197,18 @@ import {
 } from '../multi_batch.js';
 
 import {
+	toWire,
+	fromWire
+} from '../worker/wire-format.js';
+
+import {
 	recoveryIDsForGroupOutcomes,
 	rollbackCardsStillOptimistic
 } from '../edit-recovery.js';
+
+import {
+	commitFanoutThenMarker
+} from '../durable-fanout.js';
 
 import {
 	State,
@@ -340,6 +349,7 @@ type BulkTagOperation = {
 	adding: boolean,
 	targetIDs: CardID[],
 	nextIndex: number,
+	lastError?: string,
 };
 
 let bulkTagOperationRunning = false;
@@ -354,6 +364,7 @@ const readBulkTagOperation = () : BulkTagOperation | null => {
 		if (value.version !== 1 || !value.id || !value.uid || !value.tag ||
 			typeof value.adding !== 'boolean' || !Array.isArray(value.targetIDs) ||
 			!Number.isInteger(value.nextIndex) || value.nextIndex < 0 || value.nextIndex > value.targetIDs.length ||
+			(value.lastError !== undefined && typeof value.lastError !== 'string') ||
 			value.targetIDs.some(id => typeof id !== 'string' || !id) ||
 			new Set(value.targetIDs).size !== value.targetIDs.length) throw new Error('invalid shape');
 		return value;
@@ -425,6 +436,10 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			persistBulkTagOperation(operation);
 		} else if (operation.tag !== tag || operation.adding !== adding) {
 			throw new Error(`Finish the pending ${operation.adding ? 'add' : 'remove'} “${operation.tag}” operation before starting another bulk edit.`);
+		}
+		if (operation.lastError) {
+			delete operation.lastError;
+			try { persistBulkTagOperation(operation); } catch { /* status metadata is best-effort */ }
 		}
 		if (!operation.targetIDs.length) {
 			clearBulkTagOperation();
@@ -526,7 +541,12 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		const completed = operation?.nextIndex || 0;
 		const total = operation?.targetIDs.length || 0;
 		const detail = total ? ` ${completed} of ${total} cards are server-confirmed; ${total - completed} remain safely retryable.` : '';
-		dispatch(modifyCardFailure(new Error(`Bulk-label save paused.${detail} ${error.message}`)));
+		const message = `Bulk-label save paused.${detail} ${error.message}`;
+		if (operation) {
+			operation.lastError = message;
+			try { persistBulkTagOperation(operation); } catch { /* retain the original failure */ }
+		}
+		dispatch(modifyCardFailure(new Error(message)));
 		const enqueuedUpdates = selectEnqueuedCards(getState());
 		if (Object.values(enqueuedUpdates).some(cards => Object.keys(cards).length)) dispatch(updateEnqueuedCards());
 		if (operation) dispatch(bulkTagProgressAction(operation));
@@ -622,6 +642,12 @@ type DurableMultiEdit = {
 	update: CardDiff,
 	substantive?: boolean,
 	kind?: 'single' | 'multi',
+	lastError?: string,
+	//If one card's denormalized fanout exceeds Firestore's atomic batch
+	//limit, a crash can leave only a prefix committed. Preserve the original
+	//authoritative base so every retry reconstructs the same idempotent write
+	//plan until the post-commit marker confirms the whole fanout.
+	oversizedBaseCards?: {[id : CardID] : unknown},
 };
 
 let durableMultiEditRunning = false;
@@ -637,7 +663,11 @@ const readDurableMultiEdit = () : DurableMultiEdit | null => {
 			!Number.isInteger(value.modifiedCount) || value.modifiedCount < 0 || value.modifiedCount > value.nextIndex ||
 			(value.skippedCount !== undefined && (!Number.isInteger(value.skippedCount) || value.skippedCount < 0 || value.modifiedCount + value.skippedCount > value.nextIndex)) ||
 			!value.update || typeof value.update !== 'object' || Array.isArray(value.update) ||
-			value.targetIDs.some(id => typeof id !== 'string' || !id) || new Set(value.targetIDs).size !== value.targetIDs.length) {
+			(value.lastError !== undefined && typeof value.lastError !== 'string') ||
+			(value.oversizedBaseCards !== undefined && (!value.oversizedBaseCards || typeof value.oversizedBaseCards !== 'object' || Array.isArray(value.oversizedBaseCards))) ||
+			value.targetIDs.some(id => typeof id !== 'string' || !id) || new Set(value.targetIDs).size !== value.targetIDs.length ||
+			(value.oversizedBaseCards !== undefined && Object.entries(value.oversizedBaseCards).some(([id, card]) =>
+				!value.targetIDs.includes(id) || !card || typeof card !== 'object' || Array.isArray(card)))) {
 			throw new Error('invalid shape');
 		}
 		return value;
@@ -654,6 +684,18 @@ const persistDurableMultiEdit = (operation : DurableMultiEdit) => {
 const clearDurableMultiEdit = () => {
 	if (typeof localStorage !== 'undefined') localStorage.removeItem(DURABLE_MULTI_EDIT_STORAGE_KEY);
 };
+
+const persistableCard = (card : Card) => toWire(
+	card,
+	value => value instanceof Timestamp,
+	value => {
+		const timestamp = value as Timestamp;
+		return {seconds: timestamp.seconds, nanoseconds: timestamp.nanoseconds};
+	},
+);
+
+const restoredPersistedCard = (value : unknown) =>
+	fromWire(value, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Card;
 
 const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => ({
 	type: BULK_TAG_OPERATION_PROGRESS,
@@ -702,6 +744,10 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			Boolean(operation.substantive) !== substantive || (operation.kind || 'multi') !== kind) {
 			throw new Error('A different multi-edit is already pending. Retry or stop that saved operation first.');
 		}
+		if (operation.lastError) {
+			delete operation.lastError;
+			try { persistDurableMultiEdit(operation); } catch { /* status metadata is best-effort */ }
+		}
 		dispatch(modifyCardAction(operation.targetIDs.length));
 		dispatch(durableMultiEditProgress(operation));
 
@@ -721,6 +767,10 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					operation.nextIndex = markerNextIndex;
 					operation.modifiedCount += markerModifiedCount;
 					operation.skippedCount = (operation.skippedCount || 0) + markerSkippedCount;
+					if (operation.oversizedBaseCards) {
+						for (const id of operation.targetIDs.slice(chunkStart, markerNextIndex)) delete operation.oversizedBaseCards[id];
+						if (!Object.keys(operation.oversizedBaseCards).length) delete operation.oversizedBaseCards;
+					}
 					persistDurableMultiEdit(operation);
 					dispatch(durableMultiEditProgress(operation));
 					continue;
@@ -731,6 +781,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			let chunkIDs : CardID[] = [];
 			let modifiedCount = 0;
 			let skippedCount = 0;
+			let markerAfterCommit = false;
 			while (candidateSize >= 1) {
 				chunkIDs = operation.targetIDs.slice(operation.nextIndex, operation.nextIndex + candidateSize);
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
@@ -750,7 +801,9 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					//canonical card/tag history read by the rest of the application. Candidate
 					//sizing below keeps that complete atomic group within Firestore's limit.
 					const compactMultiEdit = operation.kind !== 'single';
-					const modified = await modifyCardWithBatch(state, authoritative.cards[id], operation.update, Boolean(operation.substantive), batch, undefined, undefined, false, compactMultiEdit, false);
+					const durableBase = operation.oversizedBaseCards?.[id];
+					const planningCard = durableBase ? restoredPersistedCard(durableBase) : authoritative.cards[id];
+					const modified = await modifyCardWithBatch(state, planningCard, operation.update, Boolean(operation.substantive), batch, undefined, undefined, false, compactMultiEdit, false);
 					if (modified) {
 						batch.endAtomicGroup();
 						modifiedCount++;
@@ -763,8 +816,42 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					ensureAuthor(batch, selectUser(state) as UserInfo);
 					batch.endAtomicGroup();
 				}
-				batch.beginAtomicGroup();
-				batch.set(markerRef, {
+				markerAfterCommit = candidateSize === 1 && batch.pendingUnderlyingBatchCount > 1;
+				if (markerAfterCommit) {
+					const id = chunkIDs[0];
+					if (id && authoritative.cards[id] && !operation.oversizedBaseCards?.[id]) {
+						operation.oversizedBaseCards ||= {};
+						operation.oversizedBaseCards[id] = persistableCard(authoritative.cards[id]);
+						//The recovery base is durable before any prefix can commit.
+						persistDurableMultiEdit(operation);
+					}
+				} else {
+					batch.beginAtomicGroup();
+					batch.set(markerRef, {
+						operation_id: operation.id,
+						next_index: chunkStart + chunkIDs.length,
+						modified_count: modifiedCount,
+						skipped_count: skippedCount,
+						card_ids: chunkIDs,
+						update: operation.update,
+						updated: serverTimestamp(),
+					});
+					batch.endAtomicGroup();
+				}
+				if (batch.pendingUnderlyingBatchCount <= 1 || candidateSize === 1) break;
+				candidateSize = Math.max(1, Math.floor(candidateSize / 2));
+			}
+			if (!batch) throw new Error('Could not prepare a safe multi-edit batch');
+			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next multi-edit chunk could commit');
+			if (selectCorpusStatus(getState()) !== 'live') throw new Error('Card sync stopped being live before the next chunk. Reconnect, then retry.');
+			let markerBatch : MultiBatch | null = null;
+			if (markerAfterCommit) {
+				//Never put this completion marker in a concurrently committed
+				//split fanout batch. It can become visible only after every
+				//idempotent card/reference batch has succeeded.
+				markerBatch = new MultiBatch(db, `${operation.id}-${chunkStart}-marker`);
+				markerBatch.beginAtomicGroup();
+				markerBatch.set(markerRef, {
 					operation_id: operation.id,
 					next_index: chunkStart + chunkIDs.length,
 					modified_count: modifiedCount,
@@ -773,17 +860,16 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					update: operation.update,
 					updated: serverTimestamp(),
 				});
-				batch.endAtomicGroup();
-				if (batch.pendingUnderlyingBatchCount <= 1 || candidateSize === 1) break;
-				candidateSize = Math.max(1, Math.floor(candidateSize / 2));
+				markerBatch.endAtomicGroup();
 			}
-			if (!batch) throw new Error('Could not prepare a safe multi-edit batch');
-			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next multi-edit chunk could commit');
-			if (selectCorpusStatus(getState()) !== 'live') throw new Error('Card sync stopped being live before the next chunk. Reconnect, then retry.');
-			await batch.commit();
+			await commitFanoutThenMarker(batch, markerBatch);
 			operation.nextIndex += chunkIDs.length;
 			operation.modifiedCount += modifiedCount;
 			operation.skippedCount = (operation.skippedCount || 0) + skippedCount;
+			if (operation.oversizedBaseCards) {
+				for (const id of chunkIDs) delete operation.oversizedBaseCards[id];
+				if (!Object.keys(operation.oversizedBaseCards).length) delete operation.oversizedBaseCards;
+			}
 			persistDurableMultiEdit(operation);
 			dispatch(durableMultiEditProgress(operation));
 		}
@@ -803,7 +889,12 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		const error = err instanceof Error ? err : new Error(String(err));
 		const completed = operation?.nextIndex || 0;
 		const total = operation?.targetIDs.length || 0;
-		dispatch(modifyCardFailure(new Error(`Multi-edit paused. ${completed} of ${total} cards were processed safely; ${total - completed} remain retryable. ${error.message}`), true));
+		const message = `Multi-edit paused. ${completed} of ${total} cards were processed safely; ${total - completed} remain retryable. ${error.message}`;
+		if (operation) {
+			operation.lastError = message;
+			try { persistDurableMultiEdit(operation); } catch { /* retain the original failure */ }
+		}
+		dispatch(modifyCardFailure(new Error(message), true));
 		const enqueued = selectEnqueuedCards(getState());
 		if (Object.values(enqueued).some(group => Object.keys(group).length)) dispatch(updateEnqueuedCards());
 		if (operation) dispatch(durableMultiEditProgress(operation));

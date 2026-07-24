@@ -58,6 +58,16 @@ describe('multi-edit acceptance coverage', () => {
 			'the form beneath the active scrim must be hidden from assistive technology');
 	});
 
+	it('surfaces persisted multi-edit errors in every tab root', () => {
+		const app = read('src/components/card-web-app.ts');
+		assert.match(app, /durableError = typeof parsed\.lastError === 'string'/,
+			'cross-tab status must read the durable error from storage');
+		assert.match(app, /this\._saveStatus = hasDurableBulkIntent/,
+			'the root status must render for generic and label multi-edits, not only single-card saves');
+		assert.match(app, /this\._saveIsMulti = hasDurableBulkIntent && !hasDurableSingleIntent/,
+			'the root status must distinguish card and multi-card wording');
+	});
+
 	it('does not rewrite body-derived NLP during a reference-only multi-edit', () => {
 		const actions = read('src/actions/data.ts');
 		const changedStart = actions.indexOf('const contentFieldsChanged =');
@@ -66,14 +76,24 @@ describe('multi-edit acceptance coverage', () => {
 			'could not isolate the stored-NLP regeneration predicate');
 		assert.doesNotMatch(actions.slice(changedStart, changedEnd), /references_diff/,
 			'reference-only edits must not regenerate stored NLP from a stale body snapshot');
-		assert.match(actions, /modifyCardWithBatch\(state, authoritative\.cards\[id\],[\s\S]*false, compactMultiEdit, false\)/,
+		assert.match(actions, /const planningCard = durableBase \? restoredPersistedCard\(durableBase\) : authoritative\.cards\[id\]/,
+			'durable edits must use authoritative state unless replaying a persisted oversized-fanout plan');
+		assert.match(actions, /modifyCardWithBatch\(state, planningCard,[\s\S]*false, compactMultiEdit, false\)/,
 			'durable dialog edits must suppress unrelated card-finisher fields');
 	});
 
 	it('retains canonical audits for generic all-fields multi-edit', () => {
 		const actions = read('src/actions/data.ts');
-		assert.match(actions, /modifyCardWithBatch\(state, authoritative\.cards\[id\],[\s\S]*false, compactMultiEdit, false\)/,
+		assert.match(actions, /modifyCardWithBatch\(state, planningCard,[\s\S]*false, compactMultiEdit, false\)/,
 			'the recovery marker must not replace card/tag audit history');
+	});
+
+	it('orders oversized fanout completion after every split batch and persists its replay base first', () => {
+		const actions = read('src/actions/data.ts');
+		assert.match(actions, /operation\.oversizedBaseCards\[id\] = persistableCard\(authoritative\.cards\[id\]\)[\s\S]*persistDurableMultiEdit\(operation\)/,
+			'the authoritative recovery base must be durable before the first split batch');
+		assert.match(actions, /commitFanoutThenMarker\(batch, markerBatch\)/,
+			'the completion marker must be serialized after the complete split fanout');
 	});
 
 	it('preserves card and tag audit history on the specialized label path', () => {

@@ -39,7 +39,8 @@ import {
 	Query,
 	QuerySnapshot,
 	Timestamp,
-	QueryConstraint
+	QueryConstraint,
+	terminate
 } from 'firebase/firestore';
 
 import {
@@ -337,6 +338,26 @@ const disableCorpusSnapshotPersistence = () => {
 	corpusSnapshotStore = null;
 	if (ownershipEpochGuard) clearInterval(ownershipEpochGuard);
 	ownershipEpochGuard = null;
+};
+
+const stopSupersededWorker = async (message : string) => {
+	//Stop listeners first so no more application work is admitted, then ask
+	//the Firebase SDK to close its streams and persistence handles before the
+	//worker exits. This narrows the forced-takeover overlap to the ownership
+	//poll interval and avoids relying on an abrupt worker close for cleanup.
+	teardownListeners();
+	disableCorpusSnapshotPersistence();
+	status(message);
+	const database = db;
+	db = null;
+	if (database) {
+		try {
+			await terminate(database);
+		} catch (error) {
+			status(`superseded worker Firestore shutdown reported ${String(error)}`);
+		}
+	}
+	workerScope.close();
 };
 
 const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[]} => {
@@ -1173,6 +1194,13 @@ const attachTombstoneListener = (database : Firestore, onInitialDelivery : () =>
 			const tombstones : CorpusTombstone[] = [];
 			snapshot.docChanges().forEach(change => {
 				if (change.type === 'removed') return; //pruning, not un-deletion
+				//A server-backed snapshot can still contain an individual
+				//locally-pending document. Its estimated serverTimestamp uses
+				//the client clock and must not advance the durable cursor.
+				if (!listenerDocumentTrusted(
+					snapshot.metadata.fromCache,
+					change.doc.metadata.hasPendingWrites,
+				)) return;
 				const data = change.doc.data({serverTimestamps: 'estimate'});
 				const deleted = data.deleted as Timestamp | undefined;
 				if (!deleted || typeof deleted.seconds !== 'number') return;
@@ -1468,8 +1496,7 @@ const connectUnpublishedWatermark = async () => {
 	};
 	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`, ownership);
 	if (!await corpusSnapshotStore.claimOwnership()) {
-		status('worker superseded by a newer ownership epoch; stopping before local persistence writes');
-		workerScope.close();
+		await stopSupersededWorker('worker superseded by a newer ownership epoch; stopping before local persistence writes');
 		return;
 	}
 	ownershipEpochGuard = setInterval(() => {
@@ -1477,12 +1504,9 @@ const connectUnpublishedWatermark = async () => {
 		if (!store) return;
 		void store.ownsCurrentOwnership().then(current => {
 			if (current) return;
-			teardownListeners();
-			disableCorpusSnapshotPersistence();
-			status('worker ownership epoch changed; listeners stopped before further application persistence');
-			workerScope.close();
+			void stopSupersededWorker('worker ownership epoch changed; listeners stopped before further application persistence');
 		});
-	}, 1000);
+	}, 500);
 
 	//1. Prime from the compact materialized snapshot. On its first-ever run,
 	//fall back to Firestore's persistent cache and create the compact snapshot

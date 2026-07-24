@@ -303,7 +303,16 @@ service cloud.firestore {
       //a one-card denormalized edit exceed that budget.
       allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor() || cardEditInboundReferences()) : (cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
-      allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
+      allow delete: if userMayEditCard(card)
+        && resource.data.get('section', '') == ''
+        && resource.data.get('tags', []).size() == 0
+        && resource.data.get('references_inbound', {}).size() == 0
+        //A watermark client cannot infer a deletion from the cards query.
+        //Require this exact atomic operation to create the matching,
+        //server-timestamped tombstone. Merely having an older tombstone at
+        //this path is insufficient for a delete after card recreation.
+        && existsAfter(/databases/$(database)/documents/tombstones/$(card))
+        && getAfter(/databases/$(database)/documents/tombstones/$(card)).data.deleted == request.time;
     
       match /updates/{update} {
         allow read, write: if userIsAdmin() ? true : (getPermissions(['edit', 'editCard']) || userIsAuthorOrEditorForCard(card));
@@ -323,7 +332,9 @@ service cloud.firestore {
       //deletes a card the caller may edit. createCard alone is insufficient:
       //otherwise a create-only user could forge a tombstone for any live card
       //and make privileged clients hide it.
-      allow create: if userMayEditCard(card)
+      //Update is included for the rare delete-after-recreate case where an
+      //older tombstone already occupies this deterministic card-ID path.
+      allow create, update: if userMayEditCard(card)
         && !existsAfter(/databases/$(database)/documents/cards/$(card))
         //The client writes {deleted, by, published} (src/actions/data.ts
         //deleteCard); by/published are optional but validated so a caller

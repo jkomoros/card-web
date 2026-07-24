@@ -1185,7 +1185,7 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(ref.delete());
 	});
 
-	it('allows users to delete a card they own that has no section, no tags, and no inbound references', async() => {
+	it('disallows deleting an orphaned owned card without its tombstone', async() => {
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
@@ -1198,10 +1198,10 @@ describe('Compendium Rules', () => {
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
-		await firebase.assertSucceeds(ref.delete());
+		await firebase.assertFails(ref.delete());
 	});
 
-	it('allows users with edit permission to delete a card they own that has no section, no tags, and no inbound references', async() => {
+	it('allows users with edit permission to delete an orphaned card only with its tombstone', async() => {
 		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
@@ -1215,7 +1215,14 @@ describe('Compendium Rules', () => {
 			tags: [],
 			references_inbound: {},
 		}));
-		await firebase.assertSucceeds(ref.delete());
+		const batch = db.batch();
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(testCardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: jerryAuth.uid,
+			published: false,
+		});
+		batch.delete(ref);
+		await firebase.assertSucceeds(batch.commit());
 	});
 
 	it('disallows create-only users from forging a tombstone for a live card', async() => {
@@ -1247,6 +1254,26 @@ describe('Compendium Rules', () => {
 
 	it('allows the REAL client tombstone shape ({deleted, by, published}) — the shape deleteCard actually writes', async() => {
 		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: sallyAuth.uid,
+			published: false,
+		});
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('requires a fresh tombstone timestamp when deleting a card recreated under an old ID', async() => {
+		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
+		const db = authedApp(sallyAuth);
+		const tombstone = adminDb.collection(TOMBSTONES_COLLECTION).doc(cardId);
+		await tombstone.set({
+			deleted: firebase.firestore.Timestamp.fromMillis(1),
+			by: sallyAuth.uid,
+			published: false,
+		});
+		await firebase.assertFails(db.collection(CARDS_COLLECTION).doc(cardId).delete());
 		const batch = db.batch();
 		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
 		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {

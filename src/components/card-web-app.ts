@@ -83,6 +83,9 @@ class CardWebApp extends connect(store)(LitElement) {
 	_saveError = '';
 
 	@state()
+	_saveIsMulti = false;
+
+	@state()
 	private _updateReloading = false;
 
 	@state()
@@ -255,7 +258,9 @@ class CardWebApp extends connect(store)(LitElement) {
 		${this._saveStatus !== 'idle' ? html`
 			<div class='save-status ${this._saveStatus}' role='status' aria-live='polite' title=${this._saveError}>
 				<span class='save-dot' aria-hidden='true'></span>
-				<span>${this._saveStatus === 'saving' ? 'Saving card…' : 'Save paused'}</span>
+				<span>${this._saveStatus === 'saving'
+					? this._saveIsMulti ? 'Saving cards…' : 'Saving card…'
+					: this._saveIsMulti ? 'Multi-edit paused' : 'Save paused'}</span>
 				${this._saveStatus === 'paused' ? html`
 					<button @click=${this._retrySave}>Retry</button>
 					<button @click=${this._stopRetryingSave}>Stop retrying</button>
@@ -427,13 +432,25 @@ class CardWebApp extends connect(store)(LitElement) {
 		}
 		let hasDurableBulkIntent = false;
 		let hasDurableSingleIntent = false;
+		let durableError = '';
 		try {
 			const genericIntent = localStorage.getItem('card-web-pending-multi-edit-v1');
 			if (genericIntent) {
-				try { hasDurableSingleIntent = JSON.parse(genericIntent).kind === 'single'; } catch { /* surfaced by resume */ }
+				try {
+					const parsed = JSON.parse(genericIntent);
+					hasDurableSingleIntent = parsed.kind === 'single';
+					durableError = typeof parsed.lastError === 'string' ? parsed.lastError : '';
+				} catch { /* surfaced by resume */ }
+			}
+			const bulkIntent = localStorage.getItem('card-web-pending-bulk-tag-operation-v1');
+			if (bulkIntent && !durableError) {
+				try {
+					const parsed = JSON.parse(bulkIntent);
+					durableError = typeof parsed.lastError === 'string' ? parsed.lastError : '';
+				} catch { /* surfaced by resume */ }
 			}
 			hasDurableBulkIntent = Boolean(
-				localStorage.getItem('card-web-pending-bulk-tag-operation-v1') ||
+				bulkIntent ||
 				genericIntent
 			);
 		} catch {
@@ -446,10 +463,11 @@ class CardWebApp extends connect(store)(LitElement) {
 				? 'wait for pending changes to finish'
 				: '';
 		const saveError = selectCardModificationError(state);
-		this._saveStatus = hasDurableSingleIntent
-			? saveError ? 'paused' : 'saving'
+		this._saveIsMulti = hasDurableBulkIntent && !hasDurableSingleIntent;
+		this._saveStatus = hasDurableBulkIntent
+			? saveError || durableError ? 'paused' : 'saving'
 			: 'idle';
-		this._saveError = saveError?.message || '';
+		this._saveError = saveError?.message || durableError;
 	}
 }
 

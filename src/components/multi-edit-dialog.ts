@@ -117,23 +117,6 @@ import {
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
 	@state()
-	private _pageHidden = document.visibilityState === 'hidden';
-
-	private _visibilityHandler = () => {
-		this._pageHidden = document.visibilityState === 'hidden';
-	};
-
-	override connectedCallback() {
-		super.connectedCallback();
-		document.addEventListener('visibilitychange', this._visibilityHandler);
-	}
-
-	override disconnectedCallback() {
-		document.removeEventListener('visibilitychange', this._visibilityHandler);
-		super.disconnectedCallback();
-	}
-
-	@state()
 		_unionReferencesCard: CardLike;
 
 	@state()
@@ -255,7 +238,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 						: this._bulkTagProgress
 							? html`<span>${this._bulkTagProgress.description}: ${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}…
 								<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
-								${this._pageHidden ? html`<small>Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.</small>` : ''}</span>`
+								<small>Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.</small></span>`
 							: 'Saving selected cards…'}
 				</div>
 			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
