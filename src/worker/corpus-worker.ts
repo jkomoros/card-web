@@ -1499,14 +1499,6 @@ const connectUnpublishedWatermark = async () => {
 		await stopSupersededWorker('worker superseded by a newer ownership epoch; stopping before local persistence writes');
 		return;
 	}
-	ownershipEpochGuard = setInterval(() => {
-		const store = corpusSnapshotStore;
-		if (!store) return;
-		void store.ownsCurrentOwnership().then(current => {
-			if (current) return;
-			void stopSupersededWorker('worker ownership epoch changed; listeners stopped before further application persistence');
-		});
-	}, 500);
 
 	//1. Prime from the compact materialized snapshot. On its first-ever run,
 	//fall back to Firestore's persistent cache and create the compact snapshot
@@ -1564,6 +1556,22 @@ const connectUnpublishedWatermark = async () => {
 		//Empty/unavailable cache: the gate below classifies this as cold.
 	}
 	if (myConnectionGeneration !== connectionGeneration) return;
+	//Do not poll this same IndexedDB while its single, very large compact
+	//snapshot record is loading. Chromium serializes the transactions and the
+	//poll turned a ~1.4s 40k-card warm read into 7–21s in real DEV. Revalidate
+	//once immediately after the read, then start the steady-state guard.
+	if (!await corpusSnapshotStore.ownsCurrentOwnership()) {
+		await stopSupersededWorker('worker ownership changed during compact snapshot load; stopping before handoff');
+		return;
+	}
+	ownershipEpochGuard = setInterval(() => {
+		const store = corpusSnapshotStore;
+		if (!store) return;
+		void store.ownsCurrentOwnership().then(current => {
+			if (current) return;
+			void stopSupersededWorker('worker ownership epoch changed; listeners stopped before further application persistence');
+		});
+	}, 1000);
 	if (syncMetaState) for (const id of syncMetaState.processedTombstoneIDs) delete primedCards[id];
 	//The published server snapshot can beat this independent IndexedDB load.
 	//Apply its authoritative ID set before merging the compact prime so ghosts

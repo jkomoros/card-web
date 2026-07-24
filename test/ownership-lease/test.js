@@ -55,4 +55,17 @@ describe('ownership heartbeat fencing', () => {
 			'a superseded tab must stop supplemental listeners and warmup traffic',
 		);
 	});
+
+	it('does not contend with the compact snapshot read while polling ownership', () => {
+		const worker = fs.readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
+		const connectStart = worker.indexOf('const connectUnpublishedWatermark');
+		const connectEnd = worker.indexOf('const connectCards', connectStart);
+		assert.ok(connectStart >= 0 && connectEnd > connectStart, 'could not isolate watermark connection');
+		const connection = worker.slice(connectStart, connectEnd);
+		const snapshotLoad = connection.indexOf('await corpusSnapshotStore.load()');
+		const postLoadOwnershipCheck = connection.indexOf('await corpusSnapshotStore.ownsCurrentOwnership()');
+		const guardInterval = connection.indexOf('ownershipEpochGuard = setInterval');
+		assert.ok(snapshotLoad >= 0 && postLoadOwnershipCheck > snapshotLoad && guardInterval > postLoadOwnershipCheck,
+			'load the compact snapshot, revalidate once, then start steady-state polling');
+	});
 });
