@@ -284,11 +284,16 @@ const referenceRecallTokens = (card : Card) : string[] => {
 };
 
 //null → the card must always be scanned: missing or stale stored tokens mean
-//the full processing path would re-derive text the index cannot see. The
-//currency predicate matches card-processing's fast-path check exactly.
+//the full processing path would re-derive text the index cannot see.
 const recallTokensForCard = (card : Card) : string[] | null => {
 	if (card.nlp_version !== CURRENT_NLP_VERSION) return null;
-	if (card.nlp_source_fingerprint !== nlpSourceFingerprintForCard(card)) return null;
+	//Cards saved or migrated before the fingerprint field existed carry
+	//current tokens with NO fingerprint (observed: virtually the whole real
+	//corpus): token generation and content were last written together, so
+	//absence is not drift. A PRESENT-but-mismatched fingerprint is — every
+	//post-fingerprint client save stamps both, so a mismatch means the
+	//content changed through a path that skipped token regeneration.
+	if (card.nlp_source_fingerprint !== undefined && card.nlp_source_fingerprint !== nlpSourceFingerprintForCard(card)) return null;
 	const stored = searchTokensForCard(card);
 	if (!stored.length) return null;
 	return [...stored, ...referenceRecallTokens(card)];

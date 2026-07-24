@@ -2,6 +2,34 @@
 
 ---
 
+# ROUND 3 — find performance: search-recall narrowing (2026-07-25)
+
+The one criterion still failing after round 2.5 was find latency: every keystroke ran `PreparedQuery.cardScore` over the whole 40k corpus (multi-second steady state; the first query also paid full lazy processing). A design critique established that prewarming caches would only shrink the first query while charging ~200MB to every session, and that the codebase already contained the intended fix, designed but unwired: `SearchIndex` recall pre-narrowing.
+
+**Implemented (commits `89fa8e56`, `aff6e660`, + fingerprint-predicate fix):**
+- Query collections over the `everything` set narrow their universe to `candidatesUnion(query tokens) ∪ always-scan cards ∪ description fallbacks/start cards`; precision and ranking stay with `cardScore`, so results are **bit-identical** (behaviorally tested, including a canary that proves the narrowing actually engages).
+- The index builds **chunked in the worker** (MessageChannel-yield slices, low duty until initial load completes), kicked at the prime handoff, initial-load completion, and find-dialog subscriptions; mid-build updates drain through a dirty set before ready; reconnect resets. Memory stays candidates-only — no 40k processed-card materialization.
+- Indexed tokens = save-time `nlp_search_tokens` **plus** the three locally-derived reference fields (their text is outside the fingerprint); token-currency predicate: `nlp_version` must be current; a *present-but-mismatched* `nlp_source_fingerprint` → always-scan; a *missing* fingerprint is trusted (the real corpus was migrated before the field existed — first deploy observed "5 indexed, 40,220 always-scan" until this was corrected).
+- UX: worker reports build progress; the find dialog shows "Preparing search (N of M cards indexed)…" only while a query result is pending AND the build is incomplete.
+- `lazyProcessCards` gained an `allCards` backport source so narrowed views share (and cannot poison) the per-card processing cache. The perf-harness generator now stamps token currency so the harness exercises narrowing.
+
+**Known residuals (accepted):** synonym-map/importantNgram drift after a concept-card change can recall-miss until the affected card's next save (same class as other accepted staleness); the debug `CORPUS_WORKER.query()` API answers full-scan-fallback until the build completes.
+
+---
+
+# FINAL ACCEPTANCE CHECKLIST (owner, real Chrome, DEV)
+
+Everything below the fold is machine-verified. These are the four things only a human in a foreground tab can certify:
+
+1. **Warm boot stopwatch:** open dev-complexity-compendium.web.app signed-in (second+ visit), time until the app is usable. Target ~10s; prior real-Chrome median was 10.3s.
+2. **Find feel:** open find (`/` or the search icon), type a few queries. First-ever search may show "Preparing search (N of M)…" briefly; subsequent searches should feel near-instant. This is the round-3 fix — judge it harshly.
+3. **Takeover CTA, human click:** open a second tab, click "Use this tab", confirm handoff + old tab inert (machine-verified end-to-end already; this closes the last input-path caveat).
+4. **Editor feel:** open a card, edit, save; watch the save status pill. (Machine-measured 0.2ms/keystroke and 625ms durable save.)
+
+**Landing:** merge `implement/fast-corpus` → `master` after acceptance. The PROD cutover items in docs/prod-cutover-runbook.md remain post-land gates — notably the rules TIGHTEN flip (inbound-ref `updated` + both staged tests → assertFails) and the once-per-device cold-sweep read budget.
+
+---
+
 # ROUND 2 — verification of the fix commits (2026-07-24)
 
 **Scope:** commits `9ae3a8ce..0e11ecbd` ("Harden fast corpus acceptance paths", "Close fast corpus review blockers", "Avoid ownership polling during corpus prime", "Restore fast warm corpus handoff") verified adversarially by four independent audits (ownership, worker/watermark, durable-edit, SW/rules/similarity), plus: full `npm test` green (Node 20), production build green, and the 12k emulator harness fully green (all takeover/crash/frozen correctness gates OK; emulator warm boot improved 19.2s → 15.7s).
