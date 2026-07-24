@@ -68,4 +68,17 @@ describe('ownership heartbeat fencing', () => {
 		assert.ok(snapshotLoad >= 0 && postLoadOwnershipCheck > snapshotLoad && guardInterval > postLoadOwnershipCheck,
 			'load the compact snapshot, revalidate once, then start steady-state polling');
 	});
+
+	it('defers the large published cache listener until after the compact prime handoff', () => {
+		const worker = fs.readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
+		const connectStart = worker.indexOf('const connectUnpublishedWatermark');
+		const connectEnd = worker.indexOf('const connectCards', connectStart);
+		assert.ok(connectStart >= 0 && connectEnd > connectStart, 'could not isolate watermark connection');
+		const connection = worker.slice(connectStart, connectEnd);
+		const snapshotLoad = connection.indexOf('await corpusSnapshotStore.load()');
+		const primeHandoff = connection.indexOf('forwardBatch(primedUnpublished');
+		const publishedListener = connection.lastIndexOf('if (deferPublishedUntilAfterPrime) connectPublished()');
+		assert.ok(snapshotLoad >= 0 && primeHandoff > snapshotLoad && publishedListener > primeHandoff,
+			'compact snapshot must load and hand off before the published listener starts its cache query');
+	});
 });

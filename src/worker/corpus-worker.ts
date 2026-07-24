@@ -72,7 +72,8 @@ import {
 } from './retry.js';
 
 import {
-	dropCardsAlreadyAtUpdatedVersion
+	dropCardsAlreadyAtUpdatedVersion,
+	dropCachedCardsNotNewerThanExisting
 } from './fast-dedupe.js';
 
 import {
@@ -488,15 +489,18 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 		? safePublishedRemovals(parsed.removedIDs, corpus)
 		: parsed.removedIDs;
 	//Server delivery: these entries are no longer client-clock contaminated.
-	for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
-	for (const id of removedIDs) clientClockCardIDs.delete(id);
+	if (!snapshot.metadata.fromCache) {
+		for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
+		for (const id of removedIDs) clientClockCardIDs.delete(id);
+	}
 	//Initial listeners following an exact prime overwhelmingly redeliver the
 	//same documents. `updated` is enforced on every persisted card mutation;
 	//matching server timestamps therefore prove the worker already has this
 	//version. Drop those cards before the search/filter engines instead of
 	//re-running every derived predicate. The empty batch is still forwarded so
 	//normal listener-completion semantics remain intact.
-	if (fastDedupe) dropCardsAlreadyAtUpdatedVersion(cards, corpus);
+	if (snapshot.metadata.fromCache) dropCachedCardsNotNewerThanExisting(cards, corpus);
+	else if (fastDedupe) dropCardsAlreadyAtUpdatedVersion(cards, corpus);
 	updateLocalState(cards, removedIDs);
 	const count = Object.keys(cards).length;
 	forwardBatch(cards, removedIDs, fetchType, fastDedupe);
@@ -1470,7 +1474,7 @@ const afterColdSweep = async (database : Firestore, myConnectionGeneration : num
 //quota exhaustion): the app keeps serving the unverified prime locally.
 const GATE_RETRY_MS = 60 * 1000;
 
-const connectUnpublishedWatermark = async () => {
+const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false) => {
 	if (!db) return;
 	const database = db;
 	const myConnectionGeneration = connectionGeneration;
@@ -1538,6 +1542,13 @@ const connectUnpublishedWatermark = async () => {
 			}
 			for (const id of compactTombstoneIDs) delete primedCards[id];
 		} else {
+			//There is no compact fast path to protect from Firestore cache
+			//contention. Attach published now so a slow legacy cache recovery
+			//cannot leave the public corpus needlessly blank.
+			if (deferPublishedUntilAfterPrime) {
+				connectPublished();
+				deferPublishedUntilAfterPrime = false;
+			}
 			syncMetaState = await loadSyncMeta();
 			if (myConnectionGeneration !== connectionGeneration) return;
 			const snapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
@@ -1600,6 +1611,14 @@ const connectUnpublishedWatermark = async () => {
 		const forwardFinishedAt = performance.now();
 		status(`watermark prime: ${primedCount} cards from the ${primeSource}; load=${(cacheQueryFinishedAt - primeStartedAt).toFixed(0)}ms parse=${(parseFinishedAt - cacheQueryFinishedAt).toFixed(0)}ms workerState=${(workerStateFinishedAt - parseFinishedAt).toFixed(0)}ms forward=${(forwardFinishedAt - workerStateFinishedAt).toFixed(0)}ms total=${(forwardFinishedAt - primeStartedAt).toFixed(0)}ms`);
 	}
+	//The published listener's first persistent-cache query can scan and decode
+	//nearly the whole Firestore cache. Starting it beside the compact-snapshot
+	//read made Chromium serialize the two IndexedDB workloads and turned a
+	//~1.4s real-DEV snapshot load into 10–21s. The compact prime is explicitly
+	//unverified, so serving it first does not weaken correctness: `live` still
+	//requires the subsequently attached published listener plus the tombstone
+	//and delta planes to become server-confirmed.
+	if (deferPublishedUntilAfterPrime) connectPublished();
 	if (!syncMetaState) syncMetaState = await loadSyncMeta();
 	if (myConnectionGeneration !== connectionGeneration) return;
 	//The separately-persisted metadata may be newer than the snapshot (for
@@ -1721,12 +1740,17 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	if (mayViewUnpublished) expected.push('unpublished');
 	else if (uid) expected.push('unpublished-author', 'unpublished-editor');
 	expectInitialLoad(expected);
-	connectPublished();
 	if (mayViewUnpublished) {
-		if (syncMode === 'watermark') void connectUnpublishedWatermark();
-		else void connectUnpublishedPrivileged();
+		if (syncMode === 'watermark') void connectUnpublishedWatermark(true);
+		else {
+			connectPublished();
+			void connectUnpublishedPrivileged();
+		}
 	} else if (uid) {
+		connectPublished();
 		connectUnpublishedAuthorEditor(uid);
+	} else {
+		connectPublished();
 	}
 };
 

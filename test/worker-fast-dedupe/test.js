@@ -2,6 +2,7 @@ import assert from 'assert';
 
 import {
 	dropCardsAlreadyAtUpdatedVersion,
+	dropCachedCardsNotNewerThanExisting,
 	sameUpdatedTimestamp
 } from '../../lib/src/worker/fast-dedupe.js';
 
@@ -37,5 +38,26 @@ describe('worker initial-listener fast dedupe', () => {
 
 		assert.deepStrictEqual(Object.keys(cards).sort(), ['new', 'new-version', 'unversioned']);
 		assert.strictEqual(cards['new-version'].body, 'new body');
+	});
+
+	it('never lets an older persistent-cache delivery roll back a compact snapshot', () => {
+		const existing = new Map([
+			['older-cache', card('older-cache', timestamp(12, 0), 'compact body')],
+			['same-cache', card('same-cache', timestamp(12, 0), 'compact body')],
+			['newer-cache', card('newer-cache', timestamp(12, 0), 'compact body')],
+			['unversioned', card('unversioned', undefined, 'compact body')],
+		]);
+		const cards = {
+			'older-cache': card('older-cache', timestamp(11, 999), 'stale cache body'),
+			'same-cache': card('same-cache', timestamp(12, 0), 'redelivered cache body'),
+			'newer-cache': card('newer-cache', timestamp(12, 1), 'new cache body'),
+			new: card('new', timestamp(1, 0), 'new card'),
+			unversioned: card('unversioned', undefined, 'cache body'),
+		};
+
+		dropCachedCardsNotNewerThanExisting(cards, existing);
+
+		assert.deepStrictEqual(Object.keys(cards).sort(), ['new', 'newer-cache', 'unversioned']);
+		assert.strictEqual(cards['newer-cache'].body, 'new cache body');
 	});
 });
