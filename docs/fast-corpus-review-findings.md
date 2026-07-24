@@ -15,6 +15,8 @@ The one criterion still failing after round 2.5 was find latency: every keystrok
 
 **Known residuals (accepted):** synonym-map/importantNgram drift after a concept-card change can recall-miss until the affected card's next save (same class as other accepted staleness); the debug `CORPUS_WORKER.query()` API answers full-scan-fallback until the build completes.
 
+**Live DEV verification (signed-in, real 40,225-card corpus, background-throttled review tab — foreground will be faster):** recall index covers **40,223 of 40,225** cards (2 always-scan); steady-state find results render in **823–885ms** (pre-fix: 3.8–8.9s in the identical environment — a 5–10× improvement); the first query of a session pays the candidate-set processing once (~20s throttled here; expect low seconds foreground, covered by the progress note while the build is running). Chunked build: 28.4s wall throttled, invisible background work. Full suite (36), build, 12k harness, and two SW-update cycles through the new banner flow all green.
+
 ---
 
 # FINAL ACCEPTANCE CHECKLIST (owner, real Chrome, DEV)
