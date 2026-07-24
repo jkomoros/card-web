@@ -88,6 +88,17 @@ describe('multi-edit acceptance coverage', () => {
 			'the recovery marker must not replace card/tag audit history');
 	});
 
+	it('rebuilds with a serialized marker when the inline marker overflows the batch (review R2-1)', () => {
+		const actions = read('src/actions/data.ts');
+		const start = actions.indexOf('let forceMarkerAfterCommit = false;');
+		assert.ok(start >= 0, 'the oversized-marker rebuild flag must exist');
+		const executor = actions.slice(start, actions.indexOf('await commitFanoutThenMarker', start));
+		assert.match(executor, /candidateSize === 1 && \(forceMarkerAfterCommit \|\| batch\.pendingUnderlyingBatchCount > 1\)/,
+			'the marker-after-commit decision must honor the rebuild flag');
+		assert.match(executor, /endAtomicGroup\(\);\s*\n\s*if \(candidateSize === 1 && batch\.pendingUnderlyingBatchCount > 1\) \{[\s\S]*?forceMarkerAfterCommit = true;\s*\n\s*continue;/,
+			'an inline marker that overflows into a second (concurrently committed) batch must trigger a rebuild with the marker strictly after the fanout');
+	});
+
 	it('orders oversized fanout completion after every split batch and persists its replay base first', () => {
 		const actions = read('src/actions/data.ts');
 		assert.match(actions, /operation\.oversizedBaseCards\[id\] = persistableCard\(authoritative\.cards\[id\]\)[\s\S]*persistDurableMultiEdit\(operation\)/,

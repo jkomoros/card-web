@@ -392,8 +392,19 @@ const bulkTagProgressAction = (operation : BulkTagOperation) : SomeAction => ({
 	serverConfirmed: true,
 });
 
+//Durable commits require a base the executor can trust. In worker mode that
+//is exactly the server-verified 'live' state. In the main-thread listener
+//modes ('off' diagnostic mode, worker-failure 'fallback', shadow/spike) the
+//status never reports 'live' by design; there, data-fully-loaded is the same
+//gate every pre-worker save used.
+const durableSaveEligible = (state : State) : boolean => {
+	if (selectCorpusStatus(state) === 'live') return true;
+	if (!corpusWorkerOwnsCardIngestion()) return selectDataIsFullyLoaded(state);
+	return false;
+};
+
 export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean) : ThunkSomeAction => async (dispatch, getState) => {
-	if (selectCorpusStatus(getState()) !== 'live') {
+	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error('Card sync must be live before saving. Wait for sync to finish, then retry.')));
 		return;
 	}
@@ -708,7 +719,7 @@ const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => 
 });
 
 export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff, substantive = false, kind : 'single' | 'multi' = 'multi', resumeTargetIDs? : CardID[]) : ThunkSomeAction => async (dispatch, getState) => {
-	if (selectCorpusStatus(getState()) !== 'live') {
+	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error('Card sync must be live before saving. Wait for sync to finish, then retry.')));
 		return;
 	}
@@ -782,6 +793,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			let modifiedCount = 0;
 			let skippedCount = 0;
 			let markerAfterCommit = false;
+			let forceMarkerAfterCommit = false;
 			while (candidateSize >= 1) {
 				chunkIDs = operation.targetIDs.slice(operation.nextIndex, operation.nextIndex + candidateSize);
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
@@ -816,7 +828,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					ensureAuthor(batch, selectUser(state) as UserInfo);
 					batch.endAtomicGroup();
 				}
-				markerAfterCommit = candidateSize === 1 && batch.pendingUnderlyingBatchCount > 1;
+				markerAfterCommit = candidateSize === 1 && (forceMarkerAfterCommit || batch.pendingUnderlyingBatchCount > 1);
 				if (markerAfterCommit) {
 					const id = chunkIDs[0];
 					if (id && authoritative.cards[id] && !operation.oversizedBaseCards?.[id]) {
@@ -837,13 +849,23 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 						updated: serverTimestamp(),
 					});
 					batch.endAtomicGroup();
+					if (candidateSize === 1 && batch.pendingUnderlyingBatchCount > 1) {
+						//The card writes fit one batch but the marker itself
+						//overflowed into a second one — and MultiBatch commits
+						//underlying batches CONCURRENTLY, so the marker could land
+						//while the card batch fails and resume would then trust a
+						//lying completion record. Rebuild with the marker in its own
+						//strictly-later batch instead.
+						forceMarkerAfterCommit = true;
+						continue;
+					}
 				}
 				if (batch.pendingUnderlyingBatchCount <= 1 || candidateSize === 1) break;
 				candidateSize = Math.max(1, Math.floor(candidateSize / 2));
 			}
 			if (!batch) throw new Error('Could not prepare a safe multi-edit batch');
 			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next multi-edit chunk could commit');
-			if (selectCorpusStatus(getState()) !== 'live') throw new Error('Card sync stopped being live before the next chunk. Reconnect, then retry.');
+			if (!durableSaveEligible(getState())) throw new Error('Card sync stopped being live before the next chunk. Reconnect, then retry.');
 			let markerBatch : MultiBatch | null = null;
 			if (markerAfterCommit) {
 				//Never put this completion marker in a concurrently committed

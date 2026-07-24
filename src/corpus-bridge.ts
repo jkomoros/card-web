@@ -462,6 +462,11 @@ const ensureSubscription = (slot : WorkerCollectionSlot, description : Collectio
 			subscription.id = 0;
 			subscription.key = '';
 			subscription.latest = null;
+			//Reset the fast-resubscribe memo too: a stale serialized description
+			//keeps the per-dispatch change check permanently true after the find
+			//dialog closes, and makes an identical reopened query skip the fast
+			//path (falling back to the 1s-throttled shadow compare).
+			subscription.descriptionSerialized = '';
 			if (readMode() === 'on') {
 				store.dispatch({type: UPDATE_WORKER_COLLECTION, slot, result: null});
 			}

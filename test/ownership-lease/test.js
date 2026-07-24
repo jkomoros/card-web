@@ -82,3 +82,27 @@ describe('ownership heartbeat fencing', () => {
 			'compact snapshot must load and hand off before the published listener starts its cache query');
 	});
 });
+
+describe('review round-2 wiring fixes', () => {
+	it('unsubscribing a worker collection slot resets the fast-resubscribe memo (review R2-4a)', () => {
+		const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
+		const start = bridge.indexOf('const ensureSubscription');
+		const end = bridge.indexOf('//cardSimilarity is snapshotted', start);
+		assert.ok(start >= 0 && end > start, 'could not isolate ensureSubscription');
+		const unsubscribePath = bridge.slice(start, end);
+		assert.match(unsubscribePath, /subscription\.descriptionSerialized = '';/,
+			'the unsubscribe path must clear descriptionSerialized, or the per-dispatch change check runs forever and identical reopened queries fall back to the throttled path');
+	});
+
+	it('a superseded sync-meta claim tears the worker down instead of throwing (review R2-4b)', () => {
+		const worker = fs.readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
+		const start = worker.indexOf('const loadSyncMeta = async () =>');
+		const end = worker.indexOf('corpusSnapshotStore = new CorpusSnapshotStore', start);
+		assert.ok(start >= 0 && end > start, 'could not isolate loadSyncMeta');
+		const loader = worker.slice(start, end);
+		assert.match(loader, /await stopSupersededWorker\(/,
+			'a failed sync-meta ownership claim must stop the superseded worker');
+		assert.ok(!/throw new Error/.test(loader),
+			'the claim failure must not throw (it was swallowed by the prime cache catch and surfaced as an unhandled rejection post-prime)');
+	});
+});

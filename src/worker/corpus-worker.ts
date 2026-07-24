@@ -212,6 +212,14 @@ const engine = new QueryEngine();
 //See the watermark invariant below. Kept next to corpus because the compact
 //snapshot must persist and restore this set atomically with the cards.
 const clientClockCardIDs : Set<CardID> = new Set();
+
+//Mark every parsed doc that is overlaid by a locally pending write as
+//watermark-poison. Applies to EVERY ingest path — listeners, cache primes,
+//partition repairs, and cold-sweep server reads all receive latency-
+//compensated overlays whose serverTimestamp() fields carry the client clock.
+const contaminatePendingWriteIDs = (pendingWriteIDs : Set<CardID>) => {
+	for (const id of pendingWriteIDs) clientClockCardIDs.add(id);
+};
 const subscriptions = new SubscriptionManager(engine, push => {
 	recordWorkerPerf('collectionPush', push.ms);
 	send({
@@ -361,9 +369,10 @@ const stopSupersededWorker = async (message : string) => {
 	workerScope.close();
 };
 
-const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[]} => {
+const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[], pendingWriteIDs : Set<CardID>} => {
 	const cards : Cards = {};
 	const removedIDs : CardID[] = [];
+	const pendingWriteIDs = new Set<CardID>();
 	snapshot.docChanges().forEach(change => {
 		if (change.type === 'removed') {
 			removedIDs.push(change.doc.id);
@@ -372,8 +381,12 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 		const id : CardID = change.doc.id;
 		const card : Card = {...change.doc.data({serverTimestamps: 'estimate'}), id} as Card;
 		cards[id] = card;
+		//Even getDocsFromServer results overlay locally pending writes, whose
+		//serverTimestamp() fields materialize with the CLIENT clock. Callers
+		//must treat these ids as watermark-poison (clientClockCardIDs).
+		if (change.doc.metadata.hasPendingWrites) pendingWriteIDs.add(id);
 	});
-	return {cards, removedIDs};
+	return {cards, removedIDs, pendingWriteIDs};
 };
 
 const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false, deferSearchIndex = false) => {
@@ -488,11 +501,16 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 	const removedIDs = fetchType === 'published'
 		? safePublishedRemovals(parsed.removedIDs, corpus)
 		: parsed.removedIDs;
-	//Server delivery: these entries are no longer client-clock contaminated.
+	//Server delivery: these entries are no longer client-clock contaminated —
+	//EXCEPT docs still overlaid by a pending local write, whose estimate
+	//timestamps remain client-clock even in server snapshots.
 	if (!snapshot.metadata.fromCache) {
-		for (const id of Object.keys(cards)) clientClockCardIDs.delete(id);
+		for (const id of Object.keys(cards)) {
+			if (!parsed.pendingWriteIDs.has(id)) clientClockCardIDs.delete(id);
+		}
 		for (const id of removedIDs) clientClockCardIDs.delete(id);
 	}
+	contaminatePendingWriteIDs(parsed.pendingWriteIDs);
 	//Initial listeners following an exact prime overwhelmingly redeliver the
 	//same documents. `updated` is enforced on every persisted card mutation;
 	//matching server timestamps therefore prove the worker already has this
@@ -806,7 +824,8 @@ const connectUnpublishedPrivileged = async () => {
 		if (myConnectionGeneration !== connectionGeneration) return;
 		if (cachedSnapshot.size >= WARM_CACHE_THRESHOLD) {
 			const start = performance.now();
-			const {cards} = parseSnapshot(cachedSnapshot);
+			const {cards, pendingWriteIDs} = parseSnapshot(cachedSnapshot);
+			contaminatePendingWriteIDs(pendingWriteIDs);
 			updateLocalState(cards, []);
 			forwardBatch(cards, [], 'unpublished', false);
 			status(`warm boot: ${cachedSnapshot.size} unpublished cards from the persistent cache in ${(performance.now() - start).toFixed(0)}ms; listeners reconcile via resume tokens`);
@@ -862,7 +881,8 @@ const connectUnpublishedPrivileged = async () => {
 			);
 			if (myConnectionGeneration !== connectionGeneration) return 0;
 			if (snapshot.size > 0) {
-				const {cards} = parseSnapshot(snapshot);
+				const {cards, pendingWriteIDs} = parseSnapshot(snapshot);
+				contaminatePendingWriteIDs(pendingWriteIDs);
 				Object.assign(pendingCards, cards);
 				if (!flushTimeout) flushTimeout = setTimeout(flushPending, COALESCE_INTERVAL_MS);
 			}
@@ -1019,7 +1039,8 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 			return false;
 		}
 		if (myConnectionGeneration !== connectionGeneration) return false;
-		const {cards} = parseSnapshot(snapshot);
+		const {cards, pendingWriteIDs} = parseSnapshot(snapshot);
+		contaminatePendingWriteIDs(pendingWriteIDs);
 		const serverIDs = new Set(Object.keys(cards));
 		const ghosts : CardID[] = [];
 		for (const id of corpusUnpublishedPerPartition()[index]) {
@@ -1121,6 +1142,9 @@ const processTombstones = (database : Firestore, tombstones : CorpusTombstone[])
 			meta.processedTombstoneIDs = meta.processedTombstoneIDs.filter(id => id !== tombstone.id);
 			if (snapshot.exists()) {
 				const card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+				//A pending local overlay carries a client-clock `updated`;
+				//serve it but keep it out of the watermark derivation.
+				if (snapshot.metadata.hasPendingWrites) clientClockCardIDs.add(card.id);
 				const updated = card.updated as Timestamp | undefined;
 				if (updated && compareTimestamps({seconds: updated.seconds, nanoseconds: updated.nanoseconds}, tombstone.deleted) > 0) {
 					updateLocalState({[card.id]: card}, []);
@@ -1149,6 +1173,11 @@ const catchUpTombstones = async (database : Firestore) : Promise<void> => {
 		const snapshot = await getDocsFromServer(query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds))));
 		const tombstones : CorpusTombstone[] = [];
 		snapshot.docs.forEach(docSnapshot => {
+			//A pending local tombstone write materializes `deleted` with the
+			//CLIENT clock; advancing the durable tombstoneCursor from it could
+			//permanently skip older server tombstones (same invariant as the
+			//tombstone listener). Defer it to its server acknowledgement.
+			if (docSnapshot.metadata.hasPendingWrites) return;
 			const data = docSnapshot.data({serverTimestamps: 'estimate'});
 			const deleted = data.deleted as Timestamp | undefined;
 			if (!deleted || typeof deleted.seconds !== 'number') return;
@@ -1338,16 +1367,19 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 			return false;
 		}
 		if (myConnectionGeneration !== connectionGeneration) return false;
-		const {cards} = parseSnapshot(prioritySnapshot);
+		const {cards, pendingWriteIDs} = parseSnapshot(prioritySnapshot);
+		contaminatePendingWriteIDs(pendingWriteIDs);
 		updateLocalState(cards, []);
 		forwardBatch(cards, [], 'unpublished', false);
 		//startBound: max(updated) at sweep START, server-confirmed. The
 		//post-sweep watermark is clamped to it — the docID-ordered pages
 		//below can read a doc BEFORE a mid-sweep edit lands on it, so an
 		//unclamped max(updated) could advance past an unseen edit and the
-		//delta listener would permanently skip it.
+		//delta listener would permanently skip it. Pending-write overlays
+		//carry client-clock estimates and must not raise the bound either.
 		let startBound : WireTimestamp | null = null;
-		for (const card of Object.values(cards)) {
+		for (const [id, card] of Object.entries(cards)) {
+			if (pendingWriteIDs.has(id)) continue;
 			const updated = card.updated as Timestamp | undefined;
 			if (updated && typeof updated.seconds === 'number') {
 				startBound = advanceWatermark(startBound, {seconds: updated.seconds, nanoseconds: updated.nanoseconds});
@@ -1419,7 +1451,8 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 			}
 			errorBackoffMs = 1000;
 			pace = paceOnCleanPage(pace);
-			const {cards} = parseSnapshot(page);
+			const {cards, pendingWriteIDs} = parseSnapshot(page);
+			contaminatePendingWriteIDs(pendingWriteIDs);
 			if (page.size) {
 				updateLocalState(cards, []);
 				forwardBatch(cards, [], 'unpublished', true);
@@ -1495,7 +1528,14 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		//Chromium serializes these opens and the competing open added ~16s to
 		//warm boot on the real corpus.
 		syncMetaOwnershipClaim ||= syncMetaStore!.claimOwnership();
-		if (!await syncMetaOwnershipClaim) throw new Error('worker sync metadata ownership was superseded');
+		if (!await syncMetaOwnershipClaim) {
+			//A throw here would be swallowed by the prime path's cache
+			//try/catch (and would surface as an unhandled rejection from the
+			//post-prime call), leaving a superseded worker's listeners live.
+			//Tear down explicitly instead; callers detect the generation bump.
+			await stopSupersededWorker('worker sync metadata ownership was superseded; stopping before local persistence writes');
+			return null;
+		}
 		return syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
 	};
 	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`, ownership);
@@ -1621,6 +1661,9 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	if (deferPublishedUntilAfterPrime) connectPublished();
 	if (!syncMetaState) syncMetaState = await loadSyncMeta();
 	if (myConnectionGeneration !== connectionGeneration) return;
+	//Superseded claims tear down inside loadSyncMeta (bumping the generation),
+	//so this is unreachable in practice; it exists to narrow the type.
+	if (!syncMetaState) return;
 	//The separately-persisted metadata may be newer than the snapshot (for
 	//example, a crash during the snapshot's debounce window). Remove any newly
 	//known ghosts before catch-up, the server trust gate, or live readiness.
