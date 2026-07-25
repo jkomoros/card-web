@@ -167,9 +167,12 @@ describe('reader multi-tab (anonymous ownership bypass)', () => {
 		//hasPreviousSignIn exists to stop signOutSuccess from calling
 		//signInAnonymously again on the next null-auth event. An earlier
 		//attempt to make the reader path reachable CLEARED it for anonymous
-		//users — which removed that guard and let the sign-in popup flow mint
-		//anonymous users in a loop (owner-reported: sign-in reloaded and never
-		//reached Google). Reader routing gets its own signal instead.
+		//users, removing that guard. (NOTE: that hazard is real but was NOT
+		//the cause of the owner-reported "sign-in loops" symptom — no reload
+		//path in this app is reachable from auth state. The likely cause was
+		//a blocked popup failing SILENTLY, since SIGNIN_FAILURE is not
+		//rendered anywhere; see the redirect fallback and the alert in
+		//signIn().) Reader routing gets its own signal regardless.
 		assert.match(user, /\n\tflagHasPreviousSignIn\(\);/,
 			'the loop guard must be set unconditionally, including for anonymous sign-ins');
 		assert.ok(!user.includes('clearHasPreviousSignIn'),

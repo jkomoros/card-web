@@ -85,7 +85,10 @@ import {
 	GoogleAuthProvider,
 	signInWithCredential,
 	signInWithPopup,
+	signInWithRedirect,
 	linkWithPopup,
+	linkWithRedirect,
+	getRedirectResult,
 	signInAnonymously,
 	signOut as firebaseSignOut,
 	User,
@@ -283,6 +286,23 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			await signInWithPopup(auth, provider);
 		}
 	} catch (err) {
+		//Popup blocked (embedded browsers, popup blockers, some enterprise
+		//policies): fall back to the redirect flow instead of leaving the user
+		//with a silent failure — previously this error only landed in Redux
+		//state and nothing was shown at all. The result is picked up by
+		//completeRedirectSignIn() on the next load.
+		if (err instanceof FirebaseError && (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment')) {
+			try {
+				const current = auth.currentUser;
+				if (isAnonymous && current) await linkWithRedirect(current, provider);
+				else await signInWithRedirect(auth, provider);
+				return;
+			} catch (redirectErr) {
+				dispatch({type:SIGNIN_FAILURE, error: redirectErr});
+				alert('Could not open Google sign-in. Please allow popups for this site and try again.');
+				return;
+			}
+		}
 		if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
 
 			//TODO: only show this confirmation if the old account has at least one star or a few dozen reads.
@@ -311,7 +331,26 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			}
 		} else {
 			dispatch({type:SIGNIN_FAILURE, error: err});
+			//SIGNIN_FAILURE is not rendered anywhere, so without this the user
+			//sees NOTHING when sign-in fails — indistinguishable from a dead
+			//button, which is what made a blocked popup look like a loop.
+			const code = err instanceof FirebaseError ? err.code : '';
+			if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+				alert(`Sign-in did not complete${code ? ` (${code})` : ''}. Please try again; if it keeps failing, allow popups for this site.`);
+			}
 		}
+	}
+};
+
+//Completes a redirect-based sign-in (the popup-blocked fallback). Must run
+//on boot: a redirect LINK keeps the same uid, so onAuthStateChanged does not
+//fire for it — the same reason the popup link path dispatches explicitly.
+export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) => {
+	try {
+		const result = await getRedirectResult(auth);
+		if (result?.user) dispatch(signInSuccess(result.user));
+	} catch (err) {
+		dispatch({type:SIGNIN_FAILURE, error: err});
 	}
 };
 
@@ -461,6 +500,10 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 
 	dispatch({type:SIGNOUT_USER});
 	flagHasPreviousSignIn();
+	//signOut refuses anonymous users above, so reaching here proves a real
+	//sign-in happened on this device — keep routing it to exclusive ownership
+	//even though it is now signed out.
+	flagHasPreviousRealSignIn();
 	firebaseSignOut(auth);
 };
 
