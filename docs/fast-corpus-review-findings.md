@@ -2,6 +2,16 @@
 
 ---
 
+# PRE-LAND QUEUE (owner-directed, 2026-07-25)
+
+Remaining owner-requested work before merge, in order:
+
+1. **Suggested-tags must work again (owner call: pre-land, not post-land).** The affordance was stubbed on this branch (`card-editor.ts` `_scheduleSuggestions` hard-codes `_suggestedTags = []`) because master's computation — fingerprint-similarity across every card of every tag — is a multi-second main-thread stall at 40k cards. The fix is to compute it worker-side: the corpus worker already holds every card processed plus the fingerprint machinery; add a `suggestTags(cardID|editingCard)` worker request mirroring the reference-blocks runner pattern (async, generation-guarded, editing-card-aware via the existing mirror), and populate `_suggestedTags` from its response on the existing deferred schedule.
+2. **Honest-empty rework (proposal accepted-pending-build):** ~200ms grace before any empty collection state; past the grace, keep the previous collection rendered dimmed with an "updating…" affordance instead of blanking (stale-labeled-as-stale, addressing the original wrong-then-right objection). Find dialog keeps its "Preparing search (N of M)" note.
+3. **Non-editors get multi-tab:** scoping change — reader sessions (no edit permissions) skip exclusive ownership and run an ephemeral worker (`persist:false`, no lease/heartbeat, memory-only caches) so second tabs read freely without ever sharing locked persistence; their user-scoped writes (stars/reads/reading-list) must be exempted from the corpus mutation fence.
+
+---
+
 # ROUND 5 — pre-land debt burn-down (2026-07-25)
 
 Owner call: do the cheap, contained debt now; defer the big items. Done in this round:
