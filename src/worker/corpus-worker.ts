@@ -2042,7 +2042,7 @@ workerScope.addEventListener('message', event => {
 			status(`suggestTags failed (${String(e)})`);
 		}
 		const elapsed = performance.now() - start;
-		if (elapsed > 500) status(`tag suggestions computed in ${elapsed.toFixed(0)}ms (first call builds tag fingerprints; cached after)`);
+		status(`tag suggestions: ${tags.length} tags in ${elapsed.toFixed(0)}ms (editingCard=${engine.editingCard ? 'present' : 'MISSING'}, tagCount=${Object.keys(engine.tags).length})`);
 		send({type: 'suggestTagsResult', generation, id: message.id, tags});
 		break;
 	}

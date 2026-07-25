@@ -1537,6 +1537,7 @@ declare global {
 			takeOver: () => Promise<void>,
 			ownershipState: () => OwnershipState,
 			workerRunning: () => boolean,
+			suggestTags: () => Promise<string[] | null>,
 		};
 	}
 }
@@ -1571,6 +1572,7 @@ if (typeof window !== 'undefined') {
 			}
 			post({type: 'spike', generation});
 		},
+		suggestTags: () => corpusWorkerSuggestTags(),
 		query: (text : string) => {
 			if (!worker) return Promise.reject(new Error('corpus worker not running'));
 			const id = ++queryCounter;

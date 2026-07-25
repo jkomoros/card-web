@@ -373,6 +373,10 @@ export class QueryEngine {
 		return this._editingCard;
 	}
 
+	get tags() : Tags {
+		return this._tags;
+	}
+
 	//Memoized fingerprint machinery for tag suggestions. The generator is
 	//keyed on card/IDF/concept identity; the per-tag fingerprints additionally
 	//on tags identity. First build over the tagged subset of the corpus costs
