@@ -415,6 +415,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 	bulkTagOperationRunning = true;
 	bulkTagResumeAttemptedThisPage = true;
 	let operation : BulkTagOperation | null = null;
+	let bulkSkippedCount = 0;
 	try {
 		const state = getState();
 		const uid = selectUid(state);
@@ -491,14 +492,36 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			const currentState = getState();
 			if (selectUid(currentState) !== operation.uid) throw new Error('Account changed while the bulk-label operation was running');
 			const rawCards = selectRawCards(currentState);
-			const chunkCards = chunkIDs.map(id => rawCards[id]);
-			const missingIDs = chunkIDs.filter((_, index) => !chunkCards[index]);
-			if (missingIDs.length) throw new Error(`Cannot safely continue: ${missingIDs.length} target cards are not loaded (${missingIDs.slice(0, 3).join(', ')}${missingIDs.length > 3 ? ', …' : ''})`);
+			//A target deleted (or no longer visible) mid-operation must not
+			//wedge the resume forever: read the missing ids authoritatively,
+			//SKIP confirmed-deleted ones (positionally — next_index still
+			//advances by the full slice), and only throw for genuinely
+			//unreadable ids, which stay retryable. Mirrors the durable
+			//multi-edit executor's treatment of the same case.
+			const missingIDs = chunkIDs.filter(id => !rawCards[id]);
+			let authoritativeMissing : {cards : Cards, removedIDs : CardID[], failedIDs : CardID[]} = {cards: {}, removedIDs: [], failedIDs: []};
+			if (missingIDs.length) authoritativeMissing = await authoritativeCardsAfterFailedCommit(missingIDs);
+			if (authoritativeMissing.failedIDs.length) throw new Error(`Could not load ${authoritativeMissing.failedIDs.length} target cards from the server`);
+			bulkSkippedCount += authoritativeMissing.removedIDs.length;
+			const chunkCards = chunkIDs
+				.map(id => rawCards[id] || authoritativeMissing.cards[id])
+				.filter(Boolean) as Card[];
+			if (!chunkCards.length) {
+				//Every card in this chunk was deleted: nothing to write; just
+				//advance the durable cursor past the slice.
+				operation.nextIndex += chunkIDs.length;
+				persistBulkTagOperation(operation);
+				dispatch(bulkTagProgressAction(operation));
+				continue;
+			}
 
 			const batch = new MultiBatch(db);
 			batch.beginAtomicGroup(`${operation.id}-${offset}`);
-			for (const card of chunkCards as Card[]) {
-				if (!selectCardIDsUserMayEdit(currentState)[card.id]) throw new Error(`You no longer have permission to edit ${card.id}`);
+			for (const card of chunkCards) {
+				//Redux-loaded cards get the local permission check; cards read
+				//authoritatively (not yet in Redux) are enforced by the rules
+				//at commit, exactly like the durable multi-edit path.
+				if (rawCards[card.id] && !selectCardIDsUserMayEdit(currentState)[card.id]) throw new Error(`You no longer have permission to edit ${card.id}`);
 				const auditID = `${operation.id}-${card.id}-${operation.adding ? 'add' : 'remove'}`;
 				const cardUpdateObject = {
 					tags: adding ? arrayUnion(operation.tag) : arrayRemove(operation.tag),
@@ -523,7 +546,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			ensureAuthor(batch, selectUser(currentState) as UserInfo);
 			const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
 			batch.update(tagRef, {
-				cards: adding ? arrayUnion(...chunkIDs) : arrayRemove(...chunkIDs),
+				cards: adding ? arrayUnion(...chunkCards.map(card => card.id)) : arrayRemove(...chunkCards.map(card => card.id)),
 				updated: serverTimestamp(),
 			});
 			batch.set(markerRef, {
@@ -544,8 +567,8 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		}
 
 		clearBulkTagOperation();
-		const total = operation.targetIDs.length;
-		if (total > 1) alert(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.`);
+		const total = operation.targetIDs.length - bulkSkippedCount;
+		if (total > 1 || bulkSkippedCount) alert(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`);
 		dispatch(modifyCardSuccess(total));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));

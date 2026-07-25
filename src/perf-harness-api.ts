@@ -130,7 +130,7 @@ export const installPerfHarnessAPI = () : void => {
 			const afterRemove = selectRawCards(store.getState() as State);
 			for (const card of cards) {
 				const current = afterRemove[card.id];
-				if (JSON.stringify(current?.tags || []) !== JSON.stringify(originals[card.id].tags)) throw new Error(`local tags not restored for ${card.id}`);
+				if (JSON.stringify([...(current?.tags || [])].sort()) !== JSON.stringify([...originals[card.id].tags].sort())) throw new Error(`local tags not restored for ${card.id}`);
 				if (current?.body !== originals[card.id].body || current?.title !== originals[card.id].title ||
 					!deepEqual(current?.references || {}, originals[card.id].references)) throw new Error(`non-tag field changed for ${card.id}`);
 			}

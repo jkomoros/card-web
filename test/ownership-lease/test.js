@@ -106,3 +106,39 @@ describe('review round-2 wiring fixes', () => {
 			'the claim failure must not throw (it was swallowed by the prime cache catch and surfaced as an unhandled rejection post-prime)');
 	});
 });
+
+describe('pre-land debt fixes (round 5)', () => {
+	const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
+	const database = fs.readFileSync(new URL('../../src/actions/database.ts', import.meta.url), 'utf8');
+	const data = fs.readFileSync(new URL('../../src/actions/data.ts', import.meta.url), 'utf8');
+
+	it('a blocked-at-boot tab goes network-inert and reconnects only after winning a takeover', () => {
+		const contended = bridge.indexOf("setOwnershipStatus('contended'");
+		assert.ok(contended >= 0);
+		assert.ok(bridge.indexOf('disconnectBackgroundData();', contended) >= 0,
+			'the contended boot path must tear down ambient listeners');
+		assert.match(bridge, /const activateOwnedConnection[\s\S]{0,600}reconnectBackgroundDataForActiveTab/,
+			'winning a takeover must re-attach what the blocked boot tore down');
+		assert.match(database, /if \(!backgroundDataInert\) return;/,
+			'reconnect must be a no-op for tabs that were never made inert');
+		const guards = database.split('if (backgroundDataInert) return;').length - 1;
+		assert.ok(guards >= 10, `attach functions must no-op while inert (found ${guards} guards)`);
+	});
+
+	it('a stolen Web Lock deactivates the old owner even when the lease is gone', () => {
+		assert.match(bridge, /granted && ownershipState === 'active'[\s\S]{0,120}purgeAndDeactivate\(\)/,
+			'the steal-induced lock rejection must deactivate directly, closing the null-lease resurrection path');
+	});
+
+	it('bulk-tag resume skips confirmed-deleted targets instead of wedging', () => {
+		const start = data.indexOf('const missingIDs = chunkIDs.filter(id => !rawCards[id]);');
+		assert.ok(start >= 0, 'bulk-tag executor must classify missing targets');
+		const executor = data.slice(start, start + 1200);
+		assert.match(executor, /authoritativeCardsAfterFailedCommit\(missingIDs\)/,
+			'missing targets must be read authoritatively, not thrown on');
+		assert.match(executor, /removedIDs\.length/,
+			'confirmed-deleted targets must be counted as skipped');
+		assert.ok(!executor.includes('Cannot safely continue'),
+			'the wedge-forever error must be gone from the missing-target path');
+	});
+});

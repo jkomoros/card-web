@@ -1037,6 +1037,7 @@ const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal, stea
 	const locks = ownershipAPIs();
 	if (!locks) return Promise.resolve('unsupported');
 	return new Promise(resolve => {
+		let granted = false;
 		try {
 			void locks.request(
 				OWNERSHIP_LOCK_NAME,
@@ -1046,6 +1047,7 @@ const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal, stea
 						resolve('contended');
 						return;
 					}
+					granted = true;
 					onAcquired?.();
 					resolve('acquired');
 					return new Promise<void>(release => {
@@ -1053,7 +1055,18 @@ const acquireOwnershipLock = (ifAvailable : boolean, signal? : AbortSignal, stea
 					});
 				}
 			).catch(error => {
-				if ((error as DOMException).name === 'AbortError') resolve('contended');
+				if ((error as DOMException).name === 'AbortError') {
+					//A rejection AFTER this request was granted means another
+					//tab STOLE the lock — authoritative supersession no matter
+					//what the lease says (it may have been cleared or
+					//clobbered, the null-lease resurrection path). Deactivate
+					//directly rather than through the lease check.
+					if (granted && ownershipState === 'active') {
+						releaseOwnershipLock = null;
+						purgeAndDeactivate();
+					}
+					resolve('contended');
+				}
 				else resolve('error');
 			});
 		} catch {
@@ -1165,9 +1178,19 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	}
 };
 
+const disconnectBackgroundData = () => {
+	void import('./actions/database.js')
+		.then(module => module.disconnectBackgroundDataForInactiveTab())
+		.catch(error => console.warn('[corpus-worker] could not disconnect blocked-tab listeners:', error));
+};
+
 const activateOwnedConnection = (takeoverRequestID? : string, epochEstablished = false) => {
 	if (!epochEstablished) establishOwnershipEpoch();
 	ownershipDeactivationStarted = false;
+	//No-op unless this tab booted blocked and was made inert.
+	void import('./actions/database.js')
+		.then(module => module.reconnectBackgroundDataForActiveTab())
+		.catch(error => console.warn('[corpus-worker] could not reconnect listeners after takeover:', error));
 	allowMutations();
 	ownershipState = 'active';
 	configureMutationOwnership(ownsCurrentEpoch, () => writeOwnershipHeartbeat(true));
@@ -1250,6 +1273,7 @@ const beginInitialOwnership = async () => {
 	try {
 		if (sessionStorage.getItem(SUPERSEDED_SESSION_KEY) === '1') {
 			setOwnershipStatus('inactive', 'Compendium was moved to another tab. This tab remains inactive so card sync stays safe.');
+			disconnectBackgroundData();
 			return;
 		}
 	} catch { /* continue without the reload marker */ }
@@ -1266,6 +1290,11 @@ const beginInitialOwnership = async () => {
 		if (attempt + 1 < OWNERSHIP_RETRY_ATTEMPTS) await new Promise(resolve => setTimeout(resolve, OWNERSHIP_RETRY_DELAY_MS));
 	}
 	setOwnershipStatus('contended', 'Compendium can be active in only one tab at a time. Use this tab to continue here; the other tab will become inactive.');
+	//A blocked tab must be network-inert, not merely visually blocked
+	//(acceptance criterion 7): tear down the ambient listeners main-view
+	//attached before contention resolved. Winning a later takeover
+	//re-attaches via reconnectBackgroundDataForActiveTab.
+	disconnectBackgroundData();
 };
 
 const takeOverOwnership = async () => {

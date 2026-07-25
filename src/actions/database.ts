@@ -171,6 +171,7 @@ const userActivity = () => {
 //keepSlugLegalWarm should be called whenever we notice that the user should
 //keep slugLegal warm. Repeated calls won't cause it to call extra times.
 export const keepSlugLegalWarm = () => {
+	if (backgroundDataInert) return;
 	//Only start the interval once.
 	if (slugLegalInterval) return;
 	document.addEventListener('mousemove', userActivity);
@@ -182,6 +183,7 @@ export const keepSlugLegalWarm = () => {
 
 
 export const connectLiveMessages = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
 	rememberSupplementalListener(onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
@@ -199,6 +201,7 @@ export const connectLiveMessages = () => {
 };
 
 export const connectLiveThreads = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	rememberSupplementalListener(onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
 		const threads : CommentThreads = {};
@@ -232,6 +235,7 @@ export const disconnectLiveStars = () => {
 };
 
 export const connectLiveStars = (uid : Uid) => {
+	if (backgroundDataInert) return;
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		const starsToAdd : CardID[] = [];
@@ -256,6 +260,7 @@ export const disconnectLiveReads = () => {
 };
 
 export const connectLiveReads = (uid : Uid) => {
+	if (backgroundDataInert) return;
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
 		const readsToAdd : CardID[] = [];
@@ -280,6 +285,7 @@ export const disconnectLiveReadingList = () => {
 };
 
 export const connectLiveReadingList = (uid : Uid) => {
+	if (backgroundDataInert) return;
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		let list : CardID[] = [];
@@ -307,6 +313,7 @@ export const disconnectLivePermissions = () => {
 };
 
 export const connectLivePermissions = (uid : Uid) => {
+	if (backgroundDataInert) return;
 	disconnectLivePermissions();
 	livePermissionsUnsubscribe = onSnapshot(doc(db, PERMISSIONS_COLLECTION, uid), snapshot => {
 		store.dispatch({
@@ -321,6 +328,7 @@ export const connectLivePermissions = (uid : Uid) => {
 };
 
 export const connectLiveAuthors = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	rememberSupplementalListener(onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
@@ -392,6 +400,7 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 //removed properly because resume-token catch-up delivers real removals.
 
 export const connectLivePublishedCards = () => {
+	if (backgroundDataInert) return;
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) return;
 	if (corpusWorkerOwnsCardIngestion()) {
@@ -450,6 +459,7 @@ const disconnectLiveUnpublishedCards = () => {
 };
 
 export const connectLiveUnpublishedCards = async () => {
+	if (backgroundDataInert) return;
 	const state = store.getState() as State;
 	if (!selectUserMayViewApp(state)) {
 		//The Redux store outlives an auth/permission change. Tell the worker to
@@ -629,6 +639,7 @@ export const connectLiveUnpublishedCards = async () => {
 };
 
 export const connectLiveSections = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	rememberSupplementalListener(onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
@@ -648,6 +659,7 @@ export const connectLiveSections = () => {
 };
 
 export const connectLiveTags = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	console.log('[connectLiveTags] Setting up live tags listener');
 	rememberSupplementalListener(onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
@@ -673,7 +685,16 @@ export const connectLiveTags = () => {
 //A superseded single-tab session is permanently inert. Tear down all ambient
 //listeners and warmup traffic as well as the corpus worker so it is genuinely
 //quiet—not merely hidden behind the ownership gate.
+//True while this tab is deliberately network-inert (blocked at boot behind
+//the ownership gate, or superseded). Attach functions no-op while set so a
+//late auth resolution or cross-tab sign-in cannot silently re-attach
+//listeners behind the gate (acceptance criterion 7: fully blocked/INERT).
+let backgroundDataInert = false;
+
+export const backgroundDataIsInert = () => backgroundDataInert;
+
 export const disconnectBackgroundDataForInactiveTab = () => {
+	backgroundDataInert = true;
 	if (slugLegalInterval) window.clearInterval(slugLegalInterval);
 	slugLegalInterval = 0;
 	document.removeEventListener('mousemove', userActivity);
@@ -686,4 +707,27 @@ export const disconnectBackgroundDataForInactiveTab = () => {
 	disconnectLiveReads();
 	disconnectLiveReadingList();
 	disconnectLivePermissions();
+};
+
+//Inverse of disconnectBackgroundDataForInactiveTab, for the tab that WINS a
+//takeover after booting blocked. No-op unless a disconnect actually ran, so
+//the normal boot-winner path (which already attached everything) cannot
+//double-attach.
+export const reconnectBackgroundDataForActiveTab = () => {
+	if (!backgroundDataInert) return;
+	backgroundDataInert = false;
+	connectLivePublishedCards();
+	connectLiveSections();
+	connectLiveTags();
+	connectLiveAuthors();
+	connectLiveThreads();
+	connectLiveMessages();
+	void connectLiveUnpublishedCards();
+	const uid = selectUid(store.getState() as State);
+	if (uid) {
+		connectLiveStars(uid);
+		connectLiveReads(uid);
+		connectLiveReadingList(uid);
+		connectLivePermissions(uid);
+	}
 };

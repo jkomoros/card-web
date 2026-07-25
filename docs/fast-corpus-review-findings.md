@@ -2,6 +2,20 @@
 
 ---
 
+# ROUND 5 — pre-land debt burn-down (2026-07-25)
+
+Owner call: do the cheap, contained debt now; defer the big items. Done in this round:
+
+- **Blocked tabs are now network-INERT (closes the open half of criterion 7 / finding #17):** a contended-at-boot tab and a reloaded-superseded tab tear down every ambient listener + the slug-warm interval (`disconnectBackgroundData` at both boot-blocked sites in corpus-bridge); all attach functions in `actions/database.ts` no-op while inert, so late auth resolution or cross-tab sign-in cannot re-attach behind the gate; winning a takeover re-attaches exactly once via `reconnectBackgroundDataForActiveTab` (flag-guarded so the normal boot winner cannot double-attach). This also fixes reclaim-after-supersession, which previously left listeners disconnected.
+- **Null-lease resurrection closed (ownership residual B), TOCTOU shrunk:** a steal-induced rejection of the *granted* ownership lock now deactivates the old owner directly (`acquireOwnershipLock`'s catch), independent of lease state — the Web Lock signal is authoritative even if localStorage was cleared or clobbered.
+- **Bulk-tag resume no longer wedges on deleted targets (the #6 sibling):** missing targets are read authoritatively; confirmed-deleted ones are skipped positionally (durable cursor still advances; tag mirror writes only survivors) and honestly counted in the completion message; only genuinely unreadable ids remain retryable errors.
+- **Corrupt-record corner (the #5 corner):** an unparseable durable record now surfaces as 'paused' with a reachable Stop button even if resume never runs (data never fully loads), instead of a buttonless 'Saving…'.
+- **Last order-sensitive harness compare fixed** (tags now sort-insensitive in `perf-harness-api`).
+
+Deliberately deferred post-land (tracked): behavioral test harnesses for the bridge ownership machine / worker orchestration / durable executor (highest value, needs a dedicated session); worker-side epoch guard for the published/author/editor connections; per-card draft slots; durable queueing for offline auxiliary writes; at-rest snapshot deletion on uid switch; shape-corrupt-record detection pre-data-load.
+
+---
+
 # ROUND 4 — adversarial prosecution of the "ready" verdict (2026-07-25)
 
 A deliberate prosecution pass against the sign-off found one reproduced P0 in the round-3 code itself plus two must-fix operational gaps. All fixed in `a08e8b08`+:

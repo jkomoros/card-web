@@ -440,14 +440,21 @@ class CardWebApp extends connect(store)(LitElement) {
 					const parsed = JSON.parse(genericIntent);
 					hasDurableSingleIntent = parsed.kind === 'single';
 					durableError = typeof parsed.lastError === 'string' ? parsed.lastError : '';
-				} catch { /* surfaced by resume */ }
+				} catch {
+					//An unparseable record would otherwise show a buttonless
+					//'Saving…' forever if resume never runs (e.g. data never
+					//fully loads). Surface it as paused so Stop is reachable.
+					durableError = 'The saved edit record is corrupt. Use Stop to discard it.';
+				}
 			}
 			const bulkIntent = localStorage.getItem('card-web-pending-bulk-tag-operation-v1');
 			if (bulkIntent && !durableError) {
 				try {
 					const parsed = JSON.parse(bulkIntent);
 					durableError = typeof parsed.lastError === 'string' ? parsed.lastError : '';
-				} catch { /* surfaced by resume */ }
+				} catch {
+					durableError = 'The saved bulk-label record is corrupt. Use Stop to discard it.';
+				}
 			}
 			hasDurableBulkIntent = Boolean(
 				bulkIntent ||
