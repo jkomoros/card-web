@@ -8,10 +8,17 @@ import {CorpusStatus, State} from '../types.js';
 
 const BLOCKING = new Set<CorpusStatus>(['checking', 'contended', 'inactive', 'takeover', 'unsupported', 'ownership-error', 'degraded']);
 
+//How long a transient 'checking' may last before the full-screen overlay is
+//worth showing. The single-tab happy path resolves the Web Lock in one task —
+//flashing a modal over the just-painted app on EVERY boot is pure noise.
+const CHECKING_REVEAL_GRACE_MS = 250;
+
 @customElement('corpus-ownership-gate')
 class CorpusOwnershipGate extends connect(store)(LitElement) {
 	@state() _status : CorpusStatus = 'off';
 	@state() _message = '';
+	@state() _checkingRevealed = false;
+	private _checkingRevealTimer = 0;
 	private _wasOpen = false;
 	private _returnFocus : HTMLElement | null = null;
 
@@ -112,18 +119,18 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 	}
 
 	private _focusGate = () => {
-		if (!BLOCKING.has(this._status)) return;
+		if (!this._shouldBlock()) return;
 		//Focus/visibility events can fire just before Chrome makes a newly
 		//foregrounded document focusable. Defer one frame so focus is not lost.
 		requestAnimationFrame(() => {
-			if (!BLOCKING.has(this._status)) return;
+			if (!this._shouldBlock()) return;
 			const target = this._focusTarget();
 			target?.focus({preventScroll: true});
 		});
 	};
 
 	override render() {
-		if (!BLOCKING.has(this._status)) return html``;
+		if (!this._shouldBlock()) return html``;
 		const canTakeOver = this._status === 'contended' || this._status === 'inactive';
 		return html`
 			<section class='panel' tabindex='-1' role='alertdialog' aria-modal='true' aria-labelledby='ownership-title' aria-describedby='ownership-description' @keydown=${this._containFocus}>
@@ -137,14 +144,34 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		`;
 	}
 
+	_shouldBlock() : boolean {
+		if (!BLOCKING.has(this._status)) return false;
+		//'checking' resolves within one task on the single-tab happy path;
+		//only reveal the overlay if it is still unresolved after the grace.
+		if (this._status === 'checking' && !this._checkingRevealed) return false;
+		return true;
+	}
+
 	override stateChanged(state : State) {
 		this._status = selectCorpusStatus(state);
 		this._message = selectCorpusStatusMessage(state);
-		this.toggleAttribute('open', BLOCKING.has(this._status));
+		if (this._status === 'checking') {
+			if (!this._checkingRevealTimer && !this._checkingRevealed) {
+				this._checkingRevealTimer = window.setTimeout(() => {
+					this._checkingRevealTimer = 0;
+					if (this._status === 'checking') this._checkingRevealed = true;
+				}, CHECKING_REVEAL_GRACE_MS);
+			}
+		} else {
+			if (this._checkingRevealTimer) window.clearTimeout(this._checkingRevealTimer);
+			this._checkingRevealTimer = 0;
+			this._checkingRevealed = false;
+		}
+		this.toggleAttribute('open', this._shouldBlock());
 	}
 
 	override updated() {
-		const open = BLOCKING.has(this._status);
+		const open = this._shouldBlock();
 		if (open && !this._wasOpen) {
 			const active = document.activeElement;
 			this._returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;

@@ -39,6 +39,7 @@ import {
 	selectCollectionConstructorArguments,
 	selectCollectionConstructorArgumentsWithEditingCard,
 	selectEditingNormalizedCard,
+	selectEditingCardSuggestedConceptReferences,
 	selectCardIDsUserMayEdit,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
@@ -915,6 +916,11 @@ class CardView extends connect(store)(PageViewElement) {
 			//the bridge mirrors the editing card into the worker, so the
 			//compute stays off-thread.
 			const editing = selectIsEditing(state);
+			//Suggested in-body concept highlights ride this same debounce: the
+			//selector is a cheap memoized lookup keyed on the extraction
+			//version, and putting it here (rather than on the keystroke path)
+			//restores master's highlights without per-keystroke work.
+			this._suggestedConcepts = editing ? selectEditingCardSuggestedConceptReferences(state) : null;
 			//Prefer computing the blocks in the corpus worker (off the UI
 			//thread) when it holds the corpus; fall back to the synchronous
 			//local computation otherwise.
@@ -1041,7 +1047,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 		this._suggestionsPanelOpen = selectSuggestionsOpen(state);
 
-		this._suggestedConcepts = null;
+		if (!this._editing) this._suggestedConcepts = null;
 
 		const lastWordCloudVersion = this._collectionWordCloudVersion;
 		this._collectionWordCloudVersion = selectCollectionWordCloudVersion(state);

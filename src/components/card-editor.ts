@@ -921,8 +921,12 @@ class CardEditor extends connect(store)(LitElement) {
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._offline = state.app.offline;
-		this._underlyingCardDifferences = configTabActive ? selectEditingUnderlyingCardSnapshotDiffDescription(state) : '';
-		this._overshadowedDifferences = configTabActive ? selectOvershadowedUnderlyingCardChangesDiffDescription(state) : '';
+		//These two are memoized card diffs (cheap) and drive the merge
+		//affordance AND updated()'s auto-apply of underlying changes — gating
+		//them to the config tab silently disabled both on the default content
+		//tab (regression sweep finding).
+		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 		this._fieldValidationErrors = selectFieldValidationErrorsForEditingCard(state);
 	}

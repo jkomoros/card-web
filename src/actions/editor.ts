@@ -309,7 +309,9 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 	//sessions disjoint prevents a late acknowledgement from the first save from
 	//being mistaken for completion of a newer edit.
 	if (selectCardModificationPending(state) || durableCardMutationPending()) {
-		console.warn('Can\'t start editing while another card save is pending');
+		//Silent refusal reads as a dead Edit button (regression sweep); the
+		//window is short, so tell the user why and what to do.
+		alert('A card save is still finishing. Wait a moment for the save indicator to clear, then try again.');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
@@ -372,7 +374,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 		}
 	}
 
-	if (state.editor?.selectedTab == 'config' && selectEditingCardSuggestedConceptReferences(state).length > 0) {
+	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
 	}
 

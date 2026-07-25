@@ -1267,7 +1267,7 @@ const beginInitialOwnership = async () => {
 	//interactive, mutation-capable window while ownership is still unknown.
 	setOwnershipStatus('checking', 'Checking whether this tab can safely start card sync…');
 	if (!ownershipAPIs()) {
-		setOwnershipStatus('unsupported', 'Compendium requires a current version of Chrome to keep card sync safe. Open this page in Chrome.');
+		setOwnershipStatus('unsupported', 'Compendium needs a current browser (recent Chrome, Edge, Firefox, or Safari) to keep card sync safe. Please update your browser or open this page in one of those.');
 		return;
 	}
 	try {
@@ -1300,7 +1300,7 @@ const beginInitialOwnership = async () => {
 const takeOverOwnership = async () => {
 	if (ownershipState === 'active' || ownershipState === 'takeover') return;
 	if (!ownershipAPIs()) {
-		setOwnershipStatus('unsupported', 'Compendium requires a current version of Chrome to keep card sync safe. Open this page in Chrome.');
+		setOwnershipStatus('unsupported', 'Compendium needs a current browser (recent Chrome, Edge, Firefox, or Safari) to keep card sync safe. Please update your browser or open this page in one of those.');
 		return;
 	}
 	setOwnershipStatus('takeover', 'Waiting for the other tab to finish. When the move completes, this tab will become active and the other will become inactive.');

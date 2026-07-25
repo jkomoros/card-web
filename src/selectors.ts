@@ -879,7 +879,11 @@ export const selectEditingNormalizedCard = (state : State) : ProcessedCard | und
 			// concept map as a lookup after tokenizing the card; attaching every
 			// concept as importantNgrams here makes semantic word counting scan
 			// the full concept set against the editing text.
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, {}, {});
+			//Full enrichment (concepts + synonyms), exactly like master: this
+			//only re-runs on the ~1s extraction-version debounce, never per
+			//keystroke, and empty maps made similar-card ranking and semantic
+			//word counts diverge from the saved card's (regression sweep).
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, selectConcepts(state), selectSynonymMap(state));
 		} else {
 			memoizedEditingNormalizedCard = undefined;
 		}
@@ -907,15 +911,20 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 export const selectEditingCardForDisplay = createSelector(
 	selectEditingCard,
 	selectActiveCard,
-	(editing, active) => {
+	selectEditingNormalizedCard,
+	(editing, active, normalized) => {
 		if (!editing) return null;
 		if (!active) return editing;
+		//Prefer the freshly normalized editing card's NLP (updated on the ~1s
+		//extraction debounce) so display-derived features track typing instead
+		//of freezing at the last save; the active card is only the fallback
+		//before the first normalization lands.
 		return {
 			...active,
 			...editing,
-			nlp: active.nlp,
-			importantNgrams: active.importantNgrams,
-			synonymMap: active.synonymMap
+			nlp: normalized?.nlp || active.nlp,
+			importantNgrams: normalized?.importantNgrams || active.importantNgrams,
+			synonymMap: normalized?.synonymMap || active.synonymMap
 		};
 	}
 );

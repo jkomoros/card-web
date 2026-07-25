@@ -37,6 +37,7 @@ import {
 	selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard,
 	selectExpandedInfoPanelReferenceBlocksForActiveCard,
 	selectIsEditing,
+	selectEditingNormalizedCard,
 	selectActiveCardEnriched,
 	selectCollectionConstructorArguments,
 	selectCardIDsUserMayEdit
@@ -365,7 +366,15 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			//Prefer computing the blocks in the corpus worker (off the UI
 			//thread) when it holds the corpus.
 			if (corpusWorkerCanRunCollections()) {
-				const card = selectActiveCardEnriched(freshState);
+				//While editing, derive the blocks from the live editing card —
+				//exactly like card-view's primary blocks — so similar/related
+				//content tracks what the user is typing instead of freezing at
+				//the card-as-opened. The editing card only changes identity on
+				//the 1s normalization debounce, so this adds no per-keystroke
+				//work.
+				const card = selectIsEditing(freshState)
+					? (selectEditingNormalizedCard(freshState) || selectActiveCardEnriched(freshState))
+					: selectActiveCardEnriched(freshState);
 				const cardID = card ? card.id : '';
 				expandReferenceBlocksViaRunner(
 					card,

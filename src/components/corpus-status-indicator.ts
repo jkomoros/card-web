@@ -153,7 +153,9 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._status = selectCorpusStatus(state);
 		this._message = selectCorpusStatusMessage(state);
-		this.toggleAttribute('data-quiet', this._status === 'live' || this._status === 'off');
+		//'loading' is quiet too: a labeled pill on every ordinary boot is
+		//noise — the floating indicator should speak only for degraded states.
+		this.toggleAttribute('data-quiet', this._status === 'live' || this._status === 'off' || this._status === 'loading');
 	}
 }
 
