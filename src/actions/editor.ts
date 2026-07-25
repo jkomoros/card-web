@@ -7,6 +7,7 @@ import {
 	selectPendingSlug,
 	selectIsEditing,
 	selectCardModificationPending,
+	selectCardSavesEligible,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
@@ -312,6 +313,13 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		//Silent refusal reads as a dead Edit button (regression sweep); the
 		//window is short, so tell the user why and what to do.
 		alert('A card save is still finishing. Wait a moment for the save indicator to clear, then try again.');
+		return;
+	}
+	if (!selectCardSavesEligible(state)) {
+		//Saves cannot commit until sync is live, so do not let an editing
+		//session start that could only end in a failed save. Boot windows are
+		//short; the Edit affordances are also disabled with this reason.
+		alert('Card sync is still verifying. Editing opens as soon as sync is live — usually a few seconds.');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {

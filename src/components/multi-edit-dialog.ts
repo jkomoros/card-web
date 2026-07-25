@@ -60,7 +60,8 @@ import {
 	selectTags,
 	selectMultiEditAddTODOEnablements,
 	selectMultiEditAddTODODisablements,
-	selectMultiEditPublished
+	selectMultiEditPublished,
+	selectCardSavesEligible,
 } from '../selectors.js';
 
 import {
@@ -118,6 +119,9 @@ import {
 class MultiEditDialog extends connect(store)(DialogElement) {
 	@state()
 		_unionReferencesCard: CardLike;
+
+	@state()
+		_saveEligible: boolean;
 
 	@state()
 		_intersectionReferencesCard: CardLike;
@@ -320,7 +324,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				</ul>
 			</details>
 			<div class='buttons'>
-				<button class='round' aria-label='Save changes' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible} title=${this._saveEligible ? 'Save changes' : 'Card sync is still verifying — saving opens when it is live'} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 			</div>
 		</div>`;
@@ -469,6 +473,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 
 	override stateChanged(state : State) {
+		this._saveEligible = selectCardSavesEligible(state);
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectMultiEditDialogOpen(state);
 		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.

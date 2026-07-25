@@ -64,6 +64,7 @@ import {
 } from './collection_description.js';
 
 import {
+	corpusWorkerOwnsCardIngestion,
 	corpusWorkerServesCollections
 } from './corpus-mode.js';
 
@@ -1964,6 +1965,21 @@ export const selectWorkerQueryCollectionReady = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectWorkerQueryCollectionResult,
 	(description, result) => Boolean(description && result && result.description === description.serialize())
+);
+
+//Reactive twin of the durable executor's save-eligibility gate: card saves
+//need a base the executor can trust — the server-verified 'live' corpus in
+//worker mode, or data-fully-loaded in the main-thread listener modes. UI
+//affordances use this to make saves UN-ATTEMPTABLE (disabled with a reason)
+//during the window instead of letting the user try and fail.
+export const selectCardSavesEligible = createSelector(
+	selectCorpusStatus,
+	selectDataIsFullyLoaded,
+	(corpusStatus, dataFullyLoaded) => {
+		if (corpusStatus === 'live') return true;
+		if (!corpusWorkerOwnsCardIngestion()) return dataFullyLoaded;
+		return false;
+	}
 );
 
 export const selectFindSearchPreparing = createSelector(

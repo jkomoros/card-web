@@ -54,6 +54,7 @@ import {
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
 	selectCardModificationPending,
+	selectCardSavesEligible,
 	selectWorkerActiveCollectionReady,
 } from '../selectors.js';
 
@@ -372,6 +373,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_collectionUpdating: boolean;
+
+	@state()
+		_saveEligible: boolean;
 	_lastReadyCollection: Collection | null = null;
 	_collectionUpdatingTimeout = 0;
 
@@ -673,7 +677,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
 					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
 					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${PSYCHOLOGY_ICON}</button>
-					<button class='round' data-testid='edit-card' aria-label='Edit card (E)' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'Resolve the current saved operation before editing another card' : 'Edit card (E)'} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					<button class='round' data-testid='edit-card' aria-label='Edit card (E)' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'Resolve the current saved operation before editing another card' : !this._saveEligible ? 'Card sync is still verifying — editing opens when it is live' : 'Edit card (E)'} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending || !this._saveEligible} ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 				</div>
 				<div slot='actions' class='next-prev'>
 					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
@@ -1006,6 +1010,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : selectActiveCardEnriched(state);
 		this._pageExtra = state.app.pageExtra;
 		this._cardModificationsPending = selectCardModificationPending(state);
+		this._saveEligible = selectCardSavesEligible(state);
 		this._durableCardMutationPending = durableCardMutationPending();
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
