@@ -1331,6 +1331,17 @@ describe('Compendium Rules', () => {
 		}));
 	});
 
+	it('TRIPWIRE: the staged inbound-reference carve-out must be tightened (or this date consciously extended) by 2026-09-15', () => {
+		//The watermark's soundness window stays open until the two STAGED
+		//tests below flip to assertFails (prod-cutover runbook Phase 6). A
+		//manual runbook step with no mechanical reminder already shipped one
+		//silent ordering bug on this branch; this test is the reminder. If
+		//the cutover is legitimately delayed, extend the date in the same
+		//commit that records why.
+		assert.ok(Date.now() < Date.parse('2026-09-15T00:00:00Z'),
+			'The inbound-reference `updated` carve-out is still staged-open past its deadline: flip the STAGED tests to assertFails and deploy the tightened rules (docs/prod-cutover-runbook.md Phase 6), or consciously extend this date.');
+	});
+
 	it('allows updating inbound links without bumping updated (STAGED: flip to assertFails at prod cutover)', async() => {
 		//The rules keep `updated` OPTIONAL on this branch until the client
 		//that always sends it has fully shipped to prod (a rules-only deploy

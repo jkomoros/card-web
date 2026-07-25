@@ -212,6 +212,36 @@ describe('QueryEngine', () => {
 			}
 		});
 
+		it('recalls mid-typing prefixes and embedded words exactly like the substring-matching scorer', async () => {
+			const {SearchIndex} = await import('../../lib/src/worker/search-index.js');
+			const {queryTokensForText} = await import('../../lib/src/worker/query-engine.js');
+			const engine = new QueryEngine();
+			engine.updateCards(zebraCorpus(), []);
+			const index = new SearchIndex();
+			index.updateCard('card1', queryTokensForText('Zebra migration patterns'));
+			index.updateCard('card2', queryTokensForText('A zebra crossing story'));
+			index.updateCard('card3', queryTokensForText('Zebra keeper notes'));
+			engine.setSearchRecall(index, new Set());
+			//The scorer matches by SUBSTRING (nlp.ts indexOf); the narrowed path
+			//must not silently drop what a full scan finds. 'zebr' is a user
+			//mid-typing 'zebra' — the exact regression shipped in round 3.
+			for (const query of ['zebr', 'zebra', 'ebra', 'migrat', 'migra']) {
+				const description = `everything/query/${query}/`;
+				engine.setSearchRecall(null, null);
+				const full = engine.runCollection(description);
+				engine.setSearchRecall(index, new Set());
+				const narrowed = engine.runCollection(description);
+				assert.deepStrictEqual(narrowed, full, `narrowed must equal full scan for mid-typing query '${query}'`);
+				assert.ok(full.ids.length > 0, `sanity: '${query}' should match something in the full scan`);
+			}
+			//A token with no containing key must yield the same (empty-ish)
+			//result as the full scan, not a crash or a stale universe.
+			engine.setSearchRecall(null, null);
+			const fullMiss = engine.runCollection('everything/query/xylophone/');
+			engine.setSearchRecall(index, new Set());
+			assert.deepStrictEqual(engine.runCollection('everything/query/xylophone/'), fullMiss);
+		});
+
 		it('falls back to the full path for stop-word-only queries and non-query collections', async () => {
 			const {SearchIndex} = await import('../../lib/src/worker/search-index.js');
 			const engine = new QueryEngine();

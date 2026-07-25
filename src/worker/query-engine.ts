@@ -303,11 +303,12 @@ export class QueryEngine {
 		return Boolean(this._searchRecallIndex);
 	}
 
-	//Recall is sound because precision stays with PreparedQuery.cardScore: the
-	//narrowed universe only ever excludes cards that cannot score. It must be
-	//a SUPERSET of every card that could match: index candidates (any query
-	//token, union) plus every always-scan card plus this description's
-	//fallback/start cards (the Collection maps those through `cards`).
+	//Recall must be a SUPERSET of every card that could score. cardScore
+	//matches by SUBSTRING, so candidates come from substring containment over
+	//indexed unigrams (see SearchIndex.substringCandidates — exact-token
+	//union silently dropped mid-typing prefixes like 'zebr'), plus every
+	//always-scan card plus this description's fallback/start cards (the
+	//Collection maps those through `cards`).
 	_narrowedUniverseForQuery(description : CollectionDescription) : Set<CardID> | null {
 		if (!this._searchRecallIndex) return null;
 		if (description.set !== 'everything') return null;
@@ -321,7 +322,11 @@ export class QueryEngine {
 		const tokens = queryTokensForText(text);
 		//Stop-word-only/empty queries have no index signal; full scan.
 		if (!tokens.length) return null;
-		const universe = this._searchRecallIndex.candidatesUnion(tokens);
+		//Unigram words only: a spaceless query word cannot span stemmed-word
+		//boundaries, and bigram containment adds no recall beyond its words.
+		const words = tokens.filter(token => token.indexOf(' ') < 0);
+		if (!words.length) return null;
+		const universe = this._searchRecallIndex.substringCandidates(words);
 		if (this._searchRecallAlwaysScan) {
 			for (const id of this._searchRecallAlwaysScan) universe.add(id);
 		}

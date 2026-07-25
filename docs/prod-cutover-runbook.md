@@ -44,6 +44,17 @@ Do not start until ALL of these are true:
       content/metadata mutations must stamp `updated` with a server timestamp;
       every delete must atomically create its tombstone. Rule-bypassing Admin
       SDK scripts are part of the watermark correctness boundary.
+- [ ] **Search-recall NLP ordering (BEFORE any user's device cold-sweeps prod):**
+      run `tools/migrate-nlp-tokens.mjs` against prod so every card carries
+      `nlp_search_tokens` + `nlp_version` + `nlp_source_fingerprint`. Two
+      reasons this is a hard gate: (1) the migration deliberately does not
+      bump `updated`, so a device whose compact snapshot predates it never
+      receives tokens via delta — its find stays on the slow full-scan path
+      forever (the recall index bails at the 75% always-scan fraction);
+      (2) fingerprints make future admin content writes (e.g. `mount.ts`,
+      which now clears `nlp_version`/`nlp_source_fingerprint` on substantive
+      writes) demote cleanly instead of being silently indexed under stale
+      tokens. Spot-check afterward with `tools/verify-nlp-quick.mjs`.
 
 ## Phase 1 — Prod backup
 

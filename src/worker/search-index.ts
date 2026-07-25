@@ -115,4 +115,31 @@ export class SearchIndex {
 		}
 		return result;
 	}
+
+	//SUBSTRING union recall: cards with any indexed unigram CONTAINING any of
+	//the given words. This is the sound recall for PreparedQuery.cardScore,
+	//which matches by substring (nlp.ts stringPropertyScoreForStringSubQuery
+	//uses indexOf) — exact-token lookup silently drops mid-typing prefixes
+	//('zebr'), typos-with-matches, and words embedded in longer words. Any
+	//card that can score contains at least one non-stop query word as a
+	//substring of its stemmed text; a spaceless word lies within a single
+	//stemmed word, and every stemmed word of a tokenized card is a unigram
+	//posting — so scanning only unigram keys (bigram keys add no coverage:
+	//their constituent words are also unigram postings for the same cards)
+	//yields a true superset of every scorable tokenized card. An EMPTY result
+	//is therefore meaningful: no tokenized card can match.
+	substringCandidates(words : readonly string[]) : Set<CardID> {
+		const result = new Set<CardID>();
+		if (!words.length) return result;
+		for (const [token, posting] of this._postings) {
+			if (token.indexOf(' ') >= 0) continue;
+			for (const word of words) {
+				if (token.includes(word)) {
+					for (const id of posting) result.add(id);
+					break;
+				}
+			}
+		}
+		return result;
+	}
 }

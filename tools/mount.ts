@@ -713,6 +713,16 @@ const pushCardToFirestore = async (
 	const substantive = !!(diff.body || diff.title || diff.commentary);
 	if (substantive) {
 		cardUpdate.updated_substantive = FirebaseFirestore.FieldValue.serverTimestamp();
+		//This admin path rewrites scorable text WITHOUT regenerating the
+		//nlp_* fields, so the stored tokens/fingerprint no longer describe
+		//the content. Clear the currency markers: the worker's search-recall
+		//predicate and card-processing's fast path both demote a version-less
+		//card to the full (correct) slow path, instead of silently indexing
+		//or serving stale tokens. A subsequent client save regenerates all of
+		//it. (Leaving nlp_search_tokens in place is harmless: nothing trusts
+		//them without the version.)
+		(cardUpdate as Record<string, unknown>).nlp_version = FirebaseFirestore.FieldValue.delete();
+		(cardUpdate as Record<string, unknown>).nlp_source_fingerprint = FirebaseFirestore.FieldValue.delete();
 	}
 
 	//Build admin SDK sentinel config for resolving FieldValue sentinels.
