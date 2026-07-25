@@ -100,7 +100,17 @@ export const runInteractions = async (page, {keystrokes = 30} = {}) => {
 		await page.waitForFunction(() => { const s = window.DEBUG_STORE.getState(); return s.data && s.data.pendingModificationCount === 0; }, {timeout: 30000});
 		await page.waitForFunction(() => !localStorage.getItem('card-web-pending-multi-edit-v1'), {timeout: 30000});
 	})];
-	await page.waitForFunction(marker => window.PERF_HARNESS.activeRawCard().body.includes(marker), marker, {timeout: 10000});
+	//Sync point before the AUTHORITATIVE server-side assert (readEmulatorCardBody
+	//in run.js). This waits for the marker to appear in the client's raw cards
+	//via the worker-delivered echo — which is NOT the perceived-latency
+	//measurement (that is commitPerceivedWall, already captured) and is the
+	//worker's DELTA round trip. On the emulator that echo can be delayed many
+	//seconds behind the durable op's own completion (whose success is already
+	//proven above: pendingModificationCount hit 0 and the intent cleared),
+	//because the emulator has no cloud functions so the active card's
+	//similar-cards path storms CORS-blocked similarCards and contends the
+	//worker. A generous timeout keeps this a sync point, not a latency gate.
+	await page.waitForFunction(marker => window.PERF_HARNESS.activeRawCard().body.includes(marker), marker, {timeout: 60000});
 	const committedCard = await page.evaluate(() => window.PERF_HARNESS.activeRawCard());
 	if (committedCard.modificationError) throw new Error('commit reported modification error: ' + committedCard.modificationError);
 	if (committedCard.body === initialCard.body || !committedCard.body.includes(marker)) throw new Error('commit did not add the unique interaction marker');

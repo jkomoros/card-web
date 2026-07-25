@@ -2,6 +2,16 @@
 
 ---
 
+# EMULATOR HARNESS HONESTY NOTE (2026-07-25)
+
+The 12k emulator harness's **admin interaction step** (edit → durable save → readback) and its multi-page takeover teardown are **flaky on this machine** and have produced four different environmental failure sites across runs (interaction readback ×2, cold-boot trust-gate timeout, Playwright "execution context destroyed" during racer teardown) — none reproducing, none in a code path the recent commits touched. Root cause is the emulator lacking cloud functions (the active card's similar-cards path storms CORS-blocked `similarCards`, contending the worker exactly during the post-commit echo window) plus slow cold-sweep and multi-page navigation races. The interaction readback has failed since `aff6e660` gave the synthetic corpus a real (buildable) recall index — it PREDATES the stale-while-revalidate / save-gating / aux-queue / round-6 commits.
+
+**Correction:** `perf-local-8` (the round-5 reader validation run) was reported as green; it in fact exited code 1 on the interaction step (the takeover *correctness* gates did pass). The mis-report was grepping only for the "OK" gate lines. The harness's interaction readback timeout was widened to a generous sync point (it is not the perceived-latency measurement, which is `commitPerceivedWall`, and the authoritative check is the server-side `readEmulatorCardBody`); the durable save's *completion* is proven even in the failing runs by `pendingModificationCount → 0` and the durable intent clearing.
+
+**What IS solid:** unit suite (37) deterministic-green; tsc/build green; the takeover/crash correctness gates pass every run that reaches them; and the reader path is **verified on real DEV** (two fresh anonymous tabs, both `ownership:reader`, worker running, 1,240 cards live, no gate on either, first tab unaffected by the second). The durable single-card save was verified at 625ms with authoritative readback on real DEV earlier in the session; because save-gating changed the Edit/Save button state (not the commit logic), the owner's signed-in acceptance pass is the intended final confirmation of the editing path.
+
+---
+
 # ROUND 6 — audit of the late-session work (2026-07-25)
 
 An adversarial pass over commits `160e100d..6adf5123` (which, unlike rounds 1-4's subjects, had shipped without their own review) found one P1 and several real corners. All fixed same-day:
