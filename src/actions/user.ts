@@ -1,3 +1,84 @@
+//--- Durable auxiliary writes ----------------------------------------------
+//Executors for the aux-write queue. Each performs the SERVER side of a
+//star/read/reading-list change; the calling thunks build intents and hand
+//them to the queue, which persists them across reloads and replays them on
+//boot/reconnect. Star batches are atomic, so on replay the star doc's server
+//existence proves whether the counters already moved — the preflight makes
+//the non-idempotent increments replay-safe. getDocFromServer fails while
+//offline, which is exactly right: replay stops and retries on the next
+//trigger.
+
+const starRefsForIntent = (intent : AuxWriteIntent) => ({
+	cardRef: doc(db, CARDS_COLLECTION, intent.cardID),
+	starRef: doc(db, STARS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID)),
+});
+
+registerAuxWriteExecutor('star-add', async (intent, isReplay) => {
+	const {cardRef, starRef} = starRefsForIntent(intent);
+	if (isReplay && (await getDocFromServer(starRef)).exists()) return;
+	const batch = new MultiBatch(db);
+	//updated-invariant: exempt — cardEditMinor rules path; star counts are
+	//reader-driven and their drift is an accepted tradeoff.
+	batch.updateWithoutTimestampBump(cardRef, {
+		star_count: increment(1),
+		star_count_manual: increment(1),
+	});
+	batch.set(starRef, {
+		created: serverTimestamp(),
+		owner: intent.uid,
+		card: intent.cardID
+	});
+	await batch.commit();
+});
+
+registerAuxWriteExecutor('star-remove', async (intent, isReplay) => {
+	const {cardRef, starRef} = starRefsForIntent(intent);
+	if (isReplay && !(await getDocFromServer(starRef)).exists()) return;
+	const batch = new MultiBatch(db);
+	//updated-invariant: exempt — cardEditMinor rules path (see star-add).
+	batch.updateWithoutTimestampBump(cardRef, {
+		star_count: increment(-1),
+		star_count_manual: increment(-1),
+	});
+	batch.delete(starRef);
+	await batch.commit();
+});
+
+registerAuxWriteExecutor('read-add', async (intent) => {
+	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID));
+	const batch = new MultiBatch(db);
+	batch.set(readRef, {created: serverTimestamp(), owner: intent.uid, card: intent.cardID});
+	await batch.commit();
+});
+
+registerAuxWriteExecutor('read-remove', async (intent) => {
+	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID));
+	const batch = new MultiBatch(db);
+	batch.delete(readRef);
+	await batch.commit();
+});
+
+const readingListExecutor = (adding : boolean) => async (intent : AuxWriteIntent) => {
+	const batch = new MultiBatch(db);
+	const readingListRef = doc(db, READING_LISTS_COLLECTION, intent.uid);
+	//The audit key comes from the INTENT (captured at creation), so a replay
+	//overwrites its own audit doc instead of minting a duplicate.
+	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, intent.auditKey);
+	batch.set(readingListRef, {
+		cards: adding ? arrayUnion(intent.cardID) : arrayRemove(intent.cardID),
+		updated: serverTimestamp(),
+		owner: intent.uid,
+	}, {merge: true});
+	batch.set(readingListUpdateRef, {
+		timestamp: serverTimestamp(),
+		[adding ? 'add_card' : 'remove_card']: intent.cardID
+	});
+	await batch.commit();
+};
+
+registerAuxWriteExecutor('reading-list-add', readingListExecutor(true));
+registerAuxWriteExecutor('reading-list-remove', readingListExecutor(false));
+
 export const AUTO_MARK_READ_DELAY = 5000;
 
 import {
@@ -39,12 +120,21 @@ import {
 
 import {
 	doc,
+	getDocFromServer,
 	arrayUnion,
 	arrayRemove,
 	serverTimestamp,
 	increment,
 	FieldValue
 } from 'firebase/firestore';
+
+import {
+	registerAuxWriteExecutor,
+	makeAuxWriteIntent,
+	runDurableAuxWrite,
+	installAuxWriteReplayWatcher,
+	AuxWriteIntent
+} from '../aux-write-queue.js';
 
 import {
 	idForPersonalCardInfo
@@ -312,6 +402,9 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 	flagHasPreviousSignIn();
 	connectLivePermissions(firebaseUser.uid);
 	connectLiveStars(firebaseUser.uid);
+	//Replay any aux writes (stars/reads/reading-list) that were queued
+	//durably but never server-confirmed — e.g. made offline before a reload.
+	installAuxWriteReplayWatcher(() => firebaseUser.uid);
 	connectLiveReads(firebaseUser.uid);
 	connectLiveReadingList(firebaseUser.uid);
 };
@@ -384,26 +477,7 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	const batch = new MultiBatch(db);
-
-	const readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
-	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
-
-	const readingListObject = {
-		cards: arrayUnion(cardToAdd),
-		updated: serverTimestamp(),
-		owner: uid,
-	};
-
-	const readingListUpdateObject = {
-		timestamp: serverTimestamp(),
-		add_card: cardToAdd
-	};
-
-	batch.set(readingListRef, readingListObject, {merge:true});
-	batch.set(readingListUpdateRef, readingListUpdateObject);
-
-	batch.commit();
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, '' + Date.now()));
 };
 
 export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (_, getState) => {
@@ -427,26 +501,7 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	const batch = new MultiBatch(db);
-
-	const readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
-	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
-
-	const readingListObject = {
-		cards: arrayRemove(cardToRemove),
-		updated: serverTimestamp(),
-		owner: uid
-	};
-
-	const readingListUpdateObject = {
-		timestamp: serverTimestamp(),
-		remove_card: cardToRemove
-	};
-
-	batch.set(readingListRef, readingListObject, {merge:true});
-	batch.set(readingListUpdateRef, readingListUpdateObject);
-
-	batch.commit();
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, '' + Date.now()));
 };
 
 export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
@@ -471,22 +526,7 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getSt
 		return;
 	}
 
-	const cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
-	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
-
-	const batch = new MultiBatch(db);
-	//updated-invariant: exempt — cardEditMinor rules path; star counts are
-	//reader-driven and their drift is an accepted tradeoff.
-	batch.updateWithoutTimestampBump(cardRef, {
-		star_count: increment(1),
-		star_count_manual: increment(1),
-	});
-	batch.set(starRef, {
-		created: serverTimestamp(), 
-		owner: uid, 
-		card:cardToStar.id
-	});
-	batch.commit();
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', cardToStar.id));
 };
 
 export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
@@ -510,18 +550,7 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	const cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
-	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
-
-	const batch = new MultiBatch(db);
-	//updated-invariant: exempt — cardEditMinor rules path (see addStar).
-	batch.updateWithoutTimestampBump(cardRef, {
-		star_count: increment(-1),
-		star_count_manual: increment(-1),
-	});
-	batch.delete(starRef);
-	batch.commit();
-
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-remove', cardToStar.id));
 };
 
 export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
@@ -615,11 +644,7 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 		}
 	}
 
-	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkRead.id));
-
-	const batch = new MultiBatch(db);
-	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
-	batch.commit();
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', cardToMarkRead.id));
 };
 
 export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (_, getState) => {
@@ -651,10 +676,5 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 	//Just in case we were planning on setting this card as read.
 	cancelPendingAutoMarkRead();
 
-	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkUnread.id));
-
-	const batch = new MultiBatch(db);
-	batch.delete(readRef);
-	batch.commit();
-
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-remove', cardToMarkUnread.id));
 };

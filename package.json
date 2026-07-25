@@ -30,7 +30,7 @@
   "backup": "npx tsx tools/cli.ts backup",
   "reset-dev": "npx tsx tools/cli.ts reset-dev",
   "set-up-deploy": "npx tsx tools/cli.ts set-up-deploy",
-  "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:deferred-work && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:edit-recovery && npm run test:edit-draft && npm run test:durable-operation-recovery && npm run test:service-worker-update && npm run test:card-processing && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format && npm run test:corpus-snapshot && npm run test:query-engine && npm run test:search-recall && npm run test:subscription-manager && npm run test:worker-retry && npm run test:worker-fast-dedupe && npm run test:worker-listener-trust && npm run test:worker-published-removals && npm run test:similarity-retry && npm run test:ownership-lease && npm run test:corpus-readiness && npm run test:watermark && npm run test:cold-pace && npm run test:updated-invariant && npm run test:mutation-barrier && npm run test:perf-harness",
+  "test": "npm run test:security && npm run test:url && npm run test:relative-dates && npm run test:collection-navigation && npm run test:deferred-work && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath && npm run test:card-selection && npm run test:mount && npm run test:mount-roundtrip && npm run test:util && npm run test:shared-nlp && npm run test:reducers && npm run test:edit-recovery && npm run test:edit-draft && npm run test:durable-operation-recovery && npm run test:service-worker-update && npm run test:card-processing && npm run test:incremental-selectors && npm run test:collection && npm run test:search-index && npm run test:wire-format && npm run test:corpus-snapshot && npm run test:query-engine && npm run test:search-recall && npm run test:aux-write-queue && npm run test:subscription-manager && npm run test:worker-retry && npm run test:worker-fast-dedupe && npm run test:worker-listener-trust && npm run test:worker-published-removals && npm run test:similarity-retry && npm run test:ownership-lease && npm run test:corpus-readiness && npm run test:watermark && npm run test:cold-pace && npm run test:updated-invariant && npm run test:mutation-barrier && npm run test:perf-harness",
   "test:security": "npm run generate:config && npm run generate:seo:config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
   "test:security-impl": "mocha -r esm test/security --timeout=10000",
   "test:url": "mocha -r esm test/url --timeout=10000",
@@ -75,7 +75,8 @@
   "test:mutation": "stryker run",
   "perf:build": "npm run generate:config && npm run build",
   "perf:local": "npm run perf:build && firebase emulators:exec --only firestore,auth --config firebase.perf.json --project demo-perf \"node test/perf-harness/run.js --count 12000 --published-p 0.02 --auth admin --corpus-worker on --corpus-sync watermark --service-workers allow --load-timeout 300000 --test-takeover --assert\"",
-  "test:search-recall": "mocha -r esm test/search-recall --timeout=10000"
+  "test:search-recall": "mocha -r esm test/search-recall --timeout=10000",
+  "test:aux-write-queue": "mocha -r esm test/aux-write-queue --timeout=10000"
  },
  "dependencies": {
   "@anthropic-ai/sdk": "^0.39.0",

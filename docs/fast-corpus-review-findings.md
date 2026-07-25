@@ -2,6 +2,13 @@
 
 ---
 
+# POST-QUEUE ADDITIONS (owner-directed, 2026-07-25)
+
+- **Saves are now un-attemptable while sync verifies** (`a7427804`): `selectCardSavesEligible` disables the Edit affordances (button, `e` shortcut, double-click) with an explanation during the boot window, disables the editor's Save with "your draft is safe" messaging if sync drops mid-edit, and the multi-edit commit likewise. Commit-time guards remain as race backstops.
+- **Offline auxiliary writes are durable again (v1)**: stars, reads, and reading-list changes go through a localStorage-backed write-ahead queue (`src/aux-write-queue.ts`) — persist intent → attempt → clear on server ack; replay on boot (post-sign-in) and on `online`, strictly in order, skipping same-session in-flight intents (the SDK memory queue owns those). Replay safety: reads are idempotent; reading-list replays reuse the intent's original audit key; star batches are atomic so a server existence preflight on the star doc makes the counter increments replay-safe. Permanent failures (permission-denied) drop; corrupt records never wedge. This closes the offline regression vs master for the high-frequency aux writes; **offline comments remain a documented v2** (transactional, generated IDs).
+
+---
+
 # PRE-LAND QUEUE (owner-directed, 2026-07-25) — **ALL THREE ITEMS DONE**
 
 Item 3 done (`c4c8a5ec`): anonymous sessions bypass exclusive ownership — a
