@@ -184,3 +184,18 @@ describe('reader multi-tab (anonymous ownership bypass)', () => {
 			'only an ACTIVE owner may grant takeovers — reader tabs hold nothing to grant');
 	});
 });
+
+describe('sign-in propagation from an anonymous (reader) session', () => {
+	const user = fs.readFileSync(new URL('../../src/actions/user.ts', import.meta.url), 'utf8');
+
+	it('the anonymous link path dispatches signInSuccess itself', () => {
+		//linkWithPopup keeps the SAME uid, so onAuthStateChanged (the app's
+		//only sign-in propagation path, in user-chip) does not fire — the
+		//signed-in user did not change, only its providers did. Without an
+		//explicit dispatch the UI renders the anonymous session until a
+		//manual reload. This became reachable on every visit once anonymous
+		//sign-ins stopped setting the previous-sign-in marker (round 6).
+		assert.match(user, /const linked = await linkWithPopup\(user, provider\);[\s\S]{0,600}dispatch\(signInSuccess\(linked\.user\)\);/,
+			'a successful anonymous->Google link must propagate the new user to the store');
+	});
+});

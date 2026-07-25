@@ -269,7 +269,15 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 				console.warn('Unexpectedly didn\'t have user');
 				return;
 			}
-			await linkWithPopup(user, provider);
+			const linked = await linkWithPopup(user, provider);
+			//Linking Google onto the anonymous account keeps the SAME uid, so
+			//Firebase's onAuthStateChanged — the app's only sign-in
+			//propagation path (user-chip) — does not fire: the signed-in user
+			//did not change, only its providers did. Without this dispatch the
+			//UI keeps rendering the anonymous session until a manual reload.
+			//(Harmless if a future SDK does fire it: signInSuccess is
+			//idempotent — its listener connects all disconnect-then-connect.)
+			dispatch(signInSuccess(linked.user));
 		} else {
 			await signInWithPopup(auth, provider);
 		}
