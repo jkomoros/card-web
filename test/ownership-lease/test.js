@@ -147,12 +147,24 @@ describe('reader multi-tab (anonymous ownership bypass)', () => {
 	const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
 
 	it('anonymous fresh visitors bypass exclusive ownership entirely', () => {
-		assert.match(bridge, /readerConnectionParams = \(connection[\s\S]{0,200}!connection\.uid && !connection\.mayViewUnpublished/,
-			'v1 readers are anonymous sessions only');
+		//Round-6 audit: the original predicate required an EMPTY uid, but this
+		//deployment auto-signs every visitor in anonymously — so no visitor
+		//ever qualified and the reader path was dead code. Readerness must
+		//accept the anonymous-auth uid.
+		assert.match(bridge, /readerConnectionParams[\s\S]{0,500}selectUserIsAnonymous/,
+			'readers include anonymously-signed-in sessions, not just pre-auth empty uids');
+		assert.match(bridge, /if \(ownershipState !== 'active' && ownershipState !== 'reader'\) return;/,
+			"connectWorkerNow must admit the reader state — the original guard made the reader worker unspawnable (round-6 audit's Bug A)");
 		assert.match(bridge, /activateReaderConnection[\s\S]{0,400}configureMutationOwnership\(\(\) => true/,
 			'reader tabs must not fence user-scoped writes');
-		assert.match(bridge, /persist: corpusWorkerOwnsCardIngestion\(\) && \(ownershipState as OwnershipState\) !== 'reader'/,
+		assert.match(bridge, /persist: corpusWorkerOwnsCardIngestion\(\) && ownershipState !== 'reader'/,
 			'reader workers must never claim the persistent single-tab cache — that is what makes N tabs safe');
+	});
+
+	it('anonymous sign-ins clear the previous-sign-in marker instead of setting it', () => {
+		const user = fs.readFileSync(new URL('../../src/actions/user.ts', import.meta.url), 'utf8');
+		assert.match(user, /if \(firebaseUser\.isAnonymous\) clearHasPreviousSignIn\(\);\s*\n\s*else flagHasPreviousSignIn\(\);/,
+			'flagging anonymous sign-ins would make the reader path permanently unreachable');
 	});
 
 	it('previously-signed-in devices route straight to exclusive acquisition', () => {

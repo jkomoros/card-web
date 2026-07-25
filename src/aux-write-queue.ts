@@ -116,7 +116,11 @@ export const makeAuxWriteIntent = (uid : Uid, kind : AuxWriteKind, cardID : Card
 //dropped rather than replayed forever.
 const permanentFailure = (error : unknown) : boolean => {
 	const code = (error as {code? : string})?.code || '';
-	return code === 'permission-denied' || code === 'invalid-argument';
+	//not-found: the target card was deleted — a retry can never succeed, and
+	//because replay stops at the first transient failure, treating it as
+	//transient would head-of-line-block every later intent for the uid.
+	return code === 'permission-denied' || code === 'invalid-argument' ||
+		code === 'not-found' || code === 'failed-precondition';
 };
 
 //Persist the intent, then attempt it. On server ack the intent clears; on

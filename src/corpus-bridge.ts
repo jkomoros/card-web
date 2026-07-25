@@ -113,7 +113,8 @@ import {
 	selectTags,
 	selectExplicitlySelectedCardIDs,
 	selectTabCollectionFallbacks,
-	selectTabCollectionStartCards
+	selectTabCollectionStartCards,
+	selectUserIsAnonymous
 } from './selectors.js';
 
 import {
@@ -997,8 +998,12 @@ const recoverFromWorkerFailure = (reason : string) => {
 	console.warn(`[corpus-worker] unavailable (${reason})${workerRequired ? '; worker is required in on mode' : '; falling back to main-thread card listeners'}`);
 	clearWorkerStartupTimeout();
 	stopWorker();
-	void import('./actions/database.js').then(module => module.disconnectBackgroundDataForInactiveTab());
 	if (workerRequired) {
+		//Only the REQUIRED-worker branch goes inert: the fallback branch below
+		//needs the ambient listeners it is about to (re)connect, and the
+		//round-5 inert flag would otherwise no-op those reconnects, leaving a
+		//shadow/spike-mode tab with no card listeners at all (round-6 audit).
+		void import('./actions/database.js').then(module => module.disconnectBackgroundDataForInactiveTab());
 		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: 'Cards could not load because card sync failed. Reload to retry. If this continues, contact support.'});
 		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
 		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
@@ -1010,8 +1015,10 @@ const recoverFromWorkerFailure = (reason : string) => {
 	store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
 	//Dynamic import avoids making the database↔bridge dependency cycle eager.
 	//At this point corpusWorkerOwnsCardIngestion() is false, so these functions
-	//take their established main-thread paths.
+	//take their established main-thread paths. reconnect... clears a stale
+	//inert flag first (no-op if the tab was never made inert).
 	void import('./actions/database.js').then(database => {
+		database.reconnectBackgroundDataForActiveTab();
 		database.connectLivePublishedCards();
 		void database.connectLiveUnpublishedCards();
 	}).catch(error => console.error('[corpus-worker] fallback listeners failed:', error));
@@ -1160,7 +1167,10 @@ const finishTakeoverFailure = (message : string, status : 'contended' | 'ownersh
 };
 
 const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
-	if (ownershipState !== 'active') return;
+	//'active' owns the exclusive session; 'reader' is the anonymous
+	//multi-tab fast path (persist:false worker, nothing shared, nothing to
+	//fence). Every other state must not run a worker.
+	if (ownershipState !== 'active' && ownershipState !== 'reader') return;
 	if (!spawnWorker()) return;
 	//Both published and unpublished connect paths funnel here; don't tear
 	//down and reconnect when nothing changed.
@@ -1195,7 +1205,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	resetSubscriptionsForReconnect();
 	if (!connectSent) {
 		connectSent = true;
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion() && (ownershipState as OwnershipState) !== 'reader', syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion() && ownershipState !== 'reader', syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
@@ -1494,8 +1504,15 @@ const resetSubscriptionsForReconnect = () => {
 //Reader writes are user-scoped documents (stars/reads for anonymous users),
 //which are multi-tab-safe by construction; card writes are impossible
 //server-side for anonymous users, so the corpus fence has nothing to guard.
-const readerConnectionParams = (connection : {mayViewUnpublished : boolean, uid : string} | null) : boolean =>
-	Boolean(connection && !connection.uid && !connection.mayViewUnpublished);
+const readerConnectionParams = (connection : {mayViewUnpublished : boolean, uid : string} | null) : boolean => {
+	if (!connection || connection.mayViewUnpublished) return false;
+	//Pre-auth boots have an empty uid; after the automatic anonymous sign-in
+	//the uid is non-empty but the session is still a reader. Without the
+	//isAnonymous check every visitor 'upgraded' to exclusive ownership within
+	//a second of boot and the reader path was unreachable (round-6 audit).
+	if (!connection.uid) return true;
+	return Boolean(selectUserIsAnonymous(store.getState() as State));
+};
 
 //The first connect always arrives with anonymous params because auth hasn't
 //resolved yet. A device that has signed in before is about to become

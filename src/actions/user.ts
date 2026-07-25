@@ -157,11 +157,13 @@ import {
 import {
 	UserInfo,
 	Card,
-	CardID
+	CardID,
+	State
 } from '../types.js';
 
 import {
-	ThunkSomeAction
+	ThunkSomeAction,
+	store
 } from '../store.js';
 
 import {
@@ -323,6 +325,14 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	disconnectLivePermissions();
 };
 
+const clearHasPreviousSignIn = () => {
+	try {
+		localStorage.removeItem(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY);
+	} catch {
+		//Best effort.
+	}
+};
+
 const flagHasPreviousSignIn = () => {
 	//Safari in private mode will throw if you try to set
 	try {
@@ -399,12 +409,22 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 	dispatch(updateUserInfo(firebaseUser));
 
 	dispatch(saveUserInfo());
-	flagHasPreviousSignIn();
+	//The previous-sign-in marker routes the NEXT boot straight to exclusive
+	//ownership (skipping the reader fast path). Anonymous sign-ins must NOT
+	//set it — every visitor gets auto-signed-in anonymously, so flagging them
+	//would make the reader path permanently unreachable. An anonymous
+	//resolution instead CLEARS a stale marker: this device is currently an
+	//anonymous reader, whatever it was before.
+	if (firebaseUser.isAnonymous) clearHasPreviousSignIn();
+	else flagHasPreviousSignIn();
 	connectLivePermissions(firebaseUser.uid);
 	connectLiveStars(firebaseUser.uid);
 	//Replay any aux writes (stars/reads/reading-list) that were queued
 	//durably but never server-confirmed — e.g. made offline before a reload.
-	installAuxWriteReplayWatcher(() => firebaseUser.uid);
+	//The provider reads LIVE state so sign-out/account switches stop replays
+	//of the old uid's intents (a captured uid would replay them under the
+	//new auth and permanently drop them as permission-denied).
+	installAuxWriteReplayWatcher(() => selectUid(store.getState() as State));
 	connectLiveReads(firebaseUser.uid);
 	connectLiveReadingList(firebaseUser.uid);
 };

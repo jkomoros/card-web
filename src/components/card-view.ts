@@ -54,6 +54,7 @@ import {
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
 	selectCardModificationPending,
+	selectUid,
 	selectCardSavesEligible,
 	selectWorkerActiveCollectionReady,
 } from '../selectors.js';
@@ -378,6 +379,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_saveEligible: boolean;
 	_lastReadyCollection: Collection | null = null;
 	_collectionUpdatingTimeout = 0;
+	_lastCollectionScopeUid = '';
 
 	@state()
 		_renderOffset: number;
@@ -1049,6 +1051,15 @@ class CardView extends connect(store)(PageViewElement) {
 		//rather than blanking the list (the original wrong-then-right hazard
 		//was unlabeled stale content, not stale content per se).
 		const currentCollection = selectActiveCollection(state);
+		//A held stale collection must never survive an auth-scope change: on
+		//sign-out it could briefly keep rendering unpublished titles that the
+		//purge just removed from Redux.
+		const collectionScopeUid = selectUid(state);
+		if (collectionScopeUid !== this._lastCollectionScopeUid) {
+			this._lastCollectionScopeUid = collectionScopeUid;
+			this._lastReadyCollection = null;
+			this._collectionUpdating = false;
+		}
 		const activeCollectionReady = !corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state);
 		if (activeCollectionReady) {
 			this._collection = currentCollection;

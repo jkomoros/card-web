@@ -10,6 +10,7 @@ import {runInteractions} from './interactions.js';
 
 const args = process.argv.slice(2);
 const getArg = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
+const hasFlag = (n) => args.includes('--' + n);
 const count = parseInt(getArg('count', '40000'), 10);
 const seed = parseInt(getArg('seed', '1'), 10);
 //publishedP: forwarded to the seeder. Lower it to keep the published listener
@@ -18,6 +19,7 @@ const seed = parseInt(getArg('seed', '1'), 10);
 //can). Total corpus size is preserved; only the published/unpublished split.
 const publishedP = getArg('published-p', '');
 const authMode = getArg('auth', 'anon'); //'anon' | 'admin'
+const testReader = hasFlag('test-reader'); //anonymous multi-tab reader path: no gate, cards render, both tabs
 const projectId = getArg('project', 'demo-perf');
 //corpus-worker mode: 'off' (main-thread only, the OLD-shaped path) | 'shadow'
 //(worker ingests, UI still serves) | 'on' (worker owns ingestion AND serves the
@@ -109,16 +111,18 @@ const main = async () => {
 			try {
 				window.localStorage.setItem('firebase-emulator', 'localhost:8089');
 				window.localStorage.setItem('debug-perf', '1');
-				//Suppress the auto-anonymous-signin race (src/actions/user.ts:213-217).
+				//Suppress the auto-anonymous-signin race (src/actions/user.ts:213-217)
+				//— EXCEPT in the reader scenario, whose whole point is booting the
+				//way a fresh anonymous visitor does (no marker → reader path).
 				//KEY is 'hasPreviousSignIn' (LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY, src/constants.ts).
-				window.localStorage.setItem('hasPreviousSignIn', '1');
+				if (!cfg.testReader) window.localStorage.setItem('hasPreviousSignIn', '1');
 				//corpus-worker/corpus-sync are read pre-boot by src/corpus-mode.ts.
 				//The worker inherits the emulator target via the connect message
 				//(it has no localStorage) — see src/corpus-bridge.ts.
 				window.localStorage.setItem('corpus-worker', cfg.workerMode);
 				if (cfg.syncMode) window.localStorage.setItem('corpus-sync', cfg.syncMode);
 			} catch { /* noop */ }
-		}, {workerMode, syncMode});
+		}, {workerMode, syncMode, testReader});
 
 		let page = await context.newPage();
 		let takeoverScenariosPassed = false;
@@ -142,6 +146,43 @@ const main = async () => {
 
 		await page.goto(URL, {waitUntil: 'domcontentloaded'});
 		await page.waitForFunction(() => Boolean(window.PERF_HARNESS), {timeout: 30000});
+
+		if (testReader) {
+			//READER MULTI-TAB: a fresh anonymous visitor (no previous-sign-in
+			//marker) must get cards in EVERY tab with no ownership gate. This
+			//is the scenario whose absence let a nonfunctional reader path ship
+			//with green tests (round-6 audit): the worker-spawn guard rejected
+			//the reader state, and the auto-anonymous sign-in disqualified
+			//every visitor from readerness — two bugs that canceled into
+			//"looks fine" everywhere except an actual fresh anonymous boot.
+			const expectReaderCards = Math.max(1, Math.floor(count * (publishedP ? parseFloat(publishedP) : 0.05) * 0.5));
+			const readerState = async (somePage) => somePage.evaluate(() => ({
+				gateOpen: (() => {
+					const app = document.querySelector('card-web-app');
+					const gate = app && app.shadowRoot && app.shadowRoot.querySelector('corpus-ownership-gate');
+					return Boolean(gate && gate.hasAttribute('open'));
+				})(),
+			}));
+			await waitForCorpus(page, {minCards: expectReaderCards, timeoutMs: loadTimeoutMs});
+			const tabA = await readerState(page);
+			if (tabA.gateOpen) throw new Error('READER FAILED: first anonymous tab is gated');
+			const readerB = await context.newPage();
+			readerB.on('console', m => { if (m.type() === 'error') console.log('  [reader-b ' + m.type() + '] ' + m.text().slice(0, 200)); });
+			await readerB.goto(URL, {waitUntil: 'domcontentloaded'});
+			await readerB.waitForFunction(() => Boolean(window.PERF_HARNESS), {timeout: 30000});
+			await waitForCorpus(readerB, {minCards: expectReaderCards, timeoutMs: loadTimeoutMs});
+			//Give ownership resolution time to (wrongly) raise a gate.
+			await readerB.waitForTimeout(6000);
+			const tabB = await readerState(readerB);
+			if (tabB.gateOpen) throw new Error('READER FAILED: second anonymous tab is gated — reader path not active');
+			//And the FIRST tab must be unaffected by the second one existing.
+			const tabAAfter = await readerState(page);
+			if (tabAAfter.gateOpen) throw new Error('READER FAILED: first tab became gated after a second tab opened');
+			await readerB.close();
+			console.log('[run] READER MULTI-TAB OK: two anonymous tabs, cards in both, no gate');
+			await browser.close();
+			return;
+		}
 
 		if (authMode === 'admin') {
 			const signed = await page.evaluate(() => window.PERF_HARNESS.signInAsAdmin('perf-admin'));
