@@ -2,9 +2,22 @@
 
 ---
 
-# PRE-LAND QUEUE (owner-directed, 2026-07-25)
+# PRE-LAND QUEUE (owner-directed, 2026-07-25) — **ALL THREE ITEMS DONE**
 
-Remaining owner-requested work before merge, in order:
+Item 3 done (`c4c8a5ec`): anonymous sessions bypass exclusive ownership — a
+fresh anonymous boot runs a reader connection (no lock/lease/heartbeat,
+worker persist:false so N tabs share nothing); `hasPreviousSignIn` devices
+route straight to exclusive acquisition; a reader that signs in privileged
+restarts the worker through normal acquisition. Signed-in sessions keep
+single-tab in v1 (extension: treat signed-in non-editors as readers too —
+needs an edit-capability signal at connect time). Validated by the full
+suite + the 12k harness, whose anonymous-boot→admin-sign-in flow now
+exercises the upgrade path before all five takeover scenarios. **Remaining
+manual check (owner):** open two INCOGNITO tabs of DEV and confirm both read
+freely with no gate — the review environment's profile is signed-in, so the
+pure reader path could not be live-driven from here.
+
+Original queue for the record:
 
 > **Items 1 and 2 are DONE (2026-07-25):** suggested-tags are now computed in
 > the corpus worker (`engine.suggestTags` — same algorithm as master's
