@@ -5,7 +5,7 @@ import {isDeepStrictEqual} from 'util';
 import {chromium} from 'playwright';
 import {initializeApp} from 'firebase-admin/app';
 import {getFirestore, FieldValue} from 'firebase-admin/firestore';
-import {waitForCorpus, waitForWorkerIdle} from './page-agent.js';
+import {waitForCorpus, waitForWorkerIdle, waitForSearchRecallReady} from './page-agent.js';
 import {runInteractions} from './interactions.js';
 
 const args = process.argv.slice(2);
@@ -539,6 +539,15 @@ const main = async () => {
 
 		//The Appendix-A interaction script needs an editable card (admin).
 		if (authMode === 'admin') {
+			//Let the background recall build finish first: on the emulator its
+			//worker contention (plus CORS-failing similarity retries) otherwise
+			//delays the just-committed card's echo past the readback window —
+			//a measurement artifact, not a product latency (real infra doesn't
+			//race a cold 28s index build during the same interaction).
+			const recallReady = await waitForSearchRecallReady(page);
+			if (!recallReady.ready) console.log('[run] WARN: search recall not ready before interactions; timings may be noisy');
+			const idleBeforeInteractions = await waitForWorkerIdle(page);
+			if (!idleBeforeInteractions.idle) console.log('[run] WARN: worker not idle before interactions');
 			const results = await runInteractions(page, {keystrokes: 30}).catch(e => {
 				console.log('[run] interactions failed. url=' + page.url() + '\ntail:\n' + consoleMsgs.slice(-18).join('\n'));
 				throw e;

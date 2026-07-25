@@ -97,6 +97,28 @@ export const waitForWorkerIdle = async (page, {idleMs = 5000, timeoutMs = 120000
 	return {idle: false, sawActivity, sig: lastSig, waitedMs: Date.now() - start};
 };
 
+//Wait for the worker's background search-recall index build to finish. That
+//build (chunked, ~28s on the 12k emulator corpus) does not surface as a
+//runCollection/collectionPush in waitForWorkerIdle, but it competes for the
+//worker event loop and — combined with CORS-failing similarity retries in
+//the emulator — can delay a just-committed card's echo past the interaction
+//script's readback window. Settling on it first makes the interaction
+//timings attributable and non-flaky.
+export const waitForSearchRecallReady = async (page, {timeoutMs = 120000, pollMs = 1000} = {}) => {
+	const start = Date.now();
+	while (Date.now() - start < timeoutMs) {
+		const state = await page.evaluate(() => {
+			const recall = window.DEBUG_STORE && window.DEBUG_STORE.getState().find ? window.DEBUG_STORE.getState().find.searchRecall : null;
+			//No worker-served collections (off/fallback modes) => nothing to wait for.
+			const serves = window.CORPUS_WORKER && window.CORPUS_WORKER.mode && window.CORPUS_WORKER.mode() === 'on';
+			return {ready: recall ? recall.ready : null, serves};
+		});
+		if (!state.serves || state.ready === true) return {ready: true, waitedMs: Date.now() - start};
+		await page.waitForTimeout(pollMs);
+	}
+	return {ready: false, waitedMs: Date.now() - start};
+};
+
 //Signs in against the Auth emulator with an unsigned Firebase CUSTOM token
 //through the app's OWN served firebase module. Unlike a Google-IdP credential
 //(which mints a random uid), a custom token's `uid` claim BECOMES the user's
