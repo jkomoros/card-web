@@ -1338,8 +1338,9 @@ describe('Compendium Rules', () => {
 		//silent ordering bug on this branch; this test is the reminder. If
 		//the cutover is legitimately delayed, extend the date in the same
 		//commit that records why.
-		assert.ok(Date.now() < Date.parse('2026-09-15T00:00:00Z'),
-			'The inbound-reference `updated` carve-out is still staged-open past its deadline: flip the STAGED tests to assertFails and deploy the tightened rules (docs/prod-cutover-runbook.md Phase 6), or consciously extend this date.');
+		if (Date.now() >= Date.parse('2026-09-15T00:00:00Z')) {
+			throw new Error('The inbound-reference `updated` carve-out is still staged-open past its deadline: flip the STAGED tests to assertFails and deploy the tightened rules (docs/prod-cutover-runbook.md Phase 6), or consciously extend this date.');
+		}
 	});
 
 	it('allows updating inbound links without bumping updated (STAGED: flip to assertFails at prod cutover)', async() => {

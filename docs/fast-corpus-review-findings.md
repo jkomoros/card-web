@@ -2,6 +2,17 @@
 
 ---
 
+# ROUND 4 — adversarial prosecution of the "ready" verdict (2026-07-25)
+
+A deliberate prosecution pass against the sign-off found one reproduced P0 in the round-3 code itself plus two must-fix operational gaps. All fixed in `a08e8b08`+:
+
+- **P0 (reproduced, fixed): prefix queries returned ~zero results under narrowing.** `PreparedQuery.cardScore` matches by **substring** (`nlp.ts` `indexOf`); the recall index looked up **exact tokens** — so 'zebr' (mid-typing 'zebra') narrowed to nothing while a full scan found everything, non-monotonically as the user typed. The round-3 "bit-identical" claim was false for non-whole-word queries and its tests only used whole words. Fix: recall now unions postings of every indexed **unigram containing** any query word (`SearchIndex.substringCandidates`) — a proven superset of every scorable tokenized card (a spaceless query word cannot span stemmed-word boundaries; every stemmed word of a tokenized card is a unigram posting). Equivalence tests now cover prefixes, embedded words, and no-match queries; the prosecution's repro script passes.
+- **mount.ts stale-token indexing (fixed):** `tools/mount.ts` rewrites title/body/commentary via admin SDK without regenerating nlp fields; under the relaxed fingerprint predicate such cards would be silently indexed under stale tokens (permanent cross-device search misses for the new text). Substantive mount writes now delete `nlp_version`/`nlp_source_fingerprint`, demoting the card to the correct always-scan/slow path until a real client save regenerates everything.
+- **Cutover ordering + tripwire (added):** runbook Phase 0 gains a hard gate — run `tools/migrate-nlp-tokens.mjs` on prod **before** any user device cold-sweeps (devices whose snapshots predate it would stay on slow full-scan find forever, and absent fingerprints keep admin drift undetectable). A dated TRIPWIRE test in `test/security` fails after **2026-09-15** if the staged inbound-reference rules carve-out (the open watermark-soundness window) has not been flipped to `assertFails` — the manual runbook step now has a mechanical reminder. The same fingerprint backfill is being run against DEV.
+- **Prosecution findings adjudicated as accepted debt (recorded, not fixed):** offline behavior is a real regression vs master for *auxiliary* writes (stars/reads/comments now sit on a memory cache and are lost on offline reload; master queued them durably) and warm-offline privileged boot renders empty behind the trust gate — accepted because master's 40MB LRU cache made warm-offline largely fictional at 40k scale and card saves proper became *more* durable; single-tab blocking remains a deliberate, well-mitigated UX regression; the contended-at-boot listener leak, bulk-tag deleted-target wedge, null-lease resurrection, and dual-`forceOwnership` overlap remain catalogued P3 debt. The prosecution *dropped* the synonym-drift and backport-staleness attacks as non-classes after code contact.
+
+---
+
 # ROUND 3 — find performance: search-recall narrowing (2026-07-25)
 
 The one criterion still failing after round 2.5 was find latency: every keystroke ran `PreparedQuery.cardScore` over the whole 40k corpus (multi-second steady state; the first query also paid full lazy processing). A design critique established that prewarming caches would only shrink the first query while charging ~200MB to every session, and that the codebase already contained the intended fix, designed but unwired: `SearchIndex` recall pre-narrowing.
