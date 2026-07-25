@@ -36,7 +36,8 @@ import {
 } from '../../shared/types.js';
 
 import {
-	functions
+	functions,
+	EMULATOR_TARGET
 } from '../firebase.js';
 
 import {
@@ -128,8 +129,23 @@ const editingCardVersion = (card : Card) : number => {
 	return result;
 };
 
+//PERF HARNESS ONLY: the Firestore emulator has no deployed cloud functions,
+//so every similarCards call fails CORS. Left alone, each demand burns
+//MAX_CONSECUTIVE_TRANSPORT_ERRORS network attempts with exponential backoff
+//while the similar-cards reference block sits in preview — tens of seconds
+//of worker contention that made the harness's post-commit measurements
+//nondeterministic. Settle immediately with the same terminal empty-result
+//sentinel the give-up path produces, so the fingerprint fallback renders at
+//once. Never true in dev/prod: EMULATOR_TARGET comes from the
+//`firebase-emulator` localStorage flag the harness sets.
+const similarityUnavailable = Boolean(EMULATOR_TARGET);
+
 const fetchSimilarCards = (cardID : CardID, lastUpdated : MillisecondsSinceEpoch, dispatch : (action : unknown) => unknown) => {
 	let consecutiveTransportErrors = 0;
+	if (similarityUnavailable) {
+		dispatch({type: UPDATE_CARD_SIMILARITY, card_id: cardID, similarity: {}});
+		return;
+	}
 	retryCoordinator.request(cardID, lastUpdated, async (_, isCurrent) : Promise<SimilarityRetryOutcome> => {
 		let result : SimilarCardsResponseData;
 		try {
@@ -224,6 +240,12 @@ if (typeof window !== 'undefined') {
 }
 
 const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknown) => unknown) => {
+	//PERF HARNESS ONLY: see similarityUnavailable above — the editing-card
+	//variant storms the same unreachable endpoint while the user types.
+	if (similarityUnavailable) {
+		dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}});
+		return;
+	}
 	const embeddableCard = pickEmbeddableCard(card);
 	let consecutiveTransportErrors = 0;
 	editingRetryCoordinator.request(card.id, editingCardVersion(card), async (_, isCurrent) : Promise<SimilarityRetryOutcome> => {

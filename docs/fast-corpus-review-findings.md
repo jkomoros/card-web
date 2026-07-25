@@ -2,6 +2,22 @@
 
 ---
 
+# EMULATOR HARNESS: FLAKINESS ROOT-CAUSED AND FIXED (2026-07-25)
+
+**Resolved.** The emulator has no deployed cloud functions, so every
+`similarCards` demand burned three CORS-failing network retries with
+exponential backoff while the similar-cards reference block sat in preview —
+tens of seconds of worker contention landing exactly on the post-commit echo
+window. `src/actions/similarity.ts` now settles both similarity paths
+immediately with the same terminal empty-result sentinel the give-up path
+produces, gated on the perf-harness-only `EMULATOR_TARGET` flag (never true
+in dev/prod). **Two consecutive full `--test-takeover --assert` runs then
+passed end-to-end, exit 0, all seven gates each, zero failures** — the
+interaction step included, which had been failing since `aff6e660`. Only the
+known advisory warm-boot budget breach remains (emulator-slow; non-blocking).
+
+The honesty note below stands as the record of what was mis-reported.
+
 # EMULATOR HARNESS HONESTY NOTE (2026-07-25)
 
 The 12k emulator harness's **admin interaction step** (edit → durable save → readback) and its multi-page takeover teardown are **flaky on this machine** and have produced four different environmental failure sites across runs (interaction readback ×2, cold-boot trust-gate timeout, Playwright "execution context destroyed" during racer teardown) — none reproducing, none in a code path the recent commits touched. Root cause is the emulator lacking cloud functions (the active card's similar-cards path storms CORS-blocked `similarCards`, contending the worker exactly during the post-commit echo window) plus slow cold-sweep and multi-page navigation races. The interaction readback has failed since `aff6e660` gave the synthetic corpus a real (buildable) recall index — it PREDATES the stale-while-revalidate / save-gating / aux-queue / round-6 commits.
