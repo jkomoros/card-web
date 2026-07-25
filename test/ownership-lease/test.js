@@ -142,3 +142,33 @@ describe('pre-land debt fixes (round 5)', () => {
 			'the wedge-forever error must be gone from the missing-target path');
 	});
 });
+
+describe('reader multi-tab (anonymous ownership bypass)', () => {
+	const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
+
+	it('anonymous fresh visitors bypass exclusive ownership entirely', () => {
+		assert.match(bridge, /readerConnectionParams = \(connection[\s\S]{0,200}!connection\.uid && !connection\.mayViewUnpublished/,
+			'v1 readers are anonymous sessions only');
+		assert.match(bridge, /activateReaderConnection[\s\S]{0,400}configureMutationOwnership\(\(\) => true/,
+			'reader tabs must not fence user-scoped writes');
+		assert.match(bridge, /persist: corpusWorkerOwnsCardIngestion\(\) && \(ownershipState as OwnershipState\) !== 'reader'/,
+			'reader workers must never claim the persistent single-tab cache — that is what makes N tabs safe');
+	});
+
+	it('previously-signed-in devices route straight to exclusive acquisition', () => {
+		assert.match(bridge, /probablyWillSignIn\(\)[\s\S]{0,120}beginInitialOwnership/,
+			'admin boots must not pay a throwaway reader worker');
+	});
+
+	it('a reader session that signs in privileged restarts the worker into owned mode', () => {
+		assert.match(bridge, /upgradeReaderToOwnedConnection[\s\S]{0,600}stopWorker\(\);[\s\S]{0,300}beginInitialOwnership/,
+			'persist mode cannot flip post-init; upgrade must restart the worker through real acquisition');
+		assert.match(bridge, /ownershipAcquisitionStarted = false;/,
+			'the acquisition guard must reset or the upgrade never acquires');
+	});
+
+	it('reader tabs ignore the ownership takeover protocol', () => {
+		assert.match(bridge, /message\.type === 'request' && ownershipState === 'active'/,
+			'only an ACTIVE owner may grant takeovers — reader tabs hold nothing to grant');
+	});
+});

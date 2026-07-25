@@ -187,7 +187,7 @@ const OWNERSHIP_HEARTBEAT_MS = 1000;
 const OWNERSHIP_STALE_MS = 5000;
 const OWNERSHIP_ELECTION_LOCK_NAME = 'corpus-worker-takeover-election';
 
-type OwnershipState = 'starting' | 'checking' | 'active' | 'contended' | 'takeover' | 'inactive' | 'unsupported' | 'ownership-error';
+type OwnershipState = 'starting' | 'checking' | 'active' | 'reader' | 'contended' | 'takeover' | 'inactive' | 'unsupported' | 'ownership-error';
 type OwnershipMessage = {
 	type : 'request' | 'grant' | 'ready' | 'deny' | 'released' | 'acquired',
 	requestID : string,
@@ -1195,7 +1195,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	resetSubscriptionsForReconnect();
 	if (!connectSent) {
 		connectSent = true;
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion(), syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion() && (ownershipState as OwnershipState) !== 'reader', syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
@@ -1486,6 +1486,58 @@ const resetSubscriptionsForReconnect = () => {
 //parameters. Called by src/actions/database.ts when the worker owns
 //ingestion, in exactly the places the main-thread listeners would otherwise
 //attach; also used by spike mode with default (published-only) parameters.
+//Reader sessions — v1: ANONYMOUS visitors — bypass exclusive ownership
+//entirely, restoring master's any-number-of-tabs posture for the public
+//site. Safe because a reader worker is published-cards-only with
+//persist:false (memory cache): it holds no privileged snapshot/sync-meta
+//stores and claims no Firestore persistence lease, so N tabs share nothing.
+//Reader writes are user-scoped documents (stars/reads for anonymous users),
+//which are multi-tab-safe by construction; card writes are impossible
+//server-side for anonymous users, so the corpus fence has nothing to guard.
+const readerConnectionParams = (connection : {mayViewUnpublished : boolean, uid : string} | null) : boolean =>
+	Boolean(connection && !connection.uid && !connection.mayViewUnpublished);
+
+//The first connect always arrives with anonymous params because auth hasn't
+//resolved yet. A device that has signed in before is about to become
+//privileged — taking the reader path would spawn a throwaway persist:false
+//worker (extra spawn + billed published reads) only to restart it a second
+//later. Route those devices straight to exclusive acquisition; genuinely
+//anonymous visitors (no marker) activate the reader path immediately.
+const probablyWillSignIn = () : boolean => {
+	try {
+		return localStorage.getItem('hasPreviousSignIn') === '1';
+	} catch {
+		return false;
+	}
+};
+
+const activateReaderConnection = () => {
+	allowMutations();
+	configureMutationOwnership(() => true, () => { /* no lease to refresh */ });
+	ownershipState = 'reader';
+	if (pendingConnection) connectWorkerNow(pendingConnection.mayViewUnpublished, pendingConnection.uid);
+};
+
+//A reader session that gains privileged params (sign-in as an editor/admin)
+//must join the exclusive-ownership world: the reader worker was spawned with
+//persist:false and cannot flip its Firestore cache mode post-init, so
+//restart the worker and run the normal acquisition (which may block behind
+//another owning tab — the correct UX for a fresh admin sign-in).
+const upgradeReaderToOwnedConnection = () => {
+	fenceMutations();
+	stopWorker();
+	connectSent = false;
+	generation++;
+	workerLoadComplete = false;
+	workerCorpusSize = 0;
+	lastSyncState = '';
+	pendingMassReconciliationSignature = '';
+	resetSubscriptionsForReconnect();
+	ownershipState = 'starting';
+	ownershipAcquisitionStarted = false;
+	void beginInitialOwnership();
+};
+
 export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : string) => {
 	pendingConnection = {mayViewUnpublished, uid};
 	if (!corpusWorkerOwnsCardIngestion()) {
@@ -1497,6 +1549,28 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	}
 	if (ownershipState === 'active') {
 		connectWorkerNow(mayViewUnpublished, uid);
+		return;
+	}
+	if (readerConnectionParams(pendingConnection)) {
+		if (ownershipState === 'reader') {
+			connectWorkerNow(mayViewUnpublished, uid);
+			return;
+		}
+		//Only a fresh boot may take the reader path; any other state means an
+		//exclusive acquisition is already in flight (or resolved) and reader
+		//params arriving later (e.g. sign-out) keep the existing machinery.
+		if (ownershipState === 'starting') {
+			if (probablyWillSignIn()) {
+				void beginInitialOwnership();
+				return;
+			}
+			activateReaderConnection();
+			return;
+		}
+		return;
+	}
+	if (ownershipState === 'reader') {
+		upgradeReaderToOwnedConnection();
 		return;
 	}
 	void beginInitialOwnership();
