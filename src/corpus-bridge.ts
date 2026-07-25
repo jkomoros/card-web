@@ -1522,7 +1522,11 @@ const readerConnectionParams = (connection : {mayViewUnpublished : boolean, uid 
 //anonymous visitors (no marker) activate the reader path immediately.
 const probablyWillSignIn = () : boolean => {
 	try {
-		return localStorage.getItem('hasPreviousSignIn') === '1';
+		//Only a REAL previous sign-in skips the reader path. The plain
+		//hasPreviousSignIn marker is also set by anonymous sign-ins (it guards
+		//the anonymous-signin loop), so keying on it would send every
+		//returning visitor down the exclusive path.
+		return localStorage.getItem('hasPreviousRealSignIn') === '1';
 	} catch {
 		return false;
 	}

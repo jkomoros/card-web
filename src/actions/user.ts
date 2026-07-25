@@ -196,7 +196,8 @@ import {
 } from '../actions.js';
 
 import {
-	LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY
+	LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY,
+	LOCAL_STORAGE_HAS_PREVIOUS_REAL_SIGN_IN_KEY
 } from '../constants.js';
 
 let prevAnonymousMergeUser : User | null = null;
@@ -333,11 +334,11 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	disconnectLivePermissions();
 };
 
-const clearHasPreviousSignIn = () => {
+const flagHasPreviousRealSignIn = () => {
 	try {
-		localStorage.removeItem(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY);
+		localStorage.setItem(LOCAL_STORAGE_HAS_PREVIOUS_REAL_SIGN_IN_KEY, '1');
 	} catch {
-		//Best effort.
+		//Best effort; reader routing degrades to the reader path.
 	}
 };
 
@@ -417,14 +418,15 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 	dispatch(updateUserInfo(firebaseUser));
 
 	dispatch(saveUserInfo());
-	//The previous-sign-in marker routes the NEXT boot straight to exclusive
-	//ownership (skipping the reader fast path). Anonymous sign-ins must NOT
-	//set it — every visitor gets auto-signed-in anonymously, so flagging them
-	//would make the reader path permanently unreachable. An anonymous
-	//resolution instead CLEARS a stale marker: this device is currently an
-	//anonymous reader, whatever it was before.
-	if (firebaseUser.isAnonymous) clearHasPreviousSignIn();
-	else flagHasPreviousSignIn();
+	//ALWAYS set, including for anonymous sign-ins: this marker's job is to
+	//stop signOutSuccess from calling signInAnonymously again on the next
+	//null-auth event. Clearing it for anonymous users (an earlier attempt to
+	//make the reader path reachable) removed that guard and let the popup
+	//sign-in flow mint anonymous users in a loop.
+	flagHasPreviousSignIn();
+	//Reader routing uses its OWN signal, set only by a real sign-in, so a
+	//device that has genuinely signed in skips the reader fast path.
+	if (!firebaseUser.isAnonymous) flagHasPreviousRealSignIn();
 	connectLivePermissions(firebaseUser.uid);
 	connectLiveStars(firebaseUser.uid);
 	//Replay any aux writes (stars/reads/reading-list) that were queued

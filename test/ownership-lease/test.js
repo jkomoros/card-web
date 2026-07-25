@@ -161,10 +161,23 @@ describe('reader multi-tab (anonymous ownership bypass)', () => {
 			'reader workers must never claim the persistent single-tab cache — that is what makes N tabs safe');
 	});
 
-	it('anonymous sign-ins clear the previous-sign-in marker instead of setting it', () => {
+	it('keeps the anonymous-signin loop guard while routing readers on a separate key', () => {
 		const user = fs.readFileSync(new URL('../../src/actions/user.ts', import.meta.url), 'utf8');
-		assert.match(user, /if \(firebaseUser\.isAnonymous\) clearHasPreviousSignIn\(\);\s*\n\s*else flagHasPreviousSignIn\(\);/,
-			'flagging anonymous sign-ins would make the reader path permanently unreachable');
+		const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
+		//hasPreviousSignIn exists to stop signOutSuccess from calling
+		//signInAnonymously again on the next null-auth event. An earlier
+		//attempt to make the reader path reachable CLEARED it for anonymous
+		//users — which removed that guard and let the sign-in popup flow mint
+		//anonymous users in a loop (owner-reported: sign-in reloaded and never
+		//reached Google). Reader routing gets its own signal instead.
+		assert.match(user, /\n\tflagHasPreviousSignIn\(\);/,
+			'the loop guard must be set unconditionally, including for anonymous sign-ins');
+		assert.ok(!user.includes('clearHasPreviousSignIn'),
+			'nothing may clear the anonymous-signin loop guard');
+		assert.match(user, /if \(!firebaseUser\.isAnonymous\) flagHasPreviousRealSignIn\(\);/,
+			'reader routing needs its own real-sign-in signal');
+		assert.match(bridge, /hasPreviousRealSignIn/,
+			'the bridge must route on the real-sign-in key, not the loop guard');
 	});
 
 	it('previously-signed-in devices route straight to exclusive acquisition', () => {

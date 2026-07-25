@@ -115,7 +115,14 @@ const main = async () => {
 				//— EXCEPT in the reader scenario, whose whole point is booting the
 				//way a fresh anonymous visitor does (no marker → reader path).
 				//KEY is 'hasPreviousSignIn' (LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY, src/constants.ts).
-				if (!cfg.testReader) window.localStorage.setItem('hasPreviousSignIn', '1');
+				if (!cfg.testReader) {
+					window.localStorage.setItem('hasPreviousSignIn', '1');
+					//Reader routing keys on its OWN flag (the plain marker also
+					//guards the anonymous-signin loop), so an admin run must set
+					//both or it boots into reader mode and spawns a throwaway
+					//persist:false worker before upgrading.
+					window.localStorage.setItem('hasPreviousRealSignIn', '1');
+				}
 				//corpus-worker/corpus-sync are read pre-boot by src/corpus-mode.ts.
 				//The worker inherits the emulator target via the connect message
 				//(it has no localStorage) — see src/corpus-bridge.ts.
