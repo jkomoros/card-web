@@ -6,6 +6,15 @@ import { repeat } from 'lit/directives/repeat.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+import {
+	corpusWorkerCanRunCollections,
+	corpusWorkerSuggestTags
+} from '../corpus-bridge.js';
+
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
@@ -30,6 +39,7 @@ import {
 	selectReasonsUserMayNotDeleteActiveCard,
 	selectCardModificationPending,
 	selectEditingCardSuggestedConceptReferences,
+	selectEditingCardSuggestedTags,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectOvershadowedUnderlyingCardChangesDiffDescription,
 	selectEditingCardHasUnsavedChanges,
@@ -947,11 +957,21 @@ class CardEditor extends connect(store)(LitElement) {
 		this._suggestionsTimeout = window.setTimeout(() => {
 			const latestState = store.getState() as State;
 			if (this._suggestionKeyForState(latestState) != key) return;
-			//Suggested-tag calculation fingerprints every card in every tag. At
-			//production corpus size that blocks the main thread for seconds, so it
-			//must not run from editor startup or typing. Keep this optional UI empty
-			//until suggestions are served by the corpus worker.
-			this._suggestedTags = [];
+			//Suggested-tag calculation fingerprints every card in every tag —
+			//seconds of stall at production corpus size, so it must never run
+			//on the UI thread in worker mode. The corpus worker computes it
+			//against its mirrored editing card instead; non-worker diagnostic
+			//modes fall back to the local selector (small corpora).
+			if (corpusWorkerCanRunCollections()) {
+				void corpusWorkerSuggestTags().then(tags => {
+					if (this._suggestionKeyForState(store.getState() as State) != key) return;
+					this._suggestedTags = tags || [];
+				});
+			} else if (!corpusWorkerServesCollections()) {
+				this._suggestedTags = selectEditingCardSuggestedTags(latestState);
+			} else {
+				this._suggestedTags = [];
+			}
 			this._suggestedConcepts = selectEditingCardSuggestedConceptReferences(latestState);
 			this._cardTagInfos = this._makeVisibleCardTagInfos(latestState, this._suggestedConcepts);
 			this._cardTagInfosForReferenceTypes = this._makeCardTagInfosForReferenceTypes();

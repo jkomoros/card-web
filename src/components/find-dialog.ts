@@ -5,6 +5,10 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
+
 import { DialogElement } from './dialog-element.js';
 
 import find from '../reducers/find.js';
@@ -54,6 +58,8 @@ import {
 	selectFindLinking,
 	selectFindSortByRecent,
 	selectFindSearchPreparing,
+	selectWorkerQueryCollectionReady,
+	selectIsEditing,
 	selectFindRenderOffset,
 	selectFindDialogOpen,
 } from '../selectors.js';
@@ -113,6 +119,11 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_searchPreparing: {built : number, total : number} | null;
+
+	@state()
+		_collectionUpdating: boolean;
+	_lastReadyCollection: Collection | null = null;
+	_collectionUpdatingTimeout = 0;
 
 	@state()
 		_renderOffset: number;
@@ -214,7 +225,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			</div>
 		</form>
 		${this._searchPreparing ? html`<div class='search-preparing'>Preparing search (${this._searchPreparing.built.toLocaleString()} of ${this._searchPreparing.total.toLocaleString()} cards indexed)…</div>` : ''}
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .updating=${this._collectionUpdating} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
@@ -381,7 +392,41 @@ class FindDialog extends connect(store)(DialogElement) {
 		this.mobile = state.app ? state.app.mobileMode : false;
 		this._query = state.find ? state.find.query : '';
 		//coalling the collection into being is expensive so only do it if we're open.
-		this._collection = this.open ? selectCollectionForQuery(state) : null;
+		//Stale-while-revalidate, mirroring card-view: while the worker's
+		//result for the CURRENT query hasn't arrived, keep the previous
+		//results visible; dim + label them after a short grace instead of
+		//blanking the list on every keystroke.
+		if (this.open) {
+			const current = selectCollectionForQuery(state);
+			const ready = !corpusWorkerServesCollections() || selectIsEditing(state) || selectWorkerQueryCollectionReady(state);
+			if (ready) {
+				this._collection = current;
+				this._lastReadyCollection = current;
+				this._collectionUpdating = false;
+				if (this._collectionUpdatingTimeout) {
+					window.clearTimeout(this._collectionUpdatingTimeout);
+					this._collectionUpdatingTimeout = 0;
+				}
+			} else if (this._lastReadyCollection) {
+				this._collection = this._lastReadyCollection;
+				if (!this._collectionUpdating && !this._collectionUpdatingTimeout) {
+					this._collectionUpdatingTimeout = window.setTimeout(() => {
+						this._collectionUpdatingTimeout = 0;
+						this._collectionUpdating = true;
+					}, 200);
+				}
+			} else {
+				this._collection = current;
+			}
+		} else {
+			this._collection = null;
+			this._lastReadyCollection = null;
+			this._collectionUpdating = false;
+			if (this._collectionUpdatingTimeout) {
+				window.clearTimeout(this._collectionUpdatingTimeout);
+				this._collectionUpdatingTimeout = 0;
+			}
+		}
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
 		this._renderOffset = selectFindRenderOffset(state);
 		this._linking = selectFindLinking(state);

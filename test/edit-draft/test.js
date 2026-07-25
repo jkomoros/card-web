@@ -58,13 +58,21 @@ describe('durable single-card editing', () => {
 		assert.ok(durable.includes('false, compactMultiEdit, false'));
 	});
 
-	it('does not start whole-corpus tag fingerprinting when the editor opens', () => {
+	it('does not start whole-corpus tag fingerprinting on the UI thread when the editor opens in worker mode', () => {
 		const editor = fs.readFileSync('src/components/card-editor.ts', 'utf8');
 		const scheduleStart = editor.lastIndexOf('_scheduleSuggestions(state');
 		const scheduleEnd = editor.indexOf('_makeVisibleCardTagInfos', scheduleStart);
 		const schedule = editor.slice(scheduleStart, scheduleEnd);
 		assert.ok(scheduleStart >= 0 && scheduleEnd > scheduleStart);
-		assert.ok(!schedule.includes('selectEditingCardSuggestedTags'));
+		//In worker mode, suggestions come from the corpus worker (off-thread);
+		//the local whole-corpus selector is reachable ONLY in the non-worker
+		//diagnostic fallback branch.
+		assert.match(schedule, /corpusWorkerCanRunCollections\(\)[\s\S]{0,200}corpusWorkerSuggestTags\(\)/,
+			'worker mode must request suggestions from the worker');
+		const localCallIndex = schedule.indexOf('selectEditingCardSuggestedTags(');
+		const fallbackGuardIndex = schedule.indexOf('!corpusWorkerServesCollections()');
+		assert.ok(localCallIndex >= 0 && fallbackGuardIndex >= 0 && fallbackGuardIndex < localCallIndex,
+			'the local selector may only run behind the non-worker fallback guard');
 		assert.ok(schedule.includes('selectEditingCardSuggestedConceptReferences'));
 	});
 

@@ -22,6 +22,7 @@ import {
 	UPDATE_STARS,
 	UPDATE_READS,
 	UPDATE_READING_LIST,
+	UPDATE_SERVER_IDF,
 	SELECT_CARDS,
 	SomeAction
 } from '../actions.js';
@@ -57,6 +58,14 @@ import {
 } from '../card-processing.js';
 
 import {
+	Fingerprint,
+	FingerprintGenerator,
+	conceptCardsFromCards,
+	getConceptsFromConceptCards,
+	synonymMap
+} from '../nlp.js';
+
+import {
 	computeDefaultSet,
 	makeEverythingSetFromCards
 } from '../set-projections.js';
@@ -65,6 +74,8 @@ import {
 	Cards,
 	CardBooleanMap,
 	CardID,
+	Tags,
+	ServerIDFData,
 	CollectionState,
 	CollectionConstructorArguments,
 	ProcessedCard,
@@ -117,6 +128,8 @@ export class QueryEngine {
 	_cards : Cards;
 	_collectionState : CollectionState;
 	_sections : Sections;
+	_tags : Tags;
+	_serverIDF : ServerIDFData | null;
 	_readingList : CardID[];
 	_fallbacks : SerializedDescriptionToCardList;
 	_startCards : SerializedDescriptionToCardList;
@@ -134,6 +147,8 @@ export class QueryEngine {
 		this._cards = {};
 		this._collectionState = INITIAL_STATE;
 		this._sections = {};
+		this._tags = {};
+		this._serverIDF = null;
 		this._readingList = [];
 		this._fallbacks = {};
 		this._startCards = {};
@@ -178,6 +193,8 @@ export class QueryEngine {
 		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_READING_LIST, list: hydration.readingList});
 		this._collectionState = collectionReducer(this._collectionState, {type: SELECT_CARDS, cards: hydration.selectedCardIDs});
 		this._sections = {...hydration.sections};
+		this._tags = {...hydration.tags};
+		this._serverIDF = hydration.serverIDF || null;
 		this._readingList = [...hydration.readingList];
 		this._setsForSections = null;
 		this._setsForReadingList = null;
@@ -193,6 +210,12 @@ export class QueryEngine {
 		this._collectionState = collectionReducer(this._collectionState, action);
 		if (action.type === UPDATE_SECTIONS) {
 			this._sections = {...this._sections, ...action.sections};
+		}
+		if (action.type === UPDATE_TAGS) {
+			this._tags = {...this._tags, ...action.tags};
+		}
+		if (action.type === UPDATE_SERVER_IDF) {
+			this._serverIDF = action.serverIDF || null;
 		}
 		if (action.type === UPDATE_READING_LIST) {
 			this._readingList = action.list;
@@ -344,6 +367,74 @@ export class QueryEngine {
 		this._editingCard = card;
 		this._editingCardSimilarity = similarity;
 		return true;
+	}
+
+	get editingCard() : ProcessedCard | null {
+		return this._editingCard;
+	}
+
+	//Memoized fingerprint machinery for tag suggestions. The generator is
+	//keyed on card/IDF/concept identity; the per-tag fingerprints additionally
+	//on tags identity. First build over the tagged subset of the corpus costs
+	//real time (seconds without a server IDF) — but it runs on the WORKER
+	//thread, which is the whole point: master computed this on the UI thread
+	//and stalled it for seconds at production scale.
+	_suggestGeneratorForCards : Cards | null = null;
+	_suggestGeneratorServerIDF : ServerIDFData | null = null;
+	_suggestGenerator : FingerprintGenerator | null = null;
+	_tagFingerprintsForTags : Tags | null = null;
+	_tagFingerprintsForCards : Cards | null = null;
+	_tagFingerprints : {[tagID : string] : Fingerprint} | null = null;
+
+	_ensureSuggestGenerator() : FingerprintGenerator {
+		if (this._suggestGenerator && this._suggestGeneratorForCards === this._cards && this._suggestGeneratorServerIDF === this._serverIDF) return this._suggestGenerator;
+		const processed = this._ensureProcessedCards();
+		const conceptCards = conceptCardsFromCards(this._cards);
+		const concepts = getConceptsFromConceptCards(conceptCards);
+		const synonyms = synonymMap(this._cards);
+		const idfMap = this._serverIDF && this._serverIDF.idf && typeof this._serverIDF.maxIDF === 'number'
+			? {idf: this._serverIDF.idf, maxIDF: this._serverIDF.maxIDF}
+			: null;
+		this._suggestGenerator = new FingerprintGenerator(processed, undefined, undefined, idfMap, concepts, synonyms);
+		this._suggestGeneratorForCards = this._cards;
+		this._suggestGeneratorServerIDF = this._serverIDF;
+		this._tagFingerprints = null;
+		return this._suggestGenerator;
+	}
+
+	_ensureTagFingerprints() : {[tagID : string] : Fingerprint} {
+		const generator = this._ensureSuggestGenerator();
+		if (this._tagFingerprints && this._tagFingerprintsForTags === this._tags && this._tagFingerprintsForCards === this._cards) return this._tagFingerprints;
+		const result : {[tagID : string] : Fingerprint} = {};
+		for (const [tagID, tag] of Object.entries(this._tags)) {
+			result[tagID] = generator.fingerprintForCardIDList(tag.cards || []);
+		}
+		this._tagFingerprints = result;
+		this._tagFingerprintsForTags = this._tags;
+		this._tagFingerprintsForCards = this._cards;
+		return result;
+	}
+
+	//Mirrors the main thread's selectEditingCardSuggestedTags exactly: rank
+	//tags by fingerprint overlap with the editing card, excluding tags the
+	//card already has. Returns [] when there is no editing card mirrored in.
+	suggestTags(count = 3) : CardID[] {
+		const card = this._editingCard;
+		if (!card || Object.keys(card).length === 0) return [];
+		const tagFingerprints = this._ensureTagFingerprints();
+		if (Object.keys(tagFingerprints).length === 0) return [];
+		const generator = this._ensureSuggestGenerator();
+		const cardFingerprint = generator.fingerprintForCardObj(card);
+		const closestTags = generator.closestOverlappingItems('', cardFingerprint, tagFingerprints);
+		if (closestTags.size === 0) return [];
+		const excludeIDs = new Set(card.tags || []);
+		const result : CardID[] = [];
+		for (const tagID of closestTags.keys()) {
+			if (excludeIDs.has(tagID)) continue;
+			result.push(tagID);
+			if (result.length >= count) break;
+		}
+		return result;
 	}
 
 	runCollection(serializedDescription : string, options : RunCollectionOptions = {}) : RunCollectionResult {

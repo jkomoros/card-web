@@ -2033,6 +2033,19 @@ workerScope.addEventListener('message', event => {
 	case 'spike':
 		spike();
 		break;
+	case 'suggestTags': {
+		const start = performance.now();
+		let tags : CardID[] = [];
+		try {
+			tags = engine.suggestTags(message.count);
+		} catch (e) {
+			status(`suggestTags failed (${String(e)})`);
+		}
+		const elapsed = performance.now() - start;
+		if (elapsed > 500) status(`tag suggestions computed in ${elapsed.toFixed(0)}ms (first call builds tag fingerprints; cached after)`);
+		send({type: 'suggestTagsResult', generation, id: message.id, tags});
+		break;
+	}
 	case 'query':
 		runQuery(message.id, message.text);
 		break;

@@ -257,6 +257,10 @@ const REFERENCE_BLOCKS_DEBOUNCE_MS = 250;
 //blocks compute within this bound of the FIRST deferral no matter how busy
 //the store is.
 const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
+//How long a collection may be worker-pending before the stale content dims
+//with the "updating" affordance. Below this, the previous collection shows
+//unlabeled — a bounded, sub-perceptual staleness that avoids flicker.
+const COLLECTION_UPDATING_GRACE_MS = 200;
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -365,6 +369,11 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_collectionIsFallback: boolean;
+
+	@state()
+		_collectionUpdating: boolean;
+	_lastReadyCollection: Collection | null = null;
+	_collectionUpdatingTimeout = 0;
 
 	@state()
 		_renderOffset: number;
@@ -537,6 +546,7 @@ class CardView extends connect(store)(PageViewElement) {
 				class='${this._cardsDrawerPanelShowing ? 'showing' : ''}'
 				.showing=${this._cardsDrawerPanelShowing}
 				.collection=${this._collection}
+				.updating=${this._collectionUpdating}
 				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
@@ -1026,7 +1036,36 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 
-		this._collection = selectActiveCollection(state);
+		//Stale-while-revalidate instead of honest-empty: when the worker
+		//hasn't pushed a result for the CURRENT description yet, keep showing
+		//the last ready collection. For fast pushes (the common case) the
+		//swap is invisible; if the wait exceeds a short grace the drawer dims
+		//with an "updating" affordance, so stale content is labeled stale
+		//rather than blanking the list (the original wrong-then-right hazard
+		//was unlabeled stale content, not stale content per se).
+		const currentCollection = selectActiveCollection(state);
+		const activeCollectionReady = !corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state);
+		if (activeCollectionReady) {
+			this._collection = currentCollection;
+			this._lastReadyCollection = currentCollection;
+			this._collectionUpdating = false;
+			if (this._collectionUpdatingTimeout) {
+				window.clearTimeout(this._collectionUpdatingTimeout);
+				this._collectionUpdatingTimeout = 0;
+			}
+		} else if (this._lastReadyCollection) {
+			this._collection = this._lastReadyCollection;
+			if (!this._collectionUpdating && !this._collectionUpdatingTimeout) {
+				this._collectionUpdatingTimeout = window.setTimeout(() => {
+					this._collectionUpdatingTimeout = 0;
+					this._collectionUpdating = true;
+				}, COLLECTION_UPDATING_GRACE_MS);
+			}
+		} else {
+			//Nothing ready yet this session: the existing loading placeholder
+			//path (dataIsFullyLoaded gating below) handles first paint.
+			this._collection = currentCollection;
+		}
 
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);

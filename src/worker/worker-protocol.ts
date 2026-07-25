@@ -15,6 +15,7 @@ import {
 	Filters,
 	ProcessedCard,
 	SerializedDescriptionToCardList,
+	ServerIDFData,
 	SortExtra,
 	Sections,
 	Tags
@@ -65,7 +66,8 @@ import {
 	UNSELECT_CARDS,
 	CLEAR_SELECTED_CARDS,
 	ECHO_LOCAL_CARD_MODIFICATIONS,
-	RECONCILE_CARDS_AFTER_FAILED_COMMIT
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT,
+	UPDATE_SERVER_IDF
 } from '../actions.js';
 
 //User-state actions forwarded verbatim (wire-encoded) from the main thread to
@@ -86,6 +88,7 @@ export const FORWARDED_ACTION_TYPES : {[actionType : string] : true} = {
 	[CLEAR_SELECTED_CARDS]: true,
 	[ECHO_LOCAL_CARD_MODIFICATIONS]: true,
 	[RECONCILE_CARDS_AFTER_FAILED_COMMIT]: true,
+	[UPDATE_SERVER_IDF]: true,
 };
 
 //A generation counter accompanies every worker→main message. The bridge bumps
@@ -99,7 +102,12 @@ export type CollectionStateHydration = {
 	starredCardIDs : CardID[],
 	readCardIDs : CardID[],
 	readingList : CardID[],
-	selectedCardIDs : CardID[]
+	selectedCardIDs : CardID[],
+	//Server-computed IDF so worker-side fingerprinting (tag suggestions)
+	//skips the multi-second local IDF derivation. Optional: absent on
+	//projects without the IDF function; the worker falls back to local
+	//computation.
+	serverIDF? : ServerIDFData | null
 };
 
 //--------------------------------------------------------------------------
@@ -134,6 +142,9 @@ export type MainToWorkerMessage =
 	| {type: 'spike', generation: WorkerGeneration}
 	//Recall query against the index.
 	| {type: 'query', generation: WorkerGeneration, id : number, text : string}
+	//Compute suggested tags for the mirrored editing card (worker-side
+	//fingerprinting; master ran this on the UI thread and stalled it).
+	| {type: 'suggestTags', generation: WorkerGeneration, id : number, count : number}
 	//A whitelisted user-state Redux action (wire-encoded), replayed through
 	//the worker's collection reducer.
 	| {type: 'action', generation: WorkerGeneration, action : unknown}
@@ -226,6 +237,8 @@ export type WorkerToMainMessage =
 	| {type: 'cards', generation: WorkerGeneration, batch : CardBatch}
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}
+	//Worker-computed tag suggestions for the mirrored editing card.
+	| {type: 'suggestTagsResult', generation: WorkerGeneration, id : number, tags : CardID[]}
 	//Pushed whenever a subscribed collection's ordered result changes.
 	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
 	//Response to a one-shot runCollection. failed:true means the run threw —

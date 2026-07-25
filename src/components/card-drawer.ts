@@ -67,6 +67,12 @@ class CardDrawer extends LitElement {
 	@property({ type : Object })
 		collection: Collection | null;
 
+	//True while the shown collection is the previous (stale) one because the
+	//worker hasn't pushed the current description's result yet — dims the
+	//list and labels it, so stale content is never mistaken for current.
+	@property({ type : Boolean })
+		updating: boolean;
+
 	@property({ type : Number })
 		renderOffset: number;
 
@@ -138,6 +144,26 @@ class CardDrawer extends LitElement {
 				font-size:0.7em;
 			}
 
+			.container.updating .scroller {
+				opacity: 0.55;
+				transition: opacity 0.15s ease-in;
+				pointer-events: auto;
+			}
+
+			.container.updating::after {
+				content: 'updating\2026';
+				position: absolute;
+				top: 0.25em;
+				right: 0.5em;
+				font-size: 0.7em;
+				font-style: italic;
+				color: var(--app-dark-text-color-light);
+			}
+
+			.container {
+				position: relative;
+			}
+
 			.grid #count {
 				width: 100%;
 			}
@@ -161,7 +187,7 @@ class CardDrawer extends LitElement {
 		const currentCount = this.collection ? this.collection.numCards : 0;
 
 		return html`
-			<div class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
+			<div class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>

@@ -1956,6 +1956,16 @@ const selectFindSearchRecall = (state : State) => state.find ? state.find.search
 //worker's background search-recall index is still building — the only window
 //where "the search is slow because indexing is incomplete" is the honest
 //explanation. Self-retires once the build reports ready.
+//True when the worker's pushed query result matches the CURRENT find
+//description (or the worker doesn't serve collections at all) — i.e. the
+//find results on screen are current rather than the stale-while-revalidate
+//holdover.
+export const selectWorkerQueryCollectionReady = createSelector(
+	selectCollectionDescriptionForQuery,
+	selectWorkerQueryCollectionResult,
+	(description, result) => Boolean(description && result && result.description === description.serialize())
+);
+
 export const selectFindSearchPreparing = createSelector(
 	selectFindDialogOpen,
 	selectActiveQueryText,

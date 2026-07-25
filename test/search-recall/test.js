@@ -78,3 +78,41 @@ describe('search recall', () => {
 		});
 	});
 });
+
+describe('stale-while-revalidate collection display (pins)', () => {
+	const read = (path) => fs.readFileSync(new URL('../../' + path, import.meta.url), 'utf8');
+
+	it('card-view holds the last ready collection while the worker result is pending', () => {
+		const view = read('src/components/card-view.ts');
+		assert.match(view, /selectWorkerActiveCollectionReady\(state\)/);
+		assert.match(view, /this\._collection = this\._lastReadyCollection;/,
+			'a pending description must keep showing the previous collection, not honest-empty');
+		assert.match(view, /COLLECTION_UPDATING_GRACE_MS/,
+			'the updating affordance must wait a grace period so fast pushes never flicker');
+	});
+
+	it('find-dialog does the same for the query collection', () => {
+		const dialog = read('src/components/find-dialog.ts');
+		assert.match(dialog, /selectWorkerQueryCollectionReady\(state\)/);
+		assert.match(dialog, /this\._collection = this\._lastReadyCollection;/);
+	});
+
+	it('the drawer labels stale content instead of blanking', () => {
+		const drawer = read('src/components/card-drawer.ts');
+		assert.match(drawer, /updating: boolean;/);
+		assert.match(drawer, /container\.updating \.scroller/,
+			'stale content must be visibly dimmed');
+		assert.match(drawer, /content: 'updating/,
+			'stale content must be labeled');
+	});
+
+	it('the worker computes tag suggestions off the UI thread', () => {
+		const worker = read('src/worker/corpus-worker.ts');
+		assert.match(worker, /case 'suggestTags':/);
+		const editor = read('src/components/card-editor.ts');
+		assert.match(editor, /corpusWorkerSuggestTags\(\)/,
+			'the editor must request worker-served suggestions');
+		assert.ok(!/this\._suggestedTags = \[\];\s*\n\s*this\._suggestedConcepts = selectEditingCardSuggestedConceptReferences/.test(editor),
+			'the permanent empty-suggestions stub must be gone');
+	});
+});

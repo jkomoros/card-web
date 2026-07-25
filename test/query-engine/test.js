@@ -255,4 +255,41 @@ describe('QueryEngine', () => {
 		});
 	});
 
+
+	describe('worker-served tag suggestions', () => {
+		it('ranks tags by fingerprint overlap with the mirrored editing card, excluding existing tags', async () => {
+			const engine = new QueryEngine();
+			const cards = {};
+			cards.z1 = card('z1', {title: 'Zebra migration patterns', tags: ['animals']});
+			cards.z2 = card('z2', {title: 'Zebra crossing safety', tags: ['animals']});
+			cards.m1 = card('m1', {title: 'Municipal budget planning', tags: ['civics']});
+			cards.m2 = card('m2', {title: 'Municipal election law', tags: ['civics']});
+			cards.editing = card('editing', {title: 'Zebra herd dynamics', tags: []});
+			engine.updateCards(cards, []);
+			engine.hydrateCollectionState({
+				sections: {},
+				tags: {
+					animals: {id: 'animals', title: 'Animals', cards: ['z1', 'z2']},
+					civics: {id: 'civics', title: 'Civics', cards: ['m1', 'm2']},
+				},
+				starredCardIDs: [],
+				readCardIDs: [],
+				readingList: [],
+				selectedCardIDs: [],
+			});
+			const processed = engine.runCollection('everything/') && engine._ensureProcessedCards();
+			engine.setEditingCard(processed.editing, null);
+			const suggestions = engine.suggestTags(3);
+			assert.ok(suggestions.includes('animals'), `zebra editing card should suggest the zebra tag: ${JSON.stringify(suggestions)}`);
+			assert.ok(suggestions.indexOf('animals') < (suggestions.indexOf('civics') === -1 ? Infinity : suggestions.indexOf('civics')),
+				'the overlapping tag must outrank the unrelated one');
+			//Existing tags are excluded.
+			engine.setEditingCard({...processed.editing, tags: ['animals']}, null);
+			assert.ok(!engine.suggestTags(3).includes('animals'), 'already-applied tags must not be suggested');
+			//No editing card -> no suggestions, no throw.
+			engine.setEditingCard(null, null);
+			assert.deepStrictEqual(engine.suggestTags(3), []);
+		});
+	});
+
 });

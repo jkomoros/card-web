@@ -6,6 +6,19 @@
 
 Remaining owner-requested work before merge, in order:
 
+> **Items 1 and 2 are DONE (2026-07-25):** suggested-tags are now computed in
+> the corpus worker (`engine.suggestTags` — same algorithm as master's
+> selector, fingerprints memoized per cards/tags/IDF identity, server IDF
+> forwarded via hydration + `UPDATE_SERVER_IDF`; the editor requests them
+> over a new `suggestTags` protocol message; non-worker diagnostic modes fall
+> back to the local selector). Honest-empty is replaced by
+> stale-while-revalidate: card-view and find-dialog hold the last ready
+> collection while the worker result for the current description is pending,
+> and after a 200ms grace the drawer dims and labels it "updating…" — stale
+> is shown as stale, fast pushes never flicker, and genuine empties render
+> only from ready results. Behavioral test for the suggestion ranking plus
+> wiring pins added.
+
 1. **Suggested-tags must work again (owner call: pre-land, not post-land).** The affordance was stubbed on this branch (`card-editor.ts` `_scheduleSuggestions` hard-codes `_suggestedTags = []`) because master's computation — fingerprint-similarity across every card of every tag — is a multi-second main-thread stall at 40k cards. The fix is to compute it worker-side: the corpus worker already holds every card processed plus the fingerprint machinery; add a `suggestTags(cardID|editingCard)` worker request mirroring the reference-blocks runner pattern (async, generation-guarded, editing-card-aware via the existing mirror), and populate `_suggestedTags` from its response on the existing deferred schedule.
 2. **Honest-empty rework (proposal accepted-pending-build):** ~200ms grace before any empty collection state; past the grace, keep the previous collection rendered dimmed with an "updating…" affordance instead of blanking (stale-labeled-as-stale, addressing the original wrong-then-right objection). Find dialog keeps its "Preparing search (N of M)" note.
 3. **Non-editors get multi-tab:** scoping change — reader sessions (no edit permissions) skip exclusive ownership and run an ephemeral worker (`persist:false`, no lease/heartbeat, memory-only caches) so second tabs read freely without ever sharing locked persistence; their user-scoped writes (stars/reads/reading-list) must be exempted from the corpus mutation fence.

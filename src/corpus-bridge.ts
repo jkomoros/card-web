@@ -158,6 +158,8 @@ let worker : Worker | null = null;
 let generation : WorkerGeneration = 0;
 let queryCounter = 0;
 const pendingQueries : Map<number, (result : {ids : string[], ms : number, fullScanFallback : boolean}) => void> = new Map();
+let suggestTagsCounter = 0;
+const pendingSuggestTags : Map<number, (tags : string[]) => void> = new Map();
 //PERF HARNESS ONLY: pending CORPUS_WORKER.perfData() requests (worker timing).
 let perfDataCounter = 0;
 const pendingPerfData : Map<number, (result : {actionStats : WorkerActionStats, indexBuildMs : number}) => void> = new Map();
@@ -332,6 +334,7 @@ const hydrateWorkerCollectionState = () => {
 		readCardIDs: Object.keys(state.user?.reads || {}),
 		readingList: state.user?.readingList || [],
 		selectedCardIDs: Object.keys(selectExplicitlySelectedCardIDs(state)),
+		serverIDF: state.data?.serverIDF || null,
 	};
 	post({type: 'hydrateCollectionState', generation, hydration: toWire(hydration, isTimestamp, getTime)});
 	//The snapshot supersedes every historical delta collected before this
@@ -393,6 +396,26 @@ export const corpusWorkerCanRunCollections = () : boolean => {
 //result. Returns null when the worker isn't available; resolves null when
 //the run fails or the connection is torn down mid-flight (caller should
 //fall back to local computation).
+//Worker-computed suggested tags for the CURRENT mirrored editing card.
+//Resolves null when the worker isn't available (caller falls back or shows
+//nothing). The 10s guard matches the runner pattern: a torn-down worker's
+//pending promise must not dangle forever.
+export const corpusWorkerSuggestTags = (count = 3) : Promise<string[] | null> => {
+	if (!worker || !corpusWorkerCanRunCollections()) return Promise.resolve(null);
+	const id = ++suggestTagsCounter;
+	return new Promise<string[] | null>(resolve => {
+		const timeout = setTimeout(() => {
+			pendingSuggestTags.delete(id);
+			resolve(null);
+		}, 10000);
+		pendingSuggestTags.set(id, tags => {
+			clearTimeout(timeout);
+			resolve(tags);
+		});
+		post({type: 'suggestTags', generation, id, count});
+	});
+};
+
 export const corpusWorkerRunCollection = (description : string, keyCardID : string) : Promise<RunCollectionResolution | null> | null => {
 	if (!corpusWorkerCanRunCollections()) return null;
 	const state = store.getState() as State;
@@ -885,6 +908,14 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		}
 		break;
 	}
+	case 'suggestTagsResult': {
+		const resolver = pendingSuggestTags.get(message.id);
+		if (resolver) {
+			pendingSuggestTags.delete(message.id);
+			resolver(message.tags);
+		}
+		break;
+	}
 	case 'searchRecall':
 		store.dispatch({type: FIND_UPDATE_SEARCH_RECALL, built: message.built, total: message.total, ready: message.ready});
 		break;
@@ -1019,6 +1050,7 @@ const stopWorker = () => {
 	worker = null;
 	connectSent = false;
 	pendingQueries.clear();
+	pendingSuggestTags.clear();
 	pendingPerfData.clear();
 	flushPendingRunCollections();
 	workerLoadComplete = false;
