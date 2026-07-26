@@ -521,3 +521,64 @@ and the HTTP cache serving stale hashed chunks. The scratchpad measurement
 scripts now issue `Network.setCacheDisabled` over CDP before navigating, which
 removes the trap. Confirm a change is actually live by comparing the loaded
 chunk hash against `build/` before concluding anything about behavior.
+
+### Round 7c — Editing opens during verification; committing still waits for live
+
+Product decision: the ~34s window in which the Edit affordance was disabled was
+too costly, but the protection it stood for is real. Split them — **open the
+editor whenever the user wants; refuse the commit until `live`.**
+
+This turns out to be well-founded rather than merely a UX preference.
+`editingStart` does not depend on the corpus at all: it dispatches
+`EDITING_START` from local state immediately, then attaches a per-card
+`onSnapshot` **and** issues a `getDoc` refresh, both *after* the editor is open
+("Start editing immediately from local state. Freshness checks happen below
+without blocking the editor from opening"). So the draft's base card is
+server-fresh independent of corpus verification, and the underlying-change
+machinery (`dispatchUnderlyingCardUpdateIfChanged`, the merge affordance, and
+the commit-time confirm listing what your edits would overwrite) is what
+handles a concurrent edit — not the sync gate. Opening early adds no staleness
+exposure the merge flow doesn't already cover.
+
+The commit half is enforced in the executor, not just the UI:
+`modifyCardsWithDurableMultiEdit` checks `durableSaveEligible` before doing
+anything and dispatches `modifyCardFailure`. Removed the
+`selectCardSavesEligible` refusal from `editingStart` and un-disabled the Edit
+button; the Save button keeps `?disabled=${!_saveEligible}` with its existing
+reason, as do the card-editor and multi-edit-dialog controls.
+
+Verified on real DEV in one boot, dialogs stubbed in-page (see the trap below):
+
+| Check | Result |
+| --- | --- |
+| Editor opens while `unverified` | yes (also via a real click on the Edit button) |
+| Typing reaches the draft | yes |
+| Save disabled, with reason | yes |
+| Forced commit refused; draft preserved; editor stays open | yes — `Card sync must be live before saving` |
+| Save re-enables at `live` | yes |
+| The same draft then commits | yes, 2033ms to the store (1165ms in a second run) |
+| Card restored byte-exactly | yes |
+
+**Trap that cost most of this investigation, recorded so it is not repeated.**
+A save driven through Playwright appeared to fail silently — no error, no
+`cardModificationPending` transition, editor left open — and reproduced through
+the *real UI* (real click on Edit, real keystrokes into the body
+contenteditable, real click on Save). It looked like a P0 in single-card save.
+It was not. `editingCommit` calls `confirm()` (suggested concept references,
+overshadowed underlying changes, TODO warnings) and returns **silently** when a
+confirmation is declined — correct behavior. A `page.on('dialog')` handler
+races with Playwright's own dialog machinery (it had already thrown
+`Page.handleJavaScriptDialog: No dialog is showing` earlier in this session) and
+effectively *cancelled* the confirms. Stubbing `window.confirm = () => true`
+in-page — which is what a user clicking OK actually does — made the identical
+commit succeed in 1165ms. **Never route this app's commit path through
+Playwright's dialog channel; stub the dialogs in the page.**
+
+Two further self-corrections from the same investigation: `pendingSeen: []` was
+treated as evidence the executor never ran, but a control on a *working* commit
+produced the same empty array — the polling simply cannot catch the transition.
+And a "restore succeeded" check was vacuous: it compared the store to the
+original, which still matched precisely because nothing had ever been committed.
+A direct regex scan of all 40,225 cards confirmed **no DEV card was left
+mutated**; the two apparent marker hits were false positives from a loose
+pattern matching `cato-ctrl-hashjack` in a URL, last updated in 2025.

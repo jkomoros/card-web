@@ -7,7 +7,6 @@ import {
 	selectPendingSlug,
 	selectIsEditing,
 	selectCardModificationPending,
-	selectCardSavesEligible,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
@@ -314,15 +313,6 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		//their tooltip, so the state is already visible. An alert here fires
 		//once per keypress and reads as a modal storm when a shortcut repeats.
 		console.warn('A card save is still finishing; editing reopens when it clears.');
-		return;
-	}
-	if (!selectCardSavesEligible(state)) {
-		//Saves cannot commit until sync is live, so do not let an editing
-		//session start that could only end in a failed save. The Edit
-		//affordances are disabled with this reason in their tooltip, and the
-		//sync status indicator shows the verifying state; see the note above
-		//on why this must not alert.
-		console.warn('Card sync is still verifying; editing opens when it is live.');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
