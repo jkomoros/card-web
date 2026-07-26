@@ -394,3 +394,87 @@ The pure-helper suites are genuinely good (watermark, dedupe, snapshot validatio
 
 - Sign-in-driven cold sweep (~80k billed document reads across two tabs' cold boot + partition repairs — the documented once-per-device Blaze cost) and one ownership handoff.
 - **Mutations (all verified restored from Firestore directly):** three `bulkTagRoundTrip` runs (1 + 100 + 100 cards; tag `bits-and-bobs` added then removed; the two 100-card runs completed their server work then threw only in the client-side comparison — finding #19); one `durableMultiEditRoundTrip(100)` (tags `bits-and-bobs`/`cambrian-garden`/`chaotic`, TODO overrides, reference to `02af83`, temporary publish flip — full inverse applied and server-audited). Residue: `updated` bumps on the touched cards, audit docs in their `updates` subcollections and tag update mirrors, marker docs in `users/<uid>/multi_edit_chunks`, and a ~1-minute window during which 100 normally-unpublished cards were briefly `published:true` on DEV. No content fields (body/title/notes/references beyond the round trip) were altered anywhere; card `59446f` and sample cards spot-checked byte-identical.
+
+---
+
+## Round 7 — Warm-boot readiness realigned with master's semantics (measured, landed)
+
+The remaining acceptance failure was warm boot: 22.5–31.8s to a usable app against a
+~10s target, on the real 40,225-card DEV corpus in real foreground Chrome.
+
+**Root cause.** The branch conflated two different questions — *may we serve this
+corpus?* and *has the server verified it?* — and answered both with `syncState ===
+'live'`. `live` requires all three watermark planes (published, tombstone, delta) to
+be server-confirmed. Three separate gates therefore withheld the UI until then:
+`markInitialDelivered('unpublished')` fired only when all planes were healthy (so
+`loadComplete ≡ live`), `corpusWorkerCanRunCollections()` required `corpusSyncReady`,
+and every non-`live` syncState message called `invalidateWorkerCollections()` —
+including the `'unverified'` that fires at the *start* of every watermark connect,
+which re-emptied the UI on each boot.
+
+Master never gated reads on verification at all: a sub-agent reconstruction found
+**zero** `fromCache` checks anywhere in `master:src/`, reads served straight from
+Firestore's `persistentLocalCache`, and `selectDataIsFullyLoaded` — which is
+byte-identical on this branch — already flips at ~4.2s. The branch's own design docs
+say the same thing: *"trust slow, serve fast."*
+
+**Fix.** Split the predicate. `corpusMayServe()` (new, in `corpus-readiness.ts`)
+admits `'unverified'` and is used for reads; `corpusSyncReady()` is unchanged and now
+reached through `corpusWorkerCorpusVerified()` for anything treating the worker corpus
+as *authoritative*. A prime of ≥`WARM_CACHE_THRESHOLD` cards now marks the initial
+load delivered — exactly as master treated a listener's first cache-served snapshot.
+`'stale'` is still excluded from serving and still invalidates: it means a plane that
+*was* healthy has dropped, which is a live regression, not merely unconfirmed.
+
+**The destructive path was deliberately not relaxed.** `maybeRequestReconciliation`
+drives `handleCorpusIDs`, which mass-*removes* Redux cards using the worker corpus as
+authority; it now requires `corpusWorkerCorpusVerified()`, and the 1s confirmation
+re-request re-checks verification at fire time so a confirming response can never be
+computed after sync degraded. Serving a stale read is recoverable; deleting on stale
+authority is not.
+
+**Measured result** (real foreground Chrome, real DEV, signed in as admin, 40,225
+cards, three consecutive boots):
+
+| Milestone | Before | After |
+| --- | --- | --- |
+| All 40,225 cards in the Redux store | ~4.2s | ~4.2s (unchanged) |
+| `loadComplete` — **UI unblocks** | 31.8s | **6.0 / 6.6 / 6.6s** |
+| Search recall ready | ~15s | ~15–16s (unchanged) |
+| `syncState: live` | ~30–31s | 38.8 / 43.2s |
+
+Warm-boot acceptance (~10s) is met at 6.0–6.6s. Two measurement traps were hit and
+corrected while establishing this: a first attempt marked delivery on the *delta*
+plane's first server delivery, which is worthless because delta is the **last** plane
+to go healthy (`loadComplete` stayed pinned to `live` at 31.8s); and a "usable in
+205ms" reading was an artifact — instrumenting the card count at the mark showed the
+store held **0 cards**, with the measured text being app chrome and `activeRawCard()`
+resolving a placeholder from the URL.
+
+### Newly exposed: time-to-*edit* is now the binding constraint
+
+Verification got ~8s slower (38.8–43.2s vs ~30s) because real UI work — collections,
+rendering 40k cards — now runs *during* verification instead of after it. That is the
+intended trade, but it interacts with an existing gate:
+
+`selectCardSavesEligible` requires `'live'`, so **the Edit affordance stays disabled
+for ~34s after the app becomes usable** (~40s from boot). This was invisible before,
+because the app was blank for that whole window anyway. It is the feature that was
+explicitly requested ("saves un-attemptable while sync is verifying", commit
+`a7427804`) working as designed — the realignment just made its cost visible.
+The UI disables Edit with a reason rather than failing; the `alert()` in
+`actions/editor.ts:322` is only reachable via keyboard shortcut or direct dispatch.
+
+**The long pole is not contention and not the ordering.** The published listener's
+first persistent-cache query takes ~25–27s (6.6s → 33.7s) decoding nearly the whole
+Firestore cache. The search-recall build was ruled out as the cause: it finishes at
+~15–16s, a full 16s *before* the published plane goes healthy. The delta listener is
+serialized behind the tombstone listener's initial snapshot by deliberate design
+("An error must never satisfy unpublished completeness or let a stale cache be served
+as live") and was left alone. Shortening the window means attacking the published
+listener's cache scan — a real change, not a tweak, and out of scope here.
+
+**Open decision for the human:** accept ~40s before editing unlocks on a warm boot, or
+relax `selectCardSavesEligible` from `live` toward the serving predicate. The latter
+reverses an explicit request and widens the window in which an edit could be based on
+an unverified card body, so it should not be changed without a deliberate call.

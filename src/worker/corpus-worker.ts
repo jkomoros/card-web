@@ -1810,6 +1810,18 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		//Start the background search-recall build now, at low duty: the trust
 		//gate ahead is network-bound dead time, ideal for chunked CPU work.
 		scheduleSearchRecallBuild();
+		//A substantial prime IS the initial load, exactly as master treated a
+		//listener's first (cache-served) snapshot: the cards are present, so
+		//the UI may render them. Verification continues in the background and
+		//`live` still requires all three watermark planes — but withholding
+		//loadComplete until then left every card sitting in the store for
+		//~19s behind a "Loading…" screen (measured on the real 40k corpus).
+		//A thin prime is NOT enough: the cold-sweep path must own completion
+		//there, and corpusSizeTrustworthy independently guards the bridge.
+		if (primedCount >= WARM_CACHE_THRESHOLD) {
+			if (Object.keys(primedPublished).length) markInitialDelivered('published');
+			markInitialDelivered('unpublished');
+		}
 	}
 	//The published listener's first persistent-cache query can scan and decode
 	//nearly the whole Firestore cache. Starting it beside the compact-snapshot

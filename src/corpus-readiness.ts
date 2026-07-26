@@ -32,3 +32,24 @@ export const corpusSyncReady = (
 	mayViewUnpublished : boolean,
 	syncState : 'unverified' | 'live' | 'stale' | ''
 ) : boolean => syncMode !== 'watermark' || !mayViewUnpublished || syncState === 'live';
+
+//SERVING vs VERIFICATION are different questions, and conflating them cost a
+//19-second blank screen on the real 40k corpus: every card was in the store
+//at ~4s, but nothing rendered until all three watermark planes were
+//server-confirmed at ~23s.
+//
+//Master never gated reads on verification at all — it served whatever
+//Firestore's persistent cache held and healed in the background — and this
+//branch's own design docs say the same ("trust slow, serve fast"; "the
+//bridge should serve collections … while surfacing staleness"). So reads
+//only require the corpus to be PRESENT and plausibly complete.
+//
+//'stale' is deliberately excluded: it means a plane that WAS healthy has
+//dropped (an active regression), which is a different signal from
+//'unverified' (not yet confirmed on this boot).
+export const corpusMayServe = (
+	syncMode : 'listen' | 'watermark',
+	mayViewUnpublished : boolean,
+	syncState : 'unverified' | 'live' | 'stale' | ''
+) : boolean => syncMode !== 'watermark' || !mayViewUnpublished ||
+	syncState === 'live' || syncState === 'unverified';

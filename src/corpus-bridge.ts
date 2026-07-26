@@ -85,7 +85,8 @@ import {
 
 import {
 	corpusSizeTrustworthy,
-	corpusSyncReady
+	corpusSyncReady,
+	corpusMayServe
 } from './corpus-readiness.js';
 
 import {
@@ -386,6 +387,22 @@ let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 //already holds (an offline worker "completes" with an EMPTY corpus from its
 //memory cache; serving that would blank out the warm-boot-primed app).
 export const corpusWorkerCanRunCollections = () : boolean => {
+	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
+	if (!workerLoadComplete) return false;
+	//Reads require PRESENCE, not server verification (see corpusMayServe).
+	//loadComplete + corpusSizeTrustworthy remain: those guard against a
+	//partial flush or an offline worker's empty corpus replacing the primed
+	//app — plausible-completeness checks, not verification.
+	if (!corpusMayServe(readCorpusSyncMode(), lastMayViewUnpublished, lastSyncState)) return false;
+	const reduxCount = Object.keys(selectRawCards(store.getState() as State)).length;
+	return corpusSizeTrustworthy(workerCorpusSize, reduxCount);
+};
+
+//The corpus has passed the server trust gate. Required for anything that
+//treats the worker corpus as AUTHORITATIVE over Redux — above all
+//reconciliation, which mass-REMOVES cards. Serving a stale read is
+//recoverable; deleting on stale authority is not.
+export const corpusWorkerCorpusVerified = () : boolean => {
 	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
 	if (!workerLoadComplete) return false;
 	if (!corpusSyncReady(readCorpusSyncMode(), lastMayViewUnpublished, lastSyncState)) return false;
@@ -745,7 +762,11 @@ let pendingMassReconciliationSignature = '';
 
 const maybeRequestReconciliation = () => {
 	if (reconciliationRequestedGeneration === generation) return;
-	if (!corpusWorkerCanRunCollections()) return;
+	//VERIFIED, not merely servable: this drives handleCorpusIDs, which
+	//mass-REMOVES Redux cards using the worker corpus as authority. Now that
+	//reads serve while unverified, gating this on the serving predicate would
+	//turn a permissive read into a destructive write.
+	if (!corpusWorkerCorpusVerified()) return;
 	reconciliationRequestedGeneration = generation;
 	post({type: 'requestCorpusIDs', generation});
 };
@@ -817,7 +838,9 @@ const handleCorpusIDs = (ids : CardID[]) => {
 			pendingMassReconciliationSignature = signature;
 			console.warn(`[corpus-worker] corpus reconciliation: verifying large removal — ${staleCount} of ${reduxCount} cards`);
 			setTimeout(() => {
-				if (generation === reconciliationRequestedGeneration) post({type: 'requestCorpusIDs', generation});
+				//Re-check verification at fire time too: the confirming response
+				//must not be computed after sync degraded.
+				if (generation === reconciliationRequestedGeneration && corpusWorkerCorpusVerified()) post({type: 'requestCorpusIDs', generation});
 			}, 1000);
 			return;
 		}
@@ -945,7 +968,10 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 				? 'Card sync is interrupted. Lists and search are temporarily unavailable; retrying automatically.'
 				: message.state === 'unverified' ? 'Verifying the local card corpus…' : ''
 		});
-		if (message.state !== 'live') invalidateWorkerCollections();
+		//Only a REGRESSION ('stale') invalidates pushed results. 'unverified'
+		//fires at the start of every watermark connect, so blanking on it
+		//re-emptied the UI on every boot even once results existed.
+		if (message.state === 'stale') invalidateWorkerCollections();
 		else scheduleShadowCompare();
 		break;
 	case 'cardMeta':

@@ -88,7 +88,10 @@ class LimitWarning extends connect(store)(LitElement) {
 	override render() {
 
 		const loadingUnpublished = this._loadingFetchTypes?.['unpublished'] || false;
-		const showCorpusStatus = this._corpusStatus === 'stale' || this._corpusStatus === 'degraded' || this._corpusStatus === 'fallback';
+		//'loading' included: the corpus now SERVES while it is still being
+		//verified, so the user should be told the list is complete-but-
+		//unverified rather than seeing an unlabeled (and briefly stale) list.
+		const showCorpusStatus = this._corpusStatus === 'stale' || this._corpusStatus === 'degraded' || this._corpusStatus === 'fallback' || this._corpusStatus === 'loading';
 
 			if (loadingUnpublished || showCorpusStatus) {
 
