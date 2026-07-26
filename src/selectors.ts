@@ -1864,10 +1864,17 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectCardsDrawerPanelOpen,
 	selectIsEditing,
 	selectEditorMinimized,
-	(activeCollection, panelOpen, isEditing, editorMinimized) => {
+	selectDataIsFullyLoaded,
+	(activeCollection, panelOpen, isEditing, editorMinimized, dataFullyLoaded) => {
 		if (isEditing && editorMinimized) return false;
 		if (!panelOpen) return false;
-		if (!activeCollection || activeCollection.isFallback) return false;
+		if (!activeCollection) return false;
+		//During boot the collection is necessarily a fallback, and hiding the
+		//drawer for it made the panel pop into existence — a layout jump that
+		//reads as a bug. Hold the drawer's normal width while data is still
+		//arriving; a fallback collection AFTER load is a real empty state and
+		//still hides.
+		if (activeCollection.isFallback && dataFullyLoaded) return false;
 		return true;
 	}
 );

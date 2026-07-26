@@ -504,6 +504,11 @@ class CardView extends connect(store)(PageViewElement) {
 
 			card-drawer.showing {
 				border-right: 1px solid var(--app-divider-color);
+				/* Reserve the loaded column width. The drawer is shrink-to-fit,
+				   so without this it grows ~70px -> ~209px as thumbnails stream
+				   in during boot, shoving the card stage sideways. 12em
+				   thumbnail (card-thumbnail-list) plus its margins. */
+				min-width: 13em;
 			}
 
 			[hidden] {

@@ -478,3 +478,46 @@ listener's cache scan — a real change, not a tweak, and out of scope here.
 relax `selectCardSavesEligible` from `live` toward the serving predicate. The latter
 reverses an explicit request and widens the window in which an edit could be based on
 an unverified card body, so it should not be changed without a deliberate call.
+
+### Round 7b — Boot-state UI polish (user-reported while watching the tests)
+
+Two user-visible rough edges, both consequences of the app now being *visible*
+during boot rather than blank:
+
+1. **The boot placeholder didn't look like a card, it looked like a bug.**
+   `card-renderer` rendered "Loading…" with the `.loading` class (`font-style:
+   italic; opacity: 0.5`), which then stacked with card-stage's own `.loading
+   card-renderer {opacity: 0.6}` for ~0.3 effective opacity, in italic, in a
+   washed-out purple. Split the boot placeholder onto its own
+   `.boot-placeholder` class that inherits the field's real typography, so a
+   pending card differs from a loaded one only by the uniform fade card-stage
+   already applies. `.loading` is unchanged for the "Content goes here…"
+   authoring hint, which *should* read as an aside. Also fixed malformed markup
+   in the placeholder (`<span>` used as a closing tag).
+
+2. **The drawer grew as cards streamed in, shoving the card stage sideways.**
+   Two separate causes, both fixed: `selectCardsDrawerPanelShowing` returned
+   false for *any* fallback collection, and boot is necessarily a fallback, so
+   the panel popped into existence; it now only hides for a fallback collection
+   once data is loaded, which is the real empty state. Then, because the drawer
+   is shrink-to-fit, it still grew 70px → 124px → 209px as thumbnails arrived —
+   fixed by reserving the loaded column width (`min-width: 13em`, the 12em
+   thumbnail plus margins) on `card-drawer.showing` in card-view. Measured
+   across boot: **208 / 208 / 209px** (was 70 / 124 / 209).
+
+**The gating `alert()`s are gone.** `editingStart` alerted on every refused
+attempt, so a held or repeated shortcut produced a modal storm (hundreds of
+dialogs in a few seconds during the harness run). Both refusals now `console.warn`
+like the permission check beside them. The user-facing affordance was already
+correct and is the intended channel: the Edit button is `?disabled` with the
+reason in its `title` (card-view.ts:682), as are the card-editor and
+multi-edit-dialog save controls.
+
+**Method note:** verifying these took four deploy/measure cycles because a
+deployed change kept appearing to have no effect. Two distinct caching traps
+were involved — the service worker's `skipWaiting: false` (correct behavior;
+the page keeps running the old bundle behind an "Update ready / Reload" banner)
+and the HTTP cache serving stale hashed chunks. The scratchpad measurement
+scripts now issue `Network.setCacheDisabled` over CDP before navigating, which
+removes the trap. Confirm a change is actually live by comparing the loaded
+chunk hash against `build/` before concluding anything about behavior.

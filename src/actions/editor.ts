@@ -310,16 +310,19 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 	//sessions disjoint prevents a late acknowledgement from the first save from
 	//being mistaken for completion of a newer edit.
 	if (selectCardModificationPending(state) || durableCardMutationPending()) {
-		//Silent refusal reads as a dead Edit button (regression sweep); the
-		//window is short, so tell the user why and what to do.
-		alert('A card save is still finishing. Wait a moment for the save indicator to clear, then try again.');
+		//No alert: the Edit affordances are disabled with this exact reason in
+		//their tooltip, so the state is already visible. An alert here fires
+		//once per keypress and reads as a modal storm when a shortcut repeats.
+		console.warn('A card save is still finishing; editing reopens when it clears.');
 		return;
 	}
 	if (!selectCardSavesEligible(state)) {
 		//Saves cannot commit until sync is live, so do not let an editing
-		//session start that could only end in a failed save. Boot windows are
-		//short; the Edit affordances are also disabled with this reason.
-		alert('Card sync is still verifying. Editing opens as soon as sync is live — usually a few seconds.');
+		//session start that could only end in a failed save. The Edit
+		//affordances are disabled with this reason in their tooltip, and the
+		//sync status indicator shows the verifying state; see the note above
+		//on why this must not alert.
+		console.warn('Card sync is still verifying; editing opens when it is live.');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {

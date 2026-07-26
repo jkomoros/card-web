@@ -272,6 +272,14 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				opacity: 0.5;
 			}
 
+			/* Inherits the field's real typography — size, weight and color —
+			   so a pending card differs from a loaded one only by the uniform
+			   fade card-stage already applies. */
+			.boot-placeholder {
+				font-style:inherit;
+				opacity:inherit;
+			}
+
 			.star-count {
 				position:absolute;
 				top:0.5em;
@@ -613,7 +621,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				} else if (this.dataIsFullyLoaded) {
 					htmlToSet = 'No card by that name, try a link from above.';
 				} else {
-					htmlToSet = '<span class=\'loading\'>Loading...<span>';
+					htmlToSet = '<span class=\'boot-placeholder\'>Loading...</span>';
 				}
 			}
 		}
