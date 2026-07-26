@@ -582,3 +582,42 @@ original, which still matched precisely because nothing had ever been committed.
 A direct regex scan of all 40,225 cards confirmed **no DEV card was left
 mutated**; the two apparent marker hits were false positives from a loose
 pattern matching `cato-ctrl-hashjack` in a URL, last updated in 2025.
+
+### Round 7d — The three remaining verification gaps, closed on real DEV
+
+All three were previously "unproven even absent a bug". Each was measured in
+the signed-in Chrome window against the real 40,225-card DEV corpus, with
+dialogs stubbed in-page (never through Playwright — see the Round 7c trap).
+
+**1. 100-card multi-edit, foreground wall clock — MEETS the ≤20s bar.**
+`durableMultiEditRoundTrip(100)`: **apply 12,073ms, restore 14,215ms**
+(26,327ms for the full round trip), with `document.visibilityState === 'visible'`
+asserted *inside* the measurement. This finally supersedes finding #20's
+51.8s/701s, which were background-throttled and never a real signal. Correctness
+was already server-audited; this closes the timing half. The round trip restores
+its own mutations (tags `bits-and-bobs`/`cambrian-garden`/`chaotic`, TODO
+overrides, a reference, a publish flip, then the exact inverse).
+
+**2. Service-worker update over a dirty editor — criterion #6 HOLDS.**
+Deployed a genuinely different build while an editor sat open with an uncommitted
+draft, then forced `registration.update()`. A new worker reached `waiting` after
+7s and then simply stayed there: `mainFrameNavigated === false`, a
+`window.__SW_SENTINEL` set before the deploy survived, the editor was still open,
+the draft still held its marker, and the store was still unmodified. The update
+is surfaced, not applied — and the banner is dirty-aware: **"Update ready — save
+or cancel your draft"** beside a "Reload" button. This was previously
+code-reviewed and grep-tested only.
+
+**3. Takeover via a real coordinate click — WORKS.**
+Tab 1 `active`; opening tab 2 put it in `contended` behind the blocking panel
+("Compendium is open in another tab") with a visible `Use this tab` CTA. A real
+Playwright click on that CTA moved ownership: tab 2 → `active` with the panel
+gone, tab 1 → `inactive` showing "Compendium moved to another tab. This tab is
+inactive so card sync stays safe." with its own reclaim CTA. Previously only the
+programmatic dispatch had been verified.
+
+**UX observation (not a bug), for the acceptance run:** after the second tab is
+closed, the first tab stays `inactive` — ownership is not auto-reclaimed; the
+user must click "Use this tab". That is defensible (explicit reclaim, and the CTA
+is present in the panel), but it is the state you land in after closing a stray
+tab, so it is worth deciding deliberately rather than discovering it mid-test.
