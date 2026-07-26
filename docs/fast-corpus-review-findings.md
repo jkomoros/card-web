@@ -383,12 +383,16 @@ The pure-helper suites are genuinely good (watermark, dedupe, snapshot validatio
 
 ## What remains unproven even absent a bug
 
-- End-to-end warm-boot wall clock on real foreground hardware (environment-limited here; worker-side prime independently measured at 5.79s for 40,225 cards on real DEV, trust gate clean — the 10s end-to-end target is plausible but should be re-timed by a human after fixes land).
-- Foreground timing of the 100-card multi-edit on real DEV (correctness proven; wall clock confounded by background throttling — see finding #20).
-- The perceived-latency path of a *body* edit save specifically (same executor as the verified 625ms durable single op, but not separately timed end-to-end).
-- Similarity behavior under rapid signed-in navigation on real DEV (Qdrant path).
-- The human-click activation of the takeover CTA (programmatic click verified end-to-end on real DEV signed-in; coordinate-click unverifiable from this tooling).
-- Service-worker update banner flow in a real dirty-edit session (code-reviewed only; grep-tests).
+*Updated after Rounds 7-7e: five of the six original entries are now measured on
+real DEV in a foreground signed-in Chrome window. Only the similarity item is
+still open.*
+
+- ~~End-to-end warm-boot wall clock~~ — **measured: 6.0 / 6.6 / 6.6s** to `loadComplete` (Round 7).
+- ~~Foreground timing of the 100-card multi-edit~~ — **measured: 12,073ms apply, 14,215ms restore**, `visibilityState === 'visible'` asserted inside the measurement (Round 7d).
+- ~~Perceived-latency path of a *body* edit save~~ — **measured: 27ms perceived** (the editor releases before the server commit, by design), 1,165-2,033ms to durable store-reflect (Rounds 7c/7e).
+- ~~Human-click activation of the takeover CTA~~ — **verified** with a real coordinate click (Round 7d).
+- ~~Service-worker update banner flow in a real dirty-edit session~~ — **verified** against a genuinely different deploy (Round 7d).
+- **Still open:** similarity behavior under rapid signed-in navigation on real DEV (the Qdrant path). Unchanged by this branch's corpus work, but never exercised at speed while signed in.
 
 ## DEV-project side effects from this review
 
@@ -621,3 +625,69 @@ closed, the first tab stays `inactive` — ownership is not auto-reclaimed; the
 user must click "Use this tab". That is defensible (explicit reclaim, and the CTA
 is present in the panel), but it is the state you land in after closing a stray
 tab, so it is worth deciding deliberately rather than discovering it mid-test.
+
+### Round 7e — Pre-acceptance sweep: cold boot, save latency, and a stranded-intent trap
+
+**Cold boot is safe — no hang.** The Round 7 change marks the initial load
+delivered only when `primedCount >= WARM_CACHE_THRESHOLD`, so a cold device (no
+compact snapshot) must fall through to the cold-sweep path. Verified by deleting
+`corpus-worker-snapshot`, `corpus-worker-meta`, and the Firestore persistence DB
+while preserving `firebaseLocalStorageDb` (so sign-in survived):
+
+```
+ 7313ms trust gate: server=38985 local=0 mismatchedPartitions=10
+ 7313ms cold corpus (0 of 38985); starting budgeted sweep
+17150ms cold sweep: priority phase served 5000 recent cards; parallel partition sweep follows
+176064ms cold sweep complete; corpus=40225
+178692ms load complete: 40225 cards          <- fires correctly
+178713ms sync state: live
+```
+
+**Observation worth a decision (pre-existing, not a regression):** the cold sweep
+serves 5,000 recent cards at **17s**, but `loadComplete` — and therefore the
+whole UI — waits for the full sweep at **179s**. Warm boot now follows "serve
+when present, verify in the background"; the cold priority phase does not, so a
+first-run device sits on "Loading…" for ~3 minutes despite having 5,000 cards in
+hand at 17s. This is once-per-device and was equally slow before Round 7 (when
+`loadComplete` was pinned to `live` anyway), so it is not new — but it is now
+philosophically inconsistent with the warm path, and is the obvious next
+candidate if cold-start ever matters.
+
+**Single-card save latency — criterion #4.** Perceived **27ms**: the editor
+releases immediately, which is the documented durable-save design ("A durable
+single-card save releases the editor before its server commit finishes").
+Durable store-reflect measured **1,165ms** and **2,033ms** in two clean runs.
+So the sub-second target holds for what the user feels; the durable round trip
+is 1-2s behind it.
+
+**Trap: a stranded durable intent silently blocks ALL editing, across reloads.**
+Several crashed harness runs left
+`card-web-pending-multi-edit-v1` = `{id: 'single-edit-…', nextIndex: 0,
+modifiedCount: 0}` in localStorage — an intent that had written nothing. From
+then on `durableCardMutationPending()` stayed true, the Edit button was disabled
+with *"Resolve the current saved operation before editing another card"*, and
+`editingStart` refused with only a `console.warn`. **It survived page reloads**,
+because the intent is durable by design. Clearing that key restored editing
+immediately.
+
+This is the intended durability mechanism doing its job, but the failure mode is
+worth weighing before landing: a save interrupted at the wrong moment (crash,
+kill, power loss) can leave a user unable to edit *anything*, with a message that
+names no recovery path and no affordance to discharge or discard the intent. The
+resume path exists but is only reached by attempting another durable operation.
+Recommend either an automatic resume-or-discard on boot for a zero-progress
+intent (`nextIndex === 0 && modifiedCount === 0` is provably safe to drop), or a
+visible "finish / discard pending operation" control.
+
+**Drawer empty-state regression check (Round 7b) — safe by construction.** The
+new predicate is `isFallback && dataFullyLoaded`. For any post-load state
+`dataFullyLoaded` is true, so it reduces to exactly the previous `isFallback`;
+the change can only affect behavior *while data is still loading*. Confirmed
+empirically that normal and missing-card routes are unaffected (drawer 209px in
+both). Note a missing card slug does **not** produce a fallback collection, so it
+does not exercise that path.
+
+**Test-environment residue cleared.** The stranded intent and a leftover
+`card-web-edit-draft-v1` were removed; a regex scan over all 40,225 cards
+confirmed no DEV card carries a test marker, and every mutated card was restored
+byte-exactly.
