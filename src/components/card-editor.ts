@@ -1441,6 +1441,19 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleCancel() {
+		//Cancel is the one unguarded destructive path out of the editor: the
+		//draft watcher sees dirty->clean and DELETES the persisted draft, with
+		//no confirm, no undo, and no recovery banner. That was survivable when
+		//saving was always available; it is not now that Save can be refused
+		//for tens of seconds during boot verification — and the disabled Save
+		//button's own tooltip tells the user "your draft is safe" while this
+		//button silently discards it. Ask, and say what is at stake.
+		if (this._hasUnsavedChanges) {
+			const extra = this._saveEligible
+				? ''
+				: '\n\nNote: Save is temporarily unavailable while card sync verifies. Your draft is kept if you leave the editor open, or close the tab.';
+			if (!confirm(`Discard your unsaved changes to this card? This cannot be undone.${extra}`)) return;
+		}
 		store.dispatch(editingFinish());
 	}
 

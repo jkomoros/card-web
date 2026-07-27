@@ -84,6 +84,10 @@ import {
 } from './corpus-mode.js';
 
 import {
+	preserveEditDraftThroughTeardown
+} from './edit-draft.js';
+
+import {
 	corpusSizeTrustworthy,
 	corpusSyncReady,
 	corpusMayServe
@@ -1159,7 +1163,16 @@ const purgeAndDeactivate = () => {
 		.catch(error => console.warn('[corpus-worker] could not disconnect superseded tab listeners:', error));
 	bufferedActions.length = 0;
 	const state = store.getState() as State;
-	if (selectIsEditing(state)) store.dispatch({type: EDITING_FINISH});
+	if (selectIsEditing(state)) {
+		//The user did not choose to stop editing — this tab lost ownership.
+		//Without this the draft watcher sees dirty->clean and DELETES the
+		//persisted draft, destroying unsaved work with no confirmation. The
+		//cooperative takeover path is already blocked while editing
+		//(takeoverBlockReason), but the Web Lock steal and superseded-session
+		//paths both land here and cannot be refused.
+		preserveEditDraftThroughTeardown();
+		store.dispatch({type: EDITING_FINISH});
+	}
 	const cardIDs = Object.keys(selectRawCards(store.getState() as State));
 	if (cardIDs.length) store.dispatch({type: REMOVE_CARDS, cardIDs});
 	resetSubscriptionsForReconnect();
@@ -1215,6 +1228,9 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 		if (staleUnpublishedIDs.length) {
 			const editingCard = selectEditingNormalizedCard(store.getState() as State);
 			if (editingCard && staleUnpublishedIDs.includes(editingCard.id)) {
+				//Auth scope changed under an open editor; same reasoning as
+				//purgeAndDeactivate above — keep the draft.
+				preserveEditDraftThroughTeardown();
 				store.dispatch({type: EDITING_FINISH});
 			}
 			store.dispatch({type: REMOVE_CARDS, cardIDs: staleUnpublishedIDs});

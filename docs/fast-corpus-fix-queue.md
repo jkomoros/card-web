@@ -12,18 +12,6 @@ are merged into a single item and marked with the lenses that found them.
 
 ## P0 — wedges the app or destroys work
 
-### R5/U2. Unsaved draft destroyed on forced deactivation, and on Cancel
-Two doors to the same loss:
-- `src/corpus-bridge.ts:1162` — `purgeAndDeactivate` dispatches `EDITING_FINISH`
-  while editing; the draft watcher (`src/edit-draft.ts:121-128`) sees
-  dirty→clean and calls `clearEditDraft()`. Reached from the Web Lock steal
-  path (`:1129`) and `deactivateSupersededOwnership` (`:1177`), neither of which
-  consults dirty state. The cooperative takeover IS protected
-  (`takeoverBlockReason` returns `'editing'`), these paths are not.
-- `src/components/card-editor.ts` `_handleCancel` → `editingFinish()` with no
-  confirm, same watcher, same deletion — while the disabled Save button's
-  tooltip says verbatim "your draft is safe".
-
 ### R3. Worker self-close is undetectable; UI reports "live" over a dead worker
 `src/worker/corpus-worker.ts:502-520`, `src/corpus-bridge.ts:389-399, 437-455`.
 `workerScope.close()` fires no `error` on the parent and the parent never calls

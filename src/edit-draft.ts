@@ -101,6 +101,24 @@ const stampDraftForSave = (identity : SingleSaveIdentity | null) => {
 let installed = false;
 let writeTimer : number | undefined;
 let previouslyDirty = false;
+//When set, the next dirty->clean transition keeps the persisted draft instead of
+//clearing it. The watcher cannot tell a user CHOOSING to discard from the app
+//tearing the editor down underneath them: both arrive as EDITING_FINISH. Set
+//this before any programmatic teardown so the user's work survives it.
+let preserveDraftThroughNextFinish = false;
+
+//Call immediately BEFORE dispatching EDITING_FINISH for any reason that is not
+//the user electing to discard their edits (ownership loss, tab supersession,
+//auth scope change). Without it, purgeAndDeactivate's EDITING_FINISH made the
+//watcher see dirty->clean and delete the localStorage draft — destroying
+//unsaved work with no confirmation, in exactly the involuntary paths where the
+//user never got a choice.
+export const preserveEditDraftThroughTeardown = () => {
+	//Flush synchronously first: the debounced write may not have landed yet, so
+	//the most recent keystrokes would otherwise not be in the draft we keep.
+	flushPendingDraft();
+	preserveDraftThroughNextFinish = true;
+};
 
 const flushPendingDraft = () => {
 	if (writeTimer === undefined) return;
@@ -123,7 +141,8 @@ export const installEditDraftWatcher = () => {
 			writeTimer = undefined;
 			//Only remove a draft when an active editing session became clean. A
 			//fresh page must retain the prior session's recoverable draft.
-			if (previouslyDirty) clearEditDraft();
+			if (previouslyDirty && !preserveDraftThroughNextFinish) clearEditDraft();
+			preserveDraftThroughNextFinish = false;
 			previouslyDirty = false;
 			return;
 		}
