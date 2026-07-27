@@ -14,35 +14,6 @@ are merged into a single item and marked with the lenses that found them.
 
 ## P1 — correctness
 
-### C4. Cross-tab aux replay double-applies non-idempotent star counters
-`src/aux-write-queue.ts:157-162`, `src/actions/user.ts:29-58`. `inFlight` is
-per-tab; the `online` listener fires in EVERY tab. Tab A holds the intent
-in-flight (skipped locally) while tab B has no such marker, replays it, and
-commits — then A's SDK flushes → `star_count +2` for one star. `star-remove`
-double-decrements with no race window at all. My last-round "re-read before each
-attempt" narrows but does not close this.
-Also `src/corpus-bridge.ts:1530-1532` justifies the anonymous-reader ownership
-bypass with "stars/reads ... are multi-tab-safe by construction" — that comment
-is FALSE; those writes carry `increment(±1)` on the shared card document.
-
-### C5. Sign-out mid-replay permanently discards read/reading-list intents
-`src/aux-write-queue.ts:157-162`. `uid` is captured at call time and never
-re-checked between awaits, contradicting the claim at `src/actions/user.ts:495`
-that the provider reads live state. After sign-out mid-replay, the next intent
-commits without auth → `permission-denied` → classified permanent → destroyed.
-Stars survive (their preflight rethrows code-less); `read-add`, `read-remove`,
-`reading-list-add`, `reading-list-remove` have no preflight and are lost.
-Also on an account switch the new watcher is a no-op because `replayRunning` is
-still true.
-
-### R14. Aux-queue in-flight restore inverts creation order (my fix, incomplete)
-`src/aux-write-queue.ts:201-209`. The storage-event restorer appends dropped
-intents at the tail, discarding position, violating the module's own contract
-that replay is "strictly sequential in creation order per uid, so an offline
-star-then-unstar pair nets correctly." `[star-add, star-remove]` becomes
-`[star-remove, star-add]` → final state starred, the opposite of the user's last
-action. One-line fix: sort the merged array by `createdAt`.
-
 ### C6. Takeover resurrects a completed multi-edit and duplicates audit history
 `src/actions/data.ts:945-948`/`:579-582` (catch re-persists the in-memory
 snapshot without re-reading) and `:472-482`/`:798-800` (`checkingServerMarker`
@@ -359,8 +330,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 
 ## P2 — correctness / robustness hardening
 
-- **C12.** Direct (non-replay) aux writes have no preflight and can collide with
-  a running replay for the same card (`aux-write-queue.ts:131-135`).
 - **C14.** A single `card-web-edit-draft-v1` key holds one draft
   (`edit-draft.ts:17`), so two concurrently-dirty editors overwrite each other;
   `persistDraft` is also unguarded against `QuotaExceededError`.

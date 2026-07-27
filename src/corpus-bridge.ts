@@ -1609,9 +1609,14 @@ const resetSubscriptionsForReconnect = () => {
 //site. Safe because a reader worker is published-cards-only with
 //persist:false (memory cache): it holds no privileged snapshot/sync-meta
 //stores and claims no Firestore persistence lease, so N tabs share nothing.
-//Reader writes are user-scoped documents (stars/reads for anonymous users),
-//which are multi-tab-safe by construction; card writes are impossible
-//server-side for anonymous users, so the corpus fence has nothing to guard.
+//Reader writes are user-scoped documents (stars/reads for anonymous users);
+//card writes are impossible server-side for anonymous users, so the corpus
+//fence has nothing to guard. NOTE: those writes are NOT multi-tab-safe "by
+//construction", as this comment used to claim — star writes carry
+//increment(+/-1) on the SHARED card document, and N reader tabs share one
+//anonymous uid and one origin-wide durable queue. Safety comes from the
+//cross-tab claim the aux-write queue takes before replaying an intent, not
+//from the documents being user-scoped.
 const readerConnectionParams = (connection : {mayViewUnpublished : boolean, uid : string} | null) : boolean => {
 	if (!connection || connection.mayViewUnpublished) return false;
 	//Pre-auth boots have an empty uid; after the automatic anonymous sign-in
