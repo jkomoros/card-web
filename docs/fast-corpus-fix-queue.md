@@ -40,14 +40,6 @@ offline (`durableSaveEligible` requires `live`); worker degraded.
 render Retry/Stop whenever an intent exists, keep them outside the ownership
 gate's inert subtree, and add an age expiry like the aux queue already has.
 
-### U1. Ownership gate can render invisibly while making the whole app inert
-`src/components/corpus-ownership-gate.ts:170` vs `:160-163`. Visibility is driven
-by `:host([open])`, and `open` is toggled ONLY in `stateChanged`. When the 250ms
-`checking` grace timer flips `_checkingRevealed`, Lit re-renders and `updated()`
-runs `_setBackgroundInert(true)` — but `open` is still absent. Result: every
-control in the app is dead, with no overlay and no message, until some unrelated
-dispatch re-enters `stateChanged`.
-
 ### R3. Worker self-close is undetectable; UI reports "live" over a dead worker
 `src/worker/corpus-worker.ts:502-520`, `src/corpus-bridge.ts:389-399, 437-455`.
 `workerScope.close()` fires no `error` on the parent and the parent never calls
@@ -197,15 +189,6 @@ synchronously but `_refreshDraftAvailability` is async, so it reads state after
 aria-live='assertive'` "An unsaved card draft is available." Recover is
 guaranteed to throw because `editingStart` refuses while
 `durableCardMutationPending()`; Discard removes the recovery record mid-flight.
-
-### U4. Global keyboard shortcuts fire underneath the blocking gate
-`corpus-ownership-gate.ts:111-119`, `main-view.ts:487-527`. `_containFocus` only
-stops keydowns originating inside `.panel`, and `inert` does not suppress
-document/window keydown listeners. Click the backdrop and focus falls to
-`<body>`; then behind a full-screen modal `e` starts editing, arrows navigate,
-Cmd+Enter commits, Cmd-M creates a card. `selectKeyboardNavigates` was extended
-for modal dialogs but does not consult corpus status. Worst in an `inactive`
-tab, whose store has already been purged.
 
 ### U5. Multi-edit dialog becomes undismissable and mislabeled
 `src/actions/data.ts:949-952`, `src/components/multi-edit-dialog.ts:217-224`.

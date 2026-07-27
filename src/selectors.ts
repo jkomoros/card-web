@@ -19,6 +19,10 @@ import {
 } from './card-processing.js';
 
 import {
+	CORPUS_STATUS_BLOCKS_INTERACTION
+} from './corpus-readiness.js';
+
+import {
 	computeDefaultSet,
 	makeEverythingSetFromCards
 } from './set-projections.js';
@@ -472,6 +476,15 @@ export const selectActiveCardEnriched = createSelector(
 //not stopPropagation, so typing `e` into a multi-edit <select> (type-ahead) or
 //the bulk-import textarea both preventDefault()ed the key AND opened the card
 //editor behind the still-open modal.
+//True when the ownership gate is showing its modal overlay. Keyboard shortcuts
+//must be suppressed then: `inert` does not stop document-level keydown
+//listeners, so `e`, arrows, Space, Cmd+Enter and Cmd-M all still fired behind
+//the overlay — worst in an 'inactive' tab, whose store has already been purged.
+export const selectCorpusGateBlocking = createSelector(
+	selectCorpusStatus,
+	(corpusStatus) => CORPUS_STATUS_BLOCKS_INTERACTION.has(corpusStatus)
+);
+
 export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
@@ -483,9 +496,11 @@ export const selectKeyboardNavigates = createSelector(
 	selectAIDialogOpen,
 	selectImagePropertiesDialogOpen,
 	selectImageBrowserDialogOpen,
-	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser) =>
+	selectCorpusGateBlocking,
+	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, gateBlocking) =>
 		!editing && !find && !compose && page == PAGE_DEFAULT &&
-		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser
+		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser &&
+		!gateBlocking
 );
 
 export const selectFilters = createSelector(

@@ -53,3 +53,13 @@ export const corpusMayServe = (
 	syncState : 'unverified' | 'live' | 'stale' | ''
 ) : boolean => syncMode !== 'watermark' || !mayViewUnpublished ||
 	syncState === 'live' || syncState === 'unverified';
+
+//The corpus statuses for which corpus-ownership-gate renders a full-screen,
+//modal, background-inert overlay. Shared so the keyboard-shortcut gate cannot
+//drift from the visual one: `inert` does not suppress document/window keydown
+//listeners, so without consulting this the app's single-key shortcuts kept
+//firing UNDERNEATH the overlay — starting an edit, navigating cards, or
+//creating a card in a tab whose store had already been purged.
+export const CORPUS_STATUS_BLOCKS_INTERACTION : ReadonlySet<string> = new Set([
+	'checking', 'contended', 'inactive', 'takeover', 'unsupported', 'ownership-error', 'degraded'
+]);

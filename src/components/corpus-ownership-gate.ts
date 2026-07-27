@@ -5,8 +5,9 @@ import {connect} from 'pwa-helpers/connect-mixin.js';
 import {store} from '../store.js';
 import {selectCorpusStatus, selectCorpusStatusMessage} from '../selectors.js';
 import {CorpusStatus, State} from '../types.js';
+import {CORPUS_STATUS_BLOCKS_INTERACTION} from '../corpus-readiness.js';
 
-const BLOCKING = new Set<CorpusStatus>(['checking', 'contended', 'inactive', 'takeover', 'unsupported', 'ownership-error', 'degraded']);
+const BLOCKING = CORPUS_STATUS_BLOCKS_INTERACTION;
 
 //How long a transient 'checking' may last before the full-screen overlay is
 //worth showing. The single-tab happy path resolves the Web Lock in one task —
@@ -172,6 +173,16 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 
 	override updated() {
 		const open = this._shouldBlock();
+		//Visibility and inertness MUST be set together. `open` drives
+		//`:host([open])` (the host is `display:none` otherwise) and was toggled
+		//only in stateChanged — but this method runs on every render, including
+		//the one caused by the `checking` grace timer flipping
+		//_checkingRevealed, which is not a Redux dispatch. That combination
+		//made the background inert while the overlay stayed invisible: an app
+		//that looks completely normal and in which every click and every
+		//focusable control is dead, with no message, until some unrelated
+		//dispatch happened to re-enter stateChanged.
+		this.toggleAttribute('open', open);
 		if (open && !this._wasOpen) {
 			const active = document.activeElement;
 			this._returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
