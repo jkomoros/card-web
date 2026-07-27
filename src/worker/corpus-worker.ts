@@ -396,6 +396,13 @@ const buildSearchRecall = async () => {
 
 const status = (message : string) => send({type: 'status', generation, message});
 
+//Terminal, user-visible degradation. The protocol, the bridge handler and a
+//proper "Cards could not load / Reload and retry" panel all existed, but NO
+//worker code ever sent this message — every worker-side failure exited as a
+//`status` that reached only console.log. Anything that leaves this worker
+//unable to keep the corpus in sync must say so here.
+const degraded = (reason : string) => send({type: 'degraded', generation, reason});
+
 //PERF HARNESS ONLY: worker-scoped timing accumulator, mirroring src/perf.ts's
 //actionStats shape ({count, totalMs, maxMs} per label). perfMiddleware wraps the
 //MAIN-thread store only, so without this the worker's O(corpus) compute is
@@ -517,6 +524,14 @@ const stopSupersededWorker = async (message : string) => {
 			status(`superseded worker Firestore shutdown reported ${String(error)}`);
 		}
 	}
+	//ANNOUNCE BEFORE CLOSING. workerScope.close() fires no `error` event on the
+	//parent and the parent never calls terminate(), so without this the page
+	//kept `worker` truthy, `workerLoadComplete` true and `lastSyncState` at
+	//'live' — a green "Card sync: live" dot over a worker that no longer
+	//exists, with saves still enabled and every newly-requested collection
+	//permanently empty. A superseded worker is a legitimate state, but the page
+	//has to know it happened.
+	degraded(`Card sync stopped in this tab: ${message}`);
 	workerScope.close();
 };
 

@@ -12,15 +12,6 @@ are merged into a single item and marked with the lenses that found them.
 
 ## P0 — wedges the app or destroys work
 
-### R3. Worker self-close is undetectable; UI reports "live" over a dead worker
-`src/worker/corpus-worker.ts:502-520`, `src/corpus-bridge.ts:389-399, 437-455`.
-`workerScope.close()` fires no `error` on the parent and the parent never calls
-`terminate()`, so `worker` stays truthy and `lastSyncState` stays `'live'`.
-`corpusWorkerCanRunCollections()` and `selectCardSavesEligible` keep returning
-true. Green dot, "Card sync: live", and every new collection is permanently
-empty. `corpusWorkerRunCollection` has NO timeout (unlike `suggestTags`, which
-has 10s and a comment stating the pattern), so reference blocks freeze forever.
-
 ### R4/R9. Lease/supersession wedges that reload cannot clear
 - `src/corpus-bridge.ts:265-274` — a swallowed `setItem` throw (quota, ITP) in
   `establishOwnershipEpoch` leaves a stale foreign lease, so the very tab that
@@ -120,13 +111,6 @@ writes including per-page cold-sweep cursors.
 of ~40k cards before the first await. The warm-boot advantage silently
 disappears and the user is never told. Also the explicit-abort path logs
 `(null)` because `transaction.error` is null on abort.
-
-### R12. The worker→page `degraded` channel is dead code
-`src/worker/worker-protocol.ts:236`, `corpus-bridge.ts:888`,
-`corpus-ownership-gate.ts:78`. The message type, the bridge handler, and a
-proper "Cards could not load / Reload and retry" UI all exist. **No code in
-`src/worker/` ever sends it.** Every worker-side degradation exits as a `status`
-message that reaches only `console.log`.
 
 ### R13. Worker unhandled rejections are invisible; boot-critical promises unguarded
 `src/worker/corpus-worker.ts:2058`, `:2097`, `:2028`. No `self.onerror` and no

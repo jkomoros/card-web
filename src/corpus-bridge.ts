@@ -443,7 +443,22 @@ export const corpusWorkerRunCollection = (description : string, keyCardID : stri
 	const state = store.getState() as State;
 	const id = ++runCollectionCounter;
 	const promise = new Promise<RunCollectionResolution | null>(resolve => {
-		pendingRunCollections.set(id, resolve);
+		//Bounded, like corpusWorkerSuggestTags. An unbounded wait meant that if
+		//the worker died or self-closed, every reference block and every
+		//newly-requested collection hung FOREVER with no error and no fallback,
+		//while pendingRunCollections leaked an entry per request. Resolving
+		//null lets callers fall back the same way they do when the worker
+		//cannot serve.
+		const timeout = setTimeout(() => {
+			if (!pendingRunCollections.has(id)) return;
+			pendingRunCollections.delete(id);
+			console.warn(`[corpus-worker] collection request ${id} timed out; the worker may have stopped`);
+			resolve(null);
+		}, RUN_COLLECTION_TIMEOUT_MS);
+		pendingRunCollections.set(id, result => {
+			clearTimeout(timeout);
+			resolve(result);
+		});
 	});
 	post({
 		type: 'runCollection',
@@ -466,6 +481,11 @@ export const corpusWorkerRunCollection = (description : string, keyCardID : stri
 // ghosting snapshot is in sync with live state and nothing is being edited,
 // so both sides are answering the same question.
 //----------------------------------------------------------------------------
+
+//Generous: a cold worker computing a 40k-card collection legitimately takes
+//hundreds of ms, and a busy one under a cold sweep can take seconds. This is a
+//liveness backstop, not a latency budget.
+const RUN_COLLECTION_TIMEOUT_MS = 30000;
 
 const SHADOW_COMPARE_INTERVAL_MS = 1000;
 
@@ -890,6 +910,16 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		console.warn('[corpus-worker]', message.message);
 		break;
 	case 'degraded':
+		//A clean supersession also stops the worker, and in that case this tab
+		//already shows the accurate, actionable "Compendium moved to another
+		//tab / Use this tab" panel. Overwriting it with "Cards could not load /
+		//Reload and retry" would be strictly worse and would send the user to
+		//a reload that cannot help. Only surface degradation the ownership
+		//state does not already explain.
+		if (ownershipState === 'inactive' || ownershipState === 'reader') {
+			console.warn(`[corpus-worker] ${message.reason}`);
+			break;
+		}
 		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: message.reason});
 		break;
 	case 'spikeReport':
