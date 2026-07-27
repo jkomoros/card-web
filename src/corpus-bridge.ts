@@ -240,6 +240,10 @@ const writeOwnershipHeartbeat = (force = false) => {
 	const decision = heartbeatDecision(ownershipState === 'active', tabID, ownershipEpoch, readOwnershipLease());
 	if (decision === 'skip') return;
 	if (decision === 'deactivate') {
+		//Never evict ourselves on the say-so of a lease we were unable to
+		//write. The Web Lock we hold is the authority; a stale foreign lease we
+		//cannot overwrite would otherwise deactivate the rightful owner.
+		if (!ownershipLeaseWritable) return;
 		deactivateSupersededOwnership();
 		return;
 	}
@@ -260,6 +264,11 @@ const stopOwnershipHeartbeat = () => {
 	lastLeaseSafety = '';
 };
 
+//False when localStorage rejected our lease write. The lease is a defensive
+//cross-check on top of the Web Lock; if we cannot participate in it, we must not
+//be evicted BY it.
+let ownershipLeaseWritable = true;
+
 const startOwnershipHeartbeat = () => {
 	stopOwnershipHeartbeat();
 	writeOwnershipHeartbeat(true);
@@ -274,7 +283,20 @@ const establishOwnershipEpoch = () => {
 	const lease = nextOwnershipLease(tabID, ownershipEpoch, readOwnershipLease(), Date.now(), leaseSafety());
 	ownershipEpoch = lease.epoch;
 	lastLeaseSafety = `${lease.dirty}:${lease.pending}`;
-	try { localStorage.setItem(OWNERSHIP_LEASE_KEY, JSON.stringify(lease)); } catch { /* Web Lock remains authoritative. */ }
+	try {
+		localStorage.setItem(OWNERSHIP_LEASE_KEY, JSON.stringify(lease));
+		ownershipLeaseWritable = true;
+	} catch (err) {
+		//A swallowed failure here was not harmless: the stale FOREIGN lease
+		//survives, and the heartbeat's first defensive read then decides this
+		//tab — the one that just legitimately won the Web Lock — is superseded
+		//and purges itself, with a "Compendium moved to another tab" message
+		//that is false. Reload could not fix it either (see the superseded
+		//marker above). The Web Lock is the real authority, so record that the
+		//lease is unusable and stop letting it deactivate us.
+		ownershipLeaseWritable = false;
+		console.warn('[corpus-worker] ownership lease is not writable; relying on the Web Lock alone:', err);
+	}
 };
 
 const ownsCurrentEpoch = () => {
@@ -1386,6 +1408,20 @@ const beginInitialOwnership = async () => {
 	}
 	try {
 		if (sessionStorage.getItem(SUPERSEDED_SESSION_KEY) === '1') {
+			//PROBE FIRST. Honoring this marker blindly meant a reload could
+			//never recover: after A->B->C and closing C, nobody owns the lock,
+			//yet every surviving tab short-circuited straight back to
+			//'inactive' and told the user "Compendium moved to another tab" —
+			//which was false, and the user's instinctive remedy (reload) was
+			//the one thing guaranteed not to work. The marker records that this
+			//tab WAS superseded, which is only still true if someone else
+			//actually holds the lock now.
+			const probe = await acquireOwnershipLock(true);
+			if (probe === 'acquired') {
+				try { sessionStorage.removeItem(SUPERSEDED_SESSION_KEY); } catch { /* storage may be disabled */ }
+				activateOwnedConnection();
+				return;
+			}
 			setOwnershipStatus('inactive', 'Compendium was moved to another tab. This tab remains inactive so card sync stays safe.');
 			disconnectBackgroundData();
 			return;

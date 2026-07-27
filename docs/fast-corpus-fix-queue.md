@@ -10,19 +10,6 @@ are merged into a single item and marked with the lenses that found them.
 
 ---
 
-## P0 — wedges the app or destroys work
-
-### R4/R9. Lease/supersession wedges that reload cannot clear
-- `src/corpus-bridge.ts:265-274` — a swallowed `setItem` throw (quota, ITP) in
-  `establishOwnershipEpoch` leaves a stale foreign lease, so the very tab that
-  just won the Web Lock immediately reads `'deactivate'` and purges itself.
-- `:1342-1346` — `beginInitialOwnership` honors `SUPERSEDED_SESSION_KEY` WITHOUT
-  probing the now-free lock, so reload returns to `'inactive'`. Same defect
-  makes the zero-owner state (A→B→C, close C) unrecoverable by reload; every
-  tab says "Compendium moved to another tab", which is false.
-Fix: probe the lock before honoring the sessionStorage key, and make the
-`setItem` failure loud and non-fatal.
-
 ---
 
 ## P1 — correctness
