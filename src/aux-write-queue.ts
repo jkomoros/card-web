@@ -53,7 +53,11 @@ const STORAGE_KEY = 'card-web-pending-aux-writes-v1';
 const MAX_INTENT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 const executors : Partial<Record<AuxWriteKind, AuxWriteExecutor>> = {};
-const inFlight : Set<string> = new Set();
+//Keyed by intent id, but holding the INTENT: localStorage read-modify-write is
+//not atomic across tabs, so a sibling tab writing from a stale snapshot can
+//drop an intent this tab is still working on. Keeping the object lets the
+//storage listener below put it back.
+const inFlight : Map<string, AuxWriteIntent> = new Map();
 let replayRunning = false;
 let watcherInstalled = false;
 let intentCounter = 0;
@@ -131,7 +135,7 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<void> => {
 	const executor = executors[intent.kind];
 	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
 	writePendingAuxWrites([...readPendingAuxWrites(), intent]);
-	inFlight.add(intent.id);
+	inFlight.set(intent.id, intent);
 	return executor(intent, false).then(() => {
 		removeIntent(intent.id);
 	}).catch(error => {
@@ -158,6 +162,11 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 			if (intent.uid !== uid || inFlight.has(intent.id)) continue;
 			const executor = executors[intent.kind];
 			if (!executor) continue;
+			//Re-read before each attempt: a sibling tab replaying the same
+			//origin-wide queue may have discharged this intent while we awaited
+			//the previous one. Star writes carry non-idempotent counter
+			//increments, so replaying an already-committed intent double-counts.
+			if (!readPendingAuxWrites().some(other => other.id === intent.id)) continue;
 			try {
 				await executor(intent, true);
 				removeIntent(intent.id);
@@ -184,6 +193,20 @@ export const installAuxWriteReplayWatcher = (uidProvider : () => Uid) : void => 
 	if (watcherInstalled || typeof window === 'undefined') return;
 	watcherInstalled = true;
 	window.addEventListener('online', () => void replayPendingAuxWrites(uidProvider()));
+	//localStorage read-modify-write is not atomic ACROSS TABS: a sibling can
+	//read the queue, we can append, and the sibling can then write back its
+	//stale snapshot — silently dropping an intent we are still working on,
+	//while our own catch handler logs "queued for replay". Restore anything
+	//still in flight here that vanished from storage.
+	window.addEventListener('storage', event => {
+		if (event.key !== STORAGE_KEY || !inFlight.size) return;
+		const current = readPendingAuxWrites();
+		const present = new Set(current.map(intent => intent.id));
+		const dropped = [...inFlight.values()].filter(intent => !present.has(intent.id));
+		if (!dropped.length) return;
+		console.warn(`Restoring ${dropped.length} in-flight aux write intent(s) dropped by a concurrent tab`);
+		writePendingAuxWrites([...current, ...dropped]);
+	});
 };
 
 //Testing hook: clears module state that would otherwise leak between tests.

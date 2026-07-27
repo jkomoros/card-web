@@ -365,6 +365,16 @@ export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) =
 		if (result?.user) dispatch(signInSuccess(result.user));
 	} catch (err) {
 		dispatch({type:SIGNIN_FAILURE, error: err});
+		//SIGNIN_FAILURE renders nowhere, and this is the RETURN leg of a
+		//redirect the user deliberately started: failing silently leaves them
+		//anonymous, staring at a sign-in button that appears to do nothing, in
+		//a loop. The popup path already surfaces its failures the same way.
+		const code = (err as {code? : string})?.code || '';
+		if (code === 'auth/credential-already-in-use') {
+			alert('That account is already linked to different data. Sign in from the account menu to switch to it.');
+		} else {
+			alert(`Sign in did not complete: ${(err as {message? : string})?.message || String(err)}`);
+		}
 	}
 };
 

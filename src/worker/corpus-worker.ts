@@ -1258,6 +1258,20 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 //Derive the session watermark from the corpus actually in hand — NEVER from
 //clocks, read times, or client-clock-contaminated entries (see
 //src/worker/watermark.ts for the invariant).
+//Second-chance gate, run once the delta listener has caught up. The boot gate
+//forgives a small per-partition deficit because a card created moments ago has
+//`updated > W` and delta delivers it regardless — but that argument is about
+//RECENCY and was applied as an unconditional COUNT tolerance, so an old
+//absence was blessed forever and persisted into the next snapshot. By this
+//point delta has delivered, so any surviving deficit is genuine.
+const verifyDeficitsAfterDeltaCatchUp = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
+	const gate = await runTrustGate(database, myConnectionGeneration);
+	if (!gate || myConnectionGeneration !== connectionGeneration) return;
+	if (!gate.mismatched.length) return;
+	status(`post-delta re-gate found ${gate.mismatched.length} partition(s) still short; repairing`);
+	await repairPartitions(database, myConnectionGeneration, gate.mismatched);
+};
+
 const deriveSessionWatermark = () : WireTimestamp | null => {
 	const values : (WireTimestamp | null)[] = [];
 	for (const [id, card] of corpus.entries()) {
@@ -1516,6 +1530,17 @@ const attachDeltaListener = (database : Firestore) => {
 					firstServerDelivery = false;
 					void clearWatermarkClamp().then(() => {
 						if (myConnectionGeneration === connectionGeneration) markWatermarkPlane('delta', true);
+						//The boot gate tolerates a small per-partition DEFICIT
+						//on the reasoning that a just-created card has
+						//`updated > W` and the delta listener will deliver it
+						//anyway. That reasoning only holds for RECENT cards:
+						//an older absence (a dropped page, an evicted cache
+						//entry, a launder that lifted suppression) is never
+						//redelivered and was blessed permanently, up to 5 per
+						//partition. Delta has now caught up, so re-count: any
+						//deficit that survives is real, and repairing it is
+						//~10 count queries.
+						void verifyDeficitsAfterDeltaCatchUp(database, myConnectionGeneration);
 					});
 				} else {
 					markWatermarkPlane('delta', true);
@@ -1906,15 +1931,24 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		//Start the background search-recall build now, at low duty: the trust
 		//gate ahead is network-bound dead time, ideal for chunked CPU work.
 		scheduleSearchRecallBuild();
-		//A substantial prime IS the initial load, exactly as master treated a
-		//listener's first (cache-served) snapshot: the cards are present, so
-		//the UI may render them. Verification continues in the background and
-		//`live` still requires all three watermark planes — but withholding
-		//loadComplete until then left every card sitting in the store for
-		//~19s behind a "Loading…" screen (measured on the real 40k corpus).
-		//A thin prime is NOT enough: the cold-sweep path must own completion
-		//there, and corpusSizeTrustworthy independently guards the bridge.
-		if (primedCount >= WARM_CACHE_THRESHOLD) {
+		//A substantial prime from the COMPACT SNAPSHOT is the initial load,
+		//exactly as master treated a listener's first (cache-served) snapshot:
+		//the cards are present, so the UI may render them. Verification
+		//continues in the background and `live` still requires all three
+		//watermark planes — but withholding loadComplete until then left every
+		//card sitting in the store for ~19s behind a "Loading…" screen
+		//(measured on the real 40k corpus).
+		//
+		//The SOURCE matters, not just the size. A compact snapshot is only ever
+		//written after this corpus passed the trust gate, so its contents are
+		//known-complete. The Firestore persistent-cache fallback carries no
+		//such guarantee: a partial-mode residue (5,001 cards observed live,
+		//with 34k missing) clears any size threshold, and max(updated) over
+		//such a cache can equal the true corpus max, so the delta query never
+		//heals it. Marking that as the initial load would let the app serve a
+		//fraction of the corpus as if it were whole — "no card by that name"
+		//for cards that exist, and navigation away from valid ones.
+		if (primeSource === 'compact snapshot' && primedCount >= WARM_CACHE_THRESHOLD) {
 			if (Object.keys(primedPublished).length) markInitialDelivered('published');
 			markInitialDelivered('unpublished');
 		}
@@ -1960,8 +1994,12 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		if (myConnectionGeneration !== connectionGeneration) return;
 		if (gate === null) {
 			//Offline or quota-starved: keep serving the prime locally,
-			//unverified; retry. loadComplete is withheld so the bridge never
-			//serves worker collections from an unverified corpus.
+			//unverified; retry. Serving an unverified corpus is deliberate
+			//(trust slow, serve fast) — loadComplete is NO LONGER withheld
+			//here, but it is only granted for a compact-snapshot prime, which
+			//by construction already passed this gate on an earlier run. A
+			//persistent-cache prime still waits, so a partial residue cannot
+			//be served as if it were the whole corpus.
 			setTimeout(() => {
 				if (myConnectionGeneration !== connectionGeneration) return;
 				void gateAndProceed();
