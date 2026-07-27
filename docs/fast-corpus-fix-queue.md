@@ -1,0 +1,561 @@
+# fast-corpus pre-land fix queue
+
+Working state for the Round 9 five-lens adversarial review (correctness, UX,
+security, performance, robustness). **Items are DELETED from this file as they
+are resolved**, each deletion committed with its fix. When this file is empty it
+gets deleted, and the queue is done.
+
+Dedup note: several findings were reported independently by 2-3 reviewers; those
+are merged into a single item and marked with the lenses that found them.
+
+---
+
+## P0 — security, exploitable now
+
+### S1. Unauthenticated write to every published card, including `updated`
+`firestore.TEMPLATE.rules:167` (`cardEditInboundReferences`), reached from `:304`.
+No caller-identity check at all; the only gate is
+`resource.data.published || userMayViewUnpublished()`, and the first disjunct is
+true for anyone on a published card. Confirmed on the emulator: an
+unauthenticated client can write `references_inbound`,
+`references_info_inbound`, and `updated`. There is a standing
+`//TODO: for each modifiedCardID, verify userMayEditCard` in the function.
+Pre-existing on master, but this branch added `'updated'` to `allKeys` AND made
+`updated` load-bearing for watermark sync — so bumping it across ~40k published
+cards forces every client to redeliver the whole corpus (billed-read
+exhaustion, launchable by curl). Secondary: plant an inbound reference to make a
+card undeletable; or wipe inbound-reference data corpus-wide.
+Fix carefully: the legitimate writer is the link-denormalization batch from
+another user's card edit. Needs an identity floor without breaking that.
+
+### S2. `stars`/`reads`/`reading_lists` create rules never bind doc id to uid
+`firestore.TEMPLATE.rules:371`, `:387`, `:417`. `createIsOwner()` validates the
+`owner` FIELD, never the document PATH. Confirmed: an anonymous user can create
+`stars/{victimUid}+{cardID}` owned by themselves, after which the victim's own
+star write is permanently denied and their replay preflight is denied. Same for
+`reading_lists/{victimUid}` — permanently bricks that user's reading list. The
+admin's uid is public (it is the `author` of every published card). This also
+undermines the new read rule, whose comment treats `id == uid + '+' + cardID`
+as an invariant that nothing enforces on the write side.
+
+---
+
+## P0 — wedges the app or destroys work
+
+### R5/U2. Unsaved draft destroyed on forced deactivation, and on Cancel
+Two doors to the same loss:
+- `src/corpus-bridge.ts:1162` — `purgeAndDeactivate` dispatches `EDITING_FINISH`
+  while editing; the draft watcher (`src/edit-draft.ts:121-128`) sees
+  dirty→clean and calls `clearEditDraft()`. Reached from the Web Lock steal
+  path (`:1129`) and `deactivateSupersededOwnership` (`:1177`), neither of which
+  consults dirty state. The cooperative takeover IS protected
+  (`takeoverBlockReason` returns `'editing'`), these paths are not.
+- `src/components/card-editor.ts` `_handleCancel` → `editingFinish()` with no
+  confirm, same watcher, same deletion — while the disabled Save button's
+  tooltip says verbatim "your draft is safe".
+
+### C3/U6/R1. A durable intent with no `lastError` locks out ALL editing, forever
+`src/components/card-web-app.ts:264`, `src/actions/data.ts:773, 600, 962`,
+`src/actions/editor.ts:311`. Found by three reviewers independently.
+`_saveStatus` is `'paused'` (the ONLY state rendering Retry/Stop) only if
+`saveError || durableError`. The write-ahead intent is persisted BEFORE any
+attempt, so the crash window it exists to protect is exactly the window that
+produces a record with no `lastError` → `'saving'` → buttonless spinner.
+Meanwhile `durableCardMutationPending()` disables Edit on every card, refuses
+`editingStart` with only a console.warn, disables the SW Reload button, and arms
+a `beforeunload` prompt. Multiple doors in: crash before first commit; uid
+mismatch after sign-out/account switch (resume returns silently at `:962`);
+offline (`durableSaveEligible` requires `live`); worker degraded.
+**Recovery is impossible without DevTools.** The fix that closes all doors:
+render Retry/Stop whenever an intent exists, keep them outside the ownership
+gate's inert subtree, and add an age expiry like the aux queue already has.
+
+### U1. Ownership gate can render invisibly while making the whole app inert
+`src/components/corpus-ownership-gate.ts:170` vs `:160-163`. Visibility is driven
+by `:host([open])`, and `open` is toggled ONLY in `stateChanged`. When the 250ms
+`checking` grace timer flips `_checkingRevealed`, Lit re-renders and `updated()`
+runs `_setBackgroundInert(true)` — but `open` is still absent. Result: every
+control in the app is dead, with no overlay and no message, until some unrelated
+dispatch re-enters `stateChanged`.
+
+### C2/R2. IndexedDB failure aborts the whole watermark connect
+`src/worker/corpus-worker.ts:1768-1782`, `:1964-1968`. `loadSyncMeta`'s
+documented contract is "degrade, keep syncing", but it returns `null` without
+bumping the generation, and the caller then hits `if (!syncMetaState) return;` —
+skipping tombstone catch-up, the trust gate, the cold sweep, AND both the
+tombstone and delta listeners. Session runs with zero live planes, stays
+`unverified` forever, so all saving is permanently refused; if the snapshot
+store also failed, `loadComplete` never fires either. The comment calling this
+branch "unreachable in practice" is wrong — it is the IDB-error branch.
+Also: `syncMetaOwnershipClaim ||=` memoizes the REJECTED promise, so the retry
+reuses it.
+
+### R3. Worker self-close is undetectable; UI reports "live" over a dead worker
+`src/worker/corpus-worker.ts:502-520`, `src/corpus-bridge.ts:389-399, 437-455`.
+`workerScope.close()` fires no `error` on the parent and the parent never calls
+`terminate()`, so `worker` stays truthy and `lastSyncState` stays `'live'`.
+`corpusWorkerCanRunCollections()` and `selectCardSavesEligible` keep returning
+true. Green dot, "Card sync: live", and every new collection is permanently
+empty. `corpusWorkerRunCollection` has NO timeout (unlike `suggestTags`, which
+has 10s and a comment stating the pattern), so reference blocks freeze forever.
+
+### R4/R9. Lease/supersession wedges that reload cannot clear
+- `src/corpus-bridge.ts:265-274` — a swallowed `setItem` throw (quota, ITP) in
+  `establishOwnershipEpoch` leaves a stale foreign lease, so the very tab that
+  just won the Web Lock immediately reads `'deactivate'` and purges itself.
+- `:1342-1346` — `beginInitialOwnership` honors `SUPERSEDED_SESSION_KEY` WITHOUT
+  probing the now-free lock, so reload returns to `'inactive'`. Same defect
+  makes the zero-owner state (A→B→C, close C) unrecoverable by reload; every
+  tab says "Compendium moved to another tab", which is false.
+Fix: probe the lock before honoring the sessionStorage key, and make the
+`setItem` failure loud and non-fatal.
+
+### R6. `SyncMetaStore.save()` has no `onabort` → an awaited promise never settles
+`src/worker/sync-meta.ts:128-149`. Sets `oncomplete`/`onerror` but not
+`onabort`; the ownership-mismatch branch calls `transaction.abort()` with no
+requests pending, so per spec only `abort` fires and the promise hangs.
+`corpus-snapshot.ts:188` gets this right. `clearWatermarkClamp` AWAITS it and
+sits on the path to `live` — so the delta plane is never marked healthy, the
+corpus never goes live, snapshot persistence is never enabled, and the next boot
+is cold with the clamp still pending. Self-perpetuating.
+
+---
+
+## P1 — correctness
+
+### C4. Cross-tab aux replay double-applies non-idempotent star counters
+`src/aux-write-queue.ts:157-162`, `src/actions/user.ts:29-58`. `inFlight` is
+per-tab; the `online` listener fires in EVERY tab. Tab A holds the intent
+in-flight (skipped locally) while tab B has no such marker, replays it, and
+commits — then A's SDK flushes → `star_count +2` for one star. `star-remove`
+double-decrements with no race window at all. My last-round "re-read before each
+attempt" narrows but does not close this.
+Also `src/corpus-bridge.ts:1530-1532` justifies the anonymous-reader ownership
+bypass with "stars/reads ... are multi-tab-safe by construction" — that comment
+is FALSE; those writes carry `increment(±1)` on the shared card document.
+
+### C5. Sign-out mid-replay permanently discards read/reading-list intents
+`src/aux-write-queue.ts:157-162`. `uid` is captured at call time and never
+re-checked between awaits, contradicting the claim at `src/actions/user.ts:495`
+that the provider reads live state. After sign-out mid-replay, the next intent
+commits without auth → `permission-denied` → classified permanent → destroyed.
+Stars survive (their preflight rethrows code-less); `read-add`, `read-remove`,
+`reading-list-add`, `reading-list-remove` have no preflight and are lost.
+Also on an account switch the new watcher is a no-op because `replayRunning` is
+still true.
+
+### R14. Aux-queue in-flight restore inverts creation order (my fix, incomplete)
+`src/aux-write-queue.ts:201-209`. The storage-event restorer appends dropped
+intents at the tail, discarding position, violating the module's own contract
+that replay is "strictly sequential in creation order per uid, so an offline
+star-then-unstar pair nets correctly." `[star-add, star-remove]` becomes
+`[star-remove, star-add]` → final state starred, the opposite of the user's last
+action. One-line fix: sort the merged array by `createdAt`.
+
+### C6. Takeover resurrects a completed multi-edit and duplicates audit history
+`src/actions/data.ts:945-948`/`:579-582` (catch re-persists the in-memory
+snapshot without re-reading) and `:472-482`/`:798-800` (`checkingServerMarker`
+goes false after the FIRST probe). A fenced tab's late failure re-persists
+`{nextIndex: 10}` for an operation another tab already completed to 30. On
+Retry, only the first marker is checked, so a re-chunked replay writes a second
+`card_updates` doc per card under a different batchID, permanently corrupting
+audit history. The bulk-tag path is immune (operation-stable audit ids).
+
+### C7/U16. Offline card CREATION is silently lost, unlike every save path
+`src/actions/data.ts:1863` (`createCard`), `:1780`, `:1838`. Has neither a
+durable intent nor a `durableSaveEligible` gate, unlike every save path. The
+main thread is now `memoryLocalCache()`, so offline `batch.commit()` neither
+resolves nor rejects and the card is gone on reload. Master's persistent cache
+made this survive for free. Also the `+` / Cmd-M affordances are not disabled
+during the unverified window, so you can create a card, type, and then be
+refused Save.
+
+### R7. Post-delta re-gate reuses the tolerance it was written to remove (my fix)
+`src/worker/corpus-worker.ts:1164`, `:1207`, `:1261-1273`.
+`verifyDeficitsAfterDeltaCatchUp` calls the same `runTrustGate`, which applies
+the same `GATE_PARTITION_TOLERANCE = 5`; there is no parameter to tighten it. So
+up to 50 genuinely-missing cards still survive BOTH gates and get written into
+the compact snapshot, which `:1942` then treats as known-complete forever.
+
+### C8. Re-gate runs AFTER `live` and after the first snapshot save (my fix)
+`src/worker/corpus-worker.ts:1532-1543`, `:1148-1157`. `markWatermarkPlane`
+flips to `'live'` and fires `scheduleCorpusSnapshotSave(0)` BEFORE the re-gate
+confirms the deficits are gone — so a deficient corpus is written as the
+"known-complete" snapshot, and `corpusWorkerCorpusVerified()` (mass-removal
+authority) is granted early. Gate the live transition and first snapshot save on
+the re-gate.
+
+### R8. A future-dated `updated` permanently poisons the watermark
+`src/worker/watermark.ts:40-50`, `corpus-worker.ts:1275-1294`.
+`deriveSessionWatermark` takes `max(updated)` with no wall-clock sanity bound.
+One doc a year ahead → the delta bound matches nothing, and an EMPTY but
+server-confirmed delta still marks the plane healthy → `live` → the poisoned
+card is snapshotted → every future boot re-derives it. Silent permanent
+staleness reported as live. Realistic trigger: an out-of-band/admin/migration
+write. Note S1 above makes this remotely inducible.
+
+### R10. `SyncMetaStore` caches a dead/rejected DB promise forever
+`src/worker/sync-meta.ts:103-106`. No reset, unlike `CorpusSnapshotStore`
+(`corpus-snapshot.ts:134-139`), so once the open rejects every later
+`load`/`save` swallows into `catch {}` forever: tombstone cursor, cold-sweep
+cursors and `watermarkClamp` silently stop persisting.
+
+### P13. Sync-meta ownership never claimed on the compact-snapshot path
+`src/worker/corpus-worker.ts:1831-1837` builds `syncMetaState` inline and the
+only `loadSyncMeta()` call is guarded by `if (!syncMetaState)`, so
+`claimOwnership()` is never called on that path and every subsequent `save()`
+aborts against a prior session's owner record — silently dropping ALL sync-meta
+writes including per-page cold-sweep cursors.
+
+### R11. Snapshot quota exhaustion is silent and retries forever at full cost
+`src/worker/corpus-worker.ts:440-490`. No backoff, no disable-after-N, no
+`clear()` to reclaim, and each retry runs a full synchronous `toWire` deep clone
+of ~40k cards before the first await. The warm-boot advantage silently
+disappears and the user is never told. Also the explicit-abort path logs
+`(null)` because `transaction.error` is null on abort.
+
+### R12. The worker→page `degraded` channel is dead code
+`src/worker/worker-protocol.ts:236`, `corpus-bridge.ts:888`,
+`corpus-ownership-gate.ts:78`. The message type, the bridge handler, and a
+proper "Cards could not load / Reload and retry" UI all exist. **No code in
+`src/worker/` ever sends it.** Every worker-side degradation exits as a `status`
+message that reaches only `console.log`.
+
+### R13. Worker unhandled rejections are invisible; boot-critical promises unguarded
+`src/worker/corpus-worker.ts:2058`, `:2097`, `:2028`. No `self.onerror` and no
+`unhandledrejection` handler anywhere in `src/worker/`, and worker rejections do
+not reach `worker.onerror`. `gateAndProceed` has no try/catch, and
+`sweepPartition` calls `updateLocalState`/`forwardBatch` OUTSIDE its try, so a
+throw there stops verification permanently with no retry and no error anywhere.
+
+### C9. `bulkTagResumeAttemptedThisPage` set by SUCCESSFUL saves, kills later resume
+`src/actions/data.ts:416` (unconditional, never cleared on success), consumed at
+`:593` which also guards `resumePendingDurableMultiEdit()`. A completed label
+edit therefore disables automatic single-save recovery for the life of the page.
+
+### C11. Sign-out snapshot purge no-ops after a non-privileged reconnect
+`src/worker/corpus-worker.ts:2063`. `corpusSnapshotStore` is only created in
+`connectUnpublishedWatermark`; a permission revocation reconnects non-privileged
+first, so the later `uid === ''` connect finds a null store and the full
+materialized unpublished corpus stays in IndexedDB. Also `clear()` never deletes
+the `${key}:owner` record, and nothing anywhere calls
+`clearIndexedDbPersistence`.
+
+---
+
+## P1 — UX
+
+### U3. Every successful save fires an assertive alert whose Recover cannot work
+`src/actions/data.ts:777-782` → `src/edit-draft.ts:94-99` →
+`src/components/card-web-app.ts:335-341`. `stampDraftForSave` announces
+synchronously but `_refreshDraftAvailability` is async, so it reads state after
+`dispatch(editingFinish())` — editing false, draft exists, uid matches →
+`_draftAvailable = true`. So every save pops `role='alert'
+aria-live='assertive'` "An unsaved card draft is available." Recover is
+guaranteed to throw because `editingStart` refuses while
+`durableCardMutationPending()`; Discard removes the recovery record mid-flight.
+
+### U4. Global keyboard shortcuts fire underneath the blocking gate
+`corpus-ownership-gate.ts:111-119`, `main-view.ts:487-527`. `_containFocus` only
+stops keydowns originating inside `.panel`, and `inert` does not suppress
+document/window keydown listeners. Click the backdrop and focus falls to
+`<body>`; then behind a full-screen modal `e` starts editing, arrows navigate,
+Cmd+Enter commits, Cmd-M creates a card. `selectKeyboardNavigates` was extended
+for modal dialogs but does not consult corpus status. Worst in an `inactive`
+tab, whose store has already been purged.
+
+### U5. Multi-edit dialog becomes undismissable and mislabeled
+`src/actions/data.ts:949-952`, `src/components/multi-edit-dialog.ts:217-224`.
+A failed SINGLE-card save sets both `bulkTagOperationProgress` and
+`cardModificationError`, so opening Edit All Cards shows "Saved multi-edit needs
+attention / Retry remaining 1 cards" for an operation the user never started —
+and `_shouldClose()` returns early whenever `_bulkTagProgress` is truthy,
+ignoring `cancelled`, so Escape AND the ✕ are both dead.
+
+### U7. Cmd/Ctrl+Enter runs the whole confirm gauntlet before revealing refusal
+`main-view.ts:487` → `actions/app.ts:445` → `actions/editor.ts:362` (no
+eligibility check) → `actions/data.ts:752` (alert). The user answers the pending
+slug, suggested-concept and overshadowed-changes confirms, THEN learns sync
+isn't live. The mouse path is a hover-only tooltip. Two different behaviors for
+the same intent, and no always-visible sync signal while the editor is open.
+
+### U8. Drawer asserts "0 cards", undimmed, for the whole pre-loadComplete window
+`selectors.ts:1701-1706`, `card-view.ts:1104-1107`. `selectActiveCollection`
+returns a placeholder with `numCards: 0` and **`isFallback: false`**, so the
+drawer stays showing, holds its 13em column, prints "0 cards", and the `else`
+branch deliberately does not set `_collectionUpdating` — suppressing the dim +
+"updating…" honesty mechanism exactly when the wait is longest. Then it pops
+0 → 40,225. (Note: this also means my earlier `selectCardsDrawerPanelShowing`
+change is inert on the worker path.)
+
+### U9. Find dialog asserts zero results with no loading affordance
+`find-dialog.ts:395-425`, `selectors.ts:2005-2021`. Cmd-F before `loadComplete`:
+the query slot isn't subscribed, `_lastReadyCollection` is null so
+stale-while-revalidate doesn't engage, and `selectFindSearchPreparing` bails
+because `searchRecall` is null. The user sees "0 cards" and concludes the card
+doesn't exist.
+
+### U10. The boot-placeholder fix is inert — its premise is false
+`card-renderer.ts:278-281`, `card-stage.ts:170`, `card-view.ts:685`.
+`.boot-placeholder { font-style:inherit; opacity:inherit; }` was justified by
+"the uniform fade card-stage already applies" — that fade is
+`.loading card-renderer {opacity:0.6}`, keyed on card-stage's `loading`
+property, and **card-view never sets it** (the only setter in the repo is
+`basic-card-view.ts:84`). So "Loading..." now renders as ordinary full-weight,
+full-opacity title/body text, visually identical to a real card.
+
+### U11. Worker failure and unsupported browsers are unrecoverable walls
+`corpus-mode.ts:38-51`, `corpus-bridge.ts:1023-1033`,
+`corpus-ownership-gate.ts:84, 139-141`. Failing closed is criterion 9 and the
+policy is right; the recovery affordance is not. `readCorpusWorkerMode()`
+returns `'on'` unconditionally off dev hosts so the graceful `'fallback'` branch
+is unreachable in production, and `writeCorpusWorkerMode('off')` is refused
+there. A worker chunk 404 after a deploy gives a full-viewport "Cards could not
+load" whose only button reloads into the same condition. `'unsupported'` renders
+NO button, `_activate` early-returns, and `_containFocus` swallows Escape while
+preventDefault-ing Tab onto a `tabindex="-1"` panel — a keyboard trap (WCAG
+2.1.2) on a non-interactive element. These users could read the site on master.
+
+### U12. Single-card save can fail with no alert, no pill, and no state change
+`actions/data.ts:949` (`skipAlert` → console.warn only). The compensating UI is
+the save pill, which renders only when a localStorage intent exists — so every
+throw BEFORE `persistDurableMultiEdit` succeeds (including `!uid` and
+`persistDurableMultiEdit` itself throwing on quota) leaves `_saveStatus` at
+`'idle'`. User hits Save; nothing happens anywhere. The adjacent bulk-tag path
+does not pass `skipAlert` — the inconsistency is the bug's shape.
+
+### C13. `void trackMutation(...)` swallows `MutationFencedError`
+`src/actions/comments.ts:102`, `:276`. In a fenced tab the user gets no feedback
+and no error; there is no `unhandledrejection` handler anywhere in `src/`.
+
+---
+
+## P1 — performance
+
+### P1. 93% of the search-recall index serves only a console debug hook
+`src/worker/search-index.ts:131-144`, built from `corpus-worker.ts:350-394`.
+`substringCandidates` — the only function the narrowing path calls — skips every
+posting key containing a space, but `updateCard` indexes `nlp_search_tokens`
+verbatim, which contain bigrams. The only consumer of bigram postings is
+`candidates()`, reachable solely from `window.CORPUS_WORKER.query()`.
+`candidatesUnion()` has no callers at all. MEASURED at 40,225 cards: build 4,439
+→ 1,371 ms; 585k posting keys → 41k; 7.08M entries → 3.25M (~190 MB on a
+synthetic corpus, likely more on real prose); `substringCandidates("karento")`
+40 ms → 1.9 ms. Fix is ~3 lines: skip tokens containing a space in `updateCard`.
+
+### P3. Boot trust gate re-reads whole partitions for a handful of new cards
+`corpus-worker.ts:1207`, `:1221-1246`. The deficit test runs BEFORE the delta
+listener is attached, and a partition over tolerance gets a full-partition
+`getDocsFromServer` with no `limit()` and no `updated >` bound (~3,900 docs).
+Away long enough for 60 new cards evenly spread → all 10 partitions exceed
+tolerance → ~38,985 billed reads to learn about 60 cards the delta listener
+would have delivered for ~60. **~650× amplification, recurring every boot.**
+Fix: make the boot gate ghost-only and let the post-delta re-gate own deficits
+(this also subsumes half of P4).
+
+### P4. The re-gate doubles every boot's gate cost, and can repair-loop
+`corpus-worker.ts:1267-1273`. Confirmed it cannot storm (the `firstServerDelivery`
+flag is outside `makeHandler`, so listener re-attach does not re-fire it), but it
+adds +40 count-reads to EVERY boot. Worse: a locally-pending write that creates
+an unpublished card makes `local > counts[i]` (zero tolerance) while
+`getDocsFromServer` overlays the pending write so the repair removes nothing —
+so the boot pays gate(40) → repair(3,899) → gate(40) → repair(3,899) again,
+every boot while the write stays unacknowledged. Fix: skip the repair when gate
+#2's result is identical to gate #1's.
+
+### P5. Main thread dropped to `memoryLocalCache`: 8 unbounded listeners lost resume tokens
+`src/firebase.ts:103-104`. Master used `persistentLocalCache` unconditionally so
+every listener carried a persisted resume token. Eight listeners the worker
+never took over — messages, threads, stars, **reads (one doc per card ever
+read)**, reading_lists, authors, sections, tags — have no `limit()` and now
+re-read in full on every page load. The comment asserting they "are small and
+online-only" is not evidenced. **Measure `reads`/`messages` sizes on DEV before
+landing — this is the largest unknown in the audit and may partly cancel the
+headline read-cost win.**
+
+### P6. Seven independent 40k-key diff walks per cards-map identity change
+`src/incremental-selectors.ts:27-42`, instantiated at `selectors.ts:396, 405,
+438, 1047, 1058, 1474` plus a hand-rolled twin at `:1449-1466`. MEASURED ~19.5 ms
+each → **~136 ms of pure "did anything change" walking** per cards-map change,
+plus ~11.7 ms for the reducer spread. A single-card save ≈ 150-300 ms, ~30% of
+the <1s bar. Fix: compute the delta once per transition and share it.
+
+### P7. `QueryEngine.updateCards` replaces the whole 40k map per batch
+`src/worker/query-engine.ts:225-233`. Changing `_cards` identity invalidates four
+O(corpus) memos. MEASURED ~55 ms fixed per batch, plus 11.2 ms per changed
+filter map in `reducers/collection.ts:297` (a 100-card tag edit → 55-170 ms,
+paid twice: worker engine and main-thread Redux). Fix: hold the mirror as a Map
+mutated in place, or version-count it.
+
+### P2. Compact snapshot rewrites all 40,225 cards after every editing burst
+`corpus-worker.ts:440-490`. `Object.fromEntries([...corpus.entries()].map(toWire))`
+— a full deep walk allocating a fresh object per card — then one synchronous
+structured-clone `put`. MEASURED from the author's own harness log: 12,000 cards
+in 776 ms, twice → **~2.6 s at 40,225**, and real cards carry `nlp_tokens` which
+the harness corpus lacks. The 15 s debounce is correct; the problem is there is
+no dirty-card path, so changing 0.25% of the corpus rewrites 100% of it, and the
+worker blocks for the duration. Interim: slice `toWire` across yields.
+
+### P8. BFS filter spreads the lazy processed-cards proxy while editing
+`src/filters.ts:528` — `{...cards, [editingCard.id]: editingCard}` where `cards`
+is the `lazyProcessCards` Proxy, firing `processCard` for all 40,225 cards.
+MEASURED 23 ms for traversal alone. `editingCard` bumps ~1/s while typing, with
+~7-10 reference blocks each memoizing separately. Fix: shadow via a lookup
+wrapper, not a spread.
+
+### P9. Info-panel similar-cards fallback fingerprints the whole corpus on the UI thread
+`selectors.ts:2074-2085` → `reference_blocks.ts:289-306` → `nlp.ts:1688-1715`.
+The `similar` filter has no `enumerate`, so it materializes all 40,225
+ProcessedCards and fingerprints every one. The author's own comment puts it at
+1-2 s. Retention risk: with `serverIDF` null, `idfMapForCards` results are pinned
+by WeakMap to live Cards for the corpus lifetime (~640 MB estimated per thread).
+Fix: refuse to build a corpus-wide generator without a server IDF.
+
+---
+
+## P2 — security hardening
+
+- **S3.** `firebase-emulator` localStorage flag is ungated in production and
+  redirects Firestore **and Auth** to an arbitrary host
+  (`src/firebase.ts:61-62, 127-137`; mirrored at `corpus-worker.ts:840-847`).
+  One-shot XSS or device access becomes an indefinite silent MITM and a
+  credential-phishing surface via the emulator's auth handler. The branch
+  already has the right pattern in `corpus-mode.ts:18-22`
+  (`diagnosticModesAllowed()`); apply it here and restrict host to localhost.
+- **S5.** The `resource == null` hazard remains at `firestore.TEMPLATE.rules:420`
+  (`reading_lists` read — confirmed it errors on a user's own not-yet-created
+  list), `:402` (chats), `:410` (chat_messages). All fail closed, but it is the
+  same trap that destroyed stars.
+- **S4.** Data-at-rest remanence: the worker's `persistentLocalCache` is
+  `CACHE_SIZE_UNLIMITED` and `clearIndexedDbPersistence` is called nowhere, so
+  the full privileged corpus (including unpublished bodies) survives sign-out on
+  disk.
+- **S6.** Anonymous users can `increment(star_count)` with no star doc, and can
+  increment `star_count` while decrementing `star_count_manual` in one write
+  (`editOnlyIncrementsOrDecrements` accepts any ±1 combination).
+- **S7.** The `tombstones` read rule evaluates `userMayViewUnpublished()` against
+  a document with a different schema; a tombstone carrying an `author` field
+  self-grants read to that uid.
+- **S8.** `functions/src/index.ts` `health` — ungated `onRequest` disclosing
+  which API keys are configured. Not in `baseFunctions`, so not deployed today.
+- **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
+  `window.DEBUG_STORE` ship ungated, while the strictly less powerful
+  `PERF_HARNESS` is flag-gated.
+- **S10.** BroadcastChannel `'request'` branch has no correlation token
+  (`corpus-bridge.ts:1391`), giving any same-origin script an ownership-churn
+  primitive; replies also spread the attacker-supplied object.
+- **S11.** `aux-write-queue.ts:65-72` validates `kind` only as a string, so
+  `executors[intent.kind]` is an unguarded lookup (`kind:"constructor"` resolves
+  to `Object`); `cardID`/`auditKey` flow unvalidated into document paths.
+  Same class: `idf-cache.ts:69-80` (`as CachedIDF`, no shape check, `NaN` age
+  never expires) and `card-web-app.ts:435-462`.
+- **S12.** `tools/seo.ts:80-81` interpolates `card.title` into `<title>`
+  unescaped. Build-time, published cards, editor-authored — pre-existing and out
+  of branch, but the one path where stored content reaches served HTML unescaped.
+
+## P2 — UX polish
+
+- **U13.** `limit-warning.ts:94` shows a WARNING triangle for ~20 s of every
+  healthy boot.
+- **U14.** `card-editor.ts:539, 583` switched from `?hidden` to conditional
+  rendering, so switching editor tabs destroys the textareas — losing native
+  undo history and scroll position.
+- **U15.** `e` is a silent no-op (see U7/C3).
+- **U17.** Durable aux writes are discarded with only `console.error`; call sites
+  are `void runDurableAuxWrite(...)` with no catch.
+- **U18.** Suggested tags render empty on worker timeout, indistinguishable from
+  "no suggestions" (`card-editor.ts:984-992`).
+- **U19.** Save error text is hover-only (`card-web-app.ts:259`); visible text is
+  the fixed string "Save paused". Unreachable on touch.
+- **U20.** `corpus-status-indicator.ts:79` un-quiets `.label` for the header
+  instance, which has no `max-width`, so the `stale` sentence wraps the header.
+- **U21.** Update banner's Reload goes dead after the 15 s activation timeout
+  (`card-web-app.ts:302-320`).
+- **U22.** `card-drawer.ts:184` returns a fresh `<div hidden>` instead of
+  `?hidden`, so collapse/reopen (and every editor minimize) destroys the list and
+  its scroll position.
+- **U23.** Floating status pill sits over presentation mode
+  (`main-view.ts:379`).
+- **U24.** Drawer `min-width` breakpoint is 600px but the app's mobile
+  breakpoint is 900px, so 601-900px reserves ~208px for an empty column.
+- **U25.** Reference blocks render as nothing (not "loading") until the worker
+  can serve, and stale blocks survive navigation to a not-yet-loaded card.
+- **U26.** Takeover shows a static disabled button for up to 12 s with no
+  progress and no cancel.
+- **U27.** `inert` is a no-op on Firefox <112 / Safari <15.5, which with U4 lets
+  Tab reach live controls behind the overlay.
+- **U28.** The `span.reason` wrapper pattern is incomplete: `card-view.ts:696`
+  (reading list) still has `?disabled` + `title` on the button, `:697`/`:698`
+  (star, mark-read) are `?disabled` with NO title at all, and
+  `comments-panel.ts:130`. Also the technique does not help keyboard or AT users.
+
+## P2 — correctness / robustness hardening
+
+- **C10.** `abandonPendingBulkTagOperation` has no running-operation guard
+  (`data.ts:644`), so Stop during a running op clears the key and the loop
+  re-creates it, contradicting the confirm dialog.
+- **C12.** Direct (non-replay) aux writes have no preflight and can collide with
+  a running replay for the same card (`aux-write-queue.ts:131-135`).
+- **C14.** A single `card-web-edit-draft-v1` key holds one draft
+  (`edit-draft.ts:17`), so two concurrently-dirty editors overwrite each other;
+  `persistDraft` is also unguarded against `QuotaExceededError`.
+- **R15.** No `onversionchange`/`onblocked` on either IDB store, so "Clear site
+  data" hangs while the worker holds the connection.
+- **R16.** Listener retry has no jitter and no `resource-exhausted` case; all 13
+  listeners re-attach in lockstep after an outage. `unsubscribes.push` runs on
+  every re-attach and never removes the dead entry.
+- **R17.** Epoch saturation: `Number.isInteger(1e308)` is true, so a crafted
+  lease passes validation and `+1` is a fixed point; with
+  `corpus-snapshot.ts:108` accepting `epoch <=`, a stale worker can re-claim.
+- **R18.** `finishUnresponsiveTakeover` leaks a queued lock request on success
+  (`corpus-bridge.ts:1306-1315`).
+- **R19.** Unconditional 1 Hz synchronous localStorage write for the tab's life,
+  never paused on `visibilitychange`, no `pagehide` lease release.
+- **R20.** `localStorage` accessed OUTSIDE the try in `durableCardMutationPending`
+  (`data.ts:325`), `readBulkTagOperation` (`:359`), `readDurableMultiEdit`
+  (`:697`) — `typeof localStorage` itself throws when storage is policy-blocked,
+  and it propagates into `card-view.stateChanged`. `corpus-mode.ts:39-43` on this
+  same branch shows the correct pattern.
+- **R21.** `persistDraft` has no try/catch (`edit-draft.ts:62-65`), so a full
+  localStorage skips `stampDraftForSave` and leaves a stale "unsaved draft
+  available" banner after a SUCCESSFUL save.
+- **R22.** Reading-list `auditKey` is `'' + Date.now()`, so two writes in the
+  same ms collide.
+- **R23.** `requestedSimilarityCardIDs` is never pruned
+  (`corpus-worker.ts:2325`).
+- **R24.** Snapshot `savedAt` is written but never read — an offline months-old
+  snapshot is primed and served with no staleness signal.
+- **R25.** `takeoverBlockReason` does not consult `durableCardMutationPending()`.
+
+## P2 — performance polish
+
+- **P10.** `corpusWorkerCanRunCollections()` does an O(corpus) `Object.keys`
+  behind a boolean (MEASURED 3.2 ms), called per reference block →
+  ~36 ms per navigation settle. Memoize against `state.data.cards` identity.
+- **P11.** Boot round-trips the snapshot through wire format twice
+  (`fromWire` then `toWire(stripForWire())`) — ~1-1.5 s of the 7.1 s
+  `loadComplete`.
+- **P12.** Cold sweep re-reads its own priority phase (5,000 wasted reads, 11%
+  of a cold boot).
+- **P14.** Gate retry loops have no cap or escalation — the repair-failed path
+  re-runs the whole gate at 40 count-reads/minute indefinitely.
+- **P15.** `repairPartitions` recomputes `corpusUnpublishedPerPartition()` inside
+  its loop (O(40k) per repaired partition).
+- **P16.** Ungated `[PERF]` `console.log` on the editing path
+  (`selectors.ts:889, 905-906`), unlike everything else in `src/perf.ts`.
+- **P17.** `card-thumbnail-list.ts:407` `.expandedReferenceBlocks=${[]}` — a
+  fresh array literal defeats Lit's `hasChanged`, forcing up to 250
+  `card-renderer` re-renders per drawer render.
+- **P18.** 4 synchronous `localStorage.getItem` + up to 2 `JSON.parse` per
+  dispatch (`card-web-app.ts:437-453`, `card-view.ts:1040`); during a durable
+  multi-edit the parsed record can include full card objects.
+- **P19.** `unsubscribes` accumulates dead handles (see R16).
+- **P20.** `processedTombstoneIDs` uses `.includes()` in a loop, making
+  `processTombstones` O(n²), and the array is persisted into every snapshot.
+- **P21.** Impure `localStorage` reads inside `createSelector` result functions
+  (`selectors.ts:1701, 2000, 2014, 2031`); `markCorpusWorkerUnavailable()` flips
+  mode without touching Redux, so memoized worker-served collections go stale.
+- **P22.** Measurement integrity: `test/perf-harness/gen-corpus.js` never sets
+  `nlp_tokens`, so every harness card takes the slow full-NLP path — harness
+  interaction numbers overstate per-card cost while memory numbers understate
+  it. Also there is no heap measurement in the harness at all.
