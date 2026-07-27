@@ -32,36 +32,6 @@ made this survive for free. Also the `+` / Cmd-M affordances are not disabled
 during the unverified window, so you can create a card, type, and then be
 refused Save.
 
-### R8. A future-dated `updated` permanently poisons the watermark
-`src/worker/watermark.ts:40-50`, `corpus-worker.ts:1275-1294`.
-`deriveSessionWatermark` takes `max(updated)` with no wall-clock sanity bound.
-One doc a year ahead → the delta bound matches nothing, and an EMPTY but
-server-confirmed delta still marks the plane healthy → `live` → the poisoned
-card is snapshotted → every future boot re-derives it. Silent permanent
-staleness reported as live. Realistic trigger: an out-of-band/admin/migration
-write. Note S1 above makes this remotely inducible.
-
-### P13. Sync-meta ownership never claimed on the compact-snapshot path
-`src/worker/corpus-worker.ts:1831-1837` builds `syncMetaState` inline and the
-only `loadSyncMeta()` call is guarded by `if (!syncMetaState)`, so
-`claimOwnership()` is never called on that path and every subsequent `save()`
-aborts against a prior session's owner record — silently dropping ALL sync-meta
-writes including per-page cold-sweep cursors.
-
-### R11. Snapshot quota exhaustion is silent and retries forever at full cost
-`src/worker/corpus-worker.ts:440-490`. No backoff, no disable-after-N, no
-`clear()` to reclaim, and each retry runs a full synchronous `toWire` deep clone
-of ~40k cards before the first await. The warm-boot advantage silently
-disappears and the user is never told. Also the explicit-abort path logs
-`(null)` because `transaction.error` is null on abort.
-
-### R13. Worker unhandled rejections are invisible; boot-critical promises unguarded
-`src/worker/corpus-worker.ts:2058`, `:2097`, `:2028`. No `self.onerror` and no
-`unhandledrejection` handler anywhere in `src/worker/`, and worker rejections do
-not reach `worker.onerror`. `gateAndProceed` has no try/catch, and
-`sweepPartition` calls `updateLocalState`/`forwardBatch` OUTSIDE its try, so a
-throw there stops verification permanently with no retry and no error anywhere.
-
 ### C9. `bulkTagResumeAttemptedThisPage` set by SUCCESSFUL saves, kills later resume
 `src/actions/data.ts:416` (unconditional, never cleared on success), consumed at
 `:593` which also guards `resumePendingDurableMultiEdit()`. A completed label
@@ -346,8 +316,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   `loadComplete`.
 - **P12.** Cold sweep re-reads its own priority phase (5,000 wasted reads, 11%
   of a cold boot).
-- **P14.** Gate retry loops have no cap or escalation — the repair-failed path
-  re-runs the whole gate at 40 count-reads/minute indefinitely.
 - **P15.** `repairPartitions` recomputes `corpusUnpublishedPerPartition()` inside
   its loop (O(40k) per repaired partition).
 - **P16.** Ungated `[PERF]` `console.log` on the editing path

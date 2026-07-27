@@ -198,6 +198,12 @@ const workerScope = globalThis as unknown as {
 	close: () => void,
 };
 
+//Same global, typed for the failure listeners below. Kept separate so the
+//message-handling surface above stays exactly as narrow as it was.
+const workerFailureScope = globalThis as unknown as {
+	addEventListener: (type : 'unhandledrejection' | 'error', listener : (event : {reason? : unknown, message? : unknown}) => void) => void,
+};
+
 let app : FirebaseApp | null = null;
 let db : Firestore | null = null;
 let auth : Auth | null = null;
@@ -403,6 +409,22 @@ const status = (message : string) => send({type: 'status', generation, message})
 //unable to keep the corpus in sync must say so here.
 const degraded = (reason : string) => send({type: 'degraded', generation, reason});
 
+//A worker's unhandled rejection does NOT propagate to worker.onerror on the
+//page, and there was no handler here — so a throw inside any of the several
+//`void`ed boot-critical promises (gateAndProceed, connectUnpublishedWatermark,
+//afterColdSweep) stopped verification permanently with no retry armed and no
+//error visible anywhere, on either thread. At minimum, say so.
+workerFailureScope.addEventListener('unhandledrejection', event => {
+	const reason = event.reason;
+	status(`unhandled worker rejection: ${String((reason as Error)?.stack || reason)}`);
+	degraded('Card sync hit an unexpected error and may be incomplete. Reload to retry.');
+});
+
+workerFailureScope.addEventListener('error', event => {
+	status(`worker error: ${String(event.message || event)}`);
+	degraded('Card sync hit an unexpected error and may be incomplete. Reload to retry.');
+});
+
 //PERF HARNESS ONLY: worker-scoped timing accumulator, mirroring src/perf.ts's
 //actionStats shape ({count, totalMs, maxMs} per label). perfMiddleware wraps the
 //MAIN-thread store only, so without this the worker's O(corpus) compute is
@@ -444,6 +466,10 @@ let corpusSnapshotSaveTimer : ReturnType<typeof setTimeout> | null = null;
 let corpusSnapshotSaveInFlight = false;
 let corpusSnapshotSavePending = false;
 let ownershipEpochGuard : ReturnType<typeof setInterval> | null = null;
+//Give up persisting after this many consecutive failures. Retrying a quota
+//error forever costs a full-corpus deep clone per attempt and never succeeds.
+const MAX_SNAPSHOT_SAVE_FAILURES = 3;
+let consecutiveSnapshotSaveFailures = 0;
 
 const saveCorpusSnapshot = async () : Promise<void> => {
 	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore || !syncMetaState) return;
@@ -469,9 +495,24 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	const watermarkClamp = syncMetaState.watermarkClamp ? {...syncMetaState.watermarkClamp} : null;
 	try {
 		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp);
+		consecutiveSnapshotSaveFailures = 0;
 		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
 	} catch (e) {
-		status(`compact snapshot save unavailable (${String(e)})`);
+		//`transaction.error` is null on a deliberate abort, so String(e) can
+		//read literally "null"; name the case instead.
+		const reason = String(e) === 'null' ? 'ownership changed during the write' : String(e);
+		consecutiveSnapshotSaveFailures++;
+		status(`compact snapshot save unavailable (${reason})`);
+		if (consecutiveSnapshotSaveFailures >= MAX_SNAPSHOT_SAVE_FAILURES) {
+			//Stop. Each attempt deep-clones the whole ~40k-card corpus before
+			//its first await and then structured-clones it again, so an
+			//unfixable failure (quota exhausted, storage disabled) was an
+			//endless full-corpus copy every 15s, forever, while the user was
+			//never told that warm boot had silently stopped working.
+			corpusSnapshotPersistenceEnabled = false;
+			degraded(`Card sync could not save its local cache (${reason}). The app still works, but startup will be slow until browser storage is available again.`);
+			return;
+		}
 	} finally {
 		corpusSnapshotSaveInFlight = false;
 		if (corpusSnapshotSavePending) {
@@ -1287,14 +1328,32 @@ const verifyDeficitsAfterDeltaCatchUp = async (database : Firestore, myConnectio
 	await repairPartitions(database, myConnectionGeneration, gate.mismatched);
 };
 
+//A single card whose `updated` is far in the future permanently poisons the
+//delta bound: the query becomes `updated > (future - 5min)`, matches nothing,
+//and an EMPTY but server-confirmed delivery still marks the plane healthy — so
+//the corpus goes live, the poisoned card is written into the snapshot, and every
+//future boot re-derives the same dead bound. Silent, permanent staleness
+//reported as 'live'. In-app writes use serverTimestamp() and cannot cause this;
+//an out-of-band admin or migration write can. Ignore implausible futures when
+//deriving the bound (the card itself is still served — only its timestamp is
+//distrusted for watermark purposes).
+const WATERMARK_FUTURE_TOLERANCE_SECONDS = 60 * 60;
+
 const deriveSessionWatermark = () : WireTimestamp | null => {
 	const values : (WireTimestamp | null)[] = [];
+	const futureBoundSeconds = Math.floor(Date.now() / 1000) + WATERMARK_FUTURE_TOLERANCE_SECONDS;
+	let ignoredFutureCards = 0;
 	for (const [id, card] of corpus.entries()) {
 		if (card.published) continue;
 		if (clientClockCardIDs.has(id)) continue;
 		const updated = card.updated as Timestamp | undefined;
+		if (updated && typeof updated.seconds === 'number' && updated.seconds > futureBoundSeconds) {
+			ignoredFutureCards++;
+			continue;
+		}
 		values.push(updated && typeof updated.seconds === 'number' ? {seconds: updated.seconds, nanoseconds: updated.nanoseconds} : null);
 	}
+	if (ignoredFutureCards) status(`ignored ${ignoredFutureCards} card(s) with an implausibly future 'updated' when deriving the watermark`);
 	return deriveWatermark(values);
 };
 
@@ -1849,6 +1908,16 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 			primeSource = 'compact snapshot';
 			compactTombstoneIDs = compactSnapshot.processedTombstoneIDs || [];
 			if (compactSnapshot.schemaVersion === 2) {
+				//Claim sync-meta ownership even though we are not READING from
+				//it: without this the store is never claimed on this path, so
+				//every later save() aborts against a prior session's owner
+				//record and silently drops the tombstone cursor, the
+				//processed-tombstone list and each cold-sweep page cursor. An
+				//interrupted sweep then restarted from page zero every time.
+				void syncMetaStore?.claimOwnership().catch(() => {
+					status('sync metadata ownership unavailable on the snapshot path; metadata will not persist this session');
+					syncMetaStore = null;
+				});
 				//Cards and safety bounds are one atomic checkpoint. Ignore any newer
 				//separate-DB progress and conservatively replay from this checkpoint.
 				syncMetaState = {
