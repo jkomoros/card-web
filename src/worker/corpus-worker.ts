@@ -1163,7 +1163,6 @@ const markWatermarkPlane = (plane : WatermarkPlane, healthy : boolean) => {
 
 //Per-partition tolerance for the trust gate: writes can land between the
 //cache snapshot and the count query.
-const GATE_PARTITION_TOLERANCE = 5;
 
 const partitionIndexForID = (id : string) : number => {
 	for (let i = 0; i < UNPUBLISHED_CARD_PARTITIONS.length; i++) {
@@ -1188,7 +1187,18 @@ const corpusUnpublishedPerPartition = () : Set<CardID>[] => {
 //couldn't be fetched (offline/quota). Cost: 1 read per 1000 index entries
 //per partition — ~40-60 reads total at 40-60k cards. Per-partition (not one
 //total) so a ghost in one range can't mask a missing doc in another.
-const runTrustGate = async (database : Firestore, myConnectionGeneration : number) : Promise<{mismatched : number[], serverTotal : number} | null> => {
+//`countDeficits` is false for the BOOT gate and true for the post-delta re-gate.
+//The deficit tolerance was always a RECENCY argument — a card created seconds
+//ago has `updated > W` and the delta listener delivers it regardless — but it
+//was applied as an unconditional COUNT tolerance, which had two costs. Old
+//absences under the tolerance were blessed permanently, and deficits over it
+//triggered a full-partition re-read (~3,900 docs, no limit, no `updated >`
+//bound) at boot: away long enough for ~60 new cards spread evenly and all ten
+//partitions cross, spending ~39,000 billed reads to learn about 60 cards the
+//delta listener was about to deliver for ~60. So the boot gate judges GHOSTS
+//only (zero tolerance, as before — a surplus is real and nothing else removes
+//it), and deficits are judged once, exactly, after delta has caught up.
+const runTrustGate = async (database : Firestore, myConnectionGeneration : number, countDeficits = false) : Promise<{mismatched : number[], serverTotal : number} | null> => {
 	try {
 		const buckets = corpusUnpublishedPerPartition();
 		const counts = await Promise.all(UNPUBLISHED_CARD_PARTITIONS.map(partition =>
@@ -1206,7 +1216,10 @@ const runTrustGate = async (database : Firestore, myConnectionGeneration : numbe
 			//so any surplus is a real ghost (console delete, stale prime)
 			//that nothing else will ever remove — the old ±tolerance let up
 			//to 5 ghosts per partition persist forever.
-			if (counts[i] - local > GATE_PARTITION_TOLERANCE || local > counts[i]) mismatched.push(i);
+			//Ghosts: always, zero tolerance. Deficits: only in the re-gate, and
+			//there with NO tolerance, because delta has already delivered
+			//everything recent — any remaining absence is genuine.
+			if (local > counts[i] || (countDeficits && counts[i] > local)) mismatched.push(i);
 		}
 		status(`trust gate: server=${serverTotal} local=${buckets.reduce((a, b) => a + b.size, 0)} mismatchedPartitions=${mismatched.length}`);
 		return {mismatched, serverTotal};
@@ -1267,10 +1280,10 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 //absence was blessed forever and persisted into the next snapshot. By this
 //point delta has delivered, so any surviving deficit is genuine.
 const verifyDeficitsAfterDeltaCatchUp = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
-	const gate = await runTrustGate(database, myConnectionGeneration);
+	const gate = await runTrustGate(database, myConnectionGeneration, true);
 	if (!gate || myConnectionGeneration !== connectionGeneration) return;
 	if (!gate.mismatched.length) return;
-	status(`post-delta re-gate found ${gate.mismatched.length} partition(s) still short; repairing`);
+	status(`post-delta re-gate found ${gate.mismatched.length} mismatched partition(s); repairing`);
 	await repairPartitions(database, myConnectionGeneration, gate.mismatched);
 };
 
@@ -1530,19 +1543,19 @@ const attachDeltaListener = (database : Firestore) => {
 			if (!snapshot.metadata.fromCache) {
 				if (firstServerDelivery) {
 					firstServerDelivery = false;
-					void clearWatermarkClamp().then(() => {
-						if (myConnectionGeneration === connectionGeneration) markWatermarkPlane('delta', true);
-						//The boot gate tolerates a small per-partition DEFICIT
-						//on the reasoning that a just-created card has
-						//`updated > W` and the delta listener will deliver it
-						//anyway. That reasoning only holds for RECENT cards:
-						//an older absence (a dropped page, an evicted cache
-						//entry, a launder that lifted suppression) is never
-						//redelivered and was blessed permanently, up to 5 per
-						//partition. Delta has now caught up, so re-count: any
-						//deficit that survives is real, and repairing it is
-						//~10 count queries.
-						void verifyDeficitsAfterDeltaCatchUp(database, myConnectionGeneration);
+					void clearWatermarkClamp().then(async () => {
+						if (myConnectionGeneration !== connectionGeneration) return;
+						//BEFORE 'live', not after. markWatermarkPlane flips the
+						//corpus to live and fires an immediate snapshot save, so
+						//re-gating afterwards meant a corpus still missing cards
+						//could be written as the "known-complete" compact
+						//snapshot — which the next boot then trusts enough to
+						//grant loadComplete — and could hold mass-removal
+						//authority in the meantime. Delta has caught up by now,
+						//so this is the one moment a deficit is provably real.
+						await verifyDeficitsAfterDeltaCatchUp(database, myConnectionGeneration);
+						if (myConnectionGeneration !== connectionGeneration) return;
+						markWatermarkPlane('delta', true);
 					});
 				} else {
 					markWatermarkPlane('delta', true);

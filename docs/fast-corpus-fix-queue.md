@@ -32,21 +32,6 @@ made this survive for free. Also the `+` / Cmd-M affordances are not disabled
 during the unverified window, so you can create a card, type, and then be
 refused Save.
 
-### R7. Post-delta re-gate reuses the tolerance it was written to remove (my fix)
-`src/worker/corpus-worker.ts:1164`, `:1207`, `:1261-1273`.
-`verifyDeficitsAfterDeltaCatchUp` calls the same `runTrustGate`, which applies
-the same `GATE_PARTITION_TOLERANCE = 5`; there is no parameter to tighten it. So
-up to 50 genuinely-missing cards still survive BOTH gates and get written into
-the compact snapshot, which `:1942` then treats as known-complete forever.
-
-### C8. Re-gate runs AFTER `live` and after the first snapshot save (my fix)
-`src/worker/corpus-worker.ts:1532-1543`, `:1148-1157`. `markWatermarkPlane`
-flips to `'live'` and fires `scheduleCorpusSnapshotSave(0)` BEFORE the re-gate
-confirms the deficits are gone — so a deficient corpus is written as the
-"known-complete" snapshot, and `corpusWorkerCorpusVerified()` (mass-removal
-authority) is granted early. Gate the live transition and first snapshot save on
-the re-gate.
-
 ### R8. A future-dated `updated` permanently poisons the watermark
 `src/worker/watermark.ts:40-50`, `corpus-worker.ts:1275-1294`.
 `deriveSessionWatermark` takes `max(updated)` with no wall-clock sanity bound.
@@ -182,16 +167,6 @@ verbatim, which contain bigrams. The only consumer of bigram postings is
 → 1,371 ms; 585k posting keys → 41k; 7.08M entries → 3.25M (~190 MB on a
 synthetic corpus, likely more on real prose); `substringCandidates("karento")`
 40 ms → 1.9 ms. Fix is ~3 lines: skip tokens containing a space in `updateCard`.
-
-### P3. Boot trust gate re-reads whole partitions for a handful of new cards
-`corpus-worker.ts:1207`, `:1221-1246`. The deficit test runs BEFORE the delta
-listener is attached, and a partition over tolerance gets a full-partition
-`getDocsFromServer` with no `limit()` and no `updated >` bound (~3,900 docs).
-Away long enough for 60 new cards evenly spread → all 10 partitions exceed
-tolerance → ~38,985 billed reads to learn about 60 cards the delta listener
-would have delivered for ~60. **~650× amplification, recurring every boot.**
-Fix: make the boot gate ghost-only and let the post-delta re-gate own deficits
-(this also subsumes half of P4).
 
 ### P4. The re-gate doubles every boot's gate cost, and can repair-loop
 `corpus-worker.ts:1267-1273`. Confirmed it cannot storm (the `firstServerDelivery`
