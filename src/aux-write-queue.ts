@@ -135,8 +135,12 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<void> => {
 	return executor(intent, false).then(() => {
 		removeIntent(intent.id);
 	}).catch(error => {
-		if (permanentFailure(error)) removeIntent(intent.id);
-		else console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm; queued for replay:`, error);
+		//Dropping a user's intent must never be silent: this is the last point
+		//at which the write still existed anywhere.
+		if (permanentFailure(error)) {
+			console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently and was DISCARDED:`, error);
+			removeIntent(intent.id);
+		} else console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm; queued for replay:`, error);
 	}).finally(() => {
 		inFlight.delete(intent.id);
 	});
@@ -159,6 +163,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 				removeIntent(intent.id);
 			} catch (error) {
 				if (permanentFailure(error)) {
+					console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently on replay and was DISCARDED:`, error);
 					removeIntent(intent.id);
 					continue;
 				}

@@ -115,19 +115,27 @@ export class CorpusSnapshotStore {
 		});
 	}
 
-	async ownsCurrentOwnership() : Promise<boolean> {
+	//Tri-state on purpose. Callers use a false answer to STOP the worker as
+	//superseded, so an IndexedDB failure must not be reported as false: that
+	//self-closes a healthy worker while the page still believes sync is live
+	//and still permits saves against a corpus that has silently stopped
+	//updating. 'unknown' means "could not determine" — treat as not-superseded.
+	async ownsCurrentOwnership() : Promise<boolean | 'unknown'> {
 		try {
 			const database = await this._database();
-			return await new Promise<boolean>(resolve => {
+			return await new Promise<boolean | 'unknown'>(resolve => {
 				const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(`${this._key}:owner`);
 				request.onsuccess = () => {
 					const owner = request.result as OwnershipToken | undefined;
 					resolve(Boolean(owner && owner.ownerID === this._ownership.ownerID && owner.epoch === this._ownership.epoch));
 				};
-				request.onerror = () => resolve(false);
+				request.onerror = () => resolve('unknown');
 			});
 		} catch {
-			return false;
+			//A failed open can also mean the cached connection is dead; drop it
+			//so the next call reopens instead of failing forever.
+			this._db = null;
+			return 'unknown';
 		}
 	}
 

@@ -13,9 +13,23 @@ const starRefsForIntent = (intent : AuxWriteIntent) => ({
 	starRef: doc(db, STARS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID)),
 });
 
+//The replay preflight asks "did the original batch commit?". Its ANSWER is
+//proof; its FAILURE is not. A rejected read (rules error, offline, blip) used
+//to propagate as a permission-denied that the queue classified as permanent,
+//silently destroying the intent — the one path this queue exists to protect.
+//Rethrow without a `code` so permanentFailure() treats it as transient and the
+//intent is retained for the next replay.
+const starCommitted = async (starRef : ReturnType<typeof doc>, label : string) : Promise<boolean> => {
+	try {
+		return (await getDocFromServer(starRef)).exists();
+	} catch (err) {
+		throw new Error(`${label} replay preflight could not be answered; retaining intent: ${String(err)}`);
+	}
+};
+
 registerAuxWriteExecutor('star-add', async (intent, isReplay) => {
 	const {cardRef, starRef} = starRefsForIntent(intent);
-	if (isReplay && (await getDocFromServer(starRef)).exists()) return;
+	if (isReplay && await starCommitted(starRef, 'star-add')) return;
 	const batch = new MultiBatch(db);
 	//updated-invariant: exempt — cardEditMinor rules path; star counts are
 	//reader-driven and their drift is an accepted tradeoff.
@@ -33,7 +47,7 @@ registerAuxWriteExecutor('star-add', async (intent, isReplay) => {
 
 registerAuxWriteExecutor('star-remove', async (intent, isReplay) => {
 	const {cardRef, starRef} = starRefsForIntent(intent);
-	if (isReplay && !(await getDocFromServer(starRef)).exists()) return;
+	if (isReplay && !(await starCommitted(starRef, 'star-remove'))) return;
 	const batch = new MultiBatch(db);
 	//updated-invariant: exempt — cardEditMinor rules path (see star-add).
 	batch.updateWithoutTimestampBump(cardRef, {

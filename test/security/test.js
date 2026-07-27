@@ -997,6 +997,36 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(star.get());
 	});
 
+	//Regression: the offline star-replay preflight GETs a star that may not
+	//exist yet, to decide whether the original batch committed. `updateIsOwner()`
+	//null-dereferences resource.data for a missing document, so the rule ERRORED
+	//instead of returning "not exists" — and the queue classified that
+	//permission-denied as permanent and silently DISCARDED the user's star.
+	//Production ids are `${uid}+${cardID}` (idForPersonalCardInfo).
+	it('allows a user to read their OWN not-yet-existing star (replay preflight)', async() => {
+		const db = authedApp(anonAuth);
+		const missing = db.collection(STARS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-starred');
+		await firebase.assertSucceeds(missing.get());
+	});
+
+	it('disallows reading a not-yet-existing star belonging to someone else', async() => {
+		const db = authedApp(sallyAuth);
+		const missing = db.collection(STARS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-starred');
+		await firebase.assertFails(missing.get());
+	});
+
+	it('allows a user to read their OWN not-yet-existing read (same hazard)', async() => {
+		const db = authedApp(anonAuth);
+		const missing = db.collection(READS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-read');
+		await firebase.assertSucceeds(missing.get());
+	});
+
+	it('disallows reading a not-yet-existing read belonging to someone else', async() => {
+		const db = authedApp(sallyAuth);
+		const missing = db.collection(READS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-read');
+		await firebase.assertFails(missing.get());
+	});
+
 	it('allows any user to create a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);

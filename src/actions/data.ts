@@ -591,6 +591,13 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 
 const resumePendingBulkTagOperation = () : ThunkSomeAction => async (dispatch, getState) => {
 	if (bulkTagResumeAttemptedThisPage || bulkTagOperationRunning || !selectDataIsFullyLoaded(getState())) return;
+	//Resume needs the SAVE gate, not merely the readiness gate. Those were the
+	//same instant until the warm-boot split (data is now servable ~35s before
+	//the corpus is server-verified), and resuming into a guaranteed refusal
+	//burned the one automatic attempt AND set the once-per-page flag below,
+	//stranding the intent for the life of the page. Wait for the real gate;
+	//installBulkTagResumeWatcher re-fires when it opens.
+	if (!durableSaveEligible(getState())) return;
 	try {
 		const operation = readBulkTagOperation();
 		if (!operation) {
@@ -979,16 +986,22 @@ let bulkTagResumeWatcherInstalled = false;
 export const installBulkTagResumeWatcher = () => {
 	if (bulkTagResumeWatcherInstalled) return;
 	bulkTagResumeWatcherInstalled = true;
-	let readinessWasLive = selectDataIsFullyLoaded(store.getState() as State);
+	//Watch the SAVE gate, not just readiness. Before the warm-boot split these
+	//flipped at the same instant, so readiness was a fine proxy; now data is
+	//servable ~35s before the corpus is verified, and a resume fired on
+	//readiness alone is always refused. Track both edges so a pending intent
+	//discharges as soon as saving is genuinely possible.
+	let couldResume = selectDataIsFullyLoaded(store.getState() as State) && durableSaveEligible(store.getState() as State);
 	const scheduleResume = () => setTimeout(() => {
 		void store.dispatch(resumePendingBulkTagOperation());
 	}, 0);
 	store.subscribe(() => {
-		const ready = selectDataIsFullyLoaded(store.getState() as State);
-		if (ready && !readinessWasLive) scheduleResume();
-		readinessWasLive = ready;
+		const state = store.getState() as State;
+		const ready = selectDataIsFullyLoaded(state) && durableSaveEligible(state);
+		if (ready && !couldResume) scheduleResume();
+		couldResume = ready;
 	});
-	if (readinessWasLive) scheduleResume();
+	if (couldResume) scheduleResume();
 	window.addEventListener('online', () => {
 		bulkTagResumeAttemptedThisPage = false;
 		scheduleResume();

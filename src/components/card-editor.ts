@@ -304,6 +304,13 @@ class CardEditor extends connect(store)(LitElement) {
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
+			/* Hover target for a disabled control's explanation; see the
+			   save-button markup. inline-flex keeps the button's layout
+			   identical to when it was unwrapped. */
+			span.reason {
+				display: inline-flex;
+			}
+
 			:host {
 				position:relative;
 				background-color: white;
@@ -896,7 +903,13 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			<button class='round' data-testid='cancel-card-edit' aria-label='Cancel editing' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
 			<button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
-			<button class='round primary' data-testid='save-card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges || !this._saveEligible} title=${!this._saveEligible ? 'Card sync is reconnecting — your draft is safe and Save re-enables when sync is live.' : this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
+			<!-- The title lives on a WRAPPER, not on the button: Chrome and
+			Safari suppress pointer events on disabled controls, so a title on
+			the button itself never renders a tooltip — which is exactly the
+			state where the user most needs the reason. -->
+			<span class='reason' title=${!this._saveEligible ? 'Card sync is still verifying — your draft is safe, and Save unlocks as soon as sync is live.' : this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>
+				<button class='round primary' data-testid='save-card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges || !this._saveEligible}>${SAVE_ICON}</button>
+			</span>
         </div>
       </div>
     `;

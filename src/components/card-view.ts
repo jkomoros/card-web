@@ -502,6 +502,11 @@ class CardView extends connect(store)(PageViewElement) {
 				align-items: center;
 			}
 
+			/* Hover target for a disabled control's explanation. */
+			span.reason {
+				display: inline-flex;
+			}
+
 			card-drawer.showing {
 				border-right: 1px solid var(--app-divider-color);
 				/* Reserve the loaded column width. The drawer is shrink-to-fit,
@@ -509,6 +514,15 @@ class CardView extends connect(store)(PageViewElement) {
 				   in during boot, shoving the card stage sideways. 12em
 				   thumbnail (card-thumbnail-list) plus its margins. */
 				min-width: 13em;
+			}
+
+			/* 13em is over half of a 375px viewport. The reservation exists to
+			   stop a layout jump on a wide screen; on a narrow one, holding
+			   that much width during boot is worse than the jump it prevents. */
+			@media (max-width: 600px) {
+				card-drawer.showing {
+					min-width: 0;
+				}
 			}
 
 			[hidden] {
@@ -684,7 +698,12 @@ class CardView extends connect(store)(PageViewElement) {
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
 					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
 					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${PSYCHOLOGY_ICON}</button>
-					<button class='round' data-testid='edit-card' aria-label='Edit card (E)' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'Resolve the current saved operation before editing another card' : !this._saveEligible ? 'Edit card (E) — sync is still verifying, so Save unlocks once it is live' : 'Edit card (E)'} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					<!-- Title on the wrapper so it is readable while the button
+					is disabled (Chrome/Safari suppress hover on disabled
+					controls). -->
+					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? 'Edit card (E) — sync is still verifying, so Save unlocks once it is live' : 'Edit card (E)'}>
+						<button class='round' data-testid='edit-card' aria-label='Edit card (E)' ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					</span>
 				</div>
 				<div slot='actions' class='next-prev'>
 					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>

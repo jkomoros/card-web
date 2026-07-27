@@ -467,12 +467,25 @@ export const selectActiveCardEnriched = createSelector(
 	(card, concepts, synonyms) : ProcessedCard | null => card ? enrichCardWithConcepts(card, concepts, synonyms) : null
 );
 
+//Every modal main-view renders must suppress single-key shortcuts, not just
+//the three that were originally listed. dialog-element's Escape handler does
+//not stopPropagation, so typing `e` into a multi-edit <select> (type-ahead) or
+//the bulk-import textarea both preventDefault()ed the key AND opened the card
+//editor behind the still-open modal.
 export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
 	selectComposeOpen,
 	selectPage,
-	(editing, find, compose, page) => !editing && !find && !compose && page == PAGE_DEFAULT
+	selectMultiEditDialogOpen,
+	selectConfigureCollectionDialogOpen,
+	selectBulkImportDialogOpen,
+	selectAIDialogOpen,
+	selectImagePropertiesDialogOpen,
+	selectImageBrowserDialogOpen,
+	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser) =>
+		!editing && !find && !compose && page == PAGE_DEFAULT &&
+		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser
 );
 
 export const selectFilters = createSelector(

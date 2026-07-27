@@ -539,8 +539,43 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 	return {cards, removedIDs, pendingWriteIDs};
 };
 
-const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
+//`updated` as a comparable bound, or null when the card carries none.
+const cardUpdatedBound = (card : Card) => {
+	const updated = card.updated as Timestamp | undefined;
+	return updated && typeof updated.seconds === 'number' ? {seconds: updated.seconds, nanoseconds: updated.nanoseconds} : null;
+};
+
+//ingestSnapshot version-guards its writes, but five paths reach the corpus
+//WITHOUT it: the server prime, the cold sweep's priority phase, each cold-sweep
+//page, partition repair, and the delta listener. A page read at t0 landing
+//after a listener delivered a newer version at t1 rolled the card backward —
+//and because the resulting corpus then disagreed with the server count, the
+//trust gate could classify the resurrected old copy as a ghost and DELETE it.
+//Cards carrying a local client-clock estimate are exempt: their `updated` is
+//not server-comparable.
+const rollsBackCard = (previous : Card, incoming : Card, id : CardID) : boolean => {
+	if (clientClockCardIDs.has(id)) return false;
+	const previousBound = cardUpdatedBound(previous);
+	const incomingBound = cardUpdatedBound(incoming);
+	if (!previousBound || !incomingBound) return false;
+	return compareTimestamps(incomingBound, previousBound) < 0;
+};
+
+const updateLocalState = (cardsIn : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
 	const indexStart = performance.now();
+	//Filter BEFORE anything downstream reads it, so the corpus, the engine
+	//mirror, the recall index and the pushed metas cannot disagree.
+	let staleWritesDropped = 0;
+	const cards : Cards = {};
+	for (const [id, card] of Object.entries(cardsIn)) {
+		const previous = corpus.get(id);
+		if (previous && rollsBackCard(previous, card, id)) {
+			staleWritesDropped++;
+			continue;
+		}
+		cards[id] = card;
+	}
+	if (staleWritesDropped) status(`dropped ${staleWritesDropped} stale card write(s) that would have rolled the corpus backward`);
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
 		if (previous && searchTokensForCard(previous).length) cardsWithStoredTokens--;
@@ -1352,16 +1387,37 @@ const catchUpTombstones = async (database : Firestore) : Promise<void> => {
 //cursor moved past them).
 const retryPendingLaunders = (database : Firestore) => {
 	const meta = syncMetaState;
-	if (!meta || !syncMetaStore) return;
+	//Capture the store and generation. Reading module-level `syncMetaStore` in
+	//the callback let an in-flight retry from a previous account write ITS
+	//cursor and suppression list into the NEXT account's record after a user
+	//switch (the store is re-keyed per uid on connect).
+	const store = syncMetaStore;
+	const myConnectionGeneration = connectionGeneration;
+	if (!meta || !store) return;
 	for (const id of [...meta.processedTombstoneIDs]) {
 		getDocFromServer(doc(database, CARDS_COLLECTION, id)).then(snapshot => {
+			if (myConnectionGeneration !== connectionGeneration) return;
 			meta.processedTombstoneIDs = meta.processedTombstoneIDs.filter(other => other !== id);
 			if (snapshot.exists()) {
-				//Recreated under the same ID: stop suppressing so the live
-				//card can serve again (it arrives via prime/delta).
-				status(`tombstoned card ${id} was recreated; suppression lifted`);
+				//Recreated under the same ID. Lifting suppression WITHOUT
+				//ingesting made the card permanently invisible on this device:
+				//the prime deletes it (it was still suppressed when the
+				//snapshot was written), the delta query only returns
+				//`updated > watermark` so an older recreate is never
+				//redelivered, and the trust gate's missing-doc tolerance can
+				//absorb a single absence. Re-ingest, exactly as the inline
+				//launder at processTombstones does.
+				const card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
+				if (snapshot.metadata.hasPendingWrites) clientClockCardIDs.add(card.id);
+				if (!corpus.has(card.id)) {
+					updateLocalState({[card.id]: card}, []);
+					forwardBatch({[card.id]: card}, [], card.published ? 'published' : 'unpublished', false);
+					status(`tombstoned card ${id} was recreated; suppression lifted and card re-ingested`);
+				} else {
+					status(`tombstoned card ${id} was recreated; suppression lifted`);
+				}
 			}
-			if (syncMetaStore) void syncMetaStore.save(meta);
+			void store.save(meta);
 		}).catch(() => {
 			//Still unreachable; retried again next boot.
 		});
@@ -1685,7 +1741,21 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		//Chromium serializes these opens and the competing open added ~16s to
 		//warm boot on the real corpus.
 		syncMetaOwnershipClaim ||= syncMetaStore!.claimOwnership();
-		if (!await syncMetaOwnershipClaim) {
+		//An IndexedDB failure is NOT a supersession. claimOwnership rejects on
+		//open/transaction errors (private browsing, eviction, storage pressure,
+		//versionchange); treating that as "superseded" would stop a healthy
+		//worker, and letting it reject would surface as an unhandled rejection
+		//inside a voided promise and hang boot with no error anywhere.
+		//Degrade instead: no metadata persistence, but keep syncing.
+		let syncMetaOwned : boolean;
+		try {
+			syncMetaOwned = await syncMetaOwnershipClaim;
+		} catch (err) {
+			status(`sync metadata store unavailable (${String(err)}); continuing without metadata persistence`);
+			syncMetaStore = null;
+			return null;
+		}
+		if (!syncMetaOwned) {
 			//A throw here would be swallowed by the prime path's cache
 			//try/catch (and would surface as an unhandled rejection from the
 			//post-prime call), leaving a superseded worker's listeners live.
@@ -1696,7 +1766,19 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		return syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
 	};
 	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`, ownership);
-	if (!await corpusSnapshotStore.claimOwnership()) {
+	//See the sync-meta claim above: a rejected claim means IndexedDB is
+	//unusable, not that another tab won the epoch. Serving from the network
+	//without a local snapshot is a slow boot; hanging forever on "Loading…"
+	//with no error is a broken app.
+	let snapshotOwned : boolean;
+	try {
+		snapshotOwned = await corpusSnapshotStore.claimOwnership();
+	} catch (err) {
+		status(`compact snapshot store unavailable (${String(err)}); continuing without snapshot persistence`);
+		corpusSnapshotStore = null;
+		snapshotOwned = true;
+	}
+	if (!snapshotOwned) {
 		await stopSupersededWorker('worker superseded by a newer ownership epoch; stopping before local persistence writes');
 		return;
 	}
@@ -1711,7 +1793,9 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	let primeSource = 'persistent cache';
 	let compactTombstoneIDs : string[] = [];
 	try {
-		const compactSnapshot = await corpusSnapshotStore.load();
+		//null when IndexedDB is unusable (see the claim above): there is simply
+		//no local snapshot to prime from, so fall through to the server prime.
+		const compactSnapshot = corpusSnapshotStore ? await corpusSnapshotStore.load() : null;
 		if (myConnectionGeneration !== connectionGeneration) return;
 		if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
 			primeSource = 'compact snapshot';
@@ -1768,14 +1852,26 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	//snapshot record is loading. Chromium serializes the transactions and the
 	//poll turned a ~1.4s 40k-card warm read into 7–21s in real DEV. Revalidate
 	//once immediately after the read, then start the steady-state guard.
-	if (!await corpusSnapshotStore.ownsCurrentOwnership()) {
+	//Only a DEFINITE false is supersession; 'unknown' means IndexedDB could not
+	//answer, and stopping on that would silently kill a healthy worker.
+	if (corpusSnapshotStore && await corpusSnapshotStore.ownsCurrentOwnership() === false) {
 		await stopSupersededWorker('worker ownership changed during compact snapshot load; stopping before handoff');
 		return;
 	}
+	let consecutiveUnknownOwnershipPolls = 0;
 	ownershipEpochGuard = setInterval(() => {
 		const store = corpusSnapshotStore;
 		if (!store) return;
 		void store.ownsCurrentOwnership().then(current => {
+			if (current === 'unknown') {
+				//Do not stop, but do not stay silent either: a store that can
+				//never answer means the epoch guard is no longer protecting
+				//anything, and the page should hear about it once.
+				consecutiveUnknownOwnershipPolls++;
+				if (consecutiveUnknownOwnershipPolls === 30) status('ownership epoch guard cannot read IndexedDB; single-tab enforcement is degraded for this session');
+				return;
+			}
+			consecutiveUnknownOwnershipPolls = 0;
 			if (current) return;
 			void stopSupersededWorker('worker ownership epoch changed; listeners stopped before further application persistence');
 		});

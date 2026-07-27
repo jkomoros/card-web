@@ -179,6 +179,11 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
+			/* Hover target for a disabled control's explanation. */
+			span.reason {
+				display: inline-flex;
+			}
+
 			.scrim {
 				z-index:100;
 				height:100%;
@@ -324,7 +329,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				</ul>
 			</details>
 			<div class='buttons'>
-				<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible} title=${this._saveEligible ? 'Save changes' : 'Card sync is still verifying — saving opens when it is live'} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<!-- Title on the wrapper: disabled controls do not fire hover
+				events in Chrome/Safari, so a title on the button is invisible
+				in precisely the disabled state it explains. -->
+				<span class='reason' title=${this._saveEligible ? 'Save changes' : 'Card sync is still verifying — saving opens when it is live'}>
+					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				</span>
 			</div>
 			</div>
 		</div>`;

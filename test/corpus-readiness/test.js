@@ -63,3 +63,54 @@ describe('corpusSyncReady', () => {
 		assert.strictEqual(corpusSyncReady('watermark', false, ''), true);
 	});
 });
+
+//corpusMayServe is the predicate that decides what the app is allowed to SHOW.
+//It shipped untested; these pin the distinction from corpusSyncReady, which is
+//the stricter predicate guarding anything that treats the corpus as
+//authoritative (above all mass reconciliation, which removes cards).
+describe('corpusMayServe', () => {
+	let corpusMayServe;
+	let corpusSyncReadyLocal;
+	before(async () => {
+		({corpusMayServe, corpusSyncReady: corpusSyncReadyLocal} = await import('../../lib/src/corpus-readiness.js'));
+	});
+
+	it('serves an unverified corpus, which corpusSyncReady refuses', () => {
+		assert.strictEqual(corpusMayServe('watermark', true, 'unverified'), true,
+			'trust slow, serve fast: a primed-but-unconfirmed corpus is servable');
+		assert.strictEqual(corpusSyncReadyLocal('watermark', true, 'unverified'), false,
+			'the authoritative predicate must still refuse it');
+	});
+
+	it('serves a live corpus', () => {
+		assert.strictEqual(corpusMayServe('watermark', true, 'live'), true);
+	});
+
+	it('refuses a stale corpus — a plane that WAS healthy and dropped is a regression, not merely unconfirmed', () => {
+		assert.strictEqual(corpusMayServe('watermark', true, 'stale'), false);
+	});
+
+	it('refuses the empty pre-connect state', () => {
+		assert.strictEqual(corpusMayServe('watermark', true, ''), false);
+	});
+
+	it('is unconditional outside watermark mode, and for users who cannot view unpublished', () => {
+		for (const state of ['', 'unverified', 'live', 'stale']) {
+			assert.strictEqual(corpusMayServe('listen', true, state), true, `listen mode, ${state}`);
+			assert.strictEqual(corpusMayServe('watermark', false, state), true, `no unpublished access, ${state}`);
+		}
+	});
+
+	it('never serves anything corpusSyncReady would refuse, except unverified', () => {
+		for (const mode of ['listen', 'watermark']) {
+			for (const mayView of [true, false]) {
+				for (const state of ['', 'unverified', 'live', 'stale']) {
+					if (corpusSyncReadyLocal(mode, mayView, state)) {
+						assert.strictEqual(corpusMayServe(mode, mayView, state), true,
+							`${mode}/${mayView}/${state}: verified must imply servable`);
+					}
+				}
+			}
+		}
+	});
+});

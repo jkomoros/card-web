@@ -371,14 +371,26 @@ service cloud.firestore {
       allow create: if userMayStar() && createIsOwner();
       allow update: if userMayStar() && updateIsOwner();
       allow delete: if userMayStar() && updateIsOwner();
-      allow read: if updateIsOwner();
+      // updateIsOwner() alone null-derefs resource.data on a GET of a document
+      // that does not exist, so the rule ERRORS (permission-denied) rather than
+      // returning "not exists". The offline star-replay preflight asks exactly
+      // that question, read the denial as a permanent failure, and silently
+      // DISCARDED the user's star. Ids are `${uid}+${cardID}`, so a missing doc
+      // is authorized by its id prefix. No document that exists becomes more
+      // readable: the owner check still applies whenever resource != null.
+      allow read: if loggedIn() && (resource == null
+        ? star.split('\\+')[0] == request.auth.uid
+        : request.auth.uid == resource.data.owner);
     }
 
     match /reads/{read} {
       allow create: if userMayMarkRead() && createIsOwner();
       allow update: if userMayMarkRead() && updateIsOwner();
       allow delete: if userMayMarkRead() && updateIsOwner();
-      allow read: if updateIsOwner();
+      // Same null-resource hazard as stars, above.
+      allow read: if loggedIn() && (resource == null
+        ? read.split('\\+')[0] == request.auth.uid
+        : request.auth.uid == resource.data.owner);
     }
 
     match /tweets/{tweet} {
