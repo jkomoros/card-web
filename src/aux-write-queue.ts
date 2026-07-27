@@ -76,7 +76,10 @@ let replayRunning = false;
 let replayRetryScheduled = false;
 //Live uid provider, installed with the watcher. Needed so the replay loop can
 //notice a sign-out BETWEEN awaits rather than trusting the uid it started with.
-let currentUid : () => Uid = () => '';
+//Null until installed: a direct replayPendingAuxWrites() call (tests, or any
+//caller before auth resolves) must still run rather than aborting because the
+//default provider reports no user.
+let currentUid : (() => Uid) | null = null;
 let watcherInstalled = false;
 let intentCounter = 0;
 
@@ -230,7 +233,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 			//permission-denied, which is classified permanent, which DISCARDED
 			//them. Reads and reading-list writes have no preflight to save
 			//them, unlike stars.
-			if (currentUid() !== uid) break;
+			if (currentUid && currentUid() !== uid) break;
 			//Claim it in shared storage. A sibling tab's `online` handler fires
 			//at the same moment as ours, and its `inFlight` set is not ours, so
 			//without this both tabs replay the same intent and a single star
@@ -290,6 +293,6 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	inFlight.clear();
 	replayRunning = false;
 	replayRetryScheduled = false;
-	currentUid = () => '';
+	currentUid = null;
 	watcherInstalled = false;
 };
