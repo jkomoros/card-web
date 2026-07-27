@@ -518,8 +518,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 			/* 13em is over half of a 375px viewport. The reservation exists to
 			   stop a layout jump on a wide screen; on a narrow one, holding
-			   that much width during boot is worse than the jump it prevents. */
-			@media (max-width: 600px) {
+			   that much width during boot is worse than the jump it prevents.
+			   900px matches the app's own mobile breakpoint (card-web-app). */
+			@media (max-width: 900px) {
 				card-drawer.showing {
 					min-width: 0;
 				}
@@ -682,7 +683,11 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>
 		</card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<!-- The loading property is what applies the uniform fade that
+			makes the boot placeholder read as pending rather than as real card
+			content; it was never set here, so the placeholder rendered at full
+			weight and opacity, visually identical to a loaded card. -->
+			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>

@@ -14,6 +14,7 @@ import {
 } from '../selectors.js';
 
 import {
+	SCHEDULE_ICON,
 	WARNING_ICON
 } from '../../shared/icons.js';
 
@@ -111,7 +112,7 @@ class LimitWarning extends connect(store)(LitElement) {
 							class='small'
 							aria-hidden='true'
 						>
-							${WARNING_ICON}
+							${this._corpusStatus === 'loading' ? SCHEDULE_ICON : WARNING_ICON}
 						</span>
 						<span>
 							${showCorpusStatus ? this._corpusStatusMessage : html`Fetching all cards <span class="bold">(slow)</span>`}

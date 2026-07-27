@@ -32,11 +32,6 @@ made this survive for free. Also the `+` / Cmd-M affordances are not disabled
 during the unverified window, so you can create a card, type, and then be
 refused Save.
 
-### C9. `bulkTagResumeAttemptedThisPage` set by SUCCESSFUL saves, kills later resume
-`src/actions/data.ts:416` (unconditional, never cleared on success), consumed at
-`:593` which also guards `resumePendingDurableMultiEdit()`. A completed label
-edit therefore disables automatic single-save recovery for the life of the page.
-
 ### C11. Sign-out snapshot purge no-ops after a non-privileged reconnect
 `src/worker/corpus-worker.ts:2063`. `corpusSnapshotStore` is only created in
 `connectUnpublishedWatermark`; a permission revocation reconnects non-privileged
@@ -89,15 +84,6 @@ the query slot isn't subscribed, `_lastReadyCollection` is null so
 stale-while-revalidate doesn't engage, and `selectFindSearchPreparing` bails
 because `searchRecall` is null. The user sees "0 cards" and concludes the card
 doesn't exist.
-
-### U10. The boot-placeholder fix is inert — its premise is false
-`card-renderer.ts:278-281`, `card-stage.ts:170`, `card-view.ts:685`.
-`.boot-placeholder { font-style:inherit; opacity:inherit; }` was justified by
-"the uniform fade card-stage already applies" — that fade is
-`.loading card-renderer {opacity:0.6}`, keyed on card-stage's `loading`
-property, and **card-view never sets it** (the only setter in the repo is
-`basic-card-view.ts:84`). So "Loading..." now renders as ordinary full-weight,
-full-opacity title/body text, visually identical to a real card.
 
 ### U11. Worker failure and unsupported browsers are unrecoverable walls
 `corpus-mode.ts:38-51`, `corpus-bridge.ts:1023-1033`,
@@ -239,8 +225,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 
 ## P2 — UX polish
 
-- **U13.** `limit-warning.ts:94` shows a WARNING triangle for ~20 s of every
-  healthy boot.
 - **U14.** `card-editor.ts:539, 583` switched from `?hidden` to conditional
   rendering, so switching editor tabs destroys the textareas — losing native
   undo history and scroll position.
@@ -260,8 +244,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   its scroll position.
 - **U23.** Floating status pill sits over presentation mode
   (`main-view.ts:379`).
-- **U24.** Drawer `min-width` breakpoint is 600px but the app's mobile
-  breakpoint is 900px, so 601-900px reserves ~208px for an empty column.
 - **U25.** Reference blocks render as nothing (not "loading") until the worker
   can serve, and stale blocks survive navigation to a not-yet-loaded card.
 - **U26.** Takeover shows a static disabled button for up to 12 s with no

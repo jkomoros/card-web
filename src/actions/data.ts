@@ -413,7 +413,11 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		return;
 	}
 	bulkTagOperationRunning = true;
-	bulkTagResumeAttemptedThisPage = true;
+	//NOT set here. This flag exists to stop the automatic boot resume from
+	//retrying forever, but setting it on every ordinary bulk-tag save meant one
+	//successful label edit permanently disabled automatic single-save recovery
+	//for the rest of the page (the same flag guards resumePendingDurableMultiEdit).
+	//The resume paths set it themselves, which is where it belongs.
 	let operation : BulkTagOperation | null = null;
 	let bulkSkippedCount = 0;
 	try {
