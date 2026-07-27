@@ -55,8 +55,13 @@ const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
 const cardStarCount = 7;
 
-const starId = cardId + '+' + anonUid;
-const newStarId = cardId + 'new+' + anonUid;
+//Production ids are `${uid}+${cardID}` (idForPersonalCardInfo). These fixtures
+//previously had the two halves REVERSED, so every star/read test exercised an id
+//shape the app never produces — which is why the create rules' missing id/uid
+//binding went unnoticed.
+const newStarCardId = cardId + 'new';
+const starId = anonUid + '+' + cardId;
+const newStarId = anonUid + '+' + newStarCardId;
 
 const messageId = 'message';
 const newMessageId = 'newMessage';
@@ -952,13 +957,30 @@ describe('Compendium Rules', () => {
 	it('allows any user to create a star they own', async() => {
 		const db = authedApp(anonAuth);
 		const star = db.collection(STARS_COLLECTION).doc(newStarId);
-		await firebase.assertSucceeds(star.set({owner:anonUid, card: cardId}));
+		await firebase.assertSucceeds(star.set({owner:anonUid, card: newStarCardId}));
+	});
+
+	//Regression: createIsOwner() validates the `owner` FIELD, never the document
+	//PATH, so an attacker could create a doc they own at ANOTHER user's canonical
+	//id — permanently denying that user's own star write (set on an existing doc
+	//evaluates as update) and denying their replay preflight, which the aux queue
+	//treats as permanent and DISCARDS.
+	it('disallows creating a star at another user\'s canonical id (path squatting)', async() => {
+		const db = authedApp(sallyAuth);
+		const squatted = db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId);
+		await firebase.assertFails(squatted.set({owner: sallyUid, card: newStarCardId}));
+	});
+
+	it('disallows creating a star whose id does not match its own card field', async() => {
+		const db = authedApp(anonAuth);
+		const mismatched = db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId);
+		await firebase.assertFails(mismatched.set({owner: anonUid, card: 'some-other-card'}));
 	});
 
 	it('disallows user to create a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(newStarId);
-		await firebase.assertFails(star.set({owner:anonUid, card: cardId}));
+		await firebase.assertFails(star.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('allows any user to update a star they own', async() => {
@@ -1030,13 +1052,13 @@ describe('Compendium Rules', () => {
 	it('allows any user to create a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);
-		await firebase.assertSucceeds(read.set({owner:anonUid, card: cardId}));
+		await firebase.assertSucceeds(read.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('disallows user to create a read they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);
-		await firebase.assertFails(read.set({owner:anonUid, card: cardId}));
+		await firebase.assertFails(read.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('allows any user to update a read they own', async() => {
@@ -1352,6 +1374,11 @@ describe('Compendium Rules', () => {
 	});
 
 	it('allows users to update inbound links on a card they can see but cant edit', async() => {
+		//createCard is NOT in userMayEditCard's permission set, so this user
+		//still cannot edit the card — but they can author cards, which is what
+		//the inbound-reference identity floor requires (only a card author or
+		//editor ever generates a denormalized inbound reference).
+		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({
@@ -1380,6 +1407,7 @@ describe('Compendium Rules', () => {
 		//the pre-guard client). See cardEditInboundReferences in
 		//firestore.TEMPLATE.rules. At prod cutover, tighten the rule and
 		//flip this to assertFails.
+		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({
@@ -1414,6 +1442,55 @@ describe('Compendium Rules', () => {
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			body: 'bam'
+		}));
+	});
+
+	//Regression: cardEditInboundReferences had NO caller-identity check. Its only
+	//gate was `resource.data.published || userMayViewUnpublished()`, and the first
+	//disjunct is true for everyone on a published card — so an unauthenticated
+	//client could rewrite inbound references AND `updated` on any published card.
+	//Because this branch makes `updated` load-bearing for watermark delta sync,
+	//that is a remote billed-read exhaustion attack.
+	it('disallows an UNAUTHENTICATED client from updating inbound links', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows an UNAUTHENTICATED client from bumping updated via the inbound-link carve-out', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows an anonymous user with no card permissions from updating inbound links', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	//genericAuth, with no permission granted in this test, is the genuinely
+	//unprivileged signed-in user; sally is the card's author and is listed in its
+	//permissions.editCard, so her write would legitimately succeed via the edit
+	//path rather than the inbound-reference carve-out.
+	it('disallows a signed-in user with no card permissions from wiping inbound references', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			references_inbound: {},
+			references_info_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
 

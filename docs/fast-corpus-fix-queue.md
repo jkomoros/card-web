@@ -10,36 +10,6 @@ are merged into a single item and marked with the lenses that found them.
 
 ---
 
-## P0 — security, exploitable now
-
-### S1. Unauthenticated write to every published card, including `updated`
-`firestore.TEMPLATE.rules:167` (`cardEditInboundReferences`), reached from `:304`.
-No caller-identity check at all; the only gate is
-`resource.data.published || userMayViewUnpublished()`, and the first disjunct is
-true for anyone on a published card. Confirmed on the emulator: an
-unauthenticated client can write `references_inbound`,
-`references_info_inbound`, and `updated`. There is a standing
-`//TODO: for each modifiedCardID, verify userMayEditCard` in the function.
-Pre-existing on master, but this branch added `'updated'` to `allKeys` AND made
-`updated` load-bearing for watermark sync — so bumping it across ~40k published
-cards forces every client to redeliver the whole corpus (billed-read
-exhaustion, launchable by curl). Secondary: plant an inbound reference to make a
-card undeletable; or wipe inbound-reference data corpus-wide.
-Fix carefully: the legitimate writer is the link-denormalization batch from
-another user's card edit. Needs an identity floor without breaking that.
-
-### S2. `stars`/`reads`/`reading_lists` create rules never bind doc id to uid
-`firestore.TEMPLATE.rules:371`, `:387`, `:417`. `createIsOwner()` validates the
-`owner` FIELD, never the document PATH. Confirmed: an anonymous user can create
-`stars/{victimUid}+{cardID}` owned by themselves, after which the victim's own
-star write is permanently denied and their replay preflight is denied. Same for
-`reading_lists/{victimUid}` — permanently bricks that user's reading list. The
-admin's uid is public (it is the `author` of every published card). This also
-undermines the new read rule, whose comment treats `id == uid + '+' + cardID`
-as an invariant that nothing enforces on the write side.
-
----
-
 ## P0 — wedges the app or destroys work
 
 ### R5/U2. Unsaved draft destroyed on forced deactivation, and on Cancel
@@ -422,10 +392,9 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   credential-phishing surface via the emulator's auth handler. The branch
   already has the right pattern in `corpus-mode.ts:18-22`
   (`diagnosticModesAllowed()`); apply it here and restrict host to localhost.
-- **S5.** The `resource == null` hazard remains at `firestore.TEMPLATE.rules:420`
-  (`reading_lists` read — confirmed it errors on a user's own not-yet-created
-  list), `:402` (chats), `:410` (chat_messages). All fail closed, but it is the
-  same trap that destroyed stars.
+- **S5.** The `resource == null` hazard remains at `firestore.TEMPLATE.rules`
+  chats read and chat_messages read. Both fail closed, but it is the same trap
+  that destroyed stars. (The `reading_lists` read was fixed with S2.)
 - **S4.** Data-at-rest remanence: the worker's `persistentLocalCache` is
   `CACHE_SIZE_UNLIMITED` and `clearIndexedDbPersistence` is called nowhere, so
   the full privileged corpus (including unpublished bodies) survives sign-out on
