@@ -691,3 +691,119 @@ does not exercise that path.
 `card-web-edit-draft-v1` were removed; a regex scan over all 40,225 cards
 confirmed no DEV card carries a test marker, and every mutated card was restored
 byte-exactly.
+
+---
+
+## Round 8 — Three-agent adversarial review, and the fixes
+
+Three independent reviewers (UX-regression, correctness/robustness, and an
+adversarial pass over the five Round-7 commits) audited the branch. The
+architecture held: all three independently re-derived and confirmed the
+watermark durability proof, tombstone-vs-recreate ordering, marker/fanout
+commit ordering, ownership fencing, service-worker update semantics, and the
+serve-vs-verify split. Defects clustered in error and retry edges.
+
+### P0 — offline star replay silently destroyed the user's star
+
+`allow read: if updateIsOwner()` resolves to
+`request.auth.uid == resource.data.owner`. On a GET of a document that does not
+exist, `resource` is null, so the rule ERRORS (`permission-denied`) rather than
+answering "not exists". The replay preflight
+(`user.ts`, `getDocFromServer(starRef)`) asks exactly that question; the queue
+classifies `permission-denied` as a permanent failure and calls `removeIntent()`
+**with no log line**. Star while offline → reload → come back online → the star
+is gone, every time, with no trace. Reproduced against the real ruleset.
+
+Fixed in `firestore.TEMPLATE.rules` (note: `firestore.rules` is GENERATED and
+gitignored — editing it is silently reverted). A missing doc is authorized by
+its `${uid}+${cardID}` id prefix; no document that exists becomes more readable.
+Four regression tests added (`test/security/test.js`, now 190 passing). Also:
+a preflight FAILURE is no longer mistaken for a preflight ANSWER — it is
+rethrown without a `code` so the queue keeps the intent — and discarding an
+intent now always logs.
+
+### P0 — a recreated card could become permanently invisible
+
+`retryPendingLaunders` lifted tombstone suppression without re-ingesting, unlike
+its inline sibling in `processTombstones`. The prime deletes the still-suppressed
+id, the delta query only returns `updated > watermark` so an older recreate is
+never redelivered, and the trust gate's tolerance can absorb a single absence.
+Now re-ingests. It also lacked a connection-generation guard and read
+module-level `syncMetaStore` inside its callback, so an in-flight retry from a
+previous account could write its cursor into the NEXT account's record.
+
+### P1 — the stranded-intent trap was MY regression, not a pre-existing gap
+
+Round 7e recorded a stranded durable intent disabling all editing across
+reloads, and concluded the resume path "is only reached by attempting another
+durable operation." **That was wrong.** `installBulkTagResumeWatcher` auto-resumes
+on the `selectDataIsFullyLoaded` false→true edge — which was equivalent to
+`syncState === 'live'` until `ada2e50d` moved `markInitialDelivered` to prime
+time. After that change the single automatic attempt landed ~35s before the save
+gate opened, was refused, consumed the once-per-page flag, and never retried.
+Round 7e diagnosed a self-inflicted regression as a design gap and recommended
+building a replacement for the mechanism it had broken. The watcher now tracks
+the save gate itself, and the resume returns before consuming its attempt when
+saving is not yet possible.
+
+### The rest, fixed
+
+- `claimOwnership()` rejections were swallowed by a `void`ed promise: any
+  IndexedDB failure (private browsing, eviction, storage pressure) hung boot on
+  "Loading…" with no error, or left tombstone/delta unattached so the corpus was
+  permanently `unverified` and saves permanently refused. Now degrades to no
+  persistence and keeps syncing.
+- `ownsCurrentOwnership()` returned `false` for an IndexedDB error, which the
+  1s guard read as supersession and used to `self.close()` the worker — while
+  the bridge still reported `live` and still permitted saves against a corpus
+  that had silently stopped syncing. Now tri-state; only a definite `false`
+  stops the worker, and a persistently unreadable store says so once.
+- `updateLocalState` had no per-card `updated` comparison, so five paths that
+  bypass `ingestSnapshot` (server prime, cold-sweep priority, cold-sweep page,
+  partition repair, delta listener) could roll a card backward — after which the
+  gate could classify the resurrected old copy as a ghost and delete it. Now
+  filters backward writes before anything downstream sees them.
+- The trust gate's ±5-per-partition deficit tolerance rests on a RECENCY
+  argument applied as an unconditional COUNT tolerance, blessing up to 50 old
+  missing cards forever. Re-counted once delta has caught up; survivors are
+  repaired. **Verified live: the second gate now runs (`trust gate: server=38985
+  local=38985 mismatchedPartitions=0` at 30.6s).**
+- Initial-load completion now requires the prime to have come from the compact
+  snapshot, which is only written after passing the gate. A partial
+  persistent-cache residue (5,001 cards observed live with 34k missing) cleared
+  the old size-only threshold and would have been served as a whole corpus.
+- Single-key shortcuts (`e`, space) fired inside modal dialogs;
+  `selectKeyboardNavigates` now knows about every modal main-view renders.
+- **Disabled controls do not fire hover events in Chrome or Safari**, so every
+  `?disabled` + `title` explanation on this branch was invisible in exactly the
+  state it explained — including the Save button during verification. Combined
+  with `c51aba7f` replacing the `editingStart` alerts (reachable only from the
+  keyboard, since a disabled button cannot dispatch) with `console.warn`, a user
+  clicking Save during the boot window got nothing at all. Titles moved to
+  wrapper elements in card-editor, card-view, and multi-edit-dialog.
+- The drawer's 13em reservation is dropped below 600px (over half a 375px
+  viewport).
+- Redirect sign-in failures dispatched `SIGNIN_FAILURE`, which renders nowhere.
+- Cross-tab aux queue: localStorage read-modify-write is not atomic across tabs,
+  so a sibling writing back a stale snapshot could drop an intent this tab was
+  still working on while our own handler logged "queued for replay". In-flight
+  intents are now restored via a `storage` listener, and replay re-reads before
+  each attempt so two tabs cannot double-apply a non-idempotent star increment.
+- `corpusMayServe` — the predicate deciding what the app may show — shipped
+  untested; it now has a table-driven suite including the invariant that
+  anything `corpusSyncReady` accepts must also be servable.
+
+### Verified live after the fixes
+
+Warm boot on the real 40,225-card DEV corpus: `loadComplete` **7.1s**, search
+recall ready **9.3s**, `live` **29.2s**, post-delta re-gate clean. A real-UI save
+(click Edit, type into the body contenteditable, click Save) landed in
+**5,041ms**.
+
+**Harness lesson, again:** `PERF_HARNESS.dirtyEditingBody` + `commitEditing`
+persists a durable intent and releases the editor (~105ms) but does not reliably
+land, because it writes raw text into an HTML body field outside the
+contenteditable path. Only the real-UI path is trustworthy evidence about
+saving. Two earlier "restore succeeded" results were vacuous for the same
+reason: they compared the store to the original, which still matched precisely
+because nothing had ever committed.
