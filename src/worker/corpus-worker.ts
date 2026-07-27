@@ -539,43 +539,29 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 	return {cards, removedIDs, pendingWriteIDs};
 };
 
-//`updated` as a comparable bound, or null when the card carries none.
-const cardUpdatedBound = (card : Card) => {
-	const updated = card.updated as Timestamp | undefined;
-	return updated && typeof updated.seconds === 'number' ? {seconds: updated.seconds, nanoseconds: updated.nanoseconds} : null;
-};
-
-//ingestSnapshot version-guards its writes, but five paths reach the corpus
-//WITHOUT it: the server prime, the cold sweep's priority phase, each cold-sweep
-//page, partition repair, and the delta listener. A page read at t0 landing
-//after a listener delivered a newer version at t1 rolled the card backward —
-//and because the resulting corpus then disagreed with the server count, the
-//trust gate could classify the resurrected old copy as a ghost and DELETE it.
-//Cards carrying a local client-clock estimate are exempt: their `updated` is
-//not server-comparable.
-const rollsBackCard = (previous : Card, incoming : Card, id : CardID) : boolean => {
-	if (clientClockCardIDs.has(id)) return false;
-	const previousBound = cardUpdatedBound(previous);
-	const incomingBound = cardUpdatedBound(incoming);
-	if (!previousBound || !incomingBound) return false;
-	return compareTimestamps(incomingBound, previousBound) < 0;
-};
-
-const updateLocalState = (cardsIn : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
+//KNOWN LATENT, deliberately NOT guarded here. ingestSnapshot version-guards its
+//writes, but five paths reach the corpus without it (server prime, cold-sweep
+//priority phase, each cold-sweep page, partition repair, the delta listener), so
+//a page read at t0 landing after a listener delivered a newer version at t1 can
+//roll a card backward.
+//
+//A monotonic `updated` filter here was tried and REVERTED, because it is wrong
+//in two ways that are worse than the disease:
+//  1. Every server-delivery path clears the card's clientClockCardIDs exemption
+//     IMMEDIATELY BEFORE calling this (see ingestSnapshot and the delta
+//     listener), so the comparison the exemption exists to prevent — a
+//     client-clock `previous` against a server `incoming` — is exactly the one
+//     that runs. With any positive client clock skew, the authoritative server
+//     version of the user's own just-saved card is the thing that gets dropped.
+//  2. Callers invoke forwardBatch with the SAME cards object, so a card filtered
+//     out here still reaches Redux. The worker corpus and the main thread would
+//     silently disagree — and the worker's stale copy then feeds
+//     deriveSessionWatermark, poisoning the delta bound.
+//A correct fix has to filter the batch at the call sites (so the corpus and the
+//forward agree) and compare against a timestamp that is known to be
+//server-issued. Left as a tracked item rather than shipped half-right.
+const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
 	const indexStart = performance.now();
-	//Filter BEFORE anything downstream reads it, so the corpus, the engine
-	//mirror, the recall index and the pushed metas cannot disagree.
-	let staleWritesDropped = 0;
-	const cards : Cards = {};
-	for (const [id, card] of Object.entries(cardsIn)) {
-		const previous = corpus.get(id);
-		if (previous && rollsBackCard(previous, card, id)) {
-			staleWritesDropped++;
-			continue;
-		}
-		cards[id] = card;
-	}
-	if (staleWritesDropped) status(`dropped ${staleWritesDropped} stale card write(s) that would have rolled the corpus backward`);
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
 		if (previous && searchTokensForCard(previous).length) cardsWithStoredTokens--;
