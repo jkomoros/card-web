@@ -53,7 +53,8 @@ import {
 
 import {
 	SyncMetaStore,
-	SyncMeta
+	SyncMeta,
+	emptySyncMeta
 } from './sync-meta.js';
 
 import {
@@ -1762,9 +1763,17 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		try {
 			syncMetaOwned = await syncMetaOwnershipClaim;
 		} catch (err) {
+			//DEGRADE, do not abort. Returning null here made the caller's
+			//`if (!syncMetaState) return;` fire, which skipped tombstone
+			//catch-up, the trust gate, the cold sweep, AND both the tombstone
+			//and delta listeners — leaving the session with zero live sync
+			//planes, permanently 'unverified', so every save was refused
+			//forever with nothing on screen to say why. An unusable IndexedDB
+			//must cost persistence only: carry empty metadata in memory and
+			//keep syncing.
 			status(`sync metadata store unavailable (${String(err)}); continuing without metadata persistence`);
 			syncMetaStore = null;
-			return null;
+			return emptySyncMeta();
 		}
 		if (!syncMetaOwned) {
 			//A throw here would be swallowed by the prime path's cache
@@ -1949,8 +1958,10 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	if (deferPublishedUntilAfterPrime) connectPublished();
 	if (!syncMetaState) syncMetaState = await loadSyncMeta();
 	if (myConnectionGeneration !== connectionGeneration) return;
-	//Superseded claims tear down inside loadSyncMeta (bumping the generation),
-	//so this is unreachable in practice; it exists to narrow the type.
+	//Only the SUPERSEDED path returns null now, and it has already torn down
+	//and bumped the generation (caught above). An unusable IndexedDB degrades
+	//to in-memory empty metadata instead of returning null, so this no longer
+	//doubles as the storage-failure exit.
 	if (!syncMetaState) return;
 	//The separately-persisted metadata may be newer than the snapshot (for
 	//example, a crash during the snapshot's debounce window). Remove any newly

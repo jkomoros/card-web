@@ -42,6 +42,8 @@ export type SyncMeta = {
 	schemaVersion : 1
 };
 
+export const emptySyncMeta = () : SyncMeta => ({...EMPTY_META});
+
 const EMPTY_META : SyncMeta = {
 	tombstoneCursor: null,
 	processedTombstoneIDs: [],
@@ -101,7 +103,19 @@ export class SyncMetaStore {
 	}
 
 	_database() : Promise<IDBDatabase> {
-		if (!this._db) this._db = openDB();
+		//Drop a rejected/dead connection so the next call reopens. Caching the
+		//rejected promise forever meant a single failed open (eviction,
+		//versionchange, storage pressure) silently stopped ALL metadata
+		//persistence for the session — tombstone cursor, cold-sweep cursors and
+		//the watermark clamp — with every later error swallowed by the callers'
+		//catch blocks. CorpusSnapshotStore already self-heals this way.
+		if (!this._db) {
+			const opening = openDB();
+			this._db = opening;
+			void opening.catch(() => {
+				if (this._db === opening) this._db = null;
+			});
+		}
 		return this._db;
 	}
 
@@ -142,6 +156,15 @@ export class SyncMetaStore {
 				};
 				transaction.oncomplete = () => resolve();
 				transaction.onerror = () => reject(transaction.error);
+				//The ownership-mismatch branch above calls abort() with no
+				//pending requests, so per spec ONLY 'abort' fires — without
+				//this handler the promise never settles. clearWatermarkClamp
+				//awaits save(), and it sits on the path to `live`: an unsettled
+				//promise there means the delta plane is never marked healthy,
+				//the corpus never goes live, snapshot persistence is never
+				//enabled, and the next boot is cold with the clamp still
+				//pending. corpus-snapshot.ts has always had this handler.
+				transaction.onabort = () => resolve();
 			});
 		} catch {
 			//Best effort; see class comment.

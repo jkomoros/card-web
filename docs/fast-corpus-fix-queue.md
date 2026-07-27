@@ -48,18 +48,6 @@ runs `_setBackgroundInert(true)` — but `open` is still absent. Result: every
 control in the app is dead, with no overlay and no message, until some unrelated
 dispatch re-enters `stateChanged`.
 
-### C2/R2. IndexedDB failure aborts the whole watermark connect
-`src/worker/corpus-worker.ts:1768-1782`, `:1964-1968`. `loadSyncMeta`'s
-documented contract is "degrade, keep syncing", but it returns `null` without
-bumping the generation, and the caller then hits `if (!syncMetaState) return;` —
-skipping tombstone catch-up, the trust gate, the cold sweep, AND both the
-tombstone and delta listeners. Session runs with zero live planes, stays
-`unverified` forever, so all saving is permanently refused; if the snapshot
-store also failed, `loadComplete` never fires either. The comment calling this
-branch "unreachable in practice" is wrong — it is the IDB-error branch.
-Also: `syncMetaOwnershipClaim ||=` memoizes the REJECTED promise, so the retry
-reuses it.
-
 ### R3. Worker self-close is undetectable; UI reports "live" over a dead worker
 `src/worker/corpus-worker.ts:502-520`, `src/corpus-bridge.ts:389-399, 437-455`.
 `workerScope.close()` fires no `error` on the parent and the parent never calls
@@ -79,15 +67,6 @@ has 10s and a comment stating the pattern), so reference blocks freeze forever.
   tab says "Compendium moved to another tab", which is false.
 Fix: probe the lock before honoring the sessionStorage key, and make the
 `setItem` failure loud and non-fatal.
-
-### R6. `SyncMetaStore.save()` has no `onabort` → an awaited promise never settles
-`src/worker/sync-meta.ts:128-149`. Sets `oncomplete`/`onerror` but not
-`onabort`; the ownership-mismatch branch calls `transaction.abort()` with no
-requests pending, so per spec only `abort` fires and the promise hangs.
-`corpus-snapshot.ts:188` gets this right. `clearWatermarkClamp` AWAITS it and
-sits on the path to `live` — so the delta plane is never marked healthy, the
-corpus never goes live, snapshot persistence is never enabled, and the next boot
-is cold with the clamp still pending. Self-perpetuating.
 
 ---
 
@@ -163,12 +142,6 @@ server-confirmed delta still marks the plane healthy → `live` → the poisoned
 card is snapshotted → every future boot re-derives it. Silent permanent
 staleness reported as live. Realistic trigger: an out-of-band/admin/migration
 write. Note S1 above makes this remotely inducible.
-
-### R10. `SyncMetaStore` caches a dead/rejected DB promise forever
-`src/worker/sync-meta.ts:103-106`. No reset, unlike `CorpusSnapshotStore`
-(`corpus-snapshot.ts:134-139`), so once the open rejects every later
-`load`/`save` swallows into `catch {}` forever: tombstone cursor, cold-sweep
-cursors and `watermarkClamp` silently stop persisting.
 
 ### P13. Sync-meta ownership never claimed on the compact-snapshot path
 `src/worker/corpus-worker.ts:1831-1837` builds `syncMetaState` inline and the
