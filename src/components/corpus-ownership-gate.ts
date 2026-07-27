@@ -99,6 +99,11 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		const siblings = Array.from((this.parentNode as ParentNode | null)?.children || []);
 		for (const sibling of siblings) {
 			if (!(sibling instanceof HTMLElement) || sibling === this) continue;
+			//The save-status pill is the ONLY escape from a stranded durable
+			//intent, and a stranded intent is one of the states that puts this
+			//gate on screen ('degraded'). Marking it inert would make the app's
+			//sole recovery control unclickable exactly when it is needed.
+			if (sibling.hasAttribute('data-corpus-gate-keep-interactive')) continue;
 			if (inert) {
 				if (!sibling.inert) sibling.dataset.corpusGateInert = 'true';
 				sibling.inert = true;

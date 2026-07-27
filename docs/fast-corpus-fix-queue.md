@@ -24,22 +24,6 @@ Two doors to the same loss:
   confirm, same watcher, same deletion — while the disabled Save button's
   tooltip says verbatim "your draft is safe".
 
-### C3/U6/R1. A durable intent with no `lastError` locks out ALL editing, forever
-`src/components/card-web-app.ts:264`, `src/actions/data.ts:773, 600, 962`,
-`src/actions/editor.ts:311`. Found by three reviewers independently.
-`_saveStatus` is `'paused'` (the ONLY state rendering Retry/Stop) only if
-`saveError || durableError`. The write-ahead intent is persisted BEFORE any
-attempt, so the crash window it exists to protect is exactly the window that
-produces a record with no `lastError` → `'saving'` → buttonless spinner.
-Meanwhile `durableCardMutationPending()` disables Edit on every card, refuses
-`editingStart` with only a console.warn, disables the SW Reload button, and arms
-a `beforeunload` prompt. Multiple doors in: crash before first commit; uid
-mismatch after sign-out/account switch (resume returns silently at `:962`);
-offline (`durableSaveEligible` requires `live`); worker degraded.
-**Recovery is impossible without DevTools.** The fix that closes all doors:
-render Retry/Stop whenever an intent exists, keep them outside the ownership
-gate's inert subtree, and add an age expiry like the aux queue already has.
-
 ### R3. Worker self-close is undetectable; UI reports "live" over a dead worker
 `src/worker/corpus-worker.ts:502-520`, `src/corpus-bridge.ts:389-399, 437-455`.
 `workerScope.close()` fires no `error` on the parent and the parent never calls
@@ -416,9 +400,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 
 ## P2 — correctness / robustness hardening
 
-- **C10.** `abandonPendingBulkTagOperation` has no running-operation guard
-  (`data.ts:644`), so Stop during a running op clears the key and the loop
-  re-creates it, contradicting the confirm dialog.
 - **C12.** Direct (non-replay) aux writes have no preflight and can collide with
   a running replay for the same card (`aux-write-queue.ts:131-135`).
 - **C14.** A single `card-web-edit-draft-v1` key holds one draft

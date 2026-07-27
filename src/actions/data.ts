@@ -642,6 +642,15 @@ export const retryPendingBulkTagOperation = () : ThunkSomeAction => async (dispa
 };
 
 export const abandonPendingBulkTagOperation = () : ThunkSomeAction => (dispatch) => {
+	//Unlike retryPendingBulkTagOperation, this had no running-operation guard:
+	//clearing the key mid-run only removed it until the loop's next
+	//persistBulkTagOperation re-created it, and the remaining chunks committed
+	//anyway — directly contradicting the confirm dialog's promise that the rest
+	//"will be left unchanged".
+	if (bulkTagOperationRunning || durableMultiEditRunning) {
+		alert('That operation is running right now. Wait for the current chunk to finish, then Stop — the button will take effect between chunks.');
+		return;
+	}
 	const bulkInspection = inspectSavedOperation(readBulkTagOperation);
 	if (bulkInspection.error) {
 		if (!confirm(`${bulkInspection.error.message}\n\nDiscard this unreadable saved label operation? This may leave already-completed changes in place.`)) return;

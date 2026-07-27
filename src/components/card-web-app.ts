@@ -256,15 +256,23 @@ class CardWebApp extends connect(store)(LitElement) {
 				<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
 			</div>` : ''}
 		${this._saveStatus !== 'idle' ? html`
-			<div class='save-status ${this._saveStatus}' role='status' aria-live='polite' title=${this._saveError}>
+			<div class='save-status ${this._saveStatus}' data-corpus-gate-keep-interactive role='status' aria-live='polite' title=${this._saveError}>
 				<span class='save-dot' aria-hidden='true'></span>
 				<span>${this._saveStatus === 'saving'
 					? this._saveIsMulti ? 'Saving cards…' : 'Saving card…'
 					: this._saveIsMulti ? 'Multi-edit paused' : 'Save paused'}</span>
-				${this._saveStatus === 'paused' ? html`
-					<button @click=${this._retrySave}>Retry</button>
-					<button @click=${this._stopRetryingSave}>Stop retrying</button>
-				` : ''}
+				<!-- Retry/Stop render for BOTH states. A durable intent is
+				persisted BEFORE the first attempt, so a crash in exactly the
+				window the intent exists to protect leaves a record with no
+				lastError -- which rendered as a buttonless "Saving card…"
+				forever, while durableCardMutationPending() disabled Edit on
+				every card, refused editingStart with only a console.warn,
+				disabled the service-worker Reload button, and armed a
+				beforeunload prompt. Same terminal state after a sign-out or
+				account switch, where resume returns silently on uid mismatch.
+				There was no in-app exit at all: DevTools or nothing. -->
+				<button @click=${this._retrySave}>Retry</button>
+				<button @click=${this._stopRetryingSave}>${this._saveStatus === 'paused' ? 'Stop retrying' : 'Discard'}</button>
 			</div>` : ''}
 		<corpus-ownership-gate></corpus-ownership-gate>
 		`;
