@@ -814,10 +814,19 @@ const attachResilientListener = (
 ) => {
 	const myConnectionGeneration = connectionGeneration;
 	let delay = LISTENER_RETRY_BASE_MS;
+	//Replaced on every re-attach so the dead handle is dropped rather than
+	//accumulating: with a 60s max backoff an 8-hour outage left ~2,400 stale
+	//closures in `unsubscribes`, all of which teardownListeners then invoked.
+	let myUnsubscribe : (() => void) | null = null;
 	const attach = () => {
 		if (myConnectionGeneration !== connectionGeneration) return;
 		const handler = makeHandler();
-		unsubscribes.push(onSnapshot(
+		if (myUnsubscribe) {
+			const index = unsubscribes.indexOf(myUnsubscribe);
+			if (index >= 0) unsubscribes.splice(index, 1);
+			myUnsubscribe = null;
+		}
+		myUnsubscribe = onSnapshot(
 			makeQuery(),
 			{includeMetadataChanges: true},
 			snapshot => {
@@ -836,7 +845,8 @@ const attachResilientListener = (
 				status(`${context} re-attaching in ${thisDelay / 1000}s`);
 				setTimeout(attach, thisDelay);
 			}
-		));
+		);
+		unsubscribes.push(myUnsubscribe);
 	};
 	attach();
 };
@@ -2425,6 +2435,8 @@ workerScope.addEventListener('message', event => {
 //filter stops asking entirely, so a satisfied request generates no further
 //traffic.
 const SIMILARITY_REQUEST_RETRY_MS = 60 * 1000;
+//Above this many tracked cards, expired entries are swept on the next request.
+const SIMILARITY_REQUEST_CACHE_SOFT_CAP = 512;
 const requestedSimilarityCardIDs : Map<CardID, number> = new Map();
 setSimilarityRequestHandler((cardID, editingCard) => {
 	if (editingCard) {
@@ -2437,6 +2449,14 @@ setSimilarityRequestHandler((cardID, editingCard) => {
 	const now = Date.now();
 	const requestedAt = requestedSimilarityCardIDs.get(cardID);
 	if (requestedAt !== undefined && now - requestedAt < SIMILARITY_REQUEST_RETRY_MS) return;
+	//Drop entries that are already past the retry window rather than keeping one
+	//per card ever requested for the life of the worker. Only runs when a new
+	//request is actually being made, so it costs nothing on the hot path.
+	if (requestedSimilarityCardIDs.size > SIMILARITY_REQUEST_CACHE_SOFT_CAP) {
+		for (const [id, at] of requestedSimilarityCardIDs) {
+			if (now - at >= SIMILARITY_REQUEST_RETRY_MS) requestedSimilarityCardIDs.delete(id);
+		}
+	}
 	requestedSimilarityCardIDs.set(cardID, now);
 	send({type: 'requestSimilarity', generation, cardID});
 });

@@ -88,6 +88,10 @@ import {
 } from './edit-draft.js';
 
 import {
+	durableCardMutationPending
+} from './actions/data.js';
+
+import {
 	corpusSizeTrustworthy,
 	corpusSyncReady,
 	corpusMayServe
@@ -412,6 +416,24 @@ let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 //the resulting corpus must be plausibly complete relative to what Redux
 //already holds (an offline worker "completes" with an EMPTY corpus from its
 //memory cache; serving that would blank out the warm-boot-primed app).
+//Memoized on the identity of the Redux cards map. The final check is an
+//O(corpus) Object.keys (3.2ms at 40k) behind what reads like a cheap boolean,
+//and this is called from card-view, card-info-panel, card-editor and once per
+//reference block — ~36ms per navigation settle with a full info panel.
+//fastResubscribeOnDescriptionChange already ordered a cheap compare first for
+//exactly this reason; the component call sites had no such protection.
+let cachedServeCardsRef : unknown = null;
+let cachedServeCardsCount = 0;
+
+const reduxCardCount = (state : State) : number => {
+	const cards = selectRawCards(state);
+	if (cards !== cachedServeCardsRef) {
+		cachedServeCardsRef = cards;
+		cachedServeCardsCount = Object.keys(cards).length;
+	}
+	return cachedServeCardsCount;
+};
+
 export const corpusWorkerCanRunCollections = () : boolean => {
 	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
 	if (!workerLoadComplete) return false;
@@ -420,8 +442,7 @@ export const corpusWorkerCanRunCollections = () : boolean => {
 	//partial flush or an offline worker's empty corpus replacing the primed
 	//app — plausible-completeness checks, not verification.
 	if (!corpusMayServe(readCorpusSyncMode(), lastMayViewUnpublished, lastSyncState)) return false;
-	const reduxCount = Object.keys(selectRawCards(store.getState() as State)).length;
-	return corpusSizeTrustworthy(workerCorpusSize, reduxCount);
+	return corpusSizeTrustworthy(workerCorpusSize, reduxCardCount(store.getState() as State));
 };
 
 //The corpus has passed the server trust gate. Required for anything that
@@ -432,8 +453,7 @@ export const corpusWorkerCorpusVerified = () : boolean => {
 	if (!worker || !corpusWorkerOwnsCardIngestion()) return false;
 	if (!workerLoadComplete) return false;
 	if (!corpusSyncReady(readCorpusSyncMode(), lastMayViewUnpublished, lastSyncState)) return false;
-	const reduxCount = Object.keys(selectRawCards(store.getState() as State)).length;
-	return corpusSizeTrustworthy(workerCorpusSize, reduxCount);
+	return corpusSizeTrustworthy(workerCorpusSize, reduxCardCount(store.getState() as State));
 };
 
 //Runs a collection description in the worker; resolves with the ordered
@@ -1392,6 +1412,11 @@ const finishUnresponsiveTakeover = async (requestID : string) => {
 const takeoverBlockReason = (state : State) : 'editing' | 'pending' | null => {
 	if (selectEditingCardHasUnsavedChanges(state)) return 'editing';
 	if (inFlightMutationCount() > 0 || selectPendingModificationCount(state) > 0 || state.data?.pendingReorder || Object.values(selectPendingDeletions(state)).some(Boolean)) return 'pending';
+	//A persisted durable intent is unfinished work too, and it lives in
+	//origin-wide localStorage — handing ownership away mid-operation leaves it
+	//for whichever tab wins, which is exactly how intents end up stranded
+	//under a uid that no longer matches.
+	if (durableCardMutationPending()) return 'pending';
 	return null;
 };
 

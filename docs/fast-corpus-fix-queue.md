@@ -252,8 +252,8 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 - **R15.** No `onversionchange`/`onblocked` on either IDB store, so "Clear site
   data" hangs while the worker holds the connection.
 - **R16.** Listener retry has no jitter and no `resource-exhausted` case; all 13
-  listeners re-attach in lockstep after an outage. `unsubscribes.push` runs on
-  every re-attach and never removes the dead entry.
+  listeners re-attach in lockstep after an outage. (The dead-handle accumulation
+  half is fixed.)
 - **R17.** Epoch saturation: `Number.isInteger(1e308)` is true, so a crafted
   lease passes validation and `+1` is a fixed point; with
   `corpus-snapshot.ts:108` accepting `epoch <=`, a stale worker can re-claim.
@@ -261,17 +261,11 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   (`corpus-bridge.ts:1306-1315`).
 - **R19.** Unconditional 1 Hz synchronous localStorage write for the tab's life,
   never paused on `visibilitychange`, no `pagehide` lease release.
-- **R23.** `requestedSimilarityCardIDs` is never pruned
-  (`corpus-worker.ts:2325`).
 - **R24.** Snapshot `savedAt` is written but never read — an offline months-old
   snapshot is primed and served with no staleness signal.
-- **R25.** `takeoverBlockReason` does not consult `durableCardMutationPending()`.
 
 ## P2 — performance polish
 
-- **P10.** `corpusWorkerCanRunCollections()` does an O(corpus) `Object.keys`
-  behind a boolean (MEASURED 3.2 ms), called per reference block →
-  ~36 ms per navigation settle. Memoize against `state.data.cards` identity.
 - **P11.** Boot round-trips the snapshot through wire format twice
   (`fromWire` then `toWire(stripForWire())`) — ~1-1.5 s of the 7.1 s
   `loadComplete`.
@@ -282,7 +276,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 - **P18.** 4 synchronous `localStorage.getItem` + up to 2 `JSON.parse` per
   dispatch (`card-web-app.ts:437-453`, `card-view.ts:1040`); during a durable
   multi-edit the parsed record can include full card objects.
-- **P19.** `unsubscribes` accumulates dead handles (see R16).
 - **P21.** Impure `localStorage` reads inside `createSelector` result functions
   (`selectors.ts:1701, 2000, 2014, 2031`); `markCorpusWorkerUnavailable()` flips
   mode without touching Redux, so memoized worker-served collections go stale.
