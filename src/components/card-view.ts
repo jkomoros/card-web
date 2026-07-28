@@ -1107,8 +1107,20 @@ class CardView extends connect(store)(PageViewElement) {
 				}, COLLECTION_UPDATING_GRACE_MS);
 			}
 		} else {
-			//Nothing ready yet this session: the existing loading placeholder
-			//path (dataIsFullyLoaded gating below) handles first paint.
+			//Nothing ready yet this session. The transitional worker result is
+			//an empty placeholder with isFallback:false, so without this the
+			//drawer asserted a confident, undimmed "0 cards" for the whole
+			//pre-loadComplete window — while the stage beside it said
+			//"Loading…" — and then popped to 40,225. Mark it updating on the
+			//same grace timer used for a description change, so the branch's
+			//own dim + "updating…" affordance covers the longest wait rather
+			//than only the shortest one.
+			if (!this._collectionUpdating && !this._collectionUpdatingTimeout) {
+				this._collectionUpdatingTimeout = window.setTimeout(() => {
+					this._collectionUpdatingTimeout = 0;
+					this._collectionUpdating = true;
+				}, COLLECTION_UPDATING_GRACE_MS);
+			}
 			this._collection = currentCollection;
 		}
 

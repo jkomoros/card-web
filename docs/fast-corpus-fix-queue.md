@@ -44,22 +44,6 @@ the `${key}:owner` record, and nothing anywhere calls
 
 ## P1 — UX
 
-### U7. Cmd/Ctrl+Enter runs the whole confirm gauntlet before revealing refusal
-`main-view.ts:487` → `actions/app.ts:445` → `actions/editor.ts:362` (no
-eligibility check) → `actions/data.ts:752` (alert). The user answers the pending
-slug, suggested-concept and overshadowed-changes confirms, THEN learns sync
-isn't live. The mouse path is a hover-only tooltip. Two different behaviors for
-the same intent, and no always-visible sync signal while the editor is open.
-
-### U8. Drawer asserts "0 cards", undimmed, for the whole pre-loadComplete window
-`selectors.ts:1701-1706`, `card-view.ts:1104-1107`. `selectActiveCollection`
-returns a placeholder with `numCards: 0` and **`isFallback: false`**, so the
-drawer stays showing, holds its 13em column, prints "0 cards", and the `else`
-branch deliberately does not set `_collectionUpdating` — suppressing the dim +
-"updating…" honesty mechanism exactly when the wait is longest. Then it pops
-0 → 40,225. (Note: this also means my earlier `selectCardsDrawerPanelShowing`
-change is inert on the worker path.)
-
 ### U9. Find dialog asserts zero results with no loading affordance
 `find-dialog.ts:395-425`, `selectors.ts:2005-2021`. Cmd-F before `loadComplete`:
 the query slot isn't subscribed, `_lastReadyCollection` is null so
@@ -78,10 +62,6 @@ load" whose only button reloads into the same condition. `'unsupported'` renders
 NO button, `_activate` early-returns, and `_containFocus` swallows Escape while
 preventDefault-ing Tab onto a `tabindex="-1"` panel — a keyboard trap (WCAG
 2.1.2) on a non-interactive element. These users could read the site on master.
-
-### C13. `void trackMutation(...)` swallows `MutationFencedError`
-`src/actions/comments.ts:102`, `:276`. In a fenced tab the user gets no feedback
-and no error; there is no `unhandledrejection` handler anywhere in `src/`.
 
 ---
 

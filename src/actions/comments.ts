@@ -99,6 +99,9 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 	const cardRef = doc(db, CARDS_COLLECTION, thread.card);
 	const threadRef = doc(db, THREADS_COLLECTION, thread.id);
 
+	//A voided promise here swallowed MutationFencedError entirely: in a fenced
+	//tab the user got no feedback and no error, and there is no
+	//unhandledrejection handler anywhere in src/. Say something.
 	void trackMutation(() => runTransaction(db, async transaction => {
 		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
@@ -115,7 +118,10 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 			resolved: true,
 			updated: serverTimestamp()
 		});
-	}));
+	})).catch(err => {
+		console.warn('Comment write did not complete:', err);
+		alert(`That comment action could not be saved: ${err instanceof Error ? err.message : String(err)}`);
+	});
 };
 
 export const deleteMessage = (message : CommentMessage) : ThunkSomeAction => (_, getState) => {
@@ -273,6 +279,9 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 	const threadRef = doc(db, THREADS_COLLECTION, threadId);
 	const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
 
+	//A voided promise here swallowed MutationFencedError entirely: in a fenced
+	//tab the user got no feedback and no error, and there is no
+	//unhandledrejection handler anywhere in src/. Say something.
 	void trackMutation(() => runTransaction(db, async transaction => {
 		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
@@ -310,7 +319,10 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 			deleted: false
 		});
 
-	}));
+	})).catch(err => {
+		console.warn('Comment write did not complete:', err);
+		alert(`That comment action could not be saved: ${err instanceof Error ? err.message : String(err)}`);
+	});
 
 };
 

@@ -1,4 +1,5 @@
 import {
+	selectCardSavesEligible,
 	selectActiveCard,
 	selectUserMayEditActiveCard,
 	selectEditingCard,
@@ -363,6 +364,15 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 	const state = getState();
 	if (!selectIsEditing(state)) {
 		console.warn('Editing not active');
+		return;
+	}
+	//Check eligibility BEFORE the confirm gauntlet. The mouse path is a
+	//disabled button, but the keyboard path (Cmd/Ctrl+Enter) walked the user
+	//through the pending-slug, suggested-concept and overshadowed-changes
+	//confirms and only then, from deep inside the executor, told them sync was
+	//not live. Refuse up front, with the same reason the Save button gives.
+	if (!selectCardSavesEligible(state)) {
+		alert('Card sync is still verifying, so this save cannot commit yet. Your draft is kept — Save unlocks as soon as sync is live.');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
