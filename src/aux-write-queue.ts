@@ -181,6 +181,26 @@ export const makeAuxWriteIntent = (uid : Uid, kind : AuxWriteKind, cardID : Card
 	createdAt: Date.now(),
 });
 
+//Losing one of these is a user ACTION disappearing — a star they set, a card
+//they added to their reading list. Every call site is `void
+//runDurableAuxWrite(...)` with no catch, so console.error alone meant it
+//vanished with nothing on screen. Named actions, so the message is meaningful.
+const DISCARD_LABELS : Record<AuxWriteKind, string> = {
+	'star-add': 'starring that card',
+	'star-remove': 'removing your star from that card',
+	'read-add': 'marking that card read',
+	'read-remove': 'marking that card unread',
+	'reading-list-add': 'adding that card to your reading list',
+	'reading-list-remove': 'removing that card from your reading list',
+};
+
+const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {
+	if (typeof window === 'undefined') return;
+	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
+	const detail = (error as {message? : string})?.message || String(error);
+	window.setTimeout(() => alert(`${what} could not be saved and has been discarded: ${detail}`), 0);
+};
+
 //True for errors that will never succeed on retry, so the intent should be
 //dropped rather than replayed forever.
 const permanentFailure = (error : unknown) : boolean => {
@@ -209,6 +229,7 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<void> => {
 		if (permanentFailure(error)) {
 			console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently and was DISCARDED:`, error);
 			removeIntent(intent.id);
+			reportDiscardedIntent(intent, error);
 		} else console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm; queued for replay:`, error);
 	}).finally(() => {
 		inFlight.delete(intent.id);
@@ -290,6 +311,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 				if (permanentFailure(error)) {
 					console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently on replay and was DISCARDED:`, error);
 					removeIntent(intent.id);
+					reportDiscardedIntent(intent, error);
 					continue;
 				}
 				//Transient (likely offline): keep this and everything after

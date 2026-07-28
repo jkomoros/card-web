@@ -97,8 +97,6 @@ Left as an explicit decision rather than silently claimed as met.
   card-editor's own shadow root across a tab switch, and note that rollup strips
   HTML comments from Lit templates, so a comment is NOT a usable staleness check.
 - **U15.** `e` is a silent no-op (see U7/C3).
-- **U17.** Durable aux writes are discarded with only `console.error`; call sites
-  are `void runDurableAuxWrite(...)` with no catch.
 - **U18.** Suggested tags render empty on worker timeout, indistinguishable from
   "no suggestions" (`card-editor.ts:984-992`).
 - **U25.** Reference blocks render as nothing (not "loading") until the worker
@@ -107,13 +105,6 @@ Left as an explicit decision rather than silently claimed as met.
   progress and no cancel.
 - **U27.** `inert` is a no-op on Firefox <112 / Safari <15.5, which with U4 lets
   Tab reach live controls behind the overlay.
-- **U28.** The `span.reason` wrapper pattern is incomplete: `card-view.ts:696`
-  (reading list) still has `?disabled` + `title` on the button, `:697`/`:698`
-  (star, mark-read) are `?disabled` with NO title at all, and
-  `comments-panel.ts:130`. Also the technique does not help keyboard or AT users.
-
-## P2 — correctness / robustness hardening
-
 - **C14.** A single `card-web-edit-draft-v1` key holds one draft
   (`edit-draft.ts:17`), so two concurrently-dirty editors overwrite each other;
   `persistDraft` is also unguarded against `QuotaExceededError`.
