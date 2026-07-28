@@ -113,17 +113,6 @@ and no error; there is no `unhandledrejection` handler anywhere in `src/`.
 
 ## P1 — performance
 
-### P1. 93% of the search-recall index serves only a console debug hook
-`src/worker/search-index.ts:131-144`, built from `corpus-worker.ts:350-394`.
-`substringCandidates` — the only function the narrowing path calls — skips every
-posting key containing a space, but `updateCard` indexes `nlp_search_tokens`
-verbatim, which contain bigrams. The only consumer of bigram postings is
-`candidates()`, reachable solely from `window.CORPUS_WORKER.query()`.
-`candidatesUnion()` has no callers at all. MEASURED at 40,225 cards: build 4,439
-→ 1,371 ms; 585k posting keys → 41k; 7.08M entries → 3.25M (~190 MB on a
-synthetic corpus, likely more on real prose); `substringCandidates("karento")`
-40 ms → 1.9 ms. Fix is ~3 lines: skip tokens containing a space in `updateCard`.
-
 ### P4. The re-gate doubles every boot's gate cost, and can repair-loop
 `corpus-worker.ts:1267-1273`. Confirmed it cannot storm (the `firstServerDelivery`
 flag is outside `makeHandler`, so listener re-attach does not re-fire it), but it

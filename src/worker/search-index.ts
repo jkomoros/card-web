@@ -34,7 +34,18 @@ export class SearchIndex {
 
 	//Sets (or replaces) the tokens for a card, incrementally updating only the
 	//postings that changed.
-	updateCard(id : CardID, tokens : readonly string[]) : void {
+	updateCard(id : CardID, tokensIn : readonly string[]) : void {
+		//UNIGRAMS ONLY. `nlp_search_tokens` carries bigrams (see
+		//tools/migrate-nlp-tokens.mjs), but the only production consumer of
+		//this index is substringCandidates(), which skips every posting key
+		//containing a space — so every bigram posting was built, stored, and
+		//scanned without ever being usable. Measured on 40,225 cards: 585k
+		//posting keys and 7.08M entries with bigrams versus 41k and 3.25M
+		//without, ~3s of every boot's chunked build, and ~190MB of Sets. It
+		//also made each narrowing query walk 14x more keys than it can use.
+		//candidates() (the CORPUS_WORKER.query console hook) still works, just
+		//without bigram precision.
+		const tokens = tokensIn.filter(token => !token.includes(' '));
 		const previous = this._cardTokens.get(id);
 		if (previous) {
 			const next = new Set(tokens);
