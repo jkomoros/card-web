@@ -100,19 +100,6 @@ the info panel both open and closed, collect `PerformanceObserver` long tasks,
 event timing, and frame gaps, and include the one-second extraction boundaries.
 No interval-triggered task may cause visible input lag.
 
-### P25. Actual card changes still invalidate corpus-wide worker memos
-`src/worker/query-engine.ts:229-249` increments `_cardsVersion` after every real
-card change. `_ensureSets` (`:272-280`) then recomputes the default/everything
-sets over the corpus, while suggestion generators and tag fingerprints
-(`:414-439`) also invalidate. The versioning batch removed the whole-map spread
-and avoids work for no-op batches, but it did not remove the claimed
-O(corpus) invalidations for real updates.
-
-**Required fix/acceptance test:** prime collections and tag suggestions on a
-40k-card corpus, update one card, and measure all recomputation caused by the
-next collection/suggestion request. Document which structures are incremental
-and set a bounded single-card-update worker latency budget.
-
 ## P2 — security hardening
 
 - **S5.** The `resource == null` hazard remains at `firestore.TEMPLATE.rules`

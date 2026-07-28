@@ -129,6 +129,8 @@ export class QueryEngine {
 	//Bumped whenever _cards actually changes. Memo guards compare this rather
 	//than object identity, which a per-batch rebuild invalidated every time.
 	_cardsVersion : number;
+	//Bumped only when a change could alter the default/everything sets.
+	_setsVersion : number;
 	_collectionState : CollectionState;
 	_sections : Sections;
 	_tags : Tags;
@@ -149,6 +151,7 @@ export class QueryEngine {
 	constructor() {
 		this._cards = {};
 		this._cardsVersion = 0;
+		this._setsVersion = 0;
 		this._collectionState = INITIAL_STATE;
 		this._sections = {};
 		this._tags = {};
@@ -236,8 +239,17 @@ export class QueryEngine {
 		//synchronously and do not retain it across batches, so in-place
 		//mutation is safe; memo guards now compare _cardsVersion.
 		let changed = false;
+		//The default/everything sets depend ONLY on membership, `sort_order`
+		//and `section` (see computeDefaultSet and makeEverythingSetFromCards),
+		//so an ordinary body/title/tags edit leaves both byte-identical.
+		//Invalidating them on every content change meant a single-card save
+		//paid two O(corpus) rebuilds for nothing. Track set-relevance
+		//separately from content change.
+		let setsChanged = false;
 		for (const [id, card] of Object.entries(cards)) {
-			if (this._cards[id] === card) continue;
+			const previous = this._cards[id];
+			if (previous === card) continue;
+			if (!previous || previous.sort_order !== card.sort_order || previous.section !== card.section) setsChanged = true;
 			this._cards[id] = card;
 			changed = true;
 		}
@@ -245,8 +257,10 @@ export class QueryEngine {
 			if (!(id in this._cards)) continue;
 			delete this._cards[id];
 			changed = true;
+			setsChanged = true;
 		}
 		if (changed) this._cardsVersion++;
+		if (setsChanged) this._setsVersion++;
 		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_CARDS, cards, fetchType: 'published'});
 		if (removedIDs.length) {
 			this._collectionState = collectionReducer(this._collectionState, {type: REMOVE_CARDS, cardIDs: removedIDs});
@@ -270,13 +284,13 @@ export class QueryEngine {
 	}
 
 	_ensureSets() {
-		if (this._sets && this._setsForCards === this._cardsVersion && this._setsForSections === this._sections && this._setsForReadingList === this._readingList) return this._sets;
+		if (this._sets && this._setsForCards === this._setsVersion && this._setsForSections === this._sections && this._setsForReadingList === this._readingList) return this._sets;
 		this._sets = {
 			main: computeDefaultSet(this._sections, this._cards),
 			everything: makeEverythingSetFromCards(this._cards),
 			'reading-list': this._readingList,
 		};
-		this._setsForCards = this._cardsVersion;
+		this._setsForCards = this._setsVersion;
 		this._setsForSections = this._sections;
 		this._setsForReadingList = this._readingList;
 		return this._sets;
