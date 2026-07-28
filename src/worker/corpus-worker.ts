@@ -2270,9 +2270,39 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	void gateAndProceed();
 };
 
+//On sign-out, remove the materialized privileged corpus from disk.
+//
+//C11: this used to be `if (corpusSnapshotStore) store.clear()`, but that object
+//only exists after a PRIVILEGED connect — a permission revocation reconnects
+//non-privileged first, so by the time the `uid === ''` connect arrived the
+//reference was already null and the snapshot silently survived. Construct the
+//store from the outgoing uid instead, so the purge does not depend on which
+//path we arrived by. `clear()` also now removes the `:owner` record, which it
+//previously left behind.
+//
+//S4 (NOT fully closed, deliberately): Firestore's own persistentLocalCache is a
+//second, larger copy of the same data — this worker runs it with
+//CACHE_SIZE_UNLIMITED — and clearing it requires terminate() + 
+//clearIndexedDbPersistence(). connectCards proceeds SYNCHRONOUSLY to
+//connectPublished() for the signed-out reader, which needs a live `db`, so a
+//correct purge means restructuring this path to re-initialize Firestore
+//afterwards. That is a real change to the client lifecycle and is left for a
+//deliberate pass rather than bolted on here.
+const purgePrivilegedSnapshot = async (outgoingUid : string) => {
+	if (!outgoingUid) return;
+	try {
+		const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
+		const store = corpusSnapshotStore || new CorpusSnapshotStore(`${projectID}:${outgoingUid}:privileged`);
+		await store.clear();
+		status('cleared the materialized privileged corpus for the signed-out account');
+	} catch (e) {
+		status(`compact snapshot purge failed (${String(e)})`);
+	}
+};
+
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
-	if (!uid && currentUid && corpusSnapshotStore) void corpusSnapshotStore.clear();
+	if (!uid && currentUid) void purgePrivilegedSnapshot(currentUid);
 	disableCorpusSnapshotPersistence();
 	//A (re)connect changes what this corpus MEANS (different permissions ⇒
 	//different visible card set): live subscriptions computed under the old

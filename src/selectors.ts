@@ -2030,8 +2030,16 @@ export const selectFindSearchPreparing = createSelector(
 	(open, queryText, description, args, workerResult, recall) : {built : number, total : number} | null => {
 		if (!open || !queryText) return null;
 		if (!corpusWorkerServesCollections() || args.editingCard) return null;
-		if (!recall || recall.ready) return null;
+		//If the worker has already answered THIS query, we are not preparing.
 		if (workerResult && workerResult.description === description.serialize()) return null;
+		//Otherwise we are: either the recall index is still building, or the
+		//worker simply has not answered yet. The second case was missing, so
+		//pressing Cmd-F before loadComplete showed a confident "0 cards" — the
+		//query slot is not subscribed, the stale-while-revalidate guard has no
+		//previous collection to hold, and recall is still null — and the user
+		//reasonably concluded the card did not exist.
+		if (!recall) return {built: 0, total: 0};
+		if (recall.ready) return {built: recall.total, total: recall.total};
 		return {built: recall.built, total: recall.total};
 	}
 );

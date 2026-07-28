@@ -25,25 +25,6 @@ pattern to both, which is a design change rather than a patch.
 
 ## P1 — correctness
 
-### C11. Sign-out snapshot purge no-ops after a non-privileged reconnect
-`src/worker/corpus-worker.ts:2063`. `corpusSnapshotStore` is only created in
-`connectUnpublishedWatermark`; a permission revocation reconnects non-privileged
-first, so the later `uid === ''` connect finds a null store and the full
-materialized unpublished corpus stays in IndexedDB. Also `clear()` never deletes
-the `${key}:owner` record, and nothing anywhere calls
-`clearIndexedDbPersistence`.
-
----
-
-## P1 — UX
-
-### U9. Find dialog asserts zero results with no loading affordance
-`find-dialog.ts:395-425`, `selectors.ts:2005-2021`. Cmd-F before `loadComplete`:
-the query slot isn't subscribed, `_lastReadyCollection` is null so
-stale-while-revalidate doesn't engage, and `selectFindSearchPreparing` bails
-because `searchRecall` is null. The user sees "0 cards" and concludes the card
-doesn't exist.
-
 ### U11 (residual). No production escape hatch from a worker failure
 `corpus-mode.ts:38-51`, `corpus-bridge.ts:1023-1033`. `readCorpusWorkerMode()`
 returns `'on'` unconditionally off dev hosts, so the graceful `'fallback'`
@@ -67,19 +48,21 @@ Left as an explicit decision rather than silently claimed as met.
 
 ## P2 — security hardening
 
-- **S4.** Data-at-rest remanence: the worker's `persistentLocalCache` is
-  `CACHE_SIZE_UNLIMITED` and `clearIndexedDbPersistence` is called nowhere, so
-  the full privileged corpus (including unpublished bodies) survives sign-out on
-  disk.
+- **S4 (residual).** Firestore's own `persistentLocalCache` still survives
+  sign-out. The materialized privileged corpus (the compact snapshot) IS now
+  purged, robustly, regardless of which connect path signed out — but the
+  Firestore cache is a second, larger copy and clearing it needs
+  `terminate()` + `clearIndexedDbPersistence()`. `connectCards` proceeds
+  synchronously to `connectPublished()` for the signed-out reader, which needs a
+  live `db`, so a correct purge means restructuring that path to re-initialize
+  Firestore afterwards. Attempted and backed out for exactly that reason; the
+  constraint is recorded as a comment at the call site.
 - **S6.** Anonymous users can `increment(star_count)` with no star doc, and can
   increment `star_count` while decrementing `star_count_manual` in one write
   (`editOnlyIncrementsOrDecrements` accepts any ±1 combination).
 - **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
   `window.DEBUG_STORE` ship ungated, while the strictly less powerful
   `PERF_HARNESS` is flag-gated.
-- **S10.** BroadcastChannel `'request'` branch has no correlation token
-  (`corpus-bridge.ts:1391`), giving any same-origin script an ownership-churn
-  primitive; replies also spread the attacker-supplied object.
 - **S12.** `tools/seo.ts:80-81` interpolates `card.title` into `<title>`
   unescaped. Build-time, published cards, editor-authored — pre-existing and out
   of branch, but the one path where stored content reaches served HTML unescaped.

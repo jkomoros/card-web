@@ -192,6 +192,10 @@ const OWNERSHIP_RETRY_ATTEMPTS = 20;
 const OWNERSHIP_RETRY_DELAY_MS = 250;
 const TAKEOVER_TIMEOUT_MS = 12000;
 const SUPERSEDED_SESSION_KEY = 'corpus-worker-superseded';
+//Minimum spacing between honored takeover grants. A real takeover is a human
+//clicking a button; anything faster is churn.
+const TAKEOVER_GRANT_MIN_INTERVAL_MS = 2000;
+let lastTakeoverGrantAt = 0;
 const OWNERSHIP_LEASE_KEY = 'corpus-worker-owner-lease-v1';
 const OWNERSHIP_HEARTBEAT_MS = 1000;
 const OWNERSHIP_STALE_MS = 5000;
@@ -1517,19 +1521,37 @@ ownershipChannel?.addEventListener('message', event => {
 	const message = event.data as OwnershipMessage;
 	if (!message) return;
 	if (message.type === 'request' && ownershipState === 'active') {
+		//Shape-check before acting. Every OTHER branch is capability-gated by a
+		//correlation id this tab generated, but 'request' accepts anything, so
+		//a malformed or hostile broadcast could arm grantedTakeover. Note the
+		//replies below spread `message`, which would otherwise echo unknown
+		//attacker-supplied fields back onto the channel.
+		if (typeof message.requestID !== 'string' || !message.requestID ||
+			typeof message.requesterID !== 'string' || !message.requesterID) return;
+		//Rate-limit. A takeover request is legitimately open to any tab, so it
+		//cannot be authenticated — but honoring an unbounded stream of them is
+		//a free ownership-churn primitive for any same-origin script. One grant
+		//per window is plenty for real use, where a human clicks a button.
+		const now = Date.now();
+		if (now - lastTakeoverGrantAt < TAKEOVER_GRANT_MIN_INTERVAL_MS) {
+			postOwnershipMessage({type: 'deny', requestID: message.requestID, requesterID: message.requesterID, ownerID: tabID, reason: 'busy'});
+			return;
+		}
 		if (grantedTakeover) {
-			postOwnershipMessage({...message, type: 'deny', ownerID: tabID, reason: 'busy'});
+			postOwnershipMessage({type: 'deny', requestID: message.requestID, requesterID: message.requesterID, ownerID: tabID, reason: 'busy'});
 			return;
 		}
 		const state = store.getState() as State;
 		const reason = takeoverBlockReason(state);
 		if (reason) {
-			postOwnershipMessage({...message, type: 'deny', ownerID: tabID, reason});
+			postOwnershipMessage({type: 'deny', requestID: message.requestID, requesterID: message.requesterID, ownerID: tabID, reason});
 			return;
 		}
 		const timeout = setTimeout(() => { grantedTakeover = null; }, TAKEOVER_TIMEOUT_MS);
 		grantedTakeover = {requestID: message.requestID, requesterID: message.requesterID, timeout};
-		postOwnershipMessage({...message, type: 'grant', ownerID: tabID});
+		lastTakeoverGrantAt = now;
+		//Reply with fields WE construct, not a spread of the inbound message.
+		postOwnershipMessage({type: 'grant', requestID: message.requestID, requesterID: message.requesterID, ownerID: tabID});
 		return;
 	}
 	if (message.type === 'grant' && takeoverAttempt?.requestID === message.requestID) {

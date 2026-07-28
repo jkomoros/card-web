@@ -204,7 +204,12 @@ export class CorpusSnapshotStore {
 			const database = await this._database();
 			await new Promise<void>((resolve, reject) => {
 				const transaction = database.transaction(STORE_NAME, 'readwrite');
-				transaction.objectStore(STORE_NAME).delete(this._key);
+				const store = transaction.objectStore(STORE_NAME);
+				store.delete(this._key);
+				//Also drop the ownership token. Leaving it behind kept a record
+				//keyed to the signed-out account, and a stale epoch there can
+				//affect the next session's claim.
+				store.delete(`${this._key}:owner`);
 				transaction.oncomplete = () => resolve();
 				transaction.onerror = () => reject(transaction.error);
 			});
