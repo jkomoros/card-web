@@ -280,6 +280,14 @@ let ownershipLeaseWritable = true;
 const startOwnershipHeartbeat = () => {
 	stopOwnershipHeartbeat();
 	writeOwnershipHeartbeat(true);
+	//NOTE: do NOT skip this while the tab is hidden. It is a synchronous
+	//localStorage write every second for the life of the tab, which looks like
+	//an obvious thing to pause — but forceStaleTakeover decides a tab is dead
+	//from `Date.now() - lease.heartbeatAt > OWNERSHIP_STALE_MS`, i.e. from THIS
+	//write. Pausing it makes a healthy backgrounded tab look stale within
+	//seconds and lets another tab force ownership away from it, including one
+	//holding unsaved work. Making this cheaper requires changing what takeover
+	//keys on, not when the heartbeat runs.
 	ownershipHeartbeat = setInterval(() => writeOwnershipHeartbeat(true), OWNERSHIP_HEARTBEAT_MS);
 };
 
@@ -1401,6 +1409,12 @@ const finishUnresponsiveTakeover = async (requestID : string) => {
 	if (result === 'acquired') {
 		if (takeoverAttempt?.requestID === requestID) {
 			clearTimeout(takeoverAttempt.timeout);
+			//Abort the queued lock request too. Every FAILURE path does this;
+			//the success path did not, so a pending non-ifAvailable request
+			//stayed queued for the life of the tab — and releaseOwnershipLock
+			//is a single module global while up to three requests can be
+			//outstanding.
+			takeoverAttempt.abort?.abort();
 			takeoverAttempt = null;
 		}
 		return;

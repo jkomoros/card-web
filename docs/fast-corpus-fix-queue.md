@@ -120,17 +120,19 @@ Left as an explicit decision rather than silently claimed as met.
 - **R16.** Listener retry has no jitter and no `resource-exhausted` case; all 13
   listeners re-attach in lockstep after an outage. (The dead-handle accumulation
   half is fixed.)
-- **R18.** `finishUnresponsiveTakeover` leaks a queued lock request on success
-  (`corpus-bridge.ts:1306-1315`).
-- **R19.** Unconditional 1 Hz synchronous localStorage write for the tab's life,
-  never paused on `visibilitychange`, no `pagehide` lease release.
+- **R19 (won't fix as stated).** The 1 Hz synchronous localStorage heartbeat is
+  real, but it is NOT safe to pause while hidden: `forceStaleTakeover` decides a
+  tab is dead from `Date.now() - lease.heartbeatAt > OWNERSHIP_STALE_MS`, i.e.
+  from that very write. Pausing it makes a healthy backgrounded tab look stale
+  within seconds and lets another tab force ownership away from it, including
+  one holding unsaved work. Attempted and reverted; the reasoning is now a
+  comment at the call site. Making it cheaper requires changing what takeover
+  keys on.
 - **P11.** Boot round-trips the snapshot through wire format twice
   (`fromWire` then `toWire(stripForWire())`) — ~1-1.5 s of the 7.1 s
   `loadComplete`.
 - **P12.** Cold sweep re-reads its own priority phase (5,000 wasted reads, 11%
   of a cold boot).
-- **P15.** `repairPartitions` recomputes `corpusUnpublishedPerPartition()` inside
-  its loop (O(40k) per repaired partition).
 - **P18.** 4 synchronous `localStorage.getItem` + up to 2 `JSON.parse` per
   dispatch (`card-web-app.ts:437-453`, `card-view.ts:1040`); during a durable
   multi-edit the parsed record can include full card objects.

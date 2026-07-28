@@ -1344,6 +1344,10 @@ const runTrustGate = async (database : Firestore, myConnectionGeneration : numbe
 //get removed. Bounded to the mismatched ranges (~1/10 of the corpus each)
 //instead of a full re-read.
 const repairPartitions = async (database : Firestore, myConnectionGeneration : number, mismatched : number[]) : Promise<boolean> => {
+	//One O(corpus) pass for the whole repair. Ghost detection below compares
+	//against the corpus as it stood when the repair began, which is also the
+	//right basis: each partition's server read is a snapshot from that moment.
+	const bucketsForRepair = corpusUnpublishedPerPartition();
 	for (const index of mismatched) {
 		const partition = UNPUBLISHED_CARD_PARTITIONS[index];
 		let snapshot : QuerySnapshot;
@@ -1360,7 +1364,10 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 		contaminatePendingWriteIDs(pendingWriteIDs);
 		const serverIDs = new Set(Object.keys(cards));
 		const ghosts : CardID[] = [];
-		for (const id of corpusUnpublishedPerPartition()[index]) {
+		//Computed ONCE for the whole repair, not per partition: this is an
+		//O(corpus) sweep, so a ten-partition repair did 400k iterations to
+		//answer a question one pass already answers.
+		for (const id of bucketsForRepair[index]) {
 			if (!serverIDs.has(id)) ghosts.push(id);
 		}
 		updateLocalState(cards, ghosts);
