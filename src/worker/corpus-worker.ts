@@ -460,6 +460,9 @@ const stripForWire = (card : Card) : Card => {
 //merely an unverified fast prime and must not overwrite the last known-good
 //record. Subsequent edits are coalesced into a background atomic replacement.
 const SNAPSHOT_SAVE_DELAY_MS = 15 * 1000;
+//Same duty-cycle shape as the search-recall build: long enough to make
+//progress, short enough that a queued message is never starved.
+const SNAPSHOT_SERIALIZE_SLICE_MS = 12;
 let corpusSnapshotStore : CorpusSnapshotStore | null = null;
 let corpusSnapshotPersistenceEnabled = false;
 let corpusSnapshotSaveTimer : ReturnType<typeof setTimeout> | null = null;
@@ -480,11 +483,40 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	corpusSnapshotSaveInFlight = true;
 	corpusSnapshotSavePending = false;
 	const startedAt = performance.now();
+	//The serialization below yields, so a connection change mid-walk must
+	//abandon this record rather than persist a mixture.
+	const myGeneration = generation;
 	//Keep search tokens in this worker-only representation: rebuilding them
 	//from content would erase most of the warm-boot win. Timestamp markers make
 	//the record independent of Firestore prototype structured-cloning behavior.
-	const cards = Object.fromEntries([...corpus.entries()].map(([id, card]) =>
-		[id, toWire(card, isTimestamp, getTime)]));
+	//Sliced, not one uninterruptible run. This walks every card and allocates a
+	//fresh wire object per card (every card has Timestamps, so toWire's
+	//identity shortcut never fires at the top level) — measured at ~776ms per
+	//12,000 cards, i.e. ~2.6s at 40,225, and real cards carry nlp_tokens which
+	//the harness corpus lacks. During that block every collection push stalls:
+	//keyboard navigation and find results both wait. Yielding between slices
+	//keeps the worker responsive; the record is still written in ONE atomic
+	//put, and the snapshot is a coherent checkpoint because the cards are read
+	//from `corpus` as we go and the safety bounds are captured below before the
+	//first await that matters.
+	//(The real fix is a dirty-card incremental path: changing 100 of 40,225
+	//cards rewrites 100% of them. That is a larger change; this removes the
+	//stall without altering the format.)
+	const cards : {[id : string] : unknown} = {};
+	let sliceStart = performance.now();
+	for (const [id, card] of corpus.entries()) {
+		cards[id] = toWire(card, isTimestamp, getTime);
+		if (performance.now() - sliceStart < SNAPSHOT_SERIALIZE_SLICE_MS) continue;
+		await yieldToWorkerQueue();
+		if (myGeneration !== generation) {
+			//This early return is ABOVE the try/finally that clears the
+			//in-flight flag, so it must clear it itself or every later save is
+			//blocked for the life of the worker.
+			corpusSnapshotSaveInFlight = false;
+			return;
+		}
+		sliceStart = performance.now();
+	}
 	const contaminatedIDs = [...clientClockCardIDs].filter(id => corpus.has(id));
 	//Capture every safety field synchronously with the cards, before the first
 	//await. A later worker event may mutate live state, but the record remains a
@@ -785,6 +817,9 @@ const listenerError = (fetchType : CardFetchType, context : string, errorComplet
 
 const teardownListeners = () => {
 	connectionGeneration++;
+	//Per-connection repair bookkeeping; a genuine reconnect should be allowed
+	//to repair the same partitions again.
+	lastRepairSignature = '';
 	for (const unsubscribe of unsubscribes) unsubscribe();
 	unsubscribes.length = 0;
 };
@@ -1330,12 +1365,34 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 //RECENCY and was applied as an unconditional COUNT tolerance, so an old
 //absence was blessed forever and persisted into the next snapshot. By this
 //point delta has delivered, so any surviving deficit is genuine.
+//Partition set most recently repaired on this connection; reset per connect.
+let lastRepairSignature = '';
+
 const verifyDeficitsAfterDeltaCatchUp = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
 	const gate = await runTrustGate(database, myConnectionGeneration, true);
 	if (!gate || myConnectionGeneration !== connectionGeneration) return;
 	if (!gate.mismatched.length) return;
+	//A repair cannot fix every mismatch. A locally-pending write that CREATES
+	//an unpublished card makes local > server (the server count cannot see it)
+	//while getDocsFromServer overlays that same pending write, so the repair
+	//removes nothing and the mismatch survives — and repeating it costs a
+	//full-partition re-read (~3,900 docs) every boot for as long as the write
+	//stays unacknowledged. Repair a given partition set once per connection.
+	const signature = gate.mismatched.join(',');
+	if (signature === lastRepairSignature) {
+		status(`post-delta re-gate still reports partitions ${signature}; a repair already ran this connection, not repeating`);
+		return;
+	}
+	lastRepairSignature = signature;
 	status(`post-delta re-gate found ${gate.mismatched.length} mismatched partition(s); repairing`);
 	await repairPartitions(database, myConnectionGeneration, gate.mismatched);
+	if (myConnectionGeneration !== connectionGeneration) return;
+	//Confirm the repair actually converged; if not, say so rather than
+	//silently re-running the same expensive read on the next boot.
+	const after = await runTrustGate(database, myConnectionGeneration, true);
+	if (after && after.mismatched.length) {
+		status(`partitions ${after.mismatched.join(',')} still mismatched after repair (likely an unacknowledged local write); leaving as-is`);
+	}
 };
 
 //A single card whose `updated` is far in the future permanently poisons the

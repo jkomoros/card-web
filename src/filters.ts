@@ -524,8 +524,25 @@ const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, coun
 	//will have a NEW BFS done. So memoize as long as cards are the same.
 	return memoize((cards : Cards, activeCardID : CardID, editingCard? : Card | null) => {
 		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
-		//If editingCard is provided, use it to shadow the unedited version of itself.
-		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
+		//If editingCard is provided, use it to shadow the unedited version of
+		//itself. Do NOT spread: `cards` is the lazyProcessCards Proxy, so a
+		//spread fires ownKeys + getOwnPropertyDescriptor + [[Get]] for all
+		//~40k cards (and processCard for each) to change ONE entry — and
+		//editingCard's identity changes on roughly every keystroke, with each
+		//reference block memoizing separately. A delegating Proxy shadows the
+		//single id while leaving keyed lookups (which is all cardBFS does) at
+		//O(1). Enumeration, which only the rare slug-resolution path performs,
+		//still passes through and honors this trap.
+		if (editingCard) {
+			const target = cards;
+			//A brand-new card is not in the target's own keys, so enumeration
+			//would miss it; only the Proxy path is safe when it already exists.
+			cards = editingCard.id in target
+				? new Proxy(target, {
+					get: (t, prop) => prop === editingCard.id ? editingCard : Reflect.get(t, prop),
+				}) as Cards
+				: {...target, [editingCard.id]: editingCard};
+		}
 		const starterSet = overrideCardIDs || cardIDToUse;
 		if (twoWay){
 			const bfsForOutbound = cardBFS(starterSet, cards, count, includeKeyCard, false, referenceTypes);
@@ -868,6 +885,11 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
 
+//Above this many cards, the synchronous whole-corpus fingerprint fallback costs
+//more than the feature is worth on the UI thread. The real similarity paths
+//(the worker's precomputed fingerprints and the Qdrant service) are unaffected.
+const MAX_UI_THREAD_FINGERPRINT_CORPUS = 10000;
+
 const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	if (!QDRANT_ENABLED) return false;
 	//Via the environment-installed handler: this module also runs in the
@@ -927,6 +949,18 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			}
 		}
 
+		//Building a corpus-wide FingerprintGenerator materializes every
+		//ProcessedCard and fingerprints all ~40k of them ON THE UI THREAD
+		//(measured at 1-2s), and when serverIDF is unavailable its
+		//idfMapForCards results are pinned by WeakMap to live Cards for the
+		//corpus lifetime. That is a bad trade for a FALLBACK: the worker path
+		//and the Qdrant path are the real answers, and this one exists only to
+		//show something. Above a corpus size where the cost is perceptible,
+		//decline rather than freeze the UI — callers already handle an empty
+		//map (they show the local-fingerprint-free state).
+		if (Object.keys(cards).length > MAX_UI_THREAD_FINGERPRINT_CORPUS) {
+			return {map: new Map(), preview};
+		}
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);

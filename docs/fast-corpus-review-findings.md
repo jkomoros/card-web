@@ -807,3 +807,49 @@ contenteditable path. Only the real-UI path is trustworthy evidence about
 saving. Two earlier "restore succeeded" results were vacuous for the same
 reason: they compared the store to the original, which still matched precisely
 because nothing had ever committed.
+
+### Round 9 — the P1 performance items
+
+- **Bigrams were 93% of the search index and unreachable.** `substringCandidates`
+  (the only production consumer) skips every posting key containing a space, so
+  the bigram half served nothing but the `CORPUS_WORKER.query` console hook:
+  585k posting keys and 7.08M entries versus 41k and 3.25M at 40,225 cards.
+  Removed. Wall-clock for the chunked build barely moves — it is paced
+  deliberately, not CPU-bound — so the win is memory and per-query cost.
+- **The boot trust gate was re-reading whole partitions to learn about a
+  handful of new cards.** Its deficit tolerance was a RECENCY argument applied
+  as a COUNT tolerance: ~60 new cards spread over ten partitions crossed it and
+  triggered ~39,000 billed reads to learn what the delta listener was about to
+  deliver for ~60. The boot gate now judges ghosts only; deficits are judged
+  once, with no tolerance, after delta has caught up — and a given partition set
+  is repaired at most once per connection, because a locally-pending write
+  produces a mismatch no repair can fix.
+- **Seven selector instances each walked the same 40k map.** ~19.5ms apiece,
+  ~136ms per cards-map change before any recompute. They now share one memoized
+  diff keyed on the identity pair.
+- **The worker's engine mirror was rebuilt per batch.** `{...this._cards,
+  ...cards}` changed identity every time, invalidating four O(corpus) memos
+  (~55ms fixed per batch). Now mutated in place with a version counter.
+- **The BFS filter spread the lazy card proxy on every keystroke.**
+  `{...cards, [editingCard.id]: editingCard}` fired `processCard` for all ~40k
+  cards to shadow ONE entry, with `editingCard`'s identity changing per
+  keystroke and each reference block memoizing separately. Now a delegating
+  Proxy; the spread survives only for a card not yet in the map, where
+  enumeration would otherwise miss it.
+- **The similar-cards fallback fingerprinted the whole corpus on the UI
+  thread** (1-2s, plus WeakMap-pinned IDF results retained for the corpus
+  lifetime). Above 10,000 cards it now declines rather than freezing the UI; the
+  worker and Qdrant paths are unaffected.
+- **The compact snapshot's serialization is sliced.** It walks every card and
+  allocates a wire object each (~2.6s at 40,225), blocking every collection push
+  meanwhile. Now yielded in 12ms slices, still written as one atomic put. The
+  real fix — a dirty-card incremental path, since changing 100 cards rewrites
+  100% of them — remains open.
+- **P5 measured rather than assumed.** The concern was that eight listeners lost
+  their resume tokens when the main thread moved to `memoryLocalCache`, with
+  `reads` (one doc per card ever read) potentially large. Counted on real DEV:
+  **reads 42, messages 57, threads 47, authors 25, tags 52, sections 5** — ~228
+  documents across all eight. The "small and online-only" claim holds here.
+  CAVEAT: DEV carries the full 40,225-card corpus but almost no user activity,
+  so these particular collections are not representative of PROD. Worth
+  re-counting there before assuming the same.

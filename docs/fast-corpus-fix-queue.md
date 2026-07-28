@@ -55,65 +55,8 @@ whose only button reloads into the same condition. Failing closed is criterion
 
 ## P1 — performance
 
-### P4. The re-gate doubles every boot's gate cost, and can repair-loop
-`corpus-worker.ts:1267-1273`. Confirmed it cannot storm (the `firstServerDelivery`
-flag is outside `makeHandler`, so listener re-attach does not re-fire it), but it
-adds +40 count-reads to EVERY boot. Worse: a locally-pending write that creates
-an unpublished card makes `local > counts[i]` (zero tolerance) while
-`getDocsFromServer` overlays the pending write so the repair removes nothing —
-so the boot pays gate(40) → repair(3,899) → gate(40) → repair(3,899) again,
-every boot while the write stays unacknowledged. Fix: skip the repair when gate
-#2's result is identical to gate #1's.
-
-### P5. Main thread dropped to `memoryLocalCache`: 8 unbounded listeners lost resume tokens
-`src/firebase.ts:103-104`. Master used `persistentLocalCache` unconditionally so
-every listener carried a persisted resume token. Eight listeners the worker
-never took over — messages, threads, stars, **reads (one doc per card ever
-read)**, reading_lists, authors, sections, tags — have no `limit()` and now
-re-read in full on every page load. The comment asserting they "are small and
-online-only" is not evidenced. **Measure `reads`/`messages` sizes on DEV before
-landing — this is the largest unknown in the audit and may partly cancel the
-headline read-cost win.**
-
-### P6. Seven independent 40k-key diff walks per cards-map identity change
-`src/incremental-selectors.ts:27-42`, instantiated at `selectors.ts:396, 405,
-438, 1047, 1058, 1474` plus a hand-rolled twin at `:1449-1466`. MEASURED ~19.5 ms
-each → **~136 ms of pure "did anything change" walking** per cards-map change,
-plus ~11.7 ms for the reducer spread. A single-card save ≈ 150-300 ms, ~30% of
-the <1s bar. Fix: compute the delta once per transition and share it.
-
-### P7. `QueryEngine.updateCards` replaces the whole 40k map per batch
-`src/worker/query-engine.ts:225-233`. Changing `_cards` identity invalidates four
-O(corpus) memos. MEASURED ~55 ms fixed per batch, plus 11.2 ms per changed
-filter map in `reducers/collection.ts:297` (a 100-card tag edit → 55-170 ms,
-paid twice: worker engine and main-thread Redux). Fix: hold the mirror as a Map
-mutated in place, or version-count it.
-
-### P2. Compact snapshot rewrites all 40,225 cards after every editing burst
-`corpus-worker.ts:440-490`. `Object.fromEntries([...corpus.entries()].map(toWire))`
-— a full deep walk allocating a fresh object per card — then one synchronous
-structured-clone `put`. MEASURED from the author's own harness log: 12,000 cards
-in 776 ms, twice → **~2.6 s at 40,225**, and real cards carry `nlp_tokens` which
-the harness corpus lacks. The 15 s debounce is correct; the problem is there is
-no dirty-card path, so changing 0.25% of the corpus rewrites 100% of it, and the
-worker blocks for the duration. Interim: slice `toWire` across yields.
-
-### P8. BFS filter spreads the lazy processed-cards proxy while editing
-`src/filters.ts:528` — `{...cards, [editingCard.id]: editingCard}` where `cards`
-is the `lazyProcessCards` Proxy, firing `processCard` for all 40,225 cards.
-MEASURED 23 ms for traversal alone. `editingCard` bumps ~1/s while typing, with
-~7-10 reference blocks each memoizing separately. Fix: shadow via a lookup
-wrapper, not a spread.
-
-### P9. Info-panel similar-cards fallback fingerprints the whole corpus on the UI thread
-`selectors.ts:2074-2085` → `reference_blocks.ts:289-306` → `nlp.ts:1688-1715`.
-The `similar` filter has no `enumerate`, so it materializes all 40,225
-ProcessedCards and fingerprints every one. The author's own comment puts it at
-1-2 s. Retention risk: with `serverIDF` null, `idfMapForCards` results are pinned
-by WeakMap to live Cards for the corpus lifetime (~640 MB estimated per thread).
-Fix: refuse to build a corpus-wide generator without a server IDF.
-
----
+*(All seven items resolved; see the Round 9 section of
+docs/fast-corpus-review-findings.md for the measurements.)*
 
 ## P2 — security hardening
 

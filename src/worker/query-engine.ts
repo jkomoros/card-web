@@ -126,6 +126,9 @@ export type RunCollectionResult = {
 export class QueryEngine {
 
 	_cards : Cards;
+	//Bumped whenever _cards actually changes. Memo guards compare this rather
+	//than object identity, which a per-batch rebuild invalidated every time.
+	_cardsVersion : number;
 	_collectionState : CollectionState;
 	_sections : Sections;
 	_tags : Tags;
@@ -136,15 +139,16 @@ export class QueryEngine {
 
 	//Identity-keyed memos so repeated runCollection calls don't redo
 	//O(corpus) work when nothing changed.
-	_processedForCards : Cards | null;
+	_processedForCards : number;
 	_processedCards : ProcessedCards | null;
-	_setsForCards : Cards | null;
+	_setsForCards : number;
 	_setsForSections : Sections | null;
 	_setsForReadingList : CardID[] | null;
 	_sets : {[name : string] : CardID[]} | null;
 
 	constructor() {
 		this._cards = {};
+		this._cardsVersion = 0;
 		this._collectionState = INITIAL_STATE;
 		this._sections = {};
 		this._tags = {};
@@ -152,9 +156,9 @@ export class QueryEngine {
 		this._readingList = [];
 		this._fallbacks = {};
 		this._startCards = {};
-		this._processedForCards = null;
+		this._processedForCards = -1;
 		this._processedCards = null;
-		this._setsForCards = null;
+		this._setsForCards = -1;
 		this._setsForSections = null;
 		this._setsForReadingList = null;
 		this._sets = null;
@@ -223,9 +227,26 @@ export class QueryEngine {
 	}
 
 	updateCards(cards : Cards, removedIDs : CardID[]) : void {
-		const next = {...this._cards, ...cards};
-		for (const id of removedIDs) delete next[id];
-		this._cards = next;
+		//MUTATE IN PLACE, then bump a version. Rebuilding the whole ~40k map
+		//per batch cost ~15-18ms of spread on its own AND changed _cards
+		//identity, which invalidated four O(corpus) memos (processed cards,
+		//the default/everything sets, the suggestion generator, tag
+		//fingerprints) — about 55ms of fixed rework per batch even when a
+		//single card changed. Consumers of the `rawCards` getter read it
+		//synchronously and do not retain it across batches, so in-place
+		//mutation is safe; memo guards now compare _cardsVersion.
+		let changed = false;
+		for (const [id, card] of Object.entries(cards)) {
+			if (this._cards[id] === card) continue;
+			this._cards[id] = card;
+			changed = true;
+		}
+		for (const id of removedIDs) {
+			if (!(id in this._cards)) continue;
+			delete this._cards[id];
+			changed = true;
+		}
+		if (changed) this._cardsVersion++;
 		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_CARDS, cards, fetchType: 'published'});
 		if (removedIDs.length) {
 			this._collectionState = collectionReducer(this._collectionState, {type: REMOVE_CARDS, cardIDs: removedIDs});
@@ -238,24 +259,24 @@ export class QueryEngine {
 	}
 
 	_ensureProcessedCards() {
-		if (this._processedForCards === this._cards && this._processedCards) return this._processedCards;
+		if (this._processedForCards === this._cardsVersion && this._processedCards) return this._processedCards;
 		//Most collections start from a bounded set/filter and only need to
 		//process the IDs that survive to filtering/sorting. The lazy view remains
 		//fully enumerable for global query/concept filters, preserving exactness,
 		//without making every ordinary 90-card subscription eagerly process 40k.
 		this._processedCards = lazyProcessCards(this._cards);
-		this._processedForCards = this._cards;
+		this._processedForCards = this._cardsVersion;
 		return this._processedCards;
 	}
 
 	_ensureSets() {
-		if (this._sets && this._setsForCards === this._cards && this._setsForSections === this._sections && this._setsForReadingList === this._readingList) return this._sets;
+		if (this._sets && this._setsForCards === this._cardsVersion && this._setsForSections === this._sections && this._setsForReadingList === this._readingList) return this._sets;
 		this._sets = {
 			main: computeDefaultSet(this._sections, this._cards),
 			everything: makeEverythingSetFromCards(this._cards),
 			'reading-list': this._readingList,
 		};
-		this._setsForCards = this._cards;
+		this._setsForCards = this._cardsVersion;
 		this._setsForSections = this._sections;
 		this._setsForReadingList = this._readingList;
 		return this._sets;
@@ -383,15 +404,15 @@ export class QueryEngine {
 	//real time (seconds without a server IDF) — but it runs on the WORKER
 	//thread, which is the whole point: master computed this on the UI thread
 	//and stalled it for seconds at production scale.
-	_suggestGeneratorForCards : Cards | null = null;
+	_suggestGeneratorForCards = -1;
 	_suggestGeneratorServerIDF : ServerIDFData | null = null;
 	_suggestGenerator : FingerprintGenerator | null = null;
 	_tagFingerprintsForTags : Tags | null = null;
-	_tagFingerprintsForCards : Cards | null = null;
+	_tagFingerprintsForCards = -1;
 	_tagFingerprints : {[tagID : string] : Fingerprint} | null = null;
 
 	_ensureSuggestGenerator() : FingerprintGenerator {
-		if (this._suggestGenerator && this._suggestGeneratorForCards === this._cards && this._suggestGeneratorServerIDF === this._serverIDF) return this._suggestGenerator;
+		if (this._suggestGenerator && this._suggestGeneratorForCards === this._cardsVersion && this._suggestGeneratorServerIDF === this._serverIDF) return this._suggestGenerator;
 		const processed = this._ensureProcessedCards();
 		const conceptCards = conceptCardsFromCards(this._cards);
 		const concepts = getConceptsFromConceptCards(conceptCards);
@@ -400,7 +421,7 @@ export class QueryEngine {
 			? {idf: this._serverIDF.idf, maxIDF: this._serverIDF.maxIDF}
 			: null;
 		this._suggestGenerator = new FingerprintGenerator(processed, undefined, undefined, idfMap, concepts, synonyms);
-		this._suggestGeneratorForCards = this._cards;
+		this._suggestGeneratorForCards = this._cardsVersion;
 		this._suggestGeneratorServerIDF = this._serverIDF;
 		this._tagFingerprints = null;
 		return this._suggestGenerator;
@@ -408,14 +429,14 @@ export class QueryEngine {
 
 	_ensureTagFingerprints() : {[tagID : string] : Fingerprint} {
 		const generator = this._ensureSuggestGenerator();
-		if (this._tagFingerprints && this._tagFingerprintsForTags === this._tags && this._tagFingerprintsForCards === this._cards) return this._tagFingerprints;
+		if (this._tagFingerprints && this._tagFingerprintsForTags === this._tags && this._tagFingerprintsForCards === this._cardsVersion) return this._tagFingerprints;
 		const result : {[tagID : string] : Fingerprint} = {};
 		for (const [tagID, tag] of Object.entries(this._tags)) {
 			result[tagID] = generator.fingerprintForCardIDList(tag.cards || []);
 		}
 		this._tagFingerprints = result;
 		this._tagFingerprintsForTags = this._tags;
-		this._tagFingerprintsForCards = this._cards;
+		this._tagFingerprintsForCards = this._cardsVersion;
 		return result;
 	}
 

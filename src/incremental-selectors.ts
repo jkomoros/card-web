@@ -41,6 +41,25 @@ export const diffCards = (prev : Cards, next : Cards) : CardsDelta => {
 	return {changed, added, removed};
 };
 
+//Every diff selector instance walks the SAME two maps in the same dispatch —
+//seven of them are reachable from the every-action path — so each cards-map
+//identity change paid ~7 x 19.5ms of pure "did anything change" walking at 40k
+//cards before any recompute. Memoize on the identity PAIR: instances that share
+//a previous map (the common case, since each updates lastCards every call) all
+//hit this. The returned delta is read-only to consumers.
+let memoPrev : Cards | null = null;
+let memoNext : Cards | null = null;
+let memoDelta : CardsDelta | null = null;
+
+const sharedDiffCards = (prev : Cards, next : Cards) : CardsDelta => {
+	if (memoPrev === prev && memoNext === next && memoDelta) return memoDelta;
+	const delta = diffCards(prev, next);
+	memoPrev = prev;
+	memoNext = next;
+	memoDelta = delta;
+	return delta;
+};
+
 type CardsDiffSelectorOptions<R> = {
 	//Human-readable name for perf counters.
 	name : string,
@@ -61,7 +80,7 @@ export const createCardsDiffSelector = <R>(options : CardsDiffSelectorOptions<R>
 		if (lastCards === cards) return lastResult;
 		let recompute = true;
 		if (lastCards !== null) {
-			const delta = diffCards(lastCards, cards);
+			const delta = sharedDiffCards(lastCards, cards);
 			recompute = options.needsRecompute(delta);
 		}
 		if (recompute) {
