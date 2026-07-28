@@ -814,8 +814,9 @@ because nothing had ever committed.
   (the only production consumer) skips every posting key containing a space, so
   the bigram half served nothing but the `CORPUS_WORKER.query` console hook:
   585k posting keys and 7.08M entries versus 41k and 3.25M at 40,225 cards.
-  Removed. Wall-clock for the chunked build barely moves — it is paced
-  deliberately, not CPU-bound — so the win is memory and per-query cost.
+  Removed. MEASURED on real DEV afterwards: the chunked recall build dropped
+  from ~10.1-11.5s to **5.0s** wall, so the pacing was not the only constraint
+  after all — plus the memory and per-query win.
 - **The boot trust gate was re-reading whole partitions to learn about a
   handful of new cards.** Its deficit tolerance was a RECENCY argument applied
   as a COUNT tolerance: ~60 new cards spread over ten partitions crossed it and
