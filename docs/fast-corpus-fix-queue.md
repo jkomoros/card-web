@@ -155,17 +155,9 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   are `void runDurableAuxWrite(...)` with no catch.
 - **U18.** Suggested tags render empty on worker timeout, indistinguishable from
   "no suggestions" (`card-editor.ts:984-992`).
-- **U19.** Save error text is hover-only (`card-web-app.ts:259`); visible text is
-  the fixed string "Save paused". Unreachable on touch.
-- **U20.** `corpus-status-indicator.ts:79` un-quiets `.label` for the header
-  instance, which has no `max-width`, so the `stale` sentence wraps the header.
-- **U21.** Update banner's Reload goes dead after the 15 s activation timeout
-  (`card-web-app.ts:302-320`).
 - **U22.** `card-drawer.ts:184` returns a fresh `<div hidden>` instead of
   `?hidden`, so collapse/reopen (and every editor minimize) destroys the list and
   its scroll position.
-- **U23.** Floating status pill sits over presentation mode
-  (`main-view.ts:379`).
 - **U25.** Reference blocks render as nothing (not "loading") until the worker
   can serve, and stale blocks survive navigation to a not-yet-loaded card.
 - **U26.** Takeover shows a static disabled button for up to 12 s with no

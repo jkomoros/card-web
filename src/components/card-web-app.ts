@@ -261,6 +261,10 @@ class CardWebApp extends connect(store)(LitElement) {
 				<span>${this._saveStatus === 'saving'
 					? this._saveIsMulti ? 'Saving cards…' : 'Saving card…'
 					: this._saveIsMulti ? 'Multi-edit paused' : 'Save paused'}</span>
+				<!-- The reason was only in the title attribute, i.e. hover-only
+				and unreachable on touch, while the visible text was a fixed
+				string. Show it. -->
+				${this._saveStatus === 'paused' && this._saveError ? html`<span class='save-reason'>${this._saveError}</span>` : ''}
 				<!-- Retry/Stop render for BOTH states. A durable intent is
 				persisted BEFORE the first attempt, so a crash in exactly the
 				window the intent exists to protect leaves a record with no
@@ -325,7 +329,11 @@ class CardWebApp extends connect(store)(LitElement) {
 		if (this._currentUnsafeExitReason() || this._updateReloading) return;
 		const waiting = this._updateRegistration?.waiting;
 		if (!waiting) {
-			if (this._updateActivated) window.location.reload();
+			//Reload unconditionally. Previously this returned silently unless
+			//_updateActivated was set, so after the 15s activation timeout —
+			//waiting null, not activated — every click did nothing at all. A
+			//reload is always a reasonable answer to "Reload".
+			window.location.reload();
 			return;
 		}
 		this._waitForUpdatedController();

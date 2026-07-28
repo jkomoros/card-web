@@ -74,6 +74,14 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			clip: rect(0, 0, 0, 0);
 			white-space: nowrap;
 			border: 0;
+					/* The header instance has no width budget of its own, so a long
+			   status sentence (the 'stale' copy is ~90 chars) wrapped and grew
+			   the header bar. Truncate instead; the full text stays in the
+			   title attribute. */
+			max-width: 22em;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 
 		:host(:not([data-quiet])) .label {

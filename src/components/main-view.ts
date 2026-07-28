@@ -138,6 +138,9 @@ class MainView extends connect(store)(PageViewElement) {
 		_headerPanelOpen: boolean;
 
 	@state()
+		_presentationMode: boolean;
+
+	@state()
 		_editing: boolean;
 
 	@state()
@@ -376,7 +379,10 @@ class MainView extends connect(store)(PageViewElement) {
 					<user-chip></user-chip>
 				</div>
 			</div>
-			<corpus-status-indicator floating ?hidden=${this._headerPanelOpen}></corpus-status-indicator>
+			<!-- Also hidden in presentation mode: that mode CLOSES the header
+			panel, so the hidden-when-header-open rule had the opposite effect
+			and left a fixed white pill over the top-right of every slide. -->
+			<corpus-status-indicator floating ?hidden=${this._headerPanelOpen || this._presentationMode}></corpus-status-indicator>
 
 			<!-- Main content -->
 			<div role="main" class="main-content">
@@ -539,6 +545,7 @@ class MainView extends connect(store)(PageViewElement) {
 	override stateChanged(state : State) {
 		this._card = selectActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
+		this._presentationMode = state.app.presentationMode;
 		this._page = state.app.page;
 		this._editing = state.editor ? state.editor.editing : false;
 		this._devMode = DEV_MODE;
