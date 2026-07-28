@@ -25,15 +25,6 @@ pattern to both, which is a design change rather than a patch.
 
 ## P1 — correctness
 
-### C6. Takeover resurrects a completed multi-edit and duplicates audit history
-`src/actions/data.ts:945-948`/`:579-582` (catch re-persists the in-memory
-snapshot without re-reading) and `:472-482`/`:798-800` (`checkingServerMarker`
-goes false after the FIRST probe). A fenced tab's late failure re-persists
-`{nextIndex: 10}` for an operation another tab already completed to 30. On
-Retry, only the first marker is checked, so a re-chunked replay writes a second
-`card_updates` doc per card under a different batchID, permanently corrupting
-audit history. The bulk-tag path is immune (operation-stable audit ids).
-
 ### C11. Sign-out snapshot purge no-ops after a non-privileged reconnect
 `src/worker/corpus-worker.ts:2063`. `corpusSnapshotStore` is only created in
 `connectUnpublishedWatermark`; a permission revocation reconnects non-privileged

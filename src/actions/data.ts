@@ -478,7 +478,16 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			const markerRef = doc(db, 'users', operation.uid, 'multi_edit_chunks', `${operation.id}-${chunkStart}`);
 			if (checkingServerMarker) {
 				const marker = await getDocFromServer(markerRef);
-				checkingServerMarker = false;
+				//Do NOT stop probing here. Clearing the flag after the FIRST
+				//probe meant that once a marker advanced us past one chunk, the
+				//NEXT chunk's marker was never read — so a chunk another tab
+				//had already committed got re-planned and re-committed. Because
+				//audit doc ids derive from the batch id and chunk boundaries are
+				//not stable across replanning, that writes a SECOND card_updates
+				//doc per card and overwrites the marker with a wrong next_index,
+				//permanently corrupting audit history. Keep skipping forward
+				//while markers are found; stop at the first chunk that is not
+				//already done (the else branch below).
 				if (marker.exists() && marker.data().operation_id === operation.id &&
 					marker.data().next_index === chunkStart + chunkIDs.length) {
 					operation.nextIndex += chunkIDs.length;
@@ -486,6 +495,11 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 					dispatch(bulkTagProgressAction(operation));
 					continue;
 				}
+				//No usable marker for THIS chunk: everything from here on is
+				//genuinely outstanding, so stop probing and start committing.
+				//Without this the flag would never clear and the loop would
+				//re-probe the same chunk forever.
+				checkingServerMarker = false;
 			}
 			// Check completion first. A chunk may have committed before this tab
 			// lost its acknowledgement; a later label deletion or permission
@@ -813,7 +827,16 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			const markerRef = doc(db, 'users', operation.uid, 'multi_edit_chunks', `${operation.id}-${chunkStart}`);
 			if (checkingServerMarker) {
 				const marker = await getDocFromServer(markerRef);
-				checkingServerMarker = false;
+				//Do NOT stop probing here. Clearing the flag after the FIRST
+				//probe meant that once a marker advanced us past one chunk, the
+				//NEXT chunk's marker was never read — so a chunk another tab
+				//had already committed got re-planned and re-committed. Because
+				//audit doc ids derive from the batch id and chunk boundaries are
+				//not stable across replanning, that writes a SECOND card_updates
+				//doc per card and overwrites the marker with a wrong next_index,
+				//permanently corrupting audit history. Keep skipping forward
+				//while markers are found; stop at the first chunk that is not
+				//already done (the else branch below).
 				const markerNextIndex = marker.data()?.next_index;
 				const markerModifiedCount = marker.data()?.modified_count;
 				const markerSkippedCount = marker.data()?.skipped_count || 0;
@@ -832,6 +855,9 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					dispatch(durableMultiEditProgress(operation));
 					continue;
 				}
+				//No usable marker for THIS chunk: everything from here on is
+				//genuinely outstanding, so stop probing and start committing.
+				checkingServerMarker = false;
 			}
 			let candidateSize = Math.min(10, operation.targetIDs.length - operation.nextIndex);
 			let batch : MultiBatch | null = null;
@@ -959,8 +985,22 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		const total = operation?.targetIDs.length || 0;
 		const message = `Multi-edit paused. ${completed} of ${total} cards were processed safely; ${total - completed} remain retryable. ${error.message}`;
 		if (operation) {
-			operation.lastError = message;
-			try { persistDurableMultiEdit(operation); } catch { /* retain the original failure */ }
+			//Re-read before re-persisting. This tab can fail LATE — fenced by a
+			//takeover, or its reads finally resolving — while another tab
+			//already finished the very same operation and cleared the record.
+			//Writing our stale in-memory snapshot back RESURRECTED a completed
+			//operation, rewound to our old nextIndex, and re-disabled editing
+			//everywhere. If the record is gone, the operation is done: say so
+			//and leave it gone.
+			let stillPending = true;
+			try { stillPending = Boolean(readDurableMultiEdit()); } catch { stillPending = true; }
+			if (stillPending) {
+				operation.lastError = message;
+				try { persistDurableMultiEdit(operation); } catch { /* retain the original failure */ }
+			} else {
+				console.warn('Multi-edit failed locally, but another tab has already completed and cleared it; not resurrecting.');
+				operation = null;
+			}
 		}
 		//skipAlert is right ONLY when the save pill will show the failure, and
 		//the pill renders only when a durable intent exists. Every throw before
