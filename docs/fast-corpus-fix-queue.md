@@ -44,24 +44,6 @@ the `${key}:owner` record, and nothing anywhere calls
 
 ## P1 — UX
 
-### U3. Every successful save fires an assertive alert whose Recover cannot work
-`src/actions/data.ts:777-782` → `src/edit-draft.ts:94-99` →
-`src/components/card-web-app.ts:335-341`. `stampDraftForSave` announces
-synchronously but `_refreshDraftAvailability` is async, so it reads state after
-`dispatch(editingFinish())` — editing false, draft exists, uid matches →
-`_draftAvailable = true`. So every save pops `role='alert'
-aria-live='assertive'` "An unsaved card draft is available." Recover is
-guaranteed to throw because `editingStart` refuses while
-`durableCardMutationPending()`; Discard removes the recovery record mid-flight.
-
-### U5. Multi-edit dialog becomes undismissable and mislabeled
-`src/actions/data.ts:949-952`, `src/components/multi-edit-dialog.ts:217-224`.
-A failed SINGLE-card save sets both `bulkTagOperationProgress` and
-`cardModificationError`, so opening Edit All Cards shows "Saved multi-edit needs
-attention / Retry remaining 1 cards" for an operation the user never started —
-and `_shouldClose()` returns early whenever `_bulkTagProgress` is truthy,
-ignoring `cancelled`, so Escape AND the ✕ are both dead.
-
 ### U7. Cmd/Ctrl+Enter runs the whole confirm gauntlet before revealing refusal
 `main-view.ts:487` → `actions/app.ts:445` → `actions/editor.ts:362` (no
 eligibility check) → `actions/data.ts:752` (alert). The user answers the pending
@@ -96,14 +78,6 @@ load" whose only button reloads into the same condition. `'unsupported'` renders
 NO button, `_activate` early-returns, and `_containFocus` swallows Escape while
 preventDefault-ing Tab onto a `tabindex="-1"` panel — a keyboard trap (WCAG
 2.1.2) on a non-interactive element. These users could read the site on master.
-
-### U12. Single-card save can fail with no alert, no pill, and no state change
-`actions/data.ts:949` (`skipAlert` → console.warn only). The compensating UI is
-the save pill, which renders only when a localStorage intent exists — so every
-throw BEFORE `persistDurableMultiEdit` succeeds (including `!uid` and
-`persistDurableMultiEdit` itself throwing on quota) leaves `_saveStatus` at
-`'idle'`. User hits Save; nothing happens anywhere. The adjacent bulk-tag path
-does not pass `skipAlert` — the inconsistency is the bug's shape.
 
 ### C13. `void trackMutation(...)` swallows `MutationFencedError`
 `src/actions/comments.ts:102`, `:276`. In a fenced tab the user gets no feedback

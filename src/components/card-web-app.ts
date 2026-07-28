@@ -342,9 +342,21 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	private _refreshDraftAvailability = async () => {
 		const {readEditDraft} = await import('../edit-draft.js');
+		const {durableCardMutationPending} = await import('../actions/data.js');
 		const draft = readEditDraft();
 		const state = store.getState() as State;
-		this._draftAvailable = Boolean(draft && draft.uid === selectUid(state) && !state.editor?.editing);
+		//A draft carrying an operationID belongs to a save that was ATTEMPTED,
+		//not to an orphaned editing session. stampDraftForSave writes it
+		//synchronously and announces, but this refresh is async and therefore
+		//read state AFTER the editingFinish() on the next line — editing false,
+		//draft present, uid matching — so EVERY successful save popped an
+		//assertive "An unsaved card draft is available" alert whose Recover
+		//button could not work (editingStart refuses while a durable mutation
+		//is pending) and whose Discard removed the recovery record mid-flight.
+		//While a save is in flight or paused the save pill owns the UX and
+		//offers Retry/Stop; this banner is for drafts found orphaned at boot.
+		const belongsToLiveSave = Boolean(draft?.operationID) && durableCardMutationPending();
+		this._draftAvailable = Boolean(draft && draft.uid === selectUid(state) && !state.editor?.editing && !belongsToLiveSave);
 		if (!this._draftAvailable) this._draftError = '';
 	};
 

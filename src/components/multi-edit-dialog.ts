@@ -357,9 +357,15 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(abandonPendingBulkTagOperation());
 	}
 
-	override _shouldClose() {
-		//Override base class.
-		if (this._cardModificationPending || this._bulkTagProgress) return;
+	override _shouldClose(cancelled? : boolean) {
+		//Override base class. A RUNNING operation still blocks closing, but a
+		//merely-persisted progress record must not: a failed SINGLE-card save
+		//sets bulkTagOperationProgress too, so opening Edit All Cards showed
+		//"Saved multi-edit needs attention / Retry remaining 1 cards" for an
+		//operation the user never started — and both Escape and the X silently
+		//did nothing, with the panel's own two buttons the only way out.
+		if (this._cardModificationPending) return;
+		if (this._bulkTagProgress && !cancelled) return;
 		store.dispatch(closeMultiEditDialog());
 	}
 

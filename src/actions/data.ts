@@ -962,7 +962,13 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			operation.lastError = message;
 			try { persistDurableMultiEdit(operation); } catch { /* retain the original failure */ }
 		}
-		dispatch(modifyCardFailure(new Error(message), true));
+		//skipAlert is right ONLY when the save pill will show the failure, and
+		//the pill renders only when a durable intent exists. Every throw before
+		//persistDurableMultiEdit succeeded (no uid, or the persist itself
+		//failing on quota) leaves `operation` null and _saveStatus 'idle' — the
+		//user hits Save and nothing happens anywhere. The adjacent bulk-tag
+		//path does not pass skipAlert at all; that asymmetry was the bug.
+		dispatch(modifyCardFailure(new Error(message), Boolean(operation)));
 		const enqueued = selectEnqueuedCards(getState());
 		if (Object.values(enqueued).some(group => Object.keys(group).length)) dispatch(updateEnqueuedCards());
 		if (operation) dispatch(durableMultiEditProgress(operation));
