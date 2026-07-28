@@ -181,13 +181,15 @@ class CardDrawer extends LitElement {
 
 	override render() {
 
-		if (!this.showing) return html`<div hidden></div>`;
-
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
 		const currentCount = this.collection ? this.collection.numCards : 0;
 
+		//HIDE, don't destroy. Returning a fresh `<div hidden>` when not showing
+		//tore down card-thumbnail-list and rebuilt it on every drawer toggle —
+		//and on every editor minimize/restore, which also flips `showing` —
+		//losing the list's scroll position each time. master used ?hidden here.
 		return html`
-			<div class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''}'>
+			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>

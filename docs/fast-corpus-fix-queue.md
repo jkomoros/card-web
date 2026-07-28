@@ -86,17 +86,21 @@ Left as an explicit decision rather than silently claimed as met.
 
 ## P2 — UX polish
 
-- **U14.** `card-editor.ts:539, 583` switched from `?hidden` to conditional
-  rendering, so switching editor tabs destroys the textareas — losing native
-  undo history and scroll position.
+- **U14.** `card-editor.ts` switched from `?hidden` to conditional rendering for
+  the Content/Configuration panes, so switching tabs destroys the Notes and
+  Freeform TODO textareas — losing native undo history and scroll position. The
+  text itself is safe in Redux. CONFIRMED by direct measurement (3 textareas on
+  the content tab, 0 on config). ATTEMPTED TWICE and reverted both times: naively
+  rendering both panes with `?hidden` did not change the measured behavior, and I
+  could not explain why before running out of budget for a P2. Whoever picks this
+  up: verify with a shadow-piercing probe that counts textareas inside
+  card-editor's own shadow root across a tab switch, and note that rollup strips
+  HTML comments from Lit templates, so a comment is NOT a usable staleness check.
 - **U15.** `e` is a silent no-op (see U7/C3).
 - **U17.** Durable aux writes are discarded with only `console.error`; call sites
   are `void runDurableAuxWrite(...)` with no catch.
 - **U18.** Suggested tags render empty on worker timeout, indistinguishable from
   "no suggestions" (`card-editor.ts:984-992`).
-- **U22.** `card-drawer.ts:184` returns a fresh `<div hidden>` instead of
-  `?hidden`, so collapse/reopen (and every editor minimize) destroys the list and
-  its scroll position.
 - **U25.** Reference blocks render as nothing (not "loading") until the worker
   can serve, and stale blocks survive navigation to a not-yet-loaded card.
 - **U26.** Takeover shows a static disabled button for up to 12 s with no
