@@ -14,7 +14,13 @@ describe('SearchIndex', () => {
 		index.updateCard('c', ['valley']);
 		assert.deepStrictEqual([...index.candidates(['hill'])].sort(), ['a', 'b']);
 		assert.deepStrictEqual([...index.candidates(['hill', 'valley'])], ['b']);
-		assert.deepStrictEqual([...index.candidates(['hill climb'])], ['a']);
+		//Multi-word tokens are deliberately NOT indexed: the only production
+		//consumer is substringCandidates(), which skips every posting key
+		//containing a space, so indexing bigrams built ~14x the postings to
+		//serve nothing but the CORPUS_WORKER.query console hook. A bigram
+		//query therefore has no postings and falls back to a full scan.
+		assert.strictEqual(index.candidates(['hill climb']), null,
+			'bigrams are not indexed; the query must fall back rather than match');
 		//Tokens with no postings are skipped, not intersected to zero.
 		assert.deepStrictEqual([...index.candidates(['hill', 'nonexistent'])].sort(), ['a', 'b']);
 		//No token has postings: null signals full-scan fallback.
