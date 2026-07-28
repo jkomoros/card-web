@@ -2247,7 +2247,15 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		});
 	}
 
-	batch.commit();
+	//Awaited, and failures surfaced. Fire-and-forget here meant an offline or
+	//fenced fork was accepted by the UI and then silently discarded: the main
+	//thread runs a memory-only Firestore cache, so nothing survives a reload.
+	try {
+		await batch.commit();
+	} catch (err) {
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		return;
+	}
 	return;
 
 

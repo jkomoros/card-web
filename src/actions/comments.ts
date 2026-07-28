@@ -80,7 +80,7 @@ export const createAuthorStub = (uid : Uid) => {
 	//By using set with merge:true, if it already exists, we won't overwrite any
 	//fields, but will ensure a stub exists.
 	batch.set(doc(db, AUTHORS_COLLECTION, uid), {}, {merge:true});
-	batch.commit();
+	return batch.commit();
 };
 
 export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, getState) => {
@@ -102,7 +102,7 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 	//A voided promise here swallowed MutationFencedError entirely: in a fenced
 	//tab the user got no feedback and no error, and there is no
 	//unhandledrejection handler anywhere in src/. Say something.
-	void trackMutation(() => runTransaction(db, async transaction => {
+	return trackMutation(() => runTransaction(db, async transaction => {
 		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
@@ -144,7 +144,7 @@ export const deleteMessage = (message : CommentMessage) : ThunkSomeAction => (_,
 		updated: serverTimestamp()
 	});
 
-	batch.commit();
+	return batch.commit();
 };
 
 export const editMessage = (message : CommentMessage, newMessage : string) : ThunkSomeAction => (_, getState) => {
@@ -169,7 +169,7 @@ export const editMessage = (message : CommentMessage, newMessage : string) : Thu
 		updated: serverTimestamp()
 	});
 
-	batch.commit();
+	return batch.commit();
 
 };
 
@@ -237,7 +237,7 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkSome
 		deleted: false
 	});
 
-	batch.commit();
+	return batch.commit();
 
 };
 
@@ -282,7 +282,7 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 	//A voided promise here swallowed MutationFencedError entirely: in a fenced
 	//tab the user got no feedback and no error, and there is no
 	//unhandledrejection handler anywhere in src/. Say something.
-	void trackMutation(() => runTransaction(db, async transaction => {
+	return trackMutation(() => runTransaction(db, async transaction => {
 		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';

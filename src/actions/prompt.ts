@@ -1,6 +1,7 @@
 import {
 	selectPromptAction,
 	selectPromptContent,
+	selectPromptMessage,
 	selectPromptAssociatedId,
 	getMessageById,
 	getThreadById,
@@ -66,15 +67,34 @@ export const composeCancel = () : SomeAction => {
 	};
 };
 
-export const composeCommit = () : ThunkSomeAction => (dispatch, getState) => {
+export const composeCommit = () : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
+
+	//Capture BEFORE the commit action clears it. The user's typed text is the
+	//one thing here that cannot be reconstructed: comments are deliberately
+	//outside the durable write-ahead queue (transactional, generated ids), and
+	//the main thread now runs a memory-only Firestore cache, so a write that
+	//never lands is simply gone. Clearing the box first and firing the write
+	//afterwards meant an offline or fenced comment vanished with the UI having
+	//already accepted it.
+	const message = selectPromptMessage(state);
+	const content = selectPromptContent(state);
+	const action = selectPromptAction(state);
+	const associatedId = selectPromptAssociatedId(state);
 
 	dispatch({
 		type: PROMPT_COMPOSE_COMMIT
 	});
 
-	doAction(dispatch, state, selectPromptAction(state), selectPromptContent(state), selectPromptAssociatedId(state));
+	try {
+		await doAction(dispatch, state, action, content, associatedId);
+	} catch (err) {
+		//Give the text back rather than dropping it. The user can retry or copy
+		//it out; either beats silent loss.
+		dispatch(composeShow(message, content));
+		alert(`That couldn't be saved, so your text has been restored: ${err instanceof Error ? err.message : String(err)}`);
+	}
 
 };
 
@@ -87,7 +107,7 @@ export const composeUpdateContent = (content : string) : SomeAction => {
 
 
 //TODO: use functionOverloading on expected types
-const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content = '', associatedId? : CommentMessageID | CommentThreadID) => {
+const doAction = async (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content = '', associatedId? : CommentMessageID | CommentThreadID) : Promise<void> => {
 	if (!action) return;
 	switch (action) {
 	case 'CONSOLE_LOG':
@@ -97,16 +117,16 @@ const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitAct
 		if (!associatedId) throw new Error('No associated ID');
 		const message = getMessageById(state, associatedId);
 		if (!message) throw new Error('No message');
-		dispatch(editMessage(message, content));
+		await dispatch(editMessage(message, content));
 		return;
 	case 'ADD_MESSAGE':
 		if (!associatedId) throw new Error('No associated ID');
 		const thread = getThreadById(state, associatedId);
 		if (!thread) throw new Error('No thread');
-		dispatch(addMessage(thread, content));
+		await dispatch(addMessage(thread, content));
 		return;
 	case 'CREATE_THREAD':
-		dispatch(createThread(content));
+		await dispatch(createThread(content));
 		return;
 	case 'CREATE_CHAT':
 		dispatch(createChatWithCurentCollection(content, selectAIModel(state)));

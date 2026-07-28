@@ -12,25 +12,14 @@ are merged into a single item and marked with the lenses that found them.
 
 ## P0 — data integrity / release blockers
 
-### C18. Memory-only main-thread Firestore leaves creation and comments lossy
-Worker mode moves the main Firestore client to `memoryLocalCache`
-(`src/firebase.ts:109-132`). The new live gate in
-`src/actions/data.ts:1892-1903` is only a point-in-time check: connectivity can
-drop before `batch.commit()` acknowledges, and a browser crash then destroys
-the SDK's in-memory queued card creation. `createForkedCard` also fires an
-unawaited commit at `:2250`; bulk creation has no durable intent either.
-
-Comments remain explicitly outside the durable auxiliary queue. Compose clears
-the user's text before dispatching the write (`src/actions/prompt.ts:69-78`),
-while add/edit/delete message paths use unawaited commits in
-`src/actions/comments.ts:139-172,212-240`. Offline/reload or a crash can
-therefore lose user-authored cards or comment text after the UI accepted it.
-
-**Required fix/acceptance test:** give every accepted creation/comment mutation
-a durable write-ahead record (or retain and visibly recover the draft until
-server acknowledgement). In real Chrome, cut connectivity after the user
-confirms but before acknowledgement, kill the browser process, reopen, and
-verify the operation is recovered or the original editable content is restored.
+### C18 (residual). Creation and comments still lack durable write-ahead records
+The user-visible losses are closed: compose text is restored on failure rather
+than cleared before the write, comment writes are awaited and surfaced, and the
+fork commit is awaited. What remains is the structural gap the reviewer named —
+neither card creation nor comments has a durable intent, so a crash between an
+accepted UI action and the server ack still loses the operation (the eligibility
+gate is only point-in-time). Closing it properly means extending the write-ahead
+pattern to both, which is a design change rather than a patch.
 
 ---
 
