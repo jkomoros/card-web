@@ -225,7 +225,11 @@ const readOwnershipLease = () : OwnershipLease | null => {
 		const raw = localStorage.getItem(OWNERSHIP_LEASE_KEY);
 		if (!raw) return null;
 		const value = JSON.parse(raw) as OwnershipLease;
+		//MAX_SAFE_INTEGER, not just isInteger: Number.isInteger(1e308) is true,
+		//so a crafted lease could pin the epoch at a value where `epoch + 1`
+		//is a fixed point — after which no tab could ever out-epoch it.
 		if (value.version !== 1 || !value.tabID || !Number.isInteger(value.epoch) ||
+			value.epoch < 0 || value.epoch > Number.MAX_SAFE_INTEGER - 1 ||
 			typeof value.heartbeatAt !== 'number' || typeof value.dirty !== 'boolean' || typeof value.pending !== 'boolean') return null;
 		return value;
 	} catch { return null; }

@@ -122,23 +122,13 @@ Left as an explicit decision rather than silently claimed as met.
 - **C14.** A single `card-web-edit-draft-v1` key holds one draft
   (`edit-draft.ts:17`), so two concurrently-dirty editors overwrite each other;
   `persistDraft` is also unguarded against `QuotaExceededError`.
-- **R15.** No `onversionchange`/`onblocked` on either IDB store, so "Clear site
-  data" hangs while the worker holds the connection.
 - **R16.** Listener retry has no jitter and no `resource-exhausted` case; all 13
   listeners re-attach in lockstep after an outage. (The dead-handle accumulation
   half is fixed.)
-- **R17.** Epoch saturation: `Number.isInteger(1e308)` is true, so a crafted
-  lease passes validation and `+1` is a fixed point; with
-  `corpus-snapshot.ts:108` accepting `epoch <=`, a stale worker can re-claim.
 - **R18.** `finishUnresponsiveTakeover` leaks a queued lock request on success
   (`corpus-bridge.ts:1306-1315`).
 - **R19.** Unconditional 1 Hz synchronous localStorage write for the tab's life,
   never paused on `visibilitychange`, no `pagehide` lease release.
-- **R24.** Snapshot `savedAt` is written but never read — an offline months-old
-  snapshot is primed and served with no staleness signal.
-
-## P2 — performance polish
-
 - **P11.** Boot round-trips the snapshot through wire format twice
   (`fromWire` then `toWire(stripForWire())`) — ~1-1.5 s of the 7.1 s
   `loadComplete`.

@@ -60,8 +60,18 @@ const openDB = () : Promise<IDBDatabase> => new Promise((resolve, reject) => {
 			request.result.createObjectStore(STORE_NAME);
 		}
 	};
-	request.onsuccess = () => resolve(request.result);
+	request.onsuccess = () => {
+		//Without this, a deleteDatabase from another context — including the
+		//browser's own "Clear site data" — BLOCKS indefinitely, because this
+		//worker holds the connection open for the whole session and nothing
+		//ever closes it. Yield the connection instead of wedging the browser.
+		request.result.onversionchange = () => request.result.close();
+		resolve(request.result);
+	};
 	request.onerror = () => reject(request.error);
+	//A blocked open means another context holds an older version open; surface
+	//it rather than hanging silently forever.
+	request.onblocked = () => reject(new Error('IndexedDB open blocked by another connection'));
 });
 
 export const validCorpusSnapshot = (value : unknown) : value is CorpusSnapshot => {

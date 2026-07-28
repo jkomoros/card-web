@@ -2006,6 +2006,17 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		if (myConnectionGeneration !== connectionGeneration) return;
 		if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
 			primeSource = 'compact snapshot';
+			//`savedAt` was written on every save and never read. A device that
+			//has been offline for weeks primes from a months-old snapshot, is
+			//granted loadComplete for it, and serves it with no staleness
+			//signal anywhere. Verification still gates `live`, so this is a
+			//visibility gap rather than a correctness one — but it should not
+			//be invisible.
+			const ageMs = Date.now() - (compactSnapshot.savedAt || 0);
+			const ageDays = ageMs / (24 * 60 * 60 * 1000);
+			if (compactSnapshot.savedAt && ageDays >= 1) {
+				status(`compact snapshot is ${ageDays.toFixed(1)} days old; serving it while verification catches up`);
+			}
 			compactTombstoneIDs = compactSnapshot.processedTombstoneIDs || [];
 			if (compactSnapshot.schemaVersion === 2) {
 				//Claim sync-meta ownership even though we are not READING from
