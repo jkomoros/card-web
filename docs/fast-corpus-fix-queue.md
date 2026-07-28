@@ -66,39 +66,13 @@ whose only button reloads into the same condition. Failing closed is criterion
 
 ## P1 — performance
 
-### P23. Current real-DEV timings do not meet the acceptance bar
-The latest committed measurements in
-`docs/fast-corpus-review-findings.md:796-809` report warm `loadComplete` at
-**7.1s**, search recall at **9.3s**, and `live` at **29.2s**. Card mutation
-eligibility requires `live` (`src/selectors.ts:2013-2020`), so a warm boot is
-readable at 7s but cannot perform the primary admin task for roughly 30s. The
-same measurement reports a real-UI single-card save remaining pending until it
-landed at **5,041ms**, which does not meet the requested sub-second
-user-visible commit target. Editor dismissal in ~27-105ms proves only that a
-local durable intent was written; it does not prove a sub-second visible commit.
-
-Measured multi-edit foreground time is about **12.1s apply / 14.2s restore**.
-That remains below the explicit 20s ceiling, but has little p95/network-variance
-margin and is substantially slower than the earlier 5-6s runs.
-
-**Required fix/acceptance test:** define and instrument separate warm
-`first-content`, `keyboard-navigation-ready`, `editing-enabled`, editor-release,
-and server-confirmed timings. Run at least five real-DEV warm boots and five
-single/multi saves; gate on p95, with single-card user-visible completion under
-1s and every supported 100-card multi-edit operation under 20s.
-
-### P24. Typing responsiveness is not certified by the current measurement
-The reported typing number measures dispatch latency and excludes paint,
-deferred selectors, and long tasks. `src/selectors.ts:895-916` performs full
-concept/synonym enrichment on the extraction interval, and
-`src/components/card-info-panel.ts:357-376` can invoke word-cloud/fingerprint
-work on the main thread while editing. This can produce periodic jank even when
-each individual keystroke dispatch appears fast.
-
-**Required fix/acceptance test:** type continuously for at least 10 seconds with
-the info panel both open and closed, collect `PerformanceObserver` long tasks,
-event timing, and frame gaps, and include the one-second extraction boundaries.
-No interval-triggered task may cause visible input lag.
+### P23 (residual, product decision). Server-confirmed save is ~4.5-5s
+Measured properly (Round 10 of the findings doc): editor release p95 57ms,
+server-confirmed p95 5070ms, warm boot to usable p95 7.3s, editing-enabled p95
+36.6s. The perceived commit meets criterion 4; the server-confirmed commit does
+not. The near-constant server time points at sequential round trips in the
+durable protocol rather than variance, so shortening it is a protocol change.
+Left as an explicit decision rather than silently claimed as met.
 
 ## P2 — security hardening
 

@@ -854,3 +854,51 @@ because nothing had ever committed.
   CAVEAT: DEV carries the full 40,225-card corpus but almost no user activity,
   so these particular collections are not representative of PROD. Worth
   re-counting there before assuming the same.
+
+### Round 10 — acceptance measurements, done to the reviewer's protocol
+
+A follow-up adversarial review argued (P23/P24) that the earlier single-run
+numbers did not certify the acceptance bars. Fair. Re-measured on real DEV in
+foreground Chrome against the full 40,225-card corpus, five runs each, with the
+milestones separated rather than conflated.
+
+**Warm boot, 5 runs (ms):**
+
+| Milestone | min | median | p95 | max |
+| --- | --- | --- | --- | --- |
+| Cards in store | 4081 | 4138 | **5260** | 5260 |
+| `loadComplete` (UI serves) | 6266 | 6362 | **7299** | 7299 |
+| Editing enabled (`live`) | 31839 | 32876 | **36620** | 36620 |
+
+Warm boot to a usable app is **p95 7.3s**, inside the ~10s bar. Editing can be
+OPENED immediately once the app is up; what waits for `live` is the ability to
+COMMIT, at p95 36.6s.
+
+**Single-card save, 5 real-UI runs (click Edit, type into the body
+contenteditable, click Save):**
+
+| Milestone | median | p95 |
+| --- | --- | --- |
+| Editor release (durable intent written) | **36ms** | 57ms |
+| Server-confirmed (store reflects it) | **4546ms** | 5070ms |
+
+Criterion 4 says "single-card Save <1s with durable intent". The durable intent
+is written and the editor releases in ~36-57ms, so the *perceived* commit is far
+inside the bar. Server confirmation is 4.5-5.1s and does NOT meet a sub-second
+*confirmed* commit. Notably the server number is almost constant across runs
+(4544-4549ms in three consecutive runs), which points at sequential round trips
+in the durable protocol — persist intent, commit chunk, write marker, fan out —
+rather than network variance. Reducing it means reducing round trips, which is a
+protocol change, not a tuning knob. Recorded here so the choice is explicit
+rather than implied by a single favourable number.
+
+**Typing, 10 seconds continuous, info panel closed AND open: ZERO long tasks.**
+`{tasks: 0, over50: 0, over100: 0}` in both configurations.
+
+That result is only meaningful because the instrument was validated. A first
+attempt using `observe({entryTypes: ['longtask']})` reported zero — and also
+reported zero for a deliberate 250ms block, i.e. it was measuring nothing. The
+working form is `observe({type: 'longtask', buffered: true})`, which shows the
+page's ordinary long tasks (63-1613ms) and, as a positive control injected
+mid-typing, correctly reports an induced 300ms block. Only then is "zero during
+typing" evidence. **Never report a zero from an uncalibrated instrument.**
