@@ -1800,6 +1800,13 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 };
 
 export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : ThunkSomeAction => async (dispatch, getState) => {
+
+	//Same reasoning as createCard: no durable intent, memory-only cache, so an
+	//offline commit is silently lost on reload. Refuse rather than lose.
+	if (!durableSaveEligible(getState())) {
+		dispatch(modifyCardFailure(new Error('Card sync must be live before creating cards. Wait for sync to finish, then retry.')));
+		return;
+	}
 	const WORKING_NOTES_CONFIG = CARD_TYPE_CONFIGURATION['working-notes'];
 	//Sanity check that working-notes is configured in a way we expect.
 	if (!WORKING_NOTES_CONFIG) throw new Error('No working notes config');
@@ -1883,6 +1890,17 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 // title: title of card
 
 export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
+
+	//Card CREATION has neither a durable write-ahead intent nor an eligibility
+	//gate, unlike every save path — and the main thread now runs on a
+	//memory-only Firestore cache, so offline the commit neither resolves nor
+	//rejects and the card is simply gone on reload. Master's persistent cache
+	//made this survive for free. Until creation gets its own durable intent,
+	//refuse rather than lose: the same gate the save paths use.
+	if (!durableSaveEligible(getState())) {
+		dispatch(modifyCardFailure(new Error('Card sync must be live before creating a card. Wait for sync to finish, then retry.')));
+		return;
+	}
 
 	//NOTE: if you modify this card you may also want to modify createForkedCard and bulkCreateWorkingNotes
 
@@ -2101,6 +2119,13 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 };
 
 export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => async (dispatch, getState) => {
+
+	//Same reasoning as createCard: no durable intent, memory-only cache, so an
+	//offline commit is silently lost on reload. Refuse rather than lose.
+	if (!durableSaveEligible(getState())) {
+		dispatch(modifyCardFailure(new Error('Card sync must be live before creating cards. Wait for sync to finish, then retry.')));
+		return;
+	}
 	//NOTE: if you modify this card you likely also want to modify
 	//createWorkingNotesCard too and likely also createForkedCard
 

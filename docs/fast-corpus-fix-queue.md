@@ -23,15 +23,6 @@ Retry, only the first marker is checked, so a re-chunked replay writes a second
 `card_updates` doc per card under a different batchID, permanently corrupting
 audit history. The bulk-tag path is immune (operation-stable audit ids).
 
-### C7/U16. Offline card CREATION is silently lost, unlike every save path
-`src/actions/data.ts:1863` (`createCard`), `:1780`, `:1838`. Has neither a
-durable intent nor a `durableSaveEligible` gate, unlike every save path. The
-main thread is now `memoryLocalCache()`, so offline `batch.commit()` neither
-resolves nor rejects and the card is gone on reload. Master's persistent cache
-made this survive for free. Also the `+` / Cmd-M affordances are not disabled
-during the unverified window, so you can create a card, type, and then be
-refused Save.
-
 ### C11. Sign-out snapshot purge no-ops after a non-privileged reconnect
 `src/worker/corpus-worker.ts:2063`. `corpusSnapshotStore` is only created in
 `connectUnpublishedWatermark`; a permission revocation reconnects non-privileged
@@ -51,17 +42,14 @@ stale-while-revalidate doesn't engage, and `selectFindSearchPreparing` bails
 because `searchRecall` is null. The user sees "0 cards" and concludes the card
 doesn't exist.
 
-### U11. Worker failure and unsupported browsers are unrecoverable walls
-`corpus-mode.ts:38-51`, `corpus-bridge.ts:1023-1033`,
-`corpus-ownership-gate.ts:84, 139-141`. Failing closed is criterion 9 and the
-policy is right; the recovery affordance is not. `readCorpusWorkerMode()`
-returns `'on'` unconditionally off dev hosts so the graceful `'fallback'` branch
-is unreachable in production, and `writeCorpusWorkerMode('off')` is refused
-there. A worker chunk 404 after a deploy gives a full-viewport "Cards could not
-load" whose only button reloads into the same condition. `'unsupported'` renders
-NO button, `_activate` early-returns, and `_containFocus` swallows Escape while
-preventDefault-ing Tab onto a `tabindex="-1"` panel — a keyboard trap (WCAG
-2.1.2) on a non-interactive element. These users could read the site on master.
+### U11 (residual). No production escape hatch from a worker failure
+`corpus-mode.ts:38-51`, `corpus-bridge.ts:1023-1033`. `readCorpusWorkerMode()`
+returns `'on'` unconditionally off dev hosts, so the graceful `'fallback'`
+branch is unreachable in production and `writeCorpusWorkerMode('off')` is
+refused there — a worker chunk 404 after a deploy gives a full-viewport panel
+whose only button reloads into the same condition. Failing closed is criterion
+9 and the policy is right; the missing piece is a recovery path. (The
+`unsupported` keyboard trap and its missing explanation are fixed.)
 
 ---
 

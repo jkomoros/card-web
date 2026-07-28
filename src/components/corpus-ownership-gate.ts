@@ -118,7 +118,11 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		//The rest of the app is inert, and keyboard shortcuts must be inert too.
 		event.stopPropagation();
 		if (event.key !== 'Tab') return;
-		const target = this._focusTarget();
+		//Only trap Tab when there is somewhere to trap it. For 'unsupported'
+		//the panel has no button at all, so preventDefault-ing Tab onto a
+		//tabindex="-1" panel was a keyboard trap (WCAG 2.1.2) on a
+		//non-interactive element: no way out, and nothing to act on.
+		const target = this.renderRoot.querySelector<HTMLElement>('button:not([disabled])');
 		if (!target) return;
 		event.preventDefault();
 		target.focus();
@@ -145,6 +149,7 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 				${canTakeOver ? html`<button data-testid='corpus-use-this-tab' @click=${this._activate}>Use this tab</button>` : ''}
 				${this._status === 'takeover' ? html`<button disabled>Moving…</button>` : ''}
 				${this._status === 'degraded' || this._status === 'ownership-error' ? html`<button @click=${this._activate}>Reload and retry</button>` : ''}
+				${this._status === 'unsupported' ? html`<p class='guidance'>Compendium needs Web Locks and BroadcastChannel to keep a single tab authoritative over your card data. Recent Chrome, Edge, Firefox and Safari all support them.</p>` : ''}
 				${this._status === 'contended' ? html`<p class='guidance'>Or keep using the other tab and close this one.</p>` : ''}
 			</section>
 		`;
