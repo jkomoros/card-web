@@ -105,4 +105,36 @@ describe('aux write queue', () => {
 		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);
 	});
+
+	//Regression: a live claim held by another tab must STOP the replay for that
+	//uid, not cause it to skip ahead. Skipping let a star-remove execute while
+	//the matching star-add was still owned elsewhere; the remove no-ops against
+	//an absent star, the add then lands, and the card ends up starred — the
+	//opposite of the user's last action.
+	it('stops at a head intent claimed by another tab rather than reordering', async () => {
+		const replayed = [];
+		queue.registerAuxWriteExecutor('star-add', async (intent, isReplay) => {
+			if (!isReplay) throw new Error('offline');
+			replayed.push('add:' + intent.cardID);
+		});
+		queue.registerAuxWriteExecutor('star-remove', async (intent, isReplay) => {
+			if (!isReplay) throw new Error('offline');
+			replayed.push('remove:' + intent.cardID);
+		});
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-remove', 'cardA'));
+
+		//Simulate a sibling tab holding a fresh claim on the HEAD intent.
+		const pending = queue.readPendingAuxWrites();
+		assert.strictEqual(pending.length, 2);
+		const claimed = pending.map((intent, index) => index === 0
+			? {...intent, claimedBy: 'some-other-tab', claimedAt: Date.now()}
+			: intent);
+		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', JSON.stringify(claimed));
+
+		await queue.replayPendingAuxWrites('u1');
+		assert.deepStrictEqual(replayed, [],
+			'the remove must NOT run ahead of the add that another tab owns');
+		assert.strictEqual(queue.readPendingAuxWrites().length, 2, 'both intents survive for the next replay');
+	});
 });

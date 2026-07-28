@@ -463,6 +463,8 @@ const SNAPSHOT_SAVE_DELAY_MS = 15 * 1000;
 //Same duty-cycle shape as the search-recall build: long enough to make
 //progress, short enough that a queued message is never starved.
 const SNAPSHOT_SERIALIZE_SLICE_MS = 12;
+//Incremented by updateLocalState, the ONLY place the corpus is mutated.
+let corpusMutationVersion = 0;
 let corpusSnapshotStore : CorpusSnapshotStore | null = null;
 let corpusSnapshotPersistenceEnabled = false;
 let corpusSnapshotSaveTimer : ReturnType<typeof setTimeout> | null = null;
@@ -489,33 +491,51 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	//Keep search tokens in this worker-only representation: rebuilding them
 	//from content would erase most of the warm-boot win. Timestamp markers make
 	//the record independent of Firestore prototype structured-cloning behavior.
-	//Sliced, not one uninterruptible run. This walks every card and allocates a
-	//fresh wire object per card (every card has Timestamps, so toWire's
-	//identity shortcut never fires at the top level) — measured at ~776ms per
-	//12,000 cards, i.e. ~2.6s at 40,225, and real cards carry nlp_tokens which
-	//the harness corpus lacks. During that block every collection push stalls:
-	//keyboard navigation and find results both wait. Yielding between slices
-	//keeps the worker responsive; the record is still written in ONE atomic
-	//put, and the snapshot is a coherent checkpoint because the cards are read
-	//from `corpus` as we go and the safety bounds are captured below before the
-	//first await that matters.
-	//(The real fix is a dirty-card incremental path: changing 100 of 40,225
-	//cards rewrites 100% of them. That is a larger change; this removes the
-	//stall without altering the format.)
+	//Sliced, not one uninterruptible run: the walk allocates a wire object per
+	//card (~2.6s at 40,225) and blocked every collection push — keyboard
+	//navigation and find results both waited.
+	//
+	//But yielding mid-walk means the corpus can CHANGE under us, and an earlier
+	//comment here wrongly claimed the result was still coherent "because the
+	//cards are read from `corpus` as we go" — that is precisely what makes it
+	//incoherent. A delta landing after a card was serialized yields a record
+	//mixing versions; the watermark derived from it on the next boot could then
+	//be newer than an update the snapshot is missing, and the count-based trust
+	//gate compares membership, not versions, so nothing would catch it.
+	//
+	//So: abandon and reschedule if the corpus mutates during the walk. The 15s
+	//debounce means the retry coalesces with whatever else is happening, and an
+	//actively-churning corpus simply defers persistence rather than persisting
+	//a lie. Progress is guaranteed because edits are bursty, not continuous.
+	const startVersion = corpusMutationVersion;
 	const cards : {[id : string] : unknown} = {};
 	let sliceStart = performance.now();
 	for (const [id, card] of corpus.entries()) {
 		cards[id] = toWire(card, isTimestamp, getTime);
 		if (performance.now() - sliceStart < SNAPSHOT_SERIALIZE_SLICE_MS) continue;
 		await yieldToWorkerQueue();
+		//These early returns are ABOVE the try/finally that clears the in-flight
+		//flag, so they must clear it themselves or every later save is blocked
+		//for the life of the worker.
 		if (myGeneration !== generation) {
-			//This early return is ABOVE the try/finally that clears the
-			//in-flight flag, so it must clear it itself or every later save is
-			//blocked for the life of the worker.
 			corpusSnapshotSaveInFlight = false;
 			return;
 		}
+		if (corpusMutationVersion !== startVersion) {
+			corpusSnapshotSaveInFlight = false;
+			status('compact snapshot save restarted: the corpus changed while serializing');
+			scheduleCorpusSnapshotSave();
+			return;
+		}
 		sliceStart = performance.now();
+	}
+	//Re-check after the final slice too: the last yield may have been followed
+	//by a mutation before the loop ended.
+	if (corpusMutationVersion !== startVersion) {
+		corpusSnapshotSaveInFlight = false;
+		status('compact snapshot save restarted: the corpus changed while serializing');
+		scheduleCorpusSnapshotSave();
+		return;
 	}
 	const contaminatedIDs = [...clientClockCardIDs].filter(id => corpus.has(id));
 	//Capture every safety field synchronously with the cards, before the first
@@ -651,6 +671,10 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 //server-issued. Left as a tracked item rather than shipped half-right.
 const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
 	const indexStart = performance.now();
+	//Bumped on every corpus mutation. The compact-snapshot serialization yields
+	//mid-walk, so it needs to know whether the thing it is copying changed
+	//underneath it (see saveCorpusSnapshot).
+	if (Object.keys(cards).length || removedIDs.length) corpusMutationVersion++;
 	for (const [id, card] of Object.entries(cards)) {
 		const previous = corpus.get(id);
 		if (previous && searchTokensForCard(previous).length) cardsWithStoredTokens--;

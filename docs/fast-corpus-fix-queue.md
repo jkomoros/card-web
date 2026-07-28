@@ -10,6 +10,28 @@ are merged into a single item and marked with the lenses that found them.
 
 ---
 
+## P0 — data integrity / release blockers
+
+### C18. Memory-only main-thread Firestore leaves creation and comments lossy
+Worker mode moves the main Firestore client to `memoryLocalCache`
+(`src/firebase.ts:109-132`). The new live gate in
+`src/actions/data.ts:1892-1903` is only a point-in-time check: connectivity can
+drop before `batch.commit()` acknowledges, and a browser crash then destroys
+the SDK's in-memory queued card creation. `createForkedCard` also fires an
+unawaited commit at `:2250`; bulk creation has no durable intent either.
+
+Comments remain explicitly outside the durable auxiliary queue. Compose clears
+the user's text before dispatching the write (`src/actions/prompt.ts:69-78`),
+while add/edit/delete message paths use unawaited commits in
+`src/actions/comments.ts:139-172,212-240`. Offline/reload or a crash can
+therefore lose user-authored cards or comment text after the UI accepted it.
+
+**Required fix/acceptance test:** give every accepted creation/comment mutation
+a durable write-ahead record (or retain and visibly recover the draft until
+server acknowledgement). In real Chrome, cut connectivity after the user
+confirms but before acknowledgement, kill the browser process, reopen, and
+verify the operation is recovered or the original editable content is restored.
+
 ---
 
 ## P1 — correctness
@@ -55,8 +77,52 @@ whose only button reloads into the same condition. Failing closed is criterion
 
 ## P1 — performance
 
-*(All seven items resolved; see the Round 9 section of
-docs/fast-corpus-review-findings.md for the measurements.)*
+### P23. Current real-DEV timings do not meet the acceptance bar
+The latest committed measurements in
+`docs/fast-corpus-review-findings.md:796-809` report warm `loadComplete` at
+**7.1s**, search recall at **9.3s**, and `live` at **29.2s**. Card mutation
+eligibility requires `live` (`src/selectors.ts:2013-2020`), so a warm boot is
+readable at 7s but cannot perform the primary admin task for roughly 30s. The
+same measurement reports a real-UI single-card save remaining pending until it
+landed at **5,041ms**, which does not meet the requested sub-second
+user-visible commit target. Editor dismissal in ~27-105ms proves only that a
+local durable intent was written; it does not prove a sub-second visible commit.
+
+Measured multi-edit foreground time is about **12.1s apply / 14.2s restore**.
+That remains below the explicit 20s ceiling, but has little p95/network-variance
+margin and is substantially slower than the earlier 5-6s runs.
+
+**Required fix/acceptance test:** define and instrument separate warm
+`first-content`, `keyboard-navigation-ready`, `editing-enabled`, editor-release,
+and server-confirmed timings. Run at least five real-DEV warm boots and five
+single/multi saves; gate on p95, with single-card user-visible completion under
+1s and every supported 100-card multi-edit operation under 20s.
+
+### P24. Typing responsiveness is not certified by the current measurement
+The reported typing number measures dispatch latency and excludes paint,
+deferred selectors, and long tasks. `src/selectors.ts:895-916` performs full
+concept/synonym enrichment on the extraction interval, and
+`src/components/card-info-panel.ts:357-376` can invoke word-cloud/fingerprint
+work on the main thread while editing. This can produce periodic jank even when
+each individual keystroke dispatch appears fast.
+
+**Required fix/acceptance test:** type continuously for at least 10 seconds with
+the info panel both open and closed, collect `PerformanceObserver` long tasks,
+event timing, and frame gaps, and include the one-second extraction boundaries.
+No interval-triggered task may cause visible input lag.
+
+### P25. Actual card changes still invalidate corpus-wide worker memos
+`src/worker/query-engine.ts:229-249` increments `_cardsVersion` after every real
+card change. `_ensureSets` (`:272-280`) then recomputes the default/everything
+sets over the corpus, while suggestion generators and tag fingerprints
+(`:414-439`) also invalidate. The versioning batch removed the whole-map spread
+and avoids work for no-op batches, but it did not remove the claimed
+O(corpus) invalidations for real updates.
+
+**Required fix/acceptance test:** prime collections and tag suggestions on a
+40k-card corpus, update one card, and measure all recomputation caused by the
+next collection/suggestion request. Document which structures are incremental
+and set a bounded single-card-update worker latency budget.
 
 ## P2 — security hardening
 

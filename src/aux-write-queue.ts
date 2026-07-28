@@ -204,6 +204,30 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<void> => {
 //stopping at the first transient failure (offline again). Intents currently
 //in flight in this session are the SDK queue's responsibility and are
 //skipped.
+//localStorage read-modify-write is not atomic across renderer processes, so the
+//claim written below can be observed-unclaimed and written by TWO tabs, both of
+//which then execute the same intent — and star writes carry increment(+/-1), so
+//one star became +2. A real mutex is required. Web Locks is the primitive this
+//app already uses for corpus ownership; holding one for the whole replay makes
+//claim-and-execute atomic with respect to other tabs, and the localStorage
+//claim remains as a best-effort marker for browsers without the API.
+const AUX_REPLAY_LOCK = 'card-web-aux-write-replay';
+
+const withReplayLock = async (fn : () => Promise<void>) : Promise<void> => {
+	const locks = (globalThis as {navigator? : {locks? : {request : (name : string, options : {ifAvailable : boolean}, cb : (lock : unknown) => Promise<void>) => Promise<void>}}}).navigator?.locks;
+	if (!locks) {
+		//No Web Locks (older Safari, some embedded views). Fall back to the
+		//advisory claim alone: strictly worse, but better than not replaying.
+		await fn();
+		return;
+	}
+	//ifAvailable: another tab replaying is not an error — it is doing the work.
+	await locks.request(AUX_REPLAY_LOCK, {ifAvailable: true}, async lock => {
+		if (!lock) return;
+		await fn();
+	});
+};
+
 export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 	//A replay already running for a DIFFERENT uid will notice the switch and
 	//break out (see the live-uid check below), but it cannot start this one, so
@@ -223,6 +247,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 	}
 	replayRunning = true;
 	try {
+		await withReplayLock(async () => {
 		for (const intent of readPendingAuxWrites()) {
 			if (intent.uid !== uid || inFlight.has(intent.id)) continue;
 			const executor = executors[intent.kind];
@@ -234,11 +259,15 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 			//them. Reads and reading-list writes have no preflight to save
 			//them, unlike stars.
 			if (currentUid && currentUid() !== uid) break;
-			//Claim it in shared storage. A sibling tab's `online` handler fires
-			//at the same moment as ours, and its `inFlight` set is not ours, so
-			//without this both tabs replay the same intent and a single star
-			//becomes +2 on the shared card document.
-			if (!claimIntent(intent.id)) continue;
+			//Claim it in shared storage as a secondary marker (the Web Lock
+			//above is what actually serializes tabs). If another tab holds a
+			//live claim on this intent we must STOP, not skip: replay order is
+			//load-bearing per uid, and skipping ahead let a `star-remove`
+			//execute while the matching `star-add` was still owned elsewhere —
+			//the remove no-ops against an absent star, the add then lands, and
+			//the card ends up starred, the opposite of the user's last action.
+			//The same inversion applies to read and reading-list pairs.
+			if (!claimIntent(intent.id)) break;
 			try {
 				await executor(intent, true);
 				removeIntent(intent.id);
@@ -255,6 +284,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 				break;
 			}
 		}
+		});
 	} finally {
 		replayRunning = false;
 	}
