@@ -322,8 +322,11 @@ const DURABLE_MULTI_EDIT_STORAGE_KEY = 'card-web-pending-multi-edit-v1';
 //accept. Treat unreadable storage as pending: the recovery UI must resolve it
 //explicitly rather than risking an overlapping edit.
 export const durableCardMutationPending = () : boolean => {
-	if (typeof localStorage === 'undefined') return false;
+	//The `typeof localStorage` probe itself THROWS when storage is blocked by
+	//policy (not merely absent), so it must live inside the try — otherwise it
+	//propagated out of here into card-view.stateChanged on every render.
 	try {
+		if (typeof localStorage === 'undefined') return false;
 		return Boolean(
 			localStorage.getItem(BULK_TAG_OPERATION_STORAGE_KEY) ||
 			localStorage.getItem(DURABLE_MULTI_EDIT_STORAGE_KEY)

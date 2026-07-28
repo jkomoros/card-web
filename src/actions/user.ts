@@ -574,7 +574,7 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, '' + Date.now()));
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`));
 };
 
 export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (_, getState) => {
@@ -598,7 +598,7 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, '' + Date.now()));
+	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`));
 };
 
 export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {

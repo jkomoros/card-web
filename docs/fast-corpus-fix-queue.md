@@ -261,16 +261,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   (`corpus-bridge.ts:1306-1315`).
 - **R19.** Unconditional 1 Hz synchronous localStorage write for the tab's life,
   never paused on `visibilitychange`, no `pagehide` lease release.
-- **R20.** `localStorage` accessed OUTSIDE the try in `durableCardMutationPending`
-  (`data.ts:325`), `readBulkTagOperation` (`:359`), `readDurableMultiEdit`
-  (`:697`) — `typeof localStorage` itself throws when storage is policy-blocked,
-  and it propagates into `card-view.stateChanged`. `corpus-mode.ts:39-43` on this
-  same branch shows the correct pattern.
-- **R21.** `persistDraft` has no try/catch (`edit-draft.ts:62-65`), so a full
-  localStorage skips `stampDraftForSave` and leaves a stale "unsaved draft
-  available" banner after a SUCCESSFUL save.
-- **R22.** Reading-list `auditKey` is `'' + Date.now()`, so two writes in the
-  same ms collide.
 - **R23.** `requestedSimilarityCardIDs` is never pruned
   (`corpus-worker.ts:2325`).
 - **R24.** Snapshot `savedAt` is written but never read — an offline months-old
@@ -289,17 +279,10 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
   of a cold boot).
 - **P15.** `repairPartitions` recomputes `corpusUnpublishedPerPartition()` inside
   its loop (O(40k) per repaired partition).
-- **P16.** Ungated `[PERF]` `console.log` on the editing path
-  (`selectors.ts:889, 905-906`), unlike everything else in `src/perf.ts`.
-- **P17.** `card-thumbnail-list.ts:407` `.expandedReferenceBlocks=${[]}` — a
-  fresh array literal defeats Lit's `hasChanged`, forcing up to 250
-  `card-renderer` re-renders per drawer render.
 - **P18.** 4 synchronous `localStorage.getItem` + up to 2 `JSON.parse` per
   dispatch (`card-web-app.ts:437-453`, `card-view.ts:1040`); during a durable
   multi-edit the parsed record can include full card objects.
 - **P19.** `unsubscribes` accumulates dead handles (see R16).
-- **P20.** `processedTombstoneIDs` uses `.includes()` in a loop, making
-  `processTombstones` O(n²), and the array is persisted into every snapshot.
 - **P21.** Impure `localStorage` reads inside `createSelector` result functions
   (`selectors.ts:1701, 2000, 2014, 2031`); `markCorpusWorkerUnavailable()` flips
   mode without touching Redux, so memoized worker-served collections go stale.

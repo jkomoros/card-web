@@ -1386,6 +1386,9 @@ const processTombstones = (database : Firestore, tombstones : CorpusTombstone[])
 	if (!tombstones.length || !syncMetaState || !syncMetaStore) return;
 	const myConnectionGeneration = connectionGeneration;
 	const meta = syncMetaState;
+	//Mirrors meta.processedTombstoneIDs for membership tests; the array itself
+	//stays the persisted representation.
+	const processedTombstoneIDSet = new Set(meta.processedTombstoneIDs);
 	const publishedRemovals : CardID[] = [];
 	const unpublishedRemovals : CardID[] = [];
 	const newerResidentIDs = new Set<CardID>();
@@ -1411,7 +1414,13 @@ const processTombstones = (database : Firestore, tombstones : CorpusTombstone[])
 	}
 	for (const tombstone of tombstones) {
 		meta.tombstoneCursor = advanceWatermark(meta.tombstoneCursor, tombstone.deleted);
-		if (!newerResidentIDs.has(tombstone.id) && !meta.processedTombstoneIDs.includes(tombstone.id)) meta.processedTombstoneIDs.push(tombstone.id);
+		//Set membership, not Array.includes: this runs per tombstone over a list
+		//that is persisted into every snapshot and grows monotonically, so the
+		//linear scan made processTombstones O(n^2).
+		if (!newerResidentIDs.has(tombstone.id) && !processedTombstoneIDSet.has(tombstone.id)) {
+			processedTombstoneIDSet.add(tombstone.id);
+			meta.processedTombstoneIDs.push(tombstone.id);
+		}
 		//Launder asynchronously; on confirmation the suppress entry drops.
 		getDocFromServer(doc(database, CARDS_COLLECTION, tombstone.id)).then(snapshot => {
 			if (myConnectionGeneration !== connectionGeneration) return;

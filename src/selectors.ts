@@ -1,7 +1,8 @@
 import { createSelector } from 'reselect';
 
 import {
-	perfCount
+	perfCount,
+	perfEnabled
 } from './perf.js';
 
 import {
@@ -917,7 +918,9 @@ export const selectEditingNormalizedCard = (state : State) : ProcessedCard | und
 			memoizedEditingNormalizedCard = undefined;
 		}
 		const duration = performance.now() - start;
-		if (duration > 50) console.log(`[PERF] selectEditingNormalizedCard: ${duration.toFixed(1)}ms`);
+		//Gated like everything else in src/perf.ts. This sits on the editing
+		//path and logged unconditionally in production builds.
+		if (duration > 50 && perfEnabled()) console.log(`[PERF] selectEditingNormalizedCard: ${duration.toFixed(1)}ms`);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
 	return memoizedEditingNormalizedCard;

@@ -60,7 +60,16 @@ export const readEditDraft = () : StoredEditDraft | null => {
 const announceDraftChanged = () => window.dispatchEvent(new CustomEvent(EDIT_DRAFT_CHANGED_EVENT));
 
 const persistDraft = (draft : StoredEditDraft) => {
-	localStorage.setItem(EDIT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+	try {
+		localStorage.setItem(EDIT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+	} catch (err) {
+		//Quota or disabled storage. Unguarded, this threw from inside a
+		//setTimeout and from the preserve-for-save handler, which skipped
+		//stampDraftForSave and left a stale "unsaved draft available" banner
+		//after a SUCCESSFUL save. Draft recovery degrades; nothing else should.
+		console.warn('Could not persist the edit draft for recovery:', err);
+		return;
+	}
 	announceDraftChanged();
 };
 

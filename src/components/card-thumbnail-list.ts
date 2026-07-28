@@ -65,6 +65,10 @@ const DEFAULT_RENDER_LIMIT = 250;
 
 const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
 
+//A fresh [] each render is a new identity, so Lit's default hasChanged always
+//reports a change and re-renders every card-renderer in the drawer (up to 250).
+const NO_REFERENCE_BLOCKS = Object.freeze([]) as unknown as never[];
+
 @customElement('card-thumbnail-list')
 class CardThumbnailList  extends connect(store)(LitElement) {
 
@@ -404,7 +408,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		return html`
 			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${[]}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${NO_REFERENCE_BLOCKS}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap, this.selectable ? this._handleSelectedClicked : undefined)}
 			</div>
 		`;
