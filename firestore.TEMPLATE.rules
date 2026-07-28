@@ -346,7 +346,13 @@ service cloud.firestore {
     //deletions natively from their full published listener. Tombstones are
     //immutable except by admins (pruning).
     match /tombstones/{card} {
-      allow read: if userMayViewUnpublished();
+      // NOT userMayViewUnpublished(): that predicate reaches for
+      // resource.data.permissions.editCard and resource.data.author, which are
+      // CARD fields that a tombstone does not have. Against a tombstone it
+      // errors for unprivileged callers (failing closed, so harmless) — but a
+      // tombstone carrying an `author` field would self-grant read to that uid.
+      // State the intent directly instead of borrowing a card-shaped predicate.
+      allow read: if userIsAdmin() || getPermissions(['edit', 'editCard', 'viewUnpublished']);
       //A tombstone is valid only as part of the same atomic operation that
       //deletes a card the caller may edit. createCard alone is insufficient:
       //otherwise a create-only user could forge a tombstone for any live card
@@ -429,8 +435,13 @@ service cloud.firestore {
     }
 
     match /chats/{chat} {
-      // Chats can be read by their owner or by anyone if they're published
-      allow read: if userMayViewApp() && (resource.data.published == true || updateIsOwner());
+      // Chats can be read by their owner or by anyone if they're published.
+      // `resource == null` guard: a GET of a chat that does not exist would
+      // otherwise null-deref resource.data and ERROR rather than returning
+      // "not exists". These fail closed, so unlike the stars/reads case it was
+      // not a disclosure or data-loss bug — but it is the same latent trap,
+      // one preflight read away from mattering.
+      allow read: if userMayViewApp() && resource != null && (resource.data.published == true || updateIsOwner());
       // Allow owners to toggle published status only
       allow update: if updateIsOwner() && editOnlyTogglesPublished();
       allow create, delete: if false;
@@ -438,7 +449,9 @@ service cloud.firestore {
 
     match /chat_messages/{message} {
       // ChatMessages can be read by the owner of their associated Chat or by anyone if the chat is published
-      allow read: if exists(/databases/$(database)/documents/chats/$(resource.data.chat)) && 
+      // Same null-resource guard as chats above.
+      allow read: if resource != null &&
+                  exists(/databases/$(database)/documents/chats/$(resource.data.chat)) &&
                   (get(/databases/$(database)/documents/chats/$(resource.data.chat)).data.published == true && userMayViewApp() || 
                    loggedIn() && request.auth.uid == get(/databases/$(database)/documents/chats/$(resource.data.chat)).data.owner);
       allow write: if false;

@@ -76,9 +76,6 @@ Left as an explicit decision rather than silently claimed as met.
 
 ## P2 — security hardening
 
-- **S5.** The `resource == null` hazard remains at `firestore.TEMPLATE.rules`
-  chats read and chat_messages read. Both fail closed, but it is the same trap
-  that destroyed stars. (The `reading_lists` read was fixed with S2.)
 - **S4.** Data-at-rest remanence: the worker's `persistentLocalCache` is
   `CACHE_SIZE_UNLIMITED` and `clearIndexedDbPersistence` is called nowhere, so
   the full privileged corpus (including unpublished bodies) survives sign-out on
@@ -86,20 +83,12 @@ Left as an explicit decision rather than silently claimed as met.
 - **S6.** Anonymous users can `increment(star_count)` with no star doc, and can
   increment `star_count` while decrementing `star_count_manual` in one write
   (`editOnlyIncrementsOrDecrements` accepts any ±1 combination).
-- **S7.** The `tombstones` read rule evaluates `userMayViewUnpublished()` against
-  a document with a different schema; a tombstone carrying an `author` field
-  self-grants read to that uid.
 - **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
   `window.DEBUG_STORE` ship ungated, while the strictly less powerful
   `PERF_HARNESS` is flag-gated.
 - **S10.** BroadcastChannel `'request'` branch has no correlation token
   (`corpus-bridge.ts:1391`), giving any same-origin script an ownership-churn
   primitive; replies also spread the attacker-supplied object.
-- **S11.** `aux-write-queue.ts:65-72` validates `kind` only as a string, so
-  `executors[intent.kind]` is an unguarded lookup (`kind:"constructor"` resolves
-  to `Object`); `cardID`/`auditKey` flow unvalidated into document paths.
-  Same class: `idf-cache.ts:69-80` (`as CachedIDF`, no shape check, `NaN` age
-  never expires) and `card-web-app.ts:435-462`.
 - **S12.** `tools/seo.ts:80-81` interpolates `card.title` into `<title>`
   unescaped. Build-time, published cards, editor-authored — pre-existing and out
   of branch, but the one path where stored content reaches served HTML unescaped.

@@ -83,13 +83,28 @@ let currentUid : (() => Uid) | null = null;
 let watcherInstalled = false;
 let intentCounter = 0;
 
+//The queue's contents are attacker-writable if the machine is shared or an XSS
+//exists, and `kind` flows straight into `executors[intent.kind]` — an unguarded
+//lookup on a plain object literal, so `"constructor"` resolves to Object (a
+//callable that silently discards the intent) and `"__proto__"` throws and
+//head-of-line-blocks the rest of the queue. `cardID` and `auditKey` become
+//Firestore path segments, where a '/' would silently retarget the write.
+const AUX_WRITE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>([
+	'star-add', 'star-remove', 'read-add', 'read-remove', 'reading-list-add', 'reading-list-remove'
+]);
+
+const validPathSegment = (value : string) : boolean =>
+	Boolean(value) && !value.includes('/') && !value.includes('..') && value.length < 1500;
+
 const validIntent = (value : unknown) : value is AuxWriteIntent => {
 	if (!value || typeof value !== 'object') return false;
 	const intent = value as AuxWriteIntent;
 	return intent.version === 1 && typeof intent.id === 'string' && Boolean(intent.id) &&
 		typeof intent.uid === 'string' && Boolean(intent.uid) &&
-		typeof intent.kind === 'string' && typeof intent.cardID === 'string' && Boolean(intent.cardID) &&
-		typeof intent.auditKey === 'string' && typeof intent.createdAt === 'number';
+		typeof intent.kind === 'string' && AUX_WRITE_KINDS.has(intent.kind) &&
+		typeof intent.cardID === 'string' && validPathSegment(intent.cardID) &&
+		typeof intent.auditKey === 'string' && (intent.auditKey === '' || validPathSegment(intent.auditKey)) &&
+		typeof intent.createdAt === 'number' && Number.isFinite(intent.createdAt);
 };
 
 export const readPendingAuxWrites = () : AuxWriteIntent[] => {
