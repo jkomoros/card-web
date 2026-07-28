@@ -50,11 +50,6 @@ import * as chatImpl from './chat.js';
 import { LegalRequestData, LegalResponseData } from '../../shared/types.js';
 
 import {
-	OPENAI_API_KEY,
-	ANTHROPIC_API_KEY
-} from './common.js';
-
-import {
 	CHAT_CREATE_MESSAGE_ROUTE,
 	CHAT_POST_MESSAGE_ROUTE,
 	CHAT_RETRY_MESSAGE_ROUTE,
@@ -180,14 +175,16 @@ export const chat = onRequest({
 
 export { calculateIDF } from './idf.js';
 
-// Health endpoint for monitoring
+// Health endpoint for monitoring.
+// Deliberately discloses NOTHING about configuration: an unauthenticated,
+// CORS-open endpoint reporting which API keys are set tells an attacker which
+// integrations to probe, for no operational benefit. (It is also absent from
+// baseFunctions in tools/deploy-firebase.ts, so the standard deploy path does
+// not ship it — but leaving an ungated onRequest in the tree invites a future
+// `firebase deploy --only functions` to expose it.)
 export const health = onRequest({}, (req, res) => {
 	res.json({
 		status: 'ok',
-		timestamp: new Date().toISOString(),
-		functions: {
-			openaiEnabled: !!OPENAI_API_KEY,
-			anthropicEnabled: !!ANTHROPIC_API_KEY
-		}
+		timestamp: new Date().toISOString()
 	});
 });

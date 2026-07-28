@@ -58,8 +58,34 @@ if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 //(the Firestore emulator namespaces data by projectId). DEFAULT OFF — an absent
 //flag is a complete no-op, so real dev/prod connections are unaffected. Set
 //pre-boot via Playwright addInitScript.
+//HOST-GATED. This flag redirects BOTH Firestore and Auth to an arbitrary host,
+//so ungated it turned a one-shot XSS or a moment of device access into an
+//indefinite silent MITM — and pointing Auth at an attacker's emulator makes
+//signInWithPopup open THEIR account chooser, which is a durable
+//credential-phishing surface. The host allowlist mirrors corpus-mode.ts's
+//diagnosticModesAllowed(), and the target itself is restricted to loopback:
+//the harness only ever needs localhost.
+const emulatorHostAllowed = () => {
+	if (typeof window === 'undefined') return false;
+	const host = window.location.hostname;
+	return host === 'localhost' || host === '127.0.0.1' || host === 'dev-complexity-compendium.web.app';
+};
+
+const emulatorTargetIsLoopback = (target : string) => {
+	const host = target.split(':')[0] || 'localhost';
+	return host === 'localhost' || host === '127.0.0.1';
+};
+
 let emulatorTarget : string | null = null;
-try { emulatorTarget = window.localStorage.getItem('firebase-emulator'); } catch { emulatorTarget = null; }
+try {
+	const requested = emulatorHostAllowed() ? window.localStorage.getItem('firebase-emulator') : null;
+	if (requested && !emulatorTargetIsLoopback(requested)) {
+		console.warn(`[firebase] ignoring firebase-emulator target ${requested}: only loopback targets are permitted`);
+		emulatorTarget = null;
+	} else {
+		emulatorTarget = requested;
+	}
+} catch { emulatorTarget = null; }
 const PERF_EMULATOR_PROJECT_ID = 'demo-perf';
 
 //Exported so the corpus worker (shadow/on modes) can point at the SAME emulator.

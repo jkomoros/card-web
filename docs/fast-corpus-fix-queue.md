@@ -117,13 +117,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 
 ## P2 — security hardening
 
-- **S3.** `firebase-emulator` localStorage flag is ungated in production and
-  redirects Firestore **and Auth** to an arbitrary host
-  (`src/firebase.ts:61-62, 127-137`; mirrored at `corpus-worker.ts:840-847`).
-  One-shot XSS or device access becomes an indefinite silent MITM and a
-  credential-phishing surface via the emulator's auth handler. The branch
-  already has the right pattern in `corpus-mode.ts:18-22`
-  (`diagnosticModesAllowed()`); apply it here and restrict host to localhost.
 - **S5.** The `resource == null` hazard remains at `firestore.TEMPLATE.rules`
   chats read and chat_messages read. Both fail closed, but it is the same trap
   that destroyed stars. (The `reading_lists` read was fixed with S2.)
@@ -137,8 +130,6 @@ Fix: refuse to build a corpus-wide generator without a server IDF.
 - **S7.** The `tombstones` read rule evaluates `userMayViewUnpublished()` against
   a document with a different schema; a tombstone carrying an `author` field
   self-grants read to that uid.
-- **S8.** `functions/src/index.ts` `health` — ungated `onRequest` disclosing
-  which API keys are configured. Not in `baseFunctions`, so not deployed today.
 - **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
   `window.DEBUG_STORE` ship ungated, while the strictly less powerful
   `PERF_HARNESS` is flag-gated.
