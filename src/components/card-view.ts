@@ -502,9 +502,14 @@ class CardView extends connect(store)(PageViewElement) {
 				align-items: center;
 			}
 
-			/* Hover target for a disabled control's explanation. */
+			/* Hover target for a disabled control's explanation. The buttons it
+			   wraps sit in an inline row beside UNWRAPPED buttons, which
+			   ButtonSharedStyles gives vertical-align:middle; a default
+			   baseline-aligned wrapper dropped the wrapped ones ~6px lower
+			   than their neighbours. */
 			span.reason {
 				display: inline-flex;
+				vertical-align: middle;
 			}
 
 			card-drawer.showing {

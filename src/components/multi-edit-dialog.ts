@@ -179,9 +179,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
-			/* Hover target for a disabled control's explanation. */
+			/* Hover target for a disabled control's explanation. The
+			   vertical-align matches what ButtonSharedStyles puts on the
+			   button itself, so wrapping does not drop it below its
+			   unwrapped neighbours. */
 			span.reason {
 				display: inline-flex;
+				vertical-align: middle;
 			}
 
 			.scrim {
@@ -193,14 +197,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				display:none;
 			}
 
-				.modification-pending .scrim {
-					display:flex;
-					align-items:center;
-					justify-content:center;
-					font-weight:bold;
-					text-align:center;
-					padding:1em;
-					box-sizing:border-box;
+			.modification-pending .scrim {
+				display:flex;
+				align-items:center;
+				justify-content:center;
+				font-weight:bold;
+				text-align:center;
+				padding:1em;
+				box-sizing:border-box;
 			}
 
 			.buttons {

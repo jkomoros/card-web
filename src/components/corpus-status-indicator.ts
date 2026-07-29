@@ -43,6 +43,9 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
+			/* Without this the dot butted directly against its label whenever
+			   the header instance became non-quiet. */
+			gap: 0.4em;
 			margin: 0 0.35em;
 		}
 
@@ -64,6 +67,7 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			padding: 0.3rem;
 		}
 
+		/* Quiet statuses keep the text for screen readers only. */
 		.label {
 			position: absolute;
 			width: 1px;
@@ -74,63 +78,74 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			clip: rect(0, 0, 0, 0);
 			white-space: nowrap;
 			border: 0;
-					/* The header instance has no width budget of its own, so a long
-			   status sentence (the 'stale' copy is ~90 chars) wrapped and grew
-			   the header bar. Truncate instead; the full text stays in the
-			   title attribute. */
-			max-width: 22em;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
 		}
 
+		/* The header instance has no width budget of its own, so a long status
+		   sentence (the 'stale' copy is ~90 chars) wrapped and grew the header
+		   bar. Truncate instead; the full text stays in the title attribute.
+		   These belong HERE: on the visually-hidden rule above they were dead,
+		   and this rule used to undo them with white-space:normal. */
 		:host(:not([data-quiet])) .label {
 			position: static;
 			width: auto;
+			max-width: 22em;
 			height: auto;
 			margin: 0;
-			overflow: visible;
 			clip: auto;
-			white-space: normal;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: var(--app-dark-text-color);
 		}
 
+		/* The header instance inherits the header's full-size type, which is
+		   far too loud for a status line; the app's convention for a
+		   subordinate label is 0.75em. The floating pill already sets its own
+		   0.72rem, so it must not be scaled again. */
+		:host(:not([floating]):not([data-quiet])) .label {
+			font-size: 0.75em;
+		}
+
+		/* The palette is the app's own (purple/teal/red/grey); the previous
+		   hand-picked greens, golds and oranges belonged to no other surface
+		   in this UI. */
 		.dot {
 			width: 8px;
 			height: 8px;
+			flex-shrink: 0;
 			box-sizing: border-box;
 			border-radius: 50%;
-			background: #9ca3af;
+			background: var(--app-dark-text-color-light);
 			box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
 		}
 
 		.dot[data-status='live'] {
-			background: #2e9b50;
+			background: var(--app-secondary-color);
 		}
 
+		/* Same purple the 'Loading…' placeholder card uses. */
 		.dot[data-status='loading'],
 		.dot[data-status='checking'] {
-			background: #c69214;
+			background: var(--app-primary-color-light);
 			animation: corpus-status-pulse 1.8s ease-in-out infinite;
 		}
 
-		.dot[data-status='stale'] {
-			background: #d97706;
+		/* Tab coordination is informational, not an error. */
+		.dot[data-status='takeover'],
+		.dot[data-status='contended'],
+		.dot[data-status='inactive'] {
+			background: var(--app-primary-color-subtle);
 		}
 
-		.dot[data-status='degraded'] {
-			background: #c2410c;
+		.dot[data-status='stale'],
+		.dot[data-status='degraded'],
+		.dot[data-status='unsupported'],
+		.dot[data-status='ownership-error'] {
+			background: var(--app-warning-color);
 		}
 
 		.dot[data-status='fallback'] {
-			background: #6b7280;
-		}
-
-		.dot[data-status='contended'],
-		.dot[data-status='inactive'],
-		.dot[data-status='takeover'],
-		.dot[data-status='unsupported'],
-		.dot[data-status='ownership-error'] {
-			background: #c2410c;
+			background: var(--app-dark-text-color);
 		}
 
 		@keyframes corpus-status-pulse {

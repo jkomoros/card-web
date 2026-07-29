@@ -306,9 +306,12 @@ class CardEditor extends connect(store)(LitElement) {
 		css`
 			/* Hover target for a disabled control's explanation; see the
 			   save-button markup. inline-flex keeps the button's layout
-			   identical to when it was unwrapped. */
+			   identical to when it was unwrapped, and the vertical-align
+			   matches what ButtonSharedStyles puts on the button itself
+			   (a default baseline-aligned wrapper would override it). */
 			span.reason {
 				display: inline-flex;
+				vertical-align: middle;
 			}
 
 			:host {

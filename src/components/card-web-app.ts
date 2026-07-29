@@ -190,11 +190,16 @@ class CardWebApp extends connect(store)(LitElement) {
 			}
 			.update-ready {
 				position: fixed;
-				right: 0.75rem;
+				/* Clears the comments panel's round add-comment button, which
+				   lives in exactly this corner (44px wide at right:1em) and
+				   was sitting underneath these banners. */
+				right: 4.5rem;
 				bottom: 0.75rem;
 				z-index: 950;
 				display: flex;
+				flex-wrap: wrap;
 				align-items: center;
+				max-width: calc(100vw - 5.5rem);
 				gap: 0.65rem;
 				padding: 0.55rem 0.7rem;
 				border-radius: 0.45rem;
@@ -219,10 +224,15 @@ class CardWebApp extends connect(store)(LitElement) {
 			.save-status {
 				position: fixed;
 				left: 0.75rem;
-				bottom: 0.75rem;
+				/* Clears the card drawer's floating create-card buttons, which
+				   occupy this same corner (two 44px rounds at bottom:1em) and
+				   were being covered by this pill. */
+				bottom: 4.75rem;
 				z-index: 940;
 				display: flex;
+				flex-wrap: wrap;
 				align-items: center;
+				max-width: calc(100vw - 1.5rem);
 				gap: 0.4rem;
 				padding: 0.25rem 0.45rem;
 				border-radius: 1rem;
@@ -231,7 +241,10 @@ class CardWebApp extends connect(store)(LitElement) {
 				font: 0.78rem var(--app-default-font-family);
 				color: var(--app-dark-text-color);
 			}
-			.save-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--app-secondary-color); }
+			.save-dot { width: 0.5rem; height: 0.5rem; flex-shrink: 0; border-radius: 50%; background: var(--app-secondary-color); }
+			/* The reason is supporting detail, not a second headline: it ran
+			   together with the status label at identical weight and colour. */
+			.save-reason { color: var(--app-dark-text-color-light); }
 			.save-status.paused .save-dot { background: var(--app-warning-color); }
 			.save-status button { border: 0; background: transparent; color: var(--app-primary-color); text-decoration: underline; cursor: pointer; font: inherit; }
 		`

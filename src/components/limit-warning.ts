@@ -51,6 +51,18 @@ class LimitWarning extends connect(store)(LitElement) {
 
 			div.container {
 				padding: 0.5em 0.5em 0;
+				/* The app's convention for a subordinate label (see the label
+				   rule in ButtonSharedStyles): 0.75em, light grey. Without it
+				   this routine status line rendered at full body size and read
+				   as an error. */
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.3em;
+				font-size: 0.75em;
+				line-height: 1.3;
+				color: var(--app-dark-text-color-light);
+				text-align: center;
 			}
 
 			div.container.tight {
@@ -73,14 +85,15 @@ class LimitWarning extends connect(store)(LitElement) {
 
 			span.small {
 				display: inline-flex;
-				vertical-align: middle;
-				margin-right: 0.25em;
+				flex-shrink: 0;
 			}
 
 			span.small svg {
-				fill: var(--app-dark-text-color);
-				height: 18px;
-				width: 18px;
+				/* Sized off the (now small) text so the icon does not tower
+				   over the label it annotates. */
+				fill: var(--app-dark-text-color-light);
+				height: 1.35em;
+				width: 1.35em;
 			}
 
 		`
@@ -98,7 +111,10 @@ class LimitWarning extends connect(store)(LitElement) {
 
 				const classes = {
 					container: true,
-					loading: loadingUnpublished && !showCorpusStatus,
+					//A routine boot status should read as quietly as the app's
+					//other placeholder copy ('No notes for this card'), not as
+					//a warning.
+					loading: (loadingUnpublished && !showCorpusStatus) || this._corpusStatus === 'loading',
 					tight: this.tight
 				};
 

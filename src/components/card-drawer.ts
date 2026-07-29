@@ -111,6 +111,7 @@ class CardDrawer extends LitElement {
 				height:100%;
 				display:flex;
 				flex-direction:column;
+				position: relative;
 			}
 
 			.container.grid {
@@ -150,18 +151,23 @@ class CardDrawer extends LitElement {
 				pointer-events: auto;
 			}
 
+			/* NOTE: no backslash escapes in this template literal. It is a
+			   tagged template, so an invalid JS escape (e.g. '\\2026') makes
+			   the cooked string undefined and silently drops this ENTIRE
+			   stylesheet. Use the literal character instead. */
 			.container.updating::after {
-				content: 'updating\2026';
+				content: 'updating…';
 				position: absolute;
-				top: 0.25em;
+				top: 0.5em;
 				right: 0.5em;
 				font-size: 0.7em;
 				font-style: italic;
 				color: var(--app-dark-text-color-light);
-			}
-
-			.container {
-				position: relative;
+				/* The count label scrolls with the list but this pin does not,
+				   so it can end up over a thumbnail. Keep it legible. */
+				background: rgb(255 255 255 / 88%);
+				padding: 0 0.3em;
+				border-radius: 3px;
 			}
 
 			.grid #count {

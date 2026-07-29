@@ -195,6 +195,12 @@ class FindDialog extends connect(store)(DialogElement) {
 			.spacer {
 				flex-grow: 1;
 			}
+
+			/* On a narrow dialog the spacer collapses and the status line ran
+			   straight into the 'Sort by Recent' label with no gap at all. */
+			.limit {
+				margin-left: 1em;
+			}
 		`
 	];
 
