@@ -14,6 +14,7 @@ import {EDITING_FINISH} from './actions.js';
 import {modifyCardsWithDurableTagOperation, modifyCardsWithDurableMultiEdit} from './actions/data.js';
 import {doc, getDocFromServer} from 'firebase/firestore';
 import {deepEqual} from './util.js';
+import {corpusWorkerOwnershipState} from './corpus-bridge.js';
 
 //Watermark mode deliberately batches listener reconciliation. A multi-edit's
 //server commit budget is measured separately; allow the UI echo to arrive on
@@ -33,7 +34,7 @@ export const installPerfHarnessAPI = () : void => {
 			const state = store.getState() as State;
 			return {
 				uid: auth.currentUser?.uid || '',
-				ownership: window.CORPUS_WORKER?.ownershipState?.() || '',
+				ownership: corpusWorkerOwnershipState(),
 				cardCount: Object.keys(selectRawCards(state)).length,
 				syncStatus: state.data?.corpusStatus || '',
 				activeCardID: state.collection?.activeCardID || '',

@@ -89,6 +89,10 @@ import {
 } from './edit-draft.js';
 
 import {
+	perfEnabled
+} from './perf.js';
+
+import {
 	relativeDateCacheKey
 } from './relative-date.js';
 
@@ -1562,7 +1566,12 @@ const beginInitialOwnership = async () => {
 	disconnectBackgroundData();
 };
 
-const takeOverOwnership = async () => {
+//Exported so the ownership gate's button can call it as a normal import. It
+//used to reach through window.CORPUS_WORKER, which meant that debug surface
+//could not be gated without breaking a real UI control.
+export const corpusWorkerOwnershipState = () : string => ownershipState;
+
+export const takeOverOwnership = async () => {
 	if (ownershipState === 'active' || ownershipState === 'takeover') return;
 	if (!ownershipAPIs()) {
 		setOwnershipStatus('unsupported', 'Compendium needs a current browser (recent Chrome, Edge, Firefox, or Safari) to keep card sync safe. Please update your browser or open this page in one of those.');
@@ -1890,7 +1899,12 @@ if (typeof window !== 'undefined' && corpusWorkerOwnsCardIngestion()) {
 	setActionListener(forwardAction);
 }
 
-if (typeof window !== 'undefined') {
+//The console API can stop a worker, flip persisted modes and force an
+//ownership takeover from another tab — strictly more powerful than
+//PERF_HARNESS, which was already flag-gated while this shipped to everyone.
+//Same gate (localStorage 'debug-perf' = '1'), so a normal session exposes
+//neither.
+if (typeof window !== 'undefined' && perfEnabled()) {
 	window.CORPUS_WORKER = {
 		setMode: (mode : CorpusWorkerMode) => {
 			writeCorpusWorkerMode(mode);

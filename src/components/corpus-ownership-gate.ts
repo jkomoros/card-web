@@ -6,6 +6,7 @@ import {store} from '../store.js';
 import {selectCorpusStatus, selectCorpusStatusMessage} from '../selectors.js';
 import {CorpusStatus, State} from '../types.js';
 import {CORPUS_STATUS_BLOCKS_INTERACTION} from '../corpus-readiness.js';
+import {takeOverOwnership} from '../corpus-bridge.js';
 
 const BLOCKING = CORPUS_STATUS_BLOCKS_INTERACTION;
 
@@ -87,7 +88,7 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 			window.location.reload();
 			return;
 		}
-		void window.CORPUS_WORKER.takeOver();
+		void takeOverOwnership();
 	};
 
 	private _focusTarget() : HTMLElement | null {

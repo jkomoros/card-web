@@ -54,8 +54,12 @@ store.addReducers({
 	data,
 });
 
-//Stash this here so it's easy to get access to it via console.
-window['DEBUG_STORE'] = store;
+//Stash this here so it's easy to get access to it via console. Gated: the
+//store's dispatch is a full mutation surface, strictly more powerful than the
+//PERF_HARNESS API that was already flag-gated while this shipped to everyone.
+if (perfEnabled()) {
+	window['DEBUG_STORE'] = store;
+}
 
 if (perfEnabled()) {
 	void import('./perf-harness-api.js').then(({installPerfHarnessAPI}) => installPerfHarnessAPI());

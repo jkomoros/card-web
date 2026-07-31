@@ -35,6 +35,10 @@ fix is OUTSTANDING for: N1 (echo after confirmed commit) and N13 (the status
 indicator's new count/tooltip — code and CSS are checked, PIXELS are not; the
 in-app browser is also unreachable in this environment). Owner action: sign in
 once on a debug Chrome, or run these checks as part of the acceptance test.
+NOTE for whoever rebuilds that harness: `window.CORPUS_WORKER` and
+`window.DEBUG_STORE` are now gated behind `localStorage['debug-perf'] = '1'`
+(S9), so a driver script must set it in an init script BEFORE the page loads,
+the way test/perf-harness/run.js already does.
 
 ---
 
@@ -72,9 +76,6 @@ Left as an explicit decision rather than silently claimed as met.
   live `db`, so a correct purge means restructuring that path to re-initialize
   Firestore afterwards. Attempted and backed out for exactly that reason; the
   constraint is recorded as a comment at the call site.
-- **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
-  `window.DEBUG_STORE` ship ungated, while the strictly less powerful
-  `PERF_HARNESS` is flag-gated.
 ## P2 — UX polish
 
 - **U14.** `card-editor.ts` switched from `?hidden` to conditional rendering for
