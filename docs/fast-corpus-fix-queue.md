@@ -47,12 +47,6 @@ bar (which has no tab strip) loses them entirely. The branch's own comment at
 maintained and never rendered; the snapshot-age string is computed and routed to
 `console.log`. Criterion 8 asks for "information-dense".
 
-### N14. Card creation is not gated the way saving is, and fails with a raw alert
-`createCard` refuses via `modifyCardFailure`, which `alert()`s by default, but
-the drawer "+" button and Cmd-M are not disabled — so a held Cmd-M during the
-~30s verification window reproduces exactly the modal storm Round 7b removed
-from `editingStart`.
-
 ---
 
 ## P1 — correctness

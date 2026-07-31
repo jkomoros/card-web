@@ -589,6 +589,7 @@ class CardView extends connect(store)(PageViewElement) {
 				.reorderable=${this._userMayReorderCollection}
 				.showCreateCard=${this._userMayAddCardToActiveCollection}
 				.showCreateWorkingNotes=${this._userMayCreateCard}
+				.createEligible=${this._saveEligible}
 				.highlightedCardId=${this._card ? this._card.id : ''}
 				.reorderPending=${this._drawerReorderPending}
 				.ghostCardsThatWillBeRemoved=${true}
@@ -939,10 +940,12 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAddCard() {
+		if (!this._saveEligible) return;
 		store.dispatch(createCard({section: this._activeSectionId, cardType: this._cardTypeToAdd}));
 	}
 
 	_handleAddWorkingNotesCard() {
+		if (!this._saveEligible) return;
 		store.dispatch(createCard({cardType: 'working-notes'}));
 	}
 
@@ -1198,6 +1201,12 @@ class CardView extends connect(store)(PageViewElement) {
 
 		if (e.code == 'KeyM') {
 			//these action creators will fail if the user may not do these now.
+			//While sync is still verifying, createCard refuses via
+			//modifyCardFailure — which alerts. A HELD Cmd-M then produces one
+			//modal per repeat for the whole verification window, the same storm
+			//Round 7b removed from editingStart. Swallow the shortcut instead;
+			//the drawer's buttons are disabled and carry the explanation.
+			if (!this._saveEligible) return killEvent(e);
 			if (e.shiftKey) {
 				store.dispatch(createCard({cardType: 'working-notes'}));
 			} else {

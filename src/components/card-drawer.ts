@@ -38,6 +38,10 @@ import {
 	makeInfoZippyClickedEvent
 } from '../events.js';
 
+//Matches the wording the editor uses for the disabled Save button, so the two
+//blocked-until-live explanations stay recognizably the same thing.
+const CREATE_BLOCKED_TITLE = 'Card sync is still verifying — creating a card unlocks as soon as sync is live.';
+
 @customElement('card-drawer')
 class CardDrawer extends LitElement {
 
@@ -63,6 +67,12 @@ class CardDrawer extends LitElement {
 	//If true, will show the button to add working notes card no matter what
 	@property({ type : Boolean })
 		showCreateWorkingNotes: boolean;
+
+	//False while card sync is still verifying: creation would be refused by the
+	//action creator, so the buttons gray out and explain themselves instead of
+	//firing an alert per click.
+	@property({ type : Boolean })
+		createEligible: boolean;
 
 	@property({ type : Object })
 		collection: Collection | null;
@@ -224,8 +234,8 @@ class CardDrawer extends LitElement {
 }
 				</div>
 				<div class='buttons'>
-					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.showCreateCard}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button>
+					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' ?disabled='${!this.createEligible}' title="${this.createEligible ? 'Create a new working notes card (Cmd-Shift-M)' : CREATE_BLOCKED_TITLE}">${INSERT_DRIVE_FILE_ICON}</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.showCreateCard}' ?disabled='${!this.createEligible}' title=${this.createEligible ? 'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)' : CREATE_BLOCKED_TITLE}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button>
 				</div>
 			</div>
 		`;
@@ -236,17 +246,19 @@ class CardDrawer extends LitElement {
 	}
 
 	_handleAddSlide() {
-		if (!this.showCreateCard) return;
+		if (!this.showCreateCard || !this.createEligible) return;
 		this.dispatchEvent(makeAddCardEvent());
 	}
 
 	_handleCreateWorkingNotes() {
+		if (!this.createEligible) return;
 		this.dispatchEvent(makeAddWorkingNotesCardEvent());
 	}
 
 	constructor() {
 		super();
 		this.renderOffset = 0;
+		this.createEligible = true;
 	}
 
 }

@@ -48,6 +48,7 @@ import {
 import {
 	selectCollectionForQuery,
 	selectUserMayCreateCard,
+	selectCardSavesEligible,
 	selectFindLegalCardTypeFilters,
 	selectFindCardTypeFilter,
 	selectFindCardTypeFilterLocked,
@@ -142,6 +143,9 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_userMayCreateCard: boolean;
+		//Creating a stub writes a card, so it is gated on the same readiness
+		//as saving one.
+		_saveEligible: boolean;
 
 	@state()
 		_legalCardTypeFilters: CardType[];
@@ -237,7 +241,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 				<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
 			</div>
-			<button class='round' @click='${this._handleAddSlide}' title=${'Create a new stub card to link to of type ' + this._cardTypeToAdd} ?hidden=${!this._userMayCreateCard}>${PLUS_ICON}</button>
+			<button class='round' @click='${this._handleAddSlide}' title=${this._saveEligible ? 'Create a new stub card to link to of type ' + this._cardTypeToAdd : 'Card sync is still verifying — creating a card unlocks as soon as sync is live.'} ?hidden=${!this._userMayCreateCard} ?disabled=${!this._saveEligible}>${PLUS_ICON}</button>
 		</div>
 	`;
 	}
@@ -318,6 +322,10 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleAddSlide() {
 		if (!this._linking && !this._referencing) return;
+		//createCard would be refused while sync is still verifying, and the
+		//link/reference below would then point at a card that was never
+		//created. The button is disabled for the same reason.
+		if (!this._saveEligible) return;
 
 		const cardType = this._cardTypeToAdd;
 
@@ -440,6 +448,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._referencing = selectFindReferencing(state);
 		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
+		this._saveEligible = selectCardSavesEligible(state);
 		this._legalCardTypeFilters = selectFindLegalCardTypeFilters(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
