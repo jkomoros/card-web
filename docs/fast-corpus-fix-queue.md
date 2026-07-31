@@ -25,16 +25,14 @@ pattern to both, which is a design change rather than a patch.
 
 ## Round 11 — from the four-lens critique (UX / robustness / perf / archaeology)
 
-### N1. A save interrupted by a brief network drop lands on the server, but the tab shows stale content forever
-Reproduced SIX times with a decisive control: commit an edit, drop the network
-~100ms later, reconnect after ~16s. The durable record clears in ~1.5s, the app
-reports `status=live, pending=0`, no dialog — and the card body stays at its
-pre-edit content indefinitely (polled 300s). A full reload immediately shows the
-edit present, so the write DID reach the server. Any later edit from that tab is
-then computed against stale content: a lost-update path. Inferred mechanism:
-unpublished cards sync via one delta listener bounded on
-`updated > watermark`, so a watermark advanced past the reconnect write misses it
-permanently, while a reload re-primes from scratch.
+### VERIFICATION DEBT (created by the 2026-07-31 power outage)
+The signed-in Chrome profile used for live DEV verification lived in the session
+scratchpad under `/private/tmp` and was destroyed by the outage, along with the
+Playwright harness. Re-creating it needs a sign-in I cannot perform (entering the
+account password is off-limits for me). Everything below this line was fixed and
+unit/type-checked, but the end-to-end DEV re-check that normally accompanies each
+fix is OUTSTANDING for: N1 (echo after confirmed commit). Owner action: sign in
+once on a debug Chrome, or run these checks as part of the acceptance test.
 
 ### N8. Relative-date collections never roll over at local midnight in worker mode
 `selectRelativeDateCacheKey` is the only midnight-sensitive input and the worker

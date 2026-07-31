@@ -876,6 +876,10 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			let skippedCount = 0;
 			let markerAfterCommit = false;
 			let forceMarkerAfterCommit = false;
+			//Post-write cards for this chunk, applied locally once the commit is
+			//SERVER-CONFIRMED. Not optimistically: the durable executor may run
+			//long after the editor that queued it has closed.
+			let chunkEchoes : Cards = {};
 			while (candidateSize >= 1) {
 				chunkIDs = operation.targetIDs.slice(operation.nextIndex, operation.nextIndex + candidateSize);
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
@@ -884,6 +888,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				const state = getState();
 				batch = new MultiBatch(db, `${operation.id}-${operation.nextIndex}`);
 				modifiedCount = 0;
+				chunkEchoes = {};
 				for (const id of chunkIDs) {
 					if (!authoritative.cards[id]) continue;
 					batch.beginAtomicGroup(id);
@@ -897,9 +902,16 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					const compactMultiEdit = operation.kind !== 'single';
 					const durableBase = operation.oversizedBaseCards?.[id];
 					const planningCard = durableBase ? restoredPersistedCard(durableBase) : authoritative.cards[id];
-					const modified = await modifyCardWithBatch(state, planningCard, operation.update, Boolean(operation.substantive), batch, undefined, undefined, false, compactMultiEdit, false);
+					//Materialize the post-write card. This path used to pass
+					//`undefined` for both echo maps, so alone among the write
+					//paths it produced nothing to apply locally and depended
+					//entirely on the delta listener bringing the card back
+					//around. See the echo after the confirmed commit below.
+					const cardEchoes : Cards = {};
+					const modified = await modifyCardWithBatch(state, planningCard, operation.update, Boolean(operation.substantive), batch, cardEchoes, chunkEchoes, false, compactMultiEdit, false);
 					if (modified) {
 						batch.endAtomicGroup();
+						Object.assign(chunkEchoes, cardEchoes);
 						modifiedCount++;
 					} else {
 						batch.abortAtomicGroup();
@@ -967,6 +979,15 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				markerBatch.endAtomicGroup();
 			}
 			await commitFanoutThenMarker(batch, markerBatch);
+			//Server-confirmed: apply what we just wrote instead of waiting for
+			//the delta listener to echo it back. That is latency compensation,
+			//and it is also a backstop — the listener is bounded on
+			//`updated > watermark`, so a delivery it misses is never retried,
+			//which could leave a committed edit invisible in this tab until a
+			//reload.
+			if (Object.keys(chunkEchoes).length) {
+				await dispatch(echoLocalCardModifications(chunkEchoes));
+			}
 			operation.nextIndex += chunkIDs.length;
 			operation.modifiedCount += modifiedCount;
 			operation.skippedCount = (operation.skippedCount || 0) + skippedCount;
