@@ -31,14 +31,10 @@ scratchpad under `/private/tmp` and was destroyed by the outage, along with the
 Playwright harness. Re-creating it needs a sign-in I cannot perform (entering the
 account password is off-limits for me). Everything below this line was fixed and
 unit/type-checked, but the end-to-end DEV re-check that normally accompanies each
-fix is OUTSTANDING for: N1 (echo after confirmed commit). Owner action: sign in
+fix is OUTSTANDING for: N1 (echo after confirmed commit) and N13 (the status
+indicator's new count/tooltip — code and CSS are checked, PIXELS are not; the
+in-app browser is also unreachable in this environment). Owner action: sign in
 once on a debug Chrome, or run these checks as part of the acceptance test.
-
-### N13. Status is a mute dot in the two states you are in 99% of the time
-`corpus-status-indicator.ts:181` marks `live`, `off` AND `loading` as
-`data-quiet`, and the quiet label is `clip: rect(0,0,0,0)`. `workerCorpusSize` is
-maintained and never rendered; the snapshot-age string is computed and routed to
-`console.log`. Criterion 8 asks for "information-dense".
 
 ---
 

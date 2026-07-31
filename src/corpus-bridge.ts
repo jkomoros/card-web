@@ -39,6 +39,7 @@ import {
 	REMOVE_CARDS,
 	STOP_EXPECTING_FETCHED_CARDS,
 	UPDATE_CORPUS_STATUS,
+	UPDATE_CORPUS_DETAIL,
 	FIND_UPDATE_SEARCH_RECALL,
 	EDITING_FINISH,
 } from './actions.js';
@@ -430,6 +431,27 @@ const flushPendingRunCollections = () => {
 //as re-attached listeners refill the corpus after an outage).
 let workerLoadComplete = false;
 let workerCorpusSize = 0;
+let workerSnapshotAgeMs : number | null = null;
+
+//The size and snapshot age were maintained here and never rendered. Publish
+//them into Redux so the status indicator can be information-dense (criterion
+//8) instead of a mute dot. Dispatch only on change: this is called from the
+//per-batch ingestion path.
+let lastPublishedCorpusSize = -1;
+let lastPublishedSnapshotAgeMs : number | null | undefined = undefined;
+//Teardown/reconnect reset. One call rather than three lines at each site.
+const resetCorpusDetail = () => {
+	workerCorpusSize = 0;
+	workerSnapshotAgeMs = null;
+	publishCorpusDetail();
+};
+
+const publishCorpusDetail = () => {
+	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs) return;
+	lastPublishedCorpusSize = workerCorpusSize;
+	lastPublishedSnapshotAgeMs = workerSnapshotAgeMs;
+	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs});
+};
 //Delta-sync health as last reported by the worker (watermark mode).
 let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 
@@ -901,6 +923,7 @@ const handleCardBatch = (batch : CardBatch) => {
 	const handleStartedAt = performance.now();
 	const inputCount = Object.keys(batch.cards).length;
 	workerCorpusSize = batch.corpusSize;
+	publishCorpusDetail();
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
 	const decodedAt = performance.now();
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
@@ -1081,7 +1104,9 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'loadComplete':
 		workerLoadComplete = true;
 		workerCorpusSize = message.corpusSize;
+		workerSnapshotAgeMs = message.snapshotAgeMs;
 		console.log(`[corpus-worker] load complete: ${message.corpusSize} cards`);
+		publishCorpusDetail();
 		for (const fetchType of Object.keys(selectLoadingCardFetchTypes(store.getState() as State)) as CardFetchType[]) {
 			store.dispatch({type: STOP_EXPECTING_FETCHED_CARDS, fetchType});
 		}
@@ -1222,7 +1247,7 @@ const stopWorker = () => {
 	pendingPerfData.clear();
 	flushPendingRunCollections();
 	workerLoadComplete = false;
-	workerCorpusSize = 0;
+	resetCorpusDetail();
 };
 
 const ownershipAPIs = () => {
@@ -1371,7 +1396,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	lastUid = uid;
 	generation++;
 	workerLoadComplete = false;
-	workerCorpusSize = 0;
+	resetCorpusDetail();
 	lastSyncState = '';
 	pendingMassReconciliationSignature = '';
 	flushPendingRunCollections();
@@ -1771,7 +1796,7 @@ const upgradeReaderToOwnedConnection = () => {
 	connectSent = false;
 	generation++;
 	workerLoadComplete = false;
-	workerCorpusSize = 0;
+	resetCorpusDetail();
 	lastSyncState = '';
 	pendingMassReconciliationSignature = '';
 	resetSubscriptionsForReconnect();

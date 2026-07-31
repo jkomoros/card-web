@@ -6,6 +6,8 @@ import { store } from '../store.js';
 import {
 	selectCorpusStatus,
 	selectCorpusStatusMessage,
+	selectCorpusSize,
+	selectCorpusSnapshotAgeMs,
 } from '../selectors.js';
 import {
 	CorpusStatus,
@@ -38,6 +40,12 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 	@state()
 		_message = '';
 
+	@state()
+		_corpusSize = 0;
+
+	@state()
+		_snapshotAgeMs : number | null = null;
+
 	static override styles = css`
 		:host {
 			display: inline-flex;
@@ -63,8 +71,24 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			font-size: 0.72rem;
 		}
 
-		:host([floating][data-quiet]) {
+		/* The quiet pill used to be a bare dot, so it collapsed to a circle.
+		   With a count beside it that padding crops the number. */
+		:host([floating][data-quiet]:not([data-has-count])) {
 			padding: 0.3rem;
+		}
+
+		/* The one number that is worth showing even in the quiet states. Same
+		   0.72rem the floating pill uses, in the app's subordinate-label grey,
+		   with tabular figures so it does not jitter as the count changes. */
+		.count {
+			font-size: 0.72em;
+			font-variant-numeric: tabular-nums;
+			color: var(--app-dark-text-color-light);
+			line-height: 1;
+		}
+
+		.count[hidden] {
+			display: none;
 		}
 
 		/* Quiet statuses keep the text for screen readers only. */
@@ -161,23 +185,56 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		}
 	`;
 
+	//Compact enough to sit next to the dot without becoming a second status
+	//sentence: 812 -> '812', 40225 -> '40.2k'.
+	get _countLabel() : string {
+		if (!this._corpusSize) return '';
+		if (this._corpusSize < 10000) return String(this._corpusSize);
+		return `${(this._corpusSize / 1000).toFixed(1)}k`;
+	}
+
+	get _snapshotAgeLabel() : string {
+		if (this._snapshotAgeMs === null) return '';
+		const hours = this._snapshotAgeMs / (60 * 60 * 1000);
+		if (hours < 1) return 'cached minutes ago';
+		if (hours < 24) return `cached ${Math.round(hours)}h ago`;
+		return `cached ${Math.round(hours / 24)}d ago`;
+	}
+
+	//The tooltip carries the density; the pill itself stays subtle.
+	get _detail() : string {
+		const parts = [this._message || DEFAULT_MESSAGES[this._status]];
+		if (this._corpusSize) parts.push(`${this._corpusSize.toLocaleString()} cards`);
+		//Only worth saying once it is old enough to explain something the user
+		//might otherwise mistake for missing data.
+		if (this._snapshotAgeMs !== null && this._snapshotAgeMs >= 60 * 60 * 1000) parts.push(this._snapshotAgeLabel);
+		return parts.join(' · ');
+	}
+
 	override render() {
-		const description = this._message || DEFAULT_MESSAGES[this._status];
+		//In the quiet states the dot alone said nothing at all. A card count is
+		//one glanceable number that distinguishes 'live with the whole corpus'
+		//from 'live with a fraction of it', which is the failure this whole
+		//branch is about.
+		const count = this._countLabel;
 		return html`
 			<span
 				class='dot'
 				data-status=${this._status}
 				aria-hidden='true'
-				title=${description}
-			></span><span class='label' role='status' aria-live='polite'>${description}</span>
+				title=${this._detail}
+			></span><span class='count' aria-hidden='true' title=${this._detail} ?hidden=${!count}>${count}</span><span class='label' role='status' aria-live='polite'>${this._detail}</span>
 		`;
 	}
 
 	override stateChanged(state : State) {
 		this._status = selectCorpusStatus(state);
 		this._message = selectCorpusStatusMessage(state);
+		this._corpusSize = selectCorpusSize(state);
+		this._snapshotAgeMs = selectCorpusSnapshotAgeMs(state);
 		//'loading' is quiet too: a labeled pill on every ordinary boot is
 		//noise — the floating indicator should speak only for degraded states.
+		this.toggleAttribute('data-has-count', Boolean(this._countLabel));
 		this.toggleAttribute('data-quiet', this._status === 'live' || this._status === 'off' || this._status === 'loading');
 	}
 }

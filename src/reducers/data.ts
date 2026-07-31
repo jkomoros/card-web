@@ -24,6 +24,7 @@ import {
 	STOP_EXPECTING_FETCHED_CARDS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	UPDATE_CORPUS_STATUS,
+	UPDATE_CORPUS_DETAIL,
 } from '../actions.js';
 
 import {
@@ -108,6 +109,8 @@ const INITIAL_STATE : DataState = {
 	},
 	corpusStatus: 'off',
 	corpusStatusMessage: '',
+	corpusSize: 0,
+	corpusSnapshotAgeMs: null,
 	sectionsLoaded: false,
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
@@ -132,6 +135,12 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			corpusStatus: action.status,
 			corpusStatusMessage: action.message,
+		};
+	case UPDATE_CORPUS_DETAIL:
+		return {
+			...state,
+			corpusSize: action.corpusSize,
+			corpusSnapshotAgeMs: action.snapshotAgeMs,
 		};
 	case EXPECT_NEW_CARD:
 		//This means that although we may think we're fully loaded now, there's

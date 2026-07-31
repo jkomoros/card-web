@@ -159,6 +159,7 @@ export const STOP_EXPECTING_FETCHED_CARDS = 'STOP_EXPECTING_FETCHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 export const UPDATE_SERVER_IDF = 'UPDATE_SERVER_IDF';
 export const UPDATE_CORPUS_STATUS = 'UPDATE_CORPUS_STATUS';
+export const UPDATE_CORPUS_DETAIL = 'UPDATE_CORPUS_DETAIL';
 //Editor
 export const EDITING_START = 'EDITING_START';
 export const EDITING_RESTORE_DRAFT = 'EDITING_RESTORE_DRAFT';
@@ -690,6 +691,15 @@ type ActionUpdateCorpusStatus = {
 	type: typeof UPDATE_CORPUS_STATUS,
 	status: CorpusStatus,
 	message: string
+};
+
+//The quantitative half of the sync status: how many cards the worker actually
+//holds, and how old the snapshot it primed from was. Separate from the status
+//message so a numeric refresh never overwrites a degraded-state explanation.
+type ActionUpdateCorpusDetail = {
+	type: typeof UPDATE_CORPUS_DETAIL,
+	corpusSize: number,
+	snapshotAgeMs: number | null
 };
 
 type ActionCommittedPendingFiltersWhenFullyLoaded = {
@@ -1224,6 +1234,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateWorkerCollection
 	| ActionUpdateCardMeta
 	| ActionUpdateCorpusStatus
+	| ActionUpdateCorpusDetail
 	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot

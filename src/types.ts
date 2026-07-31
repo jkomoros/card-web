@@ -969,6 +969,12 @@ export type DataState = {
 	loadingCardFetchTypes: CardFetchTypeMap,
 	corpusStatus: CorpusStatus,
 	corpusStatusMessage: string,
+	//How many cards the corpus worker holds, and the age of the snapshot this
+	//session primed from (null when primed from the server). Both were
+	//maintained but never rendered; criterion 8 asks for an information-dense
+	//status, not a mute dot.
+	corpusSize: number,
+	corpusSnapshotAgeMs: number | null,
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
 	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.

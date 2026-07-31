@@ -252,7 +252,11 @@ export type WorkerToMainMessage =
 	//it. THE readiness signal — inferring completeness from per-batch
 	//arrivals declared partial corpora ready (the first of five partition
 	//flushes, or an offline worker's empty from-cache snapshots).
-	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number}
+	//snapshotAgeMs is the age of the compact snapshot this session primed from,
+	//or null when it primed from the server. It was computed and logged to the
+	//console only, so a device that had been offline for weeks served a
+	//months-old corpus with no staleness signal anywhere in the UI.
+	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number, snapshotAgeMs : number | null}
 	//Progress of the background search-recall build (find narrowing). `ready`
 	//flips true exactly once per connection when the whole corpus is indexed.
 	| {type: 'searchRecall', generation: WorkerGeneration, built : number, total : number, ready : boolean}

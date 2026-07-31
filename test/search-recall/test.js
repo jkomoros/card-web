@@ -37,7 +37,10 @@ describe('search recall', () => {
 		it('kicks the build at the prime handoff, at initial-load completion, and on find-dialog subscriptions', () => {
 			assert.match(worker, /watermark prime: [\s\S]{0,800}scheduleSearchRecallBuild\(\)/,
 				'prime handoff must start the low-duty background build');
-			assert.match(worker, /initialLoadPending = null;[\s\S]{0,300}scheduleSearchRecallBuild\(\)/,
+			//Window widened from 300 to 420 when loadComplete gained the
+			//snapshot-age field; the pin is about the promote call still
+			//following initial-load completion, not about the exact byte count.
+			assert.match(worker, /initialLoadPending = null;[\s\S]{0,420}scheduleSearchRecallBuild\(\)/,
 				'initial load completion must promote the build');
 			assert.match(worker, /case 'subscribeCollection':[\s\S]{0,300}query\/[\s\S]{0,80}scheduleSearchRecallBuild\(\)/,
 				'a query subscription is an intent signal');

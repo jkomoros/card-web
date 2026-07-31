@@ -402,6 +402,10 @@ const buildSearchRecall = async () => {
 
 const status = (message : string) => send({type: 'status', generation, message});
 
+//Age of the compact snapshot this session primed from; null when primed from
+//the server. Reported with loadComplete so the UI can show staleness.
+let primedSnapshotAgeMs : number | null = null;
+
 //Terminal, user-visible degradation. The protocol, the bridge handler and a
 //proper "Cards could not load / Reload and retry" panel all existed, but NO
 //worker code ever sent this message — every worker-side failure exited as a
@@ -808,7 +812,7 @@ const markInitialDelivered = (fetchType : CardFetchType) => {
 	if (!initialLoadPending.delete(fetchType)) return;
 	if (initialLoadPending.size) return;
 	initialLoadPending = null;
-	send({type: 'loadComplete', generation, corpusSize: corpus.size});
+	send({type: 'loadComplete', generation, corpusSize: corpus.size, snapshotAgeMs: primedSnapshotAgeMs});
 	status(`initial load complete: ${corpus.size} cards in corpus`);
 	//The corpus is settled: promote the background search-recall build to its
 	//full duty cycle (idempotent if the prime handoff already kicked it).
@@ -2040,6 +2044,9 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	const primedCards : Cards = {};
 	let primeSource = 'persistent cache';
 	let compactTombstoneIDs : string[] = [];
+	//Reset per prime: a reconnection that primes from the server must not
+	//report the previous connection's snapshot age.
+	primedSnapshotAgeMs = null;
 	try {
 		//null when IndexedDB is unusable (see the claim above): there is simply
 		//no local snapshot to prime from, so fall through to the server prime.
@@ -2055,6 +2062,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 			//be invisible.
 			const ageMs = Date.now() - (compactSnapshot.savedAt || 0);
 			const ageDays = ageMs / (24 * 60 * 60 * 1000);
+			primedSnapshotAgeMs = compactSnapshot.savedAt ? ageMs : null;
 			if (compactSnapshot.savedAt && ageDays >= 1) {
 				status(`compact snapshot is ${ageDays.toFixed(1)} days old; serving it while verification catches up`);
 			}
