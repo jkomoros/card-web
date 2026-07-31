@@ -88,6 +88,14 @@ import {
 } from './edit-draft.js';
 
 import {
+	relativeDateCacheKey
+} from './relative-date.js';
+
+import {
+	isRelativeDate
+} from './filters.js';
+
+import {
 	durableCardMutationPending
 } from './actions/data.js';
 
@@ -575,6 +583,12 @@ const bridgeSubscriptions : {[slot in WorkerCollectionSlot] : BridgeSubscription
 	query: {slot: 'query', id: 0, key: '', descriptionSerialized: '', latest: null},
 };
 
+//Whether any part of the description's filters is a relative date ('today',
+//'3-days-ago', 'last-monday', …). Those resolve against local midnight, so
+//their results change when the day does even though nothing in the app did.
+const descriptionUsesRelativeDates = (description : CollectionDescription) : boolean =>
+	description.filters.some(filter => filter.split('/').some(part => isRelativeDate(part)));
+
 //Subscribe (or resubscribe, or unsubscribe when description is null) the
 //given slot. The key incorporates everything that changes results besides
 //engine-internal state.
@@ -604,7 +618,12 @@ const ensureSubscription = (slot : WorkerCollectionSlot, description : Collectio
 		lastSeenCardSimilarity = similarity;
 		cardSimilaritySerial++;
 	}
-	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid + '|' + cardSimilaritySerial;
+	//A description like `updated/today` resolves against the LOCAL day, and
+	//nothing else in this key changes when the day does. Without the day
+	//component a tab left open overnight keeps rendering yesterday's set —
+	//and 'tabs open for days' is the normal way this app is used.
+	const dayKey = descriptionUsesRelativeDates(description) ? '|' + relativeDateCacheKey() : '';
+	const key = description.serialize() + '|' + selectRandomSalt(state) + '|' + lastUid + '|' + cardSimilaritySerial + dayKey;
 	if (key === subscription.key) return;
 	if (subscription.id) {
 		post({type: 'unsubscribeCollection', generation, subscriptionID: subscription.id});
@@ -818,6 +837,29 @@ const maybeSendEditingCard = () => {
 	post({type: 'setEditingCard', generation, card, similarity});
 };
 
+//The day key only reaches ensureSubscription when something calls it, and an
+//idle tab dispatches nothing at all — so the rollover needs its own tick.
+//Rescheduled after each fire; a machine asleep across midnight fires late on
+//wake, which is exactly when the stale set would otherwise be seen.
+let relativeDateRolloverTimer : ReturnType<typeof setTimeout> | null = null;
+
+const scheduleRelativeDateRollover = () => {
+	if (relativeDateRolloverTimer) clearTimeout(relativeDateRolloverTimer);
+	const nextMidnight = new Date();
+	nextMidnight.setDate(nextMidnight.getDate() + 1);
+	nextMidnight.setHours(0, 0, 0, 0);
+	//A second past the boundary, so the new day key is unambiguously current.
+	const delay = Math.max(1000, nextMidnight.getTime() - Date.now() + 1000);
+	relativeDateRolloverTimer = setTimeout(() => {
+		relativeDateRolloverTimer = null;
+		//runShadowCompare re-runs ensureSubscription for the live slots; the
+		//day component of the key has changed, so a date-relative description
+		//resubscribes and recomputes while the rest stay untouched.
+		runShadowCompare();
+		scheduleRelativeDateRollover();
+	}, delay);
+};
+
 const startShadowComparator = () => {
 	if (shadowComparatorStarted) return;
 	const mode = readMode();
@@ -829,6 +871,7 @@ const startShadowComparator = () => {
 		scheduleShadowCompare();
 	});
 	scheduleShadowCompare();
+	scheduleRelativeDateRollover();
 	if (mode === 'shadow') {
 		console.log('[corpus-shadow] comparator active (compares at most every ' + (SHADOW_COMPARE_INTERVAL_MS / 1000) + 's)');
 	}

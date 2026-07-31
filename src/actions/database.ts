@@ -693,8 +693,15 @@ let backgroundDataInert = false;
 
 export const backgroundDataIsInert = () => backgroundDataInert;
 
+//Whether slug-legal warming (and with it the activity listeners) was running
+//when this tab went inert, so a takeover winner can put it back. Without this
+//the reconnect restored the other eleven listeners and silently left editing
+//without its warm slug-legality check.
+let slugLegalWasWarm = false;
+
 export const disconnectBackgroundDataForInactiveTab = () => {
 	backgroundDataInert = true;
+	slugLegalWasWarm = Boolean(slugLegalInterval);
 	if (slugLegalInterval) window.clearInterval(slugLegalInterval);
 	slugLegalInterval = 0;
 	document.removeEventListener('mousemove', userActivity);
@@ -729,5 +736,13 @@ export const reconnectBackgroundDataForActiveTab = () => {
 		connectLiveReads(uid);
 		connectLiveReadingList(uid);
 		connectLivePermissions(uid);
+	}
+	//Restore the two things the disconnect took away that aren't Firestore
+	//listeners: the slug-legality warm-up interval and the activity listeners
+	//it installs. keepSlugLegalWarm is idempotent, and only re-arms if this tab
+	//had it running before it went inert.
+	if (slugLegalWasWarm) {
+		slugLegalWasWarm = false;
+		keepSlugLegalWarm();
 	}
 };

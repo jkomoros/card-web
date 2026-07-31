@@ -34,23 +34,12 @@ unit/type-checked, but the end-to-end DEV re-check that normally accompanies eac
 fix is OUTSTANDING for: N1 (echo after confirmed commit). Owner action: sign in
 once on a debug Chrome, or run these checks as part of the acceptance test.
 
-### N8. Relative-date collections never roll over at local midnight in worker mode
-`selectRelativeDateCacheKey` is the only midnight-sensitive input and the worker
-builds its collection args without it (`src/worker/query-engine.ts:507-520`);
-nothing schedules a recompute at midnight. A tab left open overnight on
-`updated/today` shows yesterday's set — exactly the "tabs open for days" pattern.
-
 ### N10. Editor Content tab loses Auto TODOs, tag editing, and both suggested-concept shortcuts
 `src/components/card-editor.ts:928-948` gates them on
 `configTabActive = this._active && this._selectedTab == 'config'`, but the
 default tab is `'config'` and these are needed on Content. The minimized editor
 bar (which has no tab strip) loses them entirely. The branch's own comment at
 `:955-958` names this exact bug class from an earlier partial fix.
-
-### N11. `keepSlugLegalWarm` and the activity listeners are never restored after a takeover
-`disconnectBackgroundDataForInactiveTab` clears them
-(`src/actions/database.ts:696-712`) but `reconnectBackgroundDataForActiveTab`
-(`:716-732`) restores the other eleven listeners and not these two.
 
 ### N12. A dropped similarity request never dispatches a terminal state
 `src/similarity-retry.ts:119-124` — `_cancelEntry` deletes the LRU entry and
