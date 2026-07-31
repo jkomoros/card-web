@@ -406,7 +406,11 @@ describe('updated-invariant guard↔rules drift gate', () => {
 	const rulesNonBumpFields = () => {
 		const rules = fs.readFileSync(path.join(process.cwd(), 'firestore.TEMPLATE.rules'), 'utf8');
 		const fields = new Set();
-		for (const fn of ['cardEditLegalStars', 'cardEditLegalMessages', 'cardEditLegalTweets']) {
+		//starCountMovesWithOwnStar is where the star field names now live: the
+		//star rule was split out so the counters could be bound to the user's
+		//own star document. Without it in this list the gate reports a false
+		//drift for star_count/star_count_manual.
+		for (const fn of ['cardEditLegalStars', 'starCountMovesWithOwnStar', 'cardEditLegalMessages', 'cardEditLegalTweets']) {
 			const start = rules.indexOf('function ' + fn);
 			assert.ok(start >= 0, `rules must define ${fn}`);
 			const rest = rules.slice(start);
