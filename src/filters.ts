@@ -886,9 +886,20 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
 
 //Above this many cards, the synchronous whole-corpus fingerprint fallback costs
-//more than the feature is worth on the UI thread. The real similarity paths
-//(the worker's precomputed fingerprints and the Qdrant service) are unaffected.
+//more than the feature is worth ON THE UI THREAD.
+//
+//CRITICAL SCOPING: this module also runs inside the corpus worker
+//(query-engine -> collection_description -> filters), and the worker has NO
+//separate fingerprint-similarity path — its only FingerprintGenerator serves
+//suggestTags. An earlier version of this guard was unscoped and a comment here
+//claimed the worker was unaffected; it was not, so on a 40k corpus every card
+//absent from Qdrant rendered EMPTY similar-cards blocks instead of local
+//matches. The cost this guard exists to avoid is main-thread jank, so only the
+//main thread declines.
 const MAX_UI_THREAD_FINGERPRINT_CORPUS = 10000;
+
+//True on the main thread, false in the worker (no `window`).
+const runningOnUIThread = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
 const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	if (!QDRANT_ENABLED) return false;
@@ -958,7 +969,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 		//show something. Above a corpus size where the cost is perceptible,
 		//decline rather than freeze the UI — callers already handle an empty
 		//map (they show the local-fingerprint-free state).
-		if (Object.keys(cards).length > MAX_UI_THREAD_FINGERPRINT_CORPUS) {
+		if (runningOnUIThread() && Object.keys(cards).length > MAX_UI_THREAD_FINGERPRINT_CORPUS) {
 			return {map: new Map(), preview};
 		}
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);

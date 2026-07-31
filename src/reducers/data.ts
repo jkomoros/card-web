@@ -48,6 +48,25 @@ import {
 //Removes only the similarity entries that mention one of the changed cards,
 //either as the key card or within the ranked results. Preserves the map's
 //identity when no entry is affected.
+//Keep the most recently used similarity results only. Insertion order in a JS
+//object is stable for string keys, so re-inserting on touch gives LRU order for
+//free; 64 key cards is far more than any view needs (reference blocks fan out a
+//handful per card) while keeping the worker payload small.
+const MAX_CARD_SIMILARITY_ENTRIES = 64;
+
+const boundedCardSimilarity = (previous : CardSimilarityMap, cardID : CardID, similarity : CardSimilarityMap[CardID]) : CardSimilarityMap => {
+	const next : CardSimilarityMap = {};
+	for (const [id, value] of Object.entries(previous)) {
+		if (id === cardID) continue;
+		next[id] = value;
+	}
+	next[cardID] = similarity;
+	const keys = Object.keys(next);
+	if (keys.length <= MAX_CARD_SIMILARITY_ENTRIES) return next;
+	for (const id of keys.slice(0, keys.length - MAX_CARD_SIMILARITY_ENTRIES)) delete next[id];
+	return next;
+};
+
 const pruneCardSimilarityByIDs = (similarity : CardSimilarityMap, changedIDs : CardID[]) : CardSimilarityMap => {
 	if (changedIDs.length === 0) return similarity;
 	const changedIDSet = new Set(changedIDs);
@@ -315,10 +334,14 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case UPDATE_CARD_SIMILARITY:
 		return {
 			...state,
-			cardSimilarity: {
-				...state.cardSimilarity,
-				[action.card_id] : action.similarity
-			}
+			//BOUNDED. Each entry holds up to DEFAULT_SIMLIAR_POINTS_LIMIT (500)
+			//scores and one arrives per card visited, so browsing 200 cards
+			//accumulated ~100,000 entries — which are then structured-cloned to
+			//the worker on EVERY one-shot collection run and every subscription
+			//(one per reference block per card). Master avoided this by wiping
+			//the whole map on every UPDATE_CARDS; the surgical prune that
+			//replaced it is better for churn but removed the only bound.
+			cardSimilarity: boundedCardSimilarity(state.cardSimilarity, action.card_id, action.similarity)
 		};
 	case UPDATE_SERVER_IDF:
 		return {

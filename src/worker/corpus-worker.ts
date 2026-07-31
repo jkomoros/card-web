@@ -475,6 +475,9 @@ let ownershipEpochGuard : ReturnType<typeof setInterval> | null = null;
 //error forever costs a full-corpus deep clone per attempt and never succeeds.
 const MAX_SNAPSHOT_SAVE_FAILURES = 3;
 let consecutiveSnapshotSaveFailures = 0;
+//Bound the abandon-and-retry loop; see saveCorpusSnapshot.
+const MAX_SNAPSHOT_ABANDONS = 3;
+let consecutiveSnapshotAbandons = 0;
 
 const saveCorpusSnapshot = async () : Promise<void> => {
 	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore || !syncMetaState) return;
@@ -523,20 +526,34 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 		}
 		if (corpusMutationVersion !== startVersion) {
 			corpusSnapshotSaveInFlight = false;
-			status('compact snapshot save restarted: the corpus changed while serializing');
-			scheduleCorpusSnapshotSave();
-			return;
+			consecutiveSnapshotAbandons++;
+			//Do not abandon forever. Under continuous mutation every attempt
+			//would restart and the snapshot would never be written at all,
+			//which is worse than a slightly-mixed record: the next boot falls
+			//back to an ever-older snapshot, and a crash loses everything since
+			//the last successful save. After a few tries, let the walk complete
+			//— the trust gate and delta catch-up heal a mixed record, they
+			//cannot heal a missing one.
+			if (consecutiveSnapshotAbandons >= MAX_SNAPSHOT_ABANDONS) {
+				status(`compact snapshot: ${consecutiveSnapshotAbandons} restarts from concurrent edits; completing this one anyway`);
+			} else {
+				status('compact snapshot save restarted: the corpus changed while serializing');
+				scheduleCorpusSnapshotSave();
+				return;
+			}
 		}
 		sliceStart = performance.now();
 	}
 	//Re-check after the final slice too: the last yield may have been followed
 	//by a mutation before the loop ended.
-	if (corpusMutationVersion !== startVersion) {
+	if (corpusMutationVersion !== startVersion && consecutiveSnapshotAbandons < MAX_SNAPSHOT_ABANDONS) {
 		corpusSnapshotSaveInFlight = false;
+		consecutiveSnapshotAbandons++;
 		status('compact snapshot save restarted: the corpus changed while serializing');
 		scheduleCorpusSnapshotSave();
 		return;
 	}
+	consecutiveSnapshotAbandons = 0;
 	const contaminatedIDs = [...clientClockCardIDs].filter(id => corpus.has(id));
 	//Capture every safety field synchronously with the cards, before the first
 	//await. A later worker event may mutate live state, but the record remains a
@@ -577,17 +594,34 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	}
 };
 
+//The debounce RESETS on every corpus mutation, and updateLocalState calls this
+//on every delivery — so during sustained mutation (a bulk sweep, a heavy editing
+//hour, a listener re-attach storm) the timer could be pushed forward forever and
+//the snapshot would simply never be written. The abandon-on-mutation guard in
+//saveCorpusSnapshot compounds it. The justification for the plain debounce was
+//"edits are bursty, not continuous", which is a t=0 assumption that a long
+//session violates. A max-wait bounds the deferral: once the FIRST deferral is
+//this old, the next schedule fires immediately regardless of churn. Same shape
+//as card-view's reference-block scheduler, which already had this guard.
+const SNAPSHOT_SAVE_MAX_WAIT_MS = 90 * 1000;
+let corpusSnapshotFirstDeferralAt = 0;
+
 const scheduleCorpusSnapshotSave = (delayMs = SNAPSHOT_SAVE_DELAY_MS) => {
 	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore) return;
 	if (corpusSnapshotSaveInFlight) {
 		corpusSnapshotSavePending = true;
 		return;
 	}
+	const now = Date.now();
+	if (!corpusSnapshotSaveTimer) corpusSnapshotFirstDeferralAt = now;
+	const waited = now - corpusSnapshotFirstDeferralAt;
+	const effectiveDelay = waited >= SNAPSHOT_SAVE_MAX_WAIT_MS ? 0 : Math.min(delayMs, SNAPSHOT_SAVE_MAX_WAIT_MS - waited);
 	if (corpusSnapshotSaveTimer) clearTimeout(corpusSnapshotSaveTimer);
 	corpusSnapshotSaveTimer = setTimeout(() => {
 		corpusSnapshotSaveTimer = null;
+		corpusSnapshotFirstDeferralAt = 0;
 		void saveCorpusSnapshot();
-	}, delayMs);
+	}, effectiveDelay);
 };
 
 const disableCorpusSnapshotPersistence = () => {

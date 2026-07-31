@@ -736,6 +736,9 @@ export class Collection {
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
+	//True when this collection came from a worker result, so sortExtras were
+	//never computed. 'empty' and 'unknown' must not be confused (see reorderable).
+	_sortExtrasUnknown : boolean;
 	_partialMatches : CardBooleanMap;
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
@@ -876,6 +879,15 @@ export class Collection {
 		collection._partialMatches = result.partialMatches;
 		//Sort info is deliberately left lazy; sortExtras stays empty (label
 		//functions for exotic sorts may degrade — acceptable while gated).
+		//But `reorderable` also reads _sortExtras, and sort/default's predicate
+		//is "reorderable iff there are no sortExtras" — so an empty map made
+		//EVERY worker-served collection reorderable, including the
+		//reference-graph ones (children/descendants/parents/similar) that
+		//master correctly refused. Dropping a thumbnail there permanently
+		//rewrites that card's sort_order in its section, based on a drag
+		//inside a BFS-ordered view. Record that sortExtras is unknown rather
+		//than empty so reorderable can fail closed.
+		collection._sortExtrasUnknown = true;
 		perfCount('collection:fromWorkerResult');
 		return collection;
 	}
@@ -1057,6 +1069,12 @@ export class Collection {
 	get reorderable() {
 		const config = this._description.sortConfig;
 		if (!config.reorderable) return false;
+		//Fail closed when sortExtras were never computed (worker-served
+		//collections): "no sortExtras" is indistinguishable from "not yet
+		//known", and guessing wrong here writes a bogus sort_order to the
+		//server. Sorts that are unconditionally reorderable are unaffected
+		//because their predicate ignores the argument.
+		if (this._sortExtrasUnknown && config.reorderable.length > 0) return false;
 		return config.reorderable(this._sortExtras);
 	}
 

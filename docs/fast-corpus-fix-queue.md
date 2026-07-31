@@ -36,62 +36,11 @@ unpublished cards sync via one delta listener bounded on
 `updated > watermark`, so a watermark advanced past the reconnect write misses it
 permanently, while a reload re-primes from scratch.
 
-### N2. Drag-to-reorder is wrongly ENABLED on reference-graph collections, writing bogus sort_order
-`src/collection_description.ts:874-879` — `fromWorkerResult` leaves `_sortExtras`
-permanently `{}`; `sort/default`'s predicate is
-`(sortExtra) => !sortExtra || Object.keys(sortExtra).length == 0`
-(`src/filters.ts:1599`), so `reorderable` now returns true for EVERY collection.
-Master returned false for `children`/`descendants`/`parents`/`similar` etc.
-because those emit sortValues. Dropping a thumbnail in such a view permanently
-rewrites that card's `sort_order` in its section. The branch comment anticipated
-only "label functions may degrade".
-
-### N3. Saving a card deleted on another device silently discards the edit AND its draft
-`src/actions/data.ts:878` skips the missing card, `modifiedCount` stays 0, and
-the `card-web-single-save-confirmed` event fires unconditionally for
-`kind === 'single'` (`:971-980`), which clears the draft. Master routed through
-`modifyCardsIndividually` with `failOnError`, surfacing "Couldn't modify card".
-
-### N4 (MINE). The P9 similarity guard disabled local similarity EVERYWHERE, not just the UI thread
-`src/filters.ts:891, 961` — the worker's `query-engine` imports
-`collection_description`, which imports `filters.js`, so the 10k-card decline
-runs in the worker too. My own comment claims "the worker's precomputed
-fingerprints and the Qdrant path are the real answers"; the worker has no
-separate fingerprint-similarity path. On a 40k corpus any card absent from
-Qdrant now renders EMPTY similar-cards blocks instead of local matches.
-
-### N5. Blocked localStorage makes the app permanently read-only
-`src/actions/data.ts:323-336` returns `true` from `durableCardMutationPending()`
-on a storage throw, so `editingStart` refuses and every Edit button is disabled
-with a tooltip naming a save indicator that never renders (because
-`card-web-app.ts` catches the same throw and leaves `_saveStatus` idle). Reload
-does not help.
-
-### N6. The compact snapshot can stop being written entirely
-`scheduleCorpusSnapshotSave` (`src/worker/corpus-worker.ts:580-591`) CLEARS and
-re-arms a 15s debounce on every corpus mutation, with no max-wait — and the
-abandon-on-mutation guard added for C17 compounds it. Sustained mutation means
-the snapshot never converges; the only signal is a console line. Compare
-`_scheduleReferenceBlocksUpdate`, which has exactly the max-wait guard this
-lacks.
-
-### N7. `cardSimilarity` accumulates ~500 entries per card viewed, and is posted to the worker repeatedly
-`src/reducers/data.ts:315-322` — no cap, no LRU, pruned only when a listed card
-changes. MASTER RESET IT on every `UPDATE_CARDS`. `corpus-bridge.ts:529` and
-`:624` post the whole accumulated map on every one-shot run and every
-subscription, and reference blocks fan out one run per block per card.
-
 ### N8. Relative-date collections never roll over at local midnight in worker mode
 `selectRelativeDateCacheKey` is the only midnight-sensitive input and the worker
 builds its collection args without it (`src/worker/query-engine.ts:507-520`);
 nothing schedules a recompute at midnight. A tab left open overnight on
 `updated/today` shows yesterday's set — exactly the "tabs open for days" pattern.
-
-### N9. "Create a new tag" in the multi-edit dialog is fire-and-forget
-`src/actions/data.ts:1782` — `batch.commit().then(...)`, not awaited, no
-`.catch`, no durable intent, so the save pill never shows it and a rejection is
-an unhandled promise rejection the user never sees. This alone makes criterion 5
-("EVERY dialog operation") false.
 
 ### N10. Editor Content tab loses Auto TODOs, tag editing, and both suggested-concept shortcuts
 `src/components/card-editor.ts:928-948` gates them on

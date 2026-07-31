@@ -332,7 +332,17 @@ export const durableCardMutationPending = () : boolean => {
 			localStorage.getItem(DURABLE_MULTI_EDIT_STORAGE_KEY)
 		);
 	} catch {
-		return true;
+		//Storage is BLOCKED (enterprise policy, "block all cookies", some
+		//private modes) — not "an operation is pending". Returning true here
+		//fails closed in the worst possible way: editingStart refuses, every
+		//Edit button is disabled with a tooltip pointing at a save indicator
+		//that never renders (card-web-app catches the same throw and leaves the
+		//pill idle), and reload cannot help, so the app is permanently
+		//read-only with no explanation. There is also nothing to protect: if we
+		//cannot READ the durable record we never wrote one either, because
+		//persisting it uses the same storage. Fail open and let the save path's
+		//own eligibility checks do their job.
+		return false;
 	}
 };
 // 30 cards cost ~184 effective operations. This remains atomic even when the
@@ -968,6 +978,19 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			dispatch(durableMultiEditProgress(operation));
 		}
 		clearDurableMultiEdit();
+		//A single-card save whose target no longer exists on the server writes
+		//NOTHING (the chunk loop skips absent cards), but this path used to fire
+		//the confirmation event anyway — which clears the recovery draft — and
+		//then report success. Delete a card on another device, edit the stale
+		//copy here, hit Save: the editor closed, the indicator went green, and
+		//both the edit and its draft were gone. Master surfaced "Couldn't modify
+		//card". Keep the draft and tell the user.
+		const singleSaveWroteNothing = operation.kind === 'single' &&
+			operation.modifiedCount === 0 && (operation.skippedCount || 0) > 0;
+		if (singleSaveWroteNothing) {
+			dispatch(modifyCardFailure(new Error('That card no longer exists on the server, so your edit was not saved. Your draft has been kept — copy anything you need before discarding it.')));
+			return;
+		}
 		if (operation.kind === 'single') {
 			window.dispatchEvent(new CustomEvent('card-web-single-save-confirmed', {
 				detail: {cardID: operation.targetIDs[0], operationID: operation.id},
@@ -1779,7 +1802,19 @@ export const createTag = (name : TagID, displayName : string) : ThunkSomeAction 
 
 	batch.set(startCardRef, cardObject);
 
-	batch.commit().then(() => dispatch(tagAdded(name)));
+	//Awaited, with the failure surfaced. Fire-and-forget meant a rejected
+	//commit was an unhandled promise rejection the user never saw: the tag
+	//simply did not exist afterwards, with no error and nothing in the save
+	//pill (this path writes no durable intent, so durableCardMutationPending
+	//never sees it). This is the one multi-edit dialog operation that was not
+	//covered by either durable executor.
+	try {
+		await batch.commit();
+	} catch (err) {
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		return;
+	}
+	dispatch(tagAdded(name));
 
 };
 
