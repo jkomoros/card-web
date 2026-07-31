@@ -141,16 +141,6 @@ service cloud.firestore {
       return requestData.diff(resourceData).affectedKeys().hasOnly([key]) && resourceData[key] + 1 == requestData[key];
     }
     
-    function editOnlyIncrementsOrDecrements(key, otherKey) {
-      let requestData = request.resource.data;
-      let resourceData = resource.data;
-      let resourceDataKey = resourceData[key];
-      let requestDataKey = requestData[key];
-      let resourceDataOtherKey = resourceData[otherKey];
-      let requestDataOtherKey = requestData[otherKey];
-      return requestData.diff(resourceData).affectedKeys().hasOnly([key, otherKey]) && (resourceDataKey + 1 == requestDataKey || resourceDataKey - 1 == requestDataKey) && (resourceDataOtherKey + 1 == requestDataOtherKey || resourceDataOtherKey - 1 == requestDataOtherKey);
-     }
-    
     function editOnlyIncrementsAndDecrements(incKey, decKey) {
       let requestData = request.resource.data;
       let resourceData = resource.data;
@@ -206,12 +196,12 @@ service cloud.firestore {
       return (userIsAdmin() || getPermissions(['edit', 'editCard', 'createCard'])) && (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && (!affectedKeys.hasAny(['updated']) || request.resource.data.updated == request.time);
     }
 
-    function cardEditMinor() {
+    function cardEditMinor(cardID) {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       //we can bail only if there are any keys not in this set, or if they aren't any keys in this set, without doing the more expensive calculations.
       let allKeys = ['star_count', 'star_count_manual', 'thread_count', 'thread_resolved_count', 'thread_count', 'updated_message'];
       return affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(allKeys) && cardEditLegalMessages(affectedKeys)
-        || cardEditLegalStars(affectedKeys)
+        || cardEditLegalStars(affectedKeys, cardID)
         || cardEditLegalTweets(affectedKeys);
     }
 
@@ -220,9 +210,33 @@ service cloud.firestore {
       return userMayComment() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message'));
     }
 
-    function cardEditLegalStars(affectedKeys) {
+    function cardEditLegalStars(affectedKeys, cardID) {
       //TODO: pass in the affectedKeys into the children to save another calculation
-      return userMayStar() && editOnlyIncrementsOrDecrements('star_count', 'star_count_manual');
+      return userMayStar() && starCountMovesWithOwnStar(cardID);
+    }
+
+    //The old rule accepted ANY +/-1 combination of the two counters, from any
+    //user with the star permission, with no connection to a star document. So
+    //a signed-in (including anonymous) client could inflate star_count without
+    //ever starring anything, and could raise star_count while lowering
+    //star_count_manual in one write. Both counters must move TOGETHER and in
+    //the SAME direction — that is all the client ever does — and the movement
+    //must be bound to this user's own star document appearing (or
+    //disappearing) in the same commit. exists/existsAfter is what makes that
+    //binding real: the client already writes the counter and the star doc in
+    //one MultiBatch, so nothing legitimate changes.
+    function starCountMovesWithOwnStar(cardID) {
+      let requestData = request.resource.data;
+      let resourceData = resource.data;
+      let starPath = /databases/$(database)/documents/stars/$(request.auth.uid + '+' + cardID);
+      let adding = resourceData.star_count + 1 == requestData.star_count
+        && resourceData.star_count_manual + 1 == requestData.star_count_manual;
+      let removing = resourceData.star_count - 1 == requestData.star_count
+        && resourceData.star_count_manual - 1 == requestData.star_count_manual;
+      return loggedIn()
+        && requestData.diff(resourceData).affectedKeys().hasOnly(['star_count', 'star_count_manual'])
+        && (adding && !exists(starPath) && existsAfter(starPath)
+          || removing && exists(starPath) && !existsAfter(starPath));
     }
 
     function cardEditLegalTweets(affectedKeys) {
@@ -320,7 +334,7 @@ service cloud.firestore {
       //engine have a finite expression budget per atomic write; evaluating
       //every minor/inbound branch before an already-authorized admin made even
       //a one-card denormalized edit exceed that budget.
-      allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor() || cardEditInboundReferences()) : (cardEditMinor() || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
+      allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor(card) || cardEditInboundReferences()) : (cardEditMinor(card) || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card)
         && resource.data.get('section', '') == ''

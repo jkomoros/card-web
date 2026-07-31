@@ -60,6 +60,9 @@ const cardStarCount = 7;
 //shape the app never produces — which is why the create rules' missing id/uid
 //binding went unnoticed.
 const newStarCardId = cardId + 'new';
+//A published card the anonymous user has NOT starred, so the star-add path can
+//be exercised (cardId is seeded WITH an anon star, which is the unstar case).
+const starlessCardId = 'card-no-star';
 const starId = anonUid + '+' + cardId;
 const newStarId = anonUid + '+' + newStarCardId;
 
@@ -97,6 +100,16 @@ async function setupDatabase() {
 		published: true,
 		references_inbound: {},
 		references_info_inbound:{},
+	});
+	await db.collection(CARDS_COLLECTION).doc(starlessCardId).set({
+		body: 'this is the body',
+		title: 'this is the title',
+		author: bobUid,
+		published: true,
+		star_count: cardStarCount,
+		star_count_manual: cardStarCount,
+		thread_count: cardThreadCount,
+		thread_resolved_count: cardThreadResolvedCount,
 	});
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:3,
@@ -441,28 +454,70 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
 	});
 
-	it('allows any signed in users to increment star_count by 1', async() => {
+	//The star counters and the star document move together, in one batch, which
+	//is exactly what the client's star-add/star-remove executors do. Bare
+	//counter updates used to be accepted, which let any signed-in user inflate
+	//star_count without ever starring anything.
+	it('allows a signed in user to increment star_count by 1 alongside creating their star', async() => {
 		const db = authedApp(anonAuth);
-		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1});
+		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + starlessCardId), {owner: anonUid, card: starlessCardId});
+		await firebase.assertSucceeds(batch.commit());
 	});
 
-	it('disallows any nonauthenticated  users to increment star_count by 1', async() => {
-		const db = authedApp(null);
+	it('disallows incrementing star_count without creating the corresponding star', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+	});
+
+	it('disallows incrementing star_count again when the user already holds the star', async() => {
+		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+	});
+
+	it('disallows creating a star for one card while incrementing a different card', async() => {
+		const db = authedApp(anonAuth);
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1});
+		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId), {owner: anonUid, card: newStarCardId});
+		await firebase.assertFails(batch.commit());
+	});
+
+	it('disallows moving the two star counters in opposite directions', async() => {
+		const db = authedApp(anonAuth);
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount - 1});
+		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + starlessCardId), {owner: anonUid, card: starlessCardId});
+		await firebase.assertFails(batch.commit());
+	});
+
+	it('disallows any nonauthenticated users to increment star_count by 1', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
 		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows any signed in users to increment star_count by 1 if they edit other fields', async() => {
 		const db = authedApp(anonAuth);
-		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
 		await firebase.assertFails(card.update({star_count: cardStarCount + 1, thread_count: cardThreadCount + 1}));
 	});
 
-	it('allows any signed in users to decrement star_count by 1', async() => {
+	it('allows a signed in user to decrement star_count by 1 alongside deleting their star', async() => {
+		const db = authedApp(anonAuth);
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(cardId), {star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1});
+		batch.delete(db.collection(STARS_COLLECTION).doc(starId));
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('disallows decrementing star_count without deleting the corresponding star', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
+		await firebase.assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
 	});
 
 	it('disallows any nonauthenticated users to decrement star_count by 1', async() => {

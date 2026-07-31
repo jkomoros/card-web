@@ -72,9 +72,6 @@ Left as an explicit decision rather than silently claimed as met.
   live `db`, so a correct purge means restructuring that path to re-initialize
   Firestore afterwards. Attempted and backed out for exactly that reason; the
   constraint is recorded as a comment at the call site.
-- **S6.** Anonymous users can `increment(star_count)` with no star doc, and can
-  increment `star_count` while decrementing `star_count_manual` in one write
-  (`editOnlyIncrementsOrDecrements` accepts any ±1 combination).
 - **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
   `window.DEBUG_STORE` ship ungated, while the strictly less powerful
   `PERF_HARNESS` is flag-gated.
