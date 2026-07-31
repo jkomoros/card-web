@@ -75,10 +75,6 @@ Left as an explicit decision rather than silently claimed as met.
 - **S9.** `window.CORPUS_WORKER` (incl. `takeOver`, `setMode`) and
   `window.DEBUG_STORE` ship ungated, while the strictly less powerful
   `PERF_HARNESS` is flag-gated.
-- **S12.** `tools/seo.ts:80-81` interpolates `card.title` into `<title>`
-  unescaped. Build-time, published cards, editor-authored — pre-existing and out
-  of branch, but the one path where stored content reaches served HTML unescaped.
-
 ## P2 — UX polish
 
 - **U14.** `card-editor.ts` switched from `?hidden` to conditional rendering for
