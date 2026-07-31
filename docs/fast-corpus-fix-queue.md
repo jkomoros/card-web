@@ -23,6 +23,107 @@ pattern to both, which is a design change rather than a patch.
 
 ---
 
+## Round 11 — from the four-lens critique (UX / robustness / perf / archaeology)
+
+### N1. A save interrupted by a brief network drop lands on the server, but the tab shows stale content forever
+Reproduced SIX times with a decisive control: commit an edit, drop the network
+~100ms later, reconnect after ~16s. The durable record clears in ~1.5s, the app
+reports `status=live, pending=0`, no dialog — and the card body stays at its
+pre-edit content indefinitely (polled 300s). A full reload immediately shows the
+edit present, so the write DID reach the server. Any later edit from that tab is
+then computed against stale content: a lost-update path. Inferred mechanism:
+unpublished cards sync via one delta listener bounded on
+`updated > watermark`, so a watermark advanced past the reconnect write misses it
+permanently, while a reload re-primes from scratch.
+
+### N2. Drag-to-reorder is wrongly ENABLED on reference-graph collections, writing bogus sort_order
+`src/collection_description.ts:874-879` — `fromWorkerResult` leaves `_sortExtras`
+permanently `{}`; `sort/default`'s predicate is
+`(sortExtra) => !sortExtra || Object.keys(sortExtra).length == 0`
+(`src/filters.ts:1599`), so `reorderable` now returns true for EVERY collection.
+Master returned false for `children`/`descendants`/`parents`/`similar` etc.
+because those emit sortValues. Dropping a thumbnail in such a view permanently
+rewrites that card's `sort_order` in its section. The branch comment anticipated
+only "label functions may degrade".
+
+### N3. Saving a card deleted on another device silently discards the edit AND its draft
+`src/actions/data.ts:878` skips the missing card, `modifiedCount` stays 0, and
+the `card-web-single-save-confirmed` event fires unconditionally for
+`kind === 'single'` (`:971-980`), which clears the draft. Master routed through
+`modifyCardsIndividually` with `failOnError`, surfacing "Couldn't modify card".
+
+### N4 (MINE). The P9 similarity guard disabled local similarity EVERYWHERE, not just the UI thread
+`src/filters.ts:891, 961` — the worker's `query-engine` imports
+`collection_description`, which imports `filters.js`, so the 10k-card decline
+runs in the worker too. My own comment claims "the worker's precomputed
+fingerprints and the Qdrant path are the real answers"; the worker has no
+separate fingerprint-similarity path. On a 40k corpus any card absent from
+Qdrant now renders EMPTY similar-cards blocks instead of local matches.
+
+### N5. Blocked localStorage makes the app permanently read-only
+`src/actions/data.ts:323-336` returns `true` from `durableCardMutationPending()`
+on a storage throw, so `editingStart` refuses and every Edit button is disabled
+with a tooltip naming a save indicator that never renders (because
+`card-web-app.ts` catches the same throw and leaves `_saveStatus` idle). Reload
+does not help.
+
+### N6. The compact snapshot can stop being written entirely
+`scheduleCorpusSnapshotSave` (`src/worker/corpus-worker.ts:580-591`) CLEARS and
+re-arms a 15s debounce on every corpus mutation, with no max-wait — and the
+abandon-on-mutation guard added for C17 compounds it. Sustained mutation means
+the snapshot never converges; the only signal is a console line. Compare
+`_scheduleReferenceBlocksUpdate`, which has exactly the max-wait guard this
+lacks.
+
+### N7. `cardSimilarity` accumulates ~500 entries per card viewed, and is posted to the worker repeatedly
+`src/reducers/data.ts:315-322` — no cap, no LRU, pruned only when a listed card
+changes. MASTER RESET IT on every `UPDATE_CARDS`. `corpus-bridge.ts:529` and
+`:624` post the whole accumulated map on every one-shot run and every
+subscription, and reference blocks fan out one run per block per card.
+
+### N8. Relative-date collections never roll over at local midnight in worker mode
+`selectRelativeDateCacheKey` is the only midnight-sensitive input and the worker
+builds its collection args without it (`src/worker/query-engine.ts:507-520`);
+nothing schedules a recompute at midnight. A tab left open overnight on
+`updated/today` shows yesterday's set — exactly the "tabs open for days" pattern.
+
+### N9. "Create a new tag" in the multi-edit dialog is fire-and-forget
+`src/actions/data.ts:1782` — `batch.commit().then(...)`, not awaited, no
+`.catch`, no durable intent, so the save pill never shows it and a rejection is
+an unhandled promise rejection the user never sees. This alone makes criterion 5
+("EVERY dialog operation") false.
+
+### N10. Editor Content tab loses Auto TODOs, tag editing, and both suggested-concept shortcuts
+`src/components/card-editor.ts:928-948` gates them on
+`configTabActive = this._active && this._selectedTab == 'config'`, but the
+default tab is `'config'` and these are needed on Content. The minimized editor
+bar (which has no tab strip) loses them entirely. The branch's own comment at
+`:955-958` names this exact bug class from an earlier partial fix.
+
+### N11. `keepSlugLegalWarm` and the activity listeners are never restored after a takeover
+`disconnectBackgroundDataForInactiveTab` clears them
+(`src/actions/database.ts:696-712`) but `reconnectBackgroundDataForActiveTab`
+(`:716-732`) restores the other eleven listeners and not these two.
+
+### N12. A dropped similarity request never dispatches a terminal state
+`src/similarity-retry.ts:119-124` — `_cancelEntry` deletes the LRU entry and
+dispatches nothing, while the caller already returned "expect values later", so
+a `similar/` view spanning >8 key cards leaves some stuck loading forever.
+
+### N13. Status is a mute dot in the two states you are in 99% of the time
+`corpus-status-indicator.ts:181` marks `live`, `off` AND `loading` as
+`data-quiet`, and the quiet label is `clip: rect(0,0,0,0)`. `workerCorpusSize` is
+maintained and never rendered; the snapshot-age string is computed and routed to
+`console.log`. Criterion 8 asks for "information-dense".
+
+### N14. Card creation is not gated the way saving is, and fails with a raw alert
+`createCard` refuses via `modifyCardFailure`, which `alert()`s by default, but
+the drawer "+" button and Cmd-M are not disabled — so a held Cmd-M during the
+~30s verification window reproduces exactly the modal storm Round 7b removed
+from `editingStart`.
+
+---
+
 ## P1 — correctness
 
 ### U11 (residual). No production escape hatch from a worker failure
