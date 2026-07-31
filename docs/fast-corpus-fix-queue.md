@@ -41,11 +41,6 @@ default tab is `'config'` and these are needed on Content. The minimized editor
 bar (which has no tab strip) loses them entirely. The branch's own comment at
 `:955-958` names this exact bug class from an earlier partial fix.
 
-### N12. A dropped similarity request never dispatches a terminal state
-`src/similarity-retry.ts:119-124` — `_cancelEntry` deletes the LRU entry and
-dispatches nothing, while the caller already returned "expect values later", so
-a `similar/` view spanning >8 key cards leaves some stuck loading forever.
-
 ### N13. Status is a mute dot in the two states you are in 99% of the time
 `corpus-status-indicator.ts:181` marks `live`, `off` AND `loading` as
 `data-quiet`, and the quiet label is `clip: rect(0,0,0,0)`. `workerCorpusSize` is

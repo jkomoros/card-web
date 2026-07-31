@@ -9,6 +9,7 @@ const harness = (options = {}) => {
 	const timers = new Map();
 	const cancelled = [];
 	const retries = [];
+	const drops = [];
 	const coordinator = new SimilarityRetryCoordinator({
 		baseDelayMs: 10,
 		maxDelayMs: 25,
@@ -25,7 +26,8 @@ const harness = (options = {}) => {
 			cancelled.push(id);
 			timers.delete(id);
 		},
-		onRetry: (key, attempt, delayMs) => retries.push({key, attempt, delayMs})
+		onRetry: (key, attempt, delayMs) => retries.push({key, attempt, delayMs}),
+		onDrop: key => drops.push(key)
 	});
 	const fireNext = async () => {
 		const item = timers.entries().next().value;
@@ -35,7 +37,7 @@ const harness = (options = {}) => {
 		timer.callback();
 		await flush();
 	};
-	return {coordinator, timers, cancelled, retries, fireNext};
+	return {coordinator, timers, cancelled, retries, drops, fireNext};
 };
 
 describe('SimilarityRetryCoordinator', () => {
@@ -93,6 +95,30 @@ describe('SimilarityRetryCoordinator', () => {
 		assert.equal(h.cancelled.length, 1);
 		assert.equal(h.coordinator.request('kept', 1, retry), false);
 		assert.equal(h.coordinator.request('old', 1, retry), true);
+	});
+
+	it('reports a dropped key so the caller can settle it, and only for drops', async () => {
+		const h = harness({maxPending: 2});
+		const retry = async () => 'retry';
+		h.coordinator.request('old', 1, retry);
+		h.coordinator.request('kept', 1, retry);
+		await flush();
+		assert.deepEqual(h.drops, []);
+		h.coordinator.request('new', 1, retry);
+		await flush();
+		//The evicted key is the one the caller must settle: it was promised a
+		//value and will otherwise render as loading forever.
+		assert.deepEqual(h.drops, ['old']);
+		//A newer version of a key supersedes its own chain, which produces its
+		//own terminal state — that must NOT be reported as a drop.
+		h.coordinator.request('kept', 2, retry);
+		await flush();
+		assert.deepEqual(h.drops, ['old']);
+		//Nor may an explicit caller-initiated cancellation report a drop.
+		h.coordinator.cancel('kept');
+		h.coordinator.cancelAll();
+		await flush();
+		assert.deepEqual(h.drops, ['old']);
 	});
 
 	it('never exceeds the active-run limit while newer requests queue', async () => {

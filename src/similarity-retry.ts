@@ -29,6 +29,13 @@ export type SimilarityRetryOptions = {
 	schedule?: (callback : () => void, delayMs : number) => Timer;
 	cancelTimer?: (timer : Timer) => void;
 	onRetry?: (key : string, attempt : number, delayMs : number) => void;
+	//Called when a pending request is DROPPED to stay under maxPending. The
+	//caller has already told its consumers to expect values later, so without
+	//a terminal state here a `similar/` view spanning more key cards than the
+	//LRU bound leaves some of them loading forever. Not called when a request
+	//is superseded by a newer version of the same key (that chain produces its
+	//own terminal state) or cancelled explicitly by the caller.
+	onDrop?: (key : string) => void;
 };
 
 //There can legitimately be more than one similarity key in a collection, but
@@ -48,6 +55,7 @@ export class SimilarityRetryCoordinator {
 	private readonly _schedule : (callback : () => void, delayMs : number) => Timer;
 	private readonly _cancelTimer : (timer : Timer) => void;
 	private readonly _onRetry? : (key : string, attempt : number, delayMs : number) => void;
+	private readonly _onDrop? : (key : string) => void;
 	private _activeRuns = 0;
 
 	constructor(options : SimilarityRetryOptions = {}) {
@@ -60,6 +68,7 @@ export class SimilarityRetryCoordinator {
 		this._schedule = options.schedule ?? ((callback, delayMs) => setTimeout(callback, delayMs));
 		this._cancelTimer = options.cancelTimer ?? clearTimeout;
 		this._onRetry = options.onRetry;
+		this._onDrop = options.onDrop;
 	}
 
 	//Returns false only when this exact card version already has a request in
@@ -83,6 +92,7 @@ export class SimilarityRetryCoordinator {
 			}
 			if (!oldest) break;
 			this._cancelEntry(oldestKey, oldest);
+			this._onDrop?.(oldestKey);
 		}
 
 		const entry : PendingRequest = {

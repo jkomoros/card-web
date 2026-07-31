@@ -103,6 +103,16 @@ let transportFailedEditingCard : Card | null = null;
 const retryCoordinator = new SimilarityRetryCoordinator({
 	onRetry: (cardID, attempt, delayMs) => {
 		console.log(`[similarity] ${cardID} is not ready; retry ${attempt} in ${delayMs} ms`);
+	},
+	//Dropped to stay under the LRU bound. fetchSimilarCardsForCard already told
+	//its caller to expect a value, so without a terminal state here the card
+	//sits loading forever. Settle it with the same empty sentinel the give-up
+	//path uses. Deliberately NOT recorded in transportFailedVersions: that map
+	//drives the 'online' re-demand loop, and re-demanding every dropped key at
+	//once is the storm this bound exists to prevent.
+	onDrop: (cardID) => {
+		console.warn(`[similarity] ${cardID} dropped to stay under the pending bound; settling it as empty`);
+		store.dispatch({type: UPDATE_CARD_SIMILARITY, card_id: cardID, similarity: {}});
 	}
 });
 
@@ -116,6 +126,10 @@ const editingRetryCoordinator = new SimilarityRetryCoordinator({
 	maxConcurrent: 1,
 	onRetry: (cardID, attempt, delayMs) => {
 		console.log(`[similarity] editing card ${cardID} retry ${attempt} in ${delayMs} ms`);
+	},
+	onDrop: (cardID) => {
+		console.warn(`[similarity] editing card ${cardID} dropped to stay under the pending bound; settling it as unfetched`);
+		store.dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}});
 	}
 });
 const editingCardVersions = new WeakMap<Card, number>();
