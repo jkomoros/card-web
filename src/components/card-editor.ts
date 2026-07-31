@@ -925,18 +925,24 @@ class CardEditor extends connect(store)(LitElement) {
 		this._minimized = selectEditorMinimized(state);
 		this._selectedTab = state.editor ? state.editor.selectedTab : 'content';
 		this._selectedEditorTab = state.editor ? state.editor.selectedEditorTab : 'content';
-		const configTabActive = this._active && this._selectedTab == 'config';
+		//The MINIMIZED bar has no tab strip, and it renders the auto-TODO list,
+		//the tag editor and both suggested-concept shortcuts itself. Gating those
+		//values on the config TAB blanked all of them there — minimize while on the
+		//Content tab and the bar's lists render empty, which reads as 'no TODOs, no
+		//tags, no suggestions' rather than 'not computed'. Gate on whether anything
+		//that displays them is actually on screen.
+		const detailFieldsVisible = this._active && (this._selectedTab == 'config' || this._minimized);
 
-		this._autoTodos = configTabActive ? selectEditingCardAutoTodos(state) : [];
-		this._userMayChangeEditingCardSection = configTabActive ? selectUserMayChangeEditingCardSection(state) : false;
+		this._autoTodos = detailFieldsVisible ? selectEditingCardAutoTodos(state) : [];
+		this._userMayChangeEditingCardSection = detailFieldsVisible ? selectUserMayChangeEditingCardSection(state) : false;
 		this._userMayUseAI = selectUserMayUseAI(state);
-		this._sectionsUserMayEdit = configTabActive ? selectSectionsUserMayEdit(state) : {};
-		this._mayNotDeleteReason = configTabActive ? selectReasonsUserMayNotDeleteActiveCard(state) : '';
+		this._sectionsUserMayEdit = detailFieldsVisible ? selectSectionsUserMayEdit(state) : {};
+		this._mayNotDeleteReason = detailFieldsVisible ? selectReasonsUserMayNotDeleteActiveCard(state) : '';
 		this._substantive = state.editor ? state.editor.substantive : false;
 		this._tagInfos = selectTags(state);
-		this._userMayEditSomeTags = configTabActive ? selectUserMayEditSomeTags(state) : false;
-		this._tagsUserMayNotEdit = configTabActive ? tagsUserMayNotEdit(state) : [];
-		if (configTabActive) {
+		this._userMayEditSomeTags = detailFieldsVisible ? selectUserMayEditSomeTags(state) : false;
+		this._tagsUserMayNotEdit = detailFieldsVisible ? tagsUserMayNotEdit(state) : [];
+		if (detailFieldsVisible) {
 			this._scheduleSuggestions(state);
 			this._cardTagInfos = this._makeVisibleCardTagInfos(state);
 		} else {
@@ -946,7 +952,7 @@ class CardEditor extends connect(store)(LitElement) {
 			this._suggestedConcepts = [];
 			this._cardTagInfos = {};
 		}
-		this._authors = configTabActive ? selectAuthorsForTagList(state) : {};
+		this._authors = detailFieldsVisible ? selectAuthorsForTagList(state) : {};
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
@@ -965,7 +971,9 @@ class CardEditor extends connect(store)(LitElement) {
 	_suggestionKeyForState(state : State) {
 		const cardID = state.editor?.card?.id || '';
 		const extractionVersion = state.editor?.cardExtractionVersion || 0;
-		return this._active && this._selectedTab == 'config' ? `${cardID}:${extractionVersion}` : '';
+		//Must match the gate in stateChanged, or the minimized bar schedules a
+		//suggestion run whose key never validates and never renders.
+		return this._active && (this._selectedTab == 'config' || this._minimized) ? `${cardID}:${extractionVersion}` : '';
 	}
 
 	_scheduleSuggestions(state : State) {

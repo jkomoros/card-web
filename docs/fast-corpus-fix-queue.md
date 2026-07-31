@@ -34,13 +34,6 @@ unit/type-checked, but the end-to-end DEV re-check that normally accompanies eac
 fix is OUTSTANDING for: N1 (echo after confirmed commit). Owner action: sign in
 once on a debug Chrome, or run these checks as part of the acceptance test.
 
-### N10. Editor Content tab loses Auto TODOs, tag editing, and both suggested-concept shortcuts
-`src/components/card-editor.ts:928-948` gates them on
-`configTabActive = this._active && this._selectedTab == 'config'`, but the
-default tab is `'config'` and these are needed on Content. The minimized editor
-bar (which has no tab strip) loses them entirely. The branch's own comment at
-`:955-958` names this exact bug class from an earlier partial fix.
-
 ### N13. Status is a mute dot in the two states you are in 99% of the time
 `corpus-status-indicator.ts:181` marks `live`, `off` AND `loading` as
 `data-quiet`, and the quiet label is `clip: rect(0,0,0,0)`. `workerCorpusSize` is
