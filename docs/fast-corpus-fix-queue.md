@@ -16,31 +16,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P0 — data loss / wedge
 
-- **R1/L1 [MINE]. `runDurableAuxWrite` awaits an executor that never settles offline.**
-  A Firestore commit on the memory-only main-thread cache neither resolves nor
-  rejects while offline — the branch's own comment says so. So `await
-  runDurableAuxWrite(...)` HANGS: `createCard` never dispatches its failure,
-  `EXPECT_NEW_CARD` stays latched (app stuck "not fully loaded"), the `'queued'`
-  outcome and its reassurance message are unreachable, and the intent stays in
-  `inFlight` forever, which makes `replayPendingAuxWrites` skip it permanently.
-- **L1 [MINE]. Bulk import persists intents ONE AT A TIME.** `makeAuxWriteIntent`
-  is pure; only `runDurableAuxWrite` persists. Stalling on card 1 of a 200-card
-  import means intents 2..200 were never written — 199 cards lost on reload.
-- **L6/R2. The queue's failure policy is "silently drop everything"**, written
-  when it held only stars/reads. One corrupt `JSON.parse`, one `validIntent`
-  miss, or a 30-day age-out silently returns `[]`, and the next write persists
-  that empty list — erasing every queued card creation and comment. And
-  `writePendingAuxWrites` swallows `QuotaExceededError`, so an intent that was
-  never persisted is treated as durable.
-- **L7. `card-create`'s fanout is not atomic.** No `beginAtomicGroup`, and
-  MultiBatch splits and commits concurrently with independent success. If the
-  card batch lands and the section batch does not, the replay preflight sees the
-  card exists and returns — the card is permanently missing from its section and
-  tags, silently.
-- **L2. A `'discarded'` comment destroys the typed text.** `reportCommentOutcome`
-  ignores `'discarded'`, so `composeCommit`'s restore path never runs. A comment
-  on a card another device just deleted returns `not-found`, which the queue
-  classifies as permanent.
 - **L3. A resumed durable multi-edit CLOBBERS newer content.** The record carries
   no base version, and `CardDiff` text fields are whole-value replacements. Edit
   on laptop → fails transiently → edit properly on phone → laptop wakes days
@@ -49,16 +24,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P1 — correctness
 
-- **R3/L5 [MINE]. `created`, `updated_substantive` and `updated_message` are now
-  CLIENT-CLOCK values on every created card.** A sentinel is identity-keyed, so
-  JSON destroys it and the executor re-vends only `updated`.
-  `updated_substantive` is what every `updated/*` collection sorts and buckets
-  on, so a skewed clock parks new cards in the wrong day — or the future.
-- **R4. The initial attempt writes no cross-tab claim**, though the type comment
-  says it does. Only replay claims. Two tabs can both execute one intent:
-  `star-add` double-increments, `comment-add` double-increments `thread_count`.
-- **R5 [MINE]. `bulkCreateWorkingNotes` latches `BULK_IMPORT_PENDING`** on two
-  exits, leaving the dialog permanently scrimmed with no message.
 - **L4. `modifyCardsIndividually` refuses silently** (no failure action), and
   `applySuggestion` reads the error selector before the commit could resolve —
   so a suggestion is marked applied when nothing was written.
@@ -86,11 +51,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P2 — UX consistency
 
-- **U28. A NON-BLOCKING storage warning puts up the full-screen lockout panel.**
-  The snapshot-persistence failure calls `degraded()`, which is in
-  `CORPUS_STATUS_BLOCKS_INTERACTION`, so the whole app goes behind a modal
-  headlined "Cards could not load" whose body says "The app still works". Both
-  buttons are useless for a quota condition. Raw `String(e)` reaches user copy.
 - **U29. The disabled-control tooltip fix was applied in three files and missed
   in the two create-card buttons** — icon-only, no tooltip, not focusable, and
   Cmd-M is silently swallowed on the theory that those buttons explain it.

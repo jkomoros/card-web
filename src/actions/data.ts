@@ -9,14 +9,16 @@ import {
 import {
 	db,
 	deepEqualIgnoringTimestamps,
-	serverTimestampSentinel
+	serverTimestampSentinel,
+	isServerTimestampSentinel
 } from '../firebase.js';
 
 import {
 	AuxWriteOutcome,
 	makeAuxWriteIntent,
 	registerAuxWriteExecutor,
-	runDurableAuxWrite
+	runDurableAuxWrite,
+	runDurableAuxWrites
 } from '../aux-write-queue.js';
 
 import {
@@ -263,6 +265,7 @@ import {
 	UPDATE_TWEETS,
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
+	BULK_IMPORT_FAILURE,
 	BULK_IMPORT_SUCCESS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	ECHO_LOCAL_CARD_MODIFICATIONS,
@@ -782,6 +785,12 @@ const persistableCard = (card : Card) => toWire(
 		return {seconds: timestamp.seconds, nanoseconds: timestamp.nanoseconds};
 	},
 );
+
+//installServerTimestamps is top-level-only, so a top-level key list is exactly
+//what the executor needs to re-vend after the JSON round trip destroys the
+//identity that marks a sentinel.
+const serverTimestampFieldsOf = (card : Card) : string[] =>
+	Object.entries(card).filter(([, value]) => isServerTimestampSentinel(value as never)).map(([field]) => field);
 
 const restoredPersistedCard = (value : unknown) =>
 	fromWire(value, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Card;
@@ -1944,6 +1953,9 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		const id = newID();
 		if (sortOrderIsDangerous(sortOrder)) {
 			console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
+			//Returning here used to leave BULK_IMPORT_PENDING latched, and the
+			//dialog scrimmed and inert until it was closed and reopened.
+			dispatch({type: BULK_IMPORT_FAILURE, error: 'Could not compute a safe order for these cards. See issue #199.'});
 			return;
 		}
 		const obj = defaultCardObject(id, user, '', 'working-notes', sortOrder);
@@ -1955,6 +1967,9 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 			card: persistableCard(obj),
 			section: '',
 			sectionUpdateKey: '',
+			serverTimestampFields: serverTimestampFieldsOf(obj),
+			//Only the first intent of the group carries the author write.
+			skipAuthor: intents.length > 0,
 		}));
 		ids.push(id);
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
@@ -1975,8 +1990,18 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		cardLoadingChannel: selectExpectedCardFetchTypeForNewUnpublishedCard(state)
 	});
 
-	const outcomes = [];
-	for (const intent of intents) outcomes.push(await runDurableAuxWrite(intent));
+	let outcomes : AuxWriteOutcome[];
+	try {
+		//One storage write for the whole group, then bounded-concurrency
+		//commits. Serializing them turned a single batched import into N round
+		//trips — minutes for a large paste — and persisting them one at a time
+		//meant a stall on the first card lost every card after it.
+		outcomes = await runDurableAuxWrites(intents);
+	} catch (err) {
+		dispatch({type: BULK_IMPORT_FAILURE, error: err instanceof Error ? err.message : String(err)});
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
+	}
 	const notCommitted = outcomes.filter(outcome => outcome !== 'committed').length;
 	if (notCommitted) {
 		const queued = outcomes.filter(outcome => outcome === 'queued').length;
@@ -1984,7 +2009,10 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		if (queued && typeof window !== 'undefined') window.setTimeout(() => alert(`${queued} of ${outcomes.length} cards could not be created right now. They have been saved and will be created automatically when the connection recovers.`), 0);
 	}
 	if (outcomes[0] !== 'committed') {
-		//Waiting for a card the server does not have would hang the import UI.
+		//Waiting for a card the server does not have would hang the import UI —
+		//and returning without BULK_IMPORT_FAILURE left the dialog permanently
+		//scrimmed with no message.
+		dispatch({type: BULK_IMPORT_FAILURE, error: 'Some cards could not be created yet. They are saved and will be created automatically when the connection recovers.'});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
@@ -2042,17 +2070,35 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	if (isReplay && await cardCreateCommitted(cardDocRef, 'card-create')) return;
 	const card = restoredPersistedCard(payload.card);
 	//A serverTimestampSentinel is identified by OBJECT IDENTITY (firebase.ts
-	//keeps a registry of the ones it vended), so JSON cannot carry one: the
-	//restored card's `updated` is an ordinary Timestamp, and both the
-	//updated-invariant guard and the rules' bumpsUpdated() reject that — the
-	//write failed on every replay attempt. Re-stamp `updated` so the server
-	//assigns it. Everything else keeps the value it had when the user acted:
-	//`created` in particular is unconstrained by the rules, so a card that
-	//replays days later is still dated when its author actually made it.
-	card.updated = serverTimestampSentinel();
+	//keeps a registry of the ones it vended), so JSON cannot carry one and the
+	//restored card's timestamps are ordinary client-clock Timestamps. Re-vend
+	//exactly the fields that WERE sentinels when the user acted.
+	//
+	//Re-stamping only `updated` (enough to satisfy the write guard and the
+	//rules' bumpsUpdated()) was not enough: `updated_substantive` is the field
+	//every `updated/*` collection sorts and buckets on, so leaving it
+	//client-attested put new cards in the wrong day for a skewed clock — or in
+	//the future. The intent records which fields to re-vend rather than the
+	//executor guessing; older intents without the list fall back to the four
+	//fields defaultCardObject stamps.
+	const sentinelFields = payload.serverTimestampFields || ['created', 'updated', 'updated_substantive', 'updated_message'];
+	const restamped = card as unknown as {[field : string] : unknown};
+	for (const field of sentinelFields) {
+		if (restamped[field] !== undefined) restamped[field] = serverTimestampSentinel();
+	}
 	const batch = new MultiBatch(db);
+	//The card write, its author record, the inbound-link mirror and the section
+	//and tag fanout must not be bisected. MultiBatch splits at its size limit
+	//and commits the parts CONCURRENTLY with independent success, and the
+	//replay preflight only asks whether the CARD exists — so a landed card
+	//batch beside a failed section batch left the card permanently missing from
+	//its section, with the intent cleared and nothing reported.
+	batch.beginAtomicGroup(intent.cardID);
 	const author = selectUser(store.getState() as State);
-	if (author) ensureAuthor(batch, author);
+	//Bulk import writes one hot authors/{uid} document; carrying it on every
+	//intent of a group hammered a single doc past Firestore's sustained
+	//per-document write ceiling.
+	if (author && !payload.skipAuthor) ensureAuthor(batch, author);
 	batch.set(cardDocRef, card);
 	if (payload.deriveInboundLinks) {
 		//Recomputed, not replayed from storage: these updates carry arrayUnion
@@ -2271,6 +2317,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		card: persistableCard(obj),
 		section,
 		sectionUpdateKey: section ? '' + Date.now() : '',
+		serverTimestampFields: serverTimestampFieldsOf(obj),
 	});
 
 	//The queue resolves for all three outcomes; only 'committed' means the
@@ -2428,6 +2475,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		sectionUpdateKey: section ? '' + Date.now() : '',
 		deriveInboundLinks: true,
 		tagUpdateKeys,
+		serverTimestampFields: serverTimestampFieldsOf(newCard),
 	});
 
 	let forkOutcome : AuxWriteOutcome;

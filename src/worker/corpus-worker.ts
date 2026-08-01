@@ -411,7 +411,7 @@ let primedSnapshotAgeMs : number | null = null;
 //worker code ever sent this message — every worker-side failure exited as a
 //`status` that reached only console.log. Anything that leaves this worker
 //unable to keep the corpus in sync must say so here.
-const degraded = (reason : string) => send({type: 'degraded', generation, reason});
+const degraded = (reason : string, blocking = true) => send({type: 'degraded', generation, reason, blocking});
 
 //A worker's unhandled rejection does NOT propagate to worker.onerror on the
 //page, and there was no handler here — so a throw inside any of the several
@@ -583,7 +583,13 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 			//endless full-corpus copy every 15s, forever, while the user was
 			//never told that warm boot had silently stopped working.
 			corpusSnapshotPersistenceEnabled = false;
-			degraded(`Card sync could not save its local cache (${reason}). The app still works, but startup will be slow until browser storage is available again.`);
+			//NON-BLOCKING: everything the user can do still works; only the next
+			//boot is slower. Routing this through the blocking path put the
+			//whole app behind a modal headlined "Cards could not load" whose own
+			//body said the app still works, offering a reload that cannot fix a
+			//quota condition. The raw exception stays in the log, not on screen.
+			console.warn('[corpus-worker] snapshot persistence disabled:', reason);
+			degraded('Card sync can\'t save its local cache, so startup will be slow until browser storage is available again. Everything else works normally.', false);
 			return;
 		}
 	} finally {

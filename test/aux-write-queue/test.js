@@ -219,6 +219,66 @@ describe('aux write queue', () => {
 		assert.deepEqual(queue.readPendingAuxWrites(), []);
 	});
 
+	it('reports queued rather than hanging when a write never settles', async () => {
+		//A Firestore commit on the memory-only main-thread cache neither
+		//resolves nor rejects while offline. Awaiting it forever meant the
+		//caller never learned the write had not landed, and the intent stayed
+		//in-flight where replay skips it — permanently.
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		queue.registerAuxWriteExecutor('card-create', () => new Promise(() => {}));
+		const payload = {kind: 'card-create', card: {id: 'c'}, section: '', sectionUpdateKey: ''};
+		const outcome = await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c', '', payload));
+		assert.equal(outcome, 'queued', 'a write that never settles must report queued, not hang');
+		assert.equal(queue.readPendingAuxWrites().length, 1, 'and it must stay persisted');
+
+		//It must also be replayable — the whole point is that a later trigger
+		//can pick it up.
+		const ran = [];
+		queue.registerAuxWriteExecutor('card-create', async (intent) => { ran.push(intent.cardID); });
+		await queue.replayPendingAuxWrites('u1');
+		assert.deepEqual(ran, ['c'], 'a stranded attempt must not block replay forever');
+	});
+
+	it('quarantines an unreadable queue instead of erasing it', async () => {
+		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', '{not json');
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+		const quarantined = [...storage.keys()].filter(k => k.includes('-corrupt-'));
+		assert.equal(quarantined.length, 1, 'the raw blob must be recoverable, not discarded');
+		assert.equal(storage.get(quarantined[0]), '{not json');
+	});
+
+	it('refuses to report a high-value write as durable when it could not be persisted', async () => {
+		const realSet = globalThis.localStorage.setItem;
+		globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+		queue.registerAuxWriteExecutor('card-create', async () => {});
+		const payload = {kind: 'card-create', card: {id: 'c'}, section: '', sectionUpdateKey: ''};
+		await assert.rejects(
+			queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c', '', payload)),
+			/could not be saved locally/,
+			'a creation that was never persisted must not be reported as durable');
+		//A best-effort kind still degrades to session-only rather than failing.
+		queue.registerAuxWriteExecutor('star-add', async () => {});
+		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'c')), 'committed');
+		globalThis.localStorage.setItem = realSet;
+	});
+
+	it('persists a whole group before attempting any of it', async () => {
+		let attempted = 0;
+		let seenAtFirstAttempt = -1;
+		queue.registerAuxWriteExecutor('card-create', async () => {
+			if (attempted++ === 0) seenAtFirstAttempt = queue.readPendingAuxWrites().length;
+			await new Promise(resolve => setTimeout(resolve, 1));
+		});
+		const payload = i => ({kind: 'card-create', card: {id: 'c' + i}, section: '', sectionUpdateKey: ''});
+		const intents = [0, 1, 2, 3, 4].map(i => queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', payload(i)));
+		const outcomes = await queue.runDurableAuxWrites(intents, 2);
+		//The regression: intents were persisted one at a time inside each
+		//awaited call, so a stall on the first lost every one after it.
+		assert.equal(seenAtFirstAttempt, 5, 'all intents must be durable before the first attempt runs');
+		assert.deepEqual(outcomes, ['committed', 'committed', 'committed', 'committed', 'committed']);
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+	});
+
 	it('survives a corrupt storage record without wedging', async () => {
 		storage.set('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);

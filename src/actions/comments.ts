@@ -320,9 +320,14 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkSome
 
 };
 
-//Queuing is the feature, but saying nothing while the comment has not posted
-//is not. The 'discarded' case already alerted from inside the queue.
+//Queuing is the feature, but saying nothing while the comment has not posted is
+//not — and a DISCARDED comment must be thrown, not swallowed. composeCommit
+//restores the typed text into the compose box on rejection; resolving here meant
+//that path never ran and the user's words were gone. A comment on a card another
+//device just deleted returns not-found, which the queue treats as permanent, so
+//this is a reachable case rather than a theoretical one.
 const reportCommentOutcome = (outcome : AuxWriteOutcome) : void => {
+	if (outcome === 'discarded') throw new Error('That comment could not be posted.');
 	if (outcome !== 'queued') return;
 	console.warn('Comment is queued and will post automatically when the connection recovers.');
 	if (typeof window !== 'undefined') {

@@ -233,7 +233,10 @@ export type WorkerToMainMessage =
 	| {type: 'protocolMismatch', generation: WorkerGeneration, expectedProtocolVersion : number, receivedProtocolVersion : number}
 	| {type: 'status', generation: WorkerGeneration, message : string}
 	| {type: 'error', generation: WorkerGeneration, message : string}
-	| {type: 'degraded', generation: WorkerGeneration, reason : string}
+	//`blocking: false` means the app remains fully usable — the page must NOT
+	//put up the full-viewport lockout panel for it. A snapshot-persistence
+	//failure is the motivating case: it only makes the NEXT boot slow.
+	| {type: 'degraded', generation: WorkerGeneration, reason : string, blocking? : boolean}
 	| {type: 'cards', generation: WorkerGeneration, batch : CardBatch}
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}

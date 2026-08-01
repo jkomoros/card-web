@@ -57,6 +57,18 @@ export type CardCreatePayload = {
 	//Fork only. Tag audit doc keys, captured for the same reason as the
 	//section one: they were Date.now().
 	tagUpdateKeys?: {[tag : string] : string},
+	//Bulk import only. ensureAuthor writes one hot document (authors/{uid}), so
+	//doing it per card made an N-card import hammer a single doc N times — past
+	//Firestore's ~1 write/sec sustained per-document ceiling. The first intent
+	//of a group carries it and the rest skip. Absent means include, so intents
+	//persisted before this field still behave correctly.
+	skipAuthor?: boolean,
+	//The card fields that were serverTimestamp SENTINELS when the user acted.
+	//A sentinel is identified by object identity (firebase.ts keeps a registry),
+	//so JSON destroys it; without this list the executor could only guess which
+	//fields to re-stamp, and `updated_substantive` — the field every `updated/*`
+	//collection sorts and buckets on — silently became a client-clock value.
+	serverTimestampFields?: string[],
 };
 
 export type CommentAddPayload = {
@@ -160,6 +172,7 @@ const validPayload = (kind : string, payload : unknown) : boolean => {
 			typeof candidate.sectionUpdateKey === 'string' &&
 			(candidate.sectionUpdateKey === '' || validPathSegment(candidate.sectionUpdateKey)) &&
 			(candidate.deriveInboundLinks === undefined || typeof candidate.deriveInboundLinks === 'boolean') &&
+			(candidate.skipAuthor === undefined || typeof candidate.skipAuthor === 'boolean') &&
 			tagKeysValid;
 	}
 	//Message text is content, not a path, so it is deliberately unconstrained
@@ -183,30 +196,70 @@ const validIntent = (value : unknown) : value is AuxWriteIntent => {
 		typeof intent.createdAt === 'number' && Number.isFinite(intent.createdAt);
 };
 
+//Kinds whose loss is the loss of something the user WROTE. The queue's original
+//"drop anything questionable" policy was written when it held only stars, reads
+//and reading-list entries — all best-effort and reconstructible. Card creations
+//and comments are neither.
+const HIGH_VALUE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add']);
+
+//A corrupt or unreadable blob used to return [] — and because every mutation is
+//read-modify-write, the very next star would persist that empty list and erase
+//every queued card creation and comment. Keep the raw text under a quarantine
+//key instead, so it can be recovered, and say so loudly.
+const quarantineRawQueue = (raw : string, reason : string) : void => {
+	console.error(`[aux-write] pending queue is unreadable (${reason}); quarantining it rather than discarding it`);
+	try {
+		localStorage.setItem(`${STORAGE_KEY}-corrupt-${Date.now()}`, raw);
+	} catch {
+		//Nothing further we can do; the error above is the record.
+	}
+};
+
 export const readPendingAuxWrites = () : AuxWriteIntent[] => {
 	if (typeof localStorage === 'undefined') return [];
+	let raw : string | null = null;
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
+		raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return [];
 		const parsed = JSON.parse(raw);
-		if (!Array.isArray(parsed)) return [];
+		if (!Array.isArray(parsed)) {
+			quarantineRawQueue(raw, 'not an array');
+			return [];
+		}
 		const now = Date.now();
-		return parsed.filter(validIntent).filter(intent => now - intent.createdAt < MAX_INTENT_AGE_MS);
-	} catch {
-		//A corrupt record must never wedge stars/reads; these are
-		//best-effort writes, unlike card edits.
+		const valid = parsed.filter(validIntent);
+		if (valid.length !== parsed.length) quarantineRawQueue(raw, `${parsed.length - valid.length} malformed intent(s)`);
+		return valid.filter(intent => {
+			if (now - intent.createdAt < MAX_INTENT_AGE_MS) return true;
+			//Ageing out a star is fine. Ageing out something the user wrote,
+			//silently, is not — this is the last place it exists.
+			if (HIGH_VALUE_KINDS.has(intent.kind)) {
+				console.error(`[aux-write] ${intent.kind} for ${intent.cardID} aged out after ${Math.round(MAX_INTENT_AGE_MS / 86400000)} days and was DISCARDED`);
+				reportDiscardedIntent(intent, new Error('it could not be saved for 30 days'));
+			}
+			return false;
+		});
+	} catch (err) {
+		if (raw) quarantineRawQueue(raw, String(err));
 		return [];
 	}
 };
 
-const writePendingAuxWrites = (intents : AuxWriteIntent[]) : void => {
-	if (typeof localStorage === 'undefined') return;
+//Returns false when the queue could NOT be persisted. Callers that are about to
+//tell the user their work is safe must check: a swallowed QuotaExceededError
+//meant a card creation or comment was reported as durable while living only in
+//this tab's memory.
+const writePendingAuxWrites = (intents : AuxWriteIntent[]) : boolean => {
+	if (typeof localStorage === 'undefined') return false;
 	try {
 		if (intents.length === 0) localStorage.removeItem(STORAGE_KEY);
 		else localStorage.setItem(STORAGE_KEY, JSON.stringify(intents));
-	} catch {
-		//Durable storage unavailable: writes degrade to session-only, which
-		//is exactly the pre-queue behavior.
+		return true;
+	} catch (err) {
+		//Best-effort writes degrade to session-only, which is the pre-queue
+		//behavior. Anything the user WROTE needs to hear about this.
+		console.error('[aux-write] could not persist the pending queue:', err);
+		return false;
 	}
 };
 
@@ -317,9 +370,44 @@ export type AuxWriteOutcome = 'committed' | 'queued' | 'discarded';
 export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
 	const executor = executors[intent.kind];
 	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
-	writePendingAuxWrites([...readPendingAuxWrites(), intent]);
+	const persisted = writePendingAuxWrites([...readPendingAuxWrites(), intent]);
+	//If we could not persist something the user WROTE, do not proceed as
+	//though it were durable — reject so the caller runs its own failure path
+	//(restore the compose text, tell the user the card was not created)
+	//instead of showing a success it cannot back up.
+	if (!persisted && HIGH_VALUE_KINDS.has(intent.kind)) {
+		return Promise.reject(new Error('This change could not be saved locally, so it was not submitted. Browser storage may be full or blocked.'));
+	}
 	inFlight.set(intent.id, intent);
-	return executor(intent, false).then<AuxWriteOutcome, AuxWriteOutcome>(() => {
+	//Claim it before attempting, not just on replay. The type comment always
+	//said the claim was "written before an attempt", but only replay wrote one
+	//— so a fresh intent sat unclaimed in shared storage for the whole
+	//attempt, and a sibling tab handling the same `online` event could claim
+	//and execute it too. star-add then double-increments the card's counters
+	//and comment-add double-increments thread_count.
+	claimIntent(intent.id);
+	return attemptPersistedIntent(intent).finally(() => releaseClaim(intent.id));
+};
+
+//A Firestore commit on the main thread's MEMORY-ONLY cache neither resolves nor
+//rejects while offline, so awaiting the executor could hang forever: callers
+//never learned the write had not landed, the 'queued' outcome was unreachable
+//in exactly the situation it exists for, and the intent stayed in `inFlight`
+//where replay skips it — permanently. Report 'queued' once this expires. The
+//original promise stays wired, so a late ack still clears the intent and a late
+//permanent failure still alerts.
+let attemptTimeoutMs = 8000;
+
+//Testing hook: the real 8s wait makes the unit suite pointlessly slow.
+export const setAuxWriteAttemptTimeoutForTesting = (ms : number) : void => {
+	attemptTimeoutMs = ms;
+};
+
+//Attempt an intent that is ALREADY persisted and already marked in flight.
+const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
+	const executor = executors[intent.kind];
+	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
+	const attempt = executor(intent, false).then<AuxWriteOutcome, AuxWriteOutcome>(() => {
 		removeIntent(intent.id);
 		return 'committed';
 	}, error => {
@@ -336,6 +424,60 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOu
 	}).finally(() => {
 		inFlight.delete(intent.id);
 	});
+	return Promise.race([
+		attempt,
+		new Promise<AuxWriteOutcome>(resolve => setTimeout(() => {
+			//Not an error and not a discard: the write may still land. The
+			//intent stays persisted, and dropping it from `inFlight` is what
+			//lets a later replay pick it up if this attempt never settles.
+			if (inFlight.has(intent.id)) {
+				console.warn(`Aux write ${intent.kind} for ${intent.cardID} has not confirmed in ${attemptTimeoutMs}ms; treating it as queued`);
+				inFlight.delete(intent.id);
+			}
+			resolve('queued');
+		}, attemptTimeoutMs))
+	]);
+};
+
+//Persist a GROUP of intents in one storage write, then attempt them with
+//bounded concurrency. Giving each imported card its own durable intent is the
+//right call — an import that dies halfway used to lose every card — but doing
+//that with one runDurableAuxWrite per card turned a single batched commit into
+//N SERIALIZED server round trips: at this branch's own measured ~0.6-1s commit,
+//a 100-card import would take 60-100s behind an indefinite spinner. The cards
+//are independent, so nothing forbids overlapping them.
+//
+//One storage write rather than N read-modify-writes also keeps the persist step
+//from being O(N^2) in bytes for a large import.
+export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrency = 8) : Promise<AuxWriteOutcome[]> => {
+	if (!intents.length) return [];
+	for (const intent of intents) {
+		if (!executors[intent.kind]) throw new Error(`No executor for aux write kind ${intent.kind}`);
+	}
+	//Persist the WHOLE group before attempting any of it. Previously each
+	//intent was persisted inside its own awaited call, so a bulk import that
+	//stalled on card 1 had never written intents 2..N — 199 of 200 imported
+	//cards were simply gone on reload.
+	if (!writePendingAuxWrites([...readPendingAuxWrites(), ...intents].sort(byCreation))) {
+		throw new Error('These changes could not be saved locally, so they were not submitted. Browser storage may be full or blocked.');
+	}
+	for (const intent of intents) {
+		inFlight.set(intent.id, intent);
+		claimIntent(intent.id);
+	}
+	const outcomes : AuxWriteOutcome[] = new Array(intents.length);
+	let next = 0;
+	//localStorage mutation inside the settle path is synchronous, so concurrent
+	//attempts cannot interleave a read-modify-write within this tab.
+	const runner = async () : Promise<void> => {
+		for (;;) {
+			const index = next++;
+			if (index >= intents.length) return;
+			outcomes[index] = await attemptPersistedIntent(intents[index]).finally(() => releaseClaim(intents[index].id));
+		}
+	};
+	await Promise.all(Array.from({length: Math.min(concurrency, intents.length)}, () => runner()));
+	return outcomes;
 };
 
 //Replays every surviving intent for the given uid, strictly in order,
@@ -479,4 +621,5 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	replayRetryScheduled = false;
 	currentUid = null;
 	watcherInstalled = false;
+	attemptTimeoutMs = 8000;
 };

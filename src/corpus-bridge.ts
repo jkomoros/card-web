@@ -1048,6 +1048,15 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 			console.warn(`[corpus-worker] ${message.reason}`);
 			break;
 		}
+		//A non-blocking degradation must not reach 'degraded', which is in
+		//CORPUS_STATUS_BLOCKS_INTERACTION and therefore raises the
+		//full-viewport panel. Report it on the status indicator instead, which
+		//is exactly the surface for "still working, but worse".
+		if (message.blocking === false) {
+			console.warn(`[corpus-worker] ${message.reason}`);
+			store.dispatch({type: UPDATE_CORPUS_STATUS, status: lastSyncState === 'live' ? 'live' : 'loading', message: message.reason});
+			break;
+		}
 		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: message.reason});
 		break;
 	case 'spikeReport':
