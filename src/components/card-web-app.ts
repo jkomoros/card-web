@@ -246,7 +246,19 @@ class CardWebApp extends connect(store)(LitElement) {
 			   together with the status label at identical weight and colour. */
 			.save-reason { color: var(--app-dark-text-color-light); }
 			.save-status.paused .save-dot { background: var(--app-warning-color); }
-			.save-status button { border: 0; background: transparent; color: var(--app-primary-color); text-decoration: underline; cursor: pointer; font: inherit; }
+			/* The most destructive control on screen was pixel-identical to the safe
+		   one next to it, and named five different things across the app
+		   ("Discard", "Stop retrying", "Stop", "Stop this operation?"). One
+		   name, and a visibly subordinate destructive treatment. */
+		.save-status button.stop {
+			color: var(--app-warning-color);
+			text-decoration: none;
+			box-shadow: inset 0 0 0 1px currentColor;
+			border-radius: 0.3rem;
+			padding: 0 0.4em;
+		}
+
+		.save-status button { border: 0; background: transparent; color: var(--app-primary-color); text-decoration: underline; cursor: pointer; font: inherit; }
 		`
 	];
 
@@ -289,7 +301,7 @@ class CardWebApp extends connect(store)(LitElement) {
 				account switch, where resume returns silently on uid mismatch.
 				There was no in-app exit at all: DevTools or nothing. -->
 				<button @click=${this._retrySave}>Retry</button>
-				<button @click=${this._stopRetryingSave}>${this._saveStatus === 'paused' ? 'Stop retrying' : 'Discard'}</button>
+				<button class='stop' @click=${this._stopRetryingSave}>Stop</button>
 			</div>` : ''}
 		<corpus-ownership-gate></corpus-ownership-gate>
 		`;

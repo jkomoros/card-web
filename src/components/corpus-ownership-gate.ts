@@ -41,7 +41,7 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 			box-sizing: border-box;
 			overflow: auto;
 			background: rgb(248 250 252 / 97%);
-			color: #303030;
+			color: var(--app-dark-text-color);
 		}
 		.panel {
 			width: min(30rem, 100%);
@@ -77,7 +77,10 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 			box-shadow: inset 0 0 0 1px var(--app-primary-color, #5e2b97);
 		}
 		button[disabled] { opacity: 0.6; cursor: wait; }
-		.guidance { margin-top: 1rem; margin-bottom: 0; color: #666; font-size: 0.9rem; }
+		/* The app's convention for a subordinate label is 0.75em, and the tokens
+		   are inherited here (this renders inside card-web-app's shadow root) —
+		   this panel was the only surface hardcoding its own greys. */
+		.guidance { margin-top: 1rem; margin-bottom: 0; color: var(--app-dark-text-color-light); font-size: 0.75em; }
 	`;
 
 	private get _title() : string {
@@ -188,7 +191,10 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		return html`
 			<section class='panel' tabindex='-1' role='alertdialog' aria-modal='true' aria-labelledby='ownership-title' aria-describedby='ownership-description' @keydown=${this._containFocus}>
 				<h1 id='ownership-title'>${this._title}</h1>
-				<p id='ownership-description' role='status' aria-live='polite'>${this._message}</p>
+				<!-- No role='status'/aria-live here: an alertdialog already
+				     announces its aria-describedby content on open, so the live
+				     region made screen readers say it twice. -->
+				<p id='ownership-description'>${this._message}</p>
 				${canTakeOver ? html`<button data-testid='corpus-use-this-tab' @click=${this._activate}>Use this tab</button>` : ''}
 				${this._status === 'takeover' ? html`<button disabled>Moving…</button>` : ''}
 				${this._status === 'degraded' || this._status === 'ownership-error' ? html`

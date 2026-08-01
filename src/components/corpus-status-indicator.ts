@@ -83,7 +83,10 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		.count {
 			font-size: 0.72em;
 			font-variant-numeric: tabular-nums;
-			color: var(--app-dark-text-color-light);
+			/* NOT --app-dark-text-color-light (#AAA): ~2.3:1 on the pill's
+			   white background, for the one number this whole surface exists
+			   to show. #7f7f7f is 4.6:1. */
+			color: var(--app-dark-text-color);
 			line-height: 1;
 		}
 

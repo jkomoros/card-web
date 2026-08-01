@@ -41,15 +41,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P2 — UX consistency
 
-- **U31. The save pill's destructive control is styled identically to the safe
-  one**, has no confirm, and is called five different things across the app.
-- **U33. Static `aria-label` + dynamic `title`** on the star/read/reading-list
-  toggles — the accessible name is wrong in half of all states, no `aria-pressed`.
-- **U34. Ownership panel**: headline restated verbatim in the body, "restart
-  Chrome" in four strings, hardcoded colors/sizes outside the app's tokens,
-  double-announced live region.
-- **U36. `.count` on the status pill is ~2.3:1 contrast** — the one number the
-  branch exists to show.
 
 ---
 

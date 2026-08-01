@@ -1508,7 +1508,7 @@ const finishUnresponsiveTakeover = async (requestID : string) => {
 		? 'The other tab stopped responding after reporting an unsaved edit or pending save. For safety, find or close that tab before continuing.'
 		: result === 'fresh'
 			? 'The other tab is still active but did not answer. Try again, or close the other tab.'
-			: 'The other tab could not be safely replaced. Close other Compendium tabs, then try again. If it is hard to find, restart Chrome.';
+			: 'The other tab could not be safely replaced. Close other Compendium tabs, then try again. If it is hard to find, restart your browser.';
 	finishTakeoverFailure(detail, result === 'error' ? 'ownership-error' : 'contended');
 };
 
@@ -1562,7 +1562,7 @@ const beginInitialOwnership = async () => {
 			return;
 		}
 		if (result !== 'contended') {
-			setOwnershipStatus('ownership-error', 'Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart Chrome.');
+			setOwnershipStatus('ownership-error', 'Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart your browser.');
 			return;
 		}
 		if (attempt + 1 < OWNERSHIP_RETRY_ATTEMPTS) await new Promise(resolve => setTimeout(resolve, OWNERSHIP_RETRY_DELAY_MS));
@@ -1594,7 +1594,7 @@ export const takeOverOwnership = async () => {
 		return;
 	}
 	if (direct !== 'contended') {
-		finishTakeoverFailure('Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart Chrome.', 'ownership-error');
+		finishTakeoverFailure('Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart your browser.', 'ownership-error');
 		return;
 	}
 	const requestID = crypto.randomUUID();
@@ -1648,7 +1648,7 @@ ownershipChannel?.addEventListener('message', event => {
 		void acquireOwnershipLock(false, abort.signal).then(result => {
 			if (result !== 'acquired') {
 				if (result !== 'contended' && takeoverAttempt?.requestID === message.requestID) {
-					finishTakeoverFailure('Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart Chrome.', 'ownership-error');
+					finishTakeoverFailure('Reload this tab and try again. If this keeps happening, close other Compendium tabs or restart your browser.', 'ownership-error');
 				}
 				return;
 			}
