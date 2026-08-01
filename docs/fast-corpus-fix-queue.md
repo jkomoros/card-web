@@ -23,16 +23,32 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P1 — performance (boot to `live` is 26s against a 15s budget)
 
-- **F3. The published listener is deferred past the whole prime CPU block**, not
-  just past the IndexedDB read it was meant to avoid contending with. Moving it
-  to just after the snapshot `load()` resolves is safe by construction (the
-  non-compact branch already attaches before its cache query, and the ordering
-  race is handled). Est. 2-5s.
-- **F2. A second full trust gate runs before `markWatermarkPlane('delta')`.** Its
-  ordering protects the SNAPSHOT SAVE, not `live`; gate the save instead. Est.
-  0.5-2s.
-- **F4. Tombstone and delta listeners are serialized** when only their plane
-  bookkeeping needs ordering. Est. 0.5-2s.
+- **F7 (MEASURED, replaces the F2/F3/F4 estimates). `catchUpTombstones` is
+  ~61% of the entire path to `live`.** With the boot now instrumented, three
+  real DEV boots give:
+
+      boot to live: total=24-31s | snapshotRead=1.7-1.9s primeCPU=2.8s
+                    publishedAttached=0ms tombstoneCatchUp=13.9-16.7s
+      tombstone catch-up: cursor=1785600549 docs=1 in 16708ms
+
+  ONE document, 16.7 seconds. The cursor is correct and there is no data to
+  scan — the round trip itself is the cost. It is issued immediately after
+  connectPublished(), so it races the published listener's first server
+  snapshot over the worker's single `experimentalForceLongPolling` connection
+  and loses. Everything downstream of its `await` (trust gate, tombstone and
+  delta listeners) is blocked behind it.
+
+  Note the estimates this replaces: the review guessed 2-5s for the published
+  attach (measures 0ms) and 0.3-1.5s for this (measures 16.7s). Do not
+  re-estimate — the checkpoints are in the code now.
+
+  Candidate fixes, in increasing risk: (a) stop gating `live` on this round
+  trip and let the tombstone LISTENER carry it, since the listener attaches
+  moments later anyway; (b) issue it before connectPublished so it is not
+  queued behind a multi-thousand-document snapshot; (c) serve it from cache
+  and reconcile from the server after `live`. Each changes ghost-suppression
+  ordering, so each needs its own verification pass rather than a quick edit.
+
 - **F5 [MINE]. The queue does O(queue) read-modify-write per operation** and now
   carries ~2KB card payloads, so replay is O(N^2) in bytes.
 - **DO THIS FIRST: `status()` messages carry no timestamps**, so none of the

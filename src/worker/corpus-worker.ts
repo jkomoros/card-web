@@ -400,7 +400,21 @@ const buildSearchRecall = async () => {
 	status(`search recall ready: ${index.cardCount} indexed, ${searchRecallAlwaysScan.size} always-scan, in ${elapsed.toFixed(0)}ms wall (chunked)`);
 };
 
-const status = (message : string) => send({type: 'status', generation, message});
+//Every boot-timing estimate about the path to `live` was unfalsifiable because
+//status lines carried no time at all. Stamp each one with ms since this
+//connection started, and emit one summary on `live` — so the decomposition of
+//"8s to usable, ~27s to live" is a measurement rather than an argument.
+let connectStartedAt = 0;
+const bootCheckpoints : {label : string, at : number}[] = [];
+
+const sinceConnect = () : number => connectStartedAt ? Math.round(performance.now() - connectStartedAt) : 0;
+
+export const markBootCheckpoint = (label : string) : void => {
+	if (!connectStartedAt) return;
+	bootCheckpoints.push({label, at: sinceConnect()});
+};
+
+const status = (message : string) => send({type: 'status', generation, message: `+${sinceConnect()}ms ${message}`});
 
 //Age of the compact snapshot this session primed from; null when primed from
 //the server. Reported with loadComplete so the UI can show staleness.
@@ -1292,6 +1306,13 @@ const healthyWatermarkPlanes = new Set<WatermarkPlane>();
 const setSyncState = (state : 'unverified' | 'live' | 'stale') => {
 	if (currentSyncState === state) return;
 	currentSyncState = state;
+	if (state === 'live' && bootCheckpoints.length) {
+		//One line with the whole path, so the expensive stretch is obvious
+		//without correlating a dozen separate log lines by hand.
+		const deltas = bootCheckpoints.map((checkpoint, index) =>
+			`${checkpoint.label}=${checkpoint.at - (index ? bootCheckpoints[index - 1].at : 0)}ms`);
+		status(`boot to live: total=${sinceConnect()}ms | ${deltas.join(' ')}`);
+	}
 	send({type: 'syncState', generation, state});
 };
 
@@ -1601,7 +1622,11 @@ const catchUpTombstones = async (database : Firestore) : Promise<void> => {
 	try {
 		const cursor = syncMetaState?.tombstoneCursor;
 		const bound = cursor ? watermarkQueryBound(cursor) : {seconds: 0, nanoseconds: 0};
+		//This measured 18.9s on real DEV — 61% of the whole path to `live` — so
+		//report what it actually fetched rather than leaving that unexplained.
+		const catchUpStartedAt = performance.now();
 		const snapshot = await getDocsFromServer(query(collection(database, TOMBSTONES_COLLECTION), where('deleted', '>', new Timestamp(bound.seconds, bound.nanoseconds))));
+		status(`tombstone catch-up: cursor=${cursor ? cursor.seconds : 'NONE (full scan)'} docs=${snapshot.size} in ${Math.round(performance.now() - catchUpStartedAt)}ms`);
 		const tombstones : CorpusTombstone[] = [];
 		snapshot.docs.forEach(docSnapshot => {
 			//A pending local tombstone write materializes `deleted` with the
@@ -1961,6 +1986,7 @@ const afterColdSweep = async (database : Firestore, myConnectionGeneration : num
 		}
 	}
 	sessionWatermark = deriveClampedWatermark();
+	markBootCheckpoint('trustGate');
 	attachTombstoneListener(database, () => {
 		attachDeltaListener(database);
 	});
@@ -2060,6 +2086,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		if (myConnectionGeneration !== connectionGeneration) return;
 		if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
 			primeSource = 'compact snapshot';
+			markBootCheckpoint('snapshotRead');
 			//`savedAt` was written on every save and never read. A device that
 			//has been offline for weeks primes from a months-old snapshot, is
 			//granted loadComplete for it, and serves it with no staleness
@@ -2218,6 +2245,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	//unverified, so serving it first does not weaken correctness: `live` still
 	//requires the subsequently attached published listener plus the tombstone
 	//and delta planes to become server-confirmed.
+	markBootCheckpoint('primeCPU');
 	if (deferPublishedUntilAfterPrime) connectPublished();
 	if (!syncMetaState) syncMetaState = await loadSyncMeta();
 	if (myConnectionGeneration !== connectionGeneration) return;
@@ -2240,7 +2268,9 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 
 	//2. Tombstone catch-up FIRST (deletions-while-away must not read as
 	//partition mismatches) + retry any unconfirmed cache launders.
+	markBootCheckpoint('publishedAttached');
 	await catchUpTombstones(database);
+	markBootCheckpoint('tombstoneCatchUp');
 	if (myConnectionGeneration !== connectionGeneration) return;
 	retryPendingLaunders(database);
 
@@ -2350,6 +2380,8 @@ const purgePrivilegedSnapshot = async (outgoingUid : string) => {
 
 const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	teardownListeners();
+	connectStartedAt = performance.now();
+	bootCheckpoints.length = 0;
 	if (!uid && currentUid) void purgePrivilegedSnapshot(currentUid);
 	disableCorpusSnapshotPersistence();
 	//A (re)connect changes what this corpus MEANS (different permissions ⇒
