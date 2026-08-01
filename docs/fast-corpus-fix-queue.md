@@ -28,15 +28,21 @@ little enough to ignore. Watch for it during the acceptance test.
 
 ## P1 — performance
 
-### P23 (residual). Server-confirmed save — re-measure at scale
-Round 10 measured server-confirmed p95 at 5070ms against editor release p95
-57ms. The N1 fix (apply the committed cards locally once the commit is
-server-confirmed, instead of waiting for the delta listener to echo them back)
-changed this materially: two post-fix samples on real DEV came in at 979ms and
-449ms, both confirmed against server truth by reloading to `live`. That is a
-sample of two, not a p95 — what remains is a proper distribution, not a
-protocol change. The earlier conclusion that shortening it required rewriting
-the durable protocol was wrong: most of the time was the listener round trip.
+### P23 (residual, product decision). Server-confirmed save p95 is ~1.07s
+Re-measured properly on real DEV after the N1 fix, 10 consecutive saves of one
+card with a byte-exact restore afterwards:
+
+  editor release    p50 48ms    p95 80ms
+  server-confirmed  p50 622ms   p95 1066ms   (samples: 1066,670,620,595,626,
+                                              622,656,586,574,791)
+
+Round 10 measured the same thing at p95 5070ms, and concluded the near-constant
+~5s pointed at sequential round trips in the durable protocol, so shortening it
+would be a protocol change. That conclusion was WRONG: most of it was the
+delta-listener round trip the durable path uniquely depended on, which the N1
+fix removed. Criterion 4 ("Save <1s with durable intent") is met at p50 and
+missed at p95 by 66ms, on one card on one machine. Whether that counts as met
+is the owner's call; there is no longer a known structural cause to attack.
 
 ## P2 — security hardening
 
