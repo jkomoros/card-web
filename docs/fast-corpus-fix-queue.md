@@ -16,12 +16,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P0 — data loss / wedge
 
-- **L3. A resumed durable multi-edit CLOBBERS newer content.** The record carries
-  no base version, and `CardDiff` text fields are whole-value replacements. Edit
-  on laptop → fails transiently → edit properly on phone → laptop wakes days
-  later and writes the stale text over the phone's. Fully automatic, no confirm.
-  `edit-draft.ts` already has the right machinery (`baseUpdated` + a confirm).
-
 ### P1 — correctness
 
 - **L4. `modifyCardsIndividually` refuses silently** (no failure action), and

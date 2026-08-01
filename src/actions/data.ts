@@ -188,6 +188,13 @@ import {
 } from '../card_diff.js';
 
 import {
+	overwrittenCardFields,
+	overwriteConflictMessage,
+	replacedFieldsOf,
+	OVERWRITE_CONFLICT_PREFIX
+} from '../durable-overwrite-guard.js';
+
+import {
 	CARD_TYPE_EDITING_FINISHERS
 } from '../card_finishers.js';
 
@@ -740,6 +747,25 @@ type DurableMultiEdit = {
 	//authoritative base so every retry reconstructs the same idempotent write
 	//plan until the post-commit marker confirms the whole fanout.
 	oversizedBaseCards?: {[id : CardID] : unknown},
+	//What each target card held, for exactly the whole-value fields this update
+	//replaces, when the record was written. Without it a resume rebuilds its
+	//plan against whatever the server holds NOW and writes body/title/notes
+	//straight over anything saved in between — from another device or another
+	//tab. The interactive save path has warned about this forever
+	//(selectOvershadowedUnderlyingCardChangesDiffDescription); the resume path,
+	//which fires automatically on every readiness edge and every `online`
+	//event, had no equivalent.
+	//
+	//Deliberately the VALUES and not the `updated` timestamp: Redux's copy of
+	//`updated` after a local echo is a client estimate rather than the server's
+	//own, so a timestamp comparison would flag an ordinary second save of the
+	//same card as a conflict. Values also make a partially-committed chunk
+	//self-evident — the server already equals what we would write.
+	//Only NON_AUTOMATIC_MERGE_FIELDS are recorded, so an additive multi-edit
+	//(add_tags, references_diff) stores nothing at all.
+	baseFields?: {[id : CardID] : {[field : string] : unknown}},
+	//Set once the user has explicitly accepted overwriting those changes.
+	overwriteAcknowledged?: boolean,
 };
 
 let durableMultiEditRunning = false;
@@ -757,6 +783,8 @@ const readDurableMultiEdit = () : DurableMultiEdit | null => {
 			!value.update || typeof value.update !== 'object' || Array.isArray(value.update) ||
 			(value.lastError !== undefined && typeof value.lastError !== 'string') ||
 			(value.oversizedBaseCards !== undefined && (!value.oversizedBaseCards || typeof value.oversizedBaseCards !== 'object' || Array.isArray(value.oversizedBaseCards))) ||
+			(value.baseFields !== undefined && (!value.baseFields || typeof value.baseFields !== 'object' || Array.isArray(value.baseFields))) ||
+			(value.overwriteAcknowledged !== undefined && typeof value.overwriteAcknowledged !== 'boolean') ||
 			value.targetIDs.some(id => typeof id !== 'string' || !id) || new Set(value.targetIDs).size !== value.targetIDs.length ||
 			(value.oversizedBaseCards !== undefined && Object.entries(value.oversizedBaseCards).some(([id, card]) =>
 				!value.targetIDs.includes(id) || !card || typeof card !== 'object' || Array.isArray(card)))) {
@@ -826,7 +854,20 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		if (!operation) {
 			const targetIDs = resumeTargetIDs || cards.map(card => card.id);
 			if (kind === 'single' && targetIDs.length !== 1) throw new Error('A single-card save must contain exactly one card');
-			operation = {version: 1, id: `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind};
+			//Record what each target held for the fields this update REPLACES, so
+			//a resume days later can tell "nobody touched this" from "someone
+			//rewrote it on another device".
+			const baseCards = selectRawCards(getState());
+			const replacedFields = replacedFieldsOf(update);
+			const baseFields : {[id : CardID] : {[field : string] : unknown}} = {};
+			if (replacedFields.length) {
+				for (const id of targetIDs) {
+					const card = baseCards[id] as unknown as {[field : string] : unknown} | undefined;
+					if (!card) continue;
+					baseFields[id] = Object.fromEntries(replacedFields.map(field => [field, card[field]]));
+				}
+			}
+			operation = {version: 1, id: `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind, baseFields};
 			persistDurableMultiEdit(operation);
 			//The write-ahead intent is durable now. Release the blocking editor
 			//immediately, retain its draft until server confirmation, and report
@@ -902,6 +943,20 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
 				if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
 				skippedCount = authoritative.removedIDs.length;
+				//L3: refuse to overwrite content written AFTER this record was
+				//saved. Only whole-value fields can destroy anything — additive
+				//diffs (add_tags, references_diff) merge fine — and a field
+				//whose server value already equals what we would write is not a
+				//conflict, which is what keeps a partially-committed chunk from
+				//flagging our OWN write on retry.
+				if (!operation.overwriteAcknowledged) {
+					const overwritten = overwrittenCardFields(
+						operation.update as unknown as {[field : string] : unknown},
+						operation.baseFields,
+						authoritative.cards as unknown as {[id : string] : {[field : string] : unknown}},
+						chunkIDs);
+					if (overwritten.length) throw new Error(overwriteConflictMessage(overwritten));
+				}
 				const state = getState();
 				batch = new MultiBatch(db, `${operation.id}-${operation.nextIndex}`);
 				modifiedCount = 0;
@@ -1083,6 +1138,16 @@ const resumePendingDurableMultiEdit = (force = false) : ThunkSomeAction => async
 	try {
 		const operation = readDurableMultiEdit();
 		if (!operation || operation.uid !== selectUid(getState())) return;
+		//A paused overwrite conflict must never clear itself on an automatic
+		//resume — those fire on every readiness edge and every `online` event,
+		//which is precisely how a stale save would silently win. Only an
+		//explicit user Retry (force) may ask, and only a yes proceeds.
+		if (operation.lastError && operation.lastError.includes(OVERWRITE_CONFLICT_PREFIX) && !operation.overwriteAcknowledged) {
+			if (!force) return;
+			if (!confirm(`${operation.lastError}\n\nReplace those changes with your pending save?`)) return;
+			operation.overwriteAcknowledged = true;
+			persistDurableMultiEdit(operation);
+		}
 		if (operation.kind !== 'single') dispatch(openMultiEditDialog());
 		await dispatch(modifyCardsWithDurableMultiEdit(
 			[],

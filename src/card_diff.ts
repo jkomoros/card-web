@@ -1,5 +1,9 @@
 
 import {
+	NON_AUTOMATIC_MERGE_FIELDS
+} from './durable-overwrite-guard.js';
+
+import {
 	diffCardFlags,
 	extractCardLinksFromBody,
 	reasonCardTypeNotLegalForCard,
@@ -119,16 +123,6 @@ import { TODO_ALL_INFOS, cardTODOConfigKeys } from './filters.js';
 import { FIELD_VALIDATORS } from './card_methods.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
-const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
-	title : true,
-	title_alternates : true,
-	body : true,
-	subtitle : true,
-	todo : true,
-	notes : true,
-	external_link: true,
-	images : true,
-};
 
 const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
 	//For space, we'll combine the summary by similar reference types.
