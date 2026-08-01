@@ -13,6 +13,13 @@ import {
 } from '../firebase.js';
 
 import {
+	AuxWriteOutcome,
+	makeAuxWriteIntent,
+	registerAuxWriteExecutor,
+	runDurableAuxWrite
+} from '../aux-write-queue.js';
+
+import {
 	doc,
 	getDoc,
 	getDocFromServer,
@@ -25,7 +32,8 @@ import {
 	arrayRemove,
 	deleteField,
 	serverTimestamp,
-	Timestamp
+	Timestamp,
+	DocumentReference
 } from 'firebase/firestore';
 
 import {
@@ -1923,10 +1931,12 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		type: BULK_IMPORT_PENDING
 	});
 
-	const batch = new MultiBatch(db);
-	ensureAuthor(batch, user);
-
 	const ids : CardID[] = [];
+	//One durable intent per card rather than one batch for all of them. A bulk
+	//import that dies halfway used to lose every card; now the survivors
+	//replay on the next boot. Working-notes cards are independent — no
+	//section, no tags, no inbound links — so there is nothing atomic to break.
+	const intents = [];
 
 	let sortOrder = selectSortOrderForGlobalAppend(state);
 
@@ -1940,7 +1950,12 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		obj.body = body;
 		cardFinisher(obj, state);
 		if (flags) obj.flags = {...flags};
-		batch.set(doc(db, CARDS_COLLECTION, id), obj);
+		intents.push(makeAuxWriteIntent(user.uid, 'card-create', id, '', {
+			kind: 'card-create',
+			card: persistableCard(obj),
+			section: '',
+			sectionUpdateKey: '',
+		}));
 		ids.push(id);
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	}
@@ -1960,7 +1975,19 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		cardLoadingChannel: selectExpectedCardFetchTypeForNewUnpublishedCard(state)
 	});
 
-	await batch.commit();
+	const outcomes = [];
+	for (const intent of intents) outcomes.push(await runDurableAuxWrite(intent));
+	const notCommitted = outcomes.filter(outcome => outcome !== 'committed').length;
+	if (notCommitted) {
+		const queued = outcomes.filter(outcome => outcome === 'queued').length;
+		console.warn(`${notCommitted} of ${outcomes.length} imported cards did not commit (${queued} queued for replay)`);
+		if (queued && typeof window !== 'undefined') window.setTimeout(() => alert(`${queued} of ${outcomes.length} cards could not be created right now. They have been saved and will be created automatically when the connection recovers.`), 0);
+	}
+	if (outcomes[0] !== 'committed') {
+		//Waiting for a card the server does not have would hang the import UI.
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
+	}
 
 	await waitForCardToExist(firstID);
 
@@ -1984,6 +2011,76 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 // id: ID to use
 // noNavigate: if true, will not navigate to the card when created
 // title: title of card
+
+//--- Durable card creation -------------------------------------------------
+//C18: creation used to have no write-ahead record at all, so a crash or a
+//close between the accepted UI action and the server ack simply lost the
+//card. The intent carries the materialized write plan (the card object, the
+//section, and the section audit key) rather than the user's high-level
+//request, because re-deriving sort order and section from Redux at replay
+//time would need state a fresh boot does not have yet.
+//
+//Replay safety: the card id is client-vended, so the card doc's existence on
+//the server proves whether the original batch committed. A no-op on replay is
+//the right answer even if the user has since EDITED the card — re-running
+//`set` would silently revert those edits.
+const cardCreateCommitted = async (cardRef : DocumentReference, label : string) : Promise<boolean> => {
+	try {
+		return (await getDocFromServer(cardRef)).exists();
+	} catch (err) {
+		//Same reasoning as the star preflight: an unanswered question is not a
+		//negative answer, and throwing without a `code` keeps the queue from
+		//classifying it as permanent and destroying the intent.
+		throw new Error(`${label} replay preflight could not be answered; retaining intent: ${String(err)}`);
+	}
+};
+
+registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
+	const payload = intent.payload;
+	if (!payload || payload.kind !== 'card-create') throw new Error('card-create intent without its plan');
+	const cardDocRef = doc(db, CARDS_COLLECTION, intent.cardID);
+	if (isReplay && await cardCreateCommitted(cardDocRef, 'card-create')) return;
+	const card = restoredPersistedCard(payload.card);
+	const batch = new MultiBatch(db);
+	const author = selectUser(store.getState() as State);
+	if (author) ensureAuthor(batch, author);
+	batch.set(cardDocRef, card);
+	if (payload.deriveInboundLinks) {
+		//Recomputed, not replayed from storage: these updates carry arrayUnion
+		//sentinels that JSON cannot represent, and they are a pure function of
+		//the card we just wrote.
+		const inboundUpdates = inboundLinksUpdates(intent.cardID, null, card);
+		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+			batch.update(doc(db, CARDS_COLLECTION, otherCardID), otherCardUpdate);
+		}
+	}
+	for (const [tagName, tagUpdateKey] of Object.entries(payload.tagUpdateKeys || {})) {
+		const tagRef = doc(db, TAGS_COLLECTION, tagName);
+		batch.update(tagRef, {
+			cards: arrayUnion(intent.cardID),
+			updated: serverTimestamp()
+		});
+		batch.set(doc(tagRef, TAG_UPDATES_COLLECTION, tagUpdateKey), {
+			timestamp: serverTimestamp(),
+			add_card: intent.cardID,
+		});
+	}
+	if (payload.section) {
+		const sectionRef = doc(db, SECTIONS_COLLECTION, payload.section);
+		//The audit key is the one captured when the user acted, so a replay
+		//overwrites its own entry instead of appending a second one.
+		const sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, payload.sectionUpdateKey);
+		batch.update(sectionRef, {
+			cards: arrayUnion(intent.cardID),
+			updated: serverTimestamp(),
+		});
+		batch.set(sectionUpdateRef, {
+			timestamp: serverTimestamp(),
+			add_card: intent.cardID
+		});
+	}
+	await batch.commit();
+});
 
 export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
 
@@ -2114,8 +2211,6 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		}
 	}
 
-	const cardDocRef = doc(db, CARDS_COLLECTION, id);
-
 	//Tell card-view to expect a new card to be loaded, and when data is
 	//fully loaded again, it will then trigger the navigation.
 	dispatch({
@@ -2157,28 +2252,36 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		fallbackAutoSlugLegalPromise = fallbackAutoSlug ?  slugLegal(fallbackAutoSlug) : null;
 	}
 
-	const batch = new MultiBatch(db);
+	//Write-ahead: persist the plan BEFORE attempting it, so a crash or a close
+	//between here and the server ack leaves a record the queue replays on the
+	//next boot. The section audit key is captured here rather than recomputed
+	//in the executor — it used to be Date.now(), which a replay would turn
+	//into a second audit entry for one creation.
+	const intent = makeAuxWriteIntent(user.uid, 'card-create', id, '', {
+		kind: 'card-create',
+		card: persistableCard(obj),
+		section,
+		sectionUpdateKey: section ? '' + Date.now() : '',
+	});
 
-	ensureAuthor(batch, user);
-	batch.set(cardDocRef, obj);
-
-	if (section) {
-		const sectionRef = doc(db, SECTIONS_COLLECTION, obj.section);
-		const sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
-		batch.update(sectionRef, {
-			cards: arrayUnion(id),
-			updated: serverTimestamp(),
-		});
-		batch.set(sectionUpdateRef, {
-			timestamp: serverTimestamp(), 
-			add_card: id
-		});
-	}
-
+	//The queue resolves for all three outcomes; only 'committed' means the
+	//server has the card. Proceeding on 'queued' would wait forever for a card
+	//that is not there yet, and proceeding on 'discarded' would wait forever
+	//for one that never will be.
+	let outcome : AuxWriteOutcome;
 	try {
-		await batch.commit();
+		outcome = await runDurableAuxWrite(intent);
 	} catch (err) {
 		console.warn(err);
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
+	}
+	if (outcome !== 'committed') {
+		if (outcome === 'queued') {
+			console.warn(`Card ${id} could not be created right now; it is queued and will be created automatically when the connection recovers.`);
+			if (typeof window !== 'undefined') window.setTimeout(() => alert('That card could not be created right now. It has been saved and will be created automatically when the connection recovers.'), 0);
+		}
+		//The 'discarded' case already alerted from inside the queue.
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
@@ -2272,7 +2375,6 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	references(newCard).setCardReferencesOfType('fork-of', [cardToFork.id]);
 	references(newCard).setCardReference(cardToFork.id, 'mined-from');
 
-	const inboundUpdates = inboundLinksUpdates(id, null, newCard);
 
 	const illegalTags : {[tag : TagID] : true} = {};
 	for (const tag of cardToFork.tags) {
@@ -2291,7 +2393,6 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		}
 	}
 
-	const cardDocRef = doc(db, CARDS_COLLECTION, id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
 	//fully loaded again, it will then trigger the navigation.
@@ -2304,56 +2405,39 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		cardLoadingChannel: newCard.published ? 'published' : selectExpectedCardFetchTypeForNewUnpublishedCard(state)
 	});
 
-	const batch = new MultiBatch(db);
-	ensureAuthor(batch, user);
-
-	batch.set(cardDocRef, newCard);
-
-	for (const [otherCardID, otherCardUpdate] of Object.entries(inboundUpdates)) {
-		const ref = doc(db, CARDS_COLLECTION, otherCardID);
-		batch.update(ref, otherCardUpdate);
-	}
+	//Write-ahead, same as createCard. The inbound-link mirror updates are NOT
+	//persisted: they are a pure function of the new card, so the executor
+	//recomputes them — arrayUnion sentinels cannot survive JSON.
+	const tagUpdateKeys : {[tag : string] : string} = {};
 	if (Array.isArray(newCard.tags)) {
-		for (const tagName of newCard.tags) {
-			const tagRef = doc(db, TAGS_COLLECTION, tagName);
-			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
-			const newTagObject = {
-				cards: arrayUnion(id),
-				updated: serverTimestamp()
-			};
-			const newTagUpdateObject = {
-				timestamp: serverTimestamp(),
-				add_card: id,
-			};
-			batch.update(tagRef, newTagObject);
-			batch.set(tagUpdateRef, newTagUpdateObject);
-		}
+		for (const tagName of newCard.tags) tagUpdateKeys[tagName] = '' + Date.now();
 	}
+	const forkIntent = makeAuxWriteIntent(user.uid, 'card-create', id, '', {
+		kind: 'card-create',
+		card: persistableCard(newCard),
+		section,
+		sectionUpdateKey: section ? '' + Date.now() : '',
+		deriveInboundLinks: true,
+		tagUpdateKeys,
+	});
 
-	if (section) {
-		const sectionRef = doc(db, SECTIONS_COLLECTION, newCard.section);
-		batch.update(sectionRef, {
-			cards: arrayUnion(id),
-			updated: serverTimestamp()
-		});
-		const sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
-		batch.set(sectionUpdateRef, {
-			timestamp: serverTimestamp(), 
-			add_card: id,
-		});
-	}
-
-	//Awaited, and failures surfaced. Fire-and-forget here meant an offline or
-	//fenced fork was accepted by the UI and then silently discarded: the main
-	//thread runs a memory-only Firestore cache, so nothing survives a reload.
+	let forkOutcome : AuxWriteOutcome;
 	try {
-		await batch.commit();
+		forkOutcome = await runDurableAuxWrite(forkIntent);
 	} catch (err) {
 		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
 		return;
 	}
-	return;
-
+	if (forkOutcome === 'queued') {
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		dispatch(modifyCardFailure(new Error('That fork could not be created right now. It has been saved and will be created automatically when the connection recovers.')));
+		return;
+	}
+	if (forkOutcome === 'discarded') {
+		//The queue already told the user; just stop expecting the card.
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
+	}
 
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the data is fully loaded again

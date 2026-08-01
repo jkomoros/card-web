@@ -7,11 +7,19 @@ import {
 
 import {
 	doc,
+	getDocFromServer,
 	runTransaction,
 	arrayUnion,
 	serverTimestamp,
 	DocumentReference
 } from 'firebase/firestore';
+
+import {
+	AuxWriteOutcome,
+	makeAuxWriteIntent,
+	registerAuxWriteExecutor,
+	runDurableAuxWrite
+} from '../aux-write-queue.js';
 
 import {
 	db,
@@ -35,8 +43,13 @@ import {
 } from './app.js';
 
 import {
+	store,
 	ThunkSomeAction
 } from '../store.js';
+
+import {
+	State
+} from '../types.js';
 
 import {
 	CommentMessage,
@@ -173,6 +186,89 @@ export const editMessage = (message : CommentMessage, newMessage : string) : Thu
 
 };
 
+//--- Durable comments ------------------------------------------------------
+//C18: comments had no write-ahead record, so a crash or a close between the
+//accepted UI action and the server ack lost what the user wrote — the one
+//kind of loss where the content existed ONLY in the user's head and the DOM.
+//
+//Replay safety rests on the client-vended message id: its existence on the
+//server proves whether the original write landed. That matters most for the
+//new-thread path, which increments thread_count inside a transaction and is
+//therefore not naturally idempotent.
+const commentCommitted = async (messageRef : DocumentReference, label : string) : Promise<boolean> => {
+	try {
+		return (await getDocFromServer(messageRef)).exists();
+	} catch (err) {
+		//An unanswerable preflight is not a "no". Throwing without a `code`
+		//keeps the queue from treating it as permanent and discarding the
+		//user's comment.
+		throw new Error(`${label} replay preflight could not be answered; retaining intent: ${String(err)}`);
+	}
+};
+
+registerAuxWriteExecutor('comment-add', async (intent, isReplay) => {
+	const payload = intent.payload;
+	if (!payload || payload.kind !== 'comment-add') throw new Error('comment-add intent without its plan');
+	const user = selectUser(store.getState() as State);
+	if (!user) throw new Error('comment-add replayed with no signed-in user');
+	const cardRef = doc(db, CARDS_COLLECTION, intent.cardID);
+	const threadRef = doc(db, THREADS_COLLECTION, payload.threadID);
+	const messageRef = doc(db, MESSAGES_COLLECTION, payload.messageID);
+	if (isReplay && await commentCommitted(messageRef, 'comment-add')) return;
+
+	const messageDoc = {
+		card: intent.cardID,
+		message: payload.message,
+		thread: payload.threadID,
+		author: user.uid,
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
+		deleted: false
+	};
+
+	if (!payload.newThread) {
+		const batch = new MultiBatch(db);
+		ensureAuthor(batch, user);
+		batch.update(threadRef, {
+			updated: serverTimestamp(),
+			messages: arrayUnion(payload.messageID)
+		});
+		//updated-invariant: exempt — cardEditMinor rules path; commenters may
+		//not touch `updated`, and message-count drift is an accepted tradeoff.
+		batch.updateWithoutTimestampBump(cardRef, {
+			updated_message: serverTimestamp(),
+		});
+		batch.set(messageRef, messageDoc);
+		await batch.commit();
+		return;
+	}
+
+	await trackMutation(() => runTransaction(db, async transaction => {
+		const cardDoc = await transaction.get(cardRef);
+		if (!cardDoc.exists()) throw new Error('Doc doesn\'t exist!');
+		const newThreadCount = (cardDoc.data().thread_count || 0) + 1;
+		//updated-invariant: exempt — reader-driven counters (thread_count,
+		//updated_message); this cardEditMinor path may not touch `updated` and
+		//runTransaction bypasses the MultiBatch guard. Accepted drift.
+		transaction.update(cardRef, {
+			thread_count: newThreadCount,
+			updated_message: serverTimestamp(),
+		});
+		ensureAuthor(transaction, user);
+		transaction.set(messageRef, messageDoc);
+		transaction.set(threadRef, {
+			card: intent.cardID,
+			parent_message: '',
+			messages: [payload.messageID],
+			author: user.uid,
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
+			resolved: false,
+			deleted: false
+		});
+	}));
+});
+
 export const addMessage = (thread : CommentThread, message : string) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
@@ -212,33 +308,26 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkSome
 	const messageId = randomString(16);
 	const threadId = thread.id;
 
-	const batch = new MultiBatch(db);
+	//Write-ahead, then attempt: the queue owns completion and replays this on
+	//the next boot if the tab dies before the server acks.
+	return runDurableAuxWrite(makeAuxWriteIntent(user.uid, 'comment-add', card.id, '', {
+		kind: 'comment-add',
+		messageID: messageId,
+		threadID: threadId,
+		message,
+		newThread: false,
+	})).then(reportCommentOutcome);
 
-	ensureAuthor(batch, user);
+};
 
-	batch.update(doc(db, THREADS_COLLECTION, threadId), {
-		updated: serverTimestamp(),
-		messages: arrayUnion(messageId)
-	});
-
-	//updated-invariant: exempt — cardEditMinor rules path; commenters may
-	//not touch `updated`, and message-count drift is an accepted tradeoff.
-	batch.updateWithoutTimestampBump(doc(db, CARDS_COLLECTION, card.id), {
-		updated_message: serverTimestamp(),
-	});
-
-	batch.set(doc(db, MESSAGES_COLLECTION, messageId), {
-		card: card.id,
-		message: message,
-		thread: threadId,
-		author: user.uid,
-		created: serverTimestamp(),
-		updated: serverTimestamp(),
-		deleted: false
-	});
-
-	return batch.commit();
-
+//Queuing is the feature, but saying nothing while the comment has not posted
+//is not. The 'discarded' case already alerted from inside the queue.
+const reportCommentOutcome = (outcome : AuxWriteOutcome) : void => {
+	if (outcome !== 'queued') return;
+	console.warn('Comment is queued and will post automatically when the connection recovers.');
+	if (typeof window !== 'undefined') {
+		window.setTimeout(() => alert('Your comment could not be posted right now. It has been saved and will post automatically when the connection recovers.'), 0);
+	}
 };
 
 export const createThread = (message : string) : ThunkSomeAction => (_, getState) => {
@@ -275,54 +364,16 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 	const messageId = randomString(16);
 	const threadId = randomString(16);
 
-	const cardRef = doc(db, CARDS_COLLECTION, card.id);
-	const threadRef = doc(db, THREADS_COLLECTION, threadId);
-	const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
-
-	//A voided promise here swallowed MutationFencedError entirely: in a fenced
-	//tab the user got no feedback and no error, and there is no
-	//unhandledrejection handler anywhere in src/. Say something.
-	return trackMutation(() => runTransaction(db, async transaction => {
-		const cardDoc = await transaction.get(cardRef);
-		if (!cardDoc.exists()) {
-			throw 'Doc doesn\'t exist!';
-		}
-		const newThreadCount = (cardDoc.data().thread_count || 0) + 1;
-		//updated-invariant: exempt — reader-driven counters (thread_count,
-		//updated_message); this cardEditMinor path may not touch `updated` and
-		//runTransaction bypasses the MultiBatch guard. Accepted drift.
-		transaction.update(cardRef, {
-			thread_count: newThreadCount,
-			updated_message: serverTimestamp(),
-		});
-
-		ensureAuthor(transaction, user);
-
-		transaction.set(messageRef, {
-			card: card.id,
-			message: message,
-			thread: threadId,
-			author: user.uid,
-			created: serverTimestamp(),
-			updated: serverTimestamp(),
-			deleted: false
-		});
-
-		transaction.set(threadRef, {
-			card: card.id,
-			parent_message: '',
-			messages: [messageId],
-			author: user.uid,
-			created: serverTimestamp(),
-			updated: serverTimestamp(),
-			resolved: false,
-			deleted: false
-		});
-
-	})).catch(err => {
-		console.warn('Comment write did not complete:', err);
-		alert(`That comment action could not be saved: ${err instanceof Error ? err.message : String(err)}`);
-	});
+	//Write-ahead, then attempt. The new-thread path increments thread_count in
+	//a transaction and is not naturally idempotent, so the executor preflights
+	//the client-vended message id before replaying.
+	return runDurableAuxWrite(makeAuxWriteIntent(user.uid, 'comment-add', card.id, '', {
+		kind: 'comment-add',
+		messageID: messageId,
+		threadID: threadId,
+		message,
+		newThread: true,
+	})).then(reportCommentOutcome);
 
 };
 

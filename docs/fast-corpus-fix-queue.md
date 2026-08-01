@@ -12,14 +12,13 @@ are merged into a single item and marked with the lenses that found them.
 
 ## P0 — data integrity / release blockers
 
-### C18 (residual). Creation and comments still lack durable write-ahead records
-The user-visible losses are closed: compose text is restored on failure rather
-than cleared before the write, comment writes are awaited and surfaced, and the
-fork commit is awaited. What remains is the structural gap the reviewer named —
-neither card creation nor comments has a durable intent, so a crash between an
-accepted UI action and the server ack still loses the operation (the eligibility
-gate is only point-in-time). Closing it properly means extending the write-ahead
-pattern to both, which is a design change rather than a patch.
+### Renderer crash seen ONCE, not reproduced
+On 2026-08-01 the debug tab's renderer crashed immediately after unregistering
+the service worker + deleting all caches and reloading (the heaviest
+fetch-plus-prime path). It did not reproduce: the next boot completed in 11s
+with 40,229 cards and a 550MB heap against a 4,192MB limit. One occurrence
+under an artificial condition is not enough to attribute to the app, and not
+little enough to ignore. Watch for it during the acceptance test.
 
 ---
 

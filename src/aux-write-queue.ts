@@ -22,15 +22,54 @@
 //- Replay is strictly sequential in creation order per uid, so an offline
 //  star-then-unstar pair nets correctly.
 //
-//Comments/threads are NOT queued here (transactional, generated IDs); losing
-//an offline comment on reload remains a documented v2.
+//Card creation and comments ARE queued here (C18). They carry a materialized
+//write PLAN in `payload` rather than the high-level user intent: the decision
+//(which section, what sort order, which slug) is made once, at the moment the
+//user acted, and the durable record is the exact set of documents to write.
+//Re-deriving those decisions at replay time would need Redux state that may
+//not exist yet on a fresh boot. Both are made replay-safe by a client-vended
+//id plus a server existence preflight, the same shape star-add uses.
 
 import {
 	CardID,
 	Uid
 } from './types.js';
 
-export type AuxWriteKind = 'star-add' | 'star-remove' | 'read-add' | 'read-remove' | 'reading-list-add' | 'reading-list-remove';
+export type AuxWriteKind = 'star-add' | 'star-remove' | 'read-add' | 'read-remove' | 'reading-list-add' | 'reading-list-remove' | 'card-create' | 'comment-add';
+
+//The materialized write plan for the kinds that need more than a cardID.
+//Serialized into localStorage, so everything here must be JSON-round-trippable
+//— card objects go through persistableCard/restoredPersistedCard, whose
+//timestamps become {seconds, nanoseconds}.
+export type CardCreatePayload = {
+	kind: 'card-create',
+	//Wire-format card (see persistableCard). Typed unknown here so this module
+	//stays a leaf with no card-type imports.
+	card: unknown,
+	section: string,
+	//Captured at intent creation: the section audit doc key was Date.now(), so
+	//a replay would otherwise write a SECOND audit entry for one creation.
+	sectionUpdateKey: string,
+	//Fork only. The inbound-link mirror updates are a PURE function of the new
+	//card (inboundLinksUpdates(id, null, card)), so the executor recomputes
+	//them instead of serializing arrayUnion sentinels, which JSON cannot carry.
+	deriveInboundLinks?: boolean,
+	//Fork only. Tag audit doc keys, captured for the same reason as the
+	//section one: they were Date.now().
+	tagUpdateKeys?: {[tag : string] : string},
+};
+
+export type CommentAddPayload = {
+	kind: 'comment-add',
+	messageID: string,
+	threadID: string,
+	message: string,
+	//True when this message opens a NEW thread (the transactional path that
+	//also increments thread_count), false when it appends to an existing one.
+	newThread: boolean,
+};
+
+export type AuxWritePayload = CardCreatePayload | CommentAddPayload;
 
 export type AuxWriteIntent = {
 	version: 1,
@@ -41,6 +80,9 @@ export type AuxWriteIntent = {
 	//Reading-list audit doc key, captured at intent creation so replays are
 	//idempotent; '' for kinds without an audit doc.
 	auditKey: string,
+	//Present only for kinds that carry a write plan; absent on the original
+	//six kinds, so previously-persisted records still validate.
+	payload?: AuxWritePayload,
 	createdAt: number,
 	//Cross-tab claim. `inFlight` is per-tab and the `online` event fires in
 	//EVERY tab at once, so without a claim visible in shared storage two tabs
@@ -90,8 +132,41 @@ let intentCounter = 0;
 //head-of-line-blocks the rest of the queue. `cardID` and `auditKey` become
 //Firestore path segments, where a '/' would silently retarget the write.
 const AUX_WRITE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>([
-	'star-add', 'star-remove', 'read-add', 'read-remove', 'reading-list-add', 'reading-list-remove'
+	'star-add', 'star-remove', 'read-add', 'read-remove', 'reading-list-add', 'reading-list-remove',
+	'card-create', 'comment-add'
 ]);
+
+//Kinds whose intent is meaningless without its plan. Validating this at read
+//time keeps a truncated or hand-edited record from reaching an executor that
+//would then dereference undefined.
+const KINDS_REQUIRING_PAYLOAD : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add']);
+
+const validPayload = (kind : string, payload : unknown) : boolean => {
+	if (!KINDS_REQUIRING_PAYLOAD.has(kind)) return payload === undefined;
+	if (!payload || typeof payload !== 'object') return false;
+	const candidate = payload as AuxWritePayload;
+	if (candidate.kind !== kind) return false;
+	if (candidate.kind === 'card-create') {
+		const tagKeys = candidate.tagUpdateKeys;
+		const tagKeysValid = tagKeys === undefined || (
+			typeof tagKeys === 'object' && tagKeys !== null && !Array.isArray(tagKeys) &&
+			//Both halves become path segments: the tag names a document, the
+			//value names the audit doc under it.
+			Object.entries(tagKeys).every(([tag, key]) => validPathSegment(tag) && typeof key === 'string' && validPathSegment(key))
+		);
+		return Boolean(candidate.card) && typeof candidate.card === 'object' &&
+			typeof candidate.section === 'string' &&
+			(candidate.section === '' || validPathSegment(candidate.section)) &&
+			typeof candidate.sectionUpdateKey === 'string' &&
+			(candidate.sectionUpdateKey === '' || validPathSegment(candidate.sectionUpdateKey)) &&
+			(candidate.deriveInboundLinks === undefined || typeof candidate.deriveInboundLinks === 'boolean') &&
+			tagKeysValid;
+	}
+	//Message text is content, not a path, so it is deliberately unconstrained
+	//beyond being a string; the ids become path segments and are not.
+	return validPathSegment(candidate.messageID) && validPathSegment(candidate.threadID) &&
+		typeof candidate.message === 'string' && typeof candidate.newThread === 'boolean';
+};
 
 const validPathSegment = (value : string) : boolean =>
 	Boolean(value) && !value.includes('/') && !value.includes('..') && value.length < 1500;
@@ -104,6 +179,7 @@ const validIntent = (value : unknown) : value is AuxWriteIntent => {
 		typeof intent.kind === 'string' && AUX_WRITE_KINDS.has(intent.kind) &&
 		typeof intent.cardID === 'string' && validPathSegment(intent.cardID) &&
 		typeof intent.auditKey === 'string' && (intent.auditKey === '' || validPathSegment(intent.auditKey)) &&
+		validPayload(intent.kind, intent.payload) &&
 		typeof intent.createdAt === 'number' && Number.isFinite(intent.createdAt);
 };
 
@@ -171,13 +247,14 @@ export const registerAuxWriteExecutor = (kind : AuxWriteKind, executor : AuxWrit
 	executors[kind] = executor;
 };
 
-export const makeAuxWriteIntent = (uid : Uid, kind : AuxWriteKind, cardID : CardID, auditKey = '') : AuxWriteIntent => ({
+export const makeAuxWriteIntent = (uid : Uid, kind : AuxWriteKind, cardID : CardID, auditKey = '', payload? : AuxWritePayload) : AuxWriteIntent => ({
 	version: 1,
 	id: `${Date.now()}-${++intentCounter}-${Math.random().toString(36).slice(2, 8)}`,
 	uid,
 	kind,
 	cardID,
 	auditKey,
+	...(payload ? {payload} : {}),
 	createdAt: Date.now(),
 });
 
@@ -192,6 +269,8 @@ const DISCARD_LABELS : Record<AuxWriteKind, string> = {
 	'read-remove': 'marking that card unread',
 	'reading-list-add': 'adding that card to your reading list',
 	'reading-list-remove': 'removing that card from your reading list',
+	'card-create': 'creating that card',
+	'comment-add': 'posting your comment',
 };
 
 const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {
@@ -212,25 +291,36 @@ const permanentFailure = (error : unknown) : boolean => {
 		code === 'not-found' || code === 'failed-precondition';
 };
 
+//What actually happened to an attempt. Callers that must not proceed on a
+//write which has not landed (card creation waits for the card to exist, and
+//then chases an auto-slug) need to tell 'committed' from 'queued for later'
+//and from 'discarded' — resolving void for all three made a discarded
+//creation look exactly like a successful one.
+export type AuxWriteOutcome = 'committed' | 'queued' | 'discarded';
+
 //Persist the intent, then attempt it. On server ack the intent clears; on
 //failure it stays queued for replay (unless the failure is permanent). The
 //returned promise reports the attempt, but callers need not await it — the
 //queue owns completion.
-export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<void> => {
+export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
 	const executor = executors[intent.kind];
 	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
 	writePendingAuxWrites([...readPendingAuxWrites(), intent]);
 	inFlight.set(intent.id, intent);
-	return executor(intent, false).then(() => {
+	return executor(intent, false).then<AuxWriteOutcome, AuxWriteOutcome>(() => {
 		removeIntent(intent.id);
-	}).catch(error => {
+		return 'committed';
+	}, error => {
 		//Dropping a user's intent must never be silent: this is the last point
 		//at which the write still existed anywhere.
 		if (permanentFailure(error)) {
 			console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently and was DISCARDED:`, error);
 			removeIntent(intent.id);
 			reportDiscardedIntent(intent, error);
-		} else console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm; queued for replay:`, error);
+			return 'discarded';
+		}
+		console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm; queued for replay:`, error);
+		return 'queued';
 	}).finally(() => {
 		inFlight.delete(intent.id);
 	});
