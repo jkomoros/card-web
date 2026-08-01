@@ -244,7 +244,19 @@ const releaseClaim = (id : string) : void => {
 };
 
 export const registerAuxWriteExecutor = (kind : AuxWriteKind, executor : AuxWriteExecutor) : void => {
+	const isNew = !executors[kind];
 	executors[kind] = executor;
+	//Replay SKIPS intents whose executor is not registered yet, and nothing
+	//re-triggered it when the module that registers one finally loaded — so a
+	//kind registered in a lazily-imported module (card-create in actions/data,
+	//comment-add in actions/comments) survived every boot without ever
+	//executing. Registration is itself a trigger: if this kind has survivors
+	//waiting, replay them now.
+	if (!isNew || !currentUid) return;
+	const uid = currentUid();
+	if (!uid) return;
+	if (!readPendingAuxWrites().some(intent => intent.kind === kind && intent.uid === uid)) return;
+	void replayPendingAuxWrites(uid);
 };
 
 export const makeAuxWriteIntent = (uid : Uid, kind : AuxWriteKind, cardID : CardID, auditKey = '', payload? : AuxWritePayload) : AuxWriteIntent => ({
@@ -359,7 +371,11 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 	//break out (see the live-uid check below), but it cannot start this one, so
 	//the new account's intents would never replay this page. Let the caller
 	//retry once the loop unwinds.
-	if (!uid) return;
+	if (!uid) {
+		console.warn(`[aux-write] replay skipped: no uid (${readPendingAuxWrites().length} intents waiting)`);
+		return;
+	}
+	console.log(`[aux-write] replay for ${uid}: ${readPendingAuxWrites().length} intents in the queue`);
 	if (replayRunning) {
 		//At most one deferred retry in flight, or repeated triggers (online +
 		//sign-in + a storage event) would pile up timers.
@@ -377,7 +393,14 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 		for (const intent of readPendingAuxWrites()) {
 			if (intent.uid !== uid || inFlight.has(intent.id)) continue;
 			const executor = executors[intent.kind];
-			if (!executor) continue;
+			if (!executor) {
+				//Not an error: the registering module may simply not be loaded
+				//yet. Registration re-triggers replay (see above). Logged
+				//because a silent skip here is indistinguishable from a
+				//successful replay when reading the queue from outside.
+				console.warn(`[aux-write] no executor for ${intent.kind} yet; retaining intent ${intent.id} for a later replay`);
+				continue;
+			}
 			//Re-check the LIVE uid between awaits. It was captured once at call
 			//time, so a sign-out or account switch mid-replay left the loop
 			//committing the old account's intents under new auth — earning
@@ -407,6 +430,10 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 				//Transient (likely offline): keep this and everything after
 				//it, in order, for the next replay trigger. Release the claim
 				//so another tab (or a later replay here) may take it.
+				//LOGGED: this used to break silently, which made a replay that
+				//ran and failed indistinguishable from one that never ran at
+				//all — the queue just sat there with no explanation anywhere.
+				console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm on replay; retained for the next trigger:`, error);
 				releaseClaim(intent.id);
 				break;
 			}

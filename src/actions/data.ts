@@ -2041,6 +2041,15 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	const cardDocRef = doc(db, CARDS_COLLECTION, intent.cardID);
 	if (isReplay && await cardCreateCommitted(cardDocRef, 'card-create')) return;
 	const card = restoredPersistedCard(payload.card);
+	//A serverTimestampSentinel is identified by OBJECT IDENTITY (firebase.ts
+	//keeps a registry of the ones it vended), so JSON cannot carry one: the
+	//restored card's `updated` is an ordinary Timestamp, and both the
+	//updated-invariant guard and the rules' bumpsUpdated() reject that — the
+	//write failed on every replay attempt. Re-stamp `updated` so the server
+	//assigns it. Everything else keeps the value it had when the user acted:
+	//`created` in particular is unconstrained by the rules, so a card that
+	//replays days later is still dated when its author actually made it.
+	card.updated = serverTimestampSentinel();
 	const batch = new MultiBatch(db);
 	const author = selectUser(store.getState() as State);
 	if (author) ensureAuthor(batch, author);
