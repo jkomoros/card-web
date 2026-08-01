@@ -25,15 +25,6 @@ pattern to both, which is a design change rather than a patch.
 
 ## P1 — correctness
 
-### U11 (residual). No production escape hatch from a worker failure
-`corpus-mode.ts:38-51`, `corpus-bridge.ts:1023-1033`. `readCorpusWorkerMode()`
-returns `'on'` unconditionally off dev hosts, so the graceful `'fallback'`
-branch is unreachable in production and `writeCorpusWorkerMode('off')` is
-refused there — a worker chunk 404 after a deploy gives a full-viewport panel
-whose only button reloads into the same condition. Failing closed is criterion
-9 and the policy is right; the missing piece is a recovery path. (The
-`unsupported` keyboard trap and its missing explanation are fixed.)
-
 ---
 
 ## P1 — performance

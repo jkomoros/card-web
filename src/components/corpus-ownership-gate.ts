@@ -20,6 +20,7 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 	@state() _status : CorpusStatus = 'off';
 	@state() _message = '';
 	@state() _checkingRevealed = false;
+	@state() _resetting = false;
 	private _checkingRevealTimer = 0;
 	private _wasOpen = false;
 	private _returnFocus : HTMLElement | null = null;
@@ -67,6 +68,14 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 			min-height: 44px;
 		}
 		button:focus-visible { outline: 3px solid var(--app-primary-color, #5e2b97); outline-offset: 3px; }
+		/* The escalation, not the first thing to reach for: same size and hit
+		   target, visibly subordinate to the primary action. */
+		button.secondary {
+			margin-top: 0.6rem;
+			background: transparent;
+			color: var(--app-primary-color, #5e2b97);
+			box-shadow: inset 0 0 0 1px var(--app-primary-color, #5e2b97);
+		}
 		button[disabled] { opacity: 0.6; cursor: wait; }
 		.guidance { margin-top: 1rem; margin-bottom: 0; color: #666; font-size: 0.9rem; }
 	`;
@@ -80,6 +89,39 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		if (this._status === 'degraded') return 'Cards could not load';
 		return 'Compendium is open in another tab';
 	}
+
+	//A worker chunk that 404s after a deploy is a STALE CACHE problem, and a
+	//plain reload re-fetches the same stale bundle from the same service
+	//worker — so the panel's only button led straight back to the panel, for
+	//good. Unregister the service worker and drop its caches first, so the
+	//reload actually fetches the new bundle.
+	//
+	//Deliberately NOT a switch to legacy main-thread listeners: criterion 9
+	//says no fallback may bypass worker ownership, and this failure mode does
+	//not need one. It needs the correct bundle.
+	private _resetAndReload = async () => {
+		if (this._resetting) return;
+		this._resetting = true;
+		try {
+			if ('serviceWorker' in navigator) {
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				await Promise.all(registrations.map(registration => registration.unregister().catch(() => false)));
+			}
+		} catch {
+			//Best effort: a browser that denies this still gets the reload.
+		}
+		try {
+			if (typeof caches !== 'undefined') {
+				const keys = await caches.keys();
+				await Promise.all(keys.map(key => caches.delete(key).catch(() => false)));
+			}
+		} catch {
+			//Same.
+		}
+		//Deliberately NOT clearing IndexedDB: the compact snapshot is not what
+		//failed here, and discarding it turns every recovery into a cold boot.
+		window.location.reload();
+	};
 
 	//Keep activation bound to the gate across shadow-DOM event dispatchers.
 	private _activate = () => {
@@ -149,7 +191,11 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 				<p id='ownership-description' role='status' aria-live='polite'>${this._message}</p>
 				${canTakeOver ? html`<button data-testid='corpus-use-this-tab' @click=${this._activate}>Use this tab</button>` : ''}
 				${this._status === 'takeover' ? html`<button disabled>Moving…</button>` : ''}
-				${this._status === 'degraded' || this._status === 'ownership-error' ? html`<button @click=${this._activate}>Reload and retry</button>` : ''}
+				${this._status === 'degraded' || this._status === 'ownership-error' ? html`
+					<button @click=${this._activate} ?disabled=${this._resetting}>Reload and retry</button>
+					<button class='secondary' data-testid='corpus-reset-and-reload' @click=${this._resetAndReload} ?disabled=${this._resetting}>${this._resetting ? 'Resetting…' : 'Reset cached app and reload'}</button>
+					<p class='guidance'>If reloading keeps landing here, the cached app is likely stale — resetting clears it and fetches a fresh copy. Your cards are on the server; the local cache is rebuilt automatically.</p>
+				` : ''}
 				${this._status === 'unsupported' ? html`<p class='guidance'>Compendium needs Web Locks and BroadcastChannel to keep a single tab authoritative over your card data. Recent Chrome, Edge, Firefox and Safari all support them.</p>` : ''}
 				${this._status === 'contended' ? html`<p class='guidance'>Or keep using the other tab and close this one.</p>` : ''}
 			</section>

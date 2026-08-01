@@ -87,7 +87,14 @@ const main = async () => {
 	}
 
 	const ids = Object.keys(cards);
-	const CHUNK = 400; //under the 500-op batch limit
+	//200, not the 500-op batch limit: at ~2KB bodies plus references, 400 docs
+	//serializes to ~4.6MB and the EMULATOR rejects the frame with
+	//RESOURCE_EXHAUSTED (gRPC max 4194304). The admin SDK surfaces that as a
+	//bare '1 CANCELLED: Call cancelled' on the first commit, which looks like a
+	//startup race and is not one — the real reason is only in
+	//firestore-debug.log. Ops-per-batch was never the binding constraint; bytes
+	//per frame is.
+	const CHUNK = 200;
 	let written = 0;
 	for (let i = 0; i < ids.length; i += CHUNK) {
 		const batch = db.batch();
