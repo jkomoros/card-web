@@ -23,25 +23,6 @@ pattern to both, which is a design change rather than a patch.
 
 ---
 
-## Round 11 — from the four-lens critique (UX / robustness / perf / archaeology)
-
-### VERIFICATION DEBT (created by the 2026-07-31 power outage)
-The signed-in Chrome profile used for live DEV verification lived in the session
-scratchpad under `/private/tmp` and was destroyed by the outage, along with the
-Playwright harness. Re-creating it needs a sign-in I cannot perform (entering the
-account password is off-limits for me). Everything below this line was fixed and
-unit/type-checked, but the end-to-end DEV re-check that normally accompanies each
-fix is OUTSTANDING for: N1 (echo after confirmed commit) and N13 (the status
-indicator's new count/tooltip — code and CSS are checked, PIXELS are not; the
-in-app browser is also unreachable in this environment). Owner action: sign in
-once on a debug Chrome, or run these checks as part of the acceptance test.
-NOTE for whoever rebuilds that harness: `window.CORPUS_WORKER` and
-`window.DEBUG_STORE` are now gated behind `localStorage['debug-perf'] = '1'`
-(S9), so a driver script must set it in an init script BEFORE the page loads,
-the way test/perf-harness/run.js already does.
-
----
-
 ## P1 — correctness
 
 ### U11 (residual). No production escape hatch from a worker failure
@@ -57,13 +38,15 @@ whose only button reloads into the same condition. Failing closed is criterion
 
 ## P1 — performance
 
-### P23 (residual, product decision). Server-confirmed save is ~4.5-5s
-Measured properly (Round 10 of the findings doc): editor release p95 57ms,
-server-confirmed p95 5070ms, warm boot to usable p95 7.3s, editing-enabled p95
-36.6s. The perceived commit meets criterion 4; the server-confirmed commit does
-not. The near-constant server time points at sequential round trips in the
-durable protocol rather than variance, so shortening it is a protocol change.
-Left as an explicit decision rather than silently claimed as met.
+### P23 (residual). Server-confirmed save — re-measure at scale
+Round 10 measured server-confirmed p95 at 5070ms against editor release p95
+57ms. The N1 fix (apply the committed cards locally once the commit is
+server-confirmed, instead of waiting for the delta listener to echo them back)
+changed this materially: two post-fix samples on real DEV came in at 979ms and
+449ms, both confirmed against server truth by reloading to `live`. That is a
+sample of two, not a p95 — what remains is a proper distribution, not a
+protocol change. The earlier conclusion that shortening it required rewriting
+the durable protocol was wrong: most of the time was the listener round trip.
 
 ## P2 — security hardening
 
