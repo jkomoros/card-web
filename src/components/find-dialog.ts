@@ -1,3 +1,8 @@
+import {
+	blockedReason,
+	CREATE_VERB
+} from '../sync-copy.js';
+
 import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -49,6 +54,7 @@ import {
 	selectCollectionForQuery,
 	selectUserMayCreateCard,
 	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectFindLegalCardTypeFilters,
 	selectFindCardTypeFilter,
 	selectFindCardTypeFilterLocked,
@@ -97,7 +103,8 @@ import {
 	CardType,
 	CreateCardOpts,
 	ReferenceType,
-	State
+	State,
+	CorpusStatus,
 } from '../types.js';
 
 import {
@@ -146,6 +153,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		//Creating a stub writes a card, so it is gated on the same readiness
 		//as saving one.
 		_saveEligible: boolean;
+		_corpusStatus: CorpusStatus;
 
 	@state()
 		_legalCardTypeFilters: CardType[];
@@ -241,7 +249,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 				<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
 			</div>
-			<button class='round' @click='${this._handleAddSlide}' title=${this._saveEligible ? 'Create a new stub card to link to of type ' + this._cardTypeToAdd : 'Card sync is still verifying — creating a card unlocks as soon as sync is live.'} ?hidden=${!this._userMayCreateCard} ?disabled=${!this._saveEligible}>${PLUS_ICON}</button>
+			<span class='reason' ?hidden=${!this._userMayCreateCard} title=${this._saveEligible ? 'Create a new stub card to link to of type ' + this._cardTypeToAdd : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' @click='${this._handleAddSlide}' ?disabled=${!this._saveEligible}>${PLUS_ICON}</button></span>
 		</div>
 	`;
 	}
@@ -449,6 +457,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		this._legalCardTypeFilters = selectFindLegalCardTypeFilters(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);

@@ -1,4 +1,13 @@
 import {
+	modifyCardFailure
+} from './data.js';
+
+import {
+	blockedError,
+	SAVE_VERB
+} from '../sync-copy.js';
+
+import {
 	selectCardSavesEligible,
 	selectActiveCard,
 	selectUserMayEditActiveCard,
@@ -16,7 +25,8 @@ import {
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
 	selectOvershadowedUnderlyingCardChangesDiff,
-	selectOvershadowedUnderlyingCardChangesDiffDescription
+	selectOvershadowedUnderlyingCardChangesDiffDescription,
+	selectCorpusStatus
 } from '../selectors.js';
 
 import {
@@ -372,7 +382,11 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 	//confirms and only then, from deep inside the executor, told them sync was
 	//not live. Refuse up front, with the same reason the Save button gives.
 	if (!selectCardSavesEligible(state)) {
-		alert('Card sync is still verifying, so this save cannot commit yet. Your draft is kept — Save unlocks as soon as sync is live.');
+		//Was a blocking OS modal for the same condition that makes Cmd-M a
+		//silent no-op. The disabled Save button and its wrapper tooltip carry
+		//the explanation two inches away; route this through the same surface
+		//the rest of the app uses instead of interrupting.
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB)), true));
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {

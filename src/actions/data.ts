@@ -302,16 +302,30 @@ const waitingForCardToExistStoreUpdated = () => {
 
 let unsubscribeFromStore : (() => void) | null = null;
 
+//A card that commits but never arrives — a listener that dropped it, a corpus
+//that never reaches live — used to leave every caller awaiting forever: the
+//bulk-import dialog stayed scrimmed on the HAPPY path, and the auto-slug step
+//silently never ran. Bounded, and it rejects rather than resolving with
+//nothing, so callers take their existing failure paths.
+const WAIT_FOR_CARD_TIMEOUT_MS = 60 * 1000;
+
 //returns a promise that will be resolved when a card with that ID exists, returning the card.
-export const waitForCardToExist = (cardID : CardID) => {
+export const waitForCardToExist = (cardID : CardID, timeoutMs = WAIT_FOR_CARD_TIMEOUT_MS) => {
 	const card = getCardById(store.getState() as State, cardID);
 	if (card) return Promise.resolve(card);
 	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
 	if (!unsubscribeFromStore) unsubscribeFromStore = store.subscribe(waitingForCardToExistStoreUpdated);
-	const promise = new Promise<Card>((resolve) => {
-		waitingForCards[cardID].push(resolve);
+	return new Promise<Card>((resolve, reject) => {
+		const timer = setTimeout(() => {
+			//Leave the resolver in place: if the card does show up later the
+			//list is cleaned up as usual. We only stop WAITING on it.
+			reject(new Error(`Card ${cardID} was written but has not arrived after ${Math.round(timeoutMs / 1000)}s. It may still appear once card sync catches up.`));
+		}, timeoutMs);
+		waitingForCards[cardID].push(resolvedCard => {
+			clearTimeout(timer);
+			resolve(resolvedCard);
+		});
 	});
-	return promise;
 };
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -1234,7 +1248,11 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	const startingScope = {uid: startingUid, mayViewUnpublished: startingMayViewUnpublished};
 
 	if (selectCardModificationPending(state)) {
-		console.log('Can\'t modify card; another card is being modified.');
+		//Was a bare console.log with no failure action, so a caller could not
+		//tell a refusal from a success. applySuggestion took that silence as
+		//"applied", dismissed the suggestion, and the user believed the
+		//references had landed when nothing was written at all.
+		dispatch(modifyCardFailure(new Error('Another card is being modified. Wait for that save to finish, then try again.')));
 		return;
 	}
 
@@ -2082,7 +2100,14 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		return;
 	}
 
-	await waitForCardToExist(firstID);
+	try {
+		await waitForCardToExist(firstID);
+	} catch (err) {
+		//The cards were written; they just have not come back yet. Say so
+		//rather than leaving BULK_IMPORT_PENDING latched forever.
+		dispatch({type: BULK_IMPORT_FAILURE, error: err instanceof Error ? err.message : String(err)});
+		return;
+	}
 
 	dispatch(clearSelectedCards());
 	dispatch(doSelectCards(ids));
@@ -2414,7 +2439,12 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 	if (!autoSlug) return;
 
-	await waitForCardToExist(id);
+	try {
+		await waitForCardToExist(id);
+	} catch (err) {
+		console.warn(`Skipping the automatic slug for ${id}: ${err instanceof Error ? err.message : String(err)}`);
+		return;
+	}
 	const autoSlugLegalResult = await autoSlugLegalPromise;
 	const fallbackAutoSlugLegalResult = fallbackAutoSlugLegalPromise ? await fallbackAutoSlugLegalPromise : null;
 
@@ -2694,7 +2724,7 @@ const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dis
 	}
 };
 
-const modifyCardFailure = (err : Error, skipAlert? : boolean) : SomeAction => {
+export const modifyCardFailure = (err : Error, skipAlert? : boolean) : SomeAction => {
 	if (skipAlert) {
 		console.warn(err);
 	} else {

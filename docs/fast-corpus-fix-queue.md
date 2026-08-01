@@ -18,12 +18,8 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P1 — correctness
 
-- **L4. `modifyCardsIndividually` refuses silently** (no failure action), and
-  `applySuggestion` reads the error selector before the commit could resolve —
-  so a suggestion is marked applied when nothing was written.
 - **L2b. `editMessage`/`deleteMessage` have no durable record**, and
   `deleteMessage` is dispatched unawaited with no global rejection handler.
-- **R7. `waitForCardToExist` never times out** — two silent hangs.
 
 ### P1 — performance (boot to `live` is 26s against a 15s budget)
 
@@ -45,25 +41,13 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P2 — UX consistency
 
-- **U29. The disabled-control tooltip fix was applied in three files and missed
-  in the two create-card buttons** — icon-only, no tooltip, not focusable, and
-  Cmd-M is silently swallowed on the theory that those buttons explain it.
-- **U30. Every "blocked" tooltip says "still verifying", but the same gate fires
-  on `stale`/`off`/`degraded`** — the header pill says "interrupted" while the
-  Save tooltip says "verifying". Derive the reason from the status.
 - **U31. The save pill's destructive control is styled identically to the safe
   one**, has no confirm, and is called five different things across the app.
-- **U32. Identical gate, opposite feedback**: Cmd-M is a silent no-op while
-  Cmd-Enter raises a modal `alert()`.
 - **U33. Static `aria-label` + dynamic `title`** on the star/read/reading-list
   toggles — the accessible name is wrong in half of all states, no `aria-pressed`.
 - **U34. Ownership panel**: headline restated verbatim in the body, "restart
   Chrome" in four strings, hardcoded colors/sizes outside the app's tokens,
   double-announced live region.
-- **U35. Copy drift**: eight different sentences for "sync is not live yet",
-  three for "inactive", two for "contended"; `DEFAULT_MESSAGES` is a second,
-  already-drifted copy of the status strings; `corpus` leaks into user copy;
-  `…` vs `...`. Export shared constants.
 - **U36. `.count` on the status pill is ~2.3:1 contrast** — the one number the
   branch exists to show.
 

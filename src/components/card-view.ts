@@ -56,6 +56,7 @@ import {
 	selectCardModificationPending,
 	selectUid,
 	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectWorkerActiveCollectionReady,
 } from '../selectors.js';
 
@@ -191,6 +192,7 @@ import {
 	CardFieldMap,
 	CardID,
 	CardType,
+	CorpusStatus,
 	ProcessedCard,
 	SectionID,
 	State,
@@ -199,6 +201,12 @@ import {
 	TODOType,
 	WordCloud
 } from '../types.js';
+
+import {
+	blockedReason,
+	CREATE_VERB,
+	SAVE_VERB
+} from '../sync-copy.js';
 
 import {
 	Collection
@@ -377,6 +385,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_saveEligible: boolean;
+		//The actual sync status, so blocked-control copy can say what is TRUE
+		//rather than always asserting "still verifying".
+		_corpusStatus: CorpusStatus;
 	_lastReadyCollection: Collection | null = null;
 	_collectionUpdatingTimeout = 0;
 	_lastCollectionScopeUid = '';
@@ -590,6 +601,7 @@ class CardView extends connect(store)(PageViewElement) {
 				.showCreateCard=${this._userMayAddCardToActiveCollection}
 				.showCreateWorkingNotes=${this._userMayCreateCard}
 				.createEligible=${this._saveEligible}
+				.createBlockedReason=${blockedReason(this._corpusStatus, CREATE_VERB)}
 				.highlightedCardId=${this._card ? this._card.id : ''}
 				.reorderPending=${this._drawerReorderPending}
 				.ghostCardsThatWillBeRemoved=${true}
@@ -722,7 +734,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<!-- Title on the wrapper so it is readable while the button
 					is disabled (Chrome/Safari suppress hover on disabled
 					controls). -->
-					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? 'Edit card (E) — sync is still verifying, so Save unlocks once it is live' : 'Edit card (E)'}>
+					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (E) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : 'Edit card (E)'}>
 						<button class='round' data-testid='edit-card' aria-label='Edit card (E)' ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 					</span>
 				</div>
@@ -1060,6 +1072,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._pageExtra = state.app.pageExtra;
 		this._cardModificationsPending = selectCardModificationPending(state);
 		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		this._durableCardMutationPending = durableCardMutationPending();
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);

@@ -1,3 +1,8 @@
+import {
+	blockedReason,
+	SAVE_VERB
+} from '../sync-copy.js';
+
 import { html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -62,6 +67,7 @@ import {
 	selectMultiEditAddTODODisablements,
 	selectMultiEditPublished,
 	selectCardSavesEligible,
+	selectCorpusStatus,
 } from '../selectors.js';
 
 import {
@@ -94,6 +100,7 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	State,
+	CorpusStatus,
 	TagID,
 	TagInfos,
 	BulkTagOperationProgress,
@@ -122,6 +129,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_saveEligible: boolean;
+		_corpusStatus: CorpusStatus;
 
 	@state()
 		_intersectionReferencesCard: CardLike;
@@ -336,7 +344,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				<!-- Title on the wrapper: disabled controls do not fire hover
 				events in Chrome/Safari, so a title on the button is invisible
 				in precisely the disabled state it explains. -->
-				<span class='reason' title=${this._saveEligible ? 'Save changes' : 'Card sync is still verifying — saving opens when it is live'}>
+				<span class='reason' title=${this._saveEligible ? 'Save changes' : blockedReason(this._corpusStatus, SAVE_VERB)}>
 					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 				</span>
 			</div>
@@ -494,6 +502,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	override stateChanged(state : State) {
 		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectMultiEditDialogOpen(state);
 		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.

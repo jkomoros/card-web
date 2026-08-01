@@ -187,9 +187,11 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 	//Sanity check
 	if (Object.keys(modifications).filter(key => isNewCardIDPlaceholder(key)).length) throw new Error('NEW_CARD_ID_PLACEHOLDER remained');
 
-	dispatch(modifyCardsIndividually(cards, modifications));
-
-	//TODO: wait for edit to complete?
+	//AWAITED: this used to be a bare dispatch, so the error selector below was
+	//read before the commit could possibly have resolved. A refusal, a
+	//mid-batch throw and a failed commit all read as success, and the
+	//suggestion was dismissed as applied with nothing written.
+	await dispatch(modifyCardsIndividually(cards, modifications));
 
 	//Mark that suggestion as no longer valid.
 

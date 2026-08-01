@@ -1,3 +1,8 @@
+import {
+	blockedReason,
+	SAVE_VERB
+} from '../sync-copy.js';
+
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -41,6 +46,7 @@ import {
 	selectEditingCardSuggestedConceptReferences,
 	selectEditingCardSuggestedTags,
 	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectOvershadowedUnderlyingCardChangesDiffDescription,
 	selectEditingCardHasUnsavedChanges,
@@ -148,6 +154,7 @@ import {
 	CardID,
 	Cards,
 	State,
+	CorpusStatus,
 	ReferenceType,
 	CardFieldTypeEditable,
 	editorContentTab,
@@ -281,6 +288,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_saveEligible: boolean;
+		_corpusStatus: CorpusStatus;
 
 	@state()
 		_offline: boolean;
@@ -910,7 +918,7 @@ class CardEditor extends connect(store)(LitElement) {
 			Safari suppress pointer events on disabled controls, so a title on
 			the button itself never renders a tooltip — which is exactly the
 			state where the user most needs the reason. -->
-			<span class='reason' title=${!this._saveEligible ? 'Card sync is still verifying — your draft is safe, and Save unlocks as soon as sync is live.' : this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>
+			<span class='reason' title=${!this._saveEligible ? `${blockedReason(this._corpusStatus, SAVE_VERB)} Your draft is safe.` : this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>
 				<button class='round primary' data-testid='save-card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges || !this._saveEligible}>${SAVE_ICON}</button>
 			</span>
         </div>
@@ -957,6 +965,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		this._offline = state.app.offline;
 		//These two are memoized card diffs (cheap) and drive the merge
 		//affordance AND updated()'s auto-apply of underlying changes — gating
