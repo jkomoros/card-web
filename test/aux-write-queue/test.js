@@ -190,6 +190,35 @@ describe('aux write queue', () => {
 		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c3', '', payload)), 'discarded');
 	});
 
+	it('replays survivors when a late-loading module registers their executor', async () => {
+		//The regression this guards: card-create/comment-add executors live in
+		//modules that are not loaded when boot replay runs, so replay skipped
+		//them and NOTHING re-triggered it — the intent survived every boot and
+		//never executed. Registration must itself be a trigger.
+		const payload = {kind: 'card-create', card: {id: 'c'}, section: '', sectionUpdateKey: ''};
+		//Persist an intent whose executor then goes away, exactly as it is on a
+		//fresh boot before actions/data.js has been imported.
+		queue.registerAuxWriteExecutor('card-create', async () => { throw new Error('offline'); });
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c', '', payload));
+		assert.equal(queue.readPendingAuxWrites().length, 1);
+
+		queue.resetAuxWriteQueueForTesting();
+		await queue.replayPendingAuxWrites('u1');
+		assert.equal(queue.readPendingAuxWrites().length, 1, 'no executor: the intent must be retained, not dropped');
+
+		const ran = [];
+		//The uid provider is what a resolved auth install leaves behind.
+		queue.installAuxWriteReplayWatcher(() => 'u1');
+		queue.registerAuxWriteExecutor('card-create', async (intent) => { ran.push(intent.cardID); });
+		//Registration alone must drain it, with no other trigger. The wait
+		//covers the queue's deferred retry: installing the watcher starts its
+		//own replay, so a replay requested while one is running is rescheduled
+		//rather than run concurrently.
+		await new Promise(resolve => setTimeout(resolve, 600));
+		assert.deepEqual(ran, ['c'], 'registering the executor must replay its waiting intents');
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+	});
+
 	it('survives a corrupt storage record without wedging', async () => {
 		storage.set('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);
