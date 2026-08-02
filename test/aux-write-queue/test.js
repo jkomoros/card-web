@@ -412,6 +412,45 @@ describe('aux write queue', () => {
 		assert.equal(queue.readPendingAuxWrites().length, 1, 'a codeless throw must be retained for the next trigger');
 	});
 
+	it('does not let a sibling tab erase a queued high-value intent (F8)', async () => {
+		//THE WINDOW: readPendingAuxWrites() and writePendingAuxWrites() are two
+		//separate localStorage operations, so another renderer can write
+		//BETWEEN them — and this tab then overwrites with a snapshot that
+		//predates that write. The storage listener only restores intents in
+		//THIS tab's inFlight, and an intent leaves inFlight the moment its
+		//attempt settles or times out, so a card-create whose first attempt
+		//failed is guarded by nothing at all.
+		const tabB = await import('../../lib/src/aux-write-queue.js?f8-tab-b');
+		tabB.registerAuxWriteExecutor('card-create', async () => { throw new Error('offline'); });
+		queue.registerAuxWriteExecutor('star-add', async () => {});
+
+		//Tab A reads an EMPTY queue, then tab B queues the user's card, then
+		//tab A writes its star on top of the snapshot it read.
+		const realGet = globalThis.localStorage.getItem;
+		let injected = false;
+		let pending = null;
+		globalThis.localStorage.getItem = function(key) {
+			const value = realGet.call(this, key);
+			//Set BEFORE the sibling call: tab B reads the queue too, and
+			//guarding on `pending` (assigned after) recursed forever.
+			if (key === 'card-web-pending-aux-writes-v1' && !injected) {
+				injected = true;
+				pending = tabB.runDurableAuxWrite(tabB.makeAuxWriteIntent('u1', 'card-create', 'kept', '', {
+					kind: 'card-create', card: {id: 'kept', body: 'the user typed this'}, section: '', sectionUpdateKey: ''}));
+			}
+			return value;
+		};
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+		globalThis.localStorage.getItem = realGet;
+		await pending;
+
+		const survivors = queue.readPendingAuxWrites();
+		//The star is best-effort and reconstructible. The card is neither — it
+		//exists nowhere else once this queue drops it.
+		assert.ok(survivors.some(i => i.cardID === 'kept'),
+			'a queued card-create must survive a sibling tab writing between our read and our write');
+	});
+
 	it('survives a corrupt storage record without wedging', async () => {
 		storage.set('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);
