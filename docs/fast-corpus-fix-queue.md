@@ -12,6 +12,12 @@ are merged into a single item and marked with the lenses that found them.
 
 ## Verified on real DEV (2026-08-02)
 
+- **Save round-trip re-verified after every Round 12 / F7 / F8 change**, 10
+  consecutive saves with a byte-exact restore: editor release p50 44ms p95
+  292ms; server-confirmed p50 530ms **p95 779ms** (was 1066ms, and 5070ms in
+  Round 10). Criterion 4 ("Save <1s with durable intent") is now met at p95 as
+  well as p50. P23 is closed.
+
 - **F7 boot reorder**: boot-to-live 27,973ms -> 7,442ms, inside the 15s
   advisory budget. tombstone catch-up 16,052 -> 1,317ms, and the published
   plane 19,488 -> 5,559ms. `mismatchedPartitions=0` on both boots, which is the
@@ -52,24 +58,6 @@ little enough to ignore. Watch for it during the acceptance test.
 ## P1 — correctness
 
 ---
-
-## P1 — performance
-
-### P23 (residual, product decision). Server-confirmed save p95 is ~1.07s
-Re-measured properly on real DEV after the N1 fix, 10 consecutive saves of one
-card with a byte-exact restore afterwards:
-
-  editor release    p50 48ms    p95 80ms
-  server-confirmed  p50 622ms   p95 1066ms   (samples: 1066,670,620,595,626,
-                                              622,656,586,574,791)
-
-Round 10 measured the same thing at p95 5070ms, and concluded the near-constant
-~5s pointed at sequential round trips in the durable protocol, so shortening it
-would be a protocol change. That conclusion was WRONG: most of it was the
-delta-listener round trip the durable path uniquely depended on, which the N1
-fix removed. Criterion 4 ("Save <1s with durable intent") is met at p50 and
-missed at p95 by 66ms, on one card on one machine. Whether that counts as met
-is the owner's call; there is no longer a known structural cause to attack.
 
 ## P2 — UX polish
 
