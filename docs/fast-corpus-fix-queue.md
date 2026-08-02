@@ -10,6 +10,16 @@ are merged into a single item and marked with the lenses that found them.
 
 ---
 
+## Verified on real DEV (2026-08-02)
+
+- **S4 purge**: cached Firestore documents went 1,625 -> 0 across a purge boot,
+  measured with the network OFFLINE so nothing could re-cache and mask it; the
+  request flag cleared, and the app recovered to the full 40,225 cards when
+  back online. Only the HONOR half was exercised end to end (the flag was set
+  directly); the sign-out trigger that sets it was not, because signing out of
+  the debug browser cannot be undone without the owner's password. That one
+  line is worth confirming during the acceptance test.
+
 ## Round 12 — four-lens adversarial review (robustness / perf / UX / data-loss audit)
 
 Findings marked **[MINE]** are regressions introduced by this session's own work.
