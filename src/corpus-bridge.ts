@@ -154,6 +154,10 @@ import {
 } from './collection_description.js';
 
 import {
+	accountHandoverDecision
+} from './account-handover.js';
+
+import {
 	inFlightMutationCount,
 	fenceMutations,
 	allowMutations,
@@ -440,6 +444,10 @@ let workerLoadComplete = false;
 //and a needless purge costs a full cold prime.
 const PERSISTENCE_PURGE_KEY = 'corpus-worker-persistence-purge-v1';
 
+//S4, the same-session half. The decision itself lives in
+//src/account-handover.ts so it can be unit tested; see the reasoning there.
+const SAME_SESSION_PURGE_RELOAD_KEY = 'corpus-worker-purge-reload-v1';
+
 const requestPersistencePurge = (outgoingUid : string) => {
 	if (!outgoingUid) return;
 	try {
@@ -464,6 +472,44 @@ const clearPersistencePurgeRequest = () => {
 	} catch {
 		//Best effort; a surviving request only costs one extra purge attempt.
 	}
+	try {
+		//The purge actually ran, so the one-shot reload below is re-armed for
+		//any FUTURE handover. Keeping it set would mean a second account switch
+		//in the same tab silently kept the previous account's cache.
+		sessionStorage.removeItem(SAME_SESSION_PURGE_RELOAD_KEY);
+	} catch {
+		//Best effort.
+	}
+};
+
+const reloadForAccountHandover = (uid : string) => {
+	let alreadyReloaded = false;
+	try {
+		alreadyReloaded = Boolean(sessionStorage.getItem(SAME_SESSION_PURGE_RELOAD_KEY));
+	} catch {
+		//Without sessionStorage there is no loop guard, so do not reload at all.
+		return;
+	}
+	const outgoingUid = pendingPersistencePurgeUid();
+	const decision = accountHandoverDecision({
+		uid,
+		pendingPurgeUid: outgoingUid,
+		connectSent,
+		editing: selectIsEditing(store.getState() as State),
+		alreadyReloaded,
+	});
+	if (decision === 'defer-editing') {
+		console.warn('[corpus-worker] account handover with an open editor; deferring the cache purge to the next boot rather than reloading over unsaved work');
+		return;
+	}
+	if (decision !== 'reload') return;
+	try {
+		sessionStorage.setItem(SAME_SESSION_PURGE_RELOAD_KEY, '1');
+	} catch {
+		return;
+	}
+	console.warn(`[corpus-worker] account changed from ${outgoingUid} in this session; reloading so the next worker boot can purge the previous account's persistent cache`);
+	window.location.reload();
 };
 
 let workerCorpusSize = 0;
@@ -1881,6 +1927,14 @@ export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : str
 	//The same account came back before the purge could run. Nothing changed
 	//hands, so cancel it rather than paying a full cold prime for nothing.
 	if (uid && uid === pendingPersistencePurgeUid()) clearPersistencePurgeRequest();
+	//A DIFFERENT account signed in while this page kept running, so the boot
+	//that would have honored the purge never happens. `connectSent` is the
+	//precise test: purgePersistence rides only the FIRST connect, and every
+	//later scope change reuses the running worker. Without this guard an
+	//ordinary fresh boot — previous account signed out in an earlier session,
+	//new account signing in now — would reload for nothing, because the connect
+	//about to be sent already carries the purge.
+	else if (uid && pendingPersistencePurgeUid()) reloadForAccountHandover(uid);
 	pendingConnection = {mayViewUnpublished, uid};
 	if (!corpusWorkerOwnsCardIngestion()) {
 		//Diagnostic spike mode deliberately coexists with the main-thread

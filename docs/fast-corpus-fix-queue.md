@@ -178,8 +178,25 @@ assert the mutant builds.
   write that cannot be repeated safely. Tested in both directions: a creation
   whose section membership and audit doc never landed is repaired, and an edit
   made after the creation is NOT reverted.
-- The S4 purge is honored only at a fresh worker boot, so a same-session A->B
-  account switch runs on A's persistent cache until reload.
+- **FIXED. The S4 purge was honored only at a fresh worker boot**, so a
+  same-session A->B account switch ran on A's persistent cache until something
+  else happened to reload. `purgePersistence` rides only the FIRST connect
+  message — the one that creates the worker — and signing out then signing in
+  as a different account never reloads the page, so B kept running against A's
+  Firestore cache: a second, larger copy of the privileged corpus, unpublished
+  bodies included, sitting in IndexedDB.
+  A handover now reloads. Blunt, and chosen deliberately over restarting the
+  worker in place: the worker lifecycle is what ownership, the readiness gate
+  and the whole boot path are built on, and a bespoke mid-session teardown is
+  far likelier to break those than one reload on a rare auth transition. The
+  DECISION lives in `src/account-handover.ts` as a zero-import leaf with
+  `test/account-handover`, because each branch is a distinct way to get it
+  wrong. In particular it does NOT reload when no worker has been connected yet
+  (an ordinary fresh boot already carries the purge — reloading there would hit
+  every returning user), it NEVER reloads over an open editor (the same promise
+  the SW update path makes; the request survives in localStorage for the next
+  boot), and it reloads at most once per pending purge (a failing purge would
+  otherwise reload forever).
 
 ### Release engineering (folded in)
 
