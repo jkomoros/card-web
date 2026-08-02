@@ -130,7 +130,156 @@ export type AuxWriteIntent = {
 
 export type AuxWriteExecutor = (intent : AuxWriteIntent, isReplay : boolean) => Promise<void>;
 
+//v1 stored the whole queue in ONE key, so every mutation was a read-modify-write
+//of the entire blob. That had two costs. The perf one is obvious once intents
+//carry ~2KB card payloads. The correctness one is worse and is why this layout
+//changed: read and write are two separate localStorage operations, so a sibling
+//tab can write between them and this tab then overwrites with a snapshot that
+//predates it — silently erasing a card the user wrote, with the storage listener
+//unable to help because it only guards intents still in THIS tab's inFlight.
+//
+//v2 gives each intent its own key and keeps a small index for order. The intent
+//BODY is immutable from creation to deletion (claims moved to their own key), so
+//no tab ever rewrites another tab's body. The index is a hint: the source of
+//truth is the set of body keys, recoverable by scanning. An index entry with no
+//body reads as removed; a body with no index entry is adopted.
 const STORAGE_KEY = 'card-web-pending-aux-writes-v1';
+const PREFIX = 'card-web-aux-writes-v2';
+const INDEX_KEY = `${PREFIX}-index`;
+const bodyKey = (id : string) => `${PREFIX}-i-${id}`;
+const claimKey = (id : string) => `${PREFIX}-c-${id}`;
+
+type IndexEntry = {id : string, uid : Uid, kind : string, createdAt : number};
+
+const readIndex = () : IndexEntry[] => {
+	if (typeof localStorage === 'undefined') return [];
+	try {
+		const raw = localStorage.getItem(INDEX_KEY);
+		if (!raw) return [];
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter((entry : IndexEntry) => entry && typeof entry.id === 'string' && entry.id &&
+			typeof entry.uid === 'string' && typeof entry.kind === 'string' && Number.isFinite(entry.createdAt));
+	} catch {
+		//The index is only a hint; the bodies are the truth. A scan rebuilds it.
+		return [];
+	}
+};
+
+const writeIndex = (entries : IndexEntry[]) : boolean => {
+	if (typeof localStorage === 'undefined') return false;
+	try {
+		if (!entries.length) localStorage.removeItem(INDEX_KEY);
+		else localStorage.setItem(INDEX_KEY, JSON.stringify(entries));
+		return true;
+	} catch (err) {
+		console.error('[aux-write] could not persist the queue index:', err);
+		return false;
+	}
+};
+
+const indexEntryFor = (intent : AuxWriteIntent) : IndexEntry =>
+	({id: intent.id, uid: intent.uid, kind: intent.kind, createdAt: intent.createdAt});
+
+//BODY FIRST, INDEX SECOND. Crashing between them leaves an orphan body, which
+//the scan adopts. The reverse order leaves an index entry pointing at nothing.
+const persistIntentBody = (intent : AuxWriteIntent) : boolean => {
+	if (typeof localStorage === 'undefined') return false;
+	try {
+		localStorage.setItem(bodyKey(intent.id), JSON.stringify(intent));
+		return true;
+	} catch (err) {
+		console.error('[aux-write] could not persist intent:', err);
+		return false;
+	}
+};
+
+//removeItem cannot fail for quota, so a committed intent can no longer be
+//stranded and re-preflighted on every boot — the v1 silent-failure edge is gone
+//by construction rather than by checking a boolean.
+const deleteIntentKeys = (id : string) : void => {
+	if (typeof localStorage === 'undefined') return;
+	try {
+		localStorage.removeItem(bodyKey(id));
+		localStorage.removeItem(claimKey(id));
+	} catch {
+		//Nothing further to do; the index compaction below will drop it too.
+	}
+};
+
+const loadIntentBody = (id : string) : AuxWriteIntent | null => {
+	if (typeof localStorage === 'undefined') return null;
+	let raw : string | null = null;
+	try {
+		raw = localStorage.getItem(bodyKey(id));
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!validIntent(parsed)) {
+			//One bad body no longer quarantines the other 99.
+			quarantineRawQueue(raw, `malformed ${id}`);
+			localStorage.removeItem(bodyKey(id));
+			return null;
+		}
+		return parsed;
+	} catch (err) {
+		if (raw) quarantineRawQueue(raw, String(err));
+		try { localStorage.removeItem(bodyKey(id)); } catch { /* best effort */ }
+		return null;
+	}
+};
+
+//The bodies are the truth. Adopt any that the index lost — which is exactly the
+//F8 case, where a sibling's stale write dropped an entry we still hold.
+const repairIndexFromScan = () : void => {
+	if (typeof localStorage === 'undefined') return;
+	try {
+		const known = new Set(readIndex().map(entry => entry.id));
+		const adopted : IndexEntry[] = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (!key || !key.startsWith(`${PREFIX}-i-`)) continue;
+			const id = key.slice(`${PREFIX}-i-`.length);
+			if (known.has(id)) continue;
+			const intent = loadIntentBody(id);
+			if (intent) adopted.push(indexEntryFor(intent));
+		}
+		if (adopted.length) {
+			console.warn(`[aux-write] adopted ${adopted.length} queued intent(s) missing from the index`);
+			writeIndex([...readIndex(), ...adopted].sort(byCreationEntry));
+		}
+	} catch {
+		//Scanning is best effort; a missing adoption costs a replay, not data.
+	}
+};
+
+const byCreationEntry = (a : IndexEntry, b : IndexEntry) =>
+	a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+//One-time migration off the single-blob layout. The v1 key is removed LAST, so
+//a failure part-way leaves it in place to retry on the next boot.
+const migrateLegacyQueue = () : void => {
+	if (typeof localStorage === 'undefined') return;
+	let raw : string | null = null;
+	try {
+		//Checked on every read rather than once: a sibling tab running older
+		//code, or a restored backup, can write the legacy key at any time.
+		raw = localStorage.getItem(STORAGE_KEY);
+		if (!raw) return;
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed)) { quarantineRawQueue(raw, 'legacy blob is not an array'); localStorage.removeItem(STORAGE_KEY); return; }
+		const intents = parsed.filter(validIntent) as AuxWriteIntent[];
+		for (const intent of intents) {
+			//Claims were part of the body in v1; they belong in their own key.
+			const {claimedBy: _by, claimedAt: _at, ...body} = intent;
+			if (!persistIntentBody(body as AuxWriteIntent)) return;
+		}
+		if (!writeIndex([...readIndex(), ...intents.map(indexEntryFor)].sort(byCreationEntry))) return;
+		localStorage.removeItem(STORAGE_KEY);
+		if (intents.length) console.warn(`[aux-write] migrated ${intents.length} queued intent(s) to the per-intent layout`);
+	} catch (err) {
+		if (raw) quarantineRawQueue(raw, String(err));
+	}
+};
 
 //The ~5MB origin budget is shared with card-web-pending-multi-edit-v1 (which
 //stores WHOLE cards in oversizedBaseCards), the bulk-tag record, the edit
@@ -145,7 +294,9 @@ const MAX_QUEUED_INTENTS = 250;
 const queueByteSize = () : number => {
 	if (typeof localStorage === 'undefined') return 0;
 	try {
-		return (localStorage.getItem(STORAGE_KEY) || '').length;
+		let total = (localStorage.getItem(INDEX_KEY) || '').length;
+		for (const entry of readIndex()) total += (localStorage.getItem(bodyKey(entry.id)) || '').length;
+		return total;
 	} catch {
 		return 0;
 	}
@@ -294,56 +445,69 @@ const quarantineRawQueue = (raw : string, reason : string) : void => {
 	}
 };
 
+//Index entries only — no body parsing. Used by the replay loop and the
+//registration check so a queue full of 2KB cards is not deserialized just to
+//ask "is anything pending for this uid?".
+export const readPendingAuxHeaders = () : IndexEntry[] => {
+	migrateLegacyQueue();
+	const now = Date.now();
+	return readIndex().filter(entry => now - entry.createdAt < MAX_INTENT_AGE_MS).sort(byCreationEntry);
+};
+
 export const readPendingAuxWrites = () : AuxWriteIntent[] => {
-	if (typeof localStorage === 'undefined') return [];
-	let raw : string | null = null;
-	try {
-		raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return [];
-		const parsed = JSON.parse(raw);
-		if (!Array.isArray(parsed)) {
-			quarantineRawQueue(raw, 'not an array');
-			return [];
-		}
-		const now = Date.now();
-		const valid = parsed.filter(validIntent);
-		if (valid.length !== parsed.length) quarantineRawQueue(raw, `${parsed.length - valid.length} malformed intent(s)`);
-		return valid.filter(intent => {
-			if (now - intent.createdAt < MAX_INTENT_AGE_MS) return true;
+	migrateLegacyQueue();
+	const now = Date.now();
+	const result : AuxWriteIntent[] = [];
+	for (const entry of readIndex().sort(byCreationEntry)) {
+		if (now - entry.createdAt >= MAX_INTENT_AGE_MS) {
 			//Ageing out a star is fine. Ageing out something the user wrote,
 			//silently, is not — this is the last place it exists.
-			if (HIGH_VALUE_KINDS.has(intent.kind)) {
-				console.error(`[aux-write] ${intent.kind} for ${intent.cardID} aged out after ${Math.round(MAX_INTENT_AGE_MS / 86400000)} days and was DISCARDED`);
-				reportDiscardedIntent(intent, new Error('it could not be saved for 30 days'));
+			if (HIGH_VALUE_KINDS.has(entry.kind)) {
+				const aged = loadIntentBody(entry.id);
+				console.error(`[aux-write] ${entry.kind} for ${aged?.cardID || entry.id} aged out after ${Math.round(MAX_INTENT_AGE_MS / 86400000)} days and was DISCARDED`);
+				if (aged) reportDiscardedIntent(aged, new Error('it could not be saved for 30 days'));
 			}
-			return false;
-		});
-	} catch (err) {
-		if (raw) quarantineRawQueue(raw, String(err));
-		return [];
+			deleteIntentKeys(entry.id);
+			continue;
+		}
+		const intent = loadIntentBody(entry.id);
+		//A missing body means removed: the delete lands before the index is
+		//compacted, so an index entry alone is a tombstone, never a phantom.
+		if (intent) result.push(intent);
 	}
+	return result;
 };
 
 //Returns false when the queue could NOT be persisted. Callers that are about to
 //tell the user their work is safe must check: a swallowed QuotaExceededError
 //meant a card creation or comment was reported as durable while living only in
 //this tab's memory.
+//Persist a whole set. Only used where the caller genuinely means "these are the
+//intents now" — appends go through persistIntentBody + the index, so no path
+//rewrites another tab's body.
 const writePendingAuxWrites = (intents : AuxWriteIntent[]) : boolean => {
 	if (typeof localStorage === 'undefined') return false;
-	try {
-		if (intents.length === 0) localStorage.removeItem(STORAGE_KEY);
-		else localStorage.setItem(STORAGE_KEY, JSON.stringify(intents));
-		return true;
-	} catch (err) {
-		//Best-effort writes degrade to session-only, which is the pre-queue
-		//behavior. Anything the user WROTE needs to hear about this.
-		console.error('[aux-write] could not persist the pending queue:', err);
-		return false;
+	const existing = new Set(readIndex().map(entry => entry.id));
+	const keep = new Set(intents.map(intent => intent.id));
+	for (const id of existing) if (!keep.has(id)) deleteIntentKeys(id);
+	for (const intent of intents) {
+		if (existing.has(intent.id)) continue;
+		if (!persistIntentBody(intent)) return false;
 	}
+	return writeIndex(intents.map(indexEntryFor).sort(byCreationEntry));
+};
+
+//Append one intent without touching any other body — the operation the F8
+//window used to make destructive.
+const appendIntent = (intent : AuxWriteIntent) : boolean => {
+	if (!persistIntentBody(intent)) return false;
+	return writeIndex([...readIndex().filter(entry => entry.id !== intent.id), indexEntryFor(intent)].sort(byCreationEntry));
 };
 
 const removeIntent = (id : string) : void => {
-	writePendingAuxWrites(readPendingAuxWrites().filter(intent => intent.id !== id));
+	//O(1), and removeItem cannot fail for quota.
+	deleteIntentKeys(id);
+	writeIndex(readIndex().filter(entry => entry.id !== id));
 };
 
 //Replay order is load-bearing: the module contract is that intents run in
@@ -351,28 +515,43 @@ const removeIntent = (id : string) : void => {
 //merge back into storage must therefore re-sort rather than append.
 const byCreation = (a : AuxWriteIntent, b : AuxWriteIntent) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-const claimIsLive = (intent : AuxWriteIntent, now : number) : boolean =>
-	Boolean(intent.claimedBy) && intent.claimedBy !== TAB_ID &&
-	typeof intent.claimedAt === 'number' && now - intent.claimedAt < CLAIM_STALE_MS;
+type StoredClaim = {by : string, at : number};
+
+const readClaim = (id : string) : StoredClaim | null => {
+	if (typeof localStorage === 'undefined') return null;
+	try {
+		const raw = localStorage.getItem(claimKey(id));
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as StoredClaim;
+		return typeof parsed?.by === 'string' && Number.isFinite(parsed?.at) ? parsed : null;
+	} catch {
+		return null;
+	}
+};
+
+const claimIsLive = (claim : StoredClaim | null, now : number) : boolean =>
+	Boolean(claim) && claim!.by !== TAB_ID && now - claim!.at < CLAIM_STALE_MS;
 
 //Returns false when another live tab already claimed it.
 const claimIntent = (id : string) : boolean => {
+	if (typeof localStorage === 'undefined') return false;
 	const now = Date.now();
-	const current = readPendingAuxWrites();
-	const target = current.find(intent => intent.id === id);
-	if (!target) return false;
-	if (claimIsLive(target, now)) return false;
-	writePendingAuxWrites(current.map(intent =>
-		intent.id === id ? {...intent, claimedBy: TAB_ID, claimedAt: now} : intent).sort(byCreation));
+	//The body is never rewritten by a claim now, which is what makes the
+	//index/body split safe: no tab mutates another tab's intent.
+	if (!localStorage.getItem(bodyKey(id))) return false;
+	if (claimIsLive(readClaim(id), now)) return false;
+	try {
+		localStorage.setItem(claimKey(id), JSON.stringify({by: TAB_ID, at: now}));
+	} catch {
+		//Advisory only; the Web Lock is what actually serializes tabs.
+	}
 	return true;
 };
 
 const releaseClaim = (id : string) : void => {
-	writePendingAuxWrites(readPendingAuxWrites().map(intent => {
-		if (intent.id !== id || intent.claimedBy !== TAB_ID) return intent;
-		const {claimedBy: _claimedBy, claimedAt: _claimedAt, ...rest} = intent;
-		return rest as AuxWriteIntent;
-	}).sort(byCreation));
+	if (typeof localStorage === 'undefined') return;
+	const held = readClaim(id);
+	if (held && held.by === TAB_ID) localStorage.removeItem(claimKey(id));
 };
 
 //The text a message will HAVE once the queue drains, or null if nothing is
@@ -476,7 +655,7 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOu
 		const admission = groupFitsInQueue([intent]);
 		if (!admission.ok) return Promise.reject(new Error(admission.message));
 	}
-	const persisted = writePendingAuxWrites([...readPendingAuxWrites(), intent]);
+	const persisted = appendIntent(intent);
 	//If we could not persist something the user WROTE, do not proceed as
 	//though it were durable — reject so the caller runs its own failure path
 	//(restore the compose text, tell the user the card was not created)
@@ -620,6 +799,11 @@ const withReplayLock = async (fn : () => Promise<void>) : Promise<void> => {
 };
 
 export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
+	//Adopt any body the index lost before deciding what to replay. A sibling
+	//tab writing between our read and our write can drop an index entry, and
+	//the body is the truth — without this the intent would sit on disk,
+	//unreplayed, until something else happened to scan.
+	repairIndexFromScan();
 	//A replay already running for a DIFFERENT uid will notice the switch and
 	//break out (see the live-uid check below), but it cannot start this one, so
 	//the new account's intents would never replay this page. Let the caller
@@ -711,20 +895,33 @@ export const installAuxWriteReplayWatcher = (uidProvider : () => Uid) : void => 
 	//while our own catch handler logs "queued for replay". Restore anything
 	//still in flight here that vanished from storage.
 	window.addEventListener('storage', event => {
-		if (event.key !== STORAGE_KEY || !inFlight.size) return;
-		const current = readPendingAuxWrites();
-		const present = new Set(current.map(intent => intent.id));
+		//A null key means another context called localStorage.clear(); v1 ignored it.
+		if (event.key !== null && !event.key.startsWith(PREFIX) && event.key !== STORAGE_KEY) return;
+		const present = new Set(readIndex().map(entry => entry.id));
 		const dropped = [...inFlight.values()].filter(intent => !present.has(intent.id));
-		if (!dropped.length) return;
-		console.warn(`Restoring ${dropped.length} in-flight aux write intent(s) dropped by a concurrent tab`);
-		//Re-sort: appending at the tail discarded creation order, so a restored
-		//[star-add, star-remove] pair could replay as [star-remove, star-add]
-		//and leave the card STARRED — the opposite of the user's last action.
-		writePendingAuxWrites([...current, ...dropped].sort(byCreation));
+		if (dropped.length) {
+			console.warn(`Restoring ${dropped.length} in-flight aux write intent(s) dropped by a concurrent tab`);
+			for (const intent of dropped) appendIntent(intent);
+		}
+		//And adopt any survivor the index lost that is NOT in flight here — the
+		//gap the v1 listener could not cover, because an intent leaves inFlight
+		//the moment its attempt settles or times out. Bodies are the truth.
+		repairIndexFromScan();
 	});
 };
 
 //Testing hook: clears module state that would otherwise leak between tests.
+//At module load: recover anything a previous session's interleaving dropped
+//from the index before any caller reads the queue.
+if (typeof localStorage !== 'undefined') {
+	try {
+		migrateLegacyQueue();
+		repairIndexFromScan();
+	} catch {
+		//Never let queue recovery keep the module from loading.
+	}
+}
+
 export const resetAuxWriteQueueForTesting = () : void => {
 	for (const key of Object.keys(executors)) delete executors[key as AuxWriteKind];
 	inFlight.clear();

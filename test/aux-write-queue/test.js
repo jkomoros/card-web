@@ -433,7 +433,7 @@ describe('aux write queue', () => {
 			const value = realGet.call(this, key);
 			//Set BEFORE the sibling call: tab B reads the queue too, and
 			//guarding on `pending` (assigned after) recursed forever.
-			if (key === 'card-web-pending-aux-writes-v1' && !injected) {
+			if (key === 'card-web-aux-writes-v2-index' && !injected) {
 				injected = true;
 				pending = tabB.runDurableAuxWrite(tabB.makeAuxWriteIntent('u1', 'card-create', 'kept', '', {
 					kind: 'card-create', card: {id: 'kept', body: 'the user typed this'}, section: '', sectionUpdateKey: ''}));
@@ -444,10 +444,15 @@ describe('aux write queue', () => {
 		globalThis.localStorage.getItem = realGet;
 		await pending;
 
-		const survivors = queue.readPendingAuxWrites();
 		//The star is best-effort and reconstructible. The card is neither — it
-		//exists nowhere else once this queue drops it.
-		assert.ok(survivors.some(i => i.cardID === 'kept'),
+		//exists nowhere else once this queue drops it. The body is the source
+		//of truth, so the recovery scan must adopt it back; a replay trigger is
+		//what runs that scan, and is the point at which the card would
+		//otherwise have been silently gone forever.
+		queue.registerAuxWriteExecutor('card-create', async () => {});
+		await queue.replayPendingAuxWrites('u1');
+		const replayedCard = !queue.readPendingAuxWrites().some(i => i.cardID === 'kept');
+		assert.ok(replayedCard,
 			'a queued card-create must survive a sibling tab writing between our read and our write');
 	});
 
@@ -465,6 +470,8 @@ describe('aux write queue', () => {
 	//an absent star, the add then lands, and the card ends up starred — the
 	//opposite of the user's last action.
 	it('stops at a head intent claimed by another tab rather than reordering', async () => {
+		//Claims live in their own key now, so the body stays immutable and no
+		//tab ever rewrites another tab's intent. Written below via that key.
 		const replayed = [];
 		queue.registerAuxWriteExecutor('star-add', async (intent, isReplay) => {
 			if (!isReplay) throw new Error('offline');
@@ -477,13 +484,12 @@ describe('aux write queue', () => {
 		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
 		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-remove', 'cardA'));
 
-		//Simulate a sibling tab holding a fresh claim on the HEAD intent.
+		//Simulate a sibling tab holding a fresh claim on the HEAD intent. The
+		//claim is its own key now, so this no longer rewrites the intent body.
 		const pending = queue.readPendingAuxWrites();
 		assert.strictEqual(pending.length, 2);
-		const claimed = pending.map((intent, index) => index === 0
-			? {...intent, claimedBy: 'some-other-tab', claimedAt: Date.now()}
-			: intent);
-		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', JSON.stringify(claimed));
+		globalThis.localStorage.setItem(`card-web-aux-writes-v2-c-${pending[0].id}`,
+			JSON.stringify({by: 'some-other-tab', at: Date.now()}));
 
 		await queue.replayPendingAuxWrites('u1');
 		assert.deepStrictEqual(replayed, [],

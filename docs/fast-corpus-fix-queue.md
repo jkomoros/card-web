@@ -52,25 +52,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
   and reconcile from the server after `live`. Each changes ghost-suppression
   ordering, so each needs its own verification pass rather than a quick edit.
 
-- **F5 (residual). The queue's per-mutation cost is still O(queue).** The SIZE
-  BOUND is now in (250 intents / 1.5MB, admission-controlled, never evicting
-  something the user wrote; bulk import capped at 200 where the user picks the
-  bodies). That caps the N^2 at a tolerable constant and closes the quota
-  data-loss edge. The storage rework (one localStorage key per intent + a small
-  index) is designed but NOT done — see below for why it is worth doing anyway.
-
-- **F8 (NEW, found while designing F5). A transiently-failed high-value intent
-  is protected by nothing.** The `storage` listener restores only intents in
-  THIS tab's `inFlight` — but an intent leaves `inFlight` the moment its attempt
-  settles or times out. So a queued card-create whose first attempt failed sits
-  in shared storage unguarded, and a sibling tab doing any full-queue
-  read-modify-write from a stale snapshot erases it, with nothing to restore
-  from. This is a correctness argument for the per-key rework that is
-  independent of performance, and it is the reason to do it. Recommended
-  sequence: write the cross-tab test FIRST against current code and watch it
-  fail, then rework.
-
-
 ### P2 — UX consistency
 
 
