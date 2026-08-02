@@ -110,10 +110,13 @@ STILL UNCOVERED and worth the same treatment: the durable multi-edit chunk loop
 
 ### Release engineering (folded in)
 
-- **There is no CI**, and the guard-vs-rules drift gate and the protocol gate
-  import compiled `lib/` with no build step — so a green local `npm test` can
-  be validating a STALE build. Cheap fix: make those suites depend on
-  build:typescript.
+- **There is no CI.** The stale-build half of this is now closed:
+  tools/assert-build-fresh.cjs fails loudly when any hand-edited .ts in src/ or
+  shared/ is newer than anything in lib/, wired through .mocharc.cjs (so all 41
+  mocha suites get it without touching 41 script definitions) plus pre-hooks for
+  the node --test suites and for `npm test` itself. A rebuild per suite was
+  rejected: it would run tsc 40+ times per full run. What remains is actual CI —
+  nothing runs the suite except a human choosing to.
 - The rules' inbound-reference identity floor checks global permissions, so a
   user holding only per-card `permissions.editCard` cannot save link-affecting
   edits. Probably a null user set here; document the tradeoff.
