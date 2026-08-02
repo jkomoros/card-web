@@ -385,8 +385,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_saveEligible: boolean;
-		//The actual sync status, so blocked-control copy can say what is TRUE
-		//rather than always asserting "still verifying".
+
+	//The actual sync status, so blocked-control copy can say what is TRUE
+	//rather than always asserting "still verifying".
+	@state()
 		_corpusStatus: CorpusStatus;
 	_lastReadyCollection: Collection | null = null;
 	_collectionUpdatingTimeout = 0;

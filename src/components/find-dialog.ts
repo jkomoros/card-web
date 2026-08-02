@@ -150,9 +150,15 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_userMayCreateCard: boolean;
-		//Creating a stub writes a card, so it is gated on the same readiness
-		//as saving one.
+
+	//Creating a stub writes a card, so it is gated on the same readiness as
+	//saving one. EACH needs its own @state(): a decorator applies to one field,
+	//so declaring these under the one above left them non-reactive and the
+	//create button never re-rendered when sync went live.
+	@state()
 		_saveEligible: boolean;
+
+	@state()
 		_corpusStatus: CorpusStatus;
 
 	@state()

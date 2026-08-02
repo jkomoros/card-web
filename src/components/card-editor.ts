@@ -292,6 +292,8 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_saveEligible: boolean;
+
+	@state()
 		_corpusStatus: CorpusStatus;
 
 	@state()

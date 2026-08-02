@@ -178,6 +178,11 @@ const writeIndex = (entries : IndexEntry[]) : boolean => {
 	}
 };
 
+//Replay order is load-bearing: intents must run in creation order per uid so an
+//offline star-then-unstar nets correctly. The index is kept sorted on insert.
+const byCreationEntry = (a : IndexEntry, b : IndexEntry) =>
+	a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 const indexEntryFor = (intent : AuxWriteIntent) : IndexEntry =>
 	({id: intent.id, uid: intent.uid, kind: intent.kind, createdAt: intent.createdAt});
 
@@ -252,8 +257,6 @@ const repairIndexFromScan = () : void => {
 	}
 };
 
-const byCreationEntry = (a : IndexEntry, b : IndexEntry) =>
-	a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 //One-time migration off the single-blob layout. The v1 key is removed LAST, so
 //a failure part-way leaves it in place to retry on the next boot.
@@ -478,25 +481,6 @@ export const readPendingAuxWrites = () : AuxWriteIntent[] => {
 	return result;
 };
 
-//Returns false when the queue could NOT be persisted. Callers that are about to
-//tell the user their work is safe must check: a swallowed QuotaExceededError
-//meant a card creation or comment was reported as durable while living only in
-//this tab's memory.
-//Persist a whole set. Only used where the caller genuinely means "these are the
-//intents now" — appends go through persistIntentBody + the index, so no path
-//rewrites another tab's body.
-const writePendingAuxWrites = (intents : AuxWriteIntent[]) : boolean => {
-	if (typeof localStorage === 'undefined') return false;
-	const existing = new Set(readIndex().map(entry => entry.id));
-	const keep = new Set(intents.map(intent => intent.id));
-	for (const id of existing) if (!keep.has(id)) deleteIntentKeys(id);
-	for (const intent of intents) {
-		if (existing.has(intent.id)) continue;
-		if (!persistIntentBody(intent)) return false;
-	}
-	return writeIndex(intents.map(indexEntryFor).sort(byCreationEntry));
-};
-
 //Append one intent without touching any other body — the operation the F8
 //window used to make destructive.
 const appendIntent = (intent : AuxWriteIntent) : boolean => {
@@ -509,11 +493,6 @@ const removeIntent = (id : string) : void => {
 	deleteIntentKeys(id);
 	writeIndex(readIndex().filter(entry => entry.id !== id));
 };
-
-//Replay order is load-bearing: the module contract is that intents run in
-//creation order per uid so an offline star-then-unstar nets correctly. Any
-//merge back into storage must therefore re-sort rather than append.
-const byCreation = (a : AuxWriteIntent, b : AuxWriteIntent) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 type StoredClaim = {by : string, at : number};
 
@@ -748,7 +727,23 @@ export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrenc
 	//intent was persisted inside its own awaited call, so a bulk import that
 	//stalled on card 1 had never written intents 2..N — 199 of 200 imported
 	//cards were simply gone on reload.
-	if (!writePendingAuxWrites([...readPendingAuxWrites(), ...intents].sort(byCreation))) {
+	//Bodies first, one at a time, then ONE index write. The previous form read
+	//the whole queue and wrote it back — the exact read-modify-write window F8
+	//closed everywhere else, left open on the bulk-import path, where the
+	//queue is largest and a sibling's interleaving does the most damage.
+	//Rolls back on failure, or the recovery scan would adopt bodies belonging
+	//to an import the caller was told did not happen.
+	const written : string[] = [];
+	for (const intent of intents) {
+		if (persistIntentBody(intent)) {
+			written.push(intent.id);
+			continue;
+		}
+		for (const id of written) deleteIntentKeys(id);
+		throw new Error('These changes could not be saved locally, so they were not submitted. Browser storage may be full or blocked.');
+	}
+	if (!writeIndex([...readIndex(), ...intents.map(indexEntryFor)].sort(byCreationEntry))) {
+		for (const id of written) deleteIntentKeys(id);
 		throw new Error('These changes could not be saved locally, so they were not submitted. Browser storage may be full or blocked.');
 	}
 	for (const intent of intents) {

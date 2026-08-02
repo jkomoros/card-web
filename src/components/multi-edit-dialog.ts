@@ -129,6 +129,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_saveEligible: boolean;
+
+	@state()
 		_corpusStatus: CorpusStatus;
 
 	@state()

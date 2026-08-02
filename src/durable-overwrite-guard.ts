@@ -42,6 +42,23 @@ export const replacedFieldsOf = (update : object) : string[] =>
 //own, so a timestamp comparison flags an ordinary second save of the same card
 //as a conflict. Values are also self-evident for a partially-committed chunk:
 //the server already equals what we would write, so nothing is at risk.
+//`images` and `title_alternates` are ARRAYS, and two arrays are never ===, so
+//identity comparison reported every image edit as "changed elsewhere" and
+//refused the save. Compare by value for anything non-primitive. Order matters
+//for these fields (images are positional), so serialization is the right
+//comparison rather than set equality.
+const sameFieldValue = (left : unknown, right : unknown) : boolean => {
+	if (left === right) return true;
+	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
+	try {
+		return JSON.stringify(left) === JSON.stringify(right);
+	} catch {
+		//Cyclic or otherwise unserializable: fall back to "not equal", which
+		//errs toward asking the user rather than silently overwriting.
+		return false;
+	}
+};
+
 export const overwrittenCardFields = (
 	update : {[field : string] : unknown},
 	baseFields : {[id : string] : {[field : string] : unknown}} | undefined,
@@ -58,10 +75,10 @@ export const overwrittenCardFields = (
 		if (!recorded || !card) continue;
 		const fields = Object.keys(recorded).filter(field => {
 			//Unchanged since we planned: safe.
-			if (card[field] === recorded[field]) return false;
+			if (sameFieldValue(card[field], recorded[field])) return false;
 			//Already equal to what we would write — our own partially-committed
 			//chunk, or someone who happened to make the identical edit.
-			if (card[field] === update[field]) return false;
+			if (sameFieldValue(card[field], update[field])) return false;
 			return true;
 		});
 		if (fields.length) result.push({id, fields});

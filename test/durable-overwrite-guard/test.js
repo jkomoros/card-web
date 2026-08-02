@@ -70,6 +70,35 @@ describe('durable overwrite guard', () => {
 		]);
 	});
 
+	it('does not flag an unchanged ARRAY field as a conflict', () => {
+		//images and title_alternates are arrays, and two arrays are never ===,
+		//so identity comparison refused every image edit with a bogus
+		//"changed elsewhere" conflict.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'a'}, {src: 'b'}]},
+			{c1: {images: [{src: 'a'}]}},
+			{c1: {images: [{src: 'a'}]}},
+			['c1']), [], 'an untouched array field is not a conflict');
+		//Already equal to what we would write, by value.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'a'}, {src: 'b'}]},
+			{c1: {images: [{src: 'a'}]}},
+			{c1: {images: [{src: 'a'}, {src: 'b'}]}},
+			['c1']), [], 'a server value equal to ours by value is not a conflict');
+		//A genuine divergence still is one.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'a'}, {src: 'b'}]},
+			{c1: {images: [{src: 'a'}]}},
+			{c1: {images: [{src: 'z'}]}},
+			['c1']), [{id: 'c1', fields: ['images']}]);
+		//Order is meaningful for images: a reorder IS a change.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'a'}]},
+			{c1: {images: [{src: 'a'}, {src: 'b'}]}},
+			{c1: {images: [{src: 'b'}, {src: 'a'}]}},
+			['c1']), [{id: 'c1', fields: ['images']}]);
+	});
+
 	it('skips cards absent from the server (deleted elsewhere)', () => {
 		assert.deepEqual(guard.overwrittenCardFields(
 			{body: 'new'}, {c1: {body: 'old'}}, {}, ['c1']), []);

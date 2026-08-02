@@ -2236,6 +2236,12 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 			add_card: intent.cardID
 		});
 	}
+	//Closes the group opened above. This was MISSING: the executor opened an
+	//atomic group and never closed it, so every card-create commit threw and
+	//the intent wedged in the replay queue forever, retrying the same
+	//deterministic failure on every boot while the UI claimed the card was
+	//saved and would appear when the connection recovered.
+	batch.endAtomicGroup();
 	await batch.commit();
 });
 
