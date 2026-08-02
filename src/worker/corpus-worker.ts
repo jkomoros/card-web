@@ -2434,6 +2434,16 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		//stale — clearing it prevents a FUTURE cold event from resuming
 		//mid-corpus and "completing" with only the tail.
 		if (syncMetaState && syncMetaState.coldSweep) {
+			//PROMOTE the start bound first, exactly as the completion path
+			//does. Discarding it lost the clamp: an interrupted sweep whose
+			//next boot classifies warm would derive its watermark from the
+			//corpus in hand, so a card edited DURING the interrupted sweep
+			//with `updated` older than watermark-5min is never re-read and is
+			//served stale at syncState=live, permanently — the count-based
+			//trust gate is membership-only and cannot see a mutation.
+			//Clamping only ever costs extra server replay.
+			const interrupted = syncMetaState.coldSweep;
+			if (interrupted.startBound) syncMetaState.watermarkClamp = interrupted.startBound;
 			syncMetaState.coldSweep = null;
 			if (syncMetaStore) void syncMetaStore.save(syncMetaState);
 		}
@@ -2459,14 +2469,13 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 //path we arrived by. `clear()` also now removes the `:owner` record, which it
 //previously left behind.
 //
-//S4 (NOT fully closed, deliberately): Firestore's own persistentLocalCache is a
-//second, larger copy of the same data — this worker runs it with
-//CACHE_SIZE_UNLIMITED — and clearing it requires terminate() + 
-//clearIndexedDbPersistence(). connectCards proceeds SYNCHRONOUSLY to
-//connectPublished() for the signed-out reader, which needs a live `db`, so a
-//correct purge means restructuring this path to re-initialize Firestore
-//afterwards. That is a real change to the client lifecycle and is left for a
-//deliberate pass rather than bolted on here.
+//S4 is closed elsewhere, not here: Firestore's own persistentLocalCache is a
+//second, larger copy of the same data, and it CANNOT be cleared in place —
+//clearIndexedDbPersistence refuses an initialized instance, the signed-out
+//reader needs a live `db` in this same tick, and the SDK's implementation
+//calls `window.indexedDB` which does not exist in a worker at all. The bridge
+//records the outgoing uid at sign-out and the NEXT boot deletes the database
+//before initializeApp. See connectFirebase's purgePersistence branch.
 const purgePrivilegedSnapshot = async (outgoingUid : string) => {
 	if (!outgoingUid) return;
 	try {

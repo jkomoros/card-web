@@ -34,6 +34,71 @@ are merged into a single item and marked with the lenses that found them.
   the debug browser cannot be undone without the owner's password. That one
   line is worth confirming during the acceptance test.
 
+## Round 13 — external landing review (2026-08-02)
+
+Full report: docs/fast-corpus-landing-review-2026-08-02.md. Fixed already:
+the card-create P0, the owner's private notes removed from history, the image-edit false conflict, the
+bulk-path cross-tab window, non-reactive save gating, the bare-`e` keystroke
+hazard, layout-dependent shortcuts, wedged-intent reporting, the stale landing
+rationale, the runbook index gate, and the cold-sweep clamp discard.
+
+### P1 — correctness (tracked, not yet fixed)
+
+- **Unguarded backward ingest.** Five paths write the corpus without version
+  guards (server prime, cold-sweep priority phase, each cold-sweep page,
+  partition repair, the delta listener), so a partition-repair read racing the
+  delta listener can roll a card back over a newer delivery — permanently, if
+  it lands below the next boot's bound. This has been a code comment at
+  corpus-worker.ts:709 marked KNOWN LATENT; it is now tracked. The naive fix
+  (a monotonic `updated` filter at forwardBatch) was tried and REVERTED for
+  two documented reasons, so closing it properly is a design change: the
+  guard has to live where the exemption state is still intact, and per-card
+  rather than per-batch.
+
+### P2 — sync engine
+
+- A second delta delivery can mark the plane live before the deficit re-gate
+  finishes (transient).
+- Partition-repair ghosts are never cache-laundered, so a console-deleted card
+  gives a per-boot flash-ghost plus a ~4k-read repair, every boot.
+- A future-`updated` inside the 1-hour tolerance can blackhole a window of
+  edits.
+- The tombstone cursor lacks the future-plausibility guard the card watermark
+  has. (Tombstone pruning is unimplemented, so the long-offline hazard cannot
+  occur yet.)
+
+### P2 — UX
+
+- Cmd-Shift-C / Cmd-Shift-I are silent no-ops on the editor's default Content
+  tab: the suggestion state is zeroed unless detail fields are visible, but
+  the shortcut still killEvent()s. Master populated suggestions whenever
+  editing.
+- Navigation while editing is allowed with no prompt and leaves the editor
+  open and bound to the previous card. Structurally present on master too, but
+  easier to hit here.
+- The fork button is not gated like its siblings — it fails after the click
+  with an alert instead of being disabled with a reason.
+- Diagnostic `off` mode logs a spurious console.timeEnd warning per boot.
+
+### Prod-cutover blockers (do NOT gate the merge; DO gate the deploy)
+
+- Anonymous visitors lost all card persistence: readers get memory-cache
+  workers and the main thread drops to memoryLocalCache, so every anonymous
+  visit re-downloads the published corpus and offline viewing is gone. This is
+  the public site's primary audience.
+- `on` mode fails closed on browsers without module-worker support (Safari
+  <15, Firefox <114) — shell plus a permanent error, where master worked.
+- Main-thread per-user state (stars/reads/reading-lists) is memory-only in the
+  default mode, so heavy accounts re-bill tens of thousands of reads per boot.
+  Worth measuring before the cutover.
+
+### Performance (measured live by the reviewer)
+
+- A ~2.5s main-thread freeze and a ~1.5GB heap peak during boot. This is the
+  best lead on the renderer crash seen once and never reproduced.
+
+---
+
 ## Round 12 — four-lens adversarial review (robustness / perf / UX / data-loss audit)
 
 Findings marked **[MINE]** are regressions introduced by this session's own work.
