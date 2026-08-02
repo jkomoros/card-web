@@ -279,6 +279,43 @@ describe('aux write queue', () => {
 		assert.deepEqual(queue.readPendingAuxWrites(), []);
 	});
 
+	it('refuses an oversized group whole, before persisting any of it', async () => {
+		queue.registerAuxWriteExecutor('card-create', async () => {});
+		const big = 'x'.repeat(20000);
+		const intents = Array.from({length: 90}, (unused, i) => queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', {
+			kind: 'card-create', card: {id: 'c' + i, body: big}, section: '', sectionUpdateKey: ''}));
+		await assert.rejects(queue.runDurableAuxWrites(intents), /more than can be safely queued/);
+		//Not partially populated: the caller's failure path must run with
+		//nothing committed, or the user is told it failed while some of it
+		//quietly replays later.
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+	});
+
+	it('refuses an oversized group by COUNT as well as bytes', async () => {
+		queue.registerAuxWriteExecutor('card-create', async () => {});
+		const intents = Array.from({length: 300}, (unused, i) => queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', {
+			kind: 'card-create', card: {id: 'c' + i}, section: '', sectionUpdateKey: ''}));
+		await assert.rejects(queue.runDurableAuxWrites(intents), /300 of a 250 limit/);
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+	});
+
+	it('over budget, a best-effort write still degrades to session-only', async () => {
+		//Fill past the byte budget with high-value intents.
+		queue.registerAuxWriteExecutor('card-create', async () => { throw new Error('offline'); });
+		const big = 'x'.repeat(20000);
+		for (let i = 0; i < 80; i++) {
+			await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', {
+				kind: 'card-create', card: {id: 'c' + i, body: big}, section: '', sectionUpdateKey: ''})).catch(() => {});
+		}
+		//A star must not be refused just because the queue is full of cards —
+		//it degrades exactly as it does on quota.
+		queue.registerAuxWriteExecutor('star-add', async () => {});
+		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA')), 'committed');
+		//...while another card IS refused loudly.
+		await assert.rejects(queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'zz', '', {
+			kind: 'card-create', card: {id: 'zz', body: big}, section: '', sectionUpdateKey: ''})), /more than can be safely queued/);
+	});
+
 	it('survives a corrupt storage record without wedging', async () => {
 		storage.set('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);

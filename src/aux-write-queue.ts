@@ -108,6 +108,41 @@ export type AuxWriteIntent = {
 export type AuxWriteExecutor = (intent : AuxWriteIntent, isReplay : boolean) => Promise<void>;
 
 const STORAGE_KEY = 'card-web-pending-aux-writes-v1';
+
+//The ~5MB origin budget is shared with card-web-pending-multi-edit-v1 (which
+//stores WHOLE cards in oversizedBaseCards), the bulk-tag record, the edit
+//draft and the ownership lease. An unbounded queue can starve the edit draft,
+//whose loss is also the user's work — so this queue gets a share, not the lot.
+const MAX_QUEUE_BYTES = 1_500_000;
+//A group must be persisted ENTIRELY before its first attempt (that is what
+//makes a stalled import survive), so the peak is the whole group, not a
+//steady state. 250 x ~2KB leaves room for a few oversized cards.
+const MAX_QUEUED_INTENTS = 250;
+
+const queueByteSize = () : number => {
+	if (typeof localStorage === 'undefined') return 0;
+	try {
+		return (localStorage.getItem(STORAGE_KEY) || '').length;
+	} catch {
+		return 0;
+	}
+};
+
+//Admission control, deliberately NOT eviction for high-value kinds: dropping a
+//queued card to make room for a new one trades work the user already did for
+//work they are about to do, invisibly.
+const groupFitsInQueue = (intents : AuxWriteIntent[]) : {ok : true} | {ok : false, message : string} => {
+	const existing = readPendingAuxWrites();
+	const count = existing.length + intents.length;
+	if (count > MAX_QUEUED_INTENTS) {
+		return {ok: false, message: `That is more than can be safely queued offline (${count} of a ${MAX_QUEUED_INTENTS} limit). Do it in smaller batches, or reconnect first.`};
+	}
+	const bytes = queueByteSize() + intents.reduce((total, intent) => total + JSON.stringify(intent).length, 0);
+	if (bytes > MAX_QUEUE_BYTES) {
+		return {ok: false, message: `That is more than can be safely queued offline (about ${Math.round(bytes / 1000)}KB of a ${Math.round(MAX_QUEUE_BYTES / 1000)}KB limit). Do it in smaller batches, or reconnect first.`};
+	}
+	return {ok: true};
+};
 //An intent that has not managed to commit in this long is abandoned: the
 //user has long since lost the context, and unbounded retry of ancient
 //intents is worse than dropping them.
@@ -370,6 +405,12 @@ export type AuxWriteOutcome = 'committed' | 'queued' | 'discarded';
 export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
 	const executor = executors[intent.kind];
 	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
+	//Over budget, a best-effort write degrades to session-only exactly as it
+	//does on quota; something the user WROTE must be refused loudly instead.
+	if (HIGH_VALUE_KINDS.has(intent.kind)) {
+		const admission = groupFitsInQueue([intent]);
+		if (!admission.ok) return Promise.reject(new Error(admission.message));
+	}
 	const persisted = writePendingAuxWrites([...readPendingAuxWrites(), intent]);
 	//If we could not persist something the user WROTE, do not proceed as
 	//though it were durable — reject so the caller runs its own failure path
@@ -454,6 +495,11 @@ export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrenc
 	for (const intent of intents) {
 		if (!executors[intent.kind]) throw new Error(`No executor for aux write kind ${intent.kind}`);
 	}
+	//Refuse an oversized group BEFORE writing any of it, so the queue cannot be
+	//left half-populated and the caller's failure path runs with nothing
+	//committed.
+	const admission = groupFitsInQueue(intents);
+	if (!admission.ok) throw new Error(admission.message);
 	//Persist the WHOLE group before attempting any of it. Previously each
 	//intent was persisted inside its own awaited call, so a bulk import that
 	//stalled on card 1 had never written intents 2..N — 199 of 200 imported

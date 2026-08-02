@@ -1995,10 +1995,15 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 	};
 };
 
+//Matches MAX_QUEUED_INTENTS in the aux queue, less headroom for whatever else
+//is already queued.
+const MAX_BULK_IMPORT_CARDS = 200;
+
 export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : ThunkSomeAction => async (dispatch, getState) => {
 
-	//Same reasoning as createCard: no durable intent, memory-only cache, so an
-	//offline commit is silently lost on reload. Refuse rather than lose.
+	//Creation is durable now (a card-create intent per card), but the gate stays:
+	//sort order is computed from the local corpus, so creating against a
+	//partial one produces wrong ordering that no replay can repair.
 	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error('Card sync must be live before creating cards. Wait for sync to finish, then retry.')));
 		return;
@@ -2012,6 +2017,13 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	if (!cardFinisher) throw new Error('Working notes didn\'t a card finisher');
 
 	if (bodies.length == 0) return;
+	//Refuse an oversized paste HERE, where the user chose the bodies, rather
+	//than after the spinner: the whole group must be durable before the first
+	//attempt, so the queue's peak IS the group.
+	if (bodies.length > MAX_BULK_IMPORT_CARDS) {
+		dispatch({type: BULK_IMPORT_FAILURE, error: `That is ${bodies.length} cards, more than the ${MAX_BULK_IMPORT_CARDS} that can be safely queued at once. Import it in smaller batches.`});
+		return;
+	}
 
 	const state = getState();
 	if (!selectUserMayCreateCard(state)) throw new Error('User may not create cards');
@@ -2229,12 +2241,11 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 
 export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
 
-	//Card CREATION has neither a durable write-ahead intent nor an eligibility
-	//gate, unlike every save path — and the main thread now runs on a
-	//memory-only Firestore cache, so offline the commit neither resolves nor
-	//rejects and the card is simply gone on reload. Master's persistent cache
-	//made this survive for free. Until creation gets its own durable intent,
-	//refuse rather than lose: the same gate the save paths use.
+	//Creation has a durable write-ahead intent now (see the card-create
+	//executor above), so a crash between here and the server ack no longer
+	//loses the card. The gate REMAINS for a different reason: sort order comes
+	//from the local corpus, so creating against a partial one produces
+	//ordering no replay can repair.
 	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error('Card sync must be live before creating a card. Wait for sync to finish, then retry.')));
 		return;
@@ -2470,8 +2481,8 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => async (dispatch, getState) => {
 
-	//Same reasoning as createCard: no durable intent, memory-only cache, so an
-	//offline commit is silently lost on reload. Refuse rather than lose.
+	//Same reasoning as createCard: durable now, but still gated because sort
+	//order is computed from the local corpus.
 	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error('Card sync must be live before creating cards. Wait for sync to finish, then retry.')));
 		return;
