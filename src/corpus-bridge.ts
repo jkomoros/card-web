@@ -434,6 +434,38 @@ const flushPendingRunCollections = () => {
 //its corpus size (updated on every batch thereafter, so readiness recovers
 //as re-attached listeners refill the corpus after an outage).
 let workerLoadComplete = false;
+//The uid whose privileged Firestore cache is still on disk and must be deleted
+//on the next worker boot. Stores the OUTGOING uid rather than a bare flag so the
+//same account returning to the same device can cancel it: nothing changed hands,
+//and a needless purge costs a full cold prime.
+const PERSISTENCE_PURGE_KEY = 'corpus-worker-persistence-purge-v1';
+
+const requestPersistencePurge = (outgoingUid : string) => {
+	if (!outgoingUid) return;
+	try {
+		localStorage.setItem(PERSISTENCE_PURGE_KEY, outgoingUid);
+	} catch {
+		//Best effort: without durable storage there is nothing to carry the
+		//request across the reload, and the cache stays until the next clear.
+	}
+};
+
+const pendingPersistencePurgeUid = () : string => {
+	try {
+		return localStorage.getItem(PERSISTENCE_PURGE_KEY) || '';
+	} catch {
+		return '';
+	}
+};
+
+const clearPersistencePurgeRequest = () => {
+	try {
+		localStorage.removeItem(PERSISTENCE_PURGE_KEY);
+	} catch {
+		//Best effort; a surviving request only costs one extra purge attempt.
+	}
+};
+
 let workerCorpusSize = 0;
 let workerSnapshotAgeMs : number | null = null;
 
@@ -1059,6 +1091,13 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		}
 		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: message.reason});
 		break;
+	case 'persistencePurge':
+		//Only a CONFIRMED delete clears the request; 'blocked' and 'failed'
+		//leave it set, which IS the retry policy — the next boot tries again.
+		//Nothing here is actionable by the user, so it stays in the console.
+		if (message.result === 'purged') clearPersistencePurgeRequest();
+		else console.warn(`[corpus-worker] signed-out cache purge ${message.result}; will retry next boot`);
+		break;
 	case 'spikeReport':
 		console.table([message.report]);
 		break;
@@ -1416,7 +1455,10 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	resetSubscriptionsForReconnect();
 	if (!connectSent) {
 		connectSent = true;
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist: corpusWorkerOwnsCardIngestion() && ownershipState !== 'reader', syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		//Gate the purge on the same expression that decides who opens the
+		//database, so a reader-path boot (memory cache) never races the owner.
+		const persist = corpusWorkerOwnsCardIngestion() && ownershipState !== 'reader';
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
@@ -1824,6 +1866,21 @@ const upgradeReaderToOwnedConnection = () => {
 };
 
 export const corpusWorkerConnectCards = (mayViewUnpublished : boolean, uid : string) => {
+	//S4. Firestore's own persistent cache in the worker is a second, larger copy
+	//of the privileged corpus, and it cannot be cleared at sign-out: the SDK
+	//refuses to clear an initialized instance, the signed-out reader needs a
+	//live one in the same tick, and clearIndexedDbPersistence does not work in
+	//a worker at all (see the note in corpus-worker.ts). Record the intent here
+	//instead — localStorage survives sign-out, which does not reload the page,
+	//and survives tab close and crash — and let the next worker boot delete the
+	//database BEFORE Firestore opens it.
+	//
+	//Keyed on lastUid alone rather than mayViewUnpublished, because the
+	//author/editor listeners cache unpublished bodies too.
+	if (!uid && lastUid) requestPersistencePurge(lastUid);
+	//The same account came back before the purge could run. Nothing changed
+	//hands, so cancel it rather than paying a full cold prime for nothing.
+	if (uid && uid === pendingPersistencePurgeUid()) clearPersistencePurgeRequest();
 	pendingConnection = {mayViewUnpublished, uid};
 	if (!corpusWorkerOwnsCardIngestion()) {
 		//Diagnostic spike mode deliberately coexists with the main-thread

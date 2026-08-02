@@ -157,8 +157,16 @@ describe('reader multi-tab (anonymous ownership bypass)', () => {
 			"connectWorkerNow must admit the reader state — the original guard made the reader worker unspawnable (round-6 audit's Bug A)");
 		assert.match(bridge, /activateReaderConnection[\s\S]{0,400}configureMutationOwnership\(\(\) => true/,
 			'reader tabs must not fence user-scoped writes');
-		assert.match(bridge, /persist: corpusWorkerOwnsCardIngestion\(\) && ownershipState !== 'reader'/,
+		//Hoisted into a const when the signed-out cache purge began gating on the
+		//same expression; assert BOTH halves so the pin still means what it did.
+		assert.match(bridge, /const persist = corpusWorkerOwnsCardIngestion\(\) && ownershipState !== 'reader';/,
 			'reader workers must never claim the persistent single-tab cache — that is what makes N tabs safe');
+		assert.match(bridge, /post\(\{type: 'connect'[^\n]*persist,/,
+			'and that computed value must be what is actually sent');
+		//The purge deletes the persistent cache; a reader boot must never
+		//trigger it, or N reader tabs could delete the owner's database.
+		assert.match(bridge, /purgePersistence: persist && Boolean\(pendingPersistencePurgeUid\(\)\)/,
+			'the signed-out cache purge must be gated on the same persist expression');
 	});
 
 	it('keeps the anonymous-signin loop guard while routing readers on a separate key', () => {

@@ -133,7 +133,7 @@ export type MainToWorkerMessage =
 	//is forwarded from the main thread's `firebase-emulator` localStorage flag —
 	//the worker has no localStorage, so the bridge reads it and passes it here.
 	//Absent (undefined) in every real dev/prod connection.
-	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string}
+	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}
@@ -237,6 +237,10 @@ export type WorkerToMainMessage =
 	//put up the full-viewport lockout panel for it. A snapshot-persistence
 	//failure is the motivating case: it only makes the NEXT boot slow.
 	| {type: 'degraded', generation: WorkerGeneration, reason : string, blocking? : boolean}
+	//Outcome of the signed-out Firestore cache purge. Only a CONFIRMED purge
+	//clears the bridge's pending request, which makes "try again next boot" the
+	//automatic retry policy rather than a separate mechanism.
+	| {type: 'persistencePurge', generation : WorkerGeneration, result : 'purged' | 'blocked' | 'failed'}
 	| {type: 'cards', generation: WorkerGeneration, batch : CardBatch}
 	| {type: 'spikeReport', generation: WorkerGeneration, report : SpikeReport}
 	| {type: 'queryResult', generation: WorkerGeneration, id : number, ids : CardID[], ms : number, fullScanFallback : boolean}

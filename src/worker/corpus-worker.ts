@@ -974,7 +974,56 @@ const attachResilientListener = (
 //namespace (the Firestore emulator namespaces data by projectId).
 const PERF_EMULATOR_PROJECT_ID = 'demo-perf';
 
-const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? : string) => {
+//S4, the half sign-out cannot do. Firestore's persistentLocalCache is a second,
+//larger copy of the privileged corpus and it survives sign-out. Clearing it in
+//place is impossible here for TWO reasons, not one:
+//
+//  1. clearIndexedDbPersistence() is legal only on an uninitialized or
+//     terminated instance, and connectCards proceeds synchronously to
+//     connectPublished() for the signed-out reader, which needs a live `db`.
+//  2. It does not work in a worker AT ALL. SimpleDb.delete calls
+//     `window.indexedDB.deleteDatabase` (@firebase/firestore 4.6.0,
+//     dist/index.esm2017.js:1664) and a dedicated worker has no `window`, so
+//     the call rejects with a ReferenceError inside the SDK's own catch and the
+//     cache SILENTLY SURVIVES. An earlier attempt at this would have logged
+//     success while deleting nothing. Re-check that line on any SDK upgrade.
+//
+//So the bridge records the intent at sign-out and it is honored HERE, before
+//initializeApp, in the one moment when nothing has opened the database yet.
+//
+//Name mirrors the SDK's indexedDbStoragePrefix(databaseId, persistenceKey) +
+//'main'. The persistence key is the Firebase app NAME, which we deliberately
+//keep at the default (see the comment on initializeApp below).
+const firestorePersistenceDatabaseName = (projectID : string) => `firestore/[DEFAULT]/${projectID}/main`;
+
+//deleteDatabase does NOT error when another connection holds the database open:
+//it fires `blocked` and then waits, indefinitely. Boot must not hang on that,
+//so give up after a bounded wait and leave the request for the next boot.
+const PERSISTENCE_PURGE_TIMEOUT_MS = 5000;
+
+const deleteDatabaseWithTimeout = (name : string) : Promise<'purged' | 'blocked' | 'failed'> => new Promise(resolve => {
+	let settled = false;
+	const finish = (result : 'purged' | 'blocked' | 'failed') => {
+		if (settled) return;
+		settled = true;
+		resolve(result);
+	};
+	const timer = setTimeout(() => finish('blocked'), PERSISTENCE_PURGE_TIMEOUT_MS);
+	try {
+		const request = indexedDB.deleteDatabase(name);
+		request.onsuccess = () => { clearTimeout(timer); finish('purged'); };
+		request.onerror = () => { clearTimeout(timer); finish('failed'); };
+		//Deliberately does not settle: `blocked` only means someone else still
+		//holds it open, and the delete may yet complete when they close. Let
+		//the timeout decide.
+		request.onblocked = () => status(`Firestore cache purge blocked by another connection (${name}); waiting`);
+	} catch {
+		clearTimeout(timer);
+		finish('failed');
+	}
+});
+
+const connectFirebase = async (devMode : boolean, persist : boolean, emulatorTarget? : string, purgePersistence = false) => {
 	if (app) return;
 	//PERF HARNESS ONLY: when the main thread forwards the `firebase-emulator`
 	//flag (host:firestorePort, e.g. `localhost:8089`) in the connect message,
@@ -985,6 +1034,19 @@ const connectFirebase = (devMode : boolean, persist : boolean, emulatorTarget? :
 	//no-op, so real dev/prod worker connections are unaffected.
 	const baseConfig = devMode ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 	const config = emulatorTarget ? {...baseConfig, projectId: PERF_EMULATOR_PROJECT_ID} : baseConfig;
+	//Honored before initializeApp: no listeners exist, nothing has opened the
+	//database, and everything downstream already waits on firebaseReady — so
+	//this only makes that promise slower to resolve, and only on the one boot
+	//that follows a sign-out.
+	if (purgePersistence) {
+		const result = await deleteDatabaseWithTimeout(firestorePersistenceDatabaseName(config.projectId || ''));
+		//Per-uid metadata for the signed-out account: tombstone id lists and
+		//cursors rather than card bodies, but it is the same account's data and
+		//the cache it describes is going anyway.
+		await deleteDatabaseWithTimeout('corpus-worker-meta');
+		status(`signed-out Firestore cache purge: ${result}`);
+		send({type: 'persistencePurge', generation, result});
+	}
 	//IMPORTANT: the app must use the DEFAULT name. Auth persistence keys in
 	//IndexedDB include the app name, so a custom-named app would read an
 	//empty credential slot instead of the one the main thread's interactive
@@ -2486,7 +2548,7 @@ workerScope.addEventListener('message', event => {
 		if (!firebaseReady) {
 			//The page acquired the origin-wide lease before this worker was
 			//created, so persistent single-tab ownership is safe to claim here.
-			firebaseReady = Promise.resolve(connectFirebase(message.devMode, message.persist, message.emulatorTarget));
+			firebaseReady = Promise.resolve(connectFirebase(message.devMode, message.persist, message.emulatorTarget, message.purgePersistence));
 		}
 		void firebaseReady.then(() => {
 			if (generation === message.generation) connectCards(message.mayViewUnpublished, message.uid);
