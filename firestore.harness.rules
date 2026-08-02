@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// PERMISSIVE ON PURPOSE — NOT the product's rules.
+//
+// This ruleset exists only for test/card-create-executor, which drives the
+// REAL client write path against an emulator to check the WRITE PLAN: which
+// documents a card creation touches, whether its atomic group commits, and
+// which timestamps the server assigns. Authorization is a separate concern
+// covered by the 201 tests in test/security against firestore.TEMPLATE.rules.
+//
+// Mixing the two would mean every write-plan test also had to mint credentials,
+// which is what kept this layer untested in the first place.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

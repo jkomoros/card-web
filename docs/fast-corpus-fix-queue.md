@@ -42,24 +42,27 @@ bulk-path cross-tab window, non-reactive save gating, the bare-`e` keystroke
 hazard, layout-dependent shortcuts, wedged-intent reporting, the stale landing
 rationale, the runbook index gate, and the cold-sweep clamp discard.
 
-### TEST COVERAGE — the structural finding, and the one worth doing first
+### TEST COVERAGE — first executable coverage of the thunk layer exists now
 
-~27,000 LOC (components, thunks, the worker body, the bridge) have ZERO
-executable coverage. They are guarded by ~60 regex assertions over source text,
-and that instrument has now failed visibly three times: two source-text tests
-were green while pointed at catastrophically broken lines, and
-test/atomic-group-balance passes if you delete the atomic group ENTIRELY
-(verified — a presence pin was added for the card-create executor specifically,
-but a pin is a patch, not coverage).
+`test/card-create-executor` drives the REAL registered executor, building a
+REAL MultiBatch, committing to a REAL Firestore emulator, then reads the
+documents back. It proved out on the two bugs that actually shipped: reverting
+the endAtomicGroup fix fails 4 of its 5 tests with "the card-create batch must
+actually commit", and re-stamping only `updated` fails with "created must be
+server-assigned, not the intent's client value (got 2020-01-01)".
 
-The stated reason these layers cannot be tested is FALSE, per the Round 15
-review: `lib/src/actions/data.js` imports and runs in plain Node with the jsdom
-shim already used elsewhere in the suite, and driving the real card-create
-executor through a real MultiBatch is about 60 lines. That single harness would
-have caught the card-create P0 and five other shipped bugs.
+The claim that this layer could not be tested was wrong, and cheaply so:
+lib/src/actions/data.js imports in plain Node behind the jsdom shim the suite
+already uses, and src/firebase.ts has a loopback-only emulator hook. Two things
+were needed that are worth knowing for the next harness: the `user` reducer
+must be registered by hand (store.js registers only `app` and `data`; the app's
+components add the rest lazily, and without it the executor silently skips the
+author write), and a section must be seeded before a card can join it.
 
-This is the highest-leverage item left in this file. Every other entry is a bug;
-this is the reason bugs of that class keep reaching a deploy.
+STILL UNCOVERED and worth the same treatment, in rough order of what has
+already bitten: the durable multi-edit chunk loop (resume, marker probing,
+overwrite guard), the comment executors' conflict and already-applied paths,
+and the delete path — which has no durable record at all.
 
 ### Write-path P2s (folded in from the Round 13 review file)
 
