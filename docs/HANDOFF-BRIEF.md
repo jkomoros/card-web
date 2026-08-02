@@ -1,11 +1,39 @@
 # Handoff brief: card-web fast-corpus work
 
+> **LANDING STATUS (2026-08-02 — SUPERSEDES the 2026-07-10 note below)**
+>
+> The 2026-07-10 rationale is STALE IN BOTH DIRECTIONS and must not be used
+> to decide a merge or a deploy.
+>
+> - "All flags default off" is no longer true. `bbfdd89c` (2026-07-11)
+>   flipped `corpus-worker` to `'on'` and `corpus-sync` to `'watermark'` by
+>   default. On any host other than localhost, 127.0.0.1 and
+>   dev-complexity-compendium.web.app, localStorage is not even consulted
+>   (`src/corpus-mode.ts`) — **prod has NO client-side kill switch**.
+>   Rollback after a bad prod deploy means redeploying, not flipping a flag.
+> - Therefore **deploying master to prod hosting IS the cutover**. Merging
+>   and deploying are no longer separable decisions.
+> - The old warning about "default boot = main-thread full-corpus listeners,
+>   ~40k reads" is obsolete the OTHER way: the default boot is worker-owned
+>   ingestion now, and the uncapped main-thread path survives only as a
+>   dev-host diagnostic mode.
+>
+> Merge readiness and CUTOVER readiness are tracked separately in
+> docs/fast-corpus-landing-review-2026-08-02.md. Read its "Prod-deploy
+> blockers" section before any prod hosting deploy — in particular that
+> anonymous visitors currently get no card persistence, and that browsers
+> without module-worker support fail closed with no fallback.
+
+<details><summary>Superseded 2026-07-10 note (kept for provenance)</summary>
+
 > **LANDING STATUS (2026-07-10)**: merge to master is SAFE (all flags
 > default off; 570 tests green incl. security; final landing review
 > passed). PROD DEPLOY IS NOT: default boot is now main-thread full-corpus
 > listeners with no partial-mode cap (~40k+ billed reads/boot on prod
 > scale) until the corpus-sync flag flip ships after its live soak. Deploy
 > dev-only until then. Details: implementation log's landing entry.
+
+</details>
 
 Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ commits, all green). Continue the autonomous loop: implement, test, verify live, commit early and often.
 

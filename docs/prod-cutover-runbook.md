@@ -82,10 +82,16 @@ Notes:
   (firestore.TEMPLATE.rules ~line 163). Tightening now would
   permission-deny link edits from the still-deployed OLD prod client.
   That happens in Phase 6.
-- The composite index `(published ASC, updated ASC)` starts BUILDING on
-  deploy. **Wait for it**: Firebase console → Firestore → Indexes must
-  show it `Enabled` (minutes at prod scale). The watermark delta query
-  fails while it is building.
+- **Wait for EVERY index, not one.** This deploy ships 29 composite indexes
+  and 19 field overrides (count them yourself: `firestore.indexes.json`).
+  The earlier instruction named only `(published ASC, updated ASC)`, which
+  is not sufficient — the cold-boot priority phase needs
+  `(published ASC, updated DESC)`, and find/slug and suggestion queries need
+  others again. A query whose index is still building FAILS; with the flags
+  now default-on there is no client-side way to back out of it.
+  **Gate**: Firebase console → Firestore → Indexes, every entry showing
+  `Enabled` and no field override still building (minutes to tens of minutes
+  at prod scale). Do not start Phase 4 until that is true.
 - These rules are already exactly what dev runs (deployed + 176 security
   tests green); this phase is replication, not new surface.
 - The rules remain COMPATIBLE with the currently-deployed old prod
