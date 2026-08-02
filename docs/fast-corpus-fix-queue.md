@@ -168,13 +168,26 @@ assert the mutant builds.
 
 ### From Round 15 (not yet fixed)
 
-- **R15-6.** The wedge alert can be permanently SILENCED rather than deferred:
-  the navigator.onLine suppression added in d2c93dfe returns without reporting,
-  and the counter is only equal-to-threshold, so an offline moment at exactly
-  the wrong count means the user is never told.
-- **R15-7.** The overwrite guard now compares key ORDER-insensitively but not
-  key SET: a base recorded before a field existed still differs from a server
-  copy that has it. imageBlocksEquivalent-style comparison would cover both.
+- **R15-6. FIXED.** The wedge alert could be permanently SILENCED rather than
+  deferred. Reporting keyed on the count being EQUAL to the threshold, so any
+  reason to skip the report at exactly that count lost it forever — counts 5,
+  6, 7 ... never matched again — and the `navigator.onLine` suppression was
+  exactly such a reason. Now the failure record carries a `reported` flag and
+  the test is `count >= threshold && !reported`, so offline DEFERS the report
+  instead of cancelling it, it still fires only once per distinct error, and a
+  different error re-arms it. Records written before this change lack the flag
+  and simply report once, which is the safe direction.
+- **R15-7. FIXED.** The overwrite guard compared key ORDER-insensitively but
+  not key SET, so a base recorded before a field existed differed from a server
+  copy carrying that field at its default — a "changed elsewhere" refusal the
+  user could not resolve by editing anything, i.e. a save they could not
+  complete. Values are now canonicalized by recursively dropping CONTENTLESS
+  object entries (absent, null, '', false, 0, [], {}), and two contentless
+  whole-field values compare equal. Deliberately conservative: a field holding
+  real text on one side and missing on the other is still a conflict, and array
+  elements are never dropped because images are positional. Tested in both
+  directions, including the assertions that keep the fix from degrading into
+  "compare nothing".
 - **Still open after the shape fix:** why ~129k NLP run objects are alive at
   all in a tab whose corpus was purged. _processedCardCache is WeakMap-keyed,
   so something still strongly holds many card objects; one retainer path runs

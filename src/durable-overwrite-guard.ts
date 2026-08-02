@@ -57,6 +57,40 @@ export const replacedFieldsOf = (update : object) : string[] =>
 //bringing the bogus "changed elsewhere" refusal back for a second consecutive
 //images save. Serialize with sorted keys so only values matter. Arrays keep
 //their order, which is right: image order is meaningful.
+//R15-7: order-insensitivity was not enough, because the two copies do not share
+//a key SET either. An image block recorded as a base before a field was added
+//to the client's image defaults lacks that key entirely, while the server copy
+//carries it at its default — so the guard reported "changed elsewhere" for a
+//difference that is not content, and the user could not resolve it by editing
+//anything. A key that is ABSENT on one side and CONTENTLESS on the other is the
+//same content.
+//
+//Deliberately conservative about what counts as contentless: only the empty
+//form of a type. A field that holds real text on one side and is missing on the
+//other is still a conflict, which is the case that actually destroys work.
+const contentless = (value : unknown) : boolean => {
+	if (value === undefined || value === null || value === '' || value === false || value === 0) return true;
+	if (Array.isArray(value)) return value.length === 0;
+	if (typeof value === 'object') return Object.keys(value as object).length === 0;
+	return false;
+};
+
+//Recursively drop contentless OBJECT entries so two copies with different key
+//sets but the same content compare equal. Array elements are NOT dropped:
+//images are positional, so removing an empty one would shift every index after
+//it and could hide a real reordering.
+const canonical = (value : unknown) : unknown => {
+	if (Array.isArray(value)) return value.map(canonical);
+	if (value === null || typeof value !== 'object') return value;
+	const result : {[key : string] : unknown} = {};
+	for (const [key, inner] of Object.entries(value as {[key : string] : unknown})) {
+		const canonicalInner = canonical(inner);
+		if (contentless(canonicalInner)) continue;
+		result[key] = canonicalInner;
+	}
+	return result;
+};
+
 const stableSerialize = (value : unknown) : string => {
 	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'undefined';
 	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
@@ -66,9 +100,14 @@ const stableSerialize = (value : unknown) : string => {
 
 const sameFieldValue = (left : unknown, right : unknown) : boolean => {
 	if (left === right) return true;
+	//The whole-field version of the key-set problem: a base recorded before the
+	//field existed holds `undefined` (and, after the localStorage round trip,
+	//loses the key entirely) where the server holds the field's empty value.
+	//Neither carries content, so neither can be overwritten.
+	if (contentless(left) && contentless(right)) return true;
 	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
 	try {
-		return stableSerialize(left) === stableSerialize(right);
+		return stableSerialize(canonical(left)) === stableSerialize(canonical(right));
 	} catch {
 		//Cyclic or otherwise unserializable: fall back to "not equal", which
 		//errs toward asking the user rather than silently overwriting.

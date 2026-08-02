@@ -119,6 +119,59 @@ describe('durable overwrite guard', () => {
 			['c1']), [{id: 'c1', fields: ['images']}]);
 	});
 
+	it('ignores KEY SET differences that carry no content (R15-7)', () => {
+		//A base recorded before a field was added to the client's image defaults
+		//lacks the key; the server copy carries it at its default. That is the
+		//same content, but the guard refused the save over it — and the user
+		//could not resolve it by editing anything, because there was nothing to
+		//edit. This is a save the user cannot complete, so it is a data-loss
+		//path, not a cosmetic one.
+		const oldBase = [{src: 'a', width: 20}];
+		const serverWithNewFields = [{src: 'a', width: 20, alt: '', margin: 0, uploadPath: ''}];
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]},
+			{c1: {images: oldBase}},
+			{c1: {images: serverWithNewFields}},
+			['c1']), [], 'keys present only at their empty value are not a change');
+		//It cuts both ways: the base may have the key and the server may not.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]},
+			{c1: {images: serverWithNewFields}},
+			{c1: {images: oldBase}},
+			['c1']), []);
+		//But a key that appeared with REAL content is a genuine change, and must
+		//still be caught. This is the assertion that keeps the fix from
+		//degrading into "compare nothing".
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]},
+			{c1: {images: oldBase}},
+			{c1: {images: [{src: 'a', width: 20, alt: 'a caption they wrote'}]}},
+			['c1']), [{id: 'c1', fields: ['images']}]);
+	});
+
+	it('treats a base recorded before the FIELD existed as unchanged (R15-7)', () => {
+		//Whole-field version: baseFields records `card[field]`, which is
+		//undefined for a field the card did not have, and the localStorage round
+		//trip then drops the key entirely. The server holds the field's empty
+		//value. Neither carries content, so neither can be overwritten.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{external_link: 'https://example.com'},
+			{c1: {external_link: undefined}},
+			{c1: {external_link: ''}},
+			['c1']), [], 'absent and empty are the same content');
+		//Real content on either side is still a conflict.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{external_link: 'https://example.com'},
+			{c1: {external_link: undefined}},
+			{c1: {external_link: 'https://they-set-this.example'}},
+			['c1']), [{id: 'c1', fields: ['external_link']}]);
+		assert.deepEqual(guard.overwrittenCardFields(
+			{body: 'mine'},
+			{c1: {body: 'what I saw'}},
+			{c1: {body: ''}},
+			['c1']), [{id: 'c1', fields: ['body']}], 'a field CLEARED elsewhere is still a conflict');
+	});
+
 	it('skips cards absent from the server (deleted elsewhere)', () => {
 		assert.deepEqual(guard.overwrittenCardFields(
 			{body: 'new'}, {c1: {body: 'old'}}, {}, ['c1']), []);

@@ -25,6 +25,77 @@ describe('aux write queue', () => {
 		queue.resetAuxWriteQueueForTesting();
 	});
 
+	//R15-6. A wedged intent is the queue's ONLY way of telling the user that
+	//their work is not going through. Reporting was keyed on the failure count
+	//being EQUAL to the threshold, so anything that skipped the report at
+	//exactly that count silenced it permanently — counts 5, 6, 7 ... never
+	//matched again. The offline suppression is exactly such a thing.
+	describe('wedge reporting', () => {
+		let reports;
+		let priorNavigator;
+		let priorConsoleError;
+
+		//One intent, retried in place: the failure counter is per intent id, so
+		//creating a second intent would both double-count and leave the first
+		//one replaying alongside it.
+		const failOnce = () => queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'wedged'));
+		const retry = (n = 1) => Promise.all([]).then(async () => {
+			for (let i = 0; i < n; i++) await queue.replayPendingAuxWrites('u1');
+		});
+
+		beforeEach(() => {
+			reports = [];
+			priorConsoleError = console.error;
+			//Only the WEDGE report counts. The queue logs other things at error
+			//level, and counting those made this suite measure the wrong thing.
+			console.error = (...args) => {
+				const line = args.join(' ');
+				if (line.includes('has failed')) reports.push(line);
+			};
+			priorNavigator = globalThis.navigator;
+			globalThis.navigator = {onLine: true};
+			queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('the same deterministic bug'); });
+		});
+
+		afterEach(() => {
+			console.error = priorConsoleError;
+			if (priorNavigator === undefined) delete globalThis.navigator;
+			else globalThis.navigator = priorNavigator;
+		});
+
+		it('reports a repeatedly-failing intent exactly ONCE', async () => {
+			await failOnce();
+			await retry(2);
+			assert.strictEqual(reports.length, 0, 'below the threshold the user is not bothered');
+			await retry(1);
+			assert.strictEqual(reports.length, 1, 'at the threshold the user is told');
+			await retry(3);
+			assert.strictEqual(reports.length, 1, 'and is not told again for the same error');
+		});
+
+		it('DEFERS the report when offline instead of losing it', async () => {
+			//THE REGRESSION. Offline at exactly the threshold used to mean the
+			//user was never told at all, however long the intent stayed wedged.
+			globalThis.navigator.onLine = false;
+			await failOnce();
+			await retry(5);
+			assert.strictEqual(reports.length, 0, 'an offline user is not told their connection is broken');
+			globalThis.navigator.onLine = true;
+			await retry(1);
+			assert.strictEqual(reports.length, 1,
+				'once back online the user MUST be told; the report is deferred, not cancelled');
+		});
+
+		it('re-arms for a DIFFERENT error', async () => {
+			await failOnce();
+			await retry(3);
+			assert.strictEqual(reports.length, 1);
+			queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('a completely different bug'); });
+			await retry(4);
+			assert.strictEqual(reports.length, 2, 'a new problem is worth a new report');
+		});
+	});
+
 	it('clears the intent on server ack and keeps it on transient failure', async () => {
 		const attempts = [];
 		queue.registerAuxWriteExecutor('star-add', async (intent) => { attempts.push(intent.cardID); });

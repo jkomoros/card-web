@@ -178,20 +178,39 @@ const recordFailure = (intent : AuxWriteIntent, error : unknown) : void => {
 	if (typeof localStorage === 'undefined') return;
 	const message = (error as {message? : string})?.message || String(error);
 	let count = 0;
+	let alreadyReported = false;
 	try {
 		const raw = localStorage.getItem(failureKey(intent.id));
-		const prior = raw ? JSON.parse(raw) as {count : number, message : string} : null;
+		const prior = raw ? JSON.parse(raw) as {count : number, message : string, reported? : boolean} : null;
 		//Only a REPEAT of the same error counts; a changing error is progress.
-		count = prior && prior.message === message ? prior.count + 1 : 1;
-		localStorage.setItem(failureKey(intent.id), JSON.stringify({count, message}));
+		const sameError = Boolean(prior && prior.message === message);
+		count = sameError && prior ? prior.count + 1 : 1;
+		//A DIFFERENT error re-arms reporting: it is a new problem, not the one we
+		//already told the user about.
+		alreadyReported = sameError && Boolean(prior?.reported);
+		localStorage.setItem(failureKey(intent.id), JSON.stringify({count, message, reported: alreadyReported}));
 	} catch {
 		return;
 	}
+	//Report ONCE per distinct wedged error, at or after the threshold — not on
+	//the exact count. Keying on equality meant any reason to skip the report at
+	//exactly the threshold silenced it PERMANENTLY, because count 5, 6, 7 ...
+	//never matched again. The offline suppression below is exactly such a
+	//reason, so the combination lost the report altogether for a user who
+	//happened to be offline on the fourth failure.
+	if (count < FAILURES_BEFORE_REPORTING || alreadyReported) return;
 	//Being merely OFFLINE can reach the threshold across a couple of boots, and
 	//telling that user "something is wrong" is both false and alarming. Only
-	//report when the browser believes it has a connection.
-	if (count !== FAILURES_BEFORE_REPORTING) return;
+	//report when the browser believes it has a connection. Deferred, NOT
+	//cancelled: `reported` stays false, so the next failure while online tells
+	//them.
 	if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+	try {
+		localStorage.setItem(failureKey(intent.id), JSON.stringify({count, message, reported: true}));
+	} catch {
+		//If we cannot record that we reported, still report: a duplicate alert is
+		//better than a silent wedge.
+	}
 	console.error(`[aux-write] ${intent.kind} for ${intent.cardID} has failed ${count} times with the same error; it is being kept but is not succeeding:`, message);
 	if (typeof window === 'undefined') return;
 	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
