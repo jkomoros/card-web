@@ -134,11 +134,35 @@ assert the mutant builds.
 
 ### Write-path P2s (folded in from the Round 13 review file)
 
-- **The attempt timeout defeats the "in-flight intents are skipped by replay"
-  invariant**: an offline star or new-thread comment can double-apply
-  star_count / thread_count after a same-session reconnect.
-- The durable executor's post-commit echo omits the auth-scope guard its
-  sibling passes — a narrow sign-out-mid-commit privacy window.
+- **FIXED. The attempt timeout defeated the "in-flight intents are skipped by
+  replay" invariant**: an offline star or new-thread comment could double-apply
+  star_count / thread_count after a same-session reconnect. The timeout drops
+  the intent from `inFlight` deliberately — that is what keeps a stranded
+  attempt from wedging the queue for the session — but offline the SDK still
+  has the mutation queued locally and flushes it on reconnect, so the replay
+  triggered by that same `online` event could commit a rival copy. The star and
+  comment executors preflight the server on replay, which narrows the window
+  but does not close it: the preflight can read before the original mutation
+  lands, and these are `increment()` fanouts, so a second commit is a
+  permanently wrong count.
+  Unsettled attempt promises are now kept in a map, and replay awaits an
+  outstanding one (bounded by the attempt timeout) before starting a rival —
+  usually settling it, since the replay trigger IS the reconnect. Both halves
+  are tested: the rival is not committed, and an attempt that never settles at
+  all is still replayed.
+- **FIXED. The durable executor's post-commit echo omitted the auth-scope guard
+  its sibling passes** — a narrow sign-out-mid-commit window in which a chunk's
+  cards, possibly UNPUBLISHED, were pushed into the corpus for whoever the tab
+  now belonged to. The scope is captured per chunk immediately BEFORE the
+  commit: at operation start it would be a stale record of a previous sign-in
+  (a durable multi-edit can resume in a later session) and would reject every
+  legitimate resume, while after the commit the sign-out has already happened
+  and would simply become the "expected" scope.
+  NOT covered by a test, and worth saying plainly: `echoLocalCardModifications`
+  returns early unless the corpus worker owns ingestion, which it does not in
+  the Node harness, so exercising it needs a worker-ownership seam that does
+  not exist yet. The change itself is passing an argument the sibling path
+  already passes, and the guard it feeds is covered there.
 - **An oversized card-create atomic group** (forking a hub card, >~250 ops)
   splits and can partially land, after which the replay preflight clears the
   intent — permanent silent loss of section/tag membership. The atomic group

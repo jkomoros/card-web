@@ -1046,6 +1046,18 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			if (!batch) throw new Error('Could not prepare a safe multi-edit batch');
 			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next multi-edit chunk could commit');
 			if (!durableSaveEligible(getState())) throw new Error('Card sync stopped being live before the next chunk. Reconnect, then retry.');
+			//Capture the auth scope for this chunk's echo BEFORE committing. It
+			//cannot be captured at operation start — a durable multi-edit can
+			//resume in a later session entirely, so that would be a stale record
+			//of a previous sign-in and would reject every legitimate resume — and
+			//it cannot be read after the commit either, because by then a
+			//sign-out has already happened and would simply become the
+			//"expected" scope. Here it is verified current (the uid check above
+			//just passed) and still precedes the window being guarded.
+			const chunkScope = {
+				uid: selectUid(getState()),
+				mayViewUnpublished: selectUserMayViewUnpublished(getState()),
+			};
 			let markerBatch : MultiBatch | null = null;
 			if (markerAfterCommit) {
 				//Never put this completion marker in a concurrently committed
@@ -1072,7 +1084,11 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			//which could leave a committed edit invisible in this tab until a
 			//reload.
 			if (Object.keys(chunkEchoes).length) {
-				await dispatch(echoLocalCardModifications(chunkEchoes));
+				//Pass the scope, as modifyCardsIndividually does. Without it a
+				//sign-out or permission change landing between the commit and
+				//this echo pushed the chunk's cards — which may be UNPUBLISHED —
+				//into the corpus for whoever the tab now belongs to.
+				await dispatch(echoLocalCardModifications(chunkEchoes, chunkScope));
 			}
 			operation.nextIndex += chunkIDs.length;
 			operation.modifiedCount += modifiedCount;

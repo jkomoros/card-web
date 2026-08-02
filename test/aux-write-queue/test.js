@@ -310,6 +310,44 @@ describe('aux write queue', () => {
 		assert.deepEqual(ran, ['c'], 'a stranded attempt must not block replay forever');
 	});
 
+	it('does not commit a RIVAL copy of an attempt that has not settled', async () => {
+		//The attempt timeout drops the intent from `inFlight` on purpose, so a
+		//stranded attempt cannot wedge the queue for the session. That also
+		//re-opened a double-apply: offline, the SDK has the mutation queued
+		//locally and flushes it on reconnect, and the replay triggered by that
+		//same `online` event could commit a SECOND copy. star_count and
+		//thread_count are increment() fanouts, so a second commit is a
+		//permanently wrong count, not a harmless repeat.
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		let commits = 0;
+		//Settles AFTER the timeout — i.e. the write does land, just late. This
+		//is the reconnect case, not the stranded case.
+		queue.registerAuxWriteExecutor('star-add', () => new Promise(resolve => {
+			commits++;
+			setTimeout(resolve, 60);
+		}));
+		const outcome = await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+		assert.equal(outcome, 'queued', 'the caller is told it did not confirm in time');
+		assert.equal(commits, 1);
+
+		await queue.replayPendingAuxWrites('u1');
+		assert.equal(commits, 1, 'replay must WAIT for the outstanding attempt, not race it');
+		assert.deepEqual(queue.readPendingAuxWrites(), [],
+			'and the original attempt landing is what clears the intent');
+	});
+
+	it('still replays an attempt that never settles at all', async () => {
+		//The bounded wait must not turn a stranded attempt into a permanent
+		//block — that is the regression the timeout was added to fix.
+		queue.setAuxWriteAttemptTimeoutForTesting(20);
+		queue.registerAuxWriteExecutor('star-add', () => new Promise(() => {}));
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+		const ran = [];
+		queue.registerAuxWriteExecutor('star-add', async (intent) => { ran.push(intent.cardID); });
+		await queue.replayPendingAuxWrites('u1');
+		assert.deepEqual(ran, ['cardA'], 'a genuinely stranded attempt is still replayed');
+	});
+
 	it('quarantines an unreadable queue instead of erasing it', async () => {
 		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepEqual(queue.readPendingAuxWrites(), []);

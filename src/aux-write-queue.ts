@@ -749,6 +749,27 @@ export const setAuxWriteAttemptTimeoutForTesting = (ms : number) : void => {
 	attemptTimeoutMs = ms;
 };
 
+//Attempts that timed out but whose promise has NOT settled. The timeout drops
+//the intent from `inFlight` on purpose — that is what stops a stranded attempt
+//from wedging the queue for the session — but it also re-opens the double-apply
+//the in-flight check exists to prevent. Offline, the SDK has the mutation
+//queued locally and WILL flush it on reconnect, so a replay triggered by that
+//same `online` event can commit a second copy. The star and comment executors
+//preflight the server on replay, which narrows the window but does not close
+//it: the preflight can read before the original mutation lands. star_count /
+//star_count_manual / thread_count are `increment()` fanouts, so a second commit
+//is a permanently wrong count, not a harmless repeat.
+//
+//Keeping the promise here lets replay WAIT for the original to settle before
+//starting a rival. It is a bounded wait, so a genuinely stranded attempt still
+//gets replayed rather than blocking forever.
+const unsettledAttempts : Map<string, Promise<AuxWriteOutcome>> = new Map();
+
+//The attempt already had `attemptTimeoutMs` and did not settle; give it that
+//much again on the fresh readiness edge before racing it. Deriving this from
+//the timeout rather than hard-coding it also keeps the unit suite fast.
+const settleGraceMs = () => attemptTimeoutMs;
+
 //Attempt an intent that is ALREADY persisted and already marked in flight.
 const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
 	const executor = executors[intent.kind];
@@ -770,7 +791,9 @@ const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutco
 		return 'queued';
 	}).finally(() => {
 		inFlight.delete(intent.id);
+		unsettledAttempts.delete(intent.id);
 	});
+	unsettledAttempts.set(intent.id, attempt);
 	return Promise.race([
 		attempt,
 		new Promise<AuxWriteOutcome>(resolve => setTimeout(() => {
@@ -928,6 +951,20 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 			//them. Reads and reading-list writes have no preflight to save
 			//them, unlike stars.
 			if (currentUid && currentUid() !== uid) break;
+			//This tab already has an attempt out for this intent that timed out
+			//without settling. Give it a bounded chance to land NOW — a replay
+			//is usually triggered by the very `online` event that lets the SDK
+			//flush it — rather than immediately committing a rival copy.
+			const unsettled = unsettledAttempts.get(intent.id);
+			if (unsettled) {
+				await Promise.race([
+					unsettled.catch(() => undefined),
+					new Promise<void>(resolve => setTimeout(resolve, settleGraceMs())),
+				]);
+				//It landed (or failed permanently and was discarded) while we
+				//waited: there is nothing left to replay.
+				if (!readPendingAuxWrites().some(pending => pending.id === intent.id)) continue;
+			}
 			//Claim it in shared storage as a secondary marker (the Web Lock
 			//above is what actually serializes tabs). If another tab holds a
 			//live claim on this intent we must STOP, not skip: replay order is
@@ -1010,6 +1047,7 @@ if (typeof localStorage !== 'undefined') {
 export const resetAuxWriteQueueForTesting = () : void => {
 	for (const key of Object.keys(executors)) delete executors[key as AuxWriteKind];
 	inFlight.clear();
+	unsettledAttempts.clear();
 	replayRunning = false;
 	replayRetryScheduled = false;
 	currentUid = null;
