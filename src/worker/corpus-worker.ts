@@ -2443,7 +2443,18 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 			//trust gate is membership-only and cannot see a mutation.
 			//Clamping only ever costs extra server replay.
 			const interrupted = syncMetaState.coldSweep;
-			if (interrupted.startBound) syncMetaState.watermarkClamp = interrupted.startBound;
+			//min(), not overwrite: two crashes plus a cache loss in the right
+			//order could otherwise replace an OLDER clamp with a newer one for
+			//a sweep that did not re-read everything. A clamp that is too old
+			//only costs extra replay; one that is too new loses cards.
+			const existingClamp = syncMetaState.watermarkClamp;
+			const candidate = interrupted.startBound;
+			if (candidate) {
+				const candidateOlder = !existingClamp ||
+					candidate.seconds < existingClamp.seconds ||
+					(candidate.seconds === existingClamp.seconds && candidate.nanoseconds < existingClamp.nanoseconds);
+				if (candidateOlder) syncMetaState.watermarkClamp = candidate;
+			}
 			syncMetaState.coldSweep = null;
 			if (syncMetaStore) void syncMetaStore.save(syncMetaState);
 		}

@@ -748,8 +748,8 @@ class CardView extends connect(store)(PageViewElement) {
 					<!-- Title on the wrapper so it is readable while the button
 					is disabled (Chrome/Safari suppress hover on disabled
 					controls). -->
-					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (E) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : 'Edit card (E)'}>
-						<button class='round' data-testid='edit-card' aria-label='Edit card (E)' ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (Cmd-E) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : 'Edit card (Cmd-E)'}>
+						<button class='round' data-testid='edit-card' aria-label='Edit card (Cmd-E)' ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 					</span>
 				</div>
 				<div slot='actions' class='next-prev'>
@@ -1249,7 +1249,12 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(askForPathToNavigateTo());
 				return killEvent(e);
 			}
-			//If you hold Alt then e.key will not be r
+			//NOTE: an old comment here warned that holding Alt composes e.key
+			//away from 'r'. Measured on macOS Chrome: with Meta held, Option
+			//composition is suppressed and the event arrives as key:'r'
+			//(or 'R' with Shift). Every branch in this handler is behind an
+			//early `if (!e.metaKey && !e.ctrlKey) return`, so the composition
+			//case is unreachable — which is why comparing e.key is correct.
 		} else if (pressedLetter(e) == 'r') {
 			if (e.altKey) {
 				if (e.shiftKey) {

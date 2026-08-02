@@ -47,11 +47,28 @@ export const replacedFieldsOf = (update : object) : string[] =>
 //refused the save. Compare by value for anything non-primitive. Order matters
 //for these fields (images are positional), so serialization is the right
 //comparison rather than set equality.
+//JSON.stringify is KEY-ORDER SENSITIVE, and the two copies being compared do
+//not share one: server-stored images come back as
+//{position, height, src, width, emSize, uploadPath, alt, margin}, while
+//client-constructed ones go through {...DEFAULT_IMAGE, ...img} and come out
+//{src, emSize, margin, width, height, position, uploadPath, ...}. A base
+//recorded from the client-shaped copy — which is what a local echo writes into
+//Redux after a save — therefore compared UNEQUAL to the identical server value,
+//bringing the bogus "changed elsewhere" refusal back for a second consecutive
+//images save. Serialize with sorted keys so only values matter. Arrays keep
+//their order, which is right: image order is meaningful.
+const stableSerialize = (value : unknown) : string => {
+	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'undefined';
+	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+	const entries = Object.entries(value as {[key : string] : unknown}).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+	return `{${entries.map(([key, inner]) => `${JSON.stringify(key)}:${stableSerialize(inner)}`).join(',')}}`;
+};
+
 const sameFieldValue = (left : unknown, right : unknown) : boolean => {
 	if (left === right) return true;
 	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
 	try {
-		return JSON.stringify(left) === JSON.stringify(right);
+		return stableSerialize(left) === stableSerialize(right);
 	} catch {
 		//Cyclic or otherwise unserializable: fall back to "not equal", which
 		//errs toward asking the user rather than silently overwriting.

@@ -23,44 +23,64 @@ const sourceFiles = (dir) => fs.readdirSync(dir, {withFileTypes: true}).flatMap(
 	return entry.name.endsWith('.ts') ? [full] : [];
 });
 
-//Walks a function body by brace depth from a starting index, returning its text.
-const bodyFrom = (text, startIndex) => {
-	const open = text.indexOf('{', startIndex);
-	if (open === -1) return '';
+//Scan every DIRECTORY that can hold a MultiBatch caller, not just src/ — the
+//admin-SDK MultiBatch in tools/ applies the same policy.
+const ROOTS = ['src', 'tools', 'shared'].map(d => path.join(process.cwd(), d)).filter(fs.existsSync);
+
+//Walks a brace-balanced block starting at the first '{' at or after `from`.
+const blockFrom = (text, from) => {
+	const open = text.indexOf('{', from);
+	if (open === -1) return null;
 	let depth = 0;
 	for (let i = open; i < text.length; i++) {
 		if (text[i] === '{') depth++;
 		else if (text[i] === '}') {
 			depth--;
-			if (!depth) return text.slice(open, i + 1);
+			if (!depth) return {start: open, end: i + 1, body: text.slice(open, i + 1)};
 		}
 	}
-	return text.slice(open);
+	return null;
+};
+
+//The innermost brace block containing `index`. Using the INNERMOST enclosing
+//block rather than a guessed function start means a plain `function foo()`, a
+//class method, an arrow, an IIFE and a bare block are all covered — the earlier
+//version only recognized `registerAuxWriteExecutor(`, `export const` and
+//`const x =`, so a group opened inside a class method was invisible.
+const enclosingBlock = (text, index) => {
+	let best = null;
+	for (let i = 0; i < index; i++) {
+		if (text[i] !== '{') continue;
+		const block = blockFrom(text, i);
+		if (!block || block.end <= index) continue;
+		if (!best || block.start > best.start) best = block;
+	}
+	return best;
 };
 
 describe('atomic group balance', () => {
-	it('every function that opens an atomic group also closes one', () => {
+	it('every block that opens an atomic group also closes one', () => {
 		const offenders = [];
-		for (const file of sourceFiles(SRC)) {
-			const text = fs.readFileSync(file, 'utf8');
-			if (!text.includes('beginAtomicGroup')) continue;
-			//Check per enclosing function, not per file: a file can legitimately
-			//have several, and a count that only balances across the whole file
-			//is exactly how this bug hid.
-			const re = /(registerAuxWriteExecutor\([^\n]*|export const \w+|const \w+ = )/g;
-			let m;
-			const starts = [];
-			while ((m = re.exec(text))) starts.push(m.index);
-			for (let i = 0; i < starts.length; i++) {
-				const body = bodyFrom(text, starts[i]);
-				const begins = (body.match(/\.beginAtomicGroup\(/g) || []).length;
-				if (!begins) continue;
-				const ends = (body.match(/\.endAtomicGroup\(/g) || []).length;
-				const aborts = (body.match(/\.abortAtomicGroup\(/g) || []).length;
-				//An abort closes a group too — the multi-edit loop uses it for
-				//the "nothing changed" case.
-				if (ends + aborts < begins) {
-					offenders.push(`${path.relative(process.cwd(), file)}: ${begins} begin, ${ends} end, ${aborts} abort — near ${text.slice(starts[i], starts[i] + 70).split('\n')[0]}`);
+		for (const root of ROOTS) {
+			for (const file of sourceFiles(root)) {
+				const text = fs.readFileSync(file, 'utf8');
+				let searchFrom = 0;
+				for (;;) {
+					const at = text.indexOf('.beginAtomicGroup(', searchFrom);
+					if (at === -1) break;
+					searchFrom = at + 1;
+					const block = enclosingBlock(text, at);
+					if (!block) continue;
+					const begins = (block.body.match(/\.beginAtomicGroup\(/g) || []).length;
+					const ends = (block.body.match(/\.endAtomicGroup\(/g) || []).length;
+					//An abort closes a group too — the multi-edit loop uses it
+					//for the "nothing changed" case.
+					const aborts = (block.body.match(/\.abortAtomicGroup\(/g) || []).length;
+					if (ends + aborts >= begins) continue;
+					const rel = path.relative(process.cwd(), file);
+					const line = text.slice(0, at).split('\n').length;
+					const entry = `${rel}:${line} — ${begins} begin, ${ends} end, ${aborts} abort`;
+					if (!offenders.includes(entry)) offenders.push(entry);
 				}
 			}
 		}

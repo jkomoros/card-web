@@ -99,6 +99,26 @@ describe('durable overwrite guard', () => {
 			['c1']), [{id: 'c1', fields: ['images']}]);
 	});
 
+	it('ignores KEY ORDER when comparing object fields', () => {
+		//Server-stored images and client-constructed ones have different key
+		//orders, so a key-order-sensitive compare brought the bogus "changed
+		//elsewhere" refusal back for a second consecutive images save — the
+		//base recorded from a local echo is the client-shaped copy.
+		const serverShaped = [{position: 0, height: 10, src: 'a', width: 20}];
+		const clientShaped = [{src: 'a', width: 20, height: 10, position: 0}];
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]},
+			{c1: {images: clientShaped}},
+			{c1: {images: serverShaped}},
+			['c1']), [], 'same values in a different key order is not a conflict');
+		//A real value difference still is one, whatever the key order.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]},
+			{c1: {images: clientShaped}},
+			{c1: {images: [{position: 0, height: 10, src: 'DIFFERENT', width: 20}]}},
+			['c1']), [{id: 'c1', fields: ['images']}]);
+	});
+
 	it('skips cards absent from the server (deleted elsewhere)', () => {
 		assert.deepEqual(guard.overwrittenCardFields(
 			{body: 'new'}, {c1: {body: 'old'}}, {}, ['c1']), []);

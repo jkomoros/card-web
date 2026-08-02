@@ -279,9 +279,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_suggestedTags: TagID[];
-		//'pending' while the worker is computing, 'unavailable' when it could
-		//not answer. Without this an empty list from a timed-out worker was
-		//indistinguishable from a genuine "nothing to suggest".
+
+	//'pending' while the worker is computing, 'unavailable' when it could not
+	//answer. Without this an empty list from a timed-out worker was
+	//indistinguishable from a genuine "nothing to suggest". Needs its OWN
+	//@state(): a decorator applies to one field, and this is driven from async
+	//worker callbacks — it only re-rendered by coincidence, because every
+	//transition also happened to assign _suggestedTags a fresh array.
+	@state()
 		_suggestedTagsState: 'pending' | 'ready' | 'unavailable';
 
 	@state()

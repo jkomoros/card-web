@@ -173,7 +173,11 @@ const recordFailure = (intent : AuxWriteIntent, error : unknown) : void => {
 	} catch {
 		return;
 	}
+	//Being merely OFFLINE can reach the threshold across a couple of boots, and
+	//telling that user "something is wrong" is both false and alarming. Only
+	//report when the browser believes it has a connection.
 	if (count !== FAILURES_BEFORE_REPORTING) return;
+	if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 	console.error(`[aux-write] ${intent.kind} for ${intent.cardID} has failed ${count} times with the same error; it is being kept but is not succeeding:`, message);
 	if (typeof window === 'undefined') return;
 	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
@@ -739,6 +743,11 @@ const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutco
 			if (inFlight.has(intent.id)) {
 				console.warn(`Aux write ${intent.kind} for ${intent.cardID} has not confirmed in ${attemptTimeoutMs}ms; treating it as queued`);
 				inFlight.delete(intent.id);
+				//COUNT IT. A deterministic hang is exactly as wedged as a
+				//deterministic throw, and only the throw was being counted —
+				//so the shape that never settles would have gone on promising
+				//"it will go through when the connection recovers" forever.
+				recordFailure(intent, new Error(`no response within ${attemptTimeoutMs}ms`));
 			}
 			resolve('queued');
 		}, attemptTimeoutMs))
