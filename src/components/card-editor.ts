@@ -273,6 +273,10 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_suggestedTags: TagID[];
+		//'pending' while the worker is computing, 'unavailable' when it could
+		//not answer. Without this an empty list from a timed-out worker was
+		//indistinguishable from a genuine "nothing to suggest".
+		_suggestedTagsState: 'pending' | 'ready' | 'unavailable';
 
 	@state()
 		_authors: TagInfos;
@@ -317,7 +321,19 @@ class CardEditor extends connect(store)(LitElement) {
 			   identical to when it was unwrapped, and the vertical-align
 			   matches what ButtonSharedStyles puts on the button itself
 			   (a default baseline-aligned wrapper would override it). */
-			span.reason {
+			/* Distinguishes "still working" and "could not answer" from a genuine
+		   empty result, which all rendered as the same blank space. */
+		.suggestion-state {
+			font-size: 0.75em;
+			font-style: italic;
+			color: var(--app-dark-text-color-light);
+		}
+
+		.suggestion-state[hidden] {
+			display: none;
+		}
+
+		span.reason {
 				display: inline-flex;
 				vertical-align: middle;
 			}
@@ -652,6 +668,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 					<label>Suggested Tags ${help('Tags suggested because this card\'s content is similar to cards of the given tag. Tap one to add it.')}</label>
+					<span class='suggestion-state' ?hidden=${this._suggestedTagsState === 'ready' || this._suggestedTags.length > 0}>${this._suggestedTagsState === 'pending' ? 'calculating…' : 'unavailable right now'}</span>
 					<tag-list
 						.tags=${this._suggestedTags}
 						.tagInfos=${this._tagInfos}
@@ -957,6 +974,7 @@ class CardEditor extends connect(store)(LitElement) {
 			window.clearTimeout(this._suggestionsTimeout);
 			this._suggestionsKey = '';
 			this._suggestedTags = [];
+			this._suggestedTagsState = 'pending';
 			this._suggestedConcepts = [];
 			this._cardTagInfos = {};
 		}
@@ -1001,13 +1019,19 @@ class CardEditor extends connect(store)(LitElement) {
 			//against its mirrored editing card instead; non-worker diagnostic
 			//modes fall back to the local selector (small corpora).
 			if (corpusWorkerCanRunCollections()) {
+				this._suggestedTagsState = 'pending';
 				void corpusWorkerSuggestTags().then(tags => {
 					if (this._suggestionKeyForState(store.getState() as State) != key) return;
+					//null means the worker never answered (torn down, or the
+					//10s guard fired) — NOT that there is nothing to suggest.
+					this._suggestedTagsState = tags === null ? 'unavailable' : 'ready';
 					this._suggestedTags = tags || [];
 				});
 			} else if (!corpusWorkerServesCollections()) {
+				this._suggestedTagsState = 'ready';
 				this._suggestedTags = selectEditingCardSuggestedTags(latestState);
 			} else {
+				this._suggestedTagsState = 'unavailable';
 				this._suggestedTags = [];
 			}
 			this._suggestedConcepts = selectEditingCardSuggestedConceptReferences(latestState);

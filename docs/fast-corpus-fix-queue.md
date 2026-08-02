@@ -72,8 +72,6 @@ little enough to ignore. Watch for it during the acceptance test.
   card-editor's own shadow root across a tab switch, and note that rollup strips
   HTML comments from Lit templates, so a comment is NOT a usable staleness check.
 - **U15.** `e` is a silent no-op (see U7/C3).
-- **U18.** Suggested tags render empty on worker timeout, indistinguishable from
-  "no suggestions" (`card-editor.ts:984-992`).
 - **U25.** Reference blocks render as nothing (not "loading") until the worker
   can serve, and stale blocks survive navigation to a not-yet-loaded card.
 - **U26.** Takeover shows a static disabled button for up to 12 s with no
