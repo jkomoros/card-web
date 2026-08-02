@@ -80,7 +80,22 @@ has already been burned by three times.
 Card DELETION now has a durable record and executable coverage too (it had
 neither: the UI committed before any server work, and the enumeration of the
 updates subcollection rejects offline into a promise nobody awaited, so the
-card silently came back on reload).
+card silently came back on reload). It is also now VERIFIED ON REAL DEV against
+real rules rather than only against the harness's permissive ones: two cards
+deleted through the actual editor button, each confirmed gone on a fresh boot at
+`live`, with a card left untouched in the same run as the control that proves
+the check discriminates. DEV is back at its 40,225-card baseline.
+
+Two harness lessons from that verification, both of which produced a FALSE
+FAILURE that looked like a product bug:
+- `deleteCard` opens with `confirm()`. Playwright auto-DISMISSES dialogs, so the
+  thunk early-returned and the run reported "card still present, no intent
+  queued, no alert" — the exact signature of a broken durable write. Override
+  `window.confirm` in an init script before concluding anything.
+- Reading `data.cards[id]` in the SAME session moments after `live` is reached
+  can still show the card: the worker had already logged the tombstone removal,
+  but the corresponding Redux update had not landed yet. On a fresh boot it is
+  gone at 0 s. Take server truth from a fresh boot, not from the live edge.
 
 A second process lesson, worth as much as the tests: a mutation that does not
 COMPILE proves nothing. Two mutants "survived" against card-delete until I
@@ -91,8 +106,31 @@ because re-deleting an absent document is harmless; what it is NOT harmless to
 do is rewrite the tombstone timestamp the tombstone plane's cursor keys on, and
 that is now the assertion.
 
-STILL UNCOVERED and worth the same treatment: the durable multi-edit chunk loop
-(resume, marker probing, the overwrite guard) — the largest remaining piece.
+The durable multi-edit chunk loop — the largest remaining uncovered piece — now
+has `test/durable-multi-edit-loop` (8 tests): multi-chunk completion, resume
+from `nextIndex`, marker probing across CONSECUTIVE chunks, refusing a marker
+from another operation, the overwrite guard refusing/retaining/proceeding, the
+same-value retry that must NOT conflict, and the single-card save whose target
+was deleted elsewhere. This is the loop every card edit goes through, the
+one-card editor Save included.
+
+Mutation-tested, three mutants, and the FIRST VERSION OF TWO OF THESE TESTS WAS
+WORTHLESS — worth recording because it is a trap specific to this loop. The
+"already committed" cards were seeded holding exactly the value the update would
+write, so a loop that wrongly re-processed them produced an EMPTY DIFF, wrote
+nothing, and the test passed. The marker-probing mutant (stop probing after the
+first marker — the real historical bug) survived. Fixed by seeding those cards
+with a DELIBERATELY DIFFERENT body, so a wrongly re-planned chunk is visible in
+both the body and the `card_updates` count. All three mutants now die:
+- probe stops after the first marker → caught on the first card of chunk 2
+- overwrite guard never fires → "the other device's content must survive"
+- resume rewinds `nextIndex` to 0 → "is behind nextIndex; must not touch it"
+
+The compile lesson repeated itself twice here, in both directions: one mutant
+was rejected by `tsc` (`false &&` narrowed `operation` to null) and proved
+nothing until rewritten, and one `str.replace` anchor silently did not match —
+caught only because the script asserts its match count. Assert the anchor;
+assert the mutant builds.
 
 ### Write-path P2s (folded in from the Round 13 review file)
 
