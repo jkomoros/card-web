@@ -737,7 +737,13 @@ class CardView extends connect(store)(PageViewElement) {
 					<span class='reason' title=${this._collectionIsFallback ? 'Not available while showing placeholder content' : this._cardIsRead ? 'Mark unread' : 'Mark read'}>
 						<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' aria-label=${this._cardIsRead ? 'Mark unread' : 'Mark read'} aria-pressed=${this._cardIsRead ? 'true' : 'false'} @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
 					</span>
-					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
+					<!-- Gated like its siblings. Forking creates a card, so it is
+					     refused by the same eligibility check that gates Save
+					     and the other create controls — it used to fail AFTER
+					     the click with an alert instead of being disabled with
+					     a reason. Title on the wrapper so it stays readable
+					     while the button is disabled. -->
+					<span class='reason' ?hidden='${!this._userMayForkCard}' title=${this._saveEligible ? 'Fork this card' : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' ?disabled=${!this._saveEligible} @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button></span>
 					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${PSYCHOLOGY_ICON}</button>
 					<!-- Title on the wrapper so it is readable while the button
 					is disabled (Chrome/Safari suppress hover on disabled
@@ -820,6 +826,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (this._editing) {
 			return;
 		}
+		if (!this._saveEligible) return;
 		store.dispatch(createForkedCard(this._card));
 	}
 

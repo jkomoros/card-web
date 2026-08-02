@@ -964,7 +964,15 @@ class CardEditor extends connect(store)(LitElement) {
 		//Content tab and the bar's lists render empty, which reads as 'no TODOs, no
 		//tags, no suggestions' rather than 'not computed'. Gate on whether anything
 		//that displays them is actually on screen.
-		const detailFieldsVisible = this._active && (this._selectedTab == 'config' || this._minimized);
+		//Gated on EDITING, not on the tab. Cmd-Shift-C / Cmd-Shift-I act on
+		//_suggestedConcepts and are live whenever the editor is open, so
+		//zeroing that list on the default Content tab made both shortcuts
+		//silent no-ops that still swallowed the keystroke — master populated
+		//suggestions whenever editing. The tab gating was a perf measure, and
+		//it buys little now: suggested TAGS are computed by the worker, and
+		//the expensive local fallback runs only in non-worker diagnostic modes
+		//on small corpora.
+		const detailFieldsVisible = this._active;
 
 		this._autoTodos = detailFieldsVisible ? selectEditingCardAutoTodos(state) : [];
 		this._userMayChangeEditingCardSection = detailFieldsVisible ? selectUserMayChangeEditingCardSection(state) : false;
@@ -1006,9 +1014,9 @@ class CardEditor extends connect(store)(LitElement) {
 	_suggestionKeyForState(state : State) {
 		const cardID = state.editor?.card?.id || '';
 		const extractionVersion = state.editor?.cardExtractionVersion || 0;
-		//Must match the gate in stateChanged, or the minimized bar schedules a
-		//suggestion run whose key never validates and never renders.
-		return this._active && (this._selectedTab == 'config' || this._minimized) ? `${cardID}:${extractionVersion}` : '';
+		//Must match the gate in stateChanged, or a suggestion run is scheduled
+		//whose key never validates and never renders.
+		return this._active ? `${cardID}:${extractionVersion}` : '';
 	}
 
 	_scheduleSuggestions(state : State) {

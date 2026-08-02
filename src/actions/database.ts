@@ -413,7 +413,9 @@ export const connectLivePublishedCards = () => {
 	if (perfEnabled()) console.time('[PERF] published-cards-first-snapshot');
 	let first = true;
 	livePublishedCardsUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
-		if (first) { console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
+		//Guarded to match the console.time() above: unguarded, every boot in
+		//diagnostic off mode logged a "timer does not exist" warning.
+		if (first) { if (perfEnabled()) console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
 		cardSnapshotReceiver('published')(snapshot);
 	});
 };
