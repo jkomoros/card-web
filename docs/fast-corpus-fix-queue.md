@@ -42,6 +42,86 @@ bulk-path cross-tab window, non-reactive save gating, the bare-`e` keystroke
 hazard, layout-dependent shortcuts, wedged-intent reporting, the stale landing
 rationale, the runbook index gate, and the cold-sweep clamp discard.
 
+### Write-path P2s (folded in from the Round 13 review file)
+
+- **Offline card delete is a silent no-op that looks successful.** Navigation
+  and editor close happen before any server work, and the getDocs on the
+  memory-only cache rejects offline into an unawaited promise. There is no
+  durable record for deletes — `card-delete` is not an AuxWriteKind — so the
+  docs' claim that deletion is durably recorded is ahead of the code. Master's
+  persistent cache made offline deletes land eventually; this is a durability
+  regression.
+- **The attempt timeout defeats the "in-flight intents are skipped by replay"
+  invariant**: an offline star or new-thread comment can double-apply
+  star_count / thread_count after a same-session reconnect.
+- The durable executor's post-commit echo omits the auth-scope guard its
+  sibling passes — a narrow sign-out-mid-commit privacy window.
+- **An oversized card-create atomic group** (forking a hub card, >~250 ops)
+  splits and can partially land, after which the replay preflight clears the
+  intent — permanent silent loss of section/tag membership. The atomic group
+  added for the P0 does not bound SIZE.
+- The S4 purge is honored only at a fresh worker boot, so a same-session A->B
+  account switch runs on A's persistent cache until reload.
+
+### Release engineering (folded in)
+
+- **There is no CI**, and the guard-vs-rules drift gate and the protocol gate
+  import compiled `lib/` with no build step — so a green local `npm test` can
+  be validating a STALE build. Cheap fix: make those suites depend on
+  build:typescript.
+- The rules' inbound-reference identity floor checks global permissions, so a
+  user holding only per-card `permissions.editCard` cannot save link-affecting
+  edits. Probably a null user set here; document the tradeoff.
+- Worker-bundle version skew windows exist (stable unhashed worker URL vs
+  hashed main chunks, ~1h CDN cache; a dirty-draft tab surviving an SW
+  update). Mitigated by the exact-match protocol handshake, whose discipline
+  is enforced only by a pin test.
+- `test/security/test.js` carries a DATED tripwire: `npm test` fails outright
+  from 2026-09-15 if the Phase 6 rules tightening has not happened. It will
+  bite whoever merges after that date.
+
+### Renderer crash (Round 14: REPRODUCED, with numbers)
+
+Second occurrence, crash dump 2026-08-02 10:28:26, on a long-lived tab after a
+mixed session (create/delete, editor open/close, saves, draft recovery, a
+two-tab takeover both directions, multi-edit, several in-renderer reloads).
+
+  fresh boot to loadComplete, 40,225 cards   574MB settled (712MB peak)
+  + section collection and drawer            787MB
+  + 40 arrow-key navigations                 792MB
+  + 10 find-dialog queries                   791MB — FLAT
+  long mixed session, just before the crash  1,763MB after forced GC
+
+This RETRACTS the earlier "1.5GB boot peak": a fresh boot peaks at ~712MB
+against a 4,192MB limit, and navigation and search do not leak (4MB over 50
+operations). So ~1.2GB of GC-resistant retention comes from something else.
+BOTH named suspects have now been TESTED AND ELIMINATED (2026-08-02, same
+debug tab, GC forced between iterations):
+
+  5 consecutive in-renderer reloads   1038MB, 1038, 1038, 1038, 1038 — flat
+  3 two-tab takeover cycles           1016MB, 1016, 1016 — flat
+
+So neither reloads nor takeovers retain. What the same run DID show is that
+this tab's settled floor is ~1.02GB with the full corpus mirrored into the
+page, against the 574MB the reviewer measured at a fresh loadComplete — the
+difference being a rendered section collection and drawer (they measured 787MB
+for that). Against a 4,192MB limit that is a high floor but not a leak.
+
+Remaining hypotheses, none tested: (a) the crash is a transient SPIKE on top of
+a ~1GB floor rather than accumulation — the two occurrences both followed a
+page navigation, which is when a new collection materializes; (b) retention
+lives in the WORKER heap, which performance.memory does not see; (c) something
+in the mixed session not covered above (editor open/close, draft recovery,
+multi-edit). Next step should be a heap SNAPSHOT with a retainer path rather
+than more aggregate polling — the aggregate has now said all it can.
+
+### Boot-to-live variance is unexplained
+
+Same machine, same corpus, Round 14: 12.8s, 19.7s, and one boot reaching
+loadComplete at 31.6s and `live` only after >90s. The 7.4s figure is a BEST
+case, not a typical one. Re-measure before treating the 15s advisory budget as
+met.
+
 ### P1 — correctness (tracked, not yet fixed)
 
 - **Unguarded backward ingest.** Five paths write the corpus without version
@@ -69,16 +149,9 @@ rationale, the runbook index gate, and the cold-sweep clamp discard.
 
 ### P2 — UX
 
-- Cmd-Shift-C / Cmd-Shift-I are silent no-ops on the editor's default Content
-  tab: the suggestion state is zeroed unless detail fields are visible, but
-  the shortcut still killEvent()s. Master populated suggestions whenever
-  editing.
 - Navigation while editing is allowed with no prompt and leaves the editor
   open and bound to the previous card. Structurally present on master too, but
   easier to hit here.
-- The fork button is not gated like its siblings — it fails after the click
-  with an alert instead of being disabled with a reason.
-- Diagnostic `off` mode logs a spurious console.timeEnd warning per boot.
 
 ### Prod-cutover blockers (do NOT gate the merge; DO gate the deploy)
 
@@ -136,7 +209,6 @@ little enough to ignore. Watch for it during the acceptance test.
   up: verify with a shadow-piercing probe that counts textareas inside
   card-editor's own shadow root across a tab switch, and note that rollup strips
   HTML comments from Lit templates, so a comment is NOT a usable staleness check.
-- **U15.** `e` is a silent no-op (see U7/C3).
 - **U25.** Reference blocks render as nothing (not "loading") until the worker
   can serve, and stale blocks survive navigation to a not-yet-loaded card.
 - **U26.** Takeover shows a static disabled button for up to 12 s with no
