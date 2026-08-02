@@ -272,6 +272,12 @@ const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
 //unlabeled — a bounded, sub-perceptual staleness that avoids flicker.
 const COLLECTION_UPDATING_GRACE_MS = 200;
 
+//e.code is the PHYSICAL key position, so on AZERTY, Dvorak or any non-QWERTY
+//layout the printed shortcut stops working and a DIFFERENT printed key silently
+//triggers it — Cmd-M creating a card from whatever key sits where M is on
+//QWERTY. e.key is what the user actually pressed.
+const pressedLetter = (e : KeyboardEvent) : string => (e.key || '').toLowerCase();
+
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
 
@@ -1214,7 +1220,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!e.metaKey && !e.ctrlKey) return false;
 		if (this._editing) return false;
 
-		if (e.code == 'KeyM') {
+		if (pressedLetter(e) == 'm') {
 			//these action creators will fail if the user may not do these now.
 			//While sync is still verifying, createCard refuses via
 			//modifyCardFailure — which alerts. A HELD Cmd-M then produces one
@@ -1228,7 +1234,7 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}
 			return killEvent(e);
-		} else if (e.code == 'KeyL') {
+		} else if (pressedLetter(e) == 'l') {
 			//Ctrl-Shift-L is a way to navigate to a URL in the web app without
 			//modifying the URL bar in the browser, which will lead to a full
 			//refresh.
@@ -1237,7 +1243,7 @@ class CardView extends connect(store)(PageViewElement) {
 				return killEvent(e);
 			}
 			//If you hold Alt then e.key will not be r
-		} else if (e.code == 'KeyR') {
+		} else if (pressedLetter(e) == 'r') {
 			if (e.altKey) {
 				if (e.shiftKey) {
 					store.dispatch(navigateToRandomCard());

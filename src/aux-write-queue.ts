@@ -148,6 +148,46 @@ const PREFIX = 'card-web-aux-writes-v2';
 const INDEX_KEY = `${PREFIX}-index`;
 const bodyKey = (id : string) => `${PREFIX}-i-${id}`;
 const claimKey = (id : string) => `${PREFIX}-c-${id}`;
+//Consecutive failures, kept out of the intent body so the body stays immutable.
+const failureKey = (id : string) => `${PREFIX}-f-${id}`;
+
+//A DETERMINISTIC bug (the card-create executor once opened an atomic group it
+//never closed) throws the same codeless error on every attempt. The queue
+//classifies codeless as transient and retains — correctly, since it cannot know
+//— so the intent retried forever while the UI kept promising it would be
+//created when the connection recovered. After this many identical failures,
+//say so once instead of promising indefinitely. The intent is RETAINED: the
+//user's work is not thrown away just because we cannot currently apply it.
+const FAILURES_BEFORE_REPORTING = 4;
+
+const recordFailure = (intent : AuxWriteIntent, error : unknown) : void => {
+	if (typeof localStorage === 'undefined') return;
+	const message = (error as {message? : string})?.message || String(error);
+	let count = 0;
+	try {
+		const raw = localStorage.getItem(failureKey(intent.id));
+		const prior = raw ? JSON.parse(raw) as {count : number, message : string} : null;
+		//Only a REPEAT of the same error counts; a changing error is progress.
+		count = prior && prior.message === message ? prior.count + 1 : 1;
+		localStorage.setItem(failureKey(intent.id), JSON.stringify({count, message}));
+	} catch {
+		return;
+	}
+	if (count !== FAILURES_BEFORE_REPORTING) return;
+	console.error(`[aux-write] ${intent.kind} for ${intent.cardID} has failed ${count} times with the same error; it is being kept but is not succeeding:`, message);
+	if (typeof window === 'undefined') return;
+	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
+	window.setTimeout(() => alert(`${what} is not going through — it has failed repeatedly with the same error. Your change is still saved locally and will be retried, but something is wrong: ${message}`), 0);
+};
+
+const clearFailures = (id : string) : void => {
+	if (typeof localStorage === 'undefined') return;
+	try {
+		localStorage.removeItem(failureKey(id));
+	} catch {
+		//Best effort.
+	}
+};
 
 type IndexEntry = {id : string, uid : Uid, kind : string, createdAt : number};
 
@@ -207,6 +247,7 @@ const deleteIntentKeys = (id : string) : void => {
 	try {
 		localStorage.removeItem(bodyKey(id));
 		localStorage.removeItem(claimKey(id));
+		localStorage.removeItem(failureKey(id));
 	} catch {
 		//Nothing further to do; the index compaction below will drop it too.
 	}
@@ -684,6 +725,7 @@ const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutco
 			return 'discarded';
 		}
 		console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm; queued for replay:`, error);
+		recordFailure(intent, error);
 		return 'queued';
 	}).finally(() => {
 		inFlight.delete(intent.id);
@@ -851,6 +893,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 			if (!claimIntent(intent.id)) break;
 			try {
 				await executor(intent, true);
+				clearFailures(intent.id);
 				removeIntent(intent.id);
 			} catch (error) {
 				if (permanentFailure(error)) {
@@ -866,6 +909,7 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 				//ran and failed indistinguishable from one that never ran at
 				//all — the queue just sat there with no explanation anywhere.
 				console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm on replay; retained for the next trigger:`, error);
+				recordFailure(intent, error);
 				releaseClaim(intent.id);
 				break;
 			}

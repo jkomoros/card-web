@@ -456,6 +456,37 @@ describe('aux write queue', () => {
 			'a queued card-create must survive a sibling tab writing between our read and our write');
 	});
 
+	it('reports an intent that keeps failing with the SAME error, and keeps it', async () => {
+		//A deterministic bug throws identically forever. The queue cannot know
+		//that, so it retains — correctly — but it used to keep promising the
+		//write would go through when the connection recovered. Exactly what
+		//happened when the card-create executor opened an atomic group it never
+		//closed: creation was 100% broken and the UI said "saved".
+		const alerts = [];
+		globalThis.window = globalThis.window || {};
+		globalThis.window.setTimeout = (fn) => { fn(); return 0; };
+		globalThis.alert = (m) => alerts.push(String(m));
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		queue.registerAuxWriteExecutor('card-create', async () => { throw new Error('the same deterministic bug'); });
+		const payload = {kind: 'card-create', card: {id: 'c'}, section: '', sectionUpdateKey: ''};
+		for (let i = 0; i < 4; i++) {
+			await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', payload));
+		}
+		//Each intent is distinct, so none of them individually reaches the
+		//threshold — the count is per intent, and a changing error resets it.
+		assert.equal(alerts.length, 0, 'four different intents failing once each is not a wedge');
+
+		const wedged = queue.makeAuxWriteIntent('u1', 'card-create', 'stuck', '', payload);
+		for (let i = 0; i < 4; i++) {
+			//Same intent id retried: this is the wedge shape.
+			await queue.runDurableAuxWrite({...wedged, id: wedged.id});
+		}
+		assert.equal(alerts.length, 1, 'the user is told once, not on every retry');
+		assert.match(alerts[0], /not going through/);
+		assert.ok(queue.readPendingAuxWrites().some(i => i.cardID === 'stuck'),
+			'and the work is RETAINED — a wedge is not a reason to throw it away');
+	});
+
 	it('survives a corrupt storage record without wedging', async () => {
 		storage.set('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);

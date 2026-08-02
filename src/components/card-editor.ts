@@ -210,6 +210,12 @@ const cardTagInfosForIDs = (cards : Cards, ids : Iterable<CardID>) : TagInfos =>
 	return result;
 };
 
+//e.code is the PHYSICAL key position, so on AZERTY, Dvorak or any non-QWERTY
+//layout the printed shortcut stops working and a DIFFERENT printed key silently
+//triggers it — Cmd-M creating a card from whatever key sits where M is on
+//QWERTY. e.key is what the user actually pressed.
+const pressedLetter = (e : KeyboardEvent) : string => (e.key || '').toLowerCase();
+
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
 
@@ -1368,12 +1374,12 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		if (!e.metaKey && !e.ctrlKey) return;
 
-		if (e.shiftKey && e.code == 'KeyC') {
+		if (e.shiftKey && pressedLetter(e) == 'c') {
 			this._handleAddAllConceptsClicked();
 			return killEvent(e);
 		}
 
-		if (e.shiftKey && e.code == 'KeyI') {
+		if (e.shiftKey && pressedLetter(e) == 'i') {
 			this._handleIgnoreAllConceptsClicked();
 			return killEvent(e);
 		}

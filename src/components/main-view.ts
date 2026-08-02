@@ -500,7 +500,15 @@ class MainView extends connect(store)(PageViewElement) {
 		if (!this._keyboardNavigates) return;
 		switch (e.key) {
 		case 'e':
-			if (e.metaKey || e.ctrlKey || e.altKey) return;
+			//REQUIRES a modifier. As a bare letter this was a data-mutation
+			//hazard: opening the editor focuses the contenteditable body and
+			//moves the caret to the end, so typing any phrase containing 'e'
+			//with the card view focused silently inserted the REST of that
+			//phrase into the card. Observed for real. Master had no such
+			//shortcut; every other shortcut here (m, f, l) already requires a
+			//modifier, so this now matches them.
+			if (!e.metaKey && !e.ctrlKey) return;
+			if (e.altKey) return;
 			e.stopPropagation();
 			e.preventDefault();
 			store.dispatch(editingStart());
