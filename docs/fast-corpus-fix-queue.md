@@ -18,8 +18,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ### P1 — correctness
 
-- **L2b. `editMessage`/`deleteMessage` have no durable record**, and
-  `deleteMessage` is dispatched unawaited with no global rejection handler.
 
 ### P1 — performance (boot to `live` is 24-31s against a 15s advisory budget)
 

@@ -163,7 +163,10 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	}
 
 	_handleDeleteMessage(e : CommmentMessageEvent) {
-		store.dispatch(deleteMessage(e.detail.message));
+		//The thunk owns its own failure reporting now, but the dispatch still
+		//returns a promise; `void` states that nothing awaits it and keeps a
+		//future rejection from becoming an unhandled one.
+		void store.dispatch(deleteMessage(e.detail.message));
 	}
 
 	_handleResolveThread(e : CommmentThreadEvent) {

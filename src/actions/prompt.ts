@@ -71,13 +71,13 @@ export const composeCommit = () : ThunkSomeAction => async (dispatch, getState) 
 
 	const state = getState();
 
-	//Capture BEFORE the commit action clears it. The user's typed text is the
-	//one thing here that cannot be reconstructed: comments are deliberately
-	//outside the durable write-ahead queue (transactional, generated ids), and
-	//the main thread now runs a memory-only Firestore cache, so a write that
-	//never lands is simply gone. Clearing the box first and firing the write
-	//afterwards meant an offline or fenced comment vanished with the UI having
-	//already accepted it.
+	//Capture BEFORE the commit action clears it. Posting, editing and deleting
+	//a comment all go through the durable aux-write queue now, so a write that
+	//cannot reach the server is retained and replayed rather than lost — but
+	//the queue can still DISCARD one permanently (a conflicting edit, a message
+	//that no longer exists), and those reject. This restore is what hands the
+	//user their words back in that case. Clearing the box first and firing the
+	//write afterwards meant the text vanished with the UI having accepted it.
 	const message = selectPromptMessage(state);
 	const content = selectPromptContent(state);
 	const action = selectPromptAction(state);

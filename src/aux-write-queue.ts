@@ -35,7 +35,7 @@ import {
 	Uid
 } from './types.js';
 
-export type AuxWriteKind = 'star-add' | 'star-remove' | 'read-add' | 'read-remove' | 'reading-list-add' | 'reading-list-remove' | 'card-create' | 'comment-add';
+export type AuxWriteKind = 'star-add' | 'star-remove' | 'read-add' | 'read-remove' | 'reading-list-add' | 'reading-list-remove' | 'card-create' | 'comment-add' | 'comment-edit' | 'comment-delete';
 
 //The materialized write plan for the kinds that need more than a cardID.
 //Serialized into localStorage, so everything here must be JSON-round-trippable
@@ -81,7 +81,30 @@ export type CommentAddPayload = {
 	newThread: boolean,
 };
 
-export type AuxWritePayload = CardCreatePayload | CommentAddPayload;
+//An edit and a delete are UPDATEs on a document that already exists, so unlike
+//comment-add their idempotency cannot come from an existence check — existence
+//proves nothing. They carry the text they were composed against and the
+//executor compares VALUES, the same reasoning as durable-overwrite-guard.ts.
+export type CommentEditPayload = {
+	kind: 'comment-edit',
+	messageID: string,
+	//The new text. Content, not a path — deliberately unvalidated beyond being
+	//a string, exactly as comment-add's `message` is.
+	message: string,
+	//The text this edit was composed AGAINST. Replaying an edit over content
+	//written in between would destroy it silently.
+	baseMessage: string,
+};
+
+export type CommentDeletePayload = {
+	kind: 'comment-delete',
+	messageID: string,
+	//Deleting blanks `message` and nothing keeps the old text, so a delete
+	//replayed days later must not erase words written after it was queued.
+	baseMessage: string,
+};
+
+export type AuxWritePayload = CardCreatePayload | CommentAddPayload | CommentEditPayload | CommentDeletePayload;
 
 export type AuxWriteIntent = {
 	version: 1,
@@ -180,13 +203,13 @@ let intentCounter = 0;
 //Firestore path segments, where a '/' would silently retarget the write.
 const AUX_WRITE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>([
 	'star-add', 'star-remove', 'read-add', 'read-remove', 'reading-list-add', 'reading-list-remove',
-	'card-create', 'comment-add'
+	'card-create', 'comment-add', 'comment-edit', 'comment-delete'
 ]);
 
 //Kinds whose intent is meaningless without its plan. Validating this at read
 //time keeps a truncated or hand-edited record from reaching an executor that
 //would then dereference undefined.
-const KINDS_REQUIRING_PAYLOAD : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add']);
+const KINDS_REQUIRING_PAYLOAD : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add', 'comment-edit', 'comment-delete']);
 
 const validPayload = (kind : string, payload : unknown) : boolean => {
 	if (!KINDS_REQUIRING_PAYLOAD.has(kind)) return payload === undefined;
@@ -210,10 +233,27 @@ const validPayload = (kind : string, payload : unknown) : boolean => {
 			(candidate.skipAuthor === undefined || typeof candidate.skipAuthor === 'boolean') &&
 			tagKeysValid;
 	}
-	//Message text is content, not a path, so it is deliberately unconstrained
-	//beyond being a string; the ids become path segments and are not.
-	return validPathSegment(candidate.messageID) && validPathSegment(candidate.threadID) &&
-		typeof candidate.message === 'string' && typeof candidate.newThread === 'boolean';
+	//EXPLICIT per-kind branches with a terminating `return false`. This used to
+	//fall through to comment-add's schema for anything that was not
+	//card-create; adding a kind without restructuring would have checked every
+	//comment-edit against comment-add's shape, failed on threadID/newThread,
+	//and had validIntent silently drop the user's edit on the next read.
+	//Runtime narrowing cannot be trusted here — the value comes from
+	//attacker-writable storage.
+	if (candidate.kind === 'comment-add') {
+		//Message text is content, not a path, so it is deliberately
+		//unconstrained beyond being a string; the ids become path segments.
+		return validPathSegment(candidate.messageID) && validPathSegment(candidate.threadID) &&
+			typeof candidate.message === 'string' && typeof candidate.newThread === 'boolean';
+	}
+	if (candidate.kind === 'comment-edit') {
+		return validPathSegment(candidate.messageID) &&
+			typeof candidate.message === 'string' && typeof candidate.baseMessage === 'string';
+	}
+	if (candidate.kind === 'comment-delete') {
+		return validPathSegment(candidate.messageID) && typeof candidate.baseMessage === 'string';
+	}
+	return false;
 };
 
 const validPathSegment = (value : string) : boolean =>
@@ -235,7 +275,11 @@ const validIntent = (value : unknown) : value is AuxWriteIntent => {
 //"drop anything questionable" policy was written when it held only stars, reads
 //and reading-list entries — all best-effort and reconstructible. Card creations
 //and comments are neither.
-const HIGH_VALUE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add']);
+//comment-delete is deliberately absent: it carries no content the user typed
+//(the comment is still on screen and can be deleted again), and its call site
+//is dispatched unawaited — a rejection there would be an unhandled one, and
+//there is no unhandledrejection handler anywhere in src/.
+const HIGH_VALUE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add', 'comment-edit']);
 
 //A corrupt or unreadable blob used to return [] — and because every mutation is
 //read-modify-write, the very next star would persist that empty list and erase
@@ -331,6 +375,25 @@ const releaseClaim = (id : string) : void => {
 	}).sort(byCreation));
 };
 
+//The text a message will HAVE once the queue drains, or null if nothing is
+//pending for it. The main thread's Firestore cache is memory-only, so after a
+//reload Redux shows the PRE-edit server text while an edit is still queued —
+//basing a second edit on Redux would record a base the first edit has already
+//moved past, and the second edit (the one the user made most recently) would
+//lose the conflict. Intents are returned in creation order, so the last write
+//wins here exactly as it will on the server.
+export const pendingCommentTextFor = (messageID : string) : string | null => {
+	let result : string | null = null;
+	for (const intent of readPendingAuxWrites()) {
+		const payload = intent.payload;
+		if (!payload) continue;
+		if (payload.kind === 'comment-add' && payload.messageID === messageID) result = payload.message;
+		if (payload.kind === 'comment-edit' && payload.messageID === messageID) result = payload.message;
+		if (payload.kind === 'comment-delete' && payload.messageID === messageID) result = '';
+	}
+	return result;
+};
+
 export const registerAuxWriteExecutor = (kind : AuxWriteKind, executor : AuxWriteExecutor) : void => {
 	const isNew = !executors[kind];
 	executors[kind] = executor;
@@ -371,6 +434,8 @@ const DISCARD_LABELS : Record<AuxWriteKind, string> = {
 	'reading-list-remove': 'removing that card from your reading list',
 	'card-create': 'creating that card',
 	'comment-add': 'posting your comment',
+	'comment-edit': 'saving your edit to that comment',
+	'comment-delete': 'deleting that comment',
 };
 
 const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {

@@ -316,6 +316,102 @@ describe('aux write queue', () => {
 			kind: 'card-create', card: {id: 'zz', body: big}, section: '', sectionUpdateKey: ''})), /more than can be safely queued/);
 	});
 
+	//--- L2b: comment edit and delete ---------------------------------------
+
+	it('validates each payload-bearing kind against its OWN schema', async () => {
+		//The regression guard for the implicit-else fallthrough: validPayload
+		//used to check anything that was not card-create against comment-add's
+		//shape, so a well-formed comment-edit would have failed on the missing
+		//threadID/newThread and been silently dropped on the next read.
+		queue.registerAuxWriteExecutor('comment-edit', async () => { throw new Error('offline'); });
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'comment-edit', 'cardA', '', {
+			kind: 'comment-edit', messageID: 'm1', message: 'new / text', baseMessage: 'old .. text'}));
+		const survivors = queue.readPendingAuxWrites();
+		assert.equal(survivors.length, 1, 'a well-formed comment-edit must survive a read');
+		assert.equal(survivors[0].payload.message, 'new / text', 'message text is content, not a path');
+		assert.equal(survivors[0].payload.baseMessage, 'old .. text', 'the base is the only record of what may be replaced');
+	});
+
+	it('rejects malformed comment-edit and comment-delete plans', () => {
+		const cases = [
+			{kind: 'comment-edit', payload: {kind: 'comment-edit', messageID: '../evil', message: 'a', baseMessage: 'b'}, why: 'id escaping its collection'},
+			{kind: 'comment-edit', payload: {kind: 'comment-edit', messageID: 'm', message: 5, baseMessage: 'b'}, why: 'non-string message'},
+			{kind: 'comment-edit', payload: {kind: 'comment-edit', messageID: 'm', message: 'a'}, why: 'missing base'},
+			{kind: 'comment-edit', payload: {kind: 'comment-add', messageID: 'm', threadID: 't', message: 'a', newThread: false}, why: 'plan for a different kind'},
+			{kind: 'comment-delete', payload: {kind: 'comment-delete', messageID: 'm', baseMessage: 7}, why: 'non-string base'},
+		];
+		for (const {kind, payload, why} of cases) {
+			storage.clear();
+			const intent = {version: 1, id: 'i1', uid: 'u1', kind, cardID: 'cardA', auditKey: '', payload, createdAt: Date.now()};
+			globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', JSON.stringify([intent]));
+			assert.deepEqual(queue.readPendingAuxWrites(), [], `must reject: ${why}`);
+		}
+	});
+
+	it('refuses an unpersistable comment-edit but lets a comment-delete degrade', async () => {
+		const realSet = globalThis.localStorage.setItem;
+		globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+		queue.registerAuxWriteExecutor('comment-edit', async () => {});
+		queue.registerAuxWriteExecutor('comment-delete', async () => {});
+		//An edit carries text that exists nowhere else, so it must reject and
+		//let composeCommit put the words back.
+		await assert.rejects(queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'comment-edit', 'cardA', '', {
+			kind: 'comment-edit', messageID: 'm1', message: 'a', baseMessage: 'b'})), /could not be saved locally/);
+		//A delete carries nothing typed and is dispatched unawaited — a
+		//rejection there would be an unhandled one.
+		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'comment-delete', 'cardA', '', {
+			kind: 'comment-delete', messageID: 'm1', baseMessage: 'b'})), 'committed');
+		globalThis.localStorage.setItem = realSet;
+	});
+
+	it('replays an add, an edit and a delete for one message in creation order', async () => {
+		const order = [];
+		for (const kind of ['comment-add', 'comment-edit', 'comment-delete']) {
+			queue.registerAuxWriteExecutor(kind, async (intent) => { order.push(`${intent.kind}:${intent.payload.messageID}`); });
+		}
+		//An edit applied before its add would be a not-found discard.
+		const intents = [
+			queue.makeAuxWriteIntent('u1', 'comment-add', 'cardA', '', {kind: 'comment-add', messageID: 'm1', threadID: 't1', message: 'a', newThread: true}),
+			queue.makeAuxWriteIntent('u1', 'comment-edit', 'cardA', '', {kind: 'comment-edit', messageID: 'm1', message: 'b', baseMessage: 'a'}),
+			queue.makeAuxWriteIntent('u1', 'comment-delete', 'cardA', '', {kind: 'comment-delete', messageID: 'm1', baseMessage: 'b'}),
+		];
+		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', JSON.stringify(intents));
+		await queue.replayPendingAuxWrites('u1');
+		assert.deepEqual(order, ['comment-add:m1', 'comment-edit:m1', 'comment-delete:m1']);
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+	});
+
+	it('pendingCommentTextFor reports the text the queue will leave behind', async () => {
+		const intents = [
+			queue.makeAuxWriteIntent('u1', 'comment-add', 'cardA', '', {kind: 'comment-add', messageID: 'm1', threadID: 't1', message: 'first', newThread: true}),
+			queue.makeAuxWriteIntent('u1', 'comment-edit', 'cardA', '', {kind: 'comment-edit', messageID: 'm1', message: 'second', baseMessage: 'first'}),
+		];
+		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', JSON.stringify(intents));
+		//This is what stops a post-reload second edit from recording a base the
+		//first edit has already moved past — Redux still shows the old text.
+		assert.equal(queue.pendingCommentTextFor('m1'), 'second');
+		assert.equal(queue.pendingCommentTextFor('nope'), null);
+		const withDelete = [...intents, queue.makeAuxWriteIntent('u1', 'comment-delete', 'cardA', '', {kind: 'comment-delete', messageID: 'm1', baseMessage: 'second'})];
+		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', JSON.stringify(withDelete));
+		assert.equal(queue.pendingCommentTextFor('m1'), '');
+	});
+
+	it('discards a conflicting comment-edit and retains a transient one', async () => {
+		//The conflict guard throws a CODED error, because permanentFailure()
+		//classifies by code only — a codeless throw would replay forever.
+		queue.registerAuxWriteExecutor('comment-edit', async () => {
+			const err = new Error('changed elsewhere'); err.code = 'failed-precondition'; throw err;
+		});
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'comment-edit', 'cardA', '', {
+			kind: 'comment-edit', messageID: 'm1', message: 'a', baseMessage: 'b'}));
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'a conflict is permanent and must be discarded, not retried');
+
+		queue.registerAuxWriteExecutor('comment-edit', async () => { throw new Error('the comment this edit targets has not posted yet'); });
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'comment-edit', 'cardB', '', {
+			kind: 'comment-edit', messageID: 'm2', message: 'a', baseMessage: 'b'}));
+		assert.equal(queue.readPendingAuxWrites().length, 1, 'a codeless throw must be retained for the next trigger');
+	});
+
 	it('survives a corrupt storage record without wedging', async () => {
 		storage.set('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepStrictEqual(queue.readPendingAuxWrites(), []);
