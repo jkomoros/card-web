@@ -1,4 +1,4 @@
-/*eslint-env node*/
+/*eslint-env node, es2022*/
 
 //THE FIRST EXECUTABLE TEST OF A THUNK-LAYER WRITE PATH.
 //
@@ -23,90 +23,22 @@
 //mint credentials, which is what kept this layer untested.
 
 import assert from 'assert';
-import {JSDOM} from 'jsdom';
+import {bootstrapApp, clearAuxQueue, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
 
-//Order matters: the globals and the emulator flag must exist BEFORE
-//lib/src/firebase.js is evaluated, because it reads the flag once at init.
-const dom = new JSDOM('', {url: 'https://localhost/'});
-for (const key of ['window', 'document', 'navigator', 'localStorage', 'HTMLElement', 'customElements',
-	'Document', 'Node', 'Element', 'DocumentFragment', 'CSSStyleSheet', 'ShadowRoot',
-	'MutationObserver', 'requestAnimationFrame', 'getComputedStyle', 'CustomEvent', 'Event']) {
-	globalThis[key] = key === 'window' ? dom.window : dom.window[key];
-}
-dom.window.localStorage.setItem('firebase-emulator', 'localhost:8093');
+const app = await bootstrapApp();
+const {db, uid: UID, firestore} = app;
+const {doc, getDoc} = firestore;
 
-const {overrideDocument} = await import('../../lib/shared/document.js');
-overrideDocument(dom.window.document);
-
-const {store} = await import('../../lib/src/store.js');
-//store.js only registers `app` and `data` at load; the app's components add
-//the rest lazily. The executor reads selectUser, so `user` must be present or
-//it silently skips the author write — which is exactly what this harness found
-//on its first run.
-const {default: userReducer} = await import('../../lib/src/reducers/user.js');
-store.addReducers({user: userReducer});
-const {db} = await import('../../lib/src/firebase.js');
 //Importing data.js is what REGISTERS the card-create executor.
 await import('../../lib/src/actions/data.js');
 const queue = await import('../../lib/src/aux-write-queue.js');
-const {doc, getDoc} = await import('firebase/firestore');
 
-const UID = 'harness-user';
 
-//An OLD timestamp on purpose: if any server-assigned field leaks the client's
-//value instead of being re-stamped, it shows up as 2020 rather than today.
-const OLD = {__wireTimestamp: true, seconds: 1577836800, nanoseconds: 0}; // 2020-01-01
 
-const wireCard = (id) => ({
-	id: '?DEFAULT-INVALID-ID?',
-	name: id,
-	created: OLD,
-	updated: OLD,
-	updated_substantive: OLD,
-	updated_message: OLD,
-	author: UID,
-	permissions: {editCard: []},
-	collaborators: [],
-	star_count: 0,
-	star_count_manual: 0,
-	thread_count: 0,
-	thread_resolved_count: 0,
-	tweet_favorite_count: 0,
-	tweet_retweet_count: 0,
-	sort_order: 1,
-	title: 'harness card',
-	section: '',
-	body: '<p>harness</p>',
-	references: {},
-	references_info: {},
-	references_inbound: {},
-	references_info_inbound: {},
-	flags: {},
-	font_size_boost: {},
-	card_type: 'content',
-	notes: '',
-	todo: '',
-	slugs: [],
-	tags: [],
-	published: false,
-	images: [],
-	auto_todo_overrides: {},
-	last_tweeted: {__wireTimestamp: true, seconds: 0, nanoseconds: 0},
-	tweet_count: 0
-});
+const wireCard = (id) => harnessWireCard(id, UID);
 
 describe('card-create executor (real MultiBatch against the emulator)', () => {
-	before(() => {
-		//The executor reads the signed-in user for ensureAuthor. The store is
-		//the real one; dispatching the real action is enough.
-		store.dispatch({type: 'SIGNIN_SUCCESS', user: {uid: UID, isAnonymous: false, photoURL: '', displayName: 'Harness', email: 'harness@example.com'}});
-	});
-
-	beforeEach(() => {
-		for (const key of Object.keys(dom.window.localStorage)) {
-			if (key.includes('aux-write')) dom.window.localStorage.removeItem(key);
-		}
-	});
+	beforeEach(clearAuxQueue);
 
 	it('commits the card, and its atomic group actually closes', async () => {
 		//THE REGRESSION THIS EXISTS FOR: with beginAtomicGroup unclosed, commit

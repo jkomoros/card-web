@@ -59,10 +59,27 @@ must be registered by hand (store.js registers only `app` and `data`; the app's
 components add the rest lazily, and without it the executor silently skips the
 author write), and a section must be seeded before a card can join it.
 
+A second suite, `test/comment-executors`, now covers the L2b paths that shipped
+reasoned-about but never run: the server preflight, the conflict refusal, the
+already-applied no-op, delete idempotency, and an edit whose add has not landed.
+Shared setup lives in `test/harness-support/app-harness.js` so the next suite
+costs ~10 lines: jsdom globals, the loopback emulator flag, the `user` reducer,
+and an ALERT CAPTURE (jsdom implements neither alert nor confirm, and without
+the capture every user-reporting path throws inside a jsdom timer — which is
+why the reporting paths, the ones that keep failing silently, had been
+impossible to test).
+
+Both suites were mutation-tested rather than merely written, and that caught a
+weakness in one of MY OWN tests: deleting the already-applied branch left the
+test green, because execution falls through to the conflict check and the
+assertions held FOR THE WRONG REASON. Fixed by asserting the distinguishing
+signal — a no-op is silent, a conflict tells the user. Mutation-test every test
+added here; a test that cannot kill its mutant is the instrument this branch
+has already been burned by three times.
+
 STILL UNCOVERED and worth the same treatment, in rough order of what has
-already bitten: the durable multi-edit chunk loop (resume, marker probing,
-overwrite guard), the comment executors' conflict and already-applied paths,
-and the delete path — which has no durable record at all.
+already bitten: the durable multi-edit chunk loop (resume, marker probing, the
+overwrite guard), and the delete path — which has no durable record at all.
 
 ### Write-path P2s (folded in from the Round 13 review file)
 
