@@ -42,6 +42,25 @@ bulk-path cross-tab window, non-reactive save gating, the bare-`e` keystroke
 hazard, layout-dependent shortcuts, wedged-intent reporting, the stale landing
 rationale, the runbook index gate, and the cold-sweep clamp discard.
 
+### TEST COVERAGE — the structural finding, and the one worth doing first
+
+~27,000 LOC (components, thunks, the worker body, the bridge) have ZERO
+executable coverage. They are guarded by ~60 regex assertions over source text,
+and that instrument has now failed visibly three times: two source-text tests
+were green while pointed at catastrophically broken lines, and
+test/atomic-group-balance passes if you delete the atomic group ENTIRELY
+(verified — a presence pin was added for the card-create executor specifically,
+but a pin is a patch, not coverage).
+
+The stated reason these layers cannot be tested is FALSE, per the Round 15
+review: `lib/src/actions/data.js` imports and runs in plain Node with the jsdom
+shim already used elsewhere in the suite, and driving the real card-create
+executor through a real MultiBatch is about 60 lines. That single harness would
+have caught the card-create P0 and five other shipped bugs.
+
+This is the highest-leverage item left in this file. Every other entry is a bug;
+this is the reason bugs of that class keep reaching a deploy.
+
 ### Write-path P2s (folded in from the Round 13 review file)
 
 - **Offline card delete is a silent no-op that looks successful.** Navigation
@@ -79,6 +98,24 @@ rationale, the runbook index gate, and the cold-sweep clamp discard.
 - `test/security/test.js` carries a DATED tripwire: `npm test` fails outright
   from 2026-09-15 if the Phase 6 rules tightening has not happened. It will
   bite whoever merges after that date.
+
+### From Round 15 (not yet fixed)
+
+- **R15-6.** The wedge alert can be permanently SILENCED rather than deferred:
+  the navigator.onLine suppression added in d2c93dfe returns without reporting,
+  and the counter is only equal-to-threshold, so an offline moment at exactly
+  the wrong count means the user is never told.
+- **R15-7.** The overwrite guard now compares key ORDER-insensitively but not
+  key SET: a base recorded before a field existed still differs from a server
+  copy that has it. imageBlocksEquivalent-style comparison would cover both.
+- **Still open after the shape fix:** why ~129k NLP run objects are alive at
+  all in a tab whose corpus was purged. _processedCardCache is WeakMap-keyed,
+  so something still strongly holds many card objects; one retainer path runs
+  through a rendered element's __card into memoized selector restArgs. Worth
+  one targeted look now that the shape fix changes the denominator.
+- **Heap effect of the shape fix is UNMEASURED.** Needs a clean-profile A/B
+  with Runtime.getHeapUsage after a forced GC; my before/after used a different
+  instrument on a long-lived tab and is not comparable.
 
 ### Renderer crash (Round 14: REPRODUCED, with numbers)
 

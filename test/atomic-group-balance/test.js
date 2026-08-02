@@ -87,4 +87,27 @@ describe('atomic group balance', () => {
 		assert.deepEqual(offenders, [],
 			'a group opened and never closed makes every commit throw, and the durable queue then retries that deterministic failure forever');
 	});
+
+	it('the card-create executor still opens an atomic group at all', () => {
+		//The balance check above passes if you delete BOTH calls — so it cannot
+		//see "someone removed atomicity". This pins PRESENCE for the one
+		//executor where losing it is silent and permanent: MultiBatch splits at
+		//its size limit and commits the parts concurrently with independent
+		//success, and the replay preflight only asks whether the CARD exists,
+		//so a landed card beside a failed section write leaves the card
+		//permanently missing from its section with the intent cleared.
+		//
+		//This is a source-text pin, which is a weak instrument — see the
+		//executable-harness item in docs/fast-corpus-fix-queue.md for the real
+		//fix. It is here because the hole it closes was demonstrated, not
+		//theorised.
+		const text = fs.readFileSync(path.join(process.cwd(), 'src', 'actions', 'data.ts'), 'utf8');
+		const at = text.indexOf(`registerAuxWriteExecutor('card-create'`);
+		assert.ok(at > 0, 'the card-create executor must exist');
+		const body = blockFrom(text, at);
+		assert.ok(body, 'could not read the executor body');
+		assert.match(body.body, /\.beginAtomicGroup\(/,
+			'card-create must write its card, author, inbound-link, tag and section fanout as ONE atomic group');
+		assert.match(body.body, /\.endAtomicGroup\(/);
+	});
 });
