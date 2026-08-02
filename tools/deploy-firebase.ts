@@ -11,6 +11,11 @@ export const deployFirebase = (flags: DeployFlags): void => {
 		'emailAdminOnMessage',
 		'emailAdminOnStar',
 		'legal',
+		//calculateIDF stays in this list ON PURPOSE even though it is no longer
+		//scheduled: a project that already has the SCHEDULED version live keeps
+		//running it until it is replaced, and omitting it from the deploy would
+		//leave that weekly full-corpus read in place forever. Deploying the
+		//unscheduled version is what removes the schedule.
 		'calculateIDF'
 	];
 

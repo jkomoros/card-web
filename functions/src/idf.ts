@@ -1,4 +1,4 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onRequest } from 'firebase-functions/v2/https';
 import { createRequire } from 'module';
 
 import { db, storage } from './common.js';
@@ -35,12 +35,28 @@ const ensureJsdom = () => {
 	jsdomInitialized = true;
 };
 
-export const calculateIDF = onSchedule({
-	schedule: '0 2 * * 0', // Weekly Sunday 2:00 AM PST
-	timeZone: 'America/Los_Angeles',
+//!!! FULL-CORPUS READ — MUST NEVER BE SCHEDULED !!!
+//
+//The `db.collection('cards').get()` below reads EVERY card, once, per
+//invocation: ~40k billed reads at current corpus size. docs/corpus-sync-design.md
+//names this exact line and makes it policy that it "must never be scheduled",
+//after a quota-exhaustion incident. It was nevertheless wired to
+//onSchedule('0 2 * * 0') and shipped to BOTH projects by tools/deploy-firebase,
+//i.e. a recurring uncapped ~40k-read burst every Sunday at 02:00 — on a branch
+//whose entire purpose is read-cost control.
+//
+//It is now MANUALLY invoked only. Run it deliberately, when the IDF map is
+//actually stale, and be aware of what it costs each time.
+//
+//DEPLOY NOTE: removing the schedule from source is not enough for a project
+//where the scheduled version is already live — Firebase leaves an omitted
+//function in place. The already-deployed scheduled job must be replaced by
+//deploying THIS version (which drops the schedule) or deleted outright with
+//`firebase functions:delete calculateIDF`.
+export const calculateIDF = onRequest({
 	memory: '2GiB',
 	timeoutSeconds: 540 // 9 minutes
-}, async (_event) => {
+}, async (_req, res) => {
 	ensureJsdom();
 	try {
 		// 1. Fetch all cards from Firestore
@@ -96,8 +112,9 @@ export const calculateIDF = onSchedule({
 		});
 
 		console.log(`✓ IDF map generated successfully: ${bodyCards.length} cards, version ${idfData.version}`);
+		res.status(200).send(`IDF map generated: ${bodyCards.length} cards, version ${idfData.version}`);
 	} catch (error) {
 		console.error('Failed to generate IDF map:', error);
-		throw error;
+		res.status(500).send(`Failed to generate IDF map: ${String(error)}`);
 	}
 });

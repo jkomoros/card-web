@@ -94,8 +94,21 @@ Notes:
   at prod scale). Do not start Phase 4 until that is true.
 - These rules are already exactly what dev runs (deployed + 176 security
   tests green); this phase is replication, not new surface.
-- The rules remain COMPATIBLE with the currently-deployed old prod
-  client — nothing breaks between Phase 2 and Phase 4.
+- The rules are compatible with the currently-deployed old prod client for
+  every write EXCEPT DELETION. Card delete now requires an atomic tombstone
+  alongside it; master's client writes a bare `batch.delete(ref)`, so every
+  delete from an un-upgraded client is permission-denied from the moment these
+  rules land. That is deliberate — the tombstone is what makes deletions
+  propagate — but be clear about the consequence:
+  - It fails SILENTLY and the UI has already committed. Master runs
+    editingFinish() and navigateToNextCard() before awaiting the commit, with
+    no catch, so the user confirms, the editor closes, the view moves on, and
+    the card is still there after a reload.
+  - The window is Phase 2 until every client is on the new bundle — see the
+    service-worker note below, which is what makes that window open-ended
+    rather than a deploy-day gap.
+  If any un-upgraded client is still in use, tell its user not to delete cards
+  until they have reloaded onto the new bundle.
 
 ## Phase 3 — One-time project plumbing
 
@@ -143,10 +156,47 @@ see README "Firebase Functions Configuration".)
       the transfer is refused without losing the draft.
 
 **Rollback if broken:** Firebase console → Hosting → Release history →
-roll back to the previous release (instant, client-only). The Phase 2
-rules/indexes are backward-compatible with the old client, so they can
-stay. Do not use the diagnostic localStorage modes as a production fallback;
-the supported client requires the worker and its single-tab ownership fence.
+roll back to the previous release. The hosting flip itself is instant, and
+master's own service worker calls skipWaiting() unconditionally, so the
+rollback direction is fast even though the upgrade direction is not.
+
+It is NOT "client-only", and the difference matters to users:
+
+- Master reads none of the new client's localStorage keys. Anything queued in
+  `card-web-aux-writes-v2-*` — stars, comments, card creations, a bulk import —
+  simply stops being replayed. Nothing is corrupted, and returning to the new
+  client replays it, but until then that work is invisible and unsent.
+- `card-web-edit-draft-v1` is unrecoverable on master, which has no draft
+  recovery: an unsaved draft is stranded.
+- `card-web-pending-multi-edit-v1` strands a paused multi-edit the same way.
+- The queue has no age bound, so a star intent that replays days later applies
+  increment(+/-1) against a count the user may have changed since.
+
+So: if you roll back with work queued, either return to the new client
+promptly, or accept that those writes are deferred indefinitely. Deletion also
+stays broken for rolled-back clients while the Phase 2 rules are live (see
+Phase 2).
+
+Do not use the diagnostic localStorage modes as a production fallback; the
+supported client requires the worker and its single-tab ownership fence.
+
+**Service worker: why the entry chunk is renamed.** master's service worker
+precaches the app entry at the stable URL `lib/src/components/card-web-app.js`
+and answers it CACHE-FIRST. With the same filename, the first post-deploy load
+would fetch the new index.html and then run MASTER's bundle, while the new
+service worker installed and waited (skipWaiting is false by design, and
+master's bundle has no update listener to release it) — so the upgrade would
+not complete until every tab in scope closed, and reloading would not help.
+The entry is therefore emitted as `card-web-app-entry.js`, which master never
+precached, forcing a network fetch.
+
+Verification consequence: before this change, Phase 5's anonymous
+private-window check passed (no service worker) while the signed-in
+existing-profile check silently exercised MASTER and also looked fine — the two
+checks meant to confirm the cutover could not disagree. When verifying, confirm
+in DevTools → Network that `card-web-app-entry.js` was fetched from the network
+(not "from ServiceWorker"), which is the positive signal that the new bundle is
+the one running.
 
 ## Phase 6 — Next day: tighten the inbound-reference rule
 

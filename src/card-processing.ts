@@ -22,6 +22,7 @@ import {
 
 import {
 	ProcessedRunInterface,
+	ProcessedRunStorage,
 	CardFieldType
 } from '../shared/types.js';
 
@@ -59,6 +60,55 @@ const EMPTY_FALLBACK_TEXT = Object.freeze({}) as ProcessedCard['fallbackText'];
 const EMPTY_IMPORTANT_NGRAMS = Object.freeze({}) as ProcessedCard['importantNgrams'];
 const EMPTY_SYNONYM_MAP = Object.freeze({}) as ProcessedCard['synonymMap'];
 
+//The stored-token fast path. It MUST be a class with prototype getters, not an
+//object literal with accessors.
+//
+//Accessors declared in an object literal give EVERY INSTANCE its own
+//AccessorPairs — the closures differ per run — and therefore its own
+//DescriptorArray and its own hidden-class Map. A heap snapshot of a real
+//session found 7.8M object shapes for ~3.5M objects and ~830MB of the 1,031MB
+//heap in V8 hidden-class metadata, with 129,156 objects each named
+//`get stemmed` / `get withoutStopWords` / `get empty` and 404,155 AccessorPairs
+//— almost exactly three per run object. This is the DEFAULT path for every
+//migrated card, so the optimization made the common case far more expensive in
+//metadata than the slow path it replaced (nlp.ts's ProcessedRun, which is a
+//class with plain fields and prototype getters, and shares one shape across
+//all instances).
+//
+//Laziness is preserved — stemming is still deferred — but the memo lives in
+//plain instance fields, so all instances share one hidden class. Every field is
+//assigned in the constructor, in a fixed order, so there is exactly one shape
+//rather than one per property-addition sequence.
+class StoredProcessedRun implements ProcessedRunInterface {
+	normalized : string;
+	original : string;
+	uppercaseRanges? : number[];
+	_stemmed : string | undefined;
+	_withoutStopWords : string | undefined;
+
+	constructor(storedRun : ProcessedRunStorage) {
+		this.normalized = storedRun.normalized;
+		this.original = '';
+		this.uppercaseRanges = storedRun.uppercaseRanges;
+		this._stemmed = undefined;
+		this._withoutStopWords = undefined;
+	}
+
+	get stemmed() : string {
+		if (this._stemmed === undefined) this._stemmed = stemmedNormalizedWords(this.normalized);
+		return this._stemmed;
+	}
+
+	get withoutStopWords() : string {
+		if (this._withoutStopWords === undefined) this._withoutStopWords = withoutStopWords(this.stemmed);
+		return this._withoutStopWords;
+	}
+
+	get empty() : boolean {
+		return this.normalized === '';
+	}
+}
+
 export const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 	const cached = _processedCardCache.get(card);
 	if (cached) return cached;
@@ -74,25 +124,7 @@ export const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 		const nlp = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION).map(fieldName => [fieldName, []])) as unknown as {[field in CardFieldType]: ProcessedRunInterface[]};
 		for (const [fieldName, storedRuns] of TypedObject.entries(card.nlp_tokens)) {
 			if (storedRuns) {
-				nlp[fieldName] = storedRuns.map(storedRun => {
-					let cachedStemmed : string | undefined;
-					let cachedWithoutStopWords : string | undefined;
-					const getStemmed = () => {
-						if (cachedStemmed === undefined) cachedStemmed = stemmedNormalizedWords(storedRun.normalized);
-						return cachedStemmed;
-					};
-					return {
-						normalized: storedRun.normalized,
-						original: '',
-						get stemmed() { return getStemmed(); },
-						get withoutStopWords() {
-							if (cachedWithoutStopWords === undefined) cachedWithoutStopWords = withoutStopWords(getStemmed());
-							return cachedWithoutStopWords;
-						},
-						uppercaseRanges: storedRun.uppercaseRanges,
-						get empty() { return storedRun.normalized === ''; }
-					};
-				});
+				nlp[fieldName] = storedRuns.map(storedRun => new StoredProcessedRun(storedRun));
 			}
 		}
 		// Compute reference-derived fields locally so all-cards local search sees

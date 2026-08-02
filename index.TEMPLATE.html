@@ -123,6 +123,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <!-- Load webcomponents-loader.js to check and load any polyfills your browser needs -->
     <script src="node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
     <!-- Built with love using PWA Starter Kit -->
-    <script type="module" src="lib/src/components/card-web-app.js"></script>
+    <!-- Renamed from card-web-app.js: master's service worker precaches THAT
+         url and answers it cache-first, so the old name would run master's
+         bundle after this deploys. See rollup.config.js. -->
+    <script type="module" src="lib/src/components/card-web-app-entry.js"></script>
   </body>
 </html>
