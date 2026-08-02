@@ -163,10 +163,21 @@ assert the mutant builds.
   the Node harness, so exercising it needs a worker-ownership seam that does
   not exist yet. The change itself is passing an argument the sibling path
   already passes, and the guard it feeds is covered there.
-- **An oversized card-create atomic group** (forking a hub card, >~250 ops)
-  splits and can partially land, after which the replay preflight clears the
-  intent — permanent silent loss of section/tag membership. The atomic group
-  added for the P0 does not bound SIZE.
+- **FIXED. An oversized card-create atomic group** (forking a hub card, >~250
+  ops) splits and can partially land, after which the replay preflight cleared
+  the intent — permanent silent loss of section/tag membership. The atomic group
+  added for the P0 does not bound SIZE, and `endAtomicGroup` deliberately splits
+  an oversized group across batches that commit CONCURRENTLY with independent
+  success (refusing instead would make such cards permanently unsavable, which
+  an earlier revision did).
+  The fix is at the other end: the replay no longer treats "the card doc exists"
+  as proof the creation finished. It re-applies the fanout, every write of which
+  is idempotent by construction — arrayUnion of this card's id, audit documents
+  under the key captured when the user acted, ensureAuthor, and the inbound-link
+  mirror recomputed from the card — and skips ONLY the card document, the one
+  write that cannot be repeated safely. Tested in both directions: a creation
+  whose section membership and audit doc never landed is repaired, and an edit
+  made after the creation is NOT reverted.
 - The S4 purge is honored only at a fresh worker boot, so a same-session A->B
   account switch runs on A's persistent cache until reload.
 

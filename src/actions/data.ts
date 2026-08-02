@@ -2185,7 +2185,22 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	const payload = intent.payload;
 	if (!payload || payload.kind !== 'card-create') throw new Error('card-create intent without its plan');
 	const cardDocRef = doc(db, CARDS_COLLECTION, intent.cardID);
-	if (isReplay && await cardCreateCommitted(cardDocRef, 'card-create')) return;
+	//The card ALREADY existing does not prove the creation finished. The atomic
+	//group below keeps a creation's denormalized writes in ONE underlying batch
+	//only while they FIT: endAtomicGroup splits a group bigger than the 500-op
+	//limit across several batches and commits them CONCURRENTLY with independent
+	//success (forking a hub card, >~248 inbound references, does exactly this).
+	//So "the card doc is there" could mean the card batch landed while the
+	//inbound-link, section or tag batch did not — and returning here cleared the
+	//intent, which made that a PERMANENT, SILENT loss of membership.
+	//
+	//Re-apply the fanout instead. Every write in it is idempotent by
+	//construction: arrayUnion of this card's id, audit documents keyed on the
+	//key captured when the user acted, ensureAuthor, and the inbound-link mirror
+	//recomputed from the card. What is NOT idempotent is the card document
+	//itself — re-setting it would revert edits made since — so that one write is
+	//skipped, which is the reason this preflight existed at all.
+	const cardAlreadyExists = isReplay && await cardCreateCommitted(cardDocRef, 'card-create');
 	const card = restoredPersistedCard(payload.card);
 	//A serverTimestampSentinel is identified by OBJECT IDENTITY (firebase.ts
 	//keeps a registry of the ones it vended), so JSON cannot carry one and the
@@ -2217,7 +2232,7 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	//intent of a group hammered a single doc past Firestore's sustained
 	//per-document write ceiling.
 	if (author && !payload.skipAuthor) ensureAuthor(batch, author);
-	batch.set(cardDocRef, card);
+	if (!cardAlreadyExists) batch.set(cardDocRef, card);
 	if (payload.deriveInboundLinks) {
 		//Recomputed, not replayed from storage: these updates carry arrayUnion
 		//sentinels that JSON cannot represent, and they are a pure function of

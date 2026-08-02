@@ -200,9 +200,57 @@ describe('card-create executor (real MultiBatch against the emulator)', () => {
 			'a replayed delete must not rewrite the tombstone timestamp');
 	});
 
-	it('no-ops on replay when the card already exists', async () => {
+	it('REPAIRS a creation whose fanout did not land, without reverting the card', async () => {
+		//The card doc existing does not prove the creation finished. A creation's
+		//atomic group stays in one underlying batch only while it FITS: an
+		//oversized group (forking a hub card, >~248 inbound references) is split
+		//across batches that commit CONCURRENTLY with independent success. So the
+		//card batch can land while the section/tag/inbound batch does not -- and
+		//the old preflight returned on "card exists", cleared the intent, and made
+		//that a permanent, silent loss of membership.
+		const {setDoc, deleteDoc} = await import('firebase/firestore');
+		await setDoc(doc(db, 'sections', 'repair-section'), {cards: [], title: 'Repair'});
+		const id = 'harness-repair-' + Date.now();
+		const sectionUpdateKey = 'repair-key-' + Date.now();
+		const payload = {
+			kind: 'card-create',
+			card: {...wireCard(id), section: 'repair-section'},
+			section: 'repair-section',
+			sectionUpdateKey,
+			serverTimestampFields: ['created', 'updated']
+		};
+		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-create', id, '', payload)), 'committed');
+
+		//Simulate the half that did NOT land: membership and its audit doc gone,
+		//card doc present.
+		await setDoc(doc(db, 'sections', 'repair-section'), {cards: [], title: 'Repair'});
+		await deleteDoc(doc(db, 'sections', 'repair-section', 'updates', sectionUpdateKey));
+		//And an edit made after the creation, which the replay must NOT revert.
+		await setDoc(doc(db, 'cards', id), {...(await getDoc(doc(db, 'cards', id))).data(), body: '<p>edited since</p>'});
+
+		clearAuxQueue();
+		seedQueuedIntent(queue.makeAuxWriteIntent(UID, 'card-create', id, '', payload));
+		await queue.replayPendingAuxWrites(UID);
+
+		const section = await getDoc(doc(db, 'sections', 'repair-section'));
+		assert.ok((section.data().cards || []).includes(id),
+			'the replay must restore the membership the failed batch never wrote');
+		assert.ok((await getDoc(doc(db, 'sections', 'repair-section', 'updates', sectionUpdateKey))).exists(),
+			'and its audit document, under the captured key');
+		//THE OTHER HALF. The card document is the one write that is NOT
+		//idempotent -- re-setting it reverts everything saved since -- and
+		//skipping it is the entire reason the preflight exists.
+		assert.equal((await getDoc(doc(db, 'cards', id))).data().body, '<p>edited since</p>',
+			'the replay must not revert the card itself');
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'and it must clear the intent');
+	});
+
+	it('leaves the CARD alone on replay when it already exists', async () => {
 		//Idempotency: the preflight asks whether the card exists, and a replay
 		//must NOT re-run `set` — that would silently revert edits made since.
+		//Note it is not a whole no-op: the idempotent fanout is re-applied, for
+		//the reason the repair test above documents. Only the card document,
+		//the one write that cannot be repeated safely, is skipped.
 		const id = 'harness-replay-' + Date.now();
 		const payload = {
 			kind: 'card-create', card: wireCard(id), section: '', sectionUpdateKey: '',
