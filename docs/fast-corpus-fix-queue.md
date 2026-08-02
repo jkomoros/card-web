@@ -77,19 +77,25 @@ signal — a no-op is silent, a conflict tells the user. Mutation-test every tes
 added here; a test that cannot kill its mutant is the instrument this branch
 has already been burned by three times.
 
-STILL UNCOVERED and worth the same treatment, in rough order of what has
-already bitten: the durable multi-edit chunk loop (resume, marker probing, the
-overwrite guard), and the delete path — which has no durable record at all.
+Card DELETION now has a durable record and executable coverage too (it had
+neither: the UI committed before any server work, and the enumeration of the
+updates subcollection rejects offline into a promise nobody awaited, so the
+card silently came back on reload).
+
+A second process lesson, worth as much as the tests: a mutation that does not
+COMPILE proves nothing. Two mutants "survived" against card-delete until I
+noticed tsc had failed on an unused import, so lib/ was never rebuilt and the
+suite had run against the correct code. Always check the mutant builds. The one
+mutant that survived legitimately — deleting the already-gone check — was real,
+because re-deleting an absent document is harmless; what it is NOT harmless to
+do is rewrite the tombstone timestamp the tombstone plane's cursor keys on, and
+that is now the assertion.
+
+STILL UNCOVERED and worth the same treatment: the durable multi-edit chunk loop
+(resume, marker probing, the overwrite guard) — the largest remaining piece.
 
 ### Write-path P2s (folded in from the Round 13 review file)
 
-- **Offline card delete is a silent no-op that looks successful.** Navigation
-  and editor close happen before any server work, and the getDocs on the
-  memory-only cache rejects offline into an unawaited promise. There is no
-  durable record for deletes — `card-delete` is not an AuxWriteKind — so the
-  docs' claim that deletion is durably recorded is ahead of the code. Master's
-  persistent cache made offline deletes land eventually; this is a durability
-  regression.
 - **The attempt timeout defeats the "in-flight intents are skipped by replay"
   invariant**: an offline star or new-thread comment can double-apply
   star_count / thread_count after a same-session reconnect.

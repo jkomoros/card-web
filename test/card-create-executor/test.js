@@ -23,7 +23,7 @@
 //mint credentials, which is what kept this layer untested.
 
 import assert from 'assert';
-import {bootstrapApp, clearAuxQueue, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
+import {bootstrapApp, clearAuxQueue, clearHarnessAlerts, harnessAlerts, seedQueuedIntent, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
 
 const app = await bootstrapApp();
 const {db, uid: UID, firestore} = app;
@@ -136,6 +136,68 @@ describe('card-create executor (real MultiBatch against the emulator)', () => {
 		}));
 		assert.equal(outcome, 'committed', 'skipping the author write must not break the commit');
 		assert.ok((await getDoc(doc(db, 'cards', skipped))).exists());
+	});
+
+	it('DELETES a card with its tombstone, atomically', async () => {
+		//Deletion had no durable record at all: the UI committed first
+		//(editingFinish + navigateToNextCard run before any server work) and the
+		//enumeration of the updates subcollection rejects offline into a promise
+		//nobody awaited — so the user confirmed, the view moved on, and the card
+		//was still there after a reload.
+		const id = 'harness-delete-' + Date.now();
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-create', id, '', {
+			kind: 'card-create', card: wireCard(id), section: '', sectionUpdateKey: '',
+			serverTimestampFields: ['created', 'updated']
+		}));
+		assert.ok((await getDoc(doc(db, 'cards', id))).exists());
+
+		const outcome = await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-delete', id, '', {
+			kind: 'card-delete', card: wireCard(id)
+		}));
+		assert.equal(outcome, 'committed');
+		assert.ok(!(await getDoc(doc(db, 'cards', id))).exists(), 'the card must be gone');
+		//The tombstone is what stops the card resurrecting on every other
+		//device; losing it while the delete lands is a permanent ghost.
+		const tombstone = await getDoc(doc(db, 'tombstones', id));
+		assert.ok(tombstone.exists(), 'a tombstone must be written with the delete');
+		assert.equal(tombstone.data().by, UID);
+		assert.equal(tombstone.data().published, false);
+		assert.ok(tombstone.data().deleted.toMillis() > 0, 'the tombstone is server-stamped');
+	});
+
+	it('a REPLAYED delete is a silent success when the card is already gone', async () => {
+		const id = 'harness-delete-replay-' + Date.now();
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-create', id, '', {
+			kind: 'card-create', card: wireCard(id), section: '', sectionUpdateKey: '',
+			serverTimestampFields: ['created', 'updated']
+		}));
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-delete', id, '', {
+			kind: 'card-delete', card: wireCard(id)
+		}));
+		clearAuxQueue();
+		clearHarnessAlerts();
+		const tombstoneBefore = (await getDoc(doc(db, 'tombstones', id))).data().deleted.toMillis();
+		await new Promise(resolve => setTimeout(resolve, 1100));
+
+		//Absence SATISFIES a delete, unlike an edit — so this must clear
+		//quietly rather than alarming the user about a discarded action.
+		seedQueuedIntent(queue.makeAuxWriteIntent(UID, 'card-delete', id, '', {
+			kind: 'card-delete', card: wireCard(id)
+		}));
+		await queue.replayPendingAuxWrites(UID);
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'the already-satisfied delete clears');
+		await new Promise(resolve => setTimeout(resolve, 50));
+		assert.deepEqual(harnessAlerts, [], 'and does so silently');
+		//DISTINGUISHING ASSERTION. Without it this test passes even if the
+		//already-gone check is deleted: re-running the batch "works", because
+		//deleting an absent document is harmless. What it is NOT harmless to do
+		//is REWRITE THE TOMBSTONE — its `deleted` time is what the tombstone
+		//plane's cursor keys on, so moving it forward re-delivers the deletion
+		//to every other device. (Found by mutation: the mutant survived until
+		//this assertion existed.)
+		const tombstoneAfter = (await getDoc(doc(db, 'tombstones', id))).data().deleted.toMillis();
+		assert.equal(tombstoneAfter, tombstoneBefore,
+			'a replayed delete must not rewrite the tombstone timestamp');
 	});
 
 	it('no-ops on replay when the card already exists', async () => {

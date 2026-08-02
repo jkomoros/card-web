@@ -35,7 +35,7 @@ import {
 	Uid
 } from './types.js';
 
-export type AuxWriteKind = 'star-add' | 'star-remove' | 'read-add' | 'read-remove' | 'reading-list-add' | 'reading-list-remove' | 'card-create' | 'comment-add' | 'comment-edit' | 'comment-delete';
+export type AuxWriteKind = 'star-add' | 'star-remove' | 'read-add' | 'read-remove' | 'reading-list-add' | 'reading-list-remove' | 'card-create' | 'comment-add' | 'comment-edit' | 'comment-delete' | 'card-delete';
 
 //The materialized write plan for the kinds that need more than a cardID.
 //Serialized into localStorage, so everything here must be JSON-round-trippable
@@ -104,7 +104,21 @@ export type CommentDeletePayload = {
 	baseMessage: string,
 };
 
-export type AuxWritePayload = CardCreatePayload | CommentAddPayload | CommentEditPayload | CommentDeletePayload;
+//Deleting a card writes a tombstone ATOMICALLY with the delete (the watermark
+//planes need it, and the rules now require it), removes the card's updates
+//subcollection, and clears inbound-reference entries on the cards it pointed
+//at. Only the card itself is carried: the inbound-link updates are a pure
+//function of it, like the fork's, and the updates subcollection is enumerated
+//at execution time rather than at intent time — enumerating it is itself a
+//server read, which is exactly what fails in the case this record exists for.
+export type CardDeletePayload = {
+	kind: 'card-delete',
+	//Wire-format card (persistableCard), needed to recompute the inbound-link
+	//cleanup and to know whether the card was published.
+	card: unknown,
+};
+
+export type AuxWritePayload = CardCreatePayload | CommentAddPayload | CommentEditPayload | CommentDeletePayload | CardDeletePayload;
 
 export type AuxWriteIntent = {
 	version: 1,
@@ -402,13 +416,13 @@ let intentCounter = 0;
 //Firestore path segments, where a '/' would silently retarget the write.
 const AUX_WRITE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>([
 	'star-add', 'star-remove', 'read-add', 'read-remove', 'reading-list-add', 'reading-list-remove',
-	'card-create', 'comment-add', 'comment-edit', 'comment-delete'
+	'card-create', 'comment-add', 'comment-edit', 'comment-delete', 'card-delete'
 ]);
 
 //Kinds whose intent is meaningless without its plan. Validating this at read
 //time keeps a truncated or hand-edited record from reaching an executor that
 //would then dereference undefined.
-const KINDS_REQUIRING_PAYLOAD : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add', 'comment-edit', 'comment-delete']);
+const KINDS_REQUIRING_PAYLOAD : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add', 'comment-edit', 'comment-delete', 'card-delete']);
 
 const validPayload = (kind : string, payload : unknown) : boolean => {
 	if (!KINDS_REQUIRING_PAYLOAD.has(kind)) return payload === undefined;
@@ -451,6 +465,9 @@ const validPayload = (kind : string, payload : unknown) : boolean => {
 	}
 	if (candidate.kind === 'comment-delete') {
 		return validPathSegment(candidate.messageID) && typeof candidate.baseMessage === 'string';
+	}
+	if (candidate.kind === 'card-delete') {
+		return Boolean(candidate.card) && typeof candidate.card === 'object';
 	}
 	return false;
 };
@@ -639,6 +656,7 @@ const DISCARD_LABELS : Record<AuxWriteKind, string> = {
 	'comment-add': 'posting your comment',
 	'comment-edit': 'saving your edit to that comment',
 	'comment-delete': 'deleting that comment',
+	'card-delete': 'deleting that card',
 };
 
 const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {

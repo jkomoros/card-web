@@ -2613,6 +2613,62 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
+//--- Durable card deletion -------------------------------------------------
+//Deletion had NO durable record: the UI committed first (editingFinish and
+//navigateToNextCard run before any server work), and the enumeration of the
+//card's updates subcollection rejects offline into a promise nobody awaited.
+//The user confirmed, the editor closed, the view moved on — and the card was
+//still there after a reload, with nothing queued and nothing reported.
+//
+//Idempotency is the inverse of card-create's: the card's ABSENCE on the server
+//means the delete already landed, so a replay is a silent success.
+registerAuxWriteExecutor('card-delete', async (intent, isReplay) => {
+	const payload = intent.payload;
+	if (!payload || payload.kind !== 'card-delete') throw new Error('card-delete intent without its plan');
+	const card = restoredPersistedCard(payload.card);
+	const ref = doc(db, CARDS_COLLECTION, intent.cardID);
+	if (isReplay) {
+		let stillThere : boolean;
+		try {
+			stillThere = (await getDocFromServer(ref)).exists();
+		} catch (err) {
+			//An unanswerable preflight is not a "no" — retain and retry.
+			throw new Error(`card-delete replay preflight could not be answered; retaining intent: ${String(err)}`);
+		}
+		//Already gone: the intent's goal holds. Unlike an edit, absence
+		//SATISFIES a delete, so this is a silent success rather than a
+		//discard the user needs to hear about.
+		if (!stillThere) return;
+	}
+
+	const batch = new MultiBatch(db);
+	//ORDER MATTERS, as in the original: tombstone and delete first so that if
+	//MultiBatch has to split, the pair that must never be separated lands in
+	//the same underlying batch (card deleted with the tombstone lost is a
+	//permanent ghost on every other device).
+	batch.set(doc(db, TOMBSTONES_COLLECTION, intent.cardID), {
+		deleted: serverTimestamp(),
+		by: intent.uid,
+		published: Boolean(card.published)
+	});
+	batch.delete(ref);
+
+	//Enumerated HERE rather than captured in the intent: enumerating is itself
+	//a server read, and failing that read is precisely the case this record
+	//exists to survive.
+	const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
+	for (const update of updates.docs) batch.delete(update.ref);
+
+	//Recomputed, not persisted: a pure function of the card, and the updates
+	//carry deleteField() sentinels that JSON cannot represent.
+	const inboundUpdates = inboundLinksUpdates(intent.cardID, card, null);
+	for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+		batch.update(doc(db, CARDS_COLLECTION, otherCardID), otherCardUpdate);
+	}
+
+	await batch.commit();
+});
+
 export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
@@ -2644,44 +2700,31 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		dispatch(navigateToNextCard());
 	}
 
-	const batch = new MultiBatch(db);
-	const ref = doc(db, CARDS_COLLECTION, card.id);
-
-	//Deletion tombstone, written atomically with the delete: the watermark
-	//delta sync can never observe a disappearance (a deleted doc simply
-	//stops matching queries), so other devices learn about deletions by
-	//listening to this collection. See docs/corpus-sync-design.md.
-	//ORDER MATTERS: the tombstone and the card delete are added FIRST so
-	//they land in the same underlying WriteBatch — MultiBatch splits at
-	//~500 ops and permits partial failure, and a card with hundreds of
-	//updates/ subdocs could otherwise push these two into different batches
-	//(card deleted, tombstone lost = a permanent ghost on other devices).
-	batch.set(doc(db, TOMBSTONES_COLLECTION, card.id), {
-		deleted: serverTimestamp(),
-		by: selectUid(state),
-		published: Boolean(card.published)
+	//Write-ahead: the plan is durable BEFORE any server work, so a crash or a
+	//close between the UI committing (above) and the server ack no longer loses
+	//the deletion. The executor rebuilds the same batch — tombstone and delete
+	//first, then the updates subcollection, then the inbound-link cleanup.
+	const intent = makeAuxWriteIntent(selectUid(state), 'card-delete', card.id, '', {
+		kind: 'card-delete',
+		card: persistableCard(card),
 	});
-	batch.delete(ref);
 
+	let outcome : AuxWriteOutcome;
 	try {
-		const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
-		for (const update of updates.docs) {
-			batch.delete(update.ref);
-		}
-
-		//Clean up inbound reference entries on other cards that this card pointed to.
-		//Passing null as afterCard makes referencesCardsDiff treat all outbound
-		//references as deletions, generating deleteField() updates.
-		const inboundUpdates = inboundLinksUpdates(card.id, card, null);
-		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
-			const otherRef = doc(db, CARDS_COLLECTION, otherCardID);
-			batch.update(otherRef, otherCardUpdate);
-		}
-
-		await batch.commit();
+		outcome = await runDurableAuxWrite(intent);
 	} catch (error) {
 		dispatch({type: EXPECT_CARD_DELETIONS, cards: {[card.id]: false}});
 		throw error;
+	}
+	if (outcome === 'queued') {
+		//The deletion is SAVED and will apply — but the UI already navigated
+		//away, so without this the card silently reappears on the next load
+		//with no explanation.
+		if (typeof window !== 'undefined') window.setTimeout(() => alert('That card could not be deleted right now. The deletion has been saved and will apply automatically when the connection recovers.'), 0);
+	}
+	if (outcome !== 'committed') {
+		//Stop expecting the removal until the queue actually lands it.
+		dispatch({type: EXPECT_CARD_DELETIONS, cards: {[card.id]: false}});
 	}
 
 	//The card update will lead to removeCards being called later
