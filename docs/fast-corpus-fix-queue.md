@@ -21,7 +21,7 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 - **L2b. `editMessage`/`deleteMessage` have no durable record**, and
   `deleteMessage` is dispatched unawaited with no global rejection handler.
 
-### P1 — performance (boot to `live` is 26s against a 15s budget)
+### P1 — performance (boot to `live` is 24-31s against a 15s advisory budget)
 
 - **F7 (MEASURED, replaces the F2/F3/F4 estimates). `catchUpTombstones` is
   ~61% of the entire path to `live`.** With the boot now instrumented, three
@@ -51,9 +51,6 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 - **F5 [MINE]. The queue does O(queue) read-modify-write per operation** and now
   carries ~2KB card payloads, so replay is O(N^2) in bytes.
-- **DO THIS FIRST: `status()` messages carry no timestamps**, so none of the
-  boot decomposition above is measurable. Emit one line on `live` with deltas
-  for each checkpoint and every estimate becomes a number.
 
 ### P2 — UX consistency
 
