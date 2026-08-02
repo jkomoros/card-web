@@ -1814,6 +1814,19 @@ const attachDeltaListener = (database : Firestore) => {
 			//tiny) snapshot, and gating the restore on count>0 left 'stale'
 			//latched until the next real edit.
 			const {cards} = parseSnapshot(snapshot);
+			//A tombstoned card can still be RESIDENT in the Firestore persistent
+			//cache until its launder confirms, and it matches this query
+			//whenever its `updated` falls inside the delta window — so a cached
+			//first delivery could re-ingest a card the tombstone catch-up just
+			//removed. Suppression was otherwise applied only at prime time,
+			//leaving this covered by a RACE: the unawaited laundering read
+			//happening to land before this listener attaches. Make it an
+			//invariant instead. Entries drop from processedTombstoneIDs the
+			//moment the launder confirms, including the recreate case, which
+			//re-ingests explicitly.
+			if (syncMetaState) {
+				for (const id of syncMetaState.processedTombstoneIDs) delete cards[id];
+			}
 			const untrustedIDs = new Set(snapshot.docChanges()
 				.filter(change => change.type !== 'removed' && !listenerDocumentTrusted(
 					snapshot.metadata.fromCache,
@@ -2308,8 +2321,19 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	//requires the subsequently attached published listener plus the tombstone
 	//and delta planes to become server-confirmed.
 	markBootCheckpoint('primeCPU');
-	if (deferPublishedUntilAfterPrime) connectPublished();
-	if (!syncMetaState) syncMetaState = await loadSyncMeta();
+	//On the compact-snapshot path syncMetaState is already populated, so this
+	//is a no-op and the tombstone catch-up below can be issued FIRST, on an
+	//idle transport. Only the LEGACY path needs the sync-meta store opened
+	//here — and on that path published was already attached earlier, so keep
+	//the old attach order rather than leaving the public corpus blank across
+	//an IndexedDB open.
+	if (!syncMetaState) {
+		if (deferPublishedUntilAfterPrime) {
+			connectPublished();
+			deferPublishedUntilAfterPrime = false;
+		}
+		syncMetaState = await loadSyncMeta();
+	}
 	if (myConnectionGeneration !== connectionGeneration) return;
 	//Only the SUPERSEDED path returns null now, and it has already torn down
 	//and bumped the generation (caught above). An unusable IndexedDB degrades
@@ -2330,8 +2354,23 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 
 	//2. Tombstone catch-up FIRST (deletions-while-away must not read as
 	//partition mismatches) + retry any unconfirmed cache launders.
+	//ISSUE ORDER IS LOAD-BEARING. Real Firestore runs on ONE forced
+	//long-polling transport, and getDocsFromServer is a temporary Listen target
+	//on that same stream. Issued after the published listener, this
+	//SINGLE-DOCUMENT read measured 13.9-16.7s on real DEV — queued behind
+	//published's ~1.2k-document initial sync. catchUpTombstones calls
+	//getDocsFromServer synchronously before its first await, so calling it here
+	//enqueues the tombstone target FIRST and the two overlap instead.
+	//
+	//The AWAIT stays exactly where it was. Everything that consumes the
+	//catch-up's guarantee — the trust gate's zero-tolerance ghost verdict and
+	//the watermark derived after it — is inside gateAndProceed, still strictly
+	//downstream. The laundering read is also issued earlier, widening its head
+	//start over attachDeltaListener.
+	const tombstoneCatchUp = catchUpTombstones(database);
+	if (deferPublishedUntilAfterPrime) connectPublished();
 	markBootCheckpoint('publishedAttached');
-	await catchUpTombstones(database);
+	await tombstoneCatchUp;
 	markBootCheckpoint('tombstoneCatchUp');
 	if (myConnectionGeneration !== connectionGeneration) return;
 	retryPendingLaunders(database);

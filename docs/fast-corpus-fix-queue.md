@@ -12,6 +12,14 @@ are merged into a single item and marked with the lenses that found them.
 
 ## Verified on real DEV (2026-08-02)
 
+- **F7 boot reorder**: boot-to-live 27,973ms -> 7,442ms, inside the 15s
+  advisory budget. tombstone catch-up 16,052 -> 1,317ms, and the published
+  plane 19,488 -> 5,559ms. `mismatchedPartitions=0` on both boots, which is the
+  signal that the catch-up still completes before the trust gate — if the
+  ordering had broken it would read 1 plus a partition repair.
+  NOT yet run: the two-device delete-while-away and launder-vs-delta ghost
+  tests. They need a second profile; worth doing in the acceptance test.
+
 - **S4 purge**: cached Firestore documents went 1,625 -> 0 across a purge boot,
   measured with the network OFFLINE so nothing could re-cache and mask it; the
   request flag cleared, and the app recovered to the full 40,225 cards when
@@ -23,34 +31,6 @@ are merged into a single item and marked with the lenses that found them.
 ## Round 12 — four-lens adversarial review (robustness / perf / UX / data-loss audit)
 
 Findings marked **[MINE]** are regressions introduced by this session's own work.
-
-### P1 — performance (boot to `live` is 24-31s against a 15s advisory budget)
-
-- **F7 (MEASURED, replaces the F2/F3/F4 estimates). `catchUpTombstones` is
-  ~61% of the entire path to `live`.** With the boot now instrumented, three
-  real DEV boots give:
-
-      boot to live: total=24-31s | snapshotRead=1.7-1.9s primeCPU=2.8s
-                    publishedAttached=0ms tombstoneCatchUp=13.9-16.7s
-      tombstone catch-up: cursor=1785600549 docs=1 in 16708ms
-
-  ONE document, 16.7 seconds. The cursor is correct and there is no data to
-  scan — the round trip itself is the cost. It is issued immediately after
-  connectPublished(), so it races the published listener's first server
-  snapshot over the worker's single `experimentalForceLongPolling` connection
-  and loses. Everything downstream of its `await` (trust gate, tombstone and
-  delta listeners) is blocked behind it.
-
-  Note the estimates this replaces: the review guessed 2-5s for the published
-  attach (measures 0ms) and 0.3-1.5s for this (measures 16.7s). Do not
-  re-estimate — the checkpoints are in the code now.
-
-  Candidate fixes, in increasing risk: (a) stop gating `live` on this round
-  trip and let the tombstone LISTENER carry it, since the listener attaches
-  moments later anyway; (b) issue it before connectPublished so it is not
-  queued behind a multi-thousand-document snapshot; (c) serve it from cache
-  and reconcile from the server after `live`. Each changes ghost-suppression
-  ordering, so each needs its own verification pass rather than a quick edit.
 
 ### P2 — UX consistency
 
