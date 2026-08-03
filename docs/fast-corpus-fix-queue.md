@@ -392,6 +392,23 @@ met.
   the public site's primary audience.
 - `on` mode fails closed on browsers without module-worker support (Safari
   <15, Firefox <114) — shell plus a permanent error, where master worked.
+  PARTLY ADDRESSED: the error is now ACCURATE rather than misleading. The
+  mechanism is worth knowing — `new Worker(url, {type: 'module'})` does NOT
+  throw on such a browser, it silently creates a CLASSIC worker which then
+  fails to parse the ESM bundle and arrives as an ordinary startup error, so
+  the panel said "Reload to retry", which can never work. A lazy feature probe
+  (evaluated only on the failure path, so the happy path pays nothing) now
+  selects a message naming the browsers that do work. The probe relies on Web
+  IDL argument conversion running the `type` getter before the URL is resolved;
+  verified true on Chrome, and the throwing case is handled because the getter
+  has already answered by then.
+  What this does NOT do is make those browsers work. The real fix is a CLASSIC
+  (non-module) worker bundle as a fallback — still a worker, so it does not
+  violate the "no legacy fallback bypassing worker ownership" criterion, unlike
+  the main-thread fallback. That is a build change and a deploy-gating decision,
+  not a pre-acceptance-test edit. NOTE the unsupported branch could not be
+  exercised here: no browser lacking module workers was available, so only the
+  supported branch is verified live.
 - Main-thread per-user state (stars/reads/reading-lists) is memory-only in the
   default mode, so heavy accounts re-bill tens of thousands of reads per boot.
   Worth measuring before the cutover.

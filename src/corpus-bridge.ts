@@ -1275,6 +1275,36 @@ const post = (message : MainToWorkerMessage) => {
 	worker.postMessage(message);
 };
 
+//`new Worker(url, {type: 'module'})` does NOT throw on a browser without
+//module-worker support (Safari <15, Firefox <114) — it silently creates a
+//CLASSIC worker, which then fails to parse the ESM bundle and surfaces as an
+//ordinary startup error. In `on` mode that produced a permanent failure panel
+//telling the user to "Reload to retry", which can never work: no number of
+//reloads will teach the browser module workers.
+//
+//Evaluated LAZILY, only on the failure path, so the happy path pays nothing.
+let moduleWorkerSupport : boolean | null = null;
+
+const moduleWorkersSupported = () : boolean => {
+	if (moduleWorkerSupport !== null) return moduleWorkerSupport;
+	moduleWorkerSupport = false;
+	try {
+		//The standard probe: a browser that supports module workers READS the
+		//`type` option, one that does not ignores the dictionary entirely. Web
+		//IDL argument conversion runs the getter BEFORE the URL is resolved, so
+		//the answer is recorded even though the constructor then throws on the
+		//data: URL (workers may not be created from data: URLs, and a CSP may
+		//refuse it as well). That throw is expected, hence the empty catch.
+		const probe = Object.defineProperty({}, 'type', {
+			get() { moduleWorkerSupport = true; return 'module'; }
+		}) as WorkerOptions;
+		new Worker('data:text/javascript,', probe).terminate();
+	} catch {
+		//Expected; the getter has already answered the question.
+	}
+	return moduleWorkerSupport;
+};
+
 const recoverFromWorkerFailure = (reason : string) => {
 	if (workerFailureRecoveryStarted) return;
 	workerFailureRecoveryStarted = true;
@@ -1288,7 +1318,12 @@ const recoverFromWorkerFailure = (reason : string) => {
 		//round-5 inert flag would otherwise no-op those reconnects, leaving a
 		//shadow/spike-mode tab with no card listeners at all (round-6 audit).
 		void import('./actions/database.js').then(module => module.disconnectBackgroundDataForInactiveTab());
-		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: 'Cards could not load because card sync failed. Reload to retry. If this continues, contact support.'});
+		//Tell an unsupported browser the truth. "Reload to retry" is not just
+		//unhelpful there, it is wrong, and it sends the user round a loop that
+		//cannot terminate.
+		store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'degraded', message: moduleWorkersSupported()
+			? 'Cards could not load because card sync failed. Reload to retry. If this continues, contact support.'
+			: 'This browser cannot run Compendium\'s card sync, because it does not support module workers. Reloading will not help — please use Safari 15+, Firefox 114+, or a current version of Chrome or Edge.'});
 		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'active', result: null});
 		store.dispatch({type: UPDATE_WORKER_COLLECTION, slot: 'query', result: null});
 		return;
