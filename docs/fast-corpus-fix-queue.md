@@ -254,15 +254,49 @@ assert the mutant builds.
   earlier hypothesis that in-renderer reloads were the crash mechanism is
   DISPROVEN.
 
-  What is left UNRESOLVED, and is the real lead: across one long-lived browser
-  session the SAME URL measured 230MB, then 456MB, then 685MB, while every
-  individual activity between those points measured flat. That is either real
-  cross-navigation retention or an artifact of reading a single isolate across
-  document swaps. The cheap discriminator
-  (`Memory.forciblyPurgeJavaScriptMemory` — a big drop would mean collectible
-  slack rather than a leak) WEDGED the tab twice and did not answer. The
-  definitive tool is a heap snapshot with retainer paths taken on the ratcheted
-  state; that is where the next attempt should start, not with more sampling.
+  The 230 -> 456 -> 685MB "ratchet" I reported earlier DID NOT REPRODUCE and
+  should be treated as an instrument artifact, not an application leak. Five
+  consecutive boots in one restarted browser gave 229MB, and heap snapshots
+  taken after 1 boot and after 5 boots are compositionally identical
+  (5,668,763 vs 5,581,188 nodes; 249MB vs 245MB of self_size). The most likely
+  explanation for the earlier readings is my own tooling: a `page.on('console')`
+  listener retains its arguments' remote objects for the life of a CDP session,
+  and those sessions were attached for long stretches. RESTART CHROME between
+  comparison runs.
+
+  So: no leak was found from navigation, editor open/close, or idle time, and
+  the crash's 1,763MB remains unexplained by anything reproducible here.
+
+  WHAT THE SNAPSHOT DID FIND, and it is reproducible and large — 40% of a
+  FRESH-BOOT main-thread heap is V8 shape metadata:
+
+      system / Map (hidden classes)   1,738,607 objects   66.3MB
+      system / DescriptorArray          157,305           29.8MB
+      system / TransitionArray           42,507            2.0MB
+      (enum cache)                       10,021            0.5MB
+      ------------------------------------------------------------
+      shape metadata                                     ~98.6MB of 249MB
+
+  That is ~43 distinct hidden classes PER CARD at 40,225 cards. Healthy code
+  shares shapes across instances; this is the same failure mode as the
+  StoredProcessedRun fix, which is therefore only PARTLY addressed. The likely
+  source is the card model's ID-keyed dictionaries — `references`,
+  `references_info`, `references_inbound`, `references_info_inbound`,
+  `font_size_boost`, `auto_todo_overrides` — where every card has a different
+  key SET, so every one of those objects gets its own Map plus a transition
+  chain. The direction is to hold ID-keyed dictionaries as `Map`s rather than
+  plain objects; that is an architectural change and NOT a pre-acceptance-test
+  edit. Supporting counts: 819,676 plain `Object` and 715,361 `Array`
+  instances, ~20 and ~18 per card respectively, which is just the card shape.
+
+  Two smaller observations from the same snapshot: 38,358 separate `working-notes`
+  strings and 40,231 separate copies of one author uid (JSON.parse does not
+  intern), together ~1.6MB that interning would reclaim.
+
+  The tooling is now in the repo so this is reproducible rather than a one-off:
+  `tools/capture-heap-snapshot.mjs` and `tools/heap-snapshot-report.mjs` (the
+  report streams, because the file exceeds V8's max string length and the
+  `strings` table it needs comes last).
 
 - **Heap effect of the shape fix is STILL UNMEASURED, and I did not establish
   it.** The crash report's 574MB / 1,763MB are PROCESS-level; everything above
