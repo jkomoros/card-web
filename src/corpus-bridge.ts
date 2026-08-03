@@ -158,6 +158,12 @@ import {
 } from './account-handover.js';
 
 import {
+	updateStars,
+	updateReads,
+	updateReadingList
+} from './actions/user.js';
+
+import {
 	inFlightMutationCount,
 	fenceMutations,
 	allowMutations,
@@ -1216,6 +1222,18 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//serving is allowed (rather than waiting for the next state change).
 		scheduleShadowCompare();
 		break;
+	case 'userStars':
+		//Same deltas the main thread's own listener used to derive from
+		//docChanges(), so the reducers are untouched. See connectUserState in
+		//the worker for why these moved.
+		store.dispatch(updateStars(message.added, message.removed));
+		return;
+	case 'userReads':
+		store.dispatch(updateReads(message.added, message.removed));
+		return;
+	case 'userReadingList':
+		store.dispatch(updateReadingList(message.list));
+		return;
 	case 'syncState':
 		lastSyncState = message.state;
 		console.log(`[corpus-worker] sync state: ${message.state}`);

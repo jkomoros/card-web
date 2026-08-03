@@ -466,6 +466,48 @@ the remaining gate: with the same snapshot, offline is 1,458ms while online warm
 is ~4,100ms. Skipping those two listeners for an anonymous session would need an
 `isAnonymous` field on the connect message and a protocol version bump.
 
+### Prod-cutover blockers: per-user state re-reads (FIXED)
+
+Stars, reads and the reading list are now read by the CORPUS WORKER and
+forwarded to the main thread as the same add/remove deltas the main thread used
+to derive from `docChanges()`, so the reducers are untouched. The worker is the
+only context holding Firestore's persistent cache, so its re-attach bills deltas
+instead of the whole result set; the main thread runs a memoryLocalCache and was
+re-reading everything on every boot (measured: 608 `reads` documents for the
+owner's DEV account, every boot). Gated once at each listener's DEFINITION in
+database.ts rather than at the two call sites, so there is exactly one rule.
+Protocol bumped 3 -> 4; the version pin test is deliberate and was updated
+knowingly.
+
+THE HALF THAT IS NOT OBVIOUS, and was not in the original framing of this item:
+these toggles never applied anything locally. The star/read/reading-list UI was
+painted entirely by the listener echo, which was instant only because the write
+and the listener shared ONE Firestore instance — latency compensation fires on
+the pending mutation. The worker's instance knows nothing about the main
+thread's pending write, so moving the listener alone would have made every
+toggle wait for a server round trip before it visibly did anything. So the
+change also adds an optimistic layer (`applyOptimistically`), and the subtle
+rule in it is unit-tested: a QUEUED write must NOT revert, because the intent is
+durable and will be retried, which is exactly what the UI promises — reverting
+would silently undo an action taken offline. Only 'discarded' or a throw revert.
+Re-applying is safe because the stars/reads reducers are set-based.
+
+Verified on real DEV:
+    per-user state via the worker   608 reads, all three loaded flags true
+    star toggle                     store reflected in 192ms / 83ms
+                                    (includes the driver's click round trip),
+                                    settling with pendingIntents=0
+    account state                   restored (the test unstars what it starred)
+
+One bug caught only by running it against a real account: the first version
+suppressed EMPTY delta messages, and the reducers set `starsLoaded`/`readsLoaded`
+from receiving the message at all — so an account with no stars stayed
+permanently "not loaded". That is most accounts.
+
+Billing was NOT re-measured, and cannot be from here: the gain is on PROD, where
+the account is large. The mechanism is the one that matters (resume tokens now
+exist for these queries because the worker's cache persists them).
+
 ### Prod-cutover blockers (do NOT gate the merge; DO gate the deploy)
 
 - Anonymous visitors lost all card persistence: readers get memory-cache

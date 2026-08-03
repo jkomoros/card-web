@@ -922,6 +922,9 @@ const teardownListeners = () => {
 	lastRepairSignature = '';
 	for (const unsubscribe of unsubscribes) unsubscribe();
 	unsubscribes.length = 0;
+	//These are not in `unsubscribes`: that list belongs to the resilient
+	//card-listener machinery, whose re-attach logic does not apply here.
+	disconnectUserState();
 };
 
 //Backoff for re-attaching snapshot listeners after an error. The SDK
@@ -1285,6 +1288,78 @@ const connectPublishedFromSnapshot = async () => {
 	}
 	if (myConnectionGeneration !== connectionGeneration) return;
 	connectPublished();
+};
+
+//PER-USER STATE (stars / reads / reading list).
+//
+//These used to run on the MAIN thread, which in worker modes holds only a
+//memoryLocalCache — so it has no resume tokens and every boot re-read the whole
+//result set. Measured on DEV for the owner's account: 608 `reads` documents,
+//re-fetched in full on every single boot. The worker is the one context holding
+//Firestore's persistent cache, so re-attaching here bills deltas instead.
+//
+//Deliberately forwarded as the same add/remove DELTAS the main thread used to
+//derive from docChanges(), so the reducers on the other side are unchanged.
+const STARS_COLLECTION = 'stars';
+const READS_COLLECTION = 'reads';
+const READING_LISTS_COLLECTION = 'reading_lists';
+
+let userStateUnsubscribes : (() => void)[] = [];
+
+const disconnectUserState = () => {
+	for (const unsubscribe of userStateUnsubscribes) {
+		try { unsubscribe(); } catch { /* already torn down */ }
+	}
+	userStateUnsubscribes = [];
+};
+
+const connectUserState = (uid : string) => {
+	disconnectUserState();
+	if (!db || !uid) return;
+	const database = db;
+	const myConnectionGeneration = connectionGeneration;
+	//A card id per document, added or removed. Identical shape for stars and
+	//reads, so one helper serves both.
+	const cardIDDeltaListener = (collectionName : string, type : 'userStars' | 'userReads') => {
+		userStateUnsubscribes.push(onSnapshot(
+			query(collection(database, collectionName), where('owner', '==', uid)),
+			snapshot => {
+				if (myConnectionGeneration !== connectionGeneration) return;
+				const added : CardID[] = [];
+				const removed : CardID[] = [];
+				for (const change of snapshot.docChanges()) {
+					const cardID = change.doc.data().card as CardID;
+					if (!cardID) continue;
+					if (change.type === 'removed') removed.push(cardID);
+					else added.push(cardID);
+				}
+				//Send even when EMPTY. The main thread's reducers set
+				//`starsLoaded`/`readsLoaded` from receiving the message at all,
+				//so suppressing an empty first snapshot left an account with no
+				//stars permanently "not loaded" — which is most accounts, and
+				//was invisible until this ran against a real one.
+				send({type, generation, added, removed});
+			},
+			error => status(`${collectionName} listener error: ${String(error)}`)));
+	};
+	cardIDDeltaListener(STARS_COLLECTION, 'userStars');
+	cardIDDeltaListener(READS_COLLECTION, 'userReads');
+	//The reading list is ONE document holding an ordered array, so it is sent
+	//whole rather than as a delta -- order is meaningful and a delta cannot
+	//express a reorder.
+	userStateUnsubscribes.push(onSnapshot(
+		query(collection(database, READING_LISTS_COLLECTION), where('owner', '==', uid)),
+		snapshot => {
+			if (myConnectionGeneration !== connectionGeneration) return;
+			let list : CardID[] = [];
+			for (const change of snapshot.docChanges()) {
+				if (change.type === 'removed') continue;
+				list = (change.doc.data().cards || []) as CardID[];
+			}
+			send({type: 'userReadingList', generation, list});
+		},
+		error => status(`${READING_LISTS_COLLECTION} listener error: ${String(error)}`)));
+	status(`per-user state listeners attached for ${uid}`);
 };
 
 const connectPublished = () => {
@@ -2709,6 +2784,9 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	} else {
 		void connectPublishedFromSnapshot();
 	}
+	//Every signed-in session, privileged or not. An anonymous uid simply has no
+	//stars, reads or reading list, so these deliver empty and cost nothing.
+	if (uid) connectUserState(uid);
 };
 
 const spike = () => {

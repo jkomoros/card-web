@@ -149,6 +149,7 @@ import {
 	registerAuxWriteExecutor,
 	makeAuxWriteIntent,
 	runDurableAuxWrite,
+	AuxWriteOutcome,
 	installAuxWriteReplayWatcher,
 	AuxWriteIntent
 } from '../aux-write-queue.js';
@@ -165,6 +166,7 @@ import {
 	selectActiveCard,
 	selectUser,
 	selectUid,
+	selectUserReadingList,
 	getCardIsRead,
 	selectUserIsAnonymous,
 	selectActiveCollection,
@@ -531,6 +533,43 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 	firebaseSignOut(auth);
 };
 
+//OPTIMISTIC APPLICATION for per-user state.
+//
+//These toggles never applied anything locally: the star/read/reading-list UI was
+//painted entirely by the listener echo, which was instant only because the write
+//and the listener shared one Firestore instance (latency compensation fires on
+//the pending mutation). The listeners now live in the CORPUS WORKER — the only
+//context with a persistent cache, so re-attach bills deltas rather than the
+//whole result set — and that worker's instance knows nothing about this thread's
+//pending write. Without applying locally, every toggle would wait for a server
+//round trip before it visibly did anything.
+//
+//`apply` runs the moment the user acts. A later identical echo is harmless: the
+//stars and reads reducers are set-based (setUnion/setRemove), so re-applying is
+//a no-op, and the reading list is replaced wholesale by the authoritative copy.
+//
+//Only an outcome we cannot promise is undone. 'queued' KEEPS the optimistic
+//state, because the intent is durable and will be retried — which is exactly
+//what the UI tells the user. 'discarded' means the write is permanently gone, so
+//the UI must stop claiming it. A throw is treated the same way: if it threw
+//before persisting, reverting is correct; if it threw after, the queue replays
+//it and the echo re-applies, because these reducers are idempotent.
+export const applyOptimistically = async (
+	apply : () => void,
+	revert : () => void,
+	run : () => Promise<AuxWriteOutcome>
+) : Promise<void> => {
+	apply();
+	let outcome : AuxWriteOutcome | 'threw';
+	try {
+		outcome = await run();
+	} catch (err) {
+		console.warn('[user-state] durable write failed before it could be promised; reverting the optimistic update:', err);
+		outcome = 'threw';
+	}
+	if (outcome === 'discarded' || outcome === 'threw') revert();
+};
+
 export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_STARS,
@@ -553,7 +592,7 @@ export const toggleOnReadingList = (cardToToggle : CardID) : ThunkSomeAction => 
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, getState) => {
+export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToAdd) {
 		console.log('Invalid card provided');
 		return;
@@ -574,10 +613,17 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`));
+	//The reading list is an ORDERED array replaced wholesale, so the optimistic
+	//value is computed from the list as it stands rather than expressed as a
+	//delta. Appending matches the server-side arrayUnion.
+	const listBeforeAdd = selectUserReadingList(getState());
+	void applyOptimistically(
+		() => dispatch(updateReadingList(listBeforeAdd.includes(cardToAdd) ? listBeforeAdd : [...listBeforeAdd, cardToAdd])),
+		() => dispatch(updateReadingList(listBeforeAdd)),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
-export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (_, getState) => {
+export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToRemove) {
 		console.log('Invalid card provided');
 		return;
@@ -598,10 +644,14 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`));
+	const listBeforeRemove = selectUserReadingList(getState());
+	void applyOptimistically(
+		() => dispatch(updateReadingList(listBeforeRemove.filter((id : CardID) => id !== cardToRemove))),
+		() => dispatch(updateReadingList(listBeforeRemove)),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
-export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
+export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -623,10 +673,14 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getSt
 		return;
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', cardToStar.id));
+	const starredID = cardToStar.id;
+	void applyOptimistically(
+		() => dispatch(updateStars([starredID], [])),
+		() => dispatch(updateStars([], [starredID])),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', starredID)));
 };
 
-export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
+export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -647,7 +701,11 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-remove', cardToStar.id));
+	const unstarredID = cardToStar.id;
+	void applyOptimistically(
+		() => dispatch(updateStars([], [unstarredID])),
+		() => dispatch(updateStars([unstarredID], [])),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-remove', unstarredID)));
 };
 
 export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
@@ -712,7 +770,7 @@ export const markActiveCardReadIfLoggedIn = () : ThunkSomeAction => (dispatch, g
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => (_, getState) => {
+export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -741,10 +799,14 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 		}
 	}
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', cardToMarkRead.id));
+	const readID = cardToMarkRead.id;
+	void applyOptimistically(
+		() => dispatch(updateReads([readID], [])),
+		() => dispatch(updateReads([], [readID])),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', readID)));
 };
 
-export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (_, getState) => {
+export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
@@ -773,5 +835,9 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 	//Just in case we were planning on setting this card as read.
 	cancelPendingAutoMarkRead();
 
-	void runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-remove', cardToMarkUnread.id));
+	const unreadID = cardToMarkUnread.id;
+	void applyOptimistically(
+		() => dispatch(updateReads([], [unreadID])),
+		() => dispatch(updateReads([unreadID], [])),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-remove', unreadID)));
 };

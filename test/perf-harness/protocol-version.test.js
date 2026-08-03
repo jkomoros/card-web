@@ -22,7 +22,11 @@ describe('corpus worker protocol compatibility', () => {
 	});
 
 	it('rejects a pre-handshake worker as legacy protocol zero', () => {
-		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 3);
+		//Deliberately pinned: bumping the protocol invalidates every cached
+		//worker bundle, so it must be a conscious edit rather than a side
+		//effect. Last bumped to 4 when per-user state (stars/reads/reading
+		//list) moved into the worker.
+		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 4);
 		assert.strictEqual(LEGACY_CORPUS_WORKER_PROTOCOL_VERSION, 0);
 		assert.strictEqual(corpusWorkerProtocolVersion(undefined), 0);
 		assert.strictEqual(corpusWorkerProtocolCompatible(undefined), false);

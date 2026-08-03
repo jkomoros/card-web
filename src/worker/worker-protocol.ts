@@ -24,7 +24,10 @@ import {
 //Increment this for a wire-incompatible change. Missing version means a
 //pre-handshake worker/page (v0), which must be rejected: silently accepting it
 //would skip authoritative collection hydration on a mixed cached build.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 3;
+//4: per-user state (stars/reads/reading-list) moved into the worker, which is
+//the only context holding Firestore's persistent cache and therefore the only
+//one whose re-attach costs deltas rather than the whole result set.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 4;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -272,6 +275,11 @@ export type WorkerToMainMessage =
 	//healthy; 'stale' = corpus complete but the delta channel is erroring
 	//(quota/outage) — content is correct as of the last delivery.
 	| {type: 'syncState', generation: WorkerGeneration, state : 'unverified' | 'live' | 'stale'}
+	//Per-user state. Deltas rather than whole sets, mirroring exactly what the
+	//main thread's own listeners used to derive from docChanges().
+	| {type: 'userStars', generation: WorkerGeneration, added : CardID[], removed : CardID[]}
+	| {type: 'userReads', generation: WorkerGeneration, added : CardID[], removed : CardID[]}
+	| {type: 'userReadingList', generation: WorkerGeneration, list : CardID[]}
 	//Delta-pushed compact per-card metadata (changed entries + removals).
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
 	//The worker's similar-card filters need server similarity for this card;

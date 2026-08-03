@@ -236,6 +236,14 @@ export const disconnectLiveStars = () => {
 
 export const connectLiveStars = (uid : Uid) => {
 	if (backgroundDataInert) return;
+	//The CORPUS WORKER owns this listener in worker modes. It is the only
+	//context holding Firestore's persistent cache, so its re-attach bills
+	//deltas, while this thread runs a memoryLocalCache and re-read the entire
+	//result set on every boot (measured: 608 `reads` documents for one real
+	//account, every single boot). Gated here at the definition rather than at
+	//the two call sites, so there is exactly one rule.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		const starsToAdd : CardID[] = [];
@@ -261,6 +269,14 @@ export const disconnectLiveReads = () => {
 
 export const connectLiveReads = (uid : Uid) => {
 	if (backgroundDataInert) return;
+	//The CORPUS WORKER owns this listener in worker modes. It is the only
+	//context holding Firestore's persistent cache, so its re-attach bills
+	//deltas, while this thread runs a memoryLocalCache and re-read the entire
+	//result set on every boot (measured: 608 `reads` documents for one real
+	//account, every single boot). Gated here at the definition rather than at
+	//the two call sites, so there is exactly one rule.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
 		const readsToAdd : CardID[] = [];
@@ -286,6 +302,14 @@ export const disconnectLiveReadingList = () => {
 
 export const connectLiveReadingList = (uid : Uid) => {
 	if (backgroundDataInert) return;
+	//The CORPUS WORKER owns this listener in worker modes. It is the only
+	//context holding Firestore's persistent cache, so its re-attach bills
+	//deltas, while this thread runs a memoryLocalCache and re-read the entire
+	//result set on every boot (measured: 608 `reads` documents for one real
+	//account, every single boot). Gated here at the definition rather than at
+	//the two call sites, so there is exactly one rule.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		let list : CardID[] = [];
