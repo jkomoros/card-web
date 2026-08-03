@@ -240,14 +240,42 @@ assert the mutant builds.
   elements are never dropped because images are positional. Tested in both
   directions, including the assertions that keep the fix from degrading into
   "compare nothing".
-- **Still open after the shape fix:** why ~129k NLP run objects are alive at
-  all in a tab whose corpus was purged. _processedCardCache is WeakMap-keyed,
-  so something still strongly holds many card objects; one retainer path runs
-  through a rendered element's __card into memoized selector restArgs. Worth
-  one targeted look now that the shape fix changes the denominator.
-- **Heap effect of the shape fix is UNMEASURED.** Needs a clean-profile A/B
-  with Runtime.getHeapUsage after a forced GC; my before/after used a different
-  instrument on a long-lived tab and is not comparable.
+- **Measured, with a boundary drawn. Read this before spending more time here.**
+  A clean-profile pass on real DEV (Chrome restarted between runs,
+  `HeapProfiler.collectGarbage` twice, then `Runtime.getHeapUsage`) established:
+
+      fresh boot, corpus 40,225        230-234MB main-thread heap
+      5 consecutive in-renderer reloads 231 / 230 / 230 / 231 / 230MB  -- FLAT
+      25 editor open/close cycles       456 -> 458MB                   -- FLAT
+      12 minutes idle at live           685 -> 686MB                   -- FLAT
+      boot to loadComplete              8.2-8.7s;  to live ~11.1s
+
+  So the three activities most suspected of leaking do NOT leak, and the
+  earlier hypothesis that in-renderer reloads were the crash mechanism is
+  DISPROVEN.
+
+  What is left UNRESOLVED, and is the real lead: across one long-lived browser
+  session the SAME URL measured 230MB, then 456MB, then 685MB, while every
+  individual activity between those points measured flat. That is either real
+  cross-navigation retention or an artifact of reading a single isolate across
+  document swaps. The cheap discriminator
+  (`Memory.forciblyPurgeJavaScriptMemory` — a big drop would mean collectible
+  slack rather than a leak) WEDGED the tab twice and did not answer. The
+  definitive tool is a heap snapshot with retainer paths taken on the ratcheted
+  state; that is where the next attempt should start, not with more sampling.
+
+- **Heap effect of the shape fix is STILL UNMEASURED, and I did not establish
+  it.** The crash report's 574MB / 1,763MB are PROCESS-level; everything above
+  is the main-thread isolate only, via `Runtime.getHeapUsage`. Those are not
+  comparable — the exact instrument mismatch that invalidated the previous
+  before/after — so no before/after claim about the shape fix should be made
+  from these numbers. A real A/B needs the same instrument on both sides, and
+  the worker isolate included (attaching to the worker target for its heap
+  failed here and needs fixing first).
+
+- **Boot-to-live variance did not reproduce.** On a clean profile the spread is
+  tight (loadComplete 8.2-8.7s across six boots); the earlier 12.8 / 19.7 /
+  31.6s figures were taken on a long-lived, heavily-navigated tab.
 
 ### Renderer crash (Round 14: REPRODUCED, with numbers)
 
