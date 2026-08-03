@@ -412,6 +412,28 @@ met.
   workers and the main thread drops to memoryLocalCache, so every anonymous
   visit re-downloads the published corpus and offline viewing is gone. This is
   the public site's primary audience.
+  NOW MEASURED on DEV, fresh signed-out profile, two consecutive visits:
+      ownership state                 "reader" (as designed)
+      IndexedDB after two visits      firebase-heartbeat-database,
+                                      firebaseLocalStorageDb — and NOTHING else
+      visit 1 / visit 2               loadComplete 4.1s / 4.3s
+      Firestore requests              43 / 46
+      corpus                          1,239 published cards, both times
+  So BOTH persistence layers are absent — no Firestore cache database and no
+  compact-snapshot store — and the second visit gets zero warm-boot benefit.
+  Offline is therefore impossible, not merely degraded.
+  Root cause is two independent gates: `persist = corpusWorkerOwnsCardIngestion()
+  && ownershipState !== 'reader'` in the bridge (so a reader's worker takes
+  memoryLocalCache), and firebase.ts demoting the MAIN thread to
+  memoryLocalCache whenever the worker owns ingestion. And the compact snapshot
+  cannot simply be switched on for readers: `corpusSnapshotStore` is constructed
+  inside `connectUnpublishedWatermark`, i.e. it exists only on the PRIVILEGED
+  path, so the published-only reader path has no snapshot machinery at all.
+  Why readers are excluded is a real constraint, not an oversight: inside a
+  dedicated worker Firestore supports only
+  `persistentSingleTabManager({forceOwnership: true})`, so two clients cannot
+  hold the same database, and a reader tab holding it would collide with a
+  signed-in owner tab.
 - `on` mode fails closed on browsers without module-worker support (Safari
   <15, Firefox <114) — shell plus a permanent error, where master worked.
   PARTLY ADDRESSED: the error is now ACCURATE rather than misleading. The
@@ -433,7 +455,17 @@ met.
   supported branch is verified live.
 - Main-thread per-user state (stars/reads/reading-lists) is memory-only in the
   default mode, so heavy accounts re-bill tens of thousands of reads per boot.
-  Worth measuring before the cutover.
+  MEASURED on DEV for the owner's account: 608 `reads` documents, 0 stars, 0
+  reading-list — all re-fetched on every boot, because the main thread runs
+  memoryLocalCache in worker modes and so has no resume tokens. The PROD number
+  is the one that matters and cannot be measured from here (PROD is off limits);
+  it is structurally the same and larger.
+  Same root cause as the anonymous-persistence item: the main thread was demoted
+  because the worker holds Firestore's single-tab persistence lease. The fixes
+  are therefore architectural — move per-user reads into the worker, which
+  already has persistence, or give the main thread its own Firestore
+  app/database instance (complicated by auth persistence keys including the app
+  name).
 
 ### Performance (measured live by the reviewer)
 
