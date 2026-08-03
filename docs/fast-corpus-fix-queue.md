@@ -311,6 +311,22 @@ assert the mutant builds.
   tight (loadComplete 8.2-8.7s across six boots); the earlier 12.8 / 19.7 /
   31.6s figures were taken on a long-lived, heavily-navigated tab.
 
+### Renderer crash: one more occurrence (2026-08-03)
+
+A `Page crashed` on the FIRST load after a deploy that bumped the worker
+protocol 3 -> 4 (so every cached worker bundle was invalidated and the
+mismatch-recovery path ran). The tab was heavily abused by that point in the
+session: dozens of navigations, the full 40k corpus, repeated forced GCs and two
+~830MB heap snapshots taken from it.
+
+Did NOT reproduce: restarting Chrome and repeating the identical sequence on a
+fresh renderer worked cleanly (608 reads via the worker, all loaded flags true,
+corpus 40,225). So it cannot be attributed to that change, and cannot be ruled
+out either. Recorded because the crash is still unexplained and every genuine
+occurrence is worth its conditions. Note the correlation with the same
+"long-lived tab" shape as the earlier crash report — and that a protocol bump
+plus SW cache invalidation is a heavier-than-usual boot.
+
 ### Renderer crash (Round 14: REPRODUCED, with numbers)
 
 Second occurrence, crash dump 2026-08-02 10:28:26, on a long-lived tab after a
