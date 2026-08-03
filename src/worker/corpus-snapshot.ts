@@ -93,6 +93,22 @@ export const validCorpusSnapshot = (value : unknown) : value is CorpusSnapshot =
 		(v2.watermarkClamp === null || validWireTimestamp(v2.watermarkClamp));
 };
 
+//The key for a scope's snapshot. A PUBLISHED-only record deliberately carries
+//no uid: published content is identical for every viewer, so one record serves
+//them all, is shared between anonymous visits, and survives the anonymous uid
+//churning between sessions. A privileged record is per-user and must never be
+//shared.
+export const corpusSnapshotKey = (projectID : string, uid : string, scope : 'published' | 'privileged') : string =>
+	scope === 'published' ? `${projectID}:published` : `${projectID}:${uid}:privileged`;
+
+//Whether a card may go into a snapshot at this scope. The published record is
+//SHARED, so this is a privacy boundary, not an optimization: a signed-in
+//non-privileged user runs author/editor listeners, so their own unpublished
+//cards sit in the same corpus, and writing those into the shared record would
+//hand them to the next anonymous visitor on the device.
+export const snapshotEligibleCard = (card : {published? : boolean}, publishedOnlyScope : boolean) : boolean =>
+	!publishedOnlyScope || Boolean(card.published);
+
 export class CorpusSnapshotStore {
 
 	_key : string;

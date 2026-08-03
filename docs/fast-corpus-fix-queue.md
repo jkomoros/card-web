@@ -406,6 +406,66 @@ met.
   verification attempt silently tested the PREVIOUS bundle and appeared to show
   the fix failing. Unregister the service worker and clear caches first.
 
+### Prod-cutover blockers: anonymous persistence (FIXED)
+
+Readers now keep a compact snapshot of their own. Firestore inside a dedicated
+worker supports only `persistentSingleTabManager({forceOwnership: true})`, so a
+reader cannot be handed the Firestore cache without contending for the single
+lease a signed-in owner tab will steal — but the compact snapshot has no such
+constraint. It is the application's own IndexedDB record and was ALREADY keyed
+by scope, so the published scope simply joins the privileged one, and Firestore's
+cache stays exclusively the owner's. That is the whole persistence model in two
+sentences, which is the point: no second informal lock over Firestore's lease.
+
+Design notes worth keeping:
+- The record is keyed `${projectID}:published`, with NO uid. Published content
+  is identical for every viewer, so one record serves them all and survives the
+  anonymous uid churning between sessions — which is what makes a second
+  anonymous visit warm at all.
+- That sharing is only sound because the save filters to published cards. A
+  signed-in NON-privileged user also runs author/editor listeners, so their own
+  unpublished cards are in the same corpus; writing those into the shared record
+  would hand them to the next anonymous visitor on that device. This is a
+  privacy boundary, and `snapshotEligibleCard` is unit-tested as one.
+- Staleness needs no cursor. The published listener is a FULL-SET query, so its
+  first server-confirmed delivery is the complete authoritative corpus for the
+  scope, and `publishedGhostIDs` already reconciles anything the snapshot holds
+  that the server does not — machinery that predates this and was written for
+  exactly this shape. That same delivery is the reader's trust gate, exactly as
+  strong as the privileged path's three healthy planes.
+- Exactly one reader tab writes, via a Web Lock requested WITHOUT `ifAvailable`
+  so the role transfers when the writing tab closes rather than being lost.
+  Readers have no ownership lease by design (a public visitor's second tab must
+  keep working), and their default token is epoch 0, so `claimOwnership` would
+  otherwise accept every tab.
+- `save()` aborts unless a stored owner record matches, so the reader path must
+  claim explicitly even though it has no epoch. Missing that produced silent
+  no-ops reported only as "ownership changed during the write" — found by
+  running it on DEV, not by reading it.
+
+MEASURED on DEV with a fresh signed-out profile:
+    offline, no network at all    loadComplete 1,458ms, all 1,239 cards
+    warm prime                    "published compact snapshot prime: 1239 cards"
+                                  at +672ms, initial load complete immediately
+    privileged path unchanged     primes 40,225 from its snapshot, saves, live
+                                  in 10.3s
+
+NOT fixed, and deliberately not overclaimed: BILLING. The published listener is
+still a full-set query on every boot (~28-35 Firestore requests, unchanged),
+because resume tokens live in Firestore's cache, which a reader structurally
+cannot hold. What changed is that the corpus is served locally and instantly,
+and works with no network; what did not change is that liveness still costs one
+published query per boot. Reducing that needs a watermark-bounded published
+delta query, which is a larger piece of work.
+
+Also unfixed: online, an anonymous `loadComplete` is still gated on the
+author/editor listeners, which are network-bound and always EMPTY for an
+anonymous account (the rules' `userMayCreateCard` requires admin or explicit
+permissions, so an anonymous uid can never author a card). Evidence that this is
+the remaining gate: with the same snapshot, offline is 1,458ms while online warm
+is ~4,100ms. Skipping those two listeners for an anonymous session would need an
+`isAnonymous` field on the connect message and a protocol version bump.
+
 ### Prod-cutover blockers (do NOT gate the merge; DO gate the deploy)
 
 - Anonymous visitors lost all card persistence: readers get memory-cache

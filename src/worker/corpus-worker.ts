@@ -176,7 +176,10 @@ import {
 } from './wire-format.js';
 
 import {
-	CorpusSnapshotStore
+	CorpusSnapshotStore,
+	CorpusSnapshot,
+	corpusSnapshotKey,
+	snapshotEligibleCard
 } from './corpus-snapshot.js';
 
 //The name of the cards collection; mirrored from src/actions/database.ts
@@ -498,7 +501,13 @@ const MAX_SNAPSHOT_ABANDONS = 3;
 let consecutiveSnapshotAbandons = 0;
 
 const saveCorpusSnapshot = async () : Promise<void> => {
-	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore || !syncMetaState) return;
+	//A READER (published-only) session legitimately has no syncMetaState: it
+	//runs no tombstone or delta plane, because its published listener is a
+	//FULL-SET query whose first server-confirmed delivery is the complete
+	//authoritative corpus for this scope. Reconciliation against that set
+	//repairs any stale snapshot wholesale, so there is no cursor to carry.
+	if (!corpusSnapshotPersistenceEnabled || !corpusSnapshotStore) return;
+	if (!syncMetaState && currentMayViewUnpublished) return;
 	if (corpusSnapshotSaveInFlight) {
 		corpusSnapshotSavePending = true;
 		return;
@@ -530,8 +539,17 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	//a lie. Progress is guaranteed because edits are bursty, not continuous.
 	const startVersion = corpusMutationVersion;
 	const cards : {[id : string] : unknown} = {};
+	//A published-only session's snapshot is keyed WITHOUT a uid, because
+	//published content is identical for every viewer and is therefore safely
+	//shared between them. That sharing is only sound if the record contains
+	//nothing viewer-specific: a signed-in non-privileged user also runs
+	//author/editor listeners, so their own unpublished cards are in this
+	//corpus, and writing those into the shared record would leak them to the
+	//next anonymous visitor on this device. Persist only the published subset.
+	const publishedOnly = !currentMayViewUnpublished;
 	let sliceStart = performance.now();
 	for (const [id, card] of corpus.entries()) {
+		if (!snapshotEligibleCard(card, publishedOnly)) continue;
 		cards[id] = toWire(card, isTimestamp, getTime);
 		if (performance.now() - sliceStart < SNAPSHOT_SERIALIZE_SLICE_MS) continue;
 		await yieldToWorkerQueue();
@@ -577,9 +595,9 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	//await. A later worker event may mutate live state, but the record remains a
 	//coherent earlier checkpoint rather than cards from one instant plus bounds
 	//from another.
-	const processedTombstoneIDs = [...syncMetaState.processedTombstoneIDs];
-	const tombstoneCursor = syncMetaState.tombstoneCursor ? {...syncMetaState.tombstoneCursor} : null;
-	const watermarkClamp = syncMetaState.watermarkClamp ? {...syncMetaState.watermarkClamp} : null;
+	const processedTombstoneIDs = syncMetaState ? [...syncMetaState.processedTombstoneIDs] : [];
+	const tombstoneCursor = syncMetaState?.tombstoneCursor ? {...syncMetaState.tombstoneCursor} : null;
+	const watermarkClamp = syncMetaState?.watermarkClamp ? {...syncMetaState.watermarkClamp} : null;
 	try {
 		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp);
 		consecutiveSnapshotSaveFailures = 0;
@@ -1139,6 +1157,136 @@ const connectFirebase = async (devMode : boolean, persist : boolean, emulatorTar
 	hookEmulator();
 };
 
+//Exactly ONE reader tab writes the shared published snapshot.
+//
+//The privileged path is single-tab by construction — the bridge's ownership
+//lease keeps other tabs workerless — but readers deliberately have no lease,
+//because a public visitor's second tab must keep working rather than be told
+//the app moved. Two reader workers would therefore both write: their epoch is
+//0, so CorpusSnapshotStore.claimOwnership accepts both (`epoch <= epoch`), and
+//each save serializes the entire published corpus.
+//
+//A Web Lock is the right primitive and is deliberately requested WITHOUT
+//`ifAvailable`: the request simply waits, so when the writing tab closes the
+//role transfers to a waiting tab instead of being lost until the next boot.
+//Held for the life of the worker; termination releases it.
+const PUBLISHED_SNAPSHOT_WRITER_LOCK = 'corpus-published-snapshot-writer';
+
+const claimPublishedSnapshotWriter = () => {
+	//CorpusSnapshotStore.save() aborts its transaction unless a stored owner
+	//record matches this instance's token, so a path that never claims writes
+	//NOTHING — silently, reported only as "ownership changed during the write".
+	//The privileged path claims as part of its epoch handshake; the reader path
+	//has no epoch, so it must claim explicitly. The default token (ownerID '',
+	//epoch 0) is sufficient BECAUSE the Web Lock below already guarantees a
+	//single writer; the claim is what makes the write legal, not what arbitrates
+	//between tabs.
+	const enable = async () => {
+		if (!corpusSnapshotStore) return;
+		try {
+			if (!await corpusSnapshotStore.claimOwnership()) {
+				status('published snapshot ownership refused; not persisting this session');
+				return;
+			}
+		} catch (err) {
+			status(`published snapshot ownership unavailable (${String(err)}); not persisting this session`);
+			return;
+		}
+		corpusSnapshotPersistenceEnabled = true;
+		scheduleCorpusSnapshotSave(0);
+	};
+	const locks = navigator.locks;
+	if (!locks) {
+		//No Web Locks (older browser, or a non-secure context). Writing from
+		//every reader tab is wasteful but not incorrect: each writer only
+		//reaches here having passed the same server-confirmed trust gate, so
+		//they agree on the contents.
+		void enable();
+		return;
+	}
+	void locks.request(PUBLISHED_SNAPSHOT_WRITER_LOCK, async () => {
+		if (!corpusSnapshotStore) return;
+		await enable();
+		//Hold for the life of this worker.
+		await new Promise<void>(() => { /* released on worker termination */ });
+	}).catch(err => {
+		status(`published snapshot writer lock unavailable (${String(err)}); persisting anyway`);
+		void enable();
+	});
+};
+
+//Prime a PUBLISHED-ONLY (reader) session from a compact snapshot, then attach
+//the published listener.
+//
+//Anonymous visitors are the public site's primary audience and, before this,
+//persisted nothing at all: Firestore inside a dedicated worker supports only
+//persistentSingleTabManager({forceOwnership: true}), so a reader cannot be
+//given the Firestore cache without contending for the one lease a signed-in
+//owner tab will steal. The compact snapshot has no such constraint — it is the
+//application's own IndexedDB record, already keyed by scope — so the published
+//scope is served here and Firestore's cache stays exclusively the owner's.
+//
+//The record needs no uid: published content is identical for every viewer, so
+//one shared record serves them all and survives anonymous-uid churn. See
+//saveCorpusSnapshot for what keeps that sharing sound.
+//
+//Staleness needs no cursor. The published listener is a FULL-SET query, so its
+//first server-confirmed delivery is the complete authoritative corpus for this
+//scope and publishedGhostIDs already reconciles anything the snapshot holds
+//that the server does not — machinery that predates this and was written for
+//exactly this shape.
+const connectPublishedFromSnapshot = async () => {
+	const myConnectionGeneration = connectionGeneration;
+	try {
+		const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
+		corpusSnapshotStore = new CorpusSnapshotStore(corpusSnapshotKey(projectID, '', 'published'));
+	} catch {
+		corpusSnapshotStore = null;
+	}
+	let compactSnapshot : CorpusSnapshot | null = null;
+	try {
+		compactSnapshot = corpusSnapshotStore ? await corpusSnapshotStore.load() : null;
+	} catch (err) {
+		//An unusable IndexedDB costs persistence only, never the session.
+		status(`published compact snapshot unavailable (${String(err)}); serving from the network`);
+		corpusSnapshotStore = null;
+	}
+	if (myConnectionGeneration !== connectionGeneration) return;
+	const primedCards : Cards = {};
+	primedSnapshotAgeMs = null;
+	if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
+		const ageMs = Date.now() - (compactSnapshot.savedAt || 0);
+		primedSnapshotAgeMs = compactSnapshot.savedAt ? ageMs : null;
+		const restored = fromWire(compactSnapshot.cards,
+			(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
+		for (const [id, card] of Object.entries(restored)) {
+			//Never overwrite fresher listener data with the saved base.
+			if (!corpus.has(id)) primedCards[id] = card;
+		}
+		//The listener can beat this independent IndexedDB read; apply its
+		//authoritative set so ghosts cannot arrive after its one-shot
+		//reconciliation has already run.
+		if (authoritativePublishedIDs) {
+			for (const [id, card] of Object.entries(primedCards)) {
+				if (card.published && !authoritativePublishedIDs.has(id)) delete primedCards[id];
+			}
+		}
+	}
+	const primedCount = Object.keys(primedCards).length;
+	if (primedCount) {
+		updateLocalState(primedCards, [], true);
+		forwardBatch(primedCards, [], 'published', true, false,
+			engine.cardDerivedFilters(), [...corpus.keys()]);
+		status(`published compact snapshot prime: ${primedCount} cards`);
+		//Same reasoning as the privileged path: a compact snapshot is only ever
+		//written after its corpus passed a trust gate, so it is known-complete
+		//and the UI may render it while verification continues.
+		if (primedCount >= WARM_CACHE_THRESHOLD) markInitialDelivered('published');
+	}
+	if (myConnectionGeneration !== connectionGeneration) return;
+	connectPublished();
+};
+
 const connectPublished = () => {
 	if (!db) return;
 	const database = db;
@@ -1165,6 +1313,19 @@ const connectPublished = () => {
 							updateLocalState({}, ghosts);
 							forwardBatch({}, ghosts, 'published', false);
 							status(`published reconciliation removed ${ghosts.length} snapshot ghosts`);
+						}
+						//THE READER'S TRUST GATE. markWatermarkPlane below is a
+						//no-op without unpublished scope, so a published-only
+						//session has no other moment at which its corpus is
+						//known-good. This one is exactly as strong as the
+						//privileged path's three-plane gate: the published
+						//listener is a FULL-SET query, so a server-confirmed
+						//delivery is the complete authoritative corpus for this
+						//scope, and the ghost reconciliation just above has
+						//already removed anything the snapshot held that the
+						//server does not.
+						if (!currentMayViewUnpublished && corpusSnapshotStore) {
+							claimPublishedSnapshotWriter();
 						}
 					}
 					markWatermarkPlane('published', true);
@@ -2124,7 +2285,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		}
 		return syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
 	};
-	corpusSnapshotStore = new CorpusSnapshotStore(`${projectID}:${currentUid}:privileged`, ownership);
+	corpusSnapshotStore = new CorpusSnapshotStore(corpusSnapshotKey(projectID, currentUid, 'privileged'), ownership);
 	//See the sync-meta claim above: a rejected claim means IndexedDB is
 	//unusable, not that another tab won the epoch. Serving from the network
 	//without a local snapshot is a slow boot; hanging forever on "Loading…"
@@ -2543,10 +2704,10 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 			void connectUnpublishedPrivileged();
 		}
 	} else if (uid) {
-		connectPublished();
+		void connectPublishedFromSnapshot();
 		connectUnpublishedAuthorEditor(uid);
 	} else {
-		connectPublished();
+		void connectPublishedFromSnapshot();
 	}
 };
 
