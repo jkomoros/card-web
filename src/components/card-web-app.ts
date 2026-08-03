@@ -91,6 +91,11 @@ class CardWebApp extends connect(store)(LitElement) {
 	@state()
 	private _updateActivated = false;
 
+	//Drives .editor-open below. The editor's Save/Cancel row is fixed in the
+	//same bottom-right corner these banners use.
+	@state()
+	private _editorOpen = false;
+
 	private _lastDraftUid = '';
 	private _updateActivationTimeout : number | undefined;
 	private _updateChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(SERVICE_WORKER_UPDATE_CHANNEL);
@@ -218,7 +223,20 @@ class CardWebApp extends connect(store)(LitElement) {
 				cursor: pointer;
 			}
 			.update-ready button[disabled] { opacity: 0.55; cursor: not-allowed; }
+			/* The card editor's Save and Cancel row is position:fixed in this
+			   same corner while editing, and these banners sat directly on top
+			   of it — elementFromPoint at the centre of both buttons returned
+			   the banner, so clicks never reached them. That is worse than a
+			   cosmetic overlap: the update banner's own text is "save or cancel
+			   your draft first", so it told the user to press exactly the two
+			   controls it was blocking, with no way to comply. Same class of
+			   bug as the two corner clearances noted above; the editor's row
+			   was the case that got missed. */
+			.update-ready.editor-open { bottom: 4.25rem; }
 			.draft-recovery { bottom: 4.25rem; }
+			/* Keep the two banners from stacking on each other once the update
+			   banner has moved up. */
+			.draft-recovery.editor-open { bottom: 7.75rem; }
 			.draft-recovery .discard { background: transparent; color: inherit; text-decoration: underline; }
 			.draft-error { color: var(--app-warning-color-light); }
 			.save-status {
@@ -270,12 +288,12 @@ class CardWebApp extends connect(store)(LitElement) {
 		<snack-bar .active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
 		${this._updateRegistration || this._updateActivated ? html`
-			<div class='update-ready' role='status' aria-live='polite'>
+			<div class='update-ready ${this._editorOpen ? 'editor-open' : ''}' role='status' aria-live='polite'>
 				<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
 				<button ?disabled=${Boolean(this._currentUnsafeExitReason()) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
 			</div>` : ''}
 		${this._draftAvailable ? html`
-			<div class='update-ready draft-recovery' role='alert' aria-live='assertive'>
+			<div class='update-ready draft-recovery ${this._editorOpen ? 'editor-open' : ''}' role='alert' aria-live='assertive'>
 				<span>${this._draftError || 'An unsaved card draft is available.'}</span>
 				<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
 				<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
@@ -475,6 +493,7 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._card = selectActiveCard(state);
+		this._editorOpen = Boolean(state.editor?.editing);
 		this._page = state.app.page;
 		this._offline = state.app.offline;
 		this._snackbarOpened = state.app.snackbarOpened;

@@ -384,6 +384,28 @@ met.
   open and bound to the previous card. Structurally present on master too, but
   easier to hit here.
 
+### Found by smoke-testing a real DEV deploy (FIXED)
+
+- **The "Update ready" banner covered the editor's Save and Cancel buttons.**
+  Both banners are `position: fixed` in the bottom-right corner, and the card
+  editor's action row is fixed in that same corner while editing:
+  `elementFromPoint` at the centre of BOTH buttons returned the banner, so
+  clicks never reached them. The banner's own text is "Update ready — save or
+  cancel your draft first", so it instructed the user to press exactly the two
+  controls it was blocking, with no way to comply — a genuine dead end on the
+  service-worker update path, not a cosmetic overlap.
+  Fixed with an `.editor-open` modifier that lifts the update banner to
+  `bottom: 4.25rem` and the draft-recovery banner to `7.75rem` so the two do not
+  then stack on each other. This is the same class of bug as the two corner
+  clearances already commented in that CSS (the comments panel's add button and
+  the drawer's create buttons); the editor's row was the case that got missed.
+  Verified against the deployed DEV build: banner y=1164-1211 vs buttons
+  y=1227-1271, and the Cancel click LANDS where it previously timed out.
+  Worth knowing for any future check of this kind: the service worker is
+  cache-first, so a fresh deploy is NOT what an open tab loads. The first
+  verification attempt silently tested the PREVIOUS bundle and appeared to show
+  the fix failing. Unregister the service worker and clear caches first.
+
 ### Prod-cutover blockers (do NOT gate the merge; DO gate the deploy)
 
 - Anonymous visitors lost all card persistence: readers get memory-cache
