@@ -198,6 +198,54 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### NOT yet folded in from the review file (R16 correction)
+
+The claim elsewhere in this document that "the review file is disposable" was
+FALSE by thirteen findings. These live only in
+`docs/fast-corpus-landing-review-2026-08-02.md` and are recorded here so the
+queue is the single list it claims to be. None are fixed.
+
+Round 13 performance (six, none present here — `grep -ic` for `handoff`,
+`selectDefaultSet`, `sharedDiffCards`, `IDF`, `cardMeta` returned 0):
+the main-thread handoff cost, `selectDefaultSet`, `sharedDiffCards`, the IDF
+map's size and load path, and `cardMeta` — see the Round 13 section of the
+review file for the measurements.
+
+Round 15 (seven "worth queueing" items) — likewise see that file.
+
+Three were re-verified as still true at R16 and are worth naming, because each
+is a foot-gun rather than a perf number:
+- `tools/mount.ts:552` still hardcodes `cardsCollection: 'cards'`.
+- `tools/migrate-nlp-tokens.mjs:66` still defaults to PROD.
+- `functions/src/twitter.ts:213` still says the tweet functions "must never be
+  scheduled" while `functions/src/index.ts:63,76` schedules both. One of these
+  two statements is wrong and it matters which.
+
+### Still open from Round 16
+
+- **P2-3. Offline is silently PARTIAL.** Measured anonymous, same page: online
+  `sections: 5, tags: 52` becomes offline `sections: 0, tags: 0`, while
+  `sectionsLoaded` and `tagsLoaded` are both true and `corpusStatus` is `live`.
+  Navigation disappears behind a stuck "Loading…" and anything gated on
+  "sections loaded" proceeds against an empty set. The compact snapshot covers
+  CARDS only. Either persist sections/tags alongside it or stop claiming
+  loaded — the current combination is the worst of the two.
+- **P2-6, remaining.** A listener re-attach re-delivers everything as `added`,
+  and `setUnion` cannot express a removal, so a re-attach can clobber a queued
+  optimistic REMOVAL. (The other two P2-6 items — premature `*Loaded` flags and
+  per-user state surviving sign-out — are fixed.)
+- The test gaps the reviewer lists: nothing exercises
+  `connectPublishedFromSnapshot` / `claimPublishedSnapshotWriter` or the
+  key↔filter PAIRING that is the actual privacy boundary; the `nlp_tokens` fast
+  path (`StoredProcessedRun`) has no test at all, and its enumeration surface
+  changed (`Object.keys`/spread/`structuredClone` now emit `_stemmed` /
+  `_withoutStopWords` and omit the getters) — latent, no live consumer today.
+- `tools/assert-build-fresh.cjs` has three measured false-pass modes: touching
+  any file under `lib/` masks every stale source (it compares max-mtime to
+  max-mtime, not per file); `tools/**/*.ts` and `functions/` are not scanned
+  though tsconfig emits them; and deleting a `.ts` leaves an orphan `.js`
+  undetected.
+
 ### Release engineering (folded in)
 
 - **There is no CI.** The stale-build half of this is now closed:
@@ -375,11 +423,14 @@ debug tab, GC forced between iterations):
   5 consecutive in-renderer reloads   1038MB, 1038, 1038, 1038, 1038 — flat
   3 two-tab takeover cycles           1016MB, 1016, 1016 — flat
 
-So neither reloads nor takeovers retain. What the same run DID show is that
-this tab's settled floor is ~1.02GB with the full corpus mirrored into the
-page, against the 574MB the reviewer measured at a fresh loadComplete — the
-difference being a rendered section collection and drawer (they measured 787MB
-for that). Against a 4,192MB limit that is a high floor but not a leak.
+So neither reloads nor takeovers retain.
+
+RETRACTED (R16): the sentence that used to follow — that the ~1.02GB floor was
+"the full corpus mirrored into the page" — is refuted. The reviewer dumped the
+Redux `data` slice in exactly that state and found 0 cards, 0 cardMeta and the
+worker terminated, with 1,010MB still retained. So the floor is NOT the page's
+copy of the corpus, and whatever holds it is still unidentified. Against a
+4,192MB limit it is a high floor; calling it explained was wrong.
 
 Remaining hypotheses, none tested: (a) the crash is a transient SPIKE on top of
 a ~1GB floor rather than accumulation — the two occurrences both followed a
@@ -614,8 +665,12 @@ exist for these queries because the worker's cache persists them).
 
 ### Performance (measured live by the reviewer)
 
-- A ~2.5s main-thread freeze and a ~1.5GB heap peak during boot. This is the
-  best lead on the renderer crash seen once and never reproduced.
+- A ~2.5s main-thread freeze during boot.
+  SUPERSEDED (R16): the "~1.5GB heap peak" and "seen once and never reproduced"
+  halves of this entry are stale and contradicted the Round 14 section above,
+  which reproduced the crash WITH numbers. Two later occurrences are also
+  recorded (2026-08-03, and the 2026-08-01 one below). Treat the Round 14
+  section plus the R16 clean-profile measurements as the current record.
 
 ---
 
@@ -630,7 +685,7 @@ Findings marked **[MINE]** are regressions introduced by this session's own work
 
 ## P0 — data integrity / release blockers
 
-### Renderer crash seen ONCE, not reproduced
+### Renderer crash, 2026-08-01 (SUPERSEDED — see the Round 14 section, which reproduced it)
 On 2026-08-01 the debug tab's renderer crashed immediately after unregistering
 the service worker + deleting all caches and reloading (the heaviest
 fetch-plus-prime path). It did not reproduce: the next boot completed in 11s

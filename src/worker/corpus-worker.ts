@@ -1322,6 +1322,21 @@ const READING_LISTS_COLLECTION = 'reading_lists';
 
 let userStateUnsubscribes : (() => void)[] = [];
 
+//Backoff for re-attaching a per-user listener. Bounded and generation-checked so
+//a superseded connection cannot resurrect listeners for the old session.
+let userStateReattachDelayMs = 1000;
+const MAX_USER_STATE_REATTACH_DELAY_MS = 30 * 1000;
+
+const scheduleUserStateReattach = (attach : () => void) => {
+	const myConnectionGeneration = connectionGeneration;
+	const delay = userStateReattachDelayMs;
+	userStateReattachDelayMs = Math.min(userStateReattachDelayMs * 2, MAX_USER_STATE_REATTACH_DELAY_MS);
+	setTimeout(() => {
+		if (myConnectionGeneration !== connectionGeneration) return;
+		attach();
+	}, delay);
+};
+
 const disconnectUserState = () => {
 	for (const unsubscribe of userStateUnsubscribes) {
 		try { unsubscribe(); } catch { /* already torn down */ }
@@ -1331,6 +1346,7 @@ const disconnectUserState = () => {
 
 const connectUserState = (uid : string) => {
 	disconnectUserState();
+	userStateReattachDelayMs = 1000;
 	if (!db || !uid) return;
 	const database = db;
 	const myConnectionGeneration = connectionGeneration;
@@ -1356,14 +1372,22 @@ const connectUserState = (uid : string) => {
 				//was invisible until this ran against a real one.
 				send({type, generation, added, removed});
 			},
-			error => status(`${collectionName} listener error: ${String(error)}`)));
+			error => {
+				//The SDK TERMINATES a listener whose error callback fires — it
+				//will never deliver again. Logging and moving on meant one
+				//backend blip silently froze stars or reads for the rest of the
+				//session while syncState still reported `live`. Re-attach with
+				//backoff, as the card listeners already do.
+				status(`${collectionName} listener error: ${String(error)}; re-attaching`);
+				scheduleUserStateReattach(() => cardIDDeltaListener(collectionName, type));
+			}));
 	};
 	cardIDDeltaListener(STARS_COLLECTION, 'userStars');
 	cardIDDeltaListener(READS_COLLECTION, 'userReads');
 	//The reading list is ONE document holding an ordered array, so it is sent
 	//whole rather than as a delta -- order is meaningful and a delta cannot
 	//express a reorder.
-	userStateUnsubscribes.push(onSnapshot(
+	const attachReadingList = () => userStateUnsubscribes.push(onSnapshot(
 		query(collection(database, READING_LISTS_COLLECTION), where('owner', '==', uid)),
 		snapshot => {
 			if (myConnectionGeneration !== connectionGeneration) return;
@@ -1374,7 +1398,11 @@ const connectUserState = (uid : string) => {
 			}
 			send({type: 'userReadingList', generation, list});
 		},
-		error => status(`${READING_LISTS_COLLECTION} listener error: ${String(error)}`)));
+		error => {
+			status(`${READING_LISTS_COLLECTION} listener error: ${String(error)}; re-attaching`);
+			scheduleUserStateReattach(attachReadingList);
+		}));
+	attachReadingList();
 	status(`per-user state listeners attached for ${uid}`);
 };
 

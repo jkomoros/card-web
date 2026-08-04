@@ -159,12 +159,6 @@ import {
 } from './account-handover.js';
 
 import {
-	updateStars,
-	updateReads,
-	updateReadingList
-} from './actions/user.js';
-
-import {
 	inFlightMutationCount,
 	fenceMutations,
 	allowMutations,
@@ -453,6 +447,34 @@ const PERSISTENCE_PURGE_KEY = 'corpus-worker-persistence-purge-v1';
 
 //S4, the same-session half. The decision itself lives in
 //src/account-handover.ts so it can be unit tested; see the reasoning there.
+//actions/user.js is reached LAZILY. A static import here would be an eager
+//edge in the database<->bridge cycle this file otherwise takes care to avoid —
+//the worker-failure fallback a few hundred lines below uses a dynamic import
+//for exactly that reason.
+//
+//The calls are CHAINED rather than each awaiting independently, because these
+//messages are ORDERED deltas: a star-add followed by a star-remove that
+//resolved in the other order would leave the card starred, the opposite of what
+//the user did. Once loaded the fast path is synchronous.
+type UserActionsModule = typeof import('./actions/user.js');
+let userActions : UserActionsModule | null = null;
+let userActionsChain : Promise<UserActionsModule> | null = null;
+
+const withUserActions = (fn : (actions : UserActionsModule) => void) => {
+	if (userActions) {
+		fn(userActions);
+		return;
+	}
+	userActionsChain = (userActionsChain || import('./actions/user.js').then(module => {
+		userActions = module;
+		return module;
+	})).then(module => {
+		fn(module);
+		return module;
+	});
+	void userActionsChain.catch(error => console.error('[corpus-worker] could not apply per-user state:', error));
+};
+
 const SAME_SESSION_PURGE_RELOAD_KEY = 'corpus-worker-purge-reload-v1';
 
 const requestPersistencePurge = (outgoingUid : string) => {
@@ -1227,13 +1249,13 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//Same deltas the main thread's own listener used to derive from
 		//docChanges(), so the reducers are untouched. See connectUserState in
 		//the worker for why these moved.
-		store.dispatch(updateStars(message.added, message.removed));
+		withUserActions(actions => store.dispatch(actions.updateStars(message.added, message.removed)));
 		return;
 	case 'userReads':
-		store.dispatch(updateReads(message.added, message.removed));
+		withUserActions(actions => store.dispatch(actions.updateReads(message.added, message.removed)));
 		return;
 	case 'userReadingList':
-		store.dispatch(updateReadingList(message.list));
+		withUserActions(actions => store.dispatch(actions.updateReadingList(message.list)));
 		return;
 	case 'syncState':
 		lastSyncState = message.state;
