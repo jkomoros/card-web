@@ -253,11 +253,26 @@ is a foot-gun rather than a perf number:
   path (`StoredProcessedRun`) has no test at all, and its enumeration surface
   changed (`Object.keys`/spread/`structuredClone` now emit `_stemmed` /
   `_withoutStopWords` and omit the getters) — latent, no live consumer today.
-- `tools/assert-build-fresh.cjs` has three measured false-pass modes: touching
-  any file under `lib/` masks every stale source (it compares max-mtime to
-  max-mtime, not per file); `tools/**/*.ts` and `functions/` are not scanned
-  though tsconfig emits them; and deleting a `.ts` leaves an orphan `.js`
-  undetected.
+- `tools/assert-build-fresh.cjs`: FIXED. The check is now PER FILE, maps each
+  source to its own output, and also reports sources with no output at all and
+  outputs whose source is gone. All three modes were reproduced against the old
+  tool before and after, on the same tree:
+
+      clean tree                                   old PASS   new PASS
+      stale source, masked by touching one lib/ .js  old PASS   new FAIL
+      unbuilt source that is not the newest file     old PASS   new FAIL
+      deleted .ts leaving an orphan .js              old PASS   new FAIL
+
+  One correction to the report: the "no compiled output" mode is caught by the
+  OLD tool when the unbuilt file happens to be the newest thing in the tree,
+  which is what a freshly-added file looks like. It is a false pass only when
+  the unbuilt file is NOT newest — i.e. a build that failed partway, which is
+  the case that actually happens. The row above uses that variant.
+  Scope note: `tools/**/*.ts` IS now scanned (tsc emits it to `lib/tools`).
+  `functions/` still is not, deliberately — it has its own tsconfig and output
+  and no test imports it. And `lib/shared` is a SUBSET by design, since tsc only
+  pulls in the shared files that `src/` imports, so absence there is not treated
+  as a failed build.
 
 ### Release engineering (folded in)
 
