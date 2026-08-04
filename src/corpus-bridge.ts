@@ -1573,7 +1573,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 		//Gate the purge on the same expression that decides who opens the
 		//database, so a reader-path boot (memory cache) never races the owner.
 		const persist = corpusWorkerOwnsCardIngestion() && ownershipState !== 'reader';
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ownsUserState: corpusWorkerOwnsCardIngestion() && !selectUserIsAnonymous(store.getState() as State), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {

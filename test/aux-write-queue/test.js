@@ -393,6 +393,18 @@ describe('aux write queue', () => {
 			queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c', '', payload)),
 			/could not be saved locally/,
 			'a creation that was never persisted must not be reported as durable');
+		//card-delete is high-value for the same reason: deleteCard navigates
+		//away BEFORE the write is attempted, so degrading to session-only means
+		//telling the user "the deletion has been saved and will apply
+		//automatically" when nothing was persisted at all -- the exact failure
+		//the durable record was introduced to remove. It was added to
+		//AuxWriteKind, AUX_WRITE_KINDS, KINDS_REQUIRING_PAYLOAD and
+		//DISCARD_LABELS but not to this set.
+		queue.registerAuxWriteExecutor('card-delete', async () => {});
+		await assert.rejects(
+			queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-delete', 'c', '', {kind: 'card-delete', card: {id: 'c'}})),
+			/could not be saved locally/,
+			'a deletion that was never persisted must not be reported as durable');
 		//A best-effort kind still degrades to session-only rather than failing.
 		queue.registerAuxWriteExecutor('star-add', async () => {});
 		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'c')), 'committed');

@@ -514,7 +514,15 @@ const validIntent = (value : unknown) : value is AuxWriteIntent => {
 //(the comment is still on screen and can be deleted again), and its call site
 //is dispatched unawaited — a rejection there would be an unhandled one, and
 //there is no unhandledrejection handler anywhere in src/.
-const HIGH_VALUE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add', 'comment-edit']);
+//card-delete belongs here for the same reason card-create does: the UI has
+//ALREADY moved on by the time the write is attempted (deleteCard navigates
+//away), so a write that only lives in this session's memory is a deletion the
+//user is told was "saved and will apply automatically" while nothing was
+//persisted at all — the exact failure the durable record was introduced to
+//remove. Membership makes runDurableAuxWrite REJECT instead of degrading to
+//session-only; deleteCard handles that rejection itself, because its caller
+//dispatches it unawaited.
+const HIGH_VALUE_KINDS : ReadonlySet<string> = new Set<AuxWriteKind>(['card-create', 'comment-add', 'comment-edit', 'card-delete']);
 
 //A corrupt or unreadable blob used to return [] — and because every mutation is
 //read-modify-write, the very next star would persist that empty list and erase

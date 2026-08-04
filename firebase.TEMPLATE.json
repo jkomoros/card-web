@@ -10,6 +10,18 @@
         "source": "**",
         "destination": "/index.html"
       }
+    ],
+    "//": "The corpus worker is served from a STABLE, unhashed URL while the main chunks are content-hashed, so Firebase Hosting's default max-age=3600 let a returning user inside the deploy hour run a PREVIOUS worker build against a current page. The page/worker protocol handshake catches the mismatch and recovers, but recovery is a degraded boot -- and since the protocol moved 3->4 that window also costs per-user state in shadow mode. no-cache still allows a 304, so this revalidates rather than re-downloads.",
+    "headers": [
+      {
+        "source": "/lib/src/worker/corpus-worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
     ]
   },
   "firestore": {

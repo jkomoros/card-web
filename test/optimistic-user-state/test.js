@@ -102,4 +102,21 @@ describe('optimistic per-user state survives a LATE discard', () => {
 		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('some-other-uid', 'star-add', id));
 		assert.equal(starred(id), true, 'the current account\'s state is untouched');
 	});
+
+	it('an optimistic update does NOT claim the authoritative set has loaded', () => {
+		//`starsLoaded` gates selectDataIsFullyLoaded. A local star -- or
+		//auto-mark-read firing on boot -- would otherwise flip it with a single
+		//entry while the real set was still in flight, and everything gated on
+		//"user state loaded" would proceed against one card instead of hundreds.
+		store.dispatch({type: 'SIGNOUT_SUCCESS'});
+		store.dispatch(user.updateStars(['card-x'], [], true));
+		assert.equal(store.getState().user.starsLoaded, false,
+			'an optimistic star must not mark the star set loaded');
+		store.dispatch(user.updateStars(['card-y'], []));
+		assert.equal(store.getState().user.starsLoaded, true,
+			'the authoritative delivery does mark it loaded');
+		//And once loaded, a later optimistic update must not UNSET it.
+		store.dispatch(user.updateStars(['card-z'], [], true));
+		assert.equal(store.getState().user.starsLoaded, true);
+	});
 });

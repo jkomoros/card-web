@@ -1168,18 +1168,23 @@ type ActionSignoutSuccess = {
 type ActionUpdateStars = {
 	type: typeof UPDATE_STARS,
 	starsToAdd: CardID[],
-	starsToRemove: CardID[]
+	starsToRemove: CardID[],
+	//True for a LOCAL, not-yet-confirmed change. Such an update must not claim
+	//the authoritative set has loaded; see the reducer.
+	optimistic?: boolean
 };
 
 type ActionUpdateReads = {
 	type: typeof UPDATE_READS,
 	readsToAdd: CardID[],
-	readsToRemove: CardID[]
+	readsToRemove: CardID[],
+	optimistic?: boolean
 };
 
 type ActionUpdateReadingList = {
 	type: typeof UPDATE_READING_LIST,
-	list: CardID[]
+	list: CardID[],
+	optimistic?: boolean
 };
 
 type ActionAutoMarkReadPendingChanged = {

@@ -2746,9 +2746,20 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 	//close between the UI committing (above) and the server ack no longer loses
 	//the deletion. The executor rebuilds the same batch — tombstone and delete
 	//first, then the updates subcollection, then the inbound-link cleanup.
+	//TRIMMED deliberately. The executor needs only `published` (for the
+	//tombstone) and the reference fields (to recompute the inbound-link mirror),
+	//but persistableCard carries the whole card INCLUDING nlp_tokens and
+	//nlp_search_tokens — by far its largest fields — which made this the biggest
+	//intent kind in the queue for no benefit. Now that card-delete is
+	//admission-controlled, that size is also what would refuse a deletion.
+	const persisted = persistableCard(card) as unknown as {[field : string] : unknown};
+	const trimmed : {[field : string] : unknown} = {};
+	for (const field of ['id', 'published', 'card_type', 'references', 'references_info', 'references_inbound', 'references_info_inbound']) {
+		if (persisted[field] !== undefined) trimmed[field] = persisted[field];
+	}
 	const intent = makeAuxWriteIntent(selectUid(state), 'card-delete', card.id, '', {
 		kind: 'card-delete',
-		card: persistableCard(card),
+		card: trimmed as unknown as ReturnType<typeof persistableCard>,
 	});
 
 	let outcome : AuxWriteOutcome;

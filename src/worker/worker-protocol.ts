@@ -136,7 +136,11 @@ export type MainToWorkerMessage =
 	//is forwarded from the main thread's `firebase-emulator` localStorage flag —
 	//the worker has no localStorage, so the bridge reads it and passes it here.
 	//Absent (undefined) in every real dev/prod connection.
-	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean}
+	//`ownsUserState`: whether THIS worker should run the stars/reads/reading-list
+	//listeners. The page is the authority — it knows the corpus mode and whether
+	//the session is anonymous — so the worker does not have to infer either.
+	//Absent means false, which is the pre-v4 behaviour of not running them.
+	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean, ownsUserState? : boolean}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}

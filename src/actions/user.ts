@@ -600,25 +600,25 @@ export const installOptimisticUserStateReconciler = () : void => {
 		if (intent.uid !== selectUid(store.getState() as State)) return;
 		switch (intent.kind) {
 		case 'star-add':
-			store.dispatch(updateStars([], [cardID]));
+			store.dispatch(updateStars([], [cardID], true));
 			return;
 		case 'star-remove':
-			store.dispatch(updateStars([cardID], []));
+			store.dispatch(updateStars([cardID], [], true));
 			return;
 		case 'read-add':
-			store.dispatch(updateReads([], [cardID]));
+			store.dispatch(updateReads([], [cardID], true));
 			return;
 		case 'read-remove':
-			store.dispatch(updateReads([cardID], []));
+			store.dispatch(updateReads([cardID], [], true));
 			return;
 		case 'reading-list-add': {
 			const list = selectUserReadingList(store.getState() as State);
-			if (list.includes(cardID)) store.dispatch(updateReadingList(list.filter((id : CardID) => id !== cardID)));
+			if (list.includes(cardID)) store.dispatch(updateReadingList(list.filter((id : CardID) => id !== cardID), true));
 			return;
 		}
 		case 'reading-list-remove': {
 			const list = selectUserReadingList(store.getState() as State);
-			if (!list.includes(cardID)) store.dispatch(updateReadingList([...list, cardID]));
+			if (!list.includes(cardID)) store.dispatch(updateReadingList([...list, cardID], true));
 			return;
 		}
 		default:
@@ -629,11 +629,12 @@ export const installOptimisticUserStateReconciler = () : void => {
 	});
 };
 
-export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
+export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_STARS,
 		starsToAdd,
-		starsToRemove
+		starsToRemove,
+		optimistic
 	});
 	dispatch(refreshCardSelector(false));
 };
@@ -678,11 +679,11 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispa
 	void applyOptimistically(
 		() => {
 			const list = selectUserReadingList(getState());
-			if (!list.includes(cardToAdd)) dispatch(updateReadingList([...list, cardToAdd]));
+			if (!list.includes(cardToAdd)) dispatch(updateReadingList([...list, cardToAdd], true));
 		},
 		() => {
 			const list = selectUserReadingList(getState());
-			if (list.includes(cardToAdd)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToAdd)));
+			if (list.includes(cardToAdd)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToAdd), true));
 		},
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
@@ -711,11 +712,11 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 	void applyOptimistically(
 		() => {
 			const list = selectUserReadingList(getState());
-			if (list.includes(cardToRemove)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToRemove)));
+			if (list.includes(cardToRemove)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToRemove), true));
 		},
 		() => {
 			const list = selectUserReadingList(getState());
-			if (!list.includes(cardToRemove)) dispatch(updateReadingList([...list, cardToRemove]));
+			if (!list.includes(cardToRemove)) dispatch(updateReadingList([...list, cardToRemove], true));
 		},
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
@@ -744,8 +745,8 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch
 
 	const starredID = cardToStar.id;
 	void applyOptimistically(
-		() => dispatch(updateStars([starredID], [])),
-		() => dispatch(updateStars([], [starredID])),
+		() => dispatch(updateStars([starredID], [], true)),
+		() => dispatch(updateStars([], [starredID], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', starredID)));
 };
 
@@ -772,24 +773,26 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (dispa
 
 	const unstarredID = cardToStar.id;
 	void applyOptimistically(
-		() => dispatch(updateStars([], [unstarredID])),
-		() => dispatch(updateStars([unstarredID], [])),
+		() => dispatch(updateStars([], [unstarredID], true)),
+		() => dispatch(updateStars([unstarredID], [], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-remove', unstarredID)));
 };
 
-export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
+export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_READS,
 		readsToAdd,
-		readsToRemove
+		readsToRemove,
+		optimistic
 	});
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateReadingList = (list : CardID[] = []) : ThunkSomeAction => (dispatch) => {
+export const updateReadingList = (list : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_READING_LIST,
 		list,
+		optimistic
 	});
 	dispatch(refreshCardSelector(false));
 };
@@ -870,8 +873,8 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 
 	const readID = cardToMarkRead.id;
 	void applyOptimistically(
-		() => dispatch(updateReads([readID], [])),
-		() => dispatch(updateReads([], [readID])),
+		() => dispatch(updateReads([readID], [], true)),
+		() => dispatch(updateReads([], [readID], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', readID)));
 };
 
@@ -906,7 +909,7 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 
 	const unreadID = cardToMarkUnread.id;
 	void applyOptimistically(
-		() => dispatch(updateReads([], [unreadID])),
-		() => dispatch(updateReads([unreadID], [])),
+		() => dispatch(updateReads([], [unreadID], true)),
+		() => dispatch(updateReads([unreadID], [], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-remove', unreadID)));
 };

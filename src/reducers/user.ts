@@ -73,25 +73,41 @@ const app = (state : UserState = INITIAL_STATE, action : SomeAction) : UserState
 			pending:false,
 			user: null,
 			stars: {},
-			reads: {}
+			reads: {},
+			//The reading list and all three loaded flags used to SURVIVE
+			//sign-out: the previous account's reading list stayed on screen for
+			//the signed-out session, and the flags kept claiming an
+			//authoritative delivery that belonged to someone else — so nothing
+			//waited for the new session's data before proceeding.
+			readingList: [],
+			readingListSnapshot: [],
+			starsLoaded: false,
+			readsLoaded: false,
+			readingListLoaded: false
 		};
+	//`*Loaded` means "the authoritative listener has delivered", and it gates
+	//selectDataIsFullyLoaded. An OPTIMISTIC update carries `optimistic: true` so
+	//it cannot claim that: a local star, or auto-mark-read firing on boot, would
+	//otherwise flip the flag with a single entry while the real set was still in
+	//flight, and everything gated on "user state loaded" would proceed against
+	//one card instead of hundreds.
 	case UPDATE_STARS:
 		return {
 			...state,
 			stars: setUnion(setRemove(state.stars, action.starsToRemove), action.starsToAdd),
-			starsLoaded: true,
+			starsLoaded: state.starsLoaded || !action.optimistic,
 		};
 	case UPDATE_READS:
 		return {
 			...state,
 			reads: setUnion(setRemove(state.reads, action.readsToRemove), action.readsToAdd),
-			readsLoaded: true,
+			readsLoaded: state.readsLoaded || !action.optimistic,
 		};
 	case UPDATE_READING_LIST:
 		return {
 			...state,
 			readingList: [...action.list],
-			readingListLoaded: true,
+			readingListLoaded: state.readingListLoaded || !action.optimistic,
 		};
 	case UPDATE_USER_PERMISSIONS:
 		return {

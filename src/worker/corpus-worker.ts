@@ -1614,6 +1614,8 @@ let syncMetaStore : SyncMetaStore | null = null;
 let syncMetaState : SyncMeta | null = null;
 let currentSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 let currentMayViewUnpublished = false;
+//Set from the connect message; see the note on `ownsUserState` in the protocol.
+let currentOwnsUserState = false;
 type WatermarkPlane = 'published' | 'tombstone' | 'delta';
 const healthyWatermarkPlanes = new Set<WatermarkPlane>();
 
@@ -2809,9 +2811,14 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	} else {
 		void connectPublishedFromSnapshot();
 	}
-	//Every signed-in session, privileged or not. An anonymous uid simply has no
-	//stars, reads or reading list, so these deliver empty and cost nothing.
-	if (uid) connectUserState(uid);
+	//Only when the PAGE says this worker owns per-user state. It is false for an
+	//ANONYMOUS session — an anonymous sign-in yields a real uid, so the earlier
+	//"costs nothing" reasoning was wrong: the three queries attach and deliver
+	//empty, and three empty queries still bill a read each, on exactly the cost
+	//axis the anonymous work was about. It is also false in spike mode, where
+	//the main thread keeps its own listeners and this worker would otherwise
+	//double-subscribe.
+	if (uid && currentOwnsUserState) connectUserState(uid);
 };
 
 const spike = () => {
@@ -2868,6 +2875,7 @@ workerScope.addEventListener('message', event => {
 		currentDevMode = message.devMode;
 		currentOwnerID = message.ownerID;
 		currentOwnershipEpoch = message.ownershipEpoch;
+		currentOwnsUserState = Boolean(message.ownsUserState);
 		if (!firebaseReady) {
 			//The page acquired the origin-wide lease before this worker was
 			//created, so persistent single-tab ownership is safe to claim here.
