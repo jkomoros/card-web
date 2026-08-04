@@ -120,3 +120,77 @@ describe('optimistic per-user state survives a LATE discard', () => {
 		assert.equal(store.getState().user.starsLoaded, true);
 	});
 });
+
+describe('a full re-delivery cannot reverse the user\'s last action', () => {
+	let queue;
+	let user;
+	let store;
+	let UID;
+
+	before(async () => {
+		const app = await bootstrapApp();
+		store = app.store;
+		UID = app.uid;
+		queue = await import('../../lib/src/aux-write-queue.js');
+		user = await import('../../lib/src/actions/user.js');
+	});
+
+	beforeEach(() => {
+		clearAuxQueue();
+		store.dispatch({type: 'SIGNOUT_SUCCESS'});
+		store.dispatch({type: 'SIGNIN_SUCCESS', user: {uid: UID, isAnonymous: false, photoURL: '', displayName: 'Harness', email: 'h@example.com'}});
+	});
+
+	const starred = (id) => Boolean(store.getState().user.stars[id]);
+
+	it('REPLACES rather than unions, so a removal can be expressed at all', () => {
+		//Firestore reports the first snapshot after an attach as every document
+		//`added`. Applied as a delta, the reducer unions it in and a star
+		//removed on ANOTHER device could never disappear here.
+		store.dispatch(user.updateStars(['a', 'b', 'c'], []));
+		store.dispatch(user.receiveAuthoritativeStars(['a', 'c']));
+		assert.deepEqual(Object.keys(store.getState().user.stars).sort(), ['a', 'c'],
+			'b was removed elsewhere and must be gone');
+	});
+
+	it('keeps a PENDING removal that the server has not applied yet', () => {
+		//THE REGRESSION. Unstar while offline: the write is queued, so the
+		//server legitimately still has the star. A re-attach then re-delivered
+		//it and the star came back, silently reversing the last thing the user
+		//did -- while their removal was still sitting in the queue.
+		queue.registerAuxWriteExecutor('star-remove', async () => { throw new Error('offline'); });
+		store.dispatch(user.updateStars(['a', 'b'], []));
+		return queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'star-remove', 'b')).then(outcome => {
+			assert.equal(outcome, 'queued');
+			store.dispatch(user.updateStars([], ['b'], true));
+			assert.equal(starred('b'), false, 'optimistically unstarred');
+
+			//The server still reports both, because the removal has not landed.
+			store.dispatch(user.receiveAuthoritativeStars(['a', 'b']));
+			assert.equal(starred('b'), false,
+				'the pending removal must survive an authoritative re-delivery');
+			assert.equal(starred('a'), true, 'and untouched stars remain');
+		});
+	});
+
+	it('keeps a PENDING add the server has not applied yet', () => {
+		//The mirror image, and it also repairs something that predates the
+		//optimistic layer: after a reload a queued-but-unsent star used to be
+		//invisible until it committed.
+		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+		return queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'star-add', 'new-card')).then(() => {
+			store.dispatch(user.receiveAuthoritativeStars([]));
+			assert.equal(starred('new-card'), true,
+				'a queued star must be shown even though the server has never seen it');
+		});
+	});
+
+	it('ignores another account\'s pending intents', () => {
+		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+		return queue.runDurableAuxWrite(queue.makeAuxWriteIntent('someone-else', 'star-add', 'theirs')).then(() => {
+			store.dispatch(user.receiveAuthoritativeStars(['mine']));
+			assert.equal(starred('theirs'), false);
+			assert.equal(starred('mine'), true);
+		});
+	});
+});

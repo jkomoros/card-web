@@ -667,6 +667,12 @@ export const connectLiveUnpublishedCards = async () => {
 export const connectLiveSections = () => {
 	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
+	//Owned by the CORPUS WORKER in worker modes: it holds the persistent cache,
+	//so these survive offline and re-attach on deltas, where this thread's
+	//memoryLocalCache left them absent offline while their loaded flags still
+	//claimed otherwise. Gated at the definition so both call sites are covered.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
 	rememberSupplementalListener(onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
 		const sections : Sections = {};
@@ -687,6 +693,12 @@ export const connectLiveSections = () => {
 export const connectLiveTags = () => {
 	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
+	//Owned by the CORPUS WORKER in worker modes: it holds the persistent cache,
+	//so these survive offline and re-attach on deltas, where this thread's
+	//memoryLocalCache left them absent offline while their loaded flags still
+	//claimed otherwise. Gated at the definition so both call sites are covered.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
 	console.log('[connectLiveTags] Setting up live tags listener');
 	rememberSupplementalListener(onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 

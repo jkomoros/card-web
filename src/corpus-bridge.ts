@@ -125,6 +125,7 @@ import {
 	selectFindDialogOpen,
 	selectIsEditing,
 	selectUid,
+	selectUserMayViewApp,
 	selectPendingModificationCount,
 	selectPendingDeletions,
 	selectRandomSalt,
@@ -459,6 +460,26 @@ const PERSISTENCE_PURGE_KEY = 'corpus-worker-persistence-purge-v1';
 type UserActionsModule = typeof import('./actions/user.js');
 let userActions : UserActionsModule | null = null;
 let userActionsChain : Promise<UserActionsModule> | null = null;
+
+type DataActionsModule = typeof import('./actions/data.js');
+let dataActions : DataActionsModule | null = null;
+let dataActionsChain : Promise<DataActionsModule> | null = null;
+
+//Same lazy, ORDER-PRESERVING shape as withUserActions below.
+const withDataActions = (fn : (actions : DataActionsModule) => void) => {
+	if (dataActions) {
+		fn(dataActions);
+		return;
+	}
+	dataActionsChain = (dataActionsChain || import('./actions/data.js').then(module => {
+		dataActions = module;
+		return module;
+	})).then(module => {
+		fn(module);
+		return module;
+	});
+	void dataActionsChain.catch(error => console.error('[corpus-worker] could not apply sections/tags:', error));
+};
 
 const withUserActions = (fn : (actions : UserActionsModule) => void) => {
 	if (userActions) {
@@ -1248,14 +1269,26 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'userStars':
 		//Same deltas the main thread's own listener used to derive from
 		//docChanges(), so the reducers are untouched. See connectUserState in
-		//the worker for why these moved.
-		withUserActions(actions => store.dispatch(actions.updateStars(message.added, message.removed)));
+		//the worker for why these moved, and receiveAuthoritativeStars for why a
+		//FULL re-delivery cannot be applied as one.
+		withUserActions(actions => store.dispatch(message.authoritative
+			? actions.receiveAuthoritativeStars(message.added)
+			: actions.updateStars(message.added, message.removed)));
 		return;
 	case 'userReads':
-		withUserActions(actions => store.dispatch(actions.updateReads(message.added, message.removed)));
+		withUserActions(actions => store.dispatch(message.authoritative
+			? actions.receiveAuthoritativeReads(message.added)
+			: actions.updateReads(message.added, message.removed)));
 		return;
 	case 'userReadingList':
 		withUserActions(actions => store.dispatch(actions.updateReadingList(message.list)));
+		return;
+	case 'sections':
+		//Lazy for the same cycle reason as the per-user actions above.
+		withDataActions(actions => store.dispatch(actions.updateSections(message.sections as never)));
+		return;
+	case 'tags':
+		withDataActions(actions => store.dispatch(actions.updateTags(message.tags as never)));
 		return;
 	case 'syncState':
 		lastSyncState = message.state;
@@ -1396,6 +1429,10 @@ const recoverFromWorkerFailure = (reason : string) => {
 			database.connectLiveReads(uid);
 			database.connectLiveReadingList(uid);
 		}
+		//Sections and tags are worker-owned too, and drive navigation, so they
+		//need the same explicit reconnect for the same reason.
+		database.connectLiveSections();
+		database.connectLiveTags();
 	}).catch(error => console.error('[corpus-worker] fallback listeners failed:', error));
 };
 
@@ -1595,7 +1632,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 		//Gate the purge on the same expression that decides who opens the
 		//database, so a reader-path boot (memory cache) never races the owner.
 		const persist = corpusWorkerOwnsCardIngestion() && ownershipState !== 'reader';
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ownsUserState: corpusWorkerOwnsCardIngestion() && !selectUserIsAnonymous(store.getState() as State), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ownsUserState: corpusWorkerOwnsCardIngestion() && !selectUserIsAnonymous(store.getState() as State), ownsSupplementalData: corpusWorkerOwnsCardIngestion() && selectUserMayViewApp(store.getState() as State), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {

@@ -150,7 +150,9 @@ import {
 	makeAuxWriteIntent,
 	runDurableAuxWrite,
 	onAuxWriteDiscarded,
+	readPendingAuxWrites,
 	AuxWriteOutcome,
+	AuxWriteKind,
 	installAuxWriteReplayWatcher,
 	AuxWriteIntent
 } from '../aux-write-queue.js';
@@ -582,6 +584,54 @@ const applyOptimistically = async (
 //whenever that happens. Computed from the state as it stands at revert time
 //rather than from a snapshot captured when the user acted: a stale whole-list
 //restore would discard a concurrent successful change to the same list.
+//A FULL re-delivery replaces the set instead of unioning into it, and then the
+//user's still-PENDING writes are overlaid on top.
+//
+//Both halves matter. Without the replace, a re-attach could never express a
+//removal: Firestore reports the whole set as `added`, the reducer unions it in,
+//and a star the user had just removed came back. Without the overlay, the
+//replace would itself discard the removal — the server legitimately still has
+//that star, because the write has not landed yet. The pending queue IS the
+//record of what the user has done but the server has not yet acknowledged, so
+//replaying it over authoritative state is what makes the two agree.
+//
+//This also repairs a case that predates the optimistic layer: after a reload,
+//queued-but-unsent actions used to be invisible until they committed.
+const overlayPendingUserIntents = (serverIDs : CardID[], addKind : AuxWriteKind, removeKind : AuxWriteKind, uid : string) : Set<CardID> => {
+	const result = new Set(serverIDs);
+	for (const intent of readPendingAuxWrites()) {
+		if (intent.uid !== uid) continue;
+		if (intent.kind === addKind) result.add(intent.cardID);
+		else if (intent.kind === removeKind) result.delete(intent.cardID);
+	}
+	return result;
+};
+
+//Expressed through the existing set-based action rather than a new "replace"
+//one: computing the removals explicitly means setUnion/setRemove produce the
+//replacement, and the `*Loaded` semantics stay exactly as they were.
+const applyAuthoritativeSet = (
+	current : {[id : CardID] : unknown},
+	desired : Set<CardID>
+) : {added : CardID[], removed : CardID[]} => ({
+	added: [...desired],
+	removed: Object.keys(current).filter(id => !desired.has(id)),
+});
+
+export const receiveAuthoritativeStars = (serverIDs : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+	const state = getState();
+	const desired = overlayPendingUserIntents(serverIDs, 'star-add', 'star-remove', selectUid(state));
+	const {added, removed} = applyAuthoritativeSet(state.user?.stars || {}, desired);
+	dispatch(updateStars(added, removed));
+};
+
+export const receiveAuthoritativeReads = (serverIDs : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+	const state = getState();
+	const desired = overlayPendingUserIntents(serverIDs, 'read-add', 'read-remove', selectUid(state));
+	const {added, removed} = applyAuthoritativeSet(state.user?.reads || {}, desired);
+	dispatch(updateReads(added, removed));
+};
+
 let optimisticReconcilerInstalled = false;
 
 export const installOptimisticUserStateReconciler = () : void => {

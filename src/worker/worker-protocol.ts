@@ -140,7 +140,7 @@ export type MainToWorkerMessage =
 	//listeners. The page is the authority — it knows the corpus mode and whether
 	//the session is anonymous — so the worker does not have to infer either.
 	//Absent means false, which is the pre-v4 behaviour of not running them.
-	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean, ownsUserState? : boolean}
+	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean, ownsUserState? : boolean, ownsSupplementalData? : boolean}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
 	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}
@@ -281,9 +281,18 @@ export type WorkerToMainMessage =
 	| {type: 'syncState', generation: WorkerGeneration, state : 'unverified' | 'live' | 'stale'}
 	//Per-user state. Deltas rather than whole sets, mirroring exactly what the
 	//main thread's own listeners used to derive from docChanges().
-	| {type: 'userStars', generation: WorkerGeneration, added : CardID[], removed : CardID[]}
-	| {type: 'userReads', generation: WorkerGeneration, added : CardID[], removed : CardID[]}
+	//`authoritative` marks a FULL re-delivery — the first snapshot after a
+	//listener attaches, which Firestore reports as every document `added`. A
+	//delta cannot express a removal in that case, so the page must REPLACE the
+	//set rather than union into it. See receiveAuthoritative* in actions/user.
+	| {type: 'userStars', generation: WorkerGeneration, added : CardID[], removed : CardID[], authoritative? : boolean}
+	| {type: 'userReads', generation: WorkerGeneration, added : CardID[], removed : CardID[], authoritative? : boolean}
 	| {type: 'userReadingList', generation: WorkerGeneration, list : CardID[]}
+	//Sections and tags. Small (single figures and dozens), and sent WHOLE rather
+	//than as deltas: the page merges them exactly as it did from its own
+	//listener, and a full map removes any question of expressing a removal.
+	| {type: 'sections', generation: WorkerGeneration, sections : {[id : string] : unknown}}
+	| {type: 'tags', generation: WorkerGeneration, tags : {[id : string] : unknown}}
 	//Delta-pushed compact per-card metadata (changed entries + removals).
 	| {type: 'cardMeta', generation: WorkerGeneration, metas : CardMetas, removedIDs : CardID[]}
 	//The worker's similar-card filters need server similarity for this card;

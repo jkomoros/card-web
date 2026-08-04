@@ -36,6 +36,18 @@ export type CorpusSnapshotV2 = CorpusSnapshotBase & {
 	//is conservative: old cursors/clamps only cause extra server replay.
 	tombstoneCursor : WireTimestamp | null,
 	watermarkClamp : WireTimestamp | null,
+	//Sections and tags, carried in the SAME record as the cards.
+	//
+	//A reader has no Firestore persistence at all — `persist` is false on the
+	//reader path, because Firestore inside a worker offers only a single-tab
+	//lease and a reader must not contend for it — so moving these listeners into
+	//the worker gave a reader nothing offline. This record is the reader's
+	//persistence layer, so they belong here beside the cards they navigate.
+	//
+	//Optional so a record written before this field loads unchanged; an absent
+	//value simply means "nothing persisted yet", exactly as before.
+	sections? : {[id : string] : unknown},
+	tags? : {[id : string] : unknown},
 };
 
 export type CorpusSnapshot = CorpusSnapshotV1 | CorpusSnapshotV2;
@@ -186,7 +198,7 @@ export class CorpusSnapshotStore {
 	//A single-record put gives generation-pointer semantics for free: a crash
 	//before transaction completion leaves the previous complete snapshot, never
 	//a half-updated corpus.
-	async save(cards : {[id : string] : unknown}, clientClockCardIDs : string[], processedTombstoneIDs : string[], tombstoneCursor : WireTimestamp | null, watermarkClamp : WireTimestamp | null) : Promise<void> {
+	async save(cards : {[id : string] : unknown}, clientClockCardIDs : string[], processedTombstoneIDs : string[], tombstoneCursor : WireTimestamp | null, watermarkClamp : WireTimestamp | null, supplemental? : {sections : {[id : string] : unknown}, tags : {[id : string] : unknown}}) : Promise<void> {
 		const snapshot : CorpusSnapshotV2 = {
 			schemaVersion: SCHEMA_VERSION,
 			cards,
@@ -194,7 +206,8 @@ export class CorpusSnapshotStore {
 			processedTombstoneIDs: [...processedTombstoneIDs],
 			tombstoneCursor: tombstoneCursor ? {...tombstoneCursor} : null,
 			watermarkClamp: watermarkClamp ? {...watermarkClamp} : null,
-			savedAt: Date.now()
+			savedAt: Date.now(),
+			...(supplemental ? {sections: supplemental.sections, tags: supplemental.tags} : {})
 		};
 		const database = await this._database();
 		await new Promise<void>((resolve, reject) => {

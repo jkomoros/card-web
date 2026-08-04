@@ -223,7 +223,20 @@ is a foot-gun rather than a perf number:
 
 ### Still open from Round 16
 
-- **P2-3. Offline is silently PARTIAL.** Measured anonymous, same page: online
+- **P2-3. FIXED, but the first attempt was wrong and the reason is worth
+  keeping.** Moving the sections/tags listeners into the worker (which was the
+  right move for the privileged case — resume tokens, and they survive offline
+  there) did NOT fix the measured case, and the DEV check still returned
+  `sections: 0, tags: 0` offline. A READER's worker runs `persist: false`, by
+  the same constraint the compact snapshot exists for: Firestore inside a worker
+  offers only a single-tab lease, so a reader must not contend for it. A reader
+  therefore has NO Firestore cache to serve from, in the worker or anywhere.
+  The fix is to carry sections and tags in the compact snapshot record itself,
+  beside the cards they navigate — the record IS the reader's persistence layer.
+  Optional fields, so an older record still loads. Verified on DEV: offline now
+  reports `sections: 5, tags: 52`, identical to online, where it previously
+  reported 0 and 0 while both loaded flags claimed true.
+- **P2-3 (original report).** Measured anonymous, same page: online
   `sections: 5, tags: 52` becomes offline `sections: 0, tags: 0`, while
   `sectionsLoaded` and `tagsLoaded` are both true and `corpusStatus` is `live`.
   Navigation disappears behind a stuck "Loading…" and anything gated on

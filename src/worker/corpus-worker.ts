@@ -599,7 +599,8 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	const tombstoneCursor = syncMetaState?.tombstoneCursor ? {...syncMetaState.tombstoneCursor} : null;
 	const watermarkClamp = syncMetaState?.watermarkClamp ? {...syncMetaState.watermarkClamp} : null;
 	try {
-		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp);
+		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp,
+			(latestSections || latestTags) ? {sections: latestSections || {}, tags: latestTags || {}} : undefined);
 		consecutiveSnapshotSaveFailures = 0;
 		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
 	} catch (e) {
@@ -925,6 +926,7 @@ const teardownListeners = () => {
 	//These are not in `unsubscribes`: that list belongs to the resilient
 	//card-listener machinery, whose re-attach logic does not apply here.
 	disconnectUserState();
+	disconnectSupplementalData();
 };
 
 //Backoff for re-attaching snapshot listeners after an error. The SDK
@@ -1291,6 +1293,19 @@ const connectPublishedFromSnapshot = async () => {
 			}
 		}
 	}
+	//Serve sections and tags from the record too, so navigation exists offline
+	//rather than sitting behind a stuck "Loading…". The listeners overwrite
+	//these the moment the network answers.
+	if (compactSnapshot && compactSnapshot.schemaVersion === 2) {
+		if (compactSnapshot.sections && Object.keys(compactSnapshot.sections).length) {
+			latestSections = compactSnapshot.sections;
+			send({type: 'sections', generation, sections: compactSnapshot.sections});
+		}
+		if (compactSnapshot.tags && Object.keys(compactSnapshot.tags).length) {
+			latestTags = compactSnapshot.tags;
+			send({type: 'tags', generation, tags: compactSnapshot.tags});
+		}
+	}
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
 		updateLocalState(primedCards, [], true);
@@ -1344,6 +1359,64 @@ const disconnectUserState = () => {
 	userStateUnsubscribes = [];
 };
 
+//SECTIONS AND TAGS, for the same reason per-user state moved: the main thread
+//runs a memoryLocalCache in worker modes, so these were re-read from the network
+//on every boot and were simply ABSENT offline — while their `*Loaded` flags
+//still said true and corpusStatus still said `live`, so navigation sat behind a
+//stuck "Loading…" and anything gated on "sections loaded" ran against an empty
+//set. The worker holds the persistent cache, so here they survive offline and
+//re-attach on deltas.
+const SECTIONS_COLLECTION = 'sections';
+const TAGS_COLLECTION = 'tags';
+
+let supplementalUnsubscribes : (() => void)[] = [];
+//Latest sections/tags, kept so the compact snapshot can carry them. A reader's
+//only persistence is that record, so without this they were absent offline.
+let latestSections : {[id : string] : unknown} | null = null;
+let latestTags : {[id : string] : unknown} | null = null;
+
+const disconnectSupplementalData = () => {
+	for (const unsubscribe of supplementalUnsubscribes) {
+		try { unsubscribe(); } catch { /* already torn down */ }
+	}
+	supplementalUnsubscribes = [];
+};
+
+const connectSupplementalData = () => {
+	disconnectSupplementalData();
+	if (!db) return;
+	const database = db;
+	const myConnectionGeneration = connectionGeneration;
+	const attach = (collectionName : string, type : 'sections' | 'tags', build : () => Query) => {
+		supplementalUnsubscribes.push(onSnapshot(build(),
+			snapshot => {
+				if (myConnectionGeneration !== connectionGeneration) return;
+				//Every doc, not just the changed ones. These maps are tiny, and
+				//the page merges them, so a full map is a superset of what the
+				//delta carried and removes any delta bookkeeping.
+				const docs : {[id : string] : unknown} = {};
+				for (const docSnapshot of snapshot.docs) docs[docSnapshot.id] = {...docSnapshot.data(), id: docSnapshot.id};
+				if (type === 'sections') {
+					latestSections = docs;
+					send({type, generation, sections: docs});
+				} else {
+					latestTags = docs;
+					send({type, generation, tags: docs});
+				}
+				//These arrive after the corpus is already live, so the record on
+				//disk predates them until it is rewritten.
+				scheduleCorpusSnapshotSave();
+			},
+			error => {
+				status(`${collectionName} listener error: ${String(error)}; re-attaching`);
+				scheduleUserStateReattach(() => attach(collectionName, type, build));
+			}));
+	};
+	attach(SECTIONS_COLLECTION, 'sections', () => query(collection(database, SECTIONS_COLLECTION), orderBy('order')));
+	attach(TAGS_COLLECTION, 'tags', () => query(collection(database, TAGS_COLLECTION)));
+	status('sections and tags listeners attached');
+};
+
 const connectUserState = (uid : string) => {
 	disconnectUserState();
 	userStateReattachDelayMs = 1000;
@@ -1353,10 +1426,27 @@ const connectUserState = (uid : string) => {
 	//A card id per document, added or removed. Identical shape for stars and
 	//reads, so one helper serves both.
 	const cardIDDeltaListener = (collectionName : string, type : 'userStars' | 'userReads') => {
+		//The FIRST snapshot after an attach is the whole result set, reported as
+		//every document `added`. Sending that as a delta was wrong: the page
+		//unions it in, and a union cannot express a removal — so a re-attach
+		//re-added a star the user had just removed while their removal was still
+		//queued, silently reversing the last thing they did. Send the full set
+		//and say so.
+		let firstDelivery = true;
 		userStateUnsubscribes.push(onSnapshot(
 			query(collection(database, collectionName), where('owner', '==', uid)),
 			snapshot => {
 				if (myConnectionGeneration !== connectionGeneration) return;
+				if (firstDelivery) {
+					firstDelivery = false;
+					const all : CardID[] = [];
+					for (const docSnapshot of snapshot.docs) {
+						const cardID = docSnapshot.data().card as CardID;
+						if (cardID) all.push(cardID);
+					}
+					send({type, generation, added: all, removed: [], authoritative: true});
+					return;
+				}
 				const added : CardID[] = [];
 				const removed : CardID[] = [];
 				for (const change of snapshot.docChanges()) {
@@ -1644,6 +1734,7 @@ let currentSyncState : 'unverified' | 'live' | 'stale' | '' = '';
 let currentMayViewUnpublished = false;
 //Set from the connect message; see the note on `ownsUserState` in the protocol.
 let currentOwnsUserState = false;
+let currentOwnsSupplementalData = false;
 type WatermarkPlane = 'published' | 'tombstone' | 'delta';
 const healthyWatermarkPlanes = new Set<WatermarkPlane>();
 
@@ -2847,6 +2938,8 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	//the main thread keeps its own listeners and this worker would otherwise
 	//double-subscribe.
 	if (uid && currentOwnsUserState) connectUserState(uid);
+	//Not uid-gated: an anonymous reader needs navigation too.
+	if (currentOwnsSupplementalData) connectSupplementalData();
 };
 
 const spike = () => {
@@ -2904,6 +2997,7 @@ workerScope.addEventListener('message', event => {
 		currentOwnerID = message.ownerID;
 		currentOwnershipEpoch = message.ownershipEpoch;
 		currentOwnsUserState = Boolean(message.ownsUserState);
+		currentOwnsSupplementalData = Boolean(message.ownsSupplementalData);
 		if (!firebaseReady) {
 			//The page acquired the origin-wide lease before this worker was
 			//created, so persistent single-tab ownership is safe to claim here.
