@@ -348,6 +348,34 @@ describe('aux write queue', () => {
 		assert.deepEqual(ran, ['cardA'], 'a genuinely stranded attempt is still replayed');
 	});
 
+	it('does not let a HANGING replay wedge the queue forever', async () => {
+		//A Firestore commit on a memory-only cache neither resolves nor rejects
+		//while offline. A bare `await executor(...)` on the replay path hung the
+		//loop forever WHILE HOLDING THE REPLAY WEB LOCK -- so no tab could
+		//replay anything after it -- and the intent accumulated exactly one
+		//failure, so the wedge report (which needs four) could never fire. The
+		//wedge-alert fix was recorded as complete while this half was untouched.
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+		assert.equal(queue.readPendingAuxWrites().length, 1);
+
+		//Now it hangs rather than throwing.
+		queue.registerAuxWriteExecutor('star-add', () => new Promise(() => {}));
+		const start = Date.now();
+		await queue.replayPendingAuxWrites('u1');
+		assert.ok(Date.now() - start < 5000, 'the replay must give up rather than hang');
+		assert.equal(queue.readPendingAuxWrites().length, 1,
+			'and RETAIN the intent: a timeout is not evidence the write failed');
+
+		//The queue must still be usable afterwards -- the lock was released.
+		const ran = [];
+		queue.registerAuxWriteExecutor('star-add', async (intent) => { ran.push(intent.cardID); });
+		await queue.replayPendingAuxWrites('u1');
+		assert.deepEqual(ran, ['cardA'], 'a later replay still works');
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+	});
+
 	it('quarantines an unreadable queue instead of erasing it', async () => {
 		globalThis.localStorage.setItem('card-web-pending-aux-writes-v1', '{not json');
 		assert.deepEqual(queue.readPendingAuxWrites(), []);

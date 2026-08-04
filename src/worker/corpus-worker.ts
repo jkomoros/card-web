@@ -1231,7 +1231,14 @@ const claimPublishedSnapshotWriter = () => {
 //
 //The record needs no uid: published content is identical for every viewer, so
 //one shared record serves them all and survives anonymous-uid churn. See
-//saveCorpusSnapshot for what keeps that sharing sound.
+//saveCorpusSnapshot for what keeps that sharing sound, and the read-side filter
+//below, which is the half that makes a bad record recoverable.
+//
+//That sharing assumes `published == publicly readable`, which is true here but
+//is a per-deployment property: the rules gate reads on userMayViewApp(), so a
+//deployment that closes `viewApp` to a signed-in audience would be sharing a
+//record between accounts that are all entitled to it — still sound — while a
+//deployment that made `published` mean something narrower would not be.
 //
 //Staleness needs no cursor. The published listener is a FULL-SET query, so its
 //first server-confirmed delivery is the complete authoritative corpus for this
@@ -1263,6 +1270,15 @@ const connectPublishedFromSnapshot = async () => {
 		const restored = fromWire(compactSnapshot.cards,
 			(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
 		for (const [id, card] of Object.entries(restored)) {
+			//RE-FILTER ON READ, not only on write. Both reconciliation paths
+			//that could later remove a bad entry (publishedGhostIDs here, and
+			//published-removals) are themselves conditioned on
+			//`card.published`, so an unpublished card that ever reached this
+			//SHARED record could never be removed by any of them — a permanent
+			//leak. Checking again here costs one predicate per card and makes
+			//the failure self-healing instead: a bad record is ignored on the
+			//next boot and overwritten by the next save.
+			if (!snapshotEligibleCard(card, true)) continue;
 			//Never overwrite fresher listener data with the saved base.
 			if (!corpus.has(id)) primedCards[id] = card;
 		}
@@ -2727,7 +2743,16 @@ const purgePrivilegedSnapshot = async (outgoingUid : string) => {
 	if (!outgoingUid) return;
 	try {
 		const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
-		const store = corpusSnapshotStore || new CorpusSnapshotStore(`${projectID}:${outgoingUid}:privileged`);
+		//ALWAYS construct from the outgoing uid. This used to fall back to the
+		//live `corpusSnapshotStore`, which was safe only while that variable
+		//could hold nothing but the privileged store. The published-scope
+		//reader path now assigns it too, so the fallback aimed the purge at the
+		//SHARED `:published` record: a non-privileged sign-out wiped the public
+		//reader cache, and — the case that matters — an admin whose permissions
+		//were revoked reconnects non-privileged, signs out, and the 38,986-card
+		//privileged record survives on disk in plaintext IndexedDB while the
+		//purge reports success. That is the S4/C11 threat model exactly.
+		const store = new CorpusSnapshotStore(corpusSnapshotKey(projectID, outgoingUid, 'privileged'));
 		await store.clear();
 		status('cleared the materialized privileged corpus for the signed-out account');
 	} catch (e) {

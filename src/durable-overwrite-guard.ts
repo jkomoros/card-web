@@ -71,7 +71,16 @@ export const replacedFieldsOf = (update : object) : string[] =>
 const contentless = (value : unknown) : boolean => {
 	if (value === undefined || value === null || value === '' || value === false || value === 0) return true;
 	if (Array.isArray(value)) return value.length === 0;
-	if (typeof value === 'object') return Object.keys(value as object).length === 0;
+	if (typeof value === 'object') {
+		//Only a PLAIN object can be judged empty by its own keys. A Date, a
+		//Firestore Timestamp or any class instance has no enumerable own keys,
+		//so this reported every one of them as carrying no content — which made
+		//two different Dates compare EQUAL and silently waved through the
+		//overwrite the guard exists to catch.
+		const proto = Object.getPrototypeOf(value);
+		if (proto !== Object.prototype && proto !== null) return false;
+		return Object.keys(value as object).length === 0;
+	}
 	return false;
 };
 
@@ -79,12 +88,31 @@ const contentless = (value : unknown) : boolean => {
 //sets but the same content compare equal. Array elements are NOT dropped:
 //images are positional, so removing an empty one would shift every index after
 //it and could hide a real reordering.
-const canonical = (value : unknown) : unknown => {
-	if (Array.isArray(value)) return value.map(canonical);
+const canonical = (value : unknown, defaults? : {[key : string] : unknown}) : unknown => {
+	if (Array.isArray(value)) return value.map(entry => canonical(entry, defaults));
 	if (value === null || typeof value !== 'object') return value;
+	//NOT a plain object: a Date, a Firestore Timestamp, any class instance.
+	//Object.entries() is EMPTY for these, so recursing collapsed every one of
+	//them to {} and made two different Dates compare EQUAL — a missed conflict,
+	//i.e. an overwrite the guard was supposed to catch and silently did not.
+	//Serialize instead, which preserves what distinguishes them.
+	const proto = Object.getPrototypeOf(value);
+	if (proto !== Object.prototype && proto !== null) {
+		try {
+			return `\u0000nonplain:${JSON.stringify(value)}`;
+		} catch {
+			return `\u0000nonplain:${String(value)}`;
+		}
+	}
+	//Fill in known defaults BEFORE dropping contentless entries, so a base
+	//recorded before a field existed compares equal to a server copy carrying
+	//that field at its default — including defaults that are NOT contentless
+	//(DEFAULT_IMAGE has emSize 15 and margin 1, which the contentless rule
+	//alone could never forgive, so those still false-conflicted).
+	const filled = defaults ? {...defaults, ...(value as {[key : string] : unknown})} : value as {[key : string] : unknown};
 	const result : {[key : string] : unknown} = {};
-	for (const [key, inner] of Object.entries(value as {[key : string] : unknown})) {
-		const canonicalInner = canonical(inner);
+	for (const [key, inner] of Object.entries(filled)) {
+		const canonicalInner = canonical(inner, defaults);
 		if (contentless(canonicalInner)) continue;
 		result[key] = canonicalInner;
 	}
@@ -98,7 +126,7 @@ const stableSerialize = (value : unknown) : string => {
 	return `{${entries.map(([key, inner]) => `${JSON.stringify(key)}:${stableSerialize(inner)}`).join(',')}}`;
 };
 
-const sameFieldValue = (left : unknown, right : unknown) : boolean => {
+const sameFieldValue = (left : unknown, right : unknown, defaults? : {[key : string] : unknown}) : boolean => {
 	if (left === right) return true;
 	//The whole-field version of the key-set problem: a base recorded before the
 	//field existed holds `undefined` (and, after the localStorage round trip,
@@ -107,7 +135,7 @@ const sameFieldValue = (left : unknown, right : unknown) : boolean => {
 	if (contentless(left) && contentless(right)) return true;
 	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
 	try {
-		return stableSerialize(canonical(left)) === stableSerialize(canonical(right));
+		return stableSerialize(canonical(left, defaults)) === stableSerialize(canonical(right, defaults));
 	} catch {
 		//Cyclic or otherwise unserializable: fall back to "not equal", which
 		//errs toward asking the user rather than silently overwriting.
@@ -115,11 +143,17 @@ const sameFieldValue = (left : unknown, right : unknown) : boolean => {
 	}
 };
 
+//Per-field object defaults, supplied by the caller because this module is a
+//zero-import leaf and must not reach into src/images.ts. Only fields whose
+//values are objects with a known default shape need an entry.
+export type FieldDefaults = {[cardDiffField : string] : {[key : string] : unknown}};
+
 export const overwrittenCardFields = (
 	update : {[field : string] : unknown},
 	baseFields : {[id : string] : {[field : string] : unknown}} | undefined,
 	serverCards : {[id : string] : {[field : string] : unknown} | undefined},
-	chunkIDs : string[]
+	chunkIDs : string[],
+	fieldDefaults : FieldDefaults = {}
 ) : OverwriteConflict[] => {
 	//No recorded base means an operation persisted before this guard existed.
 	//It must stay resumable rather than become permanently stuck.
@@ -130,11 +164,12 @@ export const overwrittenCardFields = (
 		const card = serverCards[id];
 		if (!recorded || !card) continue;
 		const fields = Object.keys(recorded).filter(field => {
+			const defaults = fieldDefaults[field];
 			//Unchanged since we planned: safe.
-			if (sameFieldValue(card[field], recorded[field])) return false;
+			if (sameFieldValue(card[field], recorded[field], defaults)) return false;
 			//Already equal to what we would write — our own partially-committed
 			//chunk, or someone who happened to make the identical edit.
-			if (sameFieldValue(card[field], update[field])) return false;
+			if (sameFieldValue(card[field], update[field], defaults)) return false;
 			return true;
 		});
 		if (fields.length) result.push({id, fields});

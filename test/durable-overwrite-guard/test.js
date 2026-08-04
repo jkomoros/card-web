@@ -177,3 +177,46 @@ describe('durable overwrite guard', () => {
 			{body: 'new'}, {c1: {body: 'old'}}, {}, ['c1']), []);
 	});
 });
+
+describe('overwrite guard: gaps the queue over-claimed as closed (R16)', () => {
+
+	it('forgives a NON-EMPTY default, given the field defaults', () => {
+		//The contentless rule alone could never cover this: DEFAULT_IMAGE has
+		//emSize 15 and margin 1, so a base recorded before those keys existed
+		//still false-conflicted against a server copy carrying them at their
+		//defaults -- a refusal the user cannot resolve by editing anything.
+		const DEFAULTS = {images: {src: '', emSize: 15, margin: 1, alt: ''}};
+		const oldBase = [{src: 'a'}];
+		const serverWithDefaults = [{src: 'a', emSize: 15, margin: 1, alt: ''}];
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]}, {c1: {images: oldBase}}, {c1: {images: serverWithDefaults}},
+			['c1'], DEFAULTS), [], 'defaults filled on both sides are not a change');
+		//Without the defaults it is still reported -- i.e. the parameter is
+		//what does the work, not a blanket loosening.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]}, {c1: {images: oldBase}}, {c1: {images: serverWithDefaults}},
+			['c1']), [{id: 'c1', fields: ['images']}]);
+		//A NON-default value for the same key is still a real change.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{images: [{src: 'b'}]}, {c1: {images: oldBase}},
+			{c1: {images: [{src: 'a', emSize: 40, margin: 1, alt: ''}]}},
+			['c1'], DEFAULTS), [{id: 'c1', fields: ['images']}]);
+	});
+
+	it('does not collapse two different Dates into one value', () => {
+		//A Date is typeof 'object' with NO enumerable own keys, so recursing
+		//into it produced {} for every instance and two different Dates compared
+		//EQUAL -- a MISSED conflict, the direction that silently destroys work.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{body: 'mine'},
+			{c1: {body: new Date('2020-01-01T00:00:00Z')}},
+			{c1: {body: new Date('2024-06-05T00:00:00Z')}},
+			['c1']), [{id: 'c1', fields: ['body']}], 'different Dates must still conflict');
+		//And the same instant must not be reported as a conflict.
+		assert.deepEqual(guard.overwrittenCardFields(
+			{body: 'mine'},
+			{c1: {body: new Date('2020-01-01T00:00:00Z')}},
+			{c1: {body: new Date('2020-01-01T00:00:00Z')}},
+			['c1']), []);
+	});
+});

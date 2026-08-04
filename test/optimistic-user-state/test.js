@@ -1,68 +1,105 @@
 /*eslint-env node*/
 
 //The star/read/reading-list toggles never applied anything locally: the UI was
-//painted entirely by the Firestore listener echo, which was instant only because
-//the write and the listener shared one Firestore instance. Those listeners now
-//live in the CORPUS WORKER -- the only context with a persistent cache, so its
-//re-attach bills deltas instead of the whole result set -- and that instance
-//knows nothing about the main thread's pending write.
+//painted entirely by the Firestore listener echo, instant only because the write
+//and the listener shared ONE Firestore instance. Those listeners now live in the
+//CORPUS WORKER -- the only context with a persistent cache, so its re-attach
+//bills deltas rather than the whole result set -- and that instance knows
+//nothing about the main thread's pending write. Without an optimistic layer
+//every toggle would wait for a server round trip before visibly doing anything.
 //
-//So the optimistic layer is not a nicety here; without it every toggle would
-//wait for a server round trip before visibly doing anything.
-//
-//The subtle rule, and the reason this file exists: 'queued' must NOT revert. A
-//queued intent is durable and will be retried, which is exactly what the UI
-//promises the user -- reverting it would silently undo an action taken offline.
+//THE INVARIANT THAT MATTERS, and the one an earlier version got wrong: the
+//outcome of the FIRST attempt does not decide anything. `runDurableAuxWrite`
+//answers 'queued' for anything retryable and returns, and the intent can still
+//die much later -- on a replay that hits a permanent failure (the target card
+//was deleted meanwhile) or by ageing out after 30 days. Neither can reach a
+//closure that already returned, so a discarded star stayed visibly starred for
+//the rest of the session. These tests drive that real sequence through the REAL
+//queue rather than a truth table over the wrapper.
 
 import assert from 'assert';
-//actions/user.js reaches the browser globals at import time (via the store and
-//firebase), so it needs the same jsdom shim the other thunk-layer suites use.
-import {bootstrapApp} from '../harness-support/app-harness.js';
+import {bootstrapApp, clearAuxQueue} from '../harness-support/app-harness.js';
 
-let applyOptimistically;
+let queue;
+let user;
+let store;
+let UID;
 
-describe('optimistic per-user state updates', () => {
+const permanent = () => Object.assign(new Error('the card was deleted'), {code: 'not-found'});
+
+describe('optimistic per-user state survives a LATE discard', () => {
 	before(async () => {
-		await bootstrapApp();
-		({applyOptimistically} = await import('../../lib/src/actions/user.js'));
+		const app = await bootstrapApp();
+		store = app.store;
+		UID = app.uid;
+		queue = await import('../../lib/src/aux-write-queue.js');
+		user = await import('../../lib/src/actions/user.js');
+		//ONCE, and deliberately not per-test. resetAuxWriteQueueForTesting()
+		//clears the queue's discard subscribers, while the reconciler's own
+		//install guard (which exists so repeated sign-ins do not register it
+		//twice) refuses to add it back — so resetting per test would silently
+		//leave every case after the first with no subscriber at all. Production
+		//never calls the reset, so this is a test-only interaction, but it is
+		//exactly the shape that makes a suite pass for the wrong reason.
+		queue.resetAuxWriteQueueForTesting();
+		user.installOptimisticUserStateReconciler();
 	});
 
-	const run = async (outcome) => {
-		const events = [];
-		await applyOptimistically(
-			() => events.push('apply'),
-			() => events.push('revert'),
-			async () => {
-				events.push('write');
-				if (outcome === 'throw') throw new Error('write blew up');
-				return outcome;
-			});
-		return events;
-	};
-
-	it('applies BEFORE the write is attempted', async () => {
-		//Applying after the await would reintroduce exactly the latency this
-		//exists to remove.
-		assert.deepEqual(await run('committed'), ['apply', 'write']);
+	beforeEach(() => {
+		clearAuxQueue();
+		store.dispatch(user.updateStars([], Object.keys(store.getState().user.stars || {})));
 	});
 
-	it('keeps the update when the write is QUEUED', async () => {
-		//THE ONE THAT MATTERS. A queued intent is durable and will be retried,
-		//so the optimistic state is the truth the user was promised. Reverting
-		//here would silently undo an action taken offline.
-		assert.deepEqual(await run('queued'), ['apply', 'write']);
+	const starred = (id) => Boolean(store.getState().user.stars[id]);
+
+	it('reverts a star discarded on REPLAY, long after the first attempt said queued', async () => {
+		//The exact scenario: star on a flaky connection (queued, so the UI keeps
+		//the star and the queue promises a retry), the card is deleted
+		//meanwhile, and the replay then earns a permanent failure.
+		const id = 'card-late-discard';
+		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+		store.dispatch(user.updateStars([id], []));
+		assert.equal(starred(id), true, 'the optimistic star is applied immediately');
+
+		const outcome = await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'star-add', id));
+		assert.equal(outcome, 'queued', 'a transient failure is retained, not discarded');
+		assert.equal(starred(id), true, 'a QUEUED write keeps the star: the intent is durable and will retry');
+
+		//Now the card is gone, so the replay fails permanently.
+		queue.registerAuxWriteExecutor('star-add', async () => { throw permanent(); });
+		await queue.replayPendingAuxWrites(UID);
+
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'the intent is discarded');
+		assert.equal(starred(id), false,
+			'and the star must be REVERTED -- observing only the first attempt left it visibly starred forever');
 	});
 
-	it('reverts when the write is DISCARDED', async () => {
-		//Permanent failure: the write is gone, so the UI must stop claiming it.
-		assert.deepEqual(await run('discarded'), ['apply', 'write', 'revert']);
+	it('reverts a star discarded on the FIRST attempt too', async () => {
+		const id = 'card-immediate-discard';
+		queue.registerAuxWriteExecutor('star-add', async () => { throw permanent(); });
+		store.dispatch(user.updateStars([id], []));
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'star-add', id));
+		assert.equal(starred(id), false);
 	});
 
-	it('reverts when the write throws', async () => {
-		//We cannot promise it landed. If it threw before persisting, reverting
-		//is right; if it threw after, the queue replays it and the echo
-		//re-applies -- the stars/reads reducers are set-based, so that is a
-		//no-op rather than a double-apply.
-		assert.deepEqual(await run('throw'), ['apply', 'write', 'revert']);
+	it('reverts a star-REMOVE by putting the star back', async () => {
+		const id = 'card-remove-discard';
+		store.dispatch(user.updateStars([id], []));
+		queue.registerAuxWriteExecutor('star-remove', async () => { throw permanent(); });
+		store.dispatch(user.updateStars([], [id]));
+		assert.equal(starred(id), false, 'optimistically unstarred');
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'star-remove', id));
+		assert.equal(starred(id), true, 'a discarded removal must restore the star');
+	});
+
+	it('does NOT revert another account\'s discarded intent', async () => {
+		//An intent belonging to a previous account is discarded after a switch
+		//(its replay earns permission-denied, which is classified permanent).
+		//Reverting then would corrupt the CURRENT user's state.
+		const id = 'card-other-account';
+		store.dispatch(user.updateStars([id], []));
+		queue.registerAuxWriteExecutor('star-add', async () => { throw permanent(); });
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('some-other-uid', 'star-add', id));
+		assert.equal(starred(id), true, 'the current account\'s state is untouched');
 	});
 });

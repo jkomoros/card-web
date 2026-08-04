@@ -188,6 +188,10 @@ import {
 } from '../card_diff.js';
 
 import {
+	DEFAULT_IMAGE
+} from '../images.js';
+
+import {
 	overwrittenCardFields,
 	overwriteConflictMessage,
 	replacedFieldsOf,
@@ -968,7 +972,14 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 						operation.update as unknown as {[field : string] : unknown},
 						operation.baseFields,
 						authoritative.cards as unknown as {[id : string] : {[field : string] : unknown}},
-						chunkIDs);
+						chunkIDs,
+						//Image blocks get their defaults filled in on both sides
+						//first. Without this, a base recorded before a field
+						//existed false-conflicted against a server copy carrying
+						//that field at a NON-EMPTY default (emSize 15, margin 1),
+						//which the guard's contentless rule can never forgive —
+						//a refusal the user cannot resolve by editing anything.
+						{images: DEFAULT_IMAGE as unknown as {[key : string] : unknown}});
 					if (overwritten.length) throw new Error(overwriteConflictMessage(overwritten));
 				}
 				const state = getState();

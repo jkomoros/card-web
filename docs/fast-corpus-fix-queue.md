@@ -220,7 +220,20 @@ assert the mutant builds.
 
 ### From Round 15 (not yet fixed)
 
-- **R15-6. FIXED.** The wedge alert could be permanently SILENCED rather than
+- **R15-6. NOW actually fixed; the earlier FIXED claim covered only half.** The
+  replay path was a bare `await executor(intent, true)` with NO timeout, so a
+  deterministically hanging executor (a Firestore commit on a memory-only cache
+  while offline neither resolves nor rejects) hung the replay loop forever WHILE
+  HOLDING THE REPLAY WEB LOCK — no tab could replay anything after it — and the
+  intent accumulated exactly ONE failure, so the four needed to report a wedge
+  could never arrive. The counter's whole premise is that a deterministic hang
+  is as wedged as a deterministic throw, and the hang was the case it missed.
+  The replay attempt is now bounded by the same timeout, its rejection carries
+  no `code` so it is classified transient and RETAINED, and the outstanding
+  promise is recorded in `unsettledAttempts` so a later replay waits on it
+  rather than racing a rival copy. Tested, including that the queue is still
+  usable afterwards (the lock was released).
+- **R15-6 (first half, unchanged).** The wedge alert could be permanently SILENCED rather than
   deferred. Reporting keyed on the count being EQUAL to the threshold, so any
   reason to skip the report at exactly that count lost it forever — counts 5,
   6, 7 ... never matched again — and the `navigator.onLine` suppression was
@@ -229,7 +242,21 @@ assert the mutant builds.
   instead of cancelling it, it still fires only once per distinct error, and a
   different error re-arms it. Records written before this change lack the flag
   and simply report once, which is the safe direction.
-- **R15-7. FIXED.** The overwrite guard compared key ORDER-insensitively but
+- **R15-7. Narrower than first recorded; the remaining two gaps are now closed.**
+  The contentless rule only ever forgave EMPTY defaults, so a base recorded
+  before a key existed still false-conflicted against a server copy carrying
+  that key at a NON-EMPTY default — `DEFAULT_IMAGE` has `emSize: 15` and
+  `margin: 1`, so ordinary image edits were still refusable with nothing the
+  user could edit to resolve it. `overwrittenCardFields` now takes per-field
+  defaults (the module stays a zero-import leaf; `data.ts` passes
+  `{images: DEFAULT_IMAGE}`) and fills them on both sides before comparing.
+  Separately, and worse because it ran the other way: a `Date` (or Firestore
+  `Timestamp`, or any class instance) has no enumerable own keys, so
+  `contentless` judged EVERY one of them empty and two different Dates compared
+  EQUAL — a MISSED conflict, i.e. the guard silently waving through the
+  overwrite it exists to catch. Both `contentless` and `canonical` now treat a
+  non-plain object as an opaque value. Both directions tested.
+- **R15-7 (original half, unchanged).** The overwrite guard compared key ORDER-insensitively but
   not key SET, so a base recorded before a field existed differed from a server
   copy carrying that field at its default — a "changed elsewhere" refusal the
   user could not resolve by editing anything, i.e. a save they could not

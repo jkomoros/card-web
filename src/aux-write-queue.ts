@@ -678,7 +678,31 @@ const DISCARD_LABELS : Record<AuxWriteKind, string> = {
 	'card-delete': 'deleting that card',
 };
 
+//Terminal-discard subscribers. An intent can be discarded LONG after the call
+//that created it returned: `runDurableAuxWrite` answers 'queued' for anything
+//retryable, and the intent may then die on a later replay (a permanent failure
+//such as the target card having been deleted) or age out after 30 days. A
+//caller that applied something optimistically therefore cannot learn the real
+//outcome by observing its own first attempt — it has already returned.
+//
+//Every terminal discard funnels through reportDiscardedIntent, so this is the
+//one place that knows. Subscribers are notified BEFORE the user-facing alert,
+//so the UI has already corrected itself by the time the alert is read.
+const discardListeners : ((intent : AuxWriteIntent) => void)[] = [];
+
+export const onAuxWriteDiscarded = (listener : (intent : AuxWriteIntent) => void) : void => {
+	discardListeners.push(listener);
+};
+
 const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {
+	for (const listener of discardListeners) {
+		try {
+			listener(intent);
+		} catch (err) {
+			//A broken subscriber must never suppress the user-facing report.
+			console.warn('[aux-write] a discard listener threw:', err);
+		}
+	}
 	if (typeof window === 'undefined') return;
 	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
 	const detail = (error as {message? : string})?.message || String(error);
@@ -975,7 +999,32 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 			//The same inversion applies to read and reading-list pairs.
 			if (!claimIntent(intent.id)) break;
 			try {
-				await executor(intent, true);
+				//BOUND THE REPLAY ATTEMPT, for the same reason the first attempt
+				//is bounded and then some. A Firestore commit on a memory-only
+				//cache neither resolves nor rejects while offline, so a bare
+				//await here hung the replay loop forever WHILE HOLDING THE
+				//REPLAY WEB LOCK — no tab could replay anything after it — and
+				//the intent accumulated exactly one failure, so the wedge report
+				//(which needs four) could never fire. That is precisely the
+				//"deterministic hang is as wedged as a deterministic throw" case
+				//the counter exists for.
+				//
+				//The rejection carries no `code`, so it is classified transient:
+				//the intent is retained and retried, which is correct — we do
+				//not know that it failed, only that it did not answer in time.
+				const attempt = executor(intent, true);
+				//The original promise stays live, so a later replay must not
+				//race a rival copy of the same write against it. Reuse the same
+				//bookkeeping the first-attempt timeout uses; the loop above
+				//already waits on anything recorded here.
+				unsettledAttempts.set(intent.id, attempt.then(() => 'committed' as AuxWriteOutcome, () => 'queued' as AuxWriteOutcome));
+				void attempt.catch(() => undefined).finally(() => unsettledAttempts.delete(intent.id));
+				await Promise.race([
+					attempt,
+					new Promise<never>((_, reject) => setTimeout(
+						() => reject(new Error(`no response within ${attemptTimeoutMs}ms`)), attemptTimeoutMs))
+				]);
+				unsettledAttempts.delete(intent.id);
 				clearFailures(intent.id);
 				removeIntent(intent.id);
 			} catch (error) {
@@ -1048,6 +1097,7 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	for (const key of Object.keys(executors)) delete executors[key as AuxWriteKind];
 	inFlight.clear();
 	unsettledAttempts.clear();
+	discardListeners.length = 0;
 	replayRunning = false;
 	replayRetryScheduled = false;
 	currentUid = null;

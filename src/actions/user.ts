@@ -149,6 +149,7 @@ import {
 	registerAuxWriteExecutor,
 	makeAuxWriteIntent,
 	runDurableAuxWrite,
+	onAuxWriteDiscarded,
 	AuxWriteOutcome,
 	installAuxWriteReplayWatcher,
 	AuxWriteIntent
@@ -500,6 +501,10 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 	//of the old uid's intents (a captured uid would replay them under the
 	//new auth and permanently drop them as permission-denied).
 	installAuxWriteReplayWatcher(() => selectUid(store.getState() as State));
+	//Undo optimistic per-user updates whose intent the queue later gives up on.
+	//Installed beside the replay watcher because the replay loop is where most
+	//terminal discards actually happen.
+	installOptimisticUserStateReconciler();
 	connectLiveReads(firebaseUser.uid);
 	connectLiveReadingList(firebaseUser.uid);
 };
@@ -546,28 +551,82 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 //
 //`apply` runs the moment the user acts. A later identical echo is harmless: the
 //stars and reads reducers are set-based (setUnion/setRemove), so re-applying is
-//a no-op, and the reading list is replaced wholesale by the authoritative copy.
+//a no-op.
 //
-//Only an outcome we cannot promise is undone. 'queued' KEEPS the optimistic
-//state, because the intent is durable and will be retried — which is exactly
-//what the UI tells the user. 'discarded' means the write is permanently gone, so
-//the UI must stop claiming it. A throw is treated the same way: if it threw
-//before persisting, reverting is correct; if it threw after, the queue replays
-//it and the echo re-applies, because these reducers are idempotent.
-export const applyOptimistically = async (
+//WHAT THIS DELIBERATELY DOES NOT DO is decide the outcome from its own first
+//attempt. 'queued' is NOT terminal: runDurableAuxWrite answers 'queued' for
+//anything retryable and returns, and the intent can still die much later — on a
+//replay that hits a permanent failure (the card was deleted meanwhile), or by
+//ageing out after 30 days. Neither of those can reach a closure that has already
+//returned, so an earlier version left a discarded star visibly starred for the
+//rest of the session. Terminal discards are reconciled by the subscriber
+//installed in installOptimisticUserStateReconciler instead.
+//
+//A THROW is still handled here, because it is the one failure with no intent to
+//be discarded later: if it threw before persisting there is nothing to notify.
+const applyOptimistically = async (
 	apply : () => void,
 	revert : () => void,
 	run : () => Promise<AuxWriteOutcome>
 ) : Promise<void> => {
 	apply();
-	let outcome : AuxWriteOutcome | 'threw';
 	try {
-		outcome = await run();
+		await run();
 	} catch (err) {
-		console.warn('[user-state] durable write failed before it could be promised; reverting the optimistic update:', err);
-		outcome = 'threw';
+		console.warn('[user-state] durable write failed before it could be persisted; reverting the optimistic update:', err);
+		revert();
 	}
-	if (outcome === 'discarded' || outcome === 'threw') revert();
+};
+
+//Undo the optimistic effect of an intent that the queue has now given up on,
+//whenever that happens. Computed from the state as it stands at revert time
+//rather than from a snapshot captured when the user acted: a stale whole-list
+//restore would discard a concurrent successful change to the same list.
+let optimisticReconcilerInstalled = false;
+
+export const installOptimisticUserStateReconciler = () : void => {
+	//Sign-in runs on every auth change, and a second subscriber would revert
+	//twice. Most of these reverts are idempotent, but relying on that is not a
+	//reason to register the same listener repeatedly.
+	if (optimisticReconcilerInstalled) return;
+	optimisticReconcilerInstalled = true;
+	onAuxWriteDiscarded(intent => {
+		const cardID = intent.cardID;
+		if (!cardID) return;
+		//An intent belonging to a PREVIOUS account can be discarded after a
+		//switch (its replay earns permission-denied under the new auth, which is
+		//classified permanent). Reverting then would corrupt the new user's
+		//state with the old user's action.
+		if (intent.uid !== selectUid(store.getState() as State)) return;
+		switch (intent.kind) {
+		case 'star-add':
+			store.dispatch(updateStars([], [cardID]));
+			return;
+		case 'star-remove':
+			store.dispatch(updateStars([cardID], []));
+			return;
+		case 'read-add':
+			store.dispatch(updateReads([], [cardID]));
+			return;
+		case 'read-remove':
+			store.dispatch(updateReads([cardID], []));
+			return;
+		case 'reading-list-add': {
+			const list = selectUserReadingList(store.getState() as State);
+			if (list.includes(cardID)) store.dispatch(updateReadingList(list.filter((id : CardID) => id !== cardID)));
+			return;
+		}
+		case 'reading-list-remove': {
+			const list = selectUserReadingList(store.getState() as State);
+			if (!list.includes(cardID)) store.dispatch(updateReadingList([...list, cardID]));
+			return;
+		}
+		default:
+			//Other kinds (card-create, comments, card-delete) have their own
+			//reporting and no optimistic per-user state to undo.
+			return;
+		}
+	});
 };
 
 export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
@@ -616,10 +675,15 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispa
 	//The reading list is an ORDERED array replaced wholesale, so the optimistic
 	//value is computed from the list as it stands rather than expressed as a
 	//delta. Appending matches the server-side arrayUnion.
-	const listBeforeAdd = selectUserReadingList(getState());
 	void applyOptimistically(
-		() => dispatch(updateReadingList(listBeforeAdd.includes(cardToAdd) ? listBeforeAdd : [...listBeforeAdd, cardToAdd])),
-		() => dispatch(updateReadingList(listBeforeAdd)),
+		() => {
+			const list = selectUserReadingList(getState());
+			if (!list.includes(cardToAdd)) dispatch(updateReadingList([...list, cardToAdd]));
+		},
+		() => {
+			const list = selectUserReadingList(getState());
+			if (list.includes(cardToAdd)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToAdd)));
+		},
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
@@ -644,10 +708,15 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	const listBeforeRemove = selectUserReadingList(getState());
 	void applyOptimistically(
-		() => dispatch(updateReadingList(listBeforeRemove.filter((id : CardID) => id !== cardToRemove))),
-		() => dispatch(updateReadingList(listBeforeRemove)),
+		() => {
+			const list = selectUserReadingList(getState());
+			if (list.includes(cardToRemove)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToRemove)));
+		},
+		() => {
+			const list = selectUserReadingList(getState());
+			if (!list.includes(cardToRemove)) dispatch(updateReadingList([...list, cardToRemove]));
+		},
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 

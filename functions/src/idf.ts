@@ -55,8 +55,29 @@ const ensureJsdom = () => {
 //`firebase functions:delete calculateIDF`.
 export const calculateIDF = onRequest({
 	memory: '2GiB',
-	timeoutSeconds: 540 // 9 minutes
-}, async (_req, res) => {
+	timeoutSeconds: 540, // 9 minutes
+	//NOT PUBLIC. A v2 HTTPS function defaults to an `allUsers` run.invoker
+	//binding, so dropping the schedule in favour of onRequest turned this into
+	//an anonymous endpoint where every GET costs a full-corpus read (~40k billed
+	//documents), up to 9 minutes of 2GiB compute, and another never-pruned
+	//idf-maps object — repeatable and concurrent, on a branch whose whole
+	//purpose is read-cost control. "Manually invoked only" has to be enforced by
+	//the deployment shape, not just stated in a comment.
+	//
+	//Invoke it with credentials, e.g.:
+	//  curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" <url>
+	//
+	//NOTE for whoever deploys: an ALREADY-DEPLOYED revision keeps its existing
+	//IAM binding. Check it, and remove allUsers if present:
+	//  gcloud functions get-iam-policy calculateIDF --region=us-central1
+	invoker: 'private'
+}, async (req, res) => {
+	//The handler ignored its request entirely, so a GET, a HEAD or a body-less
+	//POST all triggered the full job. Only POST should.
+	if (req.method !== 'POST') {
+		res.status(405).send('calculateIDF must be invoked with POST');
+		return;
+	}
 	ensureJsdom();
 	try {
 		// 1. Fetch all cards from Firestore

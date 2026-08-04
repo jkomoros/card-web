@@ -124,6 +124,7 @@ import {
 	selectEditingNormalizedCard,
 	selectFindDialogOpen,
 	selectIsEditing,
+	selectUid,
 	selectPendingModificationCount,
 	selectPendingDeletions,
 	selectRandomSalt,
@@ -1358,6 +1359,21 @@ const recoverFromWorkerFailure = (reason : string) => {
 		database.reconnectBackgroundDataForActiveTab();
 		database.connectLivePublishedCards();
 		void database.connectLiveUnpublishedCards();
+		//Per-user state must be reconnected EXPLICITLY, for the same reason the
+		//two card connects above are: reconnectBackgroundDataForActiveTab
+		//early-returns unless the tab was made inert, and in shadow/spike modes
+		//it never was. These listeners are now owned by the worker, so sign-in
+		//skipped them — leaving stars/reads/reading-list permanently unloaded
+		//after a worker failure, which wedges selectDataIsFullyLoaded and with
+		//it the loading placeholder, card selection, suggestions and durable-save
+		//resume. markCorpusWorkerUnavailable() ran above, so the ownership gate
+		//inside each of these now passes.
+		const uid = selectUid(store.getState() as State);
+		if (uid) {
+			database.connectLiveStars(uid);
+			database.connectLiveReads(uid);
+			database.connectLiveReadingList(uid);
+		}
 	}).catch(error => console.error('[corpus-worker] fallback listeners failed:', error));
 };
 
