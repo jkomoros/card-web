@@ -247,9 +247,19 @@ is a foot-gun rather than a perf number:
   and `setUnion` cannot express a removal, so a re-attach can clobber a queued
   optimistic REMOVAL. (The other two P2-6 items — premature `*Loaded` flags and
   per-user state surviving sign-out — are fixed.)
-- The test gaps the reviewer lists: nothing exercises
-  `connectPublishedFromSnapshot` / `claimPublishedSnapshotWriter` or the
-  key↔filter PAIRING that is the actual privacy boundary; the `nlp_tokens` fast
+- The key↔filter PAIRING is now enforced STRUCTURALLY, not just tested. The key
+  and the card filter used to come from different places — the key from which
+  code path you were on, the filter from a separately-computed boolean — so
+  agreement was something a reader had to notice. Both now derive from one
+  `snapshotScopeForSession(mayViewUnpublished)` value, `snapshotEligibleCard`
+  takes the SCOPE rather than a boolean, and the test iterates every scope
+  asserting that "shared key" implies "published-only contents". Two leak
+  mutants die on it: making unpublished cards eligible for the shared record,
+  and making a privileged session write the shared key.
+  `connectPublishedFromSnapshot` and `claimPublishedSnapshotWriter` themselves
+  remain integration-verified only (repeatedly, on real DEV) rather than
+  unit-tested; they need a worker environment the harness does not have.
+- The remaining test gaps: the `nlp_tokens` fast
   path (`StoredProcessedRun`) — COVERED NOW, in `test/card-processing`: the fast
   path serves the same normalized and stemmed text as the slow path, it REFUSES
   stored tokens whose fingerprint no longer matches the card's text (the case

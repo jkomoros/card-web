@@ -110,16 +110,34 @@ export const validCorpusSnapshot = (value : unknown) : value is CorpusSnapshot =
 //them all, is shared between anonymous visits, and survives the anonymous uid
 //churning between sessions. A privileged record is per-user and must never be
 //shared.
-export const corpusSnapshotKey = (projectID : string, uid : string, scope : 'published' | 'privileged') : string =>
+export type SnapshotScope = 'published' | 'privileged';
+
+//THE ONE DECISION. The key and the card filter below MUST agree: the published
+//key is shared and carries no uid, so if anything ever writes privileged cards
+//under it, a signed-in user's unpublished cards are handed to the next
+//anonymous visitor on that device. Deriving both from this single value is what
+//makes that disagreement impossible to express, rather than something a reader
+//has to notice — before this, the key came from which code path you were on and
+//the filter from a separately-computed boolean.
+export const snapshotScopeForSession = (mayViewUnpublished : boolean) : SnapshotScope =>
+	mayViewUnpublished ? 'privileged' : 'published';
+
+export const corpusSnapshotKey = (projectID : string, uid : string, scope : SnapshotScope) : string =>
 	scope === 'published' ? `${projectID}:published` : `${projectID}:${uid}:privileged`;
+
+//True when the key for this scope is SHARED between accounts, which is exactly
+//when the contents must be public.
+export const snapshotScopeIsShared = (scope : SnapshotScope) : boolean => scope === 'published';
 
 //Whether a card may go into a snapshot at this scope. The published record is
 //SHARED, so this is a privacy boundary, not an optimization: a signed-in
 //non-privileged user runs author/editor listeners, so their own unpublished
 //cards sit in the same corpus, and writing those into the shared record would
 //hand them to the next anonymous visitor on the device.
-export const snapshotEligibleCard = (card : {published? : boolean}, publishedOnlyScope : boolean) : boolean =>
-	!publishedOnlyScope || Boolean(card.published);
+//Takes the SCOPE, not a separately-derived boolean, so it cannot disagree with
+//the key that scope produced.
+export const snapshotEligibleCard = (card : {published? : boolean}, scope : SnapshotScope) : boolean =>
+	scope !== 'published' || Boolean(card.published);
 
 export class CorpusSnapshotStore {
 

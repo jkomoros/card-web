@@ -179,7 +179,8 @@ import {
 	CorpusSnapshotStore,
 	CorpusSnapshot,
 	corpusSnapshotKey,
-	snapshotEligibleCard
+	snapshotEligibleCard,
+	snapshotScopeForSession
 } from './corpus-snapshot.js';
 
 //The name of the cards collection; mirrored from src/actions/database.ts
@@ -546,10 +547,11 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	//author/editor listeners, so their own unpublished cards are in this
 	//corpus, and writing those into the shared record would leak them to the
 	//next anonymous visitor on this device. Persist only the published subset.
-	const publishedOnly = !currentMayViewUnpublished;
+	//Same single decision that chose the key this record is written under.
+	const scope = snapshotScopeForSession(currentMayViewUnpublished);
 	let sliceStart = performance.now();
 	for (const [id, card] of corpus.entries()) {
-		if (!snapshotEligibleCard(card, publishedOnly)) continue;
+		if (!snapshotEligibleCard(card, scope)) continue;
 		cards[id] = toWire(card, isTimestamp, getTime);
 		if (performance.now() - sliceStart < SNAPSHOT_SERIALIZE_SLICE_MS) continue;
 		await yieldToWorkerQueue();
@@ -1251,7 +1253,7 @@ const connectPublishedFromSnapshot = async () => {
 	const myConnectionGeneration = connectionGeneration;
 	try {
 		const projectID = app?.options.projectId || (currentDevMode ? 'dev' : 'prod');
-		corpusSnapshotStore = new CorpusSnapshotStore(corpusSnapshotKey(projectID, '', 'published'));
+		corpusSnapshotStore = new CorpusSnapshotStore(corpusSnapshotKey(projectID, '', snapshotScopeForSession(currentMayViewUnpublished)));
 	} catch {
 		corpusSnapshotStore = null;
 	}
@@ -1280,7 +1282,7 @@ const connectPublishedFromSnapshot = async () => {
 			//leak. Checking again here costs one predicate per card and makes
 			//the failure self-healing instead: a bad record is ignored on the
 			//next boot and overwritten by the next save.
-			if (!snapshotEligibleCard(card, true)) continue;
+			if (!snapshotEligibleCard(card, snapshotScopeForSession(currentMayViewUnpublished))) continue;
 			//Never overwrite fresher listener data with the saved base.
 			if (!corpus.has(id)) primedCards[id] = card;
 		}
@@ -2497,7 +2499,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		}
 		return syncMetaLoad || (syncMetaLoad = syncMetaStore!.load());
 	};
-	corpusSnapshotStore = new CorpusSnapshotStore(corpusSnapshotKey(projectID, currentUid, 'privileged'), ownership);
+	corpusSnapshotStore = new CorpusSnapshotStore(corpusSnapshotKey(projectID, currentUid, snapshotScopeForSession(currentMayViewUnpublished)), ownership);
 	//See the sync-meta claim above: a rejected claim means IndexedDB is
 	//unusable, not that another tab won the epoch. Serving from the network
 	//without a local snapshot is a slow boot; hanging forever on "Loading…"
