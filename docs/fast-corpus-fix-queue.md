@@ -250,9 +250,21 @@ is a foot-gun rather than a perf number:
 - The test gaps the reviewer lists: nothing exercises
   `connectPublishedFromSnapshot` / `claimPublishedSnapshotWriter` or the
   key↔filter PAIRING that is the actual privacy boundary; the `nlp_tokens` fast
-  path (`StoredProcessedRun`) has no test at all, and its enumeration surface
-  changed (`Object.keys`/spread/`structuredClone` now emit `_stemmed` /
-  `_withoutStopWords` and omit the getters) — latent, no live consumer today.
+  path (`StoredProcessedRun`) — COVERED NOW, in `test/card-processing`: the fast
+  path serves the same normalized and stemmed text as the slow path, it REFUSES
+  stored tokens whose fingerprint no longer matches the card's text (the case
+  that silently serves search results for text the card no longer contains) and
+  those from an older NLP version, stemming is lazy and memoized, and the
+  accessors live on the PROTOTYPE rather than on each instance — which is the
+  830MB invariant expressed as the thing that actually causes it. The
+  enumeration trap is pinned deliberately rather than fixed: spreading a run
+  drops `stemmed`/`withoutStopWords`/`empty` and gains the memo fields, so
+  whoever writes the first consumer that spreads one finds out from a test
+  rather than from a wrong search result.
+  Mutation-tested: per-instance accessors fail the prototype assertion, and
+  defeating the fingerprint check fails "an edited card must be re-processed".
+  The first attempt at that second mutant did NOT COMPILE (unused import), so it
+  proved nothing until rewritten — the same trap as last time.
 - `tools/assert-build-fresh.cjs`: FIXED. The check is now PER FILE, maps each
   source to its own output, and also reports sources with no output at all and
   outputs whose source is gone. All three modes were reproduced against the old
