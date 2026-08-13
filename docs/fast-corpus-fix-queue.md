@@ -198,6 +198,45 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### From the product audit (2026-08-04)
+
+Its landing recommendation named two sub-hour process fixes as merge
+preconditions. Both are done.
+
+- **The dated tripwire is OUT of `npm test`.** It used to THROW past
+  2026-09-15, which would hard-fail the suite for whoever merged after that
+  date over a change of theirs that had nothing to do with it — a deadline
+  that lands on whoever is nearest rather than whoever can act, which is how
+  deadlines get deleted. The forcing function now lives in
+  `tools/check-deadlines.cjs`, wired as a PREDEPLOY step: deploying stale rules
+  is the actual hazard, so that is where refusing belongs. The security suite
+  still WARNS for the 21 days beforehand, so the reminder stays visible.
+  Verified both directions by moving the date: past-due blocks with an
+  actionable message and a non-zero exit; inside the window it warns and
+  passes. THE DATE ITSELF IS UNCHANGED — extending it is the owner's call.
+- **`engines: >=20`**, taken from the repo's own `.nvmrc` (20.20.0) and matching
+  `functions/package.json`.
+- **CI exists** (`.github/workflows/test.yml`): node from `.nvmrc`, a pinned
+  Temurin JDK (the Firestore emulator is a Java process, and relying on
+  whatever the runner image ships is how that breaks quietly), an explicit
+  `firebase-tools` install because it is NOT a dependency of this project, and
+  the build step ahead of the tests — where `assert-build-fresh` refusing is
+  the point.
+  It runs `test:ci`, which is `npm test` minus `test:security`, the one suite
+  needing the gitignored `config.SECRET.json`. That exception is the dangerous
+  part: the moment someone adds a suite to `test` and forgets `test:ci`, CI
+  silently covers less than it appears to. So `test/ci-coverage` ASSERTS the
+  relationship — every local suite must be in CI except the named exemptions,
+  each exemption must still exist and must actually reference config
+  generation, and the workflow must really run `test:ci` and take its node
+  version from `.nvmrc` rather than a second hardcoded one. Mutation-tested: a
+  suite added to `test` alone fails it by name.
+
+Not done from the audit, and left as decisions or observations rather than
+guessed at: the prod kill switch, the renderer-crash soak week, the "0 cards
+updating…" drawer copy, and the probable mobile card-size regression (a single
+side-by-side observation, cheap to check, unconfirmed cause).
+
 ### From Round 17
 
 - **`innerTextForHTML` worker/main-thread divergence — FIXED, not just queued.**
