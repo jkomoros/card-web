@@ -3,6 +3,9 @@
   "license": "BSD-3-Clause",
   "repository": "jkomoros/card-web",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "npm run generate:config && npm run serve",
     "serve": "tsc --watch --preserveWatchOutput & wds --node-resolve --port=8081",

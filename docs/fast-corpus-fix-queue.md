@@ -198,6 +198,40 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### From Round 17
+
+- **`innerTextForHTML` worker/main-thread divergence — FIXED, not just queued.**
+  This was the one Round-15 finding tracked nowhere but the review file, so it
+  was queued and then fixed. `innerTextForHTML` uses the DOM when there is one
+  and a regex extractor when there is not, and NOTHING under `src/worker/` calls
+  `overrideDocument` — so the worker, which owns similarity, fingerprints and
+  suggestions in the default mode, always took the fallback. That fallback
+  decoded six entities. Measured before: 3 of 5 representative samples diverged
+  (`A &mdash; B` extracted as `A &mdash; B` in the worker vs `A — B` on the main
+  thread; `caf&eacute;` split into `caf` + `eacute` instead of `café`).
+  `nlp_source_fingerprint` is computed from RAW fields, so it could never detect
+  this and heal it.
+  The decoder now handles numeric and hex forms generically plus the named
+  entities prose actually contains, `&nbsp;` decodes to U+00A0 to match the DOM
+  exactly rather than to a plain space, unknown entities are LEFT ALONE (better
+  a slightly wrong token than a silently deleted word), and `&amp;` is decoded
+  LAST so the literal text `&amp;mdash;` stays `&mdash;`. Measured after: 0 of
+  13 diverge. `test/util` now runs both paths over the diverging CLASSES and
+  asserts byte-identical output; reverting the decoder fails it on the original
+  symptom.
+- **Late-discard revert (R17 P3-1).** Documented in place rather than changed:
+  the reconciler's reverts are unconditional deltas, so a star-add discarded at
+  the 30-day age-out removes a legitimate star if the user re-starred that same
+  card in between. Self-heals on the next authoritative re-delivery, which now
+  exists. Consulting the server per discard costs more than it buys.
+- **`engines` added** (`>=20`), taken from the repo's own `.nvmrc` (20.20.0) and
+  matching `functions/package.json` — evidence, not a guess.
+- **The dated security tripwire now WARNS before it fails.** It was a cliff:
+  green on 2026-09-14, hard failure on the 15th, landing on whoever happened to
+  merge that day rather than on whoever could act. It now prints an actionable
+  warning for the 21 days before the deadline. THE DATE ITSELF IS DELIBERATELY
+  UNCHANGED — extending it is the owner's call, and the test says so.
+
 ### NOT yet folded in from the review file (R16 correction)
 
 The claim elsewhere in this document that "the review file is disposable" was

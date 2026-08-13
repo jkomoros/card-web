@@ -641,6 +641,12 @@ export const installOptimisticUserStateReconciler = () : void => {
 	if (optimisticReconcilerInstalled) return;
 	optimisticReconcilerInstalled = true;
 	onAuxWriteDiscarded(intent => {
+		//These reverts are unconditional deltas, which is very slightly lossy in
+		//one narrow case: if a queued star-add is discarded weeks later (the
+		//30-day age-out) and the user has SUCCESSFULLY re-starred the same card
+		//in between, this removes the legitimate star locally. It self-heals on
+		//the next authoritative re-delivery, which now exists. Consulting the
+		//server per discard would close it, and costs more than it buys.
 		const cardID = intent.cardID;
 		if (!cardID) return;
 		//An intent belonging to a PREVIOUS account can be discarded after a

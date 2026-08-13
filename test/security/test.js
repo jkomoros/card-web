@@ -1450,8 +1450,20 @@ describe('Compendium Rules', () => {
 		//silent ordering bug on this branch; this test is the reminder. If
 		//the cutover is legitimately delayed, extend the date in the same
 		//commit that records why.
-		if (Date.now() >= Date.parse('2026-09-15T00:00:00Z')) {
+		const deadline = Date.parse('2026-09-15T00:00:00Z');
+		if (Date.now() >= deadline) {
 			throw new Error('The inbound-reference `updated` carve-out is still staged-open past its deadline: flip the STAGED tests to assertFails and deploy the tightened rules (docs/prod-cutover-runbook.md Phase 6), or consciously extend this date.');
+		}
+		//WARN BEFORE FAILING. A date check with no ramp is a cliff: green on the
+		//14th, a hard failure on the 15th, landing on whoever happens to merge
+		//that day rather than on whoever can act on it. Three weeks of visible
+		//notice makes the deadline something you can plan around — and the
+		//message says what to do, so the notice is actionable rather than noise.
+		const daysLeft = Math.ceil((deadline - Date.now()) / (24 * 60 * 60 * 1000));
+		if (daysLeft <= 21) {
+			console.warn(`\n[TRIPWIRE] ${daysLeft} day(s) until the staged inbound-reference carve-out fails this suite.` +
+				'\n           Either complete Phase 6 of docs/prod-cutover-runbook.md (flip the two STAGED tests to' +
+				'\n           assertFails and deploy the tightened rules), or extend the date in the commit that says why.\n');
 		}
 	});
 

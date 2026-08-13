@@ -135,14 +135,64 @@ const convertCardLinksForPlainTextWithoutDocument = (html : string) : string => 
 };
 
 //Decodes the handful of entities that show up in card content.
+//Named entities the DOM decodes and this fallback used not to. Only six were
+//handled, so the WORKER — which has no document and therefore always takes this
+//path — tokenized `A &mdash; B` as [a, mdash, b] and `caf&eacute;` as
+//[caf, eacute], while the main thread produced [a, b] and [café]. Measured: 3 of
+//5 representative samples diverged. That matters because the worker owns
+//similarity, fingerprints and suggestions in the default mode, and
+//`nlp_source_fingerprint` is computed from RAW fields, so it cannot detect the
+//divergence and heal it.
+//
+//Exact-match, not case-insensitive: `&Eacute;` and `&eacute;` are different
+//characters.
+const NAMED_ENTITIES : {[entity : string] : string} = {
+	//U+00A0, not a plain space: that is what the DOM produces, and parity with
+	//the DOM is the entire point. Both are matched by \\s, so tokenization is
+	//unaffected either way — but a difference here is a difference.
+	nbsp: '\u00a0', lt: '<', gt: '>', quot: '"', apos: '\'',
+	//Typographic punctuation, which is what prose actually contains.
+	mdash: '\u2014', ndash: '\u2013', hellip: '\u2026', middot: '\u00b7', bull: '\u2022',
+	lsquo: '\u2018', rsquo: '\u2019', ldquo: '\u201c', rdquo: '\u201d',
+	laquo: '\u00ab', raquo: '\u00bb', prime: '\u2032', Prime: '\u2033',
+	deg: '\u00b0', copy: '\u00a9', reg: '\u00ae', trade: '\u2122',
+	times: '\u00d7', divide: '\u00f7', minus: '\u2212', plusmn: '\u00b1',
+	frac12: '\u00bd', frac14: '\u00bc', frac34: '\u00be',
+	//Accented Latin-1, the class that silently splits a word into two tokens.
+	aacute: '\u00e1', eacute: '\u00e9', iacute: '\u00ed', oacute: '\u00f3', uacute: '\u00fa',
+	Aacute: '\u00c1', Eacute: '\u00c9', Iacute: '\u00cd', Oacute: '\u00d3', Uacute: '\u00da',
+	agrave: '\u00e0', egrave: '\u00e8', igrave: '\u00ec', ograve: '\u00f2', ugrave: '\u00f9',
+	Agrave: '\u00c0', Egrave: '\u00c8', Igrave: '\u00cc', Ograve: '\u00d2', Ugrave: '\u00d9',
+	acirc: '\u00e2', ecirc: '\u00ea', icirc: '\u00ee', ocirc: '\u00f4', ucirc: '\u00fb',
+	auml: '\u00e4', euml: '\u00eb', iuml: '\u00ef', ouml: '\u00f6', uuml: '\u00fc',
+	Auml: '\u00c4', Euml: '\u00cb', Iuml: '\u00cf', Ouml: '\u00d6', Uuml: '\u00dc',
+	ntilde: '\u00f1', Ntilde: '\u00d1', ccedil: '\u00e7', Ccedil: '\u00c7',
+	aring: '\u00e5', Aring: '\u00c5', oslash: '\u00f8', Oslash: '\u00d8',
+	szlig: '\u00df', aelig: '\u00e6', AElig: '\u00c6',
+};
+
 const decodeCommonEntities = (text : string) : string => {
-	return text
-		.replace(/&nbsp;/g, ' ')
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&#39;/g, '\'')
-		.replace(/&amp;/g, '&');
+	//Numeric forms first; they are unambiguous and cover whatever a given
+	//editor happens to emit.
+	let result = text
+		.replace(/&#(\d+);/g, (match, code) => {
+			const value = Number(code);
+			return Number.isFinite(value) && value > 0 && value <= 0x10ffff ? String.fromCodePoint(value) : match;
+		})
+		.replace(/&#x([0-9a-fA-F]+);/g, (match, code) => {
+			const value = parseInt(code, 16);
+			return Number.isFinite(value) && value > 0 && value <= 0x10ffff ? String.fromCodePoint(value) : match;
+		});
+	//Named forms, leaving anything unrecognized ALONE rather than dropping it:
+	//an unknown entity is better tokenized as its literal text than deleted.
+	result = result.replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (match, name) => {
+		if (name === 'amp') return match;
+		const decoded = NAMED_ENTITIES[name];
+		return decoded === undefined ? match : decoded;
+	});
+	//&amp; LAST, and deliberately: decoding it earlier would turn the literal
+	//text `&amp;mdash;` into an em dash instead of the string `&mdash;`.
+	return result.replace(/&amp;/g, '&');
 };
 
 const innerTextForHTMLWithoutDocument = (body : string) : string => {
