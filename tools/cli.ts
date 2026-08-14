@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import fs from 'fs';
 import process from 'process';
 import prompts from 'prompts';
 
@@ -278,6 +279,44 @@ const askBackupMessage = async (cliMessage?: string): Promise<string> => {
 	return message;
 };
 
+//Record WHICH COMMIT was deployed, and publish it so a live check can verify
+//rather than assume.
+//
+//The habit this exists to break: deploying from the working tree and committing
+//afterwards, which leaves the deployed build a few minutes older than HEAD. It
+//has now happened repeatedly, and once caused a post-deploy verification to
+//test the PREVIOUS build and report a working fix as broken — the review caught
+//it twice. "The deployed build is HEAD" was an assumption every verify step
+//made and nothing checked.
+//
+//Also warns when the tree is DIRTY, which is worse than lagging: the deployed
+//build then corresponds to no commit at all, so nobody can reproduce it later.
+const writeDeployStamp = (): void => {
+	const git = (args: string[]): string => {
+		const result = spawnSync('git', args, {encoding: 'utf8'});
+		return result.status === 0 ? (result.stdout || '').trim() : '';
+	};
+	const commit = git(['rev-parse', 'HEAD']);
+	const short = git(['rev-parse', '--short', 'HEAD']);
+	const subject = git(['log', '-1', '--format=%s']);
+	const dirty = git(['status', '--porcelain']) !== '';
+	const stamp = {commit, short, subject, dirty, deployedAt: new Date().toISOString()};
+	try {
+		fs.mkdirSync('build', {recursive: true});
+		fs.writeFileSync('build/deploy-stamp.json', JSON.stringify(stamp, null, 2));
+	} catch (err) {
+		console.warn('could not write build/deploy-stamp.json: ' + String(err));
+	}
+	console.log('');
+	console.log('  DEPLOYING ' + (short || '(unknown commit)') + (subject ? ' — ' + subject : ''));
+	if (dirty) {
+		console.log('  WARNING: the working tree is DIRTY, so this build matches no commit.');
+		console.log('           Whoever verifies this deploy cannot reproduce what is running.');
+	}
+	console.log('  Verify with: curl -s https://<host>/deploy-stamp.json');
+	console.log('');
+};
+
 // --- Composite workflows ---
 
 const setUpDeploy = (): void => {
@@ -290,6 +329,7 @@ const devDeploy = async (): Promise<void> => {
 	injectConfig();
 	generateSeoPagesOptionally();
 	build();
+	writeDeployStamp();
 	firebaseEnsureDev();
 	await setConfigLastDeploy();
 	await configureQdrantCommand();
@@ -302,6 +342,7 @@ const deploy = async (): Promise<void> => {
 	injectConfig();
 	generateSeoPagesOptionally();
 	build();
+	writeDeployStamp();
 	firebaseEnsureProd();
 	await setConfigLastDeploy();
 	await configureQdrantCommand();

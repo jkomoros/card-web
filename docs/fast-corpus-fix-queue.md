@@ -198,6 +198,22 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### From Round 20
+
+- **The deploy-lags-the-commit habit, fixed at the source.** I repeatedly
+  deployed from the working tree and committed afterwards, leaving the deployed
+  build a few minutes older than HEAD. It is not cosmetic: once it made a
+  post-deploy check test the PREVIOUS build and report a working fix as broken,
+  and the review caught the pattern twice. Every verify step in the runbook
+  assumed "the deployed build is HEAD" and nothing checked it.
+  `writeDeployStamp()` now runs in both deploy flows, prints the commit being
+  deployed, warns loudly when the tree is DIRTY (worse than lagging — the build
+  then corresponds to no commit at all, so nobody can reproduce it), and
+  publishes `build/deploy-stamp.json`. Hosting serves it, and a static file
+  wins over the SPA rewrite, so verification is now
+  `curl -s https://<host>/deploy-stamp.json` compared against
+  `git rev-parse HEAD` — an assertion rather than an assumption.
+
 ### Round 19 P2s (FIXED)
 
 - **P2-1 reading list had no pending-intent overlay.** Stars and reads got
