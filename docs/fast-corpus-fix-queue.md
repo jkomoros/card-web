@@ -198,6 +198,48 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### Standing rule adopted from the audit's decision log (#22)
+
+**Any new aux-write kind, or any change to the sync engine, ships with an
+executor-harness test.** The worker-body harness itself is deferred; the RULE is
+not. The pattern already exists — `test/card-create-executor`,
+`test/comment-executors`, `test/durable-multi-edit-loop` — and it is the only
+instrument on this branch that has actually caught the bugs this branch
+produced. A new kind added without one is how the card-create P0 shipped
+through a green suite.
+
+### Deferred with EXPLICIT triggers, from the audit's decision log
+
+Recorded with their numbers so "deferred" cannot quietly become "forgotten".
+None of these is a landing gate.
+
+- **#19 Windowed memory / stop mirroring 40k cards into Redux.** TRIGGER:
+  settled post-boot heap >800MB, OR corpus >50k cards, OR one more unexplained
+  renderer crash. Then it becomes the next major work item.
+- **#20 Round-13 perf findings** (dead handoff, `selectDefaultSet`, IDF trim,
+  client-IDF recompute, sweep cascades). The dead handoff now affects only
+  diagnostic modes — if it is still dead in six months, DELETE it rather than
+  fix it.
+- **#21 Boot's ~2.5s main-thread freeze.** TRIGGER: it grows past ~4s, or moves
+  later into the boot where it would be felt mid-interaction.
+- **#23 Pre-branch public endpoints** (`reindexCardEmbeddings`,
+  `cleanupOldEmbeddings`): `invoker:'private'` in the first post-merge week,
+  coordinating their gulp callers. Not a landing gate — they predate the branch
+  — but the calculateIDF incident showed the shape is real, and
+  `cleanupOldEmbeddings` deletes data on an unauthenticated POST.
+- **#24 Mobile card sizing (~30% small).** Timebox 30 minutes post-merge; if the
+  cause is not obvious in that time, file it and move on. Mobile is a
+  presentation-mode fallback.
+- **#25 Dev-coupling cleanup** (hardcoded dev hostname, probe tooling, DEVMODE
+  chrome): one tidying pass after the cutover settles. Cosmetic.
+
+Accepted-and-closed, so nobody re-opens them silently: the single-tab gate
+(#12), old browsers failing closed (#13), no partial mode on cold boot (#14),
+the sync-engine P2 residuals (#15), tombstone pruning (#16), the overwrite
+guard's residual false positives (#17 — comment only, since with one editor the
+missed-conflict direction requires a second editor who does not exist), and the
+late-discard revert (#18).
+
 ### From the product audit (2026-08-04)
 
 Its landing recommendation named two sub-hour process fixes as merge

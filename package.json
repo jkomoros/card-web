@@ -28,6 +28,7 @@
     "mount": "npx tsx tools/mount.ts",
     "dump": "npx tsx tools/dump.ts",
     "check:deadlines": "node tools/check-deadlines.cjs",
+    "test:rules-deadline": "node tools/check-deadlines.cjs",
     "predeploy": "npm run check:deadlines",
     "predeploy:dev": "npm run check:deadlines",
     "deploy": "npx tsx tools/cli.ts deploy",

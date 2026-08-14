@@ -166,6 +166,17 @@ class CardDrawer extends LitElement {
 			   tagged template, so an invalid JS escape (e.g. '\\2026') makes
 			   the cooked string undefined and silently drops this ENTIRE
 			   stylesheet. Use the literal character instead. */
+			/* While the list is empty the label itself says "loading…", so the
+			   pin would be a second word for the same fact, and dimming an
+			   empty scroller communicates nothing. */
+			.container.updating.initial-load::after {
+				content: none;
+			}
+
+			.container.updating.initial-load .scroller {
+				opacity: 1;
+			}
+
 			.container.updating::after {
 				content: 'updating…';
 				position: absolute;
@@ -206,12 +217,19 @@ class CardDrawer extends LitElement {
 		//and on every editor minimize/restore, which also flips `showing` —
 		//losing the list's scroll position each time. master used ?hidden here.
 		return html`
-			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''}'>
+			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''} ${this.updating && !currentCount ? 'initial-load' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
-							<strong>${currentCount}</strong> cards
+							${this.updating && !currentCount
+		//"0 cards" plus an "updating…" pin reads as "this list is empty and
+		//something is wrong", which on a slow first visit is the site's first
+		//impression. An empty list that is still loading has no count worth
+		//reporting yet -- say that instead. Once there ARE cards, the count is
+		//real and the dim + pin correctly mean "these are stale, refreshing".
+		? html`<em>loading…</em>`
+		: html`<strong>${currentCount}</strong> cards`}
 						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>

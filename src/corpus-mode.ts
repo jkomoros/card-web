@@ -15,11 +15,27 @@
 
 const LOCAL_STORAGE_KEY = 'corpus-worker';
 
-const diagnosticModesAllowed = () => {
-	if (typeof window === 'undefined') return true;
-	const host = window.location.hostname;
-	return host === 'localhost' || host === '127.0.0.1' || host === 'dev-complexity-compendium.web.app';
-};
+//THE KILL SWITCH. This used to restrict diagnostic modes to localhost and the
+//dev host, which meant production had NO in-browser escape hatch: readCorpusWorkerMode
+//returned 'on' unconditionally and writeCorpusWorkerMode refused anything else.
+//The only remedy for a bad cutover was redeploying master — which strands the
+//durable write queue and drops drafts, turning an outage into data loss.
+//
+//For a single-admin product that trade is backwards. The one person who would
+//ever flip this is the owner, who can open devtools; giving them
+//`corpus-worker=off` is an instant, no-deploy, per-browser rollback to the
+//legacy main-thread path, which still exists and still works here (only
+//master's PARTIAL mode was removed). Anonymous readers are unaffected: the
+//default is unchanged, and their blast radius is read-only either way.
+//
+//Enumerating production hostnames was the alternative and is fragile — prod
+//answers to both thecompendium.cards and its firebase web.app domain, and a
+//missed alias silently restores the old no-escape-hatch behaviour on exactly
+//the host that needs it.
+//
+//REVISIT if this ever grows a second admin: a footgun one person can reach is
+//a support burden two people can.
+const diagnosticModesAllowed = () => true;
 
 //Session-only circuit breaker for diagnostic modes. Normal `on` mode fails
 //closed instead: it never reconnects the legacy main-thread corpus listeners.

@@ -179,6 +179,16 @@ export const overwrittenCardFields = (
 
 //The message shown when a resume is refused. Exported so the retry path can
 //recognize its own paused conflict without matching loose prose.
+//ACCEPTED RESIDUALS (audit decision #17), recorded rather than fixed. Two gaps
+//remain: an image key whose default is non-empty is covered only because the
+//caller passes DEFAULT_IMAGE, so a field with defaults the caller does not
+//supply can still false-conflict; and a value carrying its own `toJSON` is
+//compared by its serialized form, which two distinct objects can share.
+//
+//With a SINGLE editor, every "changed elsewhere" is either your own other
+//device or a false alarm: the guard errs toward asking, and the stamped draft
+//makes Stop safe. The missed-conflict direction requires a second concurrent
+//editor, who does not exist for this product. Revisit if one ever does.
 export const OVERWRITE_CONFLICT_PREFIX = 'Changed elsewhere after you saved:';
 
 export const overwriteConflictMessage = (conflicts : OverwriteConflict[]) : string =>

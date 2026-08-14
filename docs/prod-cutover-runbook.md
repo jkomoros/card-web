@@ -155,6 +155,17 @@ see README "Firebase Functions Configuration".)
       stays inactive. Repeat while the old tab has an unsaved edit and verify
       the transfer is refused without losing the draft.
 
+**BEFORE ANY ROLLBACK — the ten-second habit.** You are the only writer, so
+you can protect the one thing rollback cannot: check your own queue is empty
+first. In devtools, `Object.keys(localStorage).filter(k => k.includes('aux-writes-v2-i-'))`
+must be `[]`, and the save indicator must not be showing a paused or queued
+state. If it is not empty, let it drain (or reconnect until it does) before
+rolling back. A master-side drain shim would protect nobody but you, and this
+costs nothing.
+
+Also: if you are mid-edit, save or discard the draft first.
+`card-web-edit-draft-v1` is unrecoverable on master.
+
 **Rollback if broken:** Firebase console → Hosting → Release history →
 roll back to the previous release. The hosting flip itself is instant, and
 master's own service worker calls skipWaiting() unconditionally, so the
@@ -198,6 +209,14 @@ in DevTools → Network that `card-web-app-entry.js` was fetched from the networ
 (not "from ServiceWorker"), which is the positive signal that the new bundle is
 the one running.
 
+### Delete freeze during the rules → hosting window
+
+Between deploying the tightened rules (Phase 2) and deploying hosting
+(Phase 4), **do not delete any cards.** A master-era client cannot satisfy the
+new atomic-tombstone delete rule, so the delete would be refused. You are the
+only deleter and the window is minutes if this runbook is followed in order —
+so this is a sentence here rather than code anywhere.
+
 ## Phase 6 — Next day: tighten the inbound-reference rule
 
 After the new client has been live ~a day (service-worker bundles of the
@@ -208,7 +227,14 @@ old client have aged out):
    (`affectedKeys.hasAny(['updated']) && …` form), and update the
    security tests that cover the staged form for both generic and admin users
    (test/security). Both staged success tests must flip to `assertFails`.
-2. `npm test` (the 176 security tests run against the emulator).
+2. `npm test` (the security tests run against the emulator).
+3. `npm run test:rules-deadline` — this is the dated forcing function for THIS
+   phase. It is deliberately NOT part of `npm test`: a deadline that hard-fails
+   the default suite punishes whoever happens to run tests that day for
+   somebody else's checklist. It runs automatically before any deploy, and
+   `npm test` warns for the 21 days beforehand. Once this phase is done, the
+   deadline entry in `tools/check-deadlines.cjs` can be removed; if the phase
+   slips, move its date in the commit that records why.
 3. Deploy rules to BOTH projects:
    ```bash
    npx firebase deploy --only firestore:rules --project dev-complexity-compendium
