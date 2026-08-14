@@ -84,6 +84,13 @@ class CardDrawer extends LitElement {
 	@property({ type : Boolean })
 		updating: boolean;
 
+	//Set while the active collection has not been served yet. `updating` only
+	//covers the case where a PREVIOUS ready collection is being held as stale,
+	//which a first boot does not have — so without this the cold visit showed a
+	//bare "0 cards".
+	@property({ type : Boolean })
+		pending: boolean;
+
 	@property({ type : Number })
 		renderOffset: number;
 
@@ -217,12 +224,12 @@ class CardDrawer extends LitElement {
 		//and on every editor minimize/restore, which also flips `showing` —
 		//losing the list's scroll position each time. master used ?hidden here.
 		return html`
-			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''} ${this.updating && !currentCount ? 'initial-load' : ''}'>
+			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount ? 'initial-load' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
-							${this.updating && !currentCount
+							${(this.updating || this.pending) && !currentCount
 		//"0 cards" plus an "updating…" pin reads as "this list is empty and
 		//something is wrong", which on a slow first visit is the site's first
 		//impression. An empty list that is still loading has no count worth

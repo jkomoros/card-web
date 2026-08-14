@@ -388,6 +388,12 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_collectionUpdating: boolean;
+		//"the active collection has not been served yet", as distinct from
+		//_collectionUpdating, which only becomes true when there is a PREVIOUS
+		//ready collection being held as stale. On a first boot there is none, so
+		//_collectionUpdating stays false and the drawer rendered a bare
+		//"0 cards" — the cold-visit case.
+		_collectionPending: boolean;
 
 	@state()
 		_saveEligible: boolean;
@@ -597,6 +603,7 @@ class CardView extends connect(store)(PageViewElement) {
 				.showing=${this._cardsDrawerPanelShowing}
 				.collection=${this._collection}
 				.updating=${this._collectionUpdating}
+				.pending=${this._collectionPending}
 				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
@@ -1136,6 +1143,7 @@ class CardView extends connect(store)(PageViewElement) {
 			this._collectionUpdating = false;
 		}
 		const activeCollectionReady = !corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state);
+		this._collectionPending = !activeCollectionReady;
 		if (activeCollectionReady) {
 			this._collection = currentCollection;
 			this._lastReadyCollection = currentCollection;
