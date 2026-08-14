@@ -198,6 +198,65 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### Rounds 18-19 P1s (FIXED)
+
+- **R18-1 — `_collectionPending` was undecorated, the FOURTH occurrence.** In
+  Lit a field re-renders only with its OWN `@state()`; declared under the
+  previous field's decorator it is a plain property. So the cold-boot drawer fix
+  worked only when unrelated boot traffic happened to re-render card-view — which
+  during boot is frequent, hence "usually works", the worst kind of
+  almost-correct. Found and swept in Round 13 (four components), Round 14
+  (`_suggestedTagsState`), and again here in the very commit that fixed the
+  previous round's polish item.
+  The field is decorated, AND the AST rule Round 15 recommended now exists
+  (`test/reactive-state`). It flags a field only when it is BOTH assigned in
+  `stateChanged` AND read by the template — the combination that actually
+  renders stale. A first version flagged every undecorated field written in
+  `stateChanged`, found six, and all six turned out to be legitimate cache keys,
+  timers and bookkeeping; it would have needed a growing list of excuses, which
+  is where a rule goes to die. Verified by reintroducing R18-1: the rule names
+  the field.
+- **R19-1 — the ownership flags latched pre-auth.** `ownsUserState` /
+  `ownsSupplementalData` travelled only on `connect`, and the worker kept its
+  first-connect values for life — but the first connect is almost always
+  PRE-AUTH, before `selectUserIsAnonymous` is true. Ordering A latched them true
+  and the worker ran per-user listeners for an anonymous uid (the billed reads
+  removing them was meant to avoid); ordering B latched them false and NOTHING
+  attached — the main-thread listeners are hard-gated off — so all three
+  `*Loaded` flags stayed false and `selectDataIsFullyLoaded` wedged: perpetual
+  loading card, card selection and suggestions blocked, on the public site, by
+  boot timing.
+  Both halves fixed, as the reviewer noted was necessary: `reconnect` now
+  carries the flags and the worker refreshes rather than inherits them, AND an
+  anonymous session gets its empty per-user sets delivered locally. That second
+  half matters because an anonymous account CANNOT own a star, read or reading
+  list — the empty set is knowable without asking the server, so the flags flip
+  at zero read cost.
+- **R19-2 — the CI workflow could never have passed.** ~14 modules import
+  `src/config.GENERATED.SECRET.ts`, produced by `generate:config` from the
+  gitignored `config.SECRET.json`, so a clean checkout dies at the build step
+  with TS2307 (reproduced by deleting the file: exactly that error). The
+  checked-in `config.SAMPLE.json` has the right shape, so the config path is now
+  overridable by `CARD_WEB_CONFIG_FILE` and CI generates from the sample — an
+  env var rather than `cp config.SAMPLE.json config.SECRET.json`, because that
+  copy is a destructive footgun the moment anyone runs the CI steps locally over
+  their real credentials.
+  REHEARSED, not assumed: with the real generated config removed and only the
+  sample present, `npm run test:ci` passes end-to-end (588 assertions, exit 0).
+- **R19-3 — one corrupt `nlp_tokens` record took down whole-corpus processing.**
+  The fast-path gate hashes the card's RAW fields, so it cannot detect damaged
+  tokens at all. Reproduced all four: a string-valued map and a `[null]` run
+  THROW, and because the WeakMap cache is written only on success the throw
+  repeats on every access — every whole-corpus consumer dies on every
+  evaluation, from one flipped IndexedDB record. The two silent modes are worse:
+  a run whose normalized text is literally `null`, and a truncated record that
+  leaves the card unsearchable with nothing logged.
+  The stored shape is now validated and falls back to the slow path that already
+  exists, loudly. A well-typed but EMPTY record is also distrusted when the card
+  still has text, since that is the silent-unsearchable case. Five corruption
+  modes tested, plus a test that valid tokens still take the fast path so the
+  guard cannot quietly disable the optimization.
+
 ### Standing rule adopted from the audit's decision log (#22)
 
 **Any new aux-write kind, or any change to the sync engine, ships with an

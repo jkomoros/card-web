@@ -109,6 +109,53 @@ class StoredProcessedRun implements ProcessedRunInterface {
 	}
 }
 
+//The fast-path gate checks `nlp_version` and `nlp_source_fingerprint` — but the
+//fingerprint hashes the card's RAW FIELDS, not the tokens, so it cannot detect a
+//corrupt token record at all. Anything that damages the stored value passes the
+//gate and reaches the mapping below.
+//
+//Reproduced, all four: a string-valued `nlp_tokens` throws
+//(`storedRuns.map is not a function`); a `[null]` run throws on `.normalized`; a
+//run missing `normalized` yields a run whose normalized text is literally
+//`null`; and a truncated-but-well-typed record yields ZERO runs, which makes the
+//card silently unsearchable with nothing logged anywhere.
+//
+//The first two are the worst, because the WeakMap cache is written only on
+//success: the throw repeats on every access, and every whole-corpus consumer
+//(the worker's query engine, the main thread's lazyProcessCards) dies on every
+//evaluation. One flipped IndexedDB record is enough — the snapshot validator
+//checks cards only as "an object with a matching id".
+//
+//The slow path already exists and is correct; this just decides whether the
+//stored shortcut can be trusted.
+const validStoredNLPTokens = (tokens : unknown) : boolean => {
+	if (!tokens || typeof tokens !== 'object' || Array.isArray(tokens)) return false;
+	for (const runs of Object.values(tokens as {[field : string] : unknown})) {
+		if (runs === undefined || runs === null) continue;
+		if (!Array.isArray(runs)) return false;
+		for (const run of runs) {
+			if (!run || typeof run !== 'object' || Array.isArray(run)) return false;
+			if (typeof (run as {normalized? : unknown}).normalized !== 'string') return false;
+			const ranges = (run as {uppercaseRanges? : unknown}).uppercaseRanges;
+			if (ranges !== undefined && !Array.isArray(ranges)) return false;
+		}
+	}
+	return true;
+};
+
+//Well-typed but EMPTY is the quiet failure: the record survives validation and
+//the card simply stops matching anything. A card with text but no runs at all is
+//not a card that legitimately tokenizes to nothing, so distrust it and pay for
+//the slow path once rather than be silently unsearchable forever.
+const storedTokensLookTruncated = (card : Card, tokens : object) : boolean => {
+	let runCount = 0;
+	for (const runs of Object.values(tokens as {[field : string] : unknown})) {
+		if (Array.isArray(runs)) runCount += runs.length;
+	}
+	if (runCount) return false;
+	return Boolean(card.title || card.body || card.subtitle);
+};
+
 export const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 	const cached = _processedCardCache.get(card);
 	if (cached) return cached;
@@ -118,7 +165,14 @@ export const processCard = (card : Card, allCards : Cards) : ProcessedCard => {
 	const fallbackText = backportFallbackTextMapForCard(card, allCards) || EMPTY_FALLBACK_TEXT;
 
 	let processed : ProcessedCard;
-	if (card.nlp_tokens && card.nlp_version === CURRENT_NLP_VERSION && card.nlp_source_fingerprint === nlpSourceFingerprintForCard(card)) {
+	const storedTokensUsable = Boolean(card.nlp_tokens) && validStoredNLPTokens(card.nlp_tokens) &&
+		!storedTokensLookTruncated(card, card.nlp_tokens as object);
+	if (card.nlp_tokens && !storedTokensUsable) {
+		//Loudly, once per card object: this is a data problem worth knowing
+		//about, and the silent version of it is a card that cannot be found.
+		console.warn(`[card-processing] ignoring unusable stored nlp_tokens for ${card.id}; falling back to full processing`);
+	}
+	if (card.nlp_tokens && storedTokensUsable && card.nlp_version === CURRENT_NLP_VERSION && card.nlp_source_fingerprint === nlpSourceFingerprintForCard(card)) {
 		// Fast path: use stored NLP tokens for ordinary fields while preserving
 		// the full nlp shape expected by downstream semantic code.
 		const nlp = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION).map(fieldName => [fieldName, []])) as unknown as {[field in CardFieldType]: ProcessedRunInterface[]};

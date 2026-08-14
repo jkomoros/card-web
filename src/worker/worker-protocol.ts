@@ -143,7 +143,14 @@ export type MainToWorkerMessage =
 	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean, ownsUserState? : boolean, ownsSupplementalData? : boolean}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.
-	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string}
+	//`reconnect` MUST carry the ownership flags too. They used to travel only on
+	//`connect`, and the worker kept its first-connect values for life — but the
+	//first connect is almost always PRE-AUTH, when the session is not yet known
+	//to be anonymous. So the flags latched against a state that no longer
+	//applied: either the worker ran per-user listeners for an anonymous uid
+	//(the billed reads that removing them was meant to avoid), or it never ran
+	//them for a signed-in one.
+	| {type: 'reconnect', generation: WorkerGeneration, mayViewUnpublished : boolean, uid : string, ownsUserState? : boolean, ownsSupplementalData? : boolean}
 	//Run a spike benchmark: build the index over everything loaded so far and
 	//report timings.
 	| {type: 'spike', generation: WorkerGeneration}

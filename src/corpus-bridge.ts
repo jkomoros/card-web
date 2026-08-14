@@ -1636,7 +1636,10 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
-		post({type: 'reconnect', generation, mayViewUnpublished, uid});
+		//Recomputed, never inherited: see the note on `reconnect` in the protocol.
+		post({type: 'reconnect', generation, mayViewUnpublished, uid,
+			ownsUserState: corpusWorkerOwnsCardIngestion() && !selectUserIsAnonymous(store.getState() as State),
+			ownsSupplementalData: corpusWorkerOwnsCardIngestion() && selectUserMayViewApp(store.getState() as State)});
 	}
 	hydrateWorkerCollectionState();
 	if (corpusWorkerOwnsCardIngestion()) {

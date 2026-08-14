@@ -388,11 +388,18 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_collectionUpdating: boolean;
-		//"the active collection has not been served yet", as distinct from
-		//_collectionUpdating, which only becomes true when there is a PREVIOUS
-		//ready collection being held as stale. On a first boot there is none, so
-		//_collectionUpdating stays false and the drawer rendered a bare
-		//"0 cards" — the cold-visit case.
+
+	//"the active collection has not been served yet", as distinct from
+	//_collectionUpdating, which only becomes true when there is a PREVIOUS ready
+	//collection being held as stale. On a first boot there is none, so
+	//_collectionUpdating stays false and the drawer rendered a bare "0 cards" —
+	//the cold-visit case.
+	//
+	//It needs its OWN @state(): declared under the previous field's decorator it
+	//was a plain property, so assigning it triggered no re-render and the fix
+	//worked only when unrelated boot traffic happened to re-render this
+	//component — which is frequent during boot, so it USUALLY appeared to work.
+	@state()
 		_collectionPending: boolean;
 
 	@state()

@@ -3011,6 +3011,9 @@ workerScope.addEventListener('message', event => {
 		break;
 	case 'reconnect':
 		generation = message.generation;
+		//Refresh, do not inherit. Absent means false, matching a pre-v4 page.
+		currentOwnsUserState = Boolean(message.ownsUserState);
+		currentOwnsSupplementalData = Boolean(message.ownsSupplementalData);
 		void (firebaseReady || Promise.resolve()).then(() => {
 			if (generation === message.generation) connectCards(message.mayViewUnpublished, message.uid);
 		});

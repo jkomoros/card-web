@@ -30,6 +30,7 @@ import {
 
 import {
 	selectUserMayViewApp,
+	selectUserIsAnonymous,
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
 	selectUserMayViewUnpublished,
@@ -236,13 +237,22 @@ export const disconnectLiveStars = () => {
 
 export const connectLiveStars = (uid : Uid) => {
 	if (backgroundDataInert) return;
-	//The CORPUS WORKER owns this listener in worker modes. It is the only
-	//context holding Firestore's persistent cache, so its re-attach bills
-	//deltas, while this thread runs a memoryLocalCache and re-read the entire
-	//result set on every boot (measured: 608 `reads` documents for one real
-	//account, every single boot). Gated here at the definition rather than at
-	//the two call sites, so there is exactly one rule.
-	if (corpusWorkerOwnsCardIngestion()) return;
+	//The CORPUS WORKER owns this listener in worker modes: it is the only context
+	//holding Firestore's persistent cache, so its re-attach bills deltas, while
+	//this thread runs a memoryLocalCache and re-read the entire result set every
+	//boot (measured: 608 `reads` documents for one real account, every boot).
+	//
+	//EXCEPT for an anonymous session, where the worker is deliberately told not
+	//to attach — three empty queries still bill three reads. Nobody then flips
+	//`starsLoaded`, and selectUserDataIsFullyLoaded requires it as soon as a user
+	//OBJECT exists, which anonymous sign-in creates. That wedged
+	//selectDataIsFullyLoaded forever: perpetual loading card, card selection and
+	//suggestions blocked. An anonymous account cannot own a star, so the empty
+	//set is knowable without asking the server.
+	if (corpusWorkerOwnsCardIngestion()) {
+		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateStars([], []));
+		return;
+	}
 
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
@@ -269,13 +279,12 @@ export const disconnectLiveReads = () => {
 
 export const connectLiveReads = (uid : Uid) => {
 	if (backgroundDataInert) return;
-	//The CORPUS WORKER owns this listener in worker modes. It is the only
-	//context holding Firestore's persistent cache, so its re-attach bills
-	//deltas, while this thread runs a memoryLocalCache and re-read the entire
-	//result set on every boot (measured: 608 `reads` documents for one real
-	//account, every single boot). Gated here at the definition rather than at
-	//the two call sites, so there is exactly one rule.
-	if (corpusWorkerOwnsCardIngestion()) return;
+	//See connectLiveStars: worker-owned, except an anonymous session, whose empty
+	//set is delivered locally so `readsLoaded` still flips.
+	if (corpusWorkerOwnsCardIngestion()) {
+		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateReads([], []));
+		return;
+	}
 
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
@@ -302,13 +311,12 @@ export const disconnectLiveReadingList = () => {
 
 export const connectLiveReadingList = (uid : Uid) => {
 	if (backgroundDataInert) return;
-	//The CORPUS WORKER owns this listener in worker modes. It is the only
-	//context holding Firestore's persistent cache, so its re-attach bills
-	//deltas, while this thread runs a memoryLocalCache and re-read the entire
-	//result set on every boot (measured: 608 `reads` documents for one real
-	//account, every single boot). Gated here at the definition rather than at
-	//the two call sites, so there is exactly one rule.
-	if (corpusWorkerOwnsCardIngestion()) return;
+	//See connectLiveStars: worker-owned, except an anonymous session, whose empty
+	//list is delivered locally so `readingListLoaded` still flips.
+	if (corpusWorkerOwnsCardIngestion()) {
+		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateReadingList([]));
+		return;
+	}
 
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {

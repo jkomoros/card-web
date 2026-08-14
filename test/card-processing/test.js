@@ -211,3 +211,73 @@ describe('stored NLP token fast path', () => {
 		assert.strictEqual(run.stemmed, first, 'and reused');
 	});
 });
+
+//A CORRUPT STORED-TOKEN RECORD MUST NOT TAKE DOWN WHOLE-CORPUS PROCESSING.
+//
+//The fast-path gate checks nlp_version and nlp_source_fingerprint, but that
+//fingerprint hashes the card's RAW FIELDS, not the tokens — so it cannot detect
+//a damaged token record at all, and the damage reaches an unguarded map().
+//
+//Two of these THREW, and the WeakMap cache is written only on success, so the
+//throw repeated on every access: every whole-corpus consumer (the worker's query
+//engine, the main thread's lazyProcessCards) died on every evaluation. One
+//flipped IndexedDB record is enough, since the snapshot validator checks cards
+//only as "an object with a matching id". The other two corrupted silently, which
+//is worse: a run whose normalized text is literally null, and a card that simply
+//stops matching anything with nothing logged.
+describe('corrupt stored NLP tokens fall back instead of exploding', () => {
+
+	let processCard;
+	let nlp;
+
+	before(async () => {
+		({processCard} = await import('../../lib/src/card-processing.js'));
+		nlp = await import('../../lib/shared/nlp.js');
+	});
+
+	const cardWithTokens = (tokens) => {
+		const base = rawCard('corrupt', 'Hello');
+		return {...base, nlp_tokens: tokens, nlp_version: nlp.CURRENT_NLP_VERSION,
+			nlp_source_fingerprint: nlp.nlpSourceFingerprintForCard(base)};
+	};
+
+	const goodTokens = () => {
+		const slow = processCard(rawCard('corrupt', 'Hello'), {});
+		const tokens = {};
+		for (const [field, runs] of Object.entries(slow.nlp)) {
+			if (Array.isArray(runs)) tokens[field] = runs.map(run => ({normalized: run.normalized}));
+		}
+		return tokens;
+	};
+
+	//Each of these was reproduced against the unguarded version.
+	const CORRUPTIONS = {
+		'a string where the token map should be': 'not-an-object',
+		'a null run': {title: [null]},
+		'a run with no normalized text': {title: [{}]},
+		'a run whose normalized text is not a string': {title: [{normalized: 42}]},
+		'truncated to nothing while the card still has text': {},
+	};
+
+	for (const [label, tokens] of Object.entries(CORRUPTIONS)) {
+		it(`survives ${label}`, () => {
+			const processed = processCard(cardWithTokens(tokens), {});
+			const titles = (processed.nlp.title || []).map(run => run.normalized);
+			assert.ok(titles.length, 'the card must still be processed, via the slow path');
+			assert.ok(titles.every(text => typeof text === 'string'),
+				'and must not produce a run whose normalized text is not text');
+			assert.ok(titles.some(text => text.includes('hello')),
+				'the slow path must recover the card\'s ACTUAL text, not an empty shell');
+		});
+	}
+
+	it('still uses the fast path when the tokens are valid', () => {
+		//The guard must not be so strict that it throws the optimization away.
+		const tokens = goodTokens();
+		const processed = processCard(cardWithTokens(tokens), {});
+		const run = processed.nlp.title[0];
+		assert.ok(run, 'has a title run');
+		assert.ok(Object.prototype.hasOwnProperty.call(run, '_stemmed'),
+			'a StoredProcessedRun (the fast path), not a slow-path run');
+	});
+});

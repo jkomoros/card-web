@@ -46,6 +46,14 @@ jobs:
 
       # The tests import compiled output, and tools/assert-build-fresh.cjs will
       # refuse to run against a stale build — so this step failing is the point.
+      # ~14 modules import src/config.GENERATED.SECRET.ts, which is produced by
+      # generate:config from the gitignored config.SECRET.json. Without this a
+      # clean checkout cannot typecheck at all, and every CI run died here.
+      # The checked-in config.SAMPLE.json has the right shape; the emulator
+      # suites override the project anyway.
+      - name: Generate config from the checked-in sample
+        run: npm run generate:config:sample
+
       - name: Build
         run: npm run build:shared && npm run build:typescript
 
