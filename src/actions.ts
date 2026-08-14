@@ -569,11 +569,17 @@ type ActionClearEnqueuedCardUpdates = {
 type ActionUpdateSections = {
 	type: typeof UPDATE_SECTIONS,
 	sections: Sections
+	//True when this delivery is the COMPLETE map, so the reducer replaces
+	//rather than merges. A partial (changed-docs) delivery must merge.
+	complete?: boolean
 };
 
 type ActionUpdateTags = {
 	type: typeof UPDATE_TAGS,
 	tags: Tags
+	//True when this delivery is the COMPLETE map, so the reducer replaces
+	//rather than merges. A partial (changed-docs) delivery must merge.
+	complete?: boolean
 };
 
 type ActionUpdateAuthors = {

@@ -618,6 +618,30 @@ const applyAuthoritativeSet = (
 	removed: Object.keys(current).filter(id => !desired.has(id)),
 });
 
+//The reading list needs the same treatment as stars and reads, and did not get
+//it: the bridge replaced it wholesale on every worker delivery. EVERY delivery
+//is a full list, and post-error re-attach is now routine thanks to the listener
+//retry — so queueing an add on a flaky connection and then receiving any
+//delivery visibly reversed the user's action.
+//
+//Order is meaningful here, unlike the sets, so this rebuilds from the server's
+//ORDER and then applies pending intents: an add appends (matching the
+//server-side arrayUnion) and a remove deletes in place.
+export const receiveAuthoritativeReadingList = (serverList : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+	const uid = selectUid(getState());
+	const result = [...serverList];
+	for (const intent of readPendingAuxWrites()) {
+		if (intent.uid !== uid) continue;
+		if (intent.kind === 'reading-list-add') {
+			if (!result.includes(intent.cardID)) result.push(intent.cardID);
+		} else if (intent.kind === 'reading-list-remove') {
+			const at = result.indexOf(intent.cardID);
+			if (at >= 0) result.splice(at, 1);
+		}
+	}
+	dispatch(updateReadingList(result));
+};
+
 export const receiveAuthoritativeStars = (serverIDs : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const desired = overlayPendingUserIntents(serverIDs, 'star-add', 'star-remove', selectUid(state));

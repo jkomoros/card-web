@@ -185,6 +185,33 @@ describe('a full re-delivery cannot reverse the user\'s last action', () => {
 		});
 	});
 
+	it('keeps a PENDING reading-list add across a full delivery', () => {
+		//The reading list never got this treatment: the bridge replaced it
+		//wholesale on every worker delivery, and EVERY delivery is a full list.
+		//Queue an add on a flaky connection, receive any delivery -- including
+		//the post-error re-attach that the listener retry made routine -- and
+		//the user's action visibly reversed itself.
+		queue.registerAuxWriteExecutor('reading-list-add', async () => { throw new Error('offline'); });
+		store.dispatch(user.updateReadingList(['a', 'b']));
+		return queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'reading-list-add', 'c', 'k1')).then(outcome => {
+			assert.equal(outcome, 'queued');
+			store.dispatch(user.updateReadingList(['a', 'b', 'c'], true));
+			//The server has not applied it, so its full list still lacks 'c'.
+			store.dispatch(user.receiveAuthoritativeReadingList(['a', 'b']));
+			assert.deepEqual(store.getState().user.readingList, ['a', 'b', 'c'],
+				'a queued add must survive an authoritative full-list delivery');
+		});
+	});
+
+	it('keeps a PENDING reading-list removal, and preserves ORDER', () => {
+		queue.registerAuxWriteExecutor('reading-list-remove', async () => { throw new Error('offline'); });
+		return queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'reading-list-remove', 'b', 'k2')).then(() => {
+			store.dispatch(user.receiveAuthoritativeReadingList(['a', 'b', 'c']));
+			assert.deepEqual(store.getState().user.readingList, ['a', 'c'],
+				'a queued removal must survive, and the remaining order must be the server\'s');
+		});
+	});
+
 	it('ignores another account\'s pending intents', () => {
 		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
 		return queue.runDurableAuxWrite(queue.makeAuxWriteIntent('someone-else', 'star-add', 'theirs')).then(() => {

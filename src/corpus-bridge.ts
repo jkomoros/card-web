@@ -1281,14 +1281,19 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 			: actions.updateReads(message.added, message.removed)));
 		return;
 	case 'userReadingList':
-		withUserActions(actions => store.dispatch(actions.updateReadingList(message.list)));
+		//Every delivery is a full list, so it is always authoritative — and must
+		//not discard a queued add or remove. See receiveAuthoritativeReadingList.
+		withUserActions(actions => store.dispatch(actions.receiveAuthoritativeReadingList(message.list)));
 		return;
 	case 'sections':
 		//Lazy for the same cycle reason as the per-user actions above.
-		withDataActions(actions => store.dispatch(actions.updateSections(message.sections as never)));
+		//The worker always sends the COMPLETE map, so this replaces: otherwise a
+		//section deleted elsewhere could never disappear from a snapshot-primed
+		//corpus, and would reappear in navigation on every boot.
+		withDataActions(actions => store.dispatch(actions.updateSections(message.sections as never, true)));
 		return;
 	case 'tags':
-		withDataActions(actions => store.dispatch(actions.updateTags(message.tags as never)));
+		withDataActions(actions => store.dispatch(actions.updateTags(message.tags as never, true)));
 		return;
 	case 'syncState':
 		lastSyncState = message.state;

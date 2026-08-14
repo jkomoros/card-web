@@ -244,16 +244,22 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			pendingDeletions: {...state.pendingDeletions, ...action.cards}
 		};
+	//MERGE for a partial (delta) delivery, REPLACE for a complete one. These used
+	//to always merge, which was right when the main thread sent only changed
+	//docs — but the worker sends the whole map, and a snapshot-primed entry that
+	//the server no longer has could therefore never be removed by any later
+	//delivery. A section deleted elsewhere reappeared in navigation on every
+	//boot until a save happened to rewrite the record.
 	case UPDATE_SECTIONS:
 		return {
 			...state,
-			sections: {...state.sections, ...action.sections},
+			sections: action.complete ? {...action.sections} : {...state.sections, ...action.sections},
 			sectionsLoaded: true,
 		};
 	case UPDATE_TAGS:
 		return {
 			...state,
-			tags: {...state.tags, ...action.tags},
+			tags: action.complete ? {...action.tags} : {...state.tags, ...action.tags},
 			tagsLoaded: true,
 		};
 	case UPDATE_AUTHORS:

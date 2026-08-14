@@ -1396,6 +1396,16 @@ const connectSupplementalData = () => {
 				//Every doc, not just the changed ones. These maps are tiny, and
 				//the page merges them, so a full map is a superset of what the
 				//delta carried and removes any delta bookkeeping.
+				//An EMPTY from-cache delivery is not news, it is the absence of
+				//news. A reader runs persist:false, so going offline raises
+				//exactly that — and storing it would overwrite latestSections /
+				//latestTags with {} and schedule a save, destroying the reader
+				//record's navigation data ~15s into an offline session and
+				//un-fixing offline nav for every subsequent offline boot.
+				if (snapshot.metadata.fromCache && !snapshot.docs.length) {
+					status(`${collectionName}: ignoring an empty from-cache delivery`);
+					return;
+				}
 				const docs : {[id : string] : unknown} = {};
 				for (const docSnapshot of snapshot.docs) docs[docSnapshot.id] = {...docSnapshot.data(), id: docSnapshot.id};
 				if (type === 'sections') {

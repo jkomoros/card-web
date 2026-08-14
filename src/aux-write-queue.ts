@@ -744,11 +744,24 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOu
 	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
 	//Over budget, a best-effort write degrades to session-only exactly as it
 	//does on quota; something the user WROTE must be refused loudly instead.
-	if (HIGH_VALUE_KINDS.has(intent.kind)) {
-		const admission = groupFitsInQueue([intent]);
-		if (!admission.ok) return Promise.reject(new Error(admission.message));
+	//
+	//BUT the caps have to be CHECKED for best-effort kinds too, which they were
+	//not. They were evaluated only for high-value kinds, so a long offline
+	//reading session — auto-mark-read fires every 5s — filled the queue past
+	//MAX_QUEUED_INTENTS with 150-byte `read-add` intents, and card creation was
+	//then refused outright ("more than can be safely queued offline") because
+	//the queue was full of things that had cheerfully skipped the check.
+	//Degrading the cheap kind protects the expensive one.
+	const admission = groupFitsInQueue([intent]);
+	const overBudget = !admission.ok;
+	if (overBudget && HIGH_VALUE_KINDS.has(intent.kind)) return Promise.reject(new Error(admission.ok ? '' : admission.message));
+	if (overBudget) {
+		//Session-only, the same degradation a best-effort kind already takes on
+		//a quota failure: attempt it, but do not let it consume the durable
+		//budget a card creation or comment will need.
+		console.warn(`[aux-write] queue is full; ${intent.kind} for ${intent.cardID} runs session-only so durable capacity is left for card writes`);
 	}
-	const persisted = appendIntent(intent);
+	const persisted = overBudget ? false : appendIntent(intent);
 	//If we could not persist something the user WROTE, do not proceed as
 	//though it were durable — reject so the caller runs its own failure path
 	//(restore the compose text, tell the user the card was not created)

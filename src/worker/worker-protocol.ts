@@ -27,7 +27,12 @@ import {
 //4: per-user state (stars/reads/reading-list) moved into the worker, which is
 //the only context holding Firestore's persistent cache and therefore the only
 //one whose re-attach costs deltas rather than the whole result set.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 4;
+//5: sections and tags moved into the worker, and the page REMOVED its
+//main-thread fallback for them. A stale v4 worker against a v5 page would pass
+//the old handshake, never send sections/tags, and wedge `*Loaded` silently —
+//the quiet variant of exactly what an exact-match handshake exists to prevent.
+//The bump costs nothing; not bumping cost a silent wedge.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 5;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>

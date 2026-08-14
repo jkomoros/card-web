@@ -198,6 +198,56 @@ assert the mutant builds.
   boot), and it reloads at most once per pending purge (a failing purge would
   otherwise reload forever).
 
+### Round 19 P2s (FIXED)
+
+- **P2-1 reading list had no pending-intent overlay.** Stars and reads got
+  `receiveAuthoritative*`; the reading list was still replaced wholesale, and
+  EVERY worker delivery is a full list — so queueing an add on a flaky
+  connection and receiving any delivery visibly reversed the user's action.
+  `receiveAuthoritativeReadingList` rebuilds from the server's ORDER (order is
+  meaningful here, unlike the sets) and then applies pending intents. Tested in
+  both directions, including that the surviving order is the server's.
+- **P2-2 protocol bumped 4 -> 5.** `d2d147b8` changed the protocol — the page
+  dropped its main-thread sections/tags fallback — without bumping, so a stale
+  v4 worker passed the handshake and then never sent sections/tags: a SILENT
+  `*Loaded` wedge, the exact failure the exact-match handshake exists to
+  prevent. Observed live afterwards: the first load after deploying the bump
+  fails closed and the next one is clean, which is the loud behaviour working.
+- **P2-3 going offline wiped the reader record's sections/tags.** The
+  supplemental listener stored even an empty from-cache snapshot and scheduled a
+  save; a `persist:false` reader raises exactly that offline, destroying
+  navigation data ~15s in. Empty from-cache deliveries are now ignored — they
+  are the absence of news, not news. VERIFIED live: sections 5 / tags 52 survive
+  30s offline and a subsequent offline boot.
+- **P2-4 the decoder re-scanned its own output.** Decoding numeric forms and
+  then named ones meant `&#38;mdash;` became an em dash where the DOM gives the
+  literal text `&mdash;` — reintroducing the double-decode the `&amp;`-last rule
+  exists to prevent. Now ONE pass, which cannot re-read itself. Invalid code
+  points become U+FFFD as the DOM does (`&#0;`, over-max, and the surrogate
+  range, which previously emitted a LONE SURROGATE). And the tag stripper no
+  longer eats prose: `<[^>]*>` turned `3 < 5 and 7 > 2` into `3  2`, losing four
+  words from the worker's search index for any card doing arithmetic. Ten cases
+  now match the DOM byte-for-byte, including all four flagged.
+- **P2-5 best-effort kinds bypassed admission control.** The queue caps were
+  evaluated only for high-value kinds, so a long offline reading session
+  (auto-mark-read every 5s) filled the queue with 150-byte `read-add` intents
+  and card creation was then REFUSED — the expensive write blocked by cheap ones
+  that skipped the check. Caps are now checked for every kind; over budget, a
+  best-effort kind degrades to session-only (the same degradation it already
+  takes on quota) instead of consuming durable capacity.
+- **P2-6 a stale snapshot resurrected deleted sections/tags.** `UPDATE_SECTIONS`
+  / `UPDATE_TAGS` always merged, which was right when the main thread sent only
+  changed docs — but the worker sends the COMPLETE map, so a snapshot-primed
+  entry the server no longer has could never be removed, and a deleted section
+  reappeared in navigation every boot. Full deliveries now carry `complete` and
+  replace; partial deliveries still merge.
+- **P2-7 the deadline check did not cover the deploys it was written for.** It
+  was an npm pre-hook, but the runbook's rules deploys use
+  `npx firebase deploy --only firestore:rules`, which bypasses npm hooks
+  entirely — including Phase 6 itself, the very step it exists to force. It is
+  now also a `firestore.predeploy` entry in firebase.TEMPLATE.json, verified to
+  survive generation into firebase.json.
+
 ### Rounds 18-19 P1s (FIXED)
 
 - **R18-1 — `_collectionPending` was undecorated, the FOURTH occurrence.** In

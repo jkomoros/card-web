@@ -2856,10 +2856,11 @@ export const reorderStatus = (pending : boolean) : SomeAction => {
 	};
 };
 
-export const updateSections = (sections : Sections) : ThunkSomeAction => (dispatch, getState) => {
+export const updateSections = (sections : Sections, complete = false) : ThunkSomeAction => (dispatch, getState) => {
 	dispatch({
 		type: UPDATE_SECTIONS,
 		sections,
+		complete,
 	});
 
 	//If the update is a single section updating and it's the one currently
@@ -2901,10 +2902,11 @@ export const updateAuthors = (authors : AuthorsMap) : ThunkSomeAction => (dispat
 	});
 };
 
-export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
+export const updateTags = (tags : Tags, complete = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type:UPDATE_TAGS,
 		tags,
+		complete,
 	});
 	dispatch(refreshCardSelector(false));
 };

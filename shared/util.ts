@@ -171,34 +171,46 @@ const NAMED_ENTITIES : {[entity : string] : string} = {
 	szlig: '\u00df', aelig: '\u00e6', AElig: '\u00c6',
 };
 
+//ONE PASS, deliberately. Decoding numeric forms first and then re-scanning for
+//named ones re-introduced exactly the double-decode the &amp;-goes-last rule
+//prevents: `&#38;mdash;` is the literal text "&mdash;" (the DOM says so), but
+//pass one turned it into `&mdash;` and pass two turned that into an em dash. A
+//single pass cannot re-read its own output.
+//
+//Invalid code points become U+FFFD rather than being emitted or left literal,
+//which is what the DOM does: `&#0;`, anything above U+10FFFF, and the surrogate
+//range D800-DFFF (that last one previously emitted a LONE SURROGATE, a string
+//that cannot be encoded — harmless while this text stays worker-local, but armed
+//for any future path that persists worker-computed text).
 const decodeCommonEntities = (text : string) : string => {
-	//Numeric forms first; they are unambiguous and cover whatever a given
-	//editor happens to emit.
-	let result = text
-		.replace(/&#(\d+);/g, (match, code) => {
-			const value = Number(code);
-			return Number.isFinite(value) && value > 0 && value <= 0x10ffff ? String.fromCodePoint(value) : match;
-		})
-		.replace(/&#x([0-9a-fA-F]+);/g, (match, code) => {
-			const value = parseInt(code, 16);
-			return Number.isFinite(value) && value > 0 && value <= 0x10ffff ? String.fromCodePoint(value) : match;
-		});
-	//Named forms, leaving anything unrecognized ALONE rather than dropping it:
-	//an unknown entity is better tokenized as its literal text than deleted.
-	result = result.replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (match, name) => {
-		if (name === 'amp') return match;
-		const decoded = NAMED_ENTITIES[name];
+	return text.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (match, body : string) => {
+		if (body[0] === '#') {
+			const hex = body[1] === 'x' || body[1] === 'X';
+			const code = parseInt(hex ? body.slice(2) : body.slice(1), hex ? 16 : 10);
+			if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return '\ufffd';
+			//Surrogate halves are not scalar values; the DOM substitutes.
+			if (code >= 0xd800 && code <= 0xdfff) return '\ufffd';
+			return String.fromCodePoint(code);
+		}
+		//`amp` decodes here too, and because this is the only pass its output is
+		//never re-read: `&amp;mdash;` correctly stays the literal text `&mdash;`.
+		if (body === 'amp') return '&';
+		const decoded = NAMED_ENTITIES[body];
+		//Unknown entities are left ALONE: a slightly wrong token beats a
+		//silently deleted word.
 		return decoded === undefined ? match : decoded;
 	});
-	//&amp; LAST, and deliberately: decoding it earlier would turn the literal
-	//text `&amp;mdash;` into an em dash instead of the string `&mdash;`.
-	return result.replace(/&amp;/g, '&');
 };
 
 const innerTextForHTMLWithoutDocument = (body : string) : string => {
 	//Remove comments, then all tags, then decode entities.
 	const withoutComments = body.replace(/<!--[\s\S]*?-->/g, '');
-	const withoutTags = withoutComments.replace(/<[^>]*>/g, '');
+	//Only things that actually look like TAGS. `<[^>]*>` ate ordinary prose:
+	//`3 < 5 and 7 > 2` became `3  2`, losing four words from the worker's search
+	//index for any card doing arithmetic or describing generics. A tag name must
+	//start with a letter (or `/` for a closing tag), which `< 5 and 7 >` does
+	//not.
+	const withoutTags = withoutComments.replace(/<\/?[a-zA-Z][^>]*>/g, '');
 	return decodeCommonEntities(withoutTags);
 };
 

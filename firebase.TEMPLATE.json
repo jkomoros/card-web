@@ -25,6 +25,10 @@
     ]
   },
   "firestore": {
+    "//": "predeploy runs for `firebase deploy --only firestore:rules` too, which is what the runbook uses -- npm pre-hooks do NOT, so the dated rules deadline was unenforced on exactly the deploy it was written for (including Phase 6 itself).",
+    "predeploy": [
+      "node tools/check-deadlines.cjs"
+    ],
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
