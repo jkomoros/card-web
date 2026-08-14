@@ -299,7 +299,16 @@ const writeDeployStamp = (): void => {
 	const commit = git(['rev-parse', 'HEAD']);
 	const short = git(['rev-parse', '--short', 'HEAD']);
 	const subject = git(['log', '-1', '--format=%s']);
-	const dirty = git(['status', '--porcelain']) !== '';
+	//DIRTY means "this build contains work that is not committed", which is a
+	//reproducibility problem. It deliberately does NOT mean "git status is not
+	//empty": build artifacts and the reviewers' untracked notes live here
+	//permanently, so a plain --porcelain check fired on literally every deploy —
+	//and a warning that always fires is one nobody reads, which is worse than no
+	//warning at all. Count tracked modifications, plus untracked files under the
+	//SOURCE trees, since a new .ts nobody committed does change the build.
+	const trackedChanges = git(['status', '--porcelain', '--untracked-files=no']);
+	const untrackedSources = git(['ls-files', '--others', '--exclude-standard', 'src', 'shared', 'tools', 'test']);
+	const dirty = trackedChanges !== '' || untrackedSources !== '';
 	const stamp = {commit, short, subject, dirty, deployedAt: new Date().toISOString()};
 	try {
 		fs.mkdirSync('build', {recursive: true});
@@ -310,8 +319,10 @@ const writeDeployStamp = (): void => {
 	console.log('');
 	console.log('  DEPLOYING ' + (short || '(unknown commit)') + (subject ? ' — ' + subject : ''));
 	if (dirty) {
-		console.log('  WARNING: the working tree is DIRTY, so this build matches no commit.');
+		console.log('  WARNING: uncommitted work is IN this build, so it matches no commit.');
 		console.log('           Whoever verifies this deploy cannot reproduce what is running.');
+		if (trackedChanges) console.log('           modified: ' + trackedChanges.split('\n').slice(0, 5).join(', '));
+		if (untrackedSources) console.log('           untracked source files: ' + untrackedSources.split('\n').slice(0, 5).join(', '));
 	}
 	console.log('  Verify with: curl -s https://<host>/deploy-stamp.json');
 	console.log('');
