@@ -534,6 +534,17 @@ export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : stri
 	processNormalizedTextPropertiesTimeout = window.setTimeout(() => {
 		processNormalizedTextPropertiesTimeout = 0;
 		dispatch({type: EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES});
+		//Ask for editing-card similarity the moment the content settles,
+		//instead of waiting for the reference-blocks recompute to ask ~250ms-1s
+		//later — the similarity round trip and the blocks debounce then overlap
+		//rather than stack. The retry coordinator dedupes by content version,
+		//so the blocks path's later request for the same version is a no-op.
+		//Dynamic import matches the house pattern for the editor<->similarity
+		//dependency (see corpus-bridge's use) and keeps the cycle lazy.
+		const settledCard = getState().editor?.card;
+		if (settledCard) {
+			void import('./similarity.js').then(module => module.fetchSimilarCardsForCardIfEnabled(settledCard));
+		}
 	}, 1000);
 };
 
