@@ -137,6 +137,22 @@ see README "Firebase Functions Configuration".)
 
 ## Phase 5 — Immediate verification (same hour)
 
+**FIRST, confirm you are verifying the build you think you are.** Every step
+below is worthless against a stale deploy, and that has actually happened —
+a post-deploy check once tested the previous build and reported a working fix
+as broken.
+
+```bash
+curl -s https://thecompendium.cards/deploy-stamp.json
+git rev-parse HEAD
+```
+
+The `commit` field must equal HEAD, and `dirty` must be `false`. If `dirty` is
+true the build contains uncommitted work and corresponds to no commit at all —
+nobody can reproduce later what is running. The stamp is served `no-store`, so
+what you get back is always the live one.
+
+
 - [ ] Anonymous: load the prod site in a private window. Published cards
       render; console shows `[corpus-worker] ingested … (published)` and
       `load complete`; zero errors.
