@@ -234,6 +234,10 @@ import {
 } from '../deferred-work.js';
 
 import {
+	sectionResultCommits
+} from '../section-coherence.js';
+
+import {
 	CardSelectedEvent,
 	CardSwipedEvent,
 	DisabledCardHighlightClickedEvent,
@@ -288,10 +292,10 @@ class CardView extends connect(store)(PageViewElement) {
 		_editing: boolean;
 
 	@state()
-	_cardModificationsPending: boolean;
+		_cardModificationsPending: boolean;
 
 	@state()
-	_durableCardMutationPending: boolean;
+		_durableCardMutationPending: boolean;
 
 	@state()
 		_hideActions: boolean;
@@ -1041,6 +1045,11 @@ class CardView extends connect(store)(PageViewElement) {
 				workerPromise.then(blocks => {
 					if (blocks === null) {
 						if (corpusWorkerServesCollections()) {
+							//Commit the empty state only if this run was for
+							//the STILL-active card. An unguarded commit here
+							//used to clobber a newer card's correct blocks
+							//and stamp them with this run's stale card id.
+							if (!sectionResultCommits(cardID, selectActiveCard(store.getState() as State)?.id || '')) return;
 							this._cardReferenceBlocks = [];
 							this._cardReferenceBlocksForCardID = cardID;
 							return;
@@ -1059,8 +1068,7 @@ class CardView extends connect(store)(PageViewElement) {
 					//the editing card's id IS the active card's id.)
 					const freshState = store.getState() as State;
 					if (selectIsEditing(freshState) !== editing) return;
-					const freshCard = selectActiveCard(freshState);
-					if (!freshCard || freshCard.id !== cardID) return;
+					if (!sectionResultCommits(cardID, selectActiveCard(freshState)?.id || '')) return;
 					this._cardReferenceBlocks = blocks;
 					this._cardReferenceBlocksForCardID = cardID;
 				});

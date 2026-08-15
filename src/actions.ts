@@ -708,10 +708,16 @@ type ActionUpdateCorpusDetail = {
 	corpusSize: number,
 	snapshotAgeMs: number | null,
 	//Roughly how many cards the finished corpus will hold, when the worker
-	//knows (cold sweep); null the rest of the time. Lets the indicator show
-	//"12.4k of ~40.2k" instead of a bare ticking count.
+	//knows (cold sweep or snapshot prime); null the rest of the time. Lets
+	//the indicator show "12.4k of ~40.2k" instead of a bare ticking count.
 	expectedCorpusSize: number | null,
-	corpusComplete: boolean
+	corpusComplete: boolean,
+	//Verification-checkpoint progress for the loadComplete→live window: how
+	//many of the connection's fixed set of verification checks have
+	//completed. null when the current connection reports none (reader and
+	//legacy-listen modes, or before the worker announces a total).
+	verifyDone: number | null,
+	verifyTotal: number | null
 };
 
 //Durable aux-write intents (stars/reads/comments/card creations) queued in

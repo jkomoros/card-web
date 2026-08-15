@@ -20,6 +20,8 @@ const base = {
 	corpusSize: 40225,
 	expectedCorpusSize: null,
 	corpusComplete: false,
+	verifyDone: null,
+	verifyTotal: null,
 	corpusSnapshotAgeMs: null,
 	pendingSaveCount: 0,
 	queuedWriteCount: 0,
@@ -204,6 +206,76 @@ describe('corpusStatusGlyph', () => {
 			assert.strictEqual(compactCardCount(10000), '10.0k');
 			assert.strictEqual(compactCardCount(40225), '40.2k');
 		});
+	});
+});
+
+describe('progress ring (the current phase\'s fraction)', () => {
+	it('draws from the download fraction while downloading with a known target', () => {
+		const g = glyph({status: 'loading', corpusSize: 12400, expectedCorpusSize: 40200});
+		assert.ok(Math.abs(g.progress - 12400 / 40200) < 1e-9);
+	});
+
+	it('is absent while downloading without a target', () => {
+		assert.strictEqual(glyph({status: 'loading', corpusSize: 12400}).progress, null);
+	});
+
+	it('draws from the verify fraction while verifying', () => {
+		//Warm boot: corpus complete, checks under way.
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 7, verifyTotal: 16});
+		assert.ok(Math.abs(g.progress - 7 / 16) < 1e-9);
+	});
+
+	it('verify fraction never claims done before the status does', () => {
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 16, verifyTotal: 16});
+		assert.strictEqual(g.progress, 0.99);
+	});
+
+	it('clamps a re-run phase rather than exceeding the total', () => {
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 20, verifyTotal: 16});
+		assert.strictEqual(g.progress, 0.99);
+		assert.ok(g.tooltip.includes('(16 of 16 checks, 99%)'));
+	});
+
+	it('is absent while verifying without checkpoint progress (reader/legacy modes)', () => {
+		assert.strictEqual(glyph({status: 'loading', corpusSize: 40225, corpusComplete: true}).progress, null);
+	});
+
+	it('is absent once live', () => {
+		assert.strictEqual(glyph({verifyDone: 7, verifyTotal: 16}).progress, null);
+	});
+
+	it('download progress ignores verify inputs and vice versa', () => {
+		//Still downloading: the ring is the fetched fraction even if early
+		//checkpoints (the trust gate that classified the corpus cold) landed.
+		const g = glyph({status: 'loading', corpusSize: 12400, expectedCorpusSize: 40200, verifyDone: 11, verifyTotal: 16});
+		assert.ok(Math.abs(g.progress - 12400 / 40200) < 1e-9);
+	});
+});
+
+describe('verifying tooltip precision', () => {
+	it('shows checks and percent when checkpoint progress is known', () => {
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 7, verifyTotal: 12});
+		assert.strictEqual(g.tooltip.split('\n')[0], 'Verifying 40,225 cards… (7 of 12 checks, 58%)');
+	});
+
+	it('stays imprecise when the connection reports no checkpoints', () => {
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true});
+		assert.strictEqual(g.tooltip.split('\n')[0], 'Verifying 40,225 cards…');
+	});
+
+	it('applies to the warm-boot checking/takeover states too', () => {
+		const g = glyph({status: 'checking', corpusSize: 40225, verifyDone: 3, verifyTotal: 16});
+		assert.strictEqual(g.tooltip.split('\n')[0], 'Verifying 40,225 cards… (3 of 16 checks, 19%)');
+	});
+
+	it('caps the verifying percent below 100', () => {
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 16, verifyTotal: 16});
+		assert.ok(g.tooltip.includes('(16 of 16 checks, 99%)'));
+	});
+
+	it('zero checks done reads as 0%', () => {
+		const g = glyph({status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 0, verifyTotal: 16});
+		assert.strictEqual(g.tooltip.split('\n')[0], 'Verifying 40,225 cards… (0 of 16 checks, 0%)');
 	});
 });
 

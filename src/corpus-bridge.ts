@@ -569,6 +569,13 @@ let workerSnapshotAgeMs : number | null = null;
 //"12.4k of ~40.2k". null whenever no fetch with a known target is running.
 let workerExpectedCorpusSize : number | null = null;
 let workerCorpusComplete = false;
+//Verification-checkpoint progress for the loadComplete→live window
+//(corpusProgress verifyDone/verifyTotal): how many of the connection's
+//fixed set of verification checks have completed. null until the worker
+//announces a total for this connection; reset on connect/teardown like
+//their peers above.
+let workerVerifyDone : number | null = null;
+let workerVerifyTotal : number | null = null;
 
 //The size and snapshot age were maintained here and never rendered. Publish
 //them into Redux so the status indicator can be information-dense (criterion
@@ -578,22 +585,28 @@ let lastPublishedCorpusSize = -1;
 let lastPublishedSnapshotAgeMs : number | null | undefined = undefined;
 let lastPublishedExpectedCorpusSize : number | null | undefined = undefined;
 let lastPublishedCorpusComplete = false;
+let lastPublishedVerifyDone : number | null | undefined = undefined;
+let lastPublishedVerifyTotal : number | null | undefined = undefined;
 //Teardown/reconnect reset. One call rather than three lines at each site.
 const resetCorpusDetail = () => {
 	workerCorpusSize = 0;
 	workerSnapshotAgeMs = null;
 	workerExpectedCorpusSize = null;
 	workerCorpusComplete = false;
+	workerVerifyDone = null;
+	workerVerifyTotal = null;
 	publishCorpusDetail();
 };
 
 const publishCorpusDetail = () => {
-	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs && workerExpectedCorpusSize === lastPublishedExpectedCorpusSize && workerCorpusComplete === lastPublishedCorpusComplete) return;
+	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs && workerExpectedCorpusSize === lastPublishedExpectedCorpusSize && workerCorpusComplete === lastPublishedCorpusComplete && workerVerifyDone === lastPublishedVerifyDone && workerVerifyTotal === lastPublishedVerifyTotal) return;
 	lastPublishedCorpusSize = workerCorpusSize;
 	lastPublishedSnapshotAgeMs = workerSnapshotAgeMs;
 	lastPublishedExpectedCorpusSize = workerExpectedCorpusSize;
 	lastPublishedCorpusComplete = workerCorpusComplete;
-	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs, expectedCorpusSize: workerExpectedCorpusSize, corpusComplete: workerCorpusComplete});
+	lastPublishedVerifyDone = workerVerifyDone;
+	lastPublishedVerifyTotal = workerVerifyTotal;
+	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs, expectedCorpusSize: workerExpectedCorpusSize, corpusComplete: workerCorpusComplete, verifyDone: workerVerifyDone, verifyTotal: workerVerifyTotal});
 };
 //Delta-sync health as last reported by the worker (watermark mode).
 let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
@@ -1261,7 +1274,11 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		store.dispatch({type: FIND_UPDATE_SEARCH_RECALL, built: message.built, total: message.total, ready: message.ready});
 		break;
 	case 'corpusProgress':
-		workerExpectedCorpusSize = message.expectedCorpusSize;
+		//Fields are optional; a send carries only the ones it is updating, so
+		//a verify tick must not clobber the download target or vice versa.
+		if (message.expectedCorpusSize !== undefined) workerExpectedCorpusSize = message.expectedCorpusSize;
+		if (message.verifyDone !== undefined) workerVerifyDone = message.verifyDone;
+		if (message.verifyTotal !== undefined) workerVerifyTotal = message.verifyTotal;
 		publishCorpusDetail();
 		break;
 	case 'loadComplete':

@@ -13,6 +13,8 @@ import {
 	selectCorpusSnapshotAgeMs,
 	selectExpectedCorpusSize,
 	selectCorpusComplete,
+	selectCorpusVerifyDone,
+	selectCorpusVerifyTotal,
 	selectPendingAuxWriteCount,
 	selectPendingModificationCount,
 } from '../selectors.js';
@@ -45,6 +47,12 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		_corpusComplete : boolean;
 
 	@state()
+		_verifyDone : number | null = null;
+
+	@state()
+		_verifyTotal : number | null = null;
+
+	@state()
 		_snapshotAgeMs : number | null = null;
 
 	@state()
@@ -58,6 +66,16 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
+			/* POINTER STABILITY: both placements are right-anchored — the
+			   floating pill by its fixed right offset, and the header instance by
+			   sitting against the fixed-width user-chip with flex-grow spacers
+			   on its left — so any width change moves the LEFT edge. The DOM
+			   order is dot, count, label; reversed, the dot renders at the
+			   right end, a constant distance from the anchored edge, and the
+			   pill grows only leftward, AWAY from the dot. The count label can
+			   then tick ('12.4k/40.2k' → '40.2k' → verifying) without sliding
+			   the dot out from under the cursor and dropping the tooltip. */
+			flex-direction: row-reverse;
 			/* Without this the dot butted directly against its label whenever
 			   the header instance became non-quiet. */
 			gap: 0.4em;
@@ -242,6 +260,8 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			corpusSize: this._corpusSize,
 			expectedCorpusSize: this._expectedCorpusSize,
 			corpusComplete: this._corpusComplete,
+			verifyDone: this._verifyDone,
+			verifyTotal: this._verifyTotal,
 			corpusSnapshotAgeMs: this._snapshotAgeMs,
 			pendingSaveCount: this._pendingSaveCount,
 			queuedWriteCount: this._queuedWriteCount,
@@ -256,6 +276,11 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		//('12.4k↑', or '12.4k/40.2k' when the worker knows the target), with a
 		//superscript amber badge for local changes the server has not
 		//confirmed.
+		//The tooltip lives on the HOST (set in stateChanged), not on the
+		//individual spans: per-span titles meant the tooltip dropped whenever
+		//the ticking label resized the pill and the cursor fell between (or
+		//off) the spans. One title covering dot+count+lock+badge means hover
+		//anywhere on the pill shows the full layered status.
 		const glyph = this._glyph;
 		return html`
 			<span
@@ -263,9 +288,8 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 				data-tone=${glyph.tone}
 				?data-pulse=${glyph.pulse}
 				aria-hidden='true'
-				title=${glyph.tooltip}
 				style=${glyph.progress !== null ? `--corpus-progress:${Math.round(glyph.progress * 360)}deg` : ''}
-			></span><span class='count' aria-hidden='true' title=${glyph.tooltip} ?hidden=${!glyph.countLabel && !glyph.pendingBadge}>${glyph.countLabel}<span class='lock' ?hidden=${!glyph.writeLocked} aria-hidden='true'>${LOCK_ICON}</span><span class='badge' ?hidden=${!glyph.pendingBadge}>${glyph.pendingBadge}</span></span><span class='label' role='status' aria-live='polite'>${glyph.tooltip}</span>
+			></span><span class='count' aria-hidden='true' ?hidden=${!glyph.countLabel && !glyph.pendingBadge}>${glyph.countLabel}<span class='lock' ?hidden=${!glyph.writeLocked} aria-hidden='true'>${LOCK_ICON}</span><span class='badge' ?hidden=${!glyph.pendingBadge}>${glyph.pendingBadge}</span></span><span class='label' role='status' aria-live='polite'>${glyph.tooltip}</span>
 		`;
 	}
 
@@ -275,10 +299,15 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		this._corpusSize = selectCorpusSize(state);
 		this._expectedCorpusSize = selectExpectedCorpusSize(state);
 		this._corpusComplete = selectCorpusComplete(state);
+		this._verifyDone = selectCorpusVerifyDone(state);
+		this._verifyTotal = selectCorpusVerifyTotal(state);
 		this._snapshotAgeMs = selectCorpusSnapshotAgeMs(state);
 		this._pendingSaveCount = selectPendingModificationCount(state);
 		this._queuedWriteCount = selectPendingAuxWriteCount(state);
 		const glyph = this._glyph;
+		//ONE tooltip for the whole pill, on the host itself — hover anywhere
+		//(dot, count, lock, badge, the gaps between) shows the full status.
+		this.title = glyph.tooltip;
 		this.toggleAttribute('data-has-count', Boolean(glyph.countLabel || glyph.pendingBadge));
 		//'loading' is quiet too: a labeled pill on every ordinary boot is
 		//noise — the floating indicator should speak only for degraded states.

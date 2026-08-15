@@ -291,25 +291,44 @@ describe('reducer identity preservation', () => {
 	it('UPDATE_CORPUS_DETAIL stores the counts the status indicator renders', () => {
 		const initial = dataReducer(undefined, {type: '@@INIT'});
 		assert.strictEqual(initial.expectedCorpusSize, null);
+		assert.strictEqual(initial.verifyDone, null);
+		assert.strictEqual(initial.verifyTotal, null);
 		let state = dataReducer(initial, {
 			type: UPDATE_CORPUS_DETAIL,
 			corpusSize: 12400,
 			snapshotAgeMs: 5000,
 			expectedCorpusSize: 40200,
+			verifyDone: 3,
+			verifyTotal: 16,
 		});
 		assert.strictEqual(state.corpusSize, 12400);
 		assert.strictEqual(state.corpusSnapshotAgeMs, 5000);
 		assert.strictEqual(state.expectedCorpusSize, 40200);
+		assert.strictEqual(state.verifyDone, 3);
+		assert.strictEqual(state.verifyTotal, 16);
 		//loadComplete republishes with the target cleared; a lingering total
 		//would keep the indicator promising progress toward a goal already
-		//reached.
+		//reached. Verify progress, by contrast, OUTLIVES loadComplete — the
+		//verifying window is after it — and clears on teardown/reconnect (an
+		//action without the fields normalizes them to null).
 		state = dataReducer(state, {
 			type: UPDATE_CORPUS_DETAIL,
 			corpusSize: 40225,
 			snapshotAgeMs: null,
 			expectedCorpusSize: null,
+			verifyDone: 16,
+			verifyTotal: 16,
 		});
 		assert.strictEqual(state.expectedCorpusSize, null);
+		assert.strictEqual(state.verifyDone, 16);
+		state = dataReducer(state, {
+			type: UPDATE_CORPUS_DETAIL,
+			corpusSize: 0,
+			snapshotAgeMs: null,
+			expectedCorpusSize: null,
+		});
+		assert.strictEqual(state.verifyDone, null);
+		assert.strictEqual(state.verifyTotal, null);
 	});
 
 	it('UPDATE_PENDING_AUX_WRITE_COUNT mirrors the durable queue depth', () => {

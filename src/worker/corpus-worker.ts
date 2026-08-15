@@ -1469,6 +1469,13 @@ const connectPublishedFromSnapshot = async () => {
 	}
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
+		//Same reasoning as the privileged snapshot prime: the primed count IS
+		//the finished size, so the fill window can render a real fraction.
+		//Gated on the loadComplete-granting threshold below, since
+		//loadComplete is what clears the target.
+		if (primedCount >= WARM_CACHE_THRESHOLD) {
+			send({type: 'corpusProgress', generation, expectedCorpusSize: primedCount});
+		}
 		updateLocalState(primedCards, [], true);
 		forwardBatch(primedCards, [], 'published', true, false,
 			engine.cardDerivedFilters(), [...corpus.keys()]);
@@ -1909,6 +1916,49 @@ let currentOwnsSupplementalData = false;
 type WatermarkPlane = 'published' | 'tombstone' | 'delta';
 const healthyWatermarkPlanes = new Set<WatermarkPlane>();
 
+//----------------------------------------------------------------------------
+// Verification-checkpoint progress (corpusProgress verifyDone/verifyTotal).
+//
+// The loadComplete→live window used to be opaque: "Verifying…" with no
+// fraction. These checkpoints are OBSERVATION ONLY — each is a send() at an
+// existing decision point in the sync pipeline; nothing is reordered, gated
+// or awaited for them. The total is fixed at connect (per mode) so the
+// fraction is monotonic, and each named checkpoint latches exactly once, so
+// a phase that re-runs (a trust-gate re-check, a plane re-heal after a blip)
+// clamps rather than regresses.
+//
+// Privileged watermark mode's checkpoints:
+//   - one per trust-gate partition count() (first resolution each),
+//   - tombstone catch-up finished,
+//   - each of the three watermark planes first reporting healthy,
+//   - the delta listener's first server-confirmed delivery,
+//   - the post-delta re-gate completing.
+// Reader and legacy-listen sessions have no verifying window in the UI (the
+// bridge flips them straight to 'live' at loadComplete, and markWatermarkPlane
+// is a no-op for them), so they configure a total of 0 and never report.
+//----------------------------------------------------------------------------
+
+const VERIFY_FIXED_CHECKPOINTS = 6;
+
+const verifyCheckpointsDone = new Set<string>();
+let verifyCheckpointTotal = 0;
+
+const configureVerifyProgress = (total : number) => {
+	verifyCheckpointsDone.clear();
+	verifyCheckpointTotal = total;
+	//Announce the total up front so the tooltip can show '0 of N checks'
+	//from the first verifying render rather than only after the first
+	//checkpoint lands.
+	if (total > 0) send({type: 'corpusProgress', generation, verifyDone: 0, verifyTotal: total});
+};
+
+const markVerifyCheckpoint = (name : string) => {
+	if (!verifyCheckpointTotal) return;
+	if (verifyCheckpointsDone.has(name)) return;
+	verifyCheckpointsDone.add(name);
+	send({type: 'corpusProgress', generation, verifyDone: Math.min(verifyCheckpointsDone.size, verifyCheckpointTotal), verifyTotal: verifyCheckpointTotal});
+};
+
 const setSyncState = (state : 'unverified' | 'live' | 'stale') => {
 	if (currentSyncState === state) return;
 	currentSyncState = state;
@@ -1924,7 +1974,12 @@ const setSyncState = (state : 'unverified' | 'live' | 'stale') => {
 
 const markWatermarkPlane = (plane : WatermarkPlane, healthy : boolean) => {
 	if (syncMode !== 'watermark' || !currentMayViewUnpublished) return;
-	if (healthy) healthyWatermarkPlanes.add(plane);
+	if (healthy) {
+		healthyWatermarkPlanes.add(plane);
+		//Observation only: a plane's FIRST healthy report is a verification
+		//checkpoint (latched — a re-heal after a blip does not re-count).
+		markVerifyCheckpoint(`plane-${plane}`);
+	}
 	else healthyWatermarkPlanes.delete(plane);
 	status(`watermark plane ${plane} ${healthy ? 'healthy' : 'stale'} (${[...healthyWatermarkPlanes].join(',') || 'none'})`);
 	if (healthyWatermarkPlanes.size === 3) {
@@ -1982,8 +2037,15 @@ const corpusUnpublishedPerPartition = () : Set<CardID>[] => {
 const runTrustGate = async (database : Firestore, myConnectionGeneration : number, countDeficits = false) : Promise<{mismatched : number[], serverTotal : number} | null> => {
 	try {
 		const buckets = corpusUnpublishedPerPartition();
-		const counts = await Promise.all(UNPUBLISHED_CARD_PARTITIONS.map(partition =>
-			getCountFromServer(unpublishedPartitionQuery(database, partition)).then(snapshot => snapshot.data().count)));
+		const counts = await Promise.all(UNPUBLISHED_CARD_PARTITIONS.map((partition, index) =>
+			getCountFromServer(unpublishedPartitionQuery(database, partition)).then(snapshot => {
+				//Observation only: each partition count() resolving is one
+				//verification checkpoint. Latched by name, so the post-delta
+				//re-gate (and any afterColdSweep re-check) re-running the same
+				//counts clamps instead of regressing the fraction.
+				markVerifyCheckpoint(`trust-gate-count-${index}`);
+				return snapshot.data().count;
+			})));
 		if (myConnectionGeneration !== connectionGeneration) return null;
 		const mismatched : number[] = [];
 		let serverTotal = 0;
@@ -2397,6 +2459,9 @@ const attachDeltaListener = (database : Firestore) => {
 			if (!snapshot.metadata.fromCache) {
 				if (firstServerDelivery) {
 					firstServerDelivery = false;
+					//Observation only: the delta listener's first
+					//server-confirmed delivery is a verification checkpoint.
+					markVerifyCheckpoint('delta-first-server-delivery');
 					void clearWatermarkClamp().then(async () => {
 						if (myConnectionGeneration !== connectionGeneration) return;
 						//BEFORE 'live', not after. markWatermarkPlane flips the
@@ -2409,6 +2474,9 @@ const attachDeltaListener = (database : Firestore) => {
 						//so this is the one moment a deficit is provably real.
 						await verifyDeficitsAfterDeltaCatchUp(database, myConnectionGeneration);
 						if (myConnectionGeneration !== connectionGeneration) return;
+						//Observation only: the post-delta re-gate (deficit
+						//verification) has completed, whatever it found.
+						markVerifyCheckpoint('post-delta-regate');
 						markWatermarkPlane('delta', true);
 					});
 				} else {
@@ -2826,6 +2894,16 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		}
 		const cardFilters = engine.cardDerivedFilters();
 		const cardFilterCorpusIDs = [...corpus.keys()];
+		//A compact-snapshot prime knows its finished size UP FRONT (the primed
+		//count is the whole known-complete corpus), so tell the page before
+		//the batches land: the brief warm-boot fill window then renders a real
+		//fraction instead of a bare ticking count. Gated on exactly the
+		//condition that grants loadComplete below, because loadComplete is
+		//what clears this target — a persistent-cache prime (unknown
+		//completeness) or an under-threshold prime must not promise one.
+		if (primeSource === 'compact snapshot' && primedCount >= WARM_CACHE_THRESHOLD) {
+			send({type: 'corpusProgress', generation, expectedCorpusSize: primedCount});
+		}
 		if (primedCount >= 10000) status(`watermark prime handoff starting: ${primedCount} cards`);
 		const hasUnpublished = Object.keys(primedUnpublished).length > 0;
 		if (Object.keys(primedPublished).length) forwardBatch(primedPublished, [], 'published', true, false, hasUnpublished ? undefined : cardFilters, hasUnpublished ? undefined : cardFilterCorpusIDs);
@@ -2916,6 +2994,10 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	markBootCheckpoint('publishedAttached');
 	await tombstoneCatchUp;
 	markBootCheckpoint('tombstoneCatchUp');
+	//Observation only: the tombstone catch-up phase finished (possibly
+	//degraded — catchUpTombstones is non-fatal on failure, and the gate's
+	//ghost handling remains the backstop either way).
+	markVerifyCheckpoint('tombstone-catch-up');
 	if (myConnectionGeneration !== connectionGeneration) return;
 	retryPendingLaunders(database);
 
@@ -3092,6 +3174,14 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	currentUid = uid;
 	currentMayViewUnpublished = mayViewUnpublished;
 	healthyWatermarkPlanes.clear();
+	//The verification-progress total is FIXED here, per mode, so the fraction
+	//the page renders is monotonic for the whole connection. Only the
+	//privileged watermark pipeline has a verifying window with reportable
+	//phases; reader and legacy-listen sessions go 'live' at loadComplete and
+	//report nothing (total 0 disables every checkpoint).
+	configureVerifyProgress(mayViewUnpublished && syncMode === 'watermark'
+		? UNPUBLISHED_CARD_PARTITIONS.length + VERIFY_FIXED_CHECKPOINTS
+		: 0);
 	currentSyncState = '';
 	authoritativePublishedIDs = null;
 	syncMetaState = null;

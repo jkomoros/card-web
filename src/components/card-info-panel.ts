@@ -99,6 +99,11 @@ import {
 	deferredWorkStartedAt
 } from '../deferred-work.js';
 
+import {
+	sectionRender,
+	sectionResultCommits
+} from '../section-coherence.js';
+
 //Matches card-view's reference-blocks debounce: long enough that navigation
 //keystrokes never pay the whole-corpus reference-block cost.
 const EXPENSIVE_PROPERTIES_DEBOUNCE_MS = 250;
@@ -106,6 +111,11 @@ const EXPENSIVE_PROPERTIES_DEBOUNCE_MS = 250;
 //churn could starve it and the panel would never populate. See the same
 //guarantee in card-view.ts.
 const EXPENSIVE_PROPERTIES_MAX_WAIT_MS = 1000;
+
+//Stable empty values for sectionRender: fresh instances every render would
+//churn property identity on the child components for no reason.
+const EMPTY_REFERENCE_BLOCKS : ExpandedReferenceBlocks = [];
+const EMPTY_WORD_CLOUD = emptyWordCloud();
 
 @customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
@@ -143,9 +153,19 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	@state()
 		_expensivePropertiesTimeout: number;
 	_expensivePropertiesFirstDeferredAt = 0;
-	//Which card the rendered blocks/word cloud belong to (stale content is
-	//cleared on card change — empty-until-ready, never wrong-then-right).
-	_expensivePropertiesForCardID = '';
+	//Which card the committed blocks/word cloud were computed for ('' =
+	//nothing committed yet). Per the section-coherence principle these are NOT
+	//cleared on card change: the previous card's value keeps rendering,
+	//dimmed as stale, until the first for-this-card result commits — one swap
+	//per section per transition, never an empty flash between two real
+	//values, never a value keyed to a third card. Separate stamps because the
+	//word cloud commits synchronously at the debounce fire while the blocks
+	//commit at worker-promise resolution.
+	@state()
+		_referenceBlocksForCardID = '';
+
+	@state()
+		_wordCloudForCardID = '';
 
 	static override styles = [
 		ScrollingSharedStyles,
@@ -198,6 +218,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			}
 			.loading {
 				opacity:0.7;
+				/* Match the drawer's 'updating' treatment: ease the dim in so
+				   a fast swap doesn't read as a flash. */
+				transition: opacity 0.15s ease-in;
+			}
+			/* The reference-blocks wrapper exists only to carry the stale dim;
+			   don't let the generic direct-child margin double-space it. */
+			.container > div.blocks {
+				margin: 0;
 			}
 			.spacer {
 				/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
@@ -208,11 +236,21 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	];
 
 	override render() {
+		//Per the section-coherence principle, the async-derived sections
+		//(reference blocks, word cloud) hold the previous card's committed
+		//value — dimmed with the house 'updating' treatment — until their
+		//first result FOR the active card commits. Everything else in the
+		//rail derives synchronously from the active card and swaps instantly.
+		const activeCardID = this._card?.id || '';
+		const blocks = sectionRender({forCardID: this._referenceBlocksForCardID, value: this._referenceBlocks}, activeCardID, EMPTY_REFERENCE_BLOCKS);
+		const wordCloud = sectionRender({forCardID: this._wordCloudForCardID, value: this._wordCloud}, activeCardID, EMPTY_WORD_CLOUD);
 		return html`
 			<limit-warning></limit-warning>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
-				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}
+				<div class='blocks ${blocks.stale ? 'loading' : ''}'>
+					${blocks.value.map(item => html`<reference-block .block=${item}></reference-block>`)}
+				</div>
 				<div>
 					<h4>Notes${help('Notes are notes left by the author of the card.')}</h4>
 					${this._card && this._card.notes
@@ -232,9 +270,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					<h4>Tags</h4>
 					<tag-list .card=${this._card} .tags=${this._card?.tags || []} .tagInfos=${this._tagInfos}></tag-list>
 				</div>
-				<div>
+				<div class='${wordCloud.stale ? 'loading' : ''}'>
 					<h4>Word Cloud</h4>
-					<word-cloud .wordCloud=${this._wordCloud}></word-cloud>
+					<word-cloud .wordCloud=${wordCloud.value}></word-cloud>
 				</div>
 				<div>
 					<h4>Last Updated</h4>
@@ -304,7 +342,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			this._tweets = {};
 			this._tweetsLoading = false;
 			this._referenceBlocks = [];
+			this._referenceBlocksForCardID = '';
 			this._wordCloud = emptyWordCloud();
+			this._wordCloudForCardID = '';
 			window.clearTimeout(this._expensivePropertiesTimeout);
 			return;
 		}
@@ -324,14 +364,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//state, which will break memoization of selectors by selecting old
 		//things), so skip it. 
 		window.clearTimeout(this._expensivePropertiesTimeout);
-		//Blocks/word-cloud rendered for a DIFFERENT card get cleared right
-		//now — empty-until-ready is honest; the previous card's content under
-		//the new card misattributes relations.
-		if (this._expensivePropertiesForCardID && this._card && this._card.id !== this._expensivePropertiesForCardID) {
-			this._referenceBlocks = [];
-			this._wordCloud = emptyWordCloud();
-			this._expensivePropertiesForCardID = '';
-		}
+		//NOTE: blocks/word cloud computed for a DIFFERENT card are deliberately
+		//NOT cleared here. render() consults the per-section ownership stamps
+		//and shows the previous card's value dimmed as stale (the house
+		//'updating' treatment) until the first for-this-card result commits —
+		//labeled-stale, one swap per section, instead of the old
+		//clear-then-fill's blank flash on every navigation. Wrong-card data
+		//can never render undimmed because commits below are gated on the
+		//result's card id matching the then-active card.
 		//The info-panel reference blocks run several key-card collections over
 		//the whole corpus (very expensive at 40k cards), so they must never
 		//land between navigation keystrokes: debounce until the user settles,
@@ -359,10 +399,20 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			const freshState = store.getState() as State;
 			if (!this._open) {
 				this._referenceBlocks = [];
+				this._referenceBlocksForCardID = '';
 				this._wordCloud = emptyWordCloud();
+				this._wordCloudForCardID = '';
 				return;
 			}
-			this._wordCloud = selectWordCloudForActiveCard(freshState);
+			//The word cloud computes synchronously from fresh state, so its
+			//value and ownership stamp commit as a coherent pair. With no
+			//active card there is nothing to commit — hold the previous
+			//card's dimmed value rather than flashing empty.
+			const freshCardID = selectActiveCard(freshState)?.id || '';
+			if (freshCardID) {
+				this._wordCloud = selectWordCloudForActiveCard(freshState);
+				this._wordCloudForCardID = freshCardID;
+			}
 			//Prefer computing the blocks in the corpus worker (off the UI
 			//thread) when it holds the corpus.
 			if (corpusWorkerCanRunCollections()) {
@@ -385,37 +435,44 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				).then(blocks => {
 					if (blocks === null) {
 						if (corpusWorkerServesCollections()) {
-							this._referenceBlocks = [];
-							this._expensivePropertiesForCardID = cardID;
+							//The run tore down mid-flight but the worker still
+							//claims to serve: nothing for this card arrives
+							//until it recovers (the live-status Redux update
+							//reschedules us). Hold the dimmed previous value —
+							//committing an empty here used to clobber a NEWER
+							//card's correct blocks and stamp them with this
+							//run's stale card id.
 							return;
 						}
-						//Fallback computes from FRESH state — label ownership
-						//with the fresh card, or the next stateChanged clears
-						//correct content (stale-label flash bug).
+						//Fallback computes from FRESH state — value and
+						//ownership stamp form a coherent pair for the fresh
+						//card, whatever card this run was launched for.
 						const fallbackState = store.getState() as State;
 						this._referenceBlocks = selectExpandedInfoPanelReferenceBlocksForActiveCard(fallbackState);
-						this._expensivePropertiesForCardID = selectActiveCard(fallbackState)?.id || '';
+						this._referenceBlocksForCardID = selectActiveCard(fallbackState)?.id || '';
 						return;
 					}
-					//Drop stale results if the user navigated meanwhile.
+					//Drop results keyed to any card other than the NOW-active
+					//card — a late previous-card result must never render.
 					const currentState = store.getState() as State;
-					const freshCard = selectActiveCardEnriched(currentState);
-					if (!freshCard || freshCard.id !== cardID) return;
+					if (!sectionResultCommits(cardID, selectActiveCardEnriched(currentState)?.id || '')) return;
 					this._referenceBlocks = blocks;
-					this._expensivePropertiesForCardID = cardID;
+					this._referenceBlocksForCardID = cardID;
 				});
 				return;
 			}
 			//Do not replace a loading worker with a synchronous whole-corpus
-			//fallback; keep the optional panel content empty until live. A worker
-			//circuit-break flips servesCollections() false, preserving recovery.
+			//fallback; hold the previous card's dimmed value (or the empty
+			//state when nothing has committed) until the worker is live. A
+			//worker circuit-break flips servesCollections() false, preserving
+			//recovery.
 			if (corpusWorkerServesCollections()) return;
 			//While editing, use the active-card variant: the editing-card
 			//variant re-runs ~10 whole-corpus collections at every typing
 			//pause because the editing card changes per keystroke.
 			const blocksSelector = selectIsEditing(freshState) ? selectExpandedInfoPanelReferenceBlocksForActiveCard : selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard;
 			this._referenceBlocks = blocksSelector(freshState);
-			this._expensivePropertiesForCardID = selectActiveCard(freshState)?.id || '';
+			this._referenceBlocksForCardID = freshCardID;
 		}, overdue ? 0 : EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
 
 	}

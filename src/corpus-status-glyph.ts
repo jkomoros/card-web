@@ -46,6 +46,12 @@ export type CorpusGlyphInput = {
 	//True once the worker announced loadComplete: every card is in hand and
 	//any remaining non-live time is verification, not download.
 	corpusComplete : boolean,
+	//Verification-checkpoint progress for the loadComplete→live window: how
+	//many of the connection's fixed set of verification checks have
+	//completed, out of how many. null when the connection reports none
+	//(reader/legacy modes) — the verifying line then stays imprecise.
+	verifyDone : number | null,
+	verifyTotal : number | null,
 	//Card saves committed locally and awaiting their server echo.
 	pendingSaveCount : number,
 	//Durable aux-write intents (stars/reads/comments/creations) queued in
@@ -63,9 +69,11 @@ export type CorpusGlyph = {
 	pendingBadge : string,
 	//Newline-separated full status; each line appears only when relevant.
 	tooltip : string,
-	//0..1 fraction of the expected corpus fetched, when a target is known and
-	//fetching is still underway; null otherwise. Drives the subtle ring fill
-	//on the dot and the percentage in the tooltip.
+	//0..1 fraction of the CURRENT phase, when known; null otherwise. While
+	//downloading it is the fetched fraction of the expected corpus; while
+	//verifying it is the completed fraction of the verification checks — the
+	//ring on the dot always means "progress of the current phase". Drives the
+	//ring fill and the percentage in the tooltip.
 	progress : number | null,
 	//True when the corpus is readable but card saves are gated (worker mode,
 	//any non-'live' status with cards on screen — the verifying window, and
@@ -96,10 +104,17 @@ const snapshotAgeLabel = (ageMs : number) : string => {
 };
 
 export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
-	const {status, message, corpusSize, expectedCorpusSize, corpusComplete, corpusSnapshotAgeMs, pendingSaveCount, queuedWriteCount} = input;
+	const {status, message, corpusSize, expectedCorpusSize, corpusComplete, verifyDone, verifyTotal, corpusSnapshotAgeMs, pendingSaveCount, queuedWriteCount} = input;
 
 	const fetching = FETCHING_STATUSES.has(status);
 	const pendingTotal = pendingSaveCount + queuedWriteCount;
+
+	//Verification-checkpoint progress, when this connection reports it.
+	//Clamped: the worker latches checkpoints so done is monotonic, but a
+	//defensive clamp here means a re-run phase can never claim more checks
+	//than exist.
+	const haveVerify = verifyTotal !== null && verifyTotal > 0 && verifyDone !== null;
+	const clampedVerifyDone = haveVerify ? Math.min(verifyDone as number, verifyTotal as number) : 0;
 
 	//Layer precedence: problem beats pending beats working beats ok/muted.
 	//Pending outranks even the muted states — a queued change is the user's
@@ -138,7 +153,15 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 		//hand within seconds, and calling that state "fetching" read as "still
 		//downloading 40k cards" when nothing was being downloaded at all.
 		if (status !== 'loading' || corpusComplete) {
-			lines.push(`Verifying ${corpusSize.toLocaleString()} cards…`);
+			//With checkpoint progress the verifying line gains precision:
+			//which check we are on and how far through. Capped below 100% —
+			//only reaching 'live' may claim done.
+			if (haveVerify) {
+				const pct = Math.min(Math.round((clampedVerifyDone / (verifyTotal as number)) * 100), 99);
+				lines.push(`Verifying ${corpusSize.toLocaleString()} cards… (${clampedVerifyDone} of ${verifyTotal} checks, ${pct}%)`);
+			} else {
+				lines.push(`Verifying ${corpusSize.toLocaleString()} cards…`);
+			}
 		} else if (haveTarget) {
 			const pct = Math.min(Math.round((corpusSize / (expectedCorpusSize as number)) * 100), 99);
 			lines.push(`Fetching cards: ${corpusSize.toLocaleString()} of ~${(expectedCorpusSize as number).toLocaleString()} (${pct}%)…`);
@@ -168,12 +191,19 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 	//already say (the 'stale' dispatch carries the default copy verbatim).
 	if (message && !lines.includes(message)) lines.push(message);
 
-	//Progress toward the expected total, only while genuinely fetching with a
-	//known target. Capped below 1 so the ring never claims done before the
-	//status does.
-	const progress = (status === 'loading' && !corpusComplete && expectedCorpusSize && expectedCorpusSize > 0)
-		? Math.min(corpusSize / expectedCorpusSize, 0.99)
-		: null;
+	//The ring means "progress of the current phase". While genuinely
+	//downloading with a known target it is the fetched fraction; while
+	//verifying (warm boot, or the post-download window) it is the completed
+	//fraction of the verification checks. Capped below 1 so the ring never
+	//claims done before the status does.
+	const downloading = status === 'loading' && !corpusComplete;
+	const verifying = fetching && corpusSize > 0 && !downloading;
+	let progress : number | null = null;
+	if (downloading && expectedCorpusSize && expectedCorpusSize > 0) {
+		progress = Math.min(corpusSize / expectedCorpusSize, 0.99);
+	} else if (verifying && haveVerify) {
+		progress = Math.min(clampedVerifyDone / (verifyTotal as number), 0.99);
+	}
 
 	//Write-locked: cards are on screen but saving is gated until the corpus
 	//reaches 'live'. The tooltip line reuses sync-copy's verifying clause so

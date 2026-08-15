@@ -40,7 +40,14 @@ import {
 //7: new worker→main `corpusProgress` message carrying the expected corpus
 //total during a cold sweep, so the status indicator can show "12.4k of
 //~40.2k" instead of a bare ticking count.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 7;
+//8: `corpusProgress` fields became optional and gained `verifyDone`/
+//`verifyTotal` — discrete verification-checkpoint progress for the
+//loadComplete→live window (trust-gate partition counts, tombstone catch-up,
+//per-plane health, the delta listener's first server delivery and the
+//post-delta re-gate), so "Verifying…" can show a fraction instead of an
+//opaque wait. The expected total is now also sent for a compact-snapshot
+//prime, giving warm boots a real download fraction.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 8;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -290,12 +297,19 @@ export type WorkerToMainMessage =
 	//months-old corpus with no staleness signal anywhere in the UI.
 	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number, snapshotAgeMs : number | null}
 	//Sent when the worker learns roughly how many cards the finished corpus
-	//will hold (today: at the start of a cold sweep, from the trust gate's
-	//per-partition server count()s plus the published cards already in hand).
+	//will hold (at the start of a cold sweep, from the trust gate's
+	//per-partition server count()s plus the published cards already in hand;
+	//and at a compact-snapshot prime, where the primed count IS the total).
 	//Approximate by construction — the published listener may still be
 	//filling and writes can land mid-sweep — so the page renders it with a
 	//'~'. null clears it (teardown/reconnect).
-	| {type: 'corpusProgress', generation: WorkerGeneration, expectedCorpusSize : number | null}
+	//verifyDone/verifyTotal: discrete verification-checkpoint progress for
+	//the window between loadComplete and live. The total is FIXED at connect
+	//(partitions + a fixed phase count, per mode) and done is monotonic —
+	//each named checkpoint latches once, so a re-run phase (repair, plane
+	//re-heal) clamps rather than regresses. All fields are optional; a send
+	//carries only the ones it is updating.
+	| {type: 'corpusProgress', generation: WorkerGeneration, expectedCorpusSize? : number | null, verifyDone? : number, verifyTotal? : number}
 	//Progress of the background search-recall build (find narrowing). `ready`
 	//flips true exactly once per connection when the whole corpus is indexed.
 	| {type: 'searchRecall', generation: WorkerGeneration, built : number, total : number, ready : boolean}

@@ -114,6 +114,8 @@ const INITIAL_STATE : DataState = {
 	corpusSnapshotAgeMs: null,
 	expectedCorpusSize: null,
 	corpusComplete: false,
+	verifyDone: null,
+	verifyTotal: null,
 	pendingAuxWriteCount: 0,
 	sectionsLoaded: false,
 	tagsLoaded: false,
@@ -147,6 +149,8 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			corpusSnapshotAgeMs: action.snapshotAgeMs,
 			expectedCorpusSize: action.expectedCorpusSize,
 			corpusComplete: action.corpusComplete,
+			verifyDone: action.verifyDone ?? null,
+			verifyTotal: action.verifyTotal ?? null,
 		};
 	case UPDATE_PENDING_AUX_WRITE_COUNT:
 		return {

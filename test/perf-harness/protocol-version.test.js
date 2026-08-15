@@ -30,8 +30,11 @@ describe('corpus worker protocol compatibility', () => {
 		//into the worker (idfMap delivery + refreshIDF; server-IDF plumbing
 		//removed from hydration and forwarding); to 7 when the worker gained
 		//the `corpusProgress` message (expected corpus total during a cold
-		//sweep, for the status indicator's fetch-progress display).
-		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 7);
+		//sweep, for the status indicator's fetch-progress display); to 8 when
+		//`corpusProgress` gained optional verifyDone/verifyTotal checkpoint
+		//progress for the loadComplete→live verifying window (and the expected
+		//total began to be sent for snapshot primes too).
+		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 8);
 		assert.strictEqual(LEGACY_CORPUS_WORKER_PROTOCOL_VERSION, 0);
 		assert.strictEqual(corpusWorkerProtocolVersion(undefined), 0);
 		assert.strictEqual(corpusWorkerProtocolCompatible(undefined), false);

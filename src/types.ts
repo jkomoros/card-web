@@ -1000,6 +1000,13 @@ export type DataState = {
 	//True once the worker announced loadComplete for this connection: the
 	//corpus is fully fetched and any non-live time remaining is verification.
 	corpusComplete : boolean,
+	//Verification-checkpoint progress for the loadComplete→live window: how
+	//many of the connection's fixed set of verification checks (trust-gate
+	//partition counts, tombstone catch-up, plane health, delta catch-up and
+	//re-gate) have completed. The total is fixed per connection and done is
+	//monotonic. null when the current connection reports none.
+	verifyDone : number | null,
+	verifyTotal : number | null,
 	//Durable aux-write intents (stars/reads/comments/card creations) queued
 	//locally and not yet server-confirmed. Pushed into Redux by the queue's
 	//enqueue/dequeue notifications so no selector ever reads localStorage.
