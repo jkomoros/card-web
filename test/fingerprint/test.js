@@ -1032,27 +1032,66 @@ describe('ngrams', () => {
 });
 
 describe('fingerprint cache reuse across generators', () => {
-	it('unchanged card objects keep fingerprint identity across generators with stable server IDF', async () => {
+	it('unchanged card objects keep fingerprint identity across generators with a stable injected IDF map', async () => {
 		const cards = baseCards();
-		const serverIDF = {idf: {}, maxIDF: 1};
-		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, serverIDF);
+		const idfMap = {idf: {}, maxIDF: 1};
+		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, idfMap);
 		const fingerprintOne = generatorOne.fingerprintForCardID(CARD_ID_ONE);
 		const fingerprintTwoBefore = generatorOne.fingerprintForCardID(CARD_ID_TWO);
 		//Simulate a single-card update: fresh map, fresh object for card two
 		//only (unchanged cards keep identity, like the incremental reducers).
 		const updatedCards = {...cards, [CARD_ID_TWO]: {...cards[CARD_ID_TWO]}};
-		const generatorTwo = new FingerprintGenerator(updatedCards, undefined, undefined, serverIDF);
+		const generatorTwo = new FingerprintGenerator(updatedCards, undefined, undefined, idfMap);
 		//The unchanged card's fingerprint is the SAME OBJECT (cache hit)…
 		assert.strictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), fingerprintOne);
 		//…while the changed card is recomputed.
 		assert.notStrictEqual(generatorTwo.fingerprintForCardID(CARD_ID_TWO), fingerprintTwoBefore);
 	});
 
-	it('a different server IDF identity does not reuse cached fingerprints', async () => {
+	it('a different injected IDF map identity does not reuse cached fingerprints', async () => {
 		const cards = baseCards();
 		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, {idf: {}, maxIDF: 1});
 		const fingerprintOne = generatorOne.fingerprintForCardID(CARD_ID_ONE);
 		const generatorTwo = new FingerprintGenerator(cards, undefined, undefined, {idf: {}, maxIDF: 1});
 		assert.notStrictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), fingerprintOne);
+	});
+
+	it('generators over the same cards identity share one locally-computed IDF map (WeakMap memo)', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards);
+		const generatorTwo = new FingerprintGenerator(cards);
+		//Same cards identity + same ngram size -> the local idf map memo hits,
+		//so the two generators share one map object (and therefore one shared
+		//fingerprint cache).
+		assert.strictEqual(generatorTwo._idfMap, generatorOne._idfMap);
+		assert.strictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), generatorOne.fingerprintForCardID(CARD_ID_ONE));
+	});
+
+	it('an ngram-7 build does not evict the ordinary size-2 local IDF map', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards);
+		const sizeTwoMap = generatorOne._idfMap;
+		//possibleMissingConcepts-style build: same cards, much larger ngram
+		//size. Under the old single-global-slot memo this EVICTED the size-2
+		//map, so the next ordinary consumer rebuilt from scratch.
+		const bigGenerator = new FingerprintGenerator(cards, undefined, 7);
+		assert.notStrictEqual(bigGenerator._idfMap, sizeTwoMap);
+		const generatorTwo = new FingerprintGenerator(cards);
+		assert.strictEqual(generatorTwo._idfMap, sizeTwoMap);
+	});
+
+	it('a delete recomputes the local map without disturbing other corpora entries', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards);
+		const mapOne = generatorOne._idfMap;
+		//Delete a card: new cards identity -> a fresh (correct) map, not a
+		//stale one from a count-window heuristic.
+		const smaller = {...cards};
+		delete smaller[CARD_ID_TWO];
+		const generatorTwo = new FingerprintGenerator(smaller);
+		assert.notStrictEqual(generatorTwo._idfMap, mapOne);
+		//And the original corpus's map is still memoized (no cross-eviction).
+		const generatorThree = new FingerprintGenerator(cards);
+		assert.strictEqual(generatorThree._idfMap, mapOne);
 	});
 });

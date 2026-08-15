@@ -52,10 +52,6 @@ import {
 } from '../actions/database.js';
 
 import {
-	loadServerIDFMap
-} from '../actions/data.js';
-
-import {
 	maybeStartCorpusWorker
 } from '../corpus-bridge.js';
 
@@ -443,8 +439,9 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
-		store.dispatch(loadServerIDFMap());
 		//Starts the default required corpus worker (or the selected diagnostic mode).
+		//(IDF now arrives from the worker as a per-epoch delivery; there is no
+		//server map to load. See docs/visible-corpus-idf-design.md.)
 		maybeStartCorpusWorker();
 	}
 

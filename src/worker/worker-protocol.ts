@@ -15,7 +15,6 @@ import {
 	Filters,
 	ProcessedCard,
 	SerializedDescriptionToCardList,
-	ServerIDFData,
 	SortExtra,
 	Sections,
 	Tags
@@ -32,7 +31,13 @@ import {
 //the old handshake, never send sections/tags, and wedge `*Loaded` silently —
 //the quiet variant of exactly what an exact-match handshake exists to prevent.
 //The bump costs nothing; not bumping cost a silent wedge.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 5;
+//6: IDF moved into the worker (the visible-corpus map; see
+//docs/visible-corpus-idf-design.md): new worker→main `idfMap` delivery, new
+//main→worker `refreshIDF`, and the server-IDF plumbing REMOVED — hydration
+//no longer carries the server map and the server-map action is no longer
+//forwarded. A stale v5 worker against a v6 page would never deliver a map
+//and would wait forever for hydration fields the page no longer sends.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 6;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -74,8 +79,7 @@ import {
 	UNSELECT_CARDS,
 	CLEAR_SELECTED_CARDS,
 	ECHO_LOCAL_CARD_MODIFICATIONS,
-	RECONCILE_CARDS_AFTER_FAILED_COMMIT,
-	UPDATE_SERVER_IDF
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT
 } from '../actions.js';
 
 //User-state actions forwarded verbatim (wire-encoded) from the main thread to
@@ -96,7 +100,6 @@ export const FORWARDED_ACTION_TYPES : {[actionType : string] : true} = {
 	[CLEAR_SELECTED_CARDS]: true,
 	[ECHO_LOCAL_CARD_MODIFICATIONS]: true,
 	[RECONCILE_CARDS_AFTER_FAILED_COMMIT]: true,
-	[UPDATE_SERVER_IDF]: true,
 };
 
 //A generation counter accompanies every worker→main message. The bridge bumps
@@ -110,12 +113,7 @@ export type CollectionStateHydration = {
 	starredCardIDs : CardID[],
 	readCardIDs : CardID[],
 	readingList : CardID[],
-	selectedCardIDs : CardID[],
-	//Server-computed IDF so worker-side fingerprinting (tag suggestions)
-	//skips the multi-second local IDF derivation. Optional: absent on
-	//projects without the IDF function; the worker falls back to local
-	//computation.
-	serverIDF? : ServerIDFData | null
+	selectedCardIDs : CardID[]
 };
 
 //--------------------------------------------------------------------------
@@ -197,7 +195,12 @@ export type MainToWorkerMessage =
 	| {type: 'perfData', generation: WorkerGeneration, id : number}
 	//PERF HARNESS ONLY: zero the accumulator (the harness resets before driving
 	//the interaction script, then reads after — like DEBUG_PERF.reset()/data()).
-	| {type: 'perfReset', generation: WorkerGeneration};
+	| {type: 'perfReset', generation: WorkerGeneration}
+	//Console-API escape hatch: recount the IDF index from scratch and publish
+	//a fresh epoch (the map is otherwise frozen per session; see
+	//src/worker/idf-index.ts). Also heals accumulated ±1 cross-card
+	//reference-vocabulary drift, which only a recount can.
+	| {type: 'refreshIDF', generation: WorkerGeneration};
 
 //--------------------------------------------------------------------------
 // Worker → main thread
@@ -315,6 +318,12 @@ export type WorkerToMainMessage =
 	| {type: 'requestSimilarity', generation: WorkerGeneration, cardID : CardID, forEditingCard? : boolean}
 	//Response to requestCorpusIDs: every card ID currently in the corpus.
 	| {type: 'corpusIDs', generation: WorkerGeneration, ids : CardID[]}
+	//The worker-computed visible-corpus IDF map, delivered once per epoch
+	//(after the initial sliced build; republished only on reconnect, >10%
+	//corpus drift, or an explicit refreshIDF). idf is already df==1-trimmed;
+	//cardCount is the body-card count it was materialized over and termCount
+	//the shipped vocabulary size (diagnostics + drift bookkeeping).
+	| {type: 'idfMap', generation: WorkerGeneration, epoch : number, cardCount : number, termCount : number, idf : {[word : string] : number}, maxIDF : number}
 	//PERF HARNESS ONLY: response to perfData — the worker's timing snapshot.
 	| {type: 'perfDataResult', generation: WorkerGeneration, id : number, actionStats : WorkerActionStats, indexBuildMs : number};
 

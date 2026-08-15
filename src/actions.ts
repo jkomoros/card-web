@@ -45,7 +45,7 @@ import {
 	ReferenceType,
 	SectionID,
 	Sections,
-	ServerIDFData,
+	WorkerIDFData,
 	Slug,
 	SortExtra,
 	Suggestion,
@@ -157,7 +157,7 @@ export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FI
 export const EXPECT_FETCHED_CARDS = 'EXPECT_FETCHED_CARDS';
 export const STOP_EXPECTING_FETCHED_CARDS = 'STOP_EXPECTING_FETCHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
-export const UPDATE_SERVER_IDF = 'UPDATE_SERVER_IDF';
+export const UPDATE_WORKER_IDF = 'UPDATE_WORKER_IDF';
 export const UPDATE_CORPUS_STATUS = 'UPDATE_CORPUS_STATUS';
 export const UPDATE_CORPUS_DETAIL = 'UPDATE_CORPUS_DETAIL';
 //Editor
@@ -688,9 +688,9 @@ type ActionUpdateCardSimilarity = {
 	similarity: SortExtra
 };
 
-type ActionUpdateServerIDF = {
-	type: typeof UPDATE_SERVER_IDF,
-	serverIDF: ServerIDFData | null
+type ActionUpdateWorkerIDF = {
+	type: typeof UPDATE_WORKER_IDF,
+	workerIDF: WorkerIDFData | null
 };
 
 type ActionUpdateCorpusStatus = {
@@ -1291,7 +1291,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionExpectFetchedCards
 	| ActionStopExpectingFetchedCards
 	| ActionUpdateCardSimilarity
-	| ActionUpdateServerIDF
+	| ActionUpdateWorkerIDF
 	| ActionEditingStart
 	| ActionEditingRestoreDraft
 	| ActionEditingFinish

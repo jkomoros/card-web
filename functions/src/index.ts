@@ -173,8 +173,6 @@ export const chat = onRequest({
 	timeoutSeconds: 300
 }, chatApp);
 
-export { calculateIDF } from './idf.js';
-
 // Health endpoint for monitoring.
 // Deliberately discloses NOTHING about configuration: an unauthenticated,
 // CORS-open endpoint reporting which API keys are set tells an attacker which

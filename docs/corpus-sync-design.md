@@ -108,6 +108,24 @@ Remove partition listeners after ~2-week soak (keep `card-partitions.ts`); tombs
 
 **Where the designers were wrong, plainly:** B built ~800 lines of internal-API-dependent infrastructure to optimize a yearly event and left the warm path exactly as blind as the live incident that motivated this review (manifest counts guard only the cold path). A had the right architecture but placed count() at the wrong cadence — a daily net catches the 34k-doc hole a day late; only a per-boot, per-partition gate closes it by construction. The coordinator's `sync_ts` addendum rested on a false premise — `'recent'` and `'updated'` sorts read `updated_substantive`, not `updated` (filters.ts:459, 1650, 1678) — and reusing `updated` is not merely acceptable but required to fix the fastDedupe silent-drop bug at data.ts:1501.
 
+## Worker-derived indexes (note, 2026-08-15)
+
+IDF is a **worker-derived index**, exactly like search recall: the corpus
+worker maintains an incremental document-frequency map over its own corpus
+(`src/worker/idf-index.ts`), builds it 12ms-sliced after `loadComplete`, and
+publishes a frozen per-epoch map to the main thread (`idfMap`, protocol v6).
+Because the worker's corpus is the visible set by construction, the map is
+scope-correct with no scope logic of its own; nothing is persisted, and a
+generation bump resets it beside the search-recall index. The old
+server-side subsystem (`calculateIDF` function, `idf-maps` storage bucket,
+`server_idf_cache` localStorage) was DELETED — see
+docs/visible-corpus-idf-design.md, including the `firebase functions:delete
+calculateIDF` step required on BOTH projects.
+
+Suggested Concepts (`possibleMissingConcepts`) is **not** an IDF consumer of
+the worker map: it needs an ngram-7 map and computes its own local one. Do
+not "migrate" it.
+
 ## Registered no-bump exemptions (the complete list)
 
 Every writer that intentionally does NOT bump `updated` must be listed here

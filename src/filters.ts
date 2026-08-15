@@ -112,6 +112,7 @@ import {
 	ConfigurableFilterConfigurationMap,
 	ConfigurableFilterFuncFactoryResult,
 	FilterExtras,
+	IDFMap,
 	CardIDMap,
 	Sections,
 	CardType,
@@ -883,7 +884,11 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 //We memoize the cards/generator outside even a singular configurable filter,
 //because advance to next/previous card changes the keyCardID, but not the
 //underlying card set, and that should be fast.
-const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
+//idfMap: the frozen worker-epoch map when one exists (worker paths inject it
+//so this fallback scores with the same rarity everything else uses); null on
+//the off-mode/small-corpus path, where the generator computes a local map
+//(memoized per cards identity inside nlp.ts).
+const memoizedFingerprintGenerator = memoize((cards : ProcessedCards, idfMap : IDFMap | null) => new FingerprintGenerator(cards, undefined, undefined, idfMap));
 
 //Above this many cards, the synchronous whole-corpus fingerprint fallback costs
 //more than the feature is worth ON THE UI THREAD.
@@ -925,7 +930,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null) : {map: Map<CardID, number>, preview: boolean}  => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : {map: Map<CardID, number>, preview: boolean}  => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 
 		let preview = false;
@@ -962,17 +967,17 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 
 		//Building a corpus-wide FingerprintGenerator materializes every
 		//ProcessedCard and fingerprints all ~40k of them ON THE UI THREAD
-		//(measured at 1-2s), and when serverIDF is unavailable its
-		//idfMapForCards results are pinned by WeakMap to live Cards for the
-		//corpus lifetime. That is a bad trade for a FALLBACK: the worker path
-		//and the Qdrant path are the real answers, and this one exists only to
-		//show something. Above a corpus size where the cost is perceptible,
-		//decline rather than freeze the UI — callers already handle an empty
-		//map (they show the local-fingerprint-free state).
+		//(measured at 1-2s) — even with an injected idf map, the
+		//per-candidate fingerprinting dominates. That is a bad trade for a
+		//FALLBACK: the worker path and the Qdrant path are the real answers,
+		//and this one exists only to show something. Above a corpus size
+		//where the cost is perceptible, decline rather than freeze the UI —
+		//callers already handle an empty map (they show the
+		//local-fingerprint-free state).
 		if (runningOnUIThread() && Object.keys(cards).length > MAX_UI_THREAD_FINGERPRINT_CORPUS) {
 			return {map: new Map(), preview};
 		}
-		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
+		const fingerprintGenerator = memoizedFingerprintGenerator(cards, idfMap);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
 		return {map: fingerprintGenerator.closestOverlappingItems('', fingerprint), preview};
@@ -990,7 +995,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
 		}
 
-		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity);
+		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity, extras.idfMap);
 
 		//Return 0 if the map is missing the item, which could happen if it's server similarity
 		const value : number = closestItems.get(card.id) || 0;

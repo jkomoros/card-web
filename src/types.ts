@@ -658,7 +658,11 @@ export type FilterExtras = {
 	userID : Uid,
 	randomSalt: string,
 	cardSimilarity: CardSimilarityMap,
-	editingCardSimilarity: SortExtra | null
+	editingCardSimilarity: SortExtra | null,
+	//The frozen worker-epoch IDF map when one exists (worker modes); null in
+	//off mode, where the similar-fallback computes a local map for small
+	//corpora instead.
+	idfMap: IDFMap | null
 };
 
 // CardBooleanMap, FilterMap, and Filters now imported from shared/types.js
@@ -681,7 +685,10 @@ export interface CollectionConstructorArguments {
 	filtersSnapshot? : Filters,
 	editingCard? : ProcessedCard,
 	cardSimilarity? : CardSimilarityMap,
-	editingCardSimilarity? : SortExtra
+	editingCardSimilarity? : SortExtra,
+	//See FilterExtras.idfMap. Threaded through so the similar-cards
+	//fingerprint fallback scores with the same frozen map fingerprints use.
+	idfMap? : IDFMap
 }
 
 export type Logger = {
@@ -876,16 +883,27 @@ export type ExpandedTabConfig = ExpandedTabConfigItem[];
 //Note the map will likely only have a subset of the other cards.
 export type CardSimilarityMap = Record<CardID, SortExtra>;
 
-//Server-generated IDF map data structure
-export type ServerIDFData = {
-	version: number,
-	cardCount: number,
-	ngramSize: number,
+//An IDF map in the shape FingerprintGenerator consumes: idf per term, plus
+//the maximum observed idf (the score every unknown term falls back to).
+export type IDFMap = {
 	idf: {
 		[word: string]: number
 	},
-	maxIDF: number,
-	generatedAt: string
+	maxIDF: number
+};
+
+//Worker-computed IDF over the visible corpus, delivered once per epoch (see
+//src/worker/idf-index.ts and the `idfMap` protocol message). cardCount is the
+//body-card count the map was materialized over; termCount the (df==1-trimmed)
+//published vocabulary size.
+export type WorkerIDFData = {
+	epoch: number,
+	cardCount: number,
+	termCount: number,
+	idf: {
+		[word: string]: number
+	},
+	maxIDF: number
 };
 
 export type SuggestionDiffCreateCard = {
@@ -1019,8 +1037,11 @@ export type DataState = {
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
 	cardSimilarity: CardSimilarityMap
-	//Server-generated IDF map for faster fingerprint generation
-	serverIDF: ServerIDFData | null
+	//The worker-computed IDF map for the visible corpus, delivered once per
+	//epoch (frozen per session; see docs/visible-corpus-idf-design.md). Null
+	//until the worker's initial build publishes, and in off mode (where the
+	//local small-corpus computation runs instead).
+	workerIDF: WorkerIDFData | null
 }
 
 export type EditorState = {

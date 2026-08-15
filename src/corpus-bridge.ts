@@ -40,6 +40,7 @@ import {
 	STOP_EXPECTING_FETCHED_CARDS,
 	UPDATE_CORPUS_STATUS,
 	UPDATE_CORPUS_DETAIL,
+	UPDATE_WORKER_IDF,
 	FIND_UPDATE_SEARCH_RECALL,
 	EDITING_FINISH,
 } from './actions.js';
@@ -401,7 +402,6 @@ const hydrateWorkerCollectionState = () => {
 		readCardIDs: Object.keys(state.user?.reads || {}),
 		readingList: state.user?.readingList || [],
 		selectedCardIDs: Object.keys(selectExplicitlySelectedCardIDs(state)),
-		serverIDF: state.data?.serverIDF || null,
 	};
 	post({type: 'hydrateCollectionState', generation, hydration: toWire(hydration, isTimestamp, getTime)});
 	//The snapshot supersedes every historical delta collected before this
@@ -1319,6 +1319,23 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'corpusIDs':
 		handleCorpusIDs(message.ids);
 		break;
+	case 'idfMap':
+		//The worker-computed visible-corpus IDF map, one delivery per epoch.
+		//The generation gate above already dropped stale-scope deliveries;
+		//purging on generation bumps (see purgeWorkerIDF) covers the other
+		//direction — a map from the old scope must not outlive the corpus it
+		//described.
+		if (corpusWorkerOwnsCardIngestion()) {
+			store.dispatch({type: UPDATE_WORKER_IDF, workerIDF: {
+				epoch: message.epoch,
+				cardCount: message.cardCount,
+				termCount: message.termCount,
+				idf: message.idf,
+				maxIDF: message.maxIDF
+			}});
+			console.log(`[corpus-worker] idf epoch ${message.epoch}: ${message.termCount} terms over ${message.cardCount} body cards`);
+		}
+		break;
 	case 'requestSimilarity':
 		//The worker's similar-card filters can't fetch server similarity
 		//themselves; perform the fetch here. When it lands,
@@ -1563,6 +1580,7 @@ const purgeAndDeactivate = () => {
 	const cardIDs = Object.keys(selectRawCards(store.getState() as State));
 	if (cardIDs.length) store.dispatch({type: REMOVE_CARDS, cardIDs});
 	resetSubscriptionsForReconnect();
+	purgeWorkerIDF();
 	try { sessionStorage.setItem(SUPERSEDED_SESSION_KEY, '1'); } catch { /* storage may be disabled */ }
 	setOwnershipStatus('inactive', 'Compendium moved to another tab. This tab is inactive so card sync stays safe.');
 };
@@ -1632,6 +1650,7 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 	pendingMassReconciliationSignature = '';
 	flushPendingRunCollections();
 	resetSubscriptionsForReconnect();
+	purgeWorkerIDF();
 	if (!connectSent) {
 		connectSent = true;
 		//Gate the purge on the same expression that decides who opens the
@@ -1954,6 +1973,17 @@ store.subscribe(() => {
 	if (key !== lastLeaseSafety) writeOwnershipHeartbeat(true);
 });
 
+//Purge the delivered worker IDF map with the same rigor as the cards: a
+//generation/scope change means the corpus it was computed over is gone, and
+//a privileged map surviving into a narrower scope would leak unpublished
+//vocabulary through fingerprints and word clouds. The new connection's
+//worker republishes after its own initial build; until then consumers ride
+//the pending-map convention.
+const purgeWorkerIDF = () => {
+	if (!(store.getState() as State).data?.workerIDF) return;
+	store.dispatch({type: UPDATE_WORKER_IDF, workerIDF: null});
+};
+
 //Resets local subscription bookkeeping across a (re)connect. The worker
 //clears its own SubscriptionManager on connect/reconnect, so the old
 //subscription ids are already dead worker-side; without this reset the
@@ -2042,6 +2072,7 @@ const upgradeReaderToOwnedConnection = () => {
 	lastSyncState = '';
 	pendingMassReconciliationSignature = '';
 	resetSubscriptionsForReconnect();
+	purgeWorkerIDF();
 	ownershipState = 'starting';
 	ownershipAcquisitionStarted = false;
 	void beginInitialOwnership();
@@ -2144,7 +2175,24 @@ declare global {
 			ownershipState: () => OwnershipState,
 			workerRunning: () => boolean,
 			suggestTags: () => Promise<string[] | null>,
+			//Recount the worker's IDF index from scratch and publish a fresh
+			//epoch (the map is otherwise frozen per session).
+			refreshIDF: () => void,
 		};
+	}
+}
+
+//One-time CLEANUP of the deleted server-IDF subsystem's localStorage cache
+//(docs/visible-corpus-idf-design.md): the ~1.6MB 'server_idf_cache' entry
+//competed with the aux-write queue for origin quota and nothing reads it any
+//more. Unconditional removeItem is idempotent and free once gone. This is
+//the ONLY permitted mention of that key in src/ — a structural test pins the
+//deletion of everything else.
+if (typeof window !== 'undefined') {
+	try {
+		window.localStorage.removeItem('server_idf_cache');
+	} catch {
+		//Best effort; a surviving entry only wastes quota.
 	}
 }
 
@@ -2209,5 +2257,12 @@ if (typeof window !== 'undefined' && perfEnabled()) {
 		takeOver: takeOverOwnership,
 		ownershipState: () => ownershipState,
 		workerRunning: () => Boolean(worker),
+		refreshIDF: () => {
+			if (!worker) {
+				console.log('[corpus-worker] not running; nothing to refresh');
+				return;
+			}
+			post({type: 'refreshIDF', generation});
+		},
 	};
 }

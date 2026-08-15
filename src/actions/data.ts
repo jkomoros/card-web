@@ -175,10 +175,6 @@ import type {
 } from '../../shared/types.js';
 
 import {
-	UPDATE_SERVER_IDF
-} from '../actions.js';
-
-import {
 	cardDiffHasChanges,
 	validateCardDiff,
 	applyCardDiff,
@@ -3147,19 +3143,4 @@ export const committedFiltersWhenFullyLoaded = () : SomeAction => {
 	return {
 		type: COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 	};
-};
-
-/**
- * Loads the server-generated IDF map from Cloud Storage.
- * This is called during app initialization to enable faster fingerprint generation.
- */
-export const loadServerIDFMap = () : ThunkSomeAction => async (dispatch) => {
-	const { loadServerIDF } = await import('../idf-cache.js');
-
-	const serverIDF = await loadServerIDF();
-
-	dispatch({
-		type: UPDATE_SERVER_IDF,
-		serverIDF
-	});
 };

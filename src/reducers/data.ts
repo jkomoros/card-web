@@ -20,7 +20,7 @@ import {
 	EXPECT_FETCHED_CARDS,
 	SomeAction,
 	UPDATE_CARD_SIMILARITY,
-	UPDATE_SERVER_IDF,
+	UPDATE_WORKER_IDF,
 	STOP_EXPECTING_FETCHED_CARDS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	UPDATE_CORPUS_STATUS,
@@ -125,7 +125,7 @@ const INITIAL_STATE : DataState = {
 	pendingReorder: false,
 	enqueuedCards: {},
 	cardSimilarity: {},
-	serverIDF: null
+	workerIDF: null
 };
 
 const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState => {
@@ -358,10 +358,10 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			//replaced it is better for churn but removed the only bound.
 			cardSimilarity: boundedCardSimilarity(state.cardSimilarity, action.card_id, action.similarity)
 		};
-	case UPDATE_SERVER_IDF:
+	case UPDATE_WORKER_IDF:
 		return {
 			...state,
-			serverIDF: action.serverIDF
+			workerIDF: action.workerIDF
 		};
 	default:
 		return state;

@@ -13,9 +13,5 @@ service firebase.storage {
 			allow list: if request.auth.uid == uid;
 			allow write: if request.auth.uid == uid && !isAnonymous() && request.resource.size < 10 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
 		}
-
-		match /idf-maps/{fileName} {
-			allow get: if true;  // Public read for IDF maps
-		}
 	}
 }

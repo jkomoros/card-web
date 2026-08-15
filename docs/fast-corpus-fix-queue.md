@@ -344,7 +344,13 @@ None of these is a landing gate.
 - **#20 Round-13 perf findings** (dead handoff, `selectDefaultSet`, IDF trim,
   client-IDF recompute, sweep cascades). The dead handoff now affects only
   diagnostic modes — if it is still dead in six months, DELETE it rather than
-  fix it.
+  fix it. [UPDATE 2026-08-15: the two IDF items are RESOLVED by the
+  visible-corpus IDF work (docs/visible-corpus-idf-design.md): the shipped map
+  is df==1-trimmed, and the client recompute-on-delete memo was replaced with
+  a WeakMap keyed on cards identity + ngramSize. The whole server-IDF
+  subsystem (calculateIDF, idf-maps bucket rule, server_idf_cache
+  localStorage, src/idf-cache.ts) was deleted; `firebase functions:delete
+  calculateIDF` must still be run on BOTH projects.]
 - **#21 Boot's ~2.5s main-thread freeze.** TRIGGER: it grows past ~4s, or moves
   later into the boot where it would be felt mid-interaction.
 - **#23 Pre-branch public endpoints** (`reindexCardEmbeddings`,

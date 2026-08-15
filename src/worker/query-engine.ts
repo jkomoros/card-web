@@ -22,7 +22,6 @@ import {
 	UPDATE_STARS,
 	UPDATE_READS,
 	UPDATE_READING_LIST,
-	UPDATE_SERVER_IDF,
 	SELECT_CARDS,
 	SomeAction
 } from '../actions.js';
@@ -60,6 +59,7 @@ import {
 import {
 	Fingerprint,
 	FingerprintGenerator,
+	PENDING_IDF_MAP,
 	conceptCardsFromCards,
 	getConceptsFromConceptCards,
 	synonymMap
@@ -75,7 +75,7 @@ import {
 	CardBooleanMap,
 	CardID,
 	Tags,
-	ServerIDFData,
+	IDFMap,
 	CollectionState,
 	CollectionConstructorArguments,
 	ProcessedCard,
@@ -134,7 +134,9 @@ export class QueryEngine {
 	_collectionState : CollectionState;
 	_sections : Sections;
 	_tags : Tags;
-	_serverIDF : ServerIDFData | null;
+	//The frozen per-epoch map from the worker's IDF index (installed via
+	//setIDFMap at each publication); null until the initial build publishes.
+	_idfMap : IDFMap | null;
 	_readingList : CardID[];
 	_fallbacks : SerializedDescriptionToCardList;
 	_startCards : SerializedDescriptionToCardList;
@@ -155,7 +157,7 @@ export class QueryEngine {
 		this._collectionState = INITIAL_STATE;
 		this._sections = {};
 		this._tags = {};
-		this._serverIDF = null;
+		this._idfMap = null;
 		this._readingList = [];
 		this._fallbacks = {};
 		this._startCards = {};
@@ -201,7 +203,6 @@ export class QueryEngine {
 		this._collectionState = collectionReducer(this._collectionState, {type: SELECT_CARDS, cards: hydration.selectedCardIDs});
 		this._sections = {...hydration.sections};
 		this._tags = {...hydration.tags};
-		this._serverIDF = hydration.serverIDF || null;
 		this._readingList = [...hydration.readingList];
 		this._setsForSections = null;
 		this._setsForReadingList = null;
@@ -220,9 +221,6 @@ export class QueryEngine {
 		}
 		if (action.type === UPDATE_TAGS) {
 			this._tags = {...this._tags, ...action.tags};
-		}
-		if (action.type === UPDATE_SERVER_IDF) {
-			this._serverIDF = action.serverIDF || null;
 		}
 		if (action.type === UPDATE_READING_LIST) {
 			this._readingList = action.list;
@@ -412,31 +410,49 @@ export class QueryEngine {
 		return this._tags;
 	}
 
+	//Installed by the worker at every epoch publication (and cleared with
+	//null on a scope/generation reset). The engine deliberately consumes the
+	//SAME frozen published map the main thread receives, so worker-served
+	//suggestions and main-thread word clouds agree within an epoch.
+	setIDFMap(idfMap : IDFMap | null) : void {
+		this._idfMap = idfMap;
+	}
+
+	get idfMap() : IDFMap | null {
+		return this._idfMap;
+	}
+
+	//The map every engine consumer scores with: the frozen epoch map, or the
+	//pending-empty convention (TF-only ranking) before the initial build
+	//publishes. NEVER null — null would make FingerprintGenerator run a
+	//synchronous whole-corpus IDF build, exactly the stall the worker index
+	//exists to remove.
+	_effectiveIDFMap() : IDFMap {
+		return this._idfMap || PENDING_IDF_MAP;
+	}
+
 	//Memoized fingerprint machinery for tag suggestions. The generator is
 	//keyed on card/IDF/concept identity; the per-tag fingerprints additionally
-	//on tags identity. First build over the tagged subset of the corpus costs
-	//real time (seconds without a server IDF) — but it runs on the WORKER
-	//thread, which is the whole point: master computed this on the UI thread
-	//and stalled it for seconds at production scale.
+	//on tags identity. It runs on the WORKER thread, which is the whole point:
+	//master computed this on the UI thread and stalled it for seconds at
+	//production scale.
 	_suggestGeneratorForCards = -1;
-	_suggestGeneratorServerIDF : ServerIDFData | null = null;
+	_suggestGeneratorIDFMap : IDFMap | null = null;
 	_suggestGenerator : FingerprintGenerator | null = null;
 	_tagFingerprintsForTags : Tags | null = null;
 	_tagFingerprintsForCards = -1;
 	_tagFingerprints : {[tagID : string] : Fingerprint} | null = null;
 
 	_ensureSuggestGenerator() : FingerprintGenerator {
-		if (this._suggestGenerator && this._suggestGeneratorForCards === this._cardsVersion && this._suggestGeneratorServerIDF === this._serverIDF) return this._suggestGenerator;
+		const idfMap = this._effectiveIDFMap();
+		if (this._suggestGenerator && this._suggestGeneratorForCards === this._cardsVersion && this._suggestGeneratorIDFMap === idfMap) return this._suggestGenerator;
 		const processed = this._ensureProcessedCards();
 		const conceptCards = conceptCardsFromCards(this._cards);
 		const concepts = getConceptsFromConceptCards(conceptCards);
 		const synonyms = synonymMap(this._cards);
-		const idfMap = this._serverIDF && this._serverIDF.idf && typeof this._serverIDF.maxIDF === 'number'
-			? {idf: this._serverIDF.idf, maxIDF: this._serverIDF.maxIDF}
-			: null;
 		this._suggestGenerator = new FingerprintGenerator(processed, undefined, undefined, idfMap, concepts, synonyms);
 		this._suggestGeneratorForCards = this._cardsVersion;
-		this._suggestGeneratorServerIDF = this._serverIDF;
+		this._suggestGeneratorIDFMap = idfMap;
 		this._tagFingerprints = null;
 		return this._suggestGenerator;
 	}
@@ -516,7 +532,11 @@ export class QueryEngine {
 			cardSimilarity: options.cardSimilarity || {},
 			editingCard: this._editingCard || undefined,
 			editingCardSimilarity: this._editingCardSimilarity || undefined,
-			keyCardID: options.keyCardID || ''
+			keyCardID: options.keyCardID || '',
+			//The similar-cards fingerprint fallback scores with the same
+			//frozen epoch map as everything else (TF-only via the pending
+			//convention before the first publication).
+			idfMap: this._effectiveIDFMap()
 		} as CollectionConstructorArguments;
 		const collection = description.collection(args);
 		return {

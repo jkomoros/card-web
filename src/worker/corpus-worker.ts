@@ -142,6 +142,10 @@ import {
 } from './search-index.js';
 
 import {
+	IDFIndex
+} from './idf-index.js';
+
+import {
 	QueryEngine,
 	queryTokensForText
 } from './query-engine.js';
@@ -232,6 +236,16 @@ let searchRecallState : SearchRecallState = 'idle';
 let searchRecallBuildToken = 0;
 const searchRecallAlwaysScan : Set<CardID> = new Set();
 const searchRecallDirtyIDs : Set<CardID> = new Set();
+//The visible-corpus IDF index (docs/visible-corpus-idf-design.md). Same
+//lifecycle shape as search recall: 12ms-sliced initial build after
+//loadComplete, incremental O(changed card) maintenance once ready, full reset
+//on scope change. The frozen per-epoch map is published to the main thread
+//(and installed into the engine) via publishIDFMap.
+const idfIndex = new IDFIndex();
+type IDFBuildState = 'idle' | 'building' | 'ready';
+let idfBuildState : IDFBuildState = 'idle';
+let idfBuildToken = 0;
+const idfDirtyIDs : Set<CardID> = new Set();
 const engine = new QueryEngine();
 //See the watermark invariant below. Kept next to corpus because the compact
 //snapshot must persist and restore this set atomically with the cards.
@@ -402,6 +416,108 @@ const buildSearchRecall = async () => {
 	recordWorkerPerf('indexBuild', elapsed);
 	sendSearchRecallProgress(total, total, true);
 	status(`search recall ready: ${index.cardCount} indexed, ${searchRecallAlwaysScan.size} always-scan, in ${elapsed.toFixed(0)}ms wall (chunked)`);
+};
+
+//--- Visible-corpus IDF (docs/visible-corpus-idf-design.md) ------------------
+
+const IDF_BUILD_SLICE_MS = 12;
+
+//Materialize the frozen epoch map from docFreq (a walk over the term map,
+//not a recount: <10ms at reader-scale vocabularies, ~100ms-1.5s at the
+//synthetic 476k/667k-term worst cases — once per epoch, on the worker
+//thread, off every key journey), install it in the engine, and ship it to
+//the main thread. Called once after the initial build; again only on
+//reconnect (the build reruns), >10% corpus drift, or an explicit refreshIDF.
+//IDF is a slow statistic — republishing more often is churn that cold-starts
+//the IDFMap-keyed shared fingerprint cache on both threads.
+const publishIDFMap = () => {
+	const startedAt = performance.now();
+	const published = idfIndex.publish();
+	engine.setIDFMap(published);
+	const termCount = Object.keys(published.idf).length;
+	send({
+		type: 'idfMap',
+		generation,
+		epoch: idfIndex.epoch,
+		cardCount: idfIndex.publishedCardCount,
+		termCount,
+		idf: published.idf,
+		maxIDF: published.maxIDF
+	});
+	status(`idf epoch ${idfIndex.epoch}: ${termCount} terms over ${idfIndex.publishedCardCount} body cards, materialized in ${(performance.now() - startedAt).toFixed(1)}ms`);
+};
+
+const scheduleIDFBuild = () => {
+	if (idfBuildState !== 'idle') return;
+	idfBuildState = 'building';
+	void buildIDFIndex();
+};
+
+const resetIDFIndex = () => {
+	idfBuildToken++;
+	idfBuildState = 'idle';
+	idfDirtyIDs.clear();
+	idfIndex.reset();
+	engine.setIDFMap(null);
+};
+
+const buildIDFIndex = async () => {
+	const myConnectionGeneration = connectionGeneration;
+	const myToken = ++idfBuildToken;
+	const startedAt = performance.now();
+	//The engine's mirror (wire-stripped, same objects the incremental hook
+	//counts) rather than `corpus`: the index must key idempotency on the SAME
+	//card object identities every path sees.
+	const allCards = engine.rawCards;
+	const ids = Object.keys(allCards);
+	const aborted = () => myConnectionGeneration !== connectionGeneration || myToken !== idfBuildToken;
+	let sliceStart = performance.now();
+	for (const id of ids) {
+		if (aborted()) return;
+		//Read the CURRENT object each time — the corpus can mutate between
+		//slices, and updateCard is idempotent on object identity, so a card
+		//mutated mid-build is simply counted at its newer version.
+		const card = engine.rawCards[id];
+		if (card) idfIndex.updateCard(id, card, engine.rawCards);
+		idfDirtyIDs.delete(id);
+		if (performance.now() - sliceStart >= IDF_BUILD_SLICE_MS) {
+			recordWorkerPerf('idfBuild', performance.now() - sliceStart);
+			//Same boot-deference as the search-recall build: while the initial
+			//load is still delivering, boot work owns the loop.
+			if (initialLoadPending) await new Promise<void>(resolve => setTimeout(resolve, SEARCH_RECALL_BOOT_GAP_MS));
+			await yieldToWorkerQueue();
+			sliceStart = performance.now();
+		}
+	}
+	recordWorkerPerf('idfBuild', performance.now() - sliceStart);
+	//Drain mutations that landed mid-build before declaring the index ready.
+	while (idfDirtyIDs.size) {
+		if (aborted()) return;
+		const drainStart = performance.now();
+		for (const id of [...idfDirtyIDs].slice(0, 200)) {
+			idfDirtyIDs.delete(id);
+			idfIndex.updateCard(id, engine.rawCards[id] || null, engine.rawCards);
+		}
+		recordWorkerPerf('idfBuild', performance.now() - drainStart);
+		await yieldToWorkerQueue();
+	}
+	if (aborted()) return;
+	idfBuildState = 'ready';
+	const elapsed = performance.now() - startedAt;
+	status(`idf index built: ${idfIndex.bodyCardCount} body cards in ${elapsed.toFixed(0)}ms wall (chunked)`);
+	publishIDFMap();
+};
+
+//Console-API refresh: recount from scratch (healing accumulated ±1
+//cross-card reference drift, which a cheap re-materialize cannot) and publish
+//a fresh epoch. The engine keeps serving the old frozen map until the rebuild
+//completes.
+const refreshIDFIndex = () => {
+	idfBuildToken++;
+	idfDirtyIDs.clear();
+	idfIndex.resetCounts();
+	idfBuildState = 'building';
+	void buildIDFIndex();
 };
 
 //Every boot-timing estimate about the path to `live` was unfalsifiable because
@@ -767,7 +883,8 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend
 	//card) plus filter membership via the real reducer. Strip the ephemeral
 	//search tokens just like main-thread Redux does, so processing and filter
 	//behavior match exactly.
-	engine.updateCards(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])), removedIDs);
+	const strippedCards = Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])) as Cards;
+	engine.updateCards(strippedCards, removedIDs);
 	//Recall maintenance runs AFTER the engine mirror updates so reference
 	//backport for this batch resolves against current sibling cards.
 	if (searchRecallState === 'ready') {
@@ -779,6 +896,24 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend
 	} else {
 		for (const id of Object.keys(cards)) searchRecallDirtyIDs.add(id);
 		for (const id of removedIDs) searchRecallDirtyIDs.add(id);
+	}
+	//IDF maintenance: O(changed card) once the index is ready — the index
+	//still holds each card's PREVIOUS counted object, whose distinct-term set
+	//is re-derived through the per-card memo (nearly free) and decremented; a
+	//delete decrements once and never triggers a rebuild. During the sliced
+	//initial build, mutations park in the dirty set and are drained before
+	//the flip to ready, exactly like search recall.
+	if (idfBuildState === 'ready') {
+		for (const [id, card] of Object.entries(strippedCards)) idfIndex.updateCard(id, card, engine.rawCards);
+		for (const id of removedIDs) idfIndex.updateCard(id, null, engine.rawCards);
+		//Epoch policy: the published map is frozen unless the corpus drifts
+		//>10% from the cardCount it was materialized over (bulk import, mass
+		//delete) — then roll the epoch once rather than reshuffling word
+		//clouds on every edit.
+		if (idfIndex.cardCountDriftExceeded()) publishIDFMap();
+	} else {
+		for (const id of Object.keys(cards)) idfDirtyIDs.add(id);
+		for (const id of removedIDs) idfDirtyIDs.add(id);
 	}
 	subscriptions.markDirty();
 	pushMetaDeltas(cards, removedIDs, suppressMetaSend);
@@ -856,8 +991,10 @@ const markInitialDelivered = (fetchType : CardFetchType) => {
 	send({type: 'loadComplete', generation, corpusSize: corpus.size, snapshotAgeMs: primedSnapshotAgeMs});
 	status(`initial load complete: ${corpus.size} cards in corpus`);
 	//The corpus is settled: promote the background search-recall build to its
-	//full duty cycle (idempotent if the prime handoff already kicked it).
+	//full duty cycle (idempotent if the prime handoff already kicked it), and
+	//start the sliced IDF build beside it.
 	scheduleSearchRecallBuild();
+	scheduleIDFBuild();
 };
 
 //Ingests a snapshot: updates worker-local corpus/index and forwards the batch
@@ -2914,8 +3051,12 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	//main thread, but the worker must start from a single, coherent scope.
 	//Reset recall FIRST so the mass removal below is bookkeeping-free rather
 	//than 40k incremental index removals, and so no in-flight chunked build
-	//survives into the new authorization scope.
+	//survives into the new authorization scope. The IDF index resets for the
+	//same reason — and because rarity computed over the old scope's
+	//vocabulary must not survive into the new one (the main thread purges its
+	//delivered copy on the same generation bump).
 	resetSearchRecall();
+	resetIDFIndex();
 	const staleCardIDs = [...corpus.keys()];
 	if (staleCardIDs.length) updateLocalState({}, staleCardIDs);
 	currentUid = uid;
@@ -3160,6 +3301,9 @@ workerScope.addEventListener('message', event => {
 		//indexBuildMs is a cumulative boot metric; leave it (it reflects ingest
 		//cost incurred before the reset and is reported alongside, not reset).
 		workerPerf = {};
+		break;
+	case 'refreshIDF':
+		refreshIDFIndex();
 		break;
 	}
 });

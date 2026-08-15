@@ -96,6 +96,7 @@ import {
 import {
 	Fingerprint,
 	FingerprintGenerator,
+	PENDING_IDF_MAP,
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
@@ -840,23 +841,31 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions || {}).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
-export const selectServerIDF = (state : State) => state.data.serverIDF;
+export const selectWorkerIDF = (state : State) => state.data.workerIDF;
 
-// Convert ServerIDFData to IDFMap format if available. Its own selector so
+// Convert WorkerIDFData to IDFMap format if available. Its own selector so
 // the wrapper object keeps IDENTITY across generator rebuilds — the
 // generator's shared fingerprint cache is keyed on the IDF map object, so a
-// fresh wrapper per rebuild would silently defeat it.
-const selectServerIDFMap = createSelector(
-	selectServerIDF,
-	(serverIDF) => serverIDF ? {
-		idf: serverIDF.idf,
-		maxIDF: serverIDF.maxIDF
-	} : null
+// fresh wrapper per rebuild would silently defeat it. (The worker map is
+// frozen per epoch precisely so this identity — and with it the cache —
+// lives for the whole session.)
+//
+// Before the worker's first epoch delivery, worker modes get the
+// PENDING_IDF_MAP sentinel (TF-only ranking) rather than null: null would
+// make FingerprintGenerator run a synchronous whole-corpus IDF build on the
+// UI thread, the multi-second stall the worker index exists to remove. Off
+// mode returns null and keeps the local small-corpus computation.
+const selectWorkerIDFMap = createSelector(
+	selectWorkerIDF,
+	(workerIDF) => workerIDF ? {
+		idf: workerIDF.idf,
+		maxIDF: workerIDF.maxIDF
+	} : (corpusWorkerOwnsCardIngestion() ? PENDING_IDF_MAP : null)
 );
 
 export const selectFingerprintGenerator = createSelector(
 	selectCards,
-	selectServerIDFMap,
+	selectWorkerIDFMap,
 	selectConcepts,
 	selectSynonymMap,
 	(cards, idfMap, concepts, synonyms) => new FingerprintGenerator(cards, undefined, undefined, idfMap, concepts, synonyms)
@@ -1644,7 +1653,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectCardSimilarity,
 	selectEditingCardSimilarity,
 	selectRelativeDateCacheKey,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey})
+	selectWorkerIDFMap,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey, idfMap) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey, idfMap: idfMap || undefined})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The

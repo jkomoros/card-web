@@ -47,6 +47,7 @@ import {
 	ReferencesInfoMap,
 	FilterMap,
 	SortExtra,
+	IDFMap,
 	cardFieldTypeSchema
 } from './types.js';
 
@@ -867,6 +868,15 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFing
 	return cardMap;
 });
 
+//The distinct semantic terms for a single (un-enriched) processed card — the
+//keys of the same wordCountsForSemantics call the TF side makes, so the
+//worker's IDF index (src/worker/idf-index.ts) counts document frequency over
+//EXACTLY the vocabulary fingerprints score. One tokenization feeds both TF
+//and IDF; there is no second pipeline to drift. Memoized per card object via
+//wordCountsForSemantics, so re-deriving a previous card's terms (the
+//decrement half of an incremental IDF update) is nearly free.
+export const semanticTermsForCard = (cardObj : ProcessedCard, ngramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) : string[] => Object.keys(wordCountsForSemantics(cardObj, ngramSize));
+
 //targetNgram is the targted, withoutStopWords ngram to look for. Run is the
 //processedRun to look within. The result will be a substring out of
 //normalizedRun corresponding to targetNgram. This will return '' if the
@@ -972,6 +982,11 @@ export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint =>
 	const conceptCards = conceptCardsFromCards(cards);
 	const concepts = getConceptsFromConceptCards(conceptCards);
 	const syns = synonymMap(cards);
+	//DELIBERATELY NOT a worker-IDF consumer: this needs an ngram-7 map, which
+	//the worker's size-2 per-epoch map cannot supply, so it computes its own
+	//local map (memoized per cards identity + ngramSize — it must never share
+	//or evict the ordinary size-2 map). Do not "migrate" it to the injected
+	//worker map; see docs/visible-corpus-idf-design.md.
 	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5, null, concepts, syns);
 	let cardIDsForNgram : {[ngram : string]: CardID[]} = {};
 	let cumulativeTFIDFForNgram : {[ngram : string]: number} = {};
@@ -1489,25 +1504,38 @@ type WordNumbers = {
 	[word : string] : number
 };
 
-type IDFMap = {
-	idf: WordNumbers,
-	maxIDF: number
-};
+//The pending-map convention: in worker modes the main thread (and the worker
+//itself, before its initial build publishes) must NEVER fall back to a
+//synchronous whole-corpus IDF build — that is the multi-second stall the
+//worker-owned index exists to remove. Consumers pass this explicitly-empty
+//map instead of null while the worker map is pending. cardTFIDF then scores
+//every term at maxIDF — i.e. pure term-frequency ranking — an honest
+//degradation, identical in kind to how genuinely novel terms are handled.
+//Stable module identity, so the IDFMap-keyed shared fingerprint cache stays
+//warm across the whole pending window instead of cold-starting per build.
+export const PENDING_IDF_MAP : IDFMap = {idf: {}, maxIDF: 1};
 
-let memoizedIDFMap: IDFMap = {idf: {}, maxIDF: 0};
-let memoizedIDMapCardCount = 0;
-let memoizedIDFMapNgramSize = 0;
+//Local IDF-map memo for the off-mode/small-corpus fallback path (worker modes
+//inject a map instead). Keyed on the ProcessedCards IDENTITY plus ngramSize.
+//This replaced a count-based single global slot with two real bugs: a delete
+//slid the corpus under the memoized count and forced a synchronous full
+//rebuild, and possibleMissingConcepts' ngram-7 build evicted the ordinary
+//size-2 map, so the next regular consumer rebuilt again. A per-cards-identity
+//entry with a per-ngramSize map fixes both, and the entry is garbage
+//collected with the cards map itself.
+const localIDFMapsForCards : WeakMap<ProcessedCards, Map<number, IDFMap>> = new WeakMap();
 
 const idfMapForCards = (cards : ProcessedCards, ngramSize: number) : IDFMap => {
 	if (!cards || Object.keys(cards).length == 0) return {idf: {}, maxIDF: 0};
-	const cardCount = Object.keys(cards).length;
-	//Check if the card count is greater than or equal to card count and within 10% of the last time we calculated the idf map
-	const cardCountCloseEnough  = cardCount >= memoizedIDMapCardCount && cardCount <= memoizedIDMapCardCount * 1.1;
-	if (cardCountCloseEnough && ngramSize == memoizedIDFMapNgramSize) return memoizedIDFMap;
+	let byNgramSize = localIDFMapsForCards.get(cards);
+	if (!byNgramSize) {
+		byNgramSize = new Map();
+		localIDFMapsForCards.set(cards, byNgramSize);
+	}
+	const existing = byNgramSize.get(ngramSize);
+	if (existing) return existing;
 	const result = calcIDFMapForCards(cards, ngramSize);
-	memoizedIDFMap = result;
-	memoizedIDFMapNgramSize = ngramSize;
-	memoizedIDMapCardCount = cardCount;
+	byNgramSize.set(ngramSize, result);
 	return result;
 };
 
@@ -1608,15 +1636,19 @@ export class FingerprintGenerator {
 	_cachedFingerprints? : {[cardID : string] : Fingerprint};
 	_fingerprintCache : WeakMap<ProcessedCard, Fingerprint>;
 
-	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, serverIDF?: IDFMap | null, concepts? : StringCardMap, synonyms? : SynonymMap) {
+	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optIDFMap?: IDFMap | null, concepts? : StringCardMap, synonyms? : SynonymMap) {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
 		this._concepts = concepts || {};
 		this._synonyms = synonyms || {};
 
-		// Use server IDF if provided and valid
-		if (serverIDF && serverIDF.idf && typeof serverIDF.maxIDF === 'number') {
-			this._idfMap = serverIDF;
+		//Use the injected IDF map if provided and valid — in worker modes this
+		//is the worker-computed per-epoch map (possibly PENDING_IDF_MAP while
+		//that map is still building). Callers in worker modes must always
+		//inject: the local fallback below is a synchronous whole-corpus build,
+		//acceptable only for off-mode/small corpora and tests.
+		if (optIDFMap && optIDFMap.idf && typeof optIDFMap.maxIDF === 'number') {
+			this._idfMap = optIDFMap;
 		} else {
 			// Fall back to client-side calculation
 			this._idfMap = idfMapForCards(this._cards, this._ngramSize);
