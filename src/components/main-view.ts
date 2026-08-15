@@ -508,8 +508,9 @@ class MainView extends connect(store)(PageViewElement) {
 			//moves the caret to the end, so typing any phrase containing 'e'
 			//with the card view focused silently inserted the REST of that
 			//phrase into the card. Observed for real. Master had no such
-			//shortcut; every other shortcut here (m, f, l) already requires a
-			//modifier, so this now matches them.
+			//shortcut; every other letter shortcut already requires a modifier
+			//(f here; m, l and r in card-view's own handler), so this now
+			//matches them. Only the arrows and Space below stay bare.
 			if (!e.metaKey && !e.ctrlKey) return;
 			if (e.altKey) return;
 			e.stopPropagation();

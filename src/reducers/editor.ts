@@ -41,6 +41,8 @@ import {
 	EDITING_MERGE_OVERSHADOWED_CHANGES,
 	EDITING_UPDATE_SIMILAR_CARDS,
 	EDITING_SIMILARITY_PENDING,
+	MODIFY_CARD_SUCCESS,
+	MODIFY_CARD_FAILURE,
 	SomeAction,
 } from '../actions.js';
 
@@ -103,7 +105,8 @@ const INITIAL_STATE : EditorState = {
 	imageBrowserDialogOpen: false,
 	imageBrowserDialogIndex: undefined,
 	editingCardSimilarity: undefined,
-	similarityPendingVersion: 0
+	similarityPendingVersion: 0,
+	pendingSaveCard: null
 };
 
 const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorState => {
@@ -126,7 +129,11 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			//A pending request from a previous editing session belongs to a
 			//different draft; its result will arrive version-stamped and be
 			//dropped, so don't let its pendingness dim this session's UI.
-			similarityPendingVersion: 0
+			similarityPendingVersion: 0,
+			//A fresh editing session supersedes any optimistic face a prior
+			//save left behind (the editing card takes display precedence
+			//anyway; don't let a stale one linger underneath).
+			pendingSaveCard: null
 		};
 	case EDITING_RESTORE_DRAFT:
 		if (!state.editing || !state.underlyingCardSnapshot ||
@@ -150,7 +157,27 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			substantive:false,
 			updatedFromContentEditable: {},
 			editingCardSimilarity: undefined,
-			similarityPendingVersion: 0
+			similarityPendingVersion: 0,
+			//A save-teardown retains the committed draft in the SAME action
+			//that clears the editing card, so there is no dispatch — and
+			//therefore no renderable frame — where the card face has neither
+			//the editing card nor the optimistic pending-save card and would
+			//fall back to the stale state.data.cards copy. Any other teardown
+			//(cancel, delete, ownership loss) clears it.
+			pendingSaveCard: action.pendingSave ? state.card : null
+		};
+	//The durable single-save executor settles with exactly one of these. On
+	//success the confirmed card has already been applied to state.data.cards
+	//(the executor echoes post-commit, before MODIFY_CARD_SUCCESS), so
+	//dropping the optimistic face swaps between identical values. On failure
+	//the save did NOT land: the face must honestly revert to server truth
+	//while the save indicator's Retry/Stop and the alert take over.
+	case MODIFY_CARD_SUCCESS:
+	case MODIFY_CARD_FAILURE:
+		if (!state.pendingSaveCard) return state;
+		return {
+			...state,
+			pendingSaveCard: null
 		};
 	case EDITING_EDITOR_MINIMIZED:
 		return {

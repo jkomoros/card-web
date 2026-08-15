@@ -9,7 +9,10 @@ describe('durable single-card editing', () => {
 		const data = fs.readFileSync('src/actions/data.ts', 'utf8');
 		const persist = data.indexOf('persistDurableMultiEdit(operation);');
 		const preserve = data.indexOf("card-web-preserve-edit-draft-for-save", persist);
-		const finish = data.indexOf('dispatch(editingFinish());', preserve);
+		//editingFinish(true) is the save-flavored teardown: it retains the
+		//committed draft as editor.pendingSaveCard so the card face shows the
+		//new value optimistically instead of flashing the pre-edit copy.
+		const finish = data.indexOf('dispatch(editingFinish(true));', preserve);
 		assert.ok(persist >= 0 && preserve > persist && finish > preserve);
 		assert.ok(data.includes("operation.kind === 'single'"));
 		assert.ok(data.includes("card-web-single-save-confirmed"));

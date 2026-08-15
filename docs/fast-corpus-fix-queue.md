@@ -465,7 +465,12 @@ is a foot-gun rather than a perf number:
 - `tools/migrate-nlp-tokens.mjs:66` still defaults to PROD.
 - `functions/src/twitter.ts:213` still says the tweet functions "must never be
   scheduled" while `functions/src/index.ts:63,76` schedules both. One of these
-  two statements is wrong and it matters which.
+  two statements is wrong and it matters which. [RESOLVED 2026-08-15: the
+  COMMENT was wrong. `docs/corpus-sync-design.md` §2(g) aimed "must never be
+  scheduled" at the FULL-CORPUS-READ functions — `functions/src/idf.ts`, since
+  deleted, and `common.ts`'s unparameterized `getCards()`. `twitter.ts` calls
+  neither; it reads named cards. The schedules are correct and stay; the
+  comment now says what the exemption actually is.]
 
 ### Still open from Round 16
 
@@ -558,9 +563,28 @@ is a foot-gun rather than a perf number:
   hashed main chunks, ~1h CDN cache; a dirty-draft tab surviving an SW
   update). Mitigated by the exact-match protocol handshake, whose discipline
   is enforced only by a pin test.
-- `test/security/test.js` carries a DATED tripwire: `npm test` fails outright
+- ~~`test/security/test.js` carries a DATED tripwire: `npm test` fails outright
   from 2026-09-15 if the Phase 6 rules tightening has not happened. It will
-  bite whoever merges after that date.
+  bite whoever merges after that date.~~ FIXED (`843084f0`) — recorded in full
+  under "From the product audit (2026-08-04)" above. The suite now only WARNS
+  inside a 21-day window; the refusal moved to `tools/check-deadlines.cjs`,
+  which runs predeploy as `npm run test:rules-deadline`. The date itself is
+  unchanged, and the carve-out is still staged in
+  `firestore.TEMPLATE.rules` — see the open item below.
+- **The 2026-08-13 decision-log amendment on the staged rules carve-out is NOT
+  implemented.** The product audit (docs/fast-corpus-product-audit-2026-08-04.md,
+  "Decision-log amendment (2026-08-13)") records the owner's call to tighten
+  `cardEditInboundReferences` to REQUIRE the `updated` bump NOW, flip both
+  `STAGED` tests in `test/security/test.js` to `assertFails`, delete this
+  deadline entry from `tools/check-deadlines.cjs`, collapse runbook Phase 6
+  into the cutover, and add a **close-and-reopen every logged-in tab** step
+  after the hosting deploy (close-and-reopen, not F5 — a waiting service
+  worker only activates when every tab of the origin closes). `d7911781` took
+  the other calls from that decision log (#6 kill switch, #4 drawer copy, #2
+  naming, #8/#9 runbook habits, #17, #22) but not this one. At HEAD the rules,
+  the two STAGED tests, the deadline entry and runbook Phase 6 all still
+  describe the staged world, consistently — they are accurate, just not what
+  the owner decided.
 
 ### From Round 15 (not yet fixed)
 

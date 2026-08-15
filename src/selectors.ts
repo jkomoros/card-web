@@ -302,6 +302,10 @@ export const selectRandomSalt = (state : State) => state.collection ? state.coll
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state : State) => state.editor ? state.editor.card : null;
+//The committed-but-unconfirmed draft of a single-card save (see
+//EditorState.pendingSaveCard). Raw; most callers want
+//selectPendingSaveCardForDisplay.
+export const selectPendingSaveCard = (state : State) => state.editor ? state.editor.pendingSaveCard : null;
 export const selectEditingUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.underlyingCardSnapshot : null;
 const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
@@ -485,20 +489,25 @@ export const selectActiveCardEnriched = createSelector(
 	(card, concepts, synonyms) : ProcessedCard | null => card ? enrichCardWithConcepts(card, concepts, synonyms) : null
 );
 
-//Every modal main-view renders must suppress single-key shortcuts, not just
-//the three that were originally listed. dialog-element's Escape handler does
-//not stopPropagation, so typing `e` into a multi-edit <select> (type-ahead) or
-//the bulk-import textarea both preventDefault()ed the key AND opened the card
-//editor behind the still-open modal.
 //True when the ownership gate is showing its modal overlay. Keyboard shortcuts
 //must be suppressed then: `inert` does not stop document-level keydown
-//listeners, so `e`, arrows, Space, Cmd+Enter and Cmd-M all still fired behind
-//the overlay — worst in an 'inactive' tab, whose store has already been purged.
+//listeners, so the bare-key bindings (arrows, Space) and the modified ones
+//(Cmd-E, Cmd-F, Cmd-Enter, Cmd-M) all still fired behind the overlay — worst
+//in an 'inactive' tab, whose store has already been purged.
 export const selectCorpusGateBlocking = createSelector(
 	selectCorpusStatus,
 	(corpusStatus) => CORPUS_STATUS_BLOCKS_INTERACTION.has(corpusStatus)
 );
 
+//Every modal main-view renders must suppress the keyboard shortcuts, not just
+//the three modals that were originally listed. dialog-element's Escape handler
+//does not stopPropagation, so a keystroke aimed at a multi-edit <select>
+//(type-ahead) or the bulk-import textarea reached main-view's handler too.
+//The sharpest instance of that was bare `e`, which both preventDefault()ed the
+//key AND opened the card editor behind the still-open modal; `e` has since
+//(2026-08-02, `8816340a`) been made modifier-gated at the binding itself, but
+//the general hazard is unchanged for the bindings that are still bare —
+//arrows and Space — so this gate stays the load-bearing one.
 export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
@@ -978,6 +987,30 @@ export const selectEditingCardForDisplay = createSelector(
 			nlp: normalized?.nlp || active.nlp,
 			importantNgrams: normalized?.importantNgrams || active.importantNgrams,
 			synonymMap: normalized?.synonymMap || active.synonymMap
+		};
+	}
+);
+
+//The optimistic face for a committed-but-unconfirmed single-card save: the
+//draft the user just saved, merged over the active card the same way
+//selectEditingCardForDisplay merges before the first normalization lands (the
+//active card's nlp/importantNgrams/synonymMap are the display fallback; the
+//pending window is sub-second in the common case). Non-null only while the
+//durable executor is between accepting the save and the server settling it,
+//and only for the card the save belongs to — navigate away and the overlay
+//simply doesn't apply.
+export const selectPendingSaveCardForDisplay = createSelector(
+	selectPendingSaveCard,
+	selectActiveCardEnriched,
+	(pending, active) : ProcessedCard | null => {
+		if (!pending) return null;
+		if (!active || active.id !== pending.id) return null;
+		return {
+			...active,
+			...pending,
+			nlp: active.nlp,
+			importantNgrams: active.importantNgrams,
+			synonymMap: active.synonymMap
 		};
 	}
 );

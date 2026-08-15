@@ -1,7 +1,11 @@
 /*eslint-env node*/
 
-//Tests for the pure worker-corpus trustworthiness check that gates serving
-//collections/reference blocks and reconciliation.
+//Tests for the three pure worker-corpus trustworthiness predicates that gate
+//serving collections/reference blocks and reconciliation. They deliberately
+//do NOT agree: corpusSizeTrustworthy compares the worker's count against
+//Redux, corpusSyncReady demands a verified sync state, and corpusMayServe is
+//the loosest — it serves an UNVERIFIED corpus (not yet confirmed on this
+//boot) while still refusing a STALE one (a confirmed active regression).
 
 import assert from 'assert';
 

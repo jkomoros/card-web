@@ -7,7 +7,11 @@
 //card's value once a result verifiably FOR that card commits — never a
 //datum keyed to any other card, and never an empty flash between two real
 //values. The components render exactly what these functions return, so this
-//is where the contract lives (same shape as corpus-status-glyph).
+//is where the contract lives (same shape as corpus-status-glyph). The
+//similar-cards block gets its own rule (similarContentLags): it must dim
+//whenever what it is showing is known to lag the truth — a fingerprint
+//preview still awaiting embeddings, or an editing-card similarity request
+//still outstanding.
 
 import assert from 'assert';
 

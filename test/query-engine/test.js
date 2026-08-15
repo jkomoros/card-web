@@ -1,8 +1,11 @@
 /*eslint-env node*/
 
 //End-to-end tests for the worker-side QueryEngine: cards in, forwarded
-//user-state actions replayed, collections out. Runs in Node with no DOM —
-//the same environment constraint the worker has.
+//user-state actions replayed, collections out — plus the two things the
+//engine also serves from the same corpus, search-recall narrowing (asserted
+//bit-identical against the full scan, since narrowing that changes RESULTS is
+//a bug, not an optimization) and worker-served tag suggestions. Runs in Node
+//with no DOM — the same environment constraint the worker has.
 
 import assert from 'assert';
 

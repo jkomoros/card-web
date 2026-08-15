@@ -975,14 +975,18 @@ class CardEditor extends connect(store)(LitElement) {
 		//Content tab and the bar's lists render empty, which reads as 'no TODOs, no
 		//tags, no suggestions' rather than 'not computed'. Gate on whether anything
 		//that displays them is actually on screen.
-		//Gated on EDITING, not on the tab. Cmd-Shift-C / Cmd-Shift-I act on
-		//_suggestedConcepts and are live whenever the editor is open, so
-		//zeroing that list on the default Content tab made both shortcuts
-		//silent no-ops that still swallowed the keystroke — master populated
-		//suggestions whenever editing. The tab gating was a perf measure, and
-		//it buys little now: suggested TAGS are computed by the worker, and
-		//the expensive local fallback runs only in non-worker diagnostic modes
-		//on small corpora.
+		//Gated on EDITING, not on the tab. The original reason was a pair of
+		//Cmd-Shift-C / Cmd-Shift-I shortcuts over _suggestedConcepts, live
+		//whenever the editor was open, which zeroing the list on the default
+		//Content tab turned into silent no-ops that still swallowed the
+		//keystroke. Those shortcuts were REMOVED in `0ed8dc69` (2026-08-15) —
+		//they collided with the browser's own DevTools/Inspect keys — and the
+		//add-all / ignore-all affordances survive as buttons only. The gating
+		//stays as-is for the reason above it: the minimized bar renders these
+		//lists itself. The tab gating was a perf measure, and it buys little
+		//now: suggested TAGS are computed by the worker, and the expensive
+		//local fallback runs only in non-worker diagnostic modes on small
+		//corpora.
 		const detailFieldsVisible = this._active;
 
 		this._autoTodos = detailFieldsVisible ? selectEditingCardAutoTodos(state) : [];

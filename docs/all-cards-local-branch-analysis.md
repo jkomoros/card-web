@@ -273,6 +273,17 @@ This is not necessarily user-visible now, but it is confusing and creates mainte
 
 This is a ship blocker.
 
+> **RESOLVED 2026-08-15, by deletion.** Everything named below is gone: the
+> `calculateIDF` function, `functions/src/idf.ts`, the public-read `idf-maps`
+> storage rule, `src/idf-cache.ts`, the `server_idf_cache` localStorage entry
+> and the whole Redux/protocol plumbing. Fingerprint rarity is now computed in
+> the corpus worker over the cards the viewer can actually see, so the scope is
+> structural rather than filtered (docs/visible-corpus-idf-design.md), and
+> `test/idf-index` pins the deletion. The one step no repo state can prove:
+> `firebase functions:delete calculateIDF` on BOTH projects — omitting an
+> export does not undeploy the live copy. The rest of this section is kept as
+> the record of what the hazard was.
+
 `calculateIDF` fetches all cards, filters only to body card types, and writes every term to Cloud Storage. Storage rules make `idf-maps/*` public. This is not merely hypothetical: the function is exported for deployment, deploy tooling includes functions, and the app loads `idf-maps/latest.json` during startup.
 
 Impact: unpublished/private card vocabulary can leak through public IDF JSON.

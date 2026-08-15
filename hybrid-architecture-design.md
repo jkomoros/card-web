@@ -1,6 +1,22 @@
 # Hybrid Architecture Design: Client + Server Search and Links
 
-## Status: Work in Progress
+## Status: NOT ADOPTED — historical, kept for the problem statement
+
+**Read this as a record of one candidate, not as the plan.** This document
+proposes moving search and link resolution to the server so the client can
+work from a partial snapshot. The project went the OTHER way: the answer to
+"50k cards is too much for the client" turned out to be a corpus WEB WORKER
+holding the whole corpus off the UI thread, with watermark delta sync keeping
+the read cost proportional to changes rather than to corpus size. See
+`docs/fast-corpus-design-doc.md` (the adjudication that chose it) and
+`docs/corpus-sync-design.md` (the sync architecture as built).
+
+Consequently, the "Current State Summary" below describes MASTER as of early
+2026 and is stale in the specifics — notably the "Complete mode" toggle, which
+has since been deleted outright (`6a9d20b7`), and the partial-snapshot
+workaround, which no longer exists. What remains genuinely useful here is the
+problem statement and the survey of which features a partial corpus breaks;
+that survey is why the shipped design refused partial corpora.
 
 This document outlines the design for a hybrid architecture that allows the card-web application to work with large card collections (50k+ cards) while maintaining the benefits of client-side performance for downloaded cards.
 

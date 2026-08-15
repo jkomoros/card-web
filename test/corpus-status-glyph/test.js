@@ -3,8 +3,12 @@
 //Tests for the pure state→glyph mapping behind corpus-status-indicator: the
 //dot's tone (color layer), its pulse (still-working layer), the compact
 //count label (fetch-progress layer), the pending badge (unconfirmed-changes
-//layer) and the multi-line tooltip. The component renders exactly what this
-//returns, so this is where the indicator's whole contract lives.
+//layer), the multi-line tooltip, the progress ring's fraction and the band
+//color of the phase it is showing, and the writeLocked padlock that says
+//saving is refused rather than merely slow. The component renders exactly
+//what this returns, so this is where the indicator's whole contract lives —
+//keep that true: a layer added to the glyph without a layer added here is a
+//layer nothing tests.
 
 import assert from 'assert';
 

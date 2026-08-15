@@ -1,7 +1,8 @@
 # P2 Spec: Windowed Cards — the Memory Improvement
 
 Status: SPEC (designed across the fast-corpus reviews; not yet built).
-Prereq: corpus-worker='on' + corpus-sync='watermark' defaulted after soak.
+Prereq: corpus-worker='on' + corpus-sync='watermark' defaulted after soak —
+MET since `bbfdd89c` (2026-07-11); both are the defaults now.
 Flag: `corpus-memory`: 'full' (default) | 'windowed'.
 
 ## The problem (measured anatomy at 60k cards, ~3KB avg)

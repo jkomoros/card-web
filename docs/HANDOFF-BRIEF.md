@@ -1,5 +1,47 @@
 # Handoff brief: card-web fast-corpus work
 
+> **LANDING STATUS (2026-08-15 — SUPERSEDES the 2026-08-02 note below, which
+> itself superseded 2026-07-10)**
+>
+> Still true from 2026-08-02: the flags default ON (`corpus-worker='on'`,
+> `corpus-sync='watermark'` since `bbfdd89c`), so **deploying master to prod
+> hosting IS the cutover** — merging and deploying are not separable
+> decisions — and the old "default boot = main-thread full-corpus listeners,
+> ~40k reads" warning is obsolete the other way round.
+>
+> Corrected since 2026-08-02:
+>
+> - **Prod DOES have a client-side kill switch now.** `d7911781`
+>   (2026-08-13) deleted the hostname restriction in `diagnosticModesAllowed()`,
+>   so localStorage `corpus-worker` / `corpus-sync` are consulted on EVERY
+>   host including prod. `corpus-worker=off` is an instant, no-deploy,
+>   per-browser rollback to the legacy main-thread path. It is per-browser, so
+>   it is a first-response tool, not a substitute for a hosting rollback — and
+>   the hosting rollback is still what strands the durable write queue and the
+>   edit draft, which is why the runbook's ten-second pre-rollback habit
+>   exists.
+> - **IDF is no longer a server artifact.** The `calculateIDF` function, the
+>   `idf-maps` bucket, `src/idf-cache.ts` and the `server_idf_cache`
+>   localStorage entry were all deleted; the corpus worker computes IDF over
+>   the cards the viewer can see. Spec: docs/visible-corpus-idf-design.md.
+>   `firebase functions:delete calculateIDF` must still be run on BOTH
+>   projects — omitting the export does not undeploy the live copy.
+> - **The staged inbound-reference rules carve-out is still staged** as of
+>   this writing, with its 2026-09-15 deadline enforced at DEPLOY time
+>   (`npm run test:rules-deadline`), not inside `npm test`. The product
+>   audit's 2026-08-13 decision-log amendment calls for tightening at cutover
+>   instead and deleting the deadline machinery; that has NOT been
+>   implemented. Verify `firestore.TEMPLATE.rules` before believing either
+>   version.
+>
+> Merge readiness and CUTOVER readiness are tracked separately in
+> docs/fast-corpus-landing-review-2026-08-02.md. Read its "Prod-deploy
+> blockers" section before any prod hosting deploy — noting that two of them
+> (anonymous card persistence, per-user state re-reads) have since been fixed;
+> docs/fast-corpus-fix-queue.md is the current status of that list.
+
+<details><summary>Superseded 2026-08-02 note (kept for provenance)</summary>
+
 > **LANDING STATUS (2026-08-02 — SUPERSEDES the 2026-07-10 note below)**
 >
 > The 2026-07-10 rationale is STALE IN BOTH DIRECTIONS and must not be used
@@ -23,6 +65,8 @@
 > blockers" section before any prod hosting deploy — in particular that
 > anonymous visitors currently get no card persistence, and that browsers
 > without module-worker support fail closed with no fallback.
+
+</details>
 
 <details><summary>Superseded 2026-07-10 note (kept for provenance)</summary>
 
@@ -92,7 +136,7 @@ Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ comm
   cold device ~65k over 2 budgeted days (Phase 2); second tab ~1.2k.
 
 ## Rollout flags
-localStorage `corpus-worker`: off (default) | spike | shadow (worker owns ingestion + divergence logging) | on (worker also serves active collection, find-dialog search, reference blocks). Console APIs: `CORPUS_WORKER.setMode(...)`, `DEBUG_PERF.enable()`/`dump()`.
+localStorage `corpus-worker`: off | spike | shadow (worker owns ingestion + divergence logging) | **on (DEFAULT since `bbfdd89c`, 2026-07-11)** — worker also serves active collection, find-dialog search, reference blocks. localStorage `corpus-sync`: listen (legacy full-corpus listeners) | **watermark (DEFAULT)**. Both keys are now an opt-OUT, honored on every host including prod (`src/corpus-mode.ts`); a windowless context (tests, tools) still resolves to the legacy modes. Console APIs: `CORPUS_WORKER.setMode(...)`, `DEBUG_PERF.enable()`/`dump()` — both gated behind localStorage `debug-perf=1`.
 
 ## DIRECTIVE (2026-07-11, owner): FAST COLD BOOT — IMPLEMENTED (c36b7ecc)
 Status: code + unit tests landed (cold-pace.ts ladder/backoff math, paged

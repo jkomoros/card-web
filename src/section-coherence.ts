@@ -14,7 +14,15 @@
 //sections hold the dimmed previous value until their first for-this-card
 //result arrives, at its natural arrival time.
 //
-//The mechanics are two tiny pure functions so the whole contract is
+//A SECOND, narrower rule lives here too (similarContentLags): a similar-cards
+//block must carry the same "updating" dim whenever what it shows is known to
+//lag the truth even though it IS keyed to the active card — a fingerprint
+//preview standing in until embeddings answer, or an editing-card similarity
+//request still outstanding while the draft moves under it. Same house signal,
+//different question: the rule above asks "whose datum is this?", this one asks
+//"is this datum current?".
+//
+//The mechanics are a few tiny pure functions so the whole contract is
 //Node-testable (test/section-coherence) without a DOM, in the same shape as
 //corpus-status-glyph: components just render what these return.
 

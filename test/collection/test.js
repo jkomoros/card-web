@@ -1,7 +1,9 @@
 /*eslint-env node*/
 
 //Tests for Collection work handoff (reusing filter/sort work when only the
-//live cards map changed) and countForDescription (cheap tab counts).
+//live cards map changed), Collection.fromWorkerResult (reproducing a
+//worker-computed collection on the main thread without recomputing it), and
+//countForDescription (cheap tab counts).
 
 import {
 	JSDOM

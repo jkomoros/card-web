@@ -1,7 +1,13 @@
 /*eslint-env node*/
 
-//Behavioral tests for the durable auxiliary-write queue (stars/reads/
-//reading-list offline durability). Runs in Node with a localStorage shim.
+//Behavioral tests for the durable auxiliary-write queue. It started as
+//stars/reads/reading-list offline durability, and that is now the smaller half
+//of it: the queue also carries card creation and the whole comment
+//add/edit/delete family (plan schema validation, conflict discard,
+//pendingCommentTextFor), whole-group persistence with an oversize refusal,
+//quarantine of unreadable storage, cross-tab head-claim ordering, wedge
+//reporting, and queue-depth notifications. Runs in Node with a localStorage
+//shim.
 
 import assert from 'assert';
 

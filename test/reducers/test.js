@@ -49,6 +49,7 @@ let UPDATE_CARD_META;
 let EDITING_START;
 let EDITING_RESTORE_DRAFT;
 let EDITING_FINISH;
+let EDITING_TEXT_FIELD_UPDATED;
 let EDITING_SIMILARITY_PENDING;
 let EDITING_UPDATE_SIMILAR_CARDS;
 let INITIAL_COLLECTION_STATE;
@@ -102,6 +103,7 @@ describe('reducer identity preservation', () => {
 			EDITING_START,
 			EDITING_RESTORE_DRAFT,
 			EDITING_FINISH,
+			EDITING_TEXT_FIELD_UPDATED,
 			EDITING_SIMILARITY_PENDING,
 			EDITING_UPDATE_SIMILAR_CARDS,
 		} = await import('../../lib/src/actions.js'));
@@ -192,6 +194,67 @@ describe('reducer identity preservation', () => {
 			assert.strictEqual(restarted.similarityPendingVersion, 0);
 			const finished = editorReducer(state, {type: EDITING_FINISH});
 			assert.strictEqual(finished.similarityPendingVersion, 0);
+		});
+	});
+
+	//The post-save render contract: from the instant a committed single-card
+	//save tears the editor down, the card face must have the NEW value
+	//available at every observable step — never a frame where both the editing
+	//card and the optimistic pending-save card are gone and the face would
+	//fall back to the stale pre-edit state.data.cards copy — until the durable
+	//executor settles the save with SUCCESS or FAILURE.
+	describe('pending-save optimistic face', () => {
+		const editedState = () => {
+			let state = editorReducer(undefined, {type: EDITING_START, card: makeCard('save-card')});
+			state = editorReducer(state, {type: EDITING_TEXT_FIELD_UPDATED, fieldName: 'title', value: 'New title', fromContentEditable: false});
+			return state;
+		};
+
+		it('a save teardown hands the committed draft to pendingSaveCard in the same action that clears the editor', () => {
+			const state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
+			//One action, both effects: there is no dispatch between "editor
+			//closed" and "optimistic face installed" for a render to observe.
+			assert.strictEqual(state.editing, false);
+			assert.strictEqual(state.card, null);
+			assert.strictEqual(state.pendingSaveCard.title, 'New title');
+		});
+
+		it('the optimistic face survives MODIFY_CARD and clears exactly on settle', () => {
+			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
+			//The executor dispatches MODIFY_CARD right after the teardown; the
+			//new value must still be renderable at that step.
+			state = editorReducer(state, {type: MODIFY_CARD, modificationCount: 1});
+			assert.strictEqual(state.pendingSaveCard.title, 'New title');
+			//Success: the post-commit echo has already installed the confirmed
+			//card into data.cards, so dropping the face swaps identical values.
+			const confirmed = editorReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 1});
+			assert.strictEqual(confirmed.pendingSaveCard, null);
+			//Failure: the save did NOT land — the face must revert to server
+			//truth while the save indicator's Retry/Stop takes over.
+			const failed = editorReducer(state, {type: MODIFY_CARD_FAILURE, error: new Error('nope')});
+			assert.strictEqual(failed.pendingSaveCard, null);
+		});
+
+		it('a non-save teardown leaves no optimistic face', () => {
+			const cancelled = editorReducer(editedState(), {type: EDITING_FINISH});
+			assert.strictEqual(cancelled.pendingSaveCard, null);
+			//And a teardown-without-flag (purge, ownership loss) clears one
+			//left by an earlier save.
+			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
+			state = editorReducer(state, {type: EDITING_FINISH});
+			assert.strictEqual(state.pendingSaveCard, null);
+		});
+
+		it('a new editing session supersedes a lingering optimistic face', () => {
+			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
+			state = editorReducer(state, {type: EDITING_START, card: makeCard('other-card')});
+			assert.strictEqual(state.pendingSaveCard, null);
+		});
+
+		it('settle actions with no pending face preserve state identity', () => {
+			const state = editorReducer(undefined, {type: EDITING_START, card: makeCard('idle-card')});
+			assert.strictEqual(editorReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 0}), state);
+			assert.strictEqual(editorReducer(state, {type: MODIFY_CARD_FAILURE, error: new Error('nope')}), state);
 		});
 	});
 

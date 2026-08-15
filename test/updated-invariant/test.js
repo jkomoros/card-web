@@ -3,10 +3,26 @@
 //Tests for the `updated` write-invariant (docs/corpus-sync-design.md). The
 //watermark delta sync only fetches cards with updated > watermark and
 //fastDedupe treats equal `updated` as proof of equivalence, so every card
-//mutation MUST bump `updated`. Two layers are checked here:
-// 1. The pure policy core (src/card-write-guard.ts) that MultiBatch enforces.
-// 2. A source audit that every updateWithoutTimestampBump() escape hatch is
-//    annotated, so the exemptions stay grep-able and reviewed.
+//mutation MUST bump `updated`. Five layers are checked here:
+// 1. The pure policy core (src/card-write-guard.ts) that MultiBatch enforces —
+//    behaviorally, plus the no-bump counter allowlist, plus a combinatorial
+//    falsification pass that enumerates the whole small input domain rather
+//    than sampling it.
+// 2. Two source audits: that every updateWithoutTimestampBump() escape hatch
+//    is annotated, and that every RAW card write that bypasses MultiBatch
+//    entirely (updateDoc/setDoc/transaction writes in src/, admin batches in
+//    functions/ and tools/) carries an `updated-invariant:` annotation within
+//    the preceding few lines. Both keep the exemptions grep-able and reviewed,
+//    and both assert a floor on the site count so deleting an annotated site
+//    cannot quietly relax the audit.
+// 3. A drift gate that parses firestore.TEMPLATE.rules and checks the guard's
+//    allowlist against the fields the rules' own non-bump branches admit —
+//    the two enforcement copies cannot disagree silently.
+// 4. An informational micro-bench, because the guard runs on every commit.
+// 5. MultiBatchBase chokepoint wiring driven against a stub SDK: the guard is
+//    actually invoked, and atomic groups, oversized-group splitting, commit
+//    concurrency and marker ordering all behave — the enforcement, not just
+//    the policy.
 
 import assert from 'assert';
 import fs from 'fs';

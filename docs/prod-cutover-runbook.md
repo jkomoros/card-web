@@ -87,8 +87,9 @@ Notes:
   The earlier instruction named only `(published ASC, updated ASC)`, which
   is not sufficient — the cold-boot priority phase needs
   `(published ASC, updated DESC)`, and find/slug and suggestion queries need
-  others again. A query whose index is still building FAILS; with the flags
-  now default-on there is no client-side way to back out of it.
+  others again. A query whose index is still building FAILS, and while
+  `corpus-worker=off` in localStorage backs a single browser out to the legacy
+  main-thread path, that is a per-browser escape hatch, not a fix for everyone.
   **Gate**: Firebase console → Firestore → Indexes, every entry showing
   `Enabled` and no field override still building (minutes to tens of minutes
   at prod scale). Do not start Phase 4 until that is true.
@@ -204,8 +205,13 @@ promptly, or accept that those writes are deferred indefinitely. Deletion also
 stays broken for rolled-back clients while the Phase 2 rules are live (see
 Phase 2).
 
-Do not use the diagnostic localStorage modes as a production fallback; the
-supported client requires the worker and its single-tab ownership fence.
+The diagnostic localStorage modes are reachable on prod hosting (2026-08-13:
+`diagnosticModesAllowed()` no longer restricts by hostname — `src/corpus-mode.ts`
+says why), so `corpus-worker=off` is a real per-browser rollback that costs no
+deploy and strands neither the durable write queue nor a draft. Use it that
+way — for YOUR browser, while you decide — not as a steady state: the
+supported configuration is the worker with its single-tab ownership fence, and
+`off` gives up the read-cost guarantees along with it.
 
 **Service worker: why the entry chunk is renamed.** master's service worker
 precaches the app entry at the stable URL `lib/src/components/card-web-app.js`
@@ -251,12 +257,12 @@ old client have aged out):
    `npm test` warns for the 21 days beforehand. Once this phase is done, the
    deadline entry in `tools/check-deadlines.cjs` can be removed; if the phase
    slips, move its date in the commit that records why.
-3. Deploy rules to BOTH projects:
+4. Deploy rules to BOTH projects:
    ```bash
    npx firebase deploy --only firestore:rules --project dev-complexity-compendium
    npx firebase deploy --only firestore:rules --project complexity-compendium
    ```
-4. Verify a link-affecting edit still commits on prod.
+5. Verify a link-affecting edit still commits on prod.
 
 ## Phase 7 — Post-soak cleanup (days-to-weeks later, separate PR)
 

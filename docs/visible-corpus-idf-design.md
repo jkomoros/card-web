@@ -1,7 +1,14 @@
 # Design: Visible-Corpus IDF (fingerprints from the cards you can see)
 
 **2026-08-15 · Synthesized from two independent design passes (consumer-first
-and infrastructure-first) · Status: ready to implement**
+and infrastructure-first) · Status: IMPLEMENTED — this is now the description
+of what the code does, not a proposal.** The D1 measurement gate resolved in
+favor of shipping the map (`src/worker/idf-index.ts` builds it,
+`worker-protocol.ts` carries it as the `idfMap` message, `selectWorkerIDF`
+receives it), and the deletion sweep in step 4 is complete and pinned by a
+structural test (`test/idf-index`). The one operational step that CANNOT be
+verified from the repo, and so is not done until someone does it by hand:
+`firebase functions:delete calculateIDF` on BOTH projects.
 
 ## Owner's decisions (pinned)
 

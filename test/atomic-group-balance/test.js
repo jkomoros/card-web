@@ -7,9 +7,17 @@
 //same deterministic failure on every boot while the UI reports the write as
 //saved and merely waiting for the connection.
 //
-//A source-text check rather than a behavioral one, deliberately: the executors
-//live in modules that import the browser Firebase runtime, and this bug is
-//structural — countable without executing anything.
+//A source-text check rather than a behavioral one, because this bug is
+//structural — countable across the WHOLE tree without executing anything, so
+//it catches an unbalanced group in code no harness happens to drive.
+//
+//The original justification also said the executors could not be driven at
+//all, since they live in modules that import the browser Firebase runtime.
+//That turned out to be wrong: test/card-create-executor and
+//test/comment-executors now run the real registered executors against a real
+//emulator (see test/harness-support/app-harness.js). Treat this suite as the
+//cheap tree-wide net, not as the only coverage — the behavioral tests are the
+//stronger instrument where they reach.
 
 import assert from 'assert';
 import fs from 'fs';
@@ -97,10 +105,11 @@ describe('atomic group balance', () => {
 		//so a landed card beside a failed section write leaves the card
 		//permanently missing from its section with the intent cleared.
 		//
-		//This is a source-text pin, which is a weak instrument — see the
-		//executable-harness item in docs/fast-corpus-fix-queue.md for the real
-		//fix. It is here because the hole it closes was demonstrated, not
-		//theorised.
+		//This is a source-text pin, which is a weak instrument. The stronger
+		//one has since landed: test/card-create-executor drives this executor
+		//for real against the emulator, including that its atomic group
+		//actually closes. This pin stays as the cheap always-on guard, and
+		//because the hole it closes was demonstrated, not theorised.
 		const text = fs.readFileSync(path.join(process.cwd(), 'src', 'actions', 'data.ts'), 'utf8');
 		const at = text.indexOf(`registerAuxWriteExecutor('card-create'`);
 		assert.ok(at > 0, 'the card-create executor must exist');

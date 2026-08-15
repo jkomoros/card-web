@@ -1102,7 +1102,15 @@ export type EditorState = {
 	//follow the retry coordinator's last-request-wins discipline: a result
 	//stamped with any other version belongs to a cancelled chain and must be
 	//dropped, never un-dimming a newer pending request.
-	similarityPendingVersion: number
+	similarityPendingVersion: number,
+	//The committed draft of a single-card save that the durable executor has
+	//accepted but the server has not yet confirmed. Set by EDITING_FINISH with
+	//pendingSave, cleared by MODIFY_CARD_SUCCESS / MODIFY_CARD_FAILURE (and by
+	//any other editor start/finish). While set, the card face renders this
+	//optimistically instead of the stale state.data.cards copy, with a small
+	//unconfirmed indicator; on failure the existing save-indicator surfaces
+	//(Retry/Stop, alerts) take over and the face reverts to server truth.
+	pendingSaveCard: Card | null
 }
 
 export type FindState = {

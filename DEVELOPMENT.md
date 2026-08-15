@@ -44,16 +44,18 @@ and slowMo:100 to view what's going on.
 ## NLP Features: First-Time Deployment
 
 The NLP pipeline stores pre-computed tokens on card documents in Firestore to
-avoid expensive client-side NLP recomputation. A scheduled Cloud Function
-generates an IDF (inverse document frequency) map for fingerprinting.
+avoid expensive client-side NLP recomputation.
+
+Fingerprint rarity (IDF) needs no deployment step at all: the corpus worker
+computes an inverse-document-frequency map over its own corpus — which is the
+set of cards the viewer can see, by construction — and republishes it per
+epoch (`src/worker/idf-index.ts`; see docs/visible-corpus-idf-design.md).
 
 ### 1. Deploy normally
 
 ```
 npm run deploy
 ```
-
-This deploys everything including the `calculateIDF` Cloud Function.
 
 ### 2. Backfill existing cards
 
@@ -77,22 +79,10 @@ node tools/migrate-nlp-tokens.mjs
 node tools/migrate-nlp-tokens.mjs --dev
 ```
 
-The script is idempotent — it skips cards that already have `nlp_tokens`.
+The script is idempotent — it skips cards that already carry `nlp_tokens`, a
+matching `nlp_source_fingerprint`, and the current `nlp_version`.
 
-### 3. Bootstrap the IDF map
-
-The `calculateIDF` Cloud Function runs weekly (Sunday 2 AM PST) and uploads
-an IDF map to Cloud Storage at `idf-maps/latest.json`. For the first time,
-trigger it manually:
-
-```
-# Via gcloud:
-gcloud scheduler jobs run firebase-schedule-calculateIDF --location=us-central1
-
-# Or trigger from the Firebase Console: Functions → calculateIDF → Test
-```
-
-### 4. Verify
+### 3. Verify
 
 ```
 node tools/verify-nlp-quick.mjs
@@ -107,7 +97,12 @@ This checks a few random cards for the presence of `nlp_tokens` and related fiel
 - `nlp_search_tokens`: Flat `string[]` of stemmed unigrams + bigrams for
   Firestore `array-contains` queries.
 - `nlp_version`: Algorithm version number (increment to trigger re-migration).
+- `nlp_source_fingerprint`: Hash of the RAW fields the tokens were derived from.
+  Together with `nlp_version` it gates the stored-token fast path
+  (`src/card-processing.ts`): a card whose fingerprint no longer matches its
+  content is re-tokenized at load instead of being served stale tokens.
 
-Note: `nlp_fingerprint` was originally planned for change detection but no
-consumer was ever built. It has been removed. Old cards may still have it in
-Firestore; it is harmlessly ignored.
+Note: an earlier `nlp_fingerprint` field was planned for change detection, no
+consumer was ever built, and it was removed (`nlp_source_fingerprint` is the
+later, load-bearing replacement — different field, different purpose). Old
+cards may still have `nlp_fingerprint` in Firestore; it is harmlessly ignored.

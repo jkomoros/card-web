@@ -1,9 +1,11 @@
 //The pure state→glyph mapping for corpus-status-indicator: given everything
 //Redux knows about sync health, produce the dot's tone, whether it pulses,
-//the compact count label, the pending-writes badge, and the multi-line
-//tooltip. Pure and DOM-free so the whole layered-meaning contract is
-//Node-testable (test/corpus-status-glyph); the component just renders what
-//this returns.
+//the compact count label, the pending-writes badge, the multi-line tooltip,
+//the progress ring's fraction plus the band color of the phase it is
+//reporting, and the writeLocked padlock (saving is REFUSED, not merely slow).
+//Pure and DOM-free so the whole layered-meaning contract is Node-testable
+//(test/corpus-status-glyph); the component just renders what this returns —
+//so a layer added here without a layer added there is a layer nothing tests.
 
 import {
 	CorpusStatus,

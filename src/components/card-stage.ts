@@ -56,6 +56,13 @@ export class CardStage extends LitElement {
 	@property({ type : Boolean })
 		cardModificationsPending: boolean;
 
+	//True while the rendered card is a committed-but-unconfirmed save (the
+	//optimistic face a single-card save shows before the server settles it).
+	//Renders a small "Saving…" chip anchored to the card; the card content
+	//itself stays full-strength.
+	@property({ type : Boolean })
+		pendingSave: boolean;
+
 	@property({ type : Boolean})
 		hideActions: boolean;
 
@@ -171,6 +178,47 @@ export class CardStage extends LitElement {
 				opacity: 0.6;
 			}
 
+			/* Shrink-wraps the main card-renderer so the pending-save chip can
+			anchor to the card's actual corner (the card is flex-centered in a
+			much larger canvas, so the canvas corner is not "near the card"). */
+			#card-container {
+				position: relative;
+				display: flex;
+			}
+
+			/* The unconfirmed-save chip: same pill grammar as the app-level
+			save-status indicator (white pill, status dot, small fixed rem type
+			that doesn't scale with the card), with the dot in
+			--app-pending-color — the palette's designated "your change has not
+			reached the server yet" hue, already used by the corpus status
+			glyph's pending layer. Sits just above the card's top-right corner:
+			adjacent to the content the user is verifying, covering none of it,
+			and never dimming it. */
+			#unconfirmed-save {
+				position: absolute;
+				bottom: calc(100% + 0.4rem);
+				right: 0;
+				display: flex;
+				align-items: center;
+				gap: 0.4rem;
+				padding: 0.2rem 0.55rem;
+				border-radius: 1rem;
+				background: rgba(255, 255, 255, 0.94);
+				box-shadow: 0 1px 5px rgba(0, 0, 0, 0.18);
+				font: 0.78rem var(--app-default-font-family);
+				color: var(--app-dark-text-color);
+				white-space: nowrap;
+				z-index: 1;
+			}
+
+			#unconfirmed-save .dot {
+				width: 0.5rem;
+				height: 0.5rem;
+				flex-shrink: 0;
+				border-radius: 50%;
+				background: var(--app-pending-color);
+			}
+
 			@media (orientation:portrait) {
 				/* If we're in portrait mode there's more space for the actions along
 				the bottom rail, not the right rail */
@@ -211,7 +259,16 @@ export class CardStage extends LitElement {
 				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>
 			</div>
-			<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .cardModificationsPending=${this.cardModificationsPending} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks} .suggestedConcepts=${this.suggestedConcepts}></card-renderer>
+			<div id='card-container'>
+				<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .cardModificationsPending=${this.cardModificationsPending} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks} .suggestedConcepts=${this.suggestedConcepts}></card-renderer>
+				${this.pendingSave ? html`
+					<!-- aria-hidden: the app-level save-status pill is the
+					live region that announces "Saving card…"; announcing the
+					same status twice from two regions double-speaks in screen
+					readers. This chip is the visual, card-adjacent echo. -->
+					<div id='unconfirmed-save' aria-hidden='true'><span class='dot'></span><span>Saving…</span></div>
+				` : ''}
+			</div>
 			<card-renderer id='sizing' style='position:absolute;visibility:hidden;z-index:-100;'></card-renderer>
 			<slot name='actions'></slot>
 			<slot name='tags'></slot>

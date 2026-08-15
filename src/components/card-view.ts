@@ -25,6 +25,7 @@ import {
 	selectCardsDrawerPanelShowing,
 	selectActiveCollection,
 	selectEditingCardForDisplay,
+	selectPendingSaveCardForDisplay,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
@@ -341,6 +342,12 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_displayCard: Card | null;
+
+	//True while _displayCard is the optimistic committed-but-unconfirmed save
+	//draft rather than server truth — drives the small card-level "Saving…"
+	//chip. Own @state: read directly by the template.
+	@state()
+		_displayCardPendingSave: boolean;
 
 	@state()
 		_editingCard: Card | null;
@@ -731,7 +738,7 @@ class CardView extends connect(store)(PageViewElement) {
 			makes the boot placeholder read as pending rather than as real card
 			content; it was never set here, so the placeholder rendered at full
 			weight and opacity, visually identical to a loaded card. -->
-			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -1104,8 +1111,13 @@ class CardView extends connect(store)(PageViewElement) {
 		this._scheduleReferenceBlocksUpdate(activeCardChanged);
 		//Use enriched card for display when not editing. While editing, avoid
 		//semantic enrichment on the keystroke path and keep the active card's
-		//previous NLP block only as a display fallback.
-		this._displayCard = this._editingCard ? this._editingCard : selectActiveCardEnriched(state);
+		//previous NLP block only as a display fallback. Between a committed
+		//single-card save and its server confirmation, prefer the optimistic
+		//pending-save face over the (still-stale) active card, so the face
+		//never flashes back to the pre-edit value while the save round-trips.
+		const pendingSaveCard = selectPendingSaveCardForDisplay(state);
+		this._displayCard = this._editingCard ? this._editingCard : (pendingSaveCard || selectActiveCardEnriched(state));
+		this._displayCardPendingSave = !this._editingCard && Boolean(pendingSaveCard);
 		this._pageExtra = state.app.pageExtra;
 		this._cardModificationsPending = selectCardModificationPending(state);
 		this._saveEligible = selectCardSavesEligible(state);

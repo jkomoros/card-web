@@ -3,6 +3,13 @@
 //Search-recall (find narrowing) lifecycle: the pure token helper behaviorally,
 //plus source pins on the worker's chunked-build wiring — the kick sites, the
 //ready-gating, and the reset — in the same style as the other worker pins.
+//
+//A second section pins the stale-while-revalidate display contract that the
+//recall index made possible: card-view, find-dialog and card-drawer must hold
+//the last READY collection while a new one computes, rather than flashing
+//empty, and the editor's tag suggestions must come from the worker. It lives
+//here because it is the same "the index is not instant, so the UI must be
+//honest about lag" property seen from the consumer side.
 
 import assert from 'assert';
 import fs from 'fs';

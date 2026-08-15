@@ -756,7 +756,13 @@ type ActionEditingRestoreDraft = {
 };
 
 type ActionEditingFinish = {
-	type: typeof EDITING_FINISH
+	type: typeof EDITING_FINISH,
+	//True only for the editor teardown that hands a committed single-card save
+	//to the durable executor. The reducer then retains the committed draft as
+	//editor.pendingSaveCard so the card face can keep showing the NEW value
+	//while the save is in flight, instead of flashing back to the stale
+	//state.data.cards copy until the post-commit echo lands.
+	pendingSave? : boolean
 };
 
 type ActionEditingEditorMinimized = {

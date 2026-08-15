@@ -900,7 +900,13 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save', {
 					detail: {cardID: operation.targetIDs[0], operationID: operation.id},
 				}));
-				dispatch(editingFinish());
+				//pendingSave keeps the committed draft as editor.pendingSaveCard,
+				//so the card face renders the NEW value from this instant.
+				//Without it, closing the editor here fell back to the stale
+				//state.data.cards copy for the whole authoritative-read +
+				//commit round trip (the echo below is deliberately
+				//post-confirmation), which read as the save reverting.
+				dispatch(editingFinish(true));
 			}
 		} else if (JSON.stringify(operation.update) !== JSON.stringify(update) ||
 			JSON.stringify(operation.targetIDs) !== JSON.stringify(resumeTargetIDs || cards.map(card => card.id)) ||

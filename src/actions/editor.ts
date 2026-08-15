@@ -469,14 +469,20 @@ export const linkCard = (cardID : CardID) : ThunkSomeAction => (_, getState) => 
 	document.execCommand('createLink', false, cardID);
 };
 
-export const editingFinish = () : ThunkSomeAction => (dispatch) => {
+//pendingSave should be true ONLY on the teardown that hands a committed
+//single-card save to the durable executor: the reducer then keeps the
+//committed draft around as pendingSaveCard so the card face shows the new
+//value optimistically until the save is confirmed (or fails). Every other
+//teardown — cancel, delete, ownership loss — must pass nothing, which clears
+//any lingering optimistic face too.
+export const editingFinish = (pendingSave = false) : ThunkSomeAction => (dispatch) => {
 	// Unsubscribe from live card listener
 	if (editingCardUnsubscribe) {
 		editingCardUnsubscribe();
 		editingCardUnsubscribe = null;
 	}
 
-	dispatch({type: EDITING_FINISH});
+	dispatch({type: EDITING_FINISH, pendingSave});
 };
 
 export const notesUpdated = (newNotes : string) : SomeAction => {

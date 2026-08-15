@@ -48,7 +48,7 @@ The decisive argument against `sync_ts`: **fastDedupe (`data.ts:1501`) compares 
 Sequencing (A specced the rules change but not the deployment order): `cardEditInboundReferences` (rules line 161) currently `hasOnly(['references_inbound','references_info_inbound'])` — a client sending `updated` today is **rejected**. Two-step: (1) deploy rules allowing *optional* `updated` (`hasOnly([...keys, 'updated']) && (!affectedKeys().hasAny(['updated']) || requestData.updated == request.time)`); (2) ship the client that sends it (`shared/card_write.ts` grows a `timestampSentinel` param; `src/card_diff.ts:600` wrapper passes `serverTimestamp()`); (3) optionally tighten to *require* once old clients age out.
 
 **(g) Migration order: the delta plane lands before any further live worker-mode boot. Non-negotiable.**
-Every current-code worker-mode boot burns ~39k (yesterday's incident: quota exhausted mid-attach, today's ~0 remaining). Development and phase validation happen against the emulator; the **first** live worker-mode boot after this work is on the new code and costs <100 reads. The cold-path live validation (the only expensive one, ~65k/2 days) is deferred to last and run exactly once — or deferred entirely until a real cold device needs it, with emulator tests covering resumability. Also from A's audit, now policy: `functions/src/idf.ts:48` and `functions/src/common.ts:234` each burn a full corpus read per invocation — they must never be scheduled and get a loud comment.
+Every current-code worker-mode boot burns ~39k (yesterday's incident: quota exhausted mid-attach, today's ~0 remaining). Development and phase validation happen against the emulator; the **first** live worker-mode boot after this work is on the new code and costs <100 reads. The cold-path live validation (the only expensive one, ~65k/2 days) is deferred to last and run exactly once — or deferred entirely until a real cold device needs it, with emulator tests covering resumability. Also from A's audit, now policy: `functions/src/idf.ts:48` and `functions/src/common.ts:234` each burn a full corpus read per invocation — they must never be scheduled and get a loud comment. [Update 2026-08-15: `functions/src/idf.ts` no longer exists — the whole server-IDF subsystem was deleted (see the worker-derived-indexes note below). The policy now applies only to the unparameterized `getCards()` in `functions/src/common.ts` and its one caller, `embeddings.ts:reindexCardEmbeddings`, which is on-request, not scheduled. The tweet functions ARE scheduled and were never in scope for this policy — they read named cards, not the corpus.]
 
 ## 3. The synthesized design
 
@@ -92,7 +92,7 @@ Validation: emulator (resumability, budget pause/resume, mid-sweep edit safety);
 Files: `corpus-worker.ts`/`src/corpus-bridge.ts` (Web Lock; loser → published-only + banner). Validation: two live tabs, expect ≤1.2k. Rollback: none needed (pure guard).
 
 **Phase 4 — Cleanup + server hygiene.**
-Remove partition listeners after ~2-week soak (keep `card-partitions.ts`); tombstone pruning maintenance task; loud comments on `functions/src/idf.ts:48` / `common.ts:234`; MEMORY/design-doc updates; document the `sync_ts` escape hatch and the published-listener 3k tripwire.
+Remove partition listeners after ~2-week soak (keep `card-partitions.ts`); tombstone pruning maintenance task; loud comments on the full-corpus-read functions (`functions/src/idf.ts:48` / `common.ts:234` as written; `idf.ts` has since been deleted outright); MEMORY/design-doc updates; document the `sync_ts` escape hatch and the published-listener 3k tripwire.
 
 ## 5. Read costs (final design, per device, 60k ceiling) & residual risks
 
@@ -113,7 +113,8 @@ Remove partition listeners after ~2-week soak (keep `card-partitions.ts`); tombs
 IDF is a **worker-derived index**, exactly like search recall: the corpus
 worker maintains an incremental document-frequency map over its own corpus
 (`src/worker/idf-index.ts`), builds it 12ms-sliced after `loadComplete`, and
-publishes a frozen per-epoch map to the main thread (`idfMap`, protocol v6).
+publishes a frozen per-epoch map to the main thread (the `idfMap` message,
+added at worker protocol v6; the wire version is 8 today).
 Because the worker's corpus is the visible set by construction, the map is
 scope-correct with no scope logic of its own; nothing is persisted, and a
 generation bump resets it beside the search-recall index. The old
