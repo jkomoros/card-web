@@ -128,7 +128,7 @@ describe('corpusStatusGlyph', () => {
 		it('fetching with a known total reads as progress', () => {
 			assert.strictEqual(
 				glyph({status: 'loading', corpusSize: 12400, expectedCorpusSize: 40200}).tooltip,
-				'Fetching cards: 12,400 of ~40,200…\n' +
+				'Fetching cards: 12,400 of ~40,200 (31%)…\n' +
 			'Reading, browsing and editing work now; saving unlocks when verification finishes.');
 		});
 

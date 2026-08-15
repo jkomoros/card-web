@@ -4,6 +4,9 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 
 import { store } from '../store.js';
 import {
+	LOCK_ICON
+} from '../../shared/icons.js';
+import {
 	selectCorpusStatus,
 	selectCorpusStatusMessage,
 	selectCorpusSize,
@@ -97,10 +100,18 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		/* The un-confirmed-changes layer: a superscript count in the same
 		   amber as the pending dot, so the two read as one signal. */
 		.lock {
-			font-size: 0.75em;
 			opacity: 0.8;
 			margin-left: 0.15em;
+			display: inline-block;
+			vertical-align: -0.1em;
 		}
+
+		.lock svg {
+			width: 0.8em;
+			height: 0.8em;
+			fill: currentColor;
+		}
+
 
 		.badge {
 			font-size: 0.8em;
@@ -171,19 +182,23 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 
 		.dot[data-tone='ok'] {
 			background: var(--app-secondary-color);
+			color: var(--app-secondary-color);
 		}
 
 		/* Same purple the 'Loading…' placeholder card uses. */
 		.dot[data-tone='working'] {
 			background: var(--app-primary-color-light);
+			color: var(--app-primary-color-light);
 		}
 
 		.dot[data-tone='pending'] {
 			background: var(--app-pending-color, #b26a00);
+			color: var(--app-pending-color, #b26a00);
 		}
 
 		.dot[data-tone='problem'] {
 			background: var(--app-warning-color);
+			color: var(--app-warning-color);
 		}
 
 		/* "Still working" is its own axis: a pending (amber) dot pulses too
@@ -191,6 +206,15 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		   but a change is still unconfirmed. */
 		.dot[data-pulse] {
 			animation: corpus-status-pulse 1.8s ease-in-out infinite;
+		}
+
+		/* During the initial download the dot becomes a tiny progress ring:
+		   the tone color sweeps clockwise over a muted track as the fetched
+		   fraction grows. Same pixels, one more layer of meaning. */
+		.dot.ring {
+			background:
+				conic-gradient(currentColor var(--corpus-progress, 0deg), transparent 0) border-box,
+				var(--app-divider-color, #e0e0e0);
 		}
 
 		@keyframes corpus-status-pulse {
@@ -230,12 +254,13 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		const glyph = this._glyph;
 		return html`
 			<span
-				class='dot'
+				class='dot ${glyph.progress !== null ? 'ring' : ''}'
 				data-tone=${glyph.tone}
 				?data-pulse=${glyph.pulse}
 				aria-hidden='true'
 				title=${glyph.tooltip}
-			></span><span class='count' aria-hidden='true' title=${glyph.tooltip} ?hidden=${!glyph.countLabel && !glyph.pendingBadge}>${glyph.countLabel}<span class='lock' ?hidden=${!glyph.writeLocked} aria-hidden='true'>\u{1F512}</span><span class='badge' ?hidden=${!glyph.pendingBadge}>${glyph.pendingBadge}</span></span><span class='label' role='status' aria-live='polite'>${glyph.tooltip}</span>
+				style=${glyph.progress !== null ? `--corpus-progress:${Math.round(glyph.progress * 360)}deg` : ''}
+			></span><span class='count' aria-hidden='true' title=${glyph.tooltip} ?hidden=${!glyph.countLabel && !glyph.pendingBadge}>${glyph.countLabel}<span class='lock' ?hidden=${!glyph.writeLocked} aria-hidden='true'>${LOCK_ICON}</span><span class='badge' ?hidden=${!glyph.pendingBadge}>${glyph.pendingBadge}</span></span><span class='label' role='status' aria-live='polite'>${glyph.tooltip}</span>
 		`;
 	}
 

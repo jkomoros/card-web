@@ -60,6 +60,10 @@ export type CorpusGlyph = {
 	pendingBadge : string,
 	//Newline-separated full status; each line appears only when relevant.
 	tooltip : string,
+	//0..1 fraction of the expected corpus fetched, when a target is known and
+	//fetching is still underway; null otherwise. Drives the subtle ring fill
+	//on the dot and the percentage in the tooltip.
+	progress : number | null,
 	//True when the corpus is readable but card saves are gated (worker mode,
 	//any non-'live' status with cards on screen — the verifying window, and
 	//stale/degraded interruptions). Rendered as a tiny padlock so "you can
@@ -126,9 +130,18 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 			? `Cards: ${corpusSize.toLocaleString()} — up to date`
 			: DEFAULT_CORPUS_STATUS_MESSAGES.live);
 	} else if (fetching && corpusSize) {
-		lines.push(haveTarget
-			? `Fetching cards: ${corpusSize.toLocaleString()} of ~${(expectedCorpusSize as number).toLocaleString()}…`
-			: `Fetching cards: ${corpusSize.toLocaleString()} so far…`);
+		//'loading' is genuinely downloading; 'checking'/'takeover' with cards
+		//already on screen are VERIFYING — a warm boot has the whole corpus in
+		//hand within seconds, and calling that state "fetching" read as "still
+		//downloading 40k cards" when nothing was being downloaded at all.
+		if (status !== 'loading') {
+			lines.push(`Verifying ${corpusSize.toLocaleString()} cards…`);
+		} else if (haveTarget) {
+			const pct = Math.min(Math.round((corpusSize / (expectedCorpusSize as number)) * 100), 99);
+			lines.push(`Fetching cards: ${corpusSize.toLocaleString()} of ~${(expectedCorpusSize as number).toLocaleString()} (${pct}%)…`);
+		} else {
+			lines.push(`Fetching cards: ${corpusSize.toLocaleString()} so far…`);
+		}
 	} else {
 		lines.push(DEFAULT_CORPUS_STATUS_MESSAGES[status]);
 		if (corpusSize) lines.push(`Cards: ${corpusSize.toLocaleString()}`);
@@ -152,6 +165,13 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 	//already say (the 'stale' dispatch carries the default copy verbatim).
 	if (message && !lines.includes(message)) lines.push(message);
 
+	//Progress toward the expected total, only while genuinely fetching with a
+	//known target. Capped below 1 so the ring never claims done before the
+	//status does.
+	const progress = (status === 'loading' && expectedCorpusSize && expectedCorpusSize > 0)
+		? Math.min(corpusSize / expectedCorpusSize, 0.99)
+		: null;
+
 	//Write-locked: cards are on screen but saving is gated until the corpus
 	//reaches 'live'. The tooltip line reuses sync-copy's verifying clause so
 	//the pill can never drift from what the blocked controls' tooltips say.
@@ -161,5 +181,5 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 		lines.push('Reading, browsing and editing work now; saving unlocks when verification finishes.');
 	}
 
-	return {tone, pulse, countLabel, pendingBadge, tooltip: lines.join('\n'), writeLocked};
+	return {tone, pulse, countLabel, pendingBadge, tooltip: lines.join('\n'), writeLocked, progress};
 };
