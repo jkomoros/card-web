@@ -42,6 +42,20 @@ export type SectionRender<T> = {
 export const sectionResultCommits = (resultForCardID : string, activeCardID : string) : boolean =>
 	Boolean(resultForCardID) && resultForCardID === activeCardID;
 
+//Whether a similarity-derived block's rendered content is known to lag the
+//real answer, and so must carry the same stale/updating dim as a held
+//previous-card section — 'not yet the real answer' reads identically
+//everywhere. True in two cases:
+//- preview: the block's collection is a fingerprint placeholder still
+//  awaiting embedding similarity (Collection.preview);
+//- editingSimilarityPending: while editing, a similarity request for the
+//  current draft's content has been issued (the settle point) and its
+//  EDITING_UPDATE_SIMILAR_CARDS result has not yet landed, so whatever the
+//  block shows was computed for an older draft.
+//Purely derived from existing dispatch timing — it never delays content.
+export const similarContentLags = (preview : boolean, editingSimilarityPending : boolean) : boolean =>
+	preview || editingSimilarityPending;
+
 //What a section renders for the active card given its committed snapshot:
 //- nothing committed yet -> the section's empty state, undimmed (there is no
 //  previous value worth holding);

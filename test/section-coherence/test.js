@@ -13,10 +13,11 @@ import assert from 'assert';
 
 let sectionRender;
 let sectionResultCommits;
+let similarContentLags;
 
 describe('section coherence', () => {
 	before(async () => {
-		({sectionRender, sectionResultCommits} = await import('../../lib/src/section-coherence.js'));
+		({sectionRender, sectionResultCommits, similarContentLags} = await import('../../lib/src/section-coherence.js'));
 	});
 
 	describe('sectionResultCommits (the wrong-card gate)', () => {
@@ -70,6 +71,28 @@ describe('section coherence', () => {
 			const result = sectionRender({forCardID: 'card-a', value}, '', EMPTY);
 			assert.strictEqual(result.value, value);
 			assert.strictEqual(result.stale, true);
+		});
+	});
+
+	describe('similarContentLags (when a similar-cards block must dim)', () => {
+		it('dims a fingerprint preview still awaiting embeddings', () => {
+			//Between cards: the block renders the local-fingerprint placeholder
+			//while the embedding fetch is in flight — not yet the real answer.
+			assert.strictEqual(similarContentLags(true, false), true);
+		});
+
+		it('dims while an editing-draft similarity request is outstanding', () => {
+			//While editing: from the settle-point request until its result
+			//lands, whatever the block shows was computed for an older draft.
+			assert.strictEqual(similarContentLags(false, true), true);
+		});
+
+		it('dims when both lag signals are set', () => {
+			assert.strictEqual(similarContentLags(true, true), true);
+		});
+
+		it('renders undimmed when the content is the real answer', () => {
+			assert.strictEqual(similarContentLags(false, false), false);
 		});
 	});
 

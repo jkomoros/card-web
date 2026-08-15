@@ -48,6 +48,9 @@ let UPDATE_COLLECTION_SHAPSHOT;
 let UPDATE_CARD_META;
 let EDITING_START;
 let EDITING_RESTORE_DRAFT;
+let EDITING_FINISH;
+let EDITING_SIMILARITY_PENDING;
+let EDITING_UPDATE_SIMILAR_CARDS;
 let INITIAL_COLLECTION_STATE;
 
 const makeCard = (id, extras) => ({
@@ -98,6 +101,9 @@ describe('reducer identity preservation', () => {
 			UPDATE_CARD_META,
 			EDITING_START,
 			EDITING_RESTORE_DRAFT,
+			EDITING_FINISH,
+			EDITING_SIMILARITY_PENDING,
+			EDITING_UPDATE_SIMILAR_CARDS,
 		} = await import('../../lib/src/actions.js'));
 		({
 			INITIAL_STATE: INITIAL_COLLECTION_STATE
@@ -115,6 +121,78 @@ describe('reducer identity preservation', () => {
 
 		const rejected = editorReducer(editing, {type: EDITING_RESTORE_DRAFT, card: {...restored, id: 'other'}, substantive: true});
 		assert.strictEqual(rejected, editing);
+	});
+
+	//The editing-similarity staleness contract: similar-cards UI dims from
+	//the moment a draft-content similarity request is issued until THAT
+	//request's version-stamped result lands. The retry coordinator's
+	//last-request-wins discipline means any other version is a cancelled
+	//chain's leftover and must be dropped whole — it must neither un-dim a
+	//newer pending request nor overwrite the current draft's slot.
+	describe('editing similarity pending / version discipline', () => {
+		const startEditing = () => editorReducer(undefined, {type: EDITING_START, card: makeCard('sim-card')});
+
+		it('a pending request sets the dim signal for its version', () => {
+			const editing = startEditing();
+			assert.strictEqual(editing.similarityPendingVersion, 0);
+			const pending = editorReducer(editing, {type: EDITING_SIMILARITY_PENDING, version: 5});
+			assert.strictEqual(pending.similarityPendingVersion, 5);
+			//A duplicate demand for the same content version is coalesced by
+			//the coordinator; the reducer mirrors that with identity.
+			assert.strictEqual(editorReducer(pending, {type: EDITING_SIMILARITY_PENDING, version: 5}), pending);
+			//A newer request owns the chain: last-request-wins.
+			const newer = editorReducer(pending, {type: EDITING_SIMILARITY_PENDING, version: 6});
+			assert.strictEqual(newer.similarityPendingVersion, 6);
+		});
+
+		it('the current version\'s result lands the similarity and un-dims', () => {
+			let state = startEditing();
+			state = editorReducer(state, {type: EDITING_SIMILARITY_PENDING, version: 5});
+			const similarity = {'other-card': 0.9};
+			state = editorReducer(state, {type: EDITING_UPDATE_SIMILAR_CARDS, similarity, version: 5});
+			assert.strictEqual(state.editingCardSimilarity, similarity);
+			assert.strictEqual(state.similarityPendingVersion, 0);
+		});
+
+		it('a stale result neither un-dims a newer pending nor lands its value', () => {
+			let state = startEditing();
+			state = editorReducer(state, {type: EDITING_SIMILARITY_PENDING, version: 5});
+			state = editorReducer(state, {type: EDITING_SIMILARITY_PENDING, version: 7});
+			//The cancelled version-5 chain's leftover (e.g. an onDrop settle)
+			//arrives after version 7 became the outstanding request.
+			const result = editorReducer(state, {type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {'stale-card': 0.4}, version: 5});
+			assert.strictEqual(result, state);
+			assert.strictEqual(result.similarityPendingVersion, 7);
+			assert.strictEqual(result.editingCardSimilarity, undefined);
+			//The current draft's own result still lands normally afterwards.
+			const landed = editorReducer(result, {type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {'fresh-card': 0.8}, version: 7});
+			assert.deepStrictEqual(landed.editingCardSimilarity, {'fresh-card': 0.8});
+			assert.strictEqual(landed.similarityPendingVersion, 0);
+		});
+
+		it('a result with nothing pending is accepted (legacy settle paths)', () => {
+			const editing = startEditing();
+			const state = editorReducer(editing, {type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}, version: 3});
+			assert.deepStrictEqual(state.editingCardSimilarity, {});
+			assert.strictEqual(state.similarityPendingVersion, 0);
+		});
+
+		it('a pending request after editing finished is ignored', () => {
+			//The 1s settle timeout can outlive a quick editor close; there is
+			//nothing to dim once editing has ended.
+			let state = startEditing();
+			state = editorReducer(state, {type: EDITING_FINISH});
+			assert.strictEqual(editorReducer(state, {type: EDITING_SIMILARITY_PENDING, version: 5}), state);
+		});
+
+		it('starting or finishing editing clears any pending dim', () => {
+			let state = startEditing();
+			state = editorReducer(state, {type: EDITING_SIMILARITY_PENDING, version: 5});
+			const restarted = editorReducer(state, {type: EDITING_START, card: makeCard('other-card')});
+			assert.strictEqual(restarted.similarityPendingVersion, 0);
+			const finished = editorReducer(state, {type: EDITING_FINISH});
+			assert.strictEqual(finished.similarityPendingVersion, 0);
+		});
 	});
 
 	const primedCollectionState = (cards) => {

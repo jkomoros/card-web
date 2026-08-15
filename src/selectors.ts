@@ -352,6 +352,11 @@ const selectTweets = (state : State) => state.data ? state.data.tweets : {};
 export const selectTweetsLoading = (state : State) => state.data ? state.data.tweetsLoading : false;
 export const selectCardSimilarity = (state : State) => state.data ? state.data.cardSimilarity : {};
 export const selectEditingCardSimilarity = (state : State) : SortExtra | undefined => state.editor ? state.editor.editingCardSimilarity : undefined;
+//True while a similarity request for the current draft's content is
+//outstanding (issued at the typing settle point, cleared by its own
+//version-stamped result), meaning any rendered editing-card similarity is
+//known to lag what the user typed. See EditorState.similarityPendingVersion.
+export const selectEditingSimilarityPending = (state : State) : boolean => Boolean(state.editor && state.editor.editing && state.editor.similarityPendingVersion !== 0);
 export const selectActivePreviewCardId = (state : State) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state : State) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state : State) => state.app ? state.app.hoverY : 0;

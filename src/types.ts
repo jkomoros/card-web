@@ -1093,7 +1093,16 @@ export type EditorState = {
 	imageBrowserDialogIndex?: number,
 	//The same as data.cardSimilarity, but for the editing card. If undefined,
 	//then it's not up ot date for the current card.
-	editingCardSimilarity?: SortExtra
+	editingCardSimilarity?: SortExtra,
+	//The content version of the outstanding editing-card similarity request
+	//(see editingCardVersion in actions/similarity.ts), or 0 when no request
+	//is outstanding. Non-zero means editingCardSimilarity is known to lag the
+	//draft the user typed, so similarity-derived UI should render with the
+	//stale dim until the matching EDITING_UPDATE_SIMILAR_CARDS lands. Versions
+	//follow the retry coordinator's last-request-wins discipline: a result
+	//stamped with any other version belongs to a cancelled chain and must be
+	//dropped, never un-dimming a newer pending request.
+	similarityPendingVersion: number
 }
 
 export type FindState = {

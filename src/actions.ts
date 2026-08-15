@@ -203,6 +203,7 @@ export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_D
 export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
 export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
 export const EDITING_UPDATE_SIMILAR_CARDS = 'EDITING_UPDATE_SIMILAR_CARDS';
+export const EDITING_SIMILARITY_PENDING = 'EDITING_SIMILARITY_PENDING';
 //Find
 export const FIND_DIALOG_OPEN = OPEN;
 export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
@@ -954,7 +955,22 @@ type ActionEditingMergeOvershadowedChanges = {
 
 type ActionEditingUpdateSimilarCards = {
 	type: typeof EDITING_UPDATE_SIMILAR_CARDS,
-	similarity: SortExtra
+	similarity: SortExtra,
+	//The editing-card content version this result was computed for (see
+	//editingCardVersion in actions/similarity.ts). The reducer only accepts a
+	//result stamped with the outstanding request's version — anything else is
+	//a cancelled chain's leftover and is dropped whole, so a stale result can
+	//never un-dim (or overwrite) a newer pending request.
+	version: number
+};
+
+type ActionEditingSimilarityPending = {
+	type: typeof EDITING_SIMILARITY_PENDING,
+	//The editing-card content version a similarity request was just issued
+	//for. Dispatched from the single fetch site (fetchSimilarCardsToCardContent)
+	//so the similar-cards UI can dim the moment the draft's content is known
+	//to lag, and cleared by the matching EDITING_UPDATE_SIMILAR_CARDS.
+	version: number
 };
 
 type ActionFindDialogOpen = {
@@ -1355,6 +1371,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionEditingUpdateUnderlyingCard
 	| ActionEditingMergeOvershadowedChanges
 	| ActionEditingUpdateSimilarCards
+	| ActionEditingSimilarityPending
 	| ActionFindDialogOpen
 	| ActionFindDialogClose
 	| ActionFindUpdateQuery

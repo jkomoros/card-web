@@ -40,7 +40,8 @@ import {
 	selectEditingNormalizedCard,
 	selectActiveCardEnriched,
 	selectCollectionConstructorArguments,
-	selectCardIDsUserMayEdit
+	selectCardIDsUserMayEdit,
+	selectEditingSimilarityPending
 } from '../selectors.js';
 
 import {
@@ -101,7 +102,8 @@ import {
 
 import {
 	sectionRender,
-	sectionResultCommits
+	sectionResultCommits,
+	similarContentLags
 } from '../section-coherence.js';
 
 //Matches card-view's reference-blocks debounce: long enough that navigation
@@ -149,6 +151,12 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	@state()
 		_wordCloud: WordCloud;
+
+	//True while an editing-card similarity request for the current draft is
+	//outstanding: the similar-cards blocks then show a previous draft's
+	//answer and must dim (see EditorState.similarityPendingVersion).
+	@state()
+		_editingSimilarityPending: boolean;
 
 	@state()
 		_expensivePropertiesTimeout: number;
@@ -241,6 +249,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//value — dimmed with the house 'updating' treatment — until their
 		//first result FOR the active card commits. Everything else in the
 		//rail derives synchronously from the active card and swaps instantly.
+		//
+		//Within the committed blocks, a similarity-derived block (the ones
+		//declaring showPreview) additionally carries the SAME dim whenever its
+		//content is known to lag the real answer: while its collection is a
+		//fingerprint preview still awaiting embeddings, or — while editing —
+		//from the moment a similarity request for the current draft is issued
+		//until that draft's result lands (similarContentLags). Guarded on
+		//!blocks.stale so a transition-held section dims once, not twice.
 		const activeCardID = this._card?.id || '';
 		const blocks = sectionRender({forCardID: this._referenceBlocksForCardID, value: this._referenceBlocks}, activeCardID, EMPTY_REFERENCE_BLOCKS);
 		const wordCloud = sectionRender({forCardID: this._wordCloudForCardID, value: this._wordCloud}, activeCardID, EMPTY_WORD_CLOUD);
@@ -249,7 +265,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
 				<div class='blocks ${blocks.stale ? 'loading' : ''}'>
-					${blocks.value.map(item => html`<reference-block .block=${item}></reference-block>`)}
+					${blocks.value.map(item => html`<reference-block class=${!blocks.stale && item.showPreview && similarContentLags(item.collection.preview, this._editingSimilarityPending) ? 'loading' : ''} .block=${item}></reference-block>`)}
 				</div>
 				<div>
 					<h4>Notes${help('Notes are notes left by the author of the card.')}</h4>
@@ -345,6 +361,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			this._referenceBlocksForCardID = '';
 			this._wordCloud = emptyWordCloud();
 			this._wordCloudForCardID = '';
+			this._editingSimilarityPending = false;
 			window.clearTimeout(this._expensivePropertiesTimeout);
 			return;
 		}
@@ -357,6 +374,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._tagInfos = selectTags(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
+		this._editingSimilarityPending = selectEditingSimilarityPending(state);
 
 		//Espeiclaly when a card has been saved for editing, the state is
 		//changing quickly. There might be a pending expensie properties timeout

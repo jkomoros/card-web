@@ -6,6 +6,7 @@ import {
 } from 'firebase/functions';
 
 import {
+	EDITING_SIMILARITY_PENDING,
 	EDITING_UPDATE_SIMILAR_CARDS,
 	UPDATE_CARD_SIMILARITY
 } from '../actions.js';
@@ -129,11 +130,22 @@ const editingRetryCoordinator = new SimilarityRetryCoordinator({
 	},
 	onDrop: (cardID) => {
 		console.warn(`[similarity] editing card ${cardID} dropped to stay under the pending bound; settling it as unfetched`);
-		store.dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}});
+		//Stamp the settle with the DROPPED key's version (the callback only
+		//knows the key). A drop only happens when a different card's request
+		//displaced this one, so the reducer's version gate makes this settle a
+		//no-op there — it must never clear the displacing request's pending
+		//dim or overwrite its slot.
+		store.dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}, version: lastEditingVersionByID.get(cardID) || 0});
+		lastEditingVersionByID.delete(cardID);
 	}
 });
 const editingCardVersions = new WeakMap<Card, number>();
 let nextEditingCardVersion = 1;
+//The most recent content version requested per editing-card id, so the onDrop
+//settle above (which only receives the key) can version-stamp its dispatch.
+//Bounded by the editing coordinator's maxPending of 1 plus completed sessions'
+//ids, which are tiny and cleared on drop.
+const lastEditingVersionByID = new Map<CardID, number>();
 
 const editingCardVersion = (card : Card) : number => {
 	const existing = editingCardVersions.get(card);
@@ -254,15 +266,25 @@ if (typeof window !== 'undefined') {
 }
 
 const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknown) => unknown) => {
+	const version = editingCardVersion(card);
 	//PERF HARNESS ONLY: see similarityUnavailable above — the editing-card
 	//variant storms the same unreachable endpoint while the user types.
 	if (similarityUnavailable) {
-		dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}});
+		dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}, version});
 		return;
 	}
 	const embeddableCard = pickEmbeddableCard(card);
 	let consecutiveTransportErrors = 0;
-	editingRetryCoordinator.request(card.id, editingCardVersion(card), async (_, isCurrent) : Promise<SimilarityRetryOutcome> => {
+	//Mark the draft's similarity as pending BEFORE handing the request to the
+	//coordinator: from this moment any rendered similar-cards content is known
+	//to lag the draft, so the UI dims it. Dispatching first also means the
+	//coordinator's synchronous onDrop of a displaced key (stamped with the OLD
+	//version) can never clear this new pending. A duplicate demand for the
+	//same content version is a reducer no-op, mirroring the coordinator's own
+	//coalescing.
+	lastEditingVersionByID.set(card.id, version);
+	dispatch({type: EDITING_SIMILARITY_PENDING, version});
+	editingRetryCoordinator.request(card.id, version, async (_, isCurrent) : Promise<SimilarityRetryOutcome> => {
 		let result : SimilarCardsResponseData;
 		try {
 			result = await similarCardsForRawCard(embeddableCard);
@@ -276,7 +298,7 @@ const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknow
 			console.warn(`[similarity] transport failure for editing card ${card.id}; giving up after ${consecutiveTransportErrors} attempts:`, error);
 			if (!isCurrent()) return 'done';
 			transportFailedEditingCard = card;
-			dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}});
+			dispatch({type: EDITING_UPDATE_SIMILAR_CARDS, similarity: {}, version});
 			return 'done';
 		}
 		if (!isCurrent()) return 'done';
@@ -286,14 +308,16 @@ const fetchSimilarCardsToCardContent = (card : Card, dispatch : (action : unknow
 			dispatch({
 				type: EDITING_UPDATE_SIMILAR_CARDS,
 				//Signal that it failed but still did get a response, so the results are now final.
-				similarity: {}
+				similarity: {},
+				version
 			});
 			return 'done';
 		}
 
 		dispatch({
 			type: EDITING_UPDATE_SIMILAR_CARDS,
-			similarity: Object.fromEntries(result.cards)
+			similarity: Object.fromEntries(result.cards),
+			version
 		});
 		transportFailedEditingCard = null;
 		return 'done';
