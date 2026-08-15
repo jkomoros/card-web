@@ -137,8 +137,15 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 	};
 
 	private _focusTarget() : HTMLElement | null {
-		return this.renderRoot.querySelector<HTMLElement>('button:not([disabled])') ||
-			this.renderRoot.querySelector<HTMLElement>('.panel');
+		//The PANEL, not the first button. The gate opens without any user
+		//action (another tab takes ownership; a worker failure), so focusing a
+		//button meant in-flight keystrokes — someone mid-sentence when the
+		//overlay appeared — could land Space/Enter on 'Use this tab' or
+		//'Reload and retry' and activate a destructive action they never saw.
+		//The panel is tabindex=-1, announces itself to screen readers, and Tab
+		//still reaches the buttons deliberately.
+		return this.renderRoot.querySelector<HTMLElement>('.panel') ||
+			this.renderRoot.querySelector<HTMLElement>('button:not([disabled])');
 	}
 
 	private _setBackgroundInert(inert : boolean) {

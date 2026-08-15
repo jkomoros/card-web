@@ -495,6 +495,12 @@ class MainView extends connect(store)(PageViewElement) {
 		}
 		//Don't move the slide selection when editing!
 		if (!this._keyboardNavigates) return;
+		//Space/arrows below are bare-key bindings; a focusable CONTROL that has
+		//focus (the update banner's Reload, the save indicator's Retry/Stop and
+		//Discard, a tag <select>) must receive its own activation keys — eating
+		//Space there silently broke buttons, including destructive ones.
+		const pathTarget = e.composedPath()[0];
+		if (pathTarget instanceof HTMLElement && pathTarget.closest('button, a, select, input, textarea, [role="button"]')) return;
 		switch (e.key) {
 		case 'e':
 			//REQUIRES a modifier. As a bare letter this was a data-mutation

@@ -214,8 +214,6 @@ const cardTagInfosForIDs = (cards : Cards, ids : Iterable<CardID>) : TagInfos =>
 //layout the printed shortcut stops working and a DIFFERENT printed key silently
 //triggers it — Cmd-M creating a card from whatever key sits where M is on
 //QWERTY. e.key is what the user actually pressed.
-const pressedLetter = (e : KeyboardEvent) : string => (e.key || '').toLowerCase();
-
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
 
@@ -708,14 +706,14 @@ class CardEditor extends connect(store)(LitElement) {
 							class='small'
 							@click=${this._handleAddAllConceptsClicked}
 							?hidden=${this._suggestedConcepts.length == 0}
-							title='Add all suggested concepts (Ctrl-Shift-C)'>
+							title='Add all suggested concepts'>
 							${PLUS_ICON}
 						</button>
 						<button
 							class='small'
 							@click=${this._handleIgnoreAllConceptsClicked}
 							?hidden=${this._suggestedConcepts.length == 0}
-							title='Ignore all suggested concepts (Ctrl-Shift-I)'>
+							title='Ignore all suggested concepts'>
 							${HIGHLIGHT_OFF_ICON}
 						</button>
 					</div>
@@ -902,14 +900,14 @@ class CardEditor extends connect(store)(LitElement) {
 					class='small'
 					@click=${this._handleAddAllConceptsClicked}
 					?hidden=${this._suggestedConcepts.length == 0}
-					title='Add all suggested concepts (Ctrl-Shift-C)'>
+					title='Add all suggested concepts'>
 					${PLUS_ICON}
 				</button>
 				<button
 					class='small'
 					@click=${this._handleIgnoreAllConceptsClicked}
 					?hidden=${this._suggestedConcepts.length == 0}
-					title='Ignore all suggested concepts (Ctrl-Shift-I)'>
+					title='Ignore all suggested concepts'>
 					${HIGHLIGHT_OFF_ICON}
 				</button>
 			</div>
@@ -1387,15 +1385,15 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		if (!e.metaKey && !e.ctrlKey) return;
 
-		if (e.shiftKey && pressedLetter(e) == 'c') {
-			this._handleAddAllConceptsClicked();
-			return killEvent(e);
-		}
+		//Cmd/Ctrl-Shift-C and -I were shortcut-bound here, but those are the
+		//browser's own DevTools / Inspect-Element keys, and Chrome delivers the
+		//keydown to the page as well as acting on it — so opening DevTools while
+		//editing silently added or acked every suggested concept on the card.
+		//(Master accidentally never fired these: it compared e.key=='c' while
+		//requiring Shift, which uppercases e.key.) The buttons remain the way to
+		//add/ignore all suggested concepts; no keyboard binding is safe on these
+		//combinations.
 
-		if (e.shiftKey && pressedLetter(e) == 'i') {
-			this._handleIgnoreAllConceptsClicked();
-			return killEvent(e);
-		}
 
 		//TODO: bail if a content editable region isn't selected. This isn't THAT
 		//big of a deal as long as we use execCommand, because those will just
