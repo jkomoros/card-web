@@ -3,6 +3,16 @@ import {
 } from './database.js';
 
 import {
+	blockedError,
+	SAVE_VERB,
+	CREATE_VERB,
+	DELETE_VERB,
+	IMPORT_VERB,
+	REORDER_VERB,
+	LABEL_VERB
+} from '../sync-copy.js';
+
+import {
 	TypedObject
 } from '../../shared/typed_object.js';
 
@@ -450,7 +460,7 @@ const durableSaveEligible = (state : State) : boolean => {
 
 export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error('Card sync must be live before saving. Wait for sync to finish, then retry.')));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), LABEL_VERB))));
 		return;
 	}
 	if (bulkTagOperationRunning || durableMultiEditRunning) {
@@ -849,7 +859,7 @@ const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => 
 
 export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff, substantive = false, kind : 'single' | 'multi' = 'multi', resumeTargetIDs? : CardID[]) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error('Card sync must be live before saving. Wait for sync to finish, then retry.')));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB))));
 		return;
 	}
 	if (durableMultiEditRunning || bulkTagOperationRunning) {
@@ -1266,6 +1276,14 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 
 export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID] : CardDiff}, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
+	//The same durable-write gate as every other save path. This was the one
+	//modify entry point without it (applySuggestion reaches here), so a
+	//suggestion accepted during the verifying window committed against an
+	//unverified corpus while Save two inches away was disabled.
+	if (!durableSaveEligible(state)) {
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB))));
+		return;
+	}
 	const startingUid = selectUid(state);
 	const startingMayViewUnpublished = selectUserMayViewUnpublished(state);
 	const startingScope = {uid: startingUid, mayViewUnpublished: startingMayViewUnpublished};
@@ -1738,6 +1756,16 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 		return;
 	}
 
+	//A reorder's new sort_order is computed from the two neighbors in the
+	//LOCAL corpus — the same partial-corpus ordering hazard that gates
+	//creation — and this path used to slip past every sync gate because it
+	//commits its own batch directly. Refuse with the shared reason instead of
+	//silently persisting an order computed against an unverified corpus.
+	if (!durableSaveEligible(state)) {
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), REORDER_VERB))));
+		return;
+	}
+
 	const collectionDescription = selectActiveCollectionDescription(state);
 
 	if (collectionDescription.sortReversed) isAfter = !isAfter;
@@ -2028,7 +2056,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//sort order is computed from the local corpus, so creating against a
 	//partial one produces wrong ordering that no replay can repair.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error('Card sync must be live before creating cards. Wait for sync to finish, then retry.')));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), IMPORT_VERB))));
 		return;
 	}
 	const WORKING_NOTES_CONFIG = CARD_TYPE_CONFIGURATION['working-notes'];
@@ -2291,7 +2319,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	//from the local corpus, so creating against a partial one produces
 	//ordering no replay can repair.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error('Card sync must be live before creating a card. Wait for sync to finish, then retry.')));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB))));
 		return;
 	}
 
@@ -2528,7 +2556,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	//Same reasoning as createCard: durable now, but still gated because sort
 	//order is computed from the local corpus.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error('Card sync must be live before creating cards. Wait for sync to finish, then retry.')));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB))));
 		return;
 	}
 	//NOTE: if you modify this card you likely also want to modify
@@ -2710,6 +2738,16 @@ registerAuxWriteExecutor('card-delete', async (intent, isReplay) => {
 export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
+
+	//Deletion is the one mutation that can never be healed by a later replay,
+	//and its safety checks (orphaned, no tags, no inbound references) are
+	//answered from the LOCAL corpus — so it gets the same live gate as every
+	//other durable write. The editor's delete button is disabled with this
+	//same reason; this guards the paths that don't go through that button.
+	if (!durableSaveEligible(state)) {
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), DELETE_VERB))));
+		return;
+	}
 
 	const reason = getReasonUserMayNotDeleteCard(state, card);
 

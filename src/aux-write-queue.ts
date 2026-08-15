@@ -248,10 +248,56 @@ const writeIndex = (entries : IndexEntry[]) : boolean => {
 	try {
 		if (!entries.length) localStorage.removeItem(INDEX_KEY);
 		else localStorage.setItem(INDEX_KEY, JSON.stringify(entries));
+		scheduleDepthNotification();
 		return true;
 	} catch (err) {
 		console.error('[aux-write] could not persist the queue index:', err);
 		return false;
+	}
+};
+
+//Queue-depth subscribers (the status indicator's "changes waiting to reach
+//the server" layer). Pushed rather than polled: localStorage reads must stay
+//off Redux's hot paths, so the queue announces its own depth on every
+//mutation instead of any selector reading storage per dispatch.
+const depthListeners : ((count : number) => void)[] = [];
+let depthNotificationScheduled = false;
+
+//Deferred one tick: a bulk import writes hundreds of intents back to back and
+//the listeners only need the settled depth, and deferral also breaks the
+//recursion writeIndex → notify → readPendingAuxHeaders → migrate/repair →
+//writeIndex.
+const scheduleDepthNotification = () : void => {
+	if (!depthListeners.length || depthNotificationScheduled) return;
+	depthNotificationScheduled = true;
+	setTimeout(() => {
+		depthNotificationScheduled = false;
+		let count = 0;
+		try {
+			count = readPendingAuxHeaders().length;
+		} catch {
+			return;
+		}
+		for (const listener of depthListeners) {
+			try {
+				listener(count);
+			} catch (err) {
+				//A broken subscriber must never break the queue itself.
+				console.warn('[aux-write] a queue-depth listener threw:', err);
+			}
+		}
+	}, 0);
+};
+
+//Registers a depth listener and reports the current depth immediately, so a
+//late subscriber (the watcher installs after auth resolves) still learns
+//about intents that survived from a previous session.
+export const onAuxWriteQueueDepthChanged = (listener : (count : number) => void) : void => {
+	depthListeners.push(listener);
+	try {
+		listener(readPendingAuxHeaders().length);
+	} catch {
+		//The next mutation will deliver a depth; nothing to do now.
 	}
 };
 
@@ -288,6 +334,9 @@ const deleteIntentKeys = (id : string) : void => {
 	} catch {
 		//Nothing further to do; the index compaction below will drop it too.
 	}
+	//A body with no index entry reads as removed, so the depth changed here
+	//even when no index write follows (the aging path in readPendingAuxWrites).
+	scheduleDepthNotification();
 };
 
 const loadIntentBody = (id : string) : AuxWriteIntent | null => {
@@ -1099,6 +1148,9 @@ export const installAuxWriteReplayWatcher = (uidProvider : () => Uid) : void => 
 		//gap the v1 listener could not cover, because an intent leaves inFlight
 		//the moment its attempt settles or times out. Bodies are the truth.
 		repairIndexFromScan();
+		//A sibling tab draining (or filling) the shared queue changes this
+		//tab's depth too, and only this event tells us.
+		scheduleDepthNotification();
 	});
 };
 
@@ -1119,6 +1171,8 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	inFlight.clear();
 	unsettledAttempts.clear();
 	discardListeners.length = 0;
+	depthListeners.length = 0;
+	depthNotificationScheduled = false;
 	replayRunning = false;
 	replayRetryScheduled = false;
 	currentUid = null;

@@ -160,6 +160,7 @@ export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 export const UPDATE_WORKER_IDF = 'UPDATE_WORKER_IDF';
 export const UPDATE_CORPUS_STATUS = 'UPDATE_CORPUS_STATUS';
 export const UPDATE_CORPUS_DETAIL = 'UPDATE_CORPUS_DETAIL';
+export const UPDATE_PENDING_AUX_WRITE_COUNT = 'UPDATE_PENDING_AUX_WRITE_COUNT';
 //Editor
 export const EDITING_START = 'EDITING_START';
 export const EDITING_RESTORE_DRAFT = 'EDITING_RESTORE_DRAFT';
@@ -705,7 +706,20 @@ type ActionUpdateCorpusStatus = {
 type ActionUpdateCorpusDetail = {
 	type: typeof UPDATE_CORPUS_DETAIL,
 	corpusSize: number,
-	snapshotAgeMs: number | null
+	snapshotAgeMs: number | null,
+	//Roughly how many cards the finished corpus will hold, when the worker
+	//knows (cold sweep); null the rest of the time. Lets the indicator show
+	//"12.4k of ~40.2k" instead of a bare ticking count.
+	expectedCorpusSize: number | null
+};
+
+//Durable aux-write intents (stars/reads/comments/card creations) queued in
+//localStorage and not yet server-confirmed. Maintained by the queue's own
+//enqueue/dequeue notifications rather than read from localStorage in any
+//selector — localStorage reads must stay off the hot path.
+type ActionUpdatePendingAuxWriteCount = {
+	type: typeof UPDATE_PENDING_AUX_WRITE_COUNT,
+	count: number
 };
 
 type ActionCommittedPendingFiltersWhenFullyLoaded = {
@@ -1246,6 +1260,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCardMeta
 	| ActionUpdateCorpusStatus
 	| ActionUpdateCorpusDetail
+	| ActionUpdatePendingAuxWriteCount
 	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot

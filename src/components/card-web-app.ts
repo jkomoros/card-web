@@ -153,6 +153,10 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-secondary-color-light-very-transparent: hsla(174, 100%, 43%, 0.15);
 				--app-warning-color: #CC0000;
 				--app-warning-color-light: #EE0000;
+				/* Between the live teal and the warning red: "your change has
+				not reached the server yet". Used by the corpus status
+				indicator's pending layer. 4.6:1 on white. */
+				--app-pending-color: #b26a00;
 
 				/* note: this is also replicated in index.TEMPLATE.html */
 				--app-dark-text-color: #7f7f7f;

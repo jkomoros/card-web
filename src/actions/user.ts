@@ -150,6 +150,7 @@ import {
 	makeAuxWriteIntent,
 	runDurableAuxWrite,
 	onAuxWriteDiscarded,
+	onAuxWriteQueueDepthChanged,
 	readPendingAuxWrites,
 	AuxWriteOutcome,
 	AuxWriteKind,
@@ -212,6 +213,7 @@ import {
 	SIGNIN_USER,
 	SIGNOUT_SUCCESS,
 	SIGNOUT_USER,
+	UPDATE_PENDING_AUX_WRITE_COUNT,
 	UPDATE_READING_LIST,
 	UPDATE_READS,
 	UPDATE_STARS
@@ -476,6 +478,10 @@ const updateUserInfo = (firebaseUser : User) : ThunkSomeAction => (dispatch) => 
 	});
 };
 
+//signInSuccess runs on every auth resolution; the queue-depth mirror below
+//must only be registered once per page.
+let auxWriteDepthListenerInstalled = false;
+
 export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
@@ -503,6 +509,16 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 	//of the old uid's intents (a captured uid would replay them under the
 	//new auth and permanently drop them as permission-denied).
 	installAuxWriteReplayWatcher(() => selectUid(store.getState() as State));
+	//Mirror the queue's depth into Redux so the corpus status indicator can
+	//show "changes waiting to reach the server" without any selector ever
+	//reading localStorage. The queue pushes on every enqueue/dequeue; the
+	//registration itself reports the current depth (intents surviving from a
+	//previous session). Guarded: this sign-in path runs on every auth
+	//resolution, and a duplicate listener would just dispatch twice.
+	if (!auxWriteDepthListenerInstalled) {
+		auxWriteDepthListenerInstalled = true;
+		onAuxWriteQueueDepthChanged(count => store.dispatch({type: UPDATE_PENDING_AUX_WRITE_COUNT, count}));
+	}
 	//Undo optimistic per-user updates whose intent the queue later gives up on.
 	//Installed beside the replay watcher because the replay loop is where most
 	//terminal discards actually happen.

@@ -8,26 +8,17 @@ import {
 	selectCorpusStatusMessage,
 	selectCorpusSize,
 	selectCorpusSnapshotAgeMs,
+	selectExpectedCorpusSize,
+	selectPendingAuxWriteCount,
+	selectPendingModificationCount,
 } from '../selectors.js';
+import {
+	corpusStatusGlyph,
+} from '../corpus-status-glyph.js';
 import {
 	CorpusStatus,
 	State,
 } from '../types.js';
-
-const DEFAULT_MESSAGES : Record<CorpusStatus, string> = {
-	off: 'Card sync: standard mode',
-	loading: 'Card sync: loading and verifying the corpus',
-	live: 'Card sync: live',
-	stale: 'Card sync is interrupted. Lists and search are temporarily unavailable; retrying automatically.',
-	degraded: 'Card sync is degraded.',
-	fallback: 'Background card sync is unavailable; using standard loading.',
-	checking: 'Checking whether this tab can safely start card sync…',
-	contended: 'Compendium is active in another tab.',
-	inactive: 'Compendium moved to another tab. This tab is safely disconnected.',
-	takeover: 'Moving Compendium to this tab…',
-	unsupported: 'This browser cannot safely coordinate card sync.',
-	'ownership-error': 'Card sync could not start.',
-};
 
 @customElement('corpus-status-indicator')
 class CorpusStatusIndicator extends connect(store)(LitElement) {
@@ -44,7 +35,16 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		_corpusSize = 0;
 
 	@state()
+		_expectedCorpusSize : number | null = null;
+
+	@state()
 		_snapshotAgeMs : number | null = null;
+
+	@state()
+		_pendingSaveCount = 0;
+
+	@state()
+		_queuedWriteCount = 0;
 
 	static override styles = css`
 		:host {
@@ -94,6 +94,26 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			display: none;
 		}
 
+		/* The un-confirmed-changes layer: a superscript count in the same
+		   amber as the pending dot, so the two read as one signal. */
+		.lock {
+			font-size: 0.75em;
+			opacity: 0.8;
+			margin-left: 0.15em;
+		}
+
+		.badge {
+			font-size: 0.8em;
+			vertical-align: super;
+			font-variant-numeric: tabular-nums;
+			color: var(--app-pending-color, #b26a00);
+			line-height: 1;
+		}
+
+		.badge[hidden] {
+			display: none;
+		}
+
 		/* Quiet statuses keep the text for screen readers only. */
 		.label {
 			position: absolute;
@@ -133,46 +153,44 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			font-size: 0.75em;
 		}
 
-		/* The palette is the app's own (purple/teal/red/grey); the previous
-		   hand-picked greens, golds and oranges belonged to no other surface
-		   in this UI. */
+		/* One tone per layer of health (see corpus-status-glyph.ts). The ok /
+		   working / problem tones reuse the app's own palette exactly as
+		   before; 'pending' is the one new hue — amber, for "your change has
+		   not reached the server yet" — because nothing in the palette sits
+		   between the live teal and the warning red. */
 		.dot {
 			width: 8px;
 			height: 8px;
 			flex-shrink: 0;
 			box-sizing: border-box;
 			border-radius: 50%;
+			/* muted: this tab deliberately is not syncing. */
 			background: var(--app-dark-text-color-light);
 			box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
 		}
 
-		.dot[data-status='live'] {
+		.dot[data-tone='ok'] {
 			background: var(--app-secondary-color);
 		}
 
 		/* Same purple the 'Loading…' placeholder card uses. */
-		.dot[data-status='loading'],
-		.dot[data-status='checking'] {
+		.dot[data-tone='working'] {
 			background: var(--app-primary-color-light);
-			animation: corpus-status-pulse 1.8s ease-in-out infinite;
 		}
 
-		/* Tab coordination is informational, not an error. */
-		.dot[data-status='takeover'],
-		.dot[data-status='contended'],
-		.dot[data-status='inactive'] {
-			background: var(--app-primary-color-subtle);
+		.dot[data-tone='pending'] {
+			background: var(--app-pending-color, #b26a00);
 		}
 
-		.dot[data-status='stale'],
-		.dot[data-status='degraded'],
-		.dot[data-status='unsupported'],
-		.dot[data-status='ownership-error'] {
+		.dot[data-tone='problem'] {
 			background: var(--app-warning-color);
 		}
 
-		.dot[data-status='fallback'] {
-			background: var(--app-dark-text-color);
+		/* "Still working" is its own axis: a pending (amber) dot pulses too
+		   while a fetch is in flight, and goes steady when the fetch is done
+		   but a change is still unconfirmed. */
+		.dot[data-pulse] {
+			animation: corpus-status-pulse 1.8s ease-in-out infinite;
 		}
 
 		@keyframes corpus-status-pulse {
@@ -181,52 +199,43 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		}
 
 		@media (prefers-reduced-motion: reduce) {
-			.dot[data-status='loading'],
-			.dot[data-status='checking'] {
+			.dot[data-pulse] {
 				animation: none;
 			}
 		}
 	`;
 
-	//Compact enough to sit next to the dot without becoming a second status
-	//sentence: 812 -> '812', 40225 -> '40.2k'.
-	get _countLabel() : string {
-		if (!this._corpusSize) return '';
-		if (this._corpusSize < 10000) return String(this._corpusSize);
-		return `${(this._corpusSize / 1000).toFixed(1)}k`;
-	}
-
-	get _snapshotAgeLabel() : string {
-		if (this._snapshotAgeMs === null) return '';
-		const hours = this._snapshotAgeMs / (60 * 60 * 1000);
-		if (hours < 1) return 'cached minutes ago';
-		if (hours < 24) return `cached ${Math.round(hours)}h ago`;
-		return `cached ${Math.round(hours / 24)}d ago`;
-	}
-
-	//The tooltip carries the density; the pill itself stays subtle.
-	get _detail() : string {
-		const parts = [this._message || DEFAULT_MESSAGES[this._status]];
-		if (this._corpusSize) parts.push(`${this._corpusSize.toLocaleString()} cards`);
-		//Only worth saying once it is old enough to explain something the user
-		//might otherwise mistake for missing data.
-		if (this._snapshotAgeMs !== null && this._snapshotAgeMs >= 60 * 60 * 1000) parts.push(this._snapshotAgeLabel);
-		return parts.join(' · ');
+	//All display decisions live in the pure mapping so they are Node-testable;
+	//this component only renders the result.
+	get _glyph() {
+		return corpusStatusGlyph({
+			status: this._status,
+			message: this._message,
+			corpusSize: this._corpusSize,
+			expectedCorpusSize: this._expectedCorpusSize,
+			corpusSnapshotAgeMs: this._snapshotAgeMs,
+			pendingSaveCount: this._pendingSaveCount,
+			queuedWriteCount: this._queuedWriteCount,
+		});
 	}
 
 	override render() {
 		//In the quiet states the dot alone said nothing at all. A card count is
 		//one glanceable number that distinguishes 'live with the whole corpus'
 		//from 'live with a fraction of it', which is the failure this whole
-		//branch is about.
-		const count = this._countLabel;
+		//branch is about — and during the initial fetch it ticks upward
+		//('12.4k↑', or '12.4k/40.2k' when the worker knows the target), with a
+		//superscript amber badge for local changes the server has not
+		//confirmed.
+		const glyph = this._glyph;
 		return html`
 			<span
 				class='dot'
-				data-status=${this._status}
+				data-tone=${glyph.tone}
+				?data-pulse=${glyph.pulse}
 				aria-hidden='true'
-				title=${this._detail}
-			></span><span class='count' aria-hidden='true' title=${this._detail} ?hidden=${!count}>${count}</span><span class='label' role='status' aria-live='polite'>${this._detail}</span>
+				title=${glyph.tooltip}
+			></span><span class='count' aria-hidden='true' title=${glyph.tooltip} ?hidden=${!glyph.countLabel && !glyph.pendingBadge}>${glyph.countLabel}<span class='lock' ?hidden=${!glyph.writeLocked} aria-hidden='true'>\u{1F512}</span><span class='badge' ?hidden=${!glyph.pendingBadge}>${glyph.pendingBadge}</span></span><span class='label' role='status' aria-live='polite'>${glyph.tooltip}</span>
 		`;
 	}
 
@@ -234,10 +243,14 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		this._status = selectCorpusStatus(state);
 		this._message = selectCorpusStatusMessage(state);
 		this._corpusSize = selectCorpusSize(state);
+		this._expectedCorpusSize = selectExpectedCorpusSize(state);
 		this._snapshotAgeMs = selectCorpusSnapshotAgeMs(state);
+		this._pendingSaveCount = selectPendingModificationCount(state);
+		this._queuedWriteCount = selectPendingAuxWriteCount(state);
+		const glyph = this._glyph;
+		this.toggleAttribute('data-has-count', Boolean(glyph.countLabel || glyph.pendingBadge));
 		//'loading' is quiet too: a labeled pill on every ordinary boot is
 		//noise — the floating indicator should speak only for degraded states.
-		this.toggleAttribute('data-has-count', Boolean(this._countLabel));
 		this.toggleAttribute('data-quiet', this._status === 'live' || this._status === 'off' || this._status === 'loading');
 	}
 }

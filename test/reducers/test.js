@@ -40,6 +40,8 @@ let MODIFY_CARD_SUCCESS;
 let MODIFY_CARD_FAILURE;
 let CLEAR_ENQUEUED_CARD_UPDATES;
 let UPDATE_CORPUS_STATUS;
+let UPDATE_CORPUS_DETAIL;
+let UPDATE_PENDING_AUX_WRITE_COUNT;
 let REMOVE_CARDS;
 let ENQUEUE_CARD_UPDATES;
 let UPDATE_COLLECTION_SHAPSHOT;
@@ -88,6 +90,8 @@ describe('reducer identity preservation', () => {
 			MODIFY_CARD_FAILURE,
 			CLEAR_ENQUEUED_CARD_UPDATES,
 			UPDATE_CORPUS_STATUS,
+			UPDATE_CORPUS_DETAIL,
+			UPDATE_PENDING_AUX_WRITE_COUNT,
 			REMOVE_CARDS,
 			ENQUEUE_CARD_UPDATES,
 			UPDATE_COLLECTION_SHAPSHOT,
@@ -282,6 +286,39 @@ describe('reducer identity preservation', () => {
 		});
 		assert.strictEqual(state.corpusStatus, 'stale');
 		assert.strictEqual(state.corpusStatusMessage, 'Sync interrupted');
+	});
+
+	it('UPDATE_CORPUS_DETAIL stores the counts the status indicator renders', () => {
+		const initial = dataReducer(undefined, {type: '@@INIT'});
+		assert.strictEqual(initial.expectedCorpusSize, null);
+		let state = dataReducer(initial, {
+			type: UPDATE_CORPUS_DETAIL,
+			corpusSize: 12400,
+			snapshotAgeMs: 5000,
+			expectedCorpusSize: 40200,
+		});
+		assert.strictEqual(state.corpusSize, 12400);
+		assert.strictEqual(state.corpusSnapshotAgeMs, 5000);
+		assert.strictEqual(state.expectedCorpusSize, 40200);
+		//loadComplete republishes with the target cleared; a lingering total
+		//would keep the indicator promising progress toward a goal already
+		//reached.
+		state = dataReducer(state, {
+			type: UPDATE_CORPUS_DETAIL,
+			corpusSize: 40225,
+			snapshotAgeMs: null,
+			expectedCorpusSize: null,
+		});
+		assert.strictEqual(state.expectedCorpusSize, null);
+	});
+
+	it('UPDATE_PENDING_AUX_WRITE_COUNT mirrors the durable queue depth', () => {
+		const initial = dataReducer(undefined, {type: '@@INIT'});
+		assert.strictEqual(initial.pendingAuxWriteCount, 0);
+		let state = dataReducer(initial, {type: UPDATE_PENDING_AUX_WRITE_COUNT, count: 3});
+		assert.strictEqual(state.pendingAuxWriteCount, 3);
+		state = dataReducer(state, {type: UPDATE_PENDING_AUX_WRITE_COUNT, count: 0});
+		assert.strictEqual(state.pendingAuxWriteCount, 0);
 	});
 
 	it('UPDATE_CARDS prunes only similarity entries mentioning changed cards', async () => {

@@ -993,6 +993,14 @@ export type DataState = {
 	//status, not a mute dot.
 	corpusSize: number,
 	corpusSnapshotAgeMs: number | null,
+	//Roughly how many cards the finished corpus will hold, when the worker
+	//knows (during a cold sweep, from the trust gate's server counts); null
+	//otherwise. Lets the status indicator show "12.4k of ~40.2k".
+	expectedCorpusSize: number | null,
+	//Durable aux-write intents (stars/reads/comments/card creations) queued
+	//locally and not yet server-confirmed. Pushed into Redux by the queue's
+	//enqueue/dequeue notifications so no selector ever reads localStorage.
+	pendingAuxWriteCount: number,
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
 	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.

@@ -35,7 +35,10 @@ const stateClause = (status : CorpusStatus) : string => {
 	}
 };
 
-//When it will resolve, if it will resolve on its own.
+//When it will resolve, if it will resolve on its own — and what the user CAN
+//still do meanwhile. The verifying window is the one every boot passes
+//through, so its copy answers the actual question ("what can't I do right
+//now?"): reading, browsing and editing all work; only durable writes wait.
 const resolutionClause = (status : CorpusStatus) : string => {
 	switch (status) {
 	case 'stale':
@@ -48,7 +51,7 @@ const resolutionClause = (status : CorpusStatus) : string => {
 	case 'degraded':
 		return '';
 	default:
-		return 'It unlocks as soon as sync is live.';
+		return 'You can keep reading, browsing and editing meanwhile — this unlocks when verification finishes, usually well under a minute.';
 	}
 };
 
@@ -66,3 +69,8 @@ export const blockedError = (status : CorpusStatus, verb : string) : string =>
 
 export const SAVE_VERB = 'Saving';
 export const CREATE_VERB = 'Creating a card';
+export const DELETE_VERB = 'Deleting a card';
+export const IMPORT_VERB = 'Importing cards';
+export const REORDER_VERB = 'Reordering cards';
+export const LABEL_VERB = 'Editing labels';
+export const SUGGESTION_VERB = 'Applying a suggestion';

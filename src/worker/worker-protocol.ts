@@ -37,7 +37,10 @@ import {
 //no longer carries the server map and the server-map action is no longer
 //forwarded. A stale v5 worker against a v6 page would never deliver a map
 //and would wait forever for hydration fields the page no longer sends.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 6;
+//7: new worker→main `corpusProgress` message carrying the expected corpus
+//total during a cold sweep, so the status indicator can show "12.4k of
+//~40.2k" instead of a bare ticking count.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 7;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -286,6 +289,13 @@ export type WorkerToMainMessage =
 	//console only, so a device that had been offline for weeks served a
 	//months-old corpus with no staleness signal anywhere in the UI.
 	| {type: 'loadComplete', generation: WorkerGeneration, corpusSize : number, snapshotAgeMs : number | null}
+	//Sent when the worker learns roughly how many cards the finished corpus
+	//will hold (today: at the start of a cold sweep, from the trust gate's
+	//per-partition server count()s plus the published cards already in hand).
+	//Approximate by construction — the published listener may still be
+	//filling and writes can land mid-sweep — so the page renders it with a
+	//'~'. null clears it (teardown/reconnect).
+	| {type: 'corpusProgress', generation: WorkerGeneration, expectedCorpusSize : number | null}
 	//Progress of the background search-recall build (find narrowing). `ready`
 	//flips true exactly once per connection when the whole corpus is indexed.
 	| {type: 'searchRecall', generation: WorkerGeneration, built : number, total : number, ready : boolean}

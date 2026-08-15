@@ -25,6 +25,7 @@ import {
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	UPDATE_CORPUS_STATUS,
 	UPDATE_CORPUS_DETAIL,
+	UPDATE_PENDING_AUX_WRITE_COUNT,
 } from '../actions.js';
 
 import {
@@ -111,6 +112,8 @@ const INITIAL_STATE : DataState = {
 	corpusStatusMessage: '',
 	corpusSize: 0,
 	corpusSnapshotAgeMs: null,
+	expectedCorpusSize: null,
+	pendingAuxWriteCount: 0,
 	sectionsLoaded: false,
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
@@ -141,6 +144,12 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			corpusSize: action.corpusSize,
 			corpusSnapshotAgeMs: action.snapshotAgeMs,
+			expectedCorpusSize: action.expectedCorpusSize,
+		};
+	case UPDATE_PENDING_AUX_WRITE_COUNT:
+		return {
+			...state,
+			pendingAuxWriteCount: action.count,
 		};
 	case EXPECT_NEW_CARD:
 		//This means that although we may think we're fully loaded now, there's

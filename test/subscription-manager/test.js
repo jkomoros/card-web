@@ -103,4 +103,34 @@ describe('SubscriptionManager', () => {
 		assert.strictEqual(pushes[2].subscriptionID, 2);
 		assert.deepStrictEqual(pushes[2].ids, ['a']);
 	});
+
+	//The initial-load window: the main thread subscribes at CONNECT so the
+	//first result can ride behind the prime's card batches, and the pause
+	//keeps every mid-load batch from burning an O(corpus) recompute on a
+	//push the bridge would drop.
+	it('pause holds all computation; resume flushes synchronously', async () => {
+		const {engine, manager, pushes} = setup();
+		manager.pause();
+		manager.subscribe(1, params('everything/'));
+		//Explicit flush while paused is refused wholesale — otherwise the
+		//results would be marked pushed without being delivered.
+		manager.flush();
+		assert.strictEqual(pushes.length, 0);
+		engine.updateCards({d: card('d', {sort_order: 9.0})}, []);
+		manager.markDirty();
+		manager.flush();
+		assert.strictEqual(pushes.length, 0);
+		//Resume delivers the CURRENT state, synchronously, exactly once.
+		manager.resume();
+		assert.strictEqual(pushes.length, 1);
+		assert.deepStrictEqual(pushes[0].ids, ['d', 'a', 'b', 'c']);
+		//Resuming again is a no-op…
+		manager.resume();
+		assert.strictEqual(pushes.length, 1);
+		//…and normal operation continues after resume.
+		engine.updateCards({e: card('e', {sort_order: 99.0})}, []);
+		manager.flush();
+		assert.strictEqual(pushes.length, 2);
+		assert.deepStrictEqual(pushes[1].ids, ['e', 'd', 'a', 'b', 'c']);
+	});
 });

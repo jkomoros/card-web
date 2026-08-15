@@ -676,4 +676,34 @@ describe('aux write queue', () => {
 			'the remove must NOT run ahead of the add that another tab owns');
 		assert.strictEqual(queue.readPendingAuxWrites().length, 2, 'both intents survive for the next replay');
 	});
+
+	//The status indicator's amber layer: the queue pushes its own depth so no
+	//selector ever reads localStorage on Redux's hot paths.
+	describe('queue depth notifications', () => {
+		it('reports the current depth on registration and pushes changes on enqueue and drain', async () => {
+			let failing = true;
+			queue.registerAuxWriteExecutor('star-add', async () => {
+				if (failing) throw new Error('offline');
+			});
+			const depths = [];
+			queue.onAuxWriteQueueDepthChanged(count => depths.push(count));
+			assert.deepStrictEqual(depths, [0], 'registration must report the current depth immediately');
+			await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+			//Notifications are deferred one tick so a bulk enqueue reports once.
+			await new Promise(resolve => setTimeout(resolve, 5));
+			assert.strictEqual(depths[depths.length - 1], 1, 'a retained intent must raise the depth');
+			failing = false;
+			await queue.replayPendingAuxWrites('u1');
+			await new Promise(resolve => setTimeout(resolve, 5));
+			assert.strictEqual(depths[depths.length - 1], 0, 'a drained queue must report zero');
+		});
+
+		it('a late subscriber learns about intents surviving from a previous session', async () => {
+			queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+			await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'cardA'));
+			const depths = [];
+			queue.onAuxWriteQueueDepthChanged(count => depths.push(count));
+			assert.deepStrictEqual(depths, [1]);
+		});
+	});
 });

@@ -564,6 +564,10 @@ const reloadForAccountHandover = (uid : string) => {
 
 let workerCorpusSize = 0;
 let workerSnapshotAgeMs : number | null = null;
+//Roughly how many cards the finished corpus will hold — the worker announces
+//it at the start of a cold sweep (corpusProgress) so the indicator can show
+//"12.4k of ~40.2k". null whenever no fetch with a known target is running.
+let workerExpectedCorpusSize : number | null = null;
 
 //The size and snapshot age were maintained here and never rendered. Publish
 //them into Redux so the status indicator can be information-dense (criterion
@@ -571,18 +575,21 @@ let workerSnapshotAgeMs : number | null = null;
 //per-batch ingestion path.
 let lastPublishedCorpusSize = -1;
 let lastPublishedSnapshotAgeMs : number | null | undefined = undefined;
+let lastPublishedExpectedCorpusSize : number | null | undefined = undefined;
 //Teardown/reconnect reset. One call rather than three lines at each site.
 const resetCorpusDetail = () => {
 	workerCorpusSize = 0;
 	workerSnapshotAgeMs = null;
+	workerExpectedCorpusSize = null;
 	publishCorpusDetail();
 };
 
 const publishCorpusDetail = () => {
-	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs) return;
+	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs && workerExpectedCorpusSize === lastPublishedExpectedCorpusSize) return;
 	lastPublishedCorpusSize = workerCorpusSize;
 	lastPublishedSnapshotAgeMs = workerSnapshotAgeMs;
-	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs});
+	lastPublishedExpectedCorpusSize = workerExpectedCorpusSize;
+	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs, expectedCorpusSize: workerExpectedCorpusSize});
 };
 //Delta-sync health as last reported by the worker (watermark mode).
 let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
@@ -1249,10 +1256,17 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'searchRecall':
 		store.dispatch({type: FIND_UPDATE_SEARCH_RECALL, built: message.built, total: message.total, ready: message.ready});
 		break;
+	case 'corpusProgress':
+		workerExpectedCorpusSize = message.expectedCorpusSize;
+		publishCorpusDetail();
+		break;
 	case 'loadComplete':
 		workerLoadComplete = true;
 		workerCorpusSize = message.corpusSize;
 		workerSnapshotAgeMs = message.snapshotAgeMs;
+		//The fetch this target described is over; a lingering total would keep
+		//the indicator promising progress toward a goal already reached.
+		workerExpectedCorpusSize = null;
 		console.log(`[corpus-worker] load complete: ${message.corpusSize} cards`);
 		publishCorpusDetail();
 		for (const fetchType of Object.keys(selectLoadingCardFetchTypes(store.getState() as State)) as CardFetchType[]) {
@@ -1262,8 +1276,19 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 			store.dispatch({type: UPDATE_CORPUS_STATUS, status: 'live', message: ''});
 		}
 		maybeRequestReconciliation();
-		//Kick the comparator so subscriptions attach promptly now that
-		//serving is allowed (rather than waiting for the next state change).
+		//Attach the collection subscriptions NOW, synchronously. This used to
+		//lean on scheduleShadowCompare(), whose "promptly" is a 1s throttle
+		//timer — and on a warm boot the STOP_EXPECTING loop above usually
+		//dispatches nothing (the prime batches already cleared every loading
+		//fetch type), so no store subscriber fired either. Net effect: every
+		//card sat in Redux while the drawer showed "loading…" for up to a
+		//full second before the active-collection subscription was even
+		//SENT to the worker. The corpus is servable at this exact moment
+		//(that is what loadComplete + the corpusMayServe gate mean — serve
+		//fast, verify in the background), so subscribe at this exact moment.
+		fastResubscribeOnDescriptionChange();
+		//Still kick the comparator: shadow mode's compare (and the query
+		//slot's open/close bookkeeping) runs on its own throttled cadence.
 		scheduleShadowCompare();
 		break;
 	case 'userStars':
@@ -1671,6 +1696,21 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 		sentStartCards = null;
 		sendCollectionConfigIfChanged(store.getState() as State);
 		startShadowComparator();
+		//Subscribe the active collection slot NOW, before the corpus has
+		//primed. On a warm boot the worker's prime handoff marks the
+		//subscription dirty in the same turn it forwards the cards, so the
+		//first authoritative collection result lands right BEHIND the card
+		//batches in the message queue — instead of after a subscribe round
+		//trip issued at loadComplete, which on the real corpus queued behind
+		//the whole post-ingest render storm (measured: the push itself takes
+		//single-digit ms; the round trip cost ~900ms of drawer "loading…").
+		//Correctness is unchanged, and is owned by the RECEIVE side:
+		//handleCollectionResult drops any push that arrives while
+		//corpusWorkerCanRunCollections() is false, so a pre-loadComplete
+		//partial-corpus result can never reach Redux — serve fast, verify
+		//before serving stays intact. If the description changes before
+		//loadComplete, the loadComplete-time resubscribe corrects the slot.
+		ensureSubscription('active', selectActiveCollectionDescription(store.getState() as State), store.getState() as State);
 	}
 };
 

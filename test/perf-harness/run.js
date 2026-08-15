@@ -130,6 +130,27 @@ const main = async () => {
 				if (cfg.syncMode) window.localStorage.setItem('corpus-sync', cfg.syncMode);
 			} catch { /* noop */ }
 		}, {workerMode, syncMode, testReader});
+		//Boot probe (runs afresh on every navigation, so warm reloads get their
+		//own numbers relative to that navigation's start): records when the
+		//corpus lands in Redux, and when the worker's first active-collection
+		//push arrives — the moment the card drawer stops saying "loading…" and
+		//shows thumbnails in 'on' mode. The gap between the two is the drawer's
+		//perceived extra latency after cards are already present.
+		await context.addInitScript((cfg) => {
+			const probe = {cardsPrimedMs: null, loadCompleteMs: null, collectionServedMs: null};
+			window.__BOOT_PROBE = probe;
+			const poll = setInterval(() => {
+				const store = window.DEBUG_STORE;
+				if (!store) return;
+				try {
+					const s = store.getState();
+					if (probe.cardsPrimedMs === null && s.data && Object.keys(s.data.cards || {}).length >= cfg.primeFloor) probe.cardsPrimedMs = Math.round(performance.now());
+					if (probe.loadCompleteMs === null && window.CORPUS_WORKER && window.CORPUS_WORKER.loadComplete && window.CORPUS_WORKER.loadComplete()) probe.loadCompleteMs = Math.round(performance.now());
+					if (probe.collectionServedMs === null && s.collection && s.collection.workerActiveCollection) probe.collectionServedMs = Math.round(performance.now());
+					if (probe.cardsPrimedMs !== null && probe.loadCompleteMs !== null && probe.collectionServedMs !== null) clearInterval(poll);
+				} catch { /* noop */ }
+			}, 25);
+		}, {primeFloor: Math.max(100, Math.floor(count * 0.5))});
 
 		let page = await context.newPage();
 		let takeoverScenariosPassed = false;
@@ -234,7 +255,10 @@ const main = async () => {
 			//Wait for its atomic write before reloading so this is a true warm-boot
 			//acceptance test, not merely another Firestore-cache boot.
 			if (workerModeActive && syncMode === 'watermark' && authMode === 'admin') {
-				await waitForConsoleLine(consoleMsgs, line => line.includes('[corpus-worker] compact snapshot saved:'), 60000);
+				//NOTE: worker status lines carry a '+<n>ms ' prefix between the
+				//'[corpus-worker]' tag and the message (src/worker/corpus-worker.ts
+				//status()), so match the message text alone.
+				await waitForConsoleLine(consoleMsgs, line => line.includes('compact snapshot saved:'), 60000);
 			}
 			const warmLogStart = consoleMsgs.length;
 			const warmStartedAt = Date.now();
@@ -251,14 +275,18 @@ const main = async () => {
 			});
 			const usableMs = Date.now() - warmStartedAt;
 			warmState = await waitForCorpus(page, {minCards, timeoutMs: loadTimeoutMs, requireWorkerLive: workerModeActive, expectedSyncState, progressEveryMs: 15000});
-			warmBoot = {domContentMs, usableMs, liveMs: Date.now() - warmStartedAt};
+			//In-page probe: cardsPrimedMs = corpus in Redux; collectionServedMs =
+			//first worker collection push (drawer shows thumbnails). Both relative
+			//to the warm navigation's own start.
+			const warmProbe = await page.evaluate(() => window.__BOOT_PROBE || null).catch(() => null);
+			warmBoot = {domContentMs, usableMs, liveMs: Date.now() - warmStartedAt, cardsPrimedMs: warmProbe?.cardsPrimedMs ?? null, loadCompleteMs: warmProbe?.loadCompleteMs ?? null, drawerServedMs: warmProbe?.collectionServedMs ?? null};
 			const warmLogs = consoleMsgs.slice(warmLogStart);
-			const warmPrimeLine = warmLogs.find(m => m.includes('[corpus-worker] watermark prime:')) || '';
+			const warmPrimeLine = warmLogs.find(m => m.includes('watermark prime:')) || '';
 			const warmPrimeMatch = warmPrimeLine.match(/watermark prime: ([0-9]+) cards from the (persistent cache|compact snapshot)/);
 			const warmCachePrime = Number(warmPrimeMatch?.[1] || 0);
 			const warmPrimeSource = warmPrimeMatch?.[2] || '';
-			if (workerModeActive && (!warmCachePrime || warmLogs.some(m => m.includes('[corpus-worker] cold corpus')))) {
-				throw new Error(`controlled reload did not use the persistent corpus cache: prime=${warmCachePrime} coldSweep=${warmLogs.some(m => m.includes('[corpus-worker] cold corpus'))}`);
+			if (workerModeActive && (!warmCachePrime || warmLogs.some(m => m.includes('cold corpus')))) {
+				throw new Error(`controlled reload did not use the persistent corpus cache: prime=${warmCachePrime} coldSweep=${warmLogs.some(m => m.includes('cold corpus'))}`);
 			}
 			if (workerModeActive && syncMode === 'watermark' && authMode === 'admin' && warmPrimeSource !== 'compact snapshot') {
 				throw new Error(`controlled warm reload did not use compact snapshot: ${warmPrimeLine}`);
@@ -267,6 +295,13 @@ const main = async () => {
 				throw new Error(`service-worker warm corpus mismatch: seeded=${count} main=${warmState.cardCount} worker=${warmState.workerCorpusSize}`);
 			}
 			console.log('[run] PRODUCTION SERVICE WORKER CONTROLLED + WARM CACHE OK: mainCards=' + warmState.cardCount + ' workerCorpus=' + warmState.workerCorpusSize + ' syncState="' + warmState.syncState + '" cachePrime=' + warmCachePrime + ' source="' + warmPrimeSource + '" timing=' + JSON.stringify(warmBoot));
+			//Focused warm-boot latency measurement (drawer-served probe above):
+			//skip the interaction suite when only the boot numbers are wanted.
+			if (hasFlag('warm-boot-only')) {
+				console.log('[run] WARM BOOT ONLY: done.');
+				await browser.close();
+				return;
+			}
 		}
 		const errs = consoleMsgs.filter(m => m.startsWith('[error]'));
 		if (errs.length) console.log('[run] console errors (' + errs.length + '): ' + errs.slice(0, 5).join(' | '));

@@ -9,6 +9,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectActiveCard,
+	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectSuggestionsAggressive,
 	selectSuggestionsEffectiveSelectedIndex,
 	selectSuggestionsForActiveCard,
@@ -20,6 +22,11 @@ import {
 	selectUserMayUseAI
 } from '../selectors.js';
 
+import {
+	blockedReason,
+	SUGGESTION_VERB
+} from '../sync-copy.js';
+
 import suggestions from '../reducers/suggestions.js';
 store.addReducers({
 	suggestions
@@ -30,6 +37,7 @@ import {
 } from './help-badges.js';
 
 import {
+	CorpusStatus,
 	CSSColorString,
 	ProcessedCard,
 	State,
@@ -109,6 +117,16 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_pending : boolean;
+
+	//Applying a suggestion routes through the same durable modify/create
+	//actions as Save, which refuse until sync is live — so the accept/reject
+	//buttons gray out with the shared reason instead of failing after the
+	//click.
+	@state()
+		_saveEligible : boolean;
+
+	@state()
+		_corpusStatus : CorpusStatus;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -322,13 +340,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				</div>
 				<div class='flex'></div>
 				<div>
-					<button
+					<span class='reason' title=${this._saveEligible ? 'Accept Primary Action' : blockedReason(this._corpusStatus, SUGGESTION_VERB)}>
+						<button
 								class='round primary'
-								title='Accept Primary Action'
+								?disabled=${!this._saveEligible}
 								@click=${this._handleAcceptPrimaryActionClicked}
 							>
 								${CHECK_CIRCLE_OUTLINE_ICON}
 							</button>
+					</span>
 				</div>
 			</div>
 			` : 
@@ -347,13 +367,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						</div>
 						<div class='flex'></div>
 						<div>
-							<button
+							<span class='reason' title=${this._saveEligible ? 'Accept Alternate Action' : blockedReason(this._corpusStatus, SUGGESTION_VERB)}>
+								<button
 									class='round'
-									title='Accept Alternate Action'
+									?disabled=${!this._saveEligible}
 									@click=${this._handleAcceptAlternateActionClicked}
 									>
 										${CHECK_CIRCLE_OUTLINE_ICON}
 									</button>
+							</span>
 						</div>
 					</div>
 				` : ''
@@ -366,13 +388,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						</div>
 						<div class='flex'></div>
 						<div>
-							<button
+							<span class='reason' title=${this._saveEligible ? 'Reject Suggestion' : blockedReason(this._corpusStatus, SUGGESTION_VERB)}>
+								<button
 									class='round'
-									title='Reject Suggestion'
+									?disabled=${!this._saveEligible}
 									@click=${this._handleRejectActionClicked}
 									>
 										${CANCEL_ICON}
 									</button>
+							</span>
 						</div>
 					</div>
 				` : ''
@@ -391,6 +415,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._aggressive = selectSuggestionsAggressive(state);
 		this._loadingForCard = selectSuggestionsLoadingForCard(state);
 		this._pending = selectSuggestionsPending(state);
+		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 	}
 
 	_handleSuggestionTapped(e : TagEvent) {

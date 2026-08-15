@@ -331,6 +331,8 @@ export const selectCorpusStatus = (state : State) => state.data ? state.data.cor
 export const selectCorpusStatusMessage = (state : State) => state.data ? state.data.corpusStatusMessage : '';
 export const selectCorpusSize = (state : State) => state.data ? state.data.corpusSize : 0;
 export const selectCorpusSnapshotAgeMs = (state : State) => state.data ? state.data.corpusSnapshotAgeMs : null;
+export const selectExpectedCorpusSize = (state : State) => state.data ? state.data.expectedCorpusSize : null;
+export const selectPendingAuxWriteCount = (state : State) => state.data ? state.data.pendingAuxWriteCount : 0;
 export const selectSectionsLoaded = (state : State) => state.data ? state.data.sectionsLoaded : false;
 export const selectTagsLoaded = (state : State) => state.data ? state.data.tagsLoaded : false;
 export const selectMessagesLoaded = (state : State) => state.comments ? state.comments.messagesLoaded : false;

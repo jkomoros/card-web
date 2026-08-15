@@ -28,8 +28,10 @@ describe('corpus worker protocol compatibility', () => {
 		//list) moved into the worker; to 5 when sections and tags followed and the
 		//page dropped its main-thread fallback for them; to 6 when IDF moved
 		//into the worker (idfMap delivery + refreshIDF; server-IDF plumbing
-		//removed from hydration and forwarding).
-		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 6);
+		//removed from hydration and forwarding); to 7 when the worker gained
+		//the `corpusProgress` message (expected corpus total during a cold
+		//sweep, for the status indicator's fetch-progress display).
+		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 7);
 		assert.strictEqual(LEGACY_CORPUS_WORKER_PROTOCOL_VERSION, 0);
 		assert.strictEqual(corpusWorkerProtocolVersion(undefined), 0);
 		assert.strictEqual(corpusWorkerProtocolCompatible(undefined), false);

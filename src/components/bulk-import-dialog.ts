@@ -29,11 +29,19 @@ import {
 	selectBulkImportDialogExportContent,
 	selectBulkImportDialogOpen,
 	selectBulkImportPending,
+	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
+	blockedReason,
+	IMPORT_VERB
+} from '../sync-copy.js';
+
+import {
 	BulkImportDialogMode,
+	CorpusStatus,
 	State,
 } from '../types.js';
 
@@ -67,6 +75,16 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_aiEnabled : boolean;
+
+	//Whether durable card writes are currently eligible (sync live). The
+	//commit button grays out with a reason while sync verifies, matching the
+	//treatment every other create/save control uses — the action refuses
+	//anyway, but only AFTER the click.
+	@state()
+		_saveEligible : boolean;
+
+	@state()
+		_corpusStatus : CorpusStatus;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -117,13 +135,17 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				placeholder='Paste html here'></textarea>`
 }
 			<div class='buttons'>
-				<button
-					class='round'
-					?disabled=${!this._bodies.length}
-					@click='${this._handleDoneClicked}'
-				>
-					${CHECK_CIRCLE_OUTLINE_ICON}
-				</button>
+				<!-- Title on the wrapper so the reason survives the disabled
+				state (Chrome/Safari suppress hover on disabled controls). -->
+				<span class='reason' title=${!this._saveEligible ? blockedReason(this._corpusStatus, IMPORT_VERB) : 'Create these cards'}>
+					<button
+						class='round'
+						?disabled=${!this._bodies.length || !this._saveEligible}
+						@click='${this._handleDoneClicked}'
+					>
+						${CHECK_CIRCLE_OUTLINE_ICON}
+					</button>
+				</span>
 			</div>`;
 	}
 
@@ -204,6 +226,8 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this._mode = selectBulKimportDialogMode(state);
 		this._exportContent = selectBulkImportDialogExportContent(state);
 		this._aiEnabled = selectUserMayUseAI(state);
+		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		this.title = 'Bulk ' + (this._mode === 'import' ? 'Import' : 'Export');
 	}
 

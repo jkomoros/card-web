@@ -258,8 +258,17 @@ const clientClockCardIDs : Set<CardID> = new Set();
 const contaminatePendingWriteIDs = (pendingWriteIDs : Set<CardID>) => {
 	for (const id of pendingWriteIDs) clientClockCardIDs.add(id);
 };
+//Boot diagnosability: the time from "corpus primed" to "first collection
+//result pushed" is exactly what the card drawer waits on in 'on' mode, and
+//it was invisible in the logs. Log the FIRST result of each of the first few
+//subscriptions (bounded so similarity-churn resubscribes can't spam).
+const loggedSubscriptionFirstPush = new Set<number>();
 const subscriptions = new SubscriptionManager(engine, push => {
 	recordWorkerPerf('collectionPush', push.ms);
+	if (push.subscriptionID <= 5 && !loggedSubscriptionFirstPush.has(push.subscriptionID)) {
+		loggedSubscriptionFirstPush.add(push.subscriptionID);
+		status(`collection subscription ${push.subscriptionID}: first result ${push.numCards} cards in ${push.ms}ms`);
+	}
 	send({
 		type: 'collectionResult',
 		generation,
@@ -980,6 +989,13 @@ let initialLoadConnectionGeneration = -1;
 const expectInitialLoad = (fetchTypes : CardFetchType[]) => {
 	initialLoadPending = new Set(fetchTypes);
 	initialLoadConnectionGeneration = connectionGeneration;
+	//The bridge subscribes the active collection at CONNECT so the first
+	//result can ride directly behind the initial card batches. Hold every
+	//subscription flush until the corpus is complete: mid-load pushes would
+	//be dropped by the bridge anyway (it refuses results until loadComplete),
+	//so computing them — once per ingested batch, O(corpus) each — is pure
+	//waste exactly when the worker is busiest.
+	subscriptions.pause();
 };
 
 const markInitialDelivered = (fetchType : CardFetchType) => {
@@ -990,6 +1006,12 @@ const markInitialDelivered = (fetchType : CardFetchType) => {
 	initialLoadPending = null;
 	send({type: 'loadComplete', generation, corpusSize: corpus.size, snapshotAgeMs: primedSnapshotAgeMs});
 	status(`initial load complete: ${corpus.size} cards in corpus`);
+	//Serve the already-subscribed collection slots in this same turn, so the
+	//first authoritative result reaches the main thread right behind
+	//loadComplete (and, on a warm boot, right behind the prime's card
+	//batches) — this is what turns the drawer's warm-boot "loading…" into
+	//content in the same render storm that installs the cards.
+	subscriptions.resume();
 	//The corpus is settled: promote the background search-recall build to its
 	//full duty cycle (idempotent if the prime handoff already kicked it), and
 	//start the sliced IDF build beside it.
@@ -2926,6 +2948,14 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		const localTotal = corpusUnpublishedPerPartition().reduce((total, bucket) => total + bucket.size, 0);
 		if (gate.serverTotal > 0 && localTotal < gate.serverTotal * COLD_FRACTION) {
 			status(`cold corpus (${localTotal} of ${gate.serverTotal}); starting budgeted sweep`);
+			//Tell the page roughly how big the finished corpus will be, so the
+			//status indicator can show fetch progress ("12.4k of ~40.2k")
+			//instead of a bare ticking count. serverTotal covers unpublished
+			//only; add the published cards already in hand (corpus.size minus
+			//the unpublished localTotal). Approximate by construction — the
+			//published listener may still be filling — hence the page's '~'.
+			//The bridge clears it on loadComplete and on teardown.
+			send({type: 'corpusProgress', generation, expectedCorpusSize: gate.serverTotal + (corpus.size - localTotal)});
 			const done = await coldSweep(database, myConnectionGeneration);
 			if (myConnectionGeneration !== connectionGeneration) return;
 			if (!done) {
@@ -3239,6 +3269,9 @@ workerScope.addEventListener('message', event => {
 		//A query subscription (find dialog) is an intent signal: kick the
 		//chunked recall build so by the next keystroke it may be narrowing.
 		if (message.description.includes('query/')) scheduleSearchRecallBuild();
+		//Same bound as the first-push log above: make the boot-critical
+		//attach visible without letting steady-state resubscribes spam.
+		if (message.subscriptionID <= 5) status(`collection subscription ${message.subscriptionID} attached: ${message.description}`);
 		subscriptions.subscribe(message.subscriptionID, {
 			description: message.description,
 			keyCardID: message.keyCardID,

@@ -55,6 +55,7 @@ export class SubscriptionManager {
 	_flushDelayMs : number;
 	_flushTimeout : ReturnType<typeof setTimeout> | null;
 	_dirty : boolean;
+	_paused : boolean;
 
 	//push is called with each fresh result; flushDelayMs coalesces bursts of
 	//engine mutations (e.g. ingestion batches) into one recompute.
@@ -65,6 +66,32 @@ export class SubscriptionManager {
 		this._flushDelayMs = flushDelayMs;
 		this._flushTimeout = null;
 		this._dirty = false;
+		this._paused = false;
+	}
+
+	//While paused, no flush runs at all: subscriptions can be registered and
+	//dirtiness accumulates, but nothing is computed or pushed. This exists
+	//for the initial-load window — the main thread now subscribes the active
+	//collection at CONNECT (so the first result can ride immediately behind
+	//the prime's card batches), and without a pause every cold-sweep batch
+	//would burn an O(corpus) recompute on a push the bridge is going to drop
+	//anyway (it refuses results until loadComplete).
+	pause() : void {
+		this._paused = true;
+	}
+
+	//Resuming flushes SYNCHRONOUSLY: the caller resumes exactly when the
+	//corpus becomes servable (loadComplete), and the whole point is for the
+	//first authoritative result to be computed and pushed in that same turn,
+	//directly behind the loadComplete message.
+	resume() : void {
+		if (!this._paused) return;
+		this._paused = false;
+		if (this._flushTimeout) {
+			clearTimeout(this._flushTimeout);
+			this._flushTimeout = null;
+		}
+		this.flush();
 	}
 
 	subscribe(subscriptionID : number, params : SubscriptionParams) : void {
@@ -96,6 +123,7 @@ export class SubscriptionManager {
 	}
 
 	_scheduleFlush() : void {
+		if (this._paused) return;
 		if (this._flushTimeout) return;
 		this._flushTimeout = setTimeout(() => {
 			this._flushTimeout = null;
@@ -106,6 +134,10 @@ export class SubscriptionManager {
 	//Recomputes every subscription and pushes those whose results changed.
 	//Exposed for tests (and for an eventual synchronous flush on demand).
 	flush() : void {
+		//A flush while paused would mark results as pushed (lastIDs) even if
+		//the push callback's consumer discards them; refuse wholesale so the
+		//resume-time flush is guaranteed to actually deliver.
+		if (this._paused) return;
 		this._dirty = false;
 		for (const [subscriptionID, subscription] of this._subscriptions.entries()) {
 			let result : RunCollectionResult;

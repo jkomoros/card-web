@@ -1,6 +1,7 @@
 import {
 	blockedReason,
-	SAVE_VERB
+	SAVE_VERB,
+	DELETE_VERB
 } from '../sync-copy.js';
 
 import { LitElement, html, css, PropertyValues } from 'lit';
@@ -654,13 +655,20 @@ class CardEditor extends connect(store)(LitElement) {
 					</select>
 				</div>
 				<div>
-					<button
-						class='small'
-						@click=${this._handleDeleteClicked}
-						?disabled=${this._mayNotDeleteReason != ''}
-						title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : 'Delete card permanently'}'>
-						${DELETE_FOREVER_ICON}
-					</button>
+					<!-- Title on a wrapper, like the Save button: Chrome/Safari
+					suppress hover on disabled controls, so a title on the
+					button itself is invisible exactly when the user needs the
+					reason. Deletion shares the durable-write gate (the action
+					refuses too), so while sync verifies it is disabled with
+					the same explanation every other write control gives. -->
+					<span class='reason' title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : !this._saveEligible ? blockedReason(this._corpusStatus, DELETE_VERB) : 'Delete card permanently'}'>
+						<button
+							class='small'
+							@click=${this._handleDeleteClicked}
+							?disabled=${this._mayNotDeleteReason != '' || !this._saveEligible}>
+							${DELETE_FOREVER_ICON}
+						</button>
+					</span>
 				</div>
 			</div>
 			<div class='row'>
