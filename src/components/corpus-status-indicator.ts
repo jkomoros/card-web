@@ -233,10 +233,25 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		/* During the initial download the dot becomes a tiny progress ring:
 		   the tone color sweeps clockwise over a muted track as the fetched
 		   fraction grows. Same pixels, one more layer of meaning. */
+		/* The ring never reads as disabled: a solid tone-colored CORE stays lit
+		   at any percent (a 0% ring used to render as an all-gray disc — the
+		   opposite of "working hard"), and the progress BAND sweeps around it
+		   in the phase's own color: purple while downloading, teal while
+		   verifying. The pulse keeps breathing throughout via the shared
+		   data-pulse animation. */
 		.dot.ring {
 			background:
-				conic-gradient(currentColor var(--corpus-progress, 0deg), transparent 0) border-box,
+				radial-gradient(circle, currentColor 0 52%, transparent 53%),
+				conic-gradient(var(--corpus-ring-color, currentColor) var(--corpus-progress, 0deg), transparent 0),
 				var(--app-divider-color, #e0e0e0);
+		}
+
+		.dot.ring[data-phase='download'] {
+			--corpus-ring-color: var(--app-primary-color-light);
+		}
+
+		.dot.ring[data-phase='verify'] {
+			--corpus-ring-color: var(--app-secondary-color);
 		}
 
 		@keyframes corpus-status-pulse {
@@ -285,6 +300,7 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		return html`
 			<span
 				class='dot ${glyph.progress !== null ? 'ring' : ''}'
+				data-phase=${glyph.progressPhase || ''}
 				data-tone=${glyph.tone}
 				?data-pulse=${glyph.pulse}
 				aria-hidden='true'

@@ -75,6 +75,9 @@ export type CorpusGlyph = {
 	//ring on the dot always means "progress of the current phase". Drives the
 	//ring fill and the percentage in the tooltip.
 	progress : number | null,
+	//Which phase the ring's progress describes — drives the band's color so
+	//downloading and verifying are distinguishable at a glance.
+	progressPhase : 'download' | 'verify' | null,
 	//True when the corpus is readable but card saves are gated (worker mode,
 	//any non-'live' status with cards on screen — the verifying window, and
 	//stale/degraded interruptions). Rendered as a tiny padlock so "you can
@@ -199,10 +202,13 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 	const downloading = status === 'loading' && !corpusComplete;
 	const verifying = fetching && corpusSize > 0 && !downloading;
 	let progress : number | null = null;
+	let progressPhase : 'download' | 'verify' | null = null;
 	if (downloading && expectedCorpusSize && expectedCorpusSize > 0) {
 		progress = Math.min(corpusSize / expectedCorpusSize, 0.99);
+		progressPhase = 'download';
 	} else if (verifying && haveVerify) {
 		progress = Math.min(clampedVerifyDone / (verifyTotal as number), 0.99);
+		progressPhase = 'verify';
 	}
 
 	//Write-locked: cards are on screen but saving is gated until the corpus
@@ -214,5 +220,5 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 		lines.push('Reading, browsing and editing work now; saving unlocks when verification finishes.');
 	}
 
-	return {tone, pulse, countLabel, pendingBadge, tooltip: lines.join('\n'), writeLocked, progress};
+	return {tone, pulse, countLabel, pendingBadge, tooltip: lines.join('\n'), writeLocked, progress, progressPhase};
 };

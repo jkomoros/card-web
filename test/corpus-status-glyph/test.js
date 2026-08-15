@@ -298,3 +298,18 @@ describe('writeLocked (the verifying padlock)', () => {
 		assert.strictEqual(g.writeLocked, false);
 	});
 });
+
+describe('progressPhase (the ring band color)', () => {
+	it('is download while genuinely downloading with a target', () => {
+		const g = corpusStatusGlyph({...base, status: 'loading', corpusSize: 12400, expectedCorpusSize: 40200, corpusComplete: false});
+		assert.strictEqual(g.progressPhase, 'download');
+	});
+	it('is verify during the checkpointed verifying window', () => {
+		const g = corpusStatusGlyph({...base, status: 'loading', corpusSize: 40225, corpusComplete: true, verifyDone: 4, verifyTotal: 16});
+		assert.strictEqual(g.progressPhase, 'verify');
+	});
+	it('is null when settled', () => {
+		const g = corpusStatusGlyph({...base, status: 'live'});
+		assert.strictEqual(g.progressPhase, null);
+	});
+});
