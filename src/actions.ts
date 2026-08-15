@@ -710,7 +710,8 @@ type ActionUpdateCorpusDetail = {
 	//Roughly how many cards the finished corpus will hold, when the worker
 	//knows (cold sweep); null the rest of the time. Lets the indicator show
 	//"12.4k of ~40.2k" instead of a bare ticking count.
-	expectedCorpusSize: number | null
+	expectedCorpusSize: number | null,
+	corpusComplete: boolean
 };
 
 //Durable aux-write intents (stars/reads/comments/card creations) queued in

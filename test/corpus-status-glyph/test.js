@@ -19,6 +19,7 @@ const base = {
 	message: '',
 	corpusSize: 40225,
 	expectedCorpusSize: null,
+	corpusComplete: false,
 	corpusSnapshotAgeMs: null,
 	pendingSaveCount: 0,
 	queuedWriteCount: 0,

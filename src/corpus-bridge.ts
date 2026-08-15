@@ -568,6 +568,7 @@ let workerSnapshotAgeMs : number | null = null;
 //it at the start of a cold sweep (corpusProgress) so the indicator can show
 //"12.4k of ~40.2k". null whenever no fetch with a known target is running.
 let workerExpectedCorpusSize : number | null = null;
+let workerCorpusComplete = false;
 
 //The size and snapshot age were maintained here and never rendered. Publish
 //them into Redux so the status indicator can be information-dense (criterion
@@ -576,20 +577,23 @@ let workerExpectedCorpusSize : number | null = null;
 let lastPublishedCorpusSize = -1;
 let lastPublishedSnapshotAgeMs : number | null | undefined = undefined;
 let lastPublishedExpectedCorpusSize : number | null | undefined = undefined;
+let lastPublishedCorpusComplete = false;
 //Teardown/reconnect reset. One call rather than three lines at each site.
 const resetCorpusDetail = () => {
 	workerCorpusSize = 0;
 	workerSnapshotAgeMs = null;
 	workerExpectedCorpusSize = null;
+	workerCorpusComplete = false;
 	publishCorpusDetail();
 };
 
 const publishCorpusDetail = () => {
-	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs && workerExpectedCorpusSize === lastPublishedExpectedCorpusSize) return;
+	if (workerCorpusSize === lastPublishedCorpusSize && workerSnapshotAgeMs === lastPublishedSnapshotAgeMs && workerExpectedCorpusSize === lastPublishedExpectedCorpusSize && workerCorpusComplete === lastPublishedCorpusComplete) return;
 	lastPublishedCorpusSize = workerCorpusSize;
 	lastPublishedSnapshotAgeMs = workerSnapshotAgeMs;
 	lastPublishedExpectedCorpusSize = workerExpectedCorpusSize;
-	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs, expectedCorpusSize: workerExpectedCorpusSize});
+	lastPublishedCorpusComplete = workerCorpusComplete;
+	store.dispatch({type: UPDATE_CORPUS_DETAIL, corpusSize: workerCorpusSize, snapshotAgeMs: workerSnapshotAgeMs, expectedCorpusSize: workerExpectedCorpusSize, corpusComplete: workerCorpusComplete});
 };
 //Delta-sync health as last reported by the worker (watermark mode).
 let lastSyncState : 'unverified' | 'live' | 'stale' | '' = '';
@@ -1267,6 +1271,7 @@ const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
 		//The fetch this target described is over; a lingering total would keep
 		//the indicator promising progress toward a goal already reached.
 		workerExpectedCorpusSize = null;
+		workerCorpusComplete = true;
 		console.log(`[corpus-worker] load complete: ${message.corpusSize} cards`);
 		publishCorpusDetail();
 		for (const fetchType of Object.keys(selectLoadingCardFetchTypes(store.getState() as State)) as CardFetchType[]) {

@@ -12,6 +12,7 @@ import {
 	selectCorpusSize,
 	selectCorpusSnapshotAgeMs,
 	selectExpectedCorpusSize,
+	selectCorpusComplete,
 	selectPendingAuxWriteCount,
 	selectPendingModificationCount,
 } from '../selectors.js';
@@ -39,6 +40,9 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 
 	@state()
 		_expectedCorpusSize : number | null = null;
+
+	@state()
+		_corpusComplete : boolean;
 
 	@state()
 		_snapshotAgeMs : number | null = null;
@@ -237,6 +241,7 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			message: this._message,
 			corpusSize: this._corpusSize,
 			expectedCorpusSize: this._expectedCorpusSize,
+			corpusComplete: this._corpusComplete,
 			corpusSnapshotAgeMs: this._snapshotAgeMs,
 			pendingSaveCount: this._pendingSaveCount,
 			queuedWriteCount: this._queuedWriteCount,
@@ -269,6 +274,7 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 		this._message = selectCorpusStatusMessage(state);
 		this._corpusSize = selectCorpusSize(state);
 		this._expectedCorpusSize = selectExpectedCorpusSize(state);
+		this._corpusComplete = selectCorpusComplete(state);
 		this._snapshotAgeMs = selectCorpusSnapshotAgeMs(state);
 		this._pendingSaveCount = selectPendingModificationCount(state);
 		this._queuedWriteCount = selectPendingAuxWriteCount(state);

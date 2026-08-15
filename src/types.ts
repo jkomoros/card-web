@@ -997,6 +997,9 @@ export type DataState = {
 	//knows (during a cold sweep, from the trust gate's server counts); null
 	//otherwise. Lets the status indicator show "12.4k of ~40.2k".
 	expectedCorpusSize: number | null,
+	//True once the worker announced loadComplete for this connection: the
+	//corpus is fully fetched and any non-live time remaining is verification.
+	corpusComplete : boolean,
 	//Durable aux-write intents (stars/reads/comments/card creations) queued
 	//locally and not yet server-confirmed. Pushed into Redux by the queue's
 	//enqueue/dequeue notifications so no selector ever reads localStorage.

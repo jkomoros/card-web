@@ -43,6 +43,9 @@ export type CorpusGlyphInput = {
 	//(cold sweep); null otherwise.
 	expectedCorpusSize : number | null,
 	corpusSnapshotAgeMs : number | null,
+	//True once the worker announced loadComplete: every card is in hand and
+	//any remaining non-live time is verification, not download.
+	corpusComplete : boolean,
 	//Card saves committed locally and awaiting their server echo.
 	pendingSaveCount : number,
 	//Durable aux-write intents (stars/reads/comments/creations) queued in
@@ -93,7 +96,7 @@ const snapshotAgeLabel = (ageMs : number) : string => {
 };
 
 export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
-	const {status, message, corpusSize, expectedCorpusSize, corpusSnapshotAgeMs, pendingSaveCount, queuedWriteCount} = input;
+	const {status, message, corpusSize, expectedCorpusSize, corpusComplete, corpusSnapshotAgeMs, pendingSaveCount, queuedWriteCount} = input;
 
 	const fetching = FETCHING_STATUSES.has(status);
 	const pendingTotal = pendingSaveCount + queuedWriteCount;
@@ -134,7 +137,7 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 		//already on screen are VERIFYING — a warm boot has the whole corpus in
 		//hand within seconds, and calling that state "fetching" read as "still
 		//downloading 40k cards" when nothing was being downloaded at all.
-		if (status !== 'loading') {
+		if (status !== 'loading' || corpusComplete) {
 			lines.push(`Verifying ${corpusSize.toLocaleString()} cards…`);
 		} else if (haveTarget) {
 			const pct = Math.min(Math.round((corpusSize / (expectedCorpusSize as number)) * 100), 99);
@@ -168,7 +171,7 @@ export const corpusStatusGlyph = (input : CorpusGlyphInput) : CorpusGlyph => {
 	//Progress toward the expected total, only while genuinely fetching with a
 	//known target. Capped below 1 so the ring never claims done before the
 	//status does.
-	const progress = (status === 'loading' && expectedCorpusSize && expectedCorpusSize > 0)
+	const progress = (status === 'loading' && !corpusComplete && expectedCorpusSize && expectedCorpusSize > 0)
 		? Math.min(corpusSize / expectedCorpusSize, 0.99)
 		: null;
 
