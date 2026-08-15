@@ -77,11 +77,16 @@ npx firebase deploy --only firestore --project complexity-compendium
 Notes:
 - `firestore.rules` is GENERATED from `firestore.TEMPLATE.rules` (via
   `npm run generate:config`); never hand-edit the generated file.
-- Do NOT tighten `cardEditInboundReferences` yet — the template
-  deliberately ships `updated` as optional-but-validated
-  (firestore.TEMPLATE.rules ~line 163). Tightening now would
-  permission-deny link edits from the still-deployed OLD prod client.
-  That happens in Phase 6.
+- `cardEditInboundReferences` is already TIGHT: `updated` is REQUIRED on
+  inbound-link writes (tightened 2026-08-15, ahead of cutover, per the
+  2026-08-13 decision-log amendment — there is no Phase 6 anymore). The
+  consequence: a still-running OLD client (master, or a stale tab of it)
+  will be permission-denied on any LINK-AFFECTING EDIT until refreshed —
+  so the delete freeze below extends to link edits: **no card deletes AND
+  no link-affecting edits from stale tabs between deploying these rules
+  and completing the close-and-reopen step after the hosting deploy.**
+  A forgotten one fails visibly, is held by the durable queue, and
+  replays cleanly after the refresh — annoying, never loss.
 - **Wait for EVERY index, not one.** This deploy ships 29 composite indexes
   and 19 field overrides (count them yourself: `firestore.indexes.json`).
   The earlier instruction named only `(published ASC, updated ASC)`, which
@@ -135,6 +140,16 @@ npm run deploy
 dotenv config — `functions/.env.complexity-compendium` is regenerated
 automatically — plus embedding reindex. `functions:config:set` is gone;
 see README "Firebase Functions Configuration".)
+
+**Immediately after the deploy completes: CLOSE AND REOPEN every logged-in
+instance of the app, on every device.** Close and reopen — not F5: the
+waiting service worker only activates once every tab of the origin closes.
+The inbound-reference rule is already tight (`updated` REQUIRED), so a
+stale tab's link-affecting edit or delete is permission-denied until it's
+refreshed; those writes are held by the durable queue and replay after the
+refresh, but don't rely on that — just refresh first. This step replaced
+the old Phase 6 next-day tightening (owner decision 2026-08-13,
+implemented 2026-08-15).
 
 ## Phase 5 — Immediate verification (same hour)
 
@@ -239,30 +254,19 @@ new atomic-tombstone delete rule, so the delete would be refused. You are the
 only deleter and the window is minutes if this runbook is followed in order —
 so this is a sentence here rather than code anywhere.
 
-## Phase 6 — Next day: tighten the inbound-reference rule
+## Phase 6 — RETIRED (tightening done ahead of cutover, 2026-08-15)
 
-After the new client has been live ~a day (service-worker bundles of the
-old client have aged out):
-
-1. In `firestore.TEMPLATE.rules`, `cardEditInboundReferences()` (~line
-   163): make `updated` REQUIRED — follow the TIGHTEN comment in place
-   (`affectedKeys.hasAny(['updated']) && …` form), and update the
-   security tests that cover the staged form for both generic and admin users
-   (test/security). Both staged success tests must flip to `assertFails`.
-2. `npm test` (the security tests run against the emulator).
-3. `npm run test:rules-deadline` — this is the dated forcing function for THIS
-   phase. It is deliberately NOT part of `npm test`: a deadline that hard-fails
-   the default suite punishes whoever happens to run tests that day for
-   somebody else's checklist. It runs automatically before any deploy, and
-   `npm test` warns for the 21 days beforehand. Once this phase is done, the
-   deadline entry in `tools/check-deadlines.cjs` can be removed; if the phase
-   slips, move its date in the commit that records why.
-4. Deploy rules to BOTH projects:
-   ```bash
-   npx firebase deploy --only firestore:rules --project dev-complexity-compendium
-   npx firebase deploy --only firestore:rules --project complexity-compendium
-   ```
-5. Verify a link-affecting edit still commits on prod.
+The inbound-reference rule was tightened on the branch itself, before any
+prod deploy, per the owner's 2026-08-13 decision-log amendment: the rules
+REQUIRE the `updated` bump, both formerly-staged security tests assert
+failure, and the dated deadline entry in `tools/check-deadlines.cjs` is
+retired. What replaced the phase is a cutover-day step, already part of
+Phase 4's checklist: **immediately after the hosting deploy, CLOSE AND
+REOPEN every logged-in instance of the app on every device** — close and
+reopen, not F5: the waiting service worker only activates when every tab
+of the origin closes. Until that's done on a device, its tabs are under
+the Phase 2 freeze (no deletes, no link-affecting edits). Verify a
+link-affecting edit commits on prod right after the first refresh.
 
 ## Phase 7 — Post-soak cleanup (days-to-weeks later, separate PR)
 

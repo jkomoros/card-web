@@ -156,17 +156,18 @@ service cloud.firestore {
 
     function cardEditInboundReferences() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      //`updated` is OPTIONAL-BUT-VALIDATED for now: when present it must be
-      //the request server-time. Inbound-reference changes are real document
-      //changes and SHOULD bump `updated` (timestamp-based dedupe and the
-      //watermark delta sync depend on it — docs/corpus-sync-design.md), and
-      //the current client always sends it. It is not yet REQUIRED because
-      //the rules deploy is decoupled from the hosting deploy: requiring it
-      //while the pre-guard prod client (or a stale service-worker bundle of
-      //it) is live would permission-deny EVERY link-affecting edit. TIGHTEN
-      //to required (affectedKeys.hasAny(['updated']) && ...) only as part
-      //of the prod cutover checklist, after the client that sends it has
-      //fully shipped and a cache-bust has aged out old bundles.
+      //`updated` is REQUIRED and must be the request server-time. Inbound
+      //reference changes are real document changes, and the watermark delta
+      //sync depends on the bump (docs/corpus-sync-design.md). This was
+      //staged as optional-but-validated while old clients that don't send
+      //it could still be live; the owner decided (2026-08-13 decision-log
+      //amendment, implemented 2026-08-15) to tighten it BEFORE cutover
+      //instead: the only clients that ever perform this write shape are
+      //editors, there is exactly one editor, and the cutover checklist has
+      //them close-and-reopen every logged-in tab right after the hosting
+      //deploy. A stale tab's link-affecting save in that window is
+      //permission-denied VISIBLY, held by the durable queue, and replays
+      //cleanly after the refresh — annoying, never loss.
       let allKeys = ['references_inbound', 'references_info_inbound', 'updated'];
       let referenceKeys = ['references_inbound', 'references_info_inbound'];
       //TODO: for each modifiedCardID, verify userMayEditCard. There is no way
@@ -193,7 +194,7 @@ service cloud.firestore {
       //linking) blocks unauthenticated and read-only callers without touching
       //the real write path. The per-referenced-card check remains the TODO
       //above; it needs set iteration the rules language does not have.
-      return (userIsAdmin() || getPermissions(['edit', 'editCard', 'createCard'])) && (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && (!affectedKeys.hasAny(['updated']) || request.resource.data.updated == request.time);
+      return (userIsAdmin() || getPermissions(['edit', 'editCard', 'createCard'])) && (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(referenceKeys) && affectedKeys.hasAny(['updated']) && request.resource.data.updated == request.time;
     }
 
     function cardEditMinor(cardID) {

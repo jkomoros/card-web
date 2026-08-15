@@ -17,11 +17,11 @@
 //why. That is the intended escape hatch, not a workaround.
 
 const DEADLINES = [
-	{
-		date: '2026-09-15T00:00:00Z',
-		what: 'the staged inbound-reference `updated` carve-out',
-		then: 'Flip the two STAGED tests in test/security/test.js to assertFails and deploy the tightened rules (docs/prod-cutover-runbook.md, Phase 6).',
-	},
+	//RETIRED 2026-08-15: the staged inbound-reference `updated` carve-out was
+	//tightened ahead of cutover (owner decision, 2026-08-13 amendment) — the
+	//rules now REQUIRE the bump, the two staged tests assert failure, and the
+	//runbook's cutover checklist carries the close-and-reopen step instead of
+	//a Phase 6 deadline. The harness stays for whatever earns a deadline next.
 ];
 
 const WARN_WINDOW_DAYS = 21;

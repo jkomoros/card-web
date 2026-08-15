@@ -1443,45 +1443,26 @@ describe('Compendium Rules', () => {
 		}));
 	});
 
-	it('WARNS as the staged inbound-reference carve-out approaches its deadline', () => {
-		//This used to THROW past 2026-09-15, which made `npm test` hard-fail for
-		//whoever merged after that date, over something unrelated to their
-		//change. A deadline that breaks a stranger's build is a bad deadline: it
-		//lands on whoever is nearest, not on whoever can act.
-		//
-		//The forcing function now lives in `npm run check:deadlines`, which is a
-		//PREDEPLOY step — deploying stale rules is the actual hazard, so that is
-		//where refusing belongs. This test only reports, so the reminder is still
-		//visible in an ordinary test run.
-		const daysLeft = Math.ceil((Date.parse('2026-09-15T00:00:00Z') - Date.now()) / (24 * 60 * 60 * 1000));
-		if (daysLeft <= 21) {
-			console.warn(`\n[deadline] ${daysLeft} day(s) until the staged inbound-reference carve-out blocks DEPLOYS.` +
-				'\n           Complete Phase 6 of docs/prod-cutover-runbook.md (flip the two STAGED tests below to' +
-				'\n           assertFails and deploy the tightened rules), or extend the date in the commit that says why.\n');
-		}
-		//Deliberately no assertion: the deadline is enforced at deploy time.
-	});
-
-	it('allows updating inbound links without bumping updated (STAGED: flip to assertFails at prod cutover)', async() => {
-		//The rules keep `updated` OPTIONAL on this branch until the client
-		//that always sends it has fully shipped to prod (a rules-only deploy
-		//with REQUIRED would permission-deny every link-affecting edit from
-		//the pre-guard client). See cardEditInboundReferences in
-		//firestore.TEMPLATE.rules. At prod cutover, tighten the rule and
-		//flip this to assertFails.
+	it('disallows updating inbound links without bumping updated (tightened 2026-08-15 per the decision-log amendment)', async() => {
+		//`updated` is REQUIRED on inbound-link writes: the watermark delta
+		//sync depends on the bump, and the carve-out that made it optional
+		//(protecting master-era clients during the cutover window) was
+		//retired before cutover — the only writers of this shape are
+		//editors, and the cutover checklist has them close-and-reopen every
+		//logged-in tab after the hosting deploy.
 		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({
+		await firebase.assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 		}));
 	});
 
-	it('allows the staged no-updated inbound-link write for an admin client too', async() => {
+	it('disallows the no-updated inbound-link write for an admin client too', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({
+		await firebase.assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 		}));
