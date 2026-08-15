@@ -11,13 +11,13 @@ export const deployFirebase = (flags: DeployFlags): void => {
 		'emailAdminOnMessage',
 		'emailAdminOnStar',
 		'legal'
-		//calculateIDF was DELETED from source (the worker now computes IDF over
-		//the visible corpus; docs/visible-corpus-idf-design.md) — but omitting a
-		//function from a deploy does NOT undeploy it: any project where it is
-		//already live keeps running it (and keeps its IAM surface) until it is
-		//removed explicitly. It must be deleted with
-		//`firebase functions:delete calculateIDF` on BOTH projects (dev and
-		//prod).
+		//NOTE: omitting a function from a deploy does NOT undeploy it — a live
+		//function keeps running (schedule, IAM surface and all) until removed
+		//explicitly. When calculateIDF left this list (the worker now computes
+		//IDF over the visible corpus; docs/visible-corpus-idf-design.md), the
+		//live copy was removed with `firebase functions:delete calculateIDF`
+		//on both projects on 2026-08-15. Follow the same two steps for any
+		//future removal.
 	];
 
 	if (flags.openaiEnabled) {
