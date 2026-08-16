@@ -1713,13 +1713,35 @@ export const SORTS : SortConfigurationMap = {
 	},
 	'last-tweeted': {
 		extractor: (card) => {
-			return [card.last_tweeted.seconds, prettyTime(card.last_tweeted)];
+			//Guarded like its four siblings. Unguarded, this threw
+			//`Cannot read properties of undefined (reading 'seconds')` on any
+			//card lacking last_tweeted, and a throw inside a sort extractor
+			//propagates out of runCollection into the subscription loop, which
+			//renders the whole collection permanently empty (#741, #731).
+			//
+			//How common is that? Less than it looks: defaultCardObject sets
+			//last_tweeted at creation (actions/data.ts) and the type marks it
+			//required, so the gap is LEGACY data, not the normal case. The
+			//guard is still right — the failure is total when it happens — but
+			//do not read this as "most cards".
+			const timestamp = card.last_tweeted;
+			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
 		},
 		description: 'In descending order of when they were last auto-tweeted',
 		labelName: 'Tweeted'
-	},	
+	},
 	'tweet-count': {
-		extractor: (card) => [card.tweet_count, '' + card.tweet_count],
+		//`|| 0` like the 'stars' sibling above. Unguarded, a card with no
+		//tweet_count yielded `undefined` as its sort value and rendered the
+		//literal string "undefined" as its user-visible label.
+		//
+		//`undefined` is worse than it sounds: the comparator is
+		//`rightInfo[0] - leftInfo[0]`, and `undefined - 0` is NaN, which V8
+		//treats as "equal" — so ONE such card did not sort low, it removed the
+		//ordering from the whole collection. (`null - 0` would at least be 0.)
+		//Found by the all-sorts test added alongside the #741 fix, which is the
+		//same class of defect: an unguarded field access beside guarded ones.
+		extractor: (card) => [card.tweet_count || 0, '' + (card.tweet_count || 0)],
 		description: 'In descending order of how many times the card has been tweeted',
 		labelName: 'Tweet Count',
 	},

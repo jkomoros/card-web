@@ -1,4 +1,4 @@
-/*eslint-env node*/
+/*eslint-env node, es2020*/
 
 //Tests for Collection work handoff (reusing filter/sort work when only the
 //live cards map changed), Collection.fromWorkerResult (reproducing a
@@ -123,7 +123,7 @@ describe('Collection handoff', () => {
 		const state = makeBaseState();
 		const description = new CollectionDescription('everything', ['starred']);
 		const previous = description.collection(makeArgs(state));
-		previous.finalSortedCards;
+		assert.ok(previous.finalSortedCards.length >= 0);
 		const newCards = {...state.cards};
 		//Snapshot identity changes: full rebuild required.
 		const newArgs = makeArgs(state, {cards: newCards, cardsSnapshot: {...state.cards}});
@@ -507,5 +507,38 @@ describe('configurable-filter memo actually caches', () => {
 		assert.ok(description.collection(makeArgs(stateTwo)).finalSortedCards.length >= 0);
 
 		assert.ok(reads > afterFirst, 'changed cards must invalidate the memo');
+	});
+});
+
+//#741 was one extractor reading its timestamp unguarded while its four
+//siblings guarded theirs; it threw on any card lacking that field, and a
+//throw inside a sort extractor takes out the whole collection. Rather than
+//just guard that one, pin the invariant for ALL of them so the next extractor
+//added cannot reintroduce it.
+describe('every sort extractor survives a card with no timestamps', () => {
+	let SORTS;
+
+	before(async () => {
+		({SORTS} = await import('../../lib/src/filters.js'));
+	});
+
+	//Called the way collection_description.ts:1061 calls it:
+	//(card, sections, cards, sortExtras, filterExtras).
+	const extract = (config, c) => config.extractor(c, {}, {[c.id]: c}, {}, {});
+
+	it('does not throw for any sort, on a card carrying none of the optional fields', () => {
+		const bare = card('bare');
+		for (const [name, config] of Object.entries(SORTS)) {
+			assert.doesNotThrow(() => extract(config, bare), `sort/${name} threw on a card with no timestamps`);
+		}
+	});
+
+	it('returns a numeric, non-NaN sort value for every sort', () => {
+		const bare = card('bare');
+		for (const [name, config] of Object.entries(SORTS)) {
+			const [value] = extract(config, bare);
+			assert.strictEqual(typeof value, 'number', `sort/${name} should yield a number`);
+			assert.ok(!Number.isNaN(value), `sort/${name} should not yield NaN`);
+		}
 	});
 });
