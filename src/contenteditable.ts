@@ -426,6 +426,25 @@ export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' |
 	for (const run of runs) {
 		let body = processExtractedCardRun(run);
 		if (mode == 'flat') body = flattenLists(body);
+		//A blank bullet anywhere in the pasted doc is its own run, and would
+		//otherwise become an empty card AND consume one of the 200-card import
+		//budget. By the time a run reaches here normalizeBodyHTML has already
+		//reduced a blank bullet to the EMPTY STRING — normalizeBodyHTMLString
+		//decodes &nbsp; to an ASCII space and removeWhitespace then drops the
+		//whitespace-only text node — so testing the body itself is enough.
+		//
+		//Deliberately NOT isWhitespace(innerTextForHTML(body)), which the
+		//issue suggested: that asks "has no TEXT", which is the same set of
+		//bodies today but fails the wrong way later. If anything ever teaches
+		//normalizeBodyHTML to preserve text-less content, the text predicate
+		//starts silently DELETING those cards, while this one merely lets an
+		//empty card through — and losing the user's paste is worse than
+		//importing a blank card.
+		//
+		//Tests the FINAL body, not the run's first <li>: in bulleted mode a run
+		//is a top-level <li> plus its nested <ul>, so a blank parent bullet
+		//whose children carry the content is non-empty here and survives.
+		if (isWhitespace(body)) continue;
 		result.push(body);
 	}
 	return result;

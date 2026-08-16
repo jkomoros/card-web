@@ -463,4 +463,41 @@ describe('google doc bulk import', () => {
 		assert.deepStrictEqual(strippedActual, strippedExpected);
 	});
 
+	//A blank bullet is its own top-level run, so without a filter it became an
+	//empty card AND consumed one of the 200-card import budget.
+	// eslint-disable-next-line quotes
+	const BLANK_LINE_INPUT = `<meta charset="utf-8"><ul><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>First real line.</span></p></li><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span></span></p></li><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>&nbsp;</span></p></li><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>Second real line.</span></p></li></ul>`;
+
+	it('skips blank and whitespace-only lines', () => {
+		const actual = importBodiesFromGoogleDocs(BLANK_LINE_INPUT, 'flat');
+		assert.strictEqual(actual.length, 2, 'the empty and &nbsp;-only bullets should not become cards');
+		const stripped = actual.map(str => str.split('\n').join('').split('\t').join('').trim());
+		assert.deepStrictEqual(stripped, ['<p>First real line.</p>', '<p>Second real line.</p>']);
+	});
+
+	it('skips blank lines in bulleted mode too', () => {
+		const actual = importBodiesFromGoogleDocs(BLANK_LINE_INPUT, 'bulleted');
+		assert.strictEqual(actual.length, 2, 'the empty and &nbsp;-only bullets should not become cards');
+		//Assert WHICH two survived: a length check alone would pass if the
+		//filter dropped the wrong two bullets.
+		assert.ok(actual[0].includes('First real line.'), 'first surviving body should be the first real line');
+		assert.ok(actual[1].includes('Second real line.'), 'second surviving body should be the second real line');
+	});
+
+	//NOTE: this one passes WITHOUT the filter too — it is a regression guard,
+	//not a demonstration of the fix. It pins the choice of predicate: the
+	//filter tests the FINAL body rather than the run's first <li>, because in
+	//bulleted mode a run is a top-level <li> plus its nested <ul>, so a blank
+	//PARENT bullet whose children carry the content is non-empty and must
+	//survive. An implementation that filtered on the first <li> would fail
+	//here.
+	// eslint-disable-next-line quotes
+	const BLANK_PARENT_INPUT = `<meta charset="utf-8"><ul><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span></span></p></li><ul><li dir="ltr" aria-level="2"><p dir="ltr" role="presentation"><span>Real nested content.</span></p></li></ul></ul>`;
+
+	it('keeps a blank parent bullet that has real nested children', () => {
+		const actual = importBodiesFromGoogleDocs(BLANK_PARENT_INPUT, 'bulleted');
+		assert.strictEqual(actual.length, 1, 'the run carries real nested text, so it is not empty');
+		assert.ok(actual[0].includes('Real nested content.'));
+	});
+
 });
