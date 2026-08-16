@@ -498,7 +498,11 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	_handleSnackbarUndo() {
 		store.dispatch(closeSnackbar());
-		if (collectionReceiptCanUndo(this._snackbarExpectedLocation, currentBrowserLocation())) window.history.back();
+		if (collectionReceiptCanUndo(
+			this._snackbarExpectedLocation,
+			currentBrowserLocation(),
+			[this._card?.id || '', this._card?.name || '', ...(this._card?.slugs || [])]
+		)) window.history.back();
 	}
 
 	override firstUpdated() {

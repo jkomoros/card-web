@@ -60,6 +60,7 @@ import {
 	selectCorpusStatus,
 	selectWorkerActiveCollectionReady,
 	selectConfigureCollectionDialogOpen,
+	selectKeyboardNavigates,
 } from '../selectors.js';
 
 import {
@@ -1379,6 +1380,11 @@ class CardView extends connect(store)(PageViewElement) {
 			return killEvent(e);
 		}
 		if (!e.metaKey && !e.ctrlKey) return false;
+		//Use the same modal/ownership gate as main-view. `inert` does not stop
+		//this document-level listener, so checking only whether the Collection
+		//Composer itself was open allowed Ctrl-K and Ctrl-Shift-L to open it
+		//behind Find, bulk edit, and the fast-corpus ownership overlay.
+		if (!selectKeyboardNavigates(store.getState() as State)) return false;
 		if (this._editing) return false;
 
 		if (pressedLetter(e) == 'm') {

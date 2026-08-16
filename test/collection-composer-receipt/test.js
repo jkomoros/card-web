@@ -33,6 +33,41 @@ describe("Collection Composer navigation receipt", () => {
     assert.strictEqual(collectionReceiptCanUndo("", ""), false);
   });
 
+  it("survives canonicalizing the active card from ID to preferred slug", () => {
+    assert.strictEqual(
+      collectionReceiptCanUndo(
+        "/c/everything/starred/card-id",
+        "/c/everything/starred/preferred-slug",
+        ["card-id", "preferred-slug"]
+      ),
+      true
+    );
+    assert.strictEqual(
+      collectionReceiptCanUndo(
+        "/c/everything/starred/card-id",
+        "/c/everything/starred/a-different-card",
+        ["different-id", "a-different-card"]
+      ),
+      false
+    );
+    assert.strictEqual(
+      collectionReceiptCanUndo(
+        "/c/everything/starred/older-valid-slug",
+        "/c/everything/starred/preferred-slug",
+        ["card-id", "preferred-slug", "older-valid-slug"]
+      ),
+      true
+    );
+    assert.strictEqual(
+      collectionReceiptCanUndo(
+        "/c/everything/starred/card-id?composer=1",
+        "/c/everything/starred/preferred-slug",
+        ["card-id", "preferred-slug"]
+      ),
+      false
+    );
+  });
+
   it("stores a semantic message and browser-back action", () => {
     const state = appReducer(undefined, {
       type: OPEN_SNACKBAR,

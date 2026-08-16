@@ -233,7 +233,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_draftUndoSelectedCard : string | null = null;
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
-	_draftPreviewCache : {description: string, count: number} | null = null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -1727,12 +1726,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cancelPreviews = null;
 		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
 		const previewDescription = sourceDescription || this._collectionDescription;
-		const draftDescription = previewDescription?.serialize();
-		const cachedDraftCount = draftDescription && this._draftPreviewCache?.description === draftDescription ? this._draftPreviewCache.count : undefined;
-		this._previewCounts = cachedDraftCount === undefined ? {} : {[this._draftPreviewID]: cachedDraftCount};
+		this._previewCounts = {};
 		if (!this.open || !collectionComposerPreviewEnabled()) return;
 		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter && !suggestion.sourceFilter);
-		if (cachedDraftCount === undefined) previewSuggestions.unshift({
+		previewSuggestions.unshift({
 			id: this._draftPreviewID,
 			kind: 'source',
 			action: 'open',
@@ -1746,7 +1743,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			corpusWorkerRunCollection,
 			(suggestionID, count) => {
 				if (!this.open) return;
-				if (suggestionID === this._draftPreviewID) this._draftPreviewCache = {description: draftDescription, count};
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}
 		);

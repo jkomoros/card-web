@@ -16,6 +16,8 @@ class SnackBar extends LitElement {
 				bottom: 0;
 				left: 0;
 				right: 0;
+				/* Above the fast-corpus update/save banners, below modal overlays. */
+				z-index: 960;
 				padding: 12px;
 				background-color: var(--app-secondary-color);
 				color: white;

@@ -2,6 +2,11 @@
 
 import { JSDOM } from "jsdom";
 import assert from "assert";
+import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const dom = new JSDOM("", { url: "https://example.com/c/main/" });
 for (const name of [
@@ -53,6 +58,16 @@ describe("Collection Composer interactions", () => {
   afterEach(() => {
     store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
     dialog.remove();
+  });
+
+  it("routes global composer shortcuts through the shared modal and ownership gate", async () => {
+    const source = await readFile(path.join(REPO_ROOT, "src/components/card-view.ts"), "utf8");
+    const gate = source.indexOf("if (!selectKeyboardNavigates(store.getState() as State)) return false;");
+    const openShortcut = source.indexOf("pressedLetter(e) == 'k'");
+    const sourceShortcut = source.indexOf("pressedLetter(e) == 'l'");
+    assert.ok(gate >= 0, "card-view must consult the shared keyboard gate");
+    assert.ok(gate < openShortcut, "the gate must run before Ctrl-K opens the composer");
+    assert.ok(gate < sourceShortcut, "the gate must run before Ctrl-Shift-L opens Source");
   });
 
   it("clicking an Add suggestion updates only the draft", async () => {
@@ -133,15 +148,12 @@ describe("Collection Composer interactions", () => {
         .find((button) => button.classList.contains("primary")).textContent,
       "Open 12 cards"
     );
-    dialog._draftPreviewCache = {
-      description: dialog._collectionDescription.serialize(),
-      count: 12,
-    };
     const input = dialog.shadowRoot.querySelector("#collection-composer-input");
     input.value = "star";
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await dialog.updateComplete;
-    assert.match(dialog.shadowRoot.querySelector(".expression").textContent, /12 cards/);
+    await dialog.updateComplete;
+    assert.doesNotMatch(dialog.shadowRoot.querySelector(".expression").textContent, /12 cards/);
   });
 
   it("opens the edited draft only from the explicit primary action", async () => {
