@@ -396,6 +396,27 @@ describe('the harness exercises the same document path the browser does', () => 
 		assert.notStrictEqual(getSharedDocument(), null,
 			'shared/document must be overridden too, or shared/ helpers silently take their no-document fallback');
 	});
+
+	//The style/script fix is in normalizeBodyHTML, which runs on EVERY card
+	//save — not just bulk import. Asserting it only through
+	//importBodiesFromGoogleDocs would test one call site of a shared change.
+	//
+	//This is not merely cosmetic: dompurify (card-renderer, at render) strips a
+	//TOP-LEVEL <style> but NOT one nested inside a <p>, and the renderer assigns
+	//the result to innerHTML inside a lit shadow root. So a nested <style> in a
+	//card body was injecting live CSS into that card's shadow root. Measured
+	//with the renderer's exact dompurify config.
+	it('strips style and script from a body, not just from imported bullets', () => {
+		assert.strictEqual(normalizeBodyHTML('<p>before<style>.k{color:red}</style>after</p>'), '<p>beforeafter</p>\n');
+		assert.strictEqual(normalizeBodyHTML('<p>a<script>x()</script>b</p>'), '<p>ab</p>\n');
+		//The nested case dompurify misses.
+		assert.ok(!normalizeBodyHTML('<p><style>body{display:none}</style></p>').includes('<style'),
+			'a nested style element must not survive into a card body');
+	});
+
+	it('drops an element whose entire content is a style element', () => {
+		assert.strictEqual(normalizeBodyHTML('<p><style>.k{color:red}</style></p>'), '');
+	});
 });
 
 describe('google doc bulk import', () => {
@@ -538,6 +559,64 @@ describe('google doc bulk import', () => {
 		const actual = importBodiesFromGoogleDocs(BLANK_PARENT_INPUT, 'bulleted');
 		assert.strictEqual(actual.length, 1, 'the run carries real nested text, so it is not empty');
 		assert.ok(actual[0].includes('Real nested content.'));
+	});
+
+	//#734: two shapes still became junk cards after the blank-line fix.
+	//Both are fixed UPSTREAM, in normalization, rather than by widening the
+	//bulk-import predicate — because at the call site the body is
+	//`<p>{zero-width}</p>`, non-empty markup, so recognising it as blank would
+	//mean testing TEXT content, which is exactly the predicate rejected in #730
+	//for silently deleting text-less-but-real content. Making the body actually
+	//empty keeps the safe predicate.
+	// eslint-disable-next-line quotes
+	const ZERO_WIDTH_INPUT = `<meta charset="utf-8"><ul><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>Real.</span></p></li><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>\u200b</span></p></li></ul>`;
+	// eslint-disable-next-line quotes
+	const STYLE_INPUT = `<meta charset="utf-8"><ul><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>Real.</span></p></li><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><style type="text/css">.lst-kix{list-style:none}</style></p></li></ul>`;
+
+	it('skips a bullet whose only content is a zero-width character', () => {
+		const actual = importBodiesFromGoogleDocs(ZERO_WIDTH_INPUT, 'flat');
+		assert.strictEqual(actual.length, 1, 'a zero-width-only bullet is not a card');
+		assert.ok(actual[0].includes('Real.'));
+	});
+
+	it('skips a bullet whose only content is a style element', () => {
+		const actual = importBodiesFromGoogleDocs(STYLE_INPUT, 'flat');
+		assert.strictEqual(actual.length, 1, 'a card body must never be raw CSS');
+		assert.ok(!actual[0].includes('lst-kix'), 'the CSS must not survive into any body');
+	});
+
+	//NOTE: passes without the fix too — a regression guard, not a demonstration.
+	//The other half of the zero-width fix: these characters are a legitimate
+	//line-break opportunity INSIDE a word, and must not be stripped there.
+	it('keeps a zero-width character that sits inside real text', () => {
+		const normalized = normalizeBodyHTML('<p>wide\u200bword</p>');
+		assert.ok(normalized.includes('\u200b'), 'a zero-width space inside a word is deliberate and must survive');
+		assert.ok(normalized.includes('wide') && normalized.includes('word'));
+	});
+
+	//The blank class deliberately EXCLUDES U+200C (ZWNJ) and U+200D (ZWJ).
+	//They look like peers of the zero-width space and are not: ZWJ binds emoji
+	//sequences, and ZWNJ is semantically load-bearing in Persian, Arabic and
+	//Devanagari.
+	//
+	//The joiner must be its OWN TEXT NODE for this to bite — inside a text node
+	//with the emoji it is never blank, so a naive test of that shape passes
+	//either way and proves nothing. Measured: with the joiners included in the
+	//class, this input normalizes to two adjacent emoji with the joiner gone,
+	//i.e. a silently broken sequence.
+	it('preserves a joiner that is its own text node between elements', () => {
+		const ZWJ = '\u200d';
+		const split = '<p><strong>\u{1f468}</strong>' + ZWJ + '<strong>\u{1f469}</strong></p>';
+		const normalized = normalizeBodyHTML(split);
+		assert.ok(normalized.includes(ZWJ),
+			'a lone ZWJ between elements binds an emoji sequence and must not be dropped as blank');
+	});
+
+	it('preserves a lone zero-width non-joiner too', () => {
+		const ZWNJ = '\u200c';
+		const split = '<p><strong>\u0645\u06cc</strong>' + ZWNJ + '<strong>\u062e\u0648\u0627\u0647\u0645</strong></p>';
+		assert.ok(normalizeBodyHTML(split).includes(ZWNJ),
+			'ZWNJ is meaningful in Persian and must not be dropped as blank');
 	});
 
 });

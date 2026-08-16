@@ -255,7 +255,17 @@ export const innerTextForHTML = (body : string, preserveLinks = false) : string 
 	}
 	const ele = document.createElement('section');
 	ele.innerHTML = body;
-	//textContent would return things like style and script contents, but those shouldn't be included anyway.
+	//NOTE: textContent DOES include the contents of style and script elements —
+	//an earlier version of this comment claimed the opposite ("those shouldn't
+	//be included anyway"), which is not what happens. Verified:
+	//innerTextForHTML('<p><style>.k{list-style:none}</style></p>') returns the
+	//raw CSS as text, so it would reach the search index and the embedding
+	//input. #734 asked for this correction.
+	//
+	//It is no longer reachable from a normalized body: normalizeBodyHTML now
+	//strips style/script structurally (src/contenteditable.ts). This function
+	//is also called on un-normalized HTML, though, so do not assume the input
+	//is clean.
 	return ele.textContent || '';
 };
 

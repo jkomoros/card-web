@@ -213,9 +213,65 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES : HTMLTagMap = {
 	'blockquote': true
 };
 
+//`\s` — which shared isWhitespace uses — does NOT match the zero-width
+//characters, so a node whose entire content was a zero-width space survived
+//normalization and kept its wrapping element alive with it. A visually empty
+//pasted bullet therefore became a real, blank card and consumed one of the 200
+//import slots (#734).
+//
+//Written as escapes, not literals: an earlier version embedded the actual
+//characters, which are INVISIBLE in the source — unreadable, and eslint's
+//no-irregular-whitespace rightly rejected it.
+//
+//\ufeff is redundant — JS `\s` already matches it (and U+00A0), while it does
+//NOT match U+200B or U+2060. Kept explicit so that someone auditing this class
+//for BOM handling gets an answer without having to know that.
+//
+//Deliberately NOT including U+200C (ZWNJ) or U+200D (ZWJ). Those look like
+//peers of the others and are not: ZWJ is what binds emoji sequences (a family
+//emoji is several emoji joined by ZWJ) and ZWNJ is semantically load-bearing
+//in Persian, Arabic and Devanagari. A text node that is *only* a joiner should
+//not occur mid-word — but if an editor ever split an emoji sequence across
+//elements, dropping that node would silently break the emoji, and #734 only
+//ever asked about U+200B. eslint's no-misleading-character-class flagged the
+//same thing independently. The three kept here are pure formatting with no
+//meaning in isolation.
+//
+//This only fires when the node is NOTHING BUT these characters. A zero-width
+//space sitting inside real text is a deliberate line-break opportunity and is
+//left alone, because such a node is not blank by this test.
+const BLANK_TEXT = /^[\s\u200b\u2060\ufeff]*$/;
+
+//<style> and <script> are never card content. Neither is a legal top-level
+//node, but that only governs the TOP level: a <style> nested inside a legal
+//element — which is exactly what a Google Docs paste can carry — survived, and
+//produced a card whose body was raw CSS (#734).
+//
+//This cannot be folded into the blank-text check below. A style element's text
+//content IS its CSS, so it reads as decidedly non-blank; it has to be removed
+//structurally, and removed FIRST, so the element left holding it then falls to
+//the blank check.
+const NON_CONTENT_ELEMENTS : {[tag : string] : true} = {
+	'style': true,
+	'script': true
+};
+
+const removeNonContentElements = (ele : Element) => {
+	for (const child of Object.values(ele.childNodes)) {
+		if (child.nodeType != ELEMENT_NODE) continue;
+		const childEle = child as Element;
+		if (NON_CONTENT_ELEMENTS[childEle.localName]) {
+			if (!childEle.parentNode) throw new Error('No parent node');
+			childEle.parentNode.removeChild(childEle);
+			continue;
+		}
+		removeNonContentElements(childEle);
+	}
+};
+
 const removeWhitespace = (ele : Element) => {
 	for (const child of Object.values(ele.childNodes)) {
-		if (isWhitespace(child.textContent || '')) {
+		if (BLANK_TEXT.test(child.textContent || '')) {
 			if (!child.parentNode) throw new Error('No parent node');
 			//It's all text content, just get rid of it
 			child.parentNode.removeChild(child);
@@ -293,6 +349,9 @@ const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DE
 		}
 	}
 
+	//Order matters: stripping <style>/<script> can leave an otherwise-empty
+	//element behind, which removeWhitespace then collects.
+	removeNonContentElements(section);
 	removeWhitespace(section);
 
 	return section.innerHTML;
