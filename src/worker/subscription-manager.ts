@@ -52,17 +52,20 @@ export class SubscriptionManager {
 	_engine : QueryEngine;
 	_subscriptions : Map<number, Subscription>;
 	_push : (push : SubscriptionPush) => void;
+	_onError : ((description : string, error : unknown) => void) | null;
 	_flushDelayMs : number;
 	_flushTimeout : ReturnType<typeof setTimeout> | null;
 	_dirty : boolean;
 	_paused : boolean;
 
 	//push is called with each fresh result; flushDelayMs coalesces bursts of
-	//engine mutations (e.g. ingestion batches) into one recompute.
-	constructor(engine : QueryEngine, push : (push : SubscriptionPush) => void, flushDelayMs = 50) {
+	//engine mutations (e.g. ingestion batches) into one recompute. onError is
+	//called when a subscription's collection run THROWS — see flush().
+	constructor(engine : QueryEngine, push : (push : SubscriptionPush) => void, flushDelayMs = 50, onError : ((description : string, error : unknown) => void) | null = null) {
 		this._engine = engine;
 		this._subscriptions = new Map();
 		this._push = push;
+		this._onError = onError;
 		this._flushDelayMs = flushDelayMs;
 		this._flushTimeout = null;
 		this._dirty = false;
@@ -150,7 +153,16 @@ export class SubscriptionManager {
 					cardSimilarity: subscription.cardSimilarity
 				});
 			} catch (e) {
-				console.warn(`subscription ${subscription.description} failed: ${String(e)}`);
+				//`continue` keeps ONE bad subscription from killing every other
+				//subscription's flush, which is still right — but on its own it
+				//also converts a thrown filter into a collection that renders
+				//permanently empty, indistinguishable from "no cards matched".
+				//That silence is what made #731 (a one-line type bug) take so
+				//long to find: the only trace was a console.warn inside the
+				//worker, which nobody is looking at. Surface it on the same
+				//error channel the direct runCollection path already uses.
+				console.error(`subscription ${subscription.description} failed: ${String(e)}`);
+				if (this._onError) this._onError(subscription.description, e);
 				continue;
 			}
 			if (resultsEqual(subscription, result)) continue;

@@ -133,4 +133,65 @@ describe('SubscriptionManager', () => {
 		assert.strictEqual(pushes.length, 2);
 		assert.deepStrictEqual(pushes[1].ids, ['e', 'd', 'a', 'b', 'c']);
 	});
+
+	//#731: a collection run that THROWS used to be indistinguishable from one
+	//that legitimately matched nothing — the subscription simply never pushed,
+	//and the only trace was a console.warn inside the worker. That silence is
+	//what made a one-line type bug take so long to find.
+	describe('a throwing subscription reports instead of silently rendering empty', () => {
+
+		const throwingSetup = () => {
+			const engine = new QueryEngine();
+			engine.updateCards({a: card('a')}, []);
+			const pushes = [];
+			const errors = [];
+			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (description, error) => errors.push({description, error}));
+			//Make the engine's collection run throw the way a filter blowing up
+			//on a prototype-stripped Timestamp did.
+			engine.runCollection = () => {
+				throw new TypeError('val.toMillis is not a function');
+			};
+			return {engine, manager, pushes, errors};
+		};
+
+		it('calls onError with the description and the error', () => {
+			const {manager, pushes, errors} = throwingSetup();
+			manager.subscribe(1, params('everything/'));
+			manager.flush();
+			assert.strictEqual(pushes.length, 0, 'nothing should be pushed for a failed run');
+			assert.strictEqual(errors.length, 1, 'the failure must be reported, not swallowed');
+			assert.strictEqual(errors[0].description, 'everything/');
+			assert.ok(String(errors[0].error).includes('toMillis'), 'the original error should be carried through');
+		});
+
+		it('does not let one failing subscription stop the others', () => {
+			const engine = new QueryEngine();
+			engine.updateCards({a: card('a'), b: card('b', {sort_order: 0.5})}, []);
+			const pushes = [];
+			const errors = [];
+			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (description, error) => errors.push({description, error}));
+			const realRun = engine.runCollection.bind(engine);
+			engine.runCollection = (description, opts) => {
+				if (description === 'everything/') throw new TypeError('boom');
+				return realRun(description, opts);
+			};
+			manager.subscribe(1, params('everything/'));
+			manager.subscribe(2, params('has-body/'));
+			manager.flush();
+			assert.strictEqual(errors.length, 1, 'the broken subscription reports');
+			assert.strictEqual(pushes.length, 1, 'the healthy subscription still pushes');
+			assert.strictEqual(pushes[0].subscriptionID, 2);
+		});
+
+		it('is optional — omitting onError keeps the old resilient behaviour', () => {
+			const engine = new QueryEngine();
+			engine.updateCards({a: card('a')}, []);
+			const pushes = [];
+			const manager = new SubscriptionManager(engine, push => pushes.push(push));
+			engine.runCollection = () => { throw new TypeError('boom'); };
+			manager.subscribe(1, params('everything/'));
+			assert.doesNotThrow(() => manager.flush());
+			assert.strictEqual(pushes.length, 0);
+		});
+	});
 });

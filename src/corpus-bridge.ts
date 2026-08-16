@@ -1012,7 +1012,14 @@ const maybeSendEditingCard = () => {
 	if (card === lastSentEditingCard && similarity === lastSentEditingCardSimilarity) return;
 	lastSentEditingCard = card;
 	lastSentEditingCardSimilarity = similarity;
-	post({type: 'setEditingCard', generation, card, similarity});
+	//toWire, like every other card-bearing post(). postMessage's
+	//structuredClone preserves own properties but DROPS prototypes, so
+	//Timestamps would arrive in the worker as bare {seconds, nanoseconds}
+	//with no .toMillis(). Nothing feeds the editing card to a Timestamp
+	//method today, but #731 is exactly what that hazard looks like once it
+	//lands: an unguarded call throws, the subscription loop swallows it, and
+	//the collection renders permanently empty.
+	post({type: 'setEditingCard', generation, card: toWire(card, isTimestamp, getTime), similarity});
 };
 
 //The day key only reaches ensureSubscription when something calls it, and an

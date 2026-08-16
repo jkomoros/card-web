@@ -13,7 +13,6 @@ import {
 	CardMetas,
 	CardSimilarityMap,
 	Filters,
-	ProcessedCard,
 	SerializedDescriptionToCardList,
 	SortExtra,
 	Sections,
@@ -191,7 +190,18 @@ export type MainToWorkerMessage =
 	//The live editing card (normalized on the main thread) and its
 	//content-derived similarity, mirrored so collection runs reflect unsaved
 	//content — null card when editing ends.
-	| {type: 'setEditingCard', generation: WorkerGeneration, card : ProcessedCard | null, similarity : SortExtra | null}
+	//`card` is WIRE-format (a toWire'd ProcessedCard | null), not a live
+	//ProcessedCard: run it back through fromWire to get Timestamps. It is
+	//typed `unknown` because that is what toWire RETURNS, matching
+	//`hydrateCollectionState` above.
+	//
+	//Be clear about what this does and does not buy: `unknown` does NOT
+	//enforce the toWire discipline. A sender can still pass a raw
+	//ProcessedCard here and typecheck cleanly — which is exactly how this
+	//became the one card-bearing message that skipped toWire (#737). A
+	//branded Wire<T> would turn that skip into a compile error; until then
+	//the invariant is convention, not type.
+	| {type: 'setEditingCard', generation: WorkerGeneration, card : unknown, similarity : SortExtra | null}
 	//Ask for the full set of card IDs in the worker's corpus, so the bridge
 	//can reconcile away cards the local-cache prime served that no longer
 	//exist (deleted while the app was closed — the worker never saw them, so

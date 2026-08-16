@@ -397,6 +397,37 @@ const dateConfigurableFilterMap : {[name : string] : CardTimestampPropertyName} 
 	[CREATED_FILTER_NAME]: 'created' as CardTimestampPropertyName,
 };
 
+//These were unguarded `val.toMillis()` calls — the only unguarded
+//Firestore-Timestamp METHOD calls on card data anywhere in the filter/sort
+//path — and #731 is what that cost: a value that has crossed a
+//structuredClone boundary (postMessage) keeps its own properties but LOSES
+//its prototype, so `.toMillis` is undefined, the call throws, the worker's
+//subscription loop swallows the exception, and the whole collection renders
+//permanently empty with no trace outside the worker console.
+//
+//Reading the fields directly is also simply the more honest thing to do here:
+//the filter wants a number, and {seconds, nanoseconds} is the wire shape the
+//app already round-trips through toWire/fromWire everywhere else.
+const timestampToMillis = (val : Timestamp | {seconds : number, nanoseconds : number}) : number => {
+	if (typeof (val as Timestamp).toMillis === 'function') return (val as Timestamp).toMillis();
+	const {seconds, nanoseconds} = val as {seconds : number, nanoseconds : number};
+	//ONLY the wire shape is tolerated. Anything else — a JS Date, an ISO
+	//string, a bare millis number — is malformed card data, and NaN is the
+	//conservative answer: every comparison in dateMatchesFilter is a strict
+	//`< 0` / `> 0`, so NaN makes them all false and the card simply never
+	//matches a date filter. No false positives.
+	//
+	//Returning 0 (the epoch) here instead was actively worse than the crash
+	//this function exists to prevent: a card created TODAY with a Date-valued
+	//`created` reported `created/before/7-days-ago` as TRUE — silently, and
+	//for exactly the malformed classes #731 named as suspects.
+	if (typeof seconds !== 'number') return NaN;
+	//Deliberately unrounded, matching Firestore's own Timestamp.toMillis()
+	//(`seconds * 1000 + nanoseconds / 1e6`), so the two agree exactly rather
+	//than diverging by up to half a millisecond at the boundary.
+	return seconds * 1000 + (typeof nanoseconds === 'number' ? nanoseconds : 0) / 1e6;
+};
+
 const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const cardKey = dateConfigurableFilterMap[propName] || propName as CardTimestampPropertyName;
@@ -411,14 +442,14 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			return {matches: dateMatchesFilter(val.toMillis(), comparisonType, resolveFirstDate, resolveSecondDate)};
+			return {matches: dateMatchesFilter(timestampToMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
 		};
 		break;
 	case 'after':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			return {matches: dateMatchesFilter(val.toMillis(), comparisonType, resolveFirstDate, resolveSecondDate)};
+			return {matches: dateMatchesFilter(timestampToMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
 		};
 		break;
 	case 'between':
@@ -427,7 +458,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 			func = function(card) {
 				const val = card[cardKey] as Timestamp;
 				if (!val) return {matches: false};
-				return {matches: dateMatchesFilter(val.toMillis(), comparisonType, resolveFirstDate, resolveSecondDate)};
+				return {matches: dateMatchesFilter(timestampToMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
 			};
 		}
 		break;

@@ -212,3 +212,92 @@ describe('countForDescription', () => {
 		assert.strictEqual(descriptionRequiresFullCollectionCount(description), true);
 	});
 });
+
+//#731: a Timestamp that has crossed the worker boundary arrives
+//prototype-stripped — structuredClone keeps own properties but drops the
+//prototype — so the date filter's unguarded val.toMillis() threw, the worker's
+//subscription loop swallowed the exception, and the collection rendered
+//permanently empty with no trace outside the worker console.
+describe('date filters tolerate prototype-stripped timestamps', () => {
+	let makeConfigurableFilter;
+	let Timestamp;
+
+	before(async () => {
+		({makeConfigurableFilter} = await import('../../lib/src/filters.js'));
+		({Timestamp} = await import('firebase/firestore'));
+	});
+
+	//Exactly what structuredClone leaves behind.
+	const strip = (timestamp) => ({seconds: timestamp.seconds, nanoseconds: timestamp.nanoseconds});
+
+	it('gives the same answer for a real Timestamp and a stripped one', () => {
+		const [func] = makeConfigurableFilter('created/after/7-days-ago');
+		const recent = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60);
+		const old = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60 * 24 * 30);
+
+		assert.strictEqual(func({created: recent}).matches, true);
+		assert.strictEqual(func({created: strip(recent)}).matches, true, 'stripped recent should still match');
+		assert.strictEqual(func({created: old}).matches, false);
+		assert.strictEqual(func({created: strip(old)}).matches, false, 'stripped old should still not match');
+	});
+
+	it('does not throw on a stripped timestamp', () => {
+		//The #731 failure was a TypeError, not a wrong answer.
+		const [func] = makeConfigurableFilter('created/after/7-days-ago');
+		assert.doesNotThrow(() => func({created: strip(Timestamp.fromMillis(Date.now()))}));
+	});
+
+	it('covers before and between, not just after', () => {
+		const recent = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60);
+		const [before] = makeConfigurableFilter('created/before/7-days-ago');
+		assert.strictEqual(before({created: recent}).matches, false);
+		assert.strictEqual(before({created: strip(recent)}).matches, false);
+
+		const [between] = makeConfigurableFilter('created/between/30-days-ago/today');
+		assert.strictEqual(between({created: strip(recent)}).matches, between({created: recent}).matches);
+	});
+
+	it('still reports no match for a missing timestamp, without throwing', () => {
+		const [func] = makeConfigurableFilter('created/after/7-days-ago');
+		assert.strictEqual(func({}).matches, false);
+	});
+
+	//A MALFORMED created (as opposed to the legitimate wire shape) must never
+	//match anything. An earlier draft of this fix returned 0 — the epoch — for
+	//these, which made a card created TODAY report `created/before/7-days-ago`
+	//as true: silently wrong, and worse than the crash the fix removed.
+	it('never matches for a malformed timestamp, in any comparison', () => {
+		const now = Date.now();
+		const malformed = {
+			'a JS Date': new Date(now),
+			'an ISO string': new Date(now).toISOString(),
+			'a bare millis number': now,
+			'seconds as a string': {seconds: String(Math.floor(now / 1000)), nanoseconds: 0},
+			'null': null,
+		};
+		const filters = {
+			after: makeConfigurableFilter('created/after/7-days-ago')[0],
+			before: makeConfigurableFilter('created/before/7-days-ago')[0],
+			between: makeConfigurableFilter('created/between/30-days-ago/today')[0],
+		};
+		for (const [shape, created] of Object.entries(malformed)) {
+			for (const [comparison, func] of Object.entries(filters)) {
+				assert.strictEqual(func({created}).matches, false, `${shape} should not match ${comparison}`);
+			}
+		}
+	});
+
+	//The helper must agree with Firestore's own toMillis(), which does NOT
+	//round — it returns fractional milliseconds.
+	it('agrees with the real Timestamp.toMillis, including sub-millisecond values', () => {
+		const [func] = makeConfigurableFilter('created/after/7-days-ago');
+		for (const nanoseconds of [0, 400000, 500000, 999999999]) {
+			const real = new Timestamp(Math.floor(Date.now() / 1000) - 1, nanoseconds);
+			assert.strictEqual(
+				func({created: real}).matches,
+				func({created: strip(real)}).matches,
+				`stripped and real should agree at nanoseconds=${nanoseconds}`
+			);
+		}
+	});
+});

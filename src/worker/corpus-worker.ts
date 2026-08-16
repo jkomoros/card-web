@@ -134,7 +134,8 @@ import {
 } from './worker-protocol.js';
 
 import {
-	CardMetas
+	CardMetas,
+	ProcessedCard
 } from '../types.js';
 
 import {
@@ -282,6 +283,11 @@ const subscriptions = new SubscriptionManager(engine, push => {
 		partialMatches: push.partialMatches,
 		ms: push.ms
 	});
+}, undefined, (description, error) => {
+	//A subscription whose collection run throws would otherwise be
+	//indistinguishable from one that legitimately matched nothing (#731).
+	//Report it on the same channel the direct runCollection path uses.
+	send({type: 'error', generation, message: `subscription(${description}): ${String(error)}`});
 });
 let cardsWithStoredTokens = 0;
 let indexBuildMs = 0;
@@ -3373,11 +3379,13 @@ workerScope.addEventListener('message', event => {
 	case 'unsubscribeCollection':
 		subscriptions.unsubscribe(message.subscriptionID);
 		break;
-	case 'setEditingCard':
+	case 'setEditingCard': {
 		//Re-push subscriptions so open collections and reference blocks
 		//reflect the new editing content immediately.
-		if (engine.setEditingCard(message.card, message.similarity)) subscriptions.markDirty();
+		const editingCard = fromWire(message.card, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as ProcessedCard | null;
+		if (engine.setEditingCard(editingCard, message.similarity)) subscriptions.markDirty();
 		break;
+	}
 	case 'runCollection': {
 		const start = performance.now();
 		try {
