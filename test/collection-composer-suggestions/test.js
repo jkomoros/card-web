@@ -10,6 +10,12 @@ globalThis.Document = dom.window.Document;
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.customElements = dom.window.customElements;
 globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
+globalThis.BroadcastChannel = class {
+  addEventListener() {}
+  removeEventListener() {}
+  postMessage() {}
+  close() {}
+};
 
 let CollectionDescription;
 let collectionComposerSuggestions;

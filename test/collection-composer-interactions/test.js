@@ -12,6 +12,12 @@ for (const name of [
 ]) globalThis[name] = name === "window" ? dom.window : name === "document" ? dom.window.document : dom.window[name];
 globalThis.location = dom.window.location;
 globalThis.history = dom.window.history;
+globalThis.BroadcastChannel = class {
+  addEventListener() {}
+  removeEventListener() {}
+  postMessage() {}
+  close() {}
+};
 
 window.localStorage.setItem("collection-composer", "on");
 
