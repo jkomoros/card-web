@@ -242,10 +242,22 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES : HTMLTagMap = {
 //left alone, because such a node is not blank by this test.
 const BLANK_TEXT = /^[\s\u200b\u2060\ufeff]*$/;
 
-//<style> and <script> are never card content. Neither is a legal top-level
-//node, but that only governs the TOP level: a <style> nested inside a legal
-//element — which is exactly what a Google Docs paste can carry — survived, and
-//produced a card whose body was raw CSS (#734).
+//<style> and <script> are never card content, and normalization is the ONLY
+//thing that removes <style> — sanitization at render does not.
+//
+//Measured in a real browser against the app's own dompurify config, correcting
+//a claim an earlier version of this comment made: a <style> is dropped only
+//when it is the ENTIRE input. Accompanied by any real content it survives,
+//whether nested inside a <p> or sitting as a sibling of one:
+//
+//  '<style>p{color:red}</style>'                  -> ''            (dropped)
+//  '<p>a</p><style>p{color:red}</style><p>b</p>'  -> unchanged     (survives)
+//  '<p>a<style>p{color:red}</style>b</p>'         -> unchanged     (survives)
+//
+//Since every real card body has content, that means every <style> in a stored
+//body reaches card-renderer, which assigns it to innerHTML inside a lit shadow
+//root — where a bare selector like `p{...}` matches and the CSS applies. <script>
+//and onerror ARE stripped by the same call, so this is specific to <style>.
 //
 //This cannot be folded into the blank-text check below. A style element's text
 //content IS its CSS, so it reads as decidedly non-blank; it has to be removed

@@ -426,11 +426,12 @@ describe('the harness exercises the same document path the browser does', () => 
 	//save — not just bulk import. Asserting it only through
 	//importBodiesFromGoogleDocs would test one call site of a shared change.
 	//
-	//This is not merely cosmetic: dompurify (card-renderer, at render) strips a
-	//TOP-LEVEL <style> but NOT one nested inside a <p>, and the renderer assigns
-	//the result to innerHTML inside a lit shadow root. So a nested <style> in a
-	//card body was injecting live CSS into that card's shadow root. Measured
-	//with the renderer's exact dompurify config.
+	//This is not merely cosmetic. Measured in a real browser with the renderer's
+	//exact dompurify config: a <style> survives sanitization whenever it is
+	//accompanied by any real content — nested in a <p> OR sibling to one. It is
+	//dropped only when it is the entire input, which no real card body is. So
+	//normalization is the only defense, and card-renderer assigns the result to
+	//innerHTML inside a lit shadow root, where `p{...}` matches and applies.
 	it('strips style and script from a body, not just from imported bullets', () => {
 		assert.strictEqual(normalizeBodyHTML('<p>before<style>.k{color:red}</style>after</p>'), '<p>beforeafter</p>\n');
 		assert.strictEqual(normalizeBodyHTML('<p>a<script>x()</script>b</p>'), '<p>ab</p>\n');
