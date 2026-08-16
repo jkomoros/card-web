@@ -1,10 +1,8 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { PropertyValues } from 'lit';
 
 import {
 	parseDateSection,
-	makeDateSection,
 	CONFIGURABLE_FILTER_URL_PARTS,
 	isRelativeDate,
 	parseRelativeDateParts,
@@ -35,24 +33,6 @@ class ConfigureCollectionDate extends LitElement {
 	@property({ type : String })
 		value: string;
 
-	@property({ type: Boolean })
-		_relativeMode: boolean = false;
-
-	@property({ type: String })
-		_relativeType: RelativeDateType = 'offset';
-
-	@property({ type: Number })
-		_offsetAmount: number = 3;
-
-	@property({ type: String })
-		_offsetUnit: 'day' | 'week' | 'month' | 'year' = 'day';
-
-	@property({ type: String })
-		_weekday: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' = 'monday';
-
-	@property({ type: String })
-		_special: 'today' | 'yesterday' = 'yesterday';
-
 	static override styles = [
 		ButtonSharedStyles,
 		css`
@@ -62,9 +42,23 @@ class ConfigureCollectionDate extends LitElement {
 			.container {
 				display: flex;
 				flex-direction: row;
-				align-items: center;
+				align-items: flex-end;
 				gap: 8px;
 				flex-wrap: wrap;
+			}
+			.date-boundary {
+				border: 0;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				margin: 0;
+				min-width: 0;
+				padding: 0;
+			}
+			.date-boundary legend {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				padding: 0;
 			}
 			.mode-selector {
 				display: flex;
@@ -92,43 +86,6 @@ class ConfigureCollectionDate extends LitElement {
 		`
 	];
 
-	override willUpdate(changedProperties: PropertyValues) {
-		super.willUpdate(changedProperties);
-
-		if (changedProperties.has('value')) {
-			// Parse the value to detect if it contains relative dates
-			const pieces = this.value.split('/');
-			const firstDateStr = pieces[1] || '';
-
-			if (isRelativeDate(firstDateStr)) {
-				this._relativeMode = true;
-				this._loadRelativeDateParts(firstDateStr);
-			} else {
-				this._relativeMode = false;
-			}
-		}
-	}
-
-	_loadRelativeDateParts(dateStr: string) {
-		const parts = parseRelativeDateParts(dateStr);
-		if (!parts) return;
-
-		this._relativeType = parts.type;
-
-		switch (parts.type) {
-		case 'offset':
-			this._offsetAmount = parts.amount;
-			this._offsetUnit = parts.unit;
-			break;
-		case 'weekday':
-			this._weekday = parts.weekday;
-			break;
-		case 'special':
-			this._special = parts.value;
-			break;
-		}
-	}
-
 	override render() {
 		const [typ, dateOne, dateTwo] = parseDateSection(this.value);
 		const pieces = this.value.split('/');
@@ -144,14 +101,28 @@ class ConfigureCollectionDate extends LitElement {
 					${dateRangeType.options.map(t => html`<option .value=${t}>${t[0].toUpperCase() + t.slice(1)}</option>`)}
 				</select>
 
-				<!-- Mode selector -->
+				<!-- First date input -->
+				${this._renderDateBoundary(true, firstDateStr, dateOne, typeRequiresSecondDate ? 'Start' : 'Date')}
+
+				<!-- Second date input (if needed) -->
+				${typeRequiresSecondDate ? this._renderDateBoundary(false, secondDateStr, dateTwo, 'End') : ''}
+			</div>
+		`;
+	}
+
+	_renderDateBoundary(isFirst: boolean, dateStr: string, dateObj: Date, label: string) {
+		const relativeMode = isRelativeDate(dateStr);
+		return html`
+			<fieldset class="date-boundary">
+				<legend>${label}</legend>
 				<div class="mode-selector">
 					<label>
 						<input
 							type="radio"
-							name="mode"
+							name=${isFirst ? 'mode-first' : 'mode-second'}
 							value="absolute"
-							?checked=${!this._relativeMode}
+							?data-first=${isFirst}
+							?checked=${!relativeMode}
 							@change=${this._handleModeChanged}
 						>
 						Fixed date
@@ -159,34 +130,25 @@ class ConfigureCollectionDate extends LitElement {
 					<label>
 						<input
 							type="radio"
-							name="mode"
+							name=${isFirst ? 'mode-first' : 'mode-second'}
 							value="relative"
-							?checked=${this._relativeMode}
+							?data-first=${isFirst}
+							?checked=${relativeMode}
 							@change=${this._handleModeChanged}
 						>
 						Rolling date
 					</label>
 				</div>
-
-				<!-- First date input -->
-				${this._renderDateInput(true, firstDateStr, dateOne)}
-
-				<!-- Second date input (if needed) -->
-				${typeRequiresSecondDate ? this._renderDateInput(false, secondDateStr, dateTwo) : ''}
-			</div>
+				${relativeMode ? this._renderRelativeDateInput(isFirst, dateStr) : this._renderAbsoluteDateInput(isFirst, dateStr, dateObj)}
+			</fieldset>
 		`;
 	}
 
-	_renderDateInput(isFirst: boolean, dateStr: string, dateObj: Date) {
-		if (this._relativeMode) {
-			return this._renderRelativeDateInput(isFirst, dateStr);
-		} else {
-			return this._renderAbsoluteDateInput(isFirst, dateObj);
-		}
-	}
-
-	_renderAbsoluteDateInput(isFirst: boolean, dateObj: Date) {
-		const formatted = this._formatDateForInput(dateObj);
+	_renderAbsoluteDateInput(isFirst: boolean, dateStr: string, dateObj: Date) {
+		const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+		const formatted = match ?
+			`${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}` :
+			this._formatDateForInput(dateObj);
 		return html`
 			<input
 				aria-label=${isFirst ? 'First fixed date' : 'Second fixed date'}
@@ -198,13 +160,14 @@ class ConfigureCollectionDate extends LitElement {
 		`;
 	}
 
-	_renderRelativeDateInput(isFirst: boolean, _dateStr: string) {
+	_renderRelativeDateInput(isFirst: boolean, dateStr: string) {
+		const parts = parseRelativeDateParts(dateStr) || this._defaultRelativeParts('offset', isFirst);
 		return html`
 			<div class="relative-date-controls">
 				<!-- Type selector -->
 				<select
 					aria-label=${isFirst ? 'First rolling date kind' : 'Second rolling date kind'}
-					.value=${this._relativeType}
+					.value=${parts.type}
 					?data-first=${isFirst}
 					@change=${this._handleRelativeTypeChanged}
 				>
@@ -214,18 +177,18 @@ class ConfigureCollectionDate extends LitElement {
 				</select>
 
 				<!-- Controls based on type -->
-				${this._relativeType === 'offset' ? html`
+				${parts.type === 'offset' ? html`
 					<input
 						aria-label=${isFirst ? 'First rolling date amount' : 'Second rolling date amount'}
 						type="number"
 						min="1"
-						.value=${String(this._offsetAmount)}
+						.value=${String(parts.amount)}
 						?data-first=${isFirst}
 						@input=${this._handleOffsetAmountChanged}
 					>
 					<select
 						aria-label=${isFirst ? 'First rolling date unit' : 'Second rolling date unit'}
-						.value=${this._offsetUnit}
+						.value=${parts.unit}
 						?data-first=${isFirst}
 						@change=${this._handleOffsetUnitChanged}
 					>
@@ -237,11 +200,11 @@ class ConfigureCollectionDate extends LitElement {
 					<span>ago</span>
 				` : ''}
 
-				${this._relativeType === 'weekday' ? html`
+				${parts.type === 'weekday' ? html`
 					<span>last</span>
 					<select
 						aria-label=${isFirst ? 'First rolling weekday' : 'Second rolling weekday'}
-						.value=${this._weekday}
+						.value=${parts.weekday}
 						?data-first=${isFirst}
 						@change=${this._handleWeekdayChanged}
 					>
@@ -255,10 +218,10 @@ class ConfigureCollectionDate extends LitElement {
 					</select>
 				` : ''}
 
-				${this._relativeType === 'special' ? html`
+				${parts.type === 'special' ? html`
 					<select
 						aria-label=${isFirst ? 'First rolling special date' : 'Second rolling special date'}
-						.value=${this._special}
+						.value=${parts.value}
 						?data-first=${isFirst}
 						@change=${this._handleSpecialChanged}
 					>
@@ -280,119 +243,114 @@ class ConfigureCollectionDate extends LitElement {
 		       String(date.getDate()).padStart(2, '0');
 	}
 
+	_defaultRelativeParts(type: RelativeDateType, isFirst: boolean): RelativeDateParts {
+		switch (type) {
+		case 'offset':
+			return { type: 'offset', amount: 3, unit: 'day' };
+		case 'weekday':
+			return { type: 'weekday', weekday: 'monday' };
+		case 'special':
+			return { type: 'special', value: isFirst ? 'yesterday' : 'today' };
+		}
+	}
+
+	_relativePartsForBoundary(isFirst: boolean, fallbackType: RelativeDateType = 'offset'): RelativeDateParts {
+		const pieces = this.value.split('/');
+		return parseRelativeDateParts(pieces[isFirst ? 1 : 2] || '') ||
+			this._defaultRelativeParts(fallbackType, isFirst);
+	}
+
+	_replaceBoundary(isFirst: boolean, dateValue: string) {
+		const pieces = this.value.split('/');
+		const typ = dateRangeType.parse(pieces[0]);
+		const argumentCount = CONFIGURABLE_FILTER_URL_PARTS[typ];
+		while (pieces.length < argumentCount + 1) pieces.push('');
+		pieces[isFirst ? 1 : 2] = dateValue;
+		this._dispatchNewValue(pieces.slice(0, argumentCount + 1).join('/'));
+	}
+
 	_handleModeChanged(e: Event) {
 		const ele = e.target as HTMLInputElement;
-		this._relativeMode = ele.value === 'relative';
-
-		// When switching to relative mode, initialize with sensible defaults
-		if (this._relativeMode) {
-			this._emitRelativeDateValue(true);
-		} else {
-			// When switching to absolute, use the current resolved date
-			const [typ, dateOne, dateTwo] = parseDateSection(this.value);
-			this._dispatchNewValue(makeDateSection(typ, dateOne, dateTwo));
+		const isFirst = ele.hasAttribute('data-first');
+		if (ele.value === 'relative') {
+			const relativeParts = this._relativePartsForBoundary(isFirst);
+			this._replaceBoundary(isFirst, makeRelativeDateString(relativeParts));
+			return;
 		}
+
+		// A rolling boundary still has a concrete meaning today. Preserve that
+		// meaning when the user makes just this boundary fixed.
+		const [, dateOne, dateTwo] = parseDateSection(this.value);
+		this._replaceBoundary(isFirst, this._formatDateForInput(isFirst ? dateOne : dateTwo));
 	}
 
 	_handleTypeChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const [, dateOne, dateTwo] = parseDateSection(this.value);
 		const val = dateRangeType.parse(ele.value);
-
-		if (this._relativeMode) {
-			// Preserve relative format
-			const pieces = this.value.split('/');
-			pieces[0] = val;
-			this._dispatchNewValue(pieces.join('/'));
-		} else {
-			this._dispatchNewValue(makeDateSection(val, dateOne, dateTwo));
+		const pieces = this.value.split('/');
+		pieces[0] = val;
+		const argumentCount = CONFIGURABLE_FILTER_URL_PARTS[val];
+		if (argumentCount === 2 && !pieces[2]) {
+			pieces[2] = isRelativeDate(pieces[1] || '') ?
+				'today' : this._formatDateForInput(new Date());
 		}
+		this._dispatchNewValue(pieces.slice(0, argumentCount + 1).join('/'));
 	}
 
 	_handleDateChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
-		let [typ, dateOne, dateTwo] = parseDateSection(this.value);
-		const dt = new Date(ele.value);
-		if (ele.dataset.first) {
-			dateOne = dt;
-		} else {
-			dateTwo = dt;
-		}
-		this._dispatchNewValue(makeDateSection(typ, dateOne, dateTwo));
+		this._replaceBoundary(ele.hasAttribute('data-first'), ele.value);
 	}
 
 	_handleRelativeTypeChanged(e: Event) {
 		const ele = e.target as HTMLSelectElement;
-		this._relativeType = ele.value as RelativeDateType;
-		const isFirst = (ele as HTMLSelectElement).hasAttribute('data-first');
-		this._emitRelativeDateValue(isFirst);
+		const isFirst = ele.hasAttribute('data-first');
+		const parts = this._defaultRelativeParts(ele.value as RelativeDateType, isFirst);
+		this._replaceBoundary(isFirst, makeRelativeDateString(parts));
 	}
 
 	_handleOffsetAmountChanged(e: Event) {
 		const ele = e.target as HTMLInputElement;
-		this._offsetAmount = parseInt(ele.value, 10) || 1;
 		const isFirst = ele.hasAttribute('data-first');
-		this._emitRelativeDateValue(isFirst);
+		const current = this._relativePartsForBoundary(isFirst, 'offset');
+		const unit = current.type === 'offset' ? current.unit : 'day';
+		this._replaceBoundary(isFirst, makeRelativeDateString({
+			type: 'offset',
+			amount: parseInt(ele.value, 10) || 1,
+			unit
+		}));
 	}
 
 	_handleOffsetUnitChanged(e: Event) {
 		const ele = e.target as HTMLSelectElement;
-		this._offsetUnit = ele.value as 'day' | 'week' | 'month' | 'year';
 		const isFirst = ele.hasAttribute('data-first');
-		this._emitRelativeDateValue(isFirst);
+		const current = this._relativePartsForBoundary(isFirst, 'offset');
+		const amount = current.type === 'offset' ? current.amount : 3;
+		this._replaceBoundary(isFirst, makeRelativeDateString({
+			type: 'offset',
+			amount,
+			unit: ele.value as 'day' | 'week' | 'month' | 'year'
+		}));
 	}
 
 	_handleWeekdayChanged(e: Event) {
 		const ele = e.target as HTMLSelectElement;
-		this._weekday = ele.value as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 		const isFirst = ele.hasAttribute('data-first');
-		this._emitRelativeDateValue(isFirst);
+		this._replaceBoundary(isFirst, makeRelativeDateString({
+			type: 'weekday',
+			weekday: ele.value as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+		}));
 	}
 
 	_handleSpecialChanged(e: Event) {
 		const ele = e.target as HTMLSelectElement;
-		this._special = ele.value as 'today' | 'yesterday';
 		const isFirst = ele.hasAttribute('data-first');
-		this._emitRelativeDateValue(isFirst);
-	}
-
-	_emitRelativeDateValue(isFirst: boolean) {
-		const pieces = this.value.split('/');
-
-		let relativeParts: RelativeDateParts;
-		switch (this._relativeType) {
-		case 'offset':
-			relativeParts = {
-				type: 'offset',
-				amount: this._offsetAmount,
-				unit: this._offsetUnit
-			};
-			break;
-		case 'weekday':
-			relativeParts = {
-				type: 'weekday',
-				weekday: this._weekday
-			};
-			break;
-		case 'special':
-			relativeParts = {
-				type: 'special',
-				value: this._special
-			};
-			break;
-		}
-
-		const relativeStr = makeRelativeDateString(relativeParts);
-
-		if (isFirst) {
-			pieces[1] = relativeStr;
-		} else {
-			pieces[2] = relativeStr;
-		}
-
-		this._dispatchNewValue(pieces.join('/'));
+		this._replaceBoundary(isFirst, makeRelativeDateString({
+			type: 'special',
+			value: ele.value as 'today' | 'yesterday'
+		}));
 	}
 
 }

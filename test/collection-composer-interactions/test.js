@@ -169,6 +169,24 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(store.getState().collection.snapshot, null);
   });
 
+  it("keeps the selected card when Enter adds and opens a suggestion", async () => {
+    dialog._draftSelectedCard = "card-123";
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const highlighted = dialog.shadowRoot.querySelector('[role="option"][data-highlighted]');
+    assert.match(highlighted.textContent, /Starred/);
+    input.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/card-123");
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+  });
+
   it("Escape cancels the draft without changing the active collection", async () => {
     const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
     buttons.find((button) => button.textContent.includes("Keep only Starred")).click();
@@ -491,6 +509,58 @@ describe("Collection Composer interactions", () => {
     add.click();
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["updated/after/7-days-ago"]);
+  });
+
+  it("configures each boundary of a rolling date range independently", async () => {
+    const dateControl = document.createElement("configure-collection-date");
+    dateControl.value = "between/3-days-ago/yesterday";
+    dateControl.addEventListener("filter-modified-complex", (event) => {
+      dateControl.value = event.detail.value;
+    });
+    document.body.append(dateControl);
+    try {
+      await dateControl.updateComplete;
+      assert.strictEqual(
+        dateControl.shadowRoot.querySelector('[aria-label="First rolling date kind"]').value,
+        "offset"
+      );
+      assert.strictEqual(
+        dateControl.shadowRoot.querySelector('[aria-label="First rolling date amount"]').value,
+        "3"
+      );
+      const secondSpecial = dateControl.shadowRoot.querySelector('[aria-label="Second rolling special date"]');
+      assert.strictEqual(secondSpecial.value, "yesterday");
+      secondSpecial.value = "today";
+      secondSpecial.dispatchEvent(new Event("change", { bubbles: true }));
+      await dateControl.updateComplete;
+      assert.strictEqual(dateControl.value, "between/3-days-ago/today");
+      assert.strictEqual(
+        dateControl.shadowRoot.querySelector('[aria-label="First rolling date amount"]').value,
+        "3"
+      );
+    } finally {
+      dateControl.remove();
+    }
+  });
+
+  it("supports fixed and rolling dates in the same range", async () => {
+    const dateControl = document.createElement("configure-collection-date");
+    dateControl.value = "between/2026-08-01/yesterday";
+    document.body.append(dateControl);
+    try {
+      await dateControl.updateComplete;
+      const boundaries = dateControl.shadowRoot.querySelectorAll(".date-boundary");
+      assert.strictEqual(boundaries.length, 2);
+      assert.strictEqual(boundaries[0].querySelector('input[value="absolute"]').checked, true);
+      assert.strictEqual(boundaries[0].querySelector('input[type="date"]').value, "2026-08-01");
+      assert.strictEqual(boundaries[1].querySelector('input[value="relative"]').checked, true);
+      assert.strictEqual(
+        boundaries[1].querySelector('[aria-label="Second rolling special date"]').value,
+        "yesterday"
+      );
+    } finally {
+      dateControl.remove();
+    }
   });
 
   it("configures card-valued filters from titled choices instead of raw IDs", async () => {

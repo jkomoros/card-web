@@ -31,7 +31,6 @@ import {
 	closeConfigureCollectionDialog,
 	openConfigureCollectionDialog,
 	navigatePathToResult,
-	navigateToCollectionWithResult,
 	showSnackbar,
 } from '../actions/app.js';
 
@@ -1388,7 +1387,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 			this._activationPending = true;
 			this._activationMessage = '';
-			const result = store.dispatch(suggestion.destinationPath ? navigatePathToResult(suggestion.destinationPath) : navigateToCollectionWithResult(suggestion.description));
+			const destinationPath = suggestion.destinationPath || `/c/${suggestion.description.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+			const result = store.dispatch(navigatePathToResult(destinationPath));
 			if (result.status === 'blocked-editing') {
 				this._activationPending = false;
 				this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
