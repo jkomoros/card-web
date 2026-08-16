@@ -519,22 +519,96 @@ const filterNameIsConfigurableFilter = (filterName : FilterName) : filterName is
 //PRE-EXISTING (it reproduces with this memo dead, i.e. on master) and is
 //tracked separately; it is called out here so nobody reads the paragraph
 //above as a guarantee it does not make.
-let memoizedConfigurableFiltersExtras : FilterExtras | null = null;
+//Growth within a generation is bounded by distinct filter NAMES, not by
+//filters-per-run, and nothing evicted them before this cap (#744).
+//
+//SIZING IS MEASURED, NOT GUESSED — the first attempt used 16 and was BELOW the
+//real worst case. Driving the actual reference_blocks definitions through
+//expandReferenceBlocks: a content card view touches 13 distinct names in one
+//generation, a CONCEPT card view touches 18. At 16 the concept card never
+//converged — every pass evicted exactly what the next pass needed, 7 hits and
+//16 misses forever, giving back about half of what #736 won (~85ms/pass
+//against ~45ms uncapped and ~135ms with no memo at all, on a 20k corpus).
+//
+//64 clears the measured worst case (18, plus tab-count collections and a query
+//name, ~24-28) with real headroom, while still bounding a burst. A Map is
+//insertion-ordered, so evicting keys().next() is oldest-first; a hit reorders,
+//making this LRU rather than FIFO, which measured strictly better under the
+//thrash case (7 hits vs 5) at 67ns per hit.
+//
+//That worst case lives on the MAIN-THREAD expandReferenceBlocks path — live
+//when corpusWorkerCanRunCollections() is false, i.e. the corpus-worker=off
+//rollback, a worker circuit-break, or the mid-flight fallbacks in card-view
+//and card-info-panel. In the default worker-served mode each block is its own
+//runCollection and no generation gets close.
+const MAX_MEMOIZED_CONFIGURABLE_FILTERS = 64;
+
+//The memo keys on a generation NUMBER via a WeakMap, not on the extras object,
+//so this cache holds no strong reference to the corpus (extras holds `cards`).
+//
+//BE HONEST ABOUT WHAT THAT BUYS TODAY: nothing measurable. makeExtrasForFilterFunc
+//is itself memoize(fn, 3), and that memo retains {args, result} STRONGLY with
+//args including the cards map — so the corpus stays reachable for three
+//generations regardless of what this cache does, which is longer than the old
+//strong reference here held it. Verified by forcing GC: dropping every
+//app-side reference leaves the processed cards map alive until that memo is
+//flushed. This is kept because it is the correct shape and because it stops
+//THIS cache being the retainer once the other one is fixed; it is not a
+//memory win on its own.
+const extrasGenerations = new WeakMap<FilterExtras, number>();
+let nextExtrasGeneration = 0;
+const generationForExtras = (extras : FilterExtras) : number => {
+	const existing = extrasGenerations.get(extras);
+	if (existing !== undefined) return existing;
+	const generation = ++nextExtrasGeneration;
+	extrasGenerations.set(extras, generation);
+	return generation;
+};
+
+let memoizedConfigurableFiltersGeneration = 0;
 let memoizedConfigurableFiltersDayKey = '';
-let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} = {};
+let memoizedConfigurableFilters : Map<string, ConfigurableFilterResult> = new Map();
+
+//Both write sites go through here, so the cap cannot be applied to one and
+//forgotten on the other — the enumerate() early-return is easy to miss.
+const storeMemoizedConfigurableFilter = (name : string, result : ConfigurableFilterResult) : void => {
+	memoizedConfigurableFilters.set(name, result);
+	while (memoizedConfigurableFilters.size > MAX_MEMOIZED_CONFIGURABLE_FILTERS) {
+		const oldest = memoizedConfigurableFilters.keys().next();
+		if (oldest.done) break;
+		memoizedConfigurableFilters.delete(oldest.value);
+	}
+};
+
+//Exposed for tests, following the TESTING idiom in nlp.ts. The memo's size is
+//not observable from outside otherwise: a counting getter on a card field fires
+//during card PROCESSING (which is separately memoized), not during filter
+//evaluation, so it cannot distinguish a memo hit from a miss. Two tests were
+//written that way and measured nothing.
+export const TESTING = {
+	memoizedConfigurableFilterCount: () => memoizedConfigurableFilters.size,
+	maxMemoizedConfigurableFilters: () => MAX_MEMOIZED_CONFIGURABLE_FILTERS,
+	memoHasFilter: (name : string) => memoizedConfigurableFilters.has(name)
+};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
 const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras : FilterExtras) : ConfigurableFilterResult => {
 	const dayKey = relativeDateCacheKey();
-	if (memoizedConfigurableFiltersExtras === extras && memoizedConfigurableFiltersDayKey === dayKey) {
-		if (memoizedConfigurableFilters[name]) {
-			return memoizedConfigurableFilters[name];
+	const generation = generationForExtras(extras);
+	if (memoizedConfigurableFiltersGeneration === generation && memoizedConfigurableFiltersDayKey === dayKey) {
+		const cached = memoizedConfigurableFilters.get(name);
+		if (cached) {
+			//Refresh recency so a filter in active use is not evicted by a burst
+			//of one-shot query/ names typed alongside it.
+			memoizedConfigurableFilters.delete(name);
+			memoizedConfigurableFilters.set(name, cached);
+			return cached;
 		}
 	} else {
-		memoizedConfigurableFiltersExtras = extras;
+		memoizedConfigurableFiltersGeneration = generation;
 		memoizedConfigurableFiltersDayKey = dayKey;
-		memoizedConfigurableFilters = {};
+		memoizedConfigurableFilters = new Map();
 	}
 
 	const [func, reverse, enumerate] = makeConfigurableFilter(name);
@@ -546,7 +620,7 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 	if (enumerate && !reverse) {
 		const {matches, sortValues} = enumerate(extras);
 		const enumeratedResult : ConfigurableFilterResult = [matches, reverse, sortValues, null, false];
-		memoizedConfigurableFilters[name] = enumeratedResult;
+		storeMemoizedConfigurableFilter(name, enumeratedResult);
 		return enumeratedResult;
 	}
 
@@ -572,7 +646,7 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 
 	const fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches, hasPreview];
 
-	memoizedConfigurableFilters[name] = fullResult;
+	storeMemoizedConfigurableFilter(name, fullResult);
 
 	return fullResult;
 };

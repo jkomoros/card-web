@@ -542,3 +542,101 @@ describe('every sort extractor survives a card with no timestamps', () => {
 		}
 	});
 });
+
+//#744: enabling the memo (#736) made it retain one whole-corpus result map per
+//distinct filter NAME within a generation, with nothing evicting them. The find
+//dialog mints a fresh `query/<text>` name on every keystroke while changing
+//nothing in extras — measured before the cap: 21 keystrokes, 21 retained maps.
+describe('configurable-filter memo is bounded', () => {
+	let CollectionDescription;
+	let TESTING;
+
+	before(async () => {
+		({CollectionDescription, TESTING} = await import('../../lib/src/collection_description.js'));
+	});
+
+	const stateFor = (cards) => ({
+		cards,
+		sets: {main: Object.keys(cards), everything: Object.keys(cards), 'reading-list': []},
+		filters: {starred: {}, read: {}},
+	});
+
+	//Observed through the TESTING hook rather than a counting getter on a card
+	//field: that getter fires during card PROCESSING, which is memoized
+	//separately, so it cannot tell a memo hit from a miss. Two earlier versions
+	//of these tests did exactly that and measured nothing.
+	it('evicts oldest rather than growing without bound as the query changes', () => {
+		const args = makeArgs(stateFor({a: card('a')}));
+		const run = (name) => new CollectionDescription('everything', [name]).collection(args).finalSortedCards;
+		const cap = TESTING.maxMemoizedConfigurableFilters();
+
+		run('query/first');
+		assert.ok(TESTING.memoHasFilter('query/first'), 'the filter should be cached at all');
+
+		//Simulate typing: each keystroke is a distinct filter name against the
+		//SAME extras, which is the shape that used to accumulate.
+		for (let i = 0; i < cap + 10; i++) run('query/typing' + i);
+
+		assert.ok(TESTING.memoizedConfigurableFilterCount() <= cap,
+			`memo grew to ${TESTING.memoizedConfigurableFilterCount()}, above the cap of ${cap}`);
+		assert.ok(!TESTING.memoHasFilter('query/first'),
+			'the oldest entry must be evicted, not retained forever');
+		assert.ok(TESTING.memoHasFilter('query/typing' + (cap + 9)),
+			'the most recent entry must survive');
+	});
+
+	//The enumerate() early-return is a SECOND write site, and it is the reason
+	//storeMemoizedConfigurableFilter exists — a cap applied at one write and
+	//forgotten at the other is exactly the bug that helper prevents. Both other
+	//tests here use query/ names, which take the full-scan path, so a mutation
+	//making enumerate() call .set() directly bypasses the cap and NOTHING
+	//catches it. Verified: that mutation left all tests green before this one.
+	//
+	//`direct-references/<id>` is a reference-graph filter, whose BFS map already
+	//is the matching set, so it takes the enumerate path.
+	it('caps entries written through the enumerate() path too', () => {
+		const args = makeArgs(stateFor({a: card('a'), b: card('b')}));
+		const run = (name) => new CollectionDescription('everything', [name]).collection(args).finalSortedCards;
+		const cap = TESTING.maxMemoizedConfigurableFilters();
+
+		//The filter takes two arguments: a key card and a reference type, so the
+		//name is `direct-references/<cardID>/<type>`. Varying the card id is what
+		//makes each name distinct.
+		const nameFor = (i) => 'direct-references/enumerated' + i + '/link';
+		for (let i = 0; i < cap + 8; i++) run(nameFor(i));
+
+		assert.ok(TESTING.memoizedConfigurableFilterCount() <= cap,
+			`enumerate-path writes grew the memo to ${TESTING.memoizedConfigurableFilterCount()}, above the cap of ${cap}`);
+		assert.ok(!TESTING.memoHasFilter(nameFor(0)),
+			'the oldest enumerate-path entry must be evicted like any other');
+	});
+
+	//This has to be constructed precisely to distinguish LRU from FIFO. Two
+	//earlier versions did not: interleaving keepme with the burst re-INSERTS it
+	//on every miss, so it is never the oldest and survives either way.
+	//
+	//The shape that discriminates: fill exactly to the cap, then HIT the oldest
+	//entry (a hit, not a miss — no re-insert), then add one more. With the
+	//recency refresh the hit moved it to newest and the next eviction takes
+	//burst0; without it, the hit changed nothing and the eviction takes keepme.
+	it('a memo HIT refreshes recency, so an in-use filter is not evicted first', () => {
+		const args = makeArgs(stateFor({a: card('a')}));
+		const run = (name) => new CollectionDescription('everything', [name]).collection(args).finalSortedCards;
+		const cap = TESTING.maxMemoizedConfigurableFilters();
+
+		run('query/keepme');
+		for (let i = 0; i < cap - 1; i++) run('query/burst' + i);
+		assert.strictEqual(TESTING.memoizedConfigurableFilterCount(), cap, 'should be exactly full, nothing evicted yet');
+
+		//A HIT on the oldest entry.
+		assert.ok(TESTING.memoHasFilter('query/keepme'));
+		run('query/keepme');
+
+		//One more entry forces exactly one eviction.
+		run('query/overflow');
+		assert.ok(TESTING.memoHasFilter('query/keepme'),
+			'the hit should have refreshed recency, so the eviction takes burst0 instead');
+		assert.ok(!TESTING.memoHasFilter('query/burst0'),
+			'burst0 is now the oldest and should be the one evicted');
+	});
+});
