@@ -737,11 +737,31 @@ export const timestampForFilename = () : string => {
 	return '' + timestamp.getFullYear() + '-' + (timestamp.getMonth() + 1) + '-' + timestamp.getDate() + '-' + timeString.split(':').join('-');
 };
 
-//date may be a firestore timestamp or a date object.
-export const prettyTime = (date? : Timestamp | Date) => {
+//date may be a firestore Timestamp, a Date, or the prototype-stripped
+//{seconds, nanoseconds} that a Timestamp becomes once it has crossed a
+//structuredClone boundary (postMessage, or IndexedDB persistence written
+//before snapshot save started calling toWire).
+//
+//That third case used to fall through to `dateDate.toDateString()` on a plain
+//object and throw. It matters because prettyTime is called by FIVE sort
+//extractors: a single card with a stripped timestamp took out the whole sort,
+//and the worker's subscription loop swallowed it into a permanently empty
+//collection — the same failure #731 fixed in the filter path, which is why
+//that fix's claim to have covered "the only unguarded" calls was wrong.
+//
+//Anything else (a string, a number, {}) returns '' rather than a guess: this
+//value is a display label, and a blank label is a better outcome than either
+//a throw or an invented date.
+export const prettyTime = (date? : Timestamp | Date | {seconds : number, nanoseconds? : number}) => {
 	if (!date) return '';
-	const dateDate : Date = typeof (date as Timestamp).toDate == 'function' ? (date as Timestamp).toDate() : date as Date;
-	return dateDate.toDateString();
+	const asTimestamp = date as Timestamp;
+	const asWire = date as {seconds? : number, nanoseconds? : number};
+	const dateDate : Date | null =
+		typeof asTimestamp.toDate == 'function' ? asTimestamp.toDate() :
+			date instanceof Date ? date :
+				typeof asWire.seconds == 'number' ? new Date(asWire.seconds * 1000 + (asWire.nanoseconds || 0) / 1e6) :
+					null;
+	return dateDate ? dateDate.toDateString() : '';
 };
 
 export const killEvent = (e : Event) : void => {

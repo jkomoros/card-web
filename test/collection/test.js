@@ -301,3 +301,75 @@ describe('date filters tolerate prototype-stripped timestamps', () => {
 		}
 	});
 });
+
+//#735: the 'created' sort extractor read card.updated_substantive — a
+//copy-paste of the 'updated' extractor directly above it — so sort/created had
+//never once sorted by creation date. It looked plausible because the two
+//orderings correlate heavily; they only diverge for an old card edited
+//recently, which is exactly the case these cards construct.
+describe('sort/created sorts by created, not updated', () => {
+	let SORTS;
+	let Timestamp;
+
+	before(async () => {
+		({SORTS} = await import('../../lib/src/filters.js'));
+		({Timestamp} = await import('firebase/firestore'));
+	});
+
+	const OLD = () => Timestamp.fromMillis(Date.UTC(2020, 0, 1));
+	const NEW = () => Timestamp.fromMillis(Date.UTC(2026, 0, 1));
+
+	it('extracts card.created', () => {
+		//Deliberately opposite orderings, so reading the wrong field is visible.
+		const oldCardEditedRecently = {created: OLD(), updated_substantive: NEW()};
+		const newCardNotEditedSince = {created: NEW(), updated_substantive: OLD()};
+
+		assert.strictEqual(SORTS['created'].extractor(oldCardEditedRecently)[0], OLD().seconds);
+		assert.strictEqual(SORTS['created'].extractor(newCardNotEditedSince)[0], NEW().seconds);
+	});
+
+	it('orders the two cards opposite to how sort/updated would', () => {
+		const a = {created: OLD(), updated_substantive: NEW()};
+		const b = {created: NEW(), updated_substantive: OLD()};
+
+		const byCreated = SORTS['created'].extractor(a)[0] - SORTS['created'].extractor(b)[0];
+		const byUpdated = SORTS['updated'].extractor(a)[0] - SORTS['updated'].extractor(b)[0];
+
+		assert.ok(byCreated < 0, 'a was created before b');
+		assert.ok(byUpdated > 0, 'a was updated after b');
+	});
+
+	//NOTE: passes without the fix too — a regression guard, not a demonstration.
+	it('still handles a missing timestamp', () => {
+		assert.strictEqual(SORTS['created'].extractor({})[0], 0);
+	});
+
+	//The SORT path has the same prototype-stripped-Timestamp hazard the filter
+	//path had: prettyTime() is called by five extractors and used to throw on
+	//{seconds, nanoseconds}, which the subscription loop then swallowed into a
+	//permanently empty collection. Pointing sort/created at card.created — the
+	//field #731 names as the prime suspect for malformed values — is what made
+	//that reachable, so it is covered here.
+	it('does not throw on a prototype-stripped or malformed timestamp', () => {
+		const real = Timestamp.fromMillis(Date.UTC(2022, 0, 1));
+		const shapes = {
+			'prototype-stripped': {seconds: real.seconds, nanoseconds: real.nanoseconds},
+			'a JS Date': new Date(Date.UTC(2022, 0, 1)),
+			'an ISO string': '2022-01-01T00:00:00Z',
+			'a millis number': Date.UTC(2022, 0, 1),
+			'an empty object': {},
+		};
+		for (const [name, created] of Object.entries(shapes)) {
+			assert.doesNotThrow(() => SORTS['created'].extractor({created}), `${name} should not throw`);
+		}
+	});
+
+	it('gives a stripped timestamp the same sort value and label as a real one', () => {
+		const real = Timestamp.fromMillis(Date.UTC(2022, 0, 1));
+		const stripped = {seconds: real.seconds, nanoseconds: real.nanoseconds};
+		const [realValue, realLabel] = SORTS['created'].extractor({created: real});
+		const [strippedValue, strippedLabel] = SORTS['created'].extractor({created: stripped});
+		assert.strictEqual(strippedValue, realValue);
+		assert.strictEqual(strippedLabel, realLabel);
+	});
+});

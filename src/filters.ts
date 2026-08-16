@@ -397,13 +397,19 @@ const dateConfigurableFilterMap : {[name : string] : CardTimestampPropertyName} 
 	[CREATED_FILTER_NAME]: 'created' as CardTimestampPropertyName,
 };
 
-//These were unguarded `val.toMillis()` calls — the only unguarded
-//Firestore-Timestamp METHOD calls on card data anywhere in the filter/sort
-//path — and #731 is what that cost: a value that has crossed a
-//structuredClone boundary (postMessage) keeps its own properties but LOSES
-//its prototype, so `.toMillis` is undefined, the call throws, the worker's
-//subscription loop swallows the exception, and the whole collection renders
-//permanently empty with no trace outside the worker console.
+//These were unguarded `val.toMillis()` calls, and #731 is what that cost: a
+//value that has crossed a structuredClone boundary (postMessage) keeps its own
+//properties but LOSES its prototype, so `.toMillis` is undefined, the call
+//throws, the worker's subscription loop swallows the exception, and the whole
+//collection renders permanently empty with no trace outside the worker console.
+//
+//An earlier version of this comment claimed these were "the only unguarded
+//Firestore-Timestamp method calls in the filter/sort path". That was WRONG,
+//and an adversarial review of #735 caught it: prettyTime() — called by five
+//SORT extractors — fell through to .toDateString() on the same stripped shape
+//and threw identically. It is guarded now (src/util.ts). Do not re-assert
+//uniqueness here without re-auditing; the class is timestamp METHODS on card
+//data, and it spans both filters and sorts.
 //
 //Reading the fields directly is also simply the more honest thing to do here:
 //the filter wants a number, and {seconds, nanoseconds} is the wire shape the
@@ -1669,7 +1675,13 @@ export const SORTS : SortConfigurationMap = {
 	},
 	'created': {
 		extractor: (card) => {
-			const timestamp = card.updated_substantive;
+			//card.created, NOT card.updated_substantive — this was a copy-paste
+			//of the 'updated' extractor directly above, so sort/created has
+			//never once sorted by creation date (#735). It went unnoticed
+			//because the two orderings correlate heavily: a card is usually
+			//substantively updated near when it was made, so the result looked
+			//plausible and only differed for old cards edited recently.
+			const timestamp = card.created;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card was created',
