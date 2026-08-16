@@ -365,7 +365,11 @@ it. Neither has ever existed in this repo's history, and pre-merge master
 prod. Filed as #728. Not a rollback trigger (only 14a/14c are), and rolling
 back would restore a build with the identical defect.
 
-Also filed: #732, every find-to-link result rendering ghosted.
+Also filed and then CLOSED as working-as-intended: #732, every find-to-link
+result rendering ghosted. Ghosting a result that is not a `fullMatch` is
+deliberate, pre-existing find-dialog behaviour (`filters.ts:856` →
+`.thumbnail.ghost`); it reads as a defect only if you have forgotten the
+convention. Left in this record because it cost investigation time twice.
 
 ## Behaviour that looks wrong but is not
 
