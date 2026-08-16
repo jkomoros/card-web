@@ -8,9 +8,17 @@ import {
 	overrideDocument
 } from '../../lib/src/document.js';
 
+//shared/ has its own document module with its own state; overriding only src/
+//leaves shared's getDocument() null, so shared/ helpers under test take their
+//no-document fallback branch rather than the DOM path the browser runs (#733).
+import {
+	overrideDocument as overrideSharedDocument
+} from '../../lib/shared/document.js';
+
 const dom = new JSDOM('');
 
 overrideDocument(dom.window.document);
+overrideSharedDocument(dom.window.document);
 
 import assert from 'assert';
 import snarkdown from 'snarkdown';
@@ -48,7 +56,7 @@ const markdownToHTML = (markdown) => {
 	let result = converted.join('');
 
 	// Step 3: Post-snarkdown unescape (skip <code> blocks)
-	result = result.replace(/<code>[\s\S]*?<\/code>|\\([\\*_`~\[\]#>+\-.=])/g,
+	result = result.replace(/<code>[\s\S]*?<\/code>|\\([\\*_`~[\]#>+\-.=])/g,
 		(match, escaped) => escaped !== undefined ? escaped : match
 	);
 

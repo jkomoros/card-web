@@ -991,7 +991,7 @@ const markdownToHTML = (markdown: string): string => {
 	// MUST be after snarkdown: snarkdown detects \* as escaped (skips
 	// formatting) but leaves backslash in output. We clean it up here,
 	// but only outside <code> elements to avoid corrupting code content.
-	result = result.replace(/<code>[\s\S]*?<\/code>|\\([\\*_`~\[\]#>+\-.=])/g,
+	result = result.replace(/<code>[\s\S]*?<\/code>|\\([\\*_`~[\]#>+\-.=])/g,
 		(match, escaped) => escaped !== undefined ? escaped : match
 	);
 
@@ -1344,7 +1344,7 @@ const main = async () => {
 	const mountPoint = path.resolve(args.mountPoint);
 
 	//--- Load or create config ---
-	let syncConfig = readSyncConfig(mountPoint);
+	const syncConfig = readSyncConfig(mountPoint);
 	const collectionUrl = args.collection || (syncConfig && syncConfig.collectionUrl) || '';
 
 	if (!collectionUrl) {
