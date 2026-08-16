@@ -131,11 +131,22 @@ export const COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY = 'collection-navigation-r
 //The registry maps a serializable id to a thunk, so the mapping has to exist
 //before any message carrying that id can be pressed — putting both in one
 //module makes that true by construction rather than by boot ordering.
-registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, () => {
+registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, (dispatch, getState) => {
 	const expectedLocation = pendingCollectionNavigationReceipt();
 	clearCollectionNavigationReceipt();
-	if (!collectionReceiptCanUndo(expectedLocation, currentBrowserLocation())) return;
-	window.history.back();
+	//The route canonicalizes the active card from an ID to its preferred slug
+	//after arrival, so a byte comparison against the recorded path would
+	//refuse a receipt the user never left. The aliases let the guard tell
+	//"same card, better spelling" from "somewhere else entirely".
+	const card = selectActiveCard(getState());
+	const aliases = card ? [card.id || '', card.name || '', ...(card.slugs || [])] : [];
+	if (collectionReceiptCanUndo(expectedLocation, currentBrowserLocation(), aliases)) {
+		window.history.back();
+		return;
+	}
+	//A refusal is never silent (HOUSE-STYLE §3.5). Sentence case, no
+	//exclamation, and it does not blame the user for having moved on.
+	dispatch(showSnackbar('You have moved on since then, so there is nothing to undo.'));
 });
 
 import {
@@ -253,7 +264,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_draftUndoSelectedCard : string | null = null;
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
-	_draftPreviewCache : {description: string, count: number} | null = null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -1756,12 +1766,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cancelPreviews = null;
 		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
 		const previewDescription = sourceDescription || this._collectionDescription;
-		const draftDescription = previewDescription?.serialize();
-		const cachedDraftCount = draftDescription && this._draftPreviewCache?.description === draftDescription ? this._draftPreviewCache.count : undefined;
-		this._previewCounts = cachedDraftCount === undefined ? {} : {[this._draftPreviewID]: cachedDraftCount};
+		this._previewCounts = {};
 		if (!this.open || !collectionComposerPreviewEnabled()) return;
 		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter && !suggestion.sourceFilter);
-		if (cachedDraftCount === undefined) previewSuggestions.unshift({
+		previewSuggestions.unshift({
 			id: this._draftPreviewID,
 			kind: 'source',
 			action: 'open',
@@ -1775,7 +1783,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			corpusWorkerRunCollection,
 			(suggestionID, count) => {
 				if (!this.open) return;
-				if (suggestionID === this._draftPreviewID) this._draftPreviewCache = {description: draftDescription, count};
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}
 		);
