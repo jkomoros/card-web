@@ -222,11 +222,34 @@ export const LEGACY_COLLECTION_SOURCE_FIXTURES = [
     },
   },
   {
-    name: "invalid view throws in the legacy parser",
+    //This fixture used to record the legacy parser THROWING a ZodError on
+    //an unknown view mode. It no longer does: master's bd495206 ("Stop
+    //view/<bogus> throwing, and say when a URL part was not understood",
+    //#750/#757) made the parser degrade to the default view and report a
+    //URL diagnostic instead, because a throw here took out the whole
+    //collection run. Only the LEGACY OBSERVATION changes here — the
+    //composer's own desired classification is unchanged: `view/grid/` is
+    //still an invalid source whose raw text must be preserved for source
+    //editing, and saying so now matters MORE, not less, since the parser
+    //no longer refuses it loudly.
+    name: "invalid view degrades to the default in the legacy parser",
     mode: "fragment",
     source: "view/grid/",
     legacyInput: "view/grid/",
-    legacyObserved: { throws: "ZodError" },
+    legacyObserved: {
+      set: "main",
+      filters: [],
+      sort: "default",
+      sortReversed: false,
+      viewMode: "list",
+      viewModeExtra: "",
+      selectedCard: "",
+      //`view` was consumed as the set name before it failed validation, so
+      //the degraded description reports an explicitly-set set. Recorded,
+      //not endorsed: it is exactly the sort of lossy reading the composer's
+      //`preserveRaw` exists to keep out of the user's way.
+      setExplicit: true,
+    },
     desired: { classification: "invalid", preserveRaw: true },
   },
 ];

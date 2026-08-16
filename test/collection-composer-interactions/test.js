@@ -60,14 +60,35 @@ describe("Collection Composer interactions", () => {
     dialog.remove();
   });
 
+  //Same guarantee, master's mechanism. This used to pin the ordering inside
+  //card-view's own document-level _handleKeyDown ("the gate must run before
+  //Ctrl-K"). #740 replaced that handler with declarative bindings dispatched
+  //by the shortcut registry, which applies each binding's `when` before its
+  //handler — so the property to pin is that BOTH composer entry points
+  //declare the shared gate, and that they draw their combos from the
+  //canonical table rather than inlining them.
   it("routes global composer shortcuts through the shared modal and ownership gate", async () => {
     const source = await readFile(path.join(REPO_ROOT, "src/components/card-view.ts"), "utf8");
-    const gate = source.indexOf("if (!selectKeyboardNavigates(store.getState() as State)) return false;");
-    const openShortcut = source.indexOf("pressedLetter(e) == 'k'");
-    const sourceShortcut = source.indexOf("pressedLetter(e) == 'l'");
-    assert.ok(gate >= 0, "card-view must consult the shared keyboard gate");
-    assert.ok(gate < openShortcut, "the gate must run before Ctrl-K opens the composer");
-    assert.ok(gate < sourceShortcut, "the gate must run before Ctrl-Shift-L opens Source");
+    const binding = (id) => {
+      const start = source.indexOf(`id: '${id}',`);
+      assert.ok(start >= 0, `card-view must declare the '${id}' binding`);
+      const end = source.indexOf("\n\t},", start);
+      return source.slice(start, end === -1 ? undefined : end);
+    };
+    const open = binding("open-collection-composer");
+    assert.match(open, /keys: SHORTCUT_COMBOS\['open-collection-composer'\]/,
+      "Ctrl-K must come from the canonical combo table");
+    assert.match(open, /when:[^\n]*whenKeyboardNavigates/,
+      "the shared keyboard gate must guard Ctrl-K opening the composer");
+    assert.match(open, /collectionComposerEnabled\(\)/);
+
+    const navigate = binding("navigate-to-path");
+    assert.match(navigate, /keys: SHORTCUT_COMBOS\['navigate-to-path'\]/,
+      "Ctrl-Shift-L must come from the canonical combo table");
+    assert.match(navigate, /when: whenKeyboardNavigates/,
+      "the shared keyboard gate must guard Ctrl-Shift-L opening Source");
+    assert.match(navigate, /openConfigureCollectionDialog\('source'\)/,
+      "Ctrl-Shift-L must open the composer in Source mode when it is enabled");
   });
 
   it("clicking an Add suggestion updates only the draft", async () => {
@@ -167,6 +188,24 @@ describe("Collection Composer interactions", () => {
     assert.match(window.location.pathname, /starred/);
     assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
     assert.strictEqual(store.getState().collection.snapshot, null);
+  });
+
+  it("keeps the selected card when Enter adds and opens a suggestion", async () => {
+    dialog._draftSelectedCard = "card-123";
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    const highlighted = dialog.shadowRoot.querySelector('[role="option"][data-highlighted]');
+    assert.match(highlighted.textContent, /Starred/);
+    input.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/card-123");
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
   });
 
   it("Escape cancels the draft without changing the active collection", async () => {
@@ -491,6 +530,58 @@ describe("Collection Composer interactions", () => {
     add.click();
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["updated/after/7-days-ago"]);
+  });
+
+  it("configures each boundary of a rolling date range independently", async () => {
+    const dateControl = document.createElement("configure-collection-date");
+    dateControl.value = "between/3-days-ago/yesterday";
+    dateControl.addEventListener("filter-modified-complex", (event) => {
+      dateControl.value = event.detail.value;
+    });
+    document.body.append(dateControl);
+    try {
+      await dateControl.updateComplete;
+      assert.strictEqual(
+        dateControl.shadowRoot.querySelector('[aria-label="First rolling date kind"]').value,
+        "offset"
+      );
+      assert.strictEqual(
+        dateControl.shadowRoot.querySelector('[aria-label="First rolling date amount"]').value,
+        "3"
+      );
+      const secondSpecial = dateControl.shadowRoot.querySelector('[aria-label="Second rolling special date"]');
+      assert.strictEqual(secondSpecial.value, "yesterday");
+      secondSpecial.value = "today";
+      secondSpecial.dispatchEvent(new Event("change", { bubbles: true }));
+      await dateControl.updateComplete;
+      assert.strictEqual(dateControl.value, "between/3-days-ago/today");
+      assert.strictEqual(
+        dateControl.shadowRoot.querySelector('[aria-label="First rolling date amount"]').value,
+        "3"
+      );
+    } finally {
+      dateControl.remove();
+    }
+  });
+
+  it("supports fixed and rolling dates in the same range", async () => {
+    const dateControl = document.createElement("configure-collection-date");
+    dateControl.value = "between/2026-08-01/yesterday";
+    document.body.append(dateControl);
+    try {
+      await dateControl.updateComplete;
+      const boundaries = dateControl.shadowRoot.querySelectorAll(".date-boundary");
+      assert.strictEqual(boundaries.length, 2);
+      assert.strictEqual(boundaries[0].querySelector('input[value="absolute"]').checked, true);
+      assert.strictEqual(boundaries[0].querySelector('input[type="date"]').value, "2026-08-01");
+      assert.strictEqual(boundaries[1].querySelector('input[value="relative"]').checked, true);
+      assert.strictEqual(
+        boundaries[1].querySelector('[aria-label="Second rolling special date"]').value,
+        "yesterday"
+      );
+    } finally {
+      dateControl.remove();
+    }
   });
 
   it("configures card-valued filters from titled choices instead of raw IDs", async () => {

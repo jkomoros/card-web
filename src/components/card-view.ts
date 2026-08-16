@@ -784,7 +784,7 @@ class CardView extends connect(store)(PageViewElement) {
 								this._collection.description.sort !== 'default' ||
 								this._collection.description.sortReversed ||
 								this._collection.description.viewMode !== 'list' ?
-									'Refine · Ctrl K' : 'Show cards matching… · Ctrl K'
+									`Refine · ${shortcutKeys('open-collection-composer')}` : `Show cards matching… · ${shortcutKeys('open-collection-composer')}`
 							}</span>
 						</button>
 						<button
@@ -1552,7 +1552,9 @@ registerShortcuts([
 		keys: SHORTCUT_COMBOS['open-collection-composer'],
 		label: 'Compose a collection',
 		when: (state) => whenKeyboardNavigates(state) && collectionComposerEnabled(),
-		handler: () => store.dispatch(openConfigureCollectionDialog()),
+		handler: () => {
+			store.dispatch(openConfigureCollectionDialog());
+		},
 	},
 	{
 		id: 'navigate-to-path',

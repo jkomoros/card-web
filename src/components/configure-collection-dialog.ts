@@ -9,6 +9,12 @@ import { store } from '../store.js';
 import { DialogElement } from './dialog-element.js';
 
 import {
+	registerShortcut,
+	DIALOG_SHORTCUT_PRIORITY,
+	SHORTCUT_COMBOS
+} from '../shortcuts.js';
+
+import {
 	selectConfigureCollectionDialogOpen,
 	selectConfigureCollectionDialogMode,
 	selectFilterDescriptions,
@@ -31,7 +37,6 @@ import {
 	closeConfigureCollectionDialog,
 	openConfigureCollectionDialog,
 	navigatePathToResult,
-	navigateToCollectionWithResult,
 	registerSnackbarAction,
 	showSnackbar,
 } from '../actions/app.js';
@@ -75,6 +80,8 @@ import {
 import './configure-collection-filter.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
 	SetName,
@@ -268,6 +275,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
+		//The two nested panes below (the suggestion listbox and the filter
+		//catalog) are deliberate inner scrollers with their own max-height,
+		//which is the case the #759 convention reserves the shared .scroller
+		//class for — the dialog body itself still scrolls through
+		//DialogElement #inner.
+		ScrollingSharedStyles,
 		css`
 			.help {
 				font-size:0.75em;
@@ -412,7 +425,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				list-style: none;
 				margin: 0.25em 0 0;
 				max-height: min(42vh, 26em);
-				overflow-y: auto;
 				overscroll-behavior: contain;
 				padding: 0;
 			}
@@ -511,7 +523,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			.catalog-list {
 				max-height: min(36vh, 22em);
-				overflow-y: auto;
 			}
 
 			.catalog-item-applied {
@@ -698,7 +709,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</div>
 			${completions.length ? html`
 				<div class='source-suggestion-heading'>${completionMode === 'add' ? 'Add another filter or modifier — type to search all filters' : 'Choose the next value'}</div>
-				<div id='collection-source-completions' class='suggestions' role='listbox' aria-label='Legal next source values'>
+				<div id='collection-source-completions' class='suggestions scroller' role='listbox' aria-label='Legal next source values'>
 					${completions.map((completion, index) => {
 						const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
 						return html`
@@ -879,7 +890,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				` : ''}
 			</div>
 			${this._pendingCatalogFilter ? this._pendingCatalogFilterRender() : ''}
-			<div id='collection-filter-catalog' class='catalog-list' role='listbox' aria-label='Filter catalog'>
+			<div id='collection-filter-catalog' class='catalog-list scroller' role='listbox' aria-label='Filter catalog'>
 				${collectionFilterCatalogCategories.map(category => {
 					const categoryItems = items.filter(item => item.category === category);
 					const shown = categoryItems;
@@ -1010,7 +1021,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			` : ''}
 			${this._catalogOpen ? '' : suggestions.length ? html`
-				<div class='suggestions' id='collection-composer-suggestions' role='listbox'>
+				<div class='suggestions scroller' id='collection-composer-suggestions' role='listbox'>
 					${recentSuggestions.length ? html`
 						<div role='group' aria-labelledby='recent-suggestion-heading'>
 							<div class='suggestion-heading' id='recent-suggestion-heading'>Continue</div>
@@ -1298,10 +1309,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		store.dispatch(cancelConfigureCollectionDialog());
 		const count = this._previewCounts[this._draftPreviewID];
+		recordCollectionNavigationReceipt(currentBrowserLocation());
 		store.dispatch(showSnackbar(
 			`Now showing ${readableCollectionExpression(parsed.description, this._composerFilterLabels)}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}`,
-			'back',
-			currentBrowserLocation()
+			{
+				kind: 'info',
+				action: {label: 'Undo', actionID: UNDO_COLLECTION_NAVIGATION_ACTION_ID},
+				dedupeKey: COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
+			}
 		));
 	}
 
@@ -1419,7 +1434,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 			this._activationPending = true;
 			this._activationMessage = '';
-			const result = store.dispatch(suggestion.destinationPath ? navigatePathToResult(suggestion.destinationPath) : navigateToCollectionWithResult(suggestion.description));
+			const destinationPath = suggestion.destinationPath || `/c/${suggestion.description.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+			const result = store.dispatch(navigatePathToResult(destinationPath));
 			if (result.status === 'blocked-editing') {
 				this._activationPending = false;
 				this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
@@ -1670,26 +1686,56 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed), sortReversed ? 'Reversed sort' : 'Restored normal sort');
 	}
 
-	override _handleKeyDown(e : KeyboardEvent) {
-		if (this.open && this._catalogOpen && e.key === 'Escape' && !e.defaultPrevented) {
-			if (e.isComposing || e.keyCode === 229) return;
-			e.preventDefault();
-			e.stopPropagation();
-			if (this._pendingCatalogFilter) this._cancelPendingCatalogFilter();
-			else this._handleCatalogToggle();
-			return;
+	_unregisterNestedEscapeShortcut : (() => void) | null = null;
+
+	//Escape peels the composer's NESTED layers (the filter catalog, then the
+	//clause builder) before it closes the dialog itself. This used to be an
+	//override of DialogElement._handleKeyDown, which no longer exists — the
+	//base class routes Escape through the shortcut registry (#740). Same
+	//shape expressed in the registry's vocabulary: one notch ABOVE dialog
+	//priority so it is consulted before the base dialog's cancel, and it
+	//DECLINES (returns false) when no nested layer is open, which is what
+	//the old `super._handleKeyDown(e)` fallthrough did. Registered on open
+	//and unregistered on close, matching the base class, so a closed
+	//composer never sits in front of another dialog's Escape.
+	private _syncNestedEscapeShortcut() {
+		if (this.open && !this._unregisterNestedEscapeShortcut) {
+			this._unregisterNestedEscapeShortcut = registerShortcut({
+				id: 'collection-composer-nested-escape',
+				keys: SHORTCUT_COMBOS['dialog-escape'],
+				label: 'Close the composer\'s current layer',
+				priority: DIALOG_SHORTCUT_PRIORITY + 1,
+				focusPolicy: 'any-focus',
+				handler: (e) => {
+					//The registry already declines composing keystrokes via
+					//isComposing; keyCode 229 is the older spelling that some
+					//IMEs still send.
+					if (e.keyCode === 229) return false;
+					if (!this.open) return false;
+					if (this._catalogOpen) {
+						if (this._pendingCatalogFilter) this._cancelPendingCatalogFilter();
+						else this._handleCatalogToggle();
+						return true;
+					}
+					if (this._builderExpanded) {
+						this._builderExpanded = false;
+						this._selectedClauseIndex = -1;
+						this._clauseSelectionMessage = '';
+						this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+						return true;
+					}
+					return false;
+				},
+			});
+		} else if (!this.open && this._unregisterNestedEscapeShortcut) {
+			this._unregisterNestedEscapeShortcut();
+			this._unregisterNestedEscapeShortcut = null;
 		}
-		if (this.open && this._builderExpanded && e.key === 'Escape' && !e.defaultPrevented) {
-			if (e.isComposing || e.keyCode === 229) return;
-			e.preventDefault();
-			e.stopPropagation();
-			this._builderExpanded = false;
-			this._selectedClauseIndex = -1;
-			this._clauseSelectionMessage = '';
-			this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-			return;
-		}
-		super._handleKeyDown(e);
+	}
+
+	override willUpdate(changedProps : PropertyValues<this>) {
+		super.willUpdate(changedProps);
+		if (changedProps.has('open')) this._syncNestedEscapeShortcut();
 	}
 
 	_handleDoneClicked() {
@@ -1791,6 +1837,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	override disconnectedCallback() {
 		if (this._cancelPreviews) this._cancelPreviews();
 		this._cancelPreviews = null;
+		if (this._unregisterNestedEscapeShortcut) this._unregisterNestedEscapeShortcut();
+		this._unregisterNestedEscapeShortcut = null;
 		super.disconnectedCallback();
 	}
 
