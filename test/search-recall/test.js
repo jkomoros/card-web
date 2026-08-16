@@ -129,3 +129,53 @@ describe('stale-while-revalidate collection display (pins)', () => {
 			'the permanent empty-suggestions stub must be gone');
 	});
 });
+
+//There is no component-mounting harness in this repo, so keyboard bindings have
+//never had ANY coverage — grep test/ for shiftKey/keydown and you find only
+//Shift-CLICK tests. This binding has now moved four times, and its FIRST
+//incarnation was dead for its entire life because it compared e.key=='c' while
+//requiring Shift (which uppercases e.key) and nothing caught it. These assert
+//on the source text, the same way the pins above do.
+describe('card-editor keyboard bindings (#729)', () => {
+	const read = (path) => fs.readFileSync(new URL('../../' + path, import.meta.url), 'utf8');
+
+	it('never binds a DevTools or inspect-element combination', () => {
+		const editor = read('src/components/card-editor.ts');
+		//0ed8dc69 removed Cmd/Ctrl-Shift-C and -I precisely because Chrome acts
+		//on them AND delivers the keydown to the page. This handler treats meta
+		//and ctrl interchangeably, so neither spelling is safe on either
+		//platform. Nothing currently guards that decision; this does.
+		const shiftBranch = /e\.shiftKey\s*&&\s*e\.key\.toLowerCase\(\)\s*==\s*'([a-z])'/g;
+		const bound = [...editor.matchAll(shiftBranch)].map(m => m[1]);
+		assert.ok(bound.length > 0, 'expected at least one shifted binding to exist');
+		for (const letter of bound) {
+			assert.ok(!['c', 'i', 'j'].includes(letter),
+				`Cmd/Ctrl-Shift-${letter.toUpperCase()} is a DevTools key and must never be bound here`);
+		}
+	});
+
+	it('binds accept-all-suggested-concepts to Shift-K and kills the event', () => {
+		const editor = read('src/components/card-editor.ts');
+		assert.match(editor, /e\.shiftKey\s*&&\s*e\.key\.toLowerCase\(\)\s*==\s*'k'/,
+			'the binding must match on e.key case-insensitively — Shift uppercases it, which is why the original never fired');
+		assert.match(editor, /this\._handleAddAllConceptsClicked\(\);\s*\n\s*return killEvent\(e\);/,
+			'it must preventDefault, which the removed binding never did');
+	});
+
+	it('does not blanket-swallow every other shifted key', () => {
+		const editor = read('src/components/card-editor.ts');
+		//`if (e.shiftKey) { ... return; }` would kill Cmd-Shift-B/I/7/8, which
+		//are reachable with Caps Lock on, and on layouts where digits are the
+		//shifted level.
+		assert.ok(!/if\s*\(e\.shiftKey\)\s*\{/.test(editor),
+			'match the specific key; a blanket shifted early-return breaks the existing execCommand shortcuts');
+	});
+
+	it('advertises the binding in both button tooltips', () => {
+		const editor = read('src/components/card-editor.ts');
+		//The button is rendered twice (mobile and desktop); updating only one
+		//is the easy miss.
+		const matches = editor.match(/Add all suggested concepts \(Cmd-Shift-K\)/g) || [];
+		assert.strictEqual(matches.length, 2, 'both render sites must name the shortcut');
+	});
+});

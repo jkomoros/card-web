@@ -714,7 +714,7 @@ class CardEditor extends connect(store)(LitElement) {
 							class='small'
 							@click=${this._handleAddAllConceptsClicked}
 							?hidden=${this._suggestedConcepts.length == 0}
-							title='Add all suggested concepts'>
+							title='Add all suggested concepts (Cmd-Shift-K)'>
 							${PLUS_ICON}
 						</button>
 						<button
@@ -908,7 +908,7 @@ class CardEditor extends connect(store)(LitElement) {
 					class='small'
 					@click=${this._handleAddAllConceptsClicked}
 					?hidden=${this._suggestedConcepts.length == 0}
-					title='Add all suggested concepts'>
+					title='Add all suggested concepts (Cmd-Shift-K)'>
 					${PLUS_ICON}
 				</button>
 				<button
@@ -1402,10 +1402,37 @@ class CardEditor extends connect(store)(LitElement) {
 		//keydown to the page as well as acting on it — so opening DevTools while
 		//editing silently added or acked every suggested concept on the card.
 		//(Master accidentally never fired these: it compared e.key=='c' while
-		//requiring Shift, which uppercases e.key.) The buttons remain the way to
-		//add/ignore all suggested concepts; no keyboard binding is safe on these
-		//combinations.
-
+		//requiring Shift, which uppercases e.key.) No keyboard binding is safe
+		//on those two combinations, on EITHER modifier: this handler treats
+		//meta and ctrl interchangeably, and Shift-C is inspect-element on both
+		//platforms (Cmd on macOS, Ctrl on Windows/Linux).
+		//
+		//Accept-all-suggested-concepts is bound to Cmd/Ctrl-Shift-K instead
+		//(#729). K is the deliberate choice: Cmd/Ctrl-K below is "find card to
+		//link", so Shift-K reads as its bulk sibling — both create references.
+		//It is not a Chrome or Safari chrome key on either platform, unlike
+		//Shift-I/J/C (DevTools) or Shift-A (Chrome tab search). Firefox DOES
+		//use Ctrl-Shift-K for its Web Console; accepted, because this handler
+		//only runs while the editor is open, which is permission-gated, and the
+		//product's recorded position is that the owner runs modern Chrome
+		//(docs/fast-corpus-product-audit-2026-08-04.md).
+		//
+		//Matched on the SPECIFIC key rather than returning early for every
+		//shifted key. A blanket `if (e.shiftKey) return` looks safe — Shift
+		//usually uppercases e.key, so the lowercase cases below "cannot match"
+		//— but that is false in two real cases: Caps Lock ON plus Shift yields
+		//a LOWERCASE letter with shiftKey true, and on layouts where digits are
+		//the shifted level (AZERTY) Shift is how you type '7' and '8' at all.
+		//Either way the blanket form silently killed Cmd-Shift-B/I/7/8, which
+		//used to work. Inert when there is nothing to accept, matching the
+		//buttons, which are ?hidden on an empty list.
+		if (e.shiftKey && e.key.toLowerCase() == 'k') {
+			if (this._suggestedConcepts.length > 0) {
+				this._handleAddAllConceptsClicked();
+				return killEvent(e);
+			}
+			return;
+		}
 
 		//TODO: bail if a content editable region isn't selected. This isn't THAT
 		//big of a deal as long as we use execCommand, because those will just
