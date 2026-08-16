@@ -91,6 +91,24 @@ describe('service-worker update safety', () => {
 			assert.ok(!matches('/c/everything/unpublished/working-notes'));
 		});
 
+		//Precaching the shell made the service worker the ONLY channel for new
+		//code — before #728 a reload eventually pulled fresh markup from Hosting
+		//regardless of the worker. So the worker script itself must not be
+		//HTTP-cached: it shipped at max-age=3600, which meant a returning user
+		//could reload for up to an hour after a deploy, get the old precached
+		//shell, and never see "Update ready". Found on dev by an adversarial
+		//sweep, measured: a default-cache-mode fetch of the script returned in
+		//1ms (HTTP cache) vs 5ms with {cache:'no-cache'}.
+		it('does not let the service worker script itself be HTTP-cached', () => {
+			const hosting = require('../../firebase.json').hosting;
+			const rule = (hosting.headers || []).find(h => h.source === '/service-worker.js');
+			assert.ok(rule, '/service-worker.js needs an explicit Cache-Control rule');
+			const cacheControl = (rule.headers || []).find(h => h.key === 'Cache-Control');
+			assert.ok(cacheControl, 'the rule must set Cache-Control');
+			assert.match(cacheControl.value, /no-cache|no-store|max-age=0/,
+				`serving the worker script with "${cacheControl.value}" strands clients on the old precached shell`);
+		});
+
 		//The cost, accepted deliberately: a precached shell is cache-first, so a
 		//deploy's new index.html waits for the new worker to activate. Pinned
 		//together so neither half changes without confronting the other.
