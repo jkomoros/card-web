@@ -47,9 +47,46 @@ The agent's findings must be sorted into **BLOCKING** / **NON-BLOCKING** /
 
 - **BLOCKING** must be fixed before landing, or explicitly overridden by the
   repo owner in the conversation. Do not override it yourself.
-- **NON-BLOCKING** becomes a GitHub issue before landing, not a TODO comment
+- **NON-BLOCKING** is *first* checked against the rule below — fix it if it is
+  small and unambiguous. Only what genuinely does not belong in this change
+  becomes a GitHub issue, and it becomes one before landing, not a TODO comment
   and not a promise in a commit message.
 - **NOISE** is dropped. Say so; do not silently ignore it.
+
+### Leave everything a little better than you found it
+
+**Do not defer cleanup that is unambiguous and well-scoped. Fix it now.**
+
+Filing an issue is not free. It costs someone a second context-load to fix a
+thing you were already looking at, with the file already open and the
+reasoning already in your head. A one-line guard that makes a function match
+its four siblings is not a follow-up; it is part of doing the work.
+
+Fix it in the current change when **all** of these hold:
+
+- The correct fix is obvious — no design decision, no choice between defensible
+  options, no need for the owner's preference.
+- It is small, and testable the same way the rest of the change is.
+- It is in code you are already touching or already had to understand.
+
+File an issue instead when any of these hold:
+
+- It needs a decision (which sentinel, which key, which tradeoff).
+- It is large enough to dominate the diff, so the change stops being reviewable
+  as one idea.
+- It reaches into a subsystem you have not established the invariants of.
+- Fixing it would fan out — each fix exposing two more. **Scope is bounded by
+  the change, not by the taste for tidying.** If cleanup starts recursing,
+  stop, land what you have, and file the rest.
+
+The specific thing to stop doing: noticing a defect *while fixing an adjacent
+one*, in the same file, and writing it up instead of fixing it. Lint errors in
+a file you are already editing, an unguarded access next to four guarded ones,
+a comment your own change just made false — those are all "now", not "later".
+
+When you do fix something extra, say so in the commit message and say why it
+belonged there. A reviewer should never have to guess why an unrelated-looking
+hunk is in the diff.
 
 ### The adversarial agent produces claims, not verdicts
 
