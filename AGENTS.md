@@ -51,6 +51,32 @@ The agent's findings must be sorted into **BLOCKING** / **NON-BLOCKING** /
   and not a promise in a commit message.
 - **NOISE** is dropped. Say so; do not silently ignore it.
 
+### The adversarial agent produces claims, not verdicts
+
+Its output is a list of things worth testing. It is not a review you accept, and
+"the adversarial agent said so" is not evidence. Before you act on a finding —
+especially one that changes the shape of the fix — **verify it yourself, by
+running it.** Subagents report confidently and are sometimes wrong; a finding
+adopted on trust is indistinguishable from one you invented.
+
+This cuts both ways, and the second direction is the one that gets skipped:
+
+- Before **adopting** a recommendation, reproduce the evidence for it. If the
+  claim is that two implementations are equivalent, run both across a real
+  battery of inputs and diff the output. Do not re-run the agent's own script;
+  write your own.
+- Before **dismissing** a finding as NOISE, confirm it is actually noise. The
+  cheap failure is waving away a real defect because the agent's framing was
+  annoying.
+
+A refutation is a finding too, and often the most valuable one: proving that a
+proposed safeguard is unreachable dead code, or that an objection describes
+behaviour that already existed, converts a judgment call into a fact you can
+state plainly in the commit message. Verify those the same way.
+
+Report to the owner what you verified and how, separately from what the agent
+merely asserted. If you could not verify something, say so and treat it as open.
+
 ### Prove your tests are not vacuous
 
 A test that passes with *and* without the fix proves nothing. Before landing,
