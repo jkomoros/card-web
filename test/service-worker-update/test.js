@@ -2,6 +2,10 @@
 
 import assert from 'assert';
 import fs from 'fs';
+import {createRequire} from 'module';
+
+//workbox-config.cjs is CommonJS; this test file is ESM.
+const require = createRequire(import.meta.url);
 
 const read = path => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -37,5 +41,62 @@ describe('service-worker update safety', () => {
 			assert.ok(start >= 0 && end > start);
 			assert.ok(workflow.indexOf('generateSeoPagesOptionally();') < workflow.indexOf('build();'));
 		}
+	});
+
+	//#728: offline boot showed the browser's own error page, because the
+	//service worker had NO route that could answer a navigation request —
+	//index.html was never precached and there was no navigateFallback. Neither
+	//had existed in this repo's history. It appeared to work in manual testing
+	//only because index.html is served with max-age=3600, so within an hour of
+	//a real load the HTTP cache answered instead of the service worker.
+	//
+	//These assert on the config OBJECT, not its source text. The first version
+	//of this test used /globPatterns:[\s\S]*?'index\.html'/ and PASSED on the
+	//exact config that reproduces #728 — the lazy match ran through the comment
+	//prose above into the navigateFallback line. A source-text regex cannot
+	//tell a config value from a word in a comment.
+	describe('offline boot (#728)', () => {
+		const config = require('../../workbox-config.cjs');
+
+		it('precaches the app shell', () => {
+			assert.ok(config.globPatterns.includes('index.html'),
+				'without the shell in globPatterns there is nothing to serve offline, and workbox still builds clean');
+		});
+
+		it('routes navigations to the shell', () => {
+			assert.strictEqual(config.navigateFallback, 'index.html',
+				'Hosting rewrites every deep link to the shell, so navigation must resolve to it');
+		});
+
+		//request.mode === 'navigate' covers iframe loads, not just address-bar
+		//navigation. Firebase Auth bootstraps via an iframe at /__/auth/iframe,
+		//and authDomain is on an origin that also serves this app — so without
+		///__/ the service worker answers Google sign-in with the app shell.
+		it('excludes paths that are not app routes, including Firebase auth', () => {
+			const denied = config.navigateFallbackDenylist || [];
+			const matches = (path) => denied.some(re => re.test(path));
+
+			assert.ok(matches('/__/auth/iframe'), 'Firebase auth must never be answered with the shell');
+			assert.ok(matches('/__/auth/handler'));
+			assert.ok(matches('/lib/src/components/card-web-app-entry.js'));
+			assert.ok(matches('/seo/some-card.html'), 'prerendered SEO shells must not be shadowed');
+			assert.ok(matches('/deploy-stamp.json'), 'the deploy stamp answers "which build is live" and must stay honest');
+			assert.ok(matches('/service-worker.js'));
+
+			//...while real app routes still fall back to the shell, which is the
+			//whole point. No card slug contains a dot, so the extension rule is
+			//safe for these.
+			assert.ok(!matches('/'), 'the root must still resolve to the shell');
+			assert.ok(!matches('/c/main/some-card-slug'), 'card routes must still boot offline');
+			assert.ok(!matches('/c/everything/unpublished/working-notes'));
+		});
+
+		//The cost, accepted deliberately: a precached shell is cache-first, so a
+		//deploy's new index.html waits for the new worker to activate. Pinned
+		//together so neither half changes without confronting the other.
+		it('is paired with the deliberate deferred-activation model', () => {
+			assert.ok(config.globPatterns.includes('index.html') ? config.skipWaiting === false : true,
+				'a precached shell plus skipWaiting:true would serve a new shell against old chunks');
+		});
 	});
 });
