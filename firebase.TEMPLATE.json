@@ -24,6 +24,16 @@
         ]
       },
       {
+        "//": "Now that index.html is PRECACHED (#728), the service worker is the only channel by which a client ever receives new code -- before that, a reload eventually pulled fresh markup from Hosting no matter what the worker did, and that escape hatch is gone. At max-age=3600 the SW script itself is answered from the HTTP cache, and the update algorithm only forces revalidation once 86400s have elapsed, so for up to an hour after a deploy a returning user reloads, gets the old precached shell, and never sees 'Update ready'. no-cache (revalidate, not no-store) is the standard treatment for a service worker script.",
+        "source": "/service-worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "/lib/src/worker/corpus-worker.js",
         "headers": [
           {
