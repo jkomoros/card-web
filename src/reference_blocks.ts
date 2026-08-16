@@ -26,6 +26,7 @@ import {
 import {
 	CardBooleanMap,
 	Card,
+	CardID,
 	CardType,
 	CollectionConstructorArguments,
 	FilterMap,
@@ -296,6 +297,97 @@ export const expandReferenceBlocks = (card : Card | null, blocks : ReferenceBloc
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
 		const collection = block.collectionDescription.collection(keyCardCollectionConstructorArgs);
 		const boldCards : FilterMap = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
+		return {
+			...block,
+			collection,
+			boldCards
+		};
+	});
+};
+
+//What a worker collection run resolves with.
+export type WorkerRunCollectionResolution = {
+	ids : CardID[],
+	labels : string[],
+	numCards : number,
+	numStartCards : number,
+	isFallback : boolean,
+	preview : boolean,
+	partialMatches : CardBooleanMap,
+};
+
+//Injected by callers so this module doesn't import the bridge (the bridge
+//imports selectors, which import us). Returns null when the worker isn't
+//available.
+export type WorkerCollectionRunner = (description : string, keyCardID : string) => Promise<WorkerRunCollectionResolution | null> | null;
+
+type WorkerExpansionMemo = {
+	card: Card,
+	blockKey: string,
+	args: CollectionConstructorArguments,
+	editable: CardBooleanMap,
+	runner: WorkerCollectionRunner,
+	result: Promise<ExpandedReferenceBlocks | null>,
+};
+const workerExpansionMemo : WorkerExpansionMemo[] = [];
+const WORKER_EXPANSION_MEMO_LIMIT = 8;
+
+//Like expandReferenceBlocks, but each block's collection is computed in the
+//corpus worker (off the UI thread) and reconstituted as a pre-seeded real
+//Collection via Collection.fromWorkerResult. Resolves to null if the worker
+//becomes unavailable mid-flight — callers should fall back to the sync path.
+export const expandReferenceBlocksViaRunner = (card : Card | null, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap, runner : WorkerCollectionRunner) : Promise<ExpandedReferenceBlocks | null> => {
+	if (!card) return Promise.resolve(EMPTY_ARRAY);
+	if (blocks.length == 0) return Promise.resolve(EMPTY_ARRAY);
+	const blockKey = blocks.map(block => block.collectionDescription.serialize()).join('\n');
+	const cachedIndex = workerExpansionMemo.findIndex(entry => entry.card === card && entry.blockKey === blockKey &&
+		entry.args === collectionConstructorArgs && entry.editable === cardIDsUserMayEdit && entry.runner === runner);
+	if (cachedIndex >= 0) {
+		const [cached] = workerExpansionMemo.splice(cachedIndex, 1);
+		workerExpansionMemo.push(cached);
+		return cached.result;
+	}
+	const result = expandReferenceBlocksViaRunnerUncached(card, blocks, collectionConstructorArgs, cardIDsUserMayEdit, runner);
+	workerExpansionMemo.push({card, blockKey, args: collectionConstructorArgs, editable: cardIDsUserMayEdit, runner, result});
+	while (workerExpansionMemo.length > WORKER_EXPANSION_MEMO_LIMIT) workerExpansionMemo.shift();
+	void result.then(value => {
+		if (value !== null) return;
+		const index = workerExpansionMemo.findIndex(entry => entry.result === result);
+		if (index >= 0) workerExpansionMemo.splice(index, 1);
+	});
+	return result;
+};
+
+const expandReferenceBlocksViaRunnerUncached = async (card : Card, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap, runner : WorkerCollectionRunner) : Promise<ExpandedReferenceBlocks | null> => {
+	const keyCardCollectionConstructorArgs = {
+		...collectionConstructorArgs,
+		keyCardID: card.id,
+	};
+	const filteredBlocks = blocks.filter(block => block.onlyForEditors ? cardIDsUserMayEdit[card.id] : true);
+	const promises : Promise<WorkerRunCollectionResolution | null>[] = [];
+	for (const block of filteredBlocks) {
+		const promise = runner(block.collectionDescription.serialize(), card.id);
+		if (!promise) return null;
+		promises.push(promise);
+	}
+	const results = await Promise.all(promises);
+	//A null resolution means a run failed or the connection was torn down
+	//mid-flight — fall back to the sync path for the whole set.
+	if (results.some(result => result === null)) return null;
+	return filteredBlocks.map((block, index) => {
+		const result = results[index] as WorkerRunCollectionResolution;
+		const collection = Collection.fromWorkerResult(block.collectionDescription, keyCardCollectionConstructorArgs, {
+			description: block.collectionDescription.serialize(),
+			ids: result.ids,
+			labels: result.labels,
+			numCards: result.numCards,
+			numStartCards: result.numStartCards,
+			isFallback: result.isFallback,
+			preview: result.preview,
+			partialMatches: result.partialMatches,
+		});
+		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
+		const boldCards : FilterMap = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(boldCard => [boldCard.id, true])) : {};
 		return {
 			...block,
 			collection,

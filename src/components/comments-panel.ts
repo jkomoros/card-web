@@ -163,7 +163,10 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	}
 
 	_handleDeleteMessage(e : CommmentMessageEvent) {
-		store.dispatch(deleteMessage(e.detail.message));
+		//The thunk owns its own failure reporting now, but the dispatch still
+		//returns a promise; `void` states that nothing awaits it and keeps a
+		//future rejection from becoming an unhandled one.
+		void store.dispatch(deleteMessage(e.detail.message));
 	}
 
 	_handleResolveThread(e : CommmentThreadEvent) {
@@ -172,6 +175,13 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 
 	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
+		if (!this._open) {
+			this._card = null;
+			this._collectionIsFallback = false;
+			this._composedThreads = [];
+			this._userMayComment = false;
+			return;
+		}
 		this._card = selectActiveCard(state);
 		const activeCollection = selectActiveCollection(state);
 		this._collectionIsFallback = Boolean(activeCollection && activeCollection.isFallback);

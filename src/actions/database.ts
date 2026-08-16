@@ -30,12 +30,11 @@ import {
 
 import {
 	selectUserMayViewApp,
+	selectUserIsAnonymous,
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
-	selectCompleteModeEnabled,
 	selectUserMayViewUnpublished,
 	selectUid,
-	selectCompleteModeEffectiveCardLimit
 } from '../selectors.js';
 
 import {
@@ -45,12 +44,13 @@ import {
 import {
 	collection,
 	onSnapshot,
+	getDocs,
 	where,
 	query,
 	orderBy,
+	documentId,
 	QuerySnapshot,
-	limit,
-	doc
+	doc,
 } from 'firebase/firestore';
 
 import {
@@ -105,8 +105,22 @@ import {
 } from '../actions.js';
 
 import {
-	fetchTypeIsUnpublished
+	fetchTypeIsUnpublished,
+	stripEphemeralCardFields
 } from '../util.js';
+
+import {
+	corpusWorkerOwnsCardIngestion,
+	corpusWorkerConnectCards
+} from '../corpus-bridge.js';
+
+import {
+	UNPUBLISHED_CARD_PARTITIONS
+} from '../card-partitions.js';
+
+import {
+	perfEnabled
+} from '../perf.js';
 
 import { TypedObject } from '../../shared/typed_object.js';
 
@@ -144,6 +158,10 @@ const warmupSlugLegal = (force = false) : void => {
 
 let slugLegalInterval = 0;
 const KEEP_WARM_INTERVAL = 2 * 60 * 1000;
+const supplementalLiveUnsubscribes : (() => void)[] = [];
+const rememberSupplementalListener = (unsubscribe : () => void) => {
+	supplementalLiveUnsubscribes.push(unsubscribe);
+};
 
 let userHadActivity = false;
 
@@ -154,6 +172,7 @@ const userActivity = () => {
 //keepSlugLegalWarm should be called whenever we notice that the user should
 //keep slugLegal warm. Repeated calls won't cause it to call extra times.
 export const keepSlugLegalWarm = () => {
+	if (backgroundDataInert) return;
 	//Only start the interval once.
 	if (slugLegalInterval) return;
 	document.addEventListener('mousemove', userActivity);
@@ -165,9 +184,10 @@ export const keepSlugLegalWarm = () => {
 
 
 export const connectLiveMessages = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
-	onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
+	rememberSupplementalListener(onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
 		const messages : CommentMessages = {};
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
@@ -178,12 +198,13 @@ export const connectLiveMessages = () => {
 		});
 
 		store.dispatch(updateMessages(messages));
-	});
+	}));
 };
 
 export const connectLiveThreads = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
+	rememberSupplementalListener(onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
 		const threads : CommentThreads = {};
 		const threadsToAdd : CommentThreadID[] = [];
 		const threadsToRemove : CommentThreadID[] = [];
@@ -199,7 +220,7 @@ export const connectLiveThreads = () => {
 			threads[id] = thread;
 		});
 		store.dispatch(updateThreads(threads));
-	});
+	}));
 };
 
 let liveStarsUnsubscribe : (() => void) | null = null;
@@ -215,6 +236,24 @@ export const disconnectLiveStars = () => {
 };
 
 export const connectLiveStars = (uid : Uid) => {
+	if (backgroundDataInert) return;
+	//The CORPUS WORKER owns this listener in worker modes: it is the only context
+	//holding Firestore's persistent cache, so its re-attach bills deltas, while
+	//this thread runs a memoryLocalCache and re-read the entire result set every
+	//boot (measured: 608 `reads` documents for one real account, every boot).
+	//
+	//EXCEPT for an anonymous session, where the worker is deliberately told not
+	//to attach — three empty queries still bill three reads. Nobody then flips
+	//`starsLoaded`, and selectUserDataIsFullyLoaded requires it as soon as a user
+	//OBJECT exists, which anonymous sign-in creates. That wedged
+	//selectDataIsFullyLoaded forever: perpetual loading card, card selection and
+	//suggestions blocked. An anonymous account cannot own a star, so the empty
+	//set is knowable without asking the server.
+	if (corpusWorkerOwnsCardIngestion()) {
+		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateStars([], []));
+		return;
+	}
+
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		const starsToAdd : CardID[] = [];
@@ -239,6 +278,14 @@ export const disconnectLiveReads = () => {
 };
 
 export const connectLiveReads = (uid : Uid) => {
+	if (backgroundDataInert) return;
+	//See connectLiveStars: worker-owned, except an anonymous session, whose empty
+	//set is delivered locally so `readsLoaded` still flips.
+	if (corpusWorkerOwnsCardIngestion()) {
+		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateReads([], []));
+		return;
+	}
+
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
 		const readsToAdd : CardID[] = [];
@@ -263,6 +310,14 @@ export const disconnectLiveReadingList = () => {
 };
 
 export const connectLiveReadingList = (uid : Uid) => {
+	if (backgroundDataInert) return;
+	//See connectLiveStars: worker-owned, except an anonymous session, whose empty
+	//list is delivered locally so `readingListLoaded` still flips.
+	if (corpusWorkerOwnsCardIngestion()) {
+		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateReadingList([]));
+		return;
+	}
+
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		let list : CardID[] = [];
@@ -290,6 +345,7 @@ export const disconnectLivePermissions = () => {
 };
 
 export const connectLivePermissions = (uid : Uid) => {
+	if (backgroundDataInert) return;
 	disconnectLivePermissions();
 	livePermissionsUnsubscribe = onSnapshot(doc(db, PERMISSIONS_COLLECTION, uid), snapshot => {
 		store.dispatch({
@@ -304,8 +360,9 @@ export const connectLivePermissions = (uid : Uid) => {
 };
 
 export const connectLiveAuthors = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
+	rememberSupplementalListener(onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
 		const authors : AuthorsMap = {};
 
@@ -319,46 +376,87 @@ export const connectLiveAuthors = () => {
 
 		store.dispatch(updateAuthors(authors));
 
-	});
+	}));
 };
 
-const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
-	
+const parseCardSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, cardIDsToRemove : CardID[]} => {
+	const cards : Cards = {};
+	const cardIDsToRemove : CardID[] = [];
+
+	snapshot.docChanges().forEach(change => {
+		if (change.type === 'removed') {
+			cardIDsToRemove.push(change.doc.id);
+			return;
+		}
+		const doc = change.doc;
+		const id : CardID = doc.id;
+		//Ensure that timestamps are never null. If this isn't set, then
+		//when cards are first created (and other times) they will have null
+		//timestamps on some of the updates, an if we read them we'll get
+		//confused. Without this you can't open a card immediately for
+		//editing for example. See
+		//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
+		const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
+		cards[id] = stripEphemeralCardFields(card);
+	});
+
+	return {cards, cardIDsToRemove};
+};
+
+const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe? : boolean}) =>{
+
 	return (snapshot : QuerySnapshot) => {
-		const cards : Cards = {};
-		const cardIDsToRemove : CardID[] = [];
+		const startTime = performance.now();
+		const {cards, cardIDsToRemove} = parseCardSnapshot(snapshot);
 
-		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') {
-				cardIDsToRemove.push(change.doc.id);
-				return;
-			}
-			const doc = change.doc;
-			const id : CardID = doc.id;
-			//Ensure that timestamps are never null. If this isn't set, then
-			//when cards are first created (and other times) they will have null
-			//timestamps on some of the updates, an if we read them we'll get
-			//confused. Without this you can't open a card immediately for
-			//editing for example. See
-			//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
-			const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
-			cards[id] = card;
-		});
+		const cardCount = Object.keys(cards).length;
+		const parseTime = performance.now() - startTime;
+		//Gated: these fired on every snapshot for every user (ambient noise);
+		//DEBUG_PERF.enable() turns them on.
+		if (perfEnabled()) console.log(`[PERF] cardSnapshotReceiver(${fetchType}): parsed ${cardCount} cards in ${parseTime.toFixed(1)}ms`);
 
-		store.dispatch(receiveCards(cards, fetchType));
+		const dispatchStart = performance.now();
+		store.dispatch(receiveCards(cards, fetchType, options?.fastDedupe));
 		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
+		if (perfEnabled()) console.log(`[PERF] cardSnapshotReceiver(${fetchType}): dispatched in ${(performance.now() - dispatchStart).toFixed(1)}ms (total: ${(performance.now() - startTime).toFixed(1)}ms)`);
 	};
 
 };
 
+//NOTE: the main-thread warm-boot prime that used to live here is gone. In
+//worker modes the main thread's Firestore uses a MEMORY cache (see
+//src/firebase.ts — the worker owns the persistent cache now), so there is
+//nothing local to prime from. Warm boots come from the worker's own
+//persistent cache instead: one copy, correct permission scoping via the
+//worker's own queries, and — unlike the prime — since-deleted cards are
+//removed properly because resume-token catch-up delivers real removals.
+
 export const connectLivePublishedCards = () => {
-	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver('published'));
+	if (backgroundDataInert) return;
+	const state = store.getState() as State;
+	if (!selectUserMayViewApp(state)) return;
+	if (corpusWorkerOwnsCardIngestion()) {
+		//The corpus worker owns the Firestore card listeners; batches arrive
+		//via the bridge and are dispatched through the same receiveCards path.
+		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
+		return;
+	}
+	if (perfEnabled()) console.log('[PERF] connectLivePublishedCards: starting listener');
+	if (perfEnabled()) console.time('[PERF] published-cards-first-snapshot');
+	let first = true;
+	livePublishedCardsUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), (snapshot) => {
+		//Guarded to match the console.time() above: unguarded, every boot in
+		//diagnostic off mode logged a "timer does not exist" warning.
+		if (first) { if (perfEnabled()) console.timeEnd('[PERF] published-cards-first-snapshot'); first = false; }
+		cardSnapshotReceiver('published')(snapshot);
+	});
 };
 
+let livePublishedCardsUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 let liveUnpublishedCardsUnsubcribe : (() => void) | null = null;
+let unpublishedConnectionGeneration = 0;
 
 const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 
@@ -375,6 +473,7 @@ const stopExpectingFetchedCards = (fetchType : CardFetchType) : ThunkSomeAction 
 };
 
 const disconnectLiveUnpublishedCards = () => {
+	unpublishedConnectionGeneration++;
 	const loading = selectLoadingCardFetchTypes(store.getState() as State);
 	for (const key of TypedObject.keys(loading)) {
 		store.dispatch(stopExpectingFetchedCards(key));
@@ -393,61 +492,196 @@ const disconnectLiveUnpublishedCards = () => {
 	}
 };
 
-//This should be called any time that whether the user can see unpublished cards
-//changes, or if the completeMode toggle changes.
-export const connectLiveUnpublishedCards = () => {
-
+export const connectLiveUnpublishedCards = async () => {
+	if (backgroundDataInert) return;
 	const state = store.getState() as State;
-	if (!selectUserMayViewApp(state)) return;
-	disconnectLiveUnpublishedCards();
+	if (!selectUserMayViewApp(state)) {
+		//The Redux store outlives an auth/permission change. Tell the worker to
+		//drop its privileged scope before returning, so cards loaded for the
+		//previous identity cannot remain visible behind the access-denied view.
+		if (corpusWorkerOwnsCardIngestion()) corpusWorkerConnectCards(false, '');
+		if (perfEnabled()) console.log('[PERF] connectLiveUnpublishedCards: skipped (user may not view app)');
+		return;
+	}
 
+	if (corpusWorkerOwnsCardIngestion()) {
+		//Clear any loading flags from a previous connection under different
+		//permissions (mirrors disconnectLiveUnpublishedCards): e.g. the
+		//pre-permission author/editor flags must not stick around after the
+		//privileged reconnect stops those listeners.
+		const loading = selectLoadingCardFetchTypes(state);
+		for (const key of TypedObject.keys(loading)) {
+			store.dispatch(stopExpectingFetchedCards(key));
+		}
+		//Keep the loading indicator semantics; the worker's forwarded batches
+		//clear the flags through the normal UPDATE_CARDS path.
+		if (selectUserMayViewUnpublished(state)) {
+			store.dispatch(expectUnpublishedCards('unpublished'));
+		} else if (selectUid(state)) {
+			store.dispatch(expectUnpublishedCards('unpublished-author'));
+			store.dispatch(expectUnpublishedCards('unpublished-editor'));
+		}
+		corpusWorkerConnectCards(selectUserMayViewUnpublished(state), selectUid(state));
+		return;
+	}
+
+	disconnectLiveUnpublishedCards();
 
 	const userMayViewUnpublished = selectUserMayViewUnpublished(state);
 	const uid = selectUid(state);
-	const completeModeEnabled = selectCompleteModeEnabled(state);
-
-	const effectiveLimit = selectCompleteModeEffectiveCardLimit(state);
-
-	//Note: this logic is largely recreated in a different form in cullExtraCompleteModeCards.
-
-	//Note: the logic of which fetchType channel to expect a new unpublished card to come in on is duplicated in selectExpectedCardFetchTypeForNewUnpublishedCard
+	if (perfEnabled()) console.log(`[PERF] connectLiveUnpublishedCards: mayViewUnpublished=${userMayViewUnpublished}, uid=${uid}`);
 
 	if (userMayViewUnpublished) {
+		const connectionGeneration = ++unpublishedConnectionGeneration;
+		// Load ALL unpublished cards client-side. Two-phase approach:
+		//
+		// Phase 1 (paginated getDocs): Fetch all unpublished cards in batches.
+		// Firestore has a ~60s server-side timeout (non-configurable) that
+		// prevents loading 38k+ docs in a single request, especially with
+		// experimentalForceLongPolling. We paginate with orderBy + startAfter
+		// + limit, dispatching each batch to Redux as it arrives so the UI
+		// populates progressively. getDocs also primes the IndexedDB cache.
+		//
+		// Phase 2 (onSnapshot): Attach a real-time listener on the full query.
+		// Since the cache was primed by getDocs, the initial delivery comes
+		// from cache (instant), then the listener watches for live changes.
+		//
+		// The deepEqualIgnoringTimestamps dedup in receiveCards() prevents
+		// redundant Redux dispatches when onSnapshot re-delivers cached cards.
+		//
+		// On subsequent loads (warm cache), getDocs returns from cache almost
+		// instantly, and onSnapshot syncs only deltas from the server.
+		store.dispatch(expectUnpublishedCards('unpublished'));
 
-		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-		store.dispatch(expectUnpublishedCards(completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial'));
+		const unpublishedQuery = query(
+			collection(db, CARDS_COLLECTION),
+			where('published', '==', false)
+		);
 
-		if (completeModeEnabled) {
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-complete'));
-		} else {
-			//The default is to fetch onty the most recent unpublished cards up to the limit.
-			liveUnpublishedCardsUnsubcribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-partial'));
+		// Phase 1: Parallel getDocs to prime cache and populate Redux.
+		// A single getDocs for 38k+ docs takes ~37s per 10k batch due to
+		// the experimentalForceLongPolling overhead. Running 5 partitions
+		// in parallel (by document ID range) cuts wall-clock time by ~4-5x.
+		// The partition table is shared with the corpus worker (which used
+		// to carry a drifted copy).
+		const PARTITIONS = UNPUBLISHED_CARD_PARTITIONS;
+
+		// Coalesce partition arrivals into batched dispatches: each
+		// UPDATE_CARDS dispatch runs the full selector cascade over the
+		// whole (growing) cards map, so dispatching once per flush interval
+		// instead of once per partition cuts boot-time cascades from
+		// partitions+1 to ~2-3, at the cost of up to
+		// BOOT_COALESCE_INTERVAL_MS of display latency during boot.
+		const BOOT_COALESCE_INTERVAL_MS = 750;
+		const pendingBootCards : Cards = {};
+		let bootFlushTimeout : ReturnType<typeof setTimeout> | null = null;
+		const flushBootCards = () => {
+			if (bootFlushTimeout) {
+				clearTimeout(bootFlushTimeout);
+				bootFlushTimeout = null;
+			}
+			if (connectionGeneration !== unpublishedConnectionGeneration) return;
+			const ids = Object.keys(pendingBootCards);
+			if (ids.length === 0) return;
+			const cards = {...pendingBootCards};
+			for (const id of ids) delete pendingBootCards[id];
+			if (perfEnabled()) console.log(`[PERF] flushing ${ids.length} coalesced unpublished cards`);
+			store.dispatch(receiveCards(cards, 'unpublished'));
+		};
+		const enqueueBootSnapshot = (snapshot : QuerySnapshot) => {
+			const {cards} = parseCardSnapshot(snapshot);
+			Object.assign(pendingBootCards, cards);
+			if (!bootFlushTimeout) bootFlushTimeout = setTimeout(flushBootCards, BOOT_COALESCE_INTERVAL_MS);
+		};
+
+		if (perfEnabled()) console.time('[PERF] unpublished-getDocs-total');
+		try {
+			const partitionPromises = PARTITIONS.map(async (partition, i) => {
+				const constraints = [
+					where('published', '==', false),
+					where(documentId(), '>=', partition.gte),
+					where(documentId(), '<', partition.lt),
+				];
+				// Filter out empty gte to avoid querying with >= ''
+				const partitionQuery = partition.gte
+					? query(collection(db, CARDS_COLLECTION), ...constraints)
+					: query(collection(db, CARDS_COLLECTION),
+						where('published', '==', false),
+						where(documentId(), '<', partition.lt));
+
+					if (perfEnabled()) console.time(`[PERF] unpublished-getDocs-partition-${i}`);
+					const snapshot = await getDocs(partitionQuery);
+					if (perfEnabled()) console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
+
+					if (connectionGeneration !== unpublishedConnectionGeneration) {
+						if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
+						return 0;
+					}
+					if (snapshot.size > 0) {
+						enqueueBootSnapshot(snapshot);
+						if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
+					}
+					return snapshot.size;
+				});
+
+				const sizes = await Promise.all(partitionPromises);
+				if (connectionGeneration !== unpublishedConnectionGeneration) {
+					if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
+					if (perfEnabled()) console.log('[PERF] unpublished getDocs complete: ignored stale connection');
+					return;
+				}
+				flushBootCards();
+				const totalLoaded = sizes.reduce((a, b) => a + b, 0);
+				if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
+				if (perfEnabled()) console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
+		} catch (e) {
+			//Flush whatever did arrive before the failure.
+			flushBootCards();
+			if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
+			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
+
+			// Phase 2: Real-time listener for ongoing changes. The initial
+			// delivery redelivers everything getDocs just primed, so it uses
+			// the fast timestamp-based dedupe; subsequent deltas use the full
+			// deep compare.
+			if (connectionGeneration !== unpublishedConnectionGeneration) return;
+			let firstListenerDelivery = true;
+			liveUnpublishedCardsUnsubcribe = onSnapshot(
+			unpublishedQuery,
+			(snapshot : QuerySnapshot) => {
+				const fastDedupe = firstListenerDelivery;
+				firstListenerDelivery = false;
+				cardSnapshotReceiver('unpublished', {fastDedupe})(snapshot);
+			}
+		);
 		return;
 	}
 
 	if (uid) {
-		//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-		
-		//TODO: also have unpublished-{author,editor}-{complete,partial} like above?
 		store.dispatch(expectUnpublishedCards('unpublished-author'));
 		store.dispatch(expectUnpublishedCards('unpublished-editor'));
-
-		if (completeModeEnabled) {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
-		} else {
-			liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-author'));
-			liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false), orderBy('created', 'desc'), limit(effectiveLimit)), cardSnapshotReceiver('unpublished-editor'));
-		}
-
+		liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished-author')
+		);
+		liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(
+			query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)),
+			cardSnapshotReceiver('unpublished-editor')
+		);
 	}
-
 };
 
 export const connectLiveSections = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
+	//Owned by the CORPUS WORKER in worker modes: it holds the persistent cache,
+	//so these survive offline and re-attach on deltas, where this thread's
+	//memoryLocalCache left them absent offline while their loaded flags still
+	//claimed otherwise. Gated at the definition so both call sites are covered.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
+	rememberSupplementalListener(onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
 		const sections : Sections = {};
 
@@ -461,13 +695,20 @@ export const connectLiveSections = () => {
 
 		store.dispatch(updateSections(sections));
 
-	});
+	}));
 };
 
 export const connectLiveTags = () => {
+	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
+	//Owned by the CORPUS WORKER in worker modes: it holds the persistent cache,
+	//so these survive offline and re-attach on deltas, where this thread's
+	//memoryLocalCache left them absent offline while their loaded flags still
+	//claimed otherwise. Gated at the definition so both call sites are covered.
+	if (corpusWorkerOwnsCardIngestion()) return;
+
 	console.log('[connectLiveTags] Setting up live tags listener');
-	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
+	rememberSupplementalListener(onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
 		const tags : Tags = {};
 
@@ -484,6 +725,70 @@ export const connectLiveTags = () => {
 
 	}, error => {
 		console.error('[connectLiveTags] Error in onSnapshot:', error);
-	});
+	}));
 };
 
+//A superseded single-tab session is permanently inert. Tear down all ambient
+//listeners and warmup traffic as well as the corpus worker so it is genuinely
+//quiet—not merely hidden behind the ownership gate.
+//True while this tab is deliberately network-inert (blocked at boot behind
+//the ownership gate, or superseded). Attach functions no-op while set so a
+//late auth resolution or cross-tab sign-in cannot silently re-attach
+//listeners behind the gate (acceptance criterion 7: fully blocked/INERT).
+let backgroundDataInert = false;
+
+export const backgroundDataIsInert = () => backgroundDataInert;
+
+//Whether slug-legal warming (and with it the activity listeners) was running
+//when this tab went inert, so a takeover winner can put it back. Without this
+//the reconnect restored the other eleven listeners and silently left editing
+//without its warm slug-legality check.
+let slugLegalWasWarm = false;
+
+export const disconnectBackgroundDataForInactiveTab = () => {
+	backgroundDataInert = true;
+	slugLegalWasWarm = Boolean(slugLegalInterval);
+	if (slugLegalInterval) window.clearInterval(slugLegalInterval);
+	slugLegalInterval = 0;
+	document.removeEventListener('mousemove', userActivity);
+	document.removeEventListener('keydown', userActivity);
+	for (const unsubscribe of supplementalLiveUnsubscribes.splice(0)) unsubscribe();
+	if (livePublishedCardsUnsubscribe) livePublishedCardsUnsubscribe();
+	livePublishedCardsUnsubscribe = null;
+	disconnectLiveUnpublishedCards();
+	disconnectLiveStars();
+	disconnectLiveReads();
+	disconnectLiveReadingList();
+	disconnectLivePermissions();
+};
+
+//Inverse of disconnectBackgroundDataForInactiveTab, for the tab that WINS a
+//takeover after booting blocked. No-op unless a disconnect actually ran, so
+//the normal boot-winner path (which already attached everything) cannot
+//double-attach.
+export const reconnectBackgroundDataForActiveTab = () => {
+	if (!backgroundDataInert) return;
+	backgroundDataInert = false;
+	connectLivePublishedCards();
+	connectLiveSections();
+	connectLiveTags();
+	connectLiveAuthors();
+	connectLiveThreads();
+	connectLiveMessages();
+	void connectLiveUnpublishedCards();
+	const uid = selectUid(store.getState() as State);
+	if (uid) {
+		connectLiveStars(uid);
+		connectLiveReads(uid);
+		connectLiveReadingList(uid);
+		connectLivePermissions(uid);
+	}
+	//Restore the two things the disconnect took away that aren't Firestore
+	//listeners: the slug-legality warm-up interval and the activity listeners
+	//it installs. keepSlugLegalWarm is idempotent, and only re-arms if this tab
+	//had it running before it went inert.
+	if (slugLegalWasWarm) {
+		slugLegalWasWarm = false;
+		keepSlugLegalWarm();
+	}
+};

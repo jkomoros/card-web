@@ -1,6 +1,7 @@
 import {
 	selectPromptAction,
 	selectPromptContent,
+	selectPromptMessage,
 	selectPromptAssociatedId,
 	getMessageById,
 	getThreadById,
@@ -66,15 +67,34 @@ export const composeCancel = () : SomeAction => {
 	};
 };
 
-export const composeCommit = () : ThunkSomeAction => (dispatch, getState) => {
+export const composeCommit = () : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
+
+	//Capture BEFORE the commit action clears it. Posting, editing and deleting
+	//a comment all go through the durable aux-write queue now, so a write that
+	//cannot reach the server is retained and replayed rather than lost — but
+	//the queue can still DISCARD one permanently (a conflicting edit, a message
+	//that no longer exists), and those reject. This restore is what hands the
+	//user their words back in that case. Clearing the box first and firing the
+	//write afterwards meant the text vanished with the UI having accepted it.
+	const message = selectPromptMessage(state);
+	const content = selectPromptContent(state);
+	const action = selectPromptAction(state);
+	const associatedId = selectPromptAssociatedId(state);
 
 	dispatch({
 		type: PROMPT_COMPOSE_COMMIT
 	});
 
-	doAction(dispatch, state, selectPromptAction(state), selectPromptContent(state), selectPromptAssociatedId(state));
+	try {
+		await doAction(dispatch, state, action, content, associatedId);
+	} catch (err) {
+		//Give the text back rather than dropping it. The user can retry or copy
+		//it out; either beats silent loss.
+		dispatch(composeShow(message, content));
+		alert(`That couldn't be saved, so your text has been restored: ${err instanceof Error ? err.message : String(err)}`);
+	}
 
 };
 
@@ -87,7 +107,7 @@ export const composeUpdateContent = (content : string) : SomeAction => {
 
 
 //TODO: use functionOverloading on expected types
-const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content = '', associatedId? : CommentMessageID | CommentThreadID) => {
+const doAction = async (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content = '', associatedId? : CommentMessageID | CommentThreadID) : Promise<void> => {
 	if (!action) return;
 	switch (action) {
 	case 'CONSOLE_LOG':
@@ -97,16 +117,16 @@ const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitAct
 		if (!associatedId) throw new Error('No associated ID');
 		const message = getMessageById(state, associatedId);
 		if (!message) throw new Error('No message');
-		dispatch(editMessage(message, content));
+		await dispatch(editMessage(message, content));
 		return;
 	case 'ADD_MESSAGE':
 		if (!associatedId) throw new Error('No associated ID');
 		const thread = getThreadById(state, associatedId);
 		if (!thread) throw new Error('No thread');
-		dispatch(addMessage(thread, content));
+		await dispatch(addMessage(thread, content));
 		return;
 	case 'CREATE_THREAD':
-		dispatch(createThread(content));
+		await dispatch(createThread(content));
 		return;
 	case 'CREATE_CHAT':
 		dispatch(createChatWithCurentCollection(content, selectAIModel(state)));

@@ -1,10 +1,108 @@
+//--- Durable auxiliary writes ----------------------------------------------
+//Executors for the aux-write queue. Each performs the SERVER side of a
+//star/read/reading-list change; the calling thunks build intents and hand
+//them to the queue, which persists them across reloads and replays them on
+//boot/reconnect. Star batches are atomic, so on replay the star doc's server
+//existence proves whether the counters already moved — the preflight makes
+//the non-idempotent increments replay-safe. getDocFromServer fails while
+//offline, which is exactly right: replay stops and retries on the next
+//trigger.
+
+const starRefsForIntent = (intent : AuxWriteIntent) => ({
+	cardRef: doc(db, CARDS_COLLECTION, intent.cardID),
+	starRef: doc(db, STARS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID)),
+});
+
+//The replay preflight asks "did the original batch commit?". Its ANSWER is
+//proof; its FAILURE is not. A rejected read (rules error, offline, blip) used
+//to propagate as a permission-denied that the queue classified as permanent,
+//silently destroying the intent — the one path this queue exists to protect.
+//Rethrow without a `code` so permanentFailure() treats it as transient and the
+//intent is retained for the next replay.
+const starCommitted = async (starRef : ReturnType<typeof doc>, label : string) : Promise<boolean> => {
+	try {
+		return (await getDocFromServer(starRef)).exists();
+	} catch (err) {
+		throw new Error(`${label} replay preflight could not be answered; retaining intent: ${String(err)}`);
+	}
+};
+
+registerAuxWriteExecutor('star-add', async (intent, isReplay) => {
+	const {cardRef, starRef} = starRefsForIntent(intent);
+	if (isReplay && await starCommitted(starRef, 'star-add')) return;
+	const batch = new MultiBatch(db);
+	//updated-invariant: exempt — cardEditMinor rules path; star counts are
+	//reader-driven and their drift is an accepted tradeoff.
+	batch.updateWithoutTimestampBump(cardRef, {
+		star_count: increment(1),
+		star_count_manual: increment(1),
+	});
+	batch.set(starRef, {
+		created: serverTimestamp(),
+		owner: intent.uid,
+		card: intent.cardID
+	});
+	await batch.commit();
+});
+
+registerAuxWriteExecutor('star-remove', async (intent, isReplay) => {
+	const {cardRef, starRef} = starRefsForIntent(intent);
+	if (isReplay && !(await starCommitted(starRef, 'star-remove'))) return;
+	const batch = new MultiBatch(db);
+	//updated-invariant: exempt — cardEditMinor rules path (see star-add).
+	batch.updateWithoutTimestampBump(cardRef, {
+		star_count: increment(-1),
+		star_count_manual: increment(-1),
+	});
+	batch.delete(starRef);
+	await batch.commit();
+});
+
+registerAuxWriteExecutor('read-add', async (intent) => {
+	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID));
+	const batch = new MultiBatch(db);
+	batch.set(readRef, {created: serverTimestamp(), owner: intent.uid, card: intent.cardID});
+	await batch.commit();
+});
+
+registerAuxWriteExecutor('read-remove', async (intent) => {
+	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(intent.uid, intent.cardID));
+	const batch = new MultiBatch(db);
+	batch.delete(readRef);
+	await batch.commit();
+});
+
+const readingListExecutor = (adding : boolean) => async (intent : AuxWriteIntent) => {
+	const batch = new MultiBatch(db);
+	const readingListRef = doc(db, READING_LISTS_COLLECTION, intent.uid);
+	//The audit key comes from the INTENT (captured at creation), so a replay
+	//overwrites its own audit doc instead of minting a duplicate.
+	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, intent.auditKey);
+	batch.set(readingListRef, {
+		cards: adding ? arrayUnion(intent.cardID) : arrayRemove(intent.cardID),
+		updated: serverTimestamp(),
+		owner: intent.uid,
+	}, {merge: true});
+	batch.set(readingListUpdateRef, {
+		timestamp: serverTimestamp(),
+		[adding ? 'add_card' : 'remove_card']: intent.cardID
+	});
+	await batch.commit();
+};
+
+registerAuxWriteExecutor('reading-list-add', readingListExecutor(true));
+registerAuxWriteExecutor('reading-list-remove', readingListExecutor(false));
+
 export const AUTO_MARK_READ_DELAY = 5000;
 
 import {
 	GoogleAuthProvider,
 	signInWithCredential,
 	signInWithPopup,
+	signInWithRedirect,
 	linkWithPopup,
+	linkWithRedirect,
+	getRedirectResult,
 	signInAnonymously,
 	signOut as firebaseSignOut,
 	User,
@@ -39,12 +137,26 @@ import {
 
 import {
 	doc,
+	getDocFromServer,
 	arrayUnion,
 	arrayRemove,
 	serverTimestamp,
 	increment,
 	FieldValue
 } from 'firebase/firestore';
+
+import {
+	registerAuxWriteExecutor,
+	makeAuxWriteIntent,
+	runDurableAuxWrite,
+	onAuxWriteDiscarded,
+	onAuxWriteQueueDepthChanged,
+	readPendingAuxWrites,
+	AuxWriteOutcome,
+	AuxWriteKind,
+	installAuxWriteReplayWatcher,
+	AuxWriteIntent
+} from '../aux-write-queue.js';
 
 import {
 	idForPersonalCardInfo
@@ -58,6 +170,7 @@ import {
 	selectActiveCard,
 	selectUser,
 	selectUid,
+	selectUserReadingList,
 	getCardIsRead,
 	selectUserIsAnonymous,
 	selectActiveCollection,
@@ -67,16 +180,22 @@ import {
 import {
 	UserInfo,
 	Card,
-	CardID
+	CardID,
+	State
 } from '../types.js';
 
 import {
-	ThunkSomeAction
+	ThunkSomeAction,
+	store
 } from '../store.js';
 
 import {
 	MultiBatch
 } from '../multi_batch.js';
+
+import {
+	MutationFencedError
+} from '../mutation-barrier.js';
 
 import {
 	CARDS_COLLECTION,
@@ -94,13 +213,15 @@ import {
 	SIGNIN_USER,
 	SIGNOUT_SUCCESS,
 	SIGNOUT_USER,
+	UPDATE_PENDING_AUX_WRITE_COUNT,
 	UPDATE_READING_LIST,
 	UPDATE_READS,
 	UPDATE_STARS
 } from '../actions.js';
 
 import {
-	LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY
+	LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY,
+	LOCAL_STORAGE_HAS_PREVIOUS_REAL_SIGN_IN_KEY
 } from '../constants.js';
 
 let prevAnonymousMergeUser : User | null = null;
@@ -116,7 +237,14 @@ export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
 	const batch = new MultiBatch(db);
 	ensureUserInfo(batch, user);
 	//If we had a merge user, null it out on successful save, so we don't keep saving it.
-	batch.commit().then(() => prevAnonymousMergeUser = null);
+	batch.commit()
+		.then(() => prevAnonymousMergeUser = null)
+		.catch(error => {
+			//Auth restoration also runs in a deliberately inactive superseded tab.
+			//That background bookkeeping is the one safe write to cancel quietly;
+			//interactive workflows must continue to observe a failed commit.
+			if (!(error instanceof MutationFencedError)) throw error;
+		});
 
 };
 
@@ -166,11 +294,36 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 				console.warn('Unexpectedly didn\'t have user');
 				return;
 			}
-			await linkWithPopup(user, provider);
+			const linked = await linkWithPopup(user, provider);
+			//Linking Google onto the anonymous account keeps the SAME uid, so
+			//Firebase's onAuthStateChanged — the app's only sign-in
+			//propagation path (user-chip) — does not fire: the signed-in user
+			//did not change, only its providers did. Without this dispatch the
+			//UI keeps rendering the anonymous session until a manual reload.
+			//(Harmless if a future SDK does fire it: signInSuccess is
+			//idempotent — its listener connects all disconnect-then-connect.)
+			dispatch(signInSuccess(linked.user));
 		} else {
 			await signInWithPopup(auth, provider);
 		}
 	} catch (err) {
+		//Popup blocked (embedded browsers, popup blockers, some enterprise
+		//policies): fall back to the redirect flow instead of leaving the user
+		//with a silent failure — previously this error only landed in Redux
+		//state and nothing was shown at all. The result is picked up by
+		//completeRedirectSignIn() on the next load.
+		if (err instanceof FirebaseError && (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment')) {
+			try {
+				const current = auth.currentUser;
+				if (isAnonymous && current) await linkWithRedirect(current, provider);
+				else await signInWithRedirect(auth, provider);
+				return;
+			} catch (redirectErr) {
+				dispatch({type:SIGNIN_FAILURE, error: redirectErr});
+				alert('Could not open Google sign-in. Please allow popups for this site and try again.');
+				return;
+			}
+		}
 		if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
 
 			//TODO: only show this confirmation if the old account has at least one star or a few dozen reads.
@@ -199,6 +352,35 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			}
 		} else {
 			dispatch({type:SIGNIN_FAILURE, error: err});
+			//SIGNIN_FAILURE is not rendered anywhere, so without this the user
+			//sees NOTHING when sign-in fails — indistinguishable from a dead
+			//button, which is what made a blocked popup look like a loop.
+			const code = err instanceof FirebaseError ? err.code : '';
+			if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+				alert(`Sign-in did not complete${code ? ` (${code})` : ''}. Please try again; if it keeps failing, allow popups for this site.`);
+			}
+		}
+	}
+};
+
+//Completes a redirect-based sign-in (the popup-blocked fallback). Must run
+//on boot: a redirect LINK keeps the same uid, so onAuthStateChanged does not
+//fire for it — the same reason the popup link path dispatches explicitly.
+export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) => {
+	try {
+		const result = await getRedirectResult(auth);
+		if (result?.user) dispatch(signInSuccess(result.user));
+	} catch (err) {
+		dispatch({type:SIGNIN_FAILURE, error: err});
+		//SIGNIN_FAILURE renders nowhere, and this is the RETURN leg of a
+		//redirect the user deliberately started: failing silently leaves them
+		//anonymous, staring at a sign-in button that appears to do nothing, in
+		//a loop. The popup path already surfaces its failures the same way.
+		const code = (err as {code? : string})?.code || '';
+		if (code === 'auth/credential-already-in-use') {
+			alert('That account is already linked to different data. Sign in from the account menu to switch to it.');
+		} else {
+			alert(`Sign in did not complete: ${(err as {message? : string})?.message || String(err)}`);
 		}
 	}
 };
@@ -220,6 +402,14 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	disconnectLiveReads();
 	disconnectLiveReadingList();
 	disconnectLivePermissions();
+};
+
+const flagHasPreviousRealSignIn = () => {
+	try {
+		localStorage.setItem(LOCAL_STORAGE_HAS_PREVIOUS_REAL_SIGN_IN_KEY, '1');
+	} catch {
+		//Best effort; reader routing degrades to the reader path.
+	}
 };
 
 const flagHasPreviousSignIn = () => {
@@ -288,6 +478,10 @@ const updateUserInfo = (firebaseUser : User) : ThunkSomeAction => (dispatch) => 
 	});
 };
 
+//signInSuccess runs on every auth resolution; the queue-depth mirror below
+//must only be registered once per page.
+let auxWriteDepthListenerInstalled = false;
+
 export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
@@ -298,9 +492,37 @@ export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatc
 	dispatch(updateUserInfo(firebaseUser));
 
 	dispatch(saveUserInfo());
+	//ALWAYS set, including for anonymous sign-ins: this marker's job is to
+	//stop signOutSuccess from calling signInAnonymously again on the next
+	//null-auth event. Clearing it for anonymous users (an earlier attempt to
+	//make the reader path reachable) removed that guard and let the popup
+	//sign-in flow mint anonymous users in a loop.
 	flagHasPreviousSignIn();
+	//Reader routing uses its OWN signal, set only by a real sign-in, so a
+	//device that has genuinely signed in skips the reader fast path.
+	if (!firebaseUser.isAnonymous) flagHasPreviousRealSignIn();
 	connectLivePermissions(firebaseUser.uid);
 	connectLiveStars(firebaseUser.uid);
+	//Replay any aux writes (stars/reads/reading-list) that were queued
+	//durably but never server-confirmed — e.g. made offline before a reload.
+	//The provider reads LIVE state so sign-out/account switches stop replays
+	//of the old uid's intents (a captured uid would replay them under the
+	//new auth and permanently drop them as permission-denied).
+	installAuxWriteReplayWatcher(() => selectUid(store.getState() as State));
+	//Mirror the queue's depth into Redux so the corpus status indicator can
+	//show "changes waiting to reach the server" without any selector ever
+	//reading localStorage. The queue pushes on every enqueue/dequeue; the
+	//registration itself reports the current depth (intents surviving from a
+	//previous session). Guarded: this sign-in path runs on every auth
+	//resolution, and a duplicate listener would just dispatch twice.
+	if (!auxWriteDepthListenerInstalled) {
+		auxWriteDepthListenerInstalled = true;
+		onAuxWriteQueueDepthChanged(count => store.dispatch({type: UPDATE_PENDING_AUX_WRITE_COUNT, count}));
+	}
+	//Undo optimistic per-user updates whose intent the queue later gives up on.
+	//Installed beside the replay watcher because the replay loop is where most
+	//terminal discards actually happen.
+	installOptimisticUserStateReconciler();
 	connectLiveReads(firebaseUser.uid);
 	connectLiveReadingList(firebaseUser.uid);
 };
@@ -327,14 +549,188 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 
 	dispatch({type:SIGNOUT_USER});
 	flagHasPreviousSignIn();
+	//signOut refuses anonymous users above, so reaching here proves a real
+	//sign-in happened on this device — keep routing it to exclusive ownership
+	//even though it is now signed out.
+	flagHasPreviousRealSignIn();
 	firebaseSignOut(auth);
 };
 
-export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
+//OPTIMISTIC APPLICATION for per-user state.
+//
+//These toggles never applied anything locally: the star/read/reading-list UI was
+//painted entirely by the listener echo, which was instant only because the write
+//and the listener shared one Firestore instance (latency compensation fires on
+//the pending mutation). The listeners now live in the CORPUS WORKER — the only
+//context with a persistent cache, so re-attach bills deltas rather than the
+//whole result set — and that worker's instance knows nothing about this thread's
+//pending write. Without applying locally, every toggle would wait for a server
+//round trip before it visibly did anything.
+//
+//`apply` runs the moment the user acts. A later identical echo is harmless: the
+//stars and reads reducers are set-based (setUnion/setRemove), so re-applying is
+//a no-op.
+//
+//WHAT THIS DELIBERATELY DOES NOT DO is decide the outcome from its own first
+//attempt. 'queued' is NOT terminal: runDurableAuxWrite answers 'queued' for
+//anything retryable and returns, and the intent can still die much later — on a
+//replay that hits a permanent failure (the card was deleted meanwhile), or by
+//ageing out after 30 days. Neither of those can reach a closure that has already
+//returned, so an earlier version left a discarded star visibly starred for the
+//rest of the session. Terminal discards are reconciled by the subscriber
+//installed in installOptimisticUserStateReconciler instead.
+//
+//A THROW is still handled here, because it is the one failure with no intent to
+//be discarded later: if it threw before persisting there is nothing to notify.
+const applyOptimistically = async (
+	apply : () => void,
+	revert : () => void,
+	run : () => Promise<AuxWriteOutcome>
+) : Promise<void> => {
+	apply();
+	try {
+		await run();
+	} catch (err) {
+		console.warn('[user-state] durable write failed before it could be persisted; reverting the optimistic update:', err);
+		revert();
+	}
+};
+
+//Undo the optimistic effect of an intent that the queue has now given up on,
+//whenever that happens. Computed from the state as it stands at revert time
+//rather than from a snapshot captured when the user acted: a stale whole-list
+//restore would discard a concurrent successful change to the same list.
+//A FULL re-delivery replaces the set instead of unioning into it, and then the
+//user's still-PENDING writes are overlaid on top.
+//
+//Both halves matter. Without the replace, a re-attach could never express a
+//removal: Firestore reports the whole set as `added`, the reducer unions it in,
+//and a star the user had just removed came back. Without the overlay, the
+//replace would itself discard the removal — the server legitimately still has
+//that star, because the write has not landed yet. The pending queue IS the
+//record of what the user has done but the server has not yet acknowledged, so
+//replaying it over authoritative state is what makes the two agree.
+//
+//This also repairs a case that predates the optimistic layer: after a reload,
+//queued-but-unsent actions used to be invisible until they committed.
+const overlayPendingUserIntents = (serverIDs : CardID[], addKind : AuxWriteKind, removeKind : AuxWriteKind, uid : string) : Set<CardID> => {
+	const result = new Set(serverIDs);
+	for (const intent of readPendingAuxWrites()) {
+		if (intent.uid !== uid) continue;
+		if (intent.kind === addKind) result.add(intent.cardID);
+		else if (intent.kind === removeKind) result.delete(intent.cardID);
+	}
+	return result;
+};
+
+//Expressed through the existing set-based action rather than a new "replace"
+//one: computing the removals explicitly means setUnion/setRemove produce the
+//replacement, and the `*Loaded` semantics stay exactly as they were.
+const applyAuthoritativeSet = (
+	current : {[id : CardID] : unknown},
+	desired : Set<CardID>
+) : {added : CardID[], removed : CardID[]} => ({
+	added: [...desired],
+	removed: Object.keys(current).filter(id => !desired.has(id)),
+});
+
+//The reading list needs the same treatment as stars and reads, and did not get
+//it: the bridge replaced it wholesale on every worker delivery. EVERY delivery
+//is a full list, and post-error re-attach is now routine thanks to the listener
+//retry — so queueing an add on a flaky connection and then receiving any
+//delivery visibly reversed the user's action.
+//
+//Order is meaningful here, unlike the sets, so this rebuilds from the server's
+//ORDER and then applies pending intents: an add appends (matching the
+//server-side arrayUnion) and a remove deletes in place.
+export const receiveAuthoritativeReadingList = (serverList : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+	const uid = selectUid(getState());
+	const result = [...serverList];
+	for (const intent of readPendingAuxWrites()) {
+		if (intent.uid !== uid) continue;
+		if (intent.kind === 'reading-list-add') {
+			if (!result.includes(intent.cardID)) result.push(intent.cardID);
+		} else if (intent.kind === 'reading-list-remove') {
+			const at = result.indexOf(intent.cardID);
+			if (at >= 0) result.splice(at, 1);
+		}
+	}
+	dispatch(updateReadingList(result));
+};
+
+export const receiveAuthoritativeStars = (serverIDs : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+	const state = getState();
+	const desired = overlayPendingUserIntents(serverIDs, 'star-add', 'star-remove', selectUid(state));
+	const {added, removed} = applyAuthoritativeSet(state.user?.stars || {}, desired);
+	dispatch(updateStars(added, removed));
+};
+
+export const receiveAuthoritativeReads = (serverIDs : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+	const state = getState();
+	const desired = overlayPendingUserIntents(serverIDs, 'read-add', 'read-remove', selectUid(state));
+	const {added, removed} = applyAuthoritativeSet(state.user?.reads || {}, desired);
+	dispatch(updateReads(added, removed));
+};
+
+let optimisticReconcilerInstalled = false;
+
+export const installOptimisticUserStateReconciler = () : void => {
+	//Sign-in runs on every auth change, and a second subscriber would revert
+	//twice. Most of these reverts are idempotent, but relying on that is not a
+	//reason to register the same listener repeatedly.
+	if (optimisticReconcilerInstalled) return;
+	optimisticReconcilerInstalled = true;
+	onAuxWriteDiscarded(intent => {
+		//These reverts are unconditional deltas, which is very slightly lossy in
+		//one narrow case: if a queued star-add is discarded weeks later (the
+		//30-day age-out) and the user has SUCCESSFULLY re-starred the same card
+		//in between, this removes the legitimate star locally. It self-heals on
+		//the next authoritative re-delivery, which now exists. Consulting the
+		//server per discard would close it, and costs more than it buys.
+		const cardID = intent.cardID;
+		if (!cardID) return;
+		//An intent belonging to a PREVIOUS account can be discarded after a
+		//switch (its replay earns permission-denied under the new auth, which is
+		//classified permanent). Reverting then would corrupt the new user's
+		//state with the old user's action.
+		if (intent.uid !== selectUid(store.getState() as State)) return;
+		switch (intent.kind) {
+		case 'star-add':
+			store.dispatch(updateStars([], [cardID], true));
+			return;
+		case 'star-remove':
+			store.dispatch(updateStars([cardID], [], true));
+			return;
+		case 'read-add':
+			store.dispatch(updateReads([], [cardID], true));
+			return;
+		case 'read-remove':
+			store.dispatch(updateReads([cardID], [], true));
+			return;
+		case 'reading-list-add': {
+			const list = selectUserReadingList(store.getState() as State);
+			if (list.includes(cardID)) store.dispatch(updateReadingList(list.filter((id : CardID) => id !== cardID), true));
+			return;
+		}
+		case 'reading-list-remove': {
+			const list = selectUserReadingList(store.getState() as State);
+			if (!list.includes(cardID)) store.dispatch(updateReadingList([...list, cardID], true));
+			return;
+		}
+		default:
+			//Other kinds (card-create, comments, card-delete) have their own
+			//reporting and no optimistic per-user state to undo.
+			return;
+		}
+	});
+};
+
+export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_STARS,
 		starsToAdd,
-		starsToRemove
+		starsToRemove,
+		optimistic
 	});
 	dispatch(refreshCardSelector(false));
 };
@@ -352,7 +748,7 @@ export const toggleOnReadingList = (cardToToggle : CardID) : ThunkSomeAction => 
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, getState) => {
+export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToAdd) {
 		console.log('Invalid card provided');
 		return;
@@ -373,29 +769,22 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	const batch = new MultiBatch(db);
-
-	const readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
-	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
-
-	const readingListObject = {
-		cards: arrayUnion(cardToAdd),
-		updated: serverTimestamp(),
-		owner: uid,
-	};
-
-	const readingListUpdateObject = {
-		timestamp: serverTimestamp(),
-		add_card: cardToAdd
-	};
-
-	batch.set(readingListRef, readingListObject, {merge:true});
-	batch.set(readingListUpdateRef, readingListUpdateObject);
-
-	batch.commit();
+	//The reading list is an ORDERED array replaced wholesale, so the optimistic
+	//value is computed from the list as it stands rather than expressed as a
+	//delta. Appending matches the server-side arrayUnion.
+	void applyOptimistically(
+		() => {
+			const list = selectUserReadingList(getState());
+			if (!list.includes(cardToAdd)) dispatch(updateReadingList([...list, cardToAdd], true));
+		},
+		() => {
+			const list = selectUserReadingList(getState());
+			if (list.includes(cardToAdd)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToAdd), true));
+		},
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
-export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (_, getState) => {
+export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToRemove) {
 		console.log('Invalid card provided');
 		return;
@@ -416,29 +805,19 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	const batch = new MultiBatch(db);
-
-	const readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
-	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
-
-	const readingListObject = {
-		cards: arrayRemove(cardToRemove),
-		updated: serverTimestamp(),
-		owner: uid
-	};
-
-	const readingListUpdateObject = {
-		timestamp: serverTimestamp(),
-		remove_card: cardToRemove
-	};
-
-	batch.set(readingListRef, readingListObject, {merge:true});
-	batch.set(readingListUpdateRef, readingListUpdateObject);
-
-	batch.commit();
+	void applyOptimistically(
+		() => {
+			const list = selectUserReadingList(getState());
+			if (list.includes(cardToRemove)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToRemove), true));
+		},
+		() => {
+			const list = selectUserReadingList(getState());
+			if (!list.includes(cardToRemove)) dispatch(updateReadingList([...list, cardToRemove], true));
+		},
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
-export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
+export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -460,23 +839,14 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getSt
 		return;
 	}
 
-	const cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
-	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
-
-	const batch = new MultiBatch(db);
-	batch.update(cardRef, {
-		star_count: increment(1),
-		star_count_manual: increment(1),
-	});
-	batch.set(starRef, {
-		created: serverTimestamp(), 
-		owner: uid, 
-		card:cardToStar.id
-	});
-	batch.commit();
+	const starredID = cardToStar.id;
+	void applyOptimistically(
+		() => dispatch(updateStars([starredID], [], true)),
+		() => dispatch(updateStars([], [starredID], true)),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', starredID)));
 };
 
-export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
+export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -497,32 +867,28 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, ge
 		return;
 	}
 
-	const cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
-	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
-
-	const batch = new MultiBatch(db);
-	batch.update(cardRef, {
-		star_count: increment(-1),
-		star_count_manual: increment(-1),
-	});
-	batch.delete(starRef);
-	batch.commit();
-
+	const unstarredID = cardToStar.id;
+	void applyOptimistically(
+		() => dispatch(updateStars([], [unstarredID], true)),
+		() => dispatch(updateStars([unstarredID], [], true)),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-remove', unstarredID)));
 };
 
-export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
+export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_READS,
 		readsToAdd,
-		readsToRemove
+		readsToRemove,
+		optimistic
 	});
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateReadingList = (list : CardID[] = []) : ThunkSomeAction => (dispatch) => {
+export const updateReadingList = (list : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_READING_LIST,
 		list,
+		optimistic
 	});
 	dispatch(refreshCardSelector(false));
 };
@@ -572,7 +938,7 @@ export const markActiveCardReadIfLoggedIn = () : ThunkSomeAction => (dispatch, g
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => (_, getState) => {
+export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -601,14 +967,14 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 		}
 	}
 
-	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkRead.id));
-
-	const batch = new MultiBatch(db);
-	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
-	batch.commit();
+	const readID = cardToMarkRead.id;
+	void applyOptimistically(
+		() => dispatch(updateReads([readID], [], true)),
+		() => dispatch(updateReads([], [readID], true)),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', readID)));
 };
 
-export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (_, getState) => {
+export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (dispatch, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
@@ -637,10 +1003,9 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 	//Just in case we were planning on setting this card as read.
 	cancelPendingAutoMarkRead();
 
-	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkUnread.id));
-
-	const batch = new MultiBatch(db);
-	batch.delete(readRef);
-	batch.commit();
-
+	const unreadID = cardToMarkUnread.id;
+	void applyOptimistically(
+		() => dispatch(updateReads([], [unreadID], true)),
+		() => dispatch(updateReads([unreadID], [], true)),
+		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-remove', unreadID)));
 };

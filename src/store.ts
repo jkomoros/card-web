@@ -7,7 +7,7 @@ import {
 	Reducer
 } from 'redux';
 
-import thunk, { ThunkAction, ThunkDispatch, ThunkMiddleware } from 'redux-thunk';
+import thunkImport, { ThunkAction, ThunkDispatch, ThunkMiddleware } from 'redux-thunk';
 import { lazyReducerEnhancer } from 'pwa-helpers/lazy-reducer-enhancer.js';
 
 import { State } from './types.js';
@@ -15,6 +15,9 @@ import { State } from './types.js';
 import app from './reducers/app.js';
 import data from './reducers/data.js';
 import { SomeAction } from './actions.js';
+import { perfEnabled, perfMiddleware } from './perf.js';
+import { actionForwarderMiddleware } from './action-forwarder.js';
+import { setSimilarityRequestHandler } from './similarity-request.js';
 
 declare global {
 	interface Window {
@@ -31,6 +34,8 @@ const devCompose: <Ext0, Ext1, StateExt0, StateExt1>(
   ) => StoreEnhancer<Ext0 & Ext1, StateExt0 & StateExt1> =
 	window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
+const thunkMiddleware = (typeof thunkImport === 'function' ? thunkImport : (thunkImport as {default: typeof thunkImport}).default) as ThunkMiddleware<State, SomeAction>;
+
 // Initializes the Redux store with a lazyReducerEnhancer (so that you can
 // lazily add reducers after the store has been created) and redux-thunk (so
 // that you can dispatch async actions). See the "Redux and state management"
@@ -40,7 +45,7 @@ export const store = createStore(
 	state => state as Reducer<State,SomeAction>,
 	devCompose(
 		lazyReducerEnhancer(combineReducers),
-		applyMiddleware(thunk as ThunkMiddleware<State, SomeAction>))
+		applyMiddleware(thunkMiddleware, perfMiddleware, actionForwarderMiddleware))
 );
 
 // Initially loaded reducers.
@@ -49,8 +54,27 @@ store.addReducers({
 	data,
 });
 
-//Stash this here so it's easy to get access to it via console.
-window['DEBUG_STORE'] = store;
+//Stash this here so it's easy to get access to it via console. Gated: the
+//store's dispatch is a full mutation surface, strictly more powerful than the
+//PERF_HARNESS API that was already flag-gated while this shipped to everyone.
+if (perfEnabled()) {
+	window['DEBUG_STORE'] = store;
+}
+
+if (perfEnabled()) {
+	void import('./perf-harness-api.js').then(({installPerfHarnessAPI}) => installPerfHarnessAPI());
+}
+
+//Install the main-thread handler for the similar-card filters' fetch-trigger
+//side effect (see src/similarity-request.ts: filters.ts also runs inside the
+//corpus worker, which forwards these requests to us over the bridge instead).
+//Dynamic import keeps actions/similarity.js out of the store's static graph.
+setSimilarityRequestHandler((cardID, editingCard) => {
+	void import('./actions/similarity.js').then(module => {
+		if (editingCard) module.fetchSimilarCardsForCardIfEnabled(editingCard);
+		else module.fetchSimilarCardsIfEnabled(cardID);
+	}).catch(error => console.warn('Could not request similar cards', error));
+});
 
 export type AppThunkDispatch = ThunkDispatch<State, undefined, SomeAction>;
 

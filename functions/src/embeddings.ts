@@ -25,10 +25,6 @@ import {
 } from '../../shared/document.js';
 
 import {
-	JSDOM
-} from 'jsdom';
-
-import {
 	DEV_MODE,
 	getCards,
 	QDRANT_API_KEY,
@@ -54,11 +50,23 @@ import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
 
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
 //The highest number of cards there might ever be.
 const MAX_EMBEDDINGS = 100000;
 
-const DOM = new JSDOM();
-overrideDocument(DOM.window.document);
+// Lazy-init jsdom so non-NLP Cloud Functions don't pay the JSDOM cold start cost.
+let jsdomInitialized = false;
+const ensureJsdom = () => {
+	if (jsdomInitialized) return;
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	const { JSDOM } = require('jsdom');
+	const dom = new JSDOM();
+	overrideDocument(dom.window.document);
+	jsdomInitialized = true;
+};
 
 const QDRANT_ENABLED = openai_endpoint && QDRANT_API_KEY && QDRANT_CLUSTER_URL;
 
@@ -141,6 +149,7 @@ const toDate = (time : SimpleTimestamp) : Date => {
 };
 
 export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
+	ensureJsdom();
 	//Every time this function is updated, CURRENT_EMBEDDING_VERSION should be incremented.
 
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts

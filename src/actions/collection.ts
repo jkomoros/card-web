@@ -48,7 +48,7 @@ import {
 	selectPendingNewCardIDToNavigateTo,
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
-	selectExplicitlySelectedCardIDs
+	selectExplicitlySelectedCardIDs,
 } from '../selectors.js';
 
 import {
@@ -91,7 +91,7 @@ import {
 	UPDATE_COLLECTION,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 	UPDATE_COLLECTION_SHAPSHOT,
-	UPDATE_RENDER_OFFSET
+	UPDATE_RENDER_OFFSET,
 } from '../actions.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -194,7 +194,7 @@ export const updateCollectionConfigurationSnapshot = (description : CollectionDe
 	};
 };
 
-export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkSomeAction => (dispatch, getState) =>{	
+export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkSomeAction => (dispatch, getState) =>{
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);

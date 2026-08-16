@@ -6,7 +6,7 @@ import {
 
 import {
 	overrideDocument
-} from '../../lib/src/document.js';
+} from '../../lib/shared/document.js';
 
 import {
 	BASE_DATA
@@ -22,17 +22,17 @@ import {
 	PreparedQuery,
 	TESTING,
 	extractFiltersFromQuery
-} from '../../src/nlp.js';
+} from '../../lib/src/nlp.js';
 
 import {
 	TEXT_FIELD_CONFIGURATION,
-} from '../../src/card_fields.js';
+} from '../../lib/shared/card_fields.js';
 
 import {
 	cardFieldType,
 	cardType,
 	referenceType
-} from '../../src/types.js';
+} from '../../lib/src/types.js';
 
 const REFERENCE_TYPE_ACK = referenceType('ack');
 const REFERENCE_TYPE_DUPE_OF = referenceType('dupe-of');
@@ -201,7 +201,7 @@ describe('fingerprint generation', () => {
 				'body': [
 					'https://www.wikipedia.org/blammo is a great site it\' import to think of stuff e.g other stuff',
 					'hill climb is the same as hill climb thi is not not realli the same thi is a quot a quot is here boundari edg ar impor to think about',
-					'anoth site to know about is komoroske.com/sudoku or even washingtonpost.com'
+					'anoth site to know about is komoroske.com/sudoku, or even washingtonpost.com'
 				],
 				'subtitle': [],
 				'concept_references': [],
@@ -213,6 +213,9 @@ describe('fingerprint generation', () => {
 		for (const cardID of CARD_IDS_TO_TEST) {
 			const card = cards[cardID];
 			const normalized = expectedNormalized[cardID];
+			for (const fieldName of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+				if (!normalized[fieldName]) normalized[fieldName] = [];
+			}
 			assert.deepStrictEqual(Object.fromEntries(Object.entries(card.nlp).map(entry => [entry[0], entry[1].map(run => run.stemmed)])), normalized);
 		}
 	});
@@ -474,7 +477,7 @@ describe('fingerprint generation', () => {
 			'Unknowably',
 			'Require',
 			'Unknowably Hard',
-			'Problems',
+			'Problem',
 			'Hard',
 			'Cynefin\'s',
 			'Blammo',
@@ -507,7 +510,7 @@ describe('fingerprint generation', () => {
 			'Model Blammo',
 			'Cynenfin Model',
 			'Model Dupe',
-			'Use',
+			'Using',
 			'Effort',
 			'Next',
 			'Beware',
@@ -556,9 +559,9 @@ describe('fingerprint generation', () => {
 			'Cynefin',
 			'Model',
 			'Same',
-			'Https://www.wikipedia.org/blammo',
+			'https://www.wikipedia.org/blammo',
 			'Imporant',
-			'Komoroske.com/sudoku',
+			'komoroske.com/sudoku,',
 			'Washingtonpost.com',
 			'Understand',
 			'Complex',
@@ -570,7 +573,7 @@ describe('fingerprint generation', () => {
 			'Card Has Lots',
 			'Lots of Interesting',
 			'Interesting Details',
-			'Https://www.wikipedia.org/blammo Is a Great',
+			'https://www.wikipedia.org/blammo is a great',
 			'Great Site',
 			'Site It\'s',
 			'Important to Think'
@@ -583,7 +586,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = fingerprint.dedupedPrettyItemsFromCard();
-		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problems Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Complex Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe What Simple Ambiguous Trivial Black White Consistently Use Effort Next Beware I Efficiency Using';
+		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problem Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Complex Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe What Simple Ambiguous Trivial Black White Consistently Using Effort Next Beware I Efficiency';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
@@ -606,7 +609,7 @@ const expandExpectedQueryProperties = (titleBlock) => {
 	const titleMatchWeight = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_TITLE].matchWeight;
 	for (const [fieldName, fieldConfig] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
 		if (fieldName == TEXT_FIELD_TITLE) continue;
-		const fieldMatchWeight = fieldConfig.matchWeight;
+		const fieldMatchWeight = fieldConfig.matchWeight || 0;
 		result[fieldName] = titleBlock.map(item => [item[0], item[1] / titleMatchWeight * fieldMatchWeight ,item[2]]);
 	}
 	return result;
@@ -1026,4 +1029,69 @@ describe('ngrams', () => {
 		assert.deepStrictEqual(result, expectedResult);
 	});
 
+});
+
+describe('fingerprint cache reuse across generators', () => {
+	it('unchanged card objects keep fingerprint identity across generators with a stable injected IDF map', async () => {
+		const cards = baseCards();
+		const idfMap = {idf: {}, maxIDF: 1};
+		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, idfMap);
+		const fingerprintOne = generatorOne.fingerprintForCardID(CARD_ID_ONE);
+		const fingerprintTwoBefore = generatorOne.fingerprintForCardID(CARD_ID_TWO);
+		//Simulate a single-card update: fresh map, fresh object for card two
+		//only (unchanged cards keep identity, like the incremental reducers).
+		const updatedCards = {...cards, [CARD_ID_TWO]: {...cards[CARD_ID_TWO]}};
+		const generatorTwo = new FingerprintGenerator(updatedCards, undefined, undefined, idfMap);
+		//The unchanged card's fingerprint is the SAME OBJECT (cache hit)…
+		assert.strictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), fingerprintOne);
+		//…while the changed card is recomputed.
+		assert.notStrictEqual(generatorTwo.fingerprintForCardID(CARD_ID_TWO), fingerprintTwoBefore);
+	});
+
+	it('a different injected IDF map identity does not reuse cached fingerprints', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards, undefined, undefined, {idf: {}, maxIDF: 1});
+		const fingerprintOne = generatorOne.fingerprintForCardID(CARD_ID_ONE);
+		const generatorTwo = new FingerprintGenerator(cards, undefined, undefined, {idf: {}, maxIDF: 1});
+		assert.notStrictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), fingerprintOne);
+	});
+
+	it('generators over the same cards identity share one locally-computed IDF map (WeakMap memo)', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards);
+		const generatorTwo = new FingerprintGenerator(cards);
+		//Same cards identity + same ngram size -> the local idf map memo hits,
+		//so the two generators share one map object (and therefore one shared
+		//fingerprint cache).
+		assert.strictEqual(generatorTwo._idfMap, generatorOne._idfMap);
+		assert.strictEqual(generatorTwo.fingerprintForCardID(CARD_ID_ONE), generatorOne.fingerprintForCardID(CARD_ID_ONE));
+	});
+
+	it('an ngram-7 build does not evict the ordinary size-2 local IDF map', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards);
+		const sizeTwoMap = generatorOne._idfMap;
+		//possibleMissingConcepts-style build: same cards, much larger ngram
+		//size. Under the old single-global-slot memo this EVICTED the size-2
+		//map, so the next ordinary consumer rebuilt from scratch.
+		const bigGenerator = new FingerprintGenerator(cards, undefined, 7);
+		assert.notStrictEqual(bigGenerator._idfMap, sizeTwoMap);
+		const generatorTwo = new FingerprintGenerator(cards);
+		assert.strictEqual(generatorTwo._idfMap, sizeTwoMap);
+	});
+
+	it('a delete recomputes the local map without disturbing other corpora entries', async () => {
+		const cards = baseCards();
+		const generatorOne = new FingerprintGenerator(cards);
+		const mapOne = generatorOne._idfMap;
+		//Delete a card: new cards identity -> a fresh (correct) map, not a
+		//stale one from a count-window heuristic.
+		const smaller = {...cards};
+		delete smaller[CARD_ID_TWO];
+		const generatorTwo = new FingerprintGenerator(smaller);
+		assert.notStrictEqual(generatorTwo._idfMap, mapOne);
+		//And the original corpus's map is still memoized (no cross-eviction).
+		const generatorThree = new FingerprintGenerator(cards);
+		assert.strictEqual(generatorThree._idfMap, mapOne);
+	});
 });

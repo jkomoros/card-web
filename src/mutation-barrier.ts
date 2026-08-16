@@ -1,0 +1,58 @@
+//Origin-tab-local accounting for Firestore mutation workflows. Ownership
+//handoff consults this leaf module before deactivating a page, so no async
+//write can continue from a superseded tab.
+
+let inFlight = 0;
+let fenced = false;
+let ownershipValidator : (() => boolean) | null = null;
+let stateListener : (() => void) | null = null;
+
+export class MutationFencedError extends Error {
+	constructor() {
+		super('This tab is inactive and cannot start Firestore mutations');
+		this.name = 'MutationFencedError';
+	}
+}
+
+export const beginMutation = () : (() => void) => {
+	if (fenced || (ownershipValidator && !ownershipValidator())) {
+		fenced = true;
+		throw new MutationFencedError();
+	}
+	inFlight++;
+	stateListener?.();
+	let finished = false;
+	return () => {
+		if (finished) return;
+		finished = true;
+		inFlight = Math.max(0, inFlight - 1);
+		stateListener?.();
+	};
+};
+
+//Accept a thunk rather than an already-created Promise: argument evaluation
+//must happen only after beginMutation has checked the fence. Otherwise a raw
+//Firestore write could start and only then discover that this tab is inactive.
+export const trackMutation = async <T>(operation : () => Promise<T>) : Promise<T> => {
+	const finish = beginMutation();
+	try {
+		return await operation();
+	} finally {
+		finish();
+	}
+};
+
+export const inFlightMutationCount = () : number => inFlight;
+
+export const fenceMutations = () => { fenced = true; };
+export const allowMutations = () => { fenced = false; };
+export const mutationsFenced = () : boolean => fenced;
+
+//The corpus ownership layer installs a synchronous generation validator and
+//heartbeat updater. Keeping these optional preserves this module's use in
+//workers/tests while ensuring a force-superseded tab cannot issue a write in
+//the gap before its storage event is delivered.
+export const configureMutationOwnership = (validator : (() => boolean) | null, listener : (() => void) | null) => {
+	ownershipValidator = validator;
+	stateListener = listener;
+};

@@ -1,4 +1,14 @@
 import {
+	modifyCardFailure
+} from './data.js';
+
+import {
+	blockedError,
+	SAVE_VERB
+} from '../sync-copy.js';
+
+import {
+	selectCardSavesEligible,
 	selectActiveCard,
 	selectUserMayEditActiveCard,
 	selectEditingCard,
@@ -6,13 +16,17 @@ import {
 	selectUid,
 	selectPendingSlug,
 	selectIsEditing,
+	selectCardModificationPending,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
+	selectSelectedCards,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
+	selectEditingUnderlyingCardSnapshot,
 	selectOvershadowedUnderlyingCardChangesDiff,
-	selectOvershadowedUnderlyingCardChangesDiffDescription
+	selectOvershadowedUnderlyingCardChangesDiffDescription,
+	selectCorpusStatus
 } from '../selectors.js';
 
 import {
@@ -21,7 +35,12 @@ import {
 
 import {
 	modifyCard,
+	durableCardMutationPending,
 } from './data.js';
+
+import {
+	trackMutation
+} from '../mutation-barrier.js';
 
 import {
 	confirmationsForCardDiff,
@@ -41,7 +60,8 @@ import {
 } from '../references.js';
 
 import {
-	cardHasContent
+	cardHasContent,
+	stripEphemeralCardFields
 } from '../util.js';
 
 import {
@@ -71,7 +91,9 @@ import {
 } from '../images.js';
 
 import {
-	uploadsRef
+	uploadsRef,
+	db,
+	deepEqualIgnoringTimestamps
 } from '../firebase.js';
 
 import {
@@ -79,6 +101,20 @@ import {
 	uploadBytes,
 	getDownloadURL
 } from 'firebase/storage';
+
+import {
+	doc,
+	getDoc,
+	onSnapshot
+} from 'firebase/firestore';
+
+import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+import type {
+	Card
+} from '../types.js';
 
 import {
 	AutoTODOType,
@@ -95,11 +131,13 @@ import {
 	ReferenceType,
 	SectionID,
 	Slug,
+	State,
 	TagID,
-	Uid 
+	Uid
 } from '../types.js';
 
 import {
+	AppThunkDispatch,
 	ThunkSomeAction
 } from '../store.js';
 
@@ -153,6 +191,21 @@ import {
 let lastReportedSelectionRange : Range | null = null;
 let savedSelectionRange : Range | null = null;
 let selectionParent : HTMLElementWithStashedSelectionOffset | null = null;
+
+// Live listener for the card being edited (conflict mitigation)
+let editingCardUnsubscribe: (() => void) | null = null;
+
+const dispatchUnderlyingCardUpdateIfChanged = (dispatch : AppThunkDispatch, getState : () => State, freshCard : Card) => {
+	const state = getState();
+	const editingCard = selectEditingCard(state);
+	if (!editingCard || editingCard.id !== freshCard.id) return;
+	const underlyingSnapshot = selectEditingUnderlyingCardSnapshot(state);
+	if (underlyingSnapshot && deepEqualIgnoringTimestamps(underlyingSnapshot, freshCard)) return;
+	dispatch({
+		type: EDITING_UPDATE_UNDERLYING_CARD,
+		updatedUnderlyingCard: freshCard
+	});
+};
 
 //selection range is weird; you can only listen for changes at the document
 //level, but selections wihtin a shadow root are hidden from outside. Certain
@@ -254,10 +307,23 @@ export const editingSelectEditorTab = (tab : EditorContentTab) : SomeAction => {
 	};
 };
 
-export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
+export const editingStart = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
+		return;
+	}
+	//A durable single-card save releases the editor before its server commit
+	//finishes. Do not allow another editor session to start during that short
+	//window: the mutation runner intentionally serializes durable operations,
+	//so a second Save could not be accepted yet. More importantly, keeping the
+	//sessions disjoint prevents a late acknowledgement from the first save from
+	//being mistaken for completion of a newer edit.
+	if (selectCardModificationPending(state) || durableCardMutationPending()) {
+		//No alert: the Edit affordances are disabled with this exact reason in
+		//their tooltip, so the state is already visible. An alert here fires
+		//once per keypress and reads as a modal storm when a shortcut repeats.
+		console.warn('A card save is still finishing; editing reopens when it clears.');
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
@@ -269,13 +335,58 @@ export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
 		console.warn('There doesn\'t appear to be an active card.');
 		return;
 	}
-	dispatch({type: EDITING_START, card: card});
+
+	// Start editing immediately from local state. Freshness checks happen below
+	// without blocking the editor from opening.
+	dispatch({type: EDITING_START, card});
+
+	// Set up live listener for this card only.
+	if (editingCardUnsubscribe) {
+		editingCardUnsubscribe();
+	}
+
+	editingCardUnsubscribe = onSnapshot(
+		doc(db, CARDS_COLLECTION, card.id),
+		snapshot => {
+			if (!snapshot.exists()) return;
+
+			const liveCard: Card = stripEphemeralCardFields({...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card);
+			dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, liveCard);
+		},
+		error => {
+			console.warn('Editing card listener error (will retry on reconnect):', error.message);
+		}
+	);
+
+	// Refresh the card after the editor is open. If the user navigates away or
+	// starts editing a different card before this resolves, ignore the result.
+	try {
+		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
+		if (!freshSnapshot.exists()) return;
+		const freshCard: Card = stripEphemeralCardFields({...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card);
+		dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, freshCard);
+	} catch (error) {
+		console.error('Error refreshing card after opening editor:', error);
+	}
 };
 
 export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	if (!selectIsEditing(state)) {
 		console.warn('Editing not active');
+		return;
+	}
+	//Check eligibility BEFORE the confirm gauntlet. The mouse path is a
+	//disabled button, but the keyboard path (Cmd/Ctrl+Enter) walked the user
+	//through the pending-slug, suggested-concept and overshadowed-changes
+	//confirms and only then, from deep inside the executor, told them sync was
+	//not live. Refuse up front, with the same reason the Save button gives.
+	if (!selectCardSavesEligible(state)) {
+		//Was a blocking OS modal for the same condition that makes Cmd-M a
+		//silent no-op. The disabled Save button and its wrapper tooltip carry
+		//the explanation two inches away; route this through the same surface
+		//the rest of the app uses instead of interrupting.
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB)), true));
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
@@ -358,8 +469,20 @@ export const linkCard = (cardID : CardID) : ThunkSomeAction => (_, getState) => 
 	document.execCommand('createLink', false, cardID);
 };
 
-export const editingFinish = () : SomeAction => {
-	return {type: EDITING_FINISH};
+//pendingSave should be true ONLY on the teardown that hands a committed
+//single-card save to the durable executor: the reducer then keeps the
+//committed draft around as pendingSaveCard so the card face shows the new
+//value optimistically until the save is confirmed (or fails). Every other
+//teardown — cancel, delete, ownership loss — must pass nothing, which clears
+//any lingering optimistic face too.
+export const editingFinish = (pendingSave = false) : ThunkSomeAction => (dispatch) => {
+	// Unsubscribe from live card listener
+	if (editingCardUnsubscribe) {
+		editingCardUnsubscribe();
+		editingCardUnsubscribe = null;
+	}
+
+	dispatch({type: EDITING_FINISH, pendingSave});
 };
 
 export const notesUpdated = (newNotes : string) : SomeAction => {
@@ -417,6 +540,17 @@ export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : stri
 	processNormalizedTextPropertiesTimeout = window.setTimeout(() => {
 		processNormalizedTextPropertiesTimeout = 0;
 		dispatch({type: EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES});
+		//Ask for editing-card similarity the moment the content settles,
+		//instead of waiting for the reference-blocks recompute to ask ~250ms-1s
+		//later — the similarity round trip and the blocks debounce then overlap
+		//rather than stack. The retry coordinator dedupes by content version,
+		//so the blocks path's later request for the same version is a no-op.
+		//Dynamic import matches the house pattern for the editor<->similarity
+		//dependency (see corpus-bridge's use) and keeps the cycle lazy.
+		const settledCard = getState().editor?.card;
+		if (settledCard) {
+			void import('./similarity.js').then(module => module.fetchSimilarCardsForCardIfEnabled(settledCard));
+		}
 	}, 1000);
 };
 
@@ -674,7 +808,7 @@ export const addImageWithFile = (file : File, index : number | undefined) : Thun
 	const fileRef = ref(userUploadRef, fileName);
 
 	try {
-		await uploadBytes(fileRef, file);
+		await trackMutation(() => uploadBytes(fileRef, file));
 	} catch (err) {
 		console.warn(err);
 		alert('Failed to upload');
@@ -792,6 +926,16 @@ export const setCardToReference = (cardID : CardID) : ThunkSomeAction => (dispat
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
 	if (selectMultiEditDialogOpen(state)) {
+		//A reference added by the multi-edit dialog promises to apply to every
+		//selected card. A selected target would make one of those cards reference
+		//itself, which is invalid and could otherwise pause a later chunk after
+		//earlier chunks had already committed. Reject the intent before any durable
+		//operation begins instead of leaving a surprising partial result.
+		if (selectSelectedCards(state).some(card => card.id === cardID)) {
+			alert('Choose a card outside the current selection. A card cannot reference itself.');
+			dispatch({type: EDITING_RESET_REFERENCE_CARD});
+			return;
+		}
 		dispatch(addReference(cardID, referenceType));
 	} else {
 		dispatch(addReferenceToCard(cardID, referenceType));

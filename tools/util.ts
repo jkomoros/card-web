@@ -7,7 +7,15 @@ import {
 import fs from 'fs';
 import { exec, spawnSync, spawn } from 'child_process';
 
-const PROJECT_CONFIG = 'config.SECRET.json';
+//Overridable so CI can generate from the checked-in config.SAMPLE.json. The
+//real config.SECRET.json is gitignored, and ~14 modules import the file this
+//generates — so without an override a clean checkout cannot even typecheck,
+//which made the CI workflow decorative: every run died at the build step.
+//
+//An env var rather than `cp config.SAMPLE.json config.SECRET.json` in the
+//workflow, because that copy is a destructive footgun the moment anyone runs
+//the CI steps locally over their real credentials.
+const PROJECT_CONFIG = process.env.CARD_WEB_CONFIG_FILE || 'config.SECRET.json';
 export const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
 
 export const CHANGE_ME_SENTINEL = 'CHANGE-ME';

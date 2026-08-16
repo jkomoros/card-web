@@ -1,0 +1,179 @@
+# Handoff brief: card-web fast-corpus work
+
+> **LANDING STATUS (2026-08-15 — SUPERSEDES the 2026-08-02 note below, which
+> itself superseded 2026-07-10)**
+>
+> Still true from 2026-08-02: the flags default ON (`corpus-worker='on'`,
+> `corpus-sync='watermark'` since `bbfdd89c`), so **deploying master to prod
+> hosting IS the cutover** — merging and deploying are not separable
+> decisions — and the old "default boot = main-thread full-corpus listeners,
+> ~40k reads" warning is obsolete the other way round.
+>
+> Corrected since 2026-08-02:
+>
+> - **Prod DOES have a client-side kill switch now.** `d7911781`
+>   (2026-08-13) deleted the hostname restriction in `diagnosticModesAllowed()`,
+>   so localStorage `corpus-worker` / `corpus-sync` are consulted on EVERY
+>   host including prod. `corpus-worker=off` is an instant, no-deploy,
+>   per-browser rollback to the legacy main-thread path. It is per-browser, so
+>   it is a first-response tool, not a substitute for a hosting rollback — and
+>   the hosting rollback is still what strands the durable write queue and the
+>   edit draft, which is why the runbook's ten-second pre-rollback habit
+>   exists.
+> - **IDF is no longer a server artifact.** The `calculateIDF` function, the
+>   `idf-maps` bucket, `src/idf-cache.ts` and the `server_idf_cache`
+>   localStorage entry were all deleted; the corpus worker computes IDF over
+>   the cards the viewer can see. Spec: docs/visible-corpus-idf-design.md.
+>   `firebase functions:delete calculateIDF` must still be run on BOTH
+>   projects — omitting the export does not undeploy the live copy.
+> - **The staged inbound-reference rules carve-out is still staged** as of
+>   this writing, with its 2026-09-15 deadline enforced at DEPLOY time
+>   (`npm run test:rules-deadline`), not inside `npm test`. The product
+>   audit's 2026-08-13 decision-log amendment calls for tightening at cutover
+>   instead and deleting the deadline machinery; that has NOT been
+>   implemented. Verify `firestore.TEMPLATE.rules` before believing either
+>   version.
+>
+> Merge readiness and CUTOVER readiness are tracked separately in
+> docs/fast-corpus-landing-review-2026-08-02.md. Read its "Prod-deploy
+> blockers" section before any prod hosting deploy — noting that two of them
+> (anonymous card persistence, per-user state re-reads) have since been fixed;
+> docs/fast-corpus-fix-queue.md is the current status of that list.
+
+<details><summary>Superseded 2026-08-02 note (kept for provenance)</summary>
+
+> **LANDING STATUS (2026-08-02 — SUPERSEDES the 2026-07-10 note below)**
+>
+> The 2026-07-10 rationale is STALE IN BOTH DIRECTIONS and must not be used
+> to decide a merge or a deploy.
+>
+> - "All flags default off" is no longer true. `bbfdd89c` (2026-07-11)
+>   flipped `corpus-worker` to `'on'` and `corpus-sync` to `'watermark'` by
+>   default. On any host other than localhost, 127.0.0.1 and
+>   dev-complexity-compendium.web.app, localStorage is not even consulted
+>   (`src/corpus-mode.ts`) — **prod has NO client-side kill switch**.
+>   Rollback after a bad prod deploy means redeploying, not flipping a flag.
+> - Therefore **deploying master to prod hosting IS the cutover**. Merging
+>   and deploying are no longer separable decisions.
+> - The old warning about "default boot = main-thread full-corpus listeners,
+>   ~40k reads" is obsolete the OTHER way: the default boot is worker-owned
+>   ingestion now, and the uncapped main-thread path survives only as a
+>   dev-host diagnostic mode.
+>
+> Merge readiness and CUTOVER readiness are tracked separately in
+> docs/fast-corpus-landing-review-2026-08-02.md. Read its "Prod-deploy
+> blockers" section before any prod hosting deploy — in particular that
+> anonymous visitors currently get no card persistence, and that browsers
+> without module-worker support fail closed with no fallback.
+
+</details>
+
+<details><summary>Superseded 2026-07-10 note (kept for provenance)</summary>
+
+> **LANDING STATUS (2026-07-10)**: merge to master is SAFE (all flags
+> default off; 570 tests green incl. security; final landing review
+> passed). PROD DEPLOY IS NOT: default boot is now main-thread full-corpus
+> listeners with no partial-mode cap (~40k+ billed reads/boot on prod
+> scale) until the corpus-sync flag flip ships after its live soak. Deploy
+> dev-only until then. Details: implementation log's landing entry.
+
+</details>
+
+Repo: /Users/jkomoros/Code/card-web — branch `implement/fast-corpus` (33+ commits, all green). Continue the autonomous loop: implement, test, verify live, commit early and often.
+
+## Read these FIRST
+1. docs/fast-corpus-implementation-log.md — complete state, environment traps, measurements, next steps. THE source of truth.
+2. docs/fast-corpus-design-doc.md — the overall Plan A (done) / Plan B (mostly done) architecture.
+3. docs/prod-cutover-runbook.md — THE ordered checklist for taking this to
+   prod (rules/indexes BEFORE hosting, one-time artifact policy, verify,
+   next-day rule tightening). Do not deploy prod any other way.
+
+## Environment traps (also in the log)
+- Node 20.20.0 required: `export PATH="$HOME/.nvm/versions/node/v20.20.0/bin:$PATH"`
+- Git hooks are broken (hang + stash unstaged changes): ALWAYS `git -c core.hooksPath=/dev/null` and `commit --no-verify`.
+- Tests import compiled lib/: run `npm run build:typescript` (and `build:shared` if shared/ changed) before mocha suites.
+- Port 8080 busy (user's other project); dev server: `npx wds --node-resolve --port=8081` (run in background).
+- localhost:8081 = dev Firebase project (safe); 127.0.0.1:8081 = PROD (do NOT load the corpus there — it hit read quota).
+- User permission: may edit working-notes cards on dev only.
+
+## State
+- Plan A (UI-thread perf fixes) complete; Plan B corpus worker: ingestion, query engine, shadow-compare, 'on'-mode active-collection + find-dialog serving, cardMeta table — all committed + browser-validated at 40,225 cards (dev, admin account).
+- All three user-reported slowness targets now measured CLEAN at 40k in shadow mode: NAV zero long tasks across rapid presses (worker-served reference blocks, 099fd6bd); TYPING clean; COMMIT settles in ~2s (was 16s+/timeout).
+- Commit-settle investigation found + fixed three real bugs (see the log's COMMIT-ECHO section): stuck pendingModificationCount after no-op/failed commits (8fb46bd1); worker corpus one backend blip away from silent permanent incompleteness — getDocsFromServer+retry, self-re-attaching listeners (c79541c2); no latency compensation in worker modes — commits now self-echo locally + feed the worker corpus via ECHO_LOCAL_CARD_MODIFICATIONS (d7ccf9d0, which also fixes latent un-awaited modifyCardWithBatch races in reorderCard/rerunCardFinishers).
+- Known 'on'-mode quality item: the worker's 38,985-doc Listen stream drops every ~2min on the strained dev backend (re-attach recovers; options in the log: partitioned Listens, or the planned persistent-cache handoff).
+
+## Immediate next steps
+1. Remaining B3 items from the log: user shadow sign-off → default 'on'; stop mirroring full cards into Redux ('on' mode memory win — windowed cards + cardMeta serve consumers; the consumer survey + flip order are in the log); off-path worker RPCs (missing-concepts word cloud, maintenance, suggestions); delete legacy paths.
+2. Probe harnesses live in the session scratchpads (measure.mjs in the 5580af71 scratchpad; probe-commit2/probe-echo3/probe-cleanup.mjs in the c4ce6470 one); pinned chromium-1223 executablePath, copied browser profile ./perf-profile (Firebase session valid), corpus-worker=shadow via addInitScript, 600s readiness deadline (worker memory-cache cold load; ~2.5min when dev backend is healthy). Accept dialogs via page.on('dialog') or commits abort.
+
+## SYNC REDESIGN STATE (2026-07-05) — read docs/corpus-sync-design.md FIRST
+- WHY: listener re-attach after >30min is billed as a brand-new query (full
+  result set) — verified, official. Full-corpus listeners can never be cheap
+  across sessions; worker boots cost ~39k reads (two real quota outages).
+  Owner requires free-tier viability at up to 60k cards.
+- LANDED (all committed, suites green): judged design docs; CACHE_SIZE_UNLIMITED
+  on both persistent caches (40MB LRU default was evicting the corpus —
+  explains the week's empty caches); Phase 0 (inbound-link writes bump
+  `updated` — also fixes a fastDedupe silent-drop bug; tombstones collection
+  + deleteCard batch write; (published ASC, updated ASC) composite index;
+  rules in firestore.TEMPLATE.rules — firestore.rules is GENERATED); Phase 1
+  (corpus-sync='watermark' flag: cache prime -> per-boot per-partition
+  count() trust gate -> partition repair -> tombstone catch-up/listener with
+  cache laundering -> ONE delta listener updated>watermark-5min; watermark
+  invariant module + tests; sync-meta worker IndexedDB store; syncState
+  protocol unverified|live|stale); Phase 3 (Web Locks second-tab guard).
+  Rules+indexes DEPLOYED to dev-complexity-compendium (NOT prod yet).
+- NEXT: (1) live-validate a watermark boot on dev once quota resets
+  (localStorage corpus-worker='on' or 'shadow' AND corpus-sync='watermark';
+  expect: prime free, gate ~40-60 reads, loadComplete, syncState live,
+  <100 reads total; watch first boot repair the partial cache the incidents
+  left behind — that repair is a full partition re-read, budget ~39k ONCE).
+  (2) Phase 2: budgeted resumable cold sweep (design doc §Phased plan) —
+  today a cold/mismatched-everything cache repairs unbudgeted. (3) Phase 4
+  cleanup after soak: remove partition listeners, tombstone pruning task,
+  prod rules+index deploy + flip corpus-sync default.
+- Read-cost targets (judged design): typical boot <100; sweep day ~300/dev;
+  cold device ~65k over 2 budgeted days (Phase 2); second tab ~1.2k.
+
+## Rollout flags
+localStorage `corpus-worker`: off | spike | shadow (worker owns ingestion + divergence logging) | **on (DEFAULT since `bbfdd89c`, 2026-07-11)** — worker also serves active collection, find-dialog search, reference blocks. localStorage `corpus-sync`: listen (legacy full-corpus listeners) | **watermark (DEFAULT)**. Both keys are now an opt-OUT, honored on every host including prod (`src/corpus-mode.ts`); a windowless context (tests, tools) still resolves to the legacy modes. Console APIs: `CORPUS_WORKER.setMode(...)`, `DEBUG_PERF.enable()`/`dump()` — both gated behind localStorage `debug-perf=1`.
+
+## DIRECTIVE (2026-07-11, owner): FAST COLD BOOT — IMPLEMENTED (c36b7ecc)
+Status: code + unit tests landed (cold-pace.ts ladder/backoff math, paged
+parallel partition sweep with persisted per-partition cursors, watermark
+clamp for the docID-ordering change — see the implementation log).
+REMAINING: live validation on dev with a fresh signed-in profile (usable
+<30s, complete <3min, throttling degrades smoothly). Emulator harness runs
+validate mechanics only (no real backpressure). Emulator A/B at 12k cards,
+admin, corpus-worker=on corpus-sync=watermark: NEW parallel sweep loads
+12,000/12,000 in ~124s to syncState=live; OLD budgeted sequential sweep
+managed only 8,475/12,000 before the 300s load timeout. Original spec
+follows.
+Owner requirement: logged-in fresh boots must download ALL cards as fast as
+possible. Both projects confirmed Blaze-for-years, billing linked, NO caps
+anywhere (verified in console: no per-minute read quota, no App Engine
+spending limit, billing healthy). The 07-04/05 resource-exhausted incidents
+are, by elimination, SERVER-SIDE BACKPRESSURE against our burst shape (the
+SDK's 'maximum backoff to prevent overloading' message confirms) — a
+client-pacing problem, not a quota problem.
+
+IMPLEMENT: replace the budgeted cold sweep (42k/day + Pacific-midnight
+pause — designed for a free-tier cliff that does not exist) with:
+1. Priority phase unchanged: ~5k most-recent via (published, updated DESC)
+   index — usable in seconds.
+2. Then ALL 10 partitions in PARALLEL via getDocsFromServer (the legacy
+   prime shape: 39k in ~75-150s measured) with per-partition resumable
+   cursors (keep sync-meta persistence for interrupted boots).
+3. ADAPTIVE PACING instead of daily budget: on RESOURCE_EXHAUSTED, halve
+   partition concurrency (10->5->2->1) + exponential backoff per
+   retryWithBackoff; restore concurrency after N clean pages. Never pause
+   until midnight; never give up (generation-guarded).
+4. Retire cold-budget.ts daily-pause logic (keep pacificDayKey only if
+   telemetry wants it); update tests; trust gate + afterColdSweep re-gate
+   unchanged.
+5. Validate live on dev: fresh profile, measure wall-clock to full 40k
+   corpus + confirm zero resource-exhausted at full concurrency, or that
+   adaptive pacing degrades smoothly if throttled. Target: usable <30s,
+   complete <3min (legacy prime speed), cost ~2.4 cents.
+Cost analysis on Blaze: full cold load = ~4 cents. Speed is the only
+objective; backpressure-adaptation is the only constraint.

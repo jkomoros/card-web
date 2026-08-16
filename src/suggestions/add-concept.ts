@@ -16,7 +16,7 @@ export const missingConceptLinks = async (args: SuggestorArgs) : Promise<Suggest
 
 	const {type, card, logger, concepts} = args;
 
-	const suggestedConcepts = suggestedConceptReferencesForCard(card, concepts);
+	const suggestedConcepts: string[] = suggestedConceptReferencesForCard(card, concepts) as string[];
 
 	logger.info(`Suggested concepts: ${suggestedConcepts.join(', ')}`);
 

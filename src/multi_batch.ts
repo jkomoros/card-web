@@ -8,7 +8,8 @@ import {
 } from './util.js';
 
 import {
-	installServerTimestamps
+	installServerTimestamps,
+	isServerTimestampSentinel
 } from './firebase.js';
 
 import {
@@ -24,6 +25,22 @@ import {
 import {
 	MultiBatchBase,
 } from '../shared/multi_batch.js';
+
+export {
+	MultiBatchCommitError,
+} from '../shared/multi_batch.js';
+
+import {
+	CARDS_COLLECTION
+} from '../shared/collection-constants.js';
+
+import {
+	FirestoreLeafValue
+} from './types.js';
+
+import {
+	beginMutation
+} from './mutation-barrier.js';
 
 const FIRESTORE_BATCH_LIMIT = 500;
 
@@ -55,13 +72,29 @@ if (!SENTINEL_DEFINITION_VALID) {
 //If we can't detect sentinels correctly, we need to assume that EVERY update double-counts.
 const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT : Math.floor(FIRESTORE_BATCH_LIMIT / 2) - 1;
 
+//THE `updated` INVARIANT (docs/corpus-sync-design.md) is enforced by the
+//SHARED base class via the cardWriteGuard config below: set/update THROW on
+//any top-level card write that doesn't stamp updated with a serverTimestamp
+//sentinel, and updateWithoutTimestampBump (also on the base) admits only
+//the audited reader-counter allowlist. Hosting the enforcement in the base
+//means the admin-SDK MultiBatch (tools/mount.ts) applies the SAME policy —
+//the invariant must not depend on which SDK performs the write.
+//
+//The POLICY (which paths must bump, the allowlist, the messages) lives in
+//the zero-import, unit-tested core in shared/card-write-guard.ts. Here we
+//supply only the SDK-specific bit: whether data.updated is a
+//serverTimestamp sentinel. isServerTimestampSentinel (./firebase.ts)
+//recognizes BOTH the literal serverTimestamp() FieldValue (the modify path)
+//AND the serverTimestampSentinel() vended Timestamp (defaultCardObject /
+//the create path) — a detector matching only the former throws on every
+//card creation.
+
 //MultiBatch is a thing that can be used as a drop-in replacement firebase db
 //batch, and will automatically split into multiple underlying batches if it's
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
 export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
-
-	constructor(db : Firestore) {
+	constructor(db : Firestore, batchID? : string) {
 		super({
 			createBatch: () => writeBatch(db),
 			batchSet: (batch, ref, data, options?) => batch.set(ref, data, (options as SetOptions) || {}),
@@ -75,6 +108,25 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				}
 				return 1;
 			},
-		}, EFFECTIVE_BATCH_LIMIT);
+			cardWriteGuard: {
+				cardsCollection: CARDS_COLLECTION,
+				refPath: (ref : DocumentReference) => ref.path,
+				isServerTimestampValue: (value : unknown) => isServerTimestampSentinel(value as FirestoreLeafValue),
+			},
+		}, EFFECTIVE_BATCH_LIMIT, batchID);
+	}
+
+	override async commit() : Promise<void> {
+		//Claim immediately before the first SDK write can begin. If ownership was
+		//lost while a workflow assembled this local batch, the fence cancels it
+		//without sending any write; once commit starts, handoff waits for it. A
+		//The resulting MutationFencedError is important to callers: a workflow
+		//must never continue as though a requested write succeeded.
+		const finishMutation = beginMutation();
+		try {
+			await super.commit();
+		} finally {
+			finishMutation();
+		}
 	}
 }

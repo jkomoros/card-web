@@ -55,6 +55,10 @@ import {
 	SomeAction
 } from '../actions.js';
 
+import {
+	trackMutation
+} from '../mutation-barrier.js';
+
 export const setCardToAddPermissionTo = (cardID : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const permissionType = selectPermissionsPendingPermissionType(state);
@@ -141,21 +145,21 @@ const updatePermissions = (permissionsToAdd : UserPermissionsMap, permissionsToR
 };
 
 export const addPermissionsObjectForUser = (uid : Uid) : ThunkSomeAction => () => {
-	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true});
+	void trackMutation(() => setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true}));
 };
 
 export const deletePermissionsObjectForUser = (uid : Uid) : ThunkSomeAction => () => {
-	deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid));
+	void trackMutation(() => deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid)));
 };
 
 export const updateUserNote = (uid : Uid, note : string) : ThunkSomeAction => () => {
-	updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note});
+	void trackMutation(() => updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note}));
 };
 
 export const addEnabledPermission = (uid: Uid, key : PermissionType) : ThunkSomeAction => () => {
-	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true});
+	void trackMutation(() => setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true}));
 };
 
 export const clearPermission = (uid : Uid, key : PermissionType) : ThunkSomeAction => () => {
-	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
+	void trackMutation(() => setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true}));
 };

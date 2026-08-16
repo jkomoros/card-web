@@ -11,6 +11,13 @@ export const deployFirebase = (flags: DeployFlags): void => {
 		'emailAdminOnMessage',
 		'emailAdminOnStar',
 		'legal'
+		//NOTE: omitting a function from a deploy does NOT undeploy it — a live
+		//function keeps running (schedule, IAM surface and all) until removed
+		//explicitly. When calculateIDF left this list (the worker now computes
+		//IDF over the visible corpus; docs/visible-corpus-idf-design.md), the
+		//live copy was removed with `firebase functions:delete calculateIDF`
+		//on both projects on 2026-08-15. Follow the same two steps for any
+		//future removal.
 	];
 
 	if (flags.openaiEnabled) {

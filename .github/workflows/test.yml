@@ -1,0 +1,72 @@
+# The suite has never run anywhere but one laptop, so "green" has been a
+# statement about that laptop. This runs it on every push and PR.
+#
+# It runs `test:ci`, not `test` — test:security needs config.SECRET.json, which
+# is gitignored and correctly absent here. That is the ONLY suite skipped, and
+# test/ci-coverage asserts that, so this workflow cannot silently drift into
+# running less than it claims.
+name: test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      # The Firestore emulator is a Java process. ubuntu-latest ships a JDK,
+      # but pinning one means a runner image change cannot quietly break the
+      # three emulator-backed suites.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # firebase-tools is not a dependency of this project — the suite calls a
+      # globally installed `firebase`. Install it explicitly rather than relying
+      # on whatever the runner happens to have.
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools@13
+
+      # This installs shared/'s toolchain too, which is the whole story: there
+      # is no `npm ci --prefix shared` step because shared/ has no runtime deps
+      # and never gets its own install. `npm run build:shared` runs `tsc` from
+      # shared/, and npm resolves that binary by walking UP to the root
+      # node_modules — locally there is no shared/node_modules at all.
+      #
+      # A step installing shared/ separately used to live here and had never
+      # once succeeded (no shared/package-lock.json has ever been committed, so
+      # `npm ci` could not run); CI never running was what hid it. Do not
+      # "repair" it by generating that lockfile: shared/package.json declares
+      # typescript ^4.9.0, but the compiler that actually builds shared/ — here,
+      # locally, and in every shipped build — is the root's 5.8.2. Pinning CI to
+      # 4.9 would make it green on a build we do not deploy, which is the exact
+      # failure this workflow exists to prevent.
+      - name: Install dependencies
+        run: npm ci
+
+      # The tests import compiled output, and tools/assert-build-fresh.cjs will
+      # refuse to run against a stale build — so this step failing is the point.
+      # ~14 modules import src/config.GENERATED.SECRET.ts, which is produced by
+      # generate:config from the gitignored config.SECRET.json. Without this a
+      # clean checkout cannot typecheck at all, and every CI run died here.
+      # The checked-in config.SAMPLE.json has the right shape; the emulator
+      # suites override the project anyway.
+      - name: Generate config from the checked-in sample
+        run: npm run generate:config:sample
+
+      - name: Build
+        run: npm run build:shared && npm run build:typescript
+
+      - name: Test
+        run: npm run test:ci

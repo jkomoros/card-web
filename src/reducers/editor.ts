@@ -1,5 +1,6 @@
 import { 
 	EDITING_START,
+	EDITING_RESTORE_DRAFT,
 	EDITING_FINISH,
 	EDITING_EDITOR_MINIMIZED,
 	EDITING_SELECT_TAB,
@@ -39,6 +40,9 @@ import {
 	EDITING_UPDATE_UNDERLYING_CARD,
 	EDITING_MERGE_OVERSHADOWED_CHANGES,
 	EDITING_UPDATE_SIMILAR_CARDS,
+	EDITING_SIMILARITY_PENDING,
+	MODIFY_CARD_SUCCESS,
+	MODIFY_CARD_FAILURE,
 	SomeAction,
 } from '../actions.js';
 
@@ -100,7 +104,9 @@ const INITIAL_STATE : EditorState = {
 	imagePropertiesDialogIndex: 0,
 	imageBrowserDialogOpen: false,
 	imageBrowserDialogIndex: undefined,
-	editingCardSimilarity: undefined
+	editingCardSimilarity: undefined,
+	similarityPendingVersion: 0,
+	pendingSaveCard: null
 };
 
 const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorState => {
@@ -119,7 +125,25 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			selectedTab: DEFAULT_TAB,
 			selectedEditorTab: DEFAULT_EDITOR_TAB,
 			//Throw out any editing card similarity
-			editingCardSimilarity: undefined
+			editingCardSimilarity: undefined,
+			//A pending request from a previous editing session belongs to a
+			//different draft; its result will arrive version-stamped and be
+			//dropped, so don't let its pendingness dim this session's UI.
+			similarityPendingVersion: 0,
+			//A fresh editing session supersedes any optimistic face a prior
+			//save left behind (the editing card takes display precedence
+			//anyway; don't let a stale one linger underneath).
+			pendingSaveCard: null
+		};
+	case EDITING_RESTORE_DRAFT:
+		if (!state.editing || !state.underlyingCardSnapshot ||
+			action.card.id !== state.underlyingCardSnapshot.id) return state;
+		return {
+			...state,
+			card: action.card,
+			substantive: action.substantive,
+			cardExtractionVersion: state.cardExtractionVersion + 1,
+			updatedFromContentEditable: {},
 		};
 	case EDITING_FINISH:
 		return {
@@ -132,7 +156,28 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			cardExtractionVersion: -1,
 			substantive:false,
 			updatedFromContentEditable: {},
-			editingCardSimilarity: undefined
+			editingCardSimilarity: undefined,
+			similarityPendingVersion: 0,
+			//A save-teardown retains the committed draft in the SAME action
+			//that clears the editing card, so there is no dispatch — and
+			//therefore no renderable frame — where the card face has neither
+			//the editing card nor the optimistic pending-save card and would
+			//fall back to the stale state.data.cards copy. Any other teardown
+			//(cancel, delete, ownership loss) clears it.
+			pendingSaveCard: action.pendingSave ? state.card : null
+		};
+	//The durable single-save executor settles with exactly one of these. On
+	//success the confirmed card has already been applied to state.data.cards
+	//(the executor echoes post-commit, before MODIFY_CARD_SUCCESS), so
+	//dropping the optimistic face swaps between identical values. On failure
+	//the save did NOT land: the face must honestly revert to server truth
+	//while the save indicator's Retry/Stop and the alert take over.
+	case MODIFY_CARD_SUCCESS:
+	case MODIFY_CARD_FAILURE:
+		if (!state.pendingSaveCard) return state;
+		return {
+			...state,
+			pendingSaveCard: null
 		};
 	case EDITING_EDITOR_MINIMIZED:
 		return {
@@ -427,10 +472,33 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			//The state could have changed e.g. references or body.
 			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
-	case EDITING_UPDATE_SIMILAR_CARDS:
+	case EDITING_SIMILARITY_PENDING:
+		//A request can fire after editing already finished (the 1s settle
+		//timeout outlives a quick close); there is nothing to dim then.
+		if (!state.editing) return state;
+		//The coordinator coalesces duplicate demand for the same content
+		//version, so a re-dispatch for the already-pending version is a no-op —
+		//keep state identity so downstream selectors don't reevaluate.
+		if (state.similarityPendingVersion === action.version) return state;
+		//Last-request-wins, exactly the retry coordinator's discipline: the
+		//most recently issued request owns the chain, whatever its version.
 		return {
 			...state,
-			editingCardSimilarity: action.similarity
+			similarityPendingVersion: action.version
+		};
+	case EDITING_UPDATE_SIMILAR_CARDS:
+		//A result stamped with any version other than the outstanding
+		//request's belongs to a cancelled chain (superseded draft, dropped
+		//key). Drop it whole: committing it would overwrite the current
+		//draft's slot with another draft's answer, and clearing the pending
+		//would un-dim similarity that is still known to lag. When nothing is
+		//pending (version 0) accept the result as-is — that preserves the
+		//legacy settle paths.
+		if (state.similarityPendingVersion !== 0 && action.version !== state.similarityPendingVersion) return state;
+		return {
+			...state,
+			editingCardSimilarity: action.similarity,
+			similarityPendingVersion: 0
 		};
 	default:
 		return state;

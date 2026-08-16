@@ -51,8 +51,10 @@ import {
 	WebInfo,
 	FilterMap,
 	FilterExtras,
+	IDFMap,
 	CardIDMap,
 	CardBooleanMap,
+	WorkerCollectionResult,
 	URLPart,
 	CardSimilarityMap,
 	ConfigurableFilterResult
@@ -67,6 +69,22 @@ import {
 } from './memoize.js';
 
 import { references } from './references.js';
+
+import {
+	perfCount,
+	perfRecord
+} from './perf.js';
+
+const SLOW_COLLECTION_WORK_THRESHOLD_MS = 50;
+
+const logSlowCollectionWork = (operation : string, description : CollectionDescription, count : number, start : number) => {
+	const duration = performance.now() - start;
+	perfCount('collection:' + operation);
+	perfRecord('collection:' + operation, duration);
+	if (duration < SLOW_COLLECTION_WORK_THRESHOLD_MS) return;
+	const executionContext = typeof document === 'undefined' ? 'worker' : 'main';
+	console.log(`[PERF] ${executionContext} collection ${operation}: ${duration.toFixed(1)}ms over ${count} cards for ${description.serialize()}`);
+};
 
 export const queryTextFromCollectionDescription = (description : CollectionDescription) : string => {
 	if (!description) return '';
@@ -406,7 +424,15 @@ export class CollectionDescription {
 	//collectiondescription. You can use selectCollectionConstructorArguments to
 	//select all of the items at once.
 	//Arguments: {cards, sets, filters, editingCard, sections, fallbacks, startCards}
-	collection(collectionArguments : CollectionConstructorArguments) : Collection {
+	//If previousCollection is provided and every filtering/sorting input is
+	//identity-equal to the previous collection's (only the live cards map for
+	//expansion differing), the expensive filter/sort work is handed off from
+	//the previous collection instead of being redone.
+	collection(collectionArguments : CollectionConstructorArguments, previousCollection? : Collection | null) : Collection {
+		if (previousCollection) {
+			const handedOff = Collection.handoff(previousCollection, this, collectionArguments);
+			if (handedOff) return handedOff;
+		}
 		return new Collection(this, collectionArguments);
 	}
 
@@ -476,7 +502,19 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 		memoizedConfigurableFilters = {};
 	}
 
-	const [func, reverse] = makeConfigurableFilter(name);
+	const [func, reverse, enumerate] = makeConfigurableFilter(name);
+
+	//Filters that can enumerate their matching set directly (e.g. the
+	//reference-graph filters, whose BFS map already is the answer) skip the
+	//whole-corpus scan below — at 40k cards this turns each ~100ms
+	//materialization into an O(references) one.
+	if (enumerate && !reverse) {
+		const {matches, sortValues} = enumerate(extras);
+		const enumeratedResult : ConfigurableFilterResult = [matches, reverse, sortValues, null, false];
+		memoizedConfigurableFilters[name] = enumeratedResult;
+		return enumeratedResult;
+	}
+
 	const result : FilterMap = {};
 	let sortValues : SortExtra | null = {};
 	let partialMatches : CardBooleanMap | null = {};
@@ -568,7 +606,7 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 //we use an extras object that the filter func can unpack as necessary. The
 //extras object is memoized so you can check for equality to see if any
 //individual portion changed.
-const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null) : FilterExtras => {
+const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
@@ -577,13 +615,55 @@ const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards :
 		userID,
 		randomSalt,
 		cardSimilarity,
-		editingCardSimilarity
+		editingCardSimilarity,
+		idfMap
 	};
 });
 
 type FilterFunc = (id : CardID) => boolean;
 
 type FilterDefinition = FilterName[];
+
+//True if computing this description's numCards requires the full Collection
+//machinery (because a filter is configurable and needs real card objects).
+export const descriptionRequiresFullCollectionCount = (description : CollectionDescription) : boolean => {
+	return description.filters.some(filterName => filterNameIsConfigurableFilter(filterName));
+};
+
+//Cheaply computes what description.collection(args).numCards would return,
+//without instantiating a Collection or expanding/sorting any cards — just set
+//intersection over precomputed filter membership maps. Only legal when
+//descriptionRequiresFullCollectionCount is false. allCardIDs may be any map
+//keyed by every card ID; it is only consulted to concretize inverse filters
+//inside union filters.
+export const countForDescription = (description : CollectionDescription, sets : Sets, filters : Filters, allCardIDs : CardIDMap) : number => {
+	const baseSet = sets[description.set] || [];
+	let count = baseSet.length;
+	if (description.filters.length) {
+		//Safe cast: with no configurable filters, extras.cards is only ever
+		//used as an ID map (see makeFilterUnionSet).
+		const extras : FilterExtras = {
+			filterSetMemberships: filters,
+			cards: allCardIDs as ProcessedCards,
+			keyCardID: '',
+			editingCard: null,
+			userID: '',
+			randomSalt: '',
+			cardSimilarity: {},
+			editingCardSimilarity: null,
+			idfMap: null
+		};
+		const [combinedFilter] = combinedFilterForFilterDefinition(description.filters, extras);
+		count = 0;
+		for (const id of baseSet) {
+			if (combinedFilter(id)) count++;
+		}
+	}
+	//Mirror the numCards getter's offset/limit math exactly.
+	let len = count - description.offset;
+	if (description.limit) len = Math.min(len, description.limit);
+	return len;
+};
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
 const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap, preview: boolean] => {
@@ -648,15 +728,21 @@ export class Collection {
 	_randomSalt : string;
 	_cardSimilarity : CardSimilarityMap;
 	_editingCardSimilarity? : SortExtra;
+	_idfMap : IDFMap | null;
 	_filteredCards : ProcessedCard[] | null;
 	_cachedFilterExtras : FilterExtras;
 	_collectionIsFallback : boolean;
 	_sortedCards : ProcessedCard[] | null;
 	_labels : string[] | null;
 	_startCards : ProcessedCard[] | null;
+	_finalSortedCards : ProcessedCard[] | null;
+	_finalLabels : string[] | null;
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
+	//True when this collection came from a worker result, so sortExtras were
+	//never computed. 'empty' and 'unknown' must not be confused (see reorderable).
+	_sortExtrasUnknown : boolean;
 	_partialMatches : CardBooleanMap;
 	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
@@ -690,6 +776,7 @@ export class Collection {
 		this._randomSalt = collectionArguments.randomSalt || '';
 		this._cardSimilarity = collectionArguments.cardSimilarity || {};
 		this._editingCardSimilarity = collectionArguments.editingCardSimilarity;
+		this._idfMap = collectionArguments.idfMap || null;
 		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
 		this._preLimitlength = 0;
@@ -698,6 +785,8 @@ export class Collection {
 		this._sortedCards = null;
 		this._labels = null;
 		this._startCards = null;
+		this._finalSortedCards = null;
+		this._finalLabels = null;
 		this._webInfo = null;
 		//sortExtras is extra information that configurable filters can
 		//optionally return and then make use of in special sorts later.
@@ -705,13 +794,120 @@ export class Collection {
 		this._partialMatches = {};
 	}
 
+	//If the new arguments differ from the previous collection's ONLY in the
+	//live cards map (the common case after a single-card edit echo: cards
+	//changes identity, but the ghosting snapshot inputs that filtering and
+	//sorting actually consume are untouched), build a new Collection that
+	//carries over the previous collection's computed filter/sort work and only
+	//re-expands card objects (O(collection length) map lookups). Returns null
+	//when a full rebuild is required.
+	static handoff(previous : Collection, description : CollectionDescription, args : CollectionConstructorArguments) : Collection | null {
+		const prevArgs = previous._arguments;
+		//Nothing to hand off if the previous collection never did its work.
+		if (!previous._filteredCards) return null;
+		if (!description.equivalent(previous._description)) return null;
+		//Filtering ran over cardsSnapshot (if present) — it must be identical.
+		//Without a snapshot, filtering ran over the live cards map, which is
+		//exactly what changed, so no handoff is possible.
+		if (!args.cardsSnapshot || args.cardsSnapshot !== prevArgs.cardsSnapshot) return null;
+		//Filter extras used filtersSnapshot when present, else live filters.
+		if (args.filtersSnapshot) {
+			if (args.filtersSnapshot !== prevArgs.filtersSnapshot) return null;
+		} else {
+			if (prevArgs.filtersSnapshot) return null;
+			if (args.filters !== prevArgs.filters) return null;
+		}
+		if (args.sets !== prevArgs.sets) return null;
+		if (args.sections !== prevArgs.sections) return null;
+		if (args.fallbacks !== prevArgs.fallbacks) return null;
+		if (args.startCards !== prevArgs.startCards) return null;
+		if ((args.keyCardID || '') !== (prevArgs.keyCardID || '')) return null;
+		if (args.editingCard !== prevArgs.editingCard) return null;
+		if ((args.userID || '') !== (prevArgs.userID || '')) return null;
+		if ((args.randomSalt || '') !== (prevArgs.randomSalt || '')) return null;
+		if (args.cardSimilarity !== prevArgs.cardSimilarity) return null;
+		if (args.editingCardSimilarity !== prevArgs.editingCardSimilarity) return null;
+		//The idf map feeds filter extras (the similar-cards fallback), so a
+		//changed identity — a new epoch — must not reuse the old filter work.
+		if ((args.idfMap || null) !== (prevArgs.idfMap || null)) return null;
+
+		const result = new Collection(description, args);
+		//Carry over everything _makeFilteredCards computed; only the expansion
+		//against the (changed) live cards map is redone.
+		const filteredIDs = previous._filteredCards.map(card => card.id);
+		result._filteredCards = expandCardCollection(filteredIDs, result._cardsForExpansion);
+		result._sortExtras = previous._sortExtras;
+		result._partialMatches = previous._partialMatches;
+		result._preview = previous._preview;
+		result._collectionIsFallback = previous._collectionIsFallback;
+		result._preLimitlength = previous._preLimitlength;
+		//Sort info was extracted from snapshot cards, so it's still valid —
+		//except for cards that weren't in the snapshot (e.g. created since the
+		//last snapshot commit), whose entries were extracted from the live
+		//card. In that rare case leave sort state lazy for a full recompute.
+		const allInSnapshot = filteredIDs.every(id => previous._cardsForFiltering[id]);
+		if (allInSnapshot) {
+			if (previous._sortInfo) result._sortInfo = previous._sortInfo;
+			if (previous._sortInfo && previous._sortedCards) {
+				result._sortedCards = expandCardCollection(previous._sortedCards.map(card => card.id), result._cardsForExpansion);
+				if (previous._labels) result._labels = previous._labels;
+			}
+		}
+		perfCount('collection:handoff');
+		return result;
+	}
+
+	//Builds a Collection whose expensive computed state is pre-seeded from a
+	//result the corpus worker already computed, so no filtering or sorting
+	//happens on the UI thread. Because this is a REAL Collection, every
+	//consumer keeps its exact type and getter surface; any getter that isn't
+	//pre-seeded (e.g. sortValueForCard, webInfo) lazily computes on the UI
+	//thread as a graceful fallback.
+	static fromWorkerResult(description : CollectionDescription, args : CollectionConstructorArguments, result : WorkerCollectionResult) : Collection {
+		const collection = new Collection(description, args);
+		const cards = args.cards;
+		const expand = (ids : CardID[]) => expandCardCollection(ids, cards);
+		const finalCards = expand(result.ids);
+		const startCards = finalCards.slice(0, result.numStartCards);
+		const sortedCards = finalCards.slice(result.numStartCards);
+		//Pre-seed so every _ensure* no-ops.
+		collection._startCards = startCards;
+		collection._sortedCards = sortedCards;
+		collection._finalSortedCards = finalCards;
+		collection._labels = result.labels.slice(result.numStartCards);
+		collection._finalLabels = result.labels;
+		//filteredCards feeds numCards via _preLimitlength; reconstruct the
+		//pre-limit count from the numCards math (numCards = preLimit - offset,
+		//capped by limit — the cap can't be inverted, so prefer the raw list
+		//length when no limit applies).
+		collection._filteredCards = sortedCards;
+		collection._preLimitlength = result.numCards + description.offset;
+		collection._collectionIsFallback = result.isFallback;
+		collection._preview = result.preview;
+		collection._partialMatches = result.partialMatches;
+		//Sort info is deliberately left lazy; sortExtras stays empty (label
+		//functions for exotic sorts may degrade — acceptable while gated).
+		//But `reorderable` also reads _sortExtras, and sort/default's predicate
+		//is "reorderable iff there are no sortExtras" — so an empty map made
+		//EVERY worker-served collection reorderable, including the
+		//reference-graph ones (children/descendants/parents/similar) that
+		//master correctly refused. Dropping a thumbnail there permanently
+		//rewrites that card's sort_order in its section, based on a drag
+		//inside a BFS-ordered view. Record that sortExtras is unknown rather
+		//than empty so reorderable can fail closed.
+		collection._sortExtrasUnknown = true;
+		perfCount('collection:fromWorkerResult');
+		return collection;
+	}
+
 	get description() {
 		return this._description;
 	}
 
+
 	get _filterExtras() : FilterExtras {
 		if (!this._cachedFilterExtras) {
-			this._cachedFilterExtras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null);
+			this._cachedFilterExtras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap);
 		}
 		return this._cachedFilterExtras;
 	}
@@ -723,6 +919,7 @@ export class Collection {
 	}
 
 	_makeFilteredCards() {
+		const start = performance.now();
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
@@ -738,7 +935,9 @@ export class Collection {
 			this._collectionIsFallback = true;
 			filteredItems = this._fallbacks[this._description.serialize()] || [];
 		}
-		return expandCardCollection(filteredItems, this._cardsForExpansion);
+		const result = expandCardCollection(filteredItems, this._cardsForExpansion);
+		logSlowCollectionWork('filter', this._description, baseSet.length, start);
+		return result;
 	}
 
 	_ensureFilteredCards() {
@@ -804,8 +1003,8 @@ export class Collection {
 		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null));
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null));
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
@@ -835,11 +1034,13 @@ export class Collection {
 	}
 
 	_makeSortedCards() {
+		const start = performance.now();
 		const collection = this._preLimitFilteredCards;
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
 		if (this._description.set == 'main' && this._description.sort == 'default' && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
+			logSlowCollectionWork('sort-skip', this._description, collection.length, start);
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
@@ -854,6 +1055,7 @@ export class Collection {
 		};
 		const sortedCards = [...collection].sort(sort);
 		if (this._description.sortReversed) sortedCards.reverse();
+		logSlowCollectionWork('sort', this._description, collection.length, start);
 		return sortedCards;
 	}
 
@@ -875,6 +1077,12 @@ export class Collection {
 	get reorderable() {
 		const config = this._description.sortConfig;
 		if (!config.reorderable) return false;
+		//Fail closed when sortExtras were never computed (worker-served
+		//collections): "no sortExtras" is indistinguishable from "not yet
+		//known", and guessing wrong here writes a bogus sort_order to the
+		//server. Sorts that are unconditionally reorderable are unaffected
+		//because their predicate ignores the argument.
+		if (this._sortExtrasUnknown && config.reorderable.length > 0) return false;
 		return config.reorderable(this._sortExtras);
 	}
 
@@ -909,10 +1117,12 @@ export class Collection {
 	}
 
 	get finalSortedCards() : ProcessedCard[] {
+		if (this._finalSortedCards) return this._finalSortedCards;
 		this._ensureStartCards();
 		const startCards = this._startCards;
 		if (!startCards) throw new Error('No start cards as expected');
-		return [...startCards, ...this.sortedCards];
+		this._finalSortedCards = [...startCards, ...this.sortedCards];
+		return this._finalSortedCards;
 	}
 
 	get numStartCards() {
@@ -954,10 +1164,12 @@ export class Collection {
 	}
 
 	get finalLabels() {
+		if (this._finalLabels) return this._finalLabels;
 		this._ensureStartCards();
 		const startCards = this._startCards;
 		if (!startCards) throw new Error('no start cards as expected');
-		return [...startCards.map(() => ''), ...this.labels];
+		this._finalLabels = [...startCards.map(() => ''), ...this.labels];
+		return this._finalLabels;
 	}
 
 	_ensureWebInfo() {
@@ -989,5 +1201,9 @@ export class Collection {
 		this._ensureWebInfo();
 		return this._webInfo;
 	}
+
+	// Note: Pagination support was removed because Collection instances are recreated
+	// on every state change, which loses pagination state. A proper fix would store
+	// pagination state in Redux, but for Phase 4 we're using client-side filtering only.
 
 }

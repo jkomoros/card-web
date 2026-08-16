@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing scoped to the pure updated-invariant policy core. Each mutant is applied to src/card-write-guard.ts, compiled by a single-file tsc into lib/src/card-write-guard.js (what the test imports), then the scoped mocha suite runs. A surviving mutant means the tests do NOT constrain that line \u2014 a real gap. Run under Node 20 (.nvmrc): `nvm use 20.20.0 && npm run test:mutation`.",
+  "packageManager": "npm",
+  "reporters": [
+    "clear-text",
+    "progress"
+  ],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "npm run test:updated-invariant"
+  },
+  "buildCommand": "npx tsc -p tsconfig.mutation.json",
+  "coverageAnalysis": "off",
+  "mutate": [
+    "shared/card-write-guard.ts"
+  ],
+  "timeoutMS": 60000,
+  "concurrency": 4,
+  "thresholds": {
+    "high": 95,
+    "low": 90,
+    "break": 90
+  }
+}

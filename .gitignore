@@ -21,3 +21,19 @@ index.PARTIAL.html
 firestore.rules
 firebase.json
 test-mount/
+.playwright-mcp/
+service-account-key.json
+.claude/settings.local.json
+.firebase/
+.firebaserc
+migration-nlp-tokens-report.json
+*.log
+*.bak.*
+
+#Stryker mutation-testing sandbox + reports (npm run test:mutation)
+.stryker-tmp/
+reports/mutation/
+
+#Perf-harness run artifacts (machine-specific numbers; not committed as gates)
+test/perf-harness/baselines/
+.codex/

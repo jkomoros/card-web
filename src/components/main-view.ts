@@ -38,9 +38,7 @@ import {
 	selectKeyboardNavigates,
 	selectUid,
 	selectBadgeMap,
-	selectExpandedPrimaryReferenceBlocksForPreviewCard,
-	selectCompleteModeEnabled,
-	selectCompleteModeEffectiveCardLimit
+	selectExpandedPrimaryReferenceBlocksForPreviewCard
 } from '../selectors.js';
 
 import {
@@ -54,12 +52,20 @@ import {
 } from '../actions/database.js';
 
 import {
+	maybeStartCorpusWorker
+} from '../corpus-bridge.js';
+
+import {
 	DEV_MODE
 } from '../firebase.js';
 
 import {
 	openFindDialog
 } from '../actions/find.js';
+
+import {
+	editingStart
+} from '../actions/editor.js';
 
 // These are the actions needed by this element.
 import {
@@ -78,6 +84,7 @@ import {
 
 // These are the elements needed by this element.
 import './user-chip.js';
+import './corpus-status-indicator.js';
 import './find-dialog.js';
 import './compose-dialog.js';
 import './configure-collection-dialog.js';
@@ -116,7 +123,6 @@ import {
 import {
 	toggleCardSelected
 } from '../actions/collection.js';
-import { loadSavedCompleteModePreference } from '../actions/data.js';
 
 @customElement('main-view')
 class MainView extends connect(store)(PageViewElement) {
@@ -126,6 +132,9 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_headerPanelOpen: boolean;
+
+	@state()
+		_presentationMode: boolean;
 
 	@state()
 		_editing: boolean;
@@ -165,12 +174,6 @@ class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 		_mayViewApp: boolean;
-
-	@state()
-		_completeMode : boolean;
-
-	@state()
-		_effectiveCardLimit : number;
 
 	@state()
 		_userPermissionsFinal: boolean;
@@ -368,9 +371,14 @@ class MainView extends connect(store)(PageViewElement) {
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
 					</div>
+					<corpus-status-indicator></corpus-status-indicator>
 					<user-chip></user-chip>
 				</div>
 			</div>
+			<!-- Also hidden in presentation mode: that mode CLOSES the header
+			panel, so the hidden-when-header-open rule had the opposite effect
+			and left a fixed white pill over the top-right of every slide. -->
+			<corpus-status-indicator floating ?hidden=${this._headerPanelOpen || this._presentationMode}></corpus-status-indicator>
 
 			<!-- Main content -->
 			<div role="main" class="main-content">
@@ -431,7 +439,10 @@ class MainView extends connect(store)(PageViewElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
-		store.dispatch(loadSavedCompleteModePreference());
+		//Starts the default required corpus worker (or the selected diagnostic mode).
+		//(IDF now arrives from the worker as a per-epoch delivery; there is no
+		//server map to load. See docs/visible-corpus-idf-design.md.)
+		maybeStartCorpusWorker();
 	}
 
 	_handleResize() {
@@ -475,7 +486,8 @@ class MainView extends connect(store)(PageViewElement) {
 	}
 
 	_handleKeyPressed(e : KeyboardEvent) {
-		if (e.key == 'Enter' && e.metaKey) {
+		if (e.isComposing) return;
+		if (e.key == 'Enter' && (e.metaKey || e.ctrlKey)) {
 			e.stopPropagation();
 			e.preventDefault();
 			store.dispatch(doCommit());
@@ -483,7 +495,28 @@ class MainView extends connect(store)(PageViewElement) {
 		}
 		//Don't move the slide selection when editing!
 		if (!this._keyboardNavigates) return;
+		//Space/arrows below are bare-key bindings; a focusable CONTROL that has
+		//focus (the update banner's Reload, the save indicator's Retry/Stop and
+		//Discard, a tag <select>) must receive its own activation keys — eating
+		//Space there silently broke buttons, including destructive ones.
+		const pathTarget = e.composedPath()[0];
+		if (pathTarget instanceof HTMLElement && pathTarget.closest('button, a, select, input, textarea, [role="button"]')) return;
 		switch (e.key) {
+		case 'e':
+			//REQUIRES a modifier. As a bare letter this was a data-mutation
+			//hazard: opening the editor focuses the contenteditable body and
+			//moves the caret to the end, so typing any phrase containing 'e'
+			//with the card view focused silently inserted the REST of that
+			//phrase into the card. Observed for real. Master had no such
+			//shortcut; every other letter shortcut already requires a modifier
+			//(f here; m, l and r in card-view's own handler), so this now
+			//matches them. Only the arrows and Space below stay bare.
+			if (!e.metaKey && !e.ctrlKey) return;
+			if (e.altKey) return;
+			e.stopPropagation();
+			e.preventDefault();
+			store.dispatch(editingStart());
+			break;
 		case 'f':
 			if (!e.metaKey && !e.ctrlKey) return;
 			e.stopPropagation();
@@ -524,6 +557,7 @@ class MainView extends connect(store)(PageViewElement) {
 	override stateChanged(state : State) {
 		this._card = selectActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
+		this._presentationMode = state.app.presentationMode;
 		this._page = state.app.page;
 		this._editing = state.editor ? state.editor.editing : false;
 		this._devMode = DEV_MODE;
@@ -540,12 +574,10 @@ class MainView extends connect(store)(PageViewElement) {
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 		this._uid = selectUid(state);
 		this._badgeMap = selectBadgeMap(state);
-		this._completeMode = selectCompleteModeEnabled(state);
-		this._effectiveCardLimit = selectCompleteModeEffectiveCardLimit(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_completeMode') || changedProps.has('_uid') || changedProps.has('_effectiveCardLimit')) {
+		if (changedProps.has('_mayViewUnpublished') || changedProps.has('_uid')) {
 			//connectLiveUnpublishedCards will handle connecting if it needs to or not.
 			connectLiveUnpublishedCards();
 		}

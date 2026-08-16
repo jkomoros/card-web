@@ -91,12 +91,14 @@
                 "SCHEDULE_ICON",
                 "SCREEN_ROTATION_ICON",
                 "SEARCH_ICON",
+                "SEND_ICON",
                 "SHUFFLE_ICON",
                 "STAR_BORDER_ICON",
                 "STAR_ICON",
                 "TWITTER_ICON",
                 "VIEW_DAY_ICON",
                 "VISIBILITY_ICON",
+                "VISIBILITY_OFF_ICON",
                 "WARNING_ICON"
             ],
             "type": "string"
@@ -173,7 +175,52 @@
             ],
             "type": "string"
         },
-        "{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}": {
+        "UserPermissionsCore": {
+            "additionalProperties": false,
+            "properties": {
+                "admin": {
+                    "type": "boolean"
+                },
+                "comment": {
+                    "type": "boolean"
+                },
+                "createCard": {
+                    "type": "boolean"
+                },
+                "edit": {
+                    "type": "boolean"
+                },
+                "editCard": {
+                    "type": "boolean"
+                },
+                "editSection": {
+                    "type": "boolean"
+                },
+                "editTag": {
+                    "type": "boolean"
+                },
+                "markRead": {
+                    "type": "boolean"
+                },
+                "modifyReadingList": {
+                    "type": "boolean"
+                },
+                "remoteAI": {
+                    "type": "boolean"
+                },
+                "star": {
+                    "type": "boolean"
+                },
+                "viewApp": {
+                    "type": "boolean"
+                },
+                "viewUnpublished": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}": {
             "additionalProperties": false,
             "properties": {
                 "concepts": {
@@ -224,7 +271,7 @@
             },
             "type": "object"
         },
-        "{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1": {
+        "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1": {
             "additionalProperties": false,
             "properties": {
                 "concepts": {
@@ -338,184 +385,16 @@
                     "additionalProperties": false,
                     "properties": {
                         "all": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "anonymous": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "signed_in": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "signed_in_domain": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         }
                     },
                     "type": "object"
@@ -545,10 +424,10 @@
                     "additionalProperties": false,
                     "properties": {
                         "after": {
-                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1"
+                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
                         },
                         "before": {
-                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}"
+                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
                         }
                     },
                     "type": "object"
@@ -674,184 +553,16 @@
                     "additionalProperties": false,
                     "properties": {
                         "all": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "anonymous": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "signed_in": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "signed_in_domain": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         }
                     },
                     "type": "object"
@@ -881,10 +592,10 @@
                     "additionalProperties": false,
                     "properties": {
                         "after": {
-                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1"
+                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
                         },
                         "before": {
-                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}"
+                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
                         }
                     },
                     "type": "object"
@@ -1010,184 +721,16 @@
                     "additionalProperties": false,
                     "properties": {
                         "all": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "anonymous": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "signed_in": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         },
                         "signed_in_domain": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "admin": {
-                                    "type": "boolean"
-                                },
-                                "comment": {
-                                    "type": "boolean"
-                                },
-                                "createCard": {
-                                    "type": "boolean"
-                                },
-                                "edit": {
-                                    "type": "boolean"
-                                },
-                                "editCard": {
-                                    "type": "boolean"
-                                },
-                                "editSection": {
-                                    "type": "boolean"
-                                },
-                                "editTag": {
-                                    "type": "boolean"
-                                },
-                                "markRead": {
-                                    "type": "boolean"
-                                },
-                                "modifyReadingList": {
-                                    "type": "boolean"
-                                },
-                                "remoteAI": {
-                                    "type": "boolean"
-                                },
-                                "star": {
-                                    "type": "boolean"
-                                },
-                                "viewApp": {
-                                    "type": "boolean"
-                                },
-                                "viewUnpublished": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "type": "object"
+                            "$ref": "#/definitions/UserPermissionsCore"
                         }
                     },
                     "type": "object"
@@ -1217,10 +760,10 @@
                     "additionalProperties": false,
                     "properties": {
                         "after": {
-                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1"
+                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
                         },
                         "before": {
-                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}"
+                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;tags?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
                         }
                     },
                     "type": "object"

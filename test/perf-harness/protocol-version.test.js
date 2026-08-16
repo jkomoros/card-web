@@ -1,0 +1,48 @@
+/*eslint-env node*/
+
+import assert from 'assert';
+
+let CORPUS_WORKER_PROTOCOL_VERSION;
+let LEGACY_CORPUS_WORKER_PROTOCOL_VERSION;
+let corpusWorkerProtocolCompatible;
+let corpusWorkerProtocolVersion;
+
+describe('corpus worker protocol compatibility', () => {
+	before(async () => {
+		({
+			CORPUS_WORKER_PROTOCOL_VERSION,
+			LEGACY_CORPUS_WORKER_PROTOCOL_VERSION,
+			corpusWorkerProtocolCompatible,
+			corpusWorkerProtocolVersion,
+		} = await import('../../lib/src/worker/worker-protocol.js'));
+	});
+
+	it('accepts the matching page/worker protocol', () => {
+		assert.strictEqual(corpusWorkerProtocolCompatible(CORPUS_WORKER_PROTOCOL_VERSION), true);
+	});
+
+	it('rejects a pre-handshake worker as legacy protocol zero', () => {
+		//Deliberately pinned: bumping the protocol invalidates every cached
+		//worker bundle, so it must be a conscious edit rather than a side
+		//effect. Last bumped to 4 when per-user state (stars/reads/reading
+		//list) moved into the worker; to 5 when sections and tags followed and the
+		//page dropped its main-thread fallback for them; to 6 when IDF moved
+		//into the worker (idfMap delivery + refreshIDF; server-IDF plumbing
+		//removed from hydration and forwarding); to 7 when the worker gained
+		//the `corpusProgress` message (expected corpus total during a cold
+		//sweep, for the status indicator's fetch-progress display); to 8 when
+		//`corpusProgress` gained optional verifyDone/verifyTotal checkpoint
+		//progress for the loadComplete→live verifying window (and the expected
+		//total began to be sent for snapshot primes too).
+		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 8);
+		assert.strictEqual(LEGACY_CORPUS_WORKER_PROTOCOL_VERSION, 0);
+		assert.strictEqual(corpusWorkerProtocolVersion(undefined), 0);
+		assert.strictEqual(corpusWorkerProtocolCompatible(undefined), false);
+	});
+
+	it('rejects newer, older, and malformed protocol versions', () => {
+		assert.strictEqual(corpusWorkerProtocolCompatible(CORPUS_WORKER_PROTOCOL_VERSION + 1), false);
+		assert.strictEqual(corpusWorkerProtocolCompatible(CORPUS_WORKER_PROTOCOL_VERSION - 1), false);
+		assert.strictEqual(corpusWorkerProtocolCompatible(String(CORPUS_WORKER_PROTOCOL_VERSION)), false);
+	});
+});

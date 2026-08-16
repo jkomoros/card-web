@@ -352,7 +352,15 @@ export type ConfigurableFilterResult = [result : FilterMap, reverse : boolean, s
 
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => FilterFuncResult;
 
-export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
+//An optional capability of a configurable filter: directly enumerate the
+//matching set (and sort values) instead of having the machinery test every
+//card in the corpus against func. Only legal for filters whose func is
+//equivalent to membership in an enumerable set (e.g. reference-graph
+//filters, whose BFS map already IS the answer); semantics must be identical
+//to running func over every card.
+export type ConfigurableFilterEnumerator = (extras : FilterExtras) => {matches : FilterMap, sortValues : SortExtra | null};
+
+export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean, enumerate? : ConfigurableFilterEnumerator];
 
 type ConfigurableFilterFuncFactory = (filterType : ConfigurableFilterType, ...parts : URLPart[]) => ConfigurableFilterFuncFactoryResult;
 
@@ -650,7 +658,11 @@ export type FilterExtras = {
 	userID : Uid,
 	randomSalt: string,
 	cardSimilarity: CardSimilarityMap,
-	editingCardSimilarity: SortExtra | null
+	editingCardSimilarity: SortExtra | null,
+	//The frozen worker-epoch IDF map when one exists (worker modes); null in
+	//off mode, where the similar-fallback computes a local map for small
+	//corpora instead.
+	idfMap: IDFMap | null
 };
 
 // CardBooleanMap, FilterMap, and Filters now imported from shared/types.js
@@ -673,7 +685,10 @@ export interface CollectionConstructorArguments {
 	filtersSnapshot? : Filters,
 	editingCard? : ProcessedCard,
 	cardSimilarity? : CardSimilarityMap,
-	editingCardSimilarity? : SortExtra
+	editingCardSimilarity? : SortExtra,
+	//See FilterExtras.idfMap. Threaded through so the similar-cards
+	//fingerprint fallback scores with the same frozen map fingerprints use.
+	idfMap? : IDFMap
 }
 
 export type Logger = {
@@ -730,7 +745,6 @@ export type AppState = {
 	suggestMissingConceptsEnabled: boolean,
 }
 
-
 export type CollectionState = {
 	active : CollectionConfiguration,
 	//If the dialog to configure the collection is open, this will be set to a
@@ -761,8 +775,51 @@ export type CollectionState = {
 	//ephemeral and not persisted.
 	selectedCards: FilterMap,
 	//It's very expensive to update the collectionWordCloud, so we only update it when this is incremented.
-	collectionWordCloudVersion: number
+	collectionWordCloudVersion: number,
+	//When the corpus worker serves collections ('on' mode), the most recent
+	//pushed result for the active collection. Null when the worker isn't
+	//serving collections or no result has arrived yet.
+	workerActiveCollection: WorkerCollectionResult | null,
+	//Same, for the find dialog's query collection.
+	workerQueryCollection: WorkerCollectionResult | null,
 }
+
+//Which worker-served collection slot a pushed result belongs to.
+export type WorkerCollectionSlot = 'active' | 'query';
+
+//Compact per-card metadata maintained by the corpus worker and delta-pushed
+//to the main thread. Serves synchronous whole-corpus consumers (link titles,
+//slug resolution, sort-order adjacency, list skeletons) without holding full
+//card objects in UI-thread Redux.
+export type CardMeta = {
+	id: CardID,
+	name: string,
+	title: string,
+	card_type: CardType,
+	section: SectionID,
+	tags: TagID[],
+	slugs: Slug[],
+	published: boolean,
+	sort_order: number,
+	author: Uid,
+	collaborators: Uid[],
+};
+
+export type CardMetas = {[id : CardID]: CardMeta};
+
+//An ordered collection result computed in the corpus worker and pushed to the
+//main thread.
+export type WorkerCollectionResult = {
+	//The serialized description this result answers.
+	description: string,
+	ids: CardID[],
+	labels: string[],
+	numCards: number,
+	numStartCards: number,
+	isFallback: boolean,
+	preview: boolean,
+	partialMatches: CardBooleanMap,
+};
 
 export type CommentsState = {
 	messages: CommentMessages,
@@ -826,6 +883,29 @@ export type ExpandedTabConfig = ExpandedTabConfigItem[];
 //Note the map will likely only have a subset of the other cards.
 export type CardSimilarityMap = Record<CardID, SortExtra>;
 
+//An IDF map in the shape FingerprintGenerator consumes: idf per term, plus
+//the maximum observed idf (the score every unknown term falls back to).
+export type IDFMap = {
+	idf: {
+		[word: string]: number
+	},
+	maxIDF: number
+};
+
+//Worker-computed IDF over the visible corpus, delivered once per epoch (see
+//src/worker/idf-index.ts and the `idfMap` protocol message). cardCount is the
+//body-card count the map was materialized over; termCount the (df==1-trimmed)
+//published vocabulary size.
+export type WorkerIDFData = {
+	epoch: number,
+	cardCount: number,
+	termCount: number,
+	idf: {
+		[word: string]: number
+	},
+	maxIDF: number
+};
+
 export type SuggestionDiffCreateCard = {
 	card_type? : CardType,
 	title? : string,
@@ -867,15 +947,25 @@ export type Suggestion = {
 
 const _cardFetchTypeSchema = z.enum([
 	'published',
-	'unpublished-partial',
-	'unpublished-complete',
+	'unpublished',
 	'unpublished-editor',
-	'unpublished-author'
+	'unpublished-author',
 ]);
 
 export type CardFetchType = z.infer<typeof _cardFetchTypeSchema>;
 
 export type CardFetchTypeMap = {[type in CardFetchType]+?: true};
+
+export type CorpusStatus = 'off' | 'loading' | 'live' | 'stale' | 'degraded' | 'fallback' | 'checking' | 'contended' | 'inactive' | 'takeover' | 'unsupported' | 'ownership-error';
+
+export type BulkTagOperationProgress = {
+	total: number,
+	completed: number,
+	tag: TagID,
+	adding: boolean,
+	description: string,
+	serverConfirmed: boolean,
+};
 
 export type DataState = {
 	cards: Cards,
@@ -895,16 +985,40 @@ export type DataState = {
 	//when the fetch starts, and lowered when the first result of that fetchtyep
 	//is provided (although there might be subsequent of htat type too and that's OK)
 	loadingCardFetchTypes: CardFetchTypeMap,
+	corpusStatus: CorpusStatus,
+	corpusStatusMessage: string,
+	//How many cards the corpus worker holds, and the age of the snapshot this
+	//session primed from (null when primed from the server). Both were
+	//maintained but never rendered; criterion 8 asks for an information-dense
+	//status, not a mute dot.
+	corpusSize: number,
+	corpusSnapshotAgeMs: number | null,
+	//Roughly how many cards the finished corpus will hold, when the worker
+	//knows (during a cold sweep, from the trust gate's server counts); null
+	//otherwise. Lets the status indicator show "12.4k of ~40.2k".
+	expectedCorpusSize: number | null,
+	//True once the worker announced loadComplete for this connection: the
+	//corpus is fully fetched and any non-live time remaining is verification.
+	corpusComplete : boolean,
+	//Verification-checkpoint progress for the loadComplete→live window: how
+	//many of the connection's fixed set of verification checks (trust-gate
+	//partition counts, tombstone catch-up, plane health, delta catch-up and
+	//re-gate) have completed. The total is fixed per connection and done is
+	//monotonic. null when the current connection reports none.
+	verifyDone : number | null,
+	verifyTotal : number | null,
+	//Durable aux-write intents (stars/reads/comments/card creations) queued
+	//locally and not yet server-confirmed. Pushed into Redux by the queue's
+	//enqueue/dequeue notifications so no selector ever reads localStorage.
+	pendingAuxWriteCount: number,
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
 	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.
 	sectionsLoaded: boolean,
 	tagsLoaded: boolean,
-	//If true, the user has expliclitly requested that all unpublished card data
-	//be loaded, even if it's very large.
-	completeMode: boolean,
-	//The number of cards to limit to if partial mode is engaged. If 0, that means 'deafult'.
-	completeModeCardLimit : number,
+	//Compact per-card metadata delta-pushed by the corpus worker (empty when
+	//the worker isn't running). See CardMeta.
+	cardMeta: CardMetas,
 	//keeps track of whether we committed any pending collections on being fully
 	//loaded already. If so, then even if refreshCardSelector gets called again,
 	//we won't update the collection again.
@@ -914,6 +1028,7 @@ export type DataState = {
 	//receive all of the cards, but need to remember how many we're expecting.
 	pendingModifications: boolean,
 	pendingModificationCount: number,
+	bulkTagOperationProgress: BulkTagOperationProgress | null,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.
 	pendingNewCardID: CardID,
@@ -940,6 +1055,11 @@ export type DataState = {
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
 	cardSimilarity: CardSimilarityMap
+	//The worker-computed IDF map for the visible corpus, delivered once per
+	//epoch (frozen per session; see docs/visible-corpus-idf-design.md). Null
+	//until the worker's initial build publishes, and in off mode (where the
+	//local small-corpus computation runs instead).
+	workerIDF: WorkerIDFData | null
 }
 
 export type EditorState = {
@@ -973,11 +1093,31 @@ export type EditorState = {
 	imageBrowserDialogIndex?: number,
 	//The same as data.cardSimilarity, but for the editing card. If undefined,
 	//then it's not up ot date for the current card.
-	editingCardSimilarity?: SortExtra
+	editingCardSimilarity?: SortExtra,
+	//The content version of the outstanding editing-card similarity request
+	//(see editingCardVersion in actions/similarity.ts), or 0 when no request
+	//is outstanding. Non-zero means editingCardSimilarity is known to lag the
+	//draft the user typed, so similarity-derived UI should render with the
+	//stale dim until the matching EDITING_UPDATE_SIMILAR_CARDS lands. Versions
+	//follow the retry coordinator's last-request-wins discipline: a result
+	//stamped with any other version belongs to a cancelled chain and must be
+	//dropped, never un-dimming a newer pending request.
+	similarityPendingVersion: number,
+	//The committed draft of a single-card save that the durable executor has
+	//accepted but the server has not yet confirmed. Set by EDITING_FINISH with
+	//pendingSave, cleared by MODIFY_CARD_SUCCESS / MODIFY_CARD_FAILURE (and by
+	//any other editor start/finish). While set, the card face renders this
+	//optimistically instead of the stale state.data.cards copy, with a small
+	//unconfirmed indicator; on failure the existing save-indicator surfaces
+	//(Retry/Stop, alerts) take over and the face reverts to server truth.
+	pendingSaveCard: Card | null
 }
 
 export type FindState = {
 	open: boolean,
+	//Progress of the worker's background search-recall index build. null until
+	//the first progress report of a session; ready flips true when complete.
+	searchRecall: {built : number, total : number, ready : boolean} | null,
 	//query is the query as input by the user, as quick as we can update state.
 	query: string,
 	//activeQuery is the query that goes into the processing pipeline. We only

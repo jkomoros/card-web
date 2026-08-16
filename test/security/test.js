@@ -26,6 +26,7 @@ const READS_COLLECTION = 'reads';
 const TWEETS_COLLECTION = 'tweets';
 const READING_LISTS_COLLECTION = 'reading_lists';
 const UPDATES_COLLECTION = 'updates';
+const TOMBSTONES_COLLECTION = 'tombstones';
 const CHATS_COLLECTION = 'chats';
 const CHAT_MESSAGES_COLLECTION = 'chat_messages';
 
@@ -54,8 +55,16 @@ const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
 const cardStarCount = 7;
 
-const starId = cardId + '+' + anonUid;
-const newStarId = cardId + 'new+' + anonUid;
+//Production ids are `${uid}+${cardID}` (idForPersonalCardInfo). These fixtures
+//previously had the two halves REVERSED, so every star/read test exercised an id
+//shape the app never produces — which is why the create rules' missing id/uid
+//binding went unnoticed.
+const newStarCardId = cardId + 'new';
+//A published card the anonymous user has NOT starred, so the star-add path can
+//be exercised (cardId is seeded WITH an anon star, which is the unstar case).
+const starlessCardId = 'card-no-star';
+const starId = anonUid + '+' + cardId;
+const newStarId = anonUid + '+' + newStarCardId;
 
 const messageId = 'message';
 const newMessageId = 'newMessage';
@@ -91,6 +100,16 @@ async function setupDatabase() {
 		published: true,
 		references_inbound: {},
 		references_info_inbound:{},
+	});
+	await db.collection(CARDS_COLLECTION).doc(starlessCardId).set({
+		body: 'this is the body',
+		title: 'this is the title',
+		author: bobUid,
+		published: true,
+		star_count: cardStarCount,
+		star_count_manual: cardStarCount,
+		thread_count: cardThreadCount,
+		thread_resolved_count: cardThreadResolvedCount,
 	});
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:3,
@@ -267,6 +286,15 @@ after(async () => {
 });
 
 describe('Compendium Rules', () => {
+	it('allows a user to read and write only their own multi-edit chunk markers', async() => {
+		const bobDB = authedApp(bobAuth);
+		const own = bobDB.collection(USERS_COLLECTION).doc(bobUid).collection('multi_edit_chunks').doc('chunk');
+		await firebase.assertSucceeds(own.set({next_index: 10}));
+		await firebase.assertSucceeds(own.get());
+		const other = bobDB.collection(USERS_COLLECTION).doc(sallyUid).collection('multi_edit_chunks').doc('chunk');
+		await firebase.assertFails(other.set({next_index: 10}));
+		await firebase.assertFails(other.get());
+	});
 	it('allows anyone to read a published card', async () => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
@@ -331,26 +359,32 @@ describe('Compendium Rules', () => {
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with edit permission to create a card', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with createCard permission to create a card', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'createCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('disallows admins to create a card they aren\'t author of', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
 		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:bobUid}));
+	});
+
+	it('disallows creating a card without bumping updated', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
+		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:adminUid}));
 	});
 
 	it('does not allow normal users to create a card', async() => {
@@ -420,28 +454,70 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
 	});
 
-	it('allows any signed in users to increment star_count by 1', async() => {
+	//The star counters and the star document move together, in one batch, which
+	//is exactly what the client's star-add/star-remove executors do. Bare
+	//counter updates used to be accepted, which let any signed-in user inflate
+	//star_count without ever starring anything.
+	it('allows a signed in user to increment star_count by 1 alongside creating their star', async() => {
 		const db = authedApp(anonAuth);
-		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1});
+		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + starlessCardId), {owner: anonUid, card: starlessCardId});
+		await firebase.assertSucceeds(batch.commit());
 	});
 
-	it('disallows any nonauthenticated  users to increment star_count by 1', async() => {
-		const db = authedApp(null);
+	it('disallows incrementing star_count without creating the corresponding star', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+	});
+
+	it('disallows incrementing star_count again when the user already holds the star', async() => {
+		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+	});
+
+	it('disallows creating a star for one card while incrementing a different card', async() => {
+		const db = authedApp(anonAuth);
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1});
+		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId), {owner: anonUid, card: newStarCardId});
+		await firebase.assertFails(batch.commit());
+	});
+
+	it('disallows moving the two star counters in opposite directions', async() => {
+		const db = authedApp(anonAuth);
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount - 1});
+		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + starlessCardId), {owner: anonUid, card: starlessCardId});
+		await firebase.assertFails(batch.commit());
+	});
+
+	it('disallows any nonauthenticated users to increment star_count by 1', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
 		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows any signed in users to increment star_count by 1 if they edit other fields', async() => {
 		const db = authedApp(anonAuth);
-		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
 		await firebase.assertFails(card.update({star_count: cardStarCount + 1, thread_count: cardThreadCount + 1}));
 	});
 
-	it('allows any signed in users to decrement star_count by 1', async() => {
+	it('allows a signed in user to decrement star_count by 1 alongside deleting their star', async() => {
+		const db = authedApp(anonAuth);
+		const batch = db.batch();
+		batch.update(db.collection(CARDS_COLLECTION).doc(cardId), {star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1});
+		batch.delete(db.collection(STARS_COLLECTION).doc(starId));
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('disallows decrementing star_count without deleting the corresponding star', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
+		await firebase.assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
 	});
 
 	it('disallows any nonauthenticated users to decrement star_count by 1', async() => {
@@ -510,38 +586,62 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({foo:5}));
 	});
 
+	it('disallows an editor from editing card content without bumping updated', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({foo:5}));
+	});
+
+	it('disallows an editor from editing card content with a non-request-time updated', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({foo:5, updated: new Date(2015,10,10)}));
+	});
+
+	it('allows an admin to reset vestigial tweet counters without bumping updated', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
+	});
+
+	it('disallows a non-admin editor from writing tweet counters', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
+	});
+
 	it('allows users with edit permission to arbitrarily edit a card', async () => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with editCard permission to arbitrarily edit a card', async () => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as author for that card to arbitrarily edit a card', async () => {
 		//bob is explictly the author
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as editors for that card to arbitrarily edit a card', async () => {
 		//Sally is explicitly listed as an editor on the card
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as editors to arbitrarily edit a card', async () => {
 		//jerry has blanket edit permission
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5}));
+		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows admins to read card updates', async() => {
@@ -912,13 +1012,30 @@ describe('Compendium Rules', () => {
 	it('allows any user to create a star they own', async() => {
 		const db = authedApp(anonAuth);
 		const star = db.collection(STARS_COLLECTION).doc(newStarId);
-		await firebase.assertSucceeds(star.set({owner:anonUid, card: cardId}));
+		await firebase.assertSucceeds(star.set({owner:anonUid, card: newStarCardId}));
+	});
+
+	//Regression: createIsOwner() validates the `owner` FIELD, never the document
+	//PATH, so an attacker could create a doc they own at ANOTHER user's canonical
+	//id — permanently denying that user's own star write (set on an existing doc
+	//evaluates as update) and denying their replay preflight, which the aux queue
+	//treats as permanent and DISCARDS.
+	it('disallows creating a star at another user\'s canonical id (path squatting)', async() => {
+		const db = authedApp(sallyAuth);
+		const squatted = db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId);
+		await firebase.assertFails(squatted.set({owner: sallyUid, card: newStarCardId}));
+	});
+
+	it('disallows creating a star whose id does not match its own card field', async() => {
+		const db = authedApp(anonAuth);
+		const mismatched = db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId);
+		await firebase.assertFails(mismatched.set({owner: anonUid, card: 'some-other-card'}));
 	});
 
 	it('disallows user to create a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(newStarId);
-		await firebase.assertFails(star.set({owner:anonUid, card: cardId}));
+		await firebase.assertFails(star.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('allows any user to update a star they own', async() => {
@@ -957,16 +1074,46 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(star.get());
 	});
 
+	//Regression: the offline star-replay preflight GETs a star that may not
+	//exist yet, to decide whether the original batch committed. `updateIsOwner()`
+	//null-dereferences resource.data for a missing document, so the rule ERRORED
+	//instead of returning "not exists" — and the queue classified that
+	//permission-denied as permanent and silently DISCARDED the user's star.
+	//Production ids are `${uid}+${cardID}` (idForPersonalCardInfo).
+	it('allows a user to read their OWN not-yet-existing star (replay preflight)', async() => {
+		const db = authedApp(anonAuth);
+		const missing = db.collection(STARS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-starred');
+		await firebase.assertSucceeds(missing.get());
+	});
+
+	it('disallows reading a not-yet-existing star belonging to someone else', async() => {
+		const db = authedApp(sallyAuth);
+		const missing = db.collection(STARS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-starred');
+		await firebase.assertFails(missing.get());
+	});
+
+	it('allows a user to read their OWN not-yet-existing read (same hazard)', async() => {
+		const db = authedApp(anonAuth);
+		const missing = db.collection(READS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-read');
+		await firebase.assertSucceeds(missing.get());
+	});
+
+	it('disallows reading a not-yet-existing read belonging to someone else', async() => {
+		const db = authedApp(sallyAuth);
+		const missing = db.collection(READS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-read');
+		await firebase.assertFails(missing.get());
+	});
+
 	it('allows any user to create a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);
-		await firebase.assertSucceeds(read.set({owner:anonUid, card: cardId}));
+		await firebase.assertSucceeds(read.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('disallows user to create a read they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);
-		await firebase.assertFails(read.set({owner:anonUid, card: cardId}));
+		await firebase.assertFails(read.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('allows any user to update a read they own', async() => {
@@ -1106,6 +1253,7 @@ describe('Compendium Rules', () => {
 			section: 'random-thoughts',
 			tags: [],
 			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertFails(ref.delete());
 	});
@@ -1121,6 +1269,7 @@ describe('Compendium Rules', () => {
 			section: '',
 			tags: ['bam'],
 			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertFails(ref.delete());
 	});
@@ -1137,12 +1286,13 @@ describe('Compendium Rules', () => {
 			tags: [],
 			references_inbound: {
 				'foo': true,
-			}
+			},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 		await firebase.assertFails(ref.delete());
 	});
 
-	it('allows users to delete a card they own that has no section, no tags, and no inbound references', async() => {
+	it('disallows deleting an orphaned owned card without its tombstone', async() => {
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
@@ -1152,12 +1302,13 @@ describe('Compendium Rules', () => {
 			author: jerryUid,
 			section: '',
 			tags: [],
-			references_inbound: {}
+			references_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
-		await firebase.assertSucceeds(ref.delete());
+		await firebase.assertFails(ref.delete());
 	});
 
-	it('allows users with edit permission to delete a card they own that has no section, no tags, and no inbound references', async() => {
+	it('allows users with edit permission to delete an orphaned card only with its tombstone', async() => {
 		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
@@ -1169,9 +1320,100 @@ describe('Compendium Rules', () => {
 			author: bobUid,
 			section: '',
 			tags: [],
-			references_inbound: {}
+			references_inbound: {},
 		}));
-		await firebase.assertSucceeds(ref.delete());
+		const batch = db.batch();
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(testCardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: jerryAuth.uid,
+			published: false,
+		});
+		batch.delete(ref);
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('disallows create-only users from forging a tombstone for a live card', async() => {
+		await addPermissionForUser(genericUid, 'createCard');
+		const db = authedApp(genericAuth);
+		const tombstone = db.collection(TOMBSTONES_COLLECTION).doc(cardId);
+		await firebase.assertFails(tombstone.set({
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows editors from writing a tombstone without deleting the card', async() => {
+		const db = authedApp(sallyAuth);
+		const tombstone = db.collection(TOMBSTONES_COLLECTION).doc(cardId);
+		await firebase.assertFails(tombstone.set({
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('allows an editor to atomically delete a card and create its tombstone', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+		});
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('allows the REAL client tombstone shape ({deleted, by, published}) — the shape deleteCard actually writes', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: sallyAuth.uid,
+			published: false,
+		});
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('requires a fresh tombstone timestamp when deleting a card recreated under an old ID', async() => {
+		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
+		const db = authedApp(sallyAuth);
+		const tombstone = adminDb.collection(TOMBSTONES_COLLECTION).doc(cardId);
+		await tombstone.set({
+			deleted: firebase.firestore.Timestamp.fromMillis(1),
+			by: sallyAuth.uid,
+			published: false,
+		});
+		await firebase.assertFails(db.collection(CARDS_COLLECTION).doc(cardId).delete());
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: sallyAuth.uid,
+			published: false,
+		});
+		await firebase.assertSucceeds(batch.commit());
+	});
+
+	it('disallows a tombstone attributing the deletion to someone else', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: 'someone-else',
+			published: false,
+		});
+		await firebase.assertFails(batch.commit());
+	});
+
+	it('disallows a tombstone with extra fields beyond the client shape', async() => {
+		const db = authedApp(sallyAuth);
+		const batch = db.batch();
+		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
+		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
+			deleted: firebase.firestore.FieldValue.serverTimestamp(),
+			by: sallyAuth.uid,
+			published: false,
+			junk: true,
+		});
+		await firebase.assertFails(batch.commit());
 	});
 
 	it('disallows users to delete updates from a card they don\'t own', async() => {
@@ -1187,11 +1429,52 @@ describe('Compendium Rules', () => {
 	});
 
 	it('allows users to update inbound links on a card they can see but cant edit', async() => {
+		//createCard is NOT in userMayEditCard's permission set, so this user
+		//still cannot edit the card — but they can author cards, which is what
+		//the inbound-reference identity floor requires (only a card author or
+		//editor ever generates a denormalized inbound reference).
+		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows updating inbound links without bumping updated (tightened 2026-08-15 per the decision-log amendment)', async() => {
+		//`updated` is REQUIRED on inbound-link writes: the watermark delta
+		//sync depends on the bump, and the carve-out that made it optional
+		//(protecting master-era clients during the cutover window) was
+		//retired before cutover — the only writers of this shape are
+		//editors, and the cutover checklist has them close-and-reopen every
+		//logged-in tab after the hosting deploy.
+		await addPermissionForUser(genericUid, 'createCard');
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+		}));
+	});
+
+	it('disallows the no-updated inbound-link write for an admin client too', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+		}));
+	});
+
+	it('disallows updating inbound links with a non-servertime updated', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: new Date(),
 		}));
 	});
 
@@ -1202,6 +1485,55 @@ describe('Compendium Rules', () => {
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			body: 'bam'
+		}));
+	});
+
+	//Regression: cardEditInboundReferences had NO caller-identity check. Its only
+	//gate was `resource.data.published || userMayViewUnpublished()`, and the first
+	//disjunct is true for everyone on a published card — so an unauthenticated
+	//client could rewrite inbound references AND `updated` on any published card.
+	//Because this branch makes `updated` load-bearing for watermark delta sync,
+	//that is a remote billed-read exhaustion attack.
+	it('disallows an UNAUTHENTICATED client from updating inbound links', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows an UNAUTHENTICATED client from bumping updated via the inbound-link carve-out', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	it('disallows an anonymous user with no card permissions from updating inbound links', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
+		}));
+	});
+
+	//genericAuth, with no permission granted in this test, is the genuinely
+	//unprivileged signed-in user; sally is the card's author and is listed in its
+	//permissions.editCard, so her write would legitimately succeed via the edit
+	//path rather than the inbound-reference carve-out.
+	it('disallows a signed-in user with no card permissions from wiping inbound references', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			references_inbound: {},
+			references_info_inbound: {},
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
 
@@ -1220,6 +1552,7 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.update({
 			['references_inbound.' + cardId]: true,
 			['references_info_inbound.' + cardId + '.link']: '',
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
 

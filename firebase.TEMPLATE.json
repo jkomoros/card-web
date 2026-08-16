@@ -10,9 +10,35 @@
         "source": "**",
         "destination": "/index.html"
       }
+    ],
+    "//": "The corpus worker is served from a STABLE, unhashed URL while the main chunks are content-hashed, so Firebase Hosting's default max-age=3600 let a returning user inside the deploy hour run a PREVIOUS worker build against a current page. The page/worker protocol handshake catches the mismatch and recovers, but recovery is a degraded boot -- and since the protocol moved 3->4 that window also costs per-user state in shadow mode. no-cache still allows a 304, so this revalidates rather than re-downloads.",
+    "headers": [
+      {
+        "//": "The file whose entire purpose is answering \"which build is live?\" must never be answered from cache -- at max-age=3600 a verifier could confirm HEAD was deployed using the PREVIOUS hour's stamp, which is worse than having no stamp, because it looks like evidence.",
+        "source": "/deploy-stamp.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "/lib/src/worker/corpus-worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
     ]
   },
   "firestore": {
+    "//": "predeploy runs for `firebase deploy --only firestore:rules` too, which is what the runbook uses -- npm pre-hooks do NOT, so the dated rules deadline was unenforced on exactly the deploy it was written for (including Phase 6 itself).",
+    "predeploy": [
+      "node tools/check-deadlines.cjs"
+    ],
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },

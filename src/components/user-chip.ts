@@ -21,6 +21,7 @@ import {
 	signInSuccess,
 	signOutSuccess,
 	signOut,
+	completeRedirectSignIn,
 } from '../actions/user.js';
 
 import {
@@ -97,6 +98,8 @@ class UserChip extends connect(store)(LitElement) {
 
 	override firstUpdated() {
 		onAuthStateChanged(auth, this._handleAuthStateChanged);
+		//Completes a redirect sign-in started when the popup was blocked.
+		store.dispatch(completeRedirectSignIn());
 	}
 
 	_handleAuthStateChanged(user : User) {

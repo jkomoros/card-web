@@ -12,7 +12,7 @@ import {
 } from '../selectors.js';
 
 import {
-	FindDialogType
+	FindDialogType,
 } from '../types.js';
 
 import {

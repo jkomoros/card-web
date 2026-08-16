@@ -3,6 +3,7 @@ import {
 	UPDATE_COLLECTION,
 	UPDATE_RENDER_OFFSET,
 	UPDATE_COLLECTION_SHAPSHOT,
+	UPDATE_WORKER_COLLECTION,
 	RANDOMIZE_SALT,
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
@@ -54,6 +55,10 @@ import {
 	copyCollectionConfiguration
 } from '../collection_description.js';
 
+import {
+	perfCount
+} from '../perf.js';
+
 const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : CollectionState => {
 	switch (action.type) {
 	case SHOW_CARD:
@@ -72,7 +77,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			active: action.collection,
 			activeRenderOffset: 0,
-			collectionWordCloudVersion: 0
+			collectionWordCloudVersion: 0,
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones
@@ -80,6 +85,17 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			filtersSnapshot: state.filters,
+		};
+	case UPDATE_WORKER_COLLECTION:
+		if (action.slot === 'query') {
+			return {
+				...state,
+				workerQueryCollection: action.result,
+			};
+		}
+		return {
+			...state,
+			workerActiveCollection: action.result,
 		};
 	case UPDATE_SECTIONS:
 		return {
@@ -91,23 +107,40 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			filters: {...state.filters, ...makeFilterFromSection(action.tags, false)}
 		};
-	case UPDATE_CARDS:
+	case UPDATE_CARDS: {
+		if (completeCardFilterProjection(action.cardFilters)) {
+			return {
+				...state,
+				filters: {...state.filters, ...action.cardFilters}
+			};
+		}
+		const changedFilters = makeFilterFromCards(action.cards, state.filters);
+		//If no filter membership actually changed, keep state identity so
+		//downstream selectors keyed on filters don't reevaluate.
+		if (Object.keys(changedFilters).length === 0) return state;
 		return {
 			...state,
-			filters: {...state.filters, ...makeFilterFromCards(action.cards, state.filters)}
+			filters: {...state.filters, ...changedFilters}
 		};
+	}
 	case REMOVE_CARDS:
 		return removeCardIDsFromSubState(action.cardIDs, state);
-	case UPDATE_STARS:
+	case UPDATE_STARS: {
+		const starred = updateFilterMap(state.filters.starred, action.starsToRemove, action.starsToAdd);
+		if (starred === state.filters.starred) return state;
 		return {
 			...state,
-			filters: {...state.filters, starred: setUnion(setRemove(state.filters.starred, action.starsToRemove), action.starsToAdd)}
+			filters: {...state.filters, starred}
 		};
-	case UPDATE_READS:
+	}
+	case UPDATE_READS: {
+		const read = updateFilterMap(state.filters.read, action.readsToRemove, action.readsToAdd);
+		if (read === state.filters.read) return state;
 		return {
 			...state,
-			filters: {...state.filters, read: setUnion(setRemove(state.filters.read, action.readsToRemove), action.readsToAdd)}
+			filters: {...state.filters, read}
 		};
+	}
 	case UPDATE_READING_LIST:
 		return {
 			...state,
@@ -184,21 +217,90 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 	return result;
 };
 
-const makeFilterFromCards = (cards : Cards, previousFilters : Filters) => {
-	const result : Filters = {};
-	for (const [filterName, func] of TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string,  CardTestFunc])) {
-		const newMatchingCards = [];
-		const newNonMatchingCards = [];
-		if(!func) throw new Error('Invalid func name: ' + filterName);
-		for (const card of Object.values(cards)) {
-			if(func(card)) {
-				newMatchingCards.push(card.id);
-			} else {
-				newNonMatchingCards.push(card.id);
+const completeCardFilterProjection = (filters? : Filters) : filters is Filters => {
+	if (!filters) return false;
+	const expected = Object.keys(CARD_FILTER_FUNCS);
+	const actual = Object.keys(filters);
+	return actual.length === expected.length &&
+		expected.every(name => Object.prototype.hasOwnProperty.call(filters, name) &&
+			typeof filters[name] === 'object' && filters[name] !== null && !Array.isArray(filters[name]));
+};
+
+//Applies removals then additions to a filter map, returning the previous map
+//by identity if no membership actually changed.
+const updateFilterMap = (previous : FilterMap, toRemove : CardID[], toAdd : CardID[]) : FilterMap => {
+	const prev = previous || {};
+	let changed = false;
+	for (const id of toRemove) {
+		if (prev[id]) {
+			changed = true;
+			break;
+		}
+	}
+	if (!changed) {
+		for (const id of toAdd) {
+			if (!prev[id]) {
+				changed = true;
+				break;
 			}
 		}
-		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
+	if (!changed) return previous;
+	const result = setUnion(setRemove(prev, toRemove), toAdd);
+	return result;
+};
+
+//Returns only the filter maps whose membership actually changed for the
+//updated cards; unchanged filters are omitted entirely so their identity (and
+//the identity of the overall filters object, if nothing changed) is
+//preserved. Previously this cloned every one of the ~125 CARD_FILTER_FUNCS
+//maps (each potentially tens of thousands of entries) on every UPDATE_CARDS,
+//which made every single-card snapshot echo O(filters × corpus).
+const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters => {
+	const result : Filters = {};
+	const cardValues = Object.values(cards);
+	const filterFuncs = TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string, CardTestFunc]);
+	//The worker's full-corpus prime starts from the initial empty card-derived
+	//maps. Build that projection directly in one card-major pass: the generic
+	//incremental algorithm below repeatedly checks empty prior membership,
+	//allocates add lists, and then copies maps. Card-major construction is
+	//semantically identical here and substantially cheaper for a 40k-card boot.
+	if (cardValues.length >= 1000 && filterFuncs.every(([name]) => Object.keys(previousFilters[name] || {}).length === 0)) {
+		for (const [name] of filterFuncs) result[name] = {};
+		for (const card of cardValues) {
+			for (const [name, func] of filterFuncs) {
+				if (!func) throw new Error('Invalid func name: ' + name);
+				if (func(card)) result[name][card.id] = true;
+			}
+		}
+		perfCount('makeFilterFromCards:calls');
+		perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
+		return result;
+	}
+	for (const [filterName, func] of filterFuncs) {
+		if(!func) throw new Error('Invalid func name: ' + filterName);
+		const previous = previousFilters[filterName] || {};
+		let toAdd : CardID[] | null = null;
+		let toRemove : CardID[] | null = null;
+		for (const card of cardValues) {
+			//Filter funcs return truthiness, not strict booleans.
+			const matches = Boolean(func(card));
+			const inPrevious = Boolean(previous[card.id]);
+			if (matches === inPrevious) continue;
+			if (matches) {
+				(toAdd ||= []).push(card.id);
+			} else {
+				(toRemove ||= []).push(card.id);
+			}
+		}
+		if (!toAdd && !toRemove) continue;
+		const updated : FilterMap = {...previous};
+		if (toRemove) for (const id of toRemove) delete updated[id];
+		if (toAdd) for (const id of toAdd) updated[id] = true;
+		result[filterName] = updated;
+	}
+	perfCount('makeFilterFromCards:calls');
+	perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
 	return result;
 };
 

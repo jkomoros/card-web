@@ -1,9 +1,18 @@
+import {
+	blockedReason,
+	CREATE_VERB
+} from '../sync-copy.js';
+
 import { html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
+
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
 
 import { DialogElement } from './dialog-element.js';
 
@@ -44,6 +53,8 @@ import {
 import {
 	selectCollectionForQuery,
 	selectUserMayCreateCard,
+	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectFindLegalCardTypeFilters,
 	selectFindCardTypeFilter,
 	selectFindCardTypeFilterLocked,
@@ -53,8 +64,11 @@ import {
 	selectFindPermissions,
 	selectFindLinking,
 	selectFindSortByRecent,
+	selectFindSearchPreparing,
+	selectWorkerQueryCollectionReady,
+	selectIsEditing,
 	selectFindRenderOffset,
-	selectFindDialogOpen
+	selectFindDialogOpen,
 } from '../selectors.js';
 
 import { 
@@ -89,7 +103,8 @@ import {
 	CardType,
 	CreateCardOpts,
 	ReferenceType,
-	State
+	State,
+	CorpusStatus,
 } from '../types.js';
 
 import {
@@ -111,6 +126,14 @@ class FindDialog extends connect(store)(DialogElement) {
 		_collection: Collection | null;
 
 	@state()
+		_searchPreparing: {built : number, total : number} | null;
+
+	@state()
+		_collectionUpdating: boolean;
+	_lastReadyCollection: Collection | null = null;
+	_collectionUpdatingTimeout = 0;
+
+	@state()
 		_renderOffset: number;
 
 	@state()
@@ -127,6 +150,16 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_userMayCreateCard: boolean;
+
+	//Creating a stub writes a card, so it is gated on the same readiness as
+	//saving one. EACH needs its own @state(): a decorator applies to one field,
+	//so declaring these under the one above left them non-reactive and the
+	//create button never re-rendered when sync went live.
+	@state()
+		_saveEligible: boolean;
+
+	@state()
+		_corpusStatus: CorpusStatus;
 
 	@state()
 		_legalCardTypeFilters: CardType[];
@@ -151,6 +184,13 @@ class FindDialog extends connect(store)(DialogElement) {
 				font-size:14px;
 			}
 
+			.search-preparing {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				font-style: italic;
+				margin: 0.25em 0;
+			}
+
 			.row {
 				display: flex;
 				flex-direction: row;
@@ -172,6 +212,12 @@ class FindDialog extends connect(store)(DialogElement) {
 
 			.spacer {
 				flex-grow: 1;
+			}
+
+			/* On a narrow dialog the spacer collapses and the status line ran
+			   straight into the 'Sort by Recent' label with no gap at all. */
+			.limit {
+				margin-left: 1em;
 			}
 		`
 	];
@@ -202,13 +248,14 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
+		${this._searchPreparing ? html`<div class='search-preparing'>Preparing search (${this._searchPreparing.built.toLocaleString()} of ${this._searchPreparing.total.toLocaleString()} cards indexed)…</div>` : ''}
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .updating=${this._collectionUpdating} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 				<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
 			</div>
-			<button class='round' @click='${this._handleAddSlide}' title=${'Create a new stub card to link to of type ' + this._cardTypeToAdd} ?hidden=${!this._userMayCreateCard}>${PLUS_ICON}</button>
+			<span class='reason' ?hidden=${!this._userMayCreateCard} title=${this._saveEligible ? 'Create a new stub card to link to of type ' + this._cardTypeToAdd : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' @click='${this._handleAddSlide}' ?disabled=${!this._saveEligible}>${PLUS_ICON}</button></span>
 		</div>
 	`;
 	}
@@ -289,6 +336,10 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleAddSlide() {
 		if (!this._linking && !this._referencing) return;
+		//createCard would be refused while sync is still verifying, and the
+		//link/reference below would then point at a card that was never
+		//created. The button is disabled for the same reason.
+		if (!this._saveEligible) return;
 
 		const cardType = this._cardTypeToAdd;
 
@@ -369,7 +420,41 @@ class FindDialog extends connect(store)(DialogElement) {
 		this.mobile = state.app ? state.app.mobileMode : false;
 		this._query = state.find ? state.find.query : '';
 		//coalling the collection into being is expensive so only do it if we're open.
-		this._collection = this.open ? selectCollectionForQuery(state) : null;
+		//Stale-while-revalidate, mirroring card-view: while the worker's
+		//result for the CURRENT query hasn't arrived, keep the previous
+		//results visible; dim + label them after a short grace instead of
+		//blanking the list on every keystroke.
+		if (this.open) {
+			const current = selectCollectionForQuery(state);
+			const ready = !corpusWorkerServesCollections() || selectIsEditing(state) || selectWorkerQueryCollectionReady(state);
+			if (ready) {
+				this._collection = current;
+				this._lastReadyCollection = current;
+				this._collectionUpdating = false;
+				if (this._collectionUpdatingTimeout) {
+					window.clearTimeout(this._collectionUpdatingTimeout);
+					this._collectionUpdatingTimeout = 0;
+				}
+			} else if (this._lastReadyCollection) {
+				this._collection = this._lastReadyCollection;
+				if (!this._collectionUpdating && !this._collectionUpdatingTimeout) {
+					this._collectionUpdatingTimeout = window.setTimeout(() => {
+						this._collectionUpdatingTimeout = 0;
+						this._collectionUpdating = true;
+					}, 200);
+				}
+			} else {
+				this._collection = current;
+			}
+		} else {
+			this._collection = null;
+			this._lastReadyCollection = null;
+			this._collectionUpdating = false;
+			if (this._collectionUpdatingTimeout) {
+				window.clearTimeout(this._collectionUpdatingTimeout);
+				this._collectionUpdatingTimeout = 0;
+			}
+		}
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
 		this._renderOffset = selectFindRenderOffset(state);
 		this._linking = selectFindLinking(state);
@@ -377,10 +462,13 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._referencing = selectFindReferencing(state);
 		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
+		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		this._legalCardTypeFilters = selectFindLegalCardTypeFilters(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
 		this._sortByRecent = selectFindSortByRecent(state);
+		this._searchPreparing = this.open ? selectFindSearchPreparing(state) : null;
 	}
 
 }

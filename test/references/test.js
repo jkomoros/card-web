@@ -3,7 +3,7 @@
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
-} from '../../lib/src/type_constants.js';
+} from '../../shared/dist/card_fields.js';
 
 import {
 	references,
@@ -12,6 +12,8 @@ import {
 	referencesCardsDiff,
 	applyReferencesDiff,
 	referencesEntriesDiff,
+	referencesEntriesDiffWithSet,
+	referencesEntriesDiffWithRemove,
 	unionReferences,
 	intersectionReferences
 } from '../../lib/src/references.js';
@@ -30,6 +32,31 @@ import {
 const REFERENCE_TYPE_ACK = referenceType('ack');
 const REFERENCE_TYPE_DUPE_OF = referenceType('dupe-of');
 const REFERENCE_TYPE_LINK = referenceType('link');
+
+describe('multi-edit reference intent accumulation', () => {
+	it('preserves unrelated operations while adding and removing multiple references', () => {
+		let diff = referencesEntriesDiffWithSet([], 'card-a', REFERENCE_TYPE_LINK);
+		diff = referencesEntriesDiffWithSet(diff, 'card-b', REFERENCE_TYPE_ACK);
+		diff = referencesEntriesDiffWithRemove(diff, 'card-c', REFERENCE_TYPE_DUPE_OF);
+		assert.deepStrictEqual(diff, [
+			{cardID: 'card-c', referenceType: REFERENCE_TYPE_DUPE_OF, delete: true},
+			{cardID: 'card-a', referenceType: REFERENCE_TYPE_LINK, value: ''},
+			{cardID: 'card-b', referenceType: REFERENCE_TYPE_ACK, value: ''},
+		]);
+	});
+
+	it('cancels inverse operations and replaces repeated sets without duplicates', () => {
+		let diff = referencesEntriesDiffWithSet([], 'card-a', REFERENCE_TYPE_LINK, 'first');
+		diff = referencesEntriesDiffWithSet(diff, 'card-a', REFERENCE_TYPE_LINK, 'second');
+		assert.deepStrictEqual(diff, [{cardID: 'card-a', referenceType: REFERENCE_TYPE_LINK, value: 'second'}]);
+		diff = referencesEntriesDiffWithRemove(diff, 'card-a', REFERENCE_TYPE_LINK);
+		assert.deepStrictEqual(diff, []);
+		diff = referencesEntriesDiffWithRemove(diff, 'card-a', REFERENCE_TYPE_LINK);
+		assert.deepStrictEqual(diff, [{cardID: 'card-a', referenceType: REFERENCE_TYPE_LINK, delete: true}]);
+		diff = referencesEntriesDiffWithSet(diff, 'card-a', REFERENCE_TYPE_LINK);
+		assert.deepStrictEqual(diff, []);
+	});
+});
 
 describe('card referencesLegalShape util functions', () => {
 	it('missing either references and references_info not legal', async () => {
@@ -1263,5 +1290,49 @@ describe('unionReferences and intersectionReferences', () => {
 		assert.deepStrictEqual(result, expectedResult);
 		const intersectionResult = intersectionReferences(input);
 		assert.deepStrictEqual(intersectionResult, expectedIntersectionResult);
+	});
+});
+
+describe('inboundLinksUpdates timestamp sentinel', () => {
+	it('bumps updated on every touched card when a sentinel is provided', async () => {
+		const {inboundLinksUpdates} = await import('../../shared/dist/card_write.js');
+		const DELETE_SENTINEL = {__delete: true};
+		const TIMESTAMP_SENTINEL = {__serverTimestamp: true};
+		const before = {
+			references_info: {'other-card': {link: ''}},
+			references: {'other-card': true},
+		};
+		const after = {
+			references_info: {'other-card': {link: 'new text'}, 'third-card': {link: ''}},
+			references: {'other-card': true, 'third-card': true},
+		};
+		const updates = inboundLinksUpdates('main-card', before, after, DELETE_SENTINEL, TIMESTAMP_SENTINEL);
+		//other-card changed, third-card added — both must carry the bump.
+		assert.strictEqual(Object.keys(updates).length, 2);
+		for (const update of Object.values(updates)) {
+			assert.strictEqual(update.updated, TIMESTAMP_SENTINEL);
+		}
+		//Deletions bump too.
+		const deletionUpdates = inboundLinksUpdates('main-card', after, null, DELETE_SENTINEL, TIMESTAMP_SENTINEL);
+		assert.strictEqual(Object.keys(deletionUpdates).length, 2);
+		for (const update of Object.values(deletionUpdates)) {
+			assert.strictEqual(update.updated, TIMESTAMP_SENTINEL);
+			assert.strictEqual(update['references_inbound.main-card'], DELETE_SENTINEL);
+		}
+	});
+
+	it('omits updated entirely when no sentinel is provided (legacy callers)', async () => {
+		const {inboundLinksUpdates} = await import('../../shared/dist/card_write.js');
+		const DELETE_SENTINEL = {__delete: true};
+		const before = {references_info: {}, references: {}};
+		const after = {
+			references_info: {'other-card': {link: ''}},
+			references: {'other-card': true},
+		};
+		const updates = inboundLinksUpdates('main-card', before, after, DELETE_SENTINEL);
+		assert.strictEqual(Object.keys(updates).length, 1);
+		for (const update of Object.values(updates)) {
+			assert.strictEqual('updated' in update, false);
+		}
 	});
 });

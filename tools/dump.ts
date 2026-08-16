@@ -282,6 +282,7 @@ const main = async () => {
 	}
 
 	const projectId = mode.firebase.projectId;
+	if (!projectId) throw new Error('No projectId configured for selected mode');
 	const storageBucket = mode.firebase.storageBucket || `${projectId}.appspot.com`;
 	const { db, storage } = initFirebase(projectId, storageBucket);
 

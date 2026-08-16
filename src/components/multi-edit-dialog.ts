@@ -1,3 +1,8 @@
+import {
+	blockedReason,
+	SAVE_VERB
+} from '../sync-copy.js';
+
 import { html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -33,7 +38,9 @@ import {
 } from '../actions/editor.js';
 
 import {
-	createTag
+	createTag,
+	retryPendingBulkTagOperation,
+	abandonPendingBulkTagOperation,
 } from '../actions/data.js';
 
 import {
@@ -47,6 +54,8 @@ import {
 	selectMultiEditReferencesDiff,
 	selectSelectedCards,
 	selectCardModificationPending,
+	selectBulkTagOperationProgress,
+	selectCardModificationError,
 	selectSelectedCardsReferencesIntersection,
 	selectMultiEditAddTags,
 	selectMultiEditRemoveTags,
@@ -56,7 +65,9 @@ import {
 	selectTags,
 	selectMultiEditAddTODOEnablements,
 	selectMultiEditAddTODODisablements,
-	selectMultiEditPublished
+	selectMultiEditPublished,
+	selectCardSavesEligible,
+	selectCorpusStatus,
 } from '../selectors.js';
 
 import {
@@ -89,8 +100,10 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	State,
+	CorpusStatus,
 	TagID,
-	TagInfos
+	TagInfos,
+	BulkTagOperationProgress,
 } from '../types.js';
 
 import {
@@ -111,9 +124,14 @@ import {
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
-
 	@state()
 		_unionReferencesCard: CardLike;
+
+	@state()
+		_saveEligible: boolean;
+
+	@state()
+		_corpusStatus: CorpusStatus;
 
 	@state()
 		_intersectionReferencesCard: CardLike;
@@ -155,13 +173,31 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		_selectedCards: Card[];
 
 	@state()
-		_cardModificationPending: boolean;
+	_cardModificationPending: boolean;
+
+	@state()
+	_bulkTagProgress: BulkTagOperationProgress | null;
+
+	@state()
+	_cardModificationError: Error | null;
+
+	@state()
+		_offline: boolean;
 
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
+			/* Hover target for a disabled control's explanation. The
+			   vertical-align matches what ButtonSharedStyles puts on the
+			   button itself, so wrapping does not drop it below its
+			   unwrapped neighbours. */
+			span.reason {
+				display: inline-flex;
+				vertical-align: middle;
+			}
+
 			.scrim {
 				z-index:100;
 				height:100%;
@@ -172,7 +208,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			}
 
 			.modification-pending .scrim {
-				display:block;
+				display:flex;
+				align-items:center;
+				justify-content:center;
+				font-weight:bold;
+				text-align:center;
+				padding:1em;
+				box-sizing:border-box;
 			}
 
 			.buttons {
@@ -186,6 +228,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	override innerRender() {
 
 		if (!this.open) return html``;
+		if (this._bulkTagProgress && this._cardModificationError) return html`
+			<div class='bulk-error recovery' role='alert'>
+				<h3>Saved multi-edit needs attention</h3>
+				<p>${this._cardModificationError.message}</p>
+				<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
+				<button @click=${this._handleRetryBulkTag}>Retry remaining ${this._bulkTagProgress.total - this._bulkTagProgress.completed} cards</button>
+				<button @click=${this._handleAbandonBulkTag}>Stop and leave partial result</button>
+			</div>`;
 
 		const refs = referencesNonModifying(this._unionReferencesCard);
 		refs.applyEntriesDiff(this._referencesDiff);
@@ -205,7 +255,16 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
-			<div class='scrim'></div>
+				<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
+					${this._offline
+						? 'Waiting for a connection to save. The target list is saved in this browser and will resume here.'
+						: this._bulkTagProgress
+							? html`<span>${this._bulkTagProgress.description}: ${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}…
+								<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
+								<small>Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.</small></span>`
+							: 'Saving selected cards…'}
+				</div>
+			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
 			<select @change=${this._handleAddReference}>
 				<option value=''><em>Add a reference to a card type...</option>
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
@@ -284,7 +343,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				</ul>
 			</details>
 			<div class='buttons'>
-				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<!-- Title on the wrapper: disabled controls do not fire hover
+				events in Chrome/Safari, so a title on the button is invisible
+				in precisely the disabled state it explains. -->
+				<span class='reason' title=${this._saveEligible ? 'Save changes' : blockedReason(this._corpusStatus, SAVE_VERB)}>
+					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				</span>
+			</div>
 			</div>
 		</div>`;
 	}
@@ -298,8 +363,23 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(commitMultiEditDialog());
 	}
 
-	override _shouldClose() {
-		//Override base class.
+	_handleRetryBulkTag() {
+		store.dispatch(retryPendingBulkTagOperation());
+	}
+
+	_handleAbandonBulkTag() {
+		store.dispatch(abandonPendingBulkTagOperation());
+	}
+
+	override _shouldClose(cancelled? : boolean) {
+		//Override base class. A RUNNING operation still blocks closing, but a
+		//merely-persisted progress record must not: a failed SINGLE-card save
+		//sets bulkTagOperationProgress too, so opening Edit All Cards showed
+		//"Saved multi-edit needs attention / Retry remaining 1 cards" for an
+		//operation the user never started — and both Escape and the X silently
+		//did nothing, with the panel's own two buttons the only way out.
+		if (this._cardModificationPending) return;
+		if (this._bulkTagProgress && !cancelled) return;
 		store.dispatch(closeMultiEditDialog());
 	}
 
@@ -423,6 +503,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 
 	override stateChanged(state : State) {
+		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectMultiEditDialogOpen(state);
 		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.
@@ -440,6 +522,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._published = selectMultiEditPublished(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._bulkTagProgress = selectBulkTagOperationProgress(state);
+		this._cardModificationError = selectCardModificationError(state);
+		this._offline = state.app.offline;
 		this._diff = selectMultiEditCardDiff(state);
 	}
 

@@ -1,6 +1,20 @@
 import { css } from 'lit';
 
 export const ButtonSharedStyles = css`
+	/* A wrapper for a control that may be DISABLED. Chrome and Safari suppress
+	   hover events on disabled controls, so a title on the button itself is
+	   unreachable exactly when it is most needed — putting it on the wrapper
+	   keeps the explanation available. Lives here so every component gets the
+	   same behavior instead of three of them redefining it and two forgetting. */
+	span.reason {
+		display: inline-flex;
+		vertical-align: middle;
+	}
+
+	span.reason[hidden] {
+		display: none;
+	}
+
 	button {
 		font-size: inherit;
 		vertical-align: middle;

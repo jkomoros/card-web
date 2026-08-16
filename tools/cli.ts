@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import fs from 'fs';
 import process from 'process';
 import prompts from 'prompts';
 
@@ -155,18 +156,6 @@ const setConfigLastDeploy = async (): Promise<void> => {
 	await setLastDeployConfig(RELEASE_TAG, FIREBASE_DEV_PROJECT);
 };
 
-const configureApiKeys = (): void => {
-	runCommand('firebase', ['functions:config:set', 'openai.api_key=' + OPENAI_API_KEY, 'anthropic.api_key=' + ANTHROPIC_API_KEY]);
-};
-
-const configureApiKeysIfSet = (): void => {
-	if (!OPENAI_API_KEY && !ANTHROPIC_API_KEY) {
-		console.log('Skipping uploading of api keys because they weren\'t set');
-		return;
-	}
-	configureApiKeys();
-};
-
 const configureQdrantCommand = async (): Promise<void> => {
 	await configureQdrant(projectConfig, devProjectConfig, CONFIG_INCLUDES_DEV, OPENAI_ENABLED);
 };
@@ -290,6 +279,55 @@ const askBackupMessage = async (cliMessage?: string): Promise<string> => {
 	return message;
 };
 
+//Record WHICH COMMIT was deployed, and publish it so a live check can verify
+//rather than assume.
+//
+//The habit this exists to break: deploying from the working tree and committing
+//afterwards, which leaves the deployed build a few minutes older than HEAD. It
+//has now happened repeatedly, and once caused a post-deploy verification to
+//test the PREVIOUS build and report a working fix as broken — the review caught
+//it twice. "The deployed build is HEAD" was an assumption every verify step
+//made and nothing checked.
+//
+//Also warns when the tree is DIRTY, which is worse than lagging: the deployed
+//build then corresponds to no commit at all, so nobody can reproduce it later.
+const writeDeployStamp = (): void => {
+	const git = (args: string[]): string => {
+		const result = spawnSync('git', args, {encoding: 'utf8'});
+		return result.status === 0 ? (result.stdout || '').trim() : '';
+	};
+	const commit = git(['rev-parse', 'HEAD']);
+	const short = git(['rev-parse', '--short', 'HEAD']);
+	const subject = git(['log', '-1', '--format=%s']);
+	//DIRTY means "this build contains work that is not committed", which is a
+	//reproducibility problem. It deliberately does NOT mean "git status is not
+	//empty": build artifacts and the reviewers' untracked notes live here
+	//permanently, so a plain --porcelain check fired on literally every deploy —
+	//and a warning that always fires is one nobody reads, which is worse than no
+	//warning at all. Count tracked modifications, plus untracked files under the
+	//SOURCE trees, since a new .ts nobody committed does change the build.
+	const trackedChanges = git(['status', '--porcelain', '--untracked-files=no']);
+	const untrackedSources = git(['ls-files', '--others', '--exclude-standard', 'src', 'shared', 'tools', 'test']);
+	const dirty = trackedChanges !== '' || untrackedSources !== '';
+	const stamp = {commit, short, subject, dirty, deployedAt: new Date().toISOString()};
+	try {
+		fs.mkdirSync('build', {recursive: true});
+		fs.writeFileSync('build/deploy-stamp.json', JSON.stringify(stamp, null, 2));
+	} catch (err) {
+		console.warn('could not write build/deploy-stamp.json: ' + String(err));
+	}
+	console.log('');
+	console.log('  DEPLOYING ' + (short || '(unknown commit)') + (subject ? ' — ' + subject : ''));
+	if (dirty) {
+		console.log('  WARNING: uncommitted work is IN this build, so it matches no commit.');
+		console.log('           Whoever verifies this deploy cannot reproduce what is running.');
+		if (trackedChanges) console.log('           modified: ' + trackedChanges.split('\n').slice(0, 5).join(', '));
+		if (untrackedSources) console.log('           untracked source files: ' + untrackedSources.split('\n').slice(0, 5).join(', '));
+	}
+	console.log('  Verify with: curl -s https://<host>/deploy-stamp.json');
+	console.log('');
+};
+
 // --- Composite workflows ---
 
 const setUpDeploy = (): void => {
@@ -300,11 +338,11 @@ const setUpDeploy = (): void => {
 
 const devDeploy = async (): Promise<void> => {
 	injectConfig();
-	build();
 	generateSeoPagesOptionally();
+	build();
+	writeDeployStamp();
 	firebaseEnsureDev();
 	await setConfigLastDeploy();
-	configureApiKeysIfSet();
 	await configureQdrantCommand();
 	configureEnvironment();
 	firebaseDeploy();
@@ -313,11 +351,11 @@ const devDeploy = async (): Promise<void> => {
 
 const deploy = async (): Promise<void> => {
 	injectConfig();
-	build();
 	generateSeoPagesOptionally();
+	build();
+	writeDeployStamp();
 	firebaseEnsureProd();
 	await setConfigLastDeploy();
-	configureApiKeysIfSet();
 	await configureQdrantCommand();
 	configureEnvironment();
 	firebaseDeploy();
@@ -380,8 +418,6 @@ const COMMANDS: { name: string; description: string }[] = [
 	{ name: 'gcloud-backup', description: 'Export firestore to backup bucket' },
 	{ name: 'gcloud-restore', description: 'Import latest backup into firestore' },
 	{ name: 'gsutil-rsync-uploads', description: 'Sync uploads from prod to dev storage' },
-	{ name: 'configure-api-keys', description: 'Upload API keys to firebase functions config' },
-	{ name: 'configure-api-keys-if-set', description: 'Upload API keys if they are configured' },
 	{ name: 'configure-qdrant', description: 'Set up qdrant collections and indices' },
 	{ name: 'reindex-card-embeddings', description: 'Trigger background reindexing of card embeddings' },
 	{ name: 'cleanup-old-embeddings', description: 'Trigger background cleanup of old embeddings' },
@@ -452,12 +488,6 @@ const main = async (): Promise<void> => {
 		break;
 	case 'set-config-last-deploy':
 		await setConfigLastDeploy();
-		break;
-	case 'configure-api-keys':
-		configureApiKeys();
-		break;
-	case 'configure-api-keys-if-set':
-		configureApiKeysIfSet();
 		break;
 	case 'configure-qdrant':
 		await configureQdrantCommand();

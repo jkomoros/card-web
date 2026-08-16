@@ -44,7 +44,7 @@ import {
 	EMAIL_TO_ADDRESS_VAR,
 	EMAIL_FROM_ADDRESS_VAR,
 	QDRANT_CLUSTER_URL_VAR,
-	QDRANT_API_KEY_VAR
+	QDRANT_API_KEY_VAR,
 } from '../../shared/env-constants.js';
 
 // Import shared collection constants
@@ -63,15 +63,15 @@ import {
 
 initializeApp();
 
-//We use this so often we might as well make it more common
-export const db = getFirestore();
-export const auth = getAuth();
-export const storage = getStorage();
-
 const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
+
+//We use this so often we might as well make it more common
+export const db = getFirestore();
+export const auth = getAuth();
+export const storage = getStorage();
 
 //These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];

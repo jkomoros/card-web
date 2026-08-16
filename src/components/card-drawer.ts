@@ -25,7 +25,7 @@ import * as icons from '../../shared/icons.js';
 
 import {
 	CardID,
-	CardType
+	CardType,
 } from '../types.js';
 
 import {
@@ -64,8 +64,32 @@ class CardDrawer extends LitElement {
 	@property({ type : Boolean })
 		showCreateWorkingNotes: boolean;
 
+	//False while card sync is not live: creation would be refused by the action
+	//creator, so the buttons gray out and explain themselves instead of firing
+	//an alert per click.
+	@property({ type : Boolean })
+		createEligible: boolean;
+
+	//Why creation is unavailable, derived from the actual sync status by the
+	//parent. Empty when it is available.
+	@property({ type : String })
+		createBlockedReason: string;
+
 	@property({ type : Object })
 		collection: Collection | null;
+
+	//True while the shown collection is the previous (stale) one because the
+	//worker hasn't pushed the current description's result yet — dims the
+	//list and labels it, so stale content is never mistaken for current.
+	@property({ type : Boolean })
+		updating: boolean;
+
+	//Set while the active collection has not been served yet. `updating` only
+	//covers the case where a PREVIOUS ready collection is being held as stale,
+	//which a first boot does not have — so without this the cold visit showed a
+	//bare "0 cards".
+	@property({ type : Boolean })
+		pending: boolean;
 
 	@property({ type : Number })
 		renderOffset: number;
@@ -105,6 +129,7 @@ class CardDrawer extends LitElement {
 				height:100%;
 				display:flex;
 				flex-direction:column;
+				position: relative;
 			}
 
 			.container.grid {
@@ -138,6 +163,42 @@ class CardDrawer extends LitElement {
 				font-size:0.7em;
 			}
 
+			.container.updating .scroller {
+				opacity: 0.55;
+				transition: opacity 0.15s ease-in;
+				pointer-events: auto;
+			}
+
+			/* NOTE: no backslash escapes in this template literal. It is a
+			   tagged template, so an invalid JS escape (e.g. '\\2026') makes
+			   the cooked string undefined and silently drops this ENTIRE
+			   stylesheet. Use the literal character instead. */
+			/* While the list is empty the label itself says "loading…", so the
+			   pin would be a second word for the same fact, and dimming an
+			   empty scroller communicates nothing. */
+			.container.updating.initial-load::after {
+				content: none;
+			}
+
+			.container.updating.initial-load .scroller {
+				opacity: 1;
+			}
+
+			.container.updating::after {
+				content: 'updating…';
+				position: absolute;
+				top: 0.5em;
+				right: 0.5em;
+				font-size: 0.7em;
+				font-style: italic;
+				color: var(--app-dark-text-color-light);
+				/* The count label scrolls with the list but this pin does not,
+				   so it can end up over a thumbnail. Keep it legible. */
+				background: rgb(255 255 255 / 88%);
+				padding: 0 0.3em;
+				border-radius: 3px;
+			}
+
 			.grid #count {
 				width: 100%;
 			}
@@ -149,18 +210,34 @@ class CardDrawer extends LitElement {
 				/* tag-list can get wide, but keep it thin */
 				width: 12em;
 			}
+
 		`
 	];
 
 	override render() {
 
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
+		const currentCount = this.collection ? this.collection.numCards : 0;
 
+		//HIDE, don't destroy. Returning a fresh `<div hidden>` when not showing
+		//tore down card-thumbnail-list and rebuilt it on every drawer toggle —
+		//and on every editor minimize/restore, which also flips `showing` —
+		//losing the list's scroll position each time. master used ?hidden here.
 		return html`
-			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
+			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount ? 'initial-load' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
-						<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
+						<span>
+							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
+							${(this.updating || this.pending) && !currentCount
+		//"0 cards" plus an "updating…" pin reads as "this list is empty and
+		//something is wrong", which on a slow first visit is the site's first
+		//impression. An empty list that is still loading has no count worth
+		//reporting yet -- say that instead. Once there ARE cards, the count is
+		//real and the dim + pin correctly mean "these are stale, refreshing".
+		? html`<em>loading…</em>`
+		: html`<strong>${currentCount}</strong> cards`}
+						</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>
 						</div>
@@ -181,11 +258,10 @@ class CardDrawer extends LitElement {
 				.renderOffset=${this.renderOffset}>
 			</card-thumbnail-list>`
 }
-					
 				</div>
 				<div class='buttons'>
-					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.showCreateCard}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button>
+					<span class='reason' ?hidden='${!this.showCreateWorkingNotes}' title="${this.createEligible ? 'Create a new working notes card (Cmd-Shift-M)' : this.createBlockedReason}"><button class='round' @click='${this._handleCreateWorkingNotes}' ?disabled='${!this.createEligible}'>${INSERT_DRIVE_FILE_ICON}</button></span>
+					<span class='reason' ?hidden='${!this.showCreateCard}' title=${this.createEligible ? 'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)' : this.createBlockedReason}><button class='round' @click='${this._handleAddSlide}' ?disabled='${!this.createEligible}'>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button></span>
 				</div>
 			</div>
 		`;
@@ -196,17 +272,20 @@ class CardDrawer extends LitElement {
 	}
 
 	_handleAddSlide() {
-		if (!this.showCreateCard) return;
+		if (!this.showCreateCard || !this.createEligible) return;
 		this.dispatchEvent(makeAddCardEvent());
 	}
 
 	_handleCreateWorkingNotes() {
+		if (!this.createEligible) return;
 		this.dispatchEvent(makeAddWorkingNotesCardEvent());
 	}
 
 	constructor() {
 		super();
 		this.renderOffset = 0;
+		this.createEligible = true;
+		this.createBlockedReason = '';
 	}
 
 }

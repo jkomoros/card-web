@@ -8,27 +8,21 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import { 
-	selectCardLimitReached,
-	selectCompleteModeEffectiveCardLimit,
-	selectCompleteModeEnabled,
-	selectLoadingCardFetchTypes
+	selectLoadingCardFetchTypes,
+	selectCorpusStatus,
+	selectCorpusStatusMessage
 } from '../selectors.js';
 
 import {
+	SCHEDULE_ICON,
 	WARNING_ICON
 } from '../../shared/icons.js';
 
-import { ButtonSharedStyles } from './button-shared-styles.js';
-
 import {
 	CardFetchTypeMap,
+	CorpusStatus,
 	State
 } from '../types.js';
-
-import {
-	modifyCompleteModeCardLimit,
-	toggleCompleteMode
-} from '../actions/data.js';
 
 @customElement('limit-warning')
 class LimitWarning extends connect(store)(LitElement) {
@@ -38,19 +32,15 @@ class LimitWarning extends connect(store)(LitElement) {
 		tight: boolean;
 
 	@state()
-		_effectiveCardLimit : number;
-
-	@state()
-		_cardLimitReached: boolean;
-
-	@state()
-		_completeMode: boolean;
-
-	@state()
 		_loadingFetchTypes: CardFetchTypeMap;
 
+	@state()
+		_corpusStatus: CorpusStatus;
+
+	@state()
+		_corpusStatusMessage: string;
+
 	static override styles = [
-		ButtonSharedStyles,
 		css`
 			:host {
 				display:flex;
@@ -61,6 +51,18 @@ class LimitWarning extends connect(store)(LitElement) {
 
 			div.container {
 				padding: 0.5em 0.5em 0;
+				/* The app's convention for a subordinate label (see the label
+				   rule in ButtonSharedStyles): 0.75em, light grey. Without it
+				   this routine status line rendered at full body size and read
+				   as an error. */
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.3em;
+				font-size: 0.75em;
+				line-height: 1.3;
+				color: var(--app-dark-text-color-light);
+				text-align: center;
 			}
 
 			div.container.tight {
@@ -71,14 +73,27 @@ class LimitWarning extends connect(store)(LitElement) {
 				font-style: italic;
 			}
 
-			.bold, div.bold label, div.bold button svg {
+			.bold, div.bold label, div.bold svg {
 				color: var(--app-primary-color);
 				fill: var(--app-primary-color);
 			}
 
-			.bold:hover, div.bold:hover label, div.bold:hover button svg {
+			.bold:hover, div.bold:hover label, div.bold:hover svg {
 				color: var(--app-primary-color-light);
 				fill: var(--app-primary-color-light);
+			}
+
+			span.small {
+				display: inline-flex;
+				flex-shrink: 0;
+			}
+
+			span.small svg {
+				/* Sized off the (now small) text so the icon does not tower
+				   over the label it annotates. */
+				fill: var(--app-dark-text-color-light);
+				height: 1.35em;
+				width: 1.35em;
 			}
 
 		`
@@ -86,55 +101,48 @@ class LimitWarning extends connect(store)(LitElement) {
 	
 	override render() {
 
-		const loadingUnpublishedComplete = this._loadingFetchTypes?.['unpublished-complete'] || false;
+		const loadingUnpublished = this._loadingFetchTypes?.['unpublished'] || false;
+		//'loading' included: the corpus now SERVES while it is still being
+		//verified, so the user should be told the list is complete-but-
+		//unverified rather than seeing an unlabeled (and briefly stale) list.
+		const showCorpusStatus = this._corpusStatus === 'stale' || this._corpusStatus === 'degraded' || this._corpusStatus === 'fallback' || this._corpusStatus === 'loading';
 
-		if (this._cardLimitReached || loadingUnpublishedComplete) {
+			if (loadingUnpublished || showCorpusStatus) {
 
-			const classes = {
-				container: true,
-				loading: loadingUnpublishedComplete,
-				bold: !this._completeMode,
-				tight: this.tight
-			};
+				const classes = {
+					container: true,
+					//A routine boot status should read as quietly as the app's
+					//other placeholder copy ('No notes for this card'), not as
+					//a warning.
+					loading: (loadingUnpublished && !showCorpusStatus) || this._corpusStatus === 'loading',
+					tight: this.tight
+				};
 
-			return html`
-				<div
-					class=${classMap(classes)}
-					title=${this._completeMode ? 'All cards are downloaded and visible, but it is a significant number. Performance may be affected. Click to enable performance mode' : 'You are seeing only partial unpublished cards (roughly ' + this._effectiveCardLimit + ') to preserve performance. If you want to see all cards, click to turn on complete mode. Ctrl-click to change the limit.'}
-				>
-					<button
-						class='small'
-						id='warning'
-						@click=${this._handleToggleClicked}
+				return html`
+					<div
+						class=${classMap(classes)}
+						role='note'
+						title=${showCorpusStatus ? this._corpusStatusMessage : 'Fetching unpublished cards'}
 					>
-						${WARNING_ICON}
-					</button>
-					<label for='warning'>
-						${this._completeMode ? (loadingUnpublishedComplete ? html`Fetching all cards <span class="bold">(slow)</span>` : html`Showing all cards <span class="bold">(slow)</span>`) : 'Showing only recent cards'}
-					</label>
-				</div>
-			`;
+						<span
+							class='small'
+							aria-hidden='true'
+						>
+							${this._corpusStatus === 'loading' ? SCHEDULE_ICON : WARNING_ICON}
+						</span>
+						<span>
+							${showCorpusStatus ? this._corpusStatusMessage : html`Fetching all cards <span class="bold">(slow)</span>`}
+						</span>
+					</div>
+				`;
 		}
 		return html``;
 	}
 
 	override stateChanged(state : State) {
-		this._cardLimitReached = selectCardLimitReached(state);
-		this._completeMode = selectCompleteModeEnabled(state);
 		this._loadingFetchTypes = selectLoadingCardFetchTypes(state);
-		this._effectiveCardLimit = selectCompleteModeEffectiveCardLimit(state);
-	}
-
-	_handleToggleClicked(e : MouseEvent) {
-		//if Ctrl or Command is clicked
-		if (e.ctrlKey || e.metaKey) {
-			e.preventDefault();
-			const newLimit = parseInt(prompt('Enter new limit', this._effectiveCardLimit + '') || '0');
-			if (isNaN(newLimit)) return;
-			store.dispatch(modifyCompleteModeCardLimit(newLimit));
-			return;
-		}
-		store.dispatch(toggleCompleteMode());
+		this._corpusStatus = selectCorpusStatus(state);
+		this._corpusStatusMessage = selectCorpusStatusMessage(state);
 	}
 
 }

@@ -1,5 +1,9 @@
 
 import {
+	NON_AUTOMATIC_MERGE_FIELDS
+} from './durable-overwrite-guard.js';
+
+import {
 	diffCardFlags,
 	extractCardLinksFromBody,
 	reasonCardTypeNotLegalForCard,
@@ -60,7 +64,8 @@ import {
 } from './firebase.js';
 
 import {
-	deleteField
+	deleteField,
+	serverTimestamp
 } from 'firebase/firestore';
 
 // Re-export pure functions from shared for backwards compatibility
@@ -118,16 +123,6 @@ import { TODO_ALL_INFOS, cardTODOConfigKeys } from './filters.js';
 import { FIELD_VALIDATORS } from './card_methods.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
-const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
-	title : true,
-	title_alternates : true,
-	body : true,
-	subtitle : true,
-	todo : true,
-	notes : true,
-	external_link: true,
-	images : true,
-};
 
 const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
 	//For space, we'll combine the summary by similar reference types.
@@ -596,7 +591,12 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 	return false;
 };
 
-//inboundLinksUpdates wraps the shared version with the client SDK's deleteField sentinel.
+//inboundLinksUpdates wraps the shared version with the client SDK's
+//deleteField and serverTimestamp sentinels. The timestamp sentinel bumps
+//`updated` on every card whose inbound references change — required for the
+//fast-dedupe and watermark-sync invariants (see shared/card_write.ts).
+//Deploy note: the firestore.rules cardEditInboundReferences branch must
+//allow the optional `updated` key BEFORE clients with this change ship.
 export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike | null, afterCard : CardLike | null) : {[id : CardID] : DottedCardUpdate } => {
-	return sharedInboundLinksUpdates(cardID, beforeCard, afterCard, deleteField());
+	return sharedInboundLinksUpdates(cardID, beforeCard, afterCard, deleteField(), serverTimestamp());
 };

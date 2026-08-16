@@ -210,6 +210,16 @@ const markCardTweeted = async (card : Card, tweetInfo : Twitter.ResponseData | n
 
 	const batch = db.batch();
 
+	//This comment used to add "these functions must never be scheduled", which
+	//was a misreading: the never-schedule policy in docs/corpus-sync-design.md
+	//covers the FULL-CORPUS-READ functions (the since-deleted idf.ts, and
+	//common.ts's unparameterized getCards()). The tweet functions read named
+	//cards, not the corpus, and autoTweet/fetchTweetEngagement have always
+	//been scheduled in index.ts, deliberately.
+	//
+	//updated-invariant: exempt — vestigial tweet counters on an admin path,
+	//registered in the no-bump exemption list in docs/corpus-sync-design.md.
+	//Admin db.batch bypasses the client MultiBatch guard.
 	batch.update(cardRef, {
 		tweet_count: FieldValue.increment(1),
 		last_tweeted: FieldValue.serverTimestamp(),
@@ -327,6 +337,8 @@ export const fetchTweetEngagement = async() => {
 
 				cardUpdateDoc.star_count = FieldValue.increment(starCountDiff);
 
+				//updated-invariant: exempt — reader-driven tweet/star counters on
+				//an admin path; bypasses the client MultiBatch guard. Accepted drift.
 				transaction.update(cardRef, cardUpdateDoc);
 			}
 

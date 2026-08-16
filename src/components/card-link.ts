@@ -5,9 +5,10 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
 import { store } from '../store.js';
-import { 
+import {
 	selectUserReads,
 	selectCards,
+	selectCardMetas,
 	selectUserReadingListMap,
 	selectPage,
 	selectCtrlKeyPressed
@@ -31,6 +32,8 @@ import {
 	CardFieldTypeEditable,
 	CardID,
 	Cards,
+	CardMetas,
+	CardType,
 	FilterMap,
 	State,
 	IconName
@@ -69,6 +72,9 @@ class CardLink extends connect(store)(LitElement) {
 
 	@state()
 		_cards: Cards;
+
+	@state()
+		_cardMetas: CardMetas;
 
 	@state()
 		_readingListMap: CardBooleanMap;
@@ -173,15 +179,26 @@ class CardLink extends connect(store)(LitElement) {
 			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''} ${this.subtle ? 'subtle' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
+	//The value for the auto-rendered field: title comes straight from the
+	//compact meta; any other field needs the full card object.
+	get _autoValue() : string {
+		if (!this.auto || !this.card) return '';
+		if (this.auto === 'title') {
+			const meta = this._cardMetas ? this._cardMetas[this.card] : null;
+			if (meta) return meta.title;
+		}
+		const full = this._cards ? this._cards[this.card] : null;
+		if (!full) return '';
+		const value = full[this.auto];
+		return typeof value === 'string' ? value : '';
+	}
+
 	get _inner() {
 		const icon = this._icon;
 		if (this.auto) {
-			const card = this._cardObj;
-			if (card) {
-				const val = card[this.auto];
-				if (val) {
-					return html`${icon} ${val}`;
-				}
+			const val = this._autoValue;
+			if (val) {
+				return html`${icon} ${val}`;
 			}
 		}
 		return icon ? html`${icon} <slot></slot>` : html`<slot></slot>`;
@@ -212,15 +229,23 @@ class CardLink extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._reads = selectUserReads(state);
 		this._cards = selectCards(state);
+		this._cardMetas = selectCardMetas(state);
 		this._readingListMap = selectUserReadingListMap(state);
 		this._page = selectPage(state);
 		this._ctrlKeyPressed = selectCtrlKeyPressed(state);
 	}
 
-	get _cardObj() {
+	//Everything this component needs about the linked card (existence,
+	//card_type, published) is in the compact CardMeta, so prefer it when the
+	//corpus worker is pushing metas — this removes the full-cards-map
+	//dependency in worker modes, where Redux may eventually hold only a
+	//window of full cards.
+	get _cardObj() : {id : CardID, card_type : CardType, published : boolean} | null {
 		if (!this.card) return null;
+		const meta = this._cardMetas ? this._cardMetas[this.card] : null;
+		if (meta) return meta;
 		if (!this._cards) return null;
-		return this._cards[this.card];
+		return this._cards[this.card] || null;
 	}
 
 	get _iconName() : IconName | '' {

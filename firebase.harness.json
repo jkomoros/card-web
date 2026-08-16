@@ -1,0 +1,14 @@
+{
+  "firestore": {
+    "rules": "firestore.harness.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8093
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}

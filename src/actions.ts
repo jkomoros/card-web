@@ -45,6 +45,7 @@ import {
 	ReferenceType,
 	SectionID,
 	Sections,
+	WorkerIDFData,
 	Slug,
 	SortExtra,
 	Suggestion,
@@ -54,7 +55,12 @@ import {
 	Uid,
 	UserInfo,
 	UserPermissions,
-	UserPermissionsMap
+	UserPermissionsMap,
+	WorkerCollectionResult,
+	WorkerCollectionSlot,
+	CardMetas,
+	CorpusStatus,
+	Filters
 } from './types.js';
 
 //AI
@@ -89,7 +95,6 @@ export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
 export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
 export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
-export const TURN_COMPLETE_MODE = 'TURN_COMPLETE_MODE';
 //BulkImport
 export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
 export const BULK_IMPORT_PENDING = 'BULK_IMPORT_DIALOG_PENDING';
@@ -104,6 +109,8 @@ export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
+export const UPDATE_WORKER_COLLECTION = 'UPDATE_WORKER_COLLECTION';
+export const UPDATE_CARD_META = 'UPDATE_CARD_META';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const SELECT_CARDS = 'SELECT_CARDS';
 export const UNSELECT_CARDS = 'UNSELECT_CARDS';
@@ -137,6 +144,9 @@ export const TWEETS_LOADING = 'TWEETS_LOADING';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
+export const BULK_TAG_OPERATION_PROGRESS = 'BULK_TAG_OPERATION_PROGRESS';
+export const ECHO_LOCAL_CARD_MODIFICATIONS = 'ECHO_LOCAL_CARD_MODIFICATIONS';
+export const RECONCILE_CARDS_AFTER_FAILED_COMMIT = 'RECONCILE_CARDS_AFTER_FAILED_COMMIT';
 export const REORDER_STATUS = 'REORDER_STATUS';
 export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
@@ -147,8 +157,13 @@ export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FI
 export const EXPECT_FETCHED_CARDS = 'EXPECT_FETCHED_CARDS';
 export const STOP_EXPECTING_FETCHED_CARDS = 'STOP_EXPECTING_FETCHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
+export const UPDATE_WORKER_IDF = 'UPDATE_WORKER_IDF';
+export const UPDATE_CORPUS_STATUS = 'UPDATE_CORPUS_STATUS';
+export const UPDATE_CORPUS_DETAIL = 'UPDATE_CORPUS_DETAIL';
+export const UPDATE_PENDING_AUX_WRITE_COUNT = 'UPDATE_PENDING_AUX_WRITE_COUNT';
 //Editor
 export const EDITING_START = 'EDITING_START';
+export const EDITING_RESTORE_DRAFT = 'EDITING_RESTORE_DRAFT';
 export const EDITING_FINISH = 'EDITING_FINISH';
 export const EDITING_EDITOR_MINIMIZED = 'EDITING_EDITOR_MINIMIZED';
 export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
@@ -188,6 +203,7 @@ export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_D
 export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
 export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
 export const EDITING_UPDATE_SIMILAR_CARDS = 'EDITING_UPDATE_SIMILAR_CARDS';
+export const EDITING_SIMILARITY_PENDING = 'EDITING_SIMILARITY_PENDING';
 //Find
 export const FIND_DIALOG_OPEN = OPEN;
 export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
@@ -195,6 +211,7 @@ export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
 export const FIND_CARD_TO_LINK = LINK;
 export const FIND_UPDATE_RENDER_OFFSET = 'FIND_UPDATE_RENDER_OFFSET';
 export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
+export const FIND_UPDATE_SEARCH_RECALL = 'FIND_UPDATE_SEARCH_RECALL';
 export const FIND_CARD_TO_PERMISSION = PERMISSION;
 export const FIND_CARD_TO_REFERENCE = REFRENCE;
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
@@ -384,12 +401,6 @@ type ActionTurnSuggestedMissingConcepts = {
 	on: boolean
 };
 
-type ActionTurnCompleteMode = {
-	type: typeof TURN_COMPLETE_MODE,
-	on: boolean,
-	limit: number
-};
-
 type ActionBulkImportDialogOpen = {
 	type: typeof BULK_IMPORT_DIALOG_OPEN
 	mode: BulkImportDialogMode
@@ -447,6 +458,18 @@ type ActionUpdateRenderOffset = {
 
 type ActionUpdateCollectionSnapshot = {
 	type: typeof UPDATE_COLLECTION_SHAPSHOT
+};
+
+type ActionUpdateWorkerCollection = {
+	type: typeof UPDATE_WORKER_COLLECTION,
+	slot: WorkerCollectionSlot,
+	result: WorkerCollectionResult | null
+};
+
+type ActionUpdateCardMeta = {
+	type: typeof UPDATE_CARD_META,
+	metas: CardMetas,
+	removedIDs: CardID[]
 };
 
 type ActionRandomizeSalt = {
@@ -531,7 +554,8 @@ type ActionChatUpdateComposingMessage = {
 type ActionUpdateCards = {
 	type: typeof UPDATE_CARDS,
 	cards: Cards,
-	fetchType: CardFetchType
+	fetchType: CardFetchType,
+	cardFilters?: Filters
 };
 
 type ActionEnqueueCardUpdates = {
@@ -547,11 +571,17 @@ type ActionClearEnqueuedCardUpdates = {
 type ActionUpdateSections = {
 	type: typeof UPDATE_SECTIONS,
 	sections: Sections
+	//True when this delivery is the COMPLETE map, so the reducer replaces
+	//rather than merges. A partial (changed-docs) delivery must merge.
+	complete?: boolean
 };
 
 type ActionUpdateTags = {
 	type: typeof UPDATE_TAGS,
 	tags: Tags
+	//True when this delivery is the COMPLETE map, so the reducer replaces
+	//rather than merges. A partial (changed-docs) delivery must merge.
+	complete?: boolean
 };
 
 type ActionUpdateAuthors = {
@@ -580,13 +610,45 @@ type ActionModifyCard = {
 	modificationCount: number
 };
 
+type ActionEchoLocalCardModifications = {
+	type: typeof ECHO_LOCAL_CARD_MODIFICATIONS,
+	//The just-committed cards, materialized locally (sentinels resolved with
+	//local timestamps). No reducer consumes this action — it exists so the
+	//corpus-worker bridge's action tap can forward the new card state to the
+	//worker without waiting for the server echo.
+	cards: Cards
+};
+
+type ActionReconcileCardsAfterFailedCommit = {
+	type: typeof RECONCILE_CARDS_AFTER_FAILED_COMMIT,
+	//Authoritative getDocFromServer results after every underlying batch has
+	//settled. Unlike an optimistic echo, these timestamps are server-confirmed.
+	cards: Cards,
+	removedIDs: CardID[]
+};
+
 type ActionModifyCardSuccess = {
-	type: typeof MODIFY_CARD_SUCCESS
+	type: typeof MODIFY_CARD_SUCCESS,
+	//How many writes were actually committed. May be lower than the planned
+	//modificationCount (some updates turn out to be no-ops); the reducer
+	//corrects the pending count so echo-gating doesn't wait for echoes that
+	//are never coming.
+	modificationCount: number
 };
 
 type ActionModifyCardFailure = {
 	type: typeof MODIFY_CARD_FAILURE,
 	error: Error
+};
+
+type ActionBulkTagOperationProgress = {
+	type: typeof BULK_TAG_OPERATION_PROGRESS,
+	total: number,
+	completed: number,
+	tag: TagID,
+	adding: boolean,
+	description: string,
+	serverConfirmed: boolean,
 };
 
 type ActionReorderStatus = {
@@ -628,6 +690,46 @@ type ActionUpdateCardSimilarity = {
 	similarity: SortExtra
 };
 
+type ActionUpdateWorkerIDF = {
+	type: typeof UPDATE_WORKER_IDF,
+	workerIDF: WorkerIDFData | null
+};
+
+type ActionUpdateCorpusStatus = {
+	type: typeof UPDATE_CORPUS_STATUS,
+	status: CorpusStatus,
+	message: string
+};
+
+//The quantitative half of the sync status: how many cards the worker actually
+//holds, and how old the snapshot it primed from was. Separate from the status
+//message so a numeric refresh never overwrites a degraded-state explanation.
+type ActionUpdateCorpusDetail = {
+	type: typeof UPDATE_CORPUS_DETAIL,
+	corpusSize: number,
+	snapshotAgeMs: number | null,
+	//Roughly how many cards the finished corpus will hold, when the worker
+	//knows (cold sweep or snapshot prime); null the rest of the time. Lets
+	//the indicator show "12.4k of ~40.2k" instead of a bare ticking count.
+	expectedCorpusSize: number | null,
+	corpusComplete: boolean,
+	//Verification-checkpoint progress for the loadComplete→live window: how
+	//many of the connection's fixed set of verification checks have
+	//completed. null when the current connection reports none (reader and
+	//legacy-listen modes, or before the worker announces a total).
+	verifyDone: number | null,
+	verifyTotal: number | null
+};
+
+//Durable aux-write intents (stars/reads/comments/card creations) queued in
+//localStorage and not yet server-confirmed. Maintained by the queue's own
+//enqueue/dequeue notifications rather than read from localStorage in any
+//selector — localStorage reads must stay off the hot path.
+type ActionUpdatePendingAuxWriteCount = {
+	type: typeof UPDATE_PENDING_AUX_WRITE_COUNT,
+	count: number
+};
+
 type ActionCommittedPendingFiltersWhenFullyLoaded = {
 	type: typeof COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 };
@@ -647,8 +749,20 @@ type ActionEditingStart = {
 	card: ProcessedCard
 };
 
+type ActionEditingRestoreDraft = {
+	type: typeof EDITING_RESTORE_DRAFT,
+	card: Card,
+	substantive: boolean
+};
+
 type ActionEditingFinish = {
-	type: typeof EDITING_FINISH
+	type: typeof EDITING_FINISH,
+	//True only for the editor teardown that hands a committed single-card save
+	//to the durable executor. The reducer then retains the committed draft as
+	//editor.pendingSaveCard so the card face can keep showing the NEW value
+	//while the save is in flight, instead of flashing back to the stale
+	//state.data.cards copy until the post-commit echo lands.
+	pendingSave? : boolean
 };
 
 type ActionEditingEditorMinimized = {
@@ -837,7 +951,7 @@ type ActionEditingCloseImageBrowserDialog = {
 
 type ActionEditingUpdateUnderlyingCard = {
 	type: typeof EDITING_UPDATE_UNDERLYING_CARD,
-	updatedUnderlyingCard: ProcessedCard
+	updatedUnderlyingCard: Card
 };
 
 type ActionEditingMergeOvershadowedChanges = {
@@ -847,7 +961,22 @@ type ActionEditingMergeOvershadowedChanges = {
 
 type ActionEditingUpdateSimilarCards = {
 	type: typeof EDITING_UPDATE_SIMILAR_CARDS,
-	similarity: SortExtra
+	similarity: SortExtra,
+	//The editing-card content version this result was computed for (see
+	//editingCardVersion in actions/similarity.ts). The reducer only accepts a
+	//result stamped with the outstanding request's version — anything else is
+	//a cancelled chain's leftover and is dropped whole, so a stale result can
+	//never un-dim (or overwrite) a newer pending request.
+	version: number
+};
+
+type ActionEditingSimilarityPending = {
+	type: typeof EDITING_SIMILARITY_PENDING,
+	//The editing-card content version a similarity request was just issued
+	//for. Dispatched from the single fetch site (fetchSimilarCardsToCardContent)
+	//so the similar-cards UI can dim the moment the draft's content is known
+	//to lag, and cleared by the matching EDITING_UPDATE_SIMILAR_CARDS.
+	version: number
 };
 
 type ActionFindDialogOpen = {
@@ -877,6 +1006,13 @@ type ActionFindUpdateRenderOffset = {
 
 type ActionFindUpdateActiveQuery = {
 	type: typeof FIND_UPDATE_ACTIVE_QUERY
+};
+
+type ActionFindUpdateSearchRecall = {
+	type: typeof FIND_UPDATE_SEARCH_RECALL,
+	built: number,
+	total: number,
+	ready: boolean
 };
 
 type ActionFindCardToPermission = {
@@ -1081,18 +1217,23 @@ type ActionSignoutSuccess = {
 type ActionUpdateStars = {
 	type: typeof UPDATE_STARS,
 	starsToAdd: CardID[],
-	starsToRemove: CardID[]
+	starsToRemove: CardID[],
+	//True for a LOCAL, not-yet-confirmed change. Such an update must not claim
+	//the authoritative set has loaded; see the reducer.
+	optimistic?: boolean
 };
 
 type ActionUpdateReads = {
 	type: typeof UPDATE_READS,
 	readsToAdd: CardID[],
-	readsToRemove: CardID[]
+	readsToRemove: CardID[],
+	optimistic?: boolean
 };
 
 type ActionUpdateReadingList = {
 	type: typeof UPDATE_READING_LIST,
-	list: CardID[]
+	list: CardID[],
+	optimistic?: boolean
 };
 
 type ActionAutoMarkReadPendingChanged = {
@@ -1135,7 +1276,6 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionOpenCardsDrawerInfo
 	| ActionCloseCardsDrawerInfo
 	| ActionTurnSuggestedMissingConcepts
-	| ActionTurnCompleteMode
 	| ActionShowCard
 	| ActionBulkImportDialogOpen
 	| ActionBulkImportPending
@@ -1145,6 +1285,11 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportSetBodies
 	| ActionBulkImportDialogSetOverrideCardOrder
 	| ActionUpdateCollection
+	| ActionUpdateWorkerCollection
+	| ActionUpdateCardMeta
+	| ActionUpdateCorpusStatus
+	| ActionUpdateCorpusDetail
+	| ActionUpdatePendingAuxWriteCount
 	| ActionUpdateCollectionConfigurationSnapshot
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot
@@ -1176,7 +1321,10 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionTweetsLoading
 	| ActionModifyCard
 	| ActionModifyCardSuccess
+	| ActionEchoLocalCardModifications
+	| ActionReconcileCardsAfterFailedCommit
 	| ActionModifyCardFailure
+	| ActionBulkTagOperationProgress
 	| ActionReorderStatus
 	| ActionSetPendingSlug
 	| ActionExpectNewCard
@@ -1187,7 +1335,9 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionExpectFetchedCards
 	| ActionStopExpectingFetchedCards
 	| ActionUpdateCardSimilarity
+	| ActionUpdateWorkerIDF
 	| ActionEditingStart
+	| ActionEditingRestoreDraft
 	| ActionEditingFinish
 	| ActionEditingEditorMinimized
 	| ActionEditingSelectTab
@@ -1227,12 +1377,14 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionEditingUpdateUnderlyingCard
 	| ActionEditingMergeOvershadowedChanges
 	| ActionEditingUpdateSimilarCards
+	| ActionEditingSimilarityPending
 	| ActionFindDialogOpen
 	| ActionFindDialogClose
 	| ActionFindUpdateQuery
 	| ActionFindCardToLink
 	| ActionFindUpdateRenderOffset
 	| ActionFindUpdateActiveQuery
+	| ActionFindUpdateSearchRecall
 	| ActionFindCardToPermission
 	| ActionFindCardToReference
 	| ActionFindUpdateCardTypeFilter

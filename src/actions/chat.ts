@@ -8,18 +8,18 @@ import {
 	selectUserMayChatInCurrentChat,
 	selectUserMayUseAI,
 	selectUserMayViewApp
-} from '../selectors';
+} from '../selectors.js';
 
 import {
 	store,
 	ThunkSomeAction
-} from '../store';
+} from '../store.js';
 
 import {
 	ChatMessages,
 	Chats,
 	State
-} from '../types';
+} from '../types.js';
 
 import {
 	authenticatedFetch,
@@ -66,12 +66,12 @@ import {
 	CHAT_UPDATE_CURRENT_CHAT,
 	CHAT_UPDATE_MESSAGES,
 	SomeAction
-} from '../actions';
+} from '../actions.js';
 
 import {
 	CHAT_MESSAGES_COLLECTION,
 	CHATS_COLLECTION
-} from '../../shared/collection-constants';
+} from '../../shared/collection-constants.js';
 
 import {
 	collection,
@@ -96,6 +96,10 @@ import {
 	CHAT_RETRY_MESSAGE_ROUTE,
 	CHAT_STREAM_MESSAGE_ROUTE
 } from '../../shared/env-constants.js';
+
+import {
+	trackMutation
+} from '../mutation-barrier.js';
 
 // Default background length
 const DEFAULT_BACKGROUND_PERCENTAGE = 0.8;
@@ -455,9 +459,9 @@ export const togglePublishedForCurrentChat = () : ThunkSomeAction => async (_, g
 		return;
 	}
 
-	await updateDoc(chatRef, {
+	await trackMutation(() => updateDoc(chatRef, {
 		published: !currentchat.published
-	});
+	}));
 
 	//The live update should take care of updating the state.
 	return;

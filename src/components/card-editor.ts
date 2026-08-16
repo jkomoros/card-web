@@ -1,3 +1,9 @@
+import {
+	blockedReason,
+	SAVE_VERB,
+	DELETE_VERB
+} from '../sync-copy.js';
+
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -5,6 +11,15 @@ import { repeat } from 'lit/directives/repeat.js';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
+
+import {
+	corpusWorkerCanRunCollections,
+	corpusWorkerSuggestTags
+} from '../corpus-bridge.js';
+
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
@@ -19,10 +34,9 @@ import {
 	selectEditingUnderlyingCardSnapshot,
 	selectEditingCard,
 	selectEditingCardAutoTodos,
-	selectEditingCardSuggestedTags,
 	selectAuthorsForTagList,
 	selectUserIsAdmin,
-	selectTagInfosForCards,
+	selectRawCards,
 	selectUserMayEditSomeTags,
 	tagsUserMayNotEdit,
 	selectSectionsUserMayEdit,
@@ -31,6 +45,9 @@ import {
 	selectReasonsUserMayNotDeleteActiveCard,
 	selectCardModificationPending,
 	selectEditingCardSuggestedConceptReferences,
+	selectEditingCardSuggestedTags,
+	selectCardSavesEligible,
+	selectCorpusStatus,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectOvershadowedUnderlyingCardChangesDiffDescription,
 	selectEditingCardHasUnsavedChanges,
@@ -136,7 +153,9 @@ import {
 	TagID,
 	Slug,
 	CardID,
+	Cards,
 	State,
+	CorpusStatus,
 	ReferenceType,
 	CardFieldTypeEditable,
 	editorContentTab,
@@ -173,8 +192,35 @@ import {
 
 type TagInfosByReferenceType = {[typ in ReferenceType]: TagInfos};
 
+const cardReferenceIDs = (card : Card | null) : CardID[] => {
+	if (!card) return [];
+	return Object.values(references(card).byTypeArray()).flat();
+};
+
+const cardTagInfosForIDs = (cards : Cards, ids : Iterable<CardID>) : TagInfos => {
+	const result : TagInfos = {};
+	for (const id of ids) {
+		const card = cards[id];
+		if (!card) continue;
+		result[id] = {
+			id,
+			title: card.name || id,
+			previewCard: id
+		};
+	}
+	return result;
+};
+
+//e.code is the PHYSICAL key position, so on AZERTY, Dvorak or any non-QWERTY
+//layout the printed shortcut stops working and a DIFFERENT printed key silently
+//triggers it — Cmd-M creating a card from whatever key sits where M is on
+//QWERTY. e.key is what the user actually pressed.
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
+
+	_suggestionsTimeout = 0;
+
+	_suggestionsKey = '';
 
 	@state()
 		_card: Card | null;
@@ -233,6 +279,15 @@ class CardEditor extends connect(store)(LitElement) {
 	@state()
 		_suggestedTags: TagID[];
 
+	//'pending' while the worker is computing, 'unavailable' when it could not
+	//answer. Without this an empty list from a timed-out worker was
+	//indistinguishable from a genuine "nothing to suggest". Needs its OWN
+	//@state(): a decorator applies to one field, and this is driven from async
+	//worker callbacks — it only re-rendered by coincidence, because every
+	//transition also happened to assign _suggestedTags a fresh array.
+	@state()
+		_suggestedTagsState: 'pending' | 'ready' | 'unavailable';
+
 	@state()
 		_authors: TagInfos;
 
@@ -244,6 +299,15 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_cardModificationPending: boolean;
+
+	@state()
+		_saveEligible: boolean;
+
+	@state()
+		_corpusStatus: CorpusStatus;
+
+	@state()
+		_offline: boolean;
 
 	@state()
 		_suggestedConcepts: CardID[];
@@ -264,6 +328,28 @@ class CardEditor extends connect(store)(LitElement) {
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
+			/* Hover target for a disabled control's explanation; see the
+			   save-button markup. inline-flex keeps the button's layout
+			   identical to when it was unwrapped, and the vertical-align
+			   matches what ButtonSharedStyles puts on the button itself
+			   (a default baseline-aligned wrapper would override it). */
+			/* Distinguishes "still working" and "could not answer" from a genuine
+		   empty result, which all rendered as the same blank space. */
+		.suggestion-state {
+			font-size: 0.75em;
+			font-style: italic;
+			color: var(--app-dark-text-color-light);
+		}
+
+		.suggestion-state[hidden] {
+			display: none;
+		}
+
+		span.reason {
+				display: inline-flex;
+				vertical-align: middle;
+			}
+
 			:host {
 				position:relative;
 				background-color: white;
@@ -441,8 +527,14 @@ class CardEditor extends connect(store)(LitElement) {
 				display:none;
 			}
 
-			.modification-pending .scrim {
-				display:block;
+				.modification-pending .scrim {
+					display:flex;
+					align-items:center;
+					justify-content:center;
+					font-weight:bold;
+					text-align:center;
+					padding:1em;
+					box-sizing:border-box;
 			}
 
 		`
@@ -479,13 +571,15 @@ class CardEditor extends connect(store)(LitElement) {
 
 		return html`
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
-		<div class='scrim'></div>
+			<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
+				${this._offline ? 'Waiting for a connection to save. Keep this tab open; your draft is still here.' : 'Saving card…'}
+			</div>
         <div class='inputs'>
-		  <div ?hidden=${this._selectedTab !== 'content'} class='flex body'>
-			<div class='tabs' @click=${this._handleEditorTabClicked}>
-				<label data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
-				<label data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
-				<label data-name='${editorContentTab('todo')}' ?data-selected=${this._selectedEditorTab == 'todo'} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
+		  ${this._selectedTab == 'content' ? html`<div class='flex body'>
+			<div class='tabs' @click=${this._handleEditorTabClicked} @keydown=${this._handleEditorTabKeyDown}>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedEditorTab == 'content'} data-testid='editor-tab-content' data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedEditorTab == 'notes'} data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedEditorTab == 'todo'} data-name='${editorContentTab('todo')}' ?data-selected=${this._selectedEditorTab == 'todo'} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
 				<label class='help' ?hidden=${this._selectedEditorTab !== 'content'}>Content is what shows up on the main body of the card</label>
 				<label class='help' ?hidden=${this._selectedEditorTab !== 'notes'}>Notes are visible in the info panel to all readers and are for permanent asides</label>
@@ -525,8 +619,8 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${card.todo}></textarea>
-		  </div>
-		  <div ?hidden=${this._selectedTab !== 'config'}>
+		  </div>` : ''}
+		  ${this._selectedTab == 'config' ? html`<div>
 			<div class='row'>
 				<div>
 				<label>Section ${help('Cards are in 0 or 1 sections, which determines the default order they show up in. Cards that are orphaned will not show up in any default collection.')}</label>
@@ -561,13 +655,20 @@ class CardEditor extends connect(store)(LitElement) {
 					</select>
 				</div>
 				<div>
-					<button
-						class='small'
-						@click=${this._handleDeleteClicked}
-						?disabled=${this._mayNotDeleteReason != ''}
-						title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : 'Delete card permanently'}'>
-						${DELETE_FOREVER_ICON}
-					</button>
+					<!-- Title on a wrapper, like the Save button: Chrome/Safari
+					suppress hover on disabled controls, so a title on the
+					button itself is invisible exactly when the user needs the
+					reason. Deletion shares the durable-write gate (the action
+					refuses too), so while sync verifies it is disabled with
+					the same explanation every other write control gives. -->
+					<span class='reason' title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : !this._saveEligible ? blockedReason(this._corpusStatus, DELETE_VERB) : 'Delete card permanently'}'>
+						<button
+							class='small'
+							@click=${this._handleDeleteClicked}
+							?disabled=${this._mayNotDeleteReason != '' || !this._saveEligible}>
+							${DELETE_FOREVER_ICON}
+						</button>
+					</span>
 				</div>
 			</div>
 			<div class='row'>
@@ -586,6 +687,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 					<label>Suggested Tags ${help('Tags suggested because this card\'s content is similar to cards of the given tag. Tap one to add it.')}</label>
+					<span class='suggestion-state' ?hidden=${this._suggestedTagsState === 'ready' || this._suggestedTags.length > 0}>${this._suggestedTagsState === 'pending' ? 'calculating…' : 'unavailable right now'}</span>
 					<tag-list
 						.tags=${this._suggestedTags}
 						.tagInfos=${this._tagInfos}
@@ -612,14 +714,14 @@ class CardEditor extends connect(store)(LitElement) {
 							class='small'
 							@click=${this._handleAddAllConceptsClicked}
 							?hidden=${this._suggestedConcepts.length == 0}
-							title='Add all suggested concepts (Ctrl-Shift-C)'>
+							title='Add all suggested concepts'>
 							${PLUS_ICON}
 						</button>
 						<button
 							class='small'
 							@click=${this._handleIgnoreAllConceptsClicked}
 							?hidden=${this._suggestedConcepts.length == 0}
-							title='Ignore all suggested concepts (Ctrl-Shift-I)'>
+							title='Ignore all suggested concepts'>
 							${HIGHLIGHT_OFF_ICON}
 						</button>
 					</div>
@@ -741,7 +843,7 @@ class CardEditor extends connect(store)(LitElement) {
 						</div>`;
 	})}
 				</div>
-			</div>
+			</div>` : ''}
         </div>
         <div class='buttons'>
 			<div class='header' @click=${this._handleMinimizedClicked}>
@@ -806,14 +908,14 @@ class CardEditor extends connect(store)(LitElement) {
 					class='small'
 					@click=${this._handleAddAllConceptsClicked}
 					?hidden=${this._suggestedConcepts.length == 0}
-					title='Add all suggested concepts (Ctrl-Shift-C)'>
+					title='Add all suggested concepts'>
 					${PLUS_ICON}
 				</button>
 				<button
 					class='small'
 					@click=${this._handleIgnoreAllConceptsClicked}
 					?hidden=${this._suggestedConcepts.length == 0}
-					title='Ignore all suggested concepts (Ctrl-Shift-I)'>
+					title='Ignore all suggested concepts'>
 					${HIGHLIGHT_OFF_ICON}
 				</button>
 			</div>
@@ -825,9 +927,9 @@ class CardEditor extends connect(store)(LitElement) {
 				</select>
 			</div>
 		` :
-		html`<div class='tabs main' @click=${this._handleTabClicked}>
-				<label data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
-				<label data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
+		html`<div class='tabs main' @click=${this._handleTabClicked} @keydown=${this._handleTabKeyDown}>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedTab == 'config'} data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
+				<label role='tab' tabindex='0' aria-selected=${this._selectedTab == 'content'} data-testid='editor-main-content' data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
 			</div>
 			<div class='flex'>
 			</div>
@@ -846,9 +948,15 @@ class CardEditor extends connect(store)(LitElement) {
 					<input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
 				</div>
 			</div>
-			<button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
+			<button class='round' data-testid='cancel-card-edit' aria-label='Cancel editing' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
 			<button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
-			<button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
+			<!-- The title lives on a WRAPPER, not on the button: Chrome and
+			Safari suppress pointer events on disabled controls, so a title on
+			the button itself never renders a tooltip — which is exactly the
+			state where the user most needs the reason. -->
+			<span class='reason' title=${!this._saveEligible ? `${blockedReason(this._corpusStatus, SAVE_VERB)} Your draft is safe.` : this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>
+				<button class='round primary' data-testid='save-card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges || !this._saveEligible}>${SAVE_ICON}</button>
+			</span>
         </div>
       </div>
     `;
@@ -856,32 +964,121 @@ class CardEditor extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._card= selectEditingCard(state);
-		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
 		this._active = selectIsEditing(state);
 		this._minimized = selectEditorMinimized(state);
-		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
-		this._userMayUseAI = selectUserMayUseAI(state);
-		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
-		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
-		this._substantive = state.editor ? state.editor.substantive : false;
 		this._selectedTab = state.editor ? state.editor.selectedTab : 'content';
 		this._selectedEditorTab = state.editor ? state.editor.selectedEditorTab : 'content';
+		//The MINIMIZED bar has no tab strip, and it renders the auto-TODO list,
+		//the tag editor and both suggested-concept shortcuts itself. Gating those
+		//values on the config TAB blanked all of them there — minimize while on the
+		//Content tab and the bar's lists render empty, which reads as 'no TODOs, no
+		//tags, no suggestions' rather than 'not computed'. Gate on whether anything
+		//that displays them is actually on screen.
+		//Gated on EDITING, not on the tab. The original reason was a pair of
+		//Cmd-Shift-C / Cmd-Shift-I shortcuts over _suggestedConcepts, live
+		//whenever the editor was open, which zeroing the list on the default
+		//Content tab turned into silent no-ops that still swallowed the
+		//keystroke. Those shortcuts were REMOVED in `0ed8dc69` (2026-08-15) —
+		//they collided with the browser's own DevTools/Inspect keys — and the
+		//add-all / ignore-all affordances survive as buttons only. The gating
+		//stays as-is for the reason above it: the minimized bar renders these
+		//lists itself. The tab gating was a perf measure, and it buys little
+		//now: suggested TAGS are computed by the worker, and the expensive
+		//local fallback runs only in non-worker diagnostic modes on small
+		//corpora.
+		const detailFieldsVisible = this._active;
+
+		this._autoTodos = detailFieldsVisible ? selectEditingCardAutoTodos(state) : [];
+		this._userMayChangeEditingCardSection = detailFieldsVisible ? selectUserMayChangeEditingCardSection(state) : false;
+		this._userMayUseAI = selectUserMayUseAI(state);
+		this._sectionsUserMayEdit = detailFieldsVisible ? selectSectionsUserMayEdit(state) : {};
+		this._mayNotDeleteReason = detailFieldsVisible ? selectReasonsUserMayNotDeleteActiveCard(state) : '';
+		this._substantive = state.editor ? state.editor.substantive : false;
 		this._tagInfos = selectTags(state);
-		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
-		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
-		this._cardTagInfos = selectTagInfosForCards(state);
-		//skip the expensive selectors if we're not active
-		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
-		this._suggestedConcepts = this._active ? selectEditingCardSuggestedConceptReferences(state) : [];
-		this._authors = selectAuthorsForTagList(state);
+		this._userMayEditSomeTags = detailFieldsVisible ? selectUserMayEditSomeTags(state) : false;
+		this._tagsUserMayNotEdit = detailFieldsVisible ? tagsUserMayNotEdit(state) : [];
+		if (detailFieldsVisible) {
+			this._scheduleSuggestions(state);
+			this._cardTagInfos = this._makeVisibleCardTagInfos(state);
+		} else {
+			window.clearTimeout(this._suggestionsTimeout);
+			this._suggestionsKey = '';
+			this._suggestedTags = [];
+			this._suggestedTagsState = 'pending';
+			this._suggestedConcepts = [];
+			this._cardTagInfos = {};
+		}
+		this._authors = detailFieldsVisible ? selectAuthorsForTagList(state) : {};
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
+		this._offline = state.app.offline;
+		//These two are memoized card diffs (cheap) and drive the merge
+		//affordance AND updated()'s auto-apply of underlying changes — gating
+		//them to the config tab silently disabled both on the default content
+		//tab (regression sweep finding).
 		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
 		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 		this._fieldValidationErrors = selectFieldValidationErrorsForEditingCard(state);
+	}
+
+	_suggestionKeyForState(state : State) {
+		const cardID = state.editor?.card?.id || '';
+		const extractionVersion = state.editor?.cardExtractionVersion || 0;
+		//Must match the gate in stateChanged, or a suggestion run is scheduled
+		//whose key never validates and never renders.
+		return this._active ? `${cardID}:${extractionVersion}` : '';
+	}
+
+	_scheduleSuggestions(state : State) {
+		const key = this._suggestionKeyForState(state);
+		if (!key || key == this._suggestionsKey) return;
+		window.clearTimeout(this._suggestionsTimeout);
+		this._suggestionsKey = key;
+		this._suggestedTags = [];
+		this._suggestedConcepts = [];
+		this._suggestionsTimeout = window.setTimeout(() => {
+			const latestState = store.getState() as State;
+			if (this._suggestionKeyForState(latestState) != key) return;
+			//Suggested-tag calculation fingerprints every card in every tag —
+			//seconds of stall at production corpus size, so it must never run
+			//on the UI thread in worker mode. The corpus worker computes it
+			//against its mirrored editing card instead; non-worker diagnostic
+			//modes fall back to the local selector (small corpora).
+			if (corpusWorkerCanRunCollections()) {
+				this._suggestedTagsState = 'pending';
+				void corpusWorkerSuggestTags().then(tags => {
+					if (this._suggestionKeyForState(store.getState() as State) != key) return;
+					//null means the worker never answered (torn down, or the
+					//10s guard fired) — NOT that there is nothing to suggest.
+					this._suggestedTagsState = tags === null ? 'unavailable' : 'ready';
+					this._suggestedTags = tags || [];
+				});
+			} else if (!corpusWorkerServesCollections()) {
+				this._suggestedTagsState = 'ready';
+				this._suggestedTags = selectEditingCardSuggestedTags(latestState);
+			} else {
+				this._suggestedTagsState = 'unavailable';
+				this._suggestedTags = [];
+			}
+			this._suggestedConcepts = selectEditingCardSuggestedConceptReferences(latestState);
+			this._cardTagInfos = this._makeVisibleCardTagInfos(latestState, this._suggestedConcepts);
+			this._cardTagInfosForReferenceTypes = this._makeCardTagInfosForReferenceTypes();
+		}, 0);
+	}
+
+	_makeVisibleCardTagInfos(state : State, suggestedConcepts = this._suggestedConcepts || []) {
+		const visibleCardIDs = new Set<CardID>([
+			...cardReferenceIDs(this._card),
+			...cardReferenceIDs(this._underlyingCard),
+			...(this._card ? cardMissingReciprocalLinks(this._card) : []),
+			...suggestedConcepts
+		]);
+		return cardTagInfosForIDs(selectRawCards(state), visibleCardIDs);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
@@ -1097,11 +1294,31 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(editingSelectTab(name));
 	}
 
+	_handleTabKeyDown(e : KeyboardEvent) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) return;
+		const name = ele.getAttribute('data-name') as EditorTab;
+		if (!name) return;
+		killEvent(e);
+		store.dispatch(editingSelectTab(name));
+	}
+
 	_handleEditorTabClicked(e : MouseEvent) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('ele not html element');
 		const name = ele.getAttribute('data-name') as EditorContentTab;
 		if (!name) return;
+		store.dispatch(editingSelectEditorTab(name));
+	}
+
+	_handleEditorTabKeyDown(e : KeyboardEvent) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) return;
+		const name = ele.getAttribute('data-name') as EditorContentTab;
+		if (!name) return;
+		killEvent(e);
 		store.dispatch(editingSelectEditorTab(name));
 	}
 
@@ -1180,15 +1397,15 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		if (!e.metaKey && !e.ctrlKey) return;
 
-		if (e.shiftKey && e.key == 'c') {
-			this._handleAddAllConceptsClicked();
-			return killEvent(e);
-		}
+		//Cmd/Ctrl-Shift-C and -I were shortcut-bound here, but those are the
+		//browser's own DevTools / Inspect-Element keys, and Chrome delivers the
+		//keydown to the page as well as acting on it — so opening DevTools while
+		//editing silently added or acked every suggested concept on the card.
+		//(Master accidentally never fired these: it compared e.key=='c' while
+		//requiring Shift, which uppercases e.key.) The buttons remain the way to
+		//add/ignore all suggested concepts; no keyboard binding is safe on these
+		//combinations.
 
-		if (e.shiftKey && e.key == 'i') {
-			this._handleIgnoreAllConceptsClicked();
-			return killEvent(e);
-		}
 
 		//TODO: bail if a content editable region isn't selected. This isn't THAT
 		//big of a deal as long as we use execCommand, because those will just
@@ -1299,6 +1516,19 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleCancel() {
+		//Cancel is the one unguarded destructive path out of the editor: the
+		//draft watcher sees dirty->clean and DELETES the persisted draft, with
+		//no confirm, no undo, and no recovery banner. That was survivable when
+		//saving was always available; it is not now that Save can be refused
+		//for tens of seconds during boot verification — and the disabled Save
+		//button's own tooltip tells the user "your draft is safe" while this
+		//button silently discards it. Ask, and say what is at stake.
+		if (this._hasUnsavedChanges) {
+			const extra = this._saveEligible
+				? ''
+				: '\n\nNote: Save is temporarily unavailable while card sync verifies. Your draft is kept if you leave the editor open, or close the tab.';
+			if (!confirm(`Discard your unsaved changes to this card? This cannot be undone.${extra}`)) return;
+		}
 		store.dispatch(editingFinish());
 	}
 

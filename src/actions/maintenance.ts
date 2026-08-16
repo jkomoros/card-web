@@ -119,6 +119,10 @@ import {
 	UPDATE_MAINTENANCE_TASK_ACTIVE
 } from '../actions.js';
 
+import {
+	trackMutation
+} from '../mutation-barrier.js';
+
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
 
@@ -158,10 +162,14 @@ const normalizeContentBody : MaintenanceTaskFunction = async() => {
 		const body = doc.data().body;
 		const card_type = doc.data().card_type as CardType;
 		if (body) {
-			await updateDoc(doc.ref,{
+			//updated-invariant: bumps `updated` (a body rewrite is a content
+			//change that must resync). This is a raw updateDoc, not MultiBatch,
+			//so the structural guard does not cover it — enforced by review.
+			await trackMutation(() => updateDoc(doc.ref,{
 				body: normalizeBodyHTML(body, config.overrideLegalTopLevelNodes?.[card_type]),
+				updated: serverTimestamp(),
 				updated_normalize_body: serverTimestamp(),
-			});
+			}));
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}
@@ -193,6 +201,7 @@ const updateInboundLinks : MaintenanceTaskFunction = async() => {
 				referencesInboundSentinel[linkingCard.id] = linkingCardData.references[doc.id];
 			});
 			batch.update(doc.ref, {
+				updated: serverTimestamp(),
 				updated_references_inbound: serverTimestamp(),
 				[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: referencesInbound,
 				[REFERENCES_INBOUND_CARD_PROPERTY]: referencesInboundSentinel,
@@ -213,7 +222,9 @@ const resetTweets : MaintenanceTaskFunction = async() => {
 	const batch = new MultiBatch(db);
 	const snapshot = await getDocs(collection(db,CARDS_COLLECTION));
 	snapshot.forEach(doc => {
-		batch.update(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});
+		//updated-invariant: exempt — vestigial tweet counters; bumping
+		//`updated` here would redeliver the ENTIRE corpus to every device.
+		batch.updateWithoutTimestampBump(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});
 	});
 	const tweetSnapshot = await getDocs(collection(db, TWEETS_COLLECTION));
 	tweetSnapshot.forEach(doc => {
@@ -302,7 +313,7 @@ const addFontSizeBoost : MaintenanceTaskFunction = async () => {
 	const batch = new MultiBatch(db);
 	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
-		batch.update(doc.ref, {font_size_boost: {}});
+		batch.update(doc.ref, {font_size_boost: {}, updated: serverTimestamp()});
 	});
 
 	await batch.commit();
@@ -328,7 +339,7 @@ const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 		if (Object.keys(beforeBoosts).length == Object.keys(afterBoosts).length && TypedObject.entries(beforeBoosts).every(entry => entry[1] == afterBoosts[entry[0]])) continue;
 
 		console.log('Card ' + doc.id + ' had an updated boost');
-		batch.update(doc.ref, {font_size_boost: afterBoosts});
+		batch.update(doc.ref, {font_size_boost: afterBoosts, updated: serverTimestamp()});
 	}
 
 	await batch.commit();
@@ -438,6 +449,9 @@ const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 		}
 
 		if (Object.keys(update).length == 0) return;
+		//updated-invariant: rewriting references is a content change; bump
+		//`updated` so the delta sync redelivers it to other devices.
+		update.updated = serverTimestamp();
 		console.log('Updating doc: ', doc.id, update);
 		batch.update(doc.ref, update);
 	});
@@ -460,6 +474,8 @@ const flipAutoTodoOverrides : MaintenanceTaskFunction = async () => {
 		const flippedOverrides = Object.fromEntries(Object.entries(originalOverrides).map(entry => [entry[0], !entry[1]]));
 		const update = {
 			auto_todo_overrides: flippedOverrides,
+			//updated-invariant: a content change must resync to other devices.
+			updated: serverTimestamp(),
 		};
 
 		console.log('Updating doc: ', doc.id, update);
@@ -503,6 +519,8 @@ const addImagesProperty : MaintenanceTaskFunction = async () => {
 	snapshot.forEach(doc => {
 		const update = {
 			images: [] as ImageBlock,
+			//updated-invariant: a card doc change must resync to other devices.
+			updated: serverTimestamp(),
 		};
 		batch.update(doc.ref, update);
 	});
@@ -527,7 +545,10 @@ const rerunCardFinishers : MaintenanceTaskFunction = async (_, getState) => {
 		if (!cardDiffHasChanges(diff)) continue;
 		console.log('Updating card ' + underlyingCard.id + '\n', underlyingCard.title, '\n', updatedCard.title);
 		try {
-			modifyCardWithBatch(state, underlyingCard, diff, false, batch);
+			//The await matters: modifyCardWithBatch queues its writes after
+			//its first internal await, so un-awaited calls would all land
+			//AFTER the batch.commit() below and silently never persist.
+			await modifyCardWithBatch(state, underlyingCard, diff, false, batch);
 		} catch (err) {
 			console.warn('Card ' + underlyingCard.id + ' had error: ' + err);
 		}
@@ -570,7 +591,9 @@ const addSortOrderProperty : MaintenanceTaskFunction = async (_, getState) => {
 		const card = cards[cardID];
 		if (!card) throw new Error(cardID + ' was not found in cards collection');
 		const ref = doc(db, CARDS_COLLECTION, cardID);
-		batch.update(ref, {sort_order: counter});
+		//updated-invariant: reordering is a card doc change; bump `updated` so
+		//other devices resync the new sort_order.
+		batch.update(ref, {sort_order: counter, updated: serverTimestamp()});
 		counter -= increment;
 	}
 
@@ -651,10 +674,10 @@ const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig :
 			return;
 		}
 
-		await setDoc(doc(db, MAINTENANCE_COLLECTION, taskName), {
+		await trackMutation(() => setDoc(doc(db, MAINTENANCE_COLLECTION, taskName), {
 			timestamp: serverTimestamp(),
 			version: MAINTENANCE_TASK_VERSION,
-		});
+		}));
 		console.log('done');
 
 		dispatch({

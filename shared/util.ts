@@ -122,9 +122,101 @@ export const replaceAnchorsWithCardLinks = (html: string): string => {
  * users and thus untrusted, because the temporary element is never actually
  * appended into the DOM
  */
+//Regex-based approximation of card-link conversion for environments without
+//a document (workers, bare Node). Handles the well-formed card-link markup
+//the editor produces; pathological HTML may extract slightly differently
+//than the DOM path.
+const convertCardLinksForPlainTextWithoutDocument = (html : string) : string => {
+	return html.replace(/<card-link\b([^>]*)>([\s\S]*?)<\/card-link>/gi, (_match, attrs : string, text : string) => {
+		const hrefMatch = attrs.match(/href\s*=\s*["']([^"']*)["']/i);
+		if (hrefMatch) return `${text} (${hrefMatch[1]})`;
+		return text;
+	});
+};
+
+//Decodes the handful of entities that show up in card content.
+//Named entities the DOM decodes and this fallback used not to. Only six were
+//handled, so the WORKER — which has no document and therefore always takes this
+//path — tokenized `A &mdash; B` as [a, mdash, b] and `caf&eacute;` as
+//[caf, eacute], while the main thread produced [a, b] and [café]. Measured: 3 of
+//5 representative samples diverged. That matters because the worker owns
+//similarity, fingerprints and suggestions in the default mode, and
+//`nlp_source_fingerprint` is computed from RAW fields, so it cannot detect the
+//divergence and heal it.
+//
+//Exact-match, not case-insensitive: `&Eacute;` and `&eacute;` are different
+//characters.
+const NAMED_ENTITIES : {[entity : string] : string} = {
+	//U+00A0, not a plain space: that is what the DOM produces, and parity with
+	//the DOM is the entire point. Both are matched by \\s, so tokenization is
+	//unaffected either way — but a difference here is a difference.
+	nbsp: '\u00a0', lt: '<', gt: '>', quot: '"', apos: '\'',
+	//Typographic punctuation, which is what prose actually contains.
+	mdash: '\u2014', ndash: '\u2013', hellip: '\u2026', middot: '\u00b7', bull: '\u2022',
+	lsquo: '\u2018', rsquo: '\u2019', ldquo: '\u201c', rdquo: '\u201d',
+	laquo: '\u00ab', raquo: '\u00bb', prime: '\u2032', Prime: '\u2033',
+	deg: '\u00b0', copy: '\u00a9', reg: '\u00ae', trade: '\u2122',
+	times: '\u00d7', divide: '\u00f7', minus: '\u2212', plusmn: '\u00b1',
+	frac12: '\u00bd', frac14: '\u00bc', frac34: '\u00be',
+	//Accented Latin-1, the class that silently splits a word into two tokens.
+	aacute: '\u00e1', eacute: '\u00e9', iacute: '\u00ed', oacute: '\u00f3', uacute: '\u00fa',
+	Aacute: '\u00c1', Eacute: '\u00c9', Iacute: '\u00cd', Oacute: '\u00d3', Uacute: '\u00da',
+	agrave: '\u00e0', egrave: '\u00e8', igrave: '\u00ec', ograve: '\u00f2', ugrave: '\u00f9',
+	Agrave: '\u00c0', Egrave: '\u00c8', Igrave: '\u00cc', Ograve: '\u00d2', Ugrave: '\u00d9',
+	acirc: '\u00e2', ecirc: '\u00ea', icirc: '\u00ee', ocirc: '\u00f4', ucirc: '\u00fb',
+	auml: '\u00e4', euml: '\u00eb', iuml: '\u00ef', ouml: '\u00f6', uuml: '\u00fc',
+	Auml: '\u00c4', Euml: '\u00cb', Iuml: '\u00cf', Ouml: '\u00d6', Uuml: '\u00dc',
+	ntilde: '\u00f1', Ntilde: '\u00d1', ccedil: '\u00e7', Ccedil: '\u00c7',
+	aring: '\u00e5', Aring: '\u00c5', oslash: '\u00f8', Oslash: '\u00d8',
+	szlig: '\u00df', aelig: '\u00e6', AElig: '\u00c6',
+};
+
+//ONE PASS, deliberately. Decoding numeric forms first and then re-scanning for
+//named ones re-introduced exactly the double-decode the &amp;-goes-last rule
+//prevents: `&#38;mdash;` is the literal text "&mdash;" (the DOM says so), but
+//pass one turned it into `&mdash;` and pass two turned that into an em dash. A
+//single pass cannot re-read its own output.
+//
+//Invalid code points become U+FFFD rather than being emitted or left literal,
+//which is what the DOM does: `&#0;`, anything above U+10FFFF, and the surrogate
+//range D800-DFFF (that last one previously emitted a LONE SURROGATE, a string
+//that cannot be encoded — harmless while this text stays worker-local, but armed
+//for any future path that persists worker-computed text).
+const decodeCommonEntities = (text : string) : string => {
+	return text.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (match, body : string) => {
+		if (body[0] === '#') {
+			const hex = body[1] === 'x' || body[1] === 'X';
+			const code = parseInt(hex ? body.slice(2) : body.slice(1), hex ? 16 : 10);
+			if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return '\ufffd';
+			//Surrogate halves are not scalar values; the DOM substitutes.
+			if (code >= 0xd800 && code <= 0xdfff) return '\ufffd';
+			return String.fromCodePoint(code);
+		}
+		//`amp` decodes here too, and because this is the only pass its output is
+		//never re-read: `&amp;mdash;` correctly stays the literal text `&mdash;`.
+		if (body === 'amp') return '&';
+		const decoded = NAMED_ENTITIES[body];
+		//Unknown entities are left ALONE: a slightly wrong token beats a
+		//silently deleted word.
+		return decoded === undefined ? match : decoded;
+	});
+};
+
+const innerTextForHTMLWithoutDocument = (body : string) : string => {
+	//Remove comments, then all tags, then decode entities.
+	const withoutComments = body.replace(/<!--[\s\S]*?-->/g, '');
+	//Only things that actually look like TAGS. `<[^>]*>` ate ordinary prose:
+	//`3 < 5 and 7 > 2` became `3  2`, losing four words from the worker's search
+	//index for any card doing arithmetic or describing generics. A tag name must
+	//start with a letter (or `/` for a closing tag), which `< 5 and 7 >` does
+	//not.
+	const withoutTags = withoutComments.replace(/<\/?[a-zA-Z][^>]*>/g, '');
+	return decodeCommonEntities(withoutTags);
+};
+
 const convertCardLinksForPlainText = (html : string) : string => {
 	const document = getDocument();
-	if (!document) throw new Error('missing document');
+	if (!document) return convertCardLinksForPlainTextWithoutDocument(html);
 	const tempDiv = document.createElement('div');
 	tempDiv.innerHTML = html;
 
@@ -151,13 +243,17 @@ const convertCardLinksForPlainText = (html : string) : string => {
 
 export const innerTextForHTML = (body : string, preserveLinks = false) : string => {
 	const document = getDocument();
-	if (!document) throw new Error('missing document');
-	const ele = document.createElement('section');
 	// makes sure line breaks are in the right place after each legal block level element
 	body = normalizeLineBreaks(body);
 	if (preserveLinks) {
 		body = convertCardLinksForPlainText(body);
 	}
+	if (!document) {
+		//Workers and bare Node have no document; a regex-based extraction is
+		//a close approximation for the well-formed HTML cards contain.
+		return innerTextForHTMLWithoutDocument(body);
+	}
+	const ele = document.createElement('section');
 	ele.innerHTML = body;
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
 	return ele.textContent || '';

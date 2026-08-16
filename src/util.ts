@@ -60,9 +60,7 @@ export const fetchTypeIsUnpublished = (fetchType : CardFetchType) : boolean => {
 	switch (fetchType) {
 	case 'published':
 		return false;
-	case 'unpublished-partial':
-		return true;
-	case 'unpublished-complete':
+	case 'unpublished':
 		return true;
 	case 'unpublished-author':
 		return true;
@@ -616,6 +614,23 @@ function testTriStateMapDiff() {
 }
 testTriStateMapDiff();
 */
+
+//Fields stored on the card document for server-side querying only. They're
+//large (nlp_search_tokens is a flat array of every stemmed uni/bigram in the
+//card) and never read client-side, so strip them before cards enter Redux to
+//save memory. They remain in Firestore untouched.
+const EPHEMERAL_CARD_FIELDS = ['nlp_search_tokens'] as const;
+
+export const stripEphemeralCardFields = (card : Card) : Card => {
+	let hasAny = false;
+	for (const field of EPHEMERAL_CARD_FIELDS) {
+		if (field in card) hasAny = true;
+	}
+	if (!hasAny) return card;
+	const result = {...card};
+	for (const field of EPHEMERAL_CARD_FIELDS) delete result[field];
+	return result;
+};
 
 //items is an array
 export function setRemove(obj : {[name : string] : true}, items : string[]) : {[name : string] : true} {

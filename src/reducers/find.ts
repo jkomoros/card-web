@@ -5,6 +5,7 @@ import {
 	FIND_UPDATE_RENDER_OFFSET,
 	FIND_CARD_TO_LINK,
 	FIND_UPDATE_ACTIVE_QUERY,
+	FIND_UPDATE_SEARCH_RECALL,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
 	FIND_UPDATE_CARD_TYPE_FILTER,
@@ -18,6 +19,7 @@ import {
 
 const INITIAL_STATE : FindState = {
 	open: false,
+	searchRecall: null,
 	query: '',
 	activeQuery: '',
 	renderOffset: 0,
@@ -31,6 +33,11 @@ const INITIAL_STATE : FindState = {
 
 const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState => {
 	switch (action.type) {
+	case FIND_UPDATE_SEARCH_RECALL:
+		return {
+			...state,
+			searchRecall: {built: action.built, total: action.total, ready: action.ready},
+		};
 	case FIND_DIALOG_OPEN:
 		return {
 			...state,

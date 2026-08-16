@@ -1,8 +1,35 @@
 import { createSelector } from 'reselect';
 
 import {
+	perfCount,
+	perfEnabled
+} from './perf.js';
+
+import {
+	createCardsDiffSelector,
+	diffCards,
+	anyCardMatches,
+	anyChangedCardDiffers,
+	membershipChanged,
+	isConceptCard,
+	arraysEqual
+} from './incremental-selectors.js';
+
+import {
+	lazyProcessCards
+} from './card-processing.js';
+
+import {
+	CORPUS_STATUS_BLOCKS_INTERACTION
+} from './corpus-readiness.js';
+
+import {
+	computeDefaultSet,
+	makeEverythingSetFromCards
+} from './set-projections.js';
+
+import {
 	createObjectSelector,
-	createObjectSelectorCreator
 } from 'reselect-map';
 
 /* 
@@ -26,8 +53,7 @@ import {
 	excludeFilter,
 	cardsFilter,
 	cardTypeFilter,
-	SELECTED_FILTER_NAME,
-	PUBLISHED_FILTER_NAME
+	SELECTED_FILTER_NAME
 } from './filters.js';
 
 import {
@@ -37,8 +63,15 @@ import {
 import {
 	Collection,
 	CollectionDescription,
+	countForDescription,
+	descriptionRequiresFullCollectionCount,
 	defaultCollectionConfiguration
 } from './collection_description.js';
+
+import {
+	corpusWorkerOwnsCardIngestion,
+	corpusWorkerServesCollections
+} from './corpus-mode.js';
 
 import {
 	tabConfiguration
@@ -63,9 +96,11 @@ import {
 import {
 	Fingerprint,
 	FingerprintGenerator,
+	PENDING_IDF_MAP,
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
+	enrichCardWithConcepts,
 	suggestedConceptReferencesForCard,
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
@@ -103,10 +138,6 @@ import {
 import {
 	backportFallbackTextMapForCard,
 } from './util.js';
-
-import {
-	DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT,
-} from './constants.js';
 
 import {
 	nextMaintenanceTaskName
@@ -149,7 +180,6 @@ import {
 	Uid,
 	Author,
 	CardType,
-	ReferencesInfoMap,
 	UserInfo,
 	CardBooleanMap,
 	CardID,
@@ -268,10 +298,14 @@ const selectSnapshotCollectionConfiguration = (state : State) : CollectionConfig
 export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
 export const selectActiveCardID = (state : State) => state.collection ? state.collection.activeCardID : '';
 export const selectExplicitlySelectedCardIDs = (state : State) => state.collection ? state.collection.selectedCards : {};
-const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
+export const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state : State) => state.editor ? state.editor.card : null;
+//The committed-but-unconfirmed draft of a single-card save (see
+//EditorState.pendingSaveCard). Raw; most callers want
+//selectPendingSaveCardForDisplay.
+export const selectPendingSaveCard = (state : State) => state.editor ? state.editor.pendingSaveCard : null;
 export const selectEditingUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.underlyingCardSnapshot : null;
 const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
@@ -287,6 +321,7 @@ export const selectPendingDeletions = (state : State) => state.data ? state.data
 export const selectEnqueuedCards = (state : State) => state.data ? state.data.enqueuedCards : {};
 export const selectPendingModificationCount = (state : State) => state.data ? state.data.pendingModificationCount : 0;
 export const selectCardModificationPending = (state : State) => state.data ? state.data.pendingModifications : false;
+export const selectBulkTagOperationProgress = (state : State) => state.data ? state.data.bulkTagOperationProgress : null;
 export const selectCardModificationError = (state : State) => state.data ? state.data.cardModificationError : null;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 //rawCards means they don't yet have their nlp data cached. See selectCards which returns that.
@@ -296,14 +331,21 @@ export const selectRawCards = (state : State) => state.data ? state.data.cards :
 const selectRawCardsSnapshot = (state : State) => state.data ? state.data.cardsSnapshot : {};
 export const selectPendingNewCardIDToNavigateTo = (state : State) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
 export const selectLoadingCardFetchTypes = (state : State) => state.data ? state.data.loadingCardFetchTypes : {};
+export const selectCorpusStatus = (state : State) => state.data ? state.data.corpusStatus : 'off';
+export const selectCorpusStatusMessage = (state : State) => state.data ? state.data.corpusStatusMessage : '';
+export const selectCorpusSize = (state : State) => state.data ? state.data.corpusSize : 0;
+export const selectCorpusSnapshotAgeMs = (state : State) => state.data ? state.data.corpusSnapshotAgeMs : null;
+export const selectExpectedCorpusSize = (state : State) => state.data ? state.data.expectedCorpusSize : null;
+export const selectCorpusComplete = (state : State) => state.data ? state.data.corpusComplete : false;
+export const selectCorpusVerifyDone = (state : State) => state.data ? state.data.verifyDone : null;
+export const selectCorpusVerifyTotal = (state : State) => state.data ? state.data.verifyTotal : null;
+export const selectPendingAuxWriteCount = (state : State) => state.data ? state.data.pendingAuxWriteCount : 0;
 export const selectSectionsLoaded = (state : State) => state.data ? state.data.sectionsLoaded : false;
 export const selectTagsLoaded = (state : State) => state.data ? state.data.tagsLoaded : false;
 export const selectMessagesLoaded = (state : State) => state.comments ? state.comments.messagesLoaded : false;
 export const selectThreadsLoaded = (state : State) => state.comments ? state.comments.threadsLoaded : false;
 export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state : State) => state.data ? state.data.alreadyCommittedModificationsWhenFullyLoaded : false;
 export const selectSlugIndex = (state : State) => state.data ? state.data.slugIndex : {};
-export const selectCompleteModeEnabled = (state : State) => state.data ? state.data.completeMode : false;
-export const selectCompleteModeRawCardLimit = (state : State) => state.data ? state.data.completeModeCardLimit : 0;
 export const selectMessages = (state : State) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state : State) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : {};
@@ -314,6 +356,11 @@ const selectTweets = (state : State) => state.data ? state.data.tweets : {};
 export const selectTweetsLoading = (state : State) => state.data ? state.data.tweetsLoading : false;
 export const selectCardSimilarity = (state : State) => state.data ? state.data.cardSimilarity : {};
 export const selectEditingCardSimilarity = (state : State) : SortExtra | undefined => state.editor ? state.editor.editingCardSimilarity : undefined;
+//True while a similarity request for the current draft's content is
+//outstanding (issued at the typing settle point, cleared by its own
+//version-stamped result), meaning any rendered editing-card similarity is
+//known to lag what the user typed. See EditorState.similarityPendingVersion.
+export const selectEditingSimilarityPending = (state : State) : boolean => Boolean(state.editor && state.editor.editing && state.editor.similarityPendingVersion !== 0);
 export const selectActivePreviewCardId = (state : State) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state : State) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state : State) => state.app ? state.app.hoverY : 0;
@@ -362,22 +409,26 @@ export const selectNextMaintenanceTaskName = createSelector(
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
 //backportMissingText, and where the card has some text that needs to be filled.
-const selectBackportTextFallbackMapCollection = createObjectSelector(
-	selectRawCards,
-	selectRawCards,
-	//Because this is a createObjectSelector, this will be called once per card
-	//in selectRawCards.
-	(card : Card, cards : Cards) : ReferencesInfoMap | null => backportFallbackTextMapForCard(card, cards)
-);
-
+//Both of these only depend on concept cards; the diff projection means a
+//non-concept-card update neither recomputes them nor changes their identity
+//(which previously re-ran downstream fingerprint/enrichment selectors on
+//every card edit).
 const selectRawConceptCards = createSelector(
 	selectRawCards,
-	(cards) => conceptCardsFromCards(cards)
+	createCardsDiffSelector({
+		name: 'conceptCards',
+		needsRecompute: delta => anyCardMatches(delta, isConceptCard),
+		compute: (cards) => conceptCardsFromCards(cards)
+	})
 );
 
 export const selectSynonymMap = createSelector(
 	selectRawCards,
-	(cards) => synonymMap(cards)
+	createCardsDiffSelector({
+		name: 'synonymMap',
+		needsRecompute: delta => anyCardMatches(delta, isConceptCard),
+		compute: (cards) => synonymMap(cards)
+	})
 );
 
 //selectConcepts returns a map of all concepts based on visible concept cards.
@@ -386,88 +437,40 @@ export const selectConcepts = createSelector(
 	(conceptCards) => getConceptsFromConceptCards(conceptCards)
 );
 
-const selectZippedCardAndFallbackMap = createSelector(
+// Per-card processing cache keyed on the Card object reference from Redux.
+// When Redux updates a card, it creates a new Card object — the old one's
+// cache entry becomes unreachable and is garbage-collected by WeakMap.
+// When selectRawCards changes (any card update), we iterate all entries but
+// only reprocess the cards whose object reference actually changed.
+// This replaces the old reselect-map chain (selectBackportTextFallbackMapCollection
+// → selectZippedCardAndFallbackMap → createZippedObjectSelector) which cleared
+// ALL 40k per-key caches on every card change, causing 600ms+ of blocking work.
+export const selectCards : (state : State) => ProcessedCards = createSelector(
 	selectRawCards,
-	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]} => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+	lazyProcessCards
 );
 
-const selectSnapshotZippedCardAndFallbackMap = createSelector(
+const selectCardsSnapshot : (state : State) => ProcessedCards = createSelector(
 	selectRawCardsSnapshot,
-	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]}  => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
-);
-
-//objectEquality checks for objects to be the same content, allowing nested
-//objects
-const objectEquality = (before : unknown, after : unknown) : boolean => {
-	if (before === after) return true;
-	if (!before) return false;
-	if (!after) return false;
-	if (typeof before != 'object') return false;
-	if (typeof after != 'object') return false;
-	if (Array.isArray(before) && Array.isArray(after)) return arrayEquality(before, after);
-	const beforeEntries = Object.entries(before);
-	const objAfter : {[name :string]: unknown} = after as {[name : string] : unknown};
-	if (beforeEntries.length != Object.keys(after).length) return false;
-	return beforeEntries.every(entry => objectEquality(entry[1], objAfter[entry[0]]));
-};
-
-//arrayEquality returns true if both are arrays and each of their items are the same
-const arrayEquality = (before : unknown[], after : unknown[]) : boolean => {
-	if (before === after) return true;
-	if (!Array.isArray(before)) return false;
-	if (!Array.isArray(after)) return false;
-	if (before.length != after.length) return false;
-	return before.every((item, i) => objectEquality(item, after[i]));
-};
-
-//note: using objectEquality, instead of something that knows that the first item
-//is a card and the second is a two-level map, means that misses on card objects
-//will be more expensive to discover, because they'll iterate through each
-//property in the card. The upside is that because we use objectSelector, each
-//card will be presented the same for each ID consistently, so by only treating
-//them differently if something actually changed, we can save a lot of
-//downstream processing, since we do often get updateCards with no real change
-//to the card, and so much is downstream of when updateCards changes.
-const createZippedObjectSelector = createObjectSelectorCreator(objectEquality);
-
-//this uses createZippedObjectSelector because the cardAndFallbackMap entry will
-//be a different item, but as long as the individual items are the same as last
-//time they should be considered the same.
-export const selectCards : (state : State) => ProcessedCards = createZippedObjectSelector(
-	selectZippedCardAndFallbackMap,
-	//Note that depending on selectConcepts actually doesn't lead to many
-	//recalcs. That's because a) we're using objectEquality, so as long as the
-	//map stays semantically the same cards won't be reindexed, and b) because
-	//concept cards are by default published, which means they're in the first
-	//set of cards. That means the only time every card has to be reindexed is
-	//when specifically the title of one of the concept cards changes.
-	selectConcepts,
-	selectSynonymMap,
-	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
-);
-
-const selectCardsSnapshot : (state : State) => ProcessedCards = createZippedObjectSelector(
-	selectSnapshotZippedCardAndFallbackMap,
-	selectConcepts,
-	selectSynonymMap,
-	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
+	lazyProcessCards
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
 	selectRawCards,
-	(rawCards : Cards) : Uid[] => {
-		const ids : {[id : Uid] : true} = {};
-		for (const card of Object.values(rawCards)) {
-			ids[card.author] = true;
-			for (const collaborator of card.collaborators) {
-				ids[collaborator] = true;
+	createCardsDiffSelector({
+		name: 'authorsAndCollaborators',
+		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.author !== next.author || !arraysEqual(prev.collaborators, next.collaborators)),
+		compute: (rawCards : Cards) : Uid[] => {
+			const ids : {[id : Uid] : true} = {};
+			for (const card of Object.values(rawCards)) {
+				ids[card.author] = true;
+				for (const collaborator of card.collaborators) {
+					ids[collaborator] = true;
+				}
 			}
+			return Object.keys(ids);
 		}
-		return Object.keys(ids);
-	}
+	})
 );
 
 export const selectActiveCard = createSelector(
@@ -476,12 +479,51 @@ export const selectActiveCard = createSelector(
 	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard | null => cards[activeCard] || null
 );
 
+//selectActiveCardEnriched returns the active card enriched with real
+//importantNgrams and synonymMap, so concept highlighting works correctly.
+//This only enriches a single card (the active one), not all 40k.
+export const selectActiveCardEnriched = createSelector(
+	selectActiveCard,
+	selectConcepts,
+	selectSynonymMap,
+	(card, concepts, synonyms) : ProcessedCard | null => card ? enrichCardWithConcepts(card, concepts, synonyms) : null
+);
+
+//True when the ownership gate is showing its modal overlay. Keyboard shortcuts
+//must be suppressed then: `inert` does not stop document-level keydown
+//listeners, so the bare-key bindings (arrows, Space) and the modified ones
+//(Cmd-E, Cmd-F, Cmd-Enter, Cmd-M) all still fired behind the overlay — worst
+//in an 'inactive' tab, whose store has already been purged.
+export const selectCorpusGateBlocking = createSelector(
+	selectCorpusStatus,
+	(corpusStatus) => CORPUS_STATUS_BLOCKS_INTERACTION.has(corpusStatus)
+);
+
+//Every modal main-view renders must suppress the keyboard shortcuts, not just
+//the three modals that were originally listed. dialog-element's Escape handler
+//does not stopPropagation, so a keystroke aimed at a multi-edit <select>
+//(type-ahead) or the bulk-import textarea reached main-view's handler too.
+//The sharpest instance of that was bare `e`, which both preventDefault()ed the
+//key AND opened the card editor behind the still-open modal; `e` has since
+//(2026-08-02, `8816340a`) been made modifier-gated at the binding itself, but
+//the general hazard is unchanged for the bindings that are still bare —
+//arrows and Space — so this gate stays the load-bearing one.
 export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
 	selectComposeOpen,
 	selectPage,
-	(editing, find, compose, page) => !editing && !find && !compose && page == PAGE_DEFAULT
+	selectMultiEditDialogOpen,
+	selectConfigureCollectionDialogOpen,
+	selectBulkImportDialogOpen,
+	selectAIDialogOpen,
+	selectImagePropertiesDialogOpen,
+	selectImageBrowserDialogOpen,
+	selectCorpusGateBlocking,
+	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, gateBlocking) =>
+		!editing && !find && !compose && page == PAGE_DEFAULT &&
+		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser &&
+		!gateBlocking
 );
 
 export const selectFilters = createSelector(
@@ -611,7 +653,10 @@ const selectUserMayEditCards = createSelector(
 );
 
 export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = createObjectSelector(
-	selectCards,
+	//Permission checks use only raw card fields. Feeding the lazy processed-card
+	//view here still forced processing every card because createObjectSelector
+	//enumerates the entire map during each corpus install.
+	selectRawCards,
 	selectUserMayEditCards,
 	selectUid,
 	(card, userMayEditCards, uid) => {
@@ -788,7 +833,9 @@ export const selectCollaboratorInfosForActiveCard = createSelector(
 
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
 export const selectUserPermissionsForCardsMap = createSelector(
-	selectCards,
+	//This projection reads only card.permissions. Using selectCards caused a
+	//40k-card processed-map enumeration during warm boot for no semantic gain.
+	selectRawCards,
 	(cards : Cards) : UserPermissionsForCards => {
 		const result : UserPermissionsForCards = {};
 		for (const card of Object.values(cards)) {
@@ -813,9 +860,34 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions || {}).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
+export const selectWorkerIDF = (state : State) => state.data.workerIDF;
+
+// Convert WorkerIDFData to IDFMap format if available. Its own selector so
+// the wrapper object keeps IDENTITY across generator rebuilds — the
+// generator's shared fingerprint cache is keyed on the IDF map object, so a
+// fresh wrapper per rebuild would silently defeat it. (The worker map is
+// frozen per epoch precisely so this identity — and with it the cache —
+// lives for the whole session.)
+//
+// Before the worker's first epoch delivery, worker modes get the
+// PENDING_IDF_MAP sentinel (TF-only ranking) rather than null: null would
+// make FingerprintGenerator run a synchronous whole-corpus IDF build on the
+// UI thread, the multi-second stall the worker index exists to remove. Off
+// mode returns null and keeps the local small-corpus computation.
+const selectWorkerIDFMap = createSelector(
+	selectWorkerIDF,
+	(workerIDF) => workerIDF ? {
+		idf: workerIDF.idf,
+		maxIDF: workerIDF.maxIDF
+	} : (corpusWorkerOwnsCardIngestion() ? PENDING_IDF_MAP : null)
+);
+
 export const selectFingerprintGenerator = createSelector(
 	selectCards,
-	(cards) => new FingerprintGenerator(cards)
+	selectWorkerIDFMap,
+	selectConcepts,
+	selectSynonymMap,
+	(cards, idfMap, concepts, synonyms) => new FingerprintGenerator(cards, undefined, undefined, idfMap, concepts, synonyms)
 );
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
@@ -850,24 +922,35 @@ let memoizedEditingNormalizedCardExtractionVersion = -1;
 //if it ran every single keystroke while editingCard was being edited it would
 //be very slow. When extractionVersion increments, that's the system saying it's
 //OK to run the expensive properties again.
-const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined => {
+export const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined => {
 	const extractionVersion = selectEditingCardExtractionVersion(state);
 	if (memoizedEditingNormalizedCardExtractionVersion != extractionVersion) {
 		memoizedEditingNormalizedCard = undefined;
 	}
 	//null is a totally legal value to have, so we signal we need a recalculation via undefined.
 	if (memoizedEditingNormalizedCard === undefined) {
+		const start = performance.now();
 		//Note: this processing logic should be the same as selectCards processing.
 		const editingCard = selectEditingCard(state);
 		if (editingCard) {
 			const cards = selectRawCards(state);
 			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
-			const conceptsMap = selectConcepts(state);
-			const synonyms = selectSynonymMap(state);
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, conceptsMap, synonyms);
+			// Keep editing normalization cheap. Suggested concepts use the global
+			// concept map as a lookup after tokenizing the card; attaching every
+			// concept as importantNgrams here makes semantic word counting scan
+			// the full concept set against the editing text.
+			//Full enrichment (concepts + synonyms), exactly like master: this
+			//only re-runs on the ~1s extraction-version debounce, never per
+			//keystroke, and empty maps made similar-card ranking and semantic
+			//word counts diverge from the saved card's (regression sweep).
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, selectConcepts(state), selectSynonymMap(state));
 		} else {
 			memoizedEditingNormalizedCard = undefined;
 		}
+		const duration = performance.now() - start;
+		//Gated like everything else in src/perf.ts. This sits on the editing
+		//path and logged unconditionally in production builds.
+		if (duration > 50 && perfEnabled()) console.log(`[PERF] selectEditingNormalizedCard: ${duration.toFixed(1)}ms`);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
 	return memoizedEditingNormalizedCard;
@@ -884,6 +967,51 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 		if (!editing) return editing;
 		if (!normalized) return editing;
 		return {...editing, nlp:normalized.nlp};
+	}
+);
+
+export const selectEditingCardForDisplay = createSelector(
+	selectEditingCard,
+	selectActiveCard,
+	selectEditingNormalizedCard,
+	(editing, active, normalized) => {
+		if (!editing) return null;
+		if (!active) return editing;
+		//Prefer the freshly normalized editing card's NLP (updated on the ~1s
+		//extraction debounce) so display-derived features track typing instead
+		//of freezing at the last save; the active card is only the fallback
+		//before the first normalization lands.
+		return {
+			...active,
+			...editing,
+			nlp: normalized?.nlp || active.nlp,
+			importantNgrams: normalized?.importantNgrams || active.importantNgrams,
+			synonymMap: normalized?.synonymMap || active.synonymMap
+		};
+	}
+);
+
+//The optimistic face for a committed-but-unconfirmed single-card save: the
+//draft the user just saved, merged over the active card the same way
+//selectEditingCardForDisplay merges before the first normalization lands (the
+//active card's nlp/importantNgrams/synonymMap are the display fallback; the
+//pending window is sub-second in the common case). Non-null only while the
+//durable executor is between accepting the save and the server settling it,
+//and only for the card the save belongs to — navigate away and the overlay
+//simply doesn't apply.
+export const selectPendingSaveCardForDisplay = createSelector(
+	selectPendingSaveCard,
+	selectActiveCardEnriched,
+	(pending, active) : ProcessedCard | null => {
+		if (!pending) return null;
+		if (!active || active.id !== pending.id) return null;
+		return {
+			...active,
+			...pending,
+			nlp: active.nlp,
+			importantNgrams: active.importantNgrams,
+			synonymMap: active.synonymMap
+		};
 	}
 );
 
@@ -949,10 +1077,11 @@ export const selectEditingCardSuggestedTags = createSelector(
 	selectEditingCardwithDelayedNormalizedProperties,
 	selectEditingCardSemanticFingerprint,
 	selectTagsSemanticFingerprint,
-	(card, cardFingerprint, tagFingerprints) => {
+	selectFingerprintGenerator,
+	(card, cardFingerprint, tagFingerprints, fingerprintGenerator) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!tagFingerprints || Object.keys(tagFingerprints).length == 0) return [];
-		const closestTags = new FingerprintGenerator().closestOverlappingItems('', cardFingerprint, tagFingerprints);
+		const closestTags = fingerprintGenerator.closestOverlappingItems('', cardFingerprint, tagFingerprints);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
 		const result = [];
@@ -966,10 +1095,10 @@ export const selectEditingCardSuggestedTags = createSelector(
 );
 
 //selectingEitingOrActiveCard returns either the editing card, or else the
-//active card.
+//active card (enriched with concepts so fingerprinting and highlighting work).
 const selectEditingOrActiveNormalizedCard = createSelector(
 	selectEditingNormalizedCard,
-	selectActiveCard,
+	selectActiveCardEnriched,
 	(editing, active) => editing && Object.keys(editing).length > 0 ? editing : active
 );
 
@@ -986,15 +1115,23 @@ export const selectWordCloudForActiveCard = createSelector(
 //Selects the set of all cards the current user can see (which even includes
 //ones not in default)
 export const selectAllCardsFilter = createSelector(
-	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]))
+	selectRawCards,
+	createCardsDiffSelector({
+		name: 'allCardsFilter',
+		needsRecompute: membershipChanged,
+		compute: (cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true] as [CardID, true]))
+	})
 );
 
 //selectTagInfosForCards selects a tagInfos map based on all cards. Used for
 //example for showing missing link auto todos in card-editor.
 export const selectTagInfosForCards = createSelector(
-	selectCards,
-	cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
+	selectRawCards,
+	createCardsDiffSelector({
+		name: 'tagInfosForCards',
+		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name),
+		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
+	})
 );
 
 export const getCardHasStar = (state : State, cardId : CardID) : boolean => {
@@ -1365,75 +1502,61 @@ export const selectActiveTagId = createSelector(
 	}
 );
 
-export const selectCompleteModeEffectiveCardLimit = createSelector(
-	selectCompleteModeRawCardLimit,
-	(rawLimit) => rawLimit || DEFAULT_PARTIAL_MODE_CARD_FETCH_LIMIT
-);
-
-export const selectCardLimitReached = createSelector(
-	selectUserMayViewUnpublished,
-	selectCards,
-	selectFilters,
-	selectCompleteModeEffectiveCardLimit,
-	(mayViewUnpublished, cards, filters, effectiveLimit) => {
-		if (!mayViewUnpublished) return false;
-		const cardCount = Object.keys(cards).length;
-		//We can't read out filters.unpublished because it doesn't exist, it's an inverse filter.
-		const countPublished = Object.keys(filters[PUBLISHED_FILTER_NAME] || {}).length;
-		const countUnpublished = cardCount - countPublished;
-		//if there are at least the deafult number of cards in the unpublished filter, then the limit is reached.
-		return countUnpublished >= effectiveLimit;
-	}
-);
-
 export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
 	selectUserMayViewUnpublished,
-	selectCompleteModeEnabled,
-	(mayViewUnpublished, completeModeEnabled) : CardFetchType => {
-		if (mayViewUnpublished) return completeModeEnabled ? 'unpublished-complete' : 'unpublished-partial';
+	(mayViewUnpublished) : CardFetchType => {
+		if (mayViewUnpublished) return 'unpublished';
 		//Technically this is only true if we have a uid, but otheriwse there's nothing to fetch anyway.
 		return 'unpublished-author';
 	}
 );
 
+const defaultSetCardsDiffer = (prev : Card, next : Card) : boolean =>
+	prev.section !== next.section || prev.sort_order !== next.sort_order;
+
+//Hand-rolled two-input memoizer: recomputes when sections change, but a cards
+//change only recomputes if a card's section or sort_order changed.
+let _defaultSetState : {sections : Sections, cards : Cards, result : CardID[]} | null = null;
+
 export const selectDefaultSet = createSelector(
 	selectSections,
 	selectRawCards,
 	(sections : Sections, cards : Cards) : CardID[] => {
-		let result : CardID[] = [];
-		for (const section of Object.values(sections)) {
-			result = result.concat(section.cards);
+		if (_defaultSetState && _defaultSetState.sections === sections) {
+			const delta = diffCards(_defaultSetState.cards, cards);
+			if (!anyChangedCardDiffers(delta, defaultSetCardsDiffer)) {
+				perfCount('diffSelector:defaultSet:skipped');
+				_defaultSetState = {sections, cards, result: _defaultSetState.result};
+				return _defaultSetState.result;
+			}
 		}
-		//The order of cards in the section object is nondterministic. The order
-		//that matters is the sort_order. Higher sort-order should sort to the top.
-		result.sort((a,b) => {
-			const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-			const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
-			return cardBValue - cardAValue;
-		});
+		perfCount('diffSelector:defaultSet:recompute');
+		const result = computeDefaultSet(sections, cards);
+		_defaultSetState = {sections, cards, result};
 		return result;
 	}
 );
 
-const makeEverythingSetFromCards = (cards : Cards) : CardID[] => {
-	const keys = Object.keys(cards);
-	keys.sort((a, b) => {
-		const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-		const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
-		return cardBValue - cardAValue;
-	});
-	return keys;
-};
+const everythingSetCardsDiffer = (prev : Card, next : Card) : boolean =>
+	prev.sort_order !== next.sort_order;
 
 //Note; other selectors depend on this being sorted based on descending sort_order
 export const selectEverythingSet = createSelector(
-	selectCards,
-	makeEverythingSetFromCards,
+	selectRawCards,
+	createCardsDiffSelector({
+		name: 'everythingSet',
+		needsRecompute: delta => anyChangedCardDiffers(delta, everythingSetCardsDiffer),
+		compute: makeEverythingSetFromCards
+	})
 );
 
 const selectEverythingSetSnapshot = createSelector(
-	selectCardsSnapshot,
-	makeEverythingSetFromCards,
+	selectRawCardsSnapshot,
+	createCardsDiffSelector({
+		name: 'everythingSetSnapshot',
+		needsRecompute: delta => anyChangedCardDiffers(delta, everythingSetCardsDiffer),
+		compute: makeEverythingSetFromCards
+	})
 );
 
 type SetCollection = {
@@ -1573,7 +1696,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectCardSimilarity,
 	selectEditingCardSimilarity,
 	selectRelativeDateCacheKey,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey})
+	selectWorkerIDFMap,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey, idfMap) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity, editingCardSimilarity, relativeDateKey, idfMap: idfMap || undefined})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The
@@ -1603,7 +1727,7 @@ export const selectCollectionConstructorArgumentsWithEditingCard = createSelecto
 );
 
 export const selectFieldValidationErrorsForEditingCard = createSelector(
-	selectEditingNormalizedCard,
+	selectEditingCard,
 	(card) :{[field in CardFieldType]+?: string}  => {
 		const result : {[field in CardFieldType]+?: string} = {};
 		if (!card) return result;
@@ -1616,11 +1740,51 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 	}
 );
 
+//The previous active collection, so single-card update echoes can hand off
+//the already-computed filter/sort work instead of rebuilding from scratch.
+let _previousActiveCollection : Collection | null = null;
+
+export const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
+
+export const selectWorkerActiveCollectionReady = createSelector(
+	selectActiveCollectionDescription,
+	selectWorkerActiveCollectionResult,
+	(description, result) => Boolean(description && result && result.description === description.serialize())
+);
+
+//Compact per-card metadata pushed by the corpus worker; empty unless the
+//worker owns ingestion.
+export const selectCardMetas = (state : State) => state.data ? state.data.cardMeta : {};
+
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
-	(description, args) => description ? description.collection(args) : null
+	selectWorkerActiveCollectionResult,
+	(description, args, workerResult) => {
+		if (!description) {
+			_previousActiveCollection = null;
+			return null;
+		}
+		//Cutover mode: when the corpus worker has pushed a result for exactly
+		//this description, build the collection from it — no UI-thread
+		//filtering or sorting. During transitions (boot, description just
+		//changed) expose an empty placeholder until the matching authoritative
+		//worker result arrives. Never compute the corpus collection on the UI
+		//thread in cutover mode.
+		if (corpusWorkerServesCollections()) {
+			const result = workerResult && workerResult.description === description.serialize()
+				? workerResult
+				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}};
+			const collection = Collection.fromWorkerResult(description, args, result);
+			_previousActiveCollection = collection;
+			return collection;
+		}
+		const collection = description.collection(args, _previousActiveCollection);
+		_previousActiveCollection = collection;
+		return collection;
+	}
 );
+
 
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in
 //which reordering is legal. Note: this means that even if it is legal in
@@ -1731,18 +1895,52 @@ export const selectWordCloudForMainCardDrawer = (state : State) : WordCloud | nu
 	return selectSuggestMissingConceptsEnabled(state) ? selectWordCloudForPossibleMissingConcepts(state) : selectActiveCollectionWordCloud(state);
 };
 
-export const selectCountsForTabs = createSelector(
+//Counts for tabs whose descriptions only use precomputed filter maps: cheap
+//set intersections keyed on identity-stable inputs, so they don't recompute
+//on unrelated card updates (previously every tab count instantiated a full
+//Collection — several filtering the entire everything set — on every args
+//identity change, i.e. every card update).
+const selectNonConfigurableCountsForTabs = createSelector(
 	selectExpandedTabConfig,
-	selectCollectionConstructorArguments,
-	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
+	selectAllSets,
+	selectFilters,
+	selectAllCardsFilter,
+	(tabs : ExpandedTabConfig, sets, filters, allCardIDs) : {[tabDescription : string] : number} => {
 		const result : {[tabDescription : string] : number} = {};
 		for (const tab of tabs) {
 			//hideIfEmpty also requires calculating count
 			if (!tab.count && !tab.hideIfEmpty) continue;
-			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
+			if (descriptionRequiresFullCollectionCount(tab.expandedCollection)) continue;
+			result[tab.expandedCollection.serialize()] = countForDescription(tab.expandedCollection, sets, filters, allCardIDs);
 		}
 		return result;
 	}
+);
+
+const EMPTY_COUNTS : {[tabDescription : string] : number} = Object.freeze({});
+
+//Counts for tabs that genuinely need the full Collection machinery
+//(configurable filters). Returns a stable empty object when there are none,
+//so the merged selector doesn't churn.
+const selectConfigurableCountsForTabs = createSelector(
+	selectExpandedTabConfig,
+	selectCollectionConstructorArguments,
+	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
+		let result : {[tabDescription : string] : number} | null = null;
+		for (const tab of tabs) {
+			if (!tab.count && !tab.hideIfEmpty) continue;
+			if (!descriptionRequiresFullCollectionCount(tab.expandedCollection)) continue;
+			if (!result) result = {};
+			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
+		}
+		return result || EMPTY_COUNTS;
+	}
+);
+
+export const selectCountsForTabs = createSelector(
+	selectNonConfigurableCountsForTabs,
+	selectConfigurableCountsForTabs,
+	(nonConfigurable, configurable) : {[tabDescription : string] : number} => ({...nonConfigurable, ...configurable})
 );
 
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,
@@ -1752,7 +1950,19 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectCardsDrawerPanelOpen,
 	selectIsEditing,
 	selectEditorMinimized,
-	(activeCollection, panelOpen, isEditing, editorMinimized) => (isEditing && editorMinimized) ? false : !activeCollection || activeCollection.isFallback ? false : panelOpen
+	selectDataIsFullyLoaded,
+	(activeCollection, panelOpen, isEditing, editorMinimized, dataFullyLoaded) => {
+		if (isEditing && editorMinimized) return false;
+		if (!panelOpen) return false;
+		if (!activeCollection) return false;
+		//During boot the collection is necessarily a fallback, and hiding the
+		//drawer for it made the panel pop into existence — a layout jump that
+		//reads as a bug. Hold the drawer's normal width while data is still
+		//arriving; a fallback collection AFTER load is a real empty state and
+		//still hides.
+		if (activeCollection.isFallback && dataFullyLoaded) return false;
+		return true;
+	}
 );
 
 //This is the final expanded, sorted collection, including start cards.
@@ -1761,15 +1971,19 @@ export const selectActiveCollectionCards = createSelector(
 	(collection) => collection ? collection.finalSortedCards : []
 );
 
+const selectActiveCollectionCardIndex = createSelector(
+	selectActiveCollectionCards,
+	(collection) : Map<CardID, number> => new Map(collection.map((card, index) => [card.id, index]))
+);
+
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardID,
-	selectActiveCollectionCards,
-	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
+	selectActiveCollectionCardIndex,
+	(cardId, index) => index.get(cardId) ?? -1
 );
 
 export const getCardIndexForActiveCollection = (state : State, cardId: CardID) : number => {
-	const collection = selectActiveCollectionCards(state);
-	return collection.map(card => card.id).indexOf(cardId);
+	return selectActiveCollectionCardIndex(state).get(cardId) ?? -1;
 };
 
 //returns an array of card-types that are in the BODY_CARD_TYPES that this user has access to
@@ -1828,10 +2042,81 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	}
 );
 
+const selectWorkerQueryCollectionResult = (state : State) => state.collection ? state.collection.workerQueryCollection : null;
+
+const selectFindSearchRecall = (state : State) => state.find ? state.find.searchRecall : null;
+
+//Non-null while the find dialog is waiting on a worker query result AND the
+//worker's background search-recall index is still building — the only window
+//where "the search is slow because indexing is incomplete" is the honest
+//explanation. Self-retires once the build reports ready.
+//True when the worker's pushed query result matches the CURRENT find
+//description (or the worker doesn't serve collections at all) — i.e. the
+//find results on screen are current rather than the stale-while-revalidate
+//holdover.
+export const selectWorkerQueryCollectionReady = createSelector(
+	selectCollectionDescriptionForQuery,
+	selectWorkerQueryCollectionResult,
+	(description, result) => Boolean(description && result && result.description === description.serialize())
+);
+
+//Reactive twin of the durable executor's save-eligibility gate: card saves
+//need a base the executor can trust — the server-verified 'live' corpus in
+//worker mode, or data-fully-loaded in the main-thread listener modes. UI
+//affordances use this to make saves UN-ATTEMPTABLE (disabled with a reason)
+//during the window instead of letting the user try and fail.
+export const selectCardSavesEligible = createSelector(
+	selectCorpusStatus,
+	selectDataIsFullyLoaded,
+	(corpusStatus, dataFullyLoaded) => {
+		if (corpusStatus === 'live') return true;
+		if (!corpusWorkerOwnsCardIngestion()) return dataFullyLoaded;
+		return false;
+	}
+);
+
+export const selectFindSearchPreparing = createSelector(
+	selectFindDialogOpen,
+	selectActiveQueryText,
+	selectCollectionDescriptionForQuery,
+	selectCollectionConstructorArgumentsWithEditingCard,
+	selectWorkerQueryCollectionResult,
+	selectFindSearchRecall,
+	(open, queryText, description, args, workerResult, recall) : {built : number, total : number} | null => {
+		if (!open || !queryText) return null;
+		if (!corpusWorkerServesCollections() || args.editingCard) return null;
+		//If the worker has already answered THIS query, we are not preparing.
+		if (workerResult && workerResult.description === description.serialize()) return null;
+		//Otherwise we are: either the recall index is still building, or the
+		//worker simply has not answered yet. The second case was missing, so
+		//pressing Cmd-F before loadComplete showed a confident "0 cards" — the
+		//query slot is not subscribed, the stale-while-revalidate guard has no
+		//previous collection to hold, and recall is still null — and the user
+		//reasonably concluded the card did not exist.
+		if (!recall) return {built: 0, total: 0};
+		if (recall.ready) return {built: recall.total, total: recall.total};
+		return {built: recall.built, total: recall.total};
+	}
+);
+
 export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArgumentsWithEditingCard,
-	(description, args) : Collection => description.collection(args)
+	selectWorkerQueryCollectionResult,
+	(description, args, workerResult) : Collection => {
+		//Cutover mode: the find dialog's collection is served from worker
+		//pushes when available. The editing-card variant stays local (the
+		//worker doesn't have the editing card), which the bridge enforces by
+		//not subscribing while editing — the description match below then
+		//simply fails and we compute locally.
+		if (corpusWorkerServesCollections() && !args.editingCard) {
+			const result = workerResult && workerResult.description === description.serialize()
+				? workerResult
+				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}};
+			return Collection.fromWorkerResult(description, args, result);
+		}
+		return description.collection(args);
+	}
 );
 
 export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(
@@ -1856,6 +2141,25 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
+		return expandReferenceBlocks(card, blocks, args, cardIDsUserMayEdit);
+	}
+);
+
+//Like selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard, but keyed
+//only on the ACTIVE card — deliberately NOT the editing card. The editing
+//card changes with every keystroke, and these blocks run ~10 key-card
+//collections over the whole corpus (1-2s at 40k cards), so live-updating
+//them while typing froze the editor at every pause. While editing, the info
+//panel shows the blocks for the card as it was opened; live-updating
+//similarity while typing should eventually come from the corpus worker.
+export const selectExpandedInfoPanelReferenceBlocksForActiveCard = createSelector(
+	selectActiveCardEnriched,
+	selectCollectionConstructorArguments,
+	selectCardIDsUserMayEdit,
+	(card, args, cardIDsUserMayEdit) : ExpandedReferenceBlocks => {
+		if (!card) return [];
+		const blocks = infoPanelReferenceBlocksForCard(card);
+		if (blocks.length == 0) return [];
 		return expandReferenceBlocks(card, blocks, args, cardIDsUserMayEdit);
 	}
 );

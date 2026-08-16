@@ -33,6 +33,18 @@ import {
 	getActiveConfig
 } from './util.js';
 
+//The ONLY path where stored card content reaches served HTML. `title` is
+//editor-authored and lands in an element body; `description` lands in an
+//ATTRIBUTE value, and striptags removes tags but not quotes — so a body
+//containing `">` would close the attribute and open markup of the author's
+//choosing. Escape both.
+export const escapeHTML = (value : string) : string => value
+	.split('&').join('&amp;')
+	.split('<').join('&lt;')
+	.split('>').join('&gt;')
+	.split('"').join('&quot;')
+	.split("'").join('&#39;');
+
 const SEO_PATH = 'seo/';
 //How many characters to allow description to be
 const MAX_DESCRIPTION_LENGTH = 200;
@@ -79,8 +91,8 @@ const saveSEOForCard = (config : ModeConfig, rawContent : string, card : Card) =
 	let description = striptags(card.body) || config.app_description;
 	description = description.split('\n').join(' ');
 	description = description.slice(0, MAX_DESCRIPTION_LENGTH);
-	let content = rawContent.split('@TITLE@').join(title);
-	content = content.split('@DESCRIPTION@').join(description);
+	let content = rawContent.split('@TITLE@').join(escapeHTML(title));
+	content = content.split('@DESCRIPTION@').join(escapeHTML(description));
 	fs.writeFileSync(fileName, content);
 };
 

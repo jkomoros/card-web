@@ -29,7 +29,7 @@ Paste that JSON blob in your `config.SECRET.json` file, where the sample "fireba
 
 Run `npm run generate:config`. This copies the config you just set into various static files in the project.
 
-Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
+Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default `us-central1` is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
 In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.  
 
@@ -78,6 +78,33 @@ You will likely have to run maintenance tasks on your instance to upgrade the da
 To do that, go to https://your-project-domain/maintenance , hard refresh
 (Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
 any maintenance tasks it tells you to. Note that you might need to run multiple in a row. Run them until it says 'No tasks to run'.
+
+### Firebase Functions Configuration
+
+Cloud Functions read configuration from per-project dotenv files
+(`functions/.env.<projectID>`, gitignored), generated from your
+`config.SECRET.json` by:
+
+```bash
+npm run generate:env
+```
+
+The deploy commands (`npm run deploy`, `npm run deploy:dev`) regenerate
+these automatically before deploying. The files carry the OpenAI/Anthropic
+API keys, Qdrant credentials, email settings, and site domain (see
+`tools/env.ts` for the full list); functions read them via `process.env`.
+(The legacy `firebase functions:config:*` Runtime Config API was retired
+by Firebase in March 2026 and is no longer used.)
+
+⚠️ **Important:**
+- Config is per-project (dev and prod separate)
+- Changes require redeploying functions
+- If functions can't access data, verify the generated `.env.<projectID>`
+- Each project needs a ONE-TIME Artifact Registry cleanup policy or the
+  functions deploy exits non-zero at the end (images pile up otherwise):
+  `npx firebase functions:artifacts:setpolicy --project <projectID> --location us-central1 --force`
+  (done for dev-complexity-compendium 2026-07-11; prod still needs it
+  before its next deploy)
 
 ## Extra Credit
 

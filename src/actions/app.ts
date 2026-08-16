@@ -32,6 +32,7 @@ import {
 	selectFetchedCard,
 	selectCards,
 	selectComposeOpen,
+	selectKeyboardNavigates,
 	selectIsEditing,
 	selectActiveCardIndex,
 	selectUserMayEditActiveCard,
@@ -452,6 +453,15 @@ export const doCommit = () : ThunkSomeAction => (dispatch, getState) => {
 		dispatch(composeCommit());
 		return;
 	}
+	//Cmd/Ctrl-Enter's binding deliberately sits ABOVE main-view's
+	//_keyboardNavigates gate so it can COMMIT while editing (when the gate is
+	//closed). But that meant this fall-through — OPENING the editor — also
+	//fired with a dialog open or the ownership gate blocking: Ctrl-Enter in
+	//the find dialog's query box (the universal submit reflex) opened the
+	//editor BEHIND the dialog, moved focus into the card's contenteditable,
+	//and subsequent typing mutated the card — the same anatomy as the bare-'e'
+	//bug. Only start editing when keyboard navigation is actually active.
+	if (!selectKeyboardNavigates(state)) return;
 	if (selectUserMayEditActiveCard(state)) {
 		dispatch(editingStart());
 		return;

@@ -1,3 +1,29 @@
+// Import and re-export filter constants to avoid circular dependency
+import {
+	UNION_FILTER_DELIMITER,
+	PUBLISHED_FILTER_NAME,
+	UNPUBLISHED_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
+	COMBINE_FILTER_NAME,
+	LIMIT_FILTER_NAME,
+	OFFSET_FILTER_NAME,
+	QUERY_FILTER_NAME,
+	SELECTED_FILTER_NAME
+} from './filter-constants.js';
+
+// Re-export for external use
+export {
+	UNION_FILTER_DELIMITER,
+	PUBLISHED_FILTER_NAME,
+	UNPUBLISHED_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
+	COMBINE_FILTER_NAME,
+	LIMIT_FILTER_NAME,
+	OFFSET_FILTER_NAME,
+	QUERY_FILTER_NAME,
+	SELECTED_FILTER_NAME
+};
+
 import {
 	prettyTime,
 	cardHasContent,
@@ -45,7 +71,6 @@ import {
 	filterSetForFilterDefinitionItem,
 	CollectionDescription,
 	makeConcreteInverseFilter,
-	defaultCollectionConfiguration
 } from './collection_description.js';
 
 import {
@@ -87,6 +112,7 @@ import {
 	ConfigurableFilterConfigurationMap,
 	ConfigurableFilterFuncFactoryResult,
 	FilterExtras,
+	IDFMap,
 	CardIDMap,
 	Sections,
 	CardType,
@@ -128,9 +154,12 @@ import {
 } from '../shared/util.js';
 
 import {
-	fetchSimilarCardsForCardIfEnabled,
-	fetchSimilarCardsIfEnabled
-} from './actions/similarity.js';
+	QDRANT_ENABLED
+} from './config.GENERATED.SECRET.js';
+
+import {
+	requestSimilarity
+} from './similarity-request.js';
 
 const INBOUND_SUFFIX = '-inbound';
 const OUTBOUND_SUFFIX = '-outbound';
@@ -154,15 +183,9 @@ export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_
 export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
 const AUTHOR_FILTER_NAME = 'author';
 const CARDS_FILTER_NAME = 'cards';
-export const UNPUBLISHED_FILTER_NAME = 'unpublished';
-export const PUBLISHED_FILTER_NAME = 'published';
-export const EXCLUDE_FILTER_NAME = 'exclude';
-export const COMBINE_FILTER_NAME = 'combine';
+// (filter constants re-exported at top of file)
 const EXPAND_FILTER_NAME = 'expand';
-export const QUERY_FILTER_NAME = 'query';
-const QUERY_STRICT_FILTER_NAME = 'query-strict';
-export const LIMIT_FILTER_NAME = 'limit';
-export const OFFSET_FILTER_NAME = 'offset';
+export const QUERY_STRICT_FILTER_NAME = 'query-strict';
 const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
@@ -173,7 +196,7 @@ const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
 const SAME_TYPE_FILTER_NAME = 'same-type';
 const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 
-export const SELECTED_FILTER_NAME = 'selected';
+// (SELECTED_FILTER_NAME re-exported at top of file)
 const NOT_SELECTED_FILTER_NAME = 'not-selected';
 
 /*
@@ -200,8 +223,7 @@ export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, desc
 };
 
 //If filter names have this character in them then they're actually a union of
-//the filters
-export const UNION_FILTER_DELIMITER = '+';
+//the filters (re-exported from filter-constants.js at top of file)
 
 export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
@@ -503,8 +525,25 @@ const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, coun
 	//will have a NEW BFS done. So memoize as long as cards are the same.
 	return memoize((cards : Cards, activeCardID : CardID, editingCard? : Card | null) => {
 		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
-		//If editingCard is provided, use it to shadow the unedited version of itself.
-		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
+		//If editingCard is provided, use it to shadow the unedited version of
+		//itself. Do NOT spread: `cards` is the lazyProcessCards Proxy, so a
+		//spread fires ownKeys + getOwnPropertyDescriptor + [[Get]] for all
+		//~40k cards (and processCard for each) to change ONE entry — and
+		//editingCard's identity changes on roughly every keystroke, with each
+		//reference block memoizing separately. A delegating Proxy shadows the
+		//single id while leaving keyed lookups (which is all cardBFS does) at
+		//O(1). Enumeration, which only the rare slug-resolution path performs,
+		//still passes through and honors this trap.
+		if (editingCard) {
+			const target = cards;
+			//A brand-new card is not in the target's own keys, so enumeration
+			//would miss it; only the Proxy path is safe when it already exists.
+			cards = editingCard.id in target
+				? new Proxy(target, {
+					get: (t, prop) => prop === editingCard.id ? editingCard : Reflect.get(t, prop),
+				}) as Cards
+				: {...target, [editingCard.id]: editingCard};
+		}
 		const starterSet = overrideCardIDs || cardIDToUse;
 		if (twoWay){
 			const bfsForOutbound = cardBFS(starterSet, cards, count, includeKeyCard, false, referenceTypes);
@@ -522,13 +561,32 @@ const makeCardLinksConfigurableFilter = (filterName : ConfigurableFilterType, ca
 	const mapCreator = cardBFSMaker(filterName, cardID, countOrTypeStr, countStr);
 
 	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
-		
+
 		const val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
 		return {matches: val !== undefined, sortExtra: val};
 	};
 
-	return [func, false];
+	//The BFS map already IS the matching set (typically a few dozen ids), so
+	//enumerate it directly instead of having the filter machinery test every
+	//card in the corpus against func — identical semantics, O(references)
+	//instead of O(corpus).
+	const enumerate = (extras : FilterExtras) => {
+		const bfsMap = mapCreator(extras.cards, extras.keyCardID, extras.editingCard);
+		const matches : FilterMap = {};
+		let sortValues : SortExtra | null = {};
+		for (const [id, ply] of Object.entries(bfsMap)) {
+			//BFS traverses within extras.cards, but guard anyway so results
+			//can never include ids func would never have been asked about.
+			if (extras.cards[id] === undefined) continue;
+			matches[id] = true;
+			sortValues[id] = ply;
+		}
+		if (Object.keys(sortValues).length === 0) sortValues = null;
+		return {matches, sortValues};
+	};
+
+	return [func, false, enumerate];
 };
 
 export const parseMultipleCardIDs = (str : string) : CardIdentifier[] => str.split(INCLUDE_KEY_CARD_PREFIX);
@@ -826,7 +884,40 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 //We memoize the cards/generator outside even a singular configurable filter,
 //because advance to next/previous card changes the keyCardID, but not the
 //underlying card set, and that should be fast.
-const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
+//idfMap: the frozen worker-epoch map when one exists (worker paths inject it
+//so this fallback scores with the same rarity everything else uses); null on
+//the off-mode/small-corpus path, where the generator computes a local map
+//(memoized per cards identity inside nlp.ts).
+const memoizedFingerprintGenerator = memoize((cards : ProcessedCards, idfMap : IDFMap | null) => new FingerprintGenerator(cards, undefined, undefined, idfMap));
+
+//Above this many cards, the synchronous whole-corpus fingerprint fallback costs
+//more than the feature is worth ON THE UI THREAD.
+//
+//CRITICAL SCOPING: this module also runs inside the corpus worker
+//(query-engine -> collection_description -> filters), and the worker has NO
+//separate fingerprint-similarity path — its only FingerprintGenerator serves
+//suggestTags. An earlier version of this guard was unscoped and a comment here
+//claimed the worker was unaffected; it was not, so on a 40k corpus every card
+//absent from Qdrant rendered EMPTY similar-cards blocks instead of local
+//matches. The cost this guard exists to avoid is main-thread jank, so only the
+//main thread declines.
+const MAX_UI_THREAD_FINGERPRINT_CORPUS = 10000;
+
+//True on the main thread, false in the worker (no `window`).
+const runningOnUIThread = () => typeof window !== 'undefined' && typeof document !== 'undefined';
+
+const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
+	if (!QDRANT_ENABLED) return false;
+	//Via the environment-installed handler: this module also runs in the
+	//corpus worker, where importing actions/similarity.js (store → lit)
+	//throws. See src/similarity-request.ts.
+	return requestSimilarity(cardID);
+};
+
+const fetchSimilarCardsForCardIfEnabled = (card : ProcessedCard) : boolean => {
+	if (!QDRANT_ENABLED) return false;
+	return requestSimilarity(card.id, card);
+};
 
 //This is how we'll keep track of if we need to fetch updated similarCard embeddings or not.
 let lastSeenEditingCard : ProcessedCard | null = null;
@@ -839,7 +930,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null) : {map: Map<CardID, number>, preview: boolean}  => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : {map: Map<CardID, number>, preview: boolean}  => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 
 		let preview = false;
@@ -874,7 +965,19 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			}
 		}
 
-		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
+		//Building a corpus-wide FingerprintGenerator materializes every
+		//ProcessedCard and fingerprints all ~40k of them ON THE UI THREAD
+		//(measured at 1-2s) — even with an injected idf map, the
+		//per-candidate fingerprinting dominates. That is a bad trade for a
+		//FALLBACK: the worker path and the Qdrant path are the real answers,
+		//and this one exists only to show something. Above a corpus size
+		//where the cost is perceptible, decline rather than freeze the UI —
+		//callers already handle an empty map (they show the
+		//local-fingerprint-free state).
+		if (runningOnUIThread() && Object.keys(cards).length > MAX_UI_THREAD_FINGERPRINT_CORPUS) {
+			return {map: new Map(), preview};
+		}
+		const fingerprintGenerator = memoizedFingerprintGenerator(cards, idfMap);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
 		return {map: fingerprintGenerator.closestOverlappingItems('', fingerprint), preview};
@@ -892,7 +995,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
 		}
 
-		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity);
+		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity, extras.idfMap);
 
 		//Return 0 if the map is missing the item, which could happen if it's server similarity
 		const value : number = closestItems.get(card.id) || 0;
@@ -2182,7 +2285,14 @@ const INITIAL_STATE_FILTERS = Object.assign(
 );
 
 export const INITIAL_STATE : CollectionState = {
-	active: defaultCollectionConfiguration(),
+	active: {
+		setName: 'main',
+		filterNames: [],
+		sortName: 'default',
+		sortReversed: false,
+		viewMode: 'list',
+		viewModeExtra: ''
+	},
 	snapshot: null,
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,
@@ -2191,5 +2301,7 @@ export const INITIAL_STATE : CollectionState = {
 	randomSalt: randomString(16),
 	activeRenderOffset: 0,
 	selectedCards: {},
-	collectionWordCloudVersion: 0
+	collectionWordCloudVersion: 0,
+	workerActiveCollection: null,
+	workerQueryCollection: null,
 };

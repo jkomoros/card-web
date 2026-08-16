@@ -8,6 +8,7 @@ import { store } from '../store.js';
 
 import {
 	selectActiveCard,
+	selectActiveCardEnriched,
 	selectActiveSectionId,
 	selectDataIsFullyLoaded,
 	selectUserSignedIn,
@@ -23,7 +24,8 @@ import {
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectActiveCollection,
-	selectEditingCardwithDelayedNormalizedProperties,
+	selectEditingCardForDisplay,
+	selectPendingSaveCardForDisplay,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
@@ -35,9 +37,13 @@ import {
 	selectWordCloudForMainCardDrawer,
 	selectCardsDrawerInfoExpanded,
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
+	selectCollectionConstructorArguments,
+	selectCollectionConstructorArgumentsWithEditingCard,
+	selectEditingNormalizedCard,
+	selectEditingCardSuggestedConceptReferences,
+	selectCardIDsUserMayEdit,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
-	selectEditingCardSuggestedConceptReferences,
 	selectActiveRenderOffset,
 	selectEditorMinimized,
 	selectUserMayUseAI,
@@ -48,7 +54,11 @@ import {
 	selectActiveCollectionNotFullySelected,
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
-	selectCardModificationPending
+	selectCardModificationPending,
+	selectUid,
+	selectCardSavesEligible,
+	selectCorpusStatus,
+	selectWorkerActiveCollectionReady,
 } from '../selectors.js';
 
 import {
@@ -70,7 +80,8 @@ import {
 import {
 	createCard,
 	navigateToNewCard,
-	createForkedCard
+	createForkedCard,
+	durableCardMutationPending,
 } from '../actions/data.js';
 
 import {
@@ -182,6 +193,7 @@ import {
 	CardFieldMap,
 	CardID,
 	CardType,
+	CorpusStatus,
 	ProcessedCard,
 	SectionID,
 	State,
@@ -192,12 +204,39 @@ import {
 } from '../types.js';
 
 import {
+	blockedReason,
+	CREATE_VERB,
+	SAVE_VERB
+} from '../sync-copy.js';
+
+import {
 	Collection
 } from '../collection_description.js';
 
+
 import {
-	ExpandedReferenceBlocks
+	ExpandedReferenceBlocks,
+	expandReferenceBlocksViaRunner,
+	primaryReferenceBlocksForCard
 } from '../reference_blocks.js';
+
+import {
+	corpusWorkerCanRunCollections,
+	corpusWorkerRunCollection
+} from '../corpus-bridge.js';
+
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
+
+import {
+	deferredWorkIsOverdue,
+	deferredWorkStartedAt
+} from '../deferred-work.js';
+
+import {
+	sectionResultCommits
+} from '../section-coherence.js';
 
 import {
 	CardSelectedEvent,
@@ -222,6 +261,28 @@ import {
 	showCreateChatPrompt
 } from '../actions/chat.js';
 
+//How long after the last state change the active card's reference blocks
+//recompute. Long enough that holding an arrow key never pays the ~1-2s
+//whole-corpus cost mid-navigation; short enough that blocks feel immediate
+//once the user settles.
+const REFERENCE_BLOCKS_DEBOUNCE_MS = 250;
+//The debounce timer resets on EVERY state change, so sustained churn
+//(worker pushes, similarity fetches, boot batches) could starve it
+//indefinitely — blocks would simply never appear. The max-wait guarantees
+//blocks compute within this bound of the FIRST deferral no matter how busy
+//the store is.
+const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
+//How long a collection may be worker-pending before the stale content dims
+//with the "updating" affordance. Below this, the previous collection shows
+//unlabeled — a bounded, sub-perceptual staleness that avoids flicker.
+const COLLECTION_UPDATING_GRACE_MS = 200;
+
+//e.code is the PHYSICAL key position, so on AZERTY, Dvorak or any non-QWERTY
+//layout the printed shortcut stops working and a DIFFERENT printed key silently
+//triggers it — Cmd-M creating a card from whatever key sits where M is on
+//QWERTY. e.key is what the user actually pressed.
+const pressedLetter = (e : KeyboardEvent) : string => (e.key || '').toLowerCase();
+
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
 
@@ -233,6 +294,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_cardModificationsPending: boolean;
+
+	@state()
+		_durableCardMutationPending: boolean;
 
 	@state()
 		_hideActions: boolean;
@@ -278,6 +342,12 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_displayCard: Card | null;
+
+	//True while _displayCard is the optimistic committed-but-unconfirmed save
+	//draft rather than server truth — drives the small card-level "Saving…"
+	//chip. Own @state: read directly by the template.
+	@state()
+		_displayCardPendingSave: boolean;
 
 	@state()
 		_editingCard: Card | null;
@@ -328,6 +398,33 @@ class CardView extends connect(store)(PageViewElement) {
 		_collectionIsFallback: boolean;
 
 	@state()
+		_collectionUpdating: boolean;
+
+	//"the active collection has not been served yet", as distinct from
+	//_collectionUpdating, which only becomes true when there is a PREVIOUS ready
+	//collection being held as stale. On a first boot there is none, so
+	//_collectionUpdating stays false and the drawer rendered a bare "0 cards" —
+	//the cold-visit case.
+	//
+	//It needs its OWN @state(): declared under the previous field's decorator it
+	//was a plain property, so assigning it triggered no re-render and the fix
+	//worked only when unrelated boot traffic happened to re-render this
+	//component — which is frequent during boot, so it USUALLY appeared to work.
+	@state()
+		_collectionPending: boolean;
+
+	@state()
+		_saveEligible: boolean;
+
+	//The actual sync status, so blocked-control copy can say what is TRUE
+	//rather than always asserting "still verifying".
+	@state()
+		_corpusStatus: CorpusStatus;
+	_lastReadyCollection: Collection | null = null;
+	_collectionUpdatingTimeout = 0;
+	_lastCollectionScopeUid = '';
+
+	@state()
 		_renderOffset: number;
 
 	@state()
@@ -371,6 +468,16 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_cardReferenceBlocks: ExpandedReferenceBlocks;
+
+	_referenceBlocksTimeout : number;
+	//When the CURRENT string of deferrals began (0 = none pending) — for the
+	//max-wait guarantee.
+	_referenceBlocksFirstDeferredAt = 0;
+	//Which card the currently-rendered _cardReferenceBlocks belong to, so a
+	//navigation can clear MISMATCHED blocks immediately (showing the
+	//previous card's "similar cards" under a new card misattributes
+	//relations; empty-until-ready is honest, wrong-then-right is not).
+	_cardReferenceBlocksForCardID = '';
 
 	@state()
 		_signedIn: boolean;
@@ -438,8 +545,33 @@ class CardView extends connect(store)(PageViewElement) {
 				align-items: center;
 			}
 
+			/* Hover target for a disabled control's explanation. The buttons it
+			   wraps sit in an inline row beside UNWRAPPED buttons, which
+			   ButtonSharedStyles gives vertical-align:middle; a default
+			   baseline-aligned wrapper dropped the wrapped ones ~6px lower
+			   than their neighbours. */
+			span.reason {
+				display: inline-flex;
+				vertical-align: middle;
+			}
+
 			card-drawer.showing {
 				border-right: 1px solid var(--app-divider-color);
+				/* Reserve the loaded column width. The drawer is shrink-to-fit,
+				   so without this it grows ~70px -> ~209px as thumbnails stream
+				   in during boot, shoving the card stage sideways. 12em
+				   thumbnail (card-thumbnail-list) plus its margins. */
+				min-width: 13em;
+			}
+
+			/* 13em is over half of a 375px viewport. The reservation exists to
+			   stop a layout jump on a wide screen; on a narrow one, holding
+			   that much width during boot is worse than the jump it prevents.
+			   900px matches the app's own mobile breakpoint (card-web-app). */
+			@media (max-width: 900px) {
+				card-drawer.showing {
+					min-width: 0;
+				}
 			}
 
 			[hidden] {
@@ -488,17 +620,21 @@ class CardView extends connect(store)(PageViewElement) {
 				class='${this._cardsDrawerPanelShowing ? 'showing' : ''}'
 				.showing=${this._cardsDrawerPanelShowing}
 				.collection=${this._collection}
+				.updating=${this._collectionUpdating}
+				.pending=${this._collectionPending}
 				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
 				@reorder-card=${this._handleReorderCard}
 				@add-card='${this._handleAddCard}'
 				@add-working-notes-card='${this._handleAddWorkingNotesCard}'
-				@update-render-offset=${this._handleUpdateRenderOffset} 
+				@update-render-offset=${this._handleUpdateRenderOffset}
 				@card-selected=${this._handleCardSelected}
 				.reorderable=${this._userMayReorderCollection}
 				.showCreateCard=${this._userMayAddCardToActiveCollection}
 				.showCreateWorkingNotes=${this._userMayCreateCard}
+				.createEligible=${this._saveEligible}
+				.createBlockedReason=${blockedReason(this._corpusStatus, CREATE_VERB)}
 				.highlightedCardId=${this._card ? this._card.id : ''}
 				.reorderPending=${this._drawerReorderPending}
 				.ghostCardsThatWillBeRemoved=${true}
@@ -598,7 +734,11 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>
 		</card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<!-- The loading property is what applies the uniform fade that
+			makes the boot placeholder read as pending rather than as real card
+			content; it was never set here, so the placeholder rendered at full
+			weight and opacity, visually identical to a loaded card. -->
+			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -609,12 +749,33 @@ class CardView extends connect(store)(PageViewElement) {
 				</div>
 				<div slot='actions' class='modify'>
 					<button class='round' @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
-					<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? PLAYLISLT_ADD_CHECK_ICON : PLAYLIST_ADD_ICON }</button>
-					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? STAR_ICON : STAR_BORDER_ICON }</button>
-					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
-					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
+					<!-- Titles on wrappers, and a reason for the disabled state:
+					these three were ?disabled with the explanation either ON the
+					button (invisible in Chrome/Safari, which suppress hover on
+					disabled controls) or missing entirely. -->
+					<span class='reason' title=${this._collectionIsFallback ? 'Not available while showing placeholder content' : 'Add to your reading list'}>
+						<button ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' aria-label=${this._cardInReadingList ? 'Remove from your reading list' : 'Add to your reading list'} aria-pressed=${this._cardInReadingList ? 'true' : 'false'} @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? PLAYLISLT_ADD_CHECK_ICON : PLAYLIST_ADD_ICON }</button>
+					</span>
+					<span class='reason' title=${this._collectionIsFallback ? 'Not available while showing placeholder content' : this._cardHasStar ? 'Remove star' : 'Star this card'}>
+						<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' aria-label=${this._cardHasStar ? 'Remove star' : 'Star this card'} aria-pressed=${this._cardHasStar ? 'true' : 'false'} @click='${this._handleStarClicked}'>${this._cardHasStar ? STAR_ICON : STAR_BORDER_ICON }</button>
+					</span>
+					<span class='reason' title=${this._collectionIsFallback ? 'Not available while showing placeholder content' : this._cardIsRead ? 'Mark unread' : 'Mark read'}>
+						<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' aria-label=${this._cardIsRead ? 'Mark unread' : 'Mark read'} aria-pressed=${this._cardIsRead ? 'true' : 'false'} @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
+					</span>
+					<!-- Gated like its siblings. Forking creates a card, so it is
+					     refused by the same eligibility check that gates Save
+					     and the other create controls — it used to fail AFTER
+					     the click with an alert instead of being disabled with
+					     a reason. Title on the wrapper so it stays readable
+					     while the button is disabled. -->
+					<span class='reason' ?hidden='${!this._userMayForkCard}' title=${this._saveEligible ? 'Fork this card' : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' ?disabled=${!this._saveEligible} @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button></span>
 					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${PSYCHOLOGY_ICON}</button>
-					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>					
+					<!-- Title on the wrapper so it is readable while the button
+					is disabled (Chrome/Safari suppress hover on disabled
+					controls). -->
+					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (Cmd-E) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : 'Edit card (Cmd-E)'}>
+						<button class='round' data-testid='edit-card' aria-label='Edit card (Cmd-E)' ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					</span>
 				</div>
 				<div slot='actions' class='next-prev'>
 					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
@@ -690,6 +851,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (this._editing) {
 			return;
 		}
+		if (!this._saveEligible) return;
 		store.dispatch(createForkedCard(this._card));
 	}
 
@@ -830,10 +992,12 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAddCard() {
+		if (!this._saveEligible) return;
 		store.dispatch(createCard({section: this._activeSectionId, cardType: this._cardTypeToAdd}));
 	}
 
 	_handleAddWorkingNotesCard() {
+		if (!this._saveEligible) return;
 		store.dispatch(createCard({cardType: 'working-notes'}));
 	}
 
@@ -841,14 +1005,124 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 
+	//Debounced recompute of the active card's reference blocks. Cleared and
+	//rescheduled on every state change, so rapid navigation never pays the
+	//cost; it lands once the user settles on a card.
+	_scheduleReferenceBlocksUpdate(cardChanged = false) {
+		if (this._referenceBlocksTimeout) window.clearTimeout(this._referenceBlocksTimeout);
+		const now = Date.now();
+		this._referenceBlocksFirstDeferredAt = deferredWorkStartedAt(this._referenceBlocksFirstDeferredAt, now, cardChanged);
+		//Fire immediately (next tick) if deferrals have been piling up past
+		//the max-wait — but ONLY when the worker can serve (async,
+		//off-thread). When the fallback would be the SYNCHRONOUS 1-2s local
+		//computation (worker off/loading), an early fire is a mid-navigation
+		//freeze — the exact jank the debounce exists to prevent — and the
+		//starvation this guards against only occurs from worker-mode store
+		//churn anyway.
+		const overdue = deferredWorkIsOverdue(this._referenceBlocksFirstDeferredAt, now, REFERENCE_BLOCKS_MAX_WAIT_MS) && corpusWorkerCanRunCollections();
+		this._referenceBlocksTimeout = window.setTimeout(() => {
+			this._referenceBlocksTimeout = 0;
+			this._referenceBlocksFirstDeferredAt = 0;
+			//Read fresh state at fire time.
+			const state = store.getState() as State;
+			//While editing, compute the blocks for the LIVE editing card —
+			//related cards refresh as you type, throttled by the 1s-debounced
+			//normalized editing card (and by this debounce). In worker modes
+			//the bridge mirrors the editing card into the worker, so the
+			//compute stays off-thread.
+			const editing = selectIsEditing(state);
+			//Suggested in-body concept highlights ride this same debounce: the
+			//selector is a cheap memoized lookup keyed on the extraction
+			//version, and putting it here (rather than on the keystroke path)
+			//restores master's highlights without per-keystroke work.
+			this._suggestedConcepts = editing ? selectEditingCardSuggestedConceptReferences(state) : null;
+			//Prefer computing the blocks in the corpus worker (off the UI
+			//thread) when it holds the corpus; fall back to the synchronous
+			//local computation otherwise.
+			if (corpusWorkerCanRunCollections()) {
+				const card = editing ? (selectEditingNormalizedCard(state) || null) : selectActiveCardEnriched(state);
+				const cardID = card ? card.id : '';
+				const workerPromise = expandReferenceBlocksViaRunner(
+					card,
+					primaryReferenceBlocksForCard(card),
+					editing ? selectCollectionConstructorArgumentsWithEditingCard(state) : selectCollectionConstructorArguments(state),
+					selectCardIDsUserMayEdit(state),
+					corpusWorkerRunCollection
+				);
+				workerPromise.then(blocks => {
+					if (blocks === null) {
+						if (corpusWorkerServesCollections()) {
+							//Commit the empty state only if this run was for
+							//the STILL-active card. An unguarded commit here
+							//used to clobber a newer card's correct blocks
+							//and stamp them with this run's stale card id.
+							if (!sectionResultCommits(cardID, selectActiveCard(store.getState() as State)?.id || '')) return;
+							this._cardReferenceBlocks = [];
+							this._cardReferenceBlocksForCardID = cardID;
+							return;
+						}
+						//Worker went away mid-flight: local fallback, computed
+						//from FRESH state — so label ownership with the fresh
+						//card, not the captured one (a stale label makes the
+						//next stateChanged clear CORRECT content).
+						const fallbackState = store.getState() as State;
+						this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(fallbackState);
+						this._cardReferenceBlocksForCardID = selectActiveCard(fallbackState)?.id || '';
+						return;
+					}
+					//Drop stale results if the user navigated or toggled
+					//editing meanwhile. (Same-id compare covers both modes:
+					//the editing card's id IS the active card's id.)
+					const freshState = store.getState() as State;
+					if (selectIsEditing(freshState) !== editing) return;
+					if (!sectionResultCommits(cardID, selectActiveCard(freshState)?.id || '')) return;
+					this._cardReferenceBlocks = blocks;
+					this._cardReferenceBlocksForCardID = cardID;
+				});
+				return;
+			}
+			//In worker-on mode, empty-until-ready is vastly safer than a
+			//synchronous whole-corpus fallback while the cold worker is loading.
+			//The live-status Redux update schedules this method again once the
+			//worker can serve. If the worker circuit-breaks, servesCollections()
+			//becomes false and the legacy fallback below remains available.
+			if (corpusWorkerServesCollections()) return;
+			this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
+			this._cardReferenceBlocksForCardID = selectActiveCard(state)?.id || '';
+		}, overdue ? 0 : REFERENCE_BLOCKS_DEBOUNCE_MS);
+	}
+
 	override stateChanged(state : State) {
-		this._editingCard = selectEditingCardwithDelayedNormalizedProperties(state);
+		const previousCardID = this._card?.id || '';
+		this._editingCard = selectEditingCardForDisplay(state);
 		this._card = selectActiveCard(state);
-		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
-		this._displayCard = this._editingCard ? this._editingCard : this._card;
-		this._pageExtra = state.app.pageExtra;
+		const activeCardChanged = previousCardID !== (this._card?.id || '');
 		this._editing = selectIsEditing(state);
+		//Reference blocks run ~10 key-card collections over the whole corpus
+		//(~1-2s at 40k cards), so they must never compute synchronously on the
+		//navigation keystroke path — schedule them for after navigation
+		//settles. Blocks rendered for a DIFFERENT card are cleared right now:
+		//empty-until-ready is honest; the previous card's "similar cards"
+		//under the new card silently misattributes relations.
+		if (this._cardReferenceBlocksForCardID && this._card && this._card.id !== this._cardReferenceBlocksForCardID) {
+			this._cardReferenceBlocks = [];
+			this._cardReferenceBlocksForCardID = '';
+		}
+		this._scheduleReferenceBlocksUpdate(activeCardChanged);
+		//Use enriched card for display when not editing. While editing, avoid
+		//semantic enrichment on the keystroke path and keep the active card's
+		//previous NLP block only as a display fallback. Between a committed
+		//single-card save and its server confirmation, prefer the optimistic
+		//pending-save face over the (still-stale) active card, so the face
+		//never flashes back to the pre-edit value while the save round-trips.
+		const pendingSaveCard = selectPendingSaveCardForDisplay(state);
+		this._displayCard = this._editingCard ? this._editingCard : (pendingSaveCard || selectActiveCardEnriched(state));
+		this._displayCardPendingSave = !this._editingCard && Boolean(pendingSaveCard);
+		this._pageExtra = state.app.pageExtra;
 		this._cardModificationsPending = selectCardModificationPending(state);
+		this._saveEligible = selectCardSavesEligible(state);
+		this._corpusStatus = selectCorpusStatus(state);
+		this._durableCardMutationPending = durableCardMutationPending();
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
 		this._collectionNotFilteredToSelected = selectActiveCollectionNotFilteredToSelected(state);
@@ -877,13 +1151,70 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
-		this._collection = selectActiveCollection(state);
+
+		//Stale-while-revalidate instead of honest-empty: when the worker
+		//hasn't pushed a result for the CURRENT description yet, keep showing
+		//the last ready collection. For fast pushes (the common case) the
+		//swap is invisible; if the wait exceeds a short grace the drawer dims
+		//with an "updating" affordance, so stale content is labeled stale
+		//rather than blanking the list (the original wrong-then-right hazard
+		//was unlabeled stale content, not stale content per se).
+		const currentCollection = selectActiveCollection(state);
+		//A held stale collection must never survive an auth-scope change: on
+		//sign-out it could briefly keep rendering unpublished titles that the
+		//purge just removed from Redux.
+		const collectionScopeUid = selectUid(state);
+		if (collectionScopeUid !== this._lastCollectionScopeUid) {
+			this._lastCollectionScopeUid = collectionScopeUid;
+			this._lastReadyCollection = null;
+			this._collectionUpdating = false;
+		}
+		const activeCollectionReady = !corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state);
+		this._collectionPending = !activeCollectionReady;
+		if (activeCollectionReady) {
+			this._collection = currentCollection;
+			this._lastReadyCollection = currentCollection;
+			this._collectionUpdating = false;
+			if (this._collectionUpdatingTimeout) {
+				window.clearTimeout(this._collectionUpdatingTimeout);
+				this._collectionUpdatingTimeout = 0;
+			}
+		} else if (this._lastReadyCollection) {
+			this._collection = this._lastReadyCollection;
+			if (!this._collectionUpdating && !this._collectionUpdatingTimeout) {
+				this._collectionUpdatingTimeout = window.setTimeout(() => {
+					this._collectionUpdatingTimeout = 0;
+					this._collectionUpdating = true;
+				}, COLLECTION_UPDATING_GRACE_MS);
+			}
+		} else {
+			//Nothing ready yet this session. The transitional worker result is
+			//an empty placeholder with isFallback:false, so without this the
+			//drawer asserted a confident, undimmed "0 cards" for the whole
+			//pre-loadComplete window — while the stage beside it said
+			//"Loading…" — and then popped to 40,225. Mark it updating on the
+			//same grace timer used for a description change, so the branch's
+			//own dim + "updating…" affordance covers the longest wait rather
+			//than only the shortest one.
+			if (!this._collectionUpdating && !this._collectionUpdatingTimeout) {
+				this._collectionUpdatingTimeout = window.setTimeout(() => {
+					this._collectionUpdatingTimeout = 0;
+					this._collectionUpdating = true;
+				}, COLLECTION_UPDATING_GRACE_MS);
+			}
+			this._collection = currentCollection;
+		}
+
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.pendingReorder;
 		this._activeSectionId = selectActiveSectionId(state);
-		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+		//Raw cards finish installing before the worker's authoritative collection
+		//result arrives. Keep the honest loading placeholder during that short gap
+		//instead of flashing the false "No card by that name" error.
+		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state) &&
+			(!corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state));
 		this._sectionsAndTagsLoaded = selectSectionsAndTagsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
@@ -893,8 +1224,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 		this._suggestionsPanelOpen = selectSuggestionsOpen(state);
 
-		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
-		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
+		if (!this._editing) this._suggestedConcepts = null;
 
 		const lastWordCloudVersion = this._collectionWordCloudVersion;
 		this._collectionWordCloudVersion = selectCollectionWordCloudVersion(state);
@@ -932,15 +1262,21 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!e.metaKey && !e.ctrlKey) return false;
 		if (this._editing) return false;
 
-		if (e.key == 'm') {
+		if (pressedLetter(e) == 'm') {
 			//these action creators will fail if the user may not do these now.
+			//While sync is still verifying, createCard refuses via
+			//modifyCardFailure — which alerts. A HELD Cmd-M then produces one
+			//modal per repeat for the whole verification window, the same storm
+			//Round 7b removed from editingStart. Swallow the shortcut instead;
+			//the drawer's buttons are disabled and carry the explanation.
+			if (!this._saveEligible) return killEvent(e);
 			if (e.shiftKey) {
 				store.dispatch(createCard({cardType: 'working-notes'}));
 			} else {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}
 			return killEvent(e);
-		} else if (e.key == 'l') {
+		} else if (pressedLetter(e) == 'l') {
 			//Ctrl-Shift-L is a way to navigate to a URL in the web app without
 			//modifying the URL bar in the browser, which will lead to a full
 			//refresh.
@@ -948,8 +1284,13 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(askForPathToNavigateTo());
 				return killEvent(e);
 			}
-			//If you hold Alt then e.key will not be r
-		} else if (e.code == 'KeyR') {
+			//NOTE: an old comment here warned that holding Alt composes e.key
+			//away from 'r'. Measured on macOS Chrome: with Meta held, Option
+			//composition is suppressed and the event arrives as key:'r'
+			//(or 'R' with Shift). Every branch in this handler is behind an
+			//early `if (!e.metaKey && !e.ctrlKey) return`, so the composition
+			//case is unreachable — which is why comparing e.key is correct.
+		} else if (pressedLetter(e) == 'r') {
 			if (e.altKey) {
 				if (e.shiftKey) {
 					store.dispatch(navigateToRandomCard());
