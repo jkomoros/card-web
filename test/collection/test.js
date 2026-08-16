@@ -373,3 +373,139 @@ describe('sort/created sorts by created, not updated', () => {
 		assert.strictEqual(strippedLabel, realLabel);
 	});
 });
+
+//#736: the configurable-filter memo was dead (nothing ever assigned the
+//extras guard anything but null), so every configurable filter re-scanned the
+//whole corpus on every collection run. Turning it on is only safe because
+//extras is the complete EXPLICIT input surface of a configurable filter — but
+//the current date is an ambient input that is NOT in extras, and
+//relativeDateKey never reaches Collection. Without a day key in the memo key,
+//an idle tab would serve yesterday's answer to every relative-date filter.
+describe('configurable-filter memo invalidates across a local midnight', () => {
+	let CollectionDescription;
+	let Timestamp;
+
+	before(async () => {
+		({CollectionDescription} = await import('../../lib/src/collection_description.js'));
+		({Timestamp} = await import('firebase/firestore'));
+	});
+
+	//Same shape the relative-date suite uses to control "now".
+	const withFakeNow = (millis, fn) => {
+		const RealDate = Date;
+		global.Date = class extends RealDate {
+			constructor(...args) {
+				super(...(args.length ? args : [millis]));
+			}
+			static now() {
+				return millis;
+			}
+		};
+		try {
+			return fn();
+		} finally {
+			global.Date = RealDate;
+		}
+	};
+
+	it('recomputes a relative-date filter after the day rolls over', () => {
+		const DAY_ONE = new Date(2026, 5, 10, 15, 0).getTime();
+		const DAY_TWO = new Date(2026, 5, 11, 15, 0).getTime();
+		//Created on day one, in the morning.
+		const createdDayOne = Timestamp.fromMillis(new Date(2026, 5, 10, 9, 0).getTime());
+
+		const cards = {a: card('a', {created: createdDayOne})};
+		const state = {
+			cards,
+			sets: {main: ['a'], everything: ['a'], 'reading-list': []},
+			filters: {starred: {}, read: {}},
+		};
+		//ONE args object, reused across both runs, so `extras` identity is
+		//stable and only the ambient date differs — precisely the case the day
+		//key exists for.
+		const args = makeArgs(state);
+		const description = new CollectionDescription('everything', ['created/after/today']);
+
+		const dayOneIDs = withFakeNow(DAY_ONE, () => description.collection(args).finalSortedCards.map(c => c.id));
+		const dayTwoIDs = withFakeNow(DAY_TWO, () => description.collection(args).finalSortedCards.map(c => c.id));
+
+		//On day one the card was created today, so it matches.
+		assert.deepStrictEqual(dayOneIDs, ['a'], 'card created this morning should match created/after/today');
+		//On day two "today" has moved, so the same card must NOT match. If the
+		//memo lacked a day key it would return day one's answer here.
+		assert.deepStrictEqual(dayTwoIDs, [], 'after midnight the same card is no longer created today');
+	});
+});
+
+//The point of #736: prove the memo actually HITS now. Observed via a counting
+//getter on the field the configurable filter reads — with a dead memo the
+//filter re-scans the corpus on every run, so the count doubles.
+describe('configurable-filter memo actually caches', () => {
+	let CollectionDescription;
+	let Timestamp;
+
+	before(async () => {
+		({CollectionDescription} = await import('../../lib/src/collection_description.js'));
+		({Timestamp} = await import('firebase/firestore'));
+	});
+
+	it('does not re-scan the corpus when nothing changed', () => {
+		let reads = 0;
+		const created = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60);
+		const counting = card('a');
+		Object.defineProperty(counting, 'created', {
+			get() {
+				reads++;
+				return created;
+			},
+			enumerable: true,
+		});
+		const state = {
+			cards: {a: counting},
+			sets: {main: ['a'], everything: ['a'], 'reading-list': []},
+			filters: {starred: {}, read: {}},
+		};
+		//The SAME args object both times, so extras identity is stable — the
+		//condition under which the memo is allowed to hit.
+		const args = makeArgs(state);
+		const description = new CollectionDescription('everything', ['created/after/7-days-ago']);
+
+		assert.ok(description.collection(args).finalSortedCards.length >= 0);
+		const afterFirst = reads;
+		assert.ok(afterFirst > 0, 'the filter should have read the field at least once');
+
+		assert.ok(description.collection(args).finalSortedCards.length >= 0);
+		const afterSecond = reads;
+
+		assert.strictEqual(afterSecond, afterFirst, 'the second run must be served from the memo, not re-scanned');
+	});
+
+	it('does re-scan when the cards actually changed', () => {
+		let reads = 0;
+		const created = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60);
+		const makeCounting = (id) => {
+			const c = card(id);
+			Object.defineProperty(c, 'created', {
+				get() {
+					reads++;
+					return created;
+				},
+				enumerable: true,
+			});
+			return c;
+		};
+		const description = new CollectionDescription('everything', ['created/after/7-days-ago']);
+
+		const first = {a: makeCounting('a')};
+		const stateOne = {cards: first, sets: {main: ['a'], everything: ['a'], 'reading-list': []}, filters: {starred: {}, read: {}}};
+		assert.ok(description.collection(makeArgs(stateOne)).finalSortedCards.length >= 0);
+		const afterFirst = reads;
+
+		//A genuinely new cards map: the memo MUST NOT serve the old result.
+		const second = {a: makeCounting('a')};
+		const stateTwo = {cards: second, sets: stateOne.sets, filters: stateOne.filters};
+		assert.ok(description.collection(makeArgs(stateTwo)).finalSortedCards.length >= 0);
+
+		assert.ok(reads > afterFirst, 'changed cards must invalidate the memo');
+	});
+});

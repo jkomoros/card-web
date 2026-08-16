@@ -149,6 +149,9 @@ export class QueryEngine {
 	_setsForSections : Sections | null;
 	_setsForReadingList : CardID[] | null;
 	_sets : {[name : string] : CardID[]} | null;
+	_filtersForFilters : Filters | null;
+	_filtersForSelected : CardBooleanMap | null;
+	_cachedFilters : Filters | null;
 
 	constructor() {
 		this._cards = {};
@@ -167,6 +170,11 @@ export class QueryEngine {
 		this._setsForSections = null;
 		this._setsForReadingList = null;
 		this._sets = null;
+		//Guarded by identity of their inputs, so no explicit invalidation is
+		//needed anywhere _collectionState is replaced.
+		this._filtersForFilters = null;
+		this._filtersForSelected = null;
+		this._cachedFilters = null;
 	}
 
 	get cardCount() : number {
@@ -296,11 +304,27 @@ export class QueryEngine {
 
 	//Mirrors selectFilters: base filter membership plus the synthetic
 	//selected filter.
+	//
+	//The IDENTITY of what this returns matters, not just its value. It is the
+	//first argument to makeExtrasForFilterFunc, which memoizes on ===, and the
+	//resulting `extras` object is in turn the cache key for the
+	//configurable-filter memo (#736). This used to return a fresh object
+	//literal on every call, so `extras` was fresh on every runCollection and
+	//that memo could never hit — on the worker-served path, which is the
+	//DEFAULT and the entire case #736 is about. Enabling the memo without
+	//fixing this would have been pure bookkeeping.
 	_filters() : Filters {
-		return {
-			...this._collectionState.filters,
-			[SELECTED_FILTER_NAME]: this._collectionState.selectedCards
-		};
+		const filters = this._collectionState.filters;
+		const selected = this._collectionState.selectedCards;
+		if (!this._cachedFilters || this._filtersForFilters !== filters || this._filtersForSelected !== selected) {
+			this._cachedFilters = {
+				...filters,
+				[SELECTED_FILTER_NAME]: selected
+			};
+			this._filtersForFilters = filters;
+			this._filtersForSelected = selected;
+		}
+		return this._cachedFilters;
 	}
 
 	//The signed-in landing tab is the unfiltered everything set ordered by the

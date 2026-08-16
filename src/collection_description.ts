@@ -26,6 +26,10 @@ import {
 } from '../shared/typed_object.js';
 
 import {
+	relativeDateCacheKey
+} from './relative-date.js';
+
+import {
 	SetName,
 	SortName,
 	ViewMode,
@@ -487,18 +491,49 @@ const filterNameIsConfigurableFilter = (filterName : FilterName) : filterName is
 	return filterName.includes('/');
 };
 
+//This memo was DEAD from the day it was written: nothing ever assigned
+//memoizedConfigurableFiltersExtras anything but null, so the guard below was
+//always false, the cache was wiped on every call, and every configurable
+//filter re-scanned the whole corpus on every collection run (#736). Results
+//were being stored and never read.
+//
+//Turning it on is safe only because makeExtrasForFilterFunc is itself
+//memoized over all of its inputs, so a stable `extras` identity really does
+//mean "no filter input changed" — and extras is, by construction, the ENTIRE
+//explicit input surface a configurable filter can see (see
+//filterSetForFilterDefinitionItem, which passes nothing else).
+//
+//The one input NOT in extras is ambient: the current date. Relative-date
+//filters like `created/after/7-days-ago` resolve against local midnight, and
+//relativeDateKey reaches selectCollectionConstructorArguments but NOT
+//Collection, so extras identity survives a midnight rollover unchanged.
+//Keying on extras alone would therefore have served yesterday's answer to
+//every relative-date filter on an idle tab — trading a performance bug for a
+//correctness one. The day key closes that for DIRECT relative-date filters;
+//it is three getters and a template string, once per configurable filter.
+//
+//It does NOT close it for the wrapper filters — exclude/, combine/, expand/ —
+//which each hold their own memoize() keyed on extras identity alone, retained
+//by the never-evicted by-name cache in filters.ts. So
+//`exclude/created/after/today` still serves a pre-midnight answer. That is
+//PRE-EXISTING (it reproduces with this memo dead, i.e. on master) and is
+//tracked separately; it is called out here so nobody reads the paragraph
+//above as a guarantee it does not make.
 let memoizedConfigurableFiltersExtras : FilterExtras | null = null;
+let memoizedConfigurableFiltersDayKey = '';
 let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} = {};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
 const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras : FilterExtras) : ConfigurableFilterResult => {
-	if (memoizedConfigurableFiltersExtras == extras) {
+	const dayKey = relativeDateCacheKey();
+	if (memoizedConfigurableFiltersExtras === extras && memoizedConfigurableFiltersDayKey === dayKey) {
 		if (memoizedConfigurableFilters[name]) {
 			return memoizedConfigurableFilters[name];
 		}
 	} else {
-		memoizedConfigurableFiltersExtras = null;
+		memoizedConfigurableFiltersExtras = extras;
+		memoizedConfigurableFiltersDayKey = dayKey;
 		memoizedConfigurableFilters = {};
 	}
 

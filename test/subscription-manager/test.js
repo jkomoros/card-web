@@ -194,4 +194,32 @@ describe('SubscriptionManager', () => {
 			assert.strictEqual(pushes.length, 0);
 		});
 	});
+
+	//#736: the configurable-filter memo was dead, and enabling it alone would
+	//NOT have helped the path that matters. QueryEngine._filters() returned a
+	//fresh object literal per call, so the extras identity the memo keys on was
+	//fresh on every runCollection — and the worker-served path is the DEFAULT.
+	//These pin both halves.
+	describe('configurable-filter work is reused across flushes', () => {
+
+
+
+		it('keeps _filters() identity stable so extras can be memoized', () => {
+			const engine = new QueryEngine();
+			engine.updateCards({a: card('a'), b: card('b')}, []);
+			const identities = new Set([engine._filters(), engine._filters(), engine._filters()]);
+			assert.strictEqual(identities.size, 1, '_filters() must not return a fresh object per call');
+		});
+
+		//NOTE: deliberately NO test here asserting the memo avoids a corpus
+		//re-scan. Two such tests were written and DELETED: a counting getter on
+		//card.created fires during card PROCESSING (processCard spreads the card,
+		//which invokes the getter once and stores a plain value), not during
+		//filter evaluation — so they passed even with the memo entirely disabled.
+		//The memo's hit/miss behaviour is covered where it is genuinely
+		//observable, in test/collection, which filters over the raw cards map.
+		//What IS pinned here is the precondition that fix depends on: stable
+		//_filters() identity.
+	});
+
 });
