@@ -5,20 +5,18 @@ import {
 } from 'jsdom';
 
 import {
-	overrideDocument
+	overrideDocument,
+	getDocument as getSrcDocument
 } from '../../lib/src/document.js';
 
-//shared/ has its OWN document module with its own state. Overriding only src/
-//left shared's getDocument() returning null, so any shared/ helper under test
-//took its no-document branch — a regex approximation — while the browser takes
-//the DOM branch. innerTextForHTML's two paths disagree on inputs that matter
-//(entities like &thinsp; and &Tab; decode on one and not the other), so a test
-//could be green for the wrong reason (#733).
+//Redundant since #748 made src/document.ts a re-export of shared/document.ts —
+//this is now the same call as the one above. It was NOT redundant when they
+//held separate state: overriding only src/ left shared's getDocument() null, so
+//shared/ helpers under test took a no-document regex branch while the browser
+//took the DOM branch, and the two disagree. That was #733. Kept so this harness
+//survives a future re-split.
 import {
-	overrideDocument as overrideSharedDocument
-} from '../../lib/shared/document.js';
-
-import {
+	overrideDocument as overrideSharedDocument,
 	getDocument as getSharedDocument
 } from '../../lib/shared/document.js';
 
@@ -384,17 +382,44 @@ const BIG_GOOGLE_DOC_INPUT = `<meta charset='utf-8'><meta charset="utf-8"><b sty
 //does run without a DOM — 154 measured fallback calls there are fidelity, not
 //a bug. "Fixing" those two would make them lie about the worker.
 describe('the harness exercises the same document path the browser does', () => {
-	it('has overridden shared/document, not just src/document', () => {
-		//Asserted DIRECTLY rather than via observable behaviour. An earlier
-		//version of this test proved the point by decoding &thinsp; / &Tab;,
-		//which the DOM path handles and the regex fallback leaves literal. That
-		//worked only because those entities are absent from NAMED_ENTITIES
-		//(shared/util.ts) — a table whose stated purpose is DOM parity and which
-		//has been growing steadily toward it. Adding six entries to it makes the
-		//behavioural proxy pass with the override removed; the invariant itself
-		//cannot rot that way.
+	//#733 was this file overriding src/'s document but not shared/'s, back when
+	//those were two modules with separate state: shared/ helpers under test took
+	//a no-document REGEX FALLBACK while the browser takes the DOM path, and the
+	//two genuinely disagree, so a test could be green for the wrong reason.
+	//
+	//#748 then collapsed the duplicate — src/document.ts is a re-export now — and
+	//that made the original guard here ("shared's getDocument() is non-null")
+	//UNFALSIFIABLE by the failure it was written for: with one module,
+	//overrideDocument IS overrideSharedDocument, so dropping one call changes
+	//nothing. Measured, not assumed. Folded into one honest test rather than
+	//left standing as a guard that cannot fail.
+	//
+	//The audit rule, worth keeping written down: it is NOT "every suite touching
+	//shared/ must override it". It is MATCH THE THREAD YOU ARE MODELLING.
+	//test/query-engine and test/subscription-manager deliberately leave the
+	//document null, because nothing under src/worker/ calls overrideDocument and
+	//the worker genuinely runs without a DOM.
+	it('has a document, and src/ and shared/ resolve to the same one', () => {
 		assert.notStrictEqual(getSharedDocument(), null,
-			'shared/document must be overridden too, or shared/ helpers silently take their no-document fallback');
+			'no document at all means shared/ helpers take their no-document fallback');
+
+		//Inject a DISTINCT document through ONE module and observe it via the
+		//other. A plain identity check does not discriminate: the harness above
+		//overrides both with the same document, so getSrc() === getShared() holds
+		//even when they are separate modules — the first version of this test did
+		//exactly that and passed with the duplicate restored.
+		const other = new JSDOM('<p>distinct</p>').window.document;
+		const restore = getSrcDocument();
+		try {
+			overrideDocument(other);
+			assert.strictEqual(getSharedDocument(), other,
+				'a document injected through src/document must be visible through shared/document');
+		} finally {
+			overrideDocument(restore);
+			overrideSharedDocument(restore);
+		}
+		assert.strictEqual(getSrcDocument(), restore);
+		assert.strictEqual(getSharedDocument(), restore);
 	});
 
 	//The style/script fix is in normalizeBodyHTML, which runs on EVERY card

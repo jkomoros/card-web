@@ -8,9 +8,10 @@ import {
 	overrideDocument
 } from '../../lib/src/document.js';
 
-//shared/ has its own document module with its own state; overriding only src/
-//leaves shared's getDocument() null, so shared/ helpers under test take their
-//no-document fallback branch rather than the DOM path the browser runs (#733).
+//Now a no-op: #748 made src/document.ts a re-export of shared/document.ts, so
+//this and the override above are the same call. Kept deliberately, so this
+//harness still does the right thing if the two are ever re-split — which is
+//what #733 was, one harness forgetting the second call when they WERE split.
 import {
 	overrideDocument as overrideSharedDocument
 } from '../../lib/shared/document.js';
