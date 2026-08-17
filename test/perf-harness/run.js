@@ -1,4 +1,4 @@
-/*eslint-env node*/
+/*eslint-env node, es2020*/
 import {spawn} from 'child_process';
 import fs from 'fs';
 import {isDeepStrictEqual} from 'util';
@@ -344,6 +344,26 @@ const main = async () => {
 			console.log(`[run] GENERAL MULTI-EDIT: every UI-expressible change round-trip on ${multiEditCount} cards`);
 			const general = await page.evaluate(count => window.PERF_HARNESS.durableMultiEditRoundTrip(count), multiEditCount);
 			if (general.applyMs > 20000 || general.restoreMs > 20000) throw new Error('general multi-edit exceeded 20s gate: ' + JSON.stringify({applyMs: general.applyMs, restoreMs: general.restoreMs}));
+			//The LOCAL half, which Firestore cannot show us. A write transform
+			//that reaches Redux makes card.tags a FieldValue: every server
+			//assertion below still passes, and every consumer that iterates tags
+			//throws — which is exactly how this shipped. Note the pure add/remove
+			//phases: the mixed round trip above cannot catch it, because a diff
+			//carrying adds AND removes takes a different branch that was always
+			//correct.
+			const localFailures = [
+				['mixed round trip', general.localTags.mixedRoundTrip.nonArray, 'non-array local tags'],
+				['mixed round trip', general.localTags.mixedRoundTrip.wrongContents, 'local tags not restored'],
+				['pure add', general.localTags.afterPureAdd.nonArray, 'non-array local tags'],
+				['pure add', general.localTags.afterPureAdd.missing, 'added tag missing locally'],
+				['pure remove', general.localTags.afterPureRemove.nonArray, 'non-array local tags'],
+				['pure remove', general.localTags.afterPureRemove.stillPresent, 'removed tag still present locally'],
+			].filter(([, ids]) => ids.length);
+			if (localFailures.length) {
+				throw new Error('local card state is wrong after a dialog multi-edit: ' + localFailures
+					.map(([phase, ids, what]) => `${phase}: ${what} on ${ids.length} cards (e.g. ${ids.slice(0, 3).join(', ')})`)
+					.join('; '));
+			}
 			const generalSnapshots = await verifierDB.getAll(...general.ids.map(id => verifierDB.collection('cards').doc(id)));
 			for (const snapshot of generalSnapshots) {
 				const actual = snapshot.data();

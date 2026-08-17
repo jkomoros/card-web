@@ -274,3 +274,152 @@ describe('card-create executor (real MultiBatch against the emulator)', () => {
 		assert.deepEqual(queue.readPendingAuxWrites(), [], 'and it must clear the intent');
 	});
 });
+
+//--- Bulk import: what is TRUE at the moment it hands control back ----------
+//
+//The import ends by selecting every card it created and navigating there, and
+//the very next thing a user does is Edit All Cards. So the invariant that
+//matters is not "the cards were written" — it is "everything this import just
+//selected is present in THIS TAB". It was not: the import awaited only ids[0],
+//which is typically back long before the last card has even been committed, so
+//it returned with roughly half its selection still in flight. Measured on a
+//real 100-card import through the shipping stack: ~50 outstanding at hand-back.
+//
+//The suite has no Firestore listener, so this stands in for one — it delivers
+//the created cards into Redux the way the worker's delta listener would, one at
+//a time and deliberately staggered, and records what the selection looked like
+//at the exact instant the import declared success.
+describe('bulk import hand-back', () => {
+	let store;
+	let bulkCreateWorkingNotes;
+	let selectSelectedCardsMissingCount;
+
+	before(async () => {
+		const bootstrapped = await bootstrapApp();
+		store = bootstrapped.store;
+		//The import ends with a navigation, and the routing actions read the
+		//BARE globals rather than window.*. Set here rather than in the shared
+		//harness so no other suite's behavior changes.
+		globalThis.location = bootstrapped.dom.window.location;
+		globalThis.history = bootstrapped.dom.window.history;
+		//store.js registers only `app` and `data`; the import selects cards and
+		//navigates, so it needs these two as well.
+		store.addReducers({
+			collection: (await import('../../lib/src/reducers/collection.js')).default,
+			bulkImport: (await import('../../lib/src/reducers/bulk-import.js')).default,
+		});
+		bulkCreateWorkingNotes = (await import('../../lib/src/actions/data.js')).bulkCreateWorkingNotes;
+		selectSelectedCardsMissingCount = (await import('../../lib/src/selectors.js')).selectSelectedCardsMissingCount;
+	});
+
+	it('does not select a card it has not received yet', async function() {
+		this.timeout(120000);
+		clearAuxQueue();
+		clearHarnessAlerts();
+		store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
+		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {edit: true}});
+
+		const CARDS = 6;
+		const marker = 'bulk-handback-' + Date.now();
+		const bodies = Array.from({length: CARDS}, (_, i) => `<p>${marker} ${i}</p>`);
+
+		//Stand in for the delta listener: poll the server for the cards this
+		//import created and hand them to Redux one at a time. Staggered on
+		//purpose — simultaneous delivery is exactly the assumption ("they'll all
+		//come back in one batch anyway") that made the old code look correct.
+		const {getDocs, query, collection: coll, where} = firestore;
+		const delivered = new Set();
+		const deliverOne = async () => {
+			const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
+			for (const docSnapshot of snapshot.docs) {
+				const card = docSnapshot.data();
+				if (delivered.has(docSnapshot.id) || !String(card.body || '').includes(marker)) continue;
+				delivered.add(docSnapshot.id);
+				store.dispatch({type: 'UPDATE_CARDS', cards: {[docSnapshot.id]: {...card, id: docSnapshot.id}}, fetchType: 'unpublished'});
+				return;
+			}
+		};
+		const deliveryTimer = setInterval(() => { void deliverOne(); }, 60);
+
+		//The state AT hand-back, captured from the store rather than after the
+		//fact: by the time the await below returns, the stragglers have arrived
+		//and the bug is invisible.
+		let missingAtSuccess = null;
+		let selectedAtSuccess = null;
+		const unsubscribe = store.subscribe(() => {
+			if (missingAtSuccess !== null) return;
+			const state = store.getState();
+			if (state.bulkImport && state.bulkImport.open) return;
+			const selected = Object.keys(state.collection.selectedCards);
+			if (!selected.length) return;
+			selectedAtSuccess = selected.length;
+			missingAtSuccess = selectSelectedCardsMissingCount(state);
+		});
+
+		try {
+			await store.dispatch(bulkCreateWorkingNotes(bodies, {importer: 'google-docs-flat', importer_version: 1}));
+		} finally {
+			clearInterval(deliveryTimer);
+			unsubscribe();
+		}
+
+		assert.strictEqual(store.getState().data.cardModificationError, null,
+			`the import itself must succeed (alerts: ${JSON.stringify(harnessAlerts)})`);
+		assert.ok(selectedAtSuccess, 'the import must select the cards it created');
+		assert.strictEqual(missingAtSuccess, 0,
+			`every selected card must already be in this tab when the import hands back (${missingAtSuccess} of ${selectedAtSuccess} were not)`);
+		assert.strictEqual(selectedAtSuccess, CARDS, 'and all of them must be selected');
+	});
+
+	it('gives up on a card that never arrives instead of freezing the dialog', async function() {
+		this.timeout(120000);
+		clearAuxQueue();
+		clearHarnessAlerts();
+		store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
+		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {edit: true}});
+
+		const CARDS = 4;
+		const marker = 'bulk-stall-' + Date.now();
+		const bodies = Array.from({length: CARDS}, (_, i) => `<p>${marker} ${i}</p>`);
+
+		//Deliver all but one, forever. The import dialog is scrimmed and has no
+		//cancel, so the wait is a budget for how long the user stares at a frozen
+		//modal. Waiting the full per-card timeout here turned a two-second race
+		//into a measured 60.5s freeze whenever a single card was slow.
+		const {getDocs, query, collection: coll, where} = firestore;
+		const delivered = new Set();
+		const deliveryTimer = setInterval(() => {
+			if (delivered.size >= CARDS - 1) return;
+			void (async () => {
+				const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
+				for (const docSnapshot of snapshot.docs) {
+					const card = docSnapshot.data();
+					if (delivered.has(docSnapshot.id) || !String(card.body || '').includes(marker)) continue;
+					if (delivered.size >= CARDS - 1) return;
+					delivered.add(docSnapshot.id);
+					store.dispatch({type: 'UPDATE_CARDS', cards: {[docSnapshot.id]: {...card, id: docSnapshot.id}}, fetchType: 'unpublished'});
+					return;
+				}
+			})();
+		}, 50);
+
+		const started = Date.now();
+		try {
+			await store.dispatch(bulkCreateWorkingNotes(bodies, {importer: 'google-docs-flat', importer_version: 1}));
+		} finally {
+			clearInterval(deliveryTimer);
+		}
+		const elapsed = Date.now() - started;
+
+		//The bound is 15s; allow generous slack for a loaded machine while still
+		//failing loudly if the per-card 60s timeout is what governs.
+		assert.ok(elapsed < 40000, `the import must not hold its modal for the full per-card timeout (took ${elapsed}ms)`);
+		assert.strictEqual(Object.keys(store.getState().collection.selectedCards).length, CARDS - 1,
+			'only the cards that actually arrived may be selected');
+		//The report is deferred a tick on purpose, so it cannot block the
+		//dispatch that closes the dialog (the queued-cards report does the same).
+		await new Promise(resolve => setTimeout(resolve, 50));
+		assert.ok(harnessAlerts.some(message => /have not synced back to this tab/.test(message)),
+			`the user must be told which cards are missing (got ${JSON.stringify(harnessAlerts)})`);
+	});
+});

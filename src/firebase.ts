@@ -6,6 +6,9 @@ import { initializeApp } from 'firebase/app';
 import {
 	serverTimestamp,
 	deleteField,
+	arrayUnion,
+	arrayRemove,
+	FieldValue,
 	Timestamp,
 	initializeFirestore,
 	persistentLocalCache,
@@ -44,6 +47,10 @@ import {
 import {
 	FirestoreLeafValue
 } from './types.js';
+
+import {
+	ArrayTransform
+} from '../shared/card_write.js';
 
 export let DEV_MODE = false;
 //Deliberately only do devmode if the host is localhost. If you want it
@@ -220,6 +227,45 @@ export const serverTimestampSentinel = () : Timestamp => {
 	vendedTimestamps.set(result, true);
 	return result;
 };
+
+//--- Array transforms -------------------------------------------------------
+//An arrayUnion/arrayRemove sentinel does carry its elements in an enumerable
+//`_elements` property, but that name is internal to the SDK and covered by no
+//compatibility promise. multi_batch.ts already takes that bet on `_methodName`
+//— with an explicit "very tied to the implementation" caveat AND a startup
+//validity check that degrades batch sizes when it stops holding. Rather than
+//add a second such dependency (one whose failure would be silent rather than
+//degrading), vend the transforms through here and remember their elements,
+//exactly as serverTimestampSentinel does for timestamps.
+//
+//Anything that materializes a firebase update onto a local card object
+//(applyCardFirebaseUpdate, and hence every optimistic echo) can then resolve
+//the transform instead of storing the sentinel object as the field's value.
+const vendedArrayTransforms : WeakMap<object, ArrayTransform> = new WeakMap();
+
+export const arrayUnionSentinel = (...elements : unknown[]) : FieldValue => {
+	const result = arrayUnion(...elements);
+	vendedArrayTransforms.set(result, {union: true, elements});
+	return result;
+};
+
+export const arrayRemoveSentinel = (...elements : unknown[]) : FieldValue => {
+	const result = arrayRemove(...elements);
+	vendedArrayTransforms.set(result, {union: false, elements});
+	return result;
+};
+
+export const asArrayTransform = (value : unknown) : ArrayTransform | null => {
+	if (!value || typeof value !== 'object') return null;
+	return vendedArrayTransforms.get(value as object) || null;
+};
+
+//Every Firestore transform is a FieldValue, so this catches the ones we did not
+//vend (a raw arrayUnion, or a transform type that does not exist yet) without
+//depending on any SDK internal. Timestamp sentinels are NOT FieldValues here:
+//serverTimestampSentinel vends a real Timestamp, and a literal serverTimestamp()
+//is caught by isServerTimestampSentinel before this is consulted.
+export const isUnmaterializableSentinel = (value : unknown) : boolean => value instanceof FieldValue;
 
 export const isFirestoreTimestamp = (value : FirestoreLeafValue) : boolean => value instanceof Timestamp;
 

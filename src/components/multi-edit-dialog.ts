@@ -53,6 +53,7 @@ import {
 	selectTagInfosForCards,
 	selectMultiEditReferencesDiff,
 	selectSelectedCards,
+	selectSelectedCardsMissingCount,
 	selectCardModificationPending,
 	selectBulkTagOperationProgress,
 	selectCardModificationError,
@@ -130,6 +131,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	@state()
 		_saveEligible: boolean;
 
+	//Selected cards this tab does not hold yet. A bulk import selects its cards
+	//as soon as they are written, so opening this dialog immediately afterwards
+	//is a normal way to land here; the corpus usually catches up within a couple
+	//of seconds.
+	@state()
+		_missingSelectedCount: number;
+
 	@state()
 		_corpusStatus: CorpusStatus;
 
@@ -173,13 +181,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		_selectedCards: Card[];
 
 	@state()
-	_cardModificationPending: boolean;
+		_cardModificationPending: boolean;
 
 	@state()
-	_bulkTagProgress: BulkTagOperationProgress | null;
+		_bulkTagProgress: BulkTagOperationProgress | null;
 
 	@state()
-	_cardModificationError: Error | null;
+		_cardModificationError: Error | null;
 
 	@state()
 		_offline: boolean;
@@ -222,6 +230,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				flex-direction: row;
 				justify-content:flex-end;
 			}
+
+			p.waiting {
+				color: var(--app-warning-color, #CC0000);
+				font-size: 0.85em;
+				margin: 0.5em 0 0 0;
+			}
 		`
 	];
 
@@ -257,12 +271,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 				<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
 					${this._offline
-						? 'Waiting for a connection to save. The target list is saved in this browser and will resume here.'
-						: this._bulkTagProgress
-							? html`<span>${this._bulkTagProgress.description}: ${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}…
+		? 'Waiting for a connection to save. The target list is saved in this browser and will resume here.'
+		: this._bulkTagProgress
+			? html`<span>${this._bulkTagProgress.description}: ${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}…
 								<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
 								<small>Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.</small></span>`
-							: 'Saving selected cards…'}
+			: 'Saving selected cards…'}
 				</div>
 			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
 			<select @change=${this._handleAddReference}>
@@ -342,12 +356,18 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 					${this._selectedCards.map(card => html`<li><card-link auto='title' card='${card.id}' .noNavigate=${true}></card-link></li>`)}
 				</ul>
 			</details>
+			${this._missingSelectedCount ? html`<p class='waiting' role='status' aria-live='polite'>
+				Waiting for ${this._missingSelectedCount} more of the
+				${this._selectedCards.length + this._missingSelectedCount} selected cards to finish loading.
+				Saving now would quietly skip them, so Save is held until they arrive — this normally takes a
+				moment right after a bulk import.
+			</p>` : ''}
 			<div class='buttons'>
 				<!-- Title on the wrapper: disabled controls do not fire hover
 				events in Chrome/Safari, so a title on the button is invisible
 				in precisely the disabled state it explains. -->
-				<span class='reason' title=${this._saveEligible ? 'Save changes' : blockedReason(this._corpusStatus, SAVE_VERB)}>
-					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<span class='reason' title=${this._missingSelectedCount ? `${this._missingSelectedCount} selected cards have not loaded yet` : this._saveEligible ? 'Save changes' : blockedReason(this._corpusStatus, SAVE_VERB)}>
+					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible || Boolean(this._missingSelectedCount)} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 				</span>
 			</div>
 			</div>
@@ -521,6 +541,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._todoDisablements = selectMultiEditAddTODODisablements(state);
 		this._published = selectMultiEditPublished(state);
 		this._selectedCards = selectSelectedCards(state);
+		this._missingSelectedCount = selectSelectedCardsMissingCount(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._bulkTagProgress = selectBulkTagOperationProgress(state);
 		this._cardModificationError = selectCardModificationError(state);

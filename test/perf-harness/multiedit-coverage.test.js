@@ -39,6 +39,38 @@ describe('multi-edit acceptance coverage', () => {
 		assert.match(roundTrip, /published: false/i, 'unpublish is not exercised');
 	});
 
+	//The gate only asserts what it is asked to. These three pin the parts that
+	//exist because the shipped bug was invisible to everything else: the arm has
+	//to RUN in the ship gate, the round trip has to open the dialog, and it has
+	//to exercise a PURE tag add — a diff carrying adds and removes together
+	//takes a branch that was always correct and cannot see the defect.
+	it('runs the multi-edit arm in the ship gate, not just on request', () => {
+		const pkg = JSON.parse(read('package.json'));
+		assert.match(pkg.scripts['perf:local'], /--test-multiedit\b/,
+			'perf:local must pass --test-multiedit, or the multi-edit assertions below never run');
+	});
+
+	it('opens the multi-edit dialog for the round trip', () => {
+		const harness = read('src/perf-harness-api.ts');
+		const roundTripStart = harness.indexOf('durableMultiEditRoundTrip: async');
+		const roundTrip = harness.slice(roundTripStart, harness.indexOf('\n\t\t},\n\t};', roundTripStart));
+		assert.match(roundTrip, /doSelectCards\(/, 'the round trip must select the cards a user would have selected');
+		assert.match(roundTrip, /openMultiEditDialog\(\)/,
+			'the round trip must open the dialog: its selectors run on every dispatch and no other layer sees them');
+	});
+
+	it('exercises a PURE tag add and remove, and checks the resulting local card', () => {
+		const harness = read('src/perf-harness-api.ts');
+		const roundTripStart = harness.indexOf('durableMultiEditRoundTrip: async');
+		const roundTrip = harness.slice(roundTripStart, harness.indexOf('\n\t\t},\n\t};', roundTripStart));
+		assert.match(roundTrip, /add_tags: \[pureAddTag\]/, 'a pure tag ADD must be exercised');
+		assert.match(roundTrip, /remove_tags: \[pureAddTag\]/, 'a pure tag REMOVE must be exercised');
+		assert.match(roundTrip, /Array\.isArray/, 'the local card\'s tags shape must be checked');
+		const runner = read('test/perf-harness/run.js');
+		assert.match(runner, /localTags\.afterPureAdd/, 'the runner must assert on the pure-add local state');
+		assert.match(runner, /localTags\.afterPureRemove/, 'the runner must assert on the pure-remove local state');
+	});
+
 	it('enforces the 20 second ceiling for both bulk paths', () => {
 		const runner = read('test/perf-harness/run.js');
 		assert.match(runner, /result\.addMs > 20000 \|\| result\.removeMs > 20000/);

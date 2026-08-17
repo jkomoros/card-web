@@ -20,7 +20,9 @@ import {
 	db,
 	deepEqualIgnoringTimestamps,
 	serverTimestampSentinel,
-	isServerTimestampSentinel
+	isServerTimestampSentinel,
+	arrayUnionSentinel,
+	arrayRemoveSentinel
 } from '../firebase.js';
 
 import {
@@ -257,6 +259,7 @@ import {
 	CardFetchType,
 	CardFlags,
 	Filters,
+	FirestoreLeafValue,
 } from '../types.js';
 
 import {
@@ -318,6 +321,13 @@ let unsubscribeFromStore : (() => void) | null = null;
 //silently never ran. Bounded, and it rejects rather than resolving with
 //nothing, so callers take their existing failure paths.
 const WAIT_FOR_CARD_TIMEOUT_MS = 60 * 1000;
+
+//How long a bulk import will hold its (scrimmed, inert, cancel-less) dialog
+//waiting for the cards it just created to sync back. Deliberately far below
+//WAIT_FOR_CARD_TIMEOUT_MS: this is a budget for how long the user stares at a
+//frozen modal, not for how long a card may legitimately take to arrive. See
+//the call site in bulkCreateWorkingNotes.
+const BULK_IMPORT_ARRIVAL_TIMEOUT_MS = 15 * 1000;
 
 //returns a promise that will be resolved when a card with that ID exists, returning the card.
 export const waitForCardToExist = (cardID : CardID, timeoutMs = WAIT_FOR_CARD_TIMEOUT_MS) => {
@@ -1561,9 +1571,21 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 	// intentions are safely expressible as Firestore transforms and dotted
 	// fields. Mixed tag removals/additions are emitted as two ordered writes in
 	// the same atomic batch below, rather than replacing the whole array.
+	//
+	// The WRITE and the ECHO want opposite things from a tag change. The write
+	// must be a transform (a stale complete array would clobber a concurrent tag
+	// edit from another device); the echo must be a real array (a FieldValue in
+	// card.tags throws in every consumer that iterates it). The mixed branch
+	// below always understood this — it kept cardUpdateObject intact and
+	// stripped `tags` from the write. The pure add/remove case did the opposite,
+	// overwriting cardUpdateObject.tags with the sentinel that then reached
+	// Redux, and that same object also fed the NLP fingerprint computed from
+	// tempUpdatedCard below. So cardUpdateObject now stays materialized in every
+	// branch, and the transform is applied to a copy at write time.
 	const hasMixedTagChanges = Boolean(update.add_tags?.length && update.remove_tags?.length);
-	if (update.add_tags?.length && !update.remove_tags?.length) cardUpdateObject.tags = arrayUnion(...update.add_tags);
-	if (update.remove_tags?.length && !update.add_tags?.length) cardUpdateObject.tags = arrayRemove(...update.remove_tags);
+	let tagWriteTransform : FirestoreLeafValue | undefined = undefined;
+	if (update.add_tags?.length && !update.remove_tags?.length) tagWriteTransform = arrayUnionSentinel(...update.add_tags);
+	if (update.remove_tags?.length && !update.add_tags?.length) tagWriteTransform = arrayRemoveSentinel(...update.remove_tags);
 	if (update.auto_todo_overrides_enablements?.length || update.auto_todo_overrides_disablements?.length || update.auto_todo_overrides_removals?.length) {
 		delete cardUpdateObject.auto_todo_overrides;
 		for (const todo of update.auto_todo_overrides_enablements || []) cardUpdateObject[`auto_todo_overrides.${todo}`] = true;
@@ -1617,12 +1639,12 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 			}
 		}
 
-			//Add NLP data to card update
-			cardUpdateObject.nlp_tokens = nlpTokens;
-			cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
-			cardUpdateObject.nlp_source_fingerprint = nlpSourceFingerprintForCard(tempUpdatedCard);
-			cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
-		}
+		//Add NLP data to card update
+		cardUpdateObject.nlp_tokens = nlpTokens;
+		cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
+		cardUpdateObject.nlp_source_fingerprint = nlpSourceFingerprintForCard(tempUpdatedCard);
+		cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
+	}
 
 	//A prior card in this multi-edit may already have changed this card's
 	//inbound references. Compose the visible echo on top of that state while
@@ -1653,8 +1675,14 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		const cardWriteObject = {...cardUpdateObject};
 		delete cardWriteObject.tags;
 		batch.update(cardRef, cardWriteObject);
-		batch.update(cardRef, {tags: arrayRemove(...(update.remove_tags || [])), updated: serverTimestamp()});
-		batch.update(cardRef, {tags: arrayUnion(...(update.add_tags || [])), updated: serverTimestamp()});
+		batch.update(cardRef, {tags: arrayRemoveSentinel(...(update.remove_tags || [])), updated: serverTimestamp()});
+		batch.update(cardRef, {tags: arrayUnionSentinel(...(update.add_tags || [])), updated: serverTimestamp()});
+	} else if (tagWriteTransform !== undefined) {
+		// One write, exactly as before: substituting the transform for the
+		// materialized array here rather than adding a second update keeps the
+		// per-card operation count (and therefore MultiBatch's atomic-group
+		// sizing) unchanged.
+		batch.update(cardRef, {...cardUpdateObject, tags: tagWriteTransform});
 	} else {
 		batch.update(cardRef, cardUpdateObject);
 	}
@@ -2132,9 +2160,10 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//Tell card-view to expect a new card to be loaded, so the machinery to wait
 	//for the new cards works.
 	dispatch({
+		//Only the first id: this is card-view's "a new card is coming" hint, not
+		//the completeness gate. The gate is the Promise.allSettled below, which
+		//waits for every card.
 		type: EXPECT_NEW_CARD,
-		//We'll only tell it to expect the first one, since they'll all come
-		//back in one batch anyway.
 		ID: firstID,
 		cardType: 'working-notes',
 		navigate: false,
@@ -2169,18 +2198,48 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		return;
 	}
 
-	try {
-		await waitForCardToExist(firstID);
-	} catch (err) {
-		//The cards were written; they just have not come back yet. Say so
-		//rather than leaving BULK_IMPORT_PENDING latched forever.
-		dispatch({type: BULK_IMPORT_FAILURE, error: err instanceof Error ? err.message : String(err)});
+	//WAIT FOR ALL OF THEM, not just the first. The old code waited on ids[0]
+	//and justified it with "they'll all come back in one batch anyway" — which
+	//is not true and was never true: the cards are committed with bounded
+	//concurrency, so card 1 is typically back through the worker's delta
+	//listener long before card 100 has even been written, and that first await
+	//then returns instantly. Handing control back there selected 100 cards
+	//while ~half of them were still in flight, which is the state Edit All
+	//Cards used to break in. (One measurement, emulator, 100-card import:
+	//~50 outstanding at hand-back, all present ~1.8s later. Indicative of the
+	//shape, not a budget.)
+	//
+	//allSettled, not all: a card that never arrives must not discard the ones
+	//that did. The waiters all start together, so their shared timeout is an
+	//aggregate deadline — and it is a UX budget, not a sync budget. The import
+	//dialog is scrimmed and inert for the whole wait, so the default 60s would
+	//trade a two-second race for a minute-long freeze whenever ONE card is slow
+	//(measured: 60.5s with a single card withheld). A card that lands after the
+	//deadline is not lost — it is in the corpus, just not in this selection, and
+	//the user is told below.
+	const arrivals = await Promise.allSettled(ids.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS)));
+	const arrivedIDs = ids.filter((_, index) => arrivals[index].status === 'fulfilled');
+	if (!arrivedIDs.length) {
+		//Nothing came back at all — the same failure the single wait reported,
+		//with the same message so the recovery advice does not change.
+		const firstRejection = arrivals.find(arrival => arrival.status === 'rejected');
+		const reason = firstRejection && firstRejection.status === 'rejected' ? firstRejection.reason : null;
+		dispatch({type: BULK_IMPORT_FAILURE, error: reason instanceof Error ? reason.message : String(reason)});
 		return;
+	}
+	if (arrivedIDs.length < ids.length) {
+		//The cards ARE written; this tab just has not seen them. Select what we
+		//have (so the multi-edit it is about to offer covers exactly what it
+		//says) and tell the user about the rest rather than silently selecting
+		//IDs that will never resolve.
+		const missing = ids.length - arrivedIDs.length;
+		console.warn(`${missing} of ${ids.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms`);
+		if (typeof window !== 'undefined') window.setTimeout(() => alert(`${missing} of ${ids.length} imported cards were created but have not synced back to this tab yet, so they are not selected. They are safe on the server; they should appear shortly, or after a reload.`), 0);
 	}
 
 	dispatch(clearSelectedCards());
-	dispatch(doSelectCards(ids));
-	
+	dispatch(doSelectCards(arrivedIDs));
+
 	dispatch({
 		type: BULK_IMPORT_SUCCESS
 	});

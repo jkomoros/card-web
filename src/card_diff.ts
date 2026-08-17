@@ -61,6 +61,8 @@ import {
 	isDeleteSentinel,
 	isServerTimestampSentinel,
 	currentTimestamp,
+	asArrayTransform,
+	isUnmaterializableSentinel,
 } from './firebase.js';
 
 import {
@@ -501,6 +503,8 @@ const clientSentinels : SentinelConfig = {
 	isDeleteSentinel,
 	isServerTimestampSentinel,
 	currentTimestamp,
+	asArrayTransform,
+	isUnmaterializableSentinel,
 };
 
 //applyCardFirebaseUpdate takes a firebaseUpdate and applies it to baseCard.

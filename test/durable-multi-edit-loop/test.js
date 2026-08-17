@@ -35,7 +35,11 @@ const app = await bootstrapApp();
 const {db, store, uid: UID, firestore} = app;
 const {doc, getDoc, setDoc, getDocs, collection} = firestore;
 
-const {modifyCardsWithDurableMultiEdit} = await import('../../lib/src/actions/data.js');
+const {modifyCardsWithDurableMultiEdit, modifyCardWithBatch} = await import('../../lib/src/actions/data.js');
+const {MultiBatch} = await import('../../lib/src/multi_batch.js');
+const {applyCardFirebaseUpdate} = await import('../../lib/src/card_diff.js');
+const {arrayUnionSentinel} = await import('../../lib/src/firebase.js');
+const {arrayUnion: rawArrayUnion} = await import('firebase/firestore');
 
 const MULTI_EDIT_KEY = 'card-web-pending-multi-edit-v1';
 
@@ -321,5 +325,133 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 		assert.ok(failure, 'the save must be reported as FAILED, not silently succeed');
 		assert.ok(/no longer exists on the server/.test(String(failure.message || failure)),
 			`the message must say the card is gone (got ${String(failure.message || failure)})`);
+	});
+
+	//--- What the LOCAL copy looks like after a tag edit --------------------
+	//A tag change is written as a Firestore array transform so a concurrent tag
+	//edit from another device is not clobbered by our stale complete array. The
+	//local echo used to be built from that same object, so Redux ended up with
+	//an ArrayUnionFieldValueImpl in card.tags. Nothing here failed; the damage
+	//landed on the next reader that iterated tags — in production, the
+	//multi-edit dialog's own tag-union selector, throwing out of store.dispatch
+	//inside this very loop and aborting it with a chunk still to go.
+	//
+	//test/card-echo pins the shared materialization rule. This pins the real
+	//client SDK wiring: the actual arrayUnion sentinel, the actual
+	//clientSentinels config, the actual thunk.
+	const storeTags = (id) => store.getState().data.cards[id].tags;
+
+	//Two things a tag edit needs that the other cases do not: permission
+	//(getUserMayEditTag) and an existing tags/{tag} document, because the
+	//denormalized mirror write is an update() and update() on a missing doc
+	//fails the whole batch. Both are torn back down so no later case inherits
+	//them.
+	const seedTags = (names) => Promise.all(names.map(name =>
+		setDoc(doc(db, 'tags', name), {cards: [], start_cards: [], title: name, color: '#ffffff', updated: new Date()})));
+
+	const withTagEditPermission = async (tagNames, body) => {
+		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {edit: true}});
+		await seedTags(tagNames);
+		try {
+			await body();
+		} finally {
+			store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {}});
+		}
+	};
+
+	it('leaves a real ARRAY in the local card after adding tags', async () => { await withTagEditPermission(['already-here', 'added-one', 'added-two'], async () => {
+		const card = await seedCard('echo-add', {tags: ['already-here']});
+		putCardsInStore([card]);
+
+		await store.dispatch(modifyCardsWithDurableMultiEdit([card], {add_tags: ['added-one', 'added-two']}));
+
+		const tags = storeTags(card.id);
+		assert.ok(Array.isArray(tags),
+			`local card.tags must be an array, not a write instruction (got ${Object.getPrototypeOf(tags)?.constructor?.name})`);
+		assert.deepStrictEqual([...tags].sort(), ['added-one', 'added-two', 'already-here']);
+		//And nothing iterating it may throw — that is the actual failure mode.
+		assert.doesNotThrow(() => [...tags]);
+	});
+	});
+
+	it('leaves a real ARRAY in the local card after removing tags', async () => { await withTagEditPermission(['keep-me', 'drop-me'], async () => {
+		const card = await seedCard('echo-remove', {tags: ['keep-me', 'drop-me']});
+		putCardsInStore([card]);
+
+		await store.dispatch(modifyCardsWithDurableMultiEdit([card], {remove_tags: ['drop-me']}));
+
+		const tags = storeTags(card.id);
+		assert.ok(Array.isArray(tags), 'local card.tags must be an array after a removal too');
+		assert.deepStrictEqual([...tags], ['keep-me']);
+	});
+	});
+
+	//REGRESSION GUARD, not a bug-catcher: this passes against the original
+	//broken code too, because that code also wrote a transform. It exists so the
+	//fix for the echo cannot be "simplified" into sending the whole array.
+	it('still writes a TRANSFORM, so a concurrent tag change survives', async () => { await withTagEditPermission(['original', 'from-another-device', 'added-here'], async () => {
+		//WHY the write cannot simply send the materialized array. This drives
+		//modifyCardWithBatch directly with a deliberately STALE base card,
+		//because the chunk loop above re-reads each card authoritatively before
+		//planning — which hides the difference: a whole-array write built from a
+		//fresh read happens to contain the concurrent tag too. The real window
+		//is between that read and the commit, and a transform is what closes it.
+		const card = await seedCard('echo-concurrent', {tags: ['original']});
+		putCardsInStore([card]);
+		//Another device adds a tag. Our base card still says ['original'].
+		await setDoc(doc(db, 'cards', card.id), {...card, tags: ['original', 'from-another-device']});
+
+		const batch = new MultiBatch(db);
+		await modifyCardWithBatch(store.getState(), card, {add_tags: ['added-here']}, false, batch);
+		await batch.commit();
+
+		const server = (await getDoc(doc(db, 'cards', card.id))).data().tags;
+		assert.deepStrictEqual([...server].sort(), ['added-here', 'from-another-device', 'original'],
+			'the concurrent tag must survive, which only a transform guarantees');
+	});
+	});
+
+	//The CLIENT sentinel config itself, not a stand-in. test/card-echo pins the
+	//shared materialization rule with a fake config, and the thunk cases above
+	//no longer reach the transform branch at all — after the call-site fix,
+	//cardUpdateObject.tags is always a materialized array, so nothing hands
+	//applyCardFirebaseUpdate a transform any more. That makes the sentinel layer
+	//a GUARD for call sites that do not use the vending wrappers, and a guard
+	//with no test is a guess. These two cases call it directly with the real
+	//src/firebase.ts sentinels.
+	it('materializes a VENDED array transform into a real array', () => {
+		const card = {...harnessWireCard('sentinel-vended', UID), id: 'sentinel-vended', tags: ['already-here']};
+		const updated = applyCardFirebaseUpdate(card, {tags: arrayUnionSentinel('added')});
+		assert.ok(Array.isArray(updated.tags), 'a vended transform must resolve to an array');
+		assert.deepStrictEqual([...updated.tags].sort(), ['added', 'already-here']);
+		assert.deepStrictEqual(card.tags, ['already-here'], 'and must not mutate the card it was given');
+	});
+
+	it('REFUSES to store a raw SDK transform, leaving the field stale instead', () => {
+		//A call site that bypasses the vending wrappers. Stale is recoverable —
+		//the server echo repairs it moments later. A FieldValue in the field is
+		//not: the next reader that iterates it throws.
+		const card = {...harnessWireCard('sentinel-raw', UID), id: 'sentinel-raw', tags: ['already-here']};
+		const updated = applyCardFirebaseUpdate(card, {tags: rawArrayUnion('added')});
+		assert.ok(Array.isArray(updated.tags), 'a card must never end up holding a FieldValue');
+		assert.deepStrictEqual(updated.tags, ['already-here'], 'the field stays at its previous value');
+	});
+
+	//REGRESSION GUARD, not a bug-catcher: the mixed branch was always correct
+	//(it kept cardUpdateObject intact and stripped `tags` from the write). It is
+	//here so the two branches cannot drift apart again — that asymmetry is the
+	//whole reason the pure add/remove case was broken and unnoticed.
+	it('leaves a real ARRAY when adds and removes are mixed', async () => { await withTagEditPermission(['keep-me', 'drop-me', 'added-one'], async () => {
+		const card = await seedCard('echo-mixed', {tags: ['keep-me', 'drop-me']});
+		putCardsInStore([card]);
+
+		await store.dispatch(modifyCardsWithDurableMultiEdit([card], {add_tags: ['added-one'], remove_tags: ['drop-me']}));
+
+		const tags = storeTags(card.id);
+		assert.ok(Array.isArray(tags), 'the mixed branch must materialize too');
+		assert.deepStrictEqual([...tags].sort(), ['added-one', 'keep-me']);
+		const server = (await getDoc(doc(db, 'cards', card.id))).data().tags;
+		assert.deepStrictEqual([...server].sort(), ['added-one', 'keep-me']);
+	});
 	});
 });

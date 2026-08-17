@@ -65,7 +65,23 @@ export interface SentinelConfig {
 	isDeleteSentinel: (val: unknown) => boolean;
 	isServerTimestampSentinel: (val: unknown) => boolean;
 	currentTimestamp: () => unknown;
+	// An array transform (arrayUnion/arrayRemove) the caller vended, decoded
+	// back into the elements it carries, or null for anything else. A card
+	// object materialized from an update must end up with a real array, never
+	// a transform object — see setFirebaseValueOnObj. Optional: configs whose
+	// updates never carry array transforms may omit it.
+	asArrayTransform?: (val: unknown) => ArrayTransform | null;
+	// True for a sentinel/transform this config cannot materialize. Such a
+	// value must never be written into a card object, so setFirebaseValueOnObj
+	// leaves the previous value in place rather than poisoning the card.
+	isUnmaterializableSentinel?: (val: unknown) => boolean;
 }
+
+export type ArrayTransform = {
+	// True for arrayUnion, false for arrayRemove.
+	union: boolean;
+	elements: unknown[];
+};
 
 // Default sentinel config that doesn't detect any sentinels (safe for
 // contexts where sentinels won't appear in the data).
@@ -713,6 +729,31 @@ export const setFirebaseValueOnObj = (obj : {[field : string]: unknown}, fieldPa
 		}
 		if (sentinels.isServerTimestampSentinel(value)) {
 			obj[firstFieldPart] = sentinels.currentTimestamp();
+			return;
+		}
+		// An array transform is a WRITE instruction, not a value. The server
+		// resolves it against whatever it holds; locally we resolve it against
+		// what we hold, which is what latency compensation would have shown.
+		// Storing the transform object itself instead produced a card whose
+		// `tags` was a FieldValue — iterating it threw everywhere, including
+		// inside the multi-edit dialog's own selectors mid-save.
+		const transform = sentinels.asArrayTransform ? sentinels.asArrayTransform(value) : null;
+		if (transform) {
+			const existing = obj[firstFieldPart];
+			const base = Array.isArray(existing) ? existing : [];
+			obj[firstFieldPart] = transform.union
+				? arrayUnionUtil(base, transform.elements)
+				: arrayRemoveUtil(base, transform.elements);
+			return;
+		}
+		// A sentinel we cannot resolve locally. Refusing the assignment leaves
+		// the field stale until the server echo arrives, which is a recoverable
+		// wrong; writing the sentinel is not, because every later reader of the
+		// field then throws. Deliberately not an exception: this runs inside the
+		// save path, and throwing here would abort the very commit that is
+		// about to make the field correct.
+		if (sentinels.isUnmaterializableSentinel && sentinels.isUnmaterializableSentinel(value)) {
+			console.warn(`Refusing to materialize an unresolvable sentinel into card field '${firstFieldPart}'; it will stay stale until the server echo arrives.`);
 			return;
 		}
 		obj[firstFieldPart] = value;

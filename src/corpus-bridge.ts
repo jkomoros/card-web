@@ -1081,12 +1081,40 @@ const maybeRequestReconciliation = () => {
 	post({type: 'requestCorpusIDs', generation});
 };
 
+//A store.dispatch runs every connected component's stateChanged synchronously,
+//so any component — or any selector it calls — can throw back into whoever
+//dispatched. That is survivable for a click handler and not survivable here:
+//the worker sends each change exactly once, so anything lost to a rendering bug
+//is lost until the tab reloads.
+//
+//What this DOES buy: the steps after the throwing one still run, and the store
+//keeps whatever the reducers already committed. What it does NOT buy: redux
+//aborts the rest of that action's subscriber list when one subscriber throws,
+//and catching out here cannot bring them back — components registered after the
+//thrower still miss that one notification. So this protects DATA, not renders,
+//which is the right trade when the data cannot be re-requested.
+const isolateDelivery = (label : string, fn : () => void) => {
+	try {
+		fn();
+	} catch (err) {
+		console.error(`[corpus-worker] ${label} threw while applying a worker delivery; continuing so the rest of the delivery still lands`, err);
+	}
+};
+
 const handleCardBatch = (batch : CardBatch) => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
 	const handleStartedAt = performance.now();
 	const inputCount = Object.keys(batch.cards).length;
+	//The cards go in FIRST. publishCorpusDetail dispatches, and any dispatch can
+	//throw — not from the reducers, but from a store subscriber (every connected
+	//component's stateChanged runs there). A throw before this point took the
+	//whole batch with it, and the delta listener never re-sends. Reducers run
+	//before subscribers, so a throw AFTER the dispatch below leaves the cards
+	//applied. (Observed once, before the fix: a component throwing on every
+	//dispatch left the worker holding 500 cards and Redux stuck at 453, with the
+	//missing cards' cardMeta present — proving the channel was alive and only
+	//the card handling was dying.)
 	workerCorpusSize = batch.corpusSize;
-	publishCorpusDetail();
 	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
 	const decodedAt = performance.now();
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
@@ -1094,7 +1122,7 @@ const handleCardBatch = (batch : CardBatch) => {
 	//listener receiving an empty snapshot.
 	//fromWire just created this private map, so receiveCards may reuse it while
 	//deduping instead of copying every card into another giant object.
-	store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe, true, batch.cardFilters, batch.cardFilterCorpusIDs));
+	isolateDelivery('receiveCards', () => store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe, true, batch.cardFilters, batch.cardFilterCorpusIDs)));
 	if (inputCount >= 10000) {
 		console.log(`[corpus-worker] main handoff: ${inputCount} cards decode=${(decodedAt - handleStartedAt).toFixed(0)}ms dispatch=${(performance.now() - decodedAt).toFixed(0)}ms`);
 	}
@@ -1109,8 +1137,12 @@ const handleCardBatch = (batch : CardBatch) => {
 	//the same-tick observers it was written for. First-batch-clears-loading
 	//is the long-standing main-thread-listener semantic; keep it.
 	if (batch.removedIDs.length) {
-		store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType)));
+		isolateDelivery('removeCards', () => store.dispatch(removeCards(batch.removedIDs, fetchTypeIsUnpublished(batch.fetchType))));
 	}
+	//Corpus size/detail is derived state that every later batch and status
+	//message republishes, so unlike the cards above it is safe to do last —
+	//and doing it FIRST is what made a subscriber exception eat the batch.
+	isolateDelivery('publishCorpusDetail', publishCorpusDetail);
 	//Once the worker's corpus is complete AND trustworthy, reconcile once:
 	//the local-cache prime may have served cards that were deleted while the
 	//app was closed, and the worker can never send removals for docs it
@@ -1162,7 +1194,20 @@ const handleCorpusIDs = (ids : CardID[]) => {
 	if (staleUnpublished.length) store.dispatch(removeCards(staleUnpublished, true));
 };
 
+//Backstop for the same hazard isolateDelivery covers per-step: every remaining
+//case here also dispatches, and an escaping exception would abandon the rest of
+//that message's handling. Worker deliveries are one-shot, so a message half
+//applied and never retried is the worst outcome available; log it and keep the
+//channel healthy instead.
 const handleMessage = (event : MessageEvent<WorkerToMainMessage>) => {
+	try {
+		handleMessageInner(event);
+	} catch (err) {
+		console.error(`[corpus-worker] handling a '${event.data?.type}' message threw`, err);
+	}
+};
+
+const handleMessageInner = (event : MessageEvent<WorkerToMainMessage>) => {
 	const message = event.data;
 	//'ready' is emitted at module bottom under the worker's own (pre-connect)
 	//generation and would be dropped as stale below — but it proves exactly

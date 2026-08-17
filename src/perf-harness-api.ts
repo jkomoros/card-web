@@ -15,6 +15,9 @@ import {modifyCardsWithDurableTagOperation, modifyCardsWithDurableMultiEdit} fro
 import {doc, getDocFromServer} from 'firebase/firestore';
 import {deepEqual} from './util.js';
 import {corpusWorkerOwnershipState} from './corpus-bridge.js';
+import {openMultiEditDialog, closeMultiEditDialog} from './actions/multiedit.js';
+import {clearSelectedCards, doSelectCards} from './actions/collection.js';
+import {selectMultiEditDialogOpen} from './selectors.js';
 
 //Watermark mode deliberately batches listener reconciliation. A multi-edit's
 //server commit budget is measured separately; allow the UI echo to arrive on
@@ -165,6 +168,17 @@ export const installPerfHarnessAPI = () : void => {
 				auto_todo_overrides: card.auto_todo_overrides || {},
 				published: card.published,
 			}]));
+			//SELECT the cards and OPEN the dialog, because that is what a real
+			//Edit All Cards save is. This gate used to call the thunk directly
+			//with the dialog closed, and the dialog's own selectors are the only
+			//code that iterates card.tags on every dispatch — so a local echo
+			//that left a Firestore transform in card.tags threw out of the save
+			//loop for every real user while this gate stayed green. Anything
+			//that runs only when the dialog is open is invisible otherwise.
+			store.dispatch(clearSelectedCards());
+			store.dispatch(doSelectCards(cards.map(card => card.id)));
+			store.dispatch(openMultiEditDialog());
+			if (!selectMultiEditDialogOpen(store.getState() as State)) throw new Error('multi-edit dialog did not open; the dialog-open path would not be covered');
 			const start = performance.now();
 			await store.dispatch(modifyCardsWithDurableMultiEdit(cards, {
 				add_tags: addTags,
@@ -190,7 +204,68 @@ export const installPerfHarnessAPI = () : void => {
 				published: false,
 			}));
 			const restoreMs = performance.now() - restoreStart;
-			return {count, applyMs, restoreMs, ids: cards.map(card => card.id), tags, originals, referenceTargetID: referenceTarget.id};
+
+			//A PURE tag addition, then a pure removal — the two single-op
+			//branches, which the round trip above cannot reach because its diff
+			//carries adds AND removes together. That mixed branch always
+			//materialized its local card correctly; the single-op branches did
+			//not, and a pure add plus a TODO is precisely the everyday Edit All
+			//Cards save. Verified: with the transform put back into the echo,
+			//this phase fails and the mixed round trip above still passes.
+			const localTagState = (expectPresent : boolean) => {
+				const current = selectRawCards(store.getState() as State);
+				const nonArray : string[] = [];
+				const wrongContents : string[] = [];
+				for (const card of cards) {
+					const value = (current[card.id] as unknown as {tags? : unknown} | undefined)?.tags;
+					if (!Array.isArray(value)) {
+						nonArray.push(card.id);
+						continue;
+					}
+					if (value.includes(pureTag) !== expectPresent) wrongContents.push(card.id);
+				}
+				return {nonArray, wrongContents};
+			};
+			const pureTag = removeTag;
+			//The restore above put removeTag back on every card, so add a tag
+			//they do not have: use the first addTag, freshly removed by the
+			//restore.
+			const pureAddTag = addTags[0];
+			await store.dispatch(modifyCardsWithDurableMultiEdit(cards, {add_tags: [pureAddTag]}));
+			const afterPureAdd = (() => {
+				const current = selectRawCards(store.getState() as State);
+				const nonArray : string[] = [];
+				const missing : string[] = [];
+				for (const card of cards) {
+					const value = (current[card.id] as unknown as {tags? : unknown} | undefined)?.tags;
+					if (!Array.isArray(value)) nonArray.push(card.id);
+					else if (!value.includes(pureAddTag)) missing.push(card.id);
+				}
+				return {nonArray, missing};
+			})();
+			await store.dispatch(modifyCardsWithDurableMultiEdit(cards, {remove_tags: [pureAddTag]}));
+			const afterPureRemove = (() => {
+				const current = selectRawCards(store.getState() as State);
+				const nonArray : string[] = [];
+				const stillPresent : string[] = [];
+				for (const card of cards) {
+					const value = (current[card.id] as unknown as {tags? : unknown} | undefined)?.tags;
+					if (!Array.isArray(value)) nonArray.push(card.id);
+					else if (value.includes(pureAddTag)) stillPresent.push(card.id);
+				}
+				return {nonArray, stillPresent};
+			})();
+			//What the LOCAL copies look like after real dialog saves. The
+			//server-side verification lives in the runner; this is the half that
+			//only this thread can see, and the half that was wrong.
+			const mixedRoundTrip = localTagState(true);
+			store.dispatch(closeMultiEditDialog());
+			store.dispatch(clearSelectedCards());
+			return {
+				count, applyMs, restoreMs, ids: cards.map(card => card.id), tags, originals,
+				referenceTargetID: referenceTarget.id,
+				localTags: {mixedRoundTrip, afterPureAdd, afterPureRemove},
+			};
 		},
 	};
 };
@@ -232,6 +307,14 @@ declare global {
 					published: boolean,
 				}},
 				referenceTargetID: string,
+				//The LOCAL copies after real dialog saves. Every array here must
+				//be empty: a non-array `tags` means a Firestore write transform
+				//reached Redux, and wrong contents mean the echo did not apply.
+				localTags: {
+					mixedRoundTrip: {nonArray: string[], wrongContents: string[]},
+					afterPureAdd: {nonArray: string[], missing: string[]},
+					afterPureRemove: {nonArray: string[], stillPresent: string[]},
+				},
 			}>,
 		};
 	}

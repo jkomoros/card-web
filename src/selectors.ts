@@ -1830,16 +1830,48 @@ export const selectActiveCollectionNotFilteredToSelected = createSelector(
 	}
 );
 
-//This is the effective selected cards, which is either the explicitly selected
-//cards, or just the active collection if there are no explicitly selected cards.
-export const selectSelectedCards = createSelector(
+//A selection is a set of card IDs, and an ID can name a card this tab does not
+//hold: the corpus is still catching up (a bulk import selects its cards the
+//moment they are written, before they have come back through the worker), or
+//the card was deleted elsewhere. That is a normal, transient state — but it
+//used to produce an array with `undefined` HOLES, and every consumer here
+//dereferences its elements. One missing card therefore threw inside whatever
+//dispatch caused the recompute, which took down the multi-edit dialog and, from
+//there, the worker delivery that would have filled the hole.
+//
+//So the holes are dropped, and the count of them is published separately
+//(selectSelectedCardsMissingCount) for the UI to act on. Dropping alone would
+//be wrong on its own: a multi-edit that silently covers 53 of 100 selected
+//cards is worse than one that refuses, which is why the dialog gates Save on
+//that count rather than just narrowing the target set.
+const selectSelectedCardsWithMissing = createSelector(
 	selectCards,
 	selectExplicitlySelectedCardIDs,
 	selectActiveCollection,
-	(cards, selected, collection) => {
-		if (Object.keys(selected).length) return Object.keys(selected).map(id => cards[id]);
-		return collection ? collection.filteredCards || [] : [];
+	(cards, selected, collection) : {cards : ProcessedCard[], missing : number} => {
+		const selectedIDs = Object.keys(selected);
+		if (selectedIDs.length) {
+			const present = selectedIDs.map(id => cards[id]).filter((card) : card is ProcessedCard => Boolean(card));
+			return {cards: present, missing: selectedIDs.length - present.length};
+		}
+		//The collection's cards are materialized from the same corpus, so they
+		//are present by construction.
+		return {cards: collection ? collection.filteredCards || [] : [], missing: 0};
 	}
+);
+
+//This is the effective selected cards, which is either the explicitly selected
+//cards, or just the active collection if there are no explicitly selected cards.
+export const selectSelectedCards = createSelector(
+	selectSelectedCardsWithMissing,
+	(result) => result.cards
+);
+
+//How many explicitly-selected cards this tab does not (yet) hold. Non-zero
+//means selectSelectedCards is a SUBSET of what the user selected.
+export const selectSelectedCardsMissingCount = createSelector(
+	selectSelectedCardsWithMissing,
+	(result) => result.missing
 );
 
 export const selectSelectedCardsReferencesUnion = createSelector(
