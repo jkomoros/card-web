@@ -31,7 +31,7 @@ import {
 
 import {
 	reportURLDiagnostic
-} from './url-diagnostics.js';
+} from '../shared/url-diagnostics.js';
 
 import {
 	SetName,
@@ -715,7 +715,16 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 	if (INVERSE_FILTER_NAMES[filterDefinitionItem]) {
 		return [filterSetMemberships[INVERSE_FILTER_NAMES[filterDefinitionItem]], true, null, null, false];
 	}
-	//If unknown, then just treat it like a no op, excluding nothing
+	//If unknown, then just treat it like a no op, excluding nothing.
+	//
+	//This is also how /c/linear/ ends up showing an unrelated card (#754): a
+	//trailing slash means "default item in the collection" (deliberate, and
+	//documented in collection_description_base), so `linear` is read as a
+	//COLLECTION part, lands here as an unknown filter, no-ops, and the default
+	//card of the resulting collection is shown -- under a URL that names a
+	//specific card. The grammar is intentional; silently showing a different
+	//card is not, so say what happened.
+	reportURLDiagnostic(filterDefinitionItem, 'ignored it, because it is not a filter or set — if you meant a card, the URL should not end in a slash');
 	return [{}, true, null, null, false];
 };
 

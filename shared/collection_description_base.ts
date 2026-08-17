@@ -6,6 +6,10 @@ import {
 	viewMode as viewModeSchema
 } from './types.js';
 
+import {
+	reportURLDiagnostic
+} from './url-diagnostics.js';
+
 //The word in the URL that means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
 export const SORT_REVERSED_URL_KEYWORD = 'reverse';
@@ -89,11 +93,25 @@ export const extractFilterNamesSortAndView = (
 			continue;
 		}
 		if (nextPartIsView) {
-			viewMode = viewModeSchema.parse(part);
+			//safeParse, NOT parse. This runs during URL DESERIALIZATION, before
+			//any Collection exists, so a throw here does not get swallowed by the
+			//worker's subscription loop the way the filter/sort failures in #750
+			//do — it escapes as a main-thread unhandled rejection, and took
+			//sections/tags down with it (#751).
+			//
+			//The comment that used to sit here said we "have no way of signaling
+			//an error, so we just assume the viewMode is legal". That was true
+			//when it was written and stopped being true when this became a strict
+			//parse; now there IS a way to signal, so it does.
+			const parsedViewMode = viewModeSchema.safeParse(part);
+			if (parsedViewMode.success) {
+				viewMode = parsedViewMode.data;
+			} else {
+				reportURLDiagnostic(VIEW_MODE_URL_KEYWORD + '/' + part, 'used the default view instead, because "' + part + '" is not a view mode');
+			}
 			nextPartIsView = false;
 			//LEGAL_VIEW_MODES is a map of view mode to whether or not it expects
-			//an extra. Note that we have no way of signaling an error, so we
-			//just assume the viewMode is legal.
+			//an extra.
 			if (LEGAL_VIEW_MODES[viewMode]) nextPartIsViewExtra = true;
 			continue;
 		}

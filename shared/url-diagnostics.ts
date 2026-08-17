@@ -9,6 +9,11 @@
 //but introduces the quieter problem — the URL says one thing and the app does
 //another — so every fallback reports here.
 //
+//Lives in shared/ rather than src/ because the URL PARSER lives here too
+//(collection_description_base), and shared/ may not import from src/. It has
+//zero imports of its own, so it does not compromise shared/'s standalone
+//publishability.
+//
 //Deliberately a leaf module with no app imports: the reporters live in
 //filters.ts and collection_description.ts, which run on BOTH the main thread and
 //inside the corpus worker. In the worker nobody is listening and the reports

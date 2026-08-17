@@ -652,7 +652,7 @@ describe('malformed URL parts degrade instead of throwing', () => {
 
 	before(async () => {
 		({CollectionDescription} = await import('../../lib/src/collection_description.js'));
-		({currentURLDiagnostics, clearURLDiagnostics} = await import('../../lib/src/url-diagnostics.js'));
+		({currentURLDiagnostics, clearURLDiagnostics} = await import('../../lib/shared/url-diagnostics.js'));
 	});
 
 	const state = () => {
@@ -711,5 +711,44 @@ describe('malformed URL parts degrade instead of throwing', () => {
 		run('everything/sort/bogus/');
 		const forSort = currentURLDiagnostics().filter(d => d.part === 'sort/bogus');
 		assert.strictEqual(forSort.length, 1, 'collection runs repeat; the report must be deduped');
+	});
+
+	//#751: this ran during URL DESERIALIZATION, before any Collection exists, so
+	//unlike the #750 failures it was NOT swallowed by the worker's subscription
+	//loop — it escaped as a main-thread unhandled rejection and took sections and
+	//tags down with it.
+	it('an unknown view mode falls back to the default view rather than throwing', () => {
+		clearURLDiagnostics();
+		let description;
+		assert.doesNotThrow(() => {
+			description = CollectionDescription.deserialize('everything/view/bogus/');
+		});
+		assert.strictEqual(description.viewMode, 'list');
+		assert.ok(currentURLDiagnostics().some(d => d.part === 'view/bogus'));
+	});
+
+	it('a real view mode still parses', () => {
+		clearURLDiagnostics();
+		assert.strictEqual(CollectionDescription.deserialize('everything/view/web/').viewMode, 'web');
+		assert.strictEqual(currentURLDiagnostics().length, 0, 'a valid URL must not report anything');
+	});
+
+	//#754: a trailing slash means "default item in the collection", which is
+	//deliberate — so /c/linear/ reads `linear` as a collection part, no-ops it,
+	//and shows the default card under a URL naming a specific one. The grammar
+	//stays; the silence does not.
+	it('an unrecognized collection part is reported rather than silently ignored', () => {
+		clearURLDiagnostics();
+		const s = {cards: {a: card('a')}, sets: {main: ['a'], everything: ['a'], 'reading-list': []}, filters: {starred: {}, read: {}}};
+		assert.ok(CollectionDescription.deserialize('everything/linear/').collection(makeArgs(s)).finalSortedCards.length >= 0);
+		assert.ok(currentURLDiagnostics().some(d => d.part === 'linear'),
+			'the part that was not understood must be named');
+	});
+
+	it('a real filter reports nothing', () => {
+		clearURLDiagnostics();
+		const s = {cards: {a: card('a')}, sets: {main: ['a'], everything: ['a'], 'reading-list': []}, filters: {starred: {}, read: {}}};
+		assert.ok(CollectionDescription.deserialize('everything/starred/').collection(makeArgs(s)).finalSortedCards.length >= 0);
+		assert.strictEqual(currentURLDiagnostics().length, 0);
 	});
 });

@@ -79,7 +79,7 @@ import {
 
 import {
 	reportURLDiagnostic
-} from './url-diagnostics.js';
+} from '../shared/url-diagnostics.js';
 
 import {
 	dateMatchesFilter,
