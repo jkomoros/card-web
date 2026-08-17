@@ -640,3 +640,76 @@ describe('configurable-filter memo is bounded', () => {
 			'burst0 is now the oldest and should be the one evicted');
 	});
 });
+
+//#750: five classes of malformed URL threw INSIDE a collection run. The
+//worker's subscription loop swallows that, so a warm navigation kept showing
+//the previous collection under the new URL, and a cold load span forever on
+//"loading…". Each now degrades to a defined fallback and reports what it did.
+describe('malformed URL parts degrade instead of throwing', () => {
+	let CollectionDescription;
+	let currentURLDiagnostics;
+	let clearURLDiagnostics;
+
+	before(async () => {
+		({CollectionDescription} = await import('../../lib/src/collection_description.js'));
+		({currentURLDiagnostics, clearURLDiagnostics} = await import('../../lib/src/url-diagnostics.js'));
+	});
+
+	const state = () => {
+		const cards = {a: card('a'), b: card('b')};
+		return {cards, sets: {main: ['a', 'b'], everything: ['a', 'b'], 'reading-list': []}, filters: {starred: {}, read: {}}};
+	};
+	const run = (serialized) => {
+		const s = state();
+		return CollectionDescription.deserialize(serialized).collection(makeArgs(s)).finalSortedCards.map(c => c.id);
+	};
+
+	it('an unknown sort falls back to the default sort', () => {
+		clearURLDiagnostics();
+		assert.deepStrictEqual(run('everything/sort/bogus/'), ['a', 'b']);
+		assert.ok(currentURLDiagnostics().some(d => d.part === 'sort/bogus'), 'the fallback must be reported');
+	});
+
+	it('a date filter with a non-range head matches nothing rather than throwing', () => {
+		//`created/garbage` used to hit assertUnreachable. Fails CLOSED, matching
+		//what the `between` branch already does with a missing second date.
+		clearURLDiagnostics();
+		assert.deepStrictEqual(run('everything/created/garbage/'), []);
+		assert.ok(currentURLDiagnostics().some(d => d.part === 'created/garbage'));
+	});
+
+	//NOTE on both of these: makeConfigurableFilter memoizes by filter NAME for
+	//the life of the process, so a name any earlier test already used returns
+	//from cache without re-running the factory — which is where the guard lives.
+	//An earlier version of these tests reused a name and passed even with the
+	//guard reverted. Each uses a name unique to its run.
+	let uniqueSuffix = 0;
+	const freshName = () => 'x' + (++uniqueSuffix) + '-' + Date.now();
+
+	it('an unknown filter head inside exclude/ is ignored rather than crashing', () => {
+		//`before` is in CONFIGURABLE_FILTER_URL_PARTS but not CONFIGURABLE_FILTER_INFO,
+		//and exclude/ re-feeds its remainder without filtering. Note the result is
+		//EMPTY, not everything: an unknown filter is a no-op that matches all, so
+		//excluding it excludes all. Fail-closed, and the diagnostic says why.
+		clearURLDiagnostics();
+		assert.doesNotThrow(() => run('everything/exclude/before/' + freshName() + '/'));
+		assert.ok(currentURLDiagnostics().some(d => d.part.includes('before')),
+			'the ignored head must be reported');
+	});
+
+	it('a malformed percent escape in a query is searched literally', () => {
+		clearURLDiagnostics();
+		assert.doesNotThrow(() => run('everything/query/%' + freshName() + '/'));
+		assert.ok(currentURLDiagnostics().some(d => d.part.startsWith('query/%')),
+			'the literal-search fallback must be reported');
+	});
+
+	it('reports each bad part once, not once per recompute', () => {
+		clearURLDiagnostics();
+		run('everything/sort/bogus/');
+		run('everything/sort/bogus/');
+		run('everything/sort/bogus/');
+		const forSort = currentURLDiagnostics().filter(d => d.part === 'sort/bogus');
+		assert.strictEqual(forSort.length, 1, 'collection runs repeat; the report must be deduped');
+	});
+});

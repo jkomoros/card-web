@@ -30,6 +30,10 @@ import {
 } from './relative-date.js';
 
 import {
+	reportURLDiagnostic
+} from './url-diagnostics.js';
+
+import {
 	SetName,
 	SortName,
 	ViewMode,
@@ -302,7 +306,15 @@ export class CollectionDescription {
 	}
 
 	get sortConfig() {
-		return SORTS[this.sort];
+		const config = SORTS[this.sort];
+		if (config) return config;
+		//shared/collection_description_base.ts accepts ANY sort name when
+		//deserializing ("we'll just assume it's fine"), so /c/sort/bogus/ reaches
+		//here and every consumer then dereferences .extractor on undefined,
+		//taking out the whole collection run (#750). Fall back to the default
+		//sort, which is what an unknown single-token FILTER already degrades to.
+		reportURLDiagnostic('sort/' + this.sort, 'sorted by the default instead, because "' + this.sort + '" is not a sort');
+		return SORTS['default'];
 	}
 
 	//IF the collection wants to limit how many items to return, this will

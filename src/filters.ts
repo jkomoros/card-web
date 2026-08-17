@@ -78,6 +78,10 @@ import {
 } from './memoize.js';
 
 import {
+	reportURLDiagnostic
+} from './url-diagnostics.js';
+
+import {
 	dateMatchesFilter,
 	makeFilterDateResolver,
 	parseRelativeDate,
@@ -469,7 +473,14 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 		}
 		break;
 	default:
-		assertUnreachable(comparisonType);
+		//NOT assertUnreachable. The type says this is unreachable, and through the
+		//app it is -- but a hand-typed /c/created/garbage/ reaches here with
+		//comparisonType 'garbage', and throwing took out the entire collection
+		//run (#750). `func` is still the no-match default declared above, so the
+		//filter fails CLOSED, which is what the `between` branch already does
+		//when its second date is missing.
+		reportURLDiagnostic(propName + '/' + comparisonType, 'matched nothing, because "' + comparisonType + '" is not before, after, or between');
+		break;
 	}
 
 	return [func, false];
@@ -872,15 +883,28 @@ const configurableFilterIsQuery = (filterName : string) : boolean => {
 	return filterName.startsWith(QUERY_FILTER_NAME + '/');
 };
 
+//decodeURIComponent THROWS on a malformed percent escape ('%', 'foo%zz'), and
+//nothing upstream validates the path, so /c/query/%/ used to take out the whole
+//collection run (#750). Treat an undecodable string as literal text: a search
+//for a stray '%' is a strange search, not a crash.
+const safeDecodeQueryString = (rawQueryString : URLPart) : string => {
+	try {
+		return decodeURIComponent(rawQueryString).split('+').join(' ');
+	} catch {
+		reportURLDiagnostic('query/' + rawQueryString, 'searched for it literally, because it is not valid percent-encoding');
+		return rawQueryString.split('+').join(' ');
+	}
+};
+
 export const queryTextFromQueryFilter = (queryFilter : ConfigurableFilterName) : string => {
 	if (!configurableFilterIsQuery(queryFilter)) return '';
 	const rawQueryString = queryFilter.split('/')[1];
-	return decodeURIComponent(rawQueryString).split('+').join(' ');
+	return safeDecodeQueryString(rawQueryString);
 };
 
 const makeQueryConfigurableFilter = (filterName : ConfigurableFilterType, rawQueryString : URLPart) : ConfigurableFilterFuncFactoryResult => {
 
-	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');
+	const decodedQueryString = safeDecodeQueryString(rawQueryString);
 
 	const query = new PreparedQuery(decodedQueryString);
 
@@ -1509,7 +1533,15 @@ const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : Configura
 export const makeConfigurableFilter = (name : ConfigurableFilterName) : ConfigurableFilterFuncFactoryResult => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
-		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
+		//`?.` matters: the fallback to makeNoOpConfigurableFilter shows the intent
+		//was always to degrade, but reading .factory off an unknown head threw
+		//first. exclude/ re-feeds its remainder here without filtering through
+		//CONFIGURABLE_FILTER_NAMES, so /c/exclude/before/2020-01-01/ arrived with
+		//head 'before' -- which is in CONFIGURABLE_FILTER_URL_PARTS but not in
+		//CONFIGURABLE_FILTER_INFO -- and crashed the collection run (#750).
+		const info = CONFIGURABLE_FILTER_INFO[parts[0]];
+		if (!info) reportURLDiagnostic(name, 'ignored it, because "' + parts[0] + '" is not a filter');
+		const func = info?.factory || makeNoOpConfigurableFilter;
 		memoizedConfigurableFilters[name] = func(parts[0], ...parts.slice(1));
 	}
 	return memoizedConfigurableFilters[name];
