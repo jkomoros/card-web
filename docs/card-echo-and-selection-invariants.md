@@ -28,12 +28,19 @@ That is latency compensation, and it needs the opposite thing — a real value.
 
 Two layers, and it is worth being precise about which one is load-bearing:
 
-- **The call site is the fix.** `modifyCardWithBatch` (`src/actions/data.ts`)
-  keeps `cardUpdateObject.tags` as the materialized array `applyCardDiff`
-  produced, and substitutes the transform into a copy at write time. After this,
-  nothing in the shipping product ever hands a transform to
+- **The call site is what the shipping product relies on.** `modifyCardWithBatch`
+  (`src/actions/data.ts`) keeps `cardUpdateObject.tags` as the materialized array
+  `applyCardDiff` produced, and substitutes the transform into a copy at write
+  time. After this, nothing in the product hands a transform to
   `applyCardFirebaseUpdate` — instrumenting the real thunk shows the transform
   branch below is consulted and never hits.
+
+  Be precise about what the tests prove here, because it is easy to overstate:
+  they fail when this call site is reverted to the ORIGINAL behaviour (a raw
+  `arrayUnion` in `cardUpdateObject.tags`). They do NOT fail if it is reverted to
+  a *vended* sentinel, because the guard below then resolves it and the outcome
+  is correct anyway. Two correct designs; the suite pins the outcome, not which
+  of them is in force.
 - **The sentinel layer is a guard**, for call sites that do not exist yet and for
   the ones that bypass the vending wrappers. It lives in `shared/card_write.ts`
   (`setFirebaseValueOnObj`) and is reached through a `SentinelConfig`. The
@@ -165,10 +172,18 @@ run that found it, the worker held 500 cards while Redux stayed at 453 for the
 30 seconds observed, with the missing cards' `cardMeta` present — proving the
 channel was alive and only the `cards` handling was dying.
 
-**This one has no automated test.** The failure needs a real worker plus a
-component that throws, which no committed layer has together. It is pinned by
-inspection and by a one-off probe. If you change the ordering in
-`handleCardBatch`, re-run that probe by hand — see below.
+**The ORDERING is pinned structurally** by `test/corpus-bridge-ordering`, which
+reads the source the way `test/ownership-lease` already pins
+`purgeAndDeactivate`. That catches the regression that actually happened —
+someone moving `publishCorpusDetail` back above the card apply, or unwrapping a
+step.
+
+**The BEHAVIOUR has no automated test.** Reproducing it needs a real worker plus
+a component that throws, which no committed layer has together; the evidence for
+it is a one-off probe that is not in the repo. Note also that the ordering and
+`isolateDelivery` are partly redundant for the data-loss mode described here:
+with the isolation in place, a throwing `publishCorpusDetail` no longer prevents
+the cards from landing. Reverting BOTH is what loses data.
 
 ---
 
@@ -177,10 +192,11 @@ inspection and by a one-off probe. If you change the ordering in
 `test/perf-harness/run.js` is the vehicle: production Rollup build, Firestore
 emulator, admin auth, worker on, watermark sync. The probe that found all of
 this drove `bulkCreateWorkingNotes` through the bulk-import dialog's own actions
-and then `openMultiEditDialog` → `addTag` ×2 → `addTODOEnablement` → 
+and then `openMultiEditDialog` → `addTag` ×2 → `addTODOEnablement` →
 `commitMultiEditDialog`, with no settle delay, and measured how many selected
-cards were absent from Redux at each step. It is not committed; the committed
-coverage is the four suites named above plus the perf gate.
+cards were absent from Redux at each step. **It is not committed** — rebuild it
+from this description if you need it. The committed coverage is the suites named
+above plus the perf gate.
 
 ## What each layer can and cannot see
 

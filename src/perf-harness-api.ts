@@ -205,14 +205,13 @@ export const installPerfHarnessAPI = () : void => {
 			}));
 			const restoreMs = performance.now() - restoreStart;
 
-			//A PURE tag addition, then a pure removal — the two single-op
-			//branches, which the round trip above cannot reach because its diff
-			//carries adds AND removes together. That mixed branch always
-			//materialized its local card correctly; the single-op branches did
-			//not, and a pure add plus a TODO is precisely the everyday Edit All
-			//Cards save. Verified: with the transform put back into the echo,
-			//this phase fails and the mixed round trip above still passes.
-			const localTagState = (expectPresent : boolean) => {
+			//Read the mixed round trip's local state HERE, before anything else
+			//touches these cards. Capturing it after the pure phases below meant
+			//it was not a reading of the mixed round trip at all: the pure saves
+			//had already re-written the same cards, so a defect in a single-op
+			//branch was reported against the mixed one — pointing whoever debugs
+			//it at the one branch that was never broken.
+			const mixedRoundTrip = (() => {
 				const current = selectRawCards(store.getState() as State);
 				const nonArray : string[] = [];
 				const wrongContents : string[] = [];
@@ -222,14 +221,22 @@ export const installPerfHarnessAPI = () : void => {
 						nonArray.push(card.id);
 						continue;
 					}
-					if (value.includes(pureTag) !== expectPresent) wrongContents.push(card.id);
+					//The restore put removeTag back on every card.
+					if (!value.includes(removeTag)) wrongContents.push(card.id);
 				}
 				return {nonArray, wrongContents};
-			};
-			const pureTag = removeTag;
-			//The restore above put removeTag back on every card, so add a tag
-			//they do not have: use the first addTag, freshly removed by the
-			//restore.
+			})();
+
+			//A PURE tag addition, then a pure removal — the two single-op
+			//branches, which the round trip above cannot reach because its diff
+			//carries adds AND removes together. That mixed branch always
+			//materialized its local card correctly; the single-op branches did
+			//not, and a pure add plus a TODO is precisely the everyday Edit All
+			//Cards save. Verified: with the transform put back into the echo,
+			//this phase fails and the mixed round trip above still passes.
+			//
+			//addTags[0] was freshly removed by the restore, so the cards do not
+			//have it — which is what makes a pure ADD meaningful.
 			const pureAddTag = addTags[0];
 			await store.dispatch(modifyCardsWithDurableMultiEdit(cards, {add_tags: [pureAddTag]}));
 			const afterPureAdd = (() => {
@@ -255,10 +262,8 @@ export const installPerfHarnessAPI = () : void => {
 				}
 				return {nonArray, stillPresent};
 			})();
-			//What the LOCAL copies look like after real dialog saves. The
-			//server-side verification lives in the runner; this is the half that
-			//only this thread can see, and the half that was wrong.
-			const mixedRoundTrip = localTagState(true);
+			//The LOCAL copies are what only this thread can see, and the half that
+			//was wrong; the server-side verification lives in the runner.
 			store.dispatch(closeMultiEditDialog());
 			store.dispatch(clearSelectedCards());
 			return {

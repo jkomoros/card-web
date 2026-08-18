@@ -232,7 +232,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			}
 
 			p.waiting {
-				color: var(--app-warning-color, #CC0000);
+				color: var(--app-warning-color);
 				font-size: 0.85em;
 				margin: 0.5em 0 0 0;
 			}
@@ -356,17 +356,25 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 					${this._selectedCards.map(card => html`<li><card-link auto='title' card='${card.id}' .noNavigate=${true}></card-link></li>`)}
 				</ul>
 			</details>
-			${this._missingSelectedCount ? html`<p class='waiting' role='status' aria-live='polite'>
-				Waiting for ${this._missingSelectedCount} more of the
-				${this._selectedCards.length + this._missingSelectedCount} selected cards to finish loading.
-				Saving now would quietly skip them, so Save is held until they arrive — this normally takes a
-				moment right after a bulk import.
+			<!-- Only when saving is otherwise possible. If sync is down, THAT is
+			the blocker and it is the one the user needs to hear about; saying
+			"waiting for cards to load" would send them to wait for something
+			that is not coming. -->
+			${this._missingSelectedCount && this._saveEligible ? html`<p class='waiting' role='status' aria-live='polite'>
+				${this._missingSelectedCount === 1
+		? html`One of the ${this._selectedCards.length + 1} selected cards has not loaded yet.
+						Saving now would quietly skip it, so Save is held until it arrives.`
+		: html`${this._missingSelectedCount} of the
+						${this._selectedCards.length + this._missingSelectedCount} selected cards have not loaded yet.
+						Saving now would quietly skip them, so Save is held until they arrive.`}
 			</p>` : ''}
 			<div class='buttons'>
 				<!-- Title on the wrapper: disabled controls do not fire hover
 				events in Chrome/Safari, so a title on the button is invisible
-				in precisely the disabled state it explains. -->
-				<span class='reason' title=${this._missingSelectedCount ? `${this._missingSelectedCount} selected cards have not loaded yet` : this._saveEligible ? 'Save changes' : blockedReason(this._corpusStatus, SAVE_VERB)}>
+				in precisely the disabled state it explains. The corpus-status
+				reason comes FIRST: when sync is down the missing cards are a
+				symptom, not the cause, and naming the symptom hides the cause. -->
+				<span class='reason' title=${!this._saveEligible ? blockedReason(this._corpusStatus, SAVE_VERB) : this._missingSelectedCount ? `${this._missingSelectedCount} selected ${this._missingSelectedCount === 1 ? 'card has' : 'cards have'} not loaded yet` : 'Save changes'}>
 					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible || Boolean(this._missingSelectedCount)} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 				</span>
 			</div>

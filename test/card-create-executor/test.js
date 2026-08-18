@@ -327,17 +327,31 @@ describe('bulk import hand-back', () => {
 		//import created and hand them to Redux one at a time. Staggered on
 		//purpose — simultaneous delivery is exactly the assumption ("they'll all
 		//come back in one batch anyway") that made the old code look correct.
+		//
+		//DELIVERY ORDER IS PART OF THE TEST, not an accident. Firestore returns
+		//documents in document-ID order and card ids are random, so delivering
+		//"whichever undelivered doc comes back first" put ids[0] LAST about one
+		//run in CARDS — and on exactly those runs a regression to the old
+		//`await waitForCardToExist(ids[0])` is invisible, because ids[0] arriving
+		//last means everything else has already arrived. Measured: 1 of 4 runs
+		//silently passed against the reverted code. Ordering by the index the
+		//body carries makes the first-created card the first delivered, which is
+		//the worst case for the old code and therefore the honest one.
 		const {getDocs, query, collection: coll, where} = firestore;
+		const orderOf = (card) => {
+			const match = String(card.body || '').match(new RegExp(`${marker} (\\\\d+)`));
+			return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+		};
 		const delivered = new Set();
 		const deliverOne = async () => {
 			const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
-			for (const docSnapshot of snapshot.docs) {
-				const card = docSnapshot.data();
-				if (delivered.has(docSnapshot.id) || !String(card.body || '').includes(marker)) continue;
-				delivered.add(docSnapshot.id);
-				store.dispatch({type: 'UPDATE_CARDS', cards: {[docSnapshot.id]: {...card, id: docSnapshot.id}}, fetchType: 'unpublished'});
-				return;
-			}
+			const pending = snapshot.docs
+				.filter(docSnapshot => !delivered.has(docSnapshot.id) && String(docSnapshot.data().body || '').includes(marker))
+				.sort((a, b) => orderOf(a.data()) - orderOf(b.data()));
+			const next = pending[0];
+			if (!next) return;
+			delivered.add(next.id);
+			store.dispatch({type: 'UPDATE_CARDS', cards: {[next.id]: {...next.data(), id: next.id}}, fetchType: 'unpublished'});
 		};
 		const deliveryTimer = setInterval(() => { void deliverOne(); }, 60);
 

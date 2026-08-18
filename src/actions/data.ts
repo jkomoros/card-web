@@ -329,6 +329,21 @@ const WAIT_FOR_CARD_TIMEOUT_MS = 60 * 1000;
 //the call site in bulkCreateWorkingNotes.
 const BULK_IMPORT_ARRIVAL_TIMEOUT_MS = 15 * 1000;
 
+//Drops one waiter and releases the shared store subscription once nothing is
+//waiting on anything. Symmetric with waitingForCardToExistStoreUpdated, which
+//does the same when a card actually arrives.
+const retireWaiter = (cardID : CardID, resolver : (card : Card) => void) => {
+	const waiters = waitingForCards[cardID];
+	if (!waiters) return;
+	const index = waiters.indexOf(resolver);
+	if (index >= 0) waiters.splice(index, 1);
+	if (waiters.length === 0) delete waitingForCards[cardID];
+	if (Object.keys(waitingForCards).length === 0 && unsubscribeFromStore) {
+		unsubscribeFromStore();
+		unsubscribeFromStore = null;
+	}
+};
+
 //returns a promise that will be resolved when a card with that ID exists, returning the card.
 export const waitForCardToExist = (cardID : CardID, timeoutMs = WAIT_FOR_CARD_TIMEOUT_MS) => {
 	const card = getCardById(store.getState() as State, cardID);
@@ -336,15 +351,24 @@ export const waitForCardToExist = (cardID : CardID, timeoutMs = WAIT_FOR_CARD_TI
 	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
 	if (!unsubscribeFromStore) unsubscribeFromStore = store.subscribe(waitingForCardToExistStoreUpdated);
 	return new Promise<Card>((resolve, reject) => {
-		const timer = setTimeout(() => {
-			//Leave the resolver in place: if the card does show up later the
-			//list is cleaned up as usual. We only stop WAITING on it.
-			reject(new Error(`Card ${cardID} was written but has not arrived after ${Math.round(timeoutMs / 1000)}s. It may still appear once card sync catches up.`));
-		}, timeoutMs);
-		waitingForCards[cardID].push(resolvedCard => {
+		const resolver = (resolvedCard : Card) => {
 			clearTimeout(timer);
 			resolve(resolvedCard);
-		});
+		};
+		const timer = setTimeout(() => {
+			//RETIRE the resolver rather than leaving it parked. An earlier
+			//revision left it in place ("if the card does show up later the list
+			//is cleaned up as usual"), which was cheap when at most one id could
+			//be stranded per import. A bulk import now starts one waiter per
+			//card, so a sync problem could strand a hundred — and
+			//waitingForCards is scanned by a store subscription that then runs on
+			//EVERY dispatch for the life of the tab. Nobody is waiting on this
+			//promise any more; keeping its resolver only buys a subscriber that
+			//never goes away.
+			retireWaiter(cardID, resolver);
+			reject(new Error(`Card ${cardID} was written but has not arrived after ${Math.round(timeoutMs / 1000)}s. It may still appear once card sync catches up.`));
+		}, timeoutMs);
+		waitingForCards[cardID].push(resolver);
 	});
 };
 
@@ -1537,7 +1561,22 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		throw new Error('No user');
 	}
 
-	if (!selectCardIDsUserMayEdit(state)[card.id]) {
+	//The local permission check is derived from Redux (selectCardIDsUserMayEdit
+	//is a projection over selectRawCards), so a card this tab does not HOLD reads
+	//as "not allowed" no matter what the user's permissions actually are. A
+	//durable multi-edit resumed for a card the corpus has not loaded therefore
+	//failed with "User isn't allowed to edit the given card" — permanently, since
+	//the record survives and every automatic resume repeats it, disabling Edit
+	//throughout.
+	//
+	//The sibling bulk-label path already resolved this the same way (see the
+	//chunk loop above): cards present in Redux get the local check, and cards
+	//read authoritatively from the server are enforced by the security rules at
+	//commit. That is not a weakening — rules are the actual authority, and the
+	//worst case here is a batch the server rejects instead of a dead end the
+	//user cannot clear.
+	const rawCardsForPermissionCheck = selectRawCards(state);
+	if (rawCardsForPermissionCheck[card.id] && !selectCardIDsUserMayEdit(state)[card.id]) {
 		throw new Error('User isn\'t allowed to edit the given card');
 	}
 
@@ -2189,10 +2228,17 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		console.warn(`${notCommitted} of ${outcomes.length} imported cards did not commit (${queued} queued for replay)`);
 		if (queued && typeof window !== 'undefined') window.setTimeout(() => alert(`${queued} of ${outcomes.length} cards could not be created right now. They have been saved and will be created automatically when the connection recovers.`), 0);
 	}
-	if (outcomes[0] !== 'committed') {
-		//Waiting for a card the server does not have would hang the import UI —
-		//and returning without BULK_IMPORT_FAILURE left the dialog permanently
-		//scrimmed with no message.
+	//Waiting for a card the server does not have would hang the import UI — and
+	//returning without BULK_IMPORT_FAILURE left the dialog permanently scrimmed
+	//with no message. So wait only on what actually committed.
+	//
+	//This used to test outcomes[0] specifically, because ids[0] was the only
+	//card being waited for. Now that every card is waited on, singling out the
+	//first is not just vestigial but wrong: a blip that queued card 0 while
+	//1..N committed AND arrived threw the whole import away, told the user
+	//nothing about the N-1 cards that exist, and left them unselected.
+	const committedIDs = ids.filter((_, index) => outcomes[index] === 'committed');
+	if (!committedIDs.length) {
 		dispatch({type: BULK_IMPORT_FAILURE, error: 'Some cards could not be created yet. They are saved and will be created automatically when the connection recovers.'});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
@@ -2217,24 +2263,26 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//(measured: 60.5s with a single card withheld). A card that lands after the
 	//deadline is not lost — it is in the corpus, just not in this selection, and
 	//the user is told below.
-	const arrivals = await Promise.allSettled(ids.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS)));
-	const arrivedIDs = ids.filter((_, index) => arrivals[index].status === 'fulfilled');
+	const arrivals = await Promise.allSettled(committedIDs.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS)));
+	const arrivedIDs = committedIDs.filter((_, index) => arrivals[index].status === 'fulfilled');
 	if (!arrivedIDs.length) {
 		//Nothing came back at all — the same failure the single wait reported,
-		//with the same message so the recovery advice does not change.
+		//with the same message so the recovery advice does not change. Clear the
+		//expectation latch too, as every sibling failure path here does.
 		const firstRejection = arrivals.find(arrival => arrival.status === 'rejected');
 		const reason = firstRejection && firstRejection.status === 'rejected' ? firstRejection.reason : null;
 		dispatch({type: BULK_IMPORT_FAILURE, error: reason instanceof Error ? reason.message : String(reason)});
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
-	if (arrivedIDs.length < ids.length) {
+	if (arrivedIDs.length < committedIDs.length) {
 		//The cards ARE written; this tab just has not seen them. Select what we
 		//have (so the multi-edit it is about to offer covers exactly what it
 		//says) and tell the user about the rest rather than silently selecting
 		//IDs that will never resolve.
-		const missing = ids.length - arrivedIDs.length;
-		console.warn(`${missing} of ${ids.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms`);
-		if (typeof window !== 'undefined') window.setTimeout(() => alert(`${missing} of ${ids.length} imported cards were created but have not synced back to this tab yet, so they are not selected. They are safe on the server; they should appear shortly, or after a reload.`), 0);
+		const missing = committedIDs.length - arrivedIDs.length;
+		console.warn(`${missing} of ${committedIDs.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms`);
+		if (typeof window !== 'undefined') window.setTimeout(() => alert(`${missing} of ${committedIDs.length} imported cards were created but have not synced back to this tab yet, so they are not selected. They are safe on the server; they should appear shortly, or after a reload.`), 0);
 	}
 
 	dispatch(clearSelectedCards());

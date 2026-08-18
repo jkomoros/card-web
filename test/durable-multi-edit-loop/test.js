@@ -386,6 +386,30 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 	});
 	});
 
+	it('RESUMES for a card this tab does not hold, instead of dead-ending', async () => { await withTagEditPermission(['resume-tag'], async () => {
+		//selectCardIDsUserMayEdit is a projection over Redux, so a card the tab
+		//does not HOLD reads as "not allowed" whatever the user's permissions
+		//are. A durable record resumed for such a card therefore failed with
+		//"User isn't allowed to edit the given card" — and kept failing, because
+		//the record survives and every automatic resume repeats it, leaving Edit
+		//disabled. The sibling bulk-label path already lets the security rules
+		//be the authority for authoritatively-read cards; this one now does too.
+		const card = await seedCard('resume-unheld', {tags: []});
+		//Deliberately NOT putCardsInStore: this is the state after a reload
+		//where the corpus has not delivered this card.
+		assert.ok(!store.getState().data.cards[card.id], 'the card must be absent from Redux for this to test anything');
+		writeRecord(makeRecord('unheld-op-' + Date.now(), [card.id], {add_tags: ['resume-tag']}));
+
+		await store.dispatch(modifyCardsWithDurableMultiEdit([], {add_tags: ['resume-tag']}, false, 'multi', [card.id]));
+
+		const failure = store.getState().data.cardModificationError;
+		assert.ok(!failure, `the resume must not fail (got ${String(failure && failure.message || failure)})`);
+		assert.equal(readRecord(), null, 'and it must clear its record rather than retrying forever');
+		const server = (await getDoc(doc(db, 'cards', card.id))).data().tags;
+		assert.deepStrictEqual([...server], ['resume-tag'], 'the edit must actually land on the server');
+	});
+	});
+
 	//REGRESSION GUARD, not a bug-catcher: this passes against the original
 	//broken code too, because that code also wrote a transform. It exists so the
 	//fix for the echo cannot be "simplified" into sending the whole array.
