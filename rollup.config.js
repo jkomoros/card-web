@@ -7,26 +7,32 @@ import summary from 'rollup-plugin-summary';
 
 export default [
 	{
-		input: 'lib/src/components/card-web-app.js',
+		//The stub whose name IS the published entry name. It must stay distinct
+		//from card-web-app.js: master's service worker precached the app entry
+		//at the stable, unhashed URL `lib/src/components/card-web-app.js`, and
+		//answers it CACHE-FIRST. So on the first load after the rename deploys,
+		//the browser would fetch HEAD's index.html and then run MASTER's bundle
+		//— while HEAD's service worker installs and waits (skipWaiting is false
+		//by design, and master's bundle has no update listener or SKIP_WAITING
+		//sender to release it). The upgrade could not complete until every tab
+		//in scope closed; reloading did not help. Serving the entry under a
+		//name master never precached forces a network fetch, so HEAD's bundle
+		//runs on the very first load.
+		//
+		//The rename lives in a real source module (src/components/
+		//card-web-app-entry.ts) rather than in entryFileNames, so tsc emits the
+		//SAME name for source serve (`npm start`) as rollup does for the build
+		//— when it lived only here, `npm start` 404ed the app shell.
+		//test/dev-serve pins the agreement.
+		//
+		//Durable follow-up: '[name]-[hash].js' plus an injection step in
+		//tools/config.ts, which would make the cache-first hazard immune by
+		//construction rather than by choosing a new name each cutover.
+		input: 'lib/src/components/card-web-app-entry.js',
 		output: {
 			dir: 'build/lib/src/components',
 			format: 'es',
-			//DELIBERATELY NOT the input's name. master's service worker
-			//precaches the app entry at the stable, unhashed URL
-			//`lib/src/components/card-web-app.js`, and answers it CACHE-FIRST.
-			//So on the first load after this branch deploys, the browser would
-			//fetch HEAD's index.html and then run MASTER's bundle — while
-			//HEAD's service worker installs and waits (skipWaiting is false by
-			//design, and master's bundle has no update listener or SKIP_WAITING
-			//sender to release it). The upgrade could not complete until every
-			//tab in scope closed; reloading did not help. Emitting the entry
-			//under a name master never precached forces a network fetch, so
-			//HEAD's bundle runs on the very first load.
-			//
-			//Durable follow-up: '[name]-[hash].js' plus an injection step in
-			//tools/config.ts, which would make this immune by construction
-			//rather than by choosing a new name each cutover.
-			entryFileNames: 'card-web-app-entry.js',
+			entryFileNames: '[name].js',
 		},
 		plugins: [
 			minifyHTML(),
