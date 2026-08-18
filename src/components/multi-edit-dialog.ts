@@ -211,7 +211,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				height:100%;
 				width:100%;
 				position:absolute;
-				background-color:rgba(255,255,255,0.7);
+				background-color:rgba(255,255,255,0.8);
 				display:none;
 			}
 
@@ -219,10 +219,85 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				display:flex;
 				align-items:center;
 				justify-content:center;
-				font-weight:bold;
-				text-align:center;
 				padding:1em;
 				box-sizing:border-box;
+			}
+
+			/* The status text used to sit bare on the translucent scrim,
+			   visually colliding with the form underneath. Give it a real
+			   surface, in the app's own idiom: the same treatment as the
+			   dialog's .content (white, 1em padding, var(--card-shadow),
+			   square corners) rather than a novel floating-banner look. */
+			.progress-panel {
+				background-color: var(--card-color, white);
+				box-shadow: var(--card-shadow);
+				padding: 1em;
+				box-sizing: border-box;
+				max-width: 26em;
+				display: flex;
+				flex-direction: column;
+				gap: 0.75em;
+				text-align: left;
+			}
+
+			/* Normal weight, like dialog titles (dialog-element h2) — but NOT
+			   their gray: --app-dark-text-color is calibrated for 24px
+			   headings, and at this size it fails AA contrast. Inherit the
+			   near-black body color instead. */
+			.progress-panel h3 {
+				margin: 0;
+				font-weight: normal;
+				font-size: 1.2em;
+				overflow-wrap: anywhere;
+			}
+
+			.progress-panel p {
+				margin: 0;
+			}
+
+			.progress-panel progress, .bulk-error progress {
+				width: 100%;
+				accent-color: var(--app-secondary-color);
+			}
+
+			/* De-emphasized by SIZE, not by gray: the small grays that carry
+			   secondary text elsewhere in the app fail AA at these sizes. */
+			.progress-panel .count {
+				font-size: 0.85em;
+			}
+
+			/* The mechanics (what "processed safely" promises, the
+			   backgrounding caveat) matter to advanced users but are noise
+			   for everyone else; collapsed by default. <details> is the
+			   app's existing progressive-disclosure idiom (see the
+			   card-selection summary below, chat-view, maintenance-view). */
+			.progress-panel details {
+				font-size: 0.85em;
+			}
+
+			.progress-panel details p {
+				margin: 0.4em 0 0 0;
+			}
+
+			.progress-panel summary {
+				cursor: pointer;
+			}
+
+			.bulk-error {
+				display: flex;
+				flex-direction: column;
+				gap: 0.75em;
+				align-items: flex-start;
+			}
+
+			.bulk-error h3 {
+				margin: 0;
+				font-weight: normal;
+				color: var(--app-warning-color);
+			}
+
+			.bulk-error p {
+				margin: 0;
 			}
 
 			.buttons {
@@ -271,12 +346,27 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 				<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
 					${this._offline
-		? 'Waiting for a connection to save. The target list is saved in this browser and will resume here.'
+		? html`<div class='progress-panel'>
+							<h3>Waiting for a connection…</h3>
+							<p>The target list is saved in this browser and will resume here.</p>
+						</div>`
 		: this._bulkTagProgress
-			? html`<span>${this._bulkTagProgress.description}: ${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}…
-								<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
-								<small>Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.</small></span>`
-			: 'Saving selected cards…'}
+			? html`<div class='progress-panel'>
+							<h3>${this._bulkTagProgress.description}…</h3>
+							<progress aria-label='Multi-edit progress' max=${this._bulkTagProgress.total} value=${this._bulkTagProgress.completed}></progress>
+							<span class='count'>${this._bulkTagProgress.completed} of ${this._bulkTagProgress.total} cards ${this._bulkTagProgress.serverConfirmed ? 'server-confirmed' : 'processed safely'}</span>
+							<details>
+								<summary>Details</summary>
+								<p>${this._bulkTagProgress.serverConfirmed
+		? 'Changes are saved in small batches, and each batch is confirmed by the server before the next one is attempted.'
+		: 'Each card counts as processed once its change is durably recorded in this browser; if this tab closes, the operation resumes on the next load.'}</p>
+								<p>Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.</p>
+							</details>
+						</div>`
+			: html`<div class='progress-panel'>
+							<h3>Saving selected cards…</h3>
+							<progress aria-label='Multi-edit progress'></progress>
+						</div>`}
 				</div>
 			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
 			<select @change=${this._handleAddReference}>
