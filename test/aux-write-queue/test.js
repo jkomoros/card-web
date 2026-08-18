@@ -434,6 +434,128 @@ describe('aux write queue', () => {
 		assert.deepEqual(queue.readPendingAuxWrites(), []);
 	});
 
+	//The SDK serializes every mutation over one ordered write stream, so a
+	//group's "concurrent" attempts ack one at a time — the 30th commit
+	//legitimately waits ~30 round trips. A per-attempt deadline that starts at
+	//attempt START measures queue depth, not health: at production latency a
+	//32-card import reported 8 committed writes as 'queued', alerted the user
+	//that 8 cards failed, and — because bulk import selects exactly the
+	//committed cards — left 8 freshly created cards out of the selection.
+	it('does not report queued while OTHER writes are still settling (serialized acks)', async () => {
+		queue.setAuxWriteAttemptTimeoutForTesting(60);
+		//Model the write stream: each commit acks 20ms after the one before
+		//it, so most attempts wait far longer than their own 60ms window.
+		let streamTail = Promise.resolve();
+		queue.registerAuxWriteExecutor('card-create', () => {
+			const mine = streamTail.then(() => new Promise(resolve => setTimeout(resolve, 20)));
+			streamTail = mine;
+			return mine;
+		});
+		const intents = Array.from({length: 10}, (unused, i) => queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', {
+			kind: 'card-create', card: {id: 'c' + i}, section: '', sectionUpdateKey: ''}));
+		const outcomes = await queue.runDurableAuxWrites(intents, 8);
+		assert.deepEqual(outcomes, intents.map(() => 'committed'),
+			'a healthy-but-serialized pipeline must not produce false queued outcomes');
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'every intent cleared on its ack');
+	});
+
+	it('corrects a queued outcome whose write settled before the group drained', async () => {
+		//Even when an attempt DOES time out, the raced result is a snapshot,
+		//not a verdict: the write is usually still on the wire, and by the
+		//time the whole pool drains it has often landed. Callers act on the
+		//outcomes (bulk import selects exactly the committed cards), so the
+		//group must return the truth known at return time.
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		const resolvers = new Map();
+		queue.registerAuxWriteExecutor('card-create', (intent) => new Promise(resolve => resolvers.set(intent.cardID, resolve)));
+		const intents = ['a', 'b'].map(id => queue.makeAuxWriteIntent('u1', 'card-create', id, '', {
+			kind: 'card-create', card: {id}, section: '', sectionUpdateKey: ''}));
+		//Concurrency 1: 'a' must time out before 'b' even starts.
+		const group = queue.runDurableAuxWrites(intents, 1);
+		//Let 'a' pass its full quiet window (nothing else is settling) and
+		//'b' begin.
+		await new Promise(resolve => setTimeout(resolve, 45));
+		//'a' acks late — while the pool is still busy with 'b'.
+		resolvers.get('a')();
+		await new Promise(resolve => setTimeout(resolve, 5));
+		resolvers.get('b')();
+		const outcomes = await group;
+		assert.deepEqual(outcomes, ['committed', 'committed'],
+			'a write that landed before the group returned must be reported committed');
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'the late ack still cleared the intent');
+	});
+
+	it('a genuinely dead pipeline still reports queued, boundedly, for a whole group', async () => {
+		//The progress-aware deadline must not turn "offline" into a hang: with
+		//nothing settling anywhere, every attempt gets exactly one quiet
+		//window and then reports.
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		queue.registerAuxWriteExecutor('card-create', () => new Promise(() => {}));
+		const intents = Array.from({length: 3}, (unused, i) => queue.makeAuxWriteIntent('u1', 'card-create', 'c' + i, '', {
+			kind: 'card-create', card: {id: 'c' + i}, section: '', sectionUpdateKey: ''}));
+		const start = Date.now();
+		const outcomes = await queue.runDurableAuxWrites(intents, 3);
+		assert.deepEqual(outcomes, ['queued', 'queued', 'queued']);
+		assert.ok(Date.now() - start < 5000, 'must give up rather than extend forever');
+		assert.equal(queue.readPendingAuxWrites().length, 3, 'all three stay persisted for replay');
+	});
+
+	it('sibling settlements extend a hung write, and a quiet window then ends it', async () => {
+		//Two commits land immediately; the third hangs forever. The early
+		//settlements re-arm the hung write's deadline once — provably: the
+		//group takes at least two windows, where the old fixed timeout took
+		//one — but as soon as a full window passes with no progress it must
+		//report queued.
+		queue.setAuxWriteAttemptTimeoutForTesting(30);
+		queue.registerAuxWriteExecutor('card-create', (intent) =>
+			intent.cardID === 'hung' ? new Promise(() => {}) : Promise.resolve());
+		const intents = ['ok1', 'ok2', 'hung'].map(id => queue.makeAuxWriteIntent('u1', 'card-create', id, '', {
+			kind: 'card-create', card: {id}, section: '', sectionUpdateKey: ''}));
+		const start = Date.now();
+		const outcomes = await queue.runDurableAuxWrites(intents, 3);
+		const elapsed = Date.now() - start;
+		assert.deepEqual(outcomes, ['committed', 'committed', 'queued']);
+		assert.ok(elapsed >= 55, `the ok settlements must have bought the hung write a second window (took ${elapsed}ms)`);
+		assert.deepEqual(queue.readPendingAuxWrites().map(i => i.cardID), ['hung'],
+			'only the write that truly never settled stays queued');
+	});
+
+	it('caps extensions: steady unrelated traffic cannot keep a hung write in flight forever', async () => {
+		//"Attempts are finite" is false in practice — auto-mark-read fires
+		//every ~5s while the user browses, inside every 8s window. A
+		//deterministically hung attempt riding that traffic must not stay in
+		//`inFlight` indefinitely: there replay skips it, its caller's await
+		//never resolves, and recordFailure (whose wedge report exists exactly
+		//for deterministic hangs) never runs.
+		queue.setAuxWriteAttemptTimeoutForTesting(20);
+		queue.registerAuxWriteExecutor('card-create', () => new Promise(() => {}));
+		queue.registerAuxWriteExecutor('star-add', () => new Promise(resolve => setTimeout(resolve, 5)));
+		let stopTraffic = false;
+		const traffic = (async () => {
+			while (!stopTraffic) {
+				await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'star-add', 'noise'));
+				await new Promise(resolve => setTimeout(resolve, 5));
+			}
+		})();
+		const intent = queue.makeAuxWriteIntent('u1', 'card-create', 'hung', '', {
+			kind: 'card-create', card: {id: 'hung'}, section: '', sectionUpdateKey: ''});
+		const start = Date.now();
+		const outcome = await queue.runDurableAuxWrite(intent);
+		const elapsed = Date.now() - start;
+		stopTraffic = true;
+		await traffic;
+		assert.equal(outcome, 'queued');
+		//1 initial window + at most MAX_DEADLINE_EXTENSIONS (4) more = 100ms
+		//at this test's 20ms window; the margin is CI slack, and the real
+		//assertion is that the bound is a small constant, not the traffic's
+		//lifetime.
+		assert.ok(elapsed < 1000, `the capped deadline must end the wait (took ${elapsed}ms)`);
+		assert.ok(queue.readPendingAuxWrites().some(i => i.cardID === 'hung'),
+			'the hung intent is retained for replay');
+		assert.ok(storage.has(`card-web-aux-writes-v2-f-${intent.id}`),
+			'and its failure was COUNTED, so the wedge report can eventually fire');
+	});
+
 	it('refuses an oversized group whole, before persisting any of it', async () => {
 		queue.registerAuxWriteExecutor('card-create', async () => {});
 		const big = 'x'.repeat(20000);

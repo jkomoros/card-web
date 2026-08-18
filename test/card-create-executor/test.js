@@ -385,6 +385,60 @@ describe('bulk import hand-back', () => {
 		assert.strictEqual(selectedAtSuccess, CARDS, 'and all of them must be selected');
 	});
 
+	it('selects every card that arrives even when the queue mislabeled ALL of them queued', async function() {
+		//A group no larger than the queue's concurrency drains in one beat, so
+		//a first ack slower than the attempt deadline pins 'queued' on EVERY
+		//card with no sibling settlement to extend or correct it — and the
+		//writes then all land anyway. The selection invariant (every created
+		//card is selected) must key on ARRIVALS, not on those labels: acting
+		//on the labels here reported a fully successful import as
+		//BULK_IMPORT_FAILURE with nothing selected.
+		this.timeout(120000);
+		clearAuxQueue();
+		clearHarnessAlerts();
+		store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
+		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {edit: true}});
+
+		const CARDS = 4;
+		const marker = 'bulk-mislabel-' + Date.now();
+		const bodies = Array.from({length: CARDS}, (_, i) => `<p>${marker} ${i}</p>`);
+
+		//A 1ms deadline loses the race against ANY real emulator commit, so
+		//every outcome is a false 'queued'.
+		queue.setAuxWriteAttemptTimeoutForTesting(1);
+
+		//Same delta-listener stand-in as above: poll the server and hand
+		//arrivals to Redux.
+		const {getDocs, query, collection: coll, where} = firestore;
+		const delivered = new Set();
+		const deliveryTimer = setInterval(() => {
+			void (async () => {
+				const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
+				for (const docSnapshot of snapshot.docs) {
+					const card = docSnapshot.data();
+					if (delivered.has(docSnapshot.id) || !String(card.body || '').includes(marker)) continue;
+					delivered.add(docSnapshot.id);
+					store.dispatch({type: 'UPDATE_CARDS', cards: {[docSnapshot.id]: {...card, id: docSnapshot.id}}, fetchType: 'unpublished'});
+				}
+			})();
+		}, 50);
+
+		try {
+			await store.dispatch(bulkCreateWorkingNotes(bodies, {importer: 'google-docs-flat', importer_version: 1}));
+		} finally {
+			clearInterval(deliveryTimer);
+			queue.setAuxWriteAttemptTimeoutForTesting(8000);
+		}
+
+		assert.strictEqual(Object.keys(store.getState().collection.selectedCards).length, CARDS,
+			`every created card must be selected despite the false labels (alerts: ${JSON.stringify(harnessAlerts)})`);
+		//The report is deferred a tick on purpose; give it the chance to fire
+		//so the assertion below is meaningful.
+		await new Promise(resolve => setTimeout(resolve, 50));
+		assert.ok(!harnessAlerts.some(message => /could not be created/.test(message)),
+			`no card was lost, so no card may be reported lost (got ${JSON.stringify(harnessAlerts)})`);
+	});
+
 	it('gives up on a card that never arrives instead of freezing the dialog', async function() {
 		this.timeout(120000);
 		clearAuxQueue();

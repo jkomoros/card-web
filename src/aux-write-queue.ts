@@ -864,6 +864,32 @@ const unsettledAttempts : Map<string, Promise<AuxWriteOutcome>> = new Map();
 //the timeout rather than hard-coding it also keeps the unit suite fast.
 const settleGraceMs = () => attemptTimeoutMs;
 
+//Settlements observed across ALL attempts this session. The SDK funnels every
+//mutation through one ordered write stream and acks them in sequence, so
+//"concurrent" attempts from runDurableAuxWrites ack one at a time — a bulk
+//import's 30th commit legitimately waits ~30 round trips. A per-attempt clock
+//that starts at attempt START therefore measures queue depth, not health, and
+//at production latency it reported committed writes as 'queued' (32-card
+//import, 8 false alarms — and, downstream, 8 created cards excluded from the
+//post-import selection). Any settlement — commit, rejection, either is a
+//response — is proof the pipeline is moving, so an attempt's deadline re-arms
+//as long as some attempt settled during its window.
+let settledAttemptCount = 0;
+
+//Extension is NOT self-bounding. "Attempts are finite" is false in practice:
+//unrelated traffic keeps arriving (auto-mark-read fires every ~5s while the
+//user browses — inside every 8s window), and a deterministically HUNG attempt
+//riding that traffic would stay in `inFlight` indefinitely — where replay
+//skips it, the caller's await never resolves, and recordFailure (whose wedge
+//report exists precisely for deterministic hangs) never runs. So cap the
+//re-arms. Sizing: extension exists to absorb the serialized write stream's
+//depth ahead of an attempt, which is at most the group concurrency (8); at a
+//generous 4s per ack that is ~32s, within 4 extra 8s windows. The cap keeps
+//the hard contract the fixed timeout used to provide — callers, replay, and
+//wedge reporting regain the intent within a known bound — while healthy
+//serialized pipelines still finish without false 'queued' reports.
+const MAX_DEADLINE_EXTENSIONS = 4;
+
 //Attempt an intent that is ALREADY persisted and already marked in flight.
 const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
 	const executor = executors[intent.kind];
@@ -884,27 +910,48 @@ const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutco
 		recordFailure(intent, error);
 		return 'queued';
 	}).finally(() => {
+		settledAttemptCount++;
 		inFlight.delete(intent.id);
 		unsettledAttempts.delete(intent.id);
 	});
 	unsettledAttempts.set(intent.id, attempt);
 	return Promise.race([
 		attempt,
-		new Promise<AuxWriteOutcome>(resolve => setTimeout(() => {
-			//Not an error and not a discard: the write may still land. The
-			//intent stays persisted, and dropping it from `inFlight` is what
-			//lets a later replay pick it up if this attempt never settles.
-			if (inFlight.has(intent.id)) {
-				console.warn(`Aux write ${intent.kind} for ${intent.cardID} has not confirmed in ${attemptTimeoutMs}ms; treating it as queued`);
+		new Promise<AuxWriteOutcome>(resolve => {
+			//A full quiet window — attemptTimeoutMs with no settlement
+			//anywhere — is the give-up signal; sibling settlements re-arm the
+			//deadline (see settledAttemptCount above), at most
+			//MAX_DEADLINE_EXTENSIONS times.
+			let observedSettleCount = settledAttemptCount;
+			let extensions = 0;
+			const check = () => {
+				//Settled while a check was pending: the attempt branch of the
+				//race already carried the real outcome; just stop the timer
+				//chain. (This resolve loses the race and is inert.)
+				if (!inFlight.has(intent.id)) {
+					resolve('queued');
+					return;
+				}
+				if (settledAttemptCount !== observedSettleCount && extensions < MAX_DEADLINE_EXTENSIONS) {
+					observedSettleCount = settledAttemptCount;
+					extensions++;
+					setTimeout(check, attemptTimeoutMs);
+					return;
+				}
+				//Not an error and not a discard: the write may still land. The
+				//intent stays persisted, and dropping it from `inFlight` is what
+				//lets a later replay pick it up if this attempt never settles.
+				console.warn(`Aux write ${intent.kind} for ${intent.cardID} has not confirmed in ${attemptTimeoutMs * (extensions + 1)}ms; treating it as queued`);
 				inFlight.delete(intent.id);
 				//COUNT IT. A deterministic hang is exactly as wedged as a
 				//deterministic throw, and only the throw was being counted —
 				//so the shape that never settles would have gone on promising
 				//"it will go through when the connection recovers" forever.
 				recordFailure(intent, new Error(`no response within ${attemptTimeoutMs}ms`));
-			}
-			resolve('queued');
-		}, attemptTimeoutMs))
+				resolve('queued');
+			};
+			setTimeout(check, attemptTimeoutMs);
+		})
 	]);
 };
 
@@ -956,6 +1003,14 @@ export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrenc
 		claimIntent(intent.id);
 	}
 	const outcomes : AuxWriteOutcome[] = new Array(intents.length);
+	//The outcome an attempt ACTUALLY settled with, recorded even when the
+	//raced timeout already reported 'queued'. The timeout is a snapshot, not a
+	//verdict — the write is usually still on the wire — and by the time the
+	//whole pool drains, an attempt that timed out early has often since
+	//committed. Callers act on these outcomes (bulk import selects exactly the
+	//committed cards and alerts about the rest), so hand them the freshest
+	//truth available at return, not the stalest.
+	const settledOutcomes : (AuxWriteOutcome | undefined)[] = new Array(intents.length);
 	let next = 0;
 	//localStorage mutation inside the settle path is synchronous, so concurrent
 	//attempts cannot interleave a read-modify-write within this tab.
@@ -963,10 +1018,25 @@ export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrenc
 		for (;;) {
 			const index = next++;
 			if (index >= intents.length) return;
-			outcomes[index] = await attemptPersistedIntent(intents[index]).finally(() => releaseClaim(intents[index].id));
+			const raced = attemptPersistedIntent(intents[index]);
+			//attemptPersistedIntent registers the underlying attempt (the
+			//un-raced promise) synchronously; subscribe before awaiting the
+			//race so a settlement is captured no matter which branch won.
+			unsettledAttempts.get(intents[index].id)?.then(
+				outcome => { settledOutcomes[index] = outcome; },
+				() => { /* rejection already surfaced through the race */ });
+			outcomes[index] = await raced.finally(() => releaseClaim(intents[index].id));
 		}
 	};
 	await Promise.all(Array.from({length: Math.min(concurrency, intents.length)}, () => runner()));
+	//Correction pass: 'queued' entries whose attempt has settled by now get
+	//the settled outcome. An attempt still unsettled here stays 'queued' —
+	//with the progress-aware deadline above, that requires a full quiet
+	//window, i.e. a pipeline that really is stalled.
+	for (let index = 0; index < intents.length; index++) {
+		const settled = settledOutcomes[index];
+		if (outcomes[index] === 'queued' && settled !== undefined) outcomes[index] = settled;
+	}
 	return outcomes;
 };
 
@@ -1178,4 +1248,5 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	currentUid = null;
 	watcherInstalled = false;
 	attemptTimeoutMs = 8000;
+	settledAttemptCount = 0;
 };

@@ -2222,23 +2222,33 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
-	const notCommitted = outcomes.filter(outcome => outcome !== 'committed').length;
-	if (notCommitted) {
-		const queued = outcomes.filter(outcome => outcome === 'queued').length;
-		console.warn(`${notCommitted} of ${outcomes.length} imported cards did not commit (${queued} queued for replay)`);
-		if (queued && typeof window !== 'undefined') window.setTimeout(() => alert(`${queued} of ${outcomes.length} cards could not be created right now. They have been saved and will be created automatically when the connection recovers.`), 0);
+	//A 'queued' outcome is a deadline snapshot, not a verdict: a slow first
+	//ack can pin it on EVERY card of a small group moments before they all
+	//commit (a group no larger than the queue's concurrency drains in one
+	//beat, so no sibling settlement arrives in time to extend or correct it).
+	//Acting on the labels here reported created cards as failures and dropped
+	//them from the selection. Arrival through the listener is ground truth —
+	//a card that arrives exists, whatever its label said — so the selection
+	//invariant (every created card is selected) keys on arrivals: wait on
+	//everything not discarded, and report as unavailable only what still has
+	//not arrived by the deadline below.
+	const queuedCount = outcomes.filter(outcome => outcome === 'queued').length;
+	if (queuedCount) console.warn(`${queuedCount} of ${outcomes.length} imported cards did not confirm before the deadline; queued for replay. Waiting to see whether they arrive anyway.`);
+	const candidateIDs = ids.filter((_, index) => outcomes[index] !== 'discarded');
+	if (!candidateIDs.length) {
+		//Discards are permanent failures; the queue has already reported each
+		//one loudly (reportDiscardedIntent).
+		dispatch({type: BULK_IMPORT_FAILURE, error: 'These cards could not be created.'});
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
 	}
-	//Waiting for a card the server does not have would hang the import UI — and
-	//returning without BULK_IMPORT_FAILURE left the dialog permanently scrimmed
-	//with no message. So wait only on what actually committed.
-	//
-	//This used to test outcomes[0] specifically, because ids[0] was the only
-	//card being waited for. Now that every card is waited on, singling out the
-	//first is not just vestigial but wrong: a blip that queued card 0 while
-	//1..N committed AND arrived threw the whole import away, told the user
-	//nothing about the N-1 cards that exist, and left them unselected.
-	const committedIDs = ids.filter((_, index) => outcomes[index] === 'committed');
-	if (!committedIDs.length) {
+	if (!outcomes.some(outcome => outcome === 'committed') && typeof navigator !== 'undefined' && navigator.onLine === false) {
+		//Nothing committed and the browser KNOWS it is offline: nothing can
+		//arrive, so the arrival wait below would only freeze the scrimmed,
+		//cancel-less dialog for its full deadline. onLine === false is
+		//trustworthy in that direction (recordFailure makes the same
+		//"merely offline" distinction); when it is true-but-wrong we simply
+		//take the bounded wait, which is the safe default.
 		dispatch({type: BULK_IMPORT_FAILURE, error: 'Some cards could not be created yet. They are saved and will be created automatically when the connection recovers.'});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
@@ -2263,26 +2273,36 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//(measured: 60.5s with a single card withheld). A card that lands after the
 	//deadline is not lost — it is in the corpus, just not in this selection, and
 	//the user is told below.
-	const arrivals = await Promise.allSettled(committedIDs.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS)));
-	const arrivedIDs = committedIDs.filter((_, index) => arrivals[index].status === 'fulfilled');
+	const arrivals = await Promise.allSettled(candidateIDs.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS)));
+	const arrivedIDs = candidateIDs.filter((_, index) => arrivals[index].status === 'fulfilled');
+	const missingIDs = new Set(candidateIDs.filter((_, index) => arrivals[index].status !== 'fulfilled'));
+	//The two ways a card can be missing get different advice. A card whose
+	//write was QUEUED and which never arrived is waiting on the connection:
+	//it replays automatically. A card whose write COMMITTED but which has not
+	//synced back is safe on the server and just late reaching this tab.
+	const missingQueued = ids.filter((id, index) => missingIDs.has(id) && outcomes[index] === 'queued').length;
+	const missingCommitted = missingIDs.size - missingQueued;
 	if (!arrivedIDs.length) {
-		//Nothing came back at all — the same failure the single wait reported,
-		//with the same message so the recovery advice does not change. Clear the
-		//expectation latch too, as every sibling failure path here does.
+		//Nothing came back at all. Clear the expectation latch too, as every
+		//sibling failure path here does.
 		const firstRejection = arrivals.find(arrival => arrival.status === 'rejected');
 		const reason = firstRejection && firstRejection.status === 'rejected' ? firstRejection.reason : null;
-		dispatch({type: BULK_IMPORT_FAILURE, error: reason instanceof Error ? reason.message : String(reason)});
+		const error = missingCommitted && reason instanceof Error
+			? reason.message
+			: 'Some cards could not be created yet. They are saved and will be created automatically when the connection recovers.';
+		dispatch({type: BULK_IMPORT_FAILURE, error});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
-	if (arrivedIDs.length < committedIDs.length) {
-		//The cards ARE written; this tab just has not seen them. Select what we
-		//have (so the multi-edit it is about to offer covers exactly what it
-		//says) and tell the user about the rest rather than silently selecting
-		//IDs that will never resolve.
-		const missing = committedIDs.length - arrivedIDs.length;
-		console.warn(`${missing} of ${committedIDs.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms`);
-		if (typeof window !== 'undefined') window.setTimeout(() => alert(`${missing} of ${committedIDs.length} imported cards were created but have not synced back to this tab yet, so they are not selected. They are safe on the server; they should appear shortly, or after a reload.`), 0);
+	if (missingIDs.size) {
+		//Select what we have (so the multi-edit it is about to offer covers
+		//exactly what it says) and tell the user about the rest rather than
+		//silently selecting IDs that will never resolve.
+		console.warn(`${missingIDs.size} of ${candidateIDs.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms (${missingQueued} still queued for replay)`);
+		const messages : string[] = [];
+		if (missingQueued) messages.push(`${missingQueued} of ${ids.length} cards could not be created right now. They have been saved and will be created automatically when the connection recovers.`);
+		if (missingCommitted) messages.push(`${missingCommitted} of ${ids.length} imported cards were created but have not synced back to this tab yet, so they are not selected. They are safe on the server; they should appear shortly, or after a reload.`);
+		if (typeof window !== 'undefined') window.setTimeout(() => alert(messages.join('\n\n')), 0);
 	}
 
 	dispatch(clearSelectedCards());
