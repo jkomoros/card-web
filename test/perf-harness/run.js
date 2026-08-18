@@ -488,7 +488,23 @@ const main = async () => {
 			//bringToFront(); dispatch the same event real Chrome emits so the
 			//gate's foreground-refocus behavior is exercised deterministically.
 			await contender.evaluate(() => window.dispatchEvent(new Event('focus')));
-			await contender.waitForFunction(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('data-testid') === 'corpus-use-this-tab');
+			//Focus lands on the PANEL, not on the CTA — and that is the point.
+			//This gate opens with no user action behind it (another tab took
+			//ownership; the worker failed), so focusing a button would let an
+			//in-flight keystroke from someone mid-sentence land Space/Enter on
+			//'Use this tab' and run a destructive action they never saw. See
+			//_focusTarget in src/components/corpus-ownership-gate.ts.
+			//
+			//This assertion used to demand the CTA. That was correct until
+			//0ed8dc69 (2026-08-15) deliberately moved focus to the panel and did
+			//not update this file — which left perf:local, the only full-stack
+			//acceptance gate, failing here for every run since. Asserting the
+			//CTA is NOT focused turns it from a stale expectation into a guard
+			//for the hazard that commit closed.
+			await contender.waitForFunction(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('role') === 'alertdialog');
+			if (await contender.evaluate(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('data-testid') === 'corpus-use-this-tab')) {
+				throw new Error('the ownership gate focused its destructive CTA on open; an in-flight Enter would activate it');
+			}
 			await contender.keyboard.press('Tab');
 			if (!await contender.evaluate(() => document.querySelector('card-web-app')?.shadowRoot?.querySelector('corpus-ownership-gate')?.shadowRoot?.activeElement?.getAttribute('data-testid') === 'corpus-use-this-tab')) throw new Error('ownership gate did not contain forward Tab focus on its CTA');
 			await contender.keyboard.press('Shift+Tab');

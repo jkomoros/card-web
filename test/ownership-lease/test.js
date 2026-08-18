@@ -113,7 +113,7 @@ describe('pre-land debt fixes (round 5)', () => {
 	const data = fs.readFileSync(new URL('../../src/actions/data.ts', import.meta.url), 'utf8');
 
 	it('a blocked-at-boot tab goes network-inert and reconnects only after winning a takeover', () => {
-		const contended = bridge.indexOf("setOwnershipStatus('contended'");
+		const contended = bridge.indexOf('setOwnershipStatus(\'contended\'');
 		assert.ok(contended >= 0);
 		assert.ok(bridge.indexOf('disconnectBackgroundData();', contended) >= 0,
 			'the contended boot path must tear down ambient listeners');
@@ -154,7 +154,7 @@ describe('reader multi-tab (anonymous ownership bypass)', () => {
 		assert.match(bridge, /readerConnectionParams[\s\S]{0,500}selectUserIsAnonymous/,
 			'readers include anonymously-signed-in sessions, not just pre-auth empty uids');
 		assert.match(bridge, /if \(ownershipState !== 'active' && ownershipState !== 'reader'\) return;/,
-			"connectWorkerNow must admit the reader state — the original guard made the reader worker unspawnable (round-6 audit's Bug A)");
+			'connectWorkerNow must admit the reader state — the original guard made the reader worker unspawnable (round-6 audit\'s Bug A)');
 		assert.match(bridge, /activateReaderConnection[\s\S]{0,400}configureMutationOwnership\(\(\) => true/,
 			'reader tabs must not fence user-scoped writes');
 		//Hoisted into a const when the signed-out cache purge began gating on the
@@ -221,5 +221,55 @@ describe('sign-in propagation from an anonymous (reader) session', () => {
 		//sign-ins stopped setting the previous-sign-in marker (round 6).
 		assert.match(user, /const linked = await linkWithPopup\(user, provider\);[\s\S]{0,600}dispatch\(signInSuccess\(linked\.user\)\);/,
 			'a successful anonymous->Google link must propagate the new user to the store');
+	});
+});
+
+//The gate's focus behaviour is a SAFETY property, not cosmetics: it opens with
+//no user action behind it (another tab took ownership; the worker failed), so a
+//keystroke already in flight must not activate a destructive button the user
+//never saw. That is why focus goes to the panel and Tab is what reaches the CTA.
+//
+//It is also where a real race lived. _focusGate defers to requestAnimationFrame
+//(focus events can fire just before Chrome makes a foregrounded document
+//focusable), and EVERY focus/visibility event schedules another one — so a
+//frame that fired after the user Tabbed to a button yanked them back off it.
+//The acceptance harness saw this as a Tab that did nothing, and as a run that
+//passed or failed on the same build depending on which side of the frame
+//boundary the keystroke landed.
+describe('ownership gate focus safety', () => {
+	const gate = fs.readFileSync(new URL('../../src/components/corpus-ownership-gate.ts', import.meta.url), 'utf8');
+
+	const focusGate = (() => {
+		const start = gate.indexOf('private _focusGate = ');
+		assert.ok(start >= 0, 'could not find _focusGate');
+		const end = gate.indexOf('\n\t};', start);
+		assert.ok(end > start, 'could not find the end of _focusGate');
+		return gate.slice(start, end);
+	})();
+
+	it('does not steal focus back once it is already inside the gate', () => {
+		assert.match(focusGate, /activeElement\)?\s*return;/,
+			'the deferred focus must bail when focus already reached the gate, or it fights the user for the control they Tabbed to');
+	});
+
+	it('still defers a frame, which is why the bail-out is needed at all', () => {
+		assert.match(focusGate, /requestAnimationFrame/,
+			'the deferral is deliberate; if it goes away, revisit the bail-out above rather than deleting it');
+	});
+
+	it('targets the panel rather than a button', () => {
+		//The RETURN EXPRESSION only. The comment above it discusses buttons at
+		//length, so matching the whole function body finds the prose instead of
+		//the code — which is the classic way a source-reading test quietly stops
+		//testing anything.
+		const body = (() => {
+			const start = gate.indexOf('private _focusTarget()');
+			return gate.slice(start, gate.indexOf('\n\t}', start));
+		})();
+		const returnExpression = body.slice(body.indexOf('return '));
+		assert.match(returnExpression, /querySelector<HTMLElement>\('\.panel'\)/,
+			'focus must land on the panel: an in-flight Space/Enter must not activate a destructive CTA');
+		assert.ok(returnExpression.indexOf('.panel') < returnExpression.indexOf('button'),
+			'the panel must be preferred OVER any button, not used as a fallback after one');
 	});
 });

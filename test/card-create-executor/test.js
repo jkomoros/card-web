@@ -437,3 +437,70 @@ describe('bulk import hand-back', () => {
 			`the user must be told which cards are missing (got ${JSON.stringify(harnessAlerts)})`);
 	});
 });
+
+//--- What counts as a sentinel -----------------------------------------------
+//These two predicates are consulted for EVERY object-valued leaf of every card
+//update, so they were rewritten to gate on a cheap `instanceof FieldValue`
+//before stringifying (2.86us -> 0.064us per call). The gate is only safe
+//because of the exact set of things below: every Firestore write instruction IS
+//a FieldValue, while a serverTimestampSentinel-vended value is a real Timestamp
+//and is recognised by identity instead. Get either half wrong and saves either
+//stop stamping server timestamps or start writing sentinels into cards.
+describe('sentinel predicates', () => {
+	let isDeleteSentinel, isServerTimestampSentinel, serverTimestampSentinel, installServerTimestamps;
+	let deleteField, serverTimestamp, arrayUnion, Timestamp;
+
+	before(async () => {
+		await bootstrapApp();
+		({isDeleteSentinel, isServerTimestampSentinel, serverTimestampSentinel, installServerTimestamps} =
+			await import('../../lib/src/firebase.js'));
+		({deleteField, serverTimestamp, arrayUnion, Timestamp} = await import('firebase/firestore'));
+	});
+
+	it('recognises the two real sentinels', () => {
+		assert.ok(isDeleteSentinel(deleteField()), 'deleteField must be a delete sentinel');
+		assert.ok(isServerTimestampSentinel(serverTimestamp()), 'serverTimestamp must be a timestamp sentinel');
+	});
+
+	it('recognises a VENDED timestamp, which is not a FieldValue at all', () => {
+		//The whole point of serverTimestampSentinel: a real Timestamp carrying
+		//the MEANING of a server timestamp, tracked by identity. If the cheap
+		//FieldValue gate were applied before this lookup, every save would stop
+		//asking the server to stamp its timestamps.
+		const vended = serverTimestampSentinel();
+		assert.ok(vended instanceof Timestamp, 'it must still be a real Timestamp');
+		assert.ok(isServerTimestampSentinel(vended), 'and must still be detected as a sentinel');
+		assert.ok(!isDeleteSentinel(vended));
+	});
+
+	it('does not confuse the sentinels with each other or with data', () => {
+		assert.ok(!isDeleteSentinel(serverTimestamp()));
+		assert.ok(!isServerTimestampSentinel(deleteField()));
+		assert.ok(!isDeleteSentinel(arrayUnion('x')), 'an array transform is neither');
+		assert.ok(!isServerTimestampSentinel(arrayUnion('x')));
+		for (const value of ['a string', 12, true, null, undefined, {}, [], Timestamp.now(), {tags: ['a']}]) {
+			assert.ok(!isDeleteSentinel(value), `${JSON.stringify(value)} must not be a delete sentinel`);
+			assert.ok(!isServerTimestampSentinel(value), `${JSON.stringify(value)} must not be a timestamp sentinel`);
+		}
+	});
+
+	it('still upgrades a vended timestamp to a real serverTimestamp before writing', () => {
+		//installServerTimestamps is what makes the vended form work at all: it
+		//swaps them for literal serverTimestamp() right before set/update.
+		const installed = installServerTimestamps({updated: serverTimestampSentinel(), title: 'unchanged'});
+		assert.ok(!(installed.updated instanceof Timestamp), 'the vended Timestamp must be replaced');
+		assert.ok(isServerTimestampSentinel(installed.updated));
+		assert.strictEqual(installed.title, 'unchanged');
+	});
+
+	it('leaves an object that merely LOOKS like a sentinel alone', () => {
+		//The deliberate narrowing that the cheap gate introduces. A decoded husk
+		//from a JSON round trip is not a live write instruction, and nothing may
+		//treat it as one. The durable queue cannot carry sentinels through JSON
+		//at all; it re-vends them explicitly.
+		const husk = JSON.parse(JSON.stringify(deleteField()));
+		assert.ok(!isDeleteSentinel(husk), 'a JSON round trip of a sentinel is data, not an instruction');
+		const timestampHusk = JSON.parse(JSON.stringify(serverTimestamp()));
+		assert.ok(!isServerTimestampSentinel(timestampHusk));
+	});
+});

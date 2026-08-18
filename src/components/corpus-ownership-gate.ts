@@ -187,6 +187,15 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 		//foregrounded document focusable. Defer one frame so focus is not lost.
 		requestAnimationFrame(() => {
 			if (!this._shouldBlock()) return;
+			//If focus already reached the gate, LEAVE IT. The job here is to get
+			//focus into the gate, not to hold it on the panel: a deferred frame
+			//that fires after the user has Tabbed to a button yanks them back off
+			//the control they just reached, and every focus/visibility event
+			//schedules another one. Observed in the acceptance harness as a Tab
+			//that appeared to do nothing — and, depending on which side of the
+			//frame boundary the keystroke landed, as a test that passed or failed
+			//on the same build.
+			if (this.renderRoot instanceof ShadowRoot && this.renderRoot.activeElement) return;
 			const target = this._focusTarget();
 			target?.focus({preventScroll: true});
 		});
