@@ -73,7 +73,7 @@ import {
 } from '../shared/card_fields.js';
 
 import {
-	memoize
+	memoizeWeakFirstArg
 } from './memoize.js';
 
 import { references } from './references.js';
@@ -562,15 +562,15 @@ const MAX_MEMOIZED_CONFIGURABLE_FILTERS = 64;
 //The memo keys on a generation NUMBER via a WeakMap, not on the extras object,
 //so this cache holds no strong reference to the corpus (extras holds `cards`).
 //
-//BE HONEST ABOUT WHAT THAT BUYS TODAY: nothing measurable. makeExtrasForFilterFunc
-//is itself memoize(fn, 3), and that memo retains {args, result} STRONGLY with
-//args including the cards map — so the corpus stays reachable for three
-//generations regardless of what this cache does, which is longer than the old
-//strong reference here held it. Verified by forcing GC: dropping every
-//app-side reference leaves the processed cards map alive until that memo is
-//flushed. This is kept because it is the correct shape and because it stops
-//THIS cache being the retainer once the other one is fixed; it is not a
-//memory win on its own.
+//An earlier version of this comment recorded that this bought nothing
+//measurable, because makeExtrasForFilterFunc was memoize(fn, 3) and retained
+//the cards map STRONGLY for three generations regardless. That other memo is
+//now memoizeWeakFirstArg keyed on the cards map itself (#749), so NEITHER OF
+//THESE TWO CACHES is a corpus retainer any more — the fixed memo was the one
+//pinning up to three swapped-out generations. Scope the claim honestly: a
+//handful of one-generation-deep module retainers still hold the LAST corpus
+//until displaced (reference_blocks' workerExpansionMemo and per-card maps,
+//selectors' _previousActiveCollection); those are tracked separately.
 const extrasGenerations = new WeakMap<FilterExtras, number>();
 let nextExtrasGeneration = 0;
 const generationForExtras = (extras : FilterExtras) : number => {
@@ -740,7 +740,18 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 //we use an extras object that the filter func can unpack as necessary. The
 //extras object is memoized so you can check for equality to see if any
 //individual portion changed.
-const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : FilterExtras => {
+//
+//Weakly keyed on the CARDS map, which is the first parameter for exactly
+//this reason (#749): the plain memoize held its last three argument tuples
+//STRONGLY, so the last three distinct extras each pinned a whole processed
+//corpus — measured 51.0 → 30.6 MB on flushing it — and outlived every
+//app-side reference on sign-out or account switch, which made #744's
+//weak-keying of the downstream configurable-filter cache deliver zero net
+//benefit. The per-cards entry budget (8) covers several concurrent
+//distinct rest-tuples (active + query + reference-block runs with
+//differing keyCardID/cardSimilarity) without thrashing that downstream
+//memo, which keys on this function's RESULT IDENTITY.
+const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
@@ -752,7 +763,7 @@ const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards :
 		editingCardSimilarity,
 		idfMap
 	};
-});
+}, 8);
 
 type FilterFunc = (id : CardID) => boolean;
 
@@ -1050,7 +1061,7 @@ export class Collection {
 
 	get _filterExtras() : FilterExtras {
 		if (!this._cachedFilterExtras) {
-			this._cachedFilterExtras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap);
+			this._cachedFilterExtras = makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot || this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap);
 		}
 		return this._cachedFilterExtras;
 	}
@@ -1154,8 +1165,8 @@ export class Collection {
 		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForExpansion, this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
