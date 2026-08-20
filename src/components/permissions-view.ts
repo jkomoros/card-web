@@ -68,7 +68,8 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		css`
 			:host {
 				height: 100%;
-				overflow: scroll; 
+				/* auto, not scroll (#759). */
+				overflow: auto;
 			}
 
 			section {

@@ -92,11 +92,22 @@ export class DialogElement extends LitElement {
 				right: 0.5em;
 			}
 
+			/* #inner is THE scroll container for every dialog (#759): content
+			   rendered inside a dialog must not introduce its own scroller
+			   unless it is deliberately a nested pane. auto, not scroll —
+			   scroll reserves a permanent gutter on always-show-scrollbar
+			   systems (Windows, Linux, macOS with a mouse) whether or not
+			   anything overflows; the layout-shift concern that motivates
+			   scroll is what scrollbar-gutter: stable is for. contain keeps a
+			   dialog scrolled to its end from chain-scrolling the page
+			   behind it. */
 			#inner {
 				flex-grow:1;
 				display:flex;
 				flex-direction:column;
-				overflow:scroll;
+				overflow: auto;
+				scrollbar-gutter: stable;
+				overscroll-behavior: contain;
 			}
 		`
 	];

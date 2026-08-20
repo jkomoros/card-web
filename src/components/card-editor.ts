@@ -375,7 +375,14 @@ class CardEditor extends connect(store)(LitElement) {
 				flex-direction:column;
 				width:100%;
 				flex-grow:1;
-				overflow:scroll;
+				/* auto, not scroll (#759): scroll reserves a permanent gutter
+				   on always-show-scrollbar systems even with nothing
+				   overflowing. The stable gutter matters HERE specifically:
+				   content height changes as the user types and expands
+				   sections, and without it the full-width input column
+				   shifts ~10px whenever the scrollbar appears mid-edit. */
+				overflow: auto;
+				scrollbar-gutter: stable;
 			}
 
 			.minimized .inputs {

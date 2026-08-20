@@ -110,6 +110,21 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				height:5em;
 			}
 
+			/* Read-only previews, not controls (#759): rendering each body as
+			   a disabled 5em <textarea> gave every pasted bullet its own
+			   scrollbar and resize handle, nested inside the dialog's own
+			   scroller — a few hundred bullets meant a few hundred
+			   scrollbars, each clipping its content. Plain blocks let the
+			   dialog's single scroller do its job. */
+			.body-preview {
+				margin: 0.5em 0;
+				padding: 0.4em 0.6em;
+				border: 1px solid var(--app-divider-color);
+				border-radius: 0.25em;
+				white-space: pre-wrap;
+				overflow-wrap: break-word;
+			}
+
 			.buttons {
 				display:flex;
 				flex-direction: row;
@@ -126,7 +141,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		return html`
 			${this._bodies.length ?
 		html`<p>Verify these bodies are ones you want to create!</p>
-			${this._bodies.map((body) => html`<textarea disabled .value=${body}></textarea>`)}` :
+			${this._bodies.map((body) => html`<div class='body-preview'>${body}</div>`)}` :
 		html`<input type='checkbox' id='bulleted' .checked=${false}><label for='bulleted'>Maintain list formatting</label><br />
 			<p>Paste Google Docs bullets here to import them</p>
 			<textarea
