@@ -963,8 +963,11 @@ const persistableCard = (card : Card) => toWire(
 const serverTimestampFieldsOf = (card : Card) : string[] =>
 	Object.entries(card).filter(([, value]) => isServerTimestampSentinel(value as never)).map(([field]) => field);
 
+//The durable intent's card went through persistableCard (toWire) before the
+//JSON round trip through localStorage, which erases the brand; assert the
+//wire shape visibly at this restoring edge (#738).
 const restoredPersistedCard = (value : unknown) =>
-	fromWire(value, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Card;
+	fromWire(value as import('../worker/wire-format.js').Wire<Card>, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds));
 
 const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => ({
 	type: BULK_TAG_OPERATION_PROGRESS,

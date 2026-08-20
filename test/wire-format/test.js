@@ -5,6 +5,7 @@
 //keep object identity.
 
 import assert from 'assert';
+import fs from 'fs';
 
 import {
 	toWire,
@@ -76,5 +77,41 @@ describe('wire format', () => {
 		assert.strictEqual(toWire(null, isTimestamp, getTime), null);
 		assert.strictEqual(toWire(5, isTimestamp, getTime), 5);
 		assert.strictEqual(fromWire('str', makeTimestamp), 'str');
+	});
+});
+
+//#738: the toWire invariant on card-bearing post() payloads is enforced by
+//the COMPILER via the branded Wire<T> type — deleting the toWire call from
+//corpus-bridge's setEditingCard post site used to leave every suite green
+//(the field was `unknown`, which accepted the raw card, a string, or a
+//function); it is now a build-breaking type error, verified by performing
+//exactly that deletion against tsc. These pins keep the guarantee WIRED:
+//they fail if the protocol fields regress to unknown or the brand is
+//removed, at which point the compile-time enforcement is gone even though
+//tsc still passes.
+describe('the Wire<T> brand stays wired (#738)', () => {
+	const read = (relativePath) => fs.readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
+
+	it('toWire returns Wire<T> and fromWire accepts it', () => {
+		const source = read('src/worker/wire-format.ts');
+		//The SUBSTANCE of the brand, not just its name: `export type
+		//Wire<T> = T;` would disarm the whole compile-time guarantee while
+		//every call site, tsc, and a name-only pin stayed green.
+		assert.match(source, /declare const wireBrand : unique symbol;/);
+		assert.match(source, /export type Wire<T> = \{readonly \[wireBrand\] : T\};/);
+		assert.match(source, /export const toWire = <T>\(value : T,[\s\S]{0,200}\) : Wire<T>/);
+		assert.match(source, /export const fromWire = <T>\(value : Wire<T>,[\s\S]{0,120}\) : T/);
+	});
+
+	it('every card-bearing main→worker field is Wire-branded, not unknown', () => {
+		const protocol = read('src/worker/worker-protocol.ts');
+		assert.match(protocol, /\{type: 'action', generation: WorkerGeneration, action : Wire<SomeAction>\}/);
+		assert.match(protocol, /hydration : Wire<CollectionStateHydration>\}/);
+		assert.match(protocol, /card : Wire<ProcessedCard \| null>, similarity/);
+	});
+
+	it('the setEditingCard post site converts (the exact #737 bug site)', () => {
+		const bridge = read('src/corpus-bridge.ts');
+		assert.match(bridge, /post\(\{type: 'setEditingCard', generation, card: toWire\(card, isTimestamp, getTime\), similarity\}\);/);
 	});
 });

@@ -34,8 +34,13 @@ import {
 } from './actions/data.js';
 
 import {
+	setURLDiagnosticsListener
+} from '../shared/url-diagnostics.js';
+
+import {
 	UPDATE_WORKER_COLLECTION,
 	UPDATE_WORKER_COLLECTION_ERROR,
+	UPDATE_URL_DIAGNOSTICS,
 	UPDATE_CARD_META,
 	REMOVE_CARDS,
 	STOP_EXPECTING_FETCHED_CARDS,
@@ -49,10 +54,6 @@ import {
 import {
 	fetchTypeIsUnpublished
 } from './util.js';
-
-import {
-	Cards
-} from './types.js';
 
 import {
 	MainToWorkerMessage,
@@ -385,7 +386,7 @@ const forwardAction = (action : unknown) => {
 	//those buffered so its eventual worker starts from the state it actually
 	//shows. Only a superseded/unsupported page is terminal and drops them.
 	if (corpusWorkerOwnsCardIngestion() && (ownershipState === 'inactive' || ownershipState === 'unsupported' || ownershipState === 'ownership-error')) return;
-	const wireAction = toWire(action, isTimestamp, getTime);
+	const wireAction = toWire(action as import('./actions.js').SomeAction, isTimestamp, getTime);
 	if (worker) {
 		post({type: 'action', generation, action: wireAction});
 	} else {
@@ -1116,7 +1117,7 @@ const handleCardBatch = (batch : CardBatch) => {
 	//missing cards' cardMeta present — proving the channel was alive and only
 	//the card handling was dying.)
 	workerCorpusSize = batch.corpusSize;
-	const cards = fromWire(batch.cards, makeTimestamp) as Cards;
+	const cards = fromWire(batch.cards, makeTimestamp);
 	const decodedAt = performance.now();
 	//Dispatch even when empty: UPDATE_CARDS clears the loading indicator for
 	//the fetchType regardless of card count, exactly like a main-thread

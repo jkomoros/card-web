@@ -13,6 +13,7 @@ import {
 	CardMetas,
 	CardSimilarityMap,
 	Filters,
+	ProcessedCard,
 	SerializedDescriptionToCardList,
 	SortExtra,
 	Sections,
@@ -53,7 +54,10 @@ import {
 //'error' console message for subscription failures, so a v8 page against a
 //v9 worker would lose even the console signal it had. Additive, but the
 //bump costs nothing; not bumping cost a silent wedge (see v5).
-export const CORPUS_WORKER_PROTOCOL_VERSION = 9;
+//10: new worker→main `urlDiagnostics` message (#757) — the worker parser's
+//not-understood URL parts, bridged so the main thread can warn before e.g.
+//Edit All Cards over-targets on a typo'd filter. Additive; same policy.
+export const CORPUS_WORKER_PROTOCOL_VERSION = 10;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -86,6 +90,15 @@ export const metasEquivalent = (a : CardMeta, b : CardMeta) : boolean => {
 };
 
 import {
+	Wire
+} from './wire-format.js';
+
+import {
+	URLDiagnostic
+} from '../../shared/url-diagnostics.js';
+
+import {
+	SomeAction,
 	UPDATE_STARS,
 	UPDATE_READS,
 	UPDATE_READING_LIST,
@@ -179,13 +192,16 @@ export type MainToWorkerMessage =
 	//fingerprinting; master ran this on the UI thread and stalled it).
 	| {type: 'suggestTags', generation: WorkerGeneration, id : number, count : number}
 	//A whitelisted user-state Redux action (wire-encoded), replayed through
-	//the worker's collection reducer.
-	| {type: 'action', generation: WorkerGeneration, action : unknown}
+	//the worker's collection reducer. Wire<SomeAction>, so a sender that
+	//skips toWire fails to compile (#738).
+	| {type: 'action', generation: WorkerGeneration, action : Wire<SomeAction>}
 	//Replace the query engine's user/config state from one authoritative Redux
 	//snapshot. Used on every activation/reconnect so handoff and auth changes
 	//never depend on which incremental actions happened to be buffered here.
 	//Wire-encoded because section/tag documents contain Firestore Timestamps.
-	| {type: 'hydrateCollectionState', generation: WorkerGeneration, hydration : unknown}
+	//Wire<CollectionStateHydration>, so a sender that skips toWire fails to
+	//compile (#738).
+	| {type: 'hydrateCollectionState', generation: WorkerGeneration, hydration : Wire<CollectionStateHydration>}
 	//Tab-config fallbacks/startCards needed by the Collection machinery.
 	| {type: 'configureCollections', generation: WorkerGeneration, fallbacks : SerializedDescriptionToCardList, startCards : SerializedDescriptionToCardList}
 	//Subscribe to live results for a collection description; the worker
@@ -198,17 +214,16 @@ export type MainToWorkerMessage =
 	//content-derived similarity, mirrored so collection runs reflect unsaved
 	//content — null card when editing ends.
 	//`card` is WIRE-format (a toWire'd ProcessedCard | null), not a live
-	//ProcessedCard: run it back through fromWire to get Timestamps. It is
-	//typed `unknown` because that is what toWire RETURNS, matching
-	//`hydrateCollectionState` above.
+	//ProcessedCard: run it back through fromWire to get Timestamps.
 	//
-	//Be clear about what this does and does not buy: `unknown` does NOT
-	//enforce the toWire discipline. A sender can still pass a raw
-	//ProcessedCard here and typecheck cleanly — which is exactly how this
-	//became the one card-bearing message that skipped toWire (#737). A
-	//branded Wire<T> would turn that skip into a compile error; until then
-	//the invariant is convention, not type.
-	| {type: 'setEditingCard', generation: WorkerGeneration, card : unknown, similarity : SortExtra | null}
+	//Wire<ProcessedCard | null>, not `unknown` (#738): `unknown` did NOT
+	//enforce the toWire discipline — a sender could pass a raw
+	//ProcessedCard (or a string, or a function) and typecheck cleanly,
+	//which is exactly how this became the one card-bearing message that
+	//skipped toWire (#737). With the brand, the skip is a compile error and
+	//the receiver gets ProcessedCard | null back from fromWire with no
+	//cast.
+	| {type: 'setEditingCard', generation: WorkerGeneration, card : Wire<ProcessedCard | null>, similarity : SortExtra | null}
 	//Ask for the full set of card IDs in the worker's corpus, so the bridge
 	//can reconcile away cards the local-cache prime served that no longer
 	//exist (deleted while the app was closed — the worker never saw them, so
@@ -234,7 +249,10 @@ export type MainToWorkerMessage =
 //--------------------------------------------------------------------------
 
 export type CardBatch = {
-	cards : Cards,
+	//Wire<Cards>, not Cards (#738): the worker sends per-card toWire'd
+	//shapes; typing them Cards would let a future consumer skip fromWire
+	//and explode at runtime on a prototype-less Timestamp.
+	cards : Wire<Cards>,
 	//Present only on the final compact-prime batch. These are the worker's
 	//complete card-derived filter maps for the same atomic corpus generation.
 	cardFilters? : Filters,

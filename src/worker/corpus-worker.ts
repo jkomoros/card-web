@@ -134,8 +134,7 @@ import {
 } from './worker-protocol.js';
 
 import {
-	CardMetas,
-	ProcessedCard
+	CardMetas
 } from '../types.js';
 
 import {
@@ -156,7 +155,10 @@ import {
 } from './subscription-manager.js';
 
 import {
-	SomeAction,
+	setURLDiagnosticsListener
+} from '../../shared/url-diagnostics.js';
+
+import {
 	ECHO_LOCAL_CARD_MODIFICATIONS,
 	RECONCILE_CARDS_AFTER_FAILED_COMMIT,
 	SELECT_CARDS,
@@ -975,7 +977,9 @@ const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = fal
 };
 
 const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean, errorFallback = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) => {
-	const wireCards = Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, toWire(stripForWire(card), isTimestamp, getTime)])) as Cards;
+	//One toWire over the whole stripped map, so the batch is Wire<Cards>
+	//end to end (#738) — no unknown hop for a receiver to fumble.
+	const wireCards = toWire(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])) as Cards, isTimestamp, getTime);
 	send({
 		type: 'cards',
 		generation,
@@ -1444,8 +1448,8 @@ const connectPublishedFromSnapshot = async () => {
 	if (compactSnapshot && Object.keys(compactSnapshot.cards).length) {
 		const ageMs = Date.now() - (compactSnapshot.savedAt || 0);
 		primedSnapshotAgeMs = compactSnapshot.savedAt ? ageMs : null;
-		const restored = fromWire(compactSnapshot.cards,
-			(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
+		const restored = fromWire(compactSnapshot.cards as import('./wire-format.js').Wire<Cards>,
+			(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds));
 		for (const [id, card] of Object.entries(restored)) {
 			//RE-FILTER ON READ, not only on write. Both reconciliation paths
 			//that could later remove a bad entry (publishedGhostIDs here, and
@@ -2822,7 +2826,7 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 					watermarkClamp: compactSnapshot.watermarkClamp,
 				};
 			}
-			const restored = fromWire(compactSnapshot.cards,
+			const restored = fromWire(compactSnapshot.cards as import('./wire-format.js').Wire<Cards>,
 				(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
 			//A published cache listener may have won the race while IndexedDB
 			//loaded. Never overwrite fresher listener data with the saved base.
@@ -3323,7 +3327,7 @@ workerScope.addEventListener('message', event => {
 		runQuery(message.id, message.text);
 		break;
 	case 'action': {
-		const action = fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as SomeAction;
+		const action = fromWire(message.action, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds));
 		if (action.type === RECONCILE_CARDS_AFTER_FAILED_COMMIT) {
 			//Authoritative content for the CORPUS — but NOT for the
 			//watermark: this can arrive before boot derives sessionWatermark
@@ -3368,7 +3372,7 @@ workerScope.addEventListener('message', event => {
 		break;
 	}
 	case 'hydrateCollectionState':
-		engine.hydrateCollectionState(fromWire(message.hydration, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as import('./worker-protocol.js').CollectionStateHydration);
+		engine.hydrateCollectionState(fromWire(message.hydration, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)));
 		subscriptions.markDirty();
 		break;
 	case 'configureCollections':
@@ -3396,7 +3400,7 @@ workerScope.addEventListener('message', event => {
 	case 'setEditingCard': {
 		//Re-push subscriptions so open collections and reference blocks
 		//reflect the new editing content immediately.
-		const editingCard = fromWire(message.card, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as ProcessedCard | null;
+		const editingCard = fromWire(message.card, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds));
 		if (engine.setEditingCard(editingCard, message.similarity)) subscriptions.markDirty();
 		break;
 	}
