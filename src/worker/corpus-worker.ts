@@ -158,7 +158,10 @@ import {
 import {
 	SomeAction,
 	ECHO_LOCAL_CARD_MODIFICATIONS,
-	RECONCILE_CARDS_AFTER_FAILED_COMMIT
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT,
+	SELECT_CARDS,
+	UNSELECT_CARDS,
+	CLEAR_SELECTED_CARDS
 } from '../actions.js';
 
 import {
@@ -3350,7 +3353,13 @@ workerScope.addEventListener('message', event => {
 			break;
 		}
 		engine.applyAction(action);
-		subscriptions.markDirty();
+		//Selection toggles are per-keypress user actions that can only
+		//change selection-filter results; scope the dirt so the flush skips
+		//unaffected subscriptions and runs without the batch-coalescing
+		//delay (#760).
+		subscriptions.markDirty(
+			action.type === SELECT_CARDS || action.type === UNSELECT_CARDS || action.type === CLEAR_SELECTED_CARDS
+				? 'selection' : 'all');
 		break;
 	}
 	case 'hydrateCollectionState':

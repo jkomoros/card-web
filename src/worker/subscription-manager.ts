@@ -16,6 +16,10 @@ import {
 	Uid
 } from '../types.js';
 
+import {
+	SELECTED_FILTER_NAME
+} from '../filter-constants.js';
+
 export type SubscriptionParams = {
 	description : string,
 	keyCardID : CardID | '',
@@ -29,9 +33,22 @@ export type SubscriptionPush = RunCollectionResult & {
 	ms : number
 };
 
+//What kind of engine change a markDirty describes. 'selection' means ONLY
+//the selected-cards set changed — a per-keypress user action whose result
+//can differ only for subscriptions that actually reference the selection
+//filters. Everything else is 'all'.
+export type DirtyScope = 'selection' | 'all';
+
 type Subscription = SubscriptionParams & {
 	lastIDs : CardID[] | null,
 	lastLabels : string[] | null,
+	//Whether the description references the selection filters (selected /
+	//not-selected), computed once at subscribe. Conservative substring test:
+	//'not-selected' contains 'selected', union members and configurable
+	//sub-expressions embed the literal name, and a false positive (e.g. a
+	//query containing the word) merely recomputes — never skips a needed
+	//recompute.
+	dependsOnSelection : boolean,
 };
 
 const resultsEqual = (subscription : Subscription, result : RunCollectionResult) : boolean => {
@@ -55,7 +72,9 @@ export class SubscriptionManager {
 	_onError : ((description : string, error : unknown) => void) | null;
 	_flushDelayMs : number;
 	_flushTimeout : ReturnType<typeof setTimeout> | null;
+	_scheduledDelayMs : number;
 	_dirty : boolean;
+	_dirtyScope : DirtyScope | null;
 	_paused : boolean;
 
 	//push is called with each fresh result; flushDelayMs coalesces bursts of
@@ -68,7 +87,9 @@ export class SubscriptionManager {
 		this._onError = onError;
 		this._flushDelayMs = flushDelayMs;
 		this._flushTimeout = null;
+		this._scheduledDelayMs = 0;
 		this._dirty = false;
+		this._dirtyScope = null;
 		this._paused = false;
 	}
 
@@ -98,7 +119,12 @@ export class SubscriptionManager {
 	}
 
 	subscribe(subscriptionID : number, params : SubscriptionParams) : void {
-		this._subscriptions.set(subscriptionID, {...params, lastIDs: null, lastLabels: null});
+		this._subscriptions.set(subscriptionID, {
+			...params,
+			lastIDs: null,
+			lastLabels: null,
+			dependsOnSelection: params.description.includes(SELECTED_FILTER_NAME),
+		});
 		//New subscriptions get a result promptly.
 		this._scheduleFlush();
 	}
@@ -119,19 +145,39 @@ export class SubscriptionManager {
 	}
 
 	//Call whenever engine state may have changed results (card batches,
-	//replayed actions, config updates).
-	markDirty() : void {
+	//replayed actions, config updates). Pass 'selection' when ONLY the
+	//selected-cards set changed: the flush then skips every subscription
+	//whose description does not reference the selection filters, and runs
+	//without the coalescing delay — a selection toggle is a single user
+	//keypress, not an ingestion batch, and making it wait on the batch
+	//floor is what made Space-to-select feel laggy (#760).
+	markDirty(scope : DirtyScope = 'all') : void {
 		this._dirty = true;
-		this._scheduleFlush();
+		this._dirtyScope = this._dirtyScope === null || this._dirtyScope === scope ? scope : 'all';
+		//The DELAY follows the incoming change, not the merged scope: a
+		//selection keypress means a user is waiting, so it pulls even a
+		//pending batch flush forward (sooner-wins in _scheduleFlush). The
+		//SKIP logic in flush() follows the merged scope, so mixed dirt still
+		//recomputes everything.
+		this._scheduleFlush(scope === 'selection' ? 0 : this._flushDelayMs);
 	}
 
-	_scheduleFlush() : void {
+	_scheduleFlush(delayMs = this._flushDelayMs) : void {
 		if (this._paused) return;
-		if (this._flushTimeout) return;
+		if (this._flushTimeout) {
+			//A sooner deadline wins; a later one never postpones a scheduled
+			//flush. NOTE this compares DELAYS, not absolute deadlines — safe
+			//while the only tiers are 0 and _flushDelayMs (0 is always sooner
+			//than any pending deadline), but a third tier would need real
+			//deadline math here.
+			if (delayMs >= this._scheduledDelayMs) return;
+			clearTimeout(this._flushTimeout);
+		}
+		this._scheduledDelayMs = delayMs;
 		this._flushTimeout = setTimeout(() => {
 			this._flushTimeout = null;
 			this.flush();
-		}, this._flushDelayMs);
+		}, delayMs);
 	}
 
 	//Recomputes every subscription and pushes those whose results changed.
@@ -141,8 +187,18 @@ export class SubscriptionManager {
 		//the push callback's consumer discards them; refuse wholesale so the
 		//resume-time flush is guaranteed to actually deliver.
 		if (this._paused) return;
+		const scope : DirtyScope = this._dirtyScope ?? 'all';
 		this._dirty = false;
+		this._dirtyScope = null;
 		for (const [subscriptionID, subscription] of this._subscriptions.entries()) {
+			//A selection-only change can alter results only for
+			//subscriptions that reference the selection filters. Skipping
+			//the rest is the difference between Space-to-select costing one
+			//cheap recompute and costing a full recompute of every open
+			//subscription over the corpus (#760). Subscriptions that have
+			//never been pushed (lastIDs null) always compute, whatever the
+			//scope — they may have subscribed during the selection burst.
+			if (scope === 'selection' && subscription.lastIDs !== null && !subscription.dependsOnSelection) continue;
 			let result : RunCollectionResult;
 			const start = performance.now();
 			try {
