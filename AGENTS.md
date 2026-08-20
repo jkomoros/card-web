@@ -170,6 +170,23 @@ itself, so it repoints the project regardless of what your shell had set.
 **`npm run deploy` runs no tests and takes no backup.** Both are manual,
 separate steps. Nothing warns you if you skip them.
 
+**Verify against dev signed in as admin, not anonymous.** In dev you MAY edit
+cards and exercise the real editing flows — do so. The interesting state
+(editing, saves in flight, large collections, the drawer with full sections)
+only exists signed in; the anonymous view is a small, performant subset that
+hides most regressions. Against the emulator, use
+`window.PERF_HARNESS.signInAsAdmin('perf-admin')` (see the perf-harness
+recipe); an anonymous walkthrough is not a verification of an editing or
+performance change.
+
+**Agents may freely create, modify, and delete content in DEV — never in
+prod.** The dev project (`dev-complexity-compendium`) exists to be exercised:
+create cards, edit them, bulk-import, delete, and deploy to dev, all without
+asking. Deploying to dev is allowed and encouraged when it is the honest way
+to verify a change. PROD (`complexity-compendium`) is the opposite: no writes,
+no deploys, no "harmless" experiments — remember `gcloud`'s active config
+points at prod by default (see above).
+
 ---
 
 ## Tests
