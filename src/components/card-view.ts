@@ -55,6 +55,7 @@ import {
 	selectActiveCollectionNotFilteredToSelected,
 	selectCollectionWordCloudVersion,
 	selectCardModificationPending,
+	selectCardModificationPendingForCard,
 	selectUid,
 	selectCardSavesEligible,
 	selectCorpusStatus,
@@ -82,6 +83,7 @@ import {
 	navigateToNewCard,
 	createForkedCard,
 	durableCardMutationPending,
+	durableCardMutationPendingForCard,
 } from '../actions/data.js';
 
 import {
@@ -1119,10 +1121,16 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : (pendingSaveCard || selectActiveCardEnriched(state));
 		this._displayCardPendingSave = !this._editingCard && Boolean(pendingSaveCard);
 		this._pageExtra = state.app.pageExtra;
-		this._cardModificationsPending = selectCardModificationPending(state);
+		//Per-card (#763): the Edit affordance belongs to the card being
+		//viewed, so a save in flight on a DIFFERENT card must not disable it.
+		//This mirrors editingStart's own guard exactly — if they disagree, the
+		//button either lies (disabled but editing would work) or silently
+		//no-ops (enabled but editingStart refuses).
+		const activeCardID = this._card?.id || '';
+		this._cardModificationsPending = activeCardID ? selectCardModificationPendingForCard(state, activeCardID) : selectCardModificationPending(state);
 		this._saveEligible = selectCardSavesEligible(state);
 		this._corpusStatus = selectCorpusStatus(state);
-		this._durableCardMutationPending = durableCardMutationPending();
+		this._durableCardMutationPending = activeCardID ? durableCardMutationPendingForCard(activeCardID) : durableCardMutationPending();
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
 		this._collectionNotFilteredToSelected = selectActiveCollectionNotFilteredToSelected(state);

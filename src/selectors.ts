@@ -321,6 +321,26 @@ export const selectPendingDeletions = (state : State) => state.data ? state.data
 export const selectEnqueuedCards = (state : State) => state.data ? state.data.enqueuedCards : {};
 export const selectPendingModificationCount = (state : State) => state.data ? state.data.pendingModificationCount : 0;
 export const selectCardModificationPending = (state : State) => state.data ? state.data.pendingModifications : false;
+//Per-card refinement of selectCardModificationPending: true only when the
+//pending operation targets this specific card. Editing affordances use this
+//so a save in flight on one card does not block editor sessions on others
+//(#763). A pending operation with no recorded targets (legacy dispatch
+//shapes) falls back to blocking, matching the old global behavior.
+export const selectCardModificationPendingForCard = (state : State, cardID : CardID) : boolean => {
+	if (!state.data || !state.data.pendingModifications) return false;
+	const ids = state.data.pendingModificationCardIDs;
+	if (ids && ids[cardID]) return true;
+	//Empty-set fallback: block everything, matching the old global behavior
+	//for legacy dispatch shapes. The emptiness test must be O(1): this
+	//selector runs on every store dispatch via card-view.stateChanged, and
+	//Object.keys() on a bulk operation's map materializes tens of thousands
+	//of strings per call (measured ~5.6ms/call at 60k — a per-dispatch
+	//main-thread stall for the life of the operation).
+	if (ids) {
+		for (const _ in ids) return false;
+	}
+	return true;
+};
 export const selectBulkTagOperationProgress = (state : State) => state.data ? state.data.bulkTagOperationProgress : null;
 export const selectCardModificationError = (state : State) => state.data ? state.data.cardModificationError : null;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.

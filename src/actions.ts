@@ -607,7 +607,11 @@ type ActionTweetsLoading = {
 type ActionModifyCard = {
 	type: typeof MODIFY_CARD,
 	//How many modifications we expect to be made.
-	modificationCount: number
+	modificationCount: number,
+	//Which cards the pending operation targets. Editing affordances block
+	//per-card on this, so a save in flight on one card does not freeze
+	//editor sessions on every other card.
+	cardIDs: CardID[]
 };
 
 type ActionEchoLocalCardModifications = {

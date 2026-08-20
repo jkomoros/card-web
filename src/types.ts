@@ -1028,6 +1028,12 @@ export type DataState = {
 	//receive all of the cards, but need to remember how many we're expecting.
 	pendingModifications: boolean,
 	pendingModificationCount: number,
+	//The IDs the pending modification targets, as a set. Per-card editing
+	//affordances (editingStart, the Edit button, the editor scrim) consult
+	//this rather than the global boolean, so a save in flight on one card
+	//does not block opening an editor on a different card. Empty when no
+	//modification is pending.
+	pendingModificationCardIDs: {[id : CardID] : true},
 	bulkTagOperationProgress: BulkTagOperationProgress | null,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.

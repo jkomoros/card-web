@@ -16,7 +16,7 @@ import {
 	selectUid,
 	selectPendingSlug,
 	selectIsEditing,
-	selectCardModificationPending,
+	selectCardModificationPendingForCard,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
@@ -35,7 +35,7 @@ import {
 
 import {
 	modifyCard,
-	durableCardMutationPending,
+	durableCardMutationPendingForCard,
 } from './data.js';
 
 import {
@@ -313,19 +313,6 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		console.warn('Can\'t start editing because already editing');
 		return;
 	}
-	//A durable single-card save releases the editor before its server commit
-	//finishes. Do not allow another editor session to start during that short
-	//window: the mutation runner intentionally serializes durable operations,
-	//so a second Save could not be accepted yet. More importantly, keeping the
-	//sessions disjoint prevents a late acknowledgement from the first save from
-	//being mistaken for completion of a newer edit.
-	if (selectCardModificationPending(state) || durableCardMutationPending()) {
-		//No alert: the Edit affordances are disabled with this exact reason in
-		//their tooltip, so the state is already visible. An alert here fires
-		//once per keypress and reads as a modal storm when a shortcut repeats.
-		console.warn('A card save is still finishing; editing reopens when it clears.');
-		return;
-	}
 	if (!selectUserMayEditActiveCard(state)) {
 		console.warn('This user is not allowed to edit!');
 		return;
@@ -333,6 +320,24 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
 		console.warn('There doesn\'t appear to be an active card.');
+		return;
+	}
+	//A durable single-card save releases the editor before its server commit
+	//finishes. Do not allow another editor session on the SAME card during
+	//that window: keeping the sessions disjoint prevents a late
+	//acknowledgement from the first save from being mistaken for completion
+	//of a newer edit. The check is per-card (#763): starting a new card while
+	//the previous one is still finalizing its save is a normal workflow, and
+	//per-card durable intents are already independent in the aux-write queue,
+	//so a save in flight on card A must not block opening card B. The
+	//serialized mutation runner still refuses an overlapping COMMIT; that
+	//narrower guard lives at the save entry points.
+	if (selectCardModificationPendingForCard(state, card.id) || durableCardMutationPendingForCard(card.id)) {
+		//No alert: the Edit affordances are disabled with this exact reason in
+		//their tooltip, and the saving indicator for this card's own save is
+		//on screen. An alert here fires once per keypress and reads as a
+		//modal storm when a shortcut repeats.
+		console.warn('This card\'s save is still finishing; editing reopens when it clears.');
 		return;
 	}
 

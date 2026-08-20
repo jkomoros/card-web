@@ -44,6 +44,7 @@ import {
 	selectPendingSlug,
 	selectReasonsUserMayNotDeleteActiveCard,
 	selectCardModificationPending,
+	selectCardModificationPendingForCard,
 	selectEditingCardSuggestedConceptReferences,
 	selectEditingCardSuggestedTags,
 	selectCardSavesEligible,
@@ -1012,7 +1013,10 @@ class CardEditor extends connect(store)(LitElement) {
 		this._authors = detailFieldsVisible ? selectAuthorsForTagList(state) : {};
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
-		this._cardModificationPending = selectCardModificationPending(state);
+		//Per-card (#763): the scrim announces THIS editor's card being saved.
+		//A save in flight on a different card must not cover a freshly opened
+		//editor session with "Saving card…" and block input.
+		this._cardModificationPending = this._card?.id ? selectCardModificationPendingForCard(state, this._card.id) : selectCardModificationPending(state);
 		this._saveEligible = selectCardSavesEligible(state);
 		this._corpusStatus = selectCorpusStatus(state);
 		this._offline = state.app.offline;

@@ -123,6 +123,7 @@ const INITIAL_STATE : DataState = {
 	cardModificationError: null,
 	pendingModifications: false,
 	pendingModificationCount: 0,
+	pendingModificationCardIDs: {},
 	bulkTagOperationProgress: null,
 	pendingNewCardID: '',
 	pendingNewCardType: 'content',
@@ -298,8 +299,9 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			pendingModifications: true,
 			pendingModificationCount: action.modificationCount,
+			pendingModificationCardIDs: Object.fromEntries((action.cardIDs || []).map(id => [id, true])),
 			cardModificationError: null,
-		}; 
+		};
 	case BULK_TAG_OPERATION_PROGRESS:
 		return {
 			...state,
@@ -325,6 +327,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			//planned count and every subsequent listener delivery froze in
 			//the queue.
 			pendingModificationCount: 0,
+			pendingModificationCardIDs: {},
 			bulkTagOperationProgress: null,
 		};
 	case MODIFY_CARD_FAILURE:
@@ -332,6 +335,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			pendingModifications: false,
 			pendingModificationCount: 0,
+			pendingModificationCardIDs: {},
 			bulkTagOperationProgress: null,
 			cardModificationError: action.error
 		};

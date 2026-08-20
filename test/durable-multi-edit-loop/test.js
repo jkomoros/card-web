@@ -327,6 +327,50 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 			`the message must say the card is gone (got ${String(failure.message || failure)})`);
 	});
 
+	it('a single save arriving during another save\'s round trip PARKS and then runs (#763)', async () => {
+		//With per-card editor sessions, save A → immediately save B is the
+		//normal rapid workflow. The old entry refused B with a blocking
+		//alert AND dispatched a MODIFY_CARD_FAILURE that cleared A's healthy
+		//pending state. Now B waits for A's runner to settle and then runs.
+		const cardA = await seedCard('park-a');
+		const cardB = await seedCard('park-b');
+		putCardsInStore([cardA, cardB]);
+
+		const savePromiseA = store.dispatch(modifyCardsWithDurableMultiEdit([cardA], {body: '<p>first</p>'}, false, 'single'));
+		//B arrives while A's runner is mid-flight (same tick — the widest
+		//possible overlap).
+		const savePromiseB = store.dispatch(modifyCardsWithDurableMultiEdit([cardB], {body: '<p>second</p>'}, false, 'single'));
+		await Promise.all([savePromiseA, savePromiseB]);
+
+		assert.equal(await serverBody(cardA.id), '<p>first</p>', 'save A must land');
+		assert.equal(await serverBody(cardB.id), '<p>second</p>', 'the parked save B must land after A');
+		assert.equal(readRecord(), null, 'both operations must clear their records');
+		assert.ok(!harnessAlerts.some(message => /already running/.test(message)),
+			`a parked save must not fire the old refusal alert (got ${JSON.stringify(harnessAlerts)})`);
+		assert.equal(store.getState().data.cardModificationError, null,
+			'a parked save must not report a failure');
+	});
+
+	it('an impatient re-press of the SAME parked save is dropped silently', async () => {
+		const cardA = await seedCard('repress-a');
+		const cardB = await seedCard('repress-b');
+		putCardsInStore([cardA, cardB]);
+
+		const savePromiseA = store.dispatch(modifyCardsWithDurableMultiEdit([cardA], {body: '<p>first</p>'}, false, 'single'));
+		const savePromiseB1 = store.dispatch(modifyCardsWithDurableMultiEdit([cardB], {body: '<p>second</p>'}, false, 'single'));
+		//The double Cmd-Enter: identical card + update while already parked.
+		const savePromiseB2 = store.dispatch(modifyCardsWithDurableMultiEdit([cardB], {body: '<p>second</p>'}, false, 'single'));
+		await Promise.all([savePromiseA, savePromiseB1, savePromiseB2]);
+
+		assert.equal(await serverBody(cardB.id), '<p>second</p>');
+		assert.ok(!harnessAlerts.some(message => /already running/.test(message)),
+			`a duplicate re-press must not alert (got ${JSON.stringify(harnessAlerts)})`);
+		//Exactly one operation ran for B: a duplicate would have written a
+		//second card_updates audit doc.
+		const updates = await getDocs(collection(db, 'cards', cardB.id, 'updates'));
+		assert.equal(updates.size, 1, 'the re-pressed save must not run twice');
+	});
+
 	//--- What the LOCAL copy looks like after a tag edit --------------------
 	//A tag change is written as a Firestore array transform so a concurrent tag
 	//edit from another device is not clobbered by our stale complete array. The

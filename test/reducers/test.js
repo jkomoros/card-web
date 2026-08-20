@@ -245,9 +245,25 @@ describe('reducer identity preservation', () => {
 			assert.strictEqual(state.pendingSaveCard, null);
 		});
 
-		it('a new editing session supersedes a lingering optimistic face', () => {
+		it('a new editing session on the SAME card supersedes a lingering optimistic face', () => {
 			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
+			const pendingID = state.pendingSaveCard.id;
+			state = editorReducer(state, {type: EDITING_START, card: makeCard(pendingID)});
+			assert.strictEqual(state.pendingSaveCard, null);
+		});
+
+		it('a new editing session on a DIFFERENT card keeps the in-flight optimistic face (#763)', () => {
+			//With per-card editor sessions, opening card B while card A's save
+			//round-trips is routine. Clearing A's face here made navigating
+			//back to A show the pre-save content — the "save reverted"
+			//symptom pendingSaveCard exists to prevent. It still clears on
+			//settle.
+			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
+			const pending = state.pendingSaveCard;
+			assert.ok(pending);
 			state = editorReducer(state, {type: EDITING_START, card: makeCard('other-card')});
+			assert.strictEqual(state.pendingSaveCard, pending);
+			state = editorReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 1});
 			assert.strictEqual(state.pendingSaveCard, null);
 		});
 

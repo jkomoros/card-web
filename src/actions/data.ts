@@ -421,6 +421,81 @@ export const durableCardMutationPending = () : boolean => {
 		return false;
 	}
 };
+
+//Parsed-targetIDs cache for durableCardMutationPendingForCard, keyed by the
+//raw stored string. card-view consults the per-card check on every
+//stateChanged, and a multi-edit record can carry tens of thousands of IDs —
+//reparsing it per dispatch would be real work, while a string compare is not.
+//ids === null records "unreadable", which fails closed below.
+//
+//Operations are immutable per id (targetIDs never change after the
+//write-ahead record is persisted; only progress fields like nextIndex do),
+//so a record whose head still carries the same operation id and whose
+//length is unchanged-or-similar can reuse the parsed target set without a
+//full JSON.parse. Without that, every per-chunk progress persist (4,000
+//chunks for a 60k-card run) forced a ~7ms reparse on the next dispatch.
+const durableTargetsCache : {[storageKey : string] : {raw : string, opID : string | null, ids : Set<CardID> | null}} = {};
+
+const OP_ID_HEAD_PROBE = /"id":"([^"]{1,128})"/;
+
+const durableTargetIDsFor = (storageKey : string, read : () => {id : string, targetIDs : CardID[]} | null) : Set<CardID> | null | undefined => {
+	const raw = localStorage.getItem(storageKey);
+	if (!raw) {
+		//Do not retain a completed operation's (potentially ~MB) raw string
+		//and target set forever.
+		delete durableTargetsCache[storageKey];
+		return undefined;
+	}
+	const cached = durableTargetsCache[storageKey];
+	if (cached && cached.raw === raw) return cached.ids;
+	if (cached && cached.ids && cached.opID) {
+		//Same operation id in the head → same immutable targetIDs. Only
+		//reuse a VALID cached parse: a previously-unreadable record must be
+		//re-examined, and a same-id-but-corrupted rewrite is not a real
+		//shape (records are written atomically via JSON.stringify).
+		const headMatch = OP_ID_HEAD_PROBE.exec(raw.slice(0, 256));
+		if (headMatch && headMatch[1] === cached.opID) {
+			durableTargetsCache[storageKey] = {raw, opID: cached.opID, ids: cached.ids};
+			return cached.ids;
+		}
+	}
+	let ids : Set<CardID> | null = null;
+	let opID : string | null = null;
+	try {
+		const operation = read();
+		ids = operation ? new Set(operation.targetIDs) : null;
+		opID = operation ? operation.id : null;
+	} catch {
+		//Corrupt record: remember that it is unreadable so we don't reparse
+		//it every call, and fail closed at the caller.
+		ids = null;
+	}
+	durableTargetsCache[storageKey] = {raw, opID, ids};
+	return ids;
+};
+
+//Per-card refinement of durableCardMutationPending (#763): a durable
+//operation blocks editing only for the cards it actually targets, so a
+//single-card save's server round trip does not freeze editor sessions on
+//every other card. Failure semantics deliberately match the global check:
+//BLOCKED storage fails open (nothing durable could have been written through
+//the same storage), while an UNREADABLE record fails closed for every card
+//(the recovery UI must resolve it explicitly before any edit overlaps it).
+export const durableCardMutationPendingForCard = (cardID : CardID) : boolean => {
+	try {
+		if (typeof localStorage === 'undefined') return false;
+		const bulkIDs = durableTargetIDsFor(BULK_TAG_OPERATION_STORAGE_KEY, readBulkTagOperation);
+		if (bulkIDs === null) return true;
+		if (bulkIDs && bulkIDs.has(cardID)) return true;
+		const multiIDs = durableTargetIDsFor(DURABLE_MULTI_EDIT_STORAGE_KEY, readDurableMultiEdit);
+		if (multiIDs === null) return true;
+		return Boolean(multiIDs && multiIDs.has(cardID));
+	} catch {
+		//See durableCardMutationPending: blocked storage means read-only
+		//forever if we fail closed, and there is nothing to protect.
+		return false;
+	}
+};
 // 30 cards cost ~184 effective operations. This remains atomic even when the
 // SDK sentinel detector fails closed to MultiBatch's supported 249-op limit.
 // Non-admin rules can spend one access call/card, so use an even smaller chunk.
@@ -527,7 +602,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			const cardsNeedingChange = cards.filter(card => adding
 				? !(card.tags || []).includes(tag)
 				: (card.tags || []).includes(tag));
-			dispatch(modifyCardAction(cardsNeedingChange.length));
+			dispatch(modifyCardAction(cardsNeedingChange.length, cardsNeedingChange.map(card => card.id)));
 			operation = {
 				version: 1,
 				id: `bulk-tag-${Date.now()}-${newID()}`,
@@ -548,12 +623,12 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		}
 		if (!operation.targetIDs.length) {
 			clearBulkTagOperation();
-			dispatch(modifyCardAction(0));
+			dispatch(modifyCardAction(0, []));
 			dispatch(modifyCardSuccess(0));
 			return;
 		}
 
-		dispatch(modifyCardAction(operation.targetIDs.length));
+		dispatch(modifyCardAction(operation.targetIDs.length, operation.targetIDs));
 		dispatch(bulkTagProgressAction(operation));
 		const remaining = operation.targetIDs.slice(operation.nextIndex);
 		const chunkSize = selectUserIsAdmin(getState()) ? BULK_TAG_ADMIN_CHUNK_SIZE : BULK_TAG_EDITOR_CHUNK_SIZE;
@@ -827,6 +902,16 @@ type DurableMultiEdit = {
 };
 
 let durableMultiEditRunning = false;
+//Resolves when the currently-running durable multi-edit settles (success,
+//pause, or failure); non-null exactly while durableMultiEditRunning. A
+//single-card save that arrives mid-run parks on it instead of refusing
+//(#763 — rapid saves are a normal workflow now that editor sessions are
+//per-card).
+let durableMultiEditRunSettled : Promise<void> | null = null;
+let durableMultiEditRunSettledResolve : (() => void) | null = null;
+//The identity of the one parked save, so an impatient re-press of the same
+//save drops silently while a genuinely different save still refuses.
+let durableMultiEditParkedKey : string | null = null;
 
 const readDurableMultiEdit = () : DurableMultiEdit | null => {
 	if (typeof localStorage === 'undefined') return null;
@@ -897,10 +982,53 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		return;
 	}
 	if (durableMultiEditRunning || bulkTagOperationRunning) {
-		dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
-		return;
+		//With per-card editor sessions (#763), a single-card save arriving
+		//during the PREVIOUS save's server round trip is the normal rapid
+		//workflow, not a user error. Park it until the runner settles rather
+		//than refusing: the refusal dispatched a MODIFY_CARD_FAILURE that
+		//fired a blocking alert AND cleared the healthy in-flight
+		//operation's pending state, making the save pill report a paused
+		//save that was actually fine. Only one save parks, and a re-press
+		//of the SAME save (impatient Cmd-Enter) is dropped silently — the
+		//parked one will visibly run. Anything else (a multi-edit, a third
+		//distinct save, a bulk-tag run with no settle promise) keeps the
+		//old refusal.
+		const parkedKey = kind + '|' + cards.map(card => card.id).join(',') + '|' + JSON.stringify(update);
+		if (kind !== 'single' || !durableMultiEditRunSettled) {
+			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+			return;
+		}
+		if (durableMultiEditParkedKey !== null) {
+			if (durableMultiEditParkedKey === parkedKey) {
+				console.warn('This save is already queued behind the running operation.');
+				return;
+			}
+			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+			return;
+		}
+		durableMultiEditParkedKey = parkedKey;
+		try {
+			await durableMultiEditRunSettled;
+		} finally {
+			durableMultiEditParkedKey = null;
+		}
+		if (durableMultiEditRunning || bulkTagOperationRunning) {
+			//Another run started in the turn the previous one settled.
+			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+			return;
+		}
+		//Conditions may have drifted during the wait.
+		if (!durableSaveEligible(getState())) {
+			dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB))));
+			return;
+		}
+		//Fall through: if the settled run left its durable record behind (it
+		//paused), the record checks below refuse with the existing messages.
 	}
 	durableMultiEditRunning = true;
+	durableMultiEditRunSettled = new Promise<void>(resolve => {
+		durableMultiEditRunSettledResolve = resolve;
+	});
 	let operation : DurableMultiEdit | null = null;
 	try {
 		const uid = selectUid(getState());
@@ -951,7 +1079,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			delete operation.lastError;
 			try { persistDurableMultiEdit(operation); } catch { /* status metadata is best-effort */ }
 		}
-		dispatch(modifyCardAction(operation.targetIDs.length));
+		dispatch(modifyCardAction(operation.targetIDs.length, operation.targetIDs));
 		dispatch(durableMultiEditProgress(operation));
 
 		while (operation.nextIndex < operation.targetIDs.length) {
@@ -1217,6 +1345,9 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		if (operation) dispatch(durableMultiEditProgress(operation));
 	} finally {
 		durableMultiEditRunning = false;
+		if (durableMultiEditRunSettledResolve) durableMultiEditRunSettledResolve();
+		durableMultiEditRunSettled = null;
+		durableMultiEditRunSettledResolve = null;
 	}
 };
 
@@ -1344,7 +1475,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		}
 	});
 
-	dispatch(modifyCardAction(Object.keys(updates).length));
+	dispatch(modifyCardAction(Object.keys(updates).length, Object.keys(updates)));
 
 	const batch = new MultiBatch(db);
 	let modifiedCount = 0;
@@ -2973,10 +3104,11 @@ export const navigatedToNewCard = () : SomeAction => {
 	};
 };
 
-const modifyCardAction = (modificationCount : number) : SomeAction => {
+const modifyCardAction = (modificationCount : number, cardIDs : CardID[]) : SomeAction => {
 	return {
 		type: MODIFY_CARD,
-		modificationCount
+		modificationCount,
+		cardIDs
 	};
 };
 

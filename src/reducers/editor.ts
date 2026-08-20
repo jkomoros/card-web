@@ -130,10 +130,17 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			//different draft; its result will arrive version-stamped and be
 			//dropped, so don't let its pendingness dim this session's UI.
 			similarityPendingVersion: 0,
-			//A fresh editing session supersedes any optimistic face a prior
-			//save left behind (the editing card takes display precedence
-			//anyway; don't let a stale one linger underneath).
-			pendingSaveCard: null
+			//A fresh editing session on the SAME card supersedes any
+			//optimistic face a prior save left behind (the editing card takes
+			//display precedence anyway; don't let a stale one linger
+			//underneath). A DIFFERENT card's face must survive, though: with
+			//per-card editing (#763) a new editor session routinely opens
+			//while the previous card's save is still round-tripping, and
+			//clearing its face here made navigating back to it show the
+			//pre-save content — the exact "save reverted" symptom
+			//pendingSaveCard exists to prevent. It clears on settle either
+			//way (MODIFY_CARD_SUCCESS/FAILURE).
+			pendingSaveCard: state.pendingSaveCard && state.pendingSaveCard.id === action.card.id ? null : state.pendingSaveCard
 		};
 	case EDITING_RESTORE_DRAFT:
 		if (!state.editing || !state.underlyingCardSnapshot ||
