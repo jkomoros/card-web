@@ -45,6 +45,22 @@ export const reportURLDiagnostic = (part : string, fallback : string) : void => 
 
 export const currentURLDiagnostics = () : URLDiagnostic[] => diagnostics;
 
+//The self-correction half (#757): a part that was reported and LATER parses
+//fine — section/tag filter names load async, so an early recompute can
+//record a diagnostic against a perfectly valid URL — is retracted by the
+//success path. This is what makes boot-time false positives heal without a
+//navigation-scoped clear. (An earlier rationale claimed clearing would
+//also break re-reporting because makeConfigurableFilter reports only once
+//per construction; execution showed that only holds for the narrow case of
+//a wrapped bad head re-run against memoized-identical extras — the real
+//reasons for no-clear are simplicity and that render-time scoping plus
+//retraction already deliver hide-on-navigate and show-on-revisit.)
+export const retractURLDiagnostic = (part : string) : void => {
+	if (!diagnostics.some(d => d.part === part)) return;
+	diagnostics = diagnostics.filter(d => d.part !== part);
+	if (listener) listener(diagnostics);
+};
+
 //Cleared when the user navigates somewhere new, so a stale complaint about a URL
 //they have left does not follow them around.
 export const clearURLDiagnostics = () : void => {

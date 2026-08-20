@@ -5,6 +5,7 @@ import {
 	UPDATE_COLLECTION_SHAPSHOT,
 	UPDATE_WORKER_COLLECTION,
 	UPDATE_WORKER_COLLECTION_ERROR,
+	UPDATE_URL_DIAGNOSTICS,
 	RANDOMIZE_SALT,
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
@@ -102,6 +103,14 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			workerActiveCollection: action.result,
 			workerActiveCollectionError: null,
+		};
+	case UPDATE_URL_DIAGNOSTICS:
+		return {
+			...state,
+			urlDiagnostics: {
+				...state.urlDiagnostics,
+				[action.source]: action.diagnostics,
+			},
 		};
 	case UPDATE_WORKER_COLLECTION_ERROR:
 		if (action.slot === 'query') {

@@ -669,7 +669,10 @@ describe('malformed URL parts degrade instead of throwing', () => {
 	it('an unknown sort falls back to the default sort', () => {
 		clearURLDiagnostics();
 		assert.deepStrictEqual(run('everything/sort/bogus/'), ['a', 'b']);
-		assert.ok(currentURLDiagnostics().some(d => d.part === 'sort/bogus'), 'the fallback must be reported');
+		//The BARE part, not 'sort/bogus' (#757): a reversed bad sort appears
+		//in the raw URL as sort/reverse/bogus, so only the bare segment can
+		//scope-match both forms.
+		assert.ok(currentURLDiagnostics().some(d => d.part === 'bogus'), 'the fallback must be reported');
 	});
 
 	it('a date filter with a non-range head matches nothing rather than throwing', () => {
@@ -711,7 +714,7 @@ describe('malformed URL parts degrade instead of throwing', () => {
 		run('everything/sort/bogus/');
 		run('everything/sort/bogus/');
 		run('everything/sort/bogus/');
-		const forSort = currentURLDiagnostics().filter(d => d.part === 'sort/bogus');
+		const forSort = currentURLDiagnostics().filter(d => d.part === 'bogus');
 		assert.strictEqual(forSort.length, 1, 'collection runs repeat; the report must be deduped');
 	});
 

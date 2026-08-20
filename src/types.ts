@@ -7,6 +7,10 @@ import {
 } from 'firebase/firestore';
 
 import {
+	URLDiagnostic
+} from '../shared/url-diagnostics.js';
+
+import {
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
@@ -788,6 +792,11 @@ export type CollectionState = {
 	//fresh result for the slot, and by resubscription.
 	workerActiveCollectionError: WorkerCollectionError | null,
 	workerQueryCollectionError: WorkerCollectionError | null,
+	//URL parts the collection parser could not understand, per reporting
+	//side (#757). Rendered scoped to the ACTIVE description at read time, so
+	//navigation away hides a notice and re-visiting the same bad URL shows
+	//it again with no clear/re-report cycle.
+	urlDiagnostics: {main : URLDiagnostic[], worker : URLDiagnostic[]},
 }
 
 //A worker-reported failure of a served collection's run (#739).

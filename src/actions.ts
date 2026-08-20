@@ -59,6 +59,13 @@ import {
 	WorkerCollectionResult,
 	WorkerCollectionSlot,
 	WorkerCollectionError,
+} from './types.js';
+
+import {
+	URLDiagnostic
+} from '../shared/url-diagnostics.js';
+
+import {
 	CardMetas,
 	CorpusStatus,
 	Filters
@@ -112,6 +119,7 @@ export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 export const UPDATE_WORKER_COLLECTION = 'UPDATE_WORKER_COLLECTION';
 export const UPDATE_WORKER_COLLECTION_ERROR = 'UPDATE_WORKER_COLLECTION_ERROR';
+export const UPDATE_URL_DIAGNOSTICS = 'UPDATE_URL_DIAGNOSTICS';
 export const UPDATE_CARD_META = 'UPDATE_CARD_META';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const SELECT_CARDS = 'SELECT_CARDS';
@@ -473,6 +481,15 @@ type ActionUpdateWorkerCollectionError = {
 	slot: WorkerCollectionSlot,
 	//null clears (the subscription recovered).
 	error: WorkerCollectionError | null
+};
+
+type ActionUpdateURLDiagnostics = {
+	type: typeof UPDATE_URL_DIAGNOSTICS,
+	//Which side's parser produced the list; each side replaces only its own
+	//(collection runs happen in the worker in cutover mode, on the main
+	//thread otherwise, and during shadow comparison both report).
+	source: 'main' | 'worker',
+	diagnostics: URLDiagnostic[]
 };
 
 type ActionUpdateCardMeta = {
@@ -1300,6 +1317,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCollection
 	| ActionUpdateWorkerCollection
 	| ActionUpdateWorkerCollectionError
+	| ActionUpdateURLDiagnostics
 	| ActionUpdateCardMeta
 	| ActionUpdateCorpusStatus
 	| ActionUpdateCorpusDetail

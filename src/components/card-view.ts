@@ -61,7 +61,12 @@ import {
 	selectCorpusStatus,
 	selectWorkerActiveCollectionReady,
 	selectActiveCollectionFailureMessage,
+	selectActiveCollectionURLDiagnostics,
 } from '../selectors.js';
+
+import {
+	URLDiagnostic
+} from '../../shared/url-diagnostics.js';
 
 import {
 	randomizeCollection,
@@ -420,6 +425,9 @@ class CardView extends connect(store)(PageViewElement) {
 		_collectionFailureMessage: string;
 
 	@state()
+		_urlDiagnostics: URLDiagnostic[];
+
+	@state()
 		_saveEligible: boolean;
 
 	//The actual sync status, so blocked-control copy can say what is TRUE
@@ -629,6 +637,7 @@ class CardView extends connect(store)(PageViewElement) {
 				.updating=${this._collectionUpdating}
 				.pending=${this._collectionPending}
 				.failureMessage=${this._collectionFailureMessage}
+				.urlDiagnostics=${this._urlDiagnostics}
 				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
@@ -1185,6 +1194,7 @@ class CardView extends connect(store)(PageViewElement) {
 		const activeCollectionReady = !corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state);
 		this._collectionPending = !activeCollectionReady;
 		this._collectionFailureMessage = selectActiveCollectionFailureMessage(state);
+		this._urlDiagnostics = selectActiveCollectionURLDiagnostics(state);
 		if (this._collectionFailureMessage) {
 			//The run for this description THREW (#739): no matching result is
 			//coming. Holding the previous collection here rendered its stale

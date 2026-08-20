@@ -320,6 +320,11 @@ export type WorkerToMainMessage =
 	//it into UI state so a failed collection is distinguishable from an
 	//empty one (#739).
 	| {type: 'collectionError', generation: WorkerGeneration, subscriptionID : number, description : string, message : string | null}
+	//The worker-side parser's URL diagnostics (#757): collection runs happen
+	//in the worker in cutover mode, so parts it could not understand must be
+	//bridged for the main thread's notice. Sent whenever the worker's list
+	//changes (report or retraction); the payload is the full current list.
+	| {type: 'urlDiagnostics', generation: WorkerGeneration, diagnostics : URLDiagnostic[]}
 	//Response to a one-shot runCollection. failed:true means the run threw —
 	//the bridge resolves the pending promise with null so callers take their
 	//local-fallback path instead of waiting forever on a reply that (before

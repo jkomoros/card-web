@@ -30,7 +30,8 @@ import {
 } from './relative-date.js';
 
 import {
-	reportURLDiagnostic
+	reportURLDiagnostic,
+	retractURLDiagnostic
 } from '../shared/url-diagnostics.js';
 
 import {
@@ -317,7 +318,12 @@ export class CollectionDescription {
 		//here and every consumer then dereferences .extractor on undefined,
 		//taking out the whole collection run (#750). Fall back to the default
 		//sort, which is what an unknown single-token FILTER already degrades to.
-		reportURLDiagnostic('sort/' + this.sort, 'sorted by the default instead, because "' + this.sort + '" is not a sort');
+		//The BARE part, not 'sort/' + part: a reversed bad sort appears in
+		//the raw URL as sort/reverse/<part>, so the prefixed form would
+		//never match the URL the user is on and the notice would be
+		//permanently invisible (#757 review). The bare segment matches both
+		//forms.
+		reportURLDiagnostic(this.sort, 'sorted by the default instead, because "' + this.sort + '" is not a sort');
 		return SORTS['default'];
 	}
 
@@ -714,9 +720,15 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 		return makeFilterFromConfigurableFilter(filterDefinitionItem, extras);
 	}
 	if (filterSetMemberships[filterDefinitionItem]) {
+		//A name resolving NOW may have been reported earlier in this
+		//process: section/tag filter names load async, so an early boot
+		//recompute can record a diagnostic against a valid URL. Retract on
+		//success so the user-facing notice self-corrects (#757).
+		retractURLDiagnostic(filterDefinitionItem);
 		return [filterSetMemberships[filterDefinitionItem], false, null, null, false];
 	}
 	if (INVERSE_FILTER_NAMES[filterDefinitionItem]) {
+		retractURLDiagnostic(filterDefinitionItem);
 		return [filterSetMemberships[INVERSE_FILTER_NAMES[filterDefinitionItem]], true, null, null, false];
 	}
 	//If unknown, then just treat it like a no op, excluding nothing.

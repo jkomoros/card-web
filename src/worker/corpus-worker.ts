@@ -299,6 +299,12 @@ const subscriptions = new SubscriptionManager(engine, push => {
 	//recovery sentinel), and sends null on recovery.
 	send({type: 'collectionError', generation, subscriptionID, description, message});
 });
+
+//The worker's parser records URL parts it could not understand into its own
+//module instance of the diagnostics store; bridge every change to the main
+//thread, whose copy drives the user-facing notice (#757). The module
+//dedupes and retracts internally, so this is quiet in steady state.
+setURLDiagnosticsListener(diagnostics => send({type: 'urlDiagnostics', generation, diagnostics}));
 let cardsWithStoredTokens = 0;
 let indexBuildMs = 0;
 

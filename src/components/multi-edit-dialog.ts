@@ -5,6 +5,10 @@ import {
 
 import { html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+
+import {
+	URLDiagnostic
+} from '../../shared/url-diagnostics.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -49,6 +53,7 @@ import {
 
 import {
 	selectMultiEditDialogOpen,
+	selectActiveCollectionURLDiagnostics,
 	selectSelectedCardsReferencesUnion,
 	selectTagInfosForCards,
 	selectMultiEditReferencesDiff,
@@ -188,6 +193,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardModificationError: Error | null;
+
+	@state()
+		_urlDiagnostics: URLDiagnostic[];
 
 	@state()
 		_offline: boolean;
@@ -369,6 +377,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 						</div>`}
 				</div>
 			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
+			${this._urlDiagnostics.length ? html`
+				<p class='waiting' role='alert'>
+					This collection's URL had ${this._urlDiagnostics.length === 1 ? 'a part' : 'parts'} that couldn't be understood
+					(${this._urlDiagnostics.map(diagnostic => `“${diagnostic.part}”`).join(', ')}) and ${this._urlDiagnostics.length === 1 ? 'it was' : 'they were'} ignored —
+					so this edit may target more cards than the URL suggests. Check the selection before applying.
+				</p>` : ''}
 			<select @change=${this._handleAddReference}>
 				<option value=''><em>Add a reference to a card type...</option>
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
@@ -643,6 +657,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._bulkTagProgress = selectBulkTagOperationProgress(state);
 		this._cardModificationError = selectCardModificationError(state);
+		this._urlDiagnostics = selectActiveCollectionURLDiagnostics(state);
 		this._offline = state.app.offline;
 		this._diff = selectMultiEditCardDiff(state);
 	}

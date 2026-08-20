@@ -1298,6 +1298,9 @@ const handleMessageInner = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'collectionResult':
 		handleCollectionResult(message);
 		break;
+	case 'urlDiagnostics':
+		store.dispatch({type: UPDATE_URL_DIAGNOSTICS, source: 'worker', diagnostics: message.diagnostics});
+		break;
 	case 'collectionError': {
 		//A served collection's run threw (message.message set) or recovered
 		//(null). Turn it into UI state so the drawer can say "failed to
@@ -2131,6 +2134,13 @@ const resetSubscriptionsForReconnect = () => {
 	//A fresh generation starts with no editing card; re-send if still editing.
 	lastSentEditingCard = null;
 	lastSentEditingCardSimilarity = null;
+	//The NEW worker's diagnostics module starts empty, so a boot-time false
+	//positive the OLD worker reported (a section name that had not loaded
+	//yet) would never be retracted by the replacement — the retraction
+	//no-ops in a store that never recorded the part, sends nothing, and the
+	//stale Redux entry accuses a valid URL forever (#757 review). Start the
+	//worker slot fresh with the worker.
+	store.dispatch({type: UPDATE_URL_DIAGNOSTICS, source: 'worker', diagnostics: []});
 	for (const subscription of Object.values(bridgeSubscriptions)) {
 		if (!subscription.id) continue;
 		subscription.id = 0;
@@ -2404,3 +2414,11 @@ if (typeof window !== 'undefined' && perfEnabled()) {
 		},
 	};
 }
+
+//Main-thread parser reports (#757): when collection runs happen on this
+//thread (off/shadow/spike modes, and the find dialog's editing-card path),
+//the parser records not-understood URL parts into this module instance of
+//the diagnostics store. Mirror every change into Redux so the collection
+//view's notice and the multi-edit dialog's warning can render them; the
+//worker's own instance arrives via the urlDiagnostics message above.
+setURLDiagnosticsListener(diagnostics => store.dispatch({type: UPDATE_URL_DIAGNOSTICS, source: 'main', diagnostics: [...diagnostics]}));

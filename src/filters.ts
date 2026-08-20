@@ -2432,4 +2432,5 @@ export const INITIAL_STATE : CollectionState = {
 	workerQueryCollection: null,
 	workerActiveCollectionError: null,
 	workerQueryCollectionError: null,
+	urlDiagnostics: {main: [], worker: []},
 };

@@ -141,7 +141,16 @@ export const extractFilterNamesSortAndView = (
 				//start filter names. We process up until this point, so even if
 				//the URL started in the middle of a multi-part parsing, we
 				//still consume it.
-				if (configurableFilterNames[multiPartFilter[0]]) filters.push(multiPartFilter.join('/'));
+				if (configurableFilterNames[multiPartFilter[0]]) {
+					filters.push(multiPartFilter.join('/'));
+				} else {
+					//An orphan head — a part that shapes multi-part parsing
+					//(like a bare `before/…`, the un-wrapped #750 shape) but
+					//is not itself a filter — used to be dropped with no
+					//trace at all: the URL named a filter and the app showed
+					//everything, silently (#757).
+					reportURLDiagnostic(multiPartFilter.join('/'), 'ignored it, because "' + multiPartFilter[0] + '" is not a filter on its own');
+				}
 				multiPartFilter = [];
 			}
 			continue;

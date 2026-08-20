@@ -1,6 +1,10 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+import {
+	URLDiagnostic
+} from '../../shared/url-diagnostics.js';
+
 import './card-renderer.js';
 import './card-thumbnail-list.js';
 import './web-renderer.js';
@@ -96,6 +100,12 @@ class CardDrawer extends LitElement {
 	//was exactly how a one-line filter bug hid for weeks.
 	@property({ type : String })
 		failureMessage: string;
+
+	//URL parts of this collection the parser could not understand (#757):
+	//the URL says one thing, the app is showing another, and silence here is
+	//what let a typo'd filter widen an Edit All Cards selection.
+	@property({ type : Array })
+		urlDiagnostics: URLDiagnostic[];
 
 	@property({ type : Number })
 		renderOffset: number;
@@ -224,6 +234,13 @@ class CardDrawer extends LitElement {
 				font-weight: bold;
 			}
 
+			#count .diagnostic {
+				/* Same amber family as .failure: advisory, not destructive.
+				   The full explanation of what the app did instead is in the
+				   tooltip. */
+				color: var(--app-pending-color);
+			}
+
 		`
 	];
 
@@ -257,6 +274,8 @@ class CardDrawer extends LitElement {
 		? html`<em>loading…</em>`
 		: html`<strong>${currentCount}</strong> cards`}
 						</span>
+						${this.urlDiagnostics && this.urlDiagnostics.length ? this.urlDiagnostics.map(diagnostic => html`
+							<div class='diagnostic' title=${diagnostic.fallback}>Didn’t understand “${diagnostic.part}” in this URL</div>`) : ''}
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
 							<slot name='info'></slot>
 						</div>
