@@ -25,7 +25,8 @@ import {
 
 import {
 	computeDefaultSet,
-	makeEverythingSetFromCards
+	makeEverythingSetFromCards,
+	existingCardsOnly
 } from './set-projections.js';
 
 import {
@@ -1583,9 +1584,52 @@ type SetCollection = {
 	[set in SetName]: CardID[]
 };
 
+//Existence-gated reading-list set (#752), diff-gated like selectDefaultSet
+//so a content-only card edit neither refilters nor changes the result's
+//identity: existingCardsOnly returns the raw list identity when every entry
+//has a card record (the overwhelmingly common case), and only card
+//ADDITIONS/REMOVALS can change existence.
+let _readingListSetState : {readingList : CardID[], cards : Cards, result : CardID[]} | null = null;
+
+const selectReadingListSet = createSelector(
+	selectUserReadingList,
+	selectRawCards,
+	(readingList, cards) : CardID[] => {
+		if (_readingListSetState && _readingListSetState.readingList === readingList) {
+			const delta = diffCards(_readingListSetState.cards, cards);
+			if (!membershipChanged(delta)) {
+				_readingListSetState = {readingList, cards, result: _readingListSetState.result};
+				return _readingListSetState.result;
+			}
+		}
+		const result = existingCardsOnly(readingList, cards);
+		_readingListSetState = {readingList, cards, result};
+		return result;
+	}
+);
+
+let _readingListSetSnapshotState : {readingList : CardID[], cards : Cards, result : CardID[]} | null = null;
+
+const selectReadingListSetSnapshot = createSelector(
+	selectUserReadingListSnapshot,
+	selectRawCards,
+	(readingList, cards) : CardID[] => {
+		if (_readingListSetSnapshotState && _readingListSetSnapshotState.readingList === readingList) {
+			const delta = diffCards(_readingListSetSnapshotState.cards, cards);
+			if (!membershipChanged(delta)) {
+				_readingListSetSnapshotState = {readingList, cards, result: _readingListSetSnapshotState.result};
+				return _readingListSetSnapshotState.result;
+			}
+		}
+		const result = existingCardsOnly(readingList, cards);
+		_readingListSetSnapshotState = {readingList, cards, result};
+		return result;
+	}
+);
+
 const selectAllSets = createSelector(
 	selectDefaultSet,
-	selectUserReadingList,
+	selectReadingListSet,
 	selectEverythingSet,
 	(defaultSet, readingListSet, everythingSet) => {
 		const result : SetCollection = {
@@ -1603,7 +1647,7 @@ const selectAllSets = createSelector(
 const selectSetsSnapshot = createSelector(
 	selectAllSets,
 	selectEverythingSetSnapshot,
-	selectUserReadingListSnapshot,
+	selectReadingListSetSnapshot,
 	(allSets, everythingSetSnapshot, readingListSet) => {
 		const result : SetCollection = {
 			...allSets, 

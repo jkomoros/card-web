@@ -248,15 +248,19 @@ export class CollectionDescription {
 
 		let limit = 0;
 		let offset = 0;
+		//Whole-string decimal only, NOT parseInt: parseInt stops at the
+		//first non-digit, so limit/1e400 (a user asking for effectively no
+		//limit) silently became limit/1, and limit/0x10 became... 16 in
+		//some engines and 0 in others. Non-numeric forms already fell back
+		//to "no limit" (limit/abc, limit/-5); exotic numerals now fail the
+		//same consistent way instead of a surprising nearby number (#752).
+		const parseWholeNumber = (part : string | undefined) : number =>
+			part !== undefined && /^\d+$/.test(part) ? parseInt(part, 10) : 0;
 		for (const filter of filterNames) {
 			if (filter.startsWith(LIMIT_FILTER_NAME + '/')){
-				limit = parseInt(filter.split('/')[1]);
-				if (isNaN(limit)) limit = 0;
-				if (limit < 0) limit = 0;
+				limit = parseWholeNumber(filter.split('/')[1]);
 			} else if (filter.startsWith(OFFSET_FILTER_NAME + '/')) {
-				offset = parseInt(filter.split('/')[1]);
-				if (isNaN(offset)) offset = 0;
-				if (offset < 0) offset = 0;
+				offset = parseWholeNumber(filter.split('/')[1]);
 			}
 		}
 
@@ -789,8 +793,9 @@ export const countForDescription = (description : CollectionDescription, sets : 
 			if (combinedFilter(id)) count++;
 		}
 	}
-	//Mirror the numCards getter's offset/limit math exactly.
-	let len = count - description.offset;
+	//Mirror the numCards getter's offset/limit math exactly, clamp included
+	//(#752: an oversized offset must count 0, not negative).
+	let len = Math.max(0, count - description.offset);
 	if (description.limit) len = Math.min(len, description.limit);
 	return len;
 };
@@ -1095,8 +1100,10 @@ export class Collection {
 	get numCards() {
 		this._ensureFilteredCards();
 		//The default offset is 0. It's how many items to skip at the front.
-		let len = this._preLimitlength - this._description.offset;
-		//A limit of 0 means no limit. 
+		//Clamped: an offset past the match count used to render a negative
+		//count ("-761 cards") in the drawer header (#752).
+		let len = Math.max(0, this._preLimitlength - this._description.offset);
+		//A limit of 0 means no limit.
 		if (this._description.limit) len = Math.min(len, this._description.limit);
 		return len;
 	}

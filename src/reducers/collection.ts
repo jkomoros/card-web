@@ -218,6 +218,16 @@ const makeFilterFromReadingList = (readingList : CardID[]) : {[filterName : stri
 	};
 };
 
+//NOTE (#752): these filter maps still carry IDs with no card record (the
+//sections doc is a membership index readable by anyone; card records are
+//permission-gated). Existence-gating HERE would be wrong-by-boot-order —
+//sections arrive before cards, and this runs in a reducer with no cards in
+//scope, so everything would be dropped and never re-added. It is also
+//unnecessary: section filters only ever act as INCLUDE sets intersected
+//with a base set, and ALL THREE base sets are existence-gated at build time
+//(computeDefaultSet, makeEverythingSetFromCards, and the reading-list via
+//existingCardsOnly) — so a phantom entry here can never survive into a
+//rendered list or a count.
 const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean) : {[filterName : string] : FilterMap} => {
 	const result : {[filterName : string] : FilterMap} = {};
 	const combinedSet : FilterMap = {};

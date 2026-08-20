@@ -67,7 +67,8 @@ import {
 
 import {
 	computeDefaultSet,
-	makeEverythingSetFromCards
+	makeEverythingSetFromCards,
+	existingCardsOnly
 } from '../set-projections.js';
 
 import {
@@ -294,7 +295,10 @@ export class QueryEngine {
 		this._sets = {
 			main: computeDefaultSet(this._sections, this._cards),
 			everything: makeEverythingSetFromCards(this._cards),
-			'reading-list': this._readingList,
+			//Gated like the other sets (#752): a stored reading-list entry
+			//can outlive its card, and counting it while rendering drops it
+			//made /c/reading-list/ claim more cards than it shows.
+			'reading-list': existingCardsOnly(this._readingList, this._cards),
 		};
 		this._setsForCards = this._setsVersion;
 		this._setsForSections = this._sections;
