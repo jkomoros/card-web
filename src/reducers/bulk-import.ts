@@ -29,7 +29,16 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 	case BULK_IMPORT_DIALOG_CLOSE:
 		return {
 			...state,
-			open: false
+			open: false,
+			//Clear on CLOSE, not on OPEN (adversarial review of 9484c181):
+			//the user closing the dialog is the acknowledgement of a shown
+			//failure, so a stale message must not greet the NEXT session —
+			//it leaked into the Export dialog, in warning red, days later.
+			//Clearing here rather than on OPEN also keeps the one message a
+			//user can otherwise lose: a late failure dispatched AFTER an
+			//impatient close-while-pending lands post-clear and still shows
+			//on the next open.
+			error: ''
 		};
 	case BULK_IMPORT_DIALOG_OPEN:
 		return {

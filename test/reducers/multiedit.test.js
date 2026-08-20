@@ -62,12 +62,35 @@ describe('bulk import failure reporting (#758 slice)', () => {
 		//The reducer used to call alert() directly — a blocking OS modal
 		//fired from inside a reducer. The dialog stays open on failure, so
 		//the message belongs there.
-		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_PENDING});
+		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'These cards could not be created.'});
 		assert.strictEqual(state.pending, false);
+		assert.strictEqual(state.open, true, 'the dialog must stay open to show the failure');
 		assert.strictEqual(state.error, 'These cards could not be created.');
 		//Starting a new attempt clears the stale message.
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
 		assert.strictEqual(state.error, '');
+	});
+
+	it('closing the dialog acknowledges the failure; a post-close failure still shows next time', () => {
+		//The review of 9484c181 caught the retention bug: a Monday import
+		//failure greeted Thursday's EXPORT dialog in warning red. Closing
+		//clears — but a late failure dispatched AFTER an impatient
+		//close-while-pending lands post-clear and must survive to the next
+		//open, which is why the clear lives on CLOSE and not on OPEN.
+		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'boom'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_CLOSE});
+		assert.strictEqual(state.error, '', 'closing acknowledges the shown failure');
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'export'});
+		assert.strictEqual(state.error, '', 'a fresh session must not open with a stale warning');
+		//The close-while-pending race: failure lands after CLOSE.
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_CLOSE});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'late failure'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
+		assert.strictEqual(state.error, 'late failure', 'a post-close failure must not be lost');
 	});
 });
