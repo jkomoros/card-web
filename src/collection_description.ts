@@ -875,6 +875,13 @@ export class Collection {
 	_sortExtrasUnknown : boolean;
 	_partialMatches : CardBooleanMap;
 	_preview = false;
+	//True only for the main thread's transitional placeholder in cutover
+	//mode: the description just changed and the worker's matching result has
+	//not arrived yet, so ids/numCards/isFallback are NOT authoritative.
+	//Consumers whose behavior branches on collection state (e.g. hiding the
+	//drawer for a fallback collection) should hold their previous answer
+	//while this is true rather than acting on placeholder values (#762).
+	_transitional = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
 	_webInfo : WebInfo | null;
 
@@ -1014,6 +1021,7 @@ export class Collection {
 		collection._preLimitlength = result.numCards + description.offset;
 		collection._collectionIsFallback = result.isFallback;
 		collection._preview = result.preview;
+		collection._transitional = Boolean(result.transitional);
 		collection._partialMatches = result.partialMatches;
 		//Sort info is deliberately left lazy; sortExtras stays empty (label
 		//functions for exotic sorts may degrade — acceptable while gated).
@@ -1113,6 +1121,12 @@ export class Collection {
 		//set collectionIsFallback correctly;
 		this._ensureFilteredCards();
 		return this._collectionIsFallback;
+	}
+
+	//True while this collection is the cutover-mode placeholder awaiting the
+	//worker's authoritative result. See the _transitional field comment.
+	get isTransitional() {
+		return this._transitional;
 	}
 
 	//Returns a map of card_id --> true for all cards that are in filteredCards

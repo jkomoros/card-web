@@ -819,6 +819,11 @@ export type WorkerCollectionResult = {
 	isFallback: boolean,
 	preview: boolean,
 	partialMatches: CardBooleanMap,
+	//Set ONLY by the main thread's transitional placeholder (the description
+	//changed and no matching worker result has arrived yet). The worker never
+	//sends it. Placeholder values like isFallback are not authoritative while
+	//this is set; see Collection.isTransitional (#762).
+	transitional?: boolean,
 };
 
 export type CommentsState = {

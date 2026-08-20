@@ -1792,9 +1792,14 @@ export const selectActiveCollection = createSelector(
 		//worker result arrives. Never compute the corpus collection on the UI
 		//thread in cutover mode.
 		if (corpusWorkerServesCollections()) {
+			//The placeholder's transitional flag matters: its other fields
+			//(ids: [], isFallback: false) are guesses, and consumers that
+			//branch on them — the drawer's fallback-hiding rule in
+			//particular — must hold their previous answer instead of acting
+			//on a lie for a frame (#762).
 			const result = workerResult && workerResult.description === description.serialize()
 				? workerResult
-				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}};
+				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}, transitional: true};
 			const collection = Collection.fromWorkerResult(description, args, result);
 			_previousActiveCollection = collection;
 			return collection;
@@ -1995,6 +2000,49 @@ export const selectCountsForTabs = createSelector(
 	(nonConfigurable, configurable) : {[tabDescription : string] : number} => ({...nonConfigurable, ...configurable})
 );
 
+//The last collection-state verdict of selectCardsDrawerPanelShowing — the
+//part of the answer that depends on the collection itself rather than on
+//panel/editor state. Held while the active collection is the transitional
+//cutover placeholder, whose isFallback: false is a guess: acting on it made
+//the drawer flash in for the frames between a navigation (e.g. creating a
+//working-notes card from another orphaned card) and the worker's real
+//result arriving (#762). null means no authoritative verdict yet this
+//session; the boot default is "show", matching the deliberate boot behavior
+//recorded below.
+let _previousDrawerCollectionVerdict : boolean | null = null;
+
+//The full drawer-showing decision, pure so tests can drive it. Returns the
+//answer plus the new collection-state verdict to carry forward. Exported for
+//tests only; the app reads selectCardsDrawerPanelShowing.
+export const computeCardsDrawerPanelShowing = (
+	activeCollection : Collection | null,
+	panelOpen : boolean,
+	isEditing : boolean,
+	editorMinimized : boolean,
+	dataFullyLoaded : boolean,
+	previousCollectionVerdict : boolean | null
+) : [showing : boolean, collectionVerdict : boolean | null] => {
+	if (isEditing && editorMinimized) return [false, previousCollectionVerdict];
+	if (!panelOpen) return [false, previousCollectionVerdict];
+	if (!activeCollection) return [false, previousCollectionVerdict];
+	//A transitional placeholder knows nothing about the real collection;
+	//hold the previous collection-state verdict rather than flipping on
+	//placeholder values. Same reasoning as the boot case below — a
+	//transitional state must not be treated as authoritative. While data is
+	//NOT fully loaded (boot, and re-boot windows like sign-out/account
+	//switch, which rebuild state without a page reload) the boot rule wins
+	//over any held verdict: a verdict recorded under a previous auth scope
+	//must not hide the drawer during the next boot's loading window.
+	if (activeCollection.isTransitional) return [dataFullyLoaded ? (previousCollectionVerdict ?? true) : true, previousCollectionVerdict];
+	//During boot the collection is necessarily a fallback, and hiding the
+	//drawer for it made the panel pop into existence — a layout jump that
+	//reads as a bug. Hold the drawer's normal width while data is still
+	//arriving; a fallback collection AFTER load is a real empty state and
+	//still hides.
+	const verdict = !(activeCollection.isFallback && dataFullyLoaded);
+	return [verdict, verdict];
+};
+
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,
 //for orphaned cards). This is the logic that decides if it's open based on state.
 export const selectCardsDrawerPanelShowing = createSelector(
@@ -2004,16 +2052,9 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectEditorMinimized,
 	selectDataIsFullyLoaded,
 	(activeCollection, panelOpen, isEditing, editorMinimized, dataFullyLoaded) => {
-		if (isEditing && editorMinimized) return false;
-		if (!panelOpen) return false;
-		if (!activeCollection) return false;
-		//During boot the collection is necessarily a fallback, and hiding the
-		//drawer for it made the panel pop into existence — a layout jump that
-		//reads as a bug. Hold the drawer's normal width while data is still
-		//arriving; a fallback collection AFTER load is a real empty state and
-		//still hides.
-		if (activeCollection.isFallback && dataFullyLoaded) return false;
-		return true;
+		const [showing, verdict] = computeCardsDrawerPanelShowing(activeCollection, panelOpen, isEditing, editorMinimized, dataFullyLoaded, _previousDrawerCollectionVerdict);
+		_previousDrawerCollectionVerdict = verdict;
+		return showing;
 	}
 );
 
@@ -2164,7 +2205,7 @@ export const selectCollectionForQuery = createSelector(
 		if (corpusWorkerServesCollections() && !args.editingCard) {
 			const result = workerResult && workerResult.description === description.serialize()
 				? workerResult
-				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}};
+				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}, transitional: true};
 			return Collection.fromWorkerResult(description, args, result);
 		}
 		return description.collection(args);
