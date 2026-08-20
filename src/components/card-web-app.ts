@@ -26,6 +26,13 @@ import './snack-bar.js';
 import './corpus-ownership-gate.js';
 import { pageRequiresMainView } from '../util.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import {
+	REPLAY_ICON,
+	CANCEL_ICON,
+} from '../../shared/icons.js';
+
 //Static on purpose: the controllerchange handler must clear the
 //auto-activation clock BEFORE it reloads the page, and a dynamic import
 //would lose that race (#756).
@@ -155,6 +162,10 @@ class CardWebApp extends connect(store)(LitElement) {
 	};
 
 	static override styles = [
+		//The app's control vocabulary. This component not importing it is WHY
+		//its overlays drifted into hand-rolled one-off treatments (#764) —
+		//they had no access to the shared primitives.
+		ButtonSharedStyles,
 		css`
 			:host {
 				--app-drawer-width: 256px;
@@ -238,6 +249,12 @@ class CardWebApp extends connect(store)(LitElement) {
 			.update-ready button {
 				border: 0;
 				border-radius: 0.3rem;
+				/* Neutralize the base button treatment ButtonSharedStyles now
+				   contributes: its margin, and its rest/hover drop shadows,
+				   which are the filled-workhorse-button look, not this
+				   banner's. */
+				margin: 0;
+				box-shadow: none;
 				padding: 0.4rem 0.6rem;
 				background: var(--app-primary-color);
 				color: white;
@@ -245,7 +262,22 @@ class CardWebApp extends connect(store)(LitElement) {
 				font-weight: 600;
 				cursor: pointer;
 			}
+			.update-ready button:hover { box-shadow: none; }
 			.update-ready button[disabled] { opacity: 0.55; cursor: not-allowed; }
+			/* button:disabled:hover (0,2,1) from ButtonSharedStyles otherwise
+			   outranks the banner rule and flips a disabled purple button to
+			   gray under the cursor — reads as broken. */
+			.update-ready button[disabled]:hover { background: var(--app-primary-color); box-shadow: none; }
+			/* ButtonSharedStyles strips the UA focus ring app-wide
+			   (button:focus outline:none). For every other consumer the
+			   filled hover/selected states carry focus feedback well enough,
+			   but these banners hold the app's ONLY recovery controls — a
+			   keyboard user must be able to see which of two adjacent
+			   buttons (one destructive) is focused. */
+			.update-ready button:focus-visible, .save-status button:focus-visible {
+				outline: 2px solid var(--app-primary-color);
+				outline-offset: 2px;
+			}
 			/* The card editor's Save and Cancel row is position:fixed in this
 			   same corner while editing, and these banners sat directly on top
 			   of it — elementFromPoint at the centre of both buttons returned
@@ -260,8 +292,31 @@ class CardWebApp extends connect(store)(LitElement) {
 			/* Keep the two banners from stacking on each other once the update
 			   banner has moved up. */
 			.draft-recovery.editor-open { bottom: 7.75rem; }
-			.draft-recovery .discard { background: transparent; color: inherit; text-decoration: underline; }
+			/* box-shadow: none is load-bearing: the base button rule's rest
+			   and hover shadows otherwise apply, boxing the text link. */
+			.draft-recovery .discard { background: transparent; color: inherit; text-decoration: underline; box-shadow: none; }
+			.draft-recovery .discard:hover { box-shadow: none; }
 			.draft-error { color: var(--app-warning-color-light); }
+			/* The saving pill speaks the app's existing ambient-status idiom
+			   (#764): the CAPSULE treatment is byte-identical to the floating
+			   corpus-status-indicator — the one prior surface that got
+			   deliberate design attention — and its contents are the existing
+			   primitives only: a status dot in the app's established
+			   work-in-flight amber, a subordinate label, and button.small
+			   icon controls. The previous version was a fourth, invented
+			   form: its own radius, its own shadow recipe, its own type size,
+			   a teal dot meaning the same thing the indicator says in amber,
+			   and underlined text-link buttons that appear nowhere else.
+
+			   Folding into corpus-status-indicator itself (the issue's
+			   preferred option) was evaluated first and declined: the
+			   floating indicator hides in presentation mode and behind the
+			   header panel, and it deliberately contains no buttons — while
+			   Retry/Stop must stay reachable in BOTH states (a crash in the
+			   write-ahead window leaves a record whose ONLY exit is these
+			   controls, see the render comment) and must stay interactive
+			   under the corpus gate. A recovery affordance cannot live on a
+			   surface that is sometimes hidden. */
 			.save-status {
 				position: fixed;
 				left: 0.75rem;
@@ -273,33 +328,39 @@ class CardWebApp extends connect(store)(LitElement) {
 				display: flex;
 				flex-wrap: wrap;
 				align-items: center;
-				max-width: calc(100vw - 1.5rem);
+				max-width: min(24rem, calc(100vw - 1.5rem));
 				gap: 0.4rem;
-				padding: 0.25rem 0.45rem;
-				border-radius: 1rem;
-				background: rgba(255, 255, 255, 0.94);
-				box-shadow: 0 1px 5px rgba(0, 0, 0, 0.18);
-				font: 0.78rem var(--app-default-font-family);
+				padding: 0.35rem 0.55rem;
+				border-radius: 999px;
+				background: rgb(255 255 255 / 92%);
+				box-shadow: 0 1px 5px rgb(0 0 0 / 18%);
+				font: 0.72rem var(--app-default-font-family);
+				/* NOT --app-dark-text-color-light (#AAA): the corpus
+				   indicator's own comment records rejecting that token for
+				   pill text at ~2.3:1 on the white background — the primary
+				   label must stay legible; only .save-reason is subordinate. */
 				color: var(--app-dark-text-color);
 			}
-			.save-dot { width: 0.5rem; height: 0.5rem; flex-shrink: 0; border-radius: 50%; background: var(--app-secondary-color); }
-			/* The reason is supporting detail, not a second headline: it ran
-			   together with the status label at identical weight and colour. */
+			/* Work in flight is AMBER everywhere: --app-pending-color is the
+			   token corpus-status-indicator already uses for exactly this
+			   meaning. The old teal made the same state two colors in the
+			   same app, often on screen simultaneously. Paused stays amber
+			   too — a paused save is recoverable, not destructive, and the
+			   full-strength warning red belongs to the Stop control alone. */
+			.save-dot { width: 0.5rem; height: 0.5rem; flex-shrink: 0; border-radius: 50%; background: var(--app-pending-color); }
+			/* The reason is supporting detail, not a second headline. */
 			.save-reason { color: var(--app-dark-text-color-light); }
-			.save-status.paused .save-dot { background: var(--app-warning-color); }
-			/* The most destructive control on screen was pixel-identical to the safe
-		   one next to it, and named five different things across the app
-		   ("Discard", "Stop retrying", "Stop", "Stop this operation?"). One
-		   name, and a visibly subordinate destructive treatment. */
-		.save-status button.stop {
-			color: var(--app-warning-color);
-			text-decoration: none;
-			box-shadow: inset 0 0 0 1px currentColor;
-			border-radius: 0.3rem;
-			padding: 0 0.4em;
-		}
-
-		.save-status button { border: 0; background: transparent; color: var(--app-primary-color); text-decoration: underline; cursor: pointer; font: inherit; }
+			/* 18px glyphs per the button.small idiom, plus real padding: the
+			   base idiom's zero-padding 18px hit target is too small for the
+			   app's only recovery controls, where the safe Retry sits beside
+			   the destructive Stop. (Stop's own flow still confirms before
+			   discarding, so a mis-tap is recoverable.) */
+			.save-status button.small { flex-shrink: 0; padding: 0.25rem; }
+			.save-status button.small svg { height: 18px; width: 18px; }
+			/* The most destructive control on screen keeps a visibly distinct
+			   treatment: warning-red glyph, unlike every safe subtle icon. */
+			.save-status button.small.stop svg { fill: var(--app-warning-color); }
+			.save-status button.small.stop:hover svg { fill: var(--app-warning-color-light, var(--app-warning-color)); }
 		`
 	];
 
@@ -341,8 +402,8 @@ class CardWebApp extends connect(store)(LitElement) {
 				beforeunload prompt. Same terminal state after a sign-out or
 				account switch, where resume returns silently on uid mismatch.
 				There was no in-app exit at all: DevTools or nothing. -->
-				<button @click=${this._retrySave}>Retry</button>
-				<button class='stop' @click=${this._stopRetryingSave}>Stop</button>
+				<span class='reason' title='Retry the saved operation'><button class='small' aria-label='Retry the saved operation' @click=${this._retrySave}>${REPLAY_ICON}</button></span>
+				<span class='reason' title='Stop and discard the saved operation'><button class='small stop' aria-label='Stop and discard the saved operation' @click=${this._stopRetryingSave}>${CANCEL_ICON}</button></span>
 			</div>` : ''}
 		<corpus-ownership-gate></corpus-ownership-gate>
 		`;
