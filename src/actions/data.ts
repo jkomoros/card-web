@@ -2299,6 +2299,29 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 
 	let sortOrder = selectSortOrderForGlobalAppend(state);
 
+	//One shared timestamp for the whole group, stamped client-side: an import
+	//is one user action at one moment. Before per-card durable intents
+	//(eedeed8e), the single MultiBatch gave every card an identical server
+	//timestamp, so sort/recent's comparator tied and fell through to the base
+	//set's sort_order order — putting the first pasted body on top. Separate
+	//intents get separate (and, under bounded-concurrency commits, jittered)
+	//server times, which reversed imports under sort/recent and broke them
+	//into second-sized blocks (#761). Stamping the recency- and
+	//creation-driving fields with one shared timestamp restores the tie
+	//deterministically, even across a crash-and-replay. `updated` must stay a
+	//server timestamp: the create rule requires it (bumpsUpdated) and
+	//watermark delta sync keys on it.
+	//
+	//The accepted cost: these three fields are client-clock attested, so a
+	//machine with a skewed clock buckets the whole import into the wrong day
+	//under created/updated date filters, and a fast clock parks it above
+	//genuinely newer edits under sort/recent until wall time catches up.
+	//Bounded to bulk imports; within-group order is correct regardless of
+	//skew. The pre-durable behavior (one batch, one server timestamp) had no
+	//skew but is unreachable now that each card is a separate durable intent
+	//committed concurrently — separate serverTimestamps can never tie.
+	const importTimestamp = Timestamp.now();
+
 	for (const body of bodies) {
 		const id = newID();
 		if (sortOrderIsDangerous(sortOrder)) {
@@ -2309,6 +2332,9 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 			return;
 		}
 		const obj = defaultCardObject(id, user, '', 'working-notes', sortOrder);
+		obj.created = importTimestamp;
+		obj.updated_substantive = importTimestamp;
+		obj.updated_message = importTimestamp;
 		obj.body = body;
 		cardFinisher(obj, state);
 		if (flags) obj.flags = {...flags};
@@ -2513,6 +2539,14 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	//the future. The intent records which fields to re-vend rather than the
 	//executor guessing; older intents without the list fall back to the four
 	//fields defaultCardObject stamps.
+	//
+	//DELIBERATE EXCEPTION: bulkCreateWorkingNotes stamps created /
+	//updated_substantive / updated_message with one shared client timestamp
+	//per import group (#761 — the shared value is what makes the group tie
+	//under sort/recent and read in paste order), so its intents list only
+	//['updated'] here. That knowingly re-accepts the skewed-clock bucketing
+	//cost this comment describes, bounded to bulk imports; do not "fix" it
+	//by re-adding the three fields, or imports reverse again.
 	const sentinelFields = payload.serverTimestampFields || ['created', 'updated', 'updated_substantive', 'updated_message'];
 	const restamped = card as unknown as {[field : string] : unknown};
 	for (const field of sentinelFields) {
