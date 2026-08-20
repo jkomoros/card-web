@@ -255,12 +255,12 @@ export const parseDateSection = (str : string) : [dateType : DateRangeType, firs
 Test these URLs:
 
 ```
-#c/created/after/3-days-ago
-#c/created/after/last-monday
-#c/updated/before/yesterday
-#c/created/between/2-weeks-ago/yesterday
-#c/created/after/today
-#c/created/after/1-month-ago
+#c/created/after/3-days-ago/
+#c/created/after/last-monday/
+#c/updated/before/yesterday/
+#c/created/between/2-weeks-ago/yesterday/
+#c/created/after/today/
+#c/created/after/1-month-ago/
 ```
 
 Verify:
@@ -308,9 +308,9 @@ Add to appropriate location (README or docs):
 - `last-monday` through `last-sunday` - Most recent occurrence of that weekday
 
 **Examples:**
-- `#c/created/after/7-days-ago` - Cards created in the last week
-- `#c/updated/after/last-monday` - Cards updated since last Monday
-- `#c/created/between/1-month-ago/yesterday` - Cards created in the last month
+- `#c/created/after/7-days-ago/` - Cards created in the last week
+- `#c/updated/after/last-monday/` - Cards updated since last Monday
+- `#c/created/between/1-month-ago/yesterday/` - Cards created in the last month
 
 #### 3.2: Future UI Enhancements (Not in Initial Implementation)
 

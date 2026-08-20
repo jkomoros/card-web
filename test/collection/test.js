@@ -324,8 +324,10 @@ describe('sort/created sorts by created, not updated', () => {
 		const oldCardEditedRecently = {created: OLD(), updated_substantive: NEW()};
 		const newCardNotEditedSince = {created: NEW(), updated_substantive: OLD()};
 
-		assert.strictEqual(SORTS['created'].extractor(oldCardEditedRecently)[0], OLD().seconds);
-		assert.strictEqual(SORTS['created'].extractor(newCardNotEditedSince)[0], NEW().seconds);
+		//Millis, not seconds, since the extractors moved to the shared
+		//timestampToMillis helper (#742).
+		assert.strictEqual(SORTS['created'].extractor(oldCardEditedRecently)[0], OLD().toMillis());
+		assert.strictEqual(SORTS['created'].extractor(newCardNotEditedSince)[0], NEW().toMillis());
 	});
 
 	it('orders the two cards opposite to how sort/updated would', () => {

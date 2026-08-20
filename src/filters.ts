@@ -26,6 +26,7 @@ export {
 
 import {
 	prettyTime,
+	timestampToMillis,
 	cardHasContent,
 	cardHasNotes,
 	cardHasTodo,
@@ -418,25 +419,16 @@ const dateConfigurableFilterMap : {[name : string] : CardTimestampPropertyName} 
 //Reading the fields directly is also simply the more honest thing to do here:
 //the filter wants a number, and {seconds, nanoseconds} is the wire shape the
 //app already round-trips through toWire/fromWire everywhere else.
-const timestampToMillis = (val : Timestamp | {seconds : number, nanoseconds : number}) : number => {
-	if (typeof (val as Timestamp).toMillis === 'function') return (val as Timestamp).toMillis();
-	const {seconds, nanoseconds} = val as {seconds : number, nanoseconds : number};
-	//ONLY the wire shape is tolerated. Anything else — a JS Date, an ISO
-	//string, a bare millis number — is malformed card data, and NaN is the
-	//conservative answer: every comparison in dateMatchesFilter is a strict
-	//`< 0` / `> 0`, so NaN makes them all false and the card simply never
-	//matches a date filter. No false positives.
-	//
-	//Returning 0 (the epoch) here instead was actively worse than the crash
-	//this function exists to prevent: a card created TODAY with a Date-valued
-	//`created` reported `created/before/7-days-ago` as TRUE — silently, and
-	//for exactly the malformed classes #731 named as suspects.
-	if (typeof seconds !== 'number') return NaN;
-	//Deliberately unrounded, matching Firestore's own Timestamp.toMillis()
-	//(`seconds * 1000 + nanoseconds / 1e6`), so the two agree exactly rather
-	//than diverging by up to half a millisecond at the boundary.
-	return seconds * 1000 + (typeof nanoseconds === 'number' ? nanoseconds : 0) / 1e6;
-};
+//
+//The conversion itself is the shared timestampToMillis in util.ts (#742
+//moved it there so sorts and similarity share one definition). Filters pass
+//NaN as the sentinel: every comparison in dateMatchesFilter is a strict
+//`< 0` / `> 0`, so NaN makes them all false and a malformed card simply
+//never matches — no false positives. (0 — the epoch — was actively worse
+//than the crash this replaced: a card created TODAY with a Date-valued
+//`created` reported `created/before/7-days-ago` as TRUE.) Sorts pass 0 for
+//the mirror-image reason; see the helper's comment.
+const timestampToFilterMillis = (val : Timestamp | {seconds : number, nanoseconds : number}) : number => timestampToMillis(val, NaN);
 
 const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
 
@@ -452,14 +444,14 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			return {matches: dateMatchesFilter(timestampToMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
+			return {matches: dateMatchesFilter(timestampToFilterMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
 		};
 		break;
 	case 'after':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			return {matches: dateMatchesFilter(timestampToMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
+			return {matches: dateMatchesFilter(timestampToFilterMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
 		};
 		break;
 	case 'between':
@@ -468,7 +460,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName, compar
 			func = function(card) {
 				const val = card[cardKey] as Timestamp;
 				if (!val) return {matches: false};
-				return {matches: dateMatchesFilter(timestampToMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
+				return {matches: dateMatchesFilter(timestampToFilterMillis(val), comparisonType, resolveFirstDate, resolveSecondDate)};
 			};
 		}
 		break;
@@ -1664,6 +1656,17 @@ export const SORTS : SortConfigurationMap = {
 			const key = Object.keys(sortExtra)[0];
 			const values = sortExtra[key];
 			const config = CONFIGURABLE_FILTER_INFO[key];
+			//Assert, don't guard (#746): keys are recorded into sortExtras
+			//only when a configurable filter actually emitted sortInfos
+			//(collection_description.ts records them under the filter's own
+			//name), so an unknown key here is an invariant violation — some
+			//filter emitted sort values without being registered — not a
+			//user-input state. A silent `config?.flipOrder` would hide that
+			//breakage as a wrong sort order; the labelName sibling below
+			//guards only because a missing labelName has a sensible default.
+			//If a REACHABLE path to an unknown key is ever found, downgrade
+			//this to the sibling's guard and record the path on #746.
+			if (!config) throw new Error(`sortExtras carries unknown configurable filter key '${key}': a filter emitted sortInfos without being registered in CONFIGURABLE_FILTER_INFO`);
 			const value = values[card.id] || 0.0;
 			//You might want to flip the sort order while having the displayed
 			//order be the same. For example, any of the link-degree
@@ -1699,8 +1702,14 @@ export const SORTS : SortConfigurationMap = {
 	},
 	'updated': {
 		extractor: (card) => {
+			//timestampToMillis with sentinel 0, here and in every timestamp
+			//extractor below (#742): reading .seconds directly yielded
+			//undefined for a malformed (Date- or string-valued) field, the
+			//comparator then returned NaN, and Array.prototype.sort treats a
+			//NaN comparator result as "equal" — silently reordering the
+			//collection. 0 sorts malformed cards to one end predictably.
 			const timestamp = card.updated_substantive;
-			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+			return [timestampToMillis(timestamp, 0), prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card was last substantively updated',
 		labelName:'Updated',
@@ -1714,7 +1723,7 @@ export const SORTS : SortConfigurationMap = {
 			//substantively updated near when it was made, so the result looked
 			//plausible and only differed for old cards edited recently.
 			const timestamp = card.created;
-			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+			return [timestampToMillis(timestamp, 0), prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card was created',
 		labelName:'Created',
@@ -1726,15 +1735,15 @@ export const SORTS : SortConfigurationMap = {
 	'commented': {
 		extractor: (card) => {
 			const timestamp = card.updated_message;
-			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+			return [timestampToMillis(timestamp, 0), prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card last had a new message',
 		labelName: 'Commented',
 	},
 	'recent': {
 		extractor: (card) => {
-			const messageValue = card.updated_message ? card.updated_message.seconds : 0;
-			const updatedValue = card.updated_substantive ? card.updated_substantive.seconds : 0;
+			const messageValue = timestampToMillis(card.updated_message, 0);
+			const updatedValue = timestampToMillis(card.updated_substantive, 0);
 			const usingMessageValue = messageValue > updatedValue;
 			const value = usingMessageValue ? messageValue : updatedValue;
 			const timestamp = usingMessageValue ? card.updated_message : card.updated_substantive;
@@ -1757,7 +1766,7 @@ export const SORTS : SortConfigurationMap = {
 			//guard is still right — the failure is total when it happens — but
 			//do not read this as "most cards".
 			const timestamp = card.last_tweeted;
-			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+			return [timestampToMillis(timestamp, 0), prettyTime(timestamp)];
 		},
 		description: 'In descending order of when they were last auto-tweeted',
 		labelName: 'Tweeted'

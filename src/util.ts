@@ -764,6 +764,44 @@ export const prettyTime = (date? : Timestamp | Date | {seconds : number, nanosec
 	return dateDate ? dateDate.toDateString() : '';
 };
 
+//The one shared timestamp-to-millis conversion for card data (#742, #755).
+//Accepts a real Timestamp or the prototype-stripped {seconds, nanoseconds}
+//wire shape a Timestamp becomes across a structuredClone boundary
+//(postMessage, or a legacy IndexedDB snapshot); anything else — a JS Date,
+//an ISO string, a bare millis number — is malformed card data and yields the
+//caller's sentinel. The sentinel is a parameter because the right one
+//differs by consumer:
+//
+//- FILTERS pass NaN: every comparison against NaN is false, so a malformed
+//  card simply never matches a date filter. No false positives — a sentinel
+//  of 0 (the epoch) made a card created TODAY with a Date-valued `created`
+//  match created/before/7-days-ago.
+//- SORTS pass 0: NaN is exactly wrong there, because a NaN comparator
+//  result is treated by Array.prototype.sort as "these are equal", which
+//  silently reorders the collection instead of failing (#742's measured
+//  repro: cards created 2026/2023/2020 with a Date on the middle one
+//  sorted b,a,c instead of b,c,a). 0 sorts malformed cards to one end,
+//  predictably.
+//
+//Unrounded on purpose, matching Firestore's own Timestamp.toMillis()
+//(`seconds * 1000 + nanoseconds / 1e6`), so the two agree exactly rather
+//than diverging by up to half a millisecond at the boundary.
+export const timestampToMillis = (val : Timestamp | {seconds : number, nanoseconds? : number} | null | undefined, sentinel : number) : number => {
+	if (!val) return sentinel;
+	const asTimestamp = val as Timestamp;
+	//Number.isFinite, not typeof — {seconds: NaN} or a Timestamp whose
+	//toMillis() yields NaN would otherwise pass the sentinel gate and reach
+	//the sort comparator as NaN, which is precisely the silent-reorder
+	//failure this helper exists to prevent.
+	if (typeof asTimestamp.toMillis === 'function') {
+		const millis = asTimestamp.toMillis();
+		return Number.isFinite(millis) ? millis : sentinel;
+	}
+	const {seconds, nanoseconds} = val as {seconds? : number, nanoseconds? : number};
+	if (!Number.isFinite(seconds)) return sentinel;
+	return (seconds as number) * 1000 + (Number.isFinite(nanoseconds) ? (nanoseconds as number) : 0) / 1e6;
+};
+
 export const killEvent = (e : Event) : void => {
 	if (e) {
 		e.preventDefault();

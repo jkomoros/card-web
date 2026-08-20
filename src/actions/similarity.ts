@@ -24,6 +24,10 @@ import {
 } from '../store.js';
 
 import {
+	timestampToMillis
+} from '../util.js';
+
+import {
 	CardID,
 	Card,
 	State
@@ -236,7 +240,12 @@ export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	}
 	//This will return immediately. The coordinator coalesces the main-thread
 	//and corpus-worker triggers for this exact card version.
-	fetchSimilarCards(cardID, card?.updated?.toMillis() || 0, store.dispatch);
+	//timestampToMillis, not .toMillis() (#755): a legacy V1 IndexedDB
+	//snapshot written before saves used toWire can hold bare
+	//{seconds, nanoseconds} husks with no marker, and those reach
+	//main-thread Redux — on such a card .toMillis() is a TypeError. This
+	//was the last unguarded wire-shape .toMillis() on the read path.
+	fetchSimilarCards(cardID, timestampToMillis(card?.updated, 0), store.dispatch);
 	return true;
 };
 
@@ -248,7 +257,7 @@ if (typeof window !== 'undefined') {
 		setTimeout(() => {
 			for (const [cardID, version] of transportFailedVersions) {
 				const card = selectRawCards(store.getState() as State)[cardID];
-				if (!card || (card.updated?.toMillis() || 0) !== version) {
+				if (!card || timestampToMillis(card.updated, 0) !== version) {
 					transportFailedVersions.delete(cardID);
 					continue;
 				}

@@ -652,11 +652,11 @@ To implement Option B later, you'd need:
 
 1. **Create new relative filter from UI:**
    - Select "after" + Relative + Offset + 3 days
-   - URL should be: `after/3-days-ago`
+   - URL should be: `after/3-days-ago/` (trailing slash required — a bare final date segment is parsed as a card identifier)
    - Filter should work correctly
 
 2. **Load existing relative filter:**
-   - Load URL: `created/after/last-monday`
+   - Load URL: `created/after/last-monday/`
    - UI should show: Relative mode, Weekday type, Monday selected
    - Should be editable
 
