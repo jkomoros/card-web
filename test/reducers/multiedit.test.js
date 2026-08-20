@@ -48,3 +48,26 @@ describe('multi-edit reducer intent isolation', () => {
 		assert.deepStrictEqual(state.removeTags, []);
 	});
 });
+
+describe('bulk import failure reporting (#758 slice)', () => {
+	let bulkImportReducer;
+	let bulkActions;
+
+	before(async () => {
+		bulkImportReducer = (await import('../../lib/src/reducers/bulk-import.js')).default;
+		bulkActions = await import('../../lib/src/actions.js');
+	});
+
+	it('a failure lands in dialog state instead of an alert, and clears on retry', () => {
+		//The reducer used to call alert() directly — a blocking OS modal
+		//fired from inside a reducer. The dialog stays open on failure, so
+		//the message belongs there.
+		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_PENDING});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'These cards could not be created.'});
+		assert.strictEqual(state.pending, false);
+		assert.strictEqual(state.error, 'These cards could not be created.');
+		//Starting a new attempt clears the stale message.
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
+		assert.strictEqual(state.error, '');
+	});
+});

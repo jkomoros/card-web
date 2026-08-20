@@ -17,6 +17,7 @@ const INITIAL_STATE : BulkImportState = {
 	open: false,
 	mode: 'import',
 	pending: false,
+	error: '',
 	overrideCardOrder: null,
 	bodies: [],
 	importer: '',
@@ -44,7 +45,8 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 	case BULK_IMPORT_PENDING:
 		return {
 			...state,
-			pending: true
+			pending: true,
+			error: ''
 		};
 	case BULK_IMPORT_SUCCESS:
 		return {
@@ -53,11 +55,13 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 			open: false
 		};
 	case BULK_IMPORT_FAILURE:
-		//TODO: is it weird to have an alert here?
-		alert('Failure: ' + action.error);
+		//In-dialog, not alert() (#758): this used to fire a blocking OS
+		//modal from INSIDE the reducer. The dialog stays open on failure,
+		//so it is the natural surface for the message.
 		return {
 			...state,
-			pending: false
+			pending: false,
+			error: action.error
 		};
 	case BULK_IMPORT_SET_BODIES:
 		return {

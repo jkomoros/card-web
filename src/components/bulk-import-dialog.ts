@@ -63,6 +63,9 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	@state()
 		_pending : boolean;
 
+	@state()
+		_error : string;
+
 	
 	@state()
 		_mode : BulkImportDialogMode = 'import';
@@ -129,6 +132,15 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				display:flex;
 				flex-direction: row;
 				justify-content:flex-end;
+			}
+
+			/* The failure outcome lives IN the dialog (#758), not in an
+			   alert(): the dialog stays open on failure, so it is the
+			   natural surface, it can be read at leisure, and it does not
+			   block the tab. */
+			p.error {
+				color: var(--app-warning-color);
+				margin: 0.5em 0 0 0;
 			}
 
 			.output p {
@@ -202,6 +214,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		}
 		return html`<div class='${this._pending ? 'pending' : ''}'>
 			<div class='scrim'></div>
+			${this._error ? html`<p class='error' role='alert'>${this._error}</p>` : ''}
 			${content}
 		</div>`;
 	}
@@ -238,6 +251,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this.open = selectBulkImportDialogOpen(state);
 		this._bodies = selectBulkImportDialogBodies(state);
 		this._pending = selectBulkImportPending(state);
+		this._error = state.bulkImport?.error || '';
 		this._mode = selectBulKimportDialogMode(state);
 		this._exportContent = selectBulkImportDialogExportContent(state);
 		this._aiEnabled = selectUserMayUseAI(state);

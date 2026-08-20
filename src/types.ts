@@ -1233,6 +1233,11 @@ export type BulkImportState = {
 	mode: BulkImportDialogMode,
 	//Whether or not the import is running
 	pending: boolean,
+	//The last failure, rendered IN the dialog (#758): the reducer used to
+	//alert() it — a blocking OS modal fired from inside a reducer, which
+	//could name no cards and could not be styled or dismissed gracefully.
+	//Empty when the last operation did not fail.
+	error: string,
 	bodies: string[],
 	//If provided, will use this order, not the implicit order of the collection.
 	overrideCardOrder: CardID[] | null,
