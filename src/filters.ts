@@ -86,6 +86,7 @@ import {
 	dateMatchesFilter,
 	makeFilterDateResolver,
 	parseRelativeDate,
+	relativeDateCacheKey,
 } from './relative-date.js';
 
 export {
@@ -1522,7 +1523,26 @@ const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER
 
 const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : ConfigurableFilterFuncFactoryResult} = {};
 
+//The local day this cache was built under. Constructed filters can close
+//over relative-date resolution ("today", "7-days-ago" resolve against local
+//midnight), and the wrapper filters (exclude/, combine/, expand/) each hold
+//their own memoize keyed on extras identity ALONE — with no day component —
+//which this by-name cache then retains indefinitely. On a tab idle across
+//midnight (the normal overnight case), a wrapped relative-date filter kept
+//serving yesterday's answer: the day key added to the OUTER per-run memo in
+//collection_description (#736) never reaches these one-level-down memos.
+//Evicting the whole cache on day change fixes the staleness and the
+//indefinite retention with one mechanism, and cannot be forgotten by a
+//fourth wrapper filter added later (#743). One construction sweep per day
+//is trivially cheap next to the collection runs that follow.
+let memoizedConfigurableFiltersDayKey = relativeDateCacheKey();
+
 export const makeConfigurableFilter = (name : ConfigurableFilterName) : ConfigurableFilterFuncFactoryResult => {
+	const dayKey = relativeDateCacheKey();
+	if (dayKey !== memoizedConfigurableFiltersDayKey) {
+		memoizedConfigurableFiltersDayKey = dayKey;
+		for (const staleName of Object.keys(memoizedConfigurableFilters)) delete memoizedConfigurableFilters[staleName];
+	}
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
 		//`?.` matters: the fallback to makeNoOpConfigurableFilter shows the intent
