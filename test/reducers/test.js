@@ -278,6 +278,22 @@ describe('reducer identity preservation', () => {
 		return collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_CARDS, cards, fetchType: 'published'});
 	};
 
+	it('a worker collection error is per-slot, and any fresh result supersedes it (#739)', () => {
+		const error = {description: 'everything/', message: 'boom'};
+		let state = collectionReducer(INITIAL_COLLECTION_STATE, {type: 'UPDATE_WORKER_COLLECTION_ERROR', slot: 'active', error});
+		assert.strictEqual(state.workerActiveCollectionError, error);
+		assert.strictEqual(state.workerQueryCollectionError, null);
+		//Recovery clears explicitly…
+		state = collectionReducer(state, {type: 'UPDATE_WORKER_COLLECTION_ERROR', slot: 'active', error: null});
+		assert.strictEqual(state.workerActiveCollectionError, null);
+		//…and ANY fresh result state for the slot (including the null pushed
+		//on resubscription) clears a recorded failure, so a stale error can
+		//never outlive the subscription it belonged to.
+		state = collectionReducer(state, {type: 'UPDATE_WORKER_COLLECTION_ERROR', slot: 'active', error});
+		state = collectionReducer(state, {type: 'UPDATE_WORKER_COLLECTION', slot: 'active', result: null});
+		assert.strictEqual(state.workerActiveCollectionError, null);
+	});
+
 	it('UPDATE_CARDS with an unchanged card preserves state identity', async () => {
 		const card = makeCard('card-one');
 		const state = primedCollectionState({'card-one': card});

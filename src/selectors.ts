@@ -1766,6 +1766,18 @@ let _previousActiveCollection : Collection | null = null;
 
 export const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
 
+const selectWorkerActiveCollectionError = (state : State) => state.collection ? state.collection.workerActiveCollectionError : null;
+
+//Non-empty (the failure message) when the ACTIVE collection's worker run
+//threw — the collection is failed, not empty, and the drawer should say so
+//(#739). Scoped to the current description so a stale failure never sticks
+//to a different collection after navigation.
+export const selectActiveCollectionFailureMessage = createSelector(
+	selectActiveCollectionDescription,
+	selectWorkerActiveCollectionError,
+	(description, error) : string => description && error && error.description === description.serialize() ? error.message : ''
+);
+
 export const selectWorkerActiveCollectionReady = createSelector(
 	selectActiveCollectionDescription,
 	selectWorkerActiveCollectionResult,

@@ -286,11 +286,16 @@ const subscriptions = new SubscriptionManager(engine, push => {
 		partialMatches: push.partialMatches,
 		ms: push.ms
 	});
-}, undefined, (description, error) => {
+}, undefined, (subscriptionID, description, message) => {
 	//A subscription whose collection run throws would otherwise be
 	//indistinguishable from one that legitimately matched nothing (#731).
-	//Report it on the same channel the direct runCollection path uses.
-	send({type: 'error', generation, message: `subscription(${description}): ${String(error)}`});
+	//Send a structured signal the bridge can turn into UI state — a
+	//failure the drawer can show is the other half of "a filter that
+	//throws should surface, not render as no results" (#739). The manager
+	//reports first-only per (subscription, message), passes the message
+	//string (never the raw thrown value, so `throw null` cannot fake the
+	//recovery sentinel), and sends null on recovery.
+	send({type: 'collectionError', generation, subscriptionID, description, message});
 });
 let cardsWithStoredTokens = 0;
 let indexBuildMs = 0;

@@ -74,3 +74,26 @@ describe('worker card batches are applied before anything derived from them', ()
 		assert.match(body, /console\.error/, 'and must report it');
 	});
 });
+
+//#739: the collectionError message becomes UI state ("This collection
+//couldn't be computed"), and two properties of its handling were reachable
+//bugs in review precisely because nothing crossed the manager/bridge seam:
+//it must sit BELOW the stale-generation gate, and its dispatch must be
+//mode-gated like handleCollectionResult — shadow mode's contract is
+//"behavior unchanged" (the UI renders the LOCAL collection there), and the
+//clearing dispatches are all on-mode-only, so a shadow-set error could
+//persist unclearably.
+describe('collectionError handling (#739)', () => {
+	it('is generation-gated and mode-gated', () => {
+		const caseStart = source.indexOf("case 'collectionError'");
+		assert.ok(caseStart >= 0, 'the bridge must handle collectionError');
+		const generationGate = source.indexOf('message.generation !== generation');
+		assert.ok(generationGate >= 0 && generationGate < caseStart,
+			'the stale-generation gate must run before collectionError is acted on');
+		const caseBody = source.slice(caseStart, source.indexOf('break;', source.indexOf('UPDATE_WORKER_COLLECTION_ERROR', caseStart)));
+		assert.match(caseBody, /if \(readMode\(\) !== 'on'\) break;/,
+			'the error dispatch must be gated to on mode, before the store.dispatch');
+		assert.ok(caseBody.indexOf("readMode() !== 'on'") < caseBody.indexOf('store.dispatch'),
+			'the mode gate must precede the dispatch');
+	});
+});

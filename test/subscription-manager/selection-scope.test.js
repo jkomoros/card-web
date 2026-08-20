@@ -139,6 +139,27 @@ describe('selection-scoped flushes (#760)', () => {
 		assert.strictEqual(runCounts['everything/selected/'], 3);
 	});
 
+	it('a FAILED subscription is never skipped by selection scope, so recovery is prompt (#739)', () => {
+		const engine = new QueryEngine();
+		engine.updateCards({a: card('a')}, []);
+		const errors = [];
+		const manager = new SubscriptionManager(engine, () => undefined, 50, (subscriptionID, description, message) => errors.push(message));
+		const realRun = engine.runCollection.bind(engine);
+		manager.subscribe(1, params('everything/'));
+		manager.flush();
+		engine.runCollection = () => { throw new TypeError('transient'); };
+		manager.markDirty();
+		manager.flush();
+		assert.strictEqual(errors.length, 1);
+		//The engine heals, but only selection-scoped dirt arrives. The failed
+		//subscription must still recompute — otherwise the failure banner
+		//outlives the failure until the next 'all' flush.
+		engine.runCollection = realRun;
+		manager.markDirty('selection');
+		manager.flush();
+		assert.deepStrictEqual(errors, [String(new TypeError('transient')), null], 'recovery must be detected during a selection-only flush');
+	});
+
 	it('a selection flush bypasses the coalescing delay', async () => {
 		//Generous floor so a scheduler hiccup cannot make the fast path
 		//accidentally pass: if selection waited the full floor, the check at

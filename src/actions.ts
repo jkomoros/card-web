@@ -58,6 +58,7 @@ import {
 	UserPermissionsMap,
 	WorkerCollectionResult,
 	WorkerCollectionSlot,
+	WorkerCollectionError,
 	CardMetas,
 	CorpusStatus,
 	Filters
@@ -110,6 +111,7 @@ export const UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT = 'UPDATE_COLLECTION_CONFI
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 export const UPDATE_WORKER_COLLECTION = 'UPDATE_WORKER_COLLECTION';
+export const UPDATE_WORKER_COLLECTION_ERROR = 'UPDATE_WORKER_COLLECTION_ERROR';
 export const UPDATE_CARD_META = 'UPDATE_CARD_META';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const SELECT_CARDS = 'SELECT_CARDS';
@@ -464,6 +466,13 @@ type ActionUpdateWorkerCollection = {
 	type: typeof UPDATE_WORKER_COLLECTION,
 	slot: WorkerCollectionSlot,
 	result: WorkerCollectionResult | null
+};
+
+type ActionUpdateWorkerCollectionError = {
+	type: typeof UPDATE_WORKER_COLLECTION_ERROR,
+	slot: WorkerCollectionSlot,
+	//null clears (the subscription recovered).
+	error: WorkerCollectionError | null
 };
 
 type ActionUpdateCardMeta = {
@@ -1290,6 +1299,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportDialogSetOverrideCardOrder
 	| ActionUpdateCollection
 	| ActionUpdateWorkerCollection
+	| ActionUpdateWorkerCollectionError
 	| ActionUpdateCardMeta
 	| ActionUpdateCorpusStatus
 	| ActionUpdateCorpusDetail

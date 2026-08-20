@@ -782,6 +782,20 @@ export type CollectionState = {
 	workerActiveCollection: WorkerCollectionResult | null,
 	//Same, for the find dialog's query collection.
 	workerQueryCollection: WorkerCollectionResult | null,
+	//Set when the worker reports the slot's collection run THREW — the
+	//collection is failed, not empty, and the drawer says so instead of
+	//rendering a confident "0 cards" (#739). Cleared by recovery, by any
+	//fresh result for the slot, and by resubscription.
+	workerActiveCollectionError: WorkerCollectionError | null,
+	workerQueryCollectionError: WorkerCollectionError | null,
+}
+
+//A worker-reported failure of a served collection's run (#739).
+export type WorkerCollectionError = {
+	//The serialized description the failure belongs to, so a stale error
+	//never sticks to a different collection.
+	description : string,
+	message : string,
 }
 
 //Which worker-served collection slot a pushed result belongs to.

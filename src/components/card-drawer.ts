@@ -91,6 +91,12 @@ class CardDrawer extends LitElement {
 	@property({ type : Boolean })
 		pending: boolean;
 
+	//Non-empty when the worker reported this collection's run THREW (#739).
+	//A failed collection must not read as a confident empty one — "0 cards"
+	//was exactly how a one-line filter bug hid for weeks.
+	@property({ type : String })
+		failureMessage: string;
+
 	@property({ type : Number })
 		renderOffset: number;
 
@@ -211,6 +217,13 @@ class CardDrawer extends LitElement {
 				width: 12em;
 			}
 
+			#count .failure {
+				/* Amber, not destructive red: the corpus is fine and nothing
+				   was lost — this one collection's computation failed. */
+				color: var(--app-pending-color);
+				font-weight: bold;
+			}
+
 		`
 	];
 
@@ -224,12 +237,18 @@ class CardDrawer extends LitElement {
 		//and on every editor minimize/restore, which also flips `showing` —
 		//losing the list's scroll position each time. master used ?hidden here.
 		return html`
-			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount ? 'initial-load' : ''}'>
+			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating && !this.failureMessage ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount && !this.failureMessage ? 'initial-load' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
-							${(this.updating || this.pending) && !currentCount
+							${this.failureMessage
+		//A failed run outranks both other states: rendering "0 cards" for a
+		//collection that THREW is a lie (#739 — exactly how a one-line
+		//filter bug hid for weeks), and "loading…" would promise a result
+		//that is not coming. The full error is in the tooltip.
+		? html`<span class='failure' title=${this.failureMessage}>This collection couldn’t be computed</span>`
+		: (this.updating || this.pending) && !currentCount
 		//"0 cards" plus an "updating…" pin reads as "this list is empty and
 		//something is wrong", which on a slow first visit is the site's first
 		//impression. An empty list that is still loading has no count worth

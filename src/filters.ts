@@ -2410,4 +2410,6 @@ export const INITIAL_STATE : CollectionState = {
 	collectionWordCloudVersion: 0,
 	workerActiveCollection: null,
 	workerQueryCollection: null,
+	workerActiveCollectionError: null,
+	workerQueryCollectionError: null,
 };

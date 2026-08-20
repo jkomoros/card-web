@@ -42,6 +42,15 @@ export type DirtyScope = 'selection' | 'all';
 type Subscription = SubscriptionParams & {
 	lastIDs : CardID[] | null,
 	lastLabels : string[] | null,
+	//The last error message reported for this subscription, or null when it
+	//is healthy. Failures repeat on every flush while the cause persists
+	//(markDirty fires per ingested batch), so reporting is FIRST-ONLY per
+	//(subscription, message): measured pre-fix, 200 flushes × 3 throwing
+	//subscriptions produced 600 onError calls and 600 console.errors —
+	//making the console useless exactly when it is needed (#739). A
+	//successful run after a failure reports recovery (error null) exactly
+	//once.
+	lastErrorMessage : string | null,
 	//Whether the description references the selection filters (selected /
 	//not-selected), computed once at subscribe. Conservative substring test:
 	//'not-selected' contains 'selected', union members and configurable
@@ -69,7 +78,10 @@ export class SubscriptionManager {
 	_engine : QueryEngine;
 	_subscriptions : Map<number, Subscription>;
 	_push : (push : SubscriptionPush) => void;
-	_onError : ((description : string, error : unknown) => void) | null;
+	//message null = recovered. A string — computed here via String(e) — is a
+	//failure, which keeps a pathological `throw null` from masquerading as
+	//the recovery sentinel.
+	_onError : ((subscriptionID : number, description : string, message : string | null) => void) | null;
 	_flushDelayMs : number;
 	_flushTimeout : ReturnType<typeof setTimeout> | null;
 	_scheduledDelayMs : number;
@@ -79,8 +91,10 @@ export class SubscriptionManager {
 
 	//push is called with each fresh result; flushDelayMs coalesces bursts of
 	//engine mutations (e.g. ingestion batches) into one recompute. onError is
-	//called when a subscription's collection run THROWS — see flush().
-	constructor(engine : QueryEngine, push : (push : SubscriptionPush) => void, flushDelayMs = 50, onError : ((description : string, error : unknown) => void) | null = null) {
+	//called when a subscription's collection run THROWS — first-only per
+	//(subscription, message) — and again with error null when it recovers.
+	//See flush().
+	constructor(engine : QueryEngine, push : (push : SubscriptionPush) => void, flushDelayMs = 50, onError : ((subscriptionID : number, description : string, message : string | null) => void) | null = null) {
 		this._engine = engine;
 		this._subscriptions = new Map();
 		this._push = push;
@@ -123,6 +137,7 @@ export class SubscriptionManager {
 			...params,
 			lastIDs: null,
 			lastLabels: null,
+			lastErrorMessage: null,
 			dependsOnSelection: params.description.includes(SELECTED_FILTER_NAME),
 		});
 		//New subscriptions get a result promptly.
@@ -198,7 +213,10 @@ export class SubscriptionManager {
 			//subscription over the corpus (#760). Subscriptions that have
 			//never been pushed (lastIDs null) always compute, whatever the
 			//scope — they may have subscribed during the selection burst.
-			if (scope === 'selection' && subscription.lastIDs !== null && !subscription.dependsOnSelection) continue;
+			//A FAILED subscription (lastErrorMessage set) never skips: its
+			//recovery would otherwise wait for the next 'all'-scope dirt,
+			//leaving the failure banner up after the cause healed.
+			if (scope === 'selection' && subscription.lastIDs !== null && !subscription.dependsOnSelection && subscription.lastErrorMessage === null) continue;
 			let result : RunCollectionResult;
 			const start = performance.now();
 			try {
@@ -216,10 +234,23 @@ export class SubscriptionManager {
 				//That silence is what made #731 (a one-line type bug) take so
 				//long to find: the only trace was a console.warn inside the
 				//worker, which nobody is looking at. Surface it on the same
-				//error channel the direct runCollection path already uses.
-				console.error(`subscription ${subscription.description} failed: ${String(e)}`);
-				if (this._onError) this._onError(subscription.description, e);
+				//error channel the direct runCollection path already uses —
+				//but only ONCE per (subscription, message); see
+				//lastErrorMessage.
+				const message = String(e);
+				if (subscription.lastErrorMessage !== message) {
+					subscription.lastErrorMessage = message;
+					console.error(`subscription ${subscription.description} failed: ${message}`);
+					if (this._onError) this._onError(subscriptionID, subscription.description, message);
+				}
 				continue;
+			}
+			//Recovery must be reported even when the fresh result equals the
+			//last pushed one (no push would follow), or the UI would show a
+			//failure forever after a transient throw.
+			if (subscription.lastErrorMessage !== null) {
+				subscription.lastErrorMessage = null;
+				if (this._onError) this._onError(subscriptionID, subscription.description, null);
 			}
 			if (resultsEqual(subscription, result)) continue;
 			subscription.lastIDs = result.ids;

@@ -4,6 +4,7 @@ import {
 	UPDATE_RENDER_OFFSET,
 	UPDATE_COLLECTION_SHAPSHOT,
 	UPDATE_WORKER_COLLECTION,
+	UPDATE_WORKER_COLLECTION_ERROR,
 	RANDOMIZE_SALT,
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
@@ -87,15 +88,31 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			filtersSnapshot: state.filters,
 		};
 	case UPDATE_WORKER_COLLECTION:
+		//Any fresh result state for a slot — including the null dispatched on
+		//resubscription — supersedes a recorded failure (#739): errors are
+		//only ever (re)set by an explicit UPDATE_WORKER_COLLECTION_ERROR.
 		if (action.slot === 'query') {
 			return {
 				...state,
 				workerQueryCollection: action.result,
+				workerQueryCollectionError: null,
 			};
 		}
 		return {
 			...state,
 			workerActiveCollection: action.result,
+			workerActiveCollectionError: null,
+		};
+	case UPDATE_WORKER_COLLECTION_ERROR:
+		if (action.slot === 'query') {
+			return {
+				...state,
+				workerQueryCollectionError: action.error,
+			};
+		}
+		return {
+			...state,
+			workerActiveCollectionError: action.error,
 		};
 	case UPDATE_SECTIONS:
 		return {

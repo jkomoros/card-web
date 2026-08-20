@@ -60,6 +60,7 @@ import {
 	selectCardSavesEligible,
 	selectCorpusStatus,
 	selectWorkerActiveCollectionReady,
+	selectActiveCollectionFailureMessage,
 } from '../selectors.js';
 
 import {
@@ -416,6 +417,9 @@ class CardView extends connect(store)(PageViewElement) {
 		_collectionPending: boolean;
 
 	@state()
+		_collectionFailureMessage: string;
+
+	@state()
 		_saveEligible: boolean;
 
 	//The actual sync status, so blocked-control copy can say what is TRUE
@@ -624,6 +628,7 @@ class CardView extends connect(store)(PageViewElement) {
 				.collection=${this._collection}
 				.updating=${this._collectionUpdating}
 				.pending=${this._collectionPending}
+				.failureMessage=${this._collectionFailureMessage}
 				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
@@ -1179,7 +1184,20 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 		const activeCollectionReady = !corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state);
 		this._collectionPending = !activeCollectionReady;
-		if (activeCollectionReady) {
+		this._collectionFailureMessage = selectActiveCollectionFailureMessage(state);
+		if (this._collectionFailureMessage) {
+			//The run for this description THREW (#739): no matching result is
+			//coming. Holding the previous collection here rendered its stale
+			//cards under an "updating…" pin — a promised refresh that cannot
+			//arrive — beside the failure notice. Show the (empty) current
+			//collection with the failure text and no updating affordance.
+			this._collection = currentCollection;
+			this._collectionUpdating = false;
+			if (this._collectionUpdatingTimeout) {
+				window.clearTimeout(this._collectionUpdatingTimeout);
+				this._collectionUpdatingTimeout = 0;
+			}
+		} else if (activeCollectionReady) {
 			this._collection = currentCollection;
 			this._lastReadyCollection = currentCollection;
 			this._collectionUpdating = false;

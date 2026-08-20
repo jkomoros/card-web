@@ -35,6 +35,7 @@ import {
 
 import {
 	UPDATE_WORKER_COLLECTION,
+	UPDATE_WORKER_COLLECTION_ERROR,
 	UPDATE_CARD_META,
 	REMOVE_CARDS,
 	STOP_EXPECTING_FETCHED_CARDS,
@@ -1296,6 +1297,28 @@ const handleMessageInner = (event : MessageEvent<WorkerToMainMessage>) => {
 	case 'collectionResult':
 		handleCollectionResult(message);
 		break;
+	case 'collectionError': {
+		//A served collection's run threw (message.message set) or recovered
+		//(null). Turn it into UI state so the drawer can say "failed to
+		//compute" instead of a confident "0 cards" (#739). The worker
+		//already reports first-only per (subscription, message), so this is
+		//not a per-flush firehose.
+		const failedSubscription = Object.values(bridgeSubscriptions).find(candidate => candidate.id === message.subscriptionID);
+		if (message.message !== null) console.error(`[corpus-worker] subscription(${message.description}) failed: ${message.message}`);
+		if (!failedSubscription) break;
+		//Mode-gated like handleCollectionResult: shadow mode's contract is
+		//"behavior unchanged" — the UI renders the LOCAL collection there,
+		//so a worker-side failure banner would sit over a correct list. And
+		//because every clearing dispatch is also on-mode-only, a shadow-set
+		//error could persist unclearably across reconnects.
+		if (readMode() !== 'on') break;
+		store.dispatch({
+			type: UPDATE_WORKER_COLLECTION_ERROR,
+			slot: failedSubscription.slot,
+			error: message.message === null ? null : {description: message.description, message: message.message},
+		});
+		break;
+	}
 	case 'runCollectionResult': {
 		const resolve = pendingRunCollections.get(message.id);
 		if (resolve) {

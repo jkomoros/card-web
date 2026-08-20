@@ -145,7 +145,7 @@ describe('SubscriptionManager', () => {
 			engine.updateCards({a: card('a')}, []);
 			const pushes = [];
 			const errors = [];
-			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (description, error) => errors.push({description, error}));
+			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (subscriptionID, description, error) => errors.push({subscriptionID, description, error}));
 			//Make the engine's collection run throw the way a filter blowing up
 			//on a prototype-stripped Timestamp did.
 			engine.runCollection = () => {
@@ -154,14 +154,76 @@ describe('SubscriptionManager', () => {
 			return {engine, manager, pushes, errors};
 		};
 
-		it('calls onError with the description and the error', () => {
+		it('calls onError with the subscription, description and the error', () => {
 			const {manager, pushes, errors} = throwingSetup();
 			manager.subscribe(1, params('everything/'));
 			manager.flush();
 			assert.strictEqual(pushes.length, 0, 'nothing should be pushed for a failed run');
 			assert.strictEqual(errors.length, 1, 'the failure must be reported, not swallowed');
+			assert.strictEqual(errors[0].subscriptionID, 1);
 			assert.strictEqual(errors[0].description, 'everything/');
 			assert.ok(String(errors[0].error).includes('toMillis'), 'the original error should be carried through');
+		});
+
+		it('reports first-only per (subscription, message), and recovery exactly once (#739)', () => {
+			//Measured pre-fix: 200 flushes × 3 throwing subscriptions = 600
+			//onError calls — the console became useless exactly when it was
+			//needed. A persisting failure reports once; a CHANGED message
+			//reports again; recovery reports once with error null even when
+			//the recovered result equals the last pushed one.
+			const engine = new QueryEngine();
+			engine.updateCards({a: card('a')}, []);
+			const pushes = [];
+			const errors = [];
+			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (subscriptionID, description, error) => errors.push({subscriptionID, description, error}));
+			const realRun = engine.runCollection.bind(engine);
+			let failure = 'first boom';
+			engine.runCollection = (description, opts) => {
+				if (failure) throw new TypeError(failure);
+				return realRun(description, opts);
+			};
+			manager.subscribe(1, params('everything/'));
+			for (let i = 0; i < 50; i++) {
+				manager.markDirty();
+				manager.flush();
+			}
+			assert.strictEqual(errors.length, 1, 'a persisting failure reports exactly once');
+			failure = 'second boom';
+			manager.flush();
+			assert.strictEqual(errors.length, 2, 'a CHANGED message reports again');
+			assert.ok(String(errors[1].error).includes('second boom'));
+			//Recover. The subscription has never pushed, so the first healthy
+			//run pushes AND reports recovery.
+			failure = '';
+			manager.flush();
+			assert.strictEqual(errors.length, 3, 'recovery must be reported');
+			assert.strictEqual(errors[2].error, null, 'recovery is signaled with error null');
+			assert.strictEqual(pushes.length, 1);
+			//A healthy steady state reports nothing further, and a repeat
+			//failure after recovery reports again.
+			manager.flush();
+			assert.strictEqual(errors.length, 3);
+			failure = 'first boom';
+			manager.flush();
+			assert.strictEqual(errors.length, 4, 'a failure after recovery reports again');
+		});
+
+		it('reports recovery even when the recovered result equals the last push', () => {
+			const engine = new QueryEngine();
+			engine.updateCards({a: card('a')}, []);
+			const errors = [];
+			const manager = new SubscriptionManager(engine, () => undefined, undefined, (subscriptionID, description, error) => errors.push({error}));
+			const realRun = engine.runCollection.bind(engine);
+			manager.subscribe(1, params('everything/'));
+			manager.flush();
+			//Healthy push happened. Now fail, then recover with an UNCHANGED
+			//result: no push follows, so the explicit recovery signal is the
+			//only thing keeping the UI from showing a failure forever.
+			engine.runCollection = () => { throw new TypeError('transient'); };
+			manager.flush();
+			engine.runCollection = realRun;
+			manager.flush();
+			assert.deepStrictEqual(errors.map(e => e.error === null), [false, true]);
 		});
 
 		it('does not let one failing subscription stop the others', () => {
@@ -169,7 +231,7 @@ describe('SubscriptionManager', () => {
 			engine.updateCards({a: card('a'), b: card('b', {sort_order: 0.5})}, []);
 			const pushes = [];
 			const errors = [];
-			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (description, error) => errors.push({description, error}));
+			const manager = new SubscriptionManager(engine, push => pushes.push(push), undefined, (subscriptionID, description, error) => errors.push({subscriptionID, description, error}));
 			const realRun = engine.runCollection.bind(engine);
 			engine.runCollection = (description, opts) => {
 				if (description === 'everything/') throw new TypeError('boom');

@@ -46,7 +46,14 @@ import {
 //post-delta re-gate), so "Verifying…" can show a fraction instead of an
 //opaque wait. The expected total is now also sent for a compact-snapshot
 //prime, giving warm boots a real download fraction.
-export const CORPUS_WORKER_PROTOCOL_VERSION = 8;
+//9: new worker→main `collectionError` message (#739) — a subscription whose
+//collection run threw reports {subscriptionID, description, message|null}
+//so the drawer can distinguish "failed to compute" from "no cards matched";
+//message null signals recovery. The worker also STOPPED sending the generic
+//'error' console message for subscription failures, so a v8 page against a
+//v9 worker would lose even the console signal it had. Additive, but the
+//bump costs nothing; not bumping cost a silent wedge (see v5).
+export const CORPUS_WORKER_PROTOCOL_VERSION = 9;
 export const LEGACY_CORPUS_WORKER_PROTOCOL_VERSION = 0;
 
 export const corpusWorkerProtocolVersion = (value : unknown) : number =>
@@ -290,6 +297,11 @@ export type WorkerToMainMessage =
 	| {type: 'suggestTagsResult', generation: WorkerGeneration, id : number, tags : CardID[]}
 	//Pushed whenever a subscribed collection's ordered result changes.
 	| {type: 'collectionResult', generation: WorkerGeneration, subscriptionID : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number}
+	//A subscription's collection run threw (message set) or recovered
+	//(message null). First-only per (subscription, message); the bridge turns
+	//it into UI state so a failed collection is distinguishable from an
+	//empty one (#739).
+	| {type: 'collectionError', generation: WorkerGeneration, subscriptionID : number, description : string, message : string | null}
 	//Response to a one-shot runCollection. failed:true means the run threw —
 	//the bridge resolves the pending promise with null so callers take their
 	//local-fallback path instead of waiting forever on a reply that (before
