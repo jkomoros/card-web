@@ -226,6 +226,7 @@ export const FIND_CARD_TO_PERMISSION = PERMISSION;
 export const FIND_CARD_TO_REFERENCE = REFRENCE;
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
 export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
+export const FIND_UPDATE_STICKY_FILTERS = 'FIND_UPDATE_STICKY_FILTERS';
 //Maintenance
 export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TASKS';
 export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
@@ -1062,6 +1063,12 @@ type ActionFindUpdateCardTypeFilter = {
 	filter: string
 };
 
+type ActionFindUpdateStickyFilters = {
+	type: typeof FIND_UPDATE_STICKY_FILTERS,
+	enabled: boolean,
+	expression: string
+};
+
 type ActionFindUpdateSortByRecent = {
 	type: typeof FIND_UPDATE_SORT_BY_RECENT,
 	sortByRecent: boolean
@@ -1421,6 +1428,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionFindCardToReference
 	| ActionFindUpdateCardTypeFilter
 	| ActionFindUpdateSortByRecent
+	| ActionFindUpdateStickyFilters
 	| ActionUpdateExecutedMaintenanceTasks
 	| ActionUpdateMaintenanceTaskActive
 	| ActionMultiEditDialogOpen

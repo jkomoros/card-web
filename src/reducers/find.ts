@@ -10,8 +10,14 @@ import {
 	FIND_CARD_TO_REFERENCE,
 	FIND_UPDATE_CARD_TYPE_FILTER,
 	FIND_UPDATE_SORT_BY_RECENT,
+	FIND_UPDATE_STICKY_FILTERS,
 	SomeAction
 } from '../actions.js';
+
+import {
+	readStickySearchEnabled,
+	readStickySearchExpression
+} from '../sticky-search-filters.js';
 
 import {
 	FindState
@@ -29,10 +35,20 @@ const INITIAL_STATE : FindState = {
 	sortByRecent: false,
 	cardTypeFilter: '',
 	cardTypeFilterLocked: false,
+	//Initialized from localStorage so the preference applies from the first
+	//search of the session (#745). NOT reset by dialog open/close.
+	stickyFiltersEnabled: readStickySearchEnabled(),
+	stickyFiltersExpression: readStickySearchExpression(),
 };
 
 const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState => {
 	switch (action.type) {
+	case FIND_UPDATE_STICKY_FILTERS:
+		return {
+			...state,
+			stickyFiltersEnabled: action.enabled,
+			stickyFiltersExpression: action.expression,
+		};
 	case FIND_UPDATE_SEARCH_RECALL:
 		return {
 			...state,

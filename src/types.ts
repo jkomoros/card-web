@@ -1168,6 +1168,13 @@ export type FindState = {
 	referencing: boolean,
 	//If true, sort by recent. Otherwise, sort by query match.
 	sortByRecent: boolean,
+	//The sticky extra filter expression (#745): ANDed onto every GENERIC
+	//search. Deliberately the ONLY find state that survives dialog
+	//open/close — the resets in FIND_DIALOG_OPEN/CLOSE are intentional for
+	//everything else. Mirrored from localStorage (sticky-search-filters.ts)
+	//so it reacts in the same render when toggled.
+	stickyFiltersEnabled: boolean,
+	stickyFiltersExpression: string,
 	//Can be a single cardType, or a union filter.
 	cardTypeFilter: string,
 	//if true, the filter shouldn't be able to be changed

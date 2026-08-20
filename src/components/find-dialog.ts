@@ -26,7 +26,8 @@ import {
 	updateQuery,
 	findUpdateCardTypeFilter,
 	findUpdateSortByRecent,
-	findUpdateRenderOffset
+	findUpdateRenderOffset,
+	updateStickySearchFiltersEnabled
 } from '../actions/find.js';
 
 import {
@@ -64,6 +65,8 @@ import {
 	selectFindPermissions,
 	selectFindLinking,
 	selectFindSortByRecent,
+	selectFindStickyFiltersEnabled,
+	selectFindStickyFiltersExpression,
 	selectFindSearchPreparing,
 	selectWorkerQueryCollectionReady,
 	selectIsEditing,
@@ -171,6 +174,12 @@ class FindDialog extends connect(store)(DialogElement) {
 		_sortByRecent: boolean;
 
 	@state()
+		_stickyFiltersEnabled: boolean;
+
+	@state()
+		_stickyFiltersExpression: string;
+
+	@state()
 		_collectionDescription: CollectionDescription | null;
 
 	@state()
@@ -234,6 +243,8 @@ class FindDialog extends connect(store)(DialogElement) {
 						${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
 					` : ''}
 					<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
+					${!this._linking && !this._permissions && !this._referencing ? html`
+					<input type='checkbox' .checked=${this._stickyFiltersEnabled} id='sticky-filters' @change=${this._handleStickyFiltersChanged}><label for='sticky-filters' title=${'Only include cards matching: ' + this._stickyFiltersExpression + '. This choice is remembered on this device. (#745)'}>Only ${this._stickyFiltersExpression.replace(/\+/g, ' or ')}</label>` : ''}
 				</div>
 				<div class='spacer'></div>
 				<div class='limit'>
@@ -304,6 +315,12 @@ class FindDialog extends connect(store)(DialogElement) {
 		const ele = e.target;
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		store.dispatch(findUpdateSortByRecent(ele.checked));
+	}
+
+	_handleStickyFiltersChanged(e : Event) {
+		const ele = e.target;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
+		store.dispatch(updateStickySearchFiltersEnabled(ele.checked));
 	}
 
 	_handleCardTypeChanged(e : Event) {
@@ -468,6 +485,8 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
 		this._sortByRecent = selectFindSortByRecent(state);
+		this._stickyFiltersEnabled = selectFindStickyFiltersEnabled(state);
+		this._stickyFiltersExpression = selectFindStickyFiltersExpression(state);
 		this._searchPreparing = this.open ? selectFindSearchPreparing(state) : null;
 	}
 

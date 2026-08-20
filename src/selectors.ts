@@ -6,6 +6,14 @@ import {
 } from './perf.js';
 
 import {
+	URLDiagnostic
+} from '../shared/url-diagnostics.js';
+
+import {
+	stickySearchFilterComponents
+} from './sticky-search-filters.js';
+
+import {
 	createCardsDiffSelector,
 	diffCards,
 	anyCardMatches,
@@ -2209,18 +2217,65 @@ const selectFindGeneric = createSelector(
 	(referencing, linking, permissions) => !referencing && !linking && !permissions
 );
 
+export const selectFindStickyFiltersEnabled = (state : State) => state.find ? state.find.stickyFiltersEnabled : false;
+export const selectFindStickyFiltersExpression = (state : State) => state.find ? state.find.stickyFiltersExpression : '';
+
+//Validates a sticky search expression: the URL round trip for GRAMMAR (the
+//trailing '/' is load-bearing — without it the parser reads the last part
+//as a card identifier, the quirk #731 documented) plus a VOCABULARY check
+//against the live filter memberships. The round trip alone is grammar-only
+//(the parser has no dictionary), so a renamed or misspelled filter parsed
+//as "valid" and then silently no-op'd — and a misspelled union MEMBER
+//silently narrowed the union — exactly the #731-style silent failure this
+//validation exists to prevent (#745 review, verified by execution).
+//Returns the component list, or null when anything does not resolve.
+export const validateStickySearchExpression = (expression : string, knownFilters : Filters) : string[] | null => {
+	try {
+		const description = CollectionDescription.deserialize(expression + '/');
+		if (!description || !description.filters.length) return null;
+		for (const component of description.filters) {
+			if (component.includes('/')) {
+				//Configurable: the head must be a registered configurable
+				//filter (its arguments were already grammar-checked by the
+				//round trip, which throws on malformed ones).
+				if (!CONFIGURABLE_FILTER_NAMES[component.split('/')[0]]) return null;
+				continue;
+			}
+			for (const member of component.split(FILTER_UNION_DELIMITER)) {
+				if (knownFilters[member]) continue;
+				if (INVERSE_FILTER_NAMES[member]) continue;
+				return null;
+			}
+		}
+		return [...description.filters];
+	} catch {
+		return null;
+	}
+};
+
 export const selectCollectionDescriptionForQuery = createSelector(
 	selectActiveQueryText,
 	selectFindCardTypeFilter,
 	selectFindSortByRecent,
 	selectActiveCardID,
 	selectFindGeneric,
-	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
+	selectFindStickyFiltersEnabled,
+	selectFindStickyFiltersExpression,
+	selectFilters,
+	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		const baseFilters = ['has-body'];
 		let sort : SortName = 'default';
 		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
+		//The sticky expression applies in GENERIC search only (#745): in the
+		//pick-a-card modes it would silently hide cards the user is trying
+		//to link to, from a constraint set during an unrelated search days
+		//earlier. A spread, since a general expression parses to a LIST of
+		//components, which AND with the rest — including in the empty-query
+		//branch below, which is correct: that branch is "recent cards", and
+		//a default set should constrain it too.
+		if (generic) baseFilters.push(...stickySearchFilterComponents(stickyEnabled, stickyExpression, expression => validateStickySearchExpression(expression, knownFilters)));
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
 			if (generic) {
 				//If it's a generic search, we don't want similar cards to

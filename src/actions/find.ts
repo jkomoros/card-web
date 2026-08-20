@@ -30,8 +30,14 @@ import {
 	FIND_UPDATE_QUERY,
 	FIND_UPDATE_RENDER_OFFSET,
 	FIND_UPDATE_SORT_BY_RECENT,
+	FIND_UPDATE_STICKY_FILTERS,
 	SomeAction
 } from '../actions.js';
+
+import {
+	writeStickySearchEnabled,
+	readStickySearchExpression
+} from '../sticky-search-filters.js';
 
 export const openFindDialog = () => {
 	return launchFind(FIND_DIALOG_OPEN);
@@ -41,6 +47,17 @@ export const closeFindDialog = () : SomeAction => {
 	return {
 		type: FIND_DIALOG_CLOSE
 	};
+};
+
+//Toggles the sticky extra search filters (#745), persisting the choice so it
+//survives dialog close and reload.
+export const updateStickySearchFiltersEnabled = (enabled : boolean) : ThunkSomeAction => (dispatch) => {
+	writeStickySearchEnabled(enabled);
+	dispatch({
+		type: FIND_UPDATE_STICKY_FILTERS,
+		enabled,
+		expression: readStickySearchExpression(),
+	});
 };
 
 let updateActiveQueryTimeout = 0;
