@@ -57,6 +57,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 			scope: '/',
 		  }).then(reg => {
 			if (!reg) return;
+				//Expose the registration UNCONDITIONALLY (not only when an
+				//update is waiting): the auto-activation backstop must be able
+				//to tell "no update pending" from "haven't looked yet", or it
+				//cannot safely manage its persistent first-seen clock.
+				window.CARD_WEB_SW_REGISTRATION = reg;
 				const announceWaitingUpdate = () => {
 				  if (!reg.waiting) return;
 				  window.CARD_WEB_SW_UPDATE_REGISTRATION = reg;

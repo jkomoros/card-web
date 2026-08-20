@@ -17,6 +17,34 @@ module.exports = {
 		'manifest.json',
 		'index.html',
 		'lib/src/**/*',
+		//manifest.json is precached and points at icons; without these an
+		//installed PWA offline showed no icon and fell back to system fonts
+		//(#753). Boot never depended on them, which is why the gap survived.
+		//Fonts precache only the woff2 + stylesheet: every browser capable of
+		//running this service worker supports woff2, and eagerly downloading
+		//the eot/svg/ttf/woff legacy formats at install would quintuple the
+		//cost for files no client will ever request.
+		'images/**/*',
+		'fonts/**/*.woff2',
+		'fonts/fonts.css',
+	],
+	globIgnores: [
+		//firebase.json serves this file with an explicit Cache-Control:
+		//no-cache — it is the one unhashed, stable-URL chunk, and a stale
+		//copy is exactly the scenario corpus-ownership-gate's _resetAndReload
+		//exists to rescue. Precaching it CacheFirst made that header inert
+		//for every controlled client and removed the only way to refetch
+		//(#753). The cost is a network fetch for the worker on cold start;
+		//unlike card-web-app-entry.js (an acknowledged trade in the comment
+		//below), this one directly contradicted a deliberate hosting header.
+		//
+		//NOT a bare exclusion: the NetworkFirst runtimeCaching route below is
+		//this entry's load-bearing companion. Without it, offline boot in the
+		//default worker mode fails closed into a permanent "Cards could not
+		//load" panel — the precache entry was the only guaranteed offline
+		//copy of the worker script, and 'on' mode has no main-thread
+		//fallback. Do not remove one without the other.
+		'lib/src/worker/corpus-worker.js',
 	],
 	//Offline boot needs BOTH of these, and neither has ever been here (#728):
 	//index.html precached so the shell exists offline, and navigateFallback so
@@ -61,9 +89,24 @@ module.exports = {
 	//          unaffected — auth is cross-origin there — but the firebaseapp.com
 	//          and dev origins are not.)
 	//  /seo/   Prerendered per-card shells; serving the generic one defeats them.
-	//  \.ext   Anything with a file extension is an asset, not a route. Safe
-	//          because zero card slugs contain a dot.
-	navigateFallbackDenylist: [/^\/lib\//, /^\/__\//, /^\/seo\//, /\/[^/?]+\.[^/]+$/],
+	//
+	//Assets are matched by KNOWN PREFIX plus root-level dotted files — NOT by
+	//"any path segment containing a dot" (#753). That regex over-matched
+	//filter ARGUMENTS: card slugs contain no dots, but query text does
+	//(queryFilter uses encodeURIComponent, which preserves '.'), so
+	///c/query/node.js was refused the shell and failed offline. Every real
+	//asset lives under one of these prefixes or at the root (manifest.json,
+	//robots.txt, service-worker.js, deploy-stamp.json), and no top-level app
+	//route contains a dot.
+	navigateFallbackDenylist: [
+		/^\/lib\//,
+		/^\/__\//,
+		/^\/seo\//,
+		/^\/images\//,
+		/^\/fonts\//,
+		/^\/node_modules\//,
+		/^\/[^/?]+\.[^/]+$/,
+	],
 	//The production Firebase chunk is currently ~2.3 MB. Workbox's 2 MB
 	//default silently omitted it, defeating warm/offline boots despite a
 	//successfully installed service worker.
@@ -73,6 +116,23 @@ module.exports = {
 	skipWaiting: false,
 	clientsClaim: true,
 	runtimeCaching: [
+		{
+			//The offline companion to the corpus-worker globIgnores entry
+			//above. NetworkFirst honors the no-cache hosting header's intent
+			//online (every fetch goes to the network first, so a deploy's new
+			//worker is picked up immediately) while keeping the last-fetched
+			//copy servable offline — where the precached CacheFirst copy used
+			//to be the only thing standing between an offline boot and 'on'
+			//mode's fail-closed "Cards could not load" panel. The timeout
+			//bounds a hung network (captive portal) at cold start; the
+			//page/worker protocol handshake already covers a vintage
+			//mismatch if the cached copy is ever served stale.
+			urlPattern: /\/lib\/src\/worker\/corpus-worker\.js$/,
+			handler: 'NetworkFirst',
+			options: {
+				networkTimeoutSeconds: 5,
+			}
+		},
 		{
 			urlPattern: /\/@webcomponents\/webcomponentsjs\//,
 			handler: 'StaleWhileRevalidate'

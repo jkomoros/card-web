@@ -26,9 +26,21 @@ import './snack-bar.js';
 import './corpus-ownership-gate.js';
 import { pageRequiresMainView } from '../util.js';
 
+//Static on purpose: the controllerchange handler must clear the
+//auto-activation clock BEFORE it reloads the page, and a dynamic import
+//would lose that race (#756).
+import {
+	UPDATE_AUTO_ACTIVATE_RECHECK_MS,
+	shouldAutoActivateUpdate,
+	readUpdateFirstSeen,
+	recordUpdateFirstSeen,
+	clearUpdateFirstSeen,
+} from '../service-worker-update.js';
+
 import {
 	selectActiveCard,
 	selectCardModificationError,
+	selectChatComposingMessage,
 	selectEditingCardHasUnsavedChanges,
 	selectPendingDeletions,
 	selectPendingModificationCount,
@@ -98,12 +110,14 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	private _lastDraftUid = '';
 	private _updateActivationTimeout : number | undefined;
+	private _updateBackstopInterval : number | undefined;
 	private _updateChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(SERVICE_WORKER_UPDATE_CHANNEL);
 	private _updateEventHandler = (event : Event) => {
 		const registration = (event as CustomEvent<ServiceWorkerRegistration>).detail;
 		if (registration) {
 			this._updateActivated = false;
 			this._updateRegistration = registration;
+			void this._checkUpdateBackstop();
 		}
 	};
 	private _currentUnsafeExitReason = () => this._unsafeExitReason ||
@@ -129,6 +143,11 @@ class CardWebApp extends connect(store)(LitElement) {
 		this._updateActivationTimeout = undefined;
 		this._updateActivated = true;
 		this._updateReloading = false;
+		//The waiting worker activated; the auto-activation clock (#756)
+		//restarts for whatever update comes next. Synchronous on purpose:
+		//the reload below would win a race against any deferred clear,
+		//leaving a stale record that could instant-fire on the NEXT update.
+		clearUpdateFirstSeen();
 		//Activation affects the entire origin. Reload this client only when its
 		//own dirty/pending checks still pass; otherwise retain the banner until
 		//the user finishes the protected work.
@@ -372,6 +391,45 @@ class CardWebApp extends connect(store)(LitElement) {
 		}, 15000);
 	};
 
+	//The 7-day auto-activation backstop (#756): a user who never clicks the
+	//"Update ready" banner runs arbitrarily old app code against live data
+	//indefinitely. Once a waiting worker has been waiting more than the
+	//deadline AND the same safety gates that guard the manual path pass, send
+	//SKIP_WAITING automatically; if a gate blocks, keep waiting and re-check
+	//on the hourly interval rather than forcing it. The decision logic lives
+	//in service-worker-update.ts so tests can pin the deadline and gates.
+	private _checkUpdateBackstop = () => {
+		//Never act — and above all never CLEAR — on ignorance. The bootstrap
+		//registers the service worker after the window load event, so at the
+		//boot-time check the registration is usually not known yet; clearing
+		//then wiped the legitimately-aging first-seen clock on every reload
+		//and every new tab, which made the backstop structurally unable to
+		//fire for exactly its target cohort (the reload-often banner
+		//ignorer). CARD_WEB_SW_REGISTRATION is exposed unconditionally by
+		//the bootstrap once registration completes, so "no registration
+		//visible" means "haven't looked yet", not "no update".
+		const registration = this._updateRegistration || window.CARD_WEB_SW_REGISTRATION || null;
+		if (!registration) return;
+		const waiting = registration.waiting;
+		if (!waiting) {
+			//A genuine no-update state: a stale first-seen record must not
+			//make a FUTURE update auto-activate instantly.
+			if (readUpdateFirstSeen() !== null) clearUpdateFirstSeen();
+			return;
+		}
+		if (!this._updateRegistration) this._updateRegistration = registration;
+		const firstSeen = recordUpdateFirstSeen(Date.now());
+		//The manual path's gates plus one auto-only gate: the manual path
+		//implicitly had a human CLICK as consent, so half-typed text in
+		//non-card surfaces (a composing chat message) never needed guarding
+		//there. An automatic reload has no such consent; hold while any is
+		//present and let the hourly re-check try again.
+		const composing = selectChatComposingMessage(store.getState() as State) ? 'a message is being composed' : '';
+		if (shouldAutoActivateUpdate(firstSeen, Date.now(), this._currentUnsafeExitReason() || composing)) {
+			this._activateUpdate();
+		}
+	};
+
 	private _activateUpdate = () => {
 		if (this._currentUnsafeExitReason() || this._updateReloading) return;
 		const waiting = this._updateRegistration?.waiting;
@@ -472,6 +530,12 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.addEventListener('storage', this._durableStorageHandler);
 		this._updateChannel?.addEventListener('message', this._updateChannelHandler);
 		if (window.CARD_WEB_SW_UPDATE_REGISTRATION) this._updateRegistration = window.CARD_WEB_SW_UPDATE_REGISTRATION;
+		//The #756 backstop needs to re-evaluate while a tab stays open for
+		//days: once at boot (a no-op until the bootstrap exposes the
+		//registration; the update event covers the waiting case as soon as
+		//it is known) and hourly thereafter (covers the long-lived tab).
+		this._checkUpdateBackstop();
+		this._updateBackstopInterval = window.setInterval(() => this._checkUpdateBackstop(), UPDATE_AUTO_ACTIVATE_RECHECK_MS);
 	}
 
 	override disconnectedCallback() {
@@ -481,6 +545,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.removeEventListener('storage', this._durableStorageHandler);
 		this._updateChannel?.removeEventListener('message', this._updateChannelHandler);
 		if (this._updateActivationTimeout !== undefined) window.clearTimeout(this._updateActivationTimeout);
+		if (this._updateBackstopInterval !== undefined) window.clearInterval(this._updateBackstopInterval);
 		super.disconnectedCallback();
 	}
 
@@ -557,6 +622,10 @@ class CardWebApp extends connect(store)(LitElement) {
 declare global {
 	interface Window {
 		CARD_WEB_SW_UPDATE_REGISTRATION? : ServiceWorkerRegistration;
+		//Set unconditionally by the bootstrap once registration completes —
+		//update waiting or not — so the backstop can tell "no update" from
+		//"haven't looked yet".
+		CARD_WEB_SW_REGISTRATION? : ServiceWorkerRegistration;
 	}
 	interface HTMLElementTagNameMap {
 		'card-web-app': CardWebApp;

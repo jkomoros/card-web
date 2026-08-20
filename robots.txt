@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# The prerendered per-card pages live under /seo/, but crawlers reach them
+# through Hosting rewrites of the canonical card URLs; nothing here needs to
+# be disallowed. This file exists so /robots.txt answers with a real robots
+# file instead of the app shell via the ** rewrite (#753). A real sitemap is
+# tracked separately.

@@ -44,6 +44,11 @@ export default [
 					{ src: 'seo', dest: 'build'},
 					{ src: 'manifest.json', dest: 'build' },
 					{ src: 'index.html', dest: 'build' },
+					//Without a real file, Hosting's ** catch-all answered
+					///robots.txt with the app shell at HTTP 200 (#753) — and
+					//crawlers ask for it before touching the 1,240 prerendered
+					//SEO pages.
+					{ src: 'robots.txt', dest: 'build' },
 				],
 			}),
 			resolve(),
