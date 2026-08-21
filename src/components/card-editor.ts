@@ -116,6 +116,11 @@ import {
 	findCardToLink
 } from '../actions/find.js';
 
+import {
+	registerShortcut,
+	registerShortcuts
+} from '../shortcuts.js';
+
 import { 
 	TODO_AUTO_INFOS,
 	TODO_ALL_INFOS,
@@ -212,14 +217,12 @@ const cardTagInfosForIDs = (cards : Cards, ids : Iterable<CardID>) : TagInfos =>
 	return result;
 };
 
-//e.code is the PHYSICAL key position, so on AZERTY, Dvorak or any non-QWERTY
-//layout the printed shortcut stops working and a DIFFERENT printed key silently
-//triggers it — Cmd-M creating a card from whatever key sits where M is on
-//QWERTY. e.key is what the user actually pressed.
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
 
 	_suggestionsTimeout = 0;
+
+	_unregisterShortcut : (() => void) | null = null;
 
 	_suggestionsKey = '';
 
@@ -1111,8 +1114,43 @@ class CardEditor extends connect(store)(LitElement) {
 		return this._active;
 	}
 
-	override firstUpdated() {
-		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	override disconnectedCallback() {
+		if (this._unregisterShortcut) this._unregisterShortcut();
+		this._unregisterShortcut = null;
+		super.disconnectedCallback();
+	}
+
+	override connectedCallback() {
+		super.connectedCallback();
+		//Instance-registered because _suggestedConcepts is component state
+		//(driven by worker callbacks, not Redux). connectedCallback, not
+		//firstUpdated, so registration is SYMMETRIC with the
+		//disconnectedCallback unregister — a disconnect/reconnect cycle
+		//would otherwise permanently lose the binding (firstUpdated fires
+		//once per element lifetime). The legacy document listener was never
+		//unregistered at all.
+		if (this._unregisterShortcut) return;
+		this._unregisterShortcut = registerShortcut({
+			id: 'accept-suggested-concepts',
+			//NOT Cmd/Ctrl-Shift-C or -I: those are DevTools keys the browser
+			//also delivers to the page (#729) — the registry would throw on
+			//them. K is deliberate: Cmd-K below is "find card to link", so
+			//Shift-K reads as its bulk sibling; both create references.
+			keys: {key: 'k', mod: true, shift: true},
+			label: 'Add all suggested concepts',
+			//Real work, not an execCommand: stays available from the title
+			//and notes fields per the #747 decision.
+			focusPolicy: 'allow-text-fields',
+			when: (state) => selectIsEditing(state),
+			handler: () => {
+				//Inert when there is nothing to accept, matching the buttons,
+				//which are ?hidden on an empty list. Decline so the browser
+				//default (Firefox's Web Console, if anyone) survives.
+				if (!this._active || !this._suggestedConcepts || this._suggestedConcepts.length === 0) return false;
+				this._handleAddAllConceptsClicked();
+				return true;
+			},
+		});
 	}
 
 	_makeCardTagInfosForReferenceTypes() : TagInfosByReferenceType {
@@ -1402,73 +1440,6 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(autoTodoOverrideRemoved(autoTODOType.parse(e.detail.tag)));
 	}
 
-	_handleKeyDown(e : KeyboardEvent) {
-		//We have to hook this to issue content editable commands when we're
-		//active. But most of the time we don't want to do anything.
-		if (!this._active) return;
-		if (!e.metaKey && !e.ctrlKey) return;
-
-		//Cmd/Ctrl-Shift-C and -I were shortcut-bound here, but those are the
-		//browser's own DevTools / Inspect-Element keys, and Chrome delivers the
-		//keydown to the page as well as acting on it — so opening DevTools while
-		//editing silently added or acked every suggested concept on the card.
-		//(Master accidentally never fired these: it compared e.key=='c' while
-		//requiring Shift, which uppercases e.key.) No keyboard binding is safe
-		//on those two combinations, on EITHER modifier: this handler treats
-		//meta and ctrl interchangeably, and Shift-C is inspect-element on both
-		//platforms (Cmd on macOS, Ctrl on Windows/Linux).
-		//
-		//Accept-all-suggested-concepts is bound to Cmd/Ctrl-Shift-K instead
-		//(#729). K is the deliberate choice: Cmd/Ctrl-K below is "find card to
-		//link", so Shift-K reads as its bulk sibling — both create references.
-		//It is not a Chrome or Safari chrome key on either platform, unlike
-		//Shift-I/J/C (DevTools) or Shift-A (Chrome tab search). Firefox DOES
-		//use Ctrl-Shift-K for its Web Console; accepted, because this handler
-		//only runs while the editor is open, which is permission-gated, and the
-		//product's recorded position is that the owner runs modern Chrome
-		//(docs/fast-corpus-product-audit-2026-08-04.md).
-		//
-		//Matched on the SPECIFIC key rather than returning early for every
-		//shifted key. A blanket `if (e.shiftKey) return` looks safe — Shift
-		//usually uppercases e.key, so the lowercase cases below "cannot match"
-		//— but that is false in two real cases: Caps Lock ON plus Shift yields
-		//a LOWERCASE letter with shiftKey true, and on layouts where digits are
-		//the shifted level (AZERTY) Shift is how you type '7' and '8' at all.
-		//Either way the blanket form silently killed Cmd-Shift-B/I/7/8, which
-		//used to work. Inert when there is nothing to accept, matching the
-		//buttons, which are ?hidden on an empty list.
-		if (e.shiftKey && e.key.toLowerCase() == 'k') {
-			if (this._suggestedConcepts.length > 0) {
-				this._handleAddAllConceptsClicked();
-				return killEvent(e);
-			}
-			return;
-		}
-
-		//TODO: bail if a content editable region isn't selected. This isn't THAT
-		//big of a deal as long as we use execCommand, because those will just
-		//fail if the selection isn't in a contentEditable region.
-
-		switch (e.key) {
-		case 'b':
-			document.execCommand('bold');
-			return killEvent(e);
-		case 'i':
-			document.execCommand('italic');
-			return killEvent(e);
-		case '7':
-			document.execCommand('insertOrderedList');
-			return killEvent(e);
-		case '8':
-			document.execCommand('insertUnorderedList');
-			return killEvent(e);
-		case 'k':
-			//Default to searching for the text that's selected
-			const sel = document.getSelection();
-			if (sel) store.dispatch(findCardToLink(sel.toString()));
-			return killEvent(e);
-		}
-	}
 
 	_handleTextFieldUpdated(e : InputEvent) {
 		if (!this._active) return;
@@ -1577,3 +1548,55 @@ declare global {
 		'card-editor': CardEditor;
 	}
 }
+
+//The editor's static bindings (#740, and the #747 decision executed): the
+//formatting execCommands require a selection inside a CONTENTEDITABLE —
+//they used to fire from the title/notes textareas too, where execCommand
+//no-ops but Cmd-K did real work — while the dispatching binding (Cmd-K,
+//find card to link) deliberately stays available from those fields.
+registerShortcuts([
+	{
+		id: 'format-bold',
+		keys: {key: 'b', mod: true},
+		label: 'Bold',
+		focusPolicy: 'in-contenteditable',
+		when: (state) => selectIsEditing(state),
+		handler: () => void document.execCommand('bold'),
+	},
+	{
+		id: 'format-italic',
+		keys: {key: 'i', mod: true},
+		label: 'Italic',
+		focusPolicy: 'in-contenteditable',
+		when: (state) => selectIsEditing(state),
+		handler: () => void document.execCommand('italic'),
+	},
+	{
+		id: 'format-ordered-list',
+		keys: {key: '7', mod: true},
+		label: 'Numbered list',
+		focusPolicy: 'in-contenteditable',
+		when: (state) => selectIsEditing(state),
+		handler: () => void document.execCommand('insertOrderedList'),
+	},
+	{
+		id: 'format-unordered-list',
+		keys: {key: '8', mod: true},
+		label: 'Bulleted list',
+		focusPolicy: 'in-contenteditable',
+		when: (state) => selectIsEditing(state),
+		handler: () => void document.execCommand('insertUnorderedList'),
+	},
+	{
+		id: 'find-card-to-link',
+		keys: {key: 'k', mod: true},
+		label: 'Link to a card',
+		focusPolicy: 'allow-text-fields',
+		when: (state) => selectIsEditing(state),
+		handler: () => {
+			//Default to searching for the text that's selected.
+			const sel = document.getSelection();
+			store.dispatch(findCardToLink(sel ? sel.toString() : ''));
+		},
+	},
+]);

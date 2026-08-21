@@ -60,6 +60,11 @@ import {
 } from '../firebase.js';
 
 import {
+	registerShortcuts,
+	whenKeyboardNavigates
+} from '../shortcuts.js';
+
+import {
 	openFindDialog
 } from '../actions/find.js';
 
@@ -420,7 +425,6 @@ class MainView extends connect(store)(PageViewElement) {
 	override firstUpdated() {
 		window.addEventListener('resize', () => this._handleResize());
 		this._handleResize();
-		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		this.addEventListener(CARD_HOVERED_EVENT_NAME, (e : CardHoveredEvent) => this._handleCardHovered(e));
 		// Connect to view app data if user may view app. This handles the case where
 		// viewApp permission is true by default, so _mayViewApp never changes from false
@@ -485,65 +489,9 @@ class MainView extends connect(store)(PageViewElement) {
 		ele.previewSize = Math.round(targetSize);
 	}
 
-	_handleKeyPressed(e : KeyboardEvent) {
-		if (e.isComposing) return;
-		if (e.key == 'Enter' && (e.metaKey || e.ctrlKey)) {
-			e.stopPropagation();
-			e.preventDefault();
-			store.dispatch(doCommit());
-			return;
-		}
-		//Don't move the slide selection when editing!
-		if (!this._keyboardNavigates) return;
-		//Space/arrows below are bare-key bindings; a focusable CONTROL that has
-		//focus (the update banner's Reload, the save indicator's Retry/Stop and
-		//Discard, a tag <select>) must receive its own activation keys — eating
-		//Space there silently broke buttons, including destructive ones.
-		const pathTarget = e.composedPath()[0];
-		if (pathTarget instanceof HTMLElement && pathTarget.closest('button, a, select, input, textarea, [role="button"]')) return;
-		switch (e.key) {
-		case 'e':
-			//REQUIRES a modifier. As a bare letter this was a data-mutation
-			//hazard: opening the editor focuses the contenteditable body and
-			//moves the caret to the end, so typing any phrase containing 'e'
-			//with the card view focused silently inserted the REST of that
-			//phrase into the card. Observed for real. Master had no such
-			//shortcut; every other letter shortcut already requires a modifier
-			//(f here; m, l and r in card-view's own handler), so this now
-			//matches them. Only the arrows and Space below stay bare.
-			if (!e.metaKey && !e.ctrlKey) return;
-			if (e.altKey) return;
-			e.stopPropagation();
-			e.preventDefault();
-			store.dispatch(editingStart());
-			break;
-		case 'f':
-			if (!e.metaKey && !e.ctrlKey) return;
-			e.stopPropagation();
-			e.preventDefault();
-			store.dispatch(openFindDialog());
-			break;
-		case ' ':
-			if (!this._card) return;	
-			e.stopPropagation();
-			e.preventDefault();
-			//TODO: should we not do this if the user can't edit?
-			store.dispatch(toggleCardSelected(this._card.id));
-			break;
-		case 'ArrowDown':
-		case 'ArrowRight':
-			e.stopPropagation();
-			e.preventDefault();
-			store.dispatch(navigateToNextCard());
-			break;
-		case 'ArrowUp':
-		case 'ArrowLeft':
-			e.stopPropagation();
-			e.preventDefault();
-			store.dispatch(navigateToPreviousCard());
-			break;
-		}
-	}
+	//The keyboard bindings that used to live in a _handleKeyPressed here are
+	//declared as data at this module's bottom (#740): one registry, one
+	//shared applicability check, one suppression discipline.
 
 	_handleCardHovered(e : CardHoveredEvent) {
 		store.dispatch(hoveredCardMouseMoved());
@@ -598,3 +546,75 @@ declare global {
 		'main-view': MainView;
 	}
 }
+
+//The page-level bindings (#740). Everything these guards used to check by
+//hand — isComposing, the focused-control list (now including
+//contenteditable), the corpus gate — is the registry's shared
+//applicability; `when` carries only what is specific to each binding.
+registerShortcuts([
+	{
+		id: 'commit-edit',
+		keys: {key: 'Enter', mod: true},
+		label: 'Save the open editor or dialog',
+		//Deliberately NOT gated on keyboardNavigates: committing is exactly
+		//for when an editor or dialog is open, and doCommit itself decides
+		//what (if anything) commits. any-focus, not allow-text-fields (the
+		//adversarial review caught this): Chrome focuses a <button> or
+		//<select> on click, so "change the section dropdown, hit Cmd-Enter
+		//to save" had a focused CONTROL — the old handler fired with any
+		//focus whatsoever, and blocking here both dead-keyed the core save
+		//flow and let the unconsumed modified-Enter ACTIVATE the focused
+		//button instead.
+		focusPolicy: 'any-focus',
+		handler: () => store.dispatch(doCommit()),
+	},
+	{
+		id: 'edit-card',
+		//REQUIRES a modifier. As a bare letter this was a data-mutation
+		//hazard: opening the editor focuses the contenteditable body and
+		//moves the caret to the end, so typing any phrase containing 'e'
+		//with the card view focused silently inserted the rest of that
+		//phrase into the card. Observed for real.
+		keys: {key: 'e', mod: true},
+		label: 'Edit card',
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(editingStart()),
+	},
+	{
+		id: 'find-card',
+		keys: {key: 'f', mod: true},
+		label: 'Find a card',
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(openFindDialog()),
+	},
+	{
+		id: 'toggle-card-selected',
+		keys: {key: ' '},
+		label: 'Select or unselect this card',
+		when: whenKeyboardNavigates,
+		handler: (_e, state) => {
+			const card = selectActiveCard(state);
+			if (!card) return false;
+			store.dispatch(toggleCardSelected(card.id));
+			return true;
+		},
+	},
+	{
+		id: 'next-card',
+		keys: [{key: 'ArrowDown'}, {key: 'ArrowRight'}],
+		label: 'Next card',
+		//Navigation is the one place key-repeat is the point: holding an
+		//arrow scrolls through the collection.
+		allowRepeat: true,
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(navigateToNextCard()),
+	},
+	{
+		id: 'previous-card',
+		keys: [{key: 'ArrowUp'}, {key: 'ArrowLeft'}],
+		label: 'Previous card',
+		allowRepeat: true,
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(navigateToPreviousCard()),
+	},
+]);

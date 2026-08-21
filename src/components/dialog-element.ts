@@ -1,6 +1,11 @@
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+import {
+	registerShortcut,
+	DIALOG_SHORTCUT_PRIORITY
+} from '../shortcuts.js';
+
 import { SharedStyles } from './shared-styles.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -133,16 +138,45 @@ export class DialogElement extends LitElement {
 		return html`<slot></slot>`;
 	}
 
-	override firstUpdated() {
-		window.addEventListener('keydown', e => this._handleKeyDown(e));
+	_unregisterEscapeShortcut : (() => void) | null = null;
+
+	//Registered on OPEN, not on connect (adversarial review): dialogs render
+	//unconditionally, so connect-time registration froze the Escape order at
+	//mount order — with the image browser stacked over image properties,
+	//Escape closed the HIDDEN properties dialog. Registering when a dialog
+	//opens, with the registry's newest-first tiebreak, makes Escape peel
+	//stacked dialogs top-down. (Two open dialogs used to BOTH cancel on one
+	//press; one-at-a-time is the improvement, not a compatibility break.)
+	//At dialog priority so an open dialog's Escape beats the page-level
+	//blur-focused binding — the legacy pair (card-view on document, this on
+	//window, neither stopping propagation) DOUBLE-fired. Unregistered on
+	//close and on disconnect; the legacy window listener leaked one
+	//registration per dialog instance forever (~9 subclasses).
+	private _syncEscapeShortcut() {
+		if (this.open && !this._unregisterEscapeShortcut) {
+			this._unregisterEscapeShortcut = registerShortcut({
+				id: 'dialog-escape',
+				keys: {key: 'Escape'},
+				label: 'Close the dialog',
+				priority: DIALOG_SHORTCUT_PRIORITY,
+				//Escape must close the dialog from its own text inputs.
+				focusPolicy: 'any-focus',
+				handler: () => {
+					if (!this.open) return false;
+					this.cancel();
+					return true;
+				},
+			});
+		} else if (!this.open && this._unregisterEscapeShortcut) {
+			this._unregisterEscapeShortcut();
+			this._unregisterEscapeShortcut = null;
+		}
 	}
 
-	_handleKeyDown(e : KeyboardEvent) {
-		if (!this.open) return;
-		if (e.key == 'Escape') {
-			this.cancel();
-			return;
-		}
+	override disconnectedCallback() {
+		if (this._unregisterEscapeShortcut) this._unregisterEscapeShortcut();
+		this._unregisterEscapeShortcut = null;
+		super.disconnectedCallback();
 	}
 
 	_handleBackgroundClicked(e : MouseEvent) {
@@ -176,6 +210,15 @@ export class DialogElement extends LitElement {
 		if (!input) input = shadowRoot.querySelector('textarea');
 		if (!input) return;
 		if (input instanceof HTMLElement) input.focus();
+	}
+
+	override willUpdate(changedProps : PropertyValues<this>) {
+		super.willUpdate(changedProps);
+		//willUpdate, NOT updated: two subclasses (ai-dialog, find-dialog)
+		//override updated() without calling super, so a hook there silently
+		//never runs for them — and find-dialog is the most-used dialog.
+		//No dialog subclass overrides willUpdate.
+		if (changedProps.has('open')) this._syncEscapeShortcut();
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

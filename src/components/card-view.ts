@@ -62,6 +62,7 @@ import {
 	selectWorkerActiveCollectionReady,
 	selectActiveCollectionFailureMessage,
 	selectActiveCollectionURLDiagnostics,
+	selectPage,
 } from '../selectors.js';
 
 import {
@@ -83,6 +84,15 @@ import {
 import {
 	editingStart
 } from '../actions/editor.js';
+
+import {
+	registerShortcuts,
+	whenKeyboardNavigates
+} from '../shortcuts.js';
+
+import {
+	PAGE_DEFAULT
+} from '../actions/app.js';
 
 import {
 	createCard,
@@ -108,7 +118,6 @@ import {
 } from '../actions/app.js';
 
 import {
-	killEvent,
 	deepActiveElement
 } from '../util.js';
 
@@ -285,11 +294,7 @@ const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
 //unlabeled — a bounded, sub-perceptual staleness that avoids flicker.
 const COLLECTION_UPDATING_GRACE_MS = 200;
 
-//e.code is the PHYSICAL key position, so on AZERTY, Dvorak or any non-QWERTY
-//layout the printed shortcut stops working and a DIFFERENT printed key silently
-//triggers it — Cmd-M creating a card from whatever key sits where M is on
-//QWERTY. e.key is what the user actually pressed.
-const pressedLetter = (e : KeyboardEvent) : string => (e.key || '').toLowerCase();
+
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -1281,62 +1286,14 @@ class CardView extends connect(store)(PageViewElement) {
 
 	}
 
-	override firstUpdated() {
-		document.addEventListener('keydown', e => this._handleKeyDown(e));
-	}
-
-	_handleKeyDown(e : KeyboardEvent) {
-		//We have to hook this to issue content editable commands when we're
-		//active. But most of the time we don't want to do anything.
-		if (!this.active) return false;
-		if (e.key == 'Escape') {
-			const activeEle = deepActiveElement();
-			if (!activeEle) return false;
-			if (activeEle instanceof HTMLElement) activeEle.blur();
-			return killEvent(e);
-		}
-		if (!e.metaKey && !e.ctrlKey) return false;
-		if (this._editing) return false;
-
-		if (pressedLetter(e) == 'm') {
-			//these action creators will fail if the user may not do these now.
-			//While sync is still verifying, createCard refuses via
-			//modifyCardFailure — which alerts. A HELD Cmd-M then produces one
-			//modal per repeat for the whole verification window, the same storm
-			//Round 7b removed from editingStart. Swallow the shortcut instead;
-			//the drawer's buttons are disabled and carry the explanation.
-			if (!this._saveEligible) return killEvent(e);
-			if (e.shiftKey) {
-				store.dispatch(createCard({cardType: 'working-notes'}));
-			} else {
-				store.dispatch(createCard({section: this._activeSectionId}));
-			}
-			return killEvent(e);
-		} else if (pressedLetter(e) == 'l') {
-			//Ctrl-Shift-L is a way to navigate to a URL in the web app without
-			//modifying the URL bar in the browser, which will lead to a full
-			//refresh.
-			if (e.shiftKey) {
-				store.dispatch(askForPathToNavigateTo());
-				return killEvent(e);
-			}
-			//NOTE: an old comment here warned that holding Alt composes e.key
-			//away from 'r'. Measured on macOS Chrome: with Meta held, Option
-			//composition is suppressed and the event arrives as key:'r'
-			//(or 'R' with Shift). Every branch in this handler is behind an
-			//early `if (!e.metaKey && !e.ctrlKey) return`, so the composition
-			//case is unreachable — which is why comparing e.key is correct.
-		} else if (pressedLetter(e) == 'r') {
-			if (e.altKey) {
-				if (e.shiftKey) {
-					store.dispatch(navigateToRandomCard());
-				} else {
-					store.dispatch(randomizeCollection());
-				}
-				return killEvent(e);
-			}
-		}
-	}
+	//The keyboard bindings that used to live in a document-level
+	//_handleKeyDown here are declared as data at this module's bottom
+	//(#740). Notable behavior changes, both deliberate: the m/l/r family is
+	//now gated on keyboardNavigates rather than only !editing, so Cmd-Shift-L
+	//and Cmd-Alt-R no longer fire while the find dialog or bulk-import
+	//textarea has focus (a #740-listed defect); and Escape no longer
+	//double-fires into a dialog's cancel, because dialogs register at higher
+	//priority and a consumed binding stops the search.
 
 	_changedPropsAffectCanvasSize(changedProps : PropertyValues<this>) {
 		const sizeProps = [
@@ -1412,3 +1369,78 @@ declare global {
 		'card-view': CardView;
 	}
 }
+
+//Card-view's bindings (#740). Applicability that used to live on the
+//component instance (this.active, this._editing, this._saveEligible,
+//this._activeSectionId) is read from state, which is what it always was.
+const cardViewActive = (state : State) => selectPage(state) === PAGE_DEFAULT;
+
+registerShortcuts([
+	{
+		id: 'blur-focused',
+		keys: {key: 'Escape'},
+		label: 'Leave the focused control',
+		//Its entire job concerns the focused element.
+		focusPolicy: 'any-focus',
+		when: cardViewActive,
+		handler: () => {
+			const activeEle = deepActiveElement();
+			//Decline so the browser default survives when there is nothing
+			//to blur.
+			if (!(activeEle instanceof HTMLElement) || activeEle === document.body) return false;
+			activeEle.blur();
+			return true;
+		},
+	},
+	{
+		id: 'create-card',
+		keys: {key: 'm', mod: true},
+		label: 'Add a new card of this type in this section',
+		when: whenKeyboardNavigates,
+		handler: (_e, state) => {
+			//createCard refuses via modifyCardFailure — which alerts. A HELD
+			//Cmd-M then produces one modal per repeat for the whole
+			//verification window. Swallow the shortcut instead; the drawer's
+			//buttons are disabled and carry the explanation. (The registry
+			//also blocks repeats, but a re-PRESS during verification hits
+			//this same guard.)
+			if (!selectCardSavesEligible(state)) return true;
+			store.dispatch(createCard({section: selectActiveSectionId(state)}));
+			return true;
+		},
+	},
+	{
+		id: 'create-working-notes-card',
+		keys: {key: 'm', mod: true, shift: true},
+		label: 'Create a new working notes card',
+		when: whenKeyboardNavigates,
+		handler: (_e, state) => {
+			if (!selectCardSavesEligible(state)) return true;
+			store.dispatch(createCard({cardType: 'working-notes'}));
+			return true;
+		},
+	},
+	{
+		id: 'navigate-to-path',
+		//Ctrl-Shift-L navigates to a URL in the web app without modifying
+		//the URL bar in the browser, which would lead to a full refresh.
+		keys: {key: 'l', mod: true, shift: true},
+		label: 'Navigate to a path',
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(askForPathToNavigateTo()),
+	},
+	{
+		id: 'randomize-collection',
+		keys: {key: 'r', mod: true, alt: true},
+		label: 'Randomize this collection',
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(randomizeCollection()),
+	},
+	{
+		id: 'random-card',
+		keys: {key: 'r', mod: true, alt: true, shift: true},
+		label: 'Go to a random card',
+		when: whenKeyboardNavigates,
+		handler: () => store.dispatch(navigateToRandomCard()),
+	},
+]);
