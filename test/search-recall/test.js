@@ -139,33 +139,33 @@ describe('stale-while-revalidate collection display (pins)', () => {
 describe('card-editor keyboard bindings (#729)', () => {
 	const read = (path) => fs.readFileSync(new URL('../../' + path, import.meta.url), 'utf8');
 
-	it('never binds a DevTools or inspect-element combination', () => {
+	it('never binds a DevTools or inspect-element combination', async () => {
 		//0ed8dc69 removed Cmd/Ctrl-Shift-C and -I precisely because Chrome
 		//acts on them AND delivers the keydown to the page. Since #740 the
 		//decision is enforced STRUCTURALLY — the shortcut registry THROWS at
-		//registration for the reserved combos (see test/shortcuts) — so this
-		//pin now checks the declared combos rather than a hand-rolled
-		//handler's branch shapes.
-		const editor = read('src/components/card-editor.ts');
-		const declared = /keys: \{key: '([a-z0-9])', mod: true, shift: true\}/g;
-		const bound = [...editor.matchAll(declared)].map(m => m[1]);
-		assert.ok(bound.length > 0, 'expected at least one shifted binding to exist');
-		for (const letter of bound) {
-			assert.ok(!['c', 'i', 'j'].includes(letter),
-				`Cmd/Ctrl-Shift-${letter.toUpperCase()} is a DevTools key and must never be bound here`);
+		//registration for reserved combos (see test/shortcuts) — and since
+		//stage 2 every combo lives in ONE canonical table, so this pin
+		//audits the DATA rather than any handler's source shapes.
+		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
+		const shifted = Object.values(SHORTCUT_COMBOS).flat().filter(combo => combo.mod && combo.shift && combo.key.length === 1);
+		assert.ok(shifted.length > 0, 'expected at least one shifted binding to exist');
+		for (const combo of shifted) {
+			assert.ok(!['c', 'i', 'j'].includes(combo.key.toLowerCase()),
+				`Cmd/Ctrl-Shift-${combo.key.toUpperCase()} is a DevTools key and must never be bound`);
 		}
 	});
 
-	it('binds accept-all-suggested-concepts to Shift-K', () => {
+	it('binds accept-all-suggested-concepts to Shift-K', async () => {
 		//Shift is a DECLARED FIELD in the registry's combo matching (letters
 		//compare case-insensitively), which is what makes a Shift+letter
 		//binding matchable at all — the original hand-rolled version was
 		//dead for its whole life because Shift uppercases e.key. Uniform
-		//consumption (preventDefault + stopPropagation) is the registry's
-		//discipline, pinned in test/shortcuts.
+		//consumption is the registry's discipline, pinned in test/shortcuts.
+		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
+		assert.deepStrictEqual(SHORTCUT_COMBOS['accept-suggested-concepts'], [{key: 'k', mod: true, shift: true}]);
 		const editor = read('src/components/card-editor.ts');
-		assert.match(editor, /id: 'accept-suggested-concepts',\s*\n[\s\S]{0,600}keys: \{key: 'k', mod: true, shift: true\}/,
-			'the binding must be declared on the registry with shift as a field');
+		assert.match(editor, /id: 'accept-suggested-concepts',\s*\n[\s\S]{0,700}keys: SHORTCUT_COMBOS\['accept-suggested-concepts'\]/,
+			'the binding must draw its combo from the canonical table');
 		assert.match(editor, /this\._handleAddAllConceptsClicked\(\);/,
 			'and must route to the same handler as the buttons');
 	});
@@ -179,11 +179,13 @@ describe('card-editor keyboard bindings (#729)', () => {
 			'match the specific key; a blanket shifted early-return breaks the existing execCommand shortcuts');
 	});
 
-	it('advertises the binding in both button tooltips', () => {
+	it('advertises the binding in both button tooltips, derived from the table', () => {
 		const editor = read('src/components/card-editor.ts');
 		//The button is rendered twice (mobile and desktop); updating only one
-		//is the easy miss.
-		const matches = editor.match(/Add all suggested concepts \(Cmd-Shift-K\)/g) || [];
-		assert.strictEqual(matches.length, 2, 'both render sites must name the shortcut');
+		//is the easy miss. Since #740 stage 2 the combo text derives from
+		//the canonical table (shortcutKeys), so the tooltip cannot drift
+		//from the binding.
+		const matches = editor.match(/Add all suggested concepts \(\$\{shortcutKeys\('accept-suggested-concepts'\)\}\)/g) || [];
+		assert.strictEqual(matches.length, 2, 'both render sites must name the shortcut via shortcutKeys');
 	});
 });

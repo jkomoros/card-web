@@ -3,7 +3,8 @@ import { customElement, property } from 'lit/decorators.js';
 
 import {
 	registerShortcut,
-	DIALOG_SHORTCUT_PRIORITY
+	DIALOG_SHORTCUT_PRIORITY,
+	SHORTCUT_COMBOS
 } from '../shortcuts.js';
 
 import { SharedStyles } from './shared-styles.js';
@@ -156,7 +157,7 @@ export class DialogElement extends LitElement {
 		if (this.open && !this._unregisterEscapeShortcut) {
 			this._unregisterEscapeShortcut = registerShortcut({
 				id: 'dialog-escape',
-				keys: {key: 'Escape'},
+				keys: SHORTCUT_COMBOS['dialog-escape'],
 				label: 'Close the dialog',
 				priority: DIALOG_SHORTCUT_PRIORITY,
 				//Escape must close the dialog from its own text inputs.

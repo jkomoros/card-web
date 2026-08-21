@@ -87,7 +87,9 @@ import {
 
 import {
 	registerShortcuts,
-	whenKeyboardNavigates
+	whenKeyboardNavigates,
+	shortcutKeys,
+	SHORTCUT_COMBOS
 } from '../shortcuts.js';
 
 import {
@@ -746,7 +748,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<button
 						id='randomize'
 						class='small'
-						title='Randomize (⌘⌥R)'
+						title=${`Randomize (${shortcutKeys('randomize-collection')})`}
 						@click=${this._handleRandomizeClicked}>
 							${CASINO_ICON}
 						</button>
@@ -794,8 +796,8 @@ class CardView extends connect(store)(PageViewElement) {
 					<!-- Title on the wrapper so it is readable while the button
 					is disabled (Chrome/Safari suppress hover on disabled
 					controls). -->
-					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (Cmd-E) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : 'Edit card (Cmd-E)'}>
-						<button class='round' data-testid='edit-card' aria-label='Edit card (Cmd-E)' ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (${shortcutKeys('edit-card')}) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : `Edit card (${shortcutKeys('edit-card')})`}>
+						<button class='round' data-testid='edit-card' aria-label=${`Edit card (${shortcutKeys('edit-card')})`} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 					</span>
 				</div>
 				<div slot='actions' class='next-prev'>
@@ -1378,7 +1380,7 @@ const cardViewActive = (state : State) => selectPage(state) === PAGE_DEFAULT;
 registerShortcuts([
 	{
 		id: 'blur-focused',
-		keys: {key: 'Escape'},
+		keys: SHORTCUT_COMBOS['blur-focused'],
 		label: 'Leave the focused control',
 		//Its entire job concerns the focused element.
 		focusPolicy: 'any-focus',
@@ -1394,7 +1396,7 @@ registerShortcuts([
 	},
 	{
 		id: 'create-card',
-		keys: {key: 'm', mod: true},
+		keys: SHORTCUT_COMBOS['create-card'],
 		label: 'Add a new card of this type in this section',
 		when: whenKeyboardNavigates,
 		handler: (_e, state) => {
@@ -1411,7 +1413,7 @@ registerShortcuts([
 	},
 	{
 		id: 'create-working-notes-card',
-		keys: {key: 'm', mod: true, shift: true},
+		keys: SHORTCUT_COMBOS['create-working-notes-card'],
 		label: 'Create a new working notes card',
 		when: whenKeyboardNavigates,
 		handler: (_e, state) => {
@@ -1424,21 +1426,21 @@ registerShortcuts([
 		id: 'navigate-to-path',
 		//Ctrl-Shift-L navigates to a URL in the web app without modifying
 		//the URL bar in the browser, which would lead to a full refresh.
-		keys: {key: 'l', mod: true, shift: true},
+		keys: SHORTCUT_COMBOS['navigate-to-path'],
 		label: 'Navigate to a path',
 		when: whenKeyboardNavigates,
 		handler: () => store.dispatch(askForPathToNavigateTo()),
 	},
 	{
 		id: 'randomize-collection',
-		keys: {key: 'r', mod: true, alt: true},
+		keys: SHORTCUT_COMBOS['randomize-collection'],
 		label: 'Randomize this collection',
 		when: whenKeyboardNavigates,
 		handler: () => store.dispatch(randomizeCollection()),
 	},
 	{
 		id: 'random-card',
-		keys: {key: 'r', mod: true, alt: true, shift: true},
+		keys: SHORTCUT_COMBOS['random-card'],
 		label: 'Go to a random card',
 		when: whenKeyboardNavigates,
 		handler: () => store.dispatch(navigateToRandomCard()),

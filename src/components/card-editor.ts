@@ -118,7 +118,9 @@ import {
 
 import {
 	registerShortcut,
-	registerShortcuts
+	registerShortcuts,
+	shortcutKeys,
+	SHORTCUT_COMBOS
 } from '../shortcuts.js';
 
 import { 
@@ -725,7 +727,7 @@ class CardEditor extends connect(store)(LitElement) {
 							class='small'
 							@click=${this._handleAddAllConceptsClicked}
 							?hidden=${this._suggestedConcepts.length == 0}
-							title='Add all suggested concepts (Cmd-Shift-K)'>
+							title=${`Add all suggested concepts (${shortcutKeys('accept-suggested-concepts')})`}>
 							${PLUS_ICON}
 						</button>
 						<button
@@ -919,7 +921,7 @@ class CardEditor extends connect(store)(LitElement) {
 					class='small'
 					@click=${this._handleAddAllConceptsClicked}
 					?hidden=${this._suggestedConcepts.length == 0}
-					title='Add all suggested concepts (Cmd-Shift-K)'>
+					title=${`Add all suggested concepts (${shortcutKeys('accept-suggested-concepts')})`}>
 					${PLUS_ICON}
 				</button>
 				<button
@@ -1136,7 +1138,7 @@ class CardEditor extends connect(store)(LitElement) {
 			//also delivers to the page (#729) — the registry would throw on
 			//them. K is deliberate: Cmd-K below is "find card to link", so
 			//Shift-K reads as its bulk sibling; both create references.
-			keys: {key: 'k', mod: true, shift: true},
+			keys: SHORTCUT_COMBOS['accept-suggested-concepts'],
 			label: 'Add all suggested concepts',
 			//Real work, not an execCommand: stays available from the title
 			//and notes fields per the #747 decision.
@@ -1557,7 +1559,7 @@ declare global {
 registerShortcuts([
 	{
 		id: 'format-bold',
-		keys: {key: 'b', mod: true},
+		keys: SHORTCUT_COMBOS['format-bold'],
 		label: 'Bold',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1565,7 +1567,7 @@ registerShortcuts([
 	},
 	{
 		id: 'format-italic',
-		keys: {key: 'i', mod: true},
+		keys: SHORTCUT_COMBOS['format-italic'],
 		label: 'Italic',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1573,7 +1575,7 @@ registerShortcuts([
 	},
 	{
 		id: 'format-ordered-list',
-		keys: {key: '7', mod: true},
+		keys: SHORTCUT_COMBOS['format-ordered-list'],
 		label: 'Numbered list',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1581,7 +1583,7 @@ registerShortcuts([
 	},
 	{
 		id: 'format-unordered-list',
-		keys: {key: '8', mod: true},
+		keys: SHORTCUT_COMBOS['format-unordered-list'],
 		label: 'Bulleted list',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1589,7 +1591,7 @@ registerShortcuts([
 	},
 	{
 		id: 'find-card-to-link',
-		keys: {key: 'k', mod: true},
+		keys: SHORTCUT_COMBOS['find-card-to-link'],
 		label: 'Link to a card',
 		focusPolicy: 'allow-text-fields',
 		when: (state) => selectIsEditing(state),

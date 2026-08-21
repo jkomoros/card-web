@@ -39,19 +39,12 @@ import {
 	selectCorpusGateBlocking
 } from './selectors.js';
 
-//A single key combination. `mod` means Cmd OR Ctrl (every legacy handler
-//accepted either, so every shortcut works on Windows/Linux; stage 2 owns
-//displaying the right symbol per platform). Undeclared modifier fields mean
-//"must NOT be held": Cmd-R and Cmd-Alt-R are different combos, and the
-//browser keeps the ones we don't declare.
-export type ShortcutCombo = {
-	//Compared case-insensitively for single characters; exactly otherwise
-	//('Escape', 'ArrowDown', ' ', 'Enter').
-	key : string,
-	mod? : boolean,
-	shift? : boolean,
-	alt? : boolean,
-};
+import {
+	ShortcutCombo
+} from './shortcuts-data.js';
+
+export type {ShortcutCombo};
+
 
 //What may have focus for a binding to fire. The classifier pierces shadow
 //DOM via the event's composed path.
@@ -74,7 +67,7 @@ export type ShortcutBinding = {
 	//Stable identifier; stage 2's label rendering and user configuration
 	//key on it. Also used in error messages.
 	id : string,
-	keys : ShortcutCombo | ShortcutCombo[],
+	keys : ShortcutCombo | readonly ShortcutCombo[],
 	//For stage 2 and the eventual help sheet; not rendered anywhere yet.
 	label : string,
 	//Higher priority is consulted first. Dialogs use DIALOG_SHORTCUT_PRIORITY
@@ -97,6 +90,21 @@ export type ShortcutBinding = {
 };
 
 export const DIALOG_SHORTCUT_PRIORITY = 100;
+
+//The canonical combo table and label helpers live in shortcuts-data.ts — a
+//LEAF module with zero imports — because this module imports selectors,
+//which imports tabs.ts, which needs shortcutKeys at module-eval time: the
+//table living here put tabs in a temporal dead zone. Re-exported for
+//convenience.
+export {
+	SHORTCUT_COMBOS,
+	formatShortcutCombo,
+	shortcutKeys,
+	isMacPlatform,
+} from './shortcuts-data.js';
+
+export type {ShortcutID} from './shortcuts-data.js';
+
 
 //The #729 class. Checked at REGISTRATION so an unsafe combo is a
 //development-time throw, not a latent hazard.

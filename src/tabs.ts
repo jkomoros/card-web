@@ -27,6 +27,10 @@ import {
 } from './store.js';
 
 import {
+	shortcutKeys
+} from './shortcuts-data.js';
+
+import {
 	randomizeCollection,
 	RANDOM_CARD_COLLECTION
 } from './actions/collection.js';
@@ -218,7 +222,7 @@ const EXPANSION_ITEMS : {[name in Exclude<TabConfigName, 'sections' | 'hidden_se
 	'random': [
 		{
 			icon: icons.CASINO_ICON,
-			display_name: 'Random card (⌘⌥⇧R)',
+			display_name: `Random card (${shortcutKeys('random-card')})`,
 			collection: RANDOM_CARD_COLLECTION,
 			action: () => store.dispatch(randomizeCollection())
 		}

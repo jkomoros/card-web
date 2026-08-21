@@ -28,6 +28,10 @@ import {
 import * as icons from '../../shared/icons.js';
 
 import {
+	shortcutKeys
+} from '../shortcuts-data.js';
+
+import {
 	CardID,
 	CardType,
 } from '../types.js';
@@ -298,8 +302,8 @@ class CardDrawer extends LitElement {
 }
 				</div>
 				<div class='buttons'>
-					<span class='reason' ?hidden='${!this.showCreateWorkingNotes}' title="${this.createEligible ? 'Create a new working notes card (Cmd-Shift-M)' : this.createBlockedReason}"><button class='round' @click='${this._handleCreateWorkingNotes}' ?disabled='${!this.createEligible}'>${INSERT_DRIVE_FILE_ICON}</button></span>
-					<span class='reason' ?hidden='${!this.showCreateCard}' title=${this.createEligible ? 'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)' : this.createBlockedReason}><button class='round' @click='${this._handleAddSlide}' ?disabled='${!this.createEligible}'>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button></span>
+					<span class='reason' ?hidden='${!this.showCreateWorkingNotes}' title="${this.createEligible ? `Create a new working notes card (${shortcutKeys('create-working-notes-card')})` : this.createBlockedReason}"><button class='round' @click='${this._handleCreateWorkingNotes}' ?disabled='${!this.createEligible}'>${INSERT_DRIVE_FILE_ICON}</button></span>
+					<span class='reason' ?hidden='${!this.showCreateCard}' title=${this.createEligible ? `Add a new card of type ${this.cardTypeToAdd} in this section (${shortcutKeys('create-card')})` : this.createBlockedReason}><button class='round' @click='${this._handleAddSlide}' ?disabled='${!this.createEligible}'>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button></span>
 				</div>
 			</div>
 		`;

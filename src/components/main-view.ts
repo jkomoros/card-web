@@ -61,7 +61,8 @@ import {
 
 import {
 	registerShortcuts,
-	whenKeyboardNavigates
+	whenKeyboardNavigates,
+	SHORTCUT_COMBOS
 } from '../shortcuts.js';
 
 import {
@@ -554,7 +555,7 @@ declare global {
 registerShortcuts([
 	{
 		id: 'commit-edit',
-		keys: {key: 'Enter', mod: true},
+		keys: SHORTCUT_COMBOS['commit-edit'],
 		label: 'Save the open editor or dialog',
 		//Deliberately NOT gated on keyboardNavigates: committing is exactly
 		//for when an editor or dialog is open, and doCommit itself decides
@@ -575,21 +576,21 @@ registerShortcuts([
 		//moves the caret to the end, so typing any phrase containing 'e'
 		//with the card view focused silently inserted the rest of that
 		//phrase into the card. Observed for real.
-		keys: {key: 'e', mod: true},
+		keys: SHORTCUT_COMBOS['edit-card'],
 		label: 'Edit card',
 		when: whenKeyboardNavigates,
 		handler: () => store.dispatch(editingStart()),
 	},
 	{
 		id: 'find-card',
-		keys: {key: 'f', mod: true},
+		keys: SHORTCUT_COMBOS['find-card'],
 		label: 'Find a card',
 		when: whenKeyboardNavigates,
 		handler: () => store.dispatch(openFindDialog()),
 	},
 	{
 		id: 'toggle-card-selected',
-		keys: {key: ' '},
+		keys: SHORTCUT_COMBOS['toggle-card-selected'],
 		label: 'Select or unselect this card',
 		when: whenKeyboardNavigates,
 		handler: (_e, state) => {
@@ -601,7 +602,7 @@ registerShortcuts([
 	},
 	{
 		id: 'next-card',
-		keys: [{key: 'ArrowDown'}, {key: 'ArrowRight'}],
+		keys: SHORTCUT_COMBOS['next-card'],
 		label: 'Next card',
 		//Navigation is the one place key-repeat is the point: holding an
 		//arrow scrolls through the collection.
@@ -611,7 +612,7 @@ registerShortcuts([
 	},
 	{
 		id: 'previous-card',
-		keys: [{key: 'ArrowUp'}, {key: 'ArrowLeft'}],
+		keys: SHORTCUT_COMBOS['previous-card'],
 		label: 'Previous card',
 		allowRepeat: true,
 		when: whenKeyboardNavigates,

@@ -277,6 +277,54 @@ describe('shortcut layer (#740 stage 1)', () => {
 		});
 	});
 
+	describe('label rendering (#740 stage 2)', () => {
+		it('one notation, platform-aware', () => {
+			assert.strictEqual(shortcuts.formatShortcutCombo({key: 'm', mod: true, shift: true}, true), 'Cmd-Shift-M');
+			assert.strictEqual(shortcuts.formatShortcutCombo({key: 'm', mod: true, shift: true}, false), 'Ctrl-Shift-M');
+			assert.strictEqual(shortcuts.formatShortcutCombo({key: 'r', mod: true, alt: true}, true), 'Cmd-Alt-R');
+			assert.strictEqual(shortcuts.formatShortcutCombo({key: ' '}, true), 'Space');
+			assert.strictEqual(shortcuts.formatShortcutCombo({key: 'ArrowDown'}, false), '↓');
+			assert.strictEqual(shortcuts.formatShortcutCombo({key: 'Enter', mod: true}, false), 'Ctrl-Enter');
+		});
+
+		it('shortcutKeys reads the canonical table', () => {
+			assert.strictEqual(shortcuts.shortcutKeys('edit-card', true), 'Cmd-E');
+			assert.strictEqual(shortcuts.shortcutKeys('edit-card', false), 'Ctrl-E');
+			assert.strictEqual(shortcuts.shortcutKeys('random-card', true), 'Cmd-Alt-Shift-R');
+			assert.strictEqual(shortcuts.shortcutKeys('create-working-notes-card', false), 'Ctrl-Shift-M');
+		});
+
+		it('isMacPlatform reads the platform string', () => {
+			assert.strictEqual(shortcuts.isMacPlatform('MacIntel'), true);
+			assert.strictEqual(shortcuts.isMacPlatform('Win32'), false);
+			assert.strictEqual(shortcuts.isMacPlatform(''), false);
+		});
+
+		it('every registered binding draws its combos from the table (no inline drift)', () => {
+			//The whole point of the table: a binding and its label cannot
+			//disagree. Inline `keys: {key: ...}` in a migrated component
+			//would reopen the drift channel.
+			const fs2 = fs;
+			for (const file of ['main-view.ts', 'card-view.ts', 'card-editor.ts', 'dialog-element.ts']) {
+				const source = fs2.readFileSync(path.join(new URL('../../src/components/', import.meta.url).pathname, file), 'utf8');
+				assert.ok(!/keys: \{key:/.test(source),
+					`${file} must reference SHORTCUT_COMBOS, not inline combos`);
+			}
+		});
+
+		it('no migrated display string hardcodes a combo notation', () => {
+			//The six strings in three notations, hand-synced, were the stage-2
+			//motivation; the UI once said "Edit card (E)" for weeks after the
+			//binding became Cmd-E.
+			const files = ['components/card-view.ts', 'components/card-drawer.ts', 'components/card-editor.ts', 'tabs.ts'];
+			for (const file of files) {
+				const source = fs.readFileSync(path.join(new URL('../../src/', import.meta.url).pathname, file), 'utf8');
+				assert.ok(!/⌘|Cmd-[A-Z0-9]|Ctrl-[A-Z0-9]/.test(source.replace(/\/\/[^\n]*/g, '')),
+					`${file} must derive shortcut text from shortcutKeys, not hardcode it`);
+			}
+		});
+	});
+
 	describe('the legacy handlers are gone (source-text pins)', () => {
 		const read = (file) => fs.readFileSync(path.join(new URL('../../src/components/', import.meta.url).pathname, file), 'utf8');
 
