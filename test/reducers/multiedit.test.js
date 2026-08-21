@@ -82,17 +82,22 @@ describe('bulk import failure reporting (#758 slice)', () => {
 		let done = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_SUCCESS});
 		assert.strictEqual(done.progress, null);
 		assert.strictEqual(done.open, false);
-		//Failure clears progress but stays open.
+		//Failure clears progress but stays open — asserted, not assumed:
+		//the review caught the first version of this test claiming the
+		//clear in a comment while the reducer left stale progress behind.
 		done = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'boom'});
 		assert.strictEqual(done.pending, false);
 		assert.strictEqual(done.open, true);
+		assert.strictEqual(done.progress, null);
 	});
 
 	it('an outcome keeps the dialog open and clears on close or retry (#758)', () => {
 		const outcome = {createdCount: 24, queuedCount: 5, discardedCount: 0, unarrivedCount: 3, queuedBodies: ['a body'], discardedBodies: []};
 		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_SET_BODIES, bodies: ['<p>one</p>', '<p>two</p>']});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PROGRESS, progress: {total: 32, committed: 32, arrived: 24}});
+		assert.deepStrictEqual(state.bodies, ['<p>one</p>', '<p>two</p>'], 'fixture must actually arm the form');
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_OUTCOME, outcome});
 		//The whole point (#758): the report lives in the surface that
 		//produced it, so the dialog must NOT close when there is something
@@ -101,6 +106,10 @@ describe('bulk import failure reporting (#758 slice)', () => {
 		assert.strictEqual(state.pending, false);
 		assert.strictEqual(state.progress, null);
 		assert.strictEqual(state.outcome, outcome);
+		//And the re-import form is DISARMED (review): leaving bodies
+		//populated put an enabled create button directly under a report
+		//saying the cards already exist — one click duplicated the import.
+		assert.deepStrictEqual(state.bodies, []);
 		//A new attempt clears the stale report…
 		assert.strictEqual(bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING}).outcome, null);
 		//…and closing acknowledges it, like the error field.

@@ -37,6 +37,17 @@ export class ProgressPanel extends LitElement {
 	@property({ type : Array })
 		detailParagraphs : string[];
 
+	//Body-size explanatory text (a waiting state's reassurance). Rendered as
+	//a normal paragraph, NOT the small .count line.
+	@property({ type : String })
+		messageText : string;
+
+	//Renders an animated indeterminate bar when total is 0. A waiting state
+	//that shows no activity (offline) should leave this off: an animated bar
+	//implies progress that is not happening.
+	@property({ type : Boolean })
+		indeterminate : boolean;
+
 	static override styles = [
 		css`
 			/* The same treatment as dialog .content (white, 1em padding,
@@ -77,6 +88,10 @@ export class ProgressPanel extends LitElement {
 				font-size: 0.85em;
 			}
 
+			p {
+				margin: 0;
+			}
+
 			/* <details> is the app's existing progressive-disclosure idiom
 			   (chat-view, maintenance-view, the card-selection summary). */
 			details {
@@ -96,9 +111,12 @@ export class ProgressPanel extends LitElement {
 	override render() {
 		return html`
 			<h3>${this.heading}</h3>
+			${this.messageText ? html`<p>${this.messageText}</p>` : ''}
 			${this.total > 0
 		? html`<progress aria-label=${this.heading} max=${this.total} value=${this.value || 0}></progress>`
-		: html`<progress aria-label=${this.heading}></progress>`}
+		: this.indeterminate
+			? html`<progress aria-label=${this.heading}></progress>`
+			: ''}
 			${this.countText ? html`<span class='count'>${this.countText}</span>` : ''}
 			${this.detailParagraphs && this.detailParagraphs.length ? html`
 				<details>

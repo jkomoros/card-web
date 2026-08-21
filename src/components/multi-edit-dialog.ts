@@ -301,7 +301,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 				<div class='scrim' role='status' aria-live='polite' aria-busy=${this._cardModificationPending}>
 					${this._offline
-		? html`<progress-panel heading='Waiting for a connection…' .total=${0} countText='The target list is saved in this browser and will resume here.'></progress-panel>`
+		? html`<progress-panel heading='Waiting for a connection…' messageText='The target list is saved in this browser and will resume here.'></progress-panel>`
 		: this._bulkTagProgress
 			? html`<progress-panel
 							heading='${this._bulkTagProgress.description}…'
@@ -314,7 +314,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			: 'Each card counts as processed once its change is durably recorded in this browser; if this tab closes, the operation resumes on the next load.',
 		'Keep this tab visible to finish faster; progress is safely saved if it is backgrounded.',
 	]}></progress-panel>`
-			: html`<progress-panel heading='Saving selected cards…' .total=${0}></progress-panel>`}
+			: html`<progress-panel heading='Saving selected cards…' indeterminate></progress-panel>`}
 				</div>
 			<div class='edit-form' ?inert=${this._cardModificationPending} aria-hidden=${this._cardModificationPending ? 'true' : 'false'}>
 			${this._urlDiagnostics.length ? html`

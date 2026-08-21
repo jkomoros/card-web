@@ -2420,6 +2420,13 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//invariant (every created card is selected) keys on arrivals: wait on
 	//everything not discarded, and report as unavailable only what still has
 	//not arrived by the deadline below.
+	//The per-outcome callback reports RACED outcomes; the returned array has
+	//been through the correction pass (an attempt that timed out early but
+	//since committed). Re-sync the headline number at the phase boundary so
+	//a small import whose acks were serialized does not display "0 of N
+	//created" while all N arrive (#758 review).
+	committedCount = outcomes.filter(outcome => outcome === 'committed').length;
+	reportProgress();
 	const queuedCount = outcomes.filter(outcome => outcome === 'queued').length;
 	if (queuedCount) console.warn(`${queuedCount} of ${outcomes.length} imported cards did not confirm before the deadline; queued for replay. Waiting to see whether they arrive anyway.`);
 	const candidateIDs = ids.filter((_, index) => outcomes[index] !== 'discarded');

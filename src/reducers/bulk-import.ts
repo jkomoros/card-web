@@ -74,11 +74,17 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		//The import finished with something to say: the dialog STAYS OPEN
 		//(#758) so the report lives in the surface that produced it, with
 		//calm phrasing for queued and error phrasing only for discarded —
-		//instead of an alert() that could name no cards.
+		//instead of an alert() that could name no cards. bodies is DISARMED
+		//(the adversarial review caught this): leaving it populated left a
+		//loaded re-import form with an enabled commit button directly under
+		//a report saying the cards already exist — one click duplicated the
+		//whole import, twice over on the queued path once the durable
+		//intents also replayed.
 		return {
 			...state,
 			pending: false,
 			progress: null,
+			bodies: [],
 			outcome: action.outcome
 		};
 	case BULK_IMPORT_SUCCESS:
@@ -95,6 +101,7 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			pending: false,
+			progress: null,
 			error: action.error
 		};
 	case BULK_IMPORT_SET_BODIES:

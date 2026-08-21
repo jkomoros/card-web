@@ -37,7 +37,11 @@ describe('durable single-card editing', () => {
 		const start = editor.indexOf('export const editingStart');
 		const finish = editor.indexOf('export const editingFinish', start);
 		const editingStart = editor.slice(start, finish);
-		assert.ok(editingStart.includes('selectCardModificationPending(state) || durableCardMutationPending()'));
+		//Per-card since #763: a save in flight on ANOTHER card must not
+		//block a new editor session; the same-card guard is what keeps a
+		//late acknowledgement from being mistaken for a newer edit's
+		//completion.
+		assert.ok(editingStart.includes('selectCardModificationPendingForCard(state, card.id) || durableCardMutationPendingForCard(card.id)'));
 		assert.equal(draftMatchesConfirmedSave(
 			{cardID: 'card-a', operationID: 'save-new'},
 			{cardID: 'card-a', operationID: 'save-old'},
@@ -81,7 +85,10 @@ describe('durable single-card editing', () => {
 
 	it('offers an escape from a permanently paused single-card save', () => {
 		const app = fs.readFileSync('src/components/card-web-app.ts', 'utf8');
-		assert.ok(app.includes('Stop retrying'));
+		//The affordance's label changed in the #764 refit (button.small icon
+		//with an explicit aria-label); the escape itself is what matters.
+		assert.ok(app.includes('Stop and discard the saved operation'));
+		assert.ok(app.includes('_stopRetryingSave'));
 		assert.ok(app.includes('abandonPendingBulkTagOperation'));
 		assert.ok(app.includes('await this._refreshDraftAvailability()'));
 	});

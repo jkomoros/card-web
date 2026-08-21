@@ -254,11 +254,15 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			return assertUnreachable(this._mode);
 		}
 		return html`<div class='${this._pending ? 'pending' : ''}'>
+			<!-- The bar spans BOTH phases (commit + arrival): pegging it at
+			     100% for the whole arrival trickle is exactly the reads-as-a-
+			     stall problem the panel exists to fix. A queued card never
+			     arrives inside the deadline, so the bar honestly ends short. -->
 			<div class='scrim' role='status' aria-live='polite' aria-busy=${this._pending}>
 				${this._pending && this._progress ? html`<progress-panel
 					heading='Creating ${this._progress.total} cards…'
-					.total=${this._progress.total}
-					.value=${this._progress.committed}
+					.total=${this._progress.total * 2}
+					.value=${this._progress.committed + this._progress.arrived}
 					countText='${this._progress.committed} of ${this._progress.total} created · ${this._progress.arrived} arrived in this tab'
 					.detailParagraphs=${[
 		'Each card counts as created once the server acknowledges its write; every card was durably saved in this browser BEFORE the first attempt, so closing this tab cannot lose them.',
@@ -266,8 +270,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	]}></progress-panel>` : ''}
 			</div>
 			${this._error ? html`<p class='error' role='alert'>${this._error}</p>` : ''}
-			${this._outcome ? this._renderOutcome(this._outcome) : ''}
-			${content}
+			${this._outcome ? this._renderOutcome(this._outcome) : content}
 		</div>`;
 	}
 

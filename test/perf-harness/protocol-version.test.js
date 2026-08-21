@@ -33,8 +33,13 @@ describe('corpus worker protocol compatibility', () => {
 		//sweep, for the status indicator's fetch-progress display); to 8 when
 		//`corpusProgress` gained optional verifyDone/verifyTotal checkpoint
 		//progress for the loadComplete→live verifying window (and the expected
-		//total began to be sent for snapshot primes too).
-		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 8);
+		//total began to be sent for snapshot primes too); to 9 when the worker
+		//gained the `collectionError` message (#739 — subscription failures
+		//surface in the drawer, and the generic 'error' console message for
+		//them was removed); to 10 when it gained the `urlDiagnostics`
+		//message (#757 — worker-side URL-parse diagnostics bridge to the
+		//main thread).
+		assert.strictEqual(CORPUS_WORKER_PROTOCOL_VERSION, 10);
 		assert.strictEqual(LEGACY_CORPUS_WORKER_PROTOCOL_VERSION, 0);
 		assert.strictEqual(corpusWorkerProtocolVersion(undefined), 0);
 		assert.strictEqual(corpusWorkerProtocolCompatible(undefined), false);

@@ -132,8 +132,12 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 			assert.equal(await serverBody(card.id), '<p>chunked</p>', `${card.id} must have been written`);
 		}
 		assert.equal(readRecord(), null, 'a completed operation must clear its durable record');
-		assert.ok(harnessAlerts.some(message => /12 cards modified/.test(message)),
-			`the user must be told what happened (got ${JSON.stringify(harnessAlerts)})`);
+		//The success report moved from alert() to the snack-bar (#758):
+		//transient, non-blocking, same words.
+		assert.ok(!harnessAlerts.some(message => /cards modified/.test(message)),
+			`success must not alert() any more (got ${JSON.stringify(harnessAlerts)})`);
+		assert.match(store.getState().app.snackbarMessage, /12 cards modified/,
+			'the user must be told what happened, via the snack-bar');
 	});
 
 	it('RESUMES from nextIndex and leaves the already-committed prefix alone', async () => {
