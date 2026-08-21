@@ -43,6 +43,7 @@ const INITIAL_STATE : AppState = {
 	pageExtra: '',
 	offline: false,
 	snackbarOpened: false,
+	snackbarMessage: '',
 	headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
 	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
@@ -79,7 +80,8 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 	case OPEN_SNACKBAR:
 		return {
 			...state,
-			snackbarOpened: true
+			snackbarOpened: true,
+			snackbarMessage: action.message
 		};
 	case CLOSE_SNACKBAR:
 		return {

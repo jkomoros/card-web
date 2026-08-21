@@ -81,6 +81,9 @@ class CardWebApp extends connect(store)(LitElement) {
 		_offline: boolean;
 
 	@state()
+		_snackbarMessage: string;
+
+	@state()
 		_updateRegistration : ServiceWorkerRegistration | null = null;
 
 	@state()
@@ -370,7 +373,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar .active="${this._snackbarOpened}">
-				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
+				${this._snackbarMessage || `You are now ${this._offline ? 'offline' : 'online'}.`}</snack-bar>
 		${this._updateRegistration || this._updateActivated ? html`
 			<div class='update-ready ${this._editorOpen ? 'editor-open' : ''}' role='status' aria-live='polite'>
 				<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
@@ -627,6 +630,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		this._page = state.app.page;
 		this._offline = state.app.offline;
 		this._snackbarOpened = state.app.snackbarOpened;
+		this._snackbarMessage = state.app.snackbarMessage;
 		const uid = selectUid(state);
 		if (uid !== this._lastDraftUid) {
 			this._lastDraftUid = uid;

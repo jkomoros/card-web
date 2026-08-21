@@ -41,9 +41,13 @@ import {
 
 import {
 	BulkImportDialogMode,
+	BulkImportOutcome,
+	BulkImportProgress,
 	CorpusStatus,
 	State,
 } from '../types.js';
+
+import './progress-panel.js';
 
 import {
 	assertUnreachable
@@ -65,6 +69,12 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_error : string;
+
+	@state()
+		_progress : BulkImportProgress | null;
+
+	@state()
+		_outcome : BulkImportOutcome | null;
 
 	
 	@state()
@@ -104,7 +114,38 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			}
 
 			.pending .scrim {
-				display:block;
+				display:flex;
+				align-items:center;
+				justify-content:center;
+				padding:1em;
+				box-sizing:border-box;
+			}
+
+			/* The calm outcome section (#758): queued means SAVED — nothing
+			   is lost — and must not read as an error. Only discarded may. */
+			.outcome {
+				margin: 0.5em 0 0 0;
+			}
+
+			.outcome p {
+				margin: 0.25em 0;
+			}
+
+			.outcome p.discarded {
+				color: var(--app-warning-color);
+			}
+
+			.outcome details {
+				font-size: 0.85em;
+				margin: 0.25em 0;
+			}
+
+			.outcome summary {
+				cursor: pointer;
+			}
+
+			.outcome li {
+				overflow-wrap: anywhere;
 			}
 
 			textarea {
@@ -213,9 +254,35 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			return assertUnreachable(this._mode);
 		}
 		return html`<div class='${this._pending ? 'pending' : ''}'>
-			<div class='scrim'></div>
+			<div class='scrim' role='status' aria-live='polite' aria-busy=${this._pending}>
+				${this._pending && this._progress ? html`<progress-panel
+					heading='Creating ${this._progress.total} cards…'
+					.total=${this._progress.total}
+					.value=${this._progress.committed}
+					countText='${this._progress.committed} of ${this._progress.total} created · ${this._progress.arrived} arrived in this tab'
+					.detailParagraphs=${[
+		'Each card counts as created once the server acknowledges its write; every card was durably saved in this browser BEFORE the first attempt, so closing this tab cannot lose them.',
+		'Cards then arrive back into this tab one at a time through card sync — that trickle is normal, not a stall.',
+	]}></progress-panel>` : ''}
+			</div>
 			${this._error ? html`<p class='error' role='alert'>${this._error}</p>` : ''}
+			${this._outcome ? this._renderOutcome(this._outcome) : ''}
 			${content}
+		</div>`;
+	}
+
+	//The three states by their real names (#758): created (here), queued
+	//(saved, will finish on its own — CALM), discarded (the only error).
+	private _renderOutcome(outcome : BulkImportOutcome) {
+		return html`<div class='outcome' role='status'>
+			${outcome.createdCount ? html`<p><strong>${outcome.createdCount}</strong> ${outcome.createdCount === 1 ? 'card' : 'cards'} created and selected.</p>` : ''}
+			${outcome.queuedCount ? html`
+				<p><strong>${outcome.queuedCount}</strong> ${outcome.queuedCount === 1 ? 'card is' : 'cards are'} saved and will be created automatically when the connection recovers. Nothing is lost.</p>
+				${outcome.queuedBodies.length ? html`<details><summary>Waiting on the connection</summary><ul>${outcome.queuedBodies.map(body => html`<li>${body}</li>`)}</ul></details>` : ''}` : ''}
+			${outcome.unarrivedCount ? html`<p><strong>${outcome.unarrivedCount}</strong> ${outcome.unarrivedCount === 1 ? 'card was' : 'cards were'} created but ${outcome.unarrivedCount === 1 ? 'has' : 'have'} not synced back to this tab yet, so ${outcome.unarrivedCount === 1 ? 'it is' : 'they are'} not selected. ${outcome.unarrivedCount === 1 ? 'It is' : 'They are'} safe on the server and should appear shortly.</p>` : ''}
+			${outcome.discardedCount ? html`
+				<p class='discarded' role='alert'><strong>${outcome.discardedCount}</strong> ${outcome.discardedCount === 1 ? 'card' : 'cards'} could not be saved and will not retry.</p>
+				${outcome.discardedBodies.length ? html`<details><summary>Not saved</summary><ul>${outcome.discardedBodies.map(body => html`<li>${body}</li>`)}</ul></details>` : ''}` : ''}
 		</div>`;
 	}
 
@@ -252,6 +319,8 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this._bodies = selectBulkImportDialogBodies(state);
 		this._pending = selectBulkImportPending(state);
 		this._error = state.bulkImport?.error || '';
+		this._progress = state.bulkImport?.progress || null;
+		this._outcome = state.bulkImport?.outcome || null;
 		this._mode = selectBulKimportDialogMode(state);
 		this._exportContent = selectBulkImportDialogExportContent(state);
 		this._aiEnabled = selectUserMayUseAI(state);

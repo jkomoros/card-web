@@ -495,13 +495,18 @@ export const updateHoveredCard = (x : number,y : number,cardId : CardID) : Thunk
 
 let snackbarTimer : number;
 
-export const showSnackbar = () : ThunkSomeAction => (dispatch) => {
+//message '' renders the legacy offline/online notice; anything else renders
+//verbatim. Transient outcome reports ("32 cards modified.") live here now
+//instead of alert() (#758) — the snack-bar existed for exactly this and was
+//used once, ever.
+export const showSnackbar = (message = '', durationMs = 3000) : ThunkSomeAction => (dispatch) => {
 	dispatch({
-		type: OPEN_SNACKBAR
+		type: OPEN_SNACKBAR,
+		message
 	});
 	window.clearTimeout(snackbarTimer);
 	snackbarTimer = window.setTimeout(() =>
-		dispatch({ type: CLOSE_SNACKBAR }), 3000);
+		dispatch({ type: CLOSE_SNACKBAR }), durationMs);
 };
 
 export const updateOffline = (offline : boolean) : ThunkSomeAction => (dispatch, getState) => {

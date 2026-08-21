@@ -53,7 +53,8 @@ import {
 import {
 	navigateToCardInCurrentCollection,
 	navigateToCollection,
-	navigateToNextCard
+	navigateToNextCard,
+	showSnackbar
 } from './app.js';
 
 import {
@@ -286,6 +287,8 @@ import {
 	ENQUEUE_CARD_UPDATES,
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_FAILURE,
+	BULK_IMPORT_PROGRESS,
+	BULK_IMPORT_OUTCOME,
 	BULK_IMPORT_SUCCESS,
 	CLEAR_ENQUEUED_CARD_UPDATES,
 	ECHO_LOCAL_CARD_MODIFICATIONS,
@@ -750,7 +753,10 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 
 		clearBulkTagOperation();
 		const total = operation.targetIDs.length - bulkSkippedCount;
-		if (total > 1 || bulkSkippedCount) alert(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`);
+		//Transient success belongs in the snack-bar, not a blocking modal
+		//(#758): the dialog has closed, the work is done, and there is
+		//nothing to decide.
+		if (total > 1 || bulkSkippedCount) dispatch(showSnackbar(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`, 5000));
 		dispatch(modifyCardSuccess(total));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));
@@ -1310,7 +1316,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		if (operation.targetIDs.length > 1) {
 			const skipped = operation.skippedCount || 0;
 			const matched = operation.targetIDs.length - operation.modifiedCount - skipped;
-			alert(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`);
+			dispatch(showSnackbar(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`, 5000));
 		}
 		dispatch(modifyCardSuccess(operation.modifiedCount));
 	} catch (err) {
@@ -1630,7 +1636,10 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		return;
 	}
 
-	if (modifiedCount > 1 || errorCount > 0) alert(`${modifiedCount} cards modified.${errorCount > 0 ? ` ${errorCount} cards errored. See the console for details.` : ''}`);
+	//Success is transient (snack-bar); errors still demand attention and
+	//keep the modal until #758's remaining work gives them a real surface.
+	if (errorCount > 0) alert(`${modifiedCount} cards modified. ${errorCount} cards errored. See the console for details.`);
+	else if (modifiedCount > 1) dispatch(showSnackbar(`${modifiedCount} cards modified.`, 5000));
 
 	dispatch(modifyCardSuccess(modifiedCount));
 };
@@ -2257,6 +2266,13 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 //is already queued.
 const MAX_BULK_IMPORT_CARDS = 200;
 
+//Imported bodies have no titles yet, so outcome reports identify them by a
+//text snippet (#758).
+const bodySnippet = (body : string) : string => {
+	const text = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	return text.length > 80 ? text.slice(0, 77) + '…' : text;
+};
+
 export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : ThunkSomeAction => async (dispatch, getState) => {
 
 	//Creation is durable now (a card-create intent per card), but the gate stays:
@@ -2292,6 +2308,14 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	dispatch({
 		type: BULK_IMPORT_PENDING
 	});
+	//The two phases the code has always had but never named (#758): commit
+	//(write acked by the durable queue) and arrival (card echoed back into
+	//THIS tab). The one-per-second trickle is arrival, and it is not
+	//misbehavior; naming it stops it reading as a stall.
+	let committedCount = 0;
+	let arrivedCount = 0;
+	const reportProgress = () => dispatch({type: BULK_IMPORT_PROGRESS, progress: {total: bodies.length, committed: committedCount, arrived: arrivedCount}});
+	reportProgress();
 
 	const ids : CardID[] = [];
 	//One durable intent per card rather than one batch for all of them. A bulk
@@ -2376,7 +2400,11 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		//commits. Serializing them turned a single batched import into N round
 		//trips — minutes for a large paste — and persisting them one at a time
 		//meant a stall on the first card lost every card after it.
-		outcomes = await runDurableAuxWrites(intents);
+		outcomes = await runDurableAuxWrites(intents, undefined, (_index, outcome) => {
+			if (outcome !== 'committed') return;
+			committedCount++;
+			reportProgress();
+		});
 	} catch (err) {
 		dispatch({type: BULK_IMPORT_FAILURE, error: err instanceof Error ? err.message : String(err)});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
@@ -2409,7 +2437,18 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		//trustworthy in that direction (recordFailure makes the same
 		//"merely offline" distinction); when it is true-but-wrong we simply
 		//take the bounded wait, which is the safe default.
-		dispatch({type: BULK_IMPORT_FAILURE, error: 'Some cards could not be created yet. They are saved and will be created automatically when the connection recovers.'});
+		//A calm OUTCOME, not a red failure (#758): nothing is lost — every
+		//card is durably queued and replays when the connection recovers.
+		//Leading with a failure verb here is what made a healthy offline
+		//import read as data loss.
+		dispatch({type: BULK_IMPORT_OUTCOME, outcome: {
+			createdCount: 0,
+			queuedCount: candidateIDs.length,
+			discardedCount: outcomes.filter(outcome => outcome === 'discarded').length,
+			unarrivedCount: 0,
+			queuedBodies: bodies.filter((_, index) => outcomes[index] !== 'discarded').map(bodySnippet),
+			discardedBodies: bodies.filter((_, index) => outcomes[index] === 'discarded').map(bodySnippet),
+		}});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
@@ -2433,7 +2472,11 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//(measured: 60.5s with a single card withheld). A card that lands after the
 	//deadline is not lost — it is in the corpus, just not in this selection, and
 	//the user is told below.
-	const arrivals = await Promise.allSettled(candidateIDs.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS)));
+	const arrivals = await Promise.allSettled(candidateIDs.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS).then(card => {
+		arrivedCount++;
+		reportProgress();
+		return card;
+	})));
 	const arrivedIDs = candidateIDs.filter((_, index) => arrivals[index].status === 'fulfilled');
 	const missingIDs = new Set(candidateIDs.filter((_, index) => arrivals[index].status !== 'fulfilled'));
 	//The two ways a card can be missing get different advice. A card whose
@@ -2444,33 +2487,55 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	const missingCommitted = missingIDs.size - missingQueued;
 	if (!arrivedIDs.length) {
 		//Nothing came back at all. Clear the expectation latch too, as every
-		//sibling failure path here does.
+		//sibling failure path here does. When every missing card is merely
+		//QUEUED this is the offline story told calmly (#758); a card that
+		//COMMITTED and still did not arrive is the one genuinely alarming
+		//case, and keeps the error surface with the real reason.
+		if (!missingCommitted) {
+			dispatch({type: BULK_IMPORT_OUTCOME, outcome: {
+				createdCount: 0,
+				queuedCount: missingQueued,
+				discardedCount: outcomes.filter(outcome => outcome === 'discarded').length,
+				unarrivedCount: 0,
+				queuedBodies: bodies.filter((_, index) => missingIDs.has(ids[index]) && outcomes[index] === 'queued').map(bodySnippet),
+				discardedBodies: bodies.filter((_, index) => outcomes[index] === 'discarded').map(bodySnippet),
+			}});
+			dispatch({type: EXPECTED_NEW_CARD_FAILED});
+			return;
+		}
 		const firstRejection = arrivals.find(arrival => arrival.status === 'rejected');
 		const reason = firstRejection && firstRejection.status === 'rejected' ? firstRejection.reason : null;
-		const error = missingCommitted && reason instanceof Error
+		const error = reason instanceof Error
 			? reason.message
 			: 'Some cards could not be created yet. They are saved and will be created automatically when the connection recovers.';
 		dispatch({type: BULK_IMPORT_FAILURE, error});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
-	if (missingIDs.size) {
-		//Select what we have (so the multi-edit it is about to offer covers
-		//exactly what it says) and tell the user about the rest rather than
-		//silently selecting IDs that will never resolve.
-		console.warn(`${missingIDs.size} of ${candidateIDs.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms (${missingQueued} still queued for replay)`);
-		const messages : string[] = [];
-		if (missingQueued) messages.push(`${missingQueued} of ${ids.length} cards could not be created right now. They have been saved and will be created automatically when the connection recovers.`);
-		if (missingCommitted) messages.push(`${missingCommitted} of ${ids.length} imported cards were created but have not synced back to this tab yet, so they are not selected. They are safe on the server; they should appear shortly, or after a reload.`);
-		if (typeof window !== 'undefined') window.setTimeout(() => alert(messages.join('\n\n')), 0);
-	}
-
 	dispatch(clearSelectedCards());
 	dispatch(doSelectCards(arrivedIDs));
 
-	dispatch({
-		type: BULK_IMPORT_SUCCESS
-	});
+	const discardedCount = outcomes.filter(outcome => outcome === 'discarded').length;
+	if (missingIDs.size || discardedCount) {
+		//Something to say: report it IN the dialog, which stays open until
+		//the user closes it (#758) — instead of an alert() that could name
+		//no cards, arriving over a selection that had already silently
+		//narrowed. The arrived cards are selected above either way, so the
+		//multi-edit the dialog offers covers exactly what it says.
+		console.warn(`${missingIDs.size} of ${candidateIDs.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms (${missingQueued} still queued for replay)`);
+		dispatch({type: BULK_IMPORT_OUTCOME, outcome: {
+			createdCount: arrivedIDs.length,
+			queuedCount: missingQueued,
+			discardedCount,
+			unarrivedCount: missingCommitted,
+			queuedBodies: bodies.filter((_, index) => missingIDs.has(ids[index]) && outcomes[index] === 'queued').map(bodySnippet),
+			discardedBodies: bodies.filter((_, index) => outcomes[index] === 'discarded').map(bodySnippet),
+		}});
+	} else {
+		dispatch({
+			type: BULK_IMPORT_SUCCESS
+		});
+	}
 
 	const selectedCards = collectionDescription(SELECTED_FILTER_NAME);
 	dispatch(navigateToCollection(selectedCards));
@@ -2809,7 +2874,10 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	if (outcome !== 'committed') {
 		if (outcome === 'queued') {
 			console.warn(`Card ${id} could not be created right now; it is queued and will be created automatically when the connection recovers.`);
-			if (typeof window !== 'undefined') window.setTimeout(() => alert('That card could not be created right now. It has been saved and will be created automatically when the connection recovers.'), 0);
+			//Calm phrasing for a recoverable state (#758): the card is
+			//durably saved and replays on its own — a blocking modal that
+			//led with "could not be created" read as loss.
+			dispatch(showSnackbar('That card is saved and will be created automatically when the connection recovers. Nothing is lost.', 8000));
 		}
 		//The 'discarded' case already alerted from inside the queue.
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
@@ -3108,7 +3176,7 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		//The deletion is SAVED and will apply — but the UI already navigated
 		//away, so without this the card silently reappears on the next load
 		//with no explanation.
-		if (typeof window !== 'undefined') window.setTimeout(() => alert('That card could not be deleted right now. The deletion has been saved and will apply automatically when the connection recovers.'), 0);
+		dispatch(showSnackbar('The deletion is saved and will apply automatically when the connection recovers.', 8000));
 	}
 	if (outcome !== 'committed') {
 		//Stop expecting the removal until the queue actually lands it.

@@ -730,6 +730,8 @@ export type AppState = {
 	pageExtra: string,
 	offline: boolean,
 	snackbarOpened: boolean,
+	//Empty renders the legacy offline/online notice (#758).
+	snackbarMessage: string,
 	headerPanelOpen: boolean,
 	commentsAndInfoPanelOpen: boolean,
 	cardsDrawerPanelOpen: boolean,
@@ -1238,11 +1240,42 @@ export type BulkImportState = {
 	//could name no cards and could not be styled or dismissed gracefully.
 	//Empty when the last operation did not fail.
 	error: string,
+	//Live progress of a running import (#758): the two phases the code has
+	//always had but never named. committed counts write acknowledgements
+	//from the durable queue; arrived counts cards echoed back into THIS
+	//tab (the one-per-second trickle, which is arrival and not
+	//misbehavior). Null when no import is running.
+	progress: BulkImportProgress | null,
+	//The report of an import that finished with something to say: queued
+	//and discarded counts with the affected bodies. The dialog STAYS OPEN
+	//to show it (clean success closes as before); cleared when the dialog
+	//closes or the next attempt starts. Null otherwise.
+	outcome: BulkImportOutcome | null,
 	bodies: string[],
 	//If provided, will use this order, not the implicit order of the collection.
 	overrideCardOrder: CardID[] | null,
 	importer: ImporterType | '',
 	importerVersion: number
+};
+
+export type BulkImportProgress = {
+	total : number,
+	committed : number,
+	arrived : number,
+};
+
+//The three-valued truth of AuxWriteOutcome, aggregated for the user (#758).
+//Only discarded is bad news; queued is calm ("saved, will finish when the
+//connection recovers — nothing is lost"), and unarrived is committed-but-
+//late ("safe on the server, just not in this tab yet").
+export type BulkImportOutcome = {
+	createdCount : number,
+	queuedCount : number,
+	discardedCount : number,
+	unarrivedCount : number,
+	//Body snippets for the affected cards (imports have no titles).
+	queuedBodies : string[],
+	discardedBodies : string[],
 };
 
 export type PermissionsState = {

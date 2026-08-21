@@ -6,7 +6,9 @@ import {
 	BULK_IMPORT_SUCCESS,
 	BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 	SomeAction,
-	BULK_IMPORT_FAILURE
+	BULK_IMPORT_FAILURE,
+	BULK_IMPORT_PROGRESS,
+	BULK_IMPORT_OUTCOME
 } from '../actions.js';
 
 import {
@@ -18,6 +20,8 @@ const INITIAL_STATE : BulkImportState = {
 	mode: 'import',
 	pending: false,
 	error: '',
+	progress: null,
+	outcome: null,
 	overrideCardOrder: null,
 	bodies: [],
 	importer: '',
@@ -38,7 +42,9 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 			//user can otherwise lose: a late failure dispatched AFTER an
 			//impatient close-while-pending lands post-clear and still shows
 			//on the next open.
-			error: ''
+			error: '',
+			outcome: null,
+			progress: null
 		};
 	case BULK_IMPORT_DIALOG_OPEN:
 		return {
@@ -55,11 +61,30 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			pending: true,
-			error: ''
+			error: '',
+			outcome: null,
+			progress: null
+		};
+	case BULK_IMPORT_PROGRESS:
+		return {
+			...state,
+			progress: action.progress
+		};
+	case BULK_IMPORT_OUTCOME:
+		//The import finished with something to say: the dialog STAYS OPEN
+		//(#758) so the report lives in the surface that produced it, with
+		//calm phrasing for queued and error phrasing only for discarded —
+		//instead of an alert() that could name no cards.
+		return {
+			...state,
+			pending: false,
+			progress: null,
+			outcome: action.outcome
 		};
 	case BULK_IMPORT_SUCCESS:
 		return {
 			...state,
+			progress: null,
 			pending: false,
 			open: false
 		};

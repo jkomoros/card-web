@@ -59,6 +59,8 @@ import {
 	WorkerCollectionResult,
 	WorkerCollectionSlot,
 	WorkerCollectionError,
+	BulkImportProgress,
+	BulkImportOutcome,
 } from './types.js';
 
 import {
@@ -108,6 +110,8 @@ export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
 export const BULK_IMPORT_PENDING = 'BULK_IMPORT_DIALOG_PENDING';
 export const BULK_IMPORT_SUCCESS = 'BULK_IMPORT_SUCCESS';
 export const BULK_IMPORT_FAILURE = 'BULK_IMPORT_FAILURE';
+export const BULK_IMPORT_PROGRESS = 'BULK_IMPORT_PROGRESS';
+export const BULK_IMPORT_OUTCOME = 'BULK_IMPORT_OUTCOME';
 export const BULK_IMPORT_DIALOG_CLOSE = 'BULK_IMPORT_DIAOG_CLOSE';
 export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
 export const BULK_IMPORT_SET_OVERRIDE_CARD_ORDER = 'BULK_IMPORT_SET_OVERRIDE_CARD_ORDER';
@@ -323,7 +327,10 @@ type ActionUpdateOffline = {
 };
 
 type ActionOpenSnackbar = {
-	type: typeof OPEN_SNACKBAR
+	type: typeof OPEN_SNACKBAR,
+	//Empty means the legacy offline/online notice; anything else renders
+	//verbatim (#758 — transient success reports moved here from alert()).
+	message: string
 };
 
 type ActionCloseSnackbar = {
@@ -429,6 +436,16 @@ type ActionBulkImportDialogSetOverrideCardOrder = {
 type ActionBulkImportFailure = {
 	type: typeof BULK_IMPORT_FAILURE,
 	error: string
+};
+
+type ActionBulkImportProgress = {
+	type: typeof BULK_IMPORT_PROGRESS,
+	progress: BulkImportProgress
+};
+
+type ActionBulkImportOutcome = {
+	type: typeof BULK_IMPORT_OUTCOME,
+	outcome: BulkImportOutcome
 };
 
 type ActionBulkImportSuccees = {
@@ -1318,6 +1335,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportPending
 	| ActionBulkImportSuccees
 	| ActionBulkImportFailure
+	| ActionBulkImportProgress
+	| ActionBulkImportOutcome
 	| ActionBulkImportDialogClose
 	| ActionBulkImportSetBodies
 	| ActionBulkImportDialogSetOverrideCardOrder

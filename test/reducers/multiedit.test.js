@@ -73,6 +73,41 @@ describe('bulk import failure reporting (#758 slice)', () => {
 		assert.strictEqual(state.error, '');
 	});
 
+	it('progress tracks the two phases and clears on every terminal transition (#758)', () => {
+		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PROGRESS, progress: {total: 32, committed: 8, arrived: 3}});
+		assert.deepStrictEqual(state.progress, {total: 32, committed: 8, arrived: 3});
+		//Success closes and clears.
+		let done = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_SUCCESS});
+		assert.strictEqual(done.progress, null);
+		assert.strictEqual(done.open, false);
+		//Failure clears progress but stays open.
+		done = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'boom'});
+		assert.strictEqual(done.pending, false);
+		assert.strictEqual(done.open, true);
+	});
+
+	it('an outcome keeps the dialog open and clears on close or retry (#758)', () => {
+		const outcome = {createdCount: 24, queuedCount: 5, discardedCount: 0, unarrivedCount: 3, queuedBodies: ['a body'], discardedBodies: []};
+		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PROGRESS, progress: {total: 32, committed: 32, arrived: 24}});
+		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_OUTCOME, outcome});
+		//The whole point (#758): the report lives in the surface that
+		//produced it, so the dialog must NOT close when there is something
+		//to say.
+		assert.strictEqual(state.open, true);
+		assert.strictEqual(state.pending, false);
+		assert.strictEqual(state.progress, null);
+		assert.strictEqual(state.outcome, outcome);
+		//A new attempt clears the stale report…
+		assert.strictEqual(bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING}).outcome, null);
+		//…and closing acknowledges it, like the error field.
+		const closed = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_CLOSE});
+		assert.strictEqual(closed.outcome, null);
+	});
+
 	it('closing the dialog acknowledges the failure; a post-close failure still shows next time', () => {
 		//The review of 9484c181 caught the retention bug: a Monday import
 		//failure greeted Thursday's EXPORT dialog in warning red. Closing

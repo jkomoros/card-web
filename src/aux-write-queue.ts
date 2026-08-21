@@ -965,7 +965,11 @@ const attemptPersistedIntent = (intent : AuxWriteIntent) : Promise<AuxWriteOutco
 //
 //One storage write rather than N read-modify-writes also keeps the persist step
 //from being O(N^2) in bytes for a large import.
-export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrency = 8) : Promise<AuxWriteOutcome[]> => {
+//onOutcome, when provided, is called as each intent's RACED outcome lands
+//(the same value that ends up in the returned array before the correction
+//pass) — callers drive live progress from it (#758). It is advisory only:
+//the returned array remains the authoritative record.
+export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrency = 8, onOutcome? : (index : number, outcome : AuxWriteOutcome) => void) : Promise<AuxWriteOutcome[]> => {
 	if (!intents.length) return [];
 	for (const intent of intents) {
 		if (!executors[intent.kind]) throw new Error(`No executor for aux write kind ${intent.kind}`);
@@ -1026,6 +1030,7 @@ export const runDurableAuxWrites = async (intents : AuxWriteIntent[], concurrenc
 				outcome => { settledOutcomes[index] = outcome; },
 				() => { /* rejection already surfaced through the race */ });
 			outcomes[index] = await raced.finally(() => releaseClaim(intents[index].id));
+			if (onOutcome) onOutcome(index, outcomes[index]);
 		}
 	};
 	await Promise.all(Array.from({length: Math.min(concurrency, intents.length)}, () => runner()));

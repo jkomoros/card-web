@@ -417,6 +417,26 @@ describe('aux write queue', () => {
 		globalThis.localStorage.setItem = realSet;
 	});
 
+	it('reports each outcome through onOutcome as it lands (#758 progress)', async () => {
+		queue.registerAuxWriteExecutor('card-create', async () => {
+			await new Promise(resolve => setTimeout(resolve, 1));
+		});
+		const payload = i => ({kind: 'card-create', card: {id: 'p' + i}, section: '', sectionUpdateKey: ''});
+		const intents = [0, 1, 2, 3].map(i => queue.makeAuxWriteIntent('u1', 'card-create', 'p' + i, '', payload(i)));
+		const reported = [];
+		const outcomes = await queue.runDurableAuxWrites(intents, 2, (index, outcome) => reported.push([index, outcome]));
+		//Advisory progress: one report per intent, matching the returned
+		//array (before the correction pass — for committed outcomes they
+		//are identical).
+		assert.equal(reported.length, 4);
+		assert.deepEqual(reported.map(entry => entry[1]), ['committed', 'committed', 'committed', 'committed']);
+		assert.deepEqual([...reported.map(entry => entry[0])].sort(), [0, 1, 2, 3]);
+		assert.deepEqual(outcomes, ['committed', 'committed', 'committed', 'committed']);
+		//And omitting it stays legal.
+		const more = [4, 5].map(i => queue.makeAuxWriteIntent('u1', 'card-create', 'p' + i, '', payload(i)));
+		assert.deepEqual(await queue.runDurableAuxWrites(more, 2), ['committed', 'committed']);
+	});
+
 	it('persists a whole group before attempting any of it', async () => {
 		let attempted = 0;
 		let seenAtFirstAttempt = -1;
