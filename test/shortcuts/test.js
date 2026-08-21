@@ -307,9 +307,17 @@ describe('shortcut layer (#740 stage 1)', () => {
 			const fs2 = fs;
 			for (const file of ['main-view.ts', 'card-view.ts', 'card-editor.ts', 'dialog-element.ts']) {
 				const source = fs2.readFileSync(path.join(new URL('../../src/components/', import.meta.url).pathname, file), 'utf8');
-				assert.ok(!/keys: \{key:/.test(source),
-					`${file} must reference SHORTCUT_COMBOS, not inline combos`);
+				assert.ok(!/keys:\s*\[?\s*\{\s*key:/.test(source),
+					`${file} must reference SHORTCUT_COMBOS, not inline combos (array forms included)`);
 			}
+		});
+
+		it('tabs.ts derives the random-card suffix from the table', () => {
+			//The notation pins prove nothing is HARDCODED; this proves the
+			//suffix was not simply deleted (review N4).
+			const source = fs.readFileSync(path.join(new URL('../../src/', import.meta.url).pathname, 'tabs.ts'), 'utf8');
+			assert.ok(source.includes("${shortcutKeys('random-card')}"),
+				'the random tab must advertise its shortcut via the table');
 		});
 
 		it('no migrated display string hardcodes a combo notation', () => {
@@ -319,7 +327,7 @@ describe('shortcut layer (#740 stage 1)', () => {
 			const files = ['components/card-view.ts', 'components/card-drawer.ts', 'components/card-editor.ts', 'tabs.ts'];
 			for (const file of files) {
 				const source = fs.readFileSync(path.join(new URL('../../src/', import.meta.url).pathname, file), 'utf8');
-				assert.ok(!/⌘|Cmd-[A-Z0-9]|Ctrl-[A-Z0-9]/.test(source.replace(/\/\/[^\n]*/g, '')),
+				assert.ok(!/⌘|⌥|⇧|\b(cmd|ctrl|command|control|option)[-+][a-z0-9]\b/i.test(source.replace(/\/\/[^\n]*/g, '')),
 					`${file} must derive shortcut text from shortcutKeys, not hardcode it`);
 			}
 		});

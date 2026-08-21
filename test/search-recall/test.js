@@ -147,11 +147,14 @@ describe('card-editor keyboard bindings (#729)', () => {
 		//stage 2 every combo lives in ONE canonical table, so this pin
 		//audits the DATA rather than any handler's source shapes.
 		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
-		const shifted = Object.values(SHORTCUT_COMBOS).flat().filter(combo => combo.mod && combo.shift && combo.key.length === 1);
-		assert.ok(shifted.length > 0, 'expected at least one shifted binding to exist');
-		for (const combo of shifted) {
+		//BOTH DevTools spellings: Shift variants (Windows/Linux) AND Alt
+		//variants (macOS Cmd-Alt-I/J/C) — the stage-2 review caught the
+		//first version auditing only Shift.
+		const modified = Object.values(SHORTCUT_COMBOS).flat().filter(combo => combo.mod && (combo.shift || combo.alt) && combo.key.length === 1);
+		assert.ok(modified.length > 0, 'expected at least one modified letter binding to exist');
+		for (const combo of modified) {
 			assert.ok(!['c', 'i', 'j'].includes(combo.key.toLowerCase()),
-				`Cmd/Ctrl-Shift-${combo.key.toUpperCase()} is a DevTools key and must never be bound`);
+				`a mod+${combo.shift ? 'Shift' : 'Alt'}+${combo.key.toUpperCase()} combo is a DevTools key and must never be bound`);
 		}
 	});
 

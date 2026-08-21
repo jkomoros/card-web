@@ -111,6 +111,12 @@ export type {ShortcutID} from './shortcuts-data.js';
 const RESERVED_COMBOS : ShortcutCombo[] = [
 	{key: 'c', mod: true, shift: true},
 	{key: 'i', mod: true, shift: true},
+	//The macOS spellings of the same DevTools keys (Cmd-Alt-I/J/C): the
+	//stage-2 review caught the denylist covering only the Shift variants.
+	{key: 'c', mod: true, alt: true},
+	{key: 'i', mod: true, alt: true},
+	{key: 'j', mod: true, alt: true},
+	{key: 'j', mod: true, shift: true},
 ];
 
 const comboKey = (combo : ShortcutCombo) : string =>
