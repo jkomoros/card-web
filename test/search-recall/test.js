@@ -140,13 +140,15 @@ describe('card-editor keyboard bindings (#729)', () => {
 	const read = (path) => fs.readFileSync(new URL('../../' + path, import.meta.url), 'utf8');
 
 	it('never binds a DevTools or inspect-element combination', () => {
+		//0ed8dc69 removed Cmd/Ctrl-Shift-C and -I precisely because Chrome
+		//acts on them AND delivers the keydown to the page. Since #740 the
+		//decision is enforced STRUCTURALLY — the shortcut registry THROWS at
+		//registration for the reserved combos (see test/shortcuts) — so this
+		//pin now checks the declared combos rather than a hand-rolled
+		//handler's branch shapes.
 		const editor = read('src/components/card-editor.ts');
-		//0ed8dc69 removed Cmd/Ctrl-Shift-C and -I precisely because Chrome acts
-		//on them AND delivers the keydown to the page. This handler treats meta
-		//and ctrl interchangeably, so neither spelling is safe on either
-		//platform. Nothing currently guards that decision; this does.
-		const shiftBranch = /e\.shiftKey\s*&&\s*e\.key\.toLowerCase\(\)\s*==\s*'([a-z])'/g;
-		const bound = [...editor.matchAll(shiftBranch)].map(m => m[1]);
+		const declared = /keys: \{key: '([a-z0-9])', mod: true, shift: true\}/g;
+		const bound = [...editor.matchAll(declared)].map(m => m[1]);
 		assert.ok(bound.length > 0, 'expected at least one shifted binding to exist');
 		for (const letter of bound) {
 			assert.ok(!['c', 'i', 'j'].includes(letter),
@@ -154,12 +156,18 @@ describe('card-editor keyboard bindings (#729)', () => {
 		}
 	});
 
-	it('binds accept-all-suggested-concepts to Shift-K and kills the event', () => {
+	it('binds accept-all-suggested-concepts to Shift-K', () => {
+		//Shift is a DECLARED FIELD in the registry's combo matching (letters
+		//compare case-insensitively), which is what makes a Shift+letter
+		//binding matchable at all — the original hand-rolled version was
+		//dead for its whole life because Shift uppercases e.key. Uniform
+		//consumption (preventDefault + stopPropagation) is the registry's
+		//discipline, pinned in test/shortcuts.
 		const editor = read('src/components/card-editor.ts');
-		assert.match(editor, /e\.shiftKey\s*&&\s*e\.key\.toLowerCase\(\)\s*==\s*'k'/,
-			'the binding must match on e.key case-insensitively — Shift uppercases it, which is why the original never fired');
-		assert.match(editor, /this\._handleAddAllConceptsClicked\(\);\s*\n\s*return killEvent\(e\);/,
-			'it must preventDefault, which the removed binding never did');
+		assert.match(editor, /id: 'accept-suggested-concepts',\s*\n[\s\S]{0,600}keys: \{key: 'k', mod: true, shift: true\}/,
+			'the binding must be declared on the registry with shift as a field');
+		assert.match(editor, /this\._handleAddAllConceptsClicked\(\);/,
+			'and must route to the same handler as the buttons');
 	});
 
 	it('does not blanket-swallow every other shifted key', () => {
