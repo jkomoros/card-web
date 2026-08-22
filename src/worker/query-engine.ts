@@ -550,6 +550,14 @@ export class QueryEngine {
 		}
 		const args = {
 			cards: processed,
+			//The engine mutates its cards map in place and serves ONE stable
+			//proxy for its whole life, so content-sensitive memos must key on
+			//this counter, never on the cards identity (#769 review: the
+			//identity-keyed version served stale inverse-union results — a
+			//newly-synced prioritized unpublished card was invisible to the
+			//default sticky search filter until an unrelated membership
+			//changed).
+			cardsContentToken: this._cardsVersion,
 			sets,
 			filters: this._filters(),
 			sections: this._sections,

@@ -699,48 +699,77 @@ export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFil
 //SAME object on a hit also stabilizes result identity, which downstream
 //identity-keyed memos (the extras memo) were measured busting on.
 type UnionSetMemoEntry = {
-	sources : (FilterMap | CardIDMap | undefined)[],
+	sources : unknown[],
 	result : FilterMap,
 };
 
-const unionSetMemo = new Map<UnionFilterName, UnionSetMemoEntry>();
+//Weakly keyed on the FIRST resolvable member's membership map, the #749
+//pattern (and the one this codebase's lib target supports — no WeakRef):
+//when a corpus is dropped, its filter membership maps go unreferenced and
+//every entry hanging off them — including the corpus-sized result and the
+//cards token — is collected with them. This memo's first version held all
+//of that STRONGLY in a module Map, reintroducing exactly the retention
+//class #749 fixed; its adversarial review measured the pin by execution.
+//While the key map is alive its sibling sources are alive anyway (they are
+//maps of the same filters state), so nothing outlives its corpus.
+const unionSetMemo = new WeakMap<object, Map<UnionFilterName, UnionSetMemoEntry>>();
 
 //Distinct union names come from URLs and the sticky search expression — a
-//handful in practice — but cap the map so a hostile/pathological URL stream
-//cannot grow it without bound. Insertion-order eviction, like the
-//configurable-filter memo's cap.
+//handful in practice — but cap each corpus's inner map so a pathological
+//URL stream cannot grow it without bound. LRU: a hit refreshes recency
+//(delete+set), matching the configurable-filter memo, whose sizing note
+//records that LRU measured strictly better than FIFO.
 const UNION_SET_MEMO_MAX_ENTRIES = 32;
 
-const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMemberships : Filters, cards : CardIDMap) : FilterMap => {
+const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMemberships : Filters, cards : CardIDMap, cardsContentToken : unknown) : FilterMap => {
 	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
 	//The identity sources, in member order: the membership map for a normal
-	//member, the membership map of the INVERSE for an inverse member. Cards
-	//identity is appended only when an inverse member makes the result
-	//depend on it, so unions of normal filters don't recompute on unrelated
-	//card churn.
-	const sources : (FilterMap | CardIDMap | undefined)[] = subFilterNames.map(filterName => {
+	//member, the membership map of the INVERSE for an inverse member. The
+	//cards CONTENT TOKEN — never the cards identity, which the worker keeps
+	//stable while mutating contents in place (#769 review: identity-keying
+	//made newly-synced prioritized unpublished cards invisible to the
+	//default sticky filter) — is appended only when an inverse member makes
+	//the result depend on the full card set, so unions of normal filters
+	//don't recompute on unrelated card churn.
+	const sources : unknown[] = subFilterNames.map(filterName => {
 		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
 		if (INVERSE_FILTER_NAMES[filterName]) return filterSetMemberships[INVERSE_FILTER_NAMES[filterName]];
 		return undefined;
 	});
 	if (subFilterNames.some(filterName => !filterSetMemberships[filterName] && INVERSE_FILTER_NAMES[filterName])) {
-		sources.push(cards);
+		sources.push(cardsContentToken);
 	}
-	const memoized = unionSetMemo.get(unionFilterDefinition);
+	const compute = () : FilterMap => {
+		const subFilters = subFilterNames.map(filterName => {
+			if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
+			if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], cards);
+			return {};
+		});
+		return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+	};
+	const weakKey = sources.find(source => typeof source === 'object' && source !== null);
+	//No resolvable member: the result is {} (or the inverse of everything
+	//with no anchor) and there is nothing safe to key on — just compute.
+	if (!weakKey) return compute();
+	let byName = unionSetMemo.get(weakKey as object);
+	if (!byName) {
+		byName = new Map();
+		unionSetMemo.set(weakKey as object, byName);
+	}
+	const memoized = byName.get(unionFilterDefinition);
 	if (memoized && memoized.sources.length === sources.length && memoized.sources.every((source, index) => source === sources[index])) {
+		//LRU refresh.
+		byName.delete(unionFilterDefinition);
+		byName.set(unionFilterDefinition, memoized);
 		return memoized.result;
 	}
-	const subFilters = subFilterNames.map(filterName => {
-		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
-		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], cards);
-		return {};
-	});
-	const result = Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
-	if (!unionSetMemo.has(unionFilterDefinition) && unionSetMemo.size >= UNION_SET_MEMO_MAX_ENTRIES) {
-		const oldest = unionSetMemo.keys().next().value;
-		if (oldest !== undefined) unionSetMemo.delete(oldest);
+	const result = compute();
+	if (memoized) byName.delete(unionFilterDefinition);
+	if (byName.size >= UNION_SET_MEMO_MAX_ENTRIES) {
+		const oldest = byName.keys().next().value;
+		if (oldest !== undefined) byName.delete(oldest);
 	}
-	unionSetMemo.set(unionFilterDefinition, {sources, result});
+	byName.set(unionFilterDefinition, {sources, result});
 	return result;
 };
 
@@ -761,7 +790,7 @@ const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]
 export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterName, extras : FilterExtras) : ConfigurableFilterResult => {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
-		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null, false];
+		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards, extras.cardsContentToken), false, null, null, false];
 	}
 	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
 		return makeFilterFromConfigurableFilter(filterDefinitionItem, extras);
@@ -810,7 +839,7 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 //distinct rest-tuples (active + query + reference-block runs with
 //differing keyCardID/cardSimilarity) without thrashing that downstream
 //memo, which keys on this function's RESULT IDENTITY.
-const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : FilterExtras => {
+const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null, cardsContentToken : unknown = cards) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
@@ -820,7 +849,8 @@ const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, fil
 		randomSalt,
 		cardSimilarity,
 		editingCardSimilarity,
-		idfMap
+		idfMap,
+		cardsContentToken
 	};
 }, 8);
 
@@ -849,6 +879,7 @@ export const countForDescription = (description : CollectionDescription, sets : 
 		const extras : FilterExtras = {
 			filterSetMemberships: filters,
 			cards: allCardIDs as ProcessedCards,
+			cardsContentToken: allCardIDs,
 			keyCardID: '',
 			editingCard: null,
 			userID: '',
@@ -936,6 +967,8 @@ export class Collection {
 	_idfMap : IDFMap | null;
 	_filteredCards : ProcessedCard[] | null;
 	_cachedFilterExtras : FilterExtras;
+	//See FilterExtras.cardsContentToken.
+	_cardsContentToken : unknown;
 	_collectionIsFallback : boolean;
 	_sortedCards : ProcessedCard[] | null;
 	_labels : string[] | null;
@@ -976,6 +1009,9 @@ export class Collection {
 		//This is the most recent version of cards. We use it for the expanded
 		//cards, and also when doing pendingFilters.
 		this._cardsForExpansion = collectionArguments.cards;
+		//Defaults to the filtering map's identity, correct wherever cards
+		//update immutably; the worker overrides with its mutation counter.
+		this._cardsContentToken = collectionArguments.cardsContentToken ?? this._cardsForFiltering;
 		this._sets = collectionArguments.sets;
 		this._filters = collectionArguments.filters;
 		this._filtersSnapshot = collectionArguments.filtersSnapshot || null;
@@ -1120,7 +1156,7 @@ export class Collection {
 
 	get _filterExtras() : FilterExtras {
 		if (!this._cachedFilterExtras) {
-			this._cachedFilterExtras = makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot || this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap);
+			this._cachedFilterExtras = makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot || this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken);
 		}
 		return this._cachedFilterExtras;
 	}
@@ -1224,8 +1260,8 @@ export class Collection {
 		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForExpansion, this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap));
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken));
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForExpansion, this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));

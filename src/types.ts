@@ -657,6 +657,14 @@ export type Sets = {
 export type FilterExtras = {
 	filterSetMemberships : Filters,
 	cards : ProcessedCards,
+	//An identity that changes whenever the CONTENT of `cards` changes. On
+	//immutable-update paths (main thread) this is simply the cards map
+	//itself; the worker's QueryEngine mutates its cards map IN PLACE and
+	//serves one stable proxy for its whole life, so it passes its mutation
+	//version counter instead. Content-sensitive memos (the union-expansion
+	//memo, #769) must key on THIS, never on the cards identity — keying on
+	//the frozen worker proxy served stale results for newly-synced cards.
+	cardsContentToken : unknown,
 	keyCardID : CardID,
 	editingCard : ProcessedCard | null,
 	userID : Uid,
@@ -676,6 +684,9 @@ export type SerializedDescriptionToCardList = {
 }
 
 export interface CollectionConstructorArguments {
+	//See FilterExtras.cardsContentToken. Optional: defaults to the cards
+	//map identity, which is correct wherever cards are updated immutably.
+	cardsContentToken? : unknown;
 	cards : ProcessedCards,
 	sets : Sets,
 	filters : Filters,

@@ -25,8 +25,10 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 let filterSetForFilterDefinitionItem;
 let INVERSE_FILTER_NAMES;
 
-//A minimal FilterExtras: the union path reads only these two fields.
-const extrasFor = (filterSetMemberships, cards) => ({filterSetMemberships, cards});
+//A minimal FilterExtras: the union path reads these three fields. The
+//token mirrors real construction: the cards map identity on
+//immutable-update paths, a version counter on the worker.
+const extrasFor = (filterSetMemberships, cards, cardsContentToken = cards) => ({filterSetMemberships, cards, cardsContentToken});
 
 describe('union filter expansion is memoized (#769)', () => {
 	before(async () => {
@@ -92,6 +94,68 @@ describe('union filter expansion is memoized (#769)', () => {
 		const [second] = filterSetForFilterDefinitionItem('some-tag+starred', extrasFor({starred: {a: true}, 'some-tag': {b: true}}, cards));
 		assert.notStrictEqual(second, first);
 		assert.deepStrictEqual(Object.keys(second).sort(), ['a', 'b']);
+	});
+
+	it('a stable cards identity with a bumped content token invalidates (the worker shape)', () => {
+		//The #769 review's blocking find: the worker mutates ONE cards map
+		//in place for its whole life and bumps a version counter, so keying
+		//on cards identity served stale inverse unions — a newly-synced
+		//prioritized unpublished card was invisible to the default sticky
+		//filter. The memo must key on the TOKEN.
+		const memberships = {'not-prioritized': {b: true}, published: {a: true}};
+		const cards = {a: true, b: true};
+		const [first] = filterSetForFilterDefinitionItem('prioritized+published', extrasFor(memberships, cards, 1));
+		assert.deepStrictEqual(Object.keys(first).sort(), ['a']);
+		//The worker's in-place mutation: same map identity, new content,
+		//bumped token.
+		cards.p = true;
+		const [second] = filterSetForFilterDefinitionItem('prioritized+published', extrasFor(memberships, cards, 2));
+		assert.notStrictEqual(second, first, 'a bumped token must invalidate despite stable identities');
+		assert.deepStrictEqual(Object.keys(second).sort(), ['a', 'p'], 'the newly-arrived prioritized card must be visible');
+		//And an unchanged token hits.
+		const [third] = filterSetForFilterDefinitionItem('prioritized+published', extrasFor(memberships, cards, 2));
+		assert.strictEqual(third, second);
+	});
+
+	it('END TO END: a card arriving on the inverse side becomes visible through the real QueryEngine', async () => {
+		//The reviewer's demonstration, as a permanent regression test: this
+		//exact sequence returned a stale ['a'] on the identity-keyed memo.
+		const {QueryEngine} = await import('../../lib/src/worker/query-engine.js');
+		const fullCard = (id, extras) => ({
+			id, card_type: 'content', title: id, body: '<p>b</p>', section: 'main',
+			tags: [], sort_order: 1.0, references: {}, references_info: {},
+			references_inbound: {}, references_info_inbound: {},
+			auto_todo_overrides: {}, published: true, ...extras,
+		});
+		const engine = new QueryEngine();
+		engine.updateCards({
+			a: fullCard('a', {star_count: 1}),
+			b: fullCard('b'),
+		}, []);
+		engine.applyAction({type: 'UPDATE_STARS', starsToAdd: ['a'], starsToRemove: []});
+		engine.applyAction({type: 'UPDATE_READS', readsToAdd: ['b'], readsToRemove: []});
+		const before = engine.runCollection('everything/unstarred+read/', {});
+		assert.deepStrictEqual(before.ids.sort(), ['b']);
+		//A new card arrives: not starred, not read — it belongs in the
+		//union via the INVERSE member, which is exactly the side the stale
+		//memo could not see.
+		engine.updateCards({d: fullCard('d')}, []);
+		const after = engine.runCollection('everything/unstarred+read/', {});
+		assert.ok(after.ids.includes('d'), `a newly-arrived card on the inverse side must be visible (got ${JSON.stringify(after.ids)})`);
+	});
+
+	it('a hit refreshes recency, so a hot union survives a flood of cold names (LRU)', () => {
+		const starred = {a: true};
+		const memberships = {starred, read: {b: true}};
+		const cards = {a: true, b: true};
+		const [hot] = filterSetForFilterDefinitionItem('starred+read', extrasFor(memberships, cards));
+		for (let i = 0; i < 40; i++) {
+			//Interleave hits with the flood: the hot entry must keep
+			//surviving because each hit re-marks it newest.
+			filterSetForFilterDefinitionItem(`starred+cold-${i}`, extrasFor(memberships, cards));
+			const [again] = filterSetForFilterDefinitionItem('starred+read', extrasFor(memberships, cards));
+			assert.strictEqual(again, hot, `the hot entry must survive the flood (lost at cold-${i})`);
+		}
 	});
 
 	it('the memo is capped and still correct after eviction', () => {
