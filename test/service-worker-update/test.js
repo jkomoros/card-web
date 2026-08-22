@@ -23,7 +23,11 @@ describe('service-worker update safety', () => {
 		assert.match(config, /skipWaiting:\s*false/);
 		assert.match(config, /maximumFileSizeToCacheInBytes:\s*5\s*\*\s*1024\s*\*\s*1024/);
 		const app = read('src/components/card-web-app.ts');
-		assert.match(app, /selectEditingCardHasUnsavedChanges/);
+		//#770 changed the arming rule: ANY open editor blocks unsafe exits
+		//(and thereby update auto-reloads), not just a non-empty redux diff.
+		//The unload-guard suite pins the behavior by mounting the real
+		//element; this pin only records which signal feeds the reason.
+		assert.match(app, /this\._editorOpen\n?\s*\? 'save or cancel your draft first'/);
 		assert.match(app, /selectPendingModificationCount/);
 		assert.match(app, /inFlightMutationCount/);
 		assert.match(app, /BroadcastChannel/);

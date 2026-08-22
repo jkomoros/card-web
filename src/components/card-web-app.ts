@@ -590,9 +590,16 @@ class CardWebApp extends connect(store)(LitElement) {
 		//The #756 backstop needs to re-evaluate while a tab stays open for
 		//days: once at boot (a no-op until the bootstrap exposes the
 		//registration; the update event covers the waiting case as soon as
-		//it is known) and hourly thereafter (covers the long-lived tab).
-		this._checkUpdateBackstop();
+		//it is known) and hourly thereafter (covers the long-lived tab). The
+		//interval arms FIRST and the immediate check is guarded: a throw in
+		//the check is the same one-throw-strips-what-follows class this
+		//whole registration sequence exists to eliminate (#770 review).
 		this._updateBackstopInterval = window.setInterval(() => this._checkUpdateBackstop(), UPDATE_AUTO_ACTIVATE_RECHECK_MS);
+		try {
+			this._checkUpdateBackstop();
+		} catch (err) {
+			console.error('update backstop check failed at connect', err);
+		}
 	}
 
 	override firstUpdated() {

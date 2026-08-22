@@ -103,6 +103,21 @@ describe('the beforeunload guard, mounted for real (#770)', () => {
 			'the reconnected element must guard again');
 	});
 
+	it('the store subscription itself drives stateChanged (connect-mixin wiring)', () => {
+		//The other tests call stateChanged directly, which would pass even if
+		//super.connectedCallback() never subscribed. Prove the wiring: a real
+		//store dispatch must reach this element.
+		let calls = 0;
+		const original = element.stateChanged.bind(element);
+		element.stateChanged = (state) => { calls++; original(state); };
+		try {
+			store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
+			assert.ok(calls > 0, 'a store dispatch must reach the mounted element');
+		} finally {
+			delete element.stateChanged;
+		}
+	});
+
 	it('the guard reads live state: closing the editor disarms it', () => {
 		element.stateChanged(stateWith({editing: true}));
 		assert.strictEqual(fireBeforeUnload().defaultPrevented, true);
