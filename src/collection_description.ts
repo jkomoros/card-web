@@ -737,7 +737,14 @@ const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMe
 		return undefined;
 	});
 	if (subFilterNames.some(filterName => !filterSetMemberships[filterName] && INVERSE_FILTER_NAMES[filterName])) {
-		sources.push(cardsContentToken);
+		//BOTH the cards identity and the content token. The token catches
+		//in-place mutation behind a stable identity (the worker's full
+		//corpus). The identity catches a DIFFERENT cards map under the SAME
+		//token: the worker's narrowed query runs evaluate against a fresh
+		//restricted proxy with the same version counter, and keying on the
+		//token alone let a full-corpus run hit a narrowed run's
+		//under-inclusive result.
+		sources.push(cards, cardsContentToken);
 	}
 	const compute = () : FilterMap => {
 		const subFilters = subFilterNames.map(filterName => {

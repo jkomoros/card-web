@@ -144,6 +144,21 @@ describe('union filter expansion is memoized (#769)', () => {
 		assert.ok(after.ids.includes('d'), `a newly-arrived card on the inverse side must be visible (got ${JSON.stringify(after.ids)})`);
 	});
 
+	it('a different cards map under the SAME token recomputes (the narrowed-run shape)', () => {
+		//The worker's narrowed query runs evaluate against a fresh
+		//restricted proxy carrying the same version counter as the full
+		//corpus. A full-corpus run hitting a narrowed run's entry would be
+		//UNDER-inclusive — the worse direction.
+		const memberships = {'not-prioritized': {b: true}, published: {}};
+		const narrowed = {a: true, b: true};
+		const full = {a: true, b: true, c: true};
+		const [narrowedResult] = filterSetForFilterDefinitionItem('prioritized+published', extrasFor(memberships, narrowed, 7));
+		assert.deepStrictEqual(Object.keys(narrowedResult).sort(), ['a']);
+		const [fullResult] = filterSetForFilterDefinitionItem('prioritized+published', extrasFor(memberships, full, 7));
+		assert.notStrictEqual(fullResult, narrowedResult);
+		assert.deepStrictEqual(Object.keys(fullResult).sort(), ['a', 'c'], 'the full run must see the full inverse, not the narrowed cache');
+	});
+
 	it('a hit refreshes recency, so a hot union survives a flood of cold names (LRU)', () => {
 		const starred = {a: true};
 		const memberships = {starred, read: {b: true}};
