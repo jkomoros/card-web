@@ -124,6 +124,7 @@ import {
 	selectEditingCard,
 	selectEnqueuedCards,
 	selectPendingModificationCount,
+	selectPendingModificationCardIDs,
 	selectExpectedCardFetchTypeForNewUnpublishedCard,
 	selectUserMayViewUnpublished,
 	selectCorpusStatus,
@@ -3397,7 +3398,35 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 		}
 		dispatch(updateCards(cardsToUpdate, fetchType, safeCardFilters));
 	} else {
-		dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
+		//The gate exists to batch echo application for the modification in
+		//flight — but only its own targets are echoes. Anything else in the
+		//delivery (a card just created mid-operation, another client's edit)
+		//must apply immediately: holding a new card until a thousand-card bulk
+		//operation settles means its editor never opens for the life of the
+		//operation (#765). A pending operation with no recorded targets
+		//(legacy dispatch shapes) falls back to gating everything, matching
+		//selectCardModificationPendingForCard's fallback.
+		const pendingIDs = selectPendingModificationCardIDs(getState());
+		let haveTargets = false;
+		for (const _ in pendingIDs) { haveTargets = true; break; }
+		if (!haveTargets) {
+			dispatch(enqueueCardUpdates(cardsToUpdate, fetchType));
+		} else {
+			const gated : Cards = {};
+			const immediate : Cards = {};
+			for (const [id, card] of Object.entries(cardsToUpdate)) {
+				if (pendingIDs[id]) gated[id] = card;
+				else immediate[id] = card;
+			}
+			const gatedCount = Object.keys(gated).length;
+			if (Object.keys(immediate).length) {
+				//safeCardFilters asserts an exact ID-domain match for the whole
+				//batch; it only survives when the whole batch is the immediate
+				//half.
+				dispatch(updateCards(immediate, fetchType, gatedCount ? undefined : safeCardFilters));
+			}
+			if (gatedCount) dispatch(enqueueCardUpdates(gated, fetchType));
+		}
 	}
 	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };

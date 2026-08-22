@@ -332,6 +332,7 @@ export const selectTags = (state : State) => state.data ? state.data.tags : {};
 export const selectPendingDeletions = (state : State) => state.data ? state.data.pendingDeletions : {};
 export const selectEnqueuedCards = (state : State) => state.data ? state.data.enqueuedCards : {};
 export const selectPendingModificationCount = (state : State) => state.data ? state.data.pendingModificationCount : 0;
+export const selectPendingModificationCardIDs = (state : State) => state.data ? state.data.pendingModificationCardIDs : {};
 export const selectCardModificationPending = (state : State) => state.data ? state.data.pendingModifications : false;
 //Per-card refinement of selectCardModificationPending: true only when the
 //pending operation targets this specific card. Editing affordances use this

@@ -229,6 +229,27 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 		//still good — resetting the whole map here used to force downstream
 		//collection rebuilds on every single-card update.
 		result.cardSimilarity = pruneCardSimilarity(state.cardSimilarity, action.cards);
+		//A directly-applied card supersedes any copy of itself parked in the
+		//enqueue queue: listener deliveries are ordered, so the parked copy is
+		//staler, and leaving it there would let the eventual flush clobber
+		//this newer value. In the common case every bucket is empty and this
+		//touches nothing.
+		let enqueuedCards = state.enqueuedCards;
+		for (const enqueuedFetchType of TypedObject.keys(state.enqueuedCards)) {
+			const bucket = state.enqueuedCards[enqueuedFetchType];
+			if (!bucket) continue;
+			let cleaned : Cards | null = null;
+			for (const id of Object.keys(action.cards)) {
+				if (bucket[id] === undefined) continue;
+				if (!cleaned) cleaned = {...bucket};
+				delete cleaned[id];
+			}
+			if (cleaned) {
+				if (enqueuedCards === state.enqueuedCards) enqueuedCards = {...state.enqueuedCards};
+				enqueuedCards[enqueuedFetchType] = cleaned;
+			}
+		}
+		if (enqueuedCards !== state.enqueuedCards) result.enqueuedCards = enqueuedCards;
 		return result;
 	case UPDATE_COLLECTION_SHAPSHOT:
 		return {
