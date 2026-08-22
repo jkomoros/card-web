@@ -174,7 +174,8 @@ import {
 	getCardIsRead,
 	selectUserIsAnonymous,
 	selectActiveCollection,
-	getCardInReadingList
+	getCardInReadingList,
+	getCardHasStar
 } from '../selectors.js';
 
 import {
@@ -855,6 +856,14 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => async (di
 	}
 
 	const starredID = cardToStar.id;
+	//Re-check AFTER the guard: two clicks landing inside one deferral window
+	//would both see the pre-click state and enqueue two increments for one
+	//user-star (the review executed exactly that). The reads and reading-list
+	//tails are naturally idempotent; the star counter is not.
+	if (getCardHasStar(getState(), starredID)) {
+		console.log('The card is already starred!');
+		return;
+	}
 	void applyOptimistically(
 		() => dispatch(updateStars([starredID], [], true)),
 		() => dispatch(updateStars([], [starredID], true)),
@@ -886,6 +895,11 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => async 
 	}
 
 	const unstarredID = cardToStar.id;
+	//Symmetric with addStar: a doubled remove would decrement twice.
+	if (!getCardHasStar(getState(), unstarredID)) {
+		console.log('The card isn\'t starred!');
+		return;
+	}
 	void applyOptimistically(
 		() => dispatch(updateStars([], [unstarredID], true)),
 		() => dispatch(updateStars([unstarredID], [], true)),
