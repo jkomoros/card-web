@@ -178,6 +178,12 @@ import {
 } from '../selectors.js';
 
 import {
+	autoMarkReadScheduleDecision,
+	awaitInteractableCollection,
+	TRANSITIONAL_RECHECK_DELAY_MS
+} from './fallback-guard.js';
+
+import {
 	UserInfo,
 	Card,
 	CardID,
@@ -748,7 +754,7 @@ export const toggleOnReadingList = (cardToToggle : CardID) : ThunkSomeAction => 
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispatch, getState) => {
+export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!cardToAdd) {
 		console.log('Invalid card provided');
 		return;
@@ -762,10 +768,13 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispa
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it, and
+	//refuse (like fallback) if it never resolves.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		console.log(err instanceof Error ? err.message : String(err));
 		return;
 	}
 
@@ -784,7 +793,7 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (dispa
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-add', cardToAdd, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
-export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (dispatch, getState) => {
+export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!cardToRemove) {
 		console.log('Invalid card provided');
 		return;
@@ -798,10 +807,13 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it, and
+	//refuse (like fallback) if it never resolves.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		console.log(err instanceof Error ? err.message : String(err));
 		return;
 	}
 
@@ -817,7 +829,7 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'reading-list-remove', cardToRemove, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)));
 };
 
-export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch, getState) => {
+export const addStar = (cardToStar : Card | null) : ThunkSomeAction => async (dispatch, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -832,10 +844,13 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it, and
+	//refuse (like fallback) if it never resolves.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		console.log(err instanceof Error ? err.message : String(err));
 		return;
 	}
 
@@ -846,7 +861,7 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', starredID)));
 };
 
-export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (dispatch, getState) => {
+export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -860,10 +875,13 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (dispa
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it, and
+	//refuse (like fallback) if it never resolves.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		console.log(err instanceof Error ? err.message : String(err));
 		return;
 	}
 
@@ -895,17 +913,30 @@ export const updateReadingList = (list : CardID[] = [], optimistic = false) : Th
 
 let autoMarkReadTimeoutId : number | null = null;
 
-export const scheduleAutoMarkRead = () : ThunkSomeAction => (dispatch, getState) => {
+export const scheduleAutoMarkRead = (transitionalAttempt = 0) : ThunkSomeAction => (dispatch, getState) => {
 
-	cancelPendingAutoMarkRead();
+	//This used to be a bare cancelPendingAutoMarkRead() call, which discarded
+	//the thunk without running it: navigating card-to-card within the 5s
+	//window left the old timer live, and the deferral chain below relies on
+	//cancellation actually working.
+	dispatch(cancelPendingAutoMarkRead());
 
 	const state = getState();
 	const uid = selectUid(state);
 	if (!uid) return;
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
+	//#767: the transitional cutover placeholder claims isFallback:false as a
+	//guess. Scheduling off it started the pending animation on every
+	//navigation to an orphaned card — and had a cutover ever outlasted the
+	//timer, the fire-time re-check would have trusted the same guess and
+	//committed the read this guard exists to prevent. Defer instead, riding
+	//autoMarkReadTimeoutId so any navigation's cancel also kills the re-check
+	//chain, and start the real timer (and animation) only once the collection
+	//is concrete.
+	const decision = autoMarkReadScheduleDecision(selectActiveCollection(state), transitionalAttempt);
+	if (decision === 'skip' || decision === 'give-up') return;
+	if (decision === 'defer') {
+		autoMarkReadTimeoutId = window.setTimeout(() => dispatch(scheduleAutoMarkRead(transitionalAttempt + 1)), TRANSITIONAL_RECHECK_DELAY_MS);
 		return;
 	}
 
@@ -932,13 +963,21 @@ export const markActiveCardReadIfLoggedIn = () : ThunkSomeAction => (dispatch, g
 	const state = getState();
 	const uid = selectUid(state);
 	if (!uid) return;
+	//#767: if the cutover outlasted the timer, the placeholder's verdict
+	//still cannot be trusted at fire time. Start the wait over; the concrete
+	//collection decides.
+	const activeCollection = selectActiveCollection(state);
+	if (activeCollection && activeCollection.isTransitional) {
+		dispatch(scheduleAutoMarkRead());
+		return;
+	}
 	const activeCard = selectActiveCard(state);
 	if (!activeCard) return;
 	dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => (dispatch, getState) => {
+export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => async (dispatch, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -953,14 +992,17 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it, and
+	//refuse (like fallback) if it never resolves.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		console.log(err instanceof Error ? err.message : String(err));
 		return;
 	}
 
-	if (getCardIsRead(state, cardToMarkRead.id)) {
+	if (getCardIsRead(getState(), cardToMarkRead.id)) {
 		if (!existingReadDoesNotError) {
 			console.log('The card is already read!');
 			return;
@@ -974,7 +1016,7 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', readID)));
 };
 
-export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (dispatch, getState) => {
+export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
@@ -988,20 +1030,24 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it, and
+	//refuse (like fallback) if it never resolves.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		console.log(err instanceof Error ? err.message : String(err));
 		return;
 	}
 
-	if (!getCardIsRead(state, cardToMarkUnread.id)) {
+	if (!getCardIsRead(getState(), cardToMarkUnread.id)) {
 		console.log('Card isn\'t read!');
 		return;
 	}
 
-	//Just in case we were planning on setting this card as read.
-	cancelPendingAutoMarkRead();
+	//Just in case we were planning on setting this card as read. This used
+	//to be a bare call, which discarded the thunk without running it.
+	dispatch(cancelPendingAutoMarkRead());
 
 	const unreadID = cardToMarkUnread.id;
 	void applyOptimistically(

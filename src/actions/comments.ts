@@ -37,6 +37,10 @@ import {
 } from '../selectors.js';
 
 import {
+	awaitInteractableCollection
+} from './fallback-guard.js';
+
+import {
 	randomString
 } from '../../shared/util.js';
 
@@ -378,7 +382,7 @@ registerAuxWriteExecutor('comment-delete', async (intent, isReplay) => {
 	await batch.commit();
 });
 
-export const addMessage = (thread : CommentThread, message : string) : ThunkSomeAction => (_, getState) => {
+export const addMessage = (thread : CommentThread, message : string) : ThunkSomeAction => async (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -407,12 +411,12 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkSome
 		return;
 	}
 
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
-		return;
-	}
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it. A
+	//rejection (real fallback, or a cutover that never resolves) deliberately
+	//propagates: composeCommit restores the typed text and tells the user,
+	//where the old guard's silent return dropped the words on the floor.
+	await awaitInteractableCollection(() => selectActiveCollection(getState()));
 
 	const messageId = randomString(16);
 	const threadId = thread.id;
@@ -445,7 +449,7 @@ const reportCommentOutcome = (outcome : AuxWriteOutcome, what : 'post' | 'edit' 
 	}
 };
 
-export const createThread = (message : string) : ThunkSomeAction => (_, getState) => {
+export const createThread = (message : string) : ThunkSomeAction => async (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -469,12 +473,12 @@ export const createThread = (message : string) : ThunkSomeAction => (_, getState
 		return;
 	}
 	
-	const activeCollection = selectActiveCollection(state);
-	const collectionIsFallback = activeCollection && activeCollection.isFallback;
-	if (collectionIsFallback) {
-		console.log('Interacting with fallback content not allowed');
-		return;
-	}
+	//#767: the transitional cutover placeholder's isFallback:false is a
+	//guess; wait for the concrete collection instead of acting on it. A
+	//rejection (real fallback, or a cutover that never resolves) deliberately
+	//propagates: composeCommit restores the typed text and tells the user,
+	//where the old guard's silent return dropped the words on the floor.
+	await awaitInteractableCollection(() => selectActiveCollection(getState()));
 
 	const messageId = randomString(16);
 	const threadId = randomString(16);
