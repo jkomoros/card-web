@@ -142,6 +142,37 @@ describe('union filter expansion is memoized (#769)', () => {
 		engine.updateCards({d: fullCard('d')}, []);
 		const after = engine.runCollection('everything/unstarred+read/', {});
 		assert.ok(after.ids.includes('d'), `a newly-arrived card on the inverse side must be visible (got ${JSON.stringify(after.ids)})`);
+		//And the removal side — the predecessor review demonstrated removal
+		//staleness too.
+		engine.updateCards({}, ['b']);
+		const afterRemoval = engine.runCollection('everything/unstarred+read/', {});
+		assert.ok(!afterRemoval.ids.includes('b'), `a removed card must leave the union (got ${JSON.stringify(afterRemoval.ids)})`);
+		assert.ok(afterRemoval.ids.includes('d'));
+	});
+
+	it('an immortal never-populated filter map is never the weak key', async () => {
+		//The re-review's blocker: a user with zero stars keeps the
+		//module-constant INITIAL_STATE starred map forever, and entries
+		//keyed on that immortal object pinned dropped corpora. With
+		//immortal members, an INVERSE union anchors on the cards map (per
+		//corpus — caching still works within one corpus)…
+		const {INITIAL_STATE} = await import('../../lib/src/filters.js');
+		const immortalStarred = INITIAL_STATE.filters.starred;
+		const immortalRead = INITIAL_STATE.filters.read;
+		assert.ok(immortalStarred && immortalRead, 'fixture: initial filter maps exist');
+		const memberships = {starred: immortalStarred, read: immortalRead};
+		const cards = {a: true, b: true};
+		const [first] = filterSetForFilterDefinitionItem('unstarred+read', extrasFor(memberships, cards));
+		assert.deepStrictEqual(Object.keys(first).sort(), ['a', 'b']);
+		const [second] = filterSetForFilterDefinitionItem('unstarred+read', extrasFor(memberships, cards));
+		assert.strictEqual(second, first, 'inverse unions anchor on the cards map and still cache');
+		//…while an all-immortal NON-inverse union simply does not cache:
+		//there is no mortal anchor, and nothing worth caching (every member
+		//is a never-populated constant).
+		const [plainFirst] = filterSetForFilterDefinitionItem('starred+read', extrasFor(memberships, cards));
+		const [plainSecond] = filterSetForFilterDefinitionItem('starred+read', extrasFor(memberships, cards));
+		assert.deepStrictEqual(Object.keys(plainFirst), []);
+		assert.notStrictEqual(plainSecond, plainFirst, 'no immortal-keyed entry may be created');
 	});
 
 	it('a different cards map under the SAME token recomputes (the narrowed-run shape)', () => {

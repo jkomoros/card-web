@@ -4,6 +4,7 @@ import {
 	UNION_FILTER_DELIMITER,
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
+	INITIAL_STATE as INITIAL_COLLECTION_STATE,
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
 	makeConfigurableFilter,
@@ -714,6 +715,16 @@ type UnionSetMemoEntry = {
 //maps of the same filters state), so nothing outlives its corpus.
 const unionSetMemo = new WeakMap<object, Map<UnionFilterName, UnionSetMemoEntry>>();
 
+//Lazily built (filters.ts and this module import each other, so touching
+//INITIAL_STATE at module-eval time risks a temporal dead zone): the
+//module-constant filter maps that never die and therefore must never be
+//weak keys.
+let immortalMembershipMaps : Set<object> | null = null;
+const isImmortalMembershipMap = (value : object) : boolean => {
+	if (!immortalMembershipMaps) immortalMembershipMaps = new Set(Object.values(INITIAL_COLLECTION_STATE.filters));
+	return immortalMembershipMaps.has(value);
+};
+
 //Distinct union names come from URLs and the sticky search expression — a
 //handful in practice — but cap each corpus's inner map so a pathological
 //URL stream cannot grow it without bound. LRU: a hit refreshes recency
@@ -754,9 +765,17 @@ const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMe
 		});
 		return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
 	};
-	const weakKey = sources.find(source => typeof source === 'object' && source !== null);
-	//No resolvable member: the result is {} (or the inverse of everything
-	//with no anchor) and there is nothing safe to key on — just compute.
+	//The weak key must be an object that DIES WITH ITS CORPUS. A
+	//never-populated card filter (a user with zero stars) keeps the
+	//module-constant INITIAL_STATE map identity forever — the reducers
+	//return the same map on no-op updates — and the re-review demonstrated
+	//that keying on such an immortal constant pinned up to 32 dropped
+	//corpus generations under it. Skip immortal maps; for inverse unions
+	//the cards map (already in sources) is the natural per-corpus anchor.
+	//With no mortal object at all there is nothing safe to key on — and
+	//nothing worth caching, since every member is a never-populated
+	//constant — so just compute.
+	const weakKey = sources.find(source => typeof source === 'object' && source !== null && !isImmortalMembershipMap(source));
 	if (!weakKey) return compute();
 	let byName = unionSetMemo.get(weakKey as object);
 	if (!byName) {
