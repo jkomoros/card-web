@@ -380,7 +380,9 @@ export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) =
 export const generateCardDiff = (underlyingCardIn : Card | null | undefined, updatedCardIn : Card | undefined | null, normalizeHTMLFields  = false) : CardDiff => {
 
 	const underlyingCard : OptionalFieldsCard = underlyingCardIn || {};
-	const updatedCard : OptionalFieldsCard = updatedCardIn || {};
+	//updatedCard is reassigned to a defensive copy if we have to re-extract
+	//links; see the comment at the setLinks call below.
+	let updatedCard : OptionalFieldsCard = updatedCardIn || {};
 
 	if (underlyingCard === updatedCard) return {};
 
@@ -418,6 +420,20 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 			values.push(value);
 		}
 		const linkInfo = extractCardLinksFromBody(values.join('\n'));
+		//setLinks MUTATES the card object it is handed: it replaces its
+		//references_info and references properties with freshly-built maps.
+		//generateCardDiff must never mutate its arguments -- it is called from
+		//memoized selectors over state.editor.card (selectEditingCardHasUnsavedChanges)
+		//and from the every-keystroke dirty check in edit-draft.ts, so mutating
+		//here writes into the redux store from inside a pure derivation. It does
+		//no visible damage today only because the store isn't frozen; it is a
+		//landmine for immutability middleware and for structural sharing. So
+		//normalize the links on a shallow copy instead, and let the rest of the
+		//function diff against that copy. Nothing downstream relies on the
+		//normalized links landing back on the caller's object: the editor
+		//reducer maintains them itself on EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES.
+		//See #771.
+		updatedCard = {...updatedCard};
 		references(updatedCard).setLinks(linkInfo);
 	}
 
