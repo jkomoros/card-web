@@ -1,0 +1,215 @@
+/*eslint-env node, es2022*/
+
+//ONE DRAFT SLOT PER CARD (#766).
+//
+//The single localStorage draft slot was safe under an invariant #763 silently
+//broke: editor sessions can now overlap a still-round-tripping save. With one
+//slot, a second card's keystrokes overwrote the first card's stamped draft
+//after the 200ms debounce — and the second session finishing CLEAN deleted
+//the slot outright — so a paused save's Stop-and-recover flow surfaced the
+//WRONG card's words, or none. These tests pin the per-card slots: overlap
+//scenarios end with every card's words intact, each clear touches only its
+//own card, the v1 slot migrates, and the cap evicts oldest-first.
+//
+//The crown test drives the REAL watcher through the REAL store: card A's
+//draft is stamped for a save; a session on card B opens, types, and finishes
+//clean; A's draft must survive.
+
+import assert from 'assert';
+import {bootstrapApp} from '../harness-support/app-harness.js';
+
+const app = await bootstrapApp();
+const {store, uid: UID, dom} = app;
+
+let editDraft;
+
+const card = (id, title) => ({
+	id,
+	card_type: 'working-notes',
+	title: title || 'Title of ' + id,
+	body: '<p>Body of ' + id + '</p>',
+	section: '',
+	slugs: [],
+	tags: [],
+	references: {},
+	references_info: {},
+	references_inbound: {},
+	references_info_inbound: {},
+	auto_todo_overrides: {},
+	flags: {},
+	published: false,
+});
+
+let savedAtCounter = 1000;
+const storedDraft = (cardID, overrides = {}) => ({
+	version: 1,
+	uid: UID,
+	cardID,
+	diff: {title: 'draft title for ' + cardID},
+	substantive: false,
+	baseUpdated: null,
+	savedAt: savedAtCounter++,
+	...overrides,
+});
+
+const seed = (draft) => {
+	globalThis.localStorage.setItem(editDraft.EDIT_DRAFT_STORAGE_PREFIX + draft.cardID, JSON.stringify(draft));
+};
+
+const clearAllDraftKeys = () => {
+	for (const key of Object.keys(globalThis.localStorage)) {
+		if (key.includes('card-web-edit-draft')) globalThis.localStorage.removeItem(key);
+	}
+};
+
+describe('per-card draft slots (#766)', () => {
+
+	before(async () => {
+		editDraft = await import('../../lib/src/edit-draft.js');
+	});
+
+	beforeEach(clearAllDraftKeys);
+
+	it('drafts for different cards coexist, newest first', () => {
+		seed(storedDraft('card-a', {operationID: 'op-1'}));
+		seed(storedDraft('card-b'));
+		const drafts = editDraft.readEditDrafts();
+		assert.deepStrictEqual(drafts.map(d => d.cardID), ['card-b', 'card-a'], 'newest first');
+		assert.strictEqual(editDraft.readEditDraft('card-a').operationID, 'op-1');
+		assert.strictEqual(editDraft.readEditDraft().cardID, 'card-b', 'no-arg read is the newest draft');
+	});
+
+	it('clearing one card leaves the other card\'s stamped draft intact', () => {
+		//The heart of #766: B\'s teardown must not destroy A\'s parked draft.
+		seed(storedDraft('card-a', {operationID: 'op-1'}));
+		seed(storedDraft('card-b'));
+		editDraft.clearEditDraft('card-b');
+		assert.strictEqual(editDraft.readEditDraft('card-b'), null);
+		const survivor = editDraft.readEditDraft('card-a');
+		assert.ok(survivor, 'card-a\'s draft must survive card-b\'s clear');
+		assert.strictEqual(survivor.operationID, 'op-1');
+	});
+
+	it('a bare clear removes every slot, including the legacy one', () => {
+		globalThis.localStorage.setItem(editDraft.EDIT_DRAFT_STORAGE_KEY, JSON.stringify(storedDraft('card-legacy')));
+		seed(storedDraft('card-a'));
+		seed(storedDraft('card-b'));
+		editDraft.clearEditDraft();
+		assert.deepStrictEqual(editDraft.readEditDrafts(), []);
+		assert.strictEqual(globalThis.localStorage.getItem(editDraft.EDIT_DRAFT_STORAGE_KEY), null);
+	});
+
+	it('migrates a v1 draft into its card\'s slot and removes the v1 key', () => {
+		const legacy = storedDraft('card-legacy');
+		globalThis.localStorage.setItem(editDraft.EDIT_DRAFT_STORAGE_KEY, JSON.stringify(legacy));
+		const drafts = editDraft.readEditDrafts();
+		assert.strictEqual(drafts.length, 1);
+		assert.strictEqual(drafts[0].cardID, 'card-legacy');
+		assert.strictEqual(globalThis.localStorage.getItem(editDraft.EDIT_DRAFT_STORAGE_KEY), null, 'v1 key removed after migration');
+		assert.ok(editDraft.readEditDraft('card-legacy'), 'migrated draft readable by card');
+	});
+
+	it('migration never clobbers a newer v2 draft for the same card', () => {
+		const older = storedDraft('card-x');
+		const newer = storedDraft('card-x', {diff: {title: 'newer'}});
+		assert.ok(newer.savedAt > older.savedAt);
+		seed(newer);
+		globalThis.localStorage.setItem(editDraft.EDIT_DRAFT_STORAGE_KEY, JSON.stringify(older));
+		const draft = editDraft.readEditDraft('card-x');
+		assert.deepStrictEqual(draft.diff, {title: 'newer'});
+	});
+
+	it('caps stored drafts, evicting oldest first', () => {
+		const total = editDraft.MAX_EDIT_DRAFT_SLOTS + 3;
+		for (let i = 0; i < total; i++) seed(storedDraft('card-cap-' + i));
+		editDraft.enforceEditDraftSlotCap();
+		const drafts = editDraft.readEditDrafts();
+		assert.strictEqual(drafts.length, editDraft.MAX_EDIT_DRAFT_SLOTS);
+		//The oldest three (0, 1, 2) are the evicted ones.
+		assert.strictEqual(editDraft.readEditDraft('card-cap-0'), null);
+		assert.strictEqual(editDraft.readEditDraft('card-cap-2'), null);
+		assert.ok(editDraft.readEditDraft('card-cap-' + (total - 1)));
+	});
+
+	it('recoverEditDraft refuses another account\'s draft, per slot', async () => {
+		seed(storedDraft('card-other', {uid: 'someone-else'}));
+		await assert.rejects(editDraft.recoverEditDraft('card-other'), /No draft is available/);
+		//And the no-arg form skips other accounts\' drafts entirely.
+		await assert.rejects(editDraft.recoverEditDraft(), /No draft is available/);
+	});
+
+	describe('the real watcher, end to end', () => {
+
+		before(async () => {
+			//The shared harness store registers only app/data/user; the
+			//editing session lives in the editor slice.
+			store.addReducers({editor: (await import('../../lib/src/reducers/editor.js')).default});
+			editDraft.installEditDraftWatcher();
+		});
+
+		afterEach(() => {
+			store.dispatch({type: 'EDITING_FINISH'});
+			clearAllDraftKeys();
+		});
+
+		const waitForDebounce = () => new Promise(resolve => setTimeout(resolve, 300));
+
+		it('writes a dirty session\'s draft into its own card\'s slot', async () => {
+			store.dispatch({type: 'EDITING_START', card: card('watch-a')});
+			store.dispatch({type: 'EDITING_TEXT_FIELD_UPDATED', fieldName: 'title', value: 'edited A', fromContentEditable: false});
+			await waitForDebounce();
+			const draft = editDraft.readEditDraft('watch-a');
+			assert.ok(draft, 'the draft must land in the per-card slot');
+			assert.strictEqual(draft.uid, UID);
+		});
+
+		it('a session finishing clean clears ONLY its own card\'s slot', async () => {
+			//The #766 loss chain, driven for real: card A\'s stamped draft is
+			//parked; a session on card B types and then finishes.
+			seed(storedDraft('watch-parked', {operationID: 'op-parked'}));
+			store.dispatch({type: 'EDITING_START', card: card('watch-b')});
+			store.dispatch({type: 'EDITING_TEXT_FIELD_UPDATED', fieldName: 'title', value: 'edited B', fromContentEditable: false});
+			await waitForDebounce();
+			assert.ok(editDraft.readEditDraft('watch-b'), 'B\'s draft exists while dirty');
+			//The user closes B\'s editor, discarding: dirty -> clean.
+			store.dispatch({type: 'EDITING_FINISH'});
+			await waitForDebounce();
+			assert.strictEqual(editDraft.readEditDraft('watch-b'), null, 'B\'s own draft clears on clean finish');
+			const parked = editDraft.readEditDraft('watch-parked');
+			assert.ok(parked, 'A\'s parked draft MUST survive B\'s teardown — the #766 loss chain');
+			assert.strictEqual(parked.operationID, 'op-parked');
+		});
+
+		it('a save confirmation clears only its exact card and operation', async () => {
+			seed(storedDraft('watch-c1', {operationID: 'op-c1'}));
+			seed(storedDraft('watch-c2', {operationID: 'op-c2'}));
+			dom.window.dispatchEvent(new dom.window.CustomEvent('card-web-single-save-confirmed', {
+				detail: {cardID: 'watch-c1', operationID: 'op-c1'},
+			}));
+			assert.strictEqual(editDraft.readEditDraft('watch-c1'), null, 'the confirmed save\'s draft clears');
+			assert.ok(editDraft.readEditDraft('watch-c2'), 'the other card\'s draft stays');
+			//A confirmation that matches the card but not the operation leaves
+			//the draft alone (a newer session\'s work).
+			dom.window.dispatchEvent(new dom.window.CustomEvent('card-web-single-save-confirmed', {
+				detail: {cardID: 'watch-c2', operationID: 'op-other'},
+			}));
+			assert.ok(editDraft.readEditDraft('watch-c2'), 'an operation mismatch must not clear');
+		});
+
+		it('stamping targets the identified card\'s slot', async () => {
+			store.dispatch({type: 'EDITING_START', card: card('watch-d')});
+			store.dispatch({type: 'EDITING_TEXT_FIELD_UPDATED', fieldName: 'title', value: 'edited D', fromContentEditable: false});
+			await waitForDebounce();
+			dom.window.dispatchEvent(new dom.window.CustomEvent('card-web-preserve-edit-draft-for-save', {
+				detail: {cardID: 'watch-d', operationID: 'op-d'},
+			}));
+			const draft = editDraft.readEditDraft('watch-d');
+			assert.strictEqual(draft.operationID, 'op-d');
+			//And because the preserve handler resets the dirty tracking, the
+			//editor teardown that follows a save does NOT clear the stamp.
+			store.dispatch({type: 'EDITING_FINISH'});
+			await waitForDebounce();
+			assert.ok(editDraft.readEditDraft('watch-d'), 'the stamped draft survives the post-save teardown');
+		});
+	});
+});

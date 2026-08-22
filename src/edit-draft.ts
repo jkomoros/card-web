@@ -14,8 +14,21 @@ import {store} from './store.js';
 import type {CardDiff, CardID, State, Uid} from './types.js';
 import {draftMatchesConfirmedSave, SingleSaveIdentity} from './edit-draft-confirmation.js';
 
+//The v1 single slot. Still recognized (and migrated) on read: a draft
+//written before the per-card upgrade must survive it.
 export const EDIT_DRAFT_STORAGE_KEY = 'card-web-edit-draft-v1';
+//#766: one slot PER CARD. The single shared slot silently broke when #763
+//made editor sessions per-card: a second session's keystrokes overwrote the
+//first card's stamped draft, and the second session finishing CLEAN deleted
+//it outright — so a paused save's Stop-and-recover flow surfaced the wrong
+//card's words, or none.
+export const EDIT_DRAFT_STORAGE_PREFIX = 'card-web-edit-draft-v2-';
+//Drafts are small diffs, but per-card slots could accrete without bound in
+//localStorage; keep the newest few. Enforced on every persist.
+export const MAX_EDIT_DRAFT_SLOTS = 8;
 export const EDIT_DRAFT_CHANGED_EVENT = 'card-web-edit-draft-changed';
+
+const draftKey = (cardID : CardID) => EDIT_DRAFT_STORAGE_PREFIX + cardID;
 
 export type StoredEditDraft = {
 	version: 1,
@@ -46,9 +59,9 @@ const isDraft = (value : unknown) : value is StoredEditDraft => {
 		typeof draft.substantive === 'boolean' && typeof draft.savedAt === 'number';
 };
 
-export const readEditDraft = () : StoredEditDraft | null => {
+const readDraftAtKey = (key : string) : StoredEditDraft | null => {
 	try {
-		const encoded = localStorage.getItem(EDIT_DRAFT_STORAGE_KEY);
+		const encoded = localStorage.getItem(key);
 		if (!encoded) return null;
 		const value : unknown = JSON.parse(encoded);
 		return isDraft(value) ? value : null;
@@ -57,11 +70,73 @@ export const readEditDraft = () : StoredEditDraft | null => {
 	}
 };
 
+//Adopt a pre-upgrade v1 draft into its card's own slot, never clobbering a
+//newer v2 draft for the same card.
+const migrateLegacyDraft = () => {
+	const legacy = readDraftAtKey(EDIT_DRAFT_STORAGE_KEY);
+	if (legacy) {
+		const existing = readDraftAtKey(draftKey(legacy.cardID));
+		if (!existing || existing.savedAt <= legacy.savedAt) {
+			try {
+				localStorage.setItem(draftKey(legacy.cardID), JSON.stringify(legacy));
+			} catch {
+				//Quota/disabled storage: leave the v1 record in place so the
+				//draft is not lost; the reads below still see nothing for v2.
+				return;
+			}
+		}
+	}
+	try {
+		localStorage.removeItem(EDIT_DRAFT_STORAGE_KEY);
+	} catch {
+		//Best effort.
+	}
+};
+
+//Every stored draft, newest first. Callers filter by uid where it matters.
+export const readEditDrafts = () : StoredEditDraft[] => {
+	migrateLegacyDraft();
+	const drafts : StoredEditDraft[] = [];
+	try {
+		for (const key of Object.keys(localStorage)) {
+			if (!key.startsWith(EDIT_DRAFT_STORAGE_PREFIX)) continue;
+			const draft = readDraftAtKey(key);
+			if (draft) drafts.push(draft);
+		}
+	} catch {
+		return [];
+	}
+	return drafts.sort((a, b) => b.savedAt - a.savedAt);
+};
+
+//With a cardID: that card's draft. Without: the newest draft of any card —
+//the pre-#766 single-slot read, preserved for callers that just want "the"
+//draft.
+export const readEditDraft = (cardID? : CardID) : StoredEditDraft | null => {
+	migrateLegacyDraft();
+	if (cardID !== undefined) return readDraftAtKey(draftKey(cardID));
+	return readEditDrafts()[0] ?? null;
+};
+
+//Exported for tests. Newest-first retention: the just-persisted draft is by
+//construction the newest, so it is never the one evicted.
+export const enforceEditDraftSlotCap = () => {
+	const drafts = readEditDrafts();
+	for (const stale of drafts.slice(MAX_EDIT_DRAFT_SLOTS)) {
+		try {
+			localStorage.removeItem(draftKey(stale.cardID));
+		} catch {
+			//Best effort.
+		}
+	}
+};
+
 const announceDraftChanged = () => window.dispatchEvent(new CustomEvent(EDIT_DRAFT_CHANGED_EVENT));
 
 const persistDraft = (draft : StoredEditDraft) => {
 	try {
-		localStorage.setItem(EDIT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+		localStorage.setItem(draftKey(draft.cardID), JSON.stringify(draft));
+		enforceEditDraftSlotCap();
 	} catch (err) {
 		//Quota or disabled storage. Unguarded, this threw from inside a
 		//setTimeout and from the preserve-for-save handler, which skipped
@@ -73,9 +148,20 @@ const persistDraft = (draft : StoredEditDraft) => {
 	announceDraftChanged();
 };
 
-export const clearEditDraft = () => {
+//With a cardID: clear only that card's slot — the ONLY form the watcher and
+//the save-confirmation path may use, so one card's teardown can never
+//destroy another card's parked draft (#766). Without: clear everything (the
+//user's explicit discard-all, and account hygiene).
+export const clearEditDraft = (cardID? : CardID) => {
 	try {
-		localStorage.removeItem(EDIT_DRAFT_STORAGE_KEY);
+		if (cardID !== undefined) {
+			localStorage.removeItem(draftKey(cardID));
+		} else {
+			localStorage.removeItem(EDIT_DRAFT_STORAGE_KEY);
+			for (const key of Object.keys(localStorage)) {
+				if (key.startsWith(EDIT_DRAFT_STORAGE_PREFIX)) localStorage.removeItem(key);
+			}
+		}
 	} finally {
 		announceDraftChanged();
 	}
@@ -102,14 +188,16 @@ const writeDraftForState = (state : State) => {
 
 const stampDraftForSave = (identity : SingleSaveIdentity | null) => {
 	if (!identity) return;
-	const draft = readEditDraft();
+	const draft = readEditDraft(identity.cardID);
 	if (!draft || draft.cardID !== identity.cardID || draft.uid !== selectUid(currentState())) return;
 	persistDraft({...draft, operationID: identity.operationID});
 };
 
 let installed = false;
 let writeTimer : number | undefined;
-let previouslyDirty = false;
+//WHICH card's session is dirty, not just whether one is: the dirty->clean
+//clear must target that card's slot alone (#766).
+let previousDirtyCardID : CardID | '' = '';
 //When set, the next dirty->clean transition keeps the persisted draft instead of
 //clearing it. The watcher cannot tell a user CHOOSING to discard from the app
 //tearing the editor down underneath them: both arrive as EDITING_FINISH. Set
@@ -148,14 +236,16 @@ export const installEditDraftWatcher = () => {
 		if (!dirty) {
 			if (writeTimer !== undefined) window.clearTimeout(writeTimer);
 			writeTimer = undefined;
-			//Only remove a draft when an active editing session became clean. A
-			//fresh page must retain the prior session's recoverable draft.
-			if (previouslyDirty && !preserveDraftThroughNextFinish) clearEditDraft();
+			//Only remove a draft when an active editing session became clean —
+			//and only THAT session's card's draft: another card's parked draft
+			//(e.g. stamped for a paused save) is not this session's to delete.
+			//A fresh page must retain the prior session's recoverable draft.
+			if (previousDirtyCardID && !preserveDraftThroughNextFinish) clearEditDraft(previousDirtyCardID);
 			preserveDraftThroughNextFinish = false;
-			previouslyDirty = false;
+			previousDirtyCardID = '';
 			return;
 		}
-		previouslyDirty = true;
+		previousDirtyCardID = card ? card.id : '';
 		if (writeTimer !== undefined) window.clearTimeout(writeTimer);
 		writeTimer = window.setTimeout(() => {
 			writeTimer = undefined;
@@ -163,18 +253,19 @@ export const installEditDraftWatcher = () => {
 		}, 200);
 	});
 	window.addEventListener('storage', event => {
-		if (event.key === EDIT_DRAFT_STORAGE_KEY) announceDraftChanged();
+		if (event.key === EDIT_DRAFT_STORAGE_KEY || event.key?.startsWith(EDIT_DRAFT_STORAGE_PREFIX)) announceDraftChanged();
 	});
 	window.addEventListener('card-web-preserve-edit-draft-for-save', event => {
 		flushPendingDraft();
 		stampDraftForSave((event as CustomEvent<SingleSaveIdentity>).detail || null);
-		previouslyDirty = false;
+		previousDirtyCardID = '';
 	});
 	window.addEventListener('card-web-single-save-confirmed', event => {
 		const confirmation = (event as CustomEvent<SingleSaveIdentity>).detail || null;
-		//Only the exact operation that preserved this draft may clear it. An
-		//unrelated permissions save—or a late acknowledgement—must leave it alone.
-		if (draftMatchesConfirmedSave(readEditDraft(), confirmation)) clearEditDraft();
+		//Only the exact operation that preserved this draft may clear it — and
+		//only its own card's slot. An unrelated permissions save—or a late
+		//acknowledgement—must leave it alone.
+		if (confirmation && draftMatchesConfirmedSave(readEditDraft(confirmation.cardID), confirmation)) clearEditDraft(confirmation.cardID);
 	});
 	window.addEventListener('beforeunload', flushPendingDraft);
 	document.addEventListener('visibilitychange', () => {
@@ -203,8 +294,12 @@ const waitForRecoverableCard = (cardID : CardID) : Promise<boolean> => new Promi
 	}, 15000);
 });
 
-export const recoverEditDraft = async () : Promise<void> => {
-	const draft = readEditDraft();
+export const recoverEditDraft = async (cardID? : CardID) : Promise<void> => {
+	//With a cardID (the banner names the draft it is showing): that exact
+	//slot. Without: the newest draft belonging to this account.
+	const draft = cardID !== undefined
+		? readEditDraft(cardID)
+		: readEditDrafts().find(candidate => candidate.uid === selectUid(currentState())) ?? null;
 	if (!draft || draft.uid !== selectUid(currentState())) throw new Error('No draft is available for this account.');
 	if (selectIsEditing(currentState())) throw new Error('Finish the current edit before recovering a draft.');
 	if (selectActiveCard(currentState())?.id !== draft.cardID) {

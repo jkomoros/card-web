@@ -95,6 +95,9 @@ class CardWebApp extends connect(store)(LitElement) {
 	_draftBusy = false;
 
 	@state()
+		_draftCount = 0;
+
+	@state()
 	_draftError = '';
 
 	@state()
@@ -118,6 +121,9 @@ class CardWebApp extends connect(store)(LitElement) {
 	private _editorOpen = false;
 
 	private _lastDraftUid = '';
+	//The card whose draft the banner is currently showing; Recover/Discard
+	//target exactly this one (#766).
+	private _draftCardID = '';
 	private _updateActivationTimeout : number | undefined;
 	private _updateBackstopInterval : number | undefined;
 	private _updateChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(SERVICE_WORKER_UPDATE_CHANNEL);
@@ -380,7 +386,7 @@ class CardWebApp extends connect(store)(LitElement) {
 			</div>` : ''}
 		${this._draftAvailable ? html`
 			<div class='update-ready draft-recovery ${this._editorOpen ? 'editor-open' : ''}' role='alert' aria-live='assertive'>
-				<span>${this._draftError || 'An unsaved card draft is available.'}</span>
+				<span>${this._draftError || (this._draftCount > 1 ? `${this._draftCount} unsaved card drafts are available.` : 'An unsaved card draft is available.')}</span>
 				<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
 				<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
 			</div>` : ''}
@@ -517,9 +523,8 @@ class CardWebApp extends connect(store)(LitElement) {
 	};
 
 	private _refreshDraftAvailability = async () => {
-		const {readEditDraft} = await import('../edit-draft.js');
-		const {durableCardMutationPending} = await import('../actions/data.js');
-		const draft = readEditDraft();
+		const {readEditDrafts} = await import('../edit-draft.js');
+		const {durableCardMutationPendingForCard} = await import('../actions/data.js');
 		const state = store.getState() as State;
 		//A draft carrying an operationID belongs to a save that was ATTEMPTED,
 		//not to an orphaned editing session. stampDraftForSave writes it
@@ -531,8 +536,17 @@ class CardWebApp extends connect(store)(LitElement) {
 		//is pending) and whose Discard removed the recovery record mid-flight.
 		//While a save is in flight or paused the save pill owns the UX and
 		//offers Retry/Stop; this banner is for drafts found orphaned at boot.
-		const belongsToLiveSave = Boolean(draft?.operationID) && durableCardMutationPending();
-		this._draftAvailable = Boolean(draft && draft.uid === selectUid(state) && !state.editor?.editing && !belongsToLiveSave);
+		//Per-card since #766: a draft stamped for a save that is live ON ITS
+		//OWN CARD is excluded, but no longer hides other cards' orphaned
+		//drafts. The banner shows the newest eligible draft and remembers
+		//which, so Recover and Discard act on exactly the draft shown.
+		const eligible = readEditDrafts().filter(draft =>
+			draft.uid === selectUid(state) &&
+			!(draft.operationID && durableCardMutationPendingForCard(draft.cardID)));
+		const shown = eligible[0];
+		this._draftAvailable = Boolean(shown && !state.editor?.editing);
+		this._draftCardID = shown ? shown.cardID : '';
+		this._draftCount = eligible.length;
 		if (!this._draftAvailable) this._draftError = '';
 	};
 
@@ -541,7 +555,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		this._draftError = '';
 		try {
 			const {recoverEditDraft} = await import('../edit-draft.js');
-			await recoverEditDraft();
+			await recoverEditDraft(this._draftCardID || undefined);
 		} catch (error) {
 			this._draftError = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -553,7 +567,9 @@ class CardWebApp extends connect(store)(LitElement) {
 	private _discardDraft = async () => {
 		if (!confirm('Permanently discard this unsaved draft?')) return;
 		const {clearEditDraft} = await import('../edit-draft.js');
-		clearEditDraft();
+		//Only the draft the banner is showing; other cards' parked drafts
+		//are not what the user just declined (#766).
+		clearEditDraft(this._draftCardID || undefined);
 	};
 
 	private _retrySave = async () => {
