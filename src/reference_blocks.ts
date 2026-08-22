@@ -324,12 +324,20 @@ export type WorkerCollectionRunner = (description : string, keyCardID : string) 
 type WorkerExpansionMemo = {
 	card: Card,
 	blockKey: string,
-	args: CollectionConstructorArguments,
 	editable: CardBooleanMap,
 	runner: WorkerCollectionRunner,
 	result: Promise<ExpandedReferenceBlocks | null>,
 };
-const workerExpansionMemo : WorkerExpansionMemo[] = [];
+//Keyed weakly on the CollectionConstructorArguments identity (#768): this
+//used to be a flat module-level array whose entries each held args — and
+//through them the full cards map — so up to 8 entries of a dropped corpus
+//generation survived sign-out until organically displaced. Args objects are
+//minted fresh by createSelector per generation, so keying on them makes a
+//dropped generation's entries collectable as soon as reselect lets go of the
+//old args. The 8-entry LRU is now per generation, which preserves the old
+//within-generation behavior exactly (cross-generation entries could never
+//hit anyway, since the args identity was part of the match).
+const workerExpansionMemo = new WeakMap<CollectionConstructorArguments, WorkerExpansionMemo[]>();
 const WORKER_EXPANSION_MEMO_LIMIT = 8;
 
 //Like expandReferenceBlocks, but each block's collection is computed in the
@@ -340,20 +348,24 @@ export const expandReferenceBlocksViaRunner = (card : Card | null, blocks : Refe
 	if (!card) return Promise.resolve(EMPTY_ARRAY);
 	if (blocks.length == 0) return Promise.resolve(EMPTY_ARRAY);
 	const blockKey = blocks.map(block => block.collectionDescription.serialize()).join('\n');
-	const cachedIndex = workerExpansionMemo.findIndex(entry => entry.card === card && entry.blockKey === blockKey &&
-		entry.args === collectionConstructorArgs && entry.editable === cardIDsUserMayEdit && entry.runner === runner);
+	const entries = workerExpansionMemo.get(collectionConstructorArgs) || [];
+	const cachedIndex = entries.findIndex(entry => entry.card === card && entry.blockKey === blockKey &&
+		entry.editable === cardIDsUserMayEdit && entry.runner === runner);
 	if (cachedIndex >= 0) {
-		const [cached] = workerExpansionMemo.splice(cachedIndex, 1);
-		workerExpansionMemo.push(cached);
+		const [cached] = entries.splice(cachedIndex, 1);
+		entries.push(cached);
 		return cached.result;
 	}
 	const result = expandReferenceBlocksViaRunnerUncached(card, blocks, collectionConstructorArgs, cardIDsUserMayEdit, runner);
-	workerExpansionMemo.push({card, blockKey, args: collectionConstructorArgs, editable: cardIDsUserMayEdit, runner, result});
-	while (workerExpansionMemo.length > WORKER_EXPANSION_MEMO_LIMIT) workerExpansionMemo.shift();
+	entries.push({card, blockKey, editable: cardIDsUserMayEdit, runner, result});
+	while (entries.length > WORKER_EXPANSION_MEMO_LIMIT) entries.shift();
+	workerExpansionMemo.set(collectionConstructorArgs, entries);
 	void result.then(value => {
 		if (value !== null) return;
-		const index = workerExpansionMemo.findIndex(entry => entry.result === result);
-		if (index >= 0) workerExpansionMemo.splice(index, 1);
+		const currentEntries = workerExpansionMemo.get(collectionConstructorArgs);
+		if (!currentEntries) return;
+		const index = currentEntries.findIndex(entry => entry.result === result);
+		if (index >= 0) currentEntries.splice(index, 1);
 	});
 	return result;
 };
@@ -396,9 +408,14 @@ const expandReferenceBlocksViaRunnerUncached = async (card : Card, blocks : Refe
 	});
 };
 
-let memoizedCollectionConstructorArguments : CollectionConstructorArguments | null = null;
-let memoizedCardIDsUserMayEdit : CardBooleanMap | null = null;
-let memoizedExpandedPrimaryBlocksForCard : Map<Card, ExpandedReferenceBlocks> = new Map();
+type PrimaryBlocksMemo = {
+	editable: CardBooleanMap,
+	blocks: Map<Card, ExpandedReferenceBlocks>,
+};
+//Same weak-keying rationale as workerExpansionMemo above (#768): the
+//previous module-level trio (args + editable + Map<Card, blocks>) pinned the
+//last generation's whole corpus after sign-out.
+const primaryBlocksMemo = new WeakMap<CollectionConstructorArguments, PrimaryBlocksMemo>();
 
 //getExpandedPrimaryReferenceBlocksForCard is reasonably efficient because it
 //caches results, so as long as the things that a collection depends on and the
@@ -409,20 +426,20 @@ export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorAr
 	if (!card) return EMPTY_ARRAY;
 	if (!cardIDsUserMayEdit) cardIDsUserMayEdit = {};
 
-	if (memoizedCollectionConstructorArguments != collectionConstructorArguments || cardIDsUserMayEdit != memoizedCardIDsUserMayEdit) {
-		memoizedExpandedPrimaryBlocksForCard = new Map();
-		memoizedCollectionConstructorArguments = collectionConstructorArguments;
-		memoizedCardIDsUserMayEdit = cardIDsUserMayEdit;
+	let memo = primaryBlocksMemo.get(collectionConstructorArguments);
+	if (!memo || memo.editable !== cardIDsUserMayEdit) {
+		memo = {editable: cardIDsUserMayEdit, blocks: new Map()};
+		primaryBlocksMemo.set(collectionConstructorArguments, memo);
 	}
 
-	if (!memoizedExpandedPrimaryBlocksForCard.has(card)) {
+	if (!memo.blocks.has(card)) {
 		//Generate new blocks and stash
 		const blocks = primaryReferenceBlocksForCard(card);
 		//reference-block will hide any ones that shouldn't render because of an empty collection
 		const expandedBlocks = expandReferenceBlocks(card, blocks, collectionConstructorArguments, cardIDsUserMayEdit);
-		memoizedExpandedPrimaryBlocksForCard.set(card, expandedBlocks);
+		memo.blocks.set(card, expandedBlocks);
 	}
 
-	return memoizedExpandedPrimaryBlocksForCard.get(card) || [];
+	return memo.blocks.get(card) || [];
 
 };

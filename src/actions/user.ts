@@ -175,7 +175,8 @@ import {
 	selectUserIsAnonymous,
 	selectActiveCollection,
 	getCardInReadingList,
-	getCardHasStar
+	getCardHasStar,
+	releasePreviousActiveCollection
 } from '../selectors.js';
 
 import {
@@ -405,6 +406,9 @@ export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 	}
 
 	dispatch({type: SIGNOUT_SUCCESS});
+	//#768: release the one-generation corpus retainer eagerly on auth-scope
+	//change; the old user's collection must not seed the next user's.
+	releasePreviousActiveCollection();
 	disconnectLiveStars();
 	disconnectLiveReads();
 	disconnectLiveReadingList();
@@ -483,6 +487,9 @@ const updateUserInfo = (firebaseUser : User) : ThunkSomeAction => (dispatch) => 
 		type: SIGNIN_SUCCESS,
 		user: info,
 	});
+	//#768: as on sign-out — a sign-in is the other half of an account
+	//switch, and runs harmlessly at boot when nothing is held yet.
+	releasePreviousActiveCollection();
 };
 
 //signInSuccess runs on every auth resolution; the queue-depth mirror below

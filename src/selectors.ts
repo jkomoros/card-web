@@ -1820,6 +1820,16 @@ export const selectFieldValidationErrorsForEditingCard = createSelector(
 //the already-computed filter/sort work instead of rebuilding from scratch.
 let _previousActiveCollection : Collection | null = null;
 
+//#768: the continuity slot above strongly holds one full corpus generation
+//(the Collection retains its cards). It cannot be weak-keyed — its whole
+//purpose is handing the PREVIOUS generation's collection to the next build —
+//so on an auth-scope change, where the old user's collection is wrong to
+//reuse anyway, the sign-in/sign-out flow releases it eagerly instead of
+//waiting for the next active-collection recompute to displace it.
+export const releasePreviousActiveCollection = () => {
+	_previousActiveCollection = null;
+};
+
 export const selectWorkerActiveCollectionResult = (state : State) => state.collection ? state.collection.workerActiveCollection : null;
 
 const selectWorkerActiveCollectionError = (state : State) => state.collection ? state.collection.workerActiveCollectionError : null;
