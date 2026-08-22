@@ -238,9 +238,13 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 		for (const enqueuedFetchType of TypedObject.keys(state.enqueuedCards)) {
 			const bucket = state.enqueuedCards[enqueuedFetchType];
 			if (!bucket) continue;
+			//Iterate the bucket (a handful of parked echoes), not action.cards
+			//(potentially the whole 40k-card warm-corpus handoff): probing
+			//every applied id against every bucket measured ~15ms per
+			//dispatch the moment any bucket existed.
 			let cleaned : Cards | null = null;
-			for (const id of Object.keys(action.cards)) {
-				if (bucket[id] === undefined) continue;
+			for (const id of Object.keys(bucket)) {
+				if (action.cards[id] === undefined) continue;
 				if (!cleaned) cleaned = {...bucket};
 				delete cleaned[id];
 			}

@@ -3419,7 +3419,12 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 				else immediate[id] = card;
 			}
 			const gatedCount = Object.keys(gated).length;
-			if (Object.keys(immediate).length) {
+			//The empty dispatch when NOTHING was gated matters: a delivery
+			//whose every card deduped away must still clear its fetchType's
+			//loading flag (some fetches deliberately signal "done loading"
+			//with an empty receiveCards), which UPDATE_CARDS does even for an
+			//empty batch.
+			if (Object.keys(immediate).length || !gatedCount) {
 				//safeCardFilters asserts an exact ID-domain match for the whole
 				//batch; it only survives when the whole batch is the immediate
 				//half.

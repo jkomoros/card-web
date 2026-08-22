@@ -125,6 +125,21 @@ describe('the enqueue gate partitions on the modification targets (#765)', () =>
 		assert.deepStrictEqual(enqueuedIDs(), [], 'the queue must be empty after the flush');
 	});
 
+	it('a fully-deduped delivery mid-operation still clears its loading flag', () => {
+		//Some fetches deliberately signal "done loading" with a delivery whose
+		//cards all dedupe away (or an outright empty one). The partition must
+		//not swallow that: an empty UPDATE_CARDS is what clears the flag.
+		store.dispatch(receiveCards({'gate-d6': card('gate-d6', {title: 'settled'})}, 'unpublished'));
+		modifyCard(['gate-t6a', 'gate-t6b']);
+		store.dispatch({type: 'EXPECT_FETCHED_CARDS', fetchType: 'unpublished'});
+		assert.strictEqual(data().loadingCardFetchTypes['unpublished'], true);
+		//Redeliver the identical card: dedupe empties the batch entirely.
+		store.dispatch(receiveCards({'gate-d6': {...data().cards['gate-d6']}}, 'unpublished'));
+		assert.strictEqual(data().loadingCardFetchTypes['unpublished'], undefined,
+			'the deduped-empty delivery must still clear the loading flag');
+		assert.deepStrictEqual(enqueuedIDs(), [], 'nothing may be parked by an empty delivery');
+	});
+
 	it('a newer direct-applied card evicts its stale parked copy, so the flush cannot clobber it', () => {
 		//Cycle A parks an echo of x5, then fails, stranding it in the queue.
 		modifyCard(['gate-x5', 'gate-w5']);
