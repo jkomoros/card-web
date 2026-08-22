@@ -131,6 +131,18 @@ describe('per-card draft slots (#766)', () => {
 		assert.ok(editDraft.readEditDraft('card-cap-' + (total - 1)));
 	});
 
+	it('the cap never evicts a stamped draft — a paused save\'s recovery record', () => {
+		//The #766 review executed this exact loss: a stamped draft as the
+		//oldest slot was evicted by the 9th persist (possibly from another
+		//tab). Stamped drafts are exempt; victims come from unstamped only.
+		seed(storedDraft('card-stamped', {operationID: 'op-live'}));
+		const total = editDraft.MAX_EDIT_DRAFT_SLOTS + 3;
+		for (let i = 0; i < total; i++) seed(storedDraft('card-fill-' + i));
+		editDraft.enforceEditDraftSlotCap();
+		assert.ok(editDraft.readEditDraft('card-stamped'), 'the stamped draft must survive the cap');
+		assert.strictEqual(editDraft.readEditDraft('card-fill-0'), null, 'the oldest unstamped draft is the victim instead');
+	});
+
 	it('recoverEditDraft refuses another account\'s draft, per slot', async () => {
 		seed(storedDraft('card-other', {uid: 'someone-else'}));
 		await assert.rejects(editDraft.recoverEditDraft('card-other'), /No draft is available/);

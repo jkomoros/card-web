@@ -551,11 +551,21 @@ class CardWebApp extends connect(store)(LitElement) {
 	};
 
 	private _recoverDraft = async () => {
+		//Capture BEFORE any await: a storage-event refresh can retarget the
+		//banner mid-flight, and this action belongs to the draft that was
+		//showing when the user clicked (#766 review). An empty capture means
+		//the banner lost its draft — refresh and bail rather than acting on
+		//"whatever is newest".
+		const cardID = this._draftCardID;
+		if (!cardID) {
+			await this._refreshDraftAvailability();
+			return;
+		}
 		this._draftBusy = true;
 		this._draftError = '';
 		try {
 			const {recoverEditDraft} = await import('../edit-draft.js');
-			await recoverEditDraft(this._draftCardID || undefined);
+			await recoverEditDraft(cardID);
 		} catch (error) {
 			this._draftError = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -565,11 +575,18 @@ class CardWebApp extends connect(store)(LitElement) {
 	};
 
 	private _discardDraft = async () => {
+		//Capture before the modal: while it sits open a storage-event refresh
+		//can retarget or empty _draftCardID, and "discard THIS draft" must
+		//never fall through to a clear-everything (#766 review: that
+		//fallback wiped another account's stamped draft).
+		const cardID = this._draftCardID;
+		if (!cardID) {
+			await this._refreshDraftAvailability();
+			return;
+		}
 		if (!confirm('Permanently discard this unsaved draft?')) return;
 		const {clearEditDraft} = await import('../edit-draft.js');
-		//Only the draft the banner is showing; other cards' parked drafts
-		//are not what the user just declined (#766).
-		clearEditDraft(this._draftCardID || undefined);
+		clearEditDraft(cardID);
 	};
 
 	private _retrySave = async () => {

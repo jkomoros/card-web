@@ -119,10 +119,18 @@ export const readEditDraft = (cardID? : CardID) : StoredEditDraft | null => {
 };
 
 //Exported for tests. Newest-first retention: the just-persisted draft is by
-//construction the newest, so it is never the one evicted.
+//construction the newest, so it is never the one evicted. Stamped drafts are
+//EXEMPT (#766 review): an operationID marks a paused save's recovery record —
+//the exact artifact this module exists to protect — and stamped drafts
+//cannot accrete unboundedly, since confirmation or explicit discard clears
+//them deterministically. So the count may exceed the cap while saves are
+//paused; only unstamped drafts are eligible victims, oldest first.
 export const enforceEditDraftSlotCap = () => {
 	const drafts = readEditDrafts();
-	for (const stale of drafts.slice(MAX_EDIT_DRAFT_SLOTS)) {
+	const excess = drafts.length - MAX_EDIT_DRAFT_SLOTS;
+	if (excess <= 0) return;
+	const unstamped = drafts.filter(draft => !draft.operationID);
+	for (const stale of unstamped.slice(-excess)) {
 		try {
 			localStorage.removeItem(draftKey(stale.cardID));
 		} catch {
