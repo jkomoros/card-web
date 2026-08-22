@@ -687,14 +687,61 @@ export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFil
 //makeFilterUnionSet takes a definition like "starred+in-reading-list" and
 //returns a synthetic filter object that is the union of all of the filters
 //named. The individual names may be normal filters or inverse filters.
+//
+//MEMOIZED per union name (#769): a union containing an INVERSE member
+//expands via makeConcreteInverseFilter, which walks the entire cards map —
+//measured ~22ms per evaluation at 40k cards — and this ran unmemoized on
+//every collection evaluation. With #745's default-ON sticky search filter
+//(`prioritized+published`, whose first member is an inverse), that was a
+//whole-corpus walk per debounced find keystroke. The memo keys on
+//everything the result depends on: each member's membership identity (in
+//order) and, when any member is inverse, the cards identity. Returning the
+//SAME object on a hit also stabilizes result identity, which downstream
+//identity-keyed memos (the extras memo) were measured busting on.
+type UnionSetMemoEntry = {
+	sources : (FilterMap | CardIDMap | undefined)[],
+	result : FilterMap,
+};
+
+const unionSetMemo = new Map<UnionFilterName, UnionSetMemoEntry>();
+
+//Distinct union names come from URLs and the sticky search expression — a
+//handful in practice — but cap the map so a hostile/pathological URL stream
+//cannot grow it without bound. Insertion-order eviction, like the
+//configurable-filter memo's cap.
+const UNION_SET_MEMO_MAX_ENTRIES = 32;
+
 const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMemberships : Filters, cards : CardIDMap) : FilterMap => {
 	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
+	//The identity sources, in member order: the membership map for a normal
+	//member, the membership map of the INVERSE for an inverse member. Cards
+	//identity is appended only when an inverse member makes the result
+	//depend on it, so unions of normal filters don't recompute on unrelated
+	//card churn.
+	const sources : (FilterMap | CardIDMap | undefined)[] = subFilterNames.map(filterName => {
+		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
+		if (INVERSE_FILTER_NAMES[filterName]) return filterSetMemberships[INVERSE_FILTER_NAMES[filterName]];
+		return undefined;
+	});
+	if (subFilterNames.some(filterName => !filterSetMemberships[filterName] && INVERSE_FILTER_NAMES[filterName])) {
+		sources.push(cards);
+	}
+	const memoized = unionSetMemo.get(unionFilterDefinition);
+	if (memoized && memoized.sources.length === sources.length && memoized.sources.every((source, index) => source === sources[index])) {
+		return memoized.result;
+	}
 	const subFilters = subFilterNames.map(filterName => {
 		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
 		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], cards);
 		return {};
 	});
-	return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+	const result = Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+	if (!unionSetMemo.has(unionFilterDefinition) && unionSetMemo.size >= UNION_SET_MEMO_MAX_ENTRIES) {
+		const oldest = unionSetMemo.keys().next().value;
+		if (oldest !== undefined) unionSetMemo.delete(oldest);
+	}
+	unionSetMemo.set(unionFilterDefinition, {sources, result});
+	return result;
 };
 
 //Returns a function that takes an item and returns true if it's in ALL
