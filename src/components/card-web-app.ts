@@ -48,7 +48,6 @@ import {
 	selectActiveCard,
 	selectCardModificationError,
 	selectChatComposingMessage,
-	selectEditingCardHasUnsavedChanges,
 	selectPendingDeletions,
 	selectPendingModificationCount,
 	selectUid,
@@ -571,23 +570,17 @@ class CardWebApp extends connect(store)(LitElement) {
 		await this._refreshDraftAvailability();
 	};
 
-	override firstUpdated() {
-		// Install recovery only after the root module graph has initialized.
-		// Running actions/data's watcher during store construction would execute
-		// a circular module before all of its bindings exist.
-		void import('../actions/data.js').then(module => module.installBulkTagResumeWatcher());
-		void import('../edit-draft.js').then(module => {
-			module.installEditDraftWatcher();
-			void this._refreshDraftAvailability();
-		});
-		installRouter((location) => store.dispatch(navigated(location.pathname, location.search)));
-		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
-		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
-			store.dispatch(turnMobileMode(isMobile));
-		});
-		document.addEventListener('keydown', this._handleKeyDown.bind(this));
-		document.addEventListener('keyup', this._handleKeyUp.bind(this));
-		window.addEventListener('blur', this._handleBlur.bind(this));
+	//Registration lives here, NOT in firstUpdated, for three reasons (#770):
+	//it runs earlier (before the first render, and before firstUpdated's
+	//installer dispatches fan out through the store, where a single throw
+	//used to silently skip every registration after it); it pairs with the
+	//removals in disconnectedCallback, so a disconnect/reconnect of this
+	//element no longer drops the beforeunload guard permanently
+	//(firstUpdated never runs twice); and super.connectedCallback() connects
+	//the store first, so state-derived fields are live before any handler
+	//can fire.
+	override connectedCallback() {
+		super.connectedCallback();
 		window.addEventListener('card-web-service-worker-update', this._updateEventHandler);
 		window.addEventListener('beforeunload', this._beforeUnloadHandler);
 		window.addEventListener('card-web-edit-draft-changed', this._draftEventHandler);
@@ -600,6 +593,43 @@ class CardWebApp extends connect(store)(LitElement) {
 		//it is known) and hourly thereafter (covers the long-lived tab).
 		this._checkUpdateBackstop();
 		this._updateBackstopInterval = window.setInterval(() => this._checkUpdateBackstop(), UPDATE_AUTO_ACTIVATE_RECHECK_MS);
+	}
+
+	override firstUpdated() {
+		// Install recovery only after the root module graph has initialized.
+		// Running actions/data's watcher during store construction would execute
+		// a circular module before all of its bindings exist.
+		void import('../actions/data.js').then(module => module.installBulkTagResumeWatcher());
+		void import('../edit-draft.js').then(module => {
+			module.installEditDraftWatcher();
+			void this._refreshDraftAvailability();
+		});
+		document.addEventListener('keydown', this._handleKeyDown.bind(this));
+		document.addEventListener('keyup', this._handleKeyUp.bind(this));
+		window.addEventListener('blur', this._handleBlur.bind(this));
+		//Each pwa-helpers installer invokes its callback SYNCHRONOUSLY at
+		//install time (verified: router.js ends with
+		//locationUpdatedCallback(...)), so each of these lines runs a store
+		//dispatch that fans out to every subscriber before returning. Guarded
+		//individually so one boot-time throw cannot silently strip the
+		//installers after it — the failure mode that motivated #770.
+		try {
+			installRouter((location) => store.dispatch(navigated(location.pathname, location.search)));
+		} catch (err) {
+			console.error('installRouter failed at boot', err);
+		}
+		try {
+			installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
+		} catch (err) {
+			console.error('installOfflineWatcher failed at boot', err);
+		}
+		try {
+			installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
+				store.dispatch(turnMobileMode(isMobile));
+			});
+		} catch (err) {
+			console.error('installMediaQueryWatcher failed at boot', err);
+		}
 	}
 
 	override disconnectedCallback() {
@@ -670,7 +700,15 @@ class CardWebApp extends connect(store)(LitElement) {
 			//A browser that denies durable storage is already rejected when a bulk
 			//operation tries to persist. Do not make ordinary rendering fail too.
 		}
-		this._unsafeExitReason = selectEditingCardHasUnsavedChanges(state)
+		//ANY open editor arms the guard, not just a non-empty redux diff
+		//(#770 decision): textFieldUpdated deliberately skips dispatch when a
+		//keystroke normalizes back to the stored value, so the contenteditable
+		//(what the user sees) and redux (what a diff check would consult) can
+		//diverge. EDITING_FINISH discards the editing state outright, so an
+		//open editor is always worth a prompt. This also keeps the
+		//service-worker auto-reload paths, which share this reason, from
+		//reloading under an open editor.
+		this._unsafeExitReason = this._editorOpen
 			? 'save or cancel your draft first'
 			: selectPendingModificationCount(state) > 0 || state.data?.pendingReorder || Object.values(selectPendingDeletions(state)).some(Boolean) || hasDurableBulkIntent
 				? 'wait for pending changes to finish'
