@@ -14,7 +14,7 @@ import {bootstrapApp, clearAuxQueue, clearHarnessAlerts, seedQueuedIntent, wireC
 
 const app = await bootstrapApp();
 const {db, store, uid: UID, firestore} = app;
-const {doc, getDoc, getDocs, query, collection: coll, where, Timestamp} = firestore;
+const {doc, getDoc, getDocs, getDocsFromServer, query, collection: coll, where, Timestamp} = firestore;
 
 await import('../../lib/src/actions/data.js');
 const queue = await import('../../lib/src/aux-write-queue.js');
@@ -132,7 +132,12 @@ describe('one import shares one stamp, end to end (#761)', () => {
 		}
 		const clientAfter = Date.now();
 
-		const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
+		//FromServer, not the default read: the shared SDK instance serves a
+		//latency-compensated local view in which a just-acked write's
+		//serverTimestamp can still read as null — observed as a flaky
+		//"updated must be a Timestamp" failure. The assertion is about what
+		//the SERVER holds.
+		const snapshot = await getDocsFromServer(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
 		const groupCards = snapshot.docs.map(d => d.data()).filter(c => String(c.body || '').includes(marker));
 		assert.strictEqual(groupCards.length, CARDS, 'all cards must land');
 
