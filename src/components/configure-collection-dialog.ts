@@ -723,6 +723,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || parsed.nextExpected || []);
 		const expressionParts = collectionExpressionParts(description, this._composerFilterLabels);
 		const fullDestination = parsed.canonicalPath ? new URL(parsed.canonicalPath, window.location.origin).toString() : '';
+		//The app elides the default set, so a perfectly good `/c/main/starred/`
+		//canonicalizes to `/c/starred/`. Shown under "Will open as" with no
+		//further comment, that reads as the app quietly rewriting what was
+		//typed. Naming it as the same collection in canonical form is the whole
+		//difference between a rewrite and a spelling.
+		const canonicalized = Boolean(parsed.canonicalPath) && parsed.canonicalPath !== this._sourceInput;
 		return html`
 			<div class='source-editor'>
 				<label for='collection-source-input'>Collection source</label>
@@ -736,7 +742,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					aria-controls='collection-source-completions'
 					aria-expanded=${completions.length > 0}
 					aria-activedescendant=${ifDefined(completions.length ? `collection-source-completion-${this._sourceCompletionIndex}` : undefined)}
-					aria-describedby='collection-source-status collection-source-destination'
+					aria-describedby=${parsed.canonicalPath ? 'collection-source-status collection-source-destination' : 'collection-source-status'}
 					aria-invalid=${parsed.status !== 'valid'}
 					placeholder='everything/starred/updated/after/3-days-ago/'
 					.value=${this._sourceInput}
@@ -774,8 +780,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<span class='source-interpretation-label'>Opens on</span>
 				<div>${shown.selectedCardRaw === '_' ? 'The first card in the collection' : shown.selectedCardRaw}</div>
 			` : ''}
-			<span class='source-interpretation-label'>${parsed.canonicalPath === this._sourceInput ? 'Link' : 'Will open as'}</span>
-			<div id='collection-source-destination' class='source-link'>${fullDestination || 'Open is unavailable until the current source is valid.'}</div>
+			${fullDestination ? html`
+				<span class='source-interpretation-label'>${canonicalized ? 'Will open as' : 'Link'}</span>
+				<div id='collection-source-destination' class='source-link'>${fullDestination}</div>
+				${canonicalized ? html`<div class='key-hints'>Same collection, written in this app’s canonical form</div>` : ''}
+			` : ''}
 			${parsed.notices.map(notice => html`<div class='key-hints'>${notice} ${parsed.query}${parsed.hash}</div>`)}
 			${fullDestination ? html`<button class='small' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
 			${this._sourceCopyMessage ? html`<span class='draft-receipt' role='status'>${this._sourceCopyMessage}</span>` : ''}

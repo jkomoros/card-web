@@ -1198,6 +1198,39 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(dialog.shadowRoot.querySelector(".composer-actions .primary").disabled, false);
   });
 
+  //"WILL OPEN AS" sitting above "Open is unavailable until the current source
+  //is valid" was a heading contradicting its own value; and a canonical path
+  //that silently drops the default set reads as the app rewriting what was
+  //typed unless something says otherwise.
+  it("shows a destination heading only when there is a destination, and names canonicalization", async () => {
+    store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    const input = dialog.shadowRoot.querySelector("#collection-source-input");
+    input.value = "updated/before/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-source-destination"), null,
+      "no heading claims a destination while there is none");
+    assert.doesNotMatch(dialog.shadowRoot.textContent, /Will open as/);
+    assert.strictEqual(input.getAttribute("aria-describedby"), "collection-source-status");
+
+    input.value = "/c/main/starred/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.match(dialog.shadowRoot.querySelector("#collection-source-destination").textContent, /\/c\/starred\/$/);
+    assert.match(dialog.shadowRoot.textContent, /Will open as/);
+    assert.match(dialog.shadowRoot.textContent, /Same collection, written in this app’s canonical form/);
+
+    input.value = "/c/starred/";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.doesNotMatch(dialog.shadowRoot.textContent, /Will open as/);
+    assert.doesNotMatch(dialog.shadowRoot.textContent, /canonical form/);
+    assert.match(dialog.shadowRoot.textContent, /Link/);
+  });
+
   it("preserves a Source selected card through Compose activation", async () => {
     store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
     store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: "source" });

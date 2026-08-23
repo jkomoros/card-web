@@ -89,9 +89,50 @@ describe("lossless collection source editor", () => {
       filterSearchValues: { "inductively-knowable": ["Inductively Knowable", "tag"] },
       preservedSelectedCard: "active-card",
     });
-    assert.strictEqual(searched.status, "unsupported");
+    //"induct" is the start of a filter this app knows, so it is a token the
+    //user has not finished typing — not a token the app refuses. Calling it
+    //unsupported reported a hard failure on every keystroke of a word that was
+    //going fine, while the completion list underneath already offered the
+    //match.
+    assert.strictEqual(searched.status, "incomplete");
+    assert.strictEqual(searched.diagnostics[0].code, "unfinished-filter");
     assert.ok(searched.diagnostics[0].expected.includes("inductively-knowable"));
     assert.match(searched.diagnostics[0].expectedDetails["inductively-knowable"], /tagged/);
+
+    //A token that is the start of nothing is still genuinely unsupported.
+    const unknown = parseCollectionSource("zzznotafilter/", {
+      ordinaryFilters: new Set(Object.keys(CARD_FILTER_DESCRIPTIONS)),
+      preservedSelectedCard: "active-card",
+    });
+    assert.strictEqual(unknown.status, "unsupported");
+    assert.strictEqual(unknown.diagnostics[0].code, "unknown-filter");
+  });
+
+  //Half a word is not a wrong word. "sta" is a filter the user has not finished
+  //typing; the status line calling that "Not supported here" on every keystroke
+  //reported a hard failure about a state that was going fine — while the
+  //completion list underneath was already offering Starred.
+  it("classifies an unfinished filter as incomplete, not unsupported", () => {
+    const cases = [
+      ["sta/", "unfinished-filter", "starred"],
+      ["everything/unre/", "unfinished-filter", "unread"],
+      ["exclude/working-n/", "unfinished-nested-filter", "working-notes"],
+    ];
+    for (const [raw, code, completion] of cases) {
+      const result = parse(raw);
+      assert.strictEqual(result.status, "incomplete", raw);
+      assert.strictEqual(result.diagnostics[0].code, code, raw);
+      assert.ok(result.diagnostics[0].expected.includes(completion), raw);
+      assert.match(result.diagnostics[0].message, /start of a filter name/, raw);
+    }
+    //A token that is the start of nothing is genuinely unsupported, and stays
+    //that way.
+    for (const raw of ["zzznotafilter/", "exclude/zzznotafilter/"]) {
+      assert.strictEqual(parse(raw).status, "unsupported", raw);
+    }
+    //An exact filter name is not "unfinished" merely because longer names start
+    //with it.
+    assert.strictEqual(parse("starred/").status, "valid");
   });
 
   it("does not reinterpret percent-encoded structural keywords", () => {
@@ -115,9 +156,12 @@ describe("lossless collection source editor", () => {
 
   it("searches the full filter vocabulary inside nested expressions", () => {
     const result = parse("exclude/working-n/");
-    assert.strictEqual(result.status, "unsupported");
-    assert.strictEqual(result.diagnostics[0].code, "unknown-nested-filter");
+    //Same rule one level down: a prefix of a known nested filter is unfinished,
+    //not unsupported.
+    assert.strictEqual(result.status, "incomplete");
+    assert.strictEqual(result.diagnostics[0].code, "unfinished-nested-filter");
     assert.ok(result.diagnostics[0].expected.includes("working-notes"));
+    assert.strictEqual(parse("exclude/zzznotafilter/").status, "unsupported");
   });
 
   it("requires /c for app-relative routes and canonicalizes only the destination", () => {

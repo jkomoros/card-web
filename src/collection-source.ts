@@ -126,6 +126,16 @@ export const parseCollectionSource = (
 				SET_NAMES.includes(token as never) ? `Start from the ${token} collection set` :
 				context.filterDescriptions?.[token] || `Filter cards with ${token}`
 	]));
+	//Half a word is not a wrong word. A token that is a strict prefix of at
+	//least one filter this app knows is a filter the user has not finished
+	//typing, and saying "not supported here" on every keystroke of `sta` —
+	//while the list underneath is already offering Starred — is a hard failure
+	//claimed about a state that is going fine.
+	const unfinishedToken = (token : string) : boolean => {
+		if (!token) return false;
+		const search = token.toLowerCase();
+		return allRootTokens.some(known => known !== token && known.toLowerCase().startsWith(search));
+	};
 	const validateFilterExpression = (rawParts : string[], start : number, diagnosticSegment : number) : number => {
 		const name = rawParts[start];
 		if (!name) return start + 1;
@@ -136,7 +146,11 @@ export const parseCollectionSource = (
 					const expected = allRootTokens.filter(token => token !== 'sort' && token !== 'view' && !SET_NAMES.includes(token as never) &&
 						(token.toLowerCase().startsWith(search) ||
 							(context.filterSearchValues?.[token] || []).some(value => value.toLowerCase().includes(search)))).slice(0, 12);
-					diagnose('unsupported', 'unknown-nested-filter', `This app does not know the nested “${member || name}” filter.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails);
+					if (unfinishedToken(member)) {
+						diagnose('incomplete', 'unfinished-nested-filter', `“${member}” is the start of a filter name, so this nested filter is not finished yet. Choose one below or keep typing.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails);
+					} else {
+						diagnose('unsupported', 'unknown-nested-filter', `This app does not know the nested “${member || name}” filter.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails);
+					}
 				}
 			}
 			return start + 1;
@@ -353,7 +367,11 @@ export const parseCollectionSource = (
 			const search = part.toLowerCase();
 			const expected = allRootTokens.filter(token => token.toLowerCase().startsWith(search) ||
 				(context.filterSearchValues?.[token] || []).some(value => value.toLowerCase().includes(search))).slice(0, 12);
-			diagnose('unsupported', 'unknown-filter', `This app does not know the “${part}” filter.`, segment.index, expected.length ? expected : undefined, rootDetails);
+			if (unfinishedToken(part)) {
+				diagnose('incomplete', 'unfinished-filter', `“${part}” is the start of a filter name, so this source is not finished yet. Choose one below or keep typing.`, segment.index, expected.length ? expected : undefined, rootDetails);
+			} else {
+				diagnose('unsupported', 'unknown-filter', `This app does not know the “${part}” filter.`, segment.index, expected.length ? expected : undefined, rootDetails);
+			}
 		}
 		filters.push(segment.raw);
 		index++;
