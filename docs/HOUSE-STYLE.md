@@ -53,6 +53,12 @@ migration.
 | **Card type** | What kind of thing this card is. 7 of them, each with a one-line description. | `shared/card_fields.ts:87-181` |
 | **Section** | Where a card lives. A card is in 0 or 1. Determines default order. | `src/types.ts:613` |
 | **Tag** | A group a card is in. A card is in 0 or more. | `src/types.ts:625` |
+
+Note on sections and tags: in the code they are already the same type
+(`Tags = {[tagName]: Section}`), and **#381 plans to merge them** into tags with
+groups, where a section becomes "the tag group you may only pick one of". Do not
+invest in copy that elaborates the distinction — describe each one's behaviour
+plainly and let the merge simplify it later.
 | **Reference** | A typed edge from one card to another. 16 types, each with a name and description. | `shared/card_fields.ts:184-380` |
 | **Collection** | An addressable set of cards. Always a URL. See §1.3. | `src/collection_description.ts:225` |
 | **Filter** | A named predicate that narrows a collection. | `src/filters.ts` |
@@ -76,6 +82,12 @@ Approved phrasings:
 - A section is **"where a card lives"**. A card is in 0 or 1 sections.
 - A tag is **"a group a card is in"**. A card is in 0 or more tags.
 - A collection is **"a set of cards you can link to"**.
+
+**The UI must define the word somewhere — MUST.** The deepest part of this defect
+is not any single string; it is that nothing in the product ever says what a
+collection is. A `help()` badge next to the Filters label in the Configure
+Collection dialog is the natural home: *"A collection is a set of cards you can
+link to."* (The dialog's own Title Case name is correct and stays.)
 
 Forbidden: describing a tag or a section *as* a collection. This is the app's
 single worst terminology defect today — the editor says "Tags are collections…
@@ -104,7 +116,7 @@ that produces a URL which will not reproduce. See §7 debt item D2.
 |---|---|---|
 | Tag | Label | "Label" appears throughout bulk-operation errors for the thing the editor calls a tag |
 | Save | Commit, Modify | The button says Save; the tooltip, the shortcut label and the action family should agree |
-| Sign in / Sign out | Log in, Login | Hyphenate only the adjective ("sign-in error"), never the verb |
+| Sign in / Sign out | Log in, Login | Hyphenate only the adjective ("a sign-in error"). The verb is two words, and so is the subject of a sentence: **"Sign in didn't complete"**, never "Sign-in did not complete" |
 | Card sync | Corpus, Compendium sync | "Corpus" is an internal word |
 | Section | — | The place a card lives |
 | Tag | — | A group a card is in |
@@ -200,6 +212,15 @@ interpolate `String(err)`, a Firebase auth code, or an internal concept name int
 user-facing text. **Never tell a user to open DevTools** — two messages currently
 do.
 
+Note what that alert is currently the *only* surface for. `_saveStatus` is
+`'idle'` unless `hasDurableBulkIntent` is true (`card-web-app.ts:758`), so the
+save-status pill does **not** render for single-card failures; `saveError` only
+chooses between `'saving'` and `'paused'` once the pill is already showing. A
+failure with no durable-intent record sets `cardModificationError` in Redux where
+nothing renders it. **Deleting that `alert()` before the error banner exists would
+convert roughly 25 failure paths from rude to silent** — which is worse, and is
+why §5 lists the banner as blocking.
+
 ### 2.5 Accessible names — MUST
 
 **Every control has an accessible name.** An icon-only button MUST carry both a
@@ -286,7 +307,7 @@ silently fail to suppress global shortcuts. Prefer fixing the enumeration.
 
 ### 3.4 Native browser modals — MUST NOT add new ones
 
-**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 82
+**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 81
 call sites today (`src/` + `shared/`). That number must not grow.
 
 The count is pinned and reviewers check it — see §6. Existing sites are migrated
@@ -315,7 +336,8 @@ work; until they exist, "opportunistically" will not have anywhere to land.
 Two properties of native modals make them worse than they look: they fire from
 inside dialogs (a native `prompt` over the Find dialog), and they fire with no
 user action at all (the background write queue alerts on failure). Saving a
-single card can currently fire seven sequential `confirm()`s.
+single card can currently fire **seven sequential `confirm()`s plus one per
+auto-TODO warning** — `card_diff.ts:335` loops, so the true maximum is unbounded.
 
 ### 3.5 Transient feedback — MUST
 
@@ -361,6 +383,18 @@ saying so is the whole point. And **blocked vs. in flight**: a padlock means
 `corpus-status-glyph.ts` names this explicitly — `writeLocked` exists so that
 "saving is REFUSED, not merely slow" is visible at a glance.
 
+The app's own save pill is the worked counter-example. `_saveStatus` is derived
+from `hasDurableBulkIntent` (`card-web-app.ts:758`) — a durable intent persisted
+*before* the first attempt, which survives reload. That is **pending**. It is
+presented as in flight ("Saving card…", the gerund idiom that asks you to wait),
+and `_unsafeExitReason` then arms a `beforeunload` prompt (`:140-144`). So the
+app blocks tab-close over work whose entire design point is that closing the tab
+is safe. Getting this distinction wrong costs the user something real.
+
+Credit where due: **blocked is the app's strongest area.** `writeLocked`,
+`blockedReason()` and the `span.reason` wrappers mean a refused save is
+consistently rendered as refused, never as slow. That pattern is the model.
+
 #### 3.6.1 The durability promise — MUST
 
 When a user acts on something that writes, the app applies it **locally and
@@ -375,6 +409,15 @@ This means the UI's job is not "block until confirmed". It is:
 3. **Say the promise out loud when the user might doubt it.** The canonical
    phrasing already exists: *"That card is saved and will be created
    automatically when the connection recovers. Nothing is lost."*
+
+   **Use the system's own three names.** `AuxWriteOutcome` is already
+   `'committed' | 'queued' | 'discarded'` (`src/aux-write-queue.ts:785`), and
+   that structure never reaches the user — #758 documents *five* different prose
+   phrasings all reconstructing the same enum. Say which one happened:
+   **committed** (done and visible), **queued** (durably saved, will land on its
+   own — never lead with a failure verb), **discarded** (not saved, will not
+   retry). Only `discarded` is bad news, and it is the one users are currently
+   least equipped to distinguish.
 4. **Escalate only when the promise breaks** — a write that has failed
    repeatedly, or been discarded, is a persistent error banner, not a snackbar.
 
@@ -391,7 +434,7 @@ precedence anywhere status is shown, not just in the corpus indicator.
 |---|---|---|
 | `problem` | Degraded, interrupted, wedged | `--app-warning-color` |
 | `pending` | Local changes not yet server-confirmed | `--app-pending-color` |
-| `working` | Actively fetching or verifying — **pulses** | `--app-secondary-color` |
+| `working` | Actively fetching or verifying — **pulses** | `--app-primary-color-light` |
 | `ok` | Live, nothing pending | `--app-secondary-color` |
 | `muted` | Deliberately not syncing | `--app-dark-text-color-light` |
 
@@ -412,8 +455,14 @@ server-confirmed", `card-drawer.ts:237` uses it for "this one collection's
 computation failed, but the corpus is fine and nothing was lost", with a comment
 explaining the choice. That is a real state and the reasoning is sound, but it is
 not `pending`, and calling it `problem` would overstate it. Either it needs its
-own advisory tone or the ladder needs a documented fifth meaning for amber. Do
-not resolve this by quietly adding a third amber usage. See §7 debt item D21.
+own advisory tone or the ladder needs a documented fifth meaning for amber.
+
+And the drift has already happened twice: `card-drawer.ts:245` (`.diagnostic`,
+"we understood your URL differently than you wrote it") is a *second* advisory
+use, and it is not even the same as the first — `.failure` means something threw,
+while `.diagnostic` means nothing went wrong at all. Until this is resolved, the
+rule is narrow and absolute: **do not add another amber usage.** See §7 debt
+item D21.
 
 #### 3.6.3 Progress surfaces — MUST
 
@@ -523,13 +572,19 @@ and render native UA buttons next to the app's own.
 | **Circle icon** | `button.round` | Persistent toolbar actions, FABs, dialog confirm |
 | **Primary circle** | `button.round.primary` | The one committing action of a surface (Save, Accept, Send) |
 | **Toggle on** | `.selected` | A toggle in its on state; always paired with `aria-pressed` |
-| **Destructive** | `button.small` + warning-color fill | Tier 1 acts only (§3.7) |
+| **Destructive** | `button.small` + warning-color fill — **does not exist yet** | Tier 1 acts only (§3.7) |
 | **Text button** | `button` | Banners and gates, where a verb is clearer than a glyph |
 
 **These are the only variants.** A surface needing something else should extend
 `ButtonSharedStyles`, not hand-roll a local button system — `corpus-ownership-gate`
 currently defines its own, including a `.secondary` outline variant that exists
 nowhere else.
+
+The destructive variant is the one row above that describes something not yet
+built: `button-shared-styles.ts` contains no reference to `--app-warning-color`
+at all. The only implementation is local, at `card-web-app.ts:365-369`
+(`.save-status button.small.stop svg`). Generalizing it into `ButtonSharedStyles`
+is a prerequisite for §3.7 Tier 1.
 
 - **Never render a text glyph where an icon exists.** `+` and `X` appear as
   literal characters in four places while `PLUS_ICON` and `CANCEL_ICON` exist.
@@ -615,11 +670,40 @@ Check this table before building. If the job is here, the primitive exists.
 | Define a term in place | `help()` — `src/components/help-badges.ts` |
 | Card set / any view of cards | `CollectionDescription` |
 
-**Missing primitives** — build these rather than working around them:
-a destructive-confirm dialog, a generic input dialog, a persistent error banner,
-a keyboard-shortcut sheet, a stackable snackbar, and a loading-placeholder
-treatment for a list or panel whose data has not arrived yet (§3.6 state 1,
-which is the one state with no shared primitive at all).
+**Missing primitives** — build these rather than working around them.
+
+| Primitive | For | Issue |
+|---|---|---|
+| Async modal layer (`confirmDestructive` / `askForInput`) | The seam that lets 31 straight-line call sites migrate once, not twice | #708 |
+| Destructive-confirm dialog | §3.7 Tier 1 | #708 |
+| Generic input dialog | The 14 migratable `prompt()` sites | #708 |
+| Persistent error banner | A broken durability promise (§3.6.1 step 4) | #660, #758 |
+| Stackable snackbar | Transient outcomes; today one slot, silently overwritten | #708, #758 |
+| Keyboard-shortcut sheet | The 19 labels rendered nowhere | #740 (stage 2) |
+| Loading placeholder | §3.6 state 1 — the one state with no primitive at all | — |
+| Destructive button variant in `ButtonSharedStyles` | §3.7; does not exist today | — |
+
+`alert()`/`confirm()` are **synchronous and re-entrant-safe** — the world cannot
+change while one is open. Their replacements are promises and can be raced. Every
+migration must therefore re-check its precondition **after** the await, not only
+before. `card-web-app.ts:578-586` already documents this hazard for the draft case
+and mitigates it by capturing the target id before the modal; that is the pattern.
+
+## 5b. Related issues
+
+This document is the standing reference behind several open issues, not a
+replacement for any of them.
+
+| Issue | Relationship |
+|---|---|
+| #708 | *Make all alerts, confirms, and prompts be in in-app UX.* Specifies the approach §3.4 assumes: indirect behind async methods first, and expect a stack of concurrently-active messages because in-app dialogs do not block. |
+| #758 | *Rationalize progress & outcome UX.* The direct precursor to §3.6. Source of the committed/queued/discarded vocabulary and of `progress-panel.ts`. |
+| #740 | *Factor out a keyboard-shortcut layer.* Stage 1 shipped as `src/shortcuts.ts`; §3.8's shortcut sheet is stage 2, and user-configurable bindings are stage 3 — do not foreclose it. |
+| #660 | *Do a pretty Error dialog.* Overlaps the persistent error banner; decide whether a transient tool error and a durable-write failure are one surface or two. |
+| #692 | *Use dialog element.* Native `<dialog>` would supply focus trapping, an `inert` backdrop and Escape for free — three of §3.3's gaps. Worth deciding before building more dialogs on the current base. |
+| #381 | *Combine tags/sections.* Would collapse the §1.2 distinction into tags with groups. |
+| #722 | *Differentiate not-loaded cards.* Adjacent to §3.6 state 1 but a different problem: data that may never arrive without an explicit fetch, not data that is on its way. |
+| #745 | Its issue number is currently rendered in a user-facing tooltip (`find-dialog.ts:247`) — a §1.4 violation. |
 
 ---
 
@@ -627,16 +711,22 @@ which is the one state with no shared primitive at all).
 
 **The native-modal ratchet.** The count of `alert(`/`confirm(`/`prompt(` call
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
-baseline is **82**.
+baseline is **81**.
 
 ```bash
 grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --include="*.ts" \
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
-This is currently enforced **by review, not by a test**: run the command, compare
-against the number above. When you remove sites, lower the pin in this document
-in the same commit.
+The command prints **82**, not 81. Exactly one match is a false positive:
+`src/components/bulk-import-dialog.ts:179` is a continuation line inside a block
+comment that happens to begin with `alert()`. Live call sites: **81**.
+
+This is currently enforced **by review, not by a test**: run the command, subtract
+the one known false positive, compare against the number above. When you remove
+sites, lower the pin in this document in the same commit. If this ever becomes a
+test, strip comments before matching — the idiom already exists in
+`test/util/scrollbar-convention.test.js`.
 
 That is a deliberate choice to keep the rule cheap, and it has a known failure
 mode: a reviewer who does not know the pin exists will not check it, and the
@@ -661,7 +751,7 @@ rules.
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
 | D2 | 82 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | `alert(err)` on a raw `Error` is the default save-failure UI | §2.4 |
-| D4 | ~27 icon-only buttons with no accessible name, including every dialog's close button and six dialogs' primary action | §2.5 |
+| D4 | 29 icon-only buttons with no accessible name — including every dialog's close button and **five** dialogs' primary action; 43 more have a `title` but no `aria-label` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
@@ -676,8 +766,12 @@ rules.
 | D16 | Typos in shipping copy: "Thesholds", "typcially", "arent", `ai-assitant` (breaking two label associations) | §2 |
 | D17 | Shareable-looking URLs that don't reproduce; `canonicalizeURL` erases the collection | §1.3 |
 | D18 | `viewMode` is in every collection URL with no UI to set it | §1.3 |
-| D19 | Tag creation fails silently through six paths | §3.5 |
+| D19 | Tag creation fails silently through **eight** paths (`data.ts:2117-2166`) — the densest silent-refusal cluster in the app | §3.5 |
 | D20 | `.small` hit target is 18px against 48 usages | §4.2 |
 | D21 | Amber means both "not yet server-confirmed" and "advisory failure, nothing lost"; the ladder has no tone for the second | §3.6.2 |
 | D22 | The tone ladder, the durability promise and the phase-aware ring exist only in `corpus-status-glyph.ts`; other status surfaces predate them and don't follow them | §3.6 |
-| D23 | Loading states are ad hoc: a dimmed list with an `updating…` CSS pin, a bare `Loading...`, an `<em>loading…</em>`, a boot placeholder, and `Preparing search (X of Y cards indexed)…` — five idioms, no shared primitive | §3.6 |
+| D23 | Loading states are ad hoc — **eight** distinct idioms, no shared primitive: a dimmed list with an `updating…` pin, a bare `Loading...`, an `<em>loading…</em>`, a boot placeholder, `Preparing search (X of Y)…`, an unguarded pulse animation, a stale-content dim with a different constant, and a progress ring | §3.6 |
+| D24 | `applyOptimistically` (`user.ts:599-611`) silently reverts on failure — a star that fails to persist un-fills itself with no message, across six actions | §3.6.1 |
+| D25 | The save pill presents a *pending* state as *in flight*, and arms a `beforeunload` prompt over durable work | §3.6 |
+| D26 | Guards for four destructive acts live in components, not actions; two have unguarded paths to the same erasure | §3.7 |
+| D27 | `suggestions-viewer` can wedge: a refused apply returns without clearing `pending`, leaving the scrim up until reload | §3.6 |
