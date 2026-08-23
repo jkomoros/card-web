@@ -141,7 +141,13 @@ describe("Collection Composer interactions", () => {
     assert.match(predicate, /_collectionPending/);
     assert.match(predicate, /_collectionUpdating/);
     assert.match(predicate, /_collectionFailureMessage/);
-    assert.match(predicate, /_collectionIsFallback/);
+    //The engine sets isFallback precisely when the filter result is empty
+    //(collection_description._makeFilteredCards), so gating the empty state
+    //on it suppressed the message in exactly its target case — verified
+    //against the live app. When fallback placeholder cards actually render,
+    //finalSortedCards is non-empty and the length check already declines.
+    assert.ok(!/_collectionIsFallback/.test(predicate),
+      "the empty state must not gate on isFallback — that flag IS the empty-collection signal");
     assert.match(predicate, /collectionComposerEnabled\(\)/);
     assert.match(predicate, /finalSortedCards\.length === 0/);
 

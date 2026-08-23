@@ -739,14 +739,16 @@ class CardView extends connect(store)(PageViewElement) {
 	//An empty collection is only worth saying so about once the answer is
 	//final: not while the worker is still computing it, not while stale content
 	//is being held under an "updating" affordance, and not when the failure
-	//notice already explains why nothing is showing. A fallback collection is
-	//not empty on screen — it is showing placeholder cards.
+	//notice already explains why nothing is showing. isFallback must NOT gate
+	//this: the engine sets it precisely when the filter result is empty, so
+	//gating on it suppressed the empty state in exactly its target case. When
+	//fallback placeholder cards actually display, finalSortedCards is
+	//non-empty and the length check below already returns false.
 	get _showCollectionEmptyState() : boolean {
 		if (!collectionComposerEnabled()) return false;
 		if (!this._collection || !this._dataIsFullyLoaded) return false;
 		if (this._collectionPending || this._collectionUpdating) return false;
 		if (this._collectionFailureMessage) return false;
-		if (this._collectionIsFallback) return false;
 		return this._collection.finalSortedCards.length === 0;
 	}
 
@@ -925,7 +927,11 @@ class CardView extends connect(store)(PageViewElement) {
 			makes the boot placeholder read as pending rather than as real card
 			content; it was never set here, so the placeholder rendered at full
 			weight and opacity, visually identical to a loaded card. -->
-			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<!-- When the empty state is showing, the stage would render the
+			     "No card by that name" fallback card right underneath it — two
+			     contradictory explanations of the same absence. One surface
+			     speaks at a time. -->
+			<card-stage ?hidden=${this._showCollectionEmptyState} .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' title='Present full screen' aria-label='Present full screen' aria-pressed=${this._presentationMode ? 'true' : 'false'} @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
