@@ -19,9 +19,13 @@ globalThis.BroadcastChannel = class {
 
 let CollectionDescription;
 let collectionComposerSuggestions;
+let rankedComposerSuggestions;
 let collectionDescriptionFromComposerSource;
 let readableCollectionExpression;
 let collectionExpressionParts;
+let collectionFilterDisplayName;
+let collectionFilterLabels;
+let collectionDraftReceipt;
 let selectCollectionComposerCandidates;
 let activeCardRelationshipCandidates;
 let activeCardMetadataCandidates;
@@ -42,9 +46,13 @@ describe("Collection Composer suggestions", () => {
     ));
     ({
       collectionComposerSuggestions,
+      rankedComposerSuggestions,
       collectionDescriptionFromComposerSource,
       readableCollectionExpression,
       collectionExpressionParts,
+      collectionFilterDisplayName,
+      collectionFilterLabels,
+      collectionDraftReceipt,
       activeCardRelationshipCandidates,
       activeCardMetadataCandidates,
     } = await import("../../lib/src/collection-composer-suggestions.js"));
@@ -64,7 +72,7 @@ describe("Collection Composer suggestions", () => {
     assert.strictEqual(suggestions[0].label, "Remove Working Notes");
     assert.strictEqual(suggestions[0].action, "remove");
     assert.strictEqual(suggestions[0].description.serialize(), "everything/");
-    assert.ok(suggestions.some((item) => item.label === "Keep only Starred"));
+    assert.ok(suggestions.some((item) => item.label === "Add Starred"));
     assert.ok(
       suggestions.some((item) => item.label === "Reverse the current sort")
     );
@@ -98,11 +106,11 @@ describe("Collection Composer suggestions", () => {
       { cardsSelected: true }
     );
     const selected = suggestions.find(
-      (item) => item.label === "Keep only the selected cards"
+      (item) => item.label === "Add Selected Cards"
     );
     assert.ok(selected);
     assert.deepStrictEqual(selected.description.filters, ["selected"]);
-    assert.match(selected.detail, /ordinary Selected filter/);
+    assert.match(selected.detail, /ordinary Selected Cards filter/);
   });
 
   it("describes recent destinations as explicit differences", () => {
@@ -118,9 +126,11 @@ describe("Collection Composer suggestions", () => {
       descriptions,
       { recentCollections: [{ description: recent, visits: 3 }] }
     );
+    //A recent is named by what it is. "Back to" is a claim about direction,
+    //and it is spent only on the collection history can prove you came from.
     assert.strictEqual(
       suggestions[0].label,
-      "Back to Main AND Starred · sorted by Recent"
+      "Open Main AND Starred · sorted by Recent"
     );
     assert.strictEqual(suggestions[0].action, "open");
     assert.match(suggestions[0].detail, /Uses Main instead of Everything/);
@@ -173,9 +183,153 @@ describe("Collection Composer suggestions", () => {
         }],
       }
     );
-    assert.match(suggestions[0].label, /^Often: /);
+    assert.match(suggestions[0].label, /^Open /);
     assert.match(suggestions[0].detail, /rolling date window/);
     assert.match(suggestions[0].detail, /Visited 3 times/);
+  });
+
+  //Two rows that land on the identical collection are not two choices, and a
+  //row that rebuilds the collection you are already in is not a choice at all.
+  //The audit found four of six default rows were two such pairs.
+  it("offers each destination once, and never one that changes nothing", () => {
+    const active = CollectionDescription.deserialize("main/");
+    const suggestions = collectionComposerSuggestions(active, "", descriptions, {
+      activeCollection: active,
+      recentCollections: [
+        //Exactly what "Add Unread" already rebuilds.
+        { description: CollectionDescription.deserialize("main/unread/"), visits: 4 },
+        //Same filters, different sort: a genuinely different collection.
+        { description: CollectionDescription.deserialize("main/starred/sort/recent/"), visits: 2 },
+      ],
+    });
+    const destinations = suggestions.map((suggestion) => suggestion.description.serialize());
+    assert.strictEqual(
+      new Set(destinations).size,
+      destinations.length,
+      "no two rows resolve to the same collection"
+    );
+    assert.ok(!destinations.includes(active.serialize()),
+      "no row rebuilds the collection the draft already describes");
+    assert.ok(!suggestions.some((suggestion) => suggestion.kind === "recent" &&
+      suggestion.description.serialize() === "main/unread/"),
+    "the recent loses the tie to the refinement that teaches the transformation");
+    assert.ok(suggestions.some((suggestion) => suggestion.label === "Add Unread"),
+      "and the refinement is the row that survives");
+    assert.ok(suggestions.some((suggestion) => suggestion.kind === "recent" &&
+      suggestion.description.serialize() === "main/starred/sort/recent/"),
+    "a recent that differs by sort is a real destination and stays");
+  });
+
+  //The typed path can build an exact no-op too: re-typing the text you have
+  //already searched for produces the collection you are already composing.
+  it("does not offer a typed interpretation that would change nothing", () => {
+    const current = CollectionDescription.deserialize("everything/query/work/");
+    const suggestions = collectionComposerSuggestions(current, "work", descriptions);
+    assert.ok(!suggestions.some((suggestion) =>
+      suggestion.description.serialize() === current.serialize()));
+    assert.ok(!suggestions.some((suggestion) => suggestion.kind === "search"));
+  });
+
+  //Counts can only rank when they exist, and only when the list was rebuilt.
+  it("sinks rows that yield nothing below rows that yield something", () => {
+    const current = CollectionDescription.deserialize("main/");
+    const suggestions = collectionComposerSuggestions(current, "", descriptions);
+    const starred = suggestions.findIndex((suggestion) => suggestion.id === "add:starred");
+    const unread = suggestions.findIndex((suggestion) => suggestion.id === "add:unread");
+    assert.ok(starred >= 0 && unread >= 0 && starred < unread);
+    const ranked = rankedComposerSuggestions(suggestions, { "add:starred": 0, "add:unread": 5 });
+    assert.notStrictEqual(ranked[0].id, "add:starred");
+    assert.ok(ranked.findIndex((suggestion) => suggestion.id === "add:unread") <
+      ranked.findIndex((suggestion) => suggestion.id === "add:starred"));
+    //A count that has not arrived is not evidence of emptiness.
+    assert.deepStrictEqual(
+      rankedComposerSuggestions(suggestions, {}).map((suggestion) => suggestion.id),
+      suggestions.map((suggestion) => suggestion.id)
+    );
+    //Sections stay put: a recent with no cards does not fall in among the
+    //refinements.
+    const withRecent = collectionComposerSuggestions(current, "", descriptions, {
+      recentCollections: [{ description: CollectionDescription.deserialize("everything/sort/recent/"), visits: 2 }],
+    });
+    const rankedWithRecent = rankedComposerSuggestions(withRecent, {
+      [withRecent[0].id]: 0,
+      "add:starred": 9,
+    });
+    assert.strictEqual(rankedWithRecent[0].kind, "recent");
+  });
+
+  //A clause has one name. These are the three places the same clause shows up
+  //while it is being composed, plus the receipt that follows.
+  it("uses one name for a clause in the row, the chip, the broaden row, and the receipt", () => {
+    const candidates = [{
+      filter: "inductively-knowable",
+      category: "tag",
+      label: "Tagged “Inductively Knowable”",
+      detail: "Keeps cards tagged Inductively Knowable",
+      aliases: ["inductively knowable", "tag"],
+      clauseLabel: "Tagged Inductively Knowable",
+    }];
+    const labels = collectionFilterLabels(candidates);
+    const cases = [
+      { filter: "starred", name: "Starred", typed: "starred" },
+      { filter: "inductively-knowable", name: "Tagged Inductively Knowable", typed: "inductively" },
+      //A configurable filter carrying a value nobody hardcoded. Its name has to
+      //be derived from its own URL parts, or editing 7 into 14 degrades
+      //"Updated since 7 days ago" into "Updated After · 14 Days Ago".
+      { filter: "updated/after/14-days-ago", name: "Updated since 14 days ago" },
+      { filter: "created/between/3-days-ago/yesterday", name: "Created between 3 days ago and yesterday" },
+    ];
+    for (const { filter, name, typed } of cases) {
+      assert.strictEqual(collectionFilterDisplayName(filter, labels), name, filter);
+      const applied = CollectionDescription.deserialize(`everything/${filter}/`);
+      assert.strictEqual(collectionExpressionParts(applied, labels).filters[0].label, name, `chip: ${filter}`);
+      const broaden = collectionComposerSuggestions(applied, "", descriptions, { candidates })
+        .find((suggestion) => suggestion.action === "remove");
+      assert.strictEqual(broaden.label, `Remove ${name}`, `broaden row: ${filter}`);
+      assert.strictEqual(broaden.name, name, `broaden name: ${filter}`);
+      assert.strictEqual(
+        collectionDraftReceipt(applied, CollectionDescription.deserialize("everything/"), labels),
+        `Removed ${name}`,
+        `receipt: ${filter}`
+      );
+      if (!typed) continue;
+      const add = collectionComposerSuggestions(
+        CollectionDescription.deserialize("everything/"),
+        typed,
+        descriptions,
+        { candidates }
+      ).find((suggestion) => suggestion.description.filters.includes(filter));
+      assert.strictEqual(add.label, `Add ${name}`, `add row: ${filter}`);
+    }
+  });
+
+  //Receipts are sentences composed from the canonical name, not the row label
+  //with its verb glued on a second time.
+  it("composes receipts as sentences rather than restating the row", () => {
+    const base = CollectionDescription.deserialize("main/");
+    assert.strictEqual(
+      collectionDraftReceipt(base, CollectionDescription.deserialize("main/starred/")),
+      "Added Starred"
+    );
+    assert.strictEqual(
+      collectionDraftReceipt(
+        CollectionDescription.deserialize("main/updated/after/7-days-ago/"),
+        CollectionDescription.deserialize("main/updated/after/14-days-ago/")
+      ),
+      "Changed Updated since 7 days ago to Updated since 14 days ago"
+    );
+    assert.strictEqual(
+      collectionDraftReceipt(base, CollectionDescription.deserialize("everything/")),
+      "Changed the starting set to Everything"
+    );
+    assert.strictEqual(
+      collectionDraftReceipt(base, CollectionDescription.deserialize("main/sort/recent/")),
+      "Changed the order to Recent"
+    );
+    assert.strictEqual(
+      collectionDraftReceipt(base, CollectionDescription.deserialize("main/starred/unread/working-notes/")),
+      "Added Starred, Unread and 1 more"
+    );
   });
 
   it("shows ambiguous text as explicit interpretations", () => {
@@ -186,7 +340,7 @@ describe("Collection Composer suggestions", () => {
       descriptions
     );
     assert.strictEqual(suggestions[0].label, "Add Working Notes");
-    assert.strictEqual(suggestions.at(-1).label, "Text contains “work”");
+    assert.strictEqual(suggestions.at(-1).label, "Add Text contains “work”");
     assert.notStrictEqual(
       suggestions[0].description.serialize(),
       suggestions.at(-1).description.serialize()
@@ -226,10 +380,10 @@ describe("Collection Composer suggestions", () => {
       { "inductively-knowable": "Matches cards in the Inductively Knowable tag" },
       { candidates }
     );
-    assert.strictEqual(suggestions[0].label, "Tagged “Inductively Knowable”");
+    assert.strictEqual(suggestions[0].label, "Add Tagged “Inductively Knowable”");
     assert.deepStrictEqual(suggestions[0].description.filters, ["inductively-knowable"]);
     assert.match(suggestions[0].detail, /“inductively-knowable” to the collection URL/);
-    assert.strictEqual(suggestions.at(-1).label, "Text contains “tag inductively”");
+    assert.strictEqual(suggestions.at(-1).label, "Add Text contains “tag inductively”");
   });
 
   it("ranks exact built-ins over weaker concrete matches", () => {
@@ -298,7 +452,7 @@ describe("Collection Composer suggestions", () => {
       { author: "Selects cards by contributor" },
       { candidates }
     );
-    assert.strictEqual(suggestions[0].label, "Cards Casey authored or collaborated on");
+    assert.strictEqual(suggestions[0].label, "Add Contributed By Casey");
     assert.deepStrictEqual(suggestions[0].description.filters, ["author/visibleperson"]);
     assert.doesNotMatch(suggestions[0].detail, /visibleperson/i);
     const [contributorFilter] = makeConfigurableFilter("author/visibleperson");
@@ -346,14 +500,14 @@ describe("Collection Composer suggestions", () => {
       descriptions,
       { candidates }
     );
-    assert.strictEqual(suggestions[0].label, "This card and cards it links to");
+    assert.strictEqual(suggestions[0].label, "Add This card and cards it links to");
     assert.deepStrictEqual(suggestions[0].description.filters, ["children/+card-123"]);
     assert.match(suggestions[0].detail, /copied links keep this anchor/);
     assert.doesNotMatch(suggestions[0].description.serialize(), /key-card-id/);
     assert.strictEqual(suggestions.at(-1).kind, "search");
     assert.strictEqual(
       readableCollectionExpression(suggestions[0].description),
-      "Everything AND This Card And Cards It Links To"
+      "Everything AND This card and cards it links to"
     );
     const byFamilyName = collectionComposerSuggestions(
       CollectionDescription.deserialize("everything/"),
@@ -361,7 +515,7 @@ describe("Collection Composer suggestions", () => {
       descriptions,
       { candidates }
     );
-    assert.strictEqual(byFamilyName[0].label, "This card and cards it links to");
+    assert.strictEqual(byFamilyName[0].label, "Add This card and cards it links to");
 
     const withoutTyping = collectionComposerSuggestions(
       CollectionDescription.deserialize("everything/"),
@@ -370,7 +524,7 @@ describe("Collection Composer suggestions", () => {
       { candidates }
     );
     assert.deepStrictEqual(withoutTyping.slice(0, 1).map(suggestion => suggestion.label), [
-      "This card and directly connected cards",
+      "Add This card and directly connected cards",
     ]);
     const withRecent = collectionComposerSuggestions(
       CollectionDescription.deserialize("everything/"),
@@ -385,7 +539,7 @@ describe("Collection Composer suggestions", () => {
       }
     );
     assert.ok(!withRecent.some(suggestion => suggestion.kind === "add" && suggestion.label.includes("This card")));
-    assert.ok(withRecent.some(suggestion => suggestion.label === "Keep only Unread"));
+    assert.ok(withRecent.some(suggestion => suggestion.label === "Add Unread"));
   });
 
   it("turns visible active-card metadata into explicit contextual clauses", () => {
@@ -430,9 +584,9 @@ describe("Collection Composer suggestions", () => {
       CollectionDescription.deserialize("everything/"), "", descriptions, { candidates: combined }
     );
     assert.deepStrictEqual(withoutTyping.slice(0, 3).map(suggestion => suggestion.label), [
-      "Keep only cards tagged “Inductively Knowable”",
-      "Keep only section “Half Baked”",
-      "This card and directly connected cards",
+      "Add Tagged Inductively Knowable",
+      "Add Section Half Baked",
+      "Add This card and directly connected cards",
     ]);
   });
 
@@ -452,7 +606,7 @@ describe("Collection Composer suggestions", () => {
       descriptions,
       { candidates }
     );
-    assert.strictEqual(suggestions[0].label, "Updated since 7 days ago");
+    assert.strictEqual(suggestions[0].label, "Add Updated since 7 days ago");
     assert.deepStrictEqual(suggestions[0].description.filters, ["updated/after/7-days-ago"]);
 
     const beforeMidnight = new Date(2026, 6, 17, 23, 59);
@@ -522,14 +676,14 @@ describe("Collection Composer suggestions", () => {
   it("keeps text search available when slash-containing source is invalid", () => {
     const current = CollectionDescription.deserialize("everything/");
     const suggestions = collectionComposerSuggestions(current, "view/grid/", descriptions);
-    assert.ok(suggestions.some((suggestion) => suggestion.label === "Text contains “view/grid/”"));
+    assert.ok(suggestions.some((suggestion) => suggestion.label === "Add Text contains “view/grid/”"));
   });
 
   it("keeps text search available beside a valid slash source", () => {
     const current = CollectionDescription.deserialize("everything/");
     const suggestions = collectionComposerSuggestions(current, "starred/unread/", descriptions);
     assert.strictEqual(suggestions[0].action, "open");
-    assert.ok(suggestions.some((suggestion) => suggestion.label === "Text contains “starred/unread/”"));
+    assert.ok(suggestions.some((suggestion) => suggestion.label === "Add Text contains “starred/unread/”"));
   });
 
   it("does not offer to append an already applied filter", () => {
@@ -551,7 +705,7 @@ describe("Collection Composer suggestions", () => {
     );
     assert.strictEqual(
       readableCollectionExpression(query),
-      "Everything AND Query Inductively Knowable"
+      "Everything AND Text contains “inductively knowable”"
     );
     const web = CollectionDescription.deserialize("everything/view/web/graph/");
     assert.strictEqual(
@@ -573,7 +727,7 @@ describe("Collection Composer suggestions", () => {
     assert.deepStrictEqual(parts.set, { raw: "everything", label: "Everything" });
     assert.deepStrictEqual(parts.filters.map(({ raw, label, index }) => ({ raw, label, index })), [
       { raw: "starred+unread", label: "(Starred OR Unread)", index: 0 },
-      { raw: "query/inductively+knowable", label: "Query Inductively Knowable", index: 1 },
+      { raw: "query/inductively+knowable", label: "Text contains “inductively knowable”", index: 1 },
     ]);
     assert.deepStrictEqual(parts.modifiers, ["sorted by reverse Recent", "viewed as Web (Graph)"]);
   });

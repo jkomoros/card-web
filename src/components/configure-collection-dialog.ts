@@ -121,9 +121,13 @@ import {
 	CollectionComposerCandidate,
 	activeCardMetadataCandidates,
 	activeCardRelationshipCandidates,
+	collectionDraftReceipt,
 	collectionExpressionParts,
-	readableCollectionFilter,
+	collectionFilterDisplayName,
+	collectionFilterLabels,
+	collectionOptionDisplayName,
 	collectionComposerSuggestions,
+	rankedComposerSuggestions,
 	readableCollectionExpression,
 } from '../collection-composer-suggestions.js';
 
@@ -297,6 +301,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_clauseSelectionMessage = '';
+
+	//The order the suggestion list was last ranked in, keyed by the identity of
+	//the rows it ranked. Deliberately not @state: it is a memo of a render, not
+	//an input to one.
+	_suggestionOrder : {key : string, order : string[]} | null = null;
 
 	_draftUndoDescription : CollectionDescription | null = null;
 	_draftUndoSelectedCard : string | null = null;
@@ -869,7 +878,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return buildCollectionFilterCatalog(
 			this._filterDescriptions || {},
 			this._contextualComposerCandidates,
-			this._collectionDescription?.filters || [],
+			this._collectionDescription || new CollectionDescription(),
 			this._composerInput
 		);
 	}
@@ -1078,11 +1087,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			`}
 			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter opens Source, configures, or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
 				'←→ choose clause · Delete removes · type to continue' : !highlighted ?
-				'↑↓ choose · Click edits · Enter opens this collection' : highlighted.action === 'open' ?
-				'↑↓ choose · Click or Enter opens' :
+				(suggestions.length ? '↑↓ or Tab choose · Click edits · Enter opens this collection' : 'Type to compose · Enter opens this collection') : highlighted.action === 'open' ?
+				'↑↓ choose · Enter opens · Tab copies it into the draft' :
 				highlighted.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
 				highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
-				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
+				'↑↓ choose · Click or Tab adds · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
 				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small' @click=${this._handleEditSource}>Edit source</button>
@@ -1107,7 +1116,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								role='option'
 								tabindex='-1'
 								aria-selected=${index === highlightedIndex}
-								aria-label=${`${visibleAction}: ${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
+								aria-label=${`${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === highlightedIndex}
@@ -1158,13 +1167,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
 		if (!this._collectionDescription) return [];
-		const recentCollections = readRememberedCollections(this._userScope).map(entry => ({
+		const remembered = readRememberedCollections(this._userScope);
+		const activeCanonical = this._activeCollectionDescription?.serialize();
+		//The first two remembered entries are in raw visit order, so the first
+		//of them that is not the collection on screen is genuinely the one
+		//visited before it. That is the only thing that earns the words "Back
+		//to"; anything further back is a destination, not a direction.
+		const previousCollection = remembered.slice(0, 2).find(entry => entry.canonical !== activeCanonical)?.canonical;
+		const recentCollections = remembered.map(entry => ({
 			description: CollectionDescription.deserialize(entry.authoring),
 			visits: entry.visits,
 			frequent: entry.frequent,
 			relative: entry.relative,
 		}));
-		return collectionComposerSuggestions(
+		const suggestions = collectionComposerSuggestions(
 			this._collectionDescription,
 			this._composerInput,
 			this._filterDescriptions || {},
@@ -1172,11 +1188,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				cardsSelected: this._cardsSelected,
 				recentCollections,
 				activeCollection: this._activeCollectionDescription || undefined,
+				previousCollection,
 				preservedSelectedCard: this._draftSelectedCard,
 				sourceAllowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
 				candidates: this._contextualComposerCandidates,
 			}
 		);
+		//Count-aware ranking, without the list moving under the user's hands.
+		//The identity of the row set is the "was this list rebuilt?" test: a
+		//new input or draft produces different rows, and only then may counts
+		//reorder them. While a row is highlighted the order is frozen outright,
+		//so the transformation accepted on keydown is the one that was visible.
+		const key = suggestions.map(suggestion => suggestion.id).join('\n');
+		const memo = this._suggestionOrder;
+		if (memo && memo.key === key && this._suggestionHighlightActive) {
+			const position = new Map(memo.order.map((id, index) => [id, index]));
+			return suggestions
+				.map((suggestion, index) => ({suggestion, index}))
+				.sort((left, right) =>
+					(position.get(left.suggestion.id) ?? left.index) - (position.get(right.suggestion.id) ?? right.index))
+				.map(({suggestion}) => suggestion);
+		}
+		const ranked = rankedComposerSuggestions(suggestions, this._previewCounts);
+		this._suggestionOrder = {key, order: ranked.map(suggestion => suggestion.id)};
+		return ranked;
 	}
 
 	get _contextualComposerCandidates() : CollectionComposerCandidate[] {
@@ -1195,23 +1230,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	get _composerFilterLabels() : Record<string, string> {
-		return Object.fromEntries(this._contextualComposerCandidates.map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
+		return collectionFilterLabels(this._contextualComposerCandidates);
 	}
 
 	_readableComposerFilter(filter : string) : string {
-		return this._composerFilterLabels[filter] || readableCollectionFilter(filter);
+		return collectionFilterDisplayName(filter, this._composerFilterLabels);
 	}
 
 	_sourceCompletionPresentation(token : string, grammarDetail = '') : {label: string, detail: string, category: string} {
 		const candidate = this._contextualComposerCandidates.find(item => item.filter === token);
-		if (candidate) return {label: candidate.label, detail: candidate.detail, category: candidate.category};
+		if (candidate) return {label: this._readableComposerFilter(token), detail: candidate.detail, category: candidate.category};
 		if (token === 'sort') return {label: 'Choose an order', detail: grammarDetail || 'Control the order cards appear in', category: 'ordering'};
 		if (token === 'view') return {label: 'Choose a view', detail: grammarDetail || 'Control how cards are displayed', category: 'display'};
-		if (['main', 'everything', 'reading-list'].includes(token)) return {label: readableCollectionFilter(token), detail: grammarDetail, category: 'starting set'};
+		if (['main', 'everything', 'reading-list'].includes(token)) return {label: collectionOptionDisplayName(token), detail: grammarDetail, category: 'starting set'};
 		if (['before', 'after', 'between', 'today', 'yesterday'].includes(token) || /-ago$/.test(token)) {
-			return {label: readableCollectionFilter(token), detail: grammarDetail || 'A date boundary', category: 'date'};
+			return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A date boundary', category: 'date'};
 		}
-		return {label: readableCollectionFilter(token), detail: grammarDetail || 'A legal collection filter', category: 'filter'};
+		return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A legal collection filter', category: 'filter'};
 	}
 
 	constructor() {
@@ -1490,10 +1525,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._suggestionHighlightActive = true;
 			return;
 		}
-		if (e.key === 'Tab' && !e.shiftKey && highlighted && this._composerInput.trim() && highlighted.action !== 'open') {
+		if (e.key === 'Tab' && !e.shiftKey && suggestions.length) {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
+			//Tab is how the keyboard reaches the list without typing first.
+			//With nothing highlighted it highlights the first row — the list
+			//becomes enterable — and with a row highlighted it materializes
+			//that row into the draft. A destination materializes as its
+			//expression rather than opening, which is the labeled secondary
+			//action the spec allows for an Open row.
+			if (!highlighted) {
+				this._highlightedSuggestion = 0;
+				this._suggestionHighlightActive = true;
+				return;
+			}
 			this._applyComposerSuggestion(highlighted, false);
 			return;
 		}
@@ -1585,16 +1631,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			));
 			return;
 		}
-		this._commitDraftEdit(suggestion.description, `${suggestion.action[0].toUpperCase() + suggestion.action.slice(1)}: ${suggestion.label}`, true);
+		//A destination materialized by Tab is not "added"; the draft becomes it.
+		//Everything else says what it did to the draft, derived from the same
+		//canonical names the row used.
+		this._commitDraftEdit(
+			suggestion.description,
+			suggestion.action === 'open' ? `Replaced the draft with ${suggestion.name}` : '',
+			true
+		);
 		this._composerInput = '';
 		this._highlightedSuggestion = 0;
 	}
 
-	_commitDraftEdit(description : CollectionDescription, message : string, focusInput = false, selectedCard = this._draftSelectedCard) {
+	_commitDraftEdit(description : CollectionDescription, message = '', focusInput = false, selectedCard = this._draftSelectedCard) {
 		this._draftUndoDescription = this._collectionDescription;
 		this._draftUndoSelectedCard = this._draftSelectedCard;
 		this._draftSelectedCard = selectedCard;
-		this._draftReceiptMessage = message;
+		this._draftReceiptMessage = message || collectionDraftReceipt(this._collectionDescription, description, this._composerFilterLabels);
 		this._selectedClauseIndex = -1;
 		//The draft just changed, so the suggestion list is about to be rebuilt
 		//around it. Nothing in the new list is what the user was pointing at,
@@ -1611,7 +1664,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (filter === undefined) return;
 		this._commitDraftEdit(
 			collectionDescriptionWithFilterRemoved(this._collectionDescription, index),
-			`Removed ${this._readableComposerFilter(filter)}`,
+			'',
 			true
 		);
 	}
@@ -1718,7 +1771,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			await this._configureFilterFamily(family);
 			return;
 		}
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, item.filter), `Added ${item.label}`);
+		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, item.filter));
 		this._composerInput = '';
 		this._catalogHighlightedIndex = 0;
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
@@ -1738,7 +1791,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_commitPendingCatalogFilter() {
 		if (!this._pendingCatalogFilter || !this._pendingCatalogChanged) return;
 		const filter = this._pendingCatalogFilter;
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, filter), `Added ${this._readableComposerFilter(filter)}`);
+		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, filter));
 		this._pendingCatalogFilter = '';
 		this._pendingCatalogChanged = false;
 		this._composerInput = '';
@@ -1749,7 +1802,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleCatalogDirectionChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, ele.value === 'reverse'), ele.value === 'reverse' ? 'Reversed sort' : 'Restored normal sort');
+		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, ele.value === 'reverse'));
 	}
 
 	_handleViewModeChanged(e : Event) {
@@ -1757,11 +1810,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const viewMode = ele.value as ViewMode;
 		const extra = LEGAL_VIEW_MODES[viewMode] ? (this._collectionDescription.viewModeExtra || this._activeCardID || '_') : '';
-		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, viewMode, extra), `Changed view to ${ele.value}`);
+		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, viewMode, extra));
 	}
 
 	_handleViewCardChanged(e : FilterModifiedEvent) {
-		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, this._collectionDescription.viewMode, e.detail.value), 'Changed web focus card');
+		this._commitDraftEdit(collectionDescriptionWithViewMode(this._collectionDescription, this._collectionDescription.viewMode, e.detail.value));
 	}
 
 	_handleOpenCurrentDraft() {
@@ -1769,6 +1822,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			id: CURRENT_DRAFT_SUGGESTION_ID,
 			kind: 'source',
 			action: 'open',
+			name: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
 			label: 'Open this collection',
 			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
 			description: this._collectionDescription,
@@ -1781,7 +1835,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleFilterModified(e : FilterModifiedEvent) {
-		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value), 'Updated filter');
+		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value));
 	}
 
 	_handleFilterRemoved(e : FilterModifiedEvent) {
@@ -1789,28 +1843,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddFilterClicked() {
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME), 'Added filter');
+		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME));
 	}
 
 	_handleSetSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const set = ele.value as SetName;
-		this._commitDraftEdit(collectionDescriptionWithSet(this._collectionDescription, set), `Changed base set to ${set}`);
+		this._commitDraftEdit(collectionDescriptionWithSet(this._collectionDescription, set));
 	}
 
 	_handleSortSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const sort = ele.value as SortName;
-		this._commitDraftEdit(collectionDescriptionWithSort(this._collectionDescription, sort), `Changed sort to ${sort}`);
+		this._commitDraftEdit(collectionDescriptionWithSort(this._collectionDescription, sort));
 	}
 
 	_handleSortReversedCheckboxChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const sortReversed = ele.checked;
-		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed), sortReversed ? 'Reversed sort' : 'Restored normal sort');
+		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed));
 	}
 
 	_unregisterNestedEscapeShortcut : (() => void) | null = null;
@@ -1950,6 +2004,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			id: this._draftPreviewID,
 			kind: 'source',
 			action: 'open',
+			name: 'Current draft',
 			label: 'Current draft',
 			detail: '',
 			description: previewDescription,

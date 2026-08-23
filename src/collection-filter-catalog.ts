@@ -4,7 +4,13 @@ import {
 } from './filters.js';
 
 import {
-	readableCollectionFilter,
+	CollectionDescription,
+} from './collection_description.js';
+
+import {
+	collectionExpressionParts,
+	collectionFilterDisplayName,
+	collectionFilterLabels,
 	type CollectionComposerCandidate,
 } from './collection-composer-suggestions.js';
 
@@ -72,12 +78,7 @@ const commonFilterRank = (filter : string) => {
 	return rank < 0 ? Number.POSITIVE_INFINITY : rank;
 };
 
-const humanize = (value : string) => value
-	.split(/[- ]/)
-	.map(word => word ? word[0].toUpperCase() + word.slice(1) : '')
-	.join(' ');
-
-const categoryFor = (filter : string, candidate? : CollectionComposerCandidate) : CollectionFilterCatalogCategory => {
+const categoryFor =(filter : string, candidate? : CollectionComposerCandidate) : CollectionFilterCatalogCategory => {
 	if (candidate?.spotlight) return 'Suggested for this card';
 	const family = filter.split('/')[0];
 	if (COMMON_FILTERS.has(filter)) return 'Common';
@@ -97,21 +98,28 @@ const categoryFor = (filter : string, candidate? : CollectionComposerCandidate) 
 	return 'Card properties';
 };
 
-const exampleFor = (filter : string, candidate? : CollectionComposerCandidate) : string => {
-	if (candidate) return `Everything AND ${candidate.clauseLabel || candidate.label}`;
+//An example is only useful if it is an example of what would happen HERE. It
+//builds on the draft the user is actually composing, so choosing the row is a
+//prediction they can check, not a claim about a collection they are not in.
+const exampleFor = (
+	filter : string,
+	base : string,
+	labels : Record<string, string>,
+	candidate? : CollectionComposerCandidate
+) : string => {
+	const clause = (value : string) => collectionFilterDisplayName(value, labels);
+	if (candidate) return `${base} AND ${clause(candidate.filter)}`;
 	const family = filter.split('/')[0];
-	if (family === 'updated') return 'Everything AND Updated in the last 7 days';
-	if (family === 'created') return 'Everything AND Created in the last 7 days';
-	if (family === 'last-tweeted') return 'Everything AND Tweeted in the last 7 days';
-	if (family === 'query') return 'Everything AND Text contains “systems”';
-	if (family === 'query-strict') return 'Everything AND Text exactly contains “systems thinking”';
-	if (family === 'author') return 'Everything AND Authored by me';
-	if (family === 'exclude') return 'Everything AND NOT Working Notes';
-	if (family === 'combine') return 'Everything AND (Tagged AI OR Tagged Systems)';
-	if (family === 'expand') return 'Start with Tagged AI, then include linked cards';
+	if (['updated', 'created', 'last-tweeted'].includes(family)) return `${base} AND ${clause(`${family}/after/7-days-ago`)}`;
+	if (family === 'query') return `${base} AND ${clause('query/systems')}`;
+	if (family === 'query-strict') return `${base} AND ${clause('query-strict/systems thinking')}`;
+	if (family === 'author') return `${base} AND My Cards`;
+	if (family === 'exclude') return `${base} AND NOT ${clause('working-notes')}`;
+	if (family === 'combine') return `${base} AND (Tagged AI OR Tagged Systems)`;
+	if (family === 'expand') return `Start with ${base}, then include linked cards`;
 	const argumentsInfo = CONFIGURABLE_FILTER_ARGUMENTS[family] || [];
 	const configured = argumentsInfo.length ? `${family}/${argumentsInfo.map(argument => argument.default).join('/')}` : filter;
-	return `Everything AND ${readableCollectionFilter(configured)}`;
+	return `${base} AND ${clause(configured)}`;
 };
 
 const relevance = (item : CollectionFilterCatalogItem, query : string) : number => {
@@ -127,10 +135,14 @@ const relevance = (item : CollectionFilterCatalogItem, query : string) : number 
 export const buildCollectionFilterCatalog = (
 	filterDescriptions : Readonly<Record<string, string>>,
 	candidates : readonly CollectionComposerCandidate[],
-	appliedFilters : readonly string[],
+	draft : CollectionDescription,
 	query = ''
 ) : CollectionFilterCatalogItem[] => {
 	const candidateByFilter = new Map(candidates.map(candidate => [candidate.filter, candidate]));
+	const labels = collectionFilterLabels(candidates);
+	const appliedFilters = draft.filters;
+	const draftParts = collectionExpressionParts(draft, labels);
+	const base = [draftParts.set.label, ...draftParts.filters.map(part => part.label)].join(' AND ');
 	const filters = Array.from(new Set([...Object.keys(filterDescriptions), ...candidates.map(candidate => candidate.filter)]));
 	const normalizedQuery = query.trim().toLowerCase();
 	return filters.map(filter => {
@@ -138,9 +150,9 @@ export const buildCollectionFilterCatalog = (
 		const family = filter.split('/')[0];
 		const appliedIndex = appliedFilters.findIndex(applied => applied === filter ||
 			(filter === family && Boolean(CONFIGURABLE_FILTER_NAMES[family]) && applied.startsWith(`${family}/`)));
-		const label = candidate?.label || humanize(filter);
+		const label = collectionFilterDisplayName(filter, labels);
 		const detail = candidate?.detail || filterDescriptions[filter] || filterDescriptions[family] || `Keeps cards matching ${label}`;
-		const example = exampleFor(filter, candidate);
+		const example = exampleFor(filter, base, labels, candidate);
 		return {
 			filter,
 			label,
@@ -150,7 +162,10 @@ export const buildCollectionFilterCatalog = (
 			configurable: Boolean(CONFIGURABLE_FILTER_NAMES[family]),
 			guided: !SOURCE_ONLY_FILTERS.has(family),
 			appliedIndex,
-			searchValues: [filter, family, label, detail, example, candidate?.category || '', ...(candidate?.aliases || [])],
+			//The candidate's longer descriptive label no longer shows anywhere —
+			//a clause has one name — but it is still worth searching, so the
+			//words someone remembers ("cards Casey authored") still find it.
+			searchValues: [filter, family, label, candidate?.label || '', detail, example, candidate?.category || '', ...(candidate?.aliases || [])].filter(Boolean),
 		};
 	}).map(item => ({item, relevance: relevance(item, normalizedQuery)}))
 		.filter(({relevance}) => Number.isFinite(relevance))

@@ -9,7 +9,13 @@ import {
   collectionDescriptionWithSortReversed,
 } from "./collection_description.js";
 
-import { CARD_FILTER_DESCRIPTIONS, CONFIGURABLE_FILTER_INFO, SELECTED_FILTER_NAME } from "./filters.js";
+import {
+  CARD_FILTER_DESCRIPTIONS,
+  CONFIGURABLE_FILTER_INFO,
+  SELECTED_FILTER_NAME,
+  TODO_COMBINED_FILTER_NAME,
+  parseRelativeDateParts,
+} from "./filters.js";
 import { parseCollectionSource } from "./collection-source.js";
 
 export type CollectionComposerSuggestionKind =
@@ -24,6 +30,11 @@ export type CollectionComposerSuggestion = {
   id: string;
   kind: CollectionComposerSuggestionKind;
   action: "open" | "add" | "remove" | "replace";
+  //The canonical display name of the thing this row acts on, with no verb
+  //attached. `label` is this name with the action's verb in front of it, and
+  //receipts are composed from it as sentences, so a clause reads the same in
+  //the row, the chip, and the receipt that follows it.
+  name: string;
   label: string;
   detail: string;
   description: CollectionDescription;
@@ -60,6 +71,10 @@ export type CollectionComposerContext = {
   //once the draft has been edited. Recents are destinations, and the
   //collection you are already standing in is not one.
   activeCollection?: CollectionDescription;
+  //The canonical serialization of the collection visited immediately before
+  //the active one, when history can say so. This is the only destination
+  //allowed to be labeled "Back to"; everything else is just a destination.
+  previousCollection?: string;
 };
 
 const SOURCE_ONLY_CONFIGURABLE_FILTERS = new Set(["combine", "exclude", "expand"]);
@@ -78,12 +93,15 @@ export const activeCardMetadataCandidates = (
   if (!activeCard) return [];
   const byFilter = new Map(baseCandidates.map(candidate => [candidate.filter, candidate]));
   const result: CollectionComposerCandidate[] = [];
-  const add = (filter: string, label: string, reason: string, spotlight = false) => {
+  //A contextual candidate is the same clause as its base candidate — same
+  //filter, same name. All that context adds is why it is being offered, so
+  //only the reason, the spotlight, and the URL note change here. Rewriting the
+  //label as well is how "Starred" ended up with four spellings.
+  const add = (filter: string, reason: string, spotlight = false) => {
     const candidate = byFilter.get(filter);
     if (!candidate) return;
     result.push({
       ...candidate,
-      label,
       detail: reason,
       spotlight,
       urlDetail: candidate.category === "author"
@@ -95,21 +113,17 @@ export const activeCardMetadataCandidates = (
     .map(tag => ({tag, candidate: byFilter.get(tag)}))
     .filter(item => Boolean(item.candidate))
     .sort((left, right) => (left.candidate?.valueLabel || left.tag).localeCompare(right.candidate?.valueLabel || right.tag));
-  for (const [index, {tag, candidate}] of visibleTags.entries()) {
-    add(tag, `Keep only cards tagged “${candidate?.valueLabel || tag}”`, "The open card has this tag", index === 0);
+  for (const [index, {tag}] of visibleTags.entries()) {
+    add(tag, "The open card has this tag", index === 0);
   }
   if (activeCard.section) {
-    const candidate = byFilter.get(activeCard.section);
-    add(activeCard.section, `Keep only section “${candidate?.valueLabel || activeCard.section}”`, "The open card is in this section", true);
+    add(activeCard.section, "The open card is in this section", true);
   }
   if (activeCard.cardType) {
-    const candidate = byFilter.get(activeCard.cardType);
-    add(activeCard.cardType, `Keep only ${candidate?.valueLabel || activeCard.cardType} cards`, "The open card has this card type");
+    add(activeCard.cardType, "The open card has this card type");
   }
   for (const contributor of [...new Set((activeCard.contributors || []).filter(Boolean))]) {
-    const authorFilter = `author/${contributor.toLowerCase()}`;
-    const candidate = byFilter.get(authorFilter);
-    add(authorFilter, candidate?.label || "Cards by this card's contributor", "The open card has this contributor");
+    add(`author/${contributor.toLowerCase()}`, "The open card has this contributor");
   }
   return result;
 };
@@ -156,32 +170,110 @@ const humanize = (value: string): string =>
     .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ""))
     .join(" ");
 
-export const readableCollectionFilter = (filter: string): string => {
+const decoded = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+//The handful of ordinary filters whose URL spelling does not humanize into the
+//name the product uses for them. Overrides live here, inside the one naming
+//function, rather than becoming a second table someone has to remember to keep
+//in sync.
+const FILTER_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  [SELECTED_FILTER_NAME]: "Selected Cards",
+  [TODO_COMBINED_FILTER_NAME]: "Has any TODO",
+};
+
+const DATE_FILTER_DISPLAY_NAMES: Record<string, string> = {
+  updated: "Updated",
+  created: "Created",
+  "last-tweeted": "Tweeted",
+};
+
+const QUERY_FILTER_DISPLAY_NAMES: Record<string, string> = {
+  query: "Text contains",
+  "query-strict": "Text exactly contains",
+};
+
+//A date boundary as the seeded date candidates spell it, so `7-days-ago` reads
+//the same whether the clause came from a suggestion or from someone editing 7
+//into 14 in the clause editor.
+const readableDateBoundary = (value: string): string => {
+  const parts = parseRelativeDateParts(value);
+  if (!parts) return value;
+  if (parts.type === "special") return parts.value;
+  if (parts.type === "offset") {
+    return `${parts.amount} ${parts.unit}${parts.amount === 1 ? "" : "s"} ago`;
+  }
+  return `last ${humanize(parts.weekday)}`;
+};
+
+const derivedDateFilterName = (family: string, values: string[]): string => {
+  const name = DATE_FILTER_DISPLAY_NAMES[family];
+  if (!name) return "";
+  const [comparison, ...boundaries] = values;
+  const readable = boundaries.map(readableDateBoundary);
+  if (comparison === "after" && readable.length === 1) {
+    return readable[0] === "today" ? `${name} today` : `${name} since ${readable[0]}`;
+  }
+  if (comparison === "before" && readable.length === 1) return `${name} before ${readable[0]}`;
+  if (comparison === "between" && readable.length === 2) {
+    return `${name} between ${readable[0]} and ${readable[1]}`;
+  }
+  return "";
+};
+
+//The single function that maps a filter clause to the name a user sees. Every
+//surface — suggestion labels, draft chips, broaden rows, receipts, the clause
+//editor header, the filter catalog, source completions — goes through here, so
+//a clause means the same thing everywhere. `labels` carries the names the live
+//corpus knows (a tag's title, a contributor's display name); everything else is
+//derived from the filter's own URL parts, which is what keeps an edited value
+//("14 days ago") as well-named as the seeded one it replaced.
+export const collectionFilterDisplayName = (
+  filter: string,
+  labels: Record<string, string> = {}
+): string => {
+  const known = labels[filter];
+  if (known) return known;
   const [family, ...rawValues] = filter.split("/");
   if (rawValues[0]?.startsWith("+")) {
-    if (family === "children") return "This Card And Cards It Links To";
-    if (family === "parents") return "This Card And Cards Linking Here";
-    if (family === "direct-connections") return "This Card And Directly Connected Cards";
+    if (family === "children") return "This card and cards it links to";
+    if (family === "parents") return "This card and cards linking here";
+    if (family === "direct-connections") return "This card and directly connected cards";
   }
   const readableFamily = (value: string) => {
-    try {
-      const alternatives = decodeURIComponent(value).split("+").map(humanize);
-      return alternatives.length > 1 ? `(${alternatives.join(" OR ")})` : alternatives[0];
-    } catch {
-      const alternatives = value.split("+").map(humanize);
-      return alternatives.length > 1 ? `(${alternatives.join(" OR ")})` : alternatives[0];
-    }
+    const alternatives = decoded(value)
+      .split("+")
+      .map(alternative => FILTER_DISPLAY_NAME_OVERRIDES[alternative] || humanize(alternative));
+    return alternatives.length > 1 ? `(${alternatives.join(" OR ")})` : alternatives[0];
   };
-  const readableValue = (value: string) => {
-    try {
-      return humanize(decodeURIComponent(value).split("+").join(" "));
-    } catch {
-      return humanize(value.split("+").join(" "));
-    }
-  };
+  const readableValue = (value: string) => humanize(decoded(value).split("+").join(" "));
+  const values = rawValues.map(decoded);
+  const dateName = derivedDateFilterName(family, values);
+  if (dateName) return dateName;
+  const queryName = QUERY_FILTER_DISPLAY_NAMES[family];
+  if (queryName && values.length) {
+    return `${queryName} “${values.join("/").split("+").join(" ")}”`;
+  }
   if (!rawValues.length) return readableFamily(family);
   return `${readableFamily(family)} ${rawValues.map(readableValue).join(" · ")}`;
 };
+
+//Sets, sorts, and view modes are URL enum tokens too, and they reach the UI in
+//select controls and receipts. One function so `reading-list` never shows up
+//raw in either place.
+export const collectionOptionDisplayName = (value: string): string => humanize(value);
+
+//The names the live corpus knows for its own filters. One place decides that a
+//candidate's clause label wins over its longer, search-oriented label.
+export const collectionFilterLabels = (
+  candidates: readonly CollectionComposerCandidate[] = []
+): Record<string, string> =>
+  Object.fromEntries(candidates.map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
 
 const defaultFilter = (name: string): string => {
   const configurable = CONFIGURABLE_FILTER_INFO[name];
@@ -202,18 +294,35 @@ export const collectionDescriptionFromComposerSource = (
   return parsed.description || null;
 };
 
+//The verbs of the action grammar. A row's label is its verb followed by the
+//clause's one canonical name, so the row, the chip it produces, and the receipt
+//that follows all say the same words.
+const ACTION_VERBS: Record<CollectionComposerSuggestion["action"], string> = {
+  open: "Open",
+  add: "Add",
+  remove: "Remove",
+  replace: "Replace",
+};
+
+const verbLabel = (action: CollectionComposerSuggestion["action"], name: string): string =>
+  `${ACTION_VERBS[action]} ${name}`;
+
 const removalSuggestions = (
   current: CollectionDescription,
   filterLabels: Record<string, string>
 ): CollectionComposerSuggestion[] =>
-  current.filters.map((filter, index) => ({
-    id: `remove:${index}:${filter}`,
-    kind: "broaden",
-    action: "remove",
-    label: `Remove ${filterLabels[filter] || humanize(filter.split("/")[0])}`,
-    detail: `Broadens this collection by removing ${filterLabels[filter] || readableCollectionFilter(filter)}`,
-    description: collectionDescriptionWithFilterRemoved(current, index),
-  }));
+  current.filters.map((filter, index) => {
+    const name = collectionFilterDisplayName(filter, filterLabels);
+    return {
+      id: `remove:${index}:${filter}`,
+      kind: "broaden" as const,
+      action: "remove" as const,
+      name,
+      label: verbLabel("remove", name),
+      detail: `Broadens this collection by removing ${name}`,
+      description: collectionDescriptionWithFilterRemoved(current, index),
+    };
+  });
 
 const collectionDifference = (
   current: CollectionDescription,
@@ -236,9 +345,9 @@ const collectionDifference = (
     (filter) => !currentFilters.has(filter)
   );
   if (removed.length)
-    changes.push(`Removes ${removed.map(filter => filterLabels[filter] || readableCollectionFilter(filter)).join(", ")}`);
+    changes.push(`Removes ${removed.map(filter => collectionFilterDisplayName(filter, filterLabels)).join(", ")}`);
   if (added.length)
-    changes.push(`Adds ${added.map(filter => filterLabels[filter] || readableCollectionFilter(filter)).join(", ")}`);
+    changes.push(`Adds ${added.map(filter => collectionFilterDisplayName(filter, filterLabels)).join(", ")}`);
   if (
     current.sort !== destination.sort ||
     current.sortReversed !== destination.sortReversed
@@ -257,7 +366,7 @@ const recentSuggestions = (
   current: CollectionDescription,
   context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
-  const filterLabels = Object.fromEntries((context.candidates || []).map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
+  const filterLabels = collectionFilterLabels(context.candidates);
   //Suppress both the draft being composed and the collection already on
   //screen. Deduping against the draft alone meant that as soon as the draft
   //diverged from the active collection — the state every user is in after
@@ -272,11 +381,17 @@ const recentSuggestions = (
     const canonical = recent.description.serialize();
     if (suppressed.has(canonical) || seen.has(canonical)) continue;
     seen.add(canonical);
+    const name = readableCollectionExpression(recent.description, filterLabels);
+    //A recent is named by what it IS. "Back to" is a claim about direction, so
+    //it is spent only on the one collection the history can actually prove you
+    //came from; every other recent is simply a destination you can open.
+    const previous = Boolean(context.previousCollection) && canonical === context.previousCollection;
     result.push({
       id: `recent:${canonical}`,
       kind: "recent",
       action: "open",
-      label: `${recent.frequent ? "Often: " : "Back to "}${readableCollectionExpression(recent.description, filterLabels)}`,
+      name,
+      label: previous ? `Back to ${name}` : verbLabel("open", name),
       detail: `${collectionDifference(current, recent.description, recent.visits, filterLabels)}${recent.relative ? " · Recognized as the same rolling date window" : ""}`,
       description: recent.description,
     });
@@ -291,36 +406,38 @@ const emptyStateSuggestions = (
   current: CollectionDescription,
   context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
-  const filterLabels = Object.fromEntries((context.candidates || []).map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
-  const result: CollectionComposerSuggestion[] = recentSuggestions(
-    current,
-    context
-  );
+  const filterLabels = collectionFilterLabels(context.candidates);
+  const recents = recentSuggestions(current, context);
+  const refinements: CollectionComposerSuggestion[] = [];
   if (
     context.cardsSelected &&
     !current.filters.includes(SELECTED_FILTER_NAME)
   ) {
-    result.push({
+    const name = collectionFilterDisplayName(SELECTED_FILTER_NAME, filterLabels);
+    refinements.push({
       id: "add:selected",
       kind: "add",
       action: "add",
-      label: "Keep only the selected cards",
+      name,
+      label: verbLabel("add", name),
       detail:
-        "Adds the ordinary Selected filter; clear selection to change its members",
+        `Adds the ordinary ${name} filter; clear the selection to change its members`,
       description: collectionDescriptionWithSelected(current),
     });
   }
-  result.push(...removalSuggestions(current, filterLabels));
+  refinements.push(...removalSuggestions(current, filterLabels));
   //Teach the coherent outgoing/incoming/either-direction family only when it
   //will not displace recents, selection, or removal actions. In denser states
   //the same candidates remain discoverable by typing.
-  if (!result.length && !current.filters.length) {
+  if (!recents.length && !refinements.length && !current.filters.length) {
     for (const candidate of (context.candidates || []).filter(candidate => candidate.spotlight).slice(0, 3)) {
-      result.push({
+      const name = collectionFilterDisplayName(candidate.filter, filterLabels);
+      refinements.push({
         id: `candidate:${candidate.category}:${candidate.filter}`,
         kind: "add",
         action: "add",
-        label: candidate.label,
+        name,
+        label: verbLabel("add", name),
         detail: `${candidate.detail} · ${candidate.urlDetail || `Adds “${candidate.filter}” to the collection URL`}`,
         description: collectionDescriptionWithFilterAppended(current, candidate.filter),
       });
@@ -328,29 +445,33 @@ const emptyStateSuggestions = (
   }
   for (const filter of EMPTY_STATE_FILTERS) {
     if (current.filters.includes(filter)) continue;
-    result.push({
+    const name = collectionFilterDisplayName(filter, filterLabels);
+    refinements.push({
       id: `add:${filter}`,
       kind: "add",
       action: "add",
-      label: `Keep only ${humanize(filter)}`,
-      detail: `Adds ${filter} to this collection`,
+      name,
+      label: verbLabel("add", name),
+      detail: `Adds ${name} to this collection`,
       description: collectionDescriptionWithFilterAppended(current, filter),
     });
   }
   if (current.set !== "everything") {
-    result.push({
+    refinements.push({
       id: "set:everything",
       kind: "broaden",
       action: "replace",
+      name: "Everything",
       label: "Start from Everything",
-      detail: `Replaces the ${humanize(current.set)} set with Everything`,
+      detail: `Replaces the ${collectionOptionDisplayName(current.set)} set with Everything`,
       description: collectionDescriptionWithSet(current, "everything"),
     });
   }
-  result.push({
+  refinements.push({
     id: "sort:reverse",
     kind: "pivot",
     action: "replace",
+    name: current.sortReversed ? "Normal sort direction" : "Reversed sort",
     label: current.sortReversed
       ? "Use normal sort direction"
       : "Reverse the current sort",
@@ -362,7 +483,63 @@ const emptyStateSuggestions = (
       !current.sortReversed
     ),
   });
-  return result.slice(0, 8);
+  //One destination, one row. A recent whose destination a refinement already
+  //rebuilds is the same collection reached by a different verb; the refinement
+  //wins because it teaches the transformation, and because serialize() is
+  //faithful down to sort and view mode, an identical serialization means the
+  //recent carried nothing extra to lose.
+  const refinementDestinations = new Set(refinements.map(suggestion => suggestion.description.serialize()));
+  return dedupedByDestination(
+    [...recents.filter(recent => !refinementDestinations.has(recent.description.serialize())), ...refinements],
+    current
+  ).slice(0, 8);
+};
+
+//No row may offer the collection it is already standing in, and no two rows may
+//offer the same one. Both are the same rule: a row whose destination is
+//indistinguishable from another row's — or from the draft's — is not a choice.
+const dedupedByDestination = (
+  suggestions: CollectionComposerSuggestion[],
+  current: CollectionDescription
+): CollectionComposerSuggestion[] => {
+  const currentDestination = current.serialize();
+  const seen = new Set<string>();
+  const result: CollectionComposerSuggestion[] = [];
+  for (const suggestion of suggestions) {
+    const destination = suggestion.description.serialize();
+    //Two rows are exempt from destination identity. A pasted source is the
+    //user's own text, and echoing it back is honest even when it names the
+    //collection they are already composing. A row that opens an editor
+    //(Configure/Edit in Source) does not go anywhere at all, so its nominal
+    //destination is not what it offers.
+    const opensAnEditor = Boolean(suggestion.configureFilter || suggestion.sourceFilter);
+    if (suggestion.kind !== "source" && !opensAnEditor) {
+      if (destination === currentDestination) continue;
+      if (seen.has(destination)) continue;
+    }
+    seen.add(destination);
+    result.push(suggestion);
+  }
+  return result;
+};
+
+//Ranking that can only use what it already knows. Rows with a resolved count of
+//zero sink below rows that lead somewhere, within their own section so the
+//Continue/Refine split stays put. Rows whose count has not arrived keep their
+//deterministic place rather than being punished for being slow.
+export const rankedComposerSuggestions = (
+  suggestions: readonly CollectionComposerSuggestion[],
+  counts: { [suggestionID: string]: number } = {}
+): CollectionComposerSuggestion[] => {
+  const section = (suggestion: CollectionComposerSuggestion) => (suggestion.kind === "recent" ? 0 : 1);
+  const empty = (suggestion: CollectionComposerSuggestion) => (counts[suggestion.id] === 0 ? 1 : 0);
+  return suggestions
+    .map((suggestion, index) => ({suggestion, index}))
+    .sort((left, right) =>
+      section(left.suggestion) - section(right.suggestion) ||
+      empty(left.suggestion) - empty(right.suggestion) ||
+      left.index - right.index)
+    .map(({suggestion}) => suggestion);
 };
 
 export const collectionComposerSuggestions = (
@@ -374,6 +551,7 @@ export const collectionComposerSuggestions = (
   const query = input.trim();
   if (!query) return emptyStateSuggestions(current, context);
 
+  const filterLabels = collectionFilterLabels(context.candidates);
   const result: CollectionComposerSuggestion[] = [];
   const looksLikeSource = query.includes("/") || /^https?:\/\//i.test(query);
   if (looksLikeSource) {
@@ -388,6 +566,7 @@ export const collectionComposerSuggestions = (
         id: `source:${description.serialize()}`,
         kind: "source",
         action: "open",
+        name: readableCollectionExpression(description, filterLabels),
         label: "Open this collection source",
         detail: description.serializeShortOriginalOrder(),
         description,
@@ -429,11 +608,13 @@ export const collectionComposerSuggestions = (
     if (interpretation.type === "candidate") {
       const candidate = interpretation.candidate;
       if (current.filters.includes(candidate.filter) || concreteCandidateCount >= 6) continue;
+      const name = collectionFilterDisplayName(candidate.filter, filterLabels);
       suggestion = {
         id: `candidate:${candidate.category}:${candidate.filter}`,
         kind: "add",
         action: "add",
-        label: candidate.label,
+        name,
+        label: verbLabel("add", name),
         detail: `${candidate.detail} · ${candidate.urlDetail || `Adds “${candidate.filter}” to the collection URL`}`,
         description: collectionDescriptionWithFilterAppended(current, candidate.filter),
       };
@@ -444,11 +625,17 @@ export const collectionComposerSuggestions = (
       const sourceOnly = configurable && SOURCE_ONLY_CONFIGURABLE_FILTERS.has(name);
       const existingConfigurable = configurable && current.filters.some(currentFilter => currentFilter.startsWith(name + "/"));
       if (!configurable && current.filters.includes(filter)) continue;
+      //A configurable family is named by its family until its values exist; a
+      //plain filter is named by the one name that clause carries everywhere.
+      const displayName = configurable ?
+        collectionFilterDisplayName(name, filterLabels) :
+        collectionFilterDisplayName(filter, filterLabels);
       suggestion = {
         id: `filter:${filter}`,
         kind: "add",
         action: existingConfigurable ? "replace" : "add",
-        label: sourceOnly ? `Edit ${humanize(name)} in Source` : configurable ? `${existingConfigurable ? "Edit" : "Configure"} ${humanize(name)}` : `Add ${humanize(name)}`,
+        name: displayName,
+        label: sourceOnly ? `Edit ${displayName} in Source` : configurable ? `${existingConfigurable ? "Edit" : "Configure"} ${displayName}` : verbLabel("add", displayName),
         detail: sourceOnly ? `${detail} · nested expressions use lossless Source mode with completions` : configurable ? `${detail} · choose its values before changing the draft` : detail,
         description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
         configureFilter: configurable && !sourceOnly ? name : undefined,
@@ -463,16 +650,23 @@ export const collectionComposerSuggestions = (
     if (result.length >= 7) break;
   }
 
+  const queryDescription = collectionDescriptionWithQuery(current, query);
+  const queryAction = current.filters.some(filter => filter.startsWith("query/")) ? "replace" : "add";
+  const queryName = collectionFilterDisplayName(
+    queryDescription.filters.find(filter => filter.startsWith("query/")) || "",
+    filterLabels
+  );
   result.push({
     id: `query:${normalizedQuery}`,
     kind: "search",
-    action: current.filters.some(filter => filter.startsWith("query/")) ? "replace" : "add",
-    label: `Text contains “${query}”`,
+    action: queryAction,
+    name: queryName,
+    label: verbLabel(queryAction, queryName),
     detail: "Explicitly adds a text-query clause to this collection",
-    description: collectionDescriptionWithQuery(current, query),
+    description: queryDescription,
   });
 
-  return result.slice(0, 8);
+  return dedupedByDestination(result, current).slice(0, 8);
 };
 
 export const readableCollectionExpression = (
@@ -499,16 +693,54 @@ export const collectionExpressionParts = (
 ): CollectionExpressionParts => {
   const modifiers: string[] = [];
   if (description.sort !== "default" || description.sortReversed) {
-    modifiers.push(`sorted by ${description.sortReversed ? "reverse " : ""}${humanize(description.sort)}`);
+    modifiers.push(`sorted by ${description.sortReversed ? "reverse " : ""}${collectionOptionDisplayName(description.sort)}`);
   }
   if (description.viewMode !== "list") {
-    let view = `viewed as ${humanize(description.viewMode)}`;
-    if (description.viewModeExtra) view += ` (${humanize(description.viewModeExtra)})`;
+    let view = `viewed as ${collectionOptionDisplayName(description.viewMode)}`;
+    if (description.viewModeExtra) view += ` (${collectionOptionDisplayName(description.viewModeExtra)})`;
     modifiers.push(view);
   }
   return {
-    set: {raw: description.set, label: humanize(description.set)},
-    filters: description.filters.map((raw, index) => ({raw, index, label: filterLabels[raw] || readableCollectionFilter(raw)})),
+    set: {raw: description.set, label: collectionOptionDisplayName(description.set)},
+    filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels)})),
     modifiers,
   };
+};
+
+//The one place a draft edit turns into a sentence. Receipts are composed from
+//the same canonical names the rows and chips use, so "Add: Add Starred" and
+//"Updated filter" cannot happen: the receipt says what changed, in the words
+//the change was offered in.
+const truncatedName = (name: string): string => (name.length > 48 ? `${name.slice(0, 47)}…` : name);
+
+const namedList = (names: string[]): string => {
+  const shown = names.slice(0, 2).map(truncatedName);
+  const remaining = names.length - shown.length;
+  if (!remaining) return shown.join(" and ");
+  return `${shown.join(", ")} and ${remaining} more`;
+};
+
+export const collectionDraftReceipt = (
+  before: CollectionDescription,
+  after: CollectionDescription,
+  filterLabels: Record<string, string> = {}
+): string => {
+  const beforeFilters = new Set(before.filters);
+  const afterFilters = new Set(after.filters);
+  const removed = before.filters.filter(filter => !afterFilters.has(filter));
+  const added = after.filters.filter(filter => !beforeFilters.has(filter));
+  const name = (filter: string) => collectionFilterDisplayName(filter, filterLabels);
+  if (removed.length === 1 && added.length === 1 && removed[0].split("/")[0] === added[0].split("/")[0]) {
+    return `Changed ${truncatedName(name(removed[0]))} to ${truncatedName(name(added[0]))}`;
+  }
+  const changes: string[] = [];
+  if (removed.length) changes.push(`Removed ${namedList(removed.map(name))}`);
+  if (added.length) changes.push(`Added ${namedList(added.map(name))}`);
+  if (before.set !== after.set) changes.push(`Changed the starting set to ${collectionOptionDisplayName(after.set)}`);
+  if (before.sort !== after.sort) changes.push(`Changed the order to ${collectionOptionDisplayName(after.sort)}`);
+  if (before.sortReversed !== after.sortReversed) changes.push(after.sortReversed ? "Reversed the order" : "Restored the normal order");
+  if (before.viewMode !== after.viewMode) changes.push(`Changed the view to ${collectionOptionDisplayName(after.viewMode)}`);
+  else if (before.viewModeExtra !== after.viewModeExtra) changes.push("Changed the focus card");
+  if (!changes.length) return "Updated this draft";
+  return changes.join(" · ");
 };

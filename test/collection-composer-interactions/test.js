@@ -124,7 +124,7 @@ describe("Collection Composer interactions", () => {
 
   it("clicking an Add suggestion updates only the draft", async () => {
     const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-    const starred = buttons.find((button) => button.textContent.includes("Keep only Starred"));
+    const starred = buttons.find((button) => button.textContent.includes("Add Starred"));
     assert.ok(starred);
     const beforePath = window.location.pathname;
     starred.click();
@@ -176,9 +176,11 @@ describe("Collection Composer interactions", () => {
     const labels = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
       .slice(0, 3)
       .map((button) => button.textContent);
-    assert.match(labels[0], /Keep only cards tagged “Systems”/);
-    assert.match(labels[1], /Keep only section “Half Baked”/);
-    assert.match(labels[2], /This card and directly connected cards/);
+    //One clause, one name: the row says exactly what the chip it produces will
+    //say, with the action grammar's verb in front of it.
+    assert.match(labels[0], /Add Tagged Systems/);
+    assert.match(labels[1], /Add Section Half Baked/);
+    assert.match(labels[2], /Add This card and directly connected cards/);
   });
 
   it("explains preview counts as consequences without changing row order", async () => {
@@ -193,8 +195,8 @@ describe("Collection Composer interactions", () => {
     const after = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
     assert.deepStrictEqual(after.map((button) => button.id), before);
     assert.match(dialog.shadowRoot.querySelector(".expression").textContent, /12 cards/);
-    assert.match(after.find((button) => button.textContent.includes("Keep only Starred")).textContent, /5 cards · 7 fewer/);
-    assert.match(after.find((button) => button.textContent.includes("Keep only Unread")).textContent, /19 cards · 7 more/);
+    assert.match(after.find((button) => button.textContent.includes("Add Starred")).textContent, /5 cards · 7 fewer/);
+    assert.match(after.find((button) => button.textContent.includes("Add Unread")).textContent, /19 cards · 7 more/);
     assert.strictEqual(
       Array.from(dialog.shadowRoot.querySelectorAll("button"))
         .find((button) => button.classList.contains("primary")).textContent,
@@ -208,9 +210,81 @@ describe("Collection Composer interactions", () => {
     assert.doesNotMatch(dialog.shadowRoot.querySelector(".expression").textContent, /12 cards/);
   });
 
+  //Tab in the empty state used to do nothing at all: it was gated on the input
+  //having text, so the keyboard could not reach a list of destinations without
+  //first typing something to make them go away.
+  it("Tab reaches the empty-state list, then materializes the row it landed on", async () => {
+    assert.strictEqual(highlightedRow(), null);
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(highlightedRow().id, "collection-suggestion-0",
+      "the first Tab makes the list keyboard-enterable without typing");
+    assert.match(highlightedRow().textContent, /Add Starred/);
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [],
+      "and changes nothing on its own");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"],
+      "the second Tab materializes that row into the draft");
+    assert.strictEqual(window.location.pathname, "/c/main/");
+    assert.match(dialog.shadowRoot.querySelector(".draft-receipt").textContent, /Added Starred/);
+  });
+
+  //A destination is not a transformation, so Tab on one is the spec's labeled
+  //secondary action: it copies the destination's expression into the draft
+  //instead of leaving for it.
+  it("Tab on a destination copies its expression into the draft, and says so", async () => {
+    await seedRecents([["main/starred/sort/recent/", 2]]);
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.match(highlightedRow().textContent, /Main AND Starred/);
+    assert.match(dialog.shadowRoot.querySelector(".key-hints").textContent, /Tab copies it into the draft/);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
+    assert.strictEqual(store.getState().collection.snapshot.sortName, "recent");
+    assert.strictEqual(window.location.pathname, "/c/main/", "Tab does not navigate");
+    assert.match(dialog.shadowRoot.querySelector(".draft-receipt").textContent,
+      /Replaced the draft with Main AND Starred/);
+  });
+
+  //Counts rank the list when it is built. They may keep updating a row the user
+  //is pointing at, but they may not move it out from under them.
+  it("ranks empty rows down when the list is built, and never once it is focused", async () => {
+    const indexOf = (text) => suggestionLabels().findIndex((label) => label.includes(text));
+    assert.strictEqual(indexOf("Add Starred"), 0);
+    dialog._previewCounts = { "current-draft-preview": 12, "add:starred": 0, "add:unread": 5 };
+    await dialog.updateComplete;
+    assert.ok(indexOf("Add Unread") < indexOf("Add Starred"),
+      "a row that yields no cards never sits above one that yields some");
+    assert.notStrictEqual(indexOf("Add Starred"), 0);
+    const withoutCounts = () => suggestionLabels().map((label) => label.replace(/\d+ (cards?|fewer|more)/g, ""));
+    const focusedOrder = withoutCounts();
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    const highlighted = highlightedRow().textContent;
+    dialog._previewCounts = { ...dialog._previewCounts, "add:unread": 0, "add:starred": 9 };
+    await dialog.updateComplete;
+    assert.deepStrictEqual(
+      withoutCounts(),
+      focusedOrder,
+      "the focused list does not reorder when late counts arrive"
+    );
+    assert.strictEqual(
+      highlightedRow().textContent.replace(/\d+ (cards?|fewer|more)/g, ""),
+      highlighted.replace(/\d+ (cards?|fewer|more)/g, ""),
+      "and the row the user is pointing at is still the same row"
+    );
+  });
+
   it("opens the edited draft only from the explicit primary action", async () => {
     const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-    buttons.find((button) => button.textContent.includes("Keep only Starred")).click();
+    buttons.find((button) => button.textContent.includes("Add Starred")).click();
     await dialog.updateComplete;
     const primary = Array.from(dialog.shadowRoot.querySelectorAll("button"))
       .find((button) => button.textContent.includes("Open this collection"));
@@ -284,7 +358,13 @@ describe("Collection Composer interactions", () => {
     //Arrowing into a list with nothing highlighted lands on the first row
     //rather than skipping one.
     assert.strictEqual(highlightedRow().id, "collection-suggestion-0");
-    assert.match(highlightedRow().textContent, /Back to Main AND Starred/);
+    //The seeded recent (Main AND Starred) and the "Add Starred" refinement
+    //resolve to the identical collection, so only one row offers it — the
+    //refinement, which teaches the transformation. Either way Enter lands on
+    //the same collection.
+    assert.match(highlightedRow().textContent, /Add Starred/);
+    assert.ok(!suggestionLabels().some((label) => label.includes("Main AND Starred")),
+      "the recent that duplicates a refinement's destination is not offered twice");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await dialog.updateComplete;
     assert.strictEqual(window.location.pathname, "/c/starred/");
@@ -294,9 +374,11 @@ describe("Collection Composer interactions", () => {
   //not one: opening it throws the draft away and changes nothing.
   it("never offers the collection already on screen as a recent destination", async () => {
     await seedRecents([["main/", 9], ["main/starred/sort/recent/", 2]]);
+    //This one IS the collection visited before the active one, which is the
+    //only recent allowed to claim a direction.
     assert.ok(suggestionLabels().some((label) => label.includes("Back to Main AND Starred")),
       "an unrelated recent is still offered");
-    assert.ok(!suggestionLabels().some((label) => /Back to Main(?! AND)/.test(label)),
+    assert.ok(!suggestionLabels().some((label) => /(Open|Back to) Main(?! AND)/.test(label)),
       "the active collection is not offered even before the draft diverges");
     const input = dialog.shadowRoot.querySelector("#collection-composer-input");
     input.value = "star";
@@ -308,7 +390,7 @@ describe("Collection Composer interactions", () => {
     //Now the draft is Main AND Starred, so deduping against the draft alone
     //would let "Back to Main" — the collection on screen — reappear.
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
-    assert.ok(!suggestionLabels().some((label) => /Back to Main(?! AND)/.test(label)),
+    assert.ok(!suggestionLabels().some((label) => /(Open|Back to) Main(?! AND)/.test(label)),
       "the active collection stays suppressed once the draft diverges from it");
     assert.ok(suggestionLabels().some((label) => label.includes("Back to Main AND Starred")),
       "and the recent that is genuinely a different collection survives");
@@ -368,7 +450,7 @@ describe("Collection Composer interactions", () => {
 
   it("Escape cancels the draft without changing the active collection", async () => {
     const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-    buttons.find((button) => button.textContent.includes("Keep only Starred")).click();
+    buttons.find((button) => button.textContent.includes("Add Starred")).click();
     await dialog.updateComplete;
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
     await dialog.updateComplete;
@@ -380,7 +462,7 @@ describe("Collection Composer interactions", () => {
 
   it("keeps the draft open and explains when editing blocks navigation", async () => {
     const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-    buttons.find((button) => button.textContent.includes("Keep only Starred")).click();
+    buttons.find((button) => button.textContent.includes("Add Starred")).click();
     await dialog.updateComplete;
     store.dispatch({ type: "TEST_SET_EDITING", value: true });
     const primary = Array.from(dialog.shadowRoot.querySelectorAll("button"))
@@ -395,7 +477,7 @@ describe("Collection Composer interactions", () => {
 
   it("renders accepted clauses with explicit edit, remove, and Undo controls", async () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     suggestion.click();
     await dialog.updateComplete;
     const clause = dialog.shadowRoot.querySelector(".expression-clause");
@@ -413,7 +495,7 @@ describe("Collection Composer interactions", () => {
 
   it("uses two-step Backspace to select and then remove the last clause", async () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     suggestion.click();
     await dialog.updateComplete;
     const input = dialog.shadowRoot.querySelector("#collection-composer-input");
@@ -428,7 +510,7 @@ describe("Collection Composer interactions", () => {
 
   it("does not interpret composing keystrokes as clause commands", async () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     suggestion.click();
     await dialog.updateComplete;
     const input = dialog.shadowRoot.querySelector("#collection-composer-input");
@@ -451,7 +533,7 @@ describe("Collection Composer interactions", () => {
 
   it("preserves draft Undo while keyboard-selecting a clause", async () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     suggestion.click();
     await dialog.updateComplete;
     const input = dialog.shadowRoot.querySelector("#collection-composer-input");
@@ -467,7 +549,7 @@ describe("Collection Composer interactions", () => {
 
   it("zooms from a clause into its builder control and Escape returns", async () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     suggestion.click();
     await dialog.updateComplete;
     dialog.shadowRoot.querySelector(".expression-clause-label").click();
@@ -511,7 +593,7 @@ describe("Collection Composer interactions", () => {
 
   it("manual builder collapse disarms the edited clause", async () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     suggestion.click();
     await dialog.updateComplete;
     dialog.shadowRoot.querySelector(".expression-clause-label").click();
@@ -602,7 +684,7 @@ describe("Collection Composer interactions", () => {
     add.click();
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["query/inductively knowable"]);
-    assert.match(dialog.shadowRoot.textContent, /Added Query Inductively Knowable/);
+    assert.match(dialog.shadowRoot.textContent, /Added Text contains “inductively knowable”/);
   });
 
   it("routes typed configurable families through guided controls before changing the draft", async () => {
@@ -859,7 +941,7 @@ describe("Collection Composer interactions", () => {
 
   it("edits setup and applied catalog items through the same visual surface", async () => {
     const starred = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-      .find((button) => button.textContent.includes("Keep only Starred"));
+      .find((button) => button.textContent.includes("Add Starred"));
     starred.click();
     await dialog.updateComplete;
     Array.from(dialog.shadowRoot.querySelectorAll("button"))

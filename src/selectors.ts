@@ -1487,7 +1487,11 @@ export const selectCollectionComposerCandidates = createSelector(
 				searchValues: [displayName, isMe ? 'my cards' : '', isMe ? 'mine' : '', 'author', 'collaborator', 'contributor'].filter(Boolean).map(value => value.toLowerCase()),
 				urlDetail: 'Adds a durable contributor clause; copied links keep the same person',
 				valueLabel: displayName,
-				clauseLabel: `Contributed By ${disambiguatedName}`,
+				//The clause label is the one name this filter carries — in the row,
+				//the chip, and the receipt — so your own cards are "My Cards"
+				//everywhere rather than "My cards" in one place and "Contributed
+				//By Jordan" in another.
+				clauseLabel: isMe ? 'My Cards' : `Contributed By ${disambiguatedName}`,
 			};
 		}),
 		{
