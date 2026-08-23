@@ -193,7 +193,9 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-warning-color-light: #EE0000;
 				/* Between the live teal and the warning red: "your change has
 				not reached the server yet". Used by the corpus status
-				indicator's pending layer. 4.6:1 on white. */
+				indicator's pending layer. 4.24:1 on white — clears AA-large,
+				not AA. (This said 4.6:1 for a long time; it was never
+				measured.) */
 				--app-pending-color: #b26a00;
 
 				/* note: this is also replicated in index.TEMPLATE.html */

@@ -146,11 +146,12 @@ long-running surfaces; `snack-bar.ts` carries the comment "the snack-bar existed
 for exactly this and was used once, ever"; `sync-copy.ts` had to consolidate
 eight different sentences for the same idea. Look for the primitive first.
 
-Two rules there are hard and mechanically enforced:
+Two rules there are hard, and both are enforced **by review, not by a test** —
+there is no CI check for either, so they hold only if you actually apply them:
 
 - **No new `alert()` / `confirm()` / `prompt()`.** The call-site count is pinned
-  (§6). It may fall; it may not rise. If you are already editing a function that
-  contains one, replace it.
+  (§6, currently 81). It may fall; it may not rise. §6 carries the grep. If you
+  are already editing a function that contains one, replace it.
 - **No literal colors in component CSS.** Every color comes from a token in
   `src/components/card-web-app.ts`.
 

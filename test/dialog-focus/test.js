@@ -30,6 +30,14 @@
 //     keystroke into the wrong field. => return-focus must NOT fire when
 //     something else has taken focus.
 //
+//Two assertions that looked reasonable were removed after mutation testing
+//showed they could not fail: one asserted the walk never returns a sentinel
+//(unreachable — the walk starts at .content and the sentinels are siblings of
+//it), and one asserted that closing with a detached opener does not throw
+//(.focus() on a detached element is a silent no-op). A test that cannot fail
+//inflates the count and implies coverage that is not there, which is the exact
+//problem this file exists to correct.
+//
 //jsdom does no layout, so offsetParent is null for everything and the real
 //visibility filter cannot run. It is stubbed per-test below; that is honest for
 //the traversal shape (descent, summary, sentinel exclusion), which is what
@@ -145,11 +153,6 @@ describe('the DialogElement focus contract', () => {
 			details.remove();
 		});
 
-		it('never offers a sentinel as a wrap target', () => {
-			const found = element._deepFocusableElements();
-			assert.ok(found.every(candidate => !candidate.classList.contains('focus-sentinel')), 'a sentinel in the list can ping-pong focus between the two of them');
-		});
-
 		it('skips hidden controls', () => {
 			const hidden = dom.window.document.createElement('button');
 			hidden.setAttribute('data-test-hidden', '');
@@ -196,6 +199,25 @@ describe('the DialogElement focus contract', () => {
 			assert.strictEqual(dom.window.document.activeElement, opener, 'closing a dialog should return focus to whatever opened it');
 		});
 
+		//A backdrop click blurs to <body> on MOUSEDOWN, before the click handler
+		//that closes the dialog ever runs — so by the time return-focus is
+		//considered, the dialog owns nothing. Guarding only on "the dialog still
+		//has focus" silently dropped return-focus for every backdrop close.
+		it('restores focus after a backdrop close, where the blur already happened', async () => {
+			const close = element.shadowRoot.querySelector('#close');
+			close.focus();
+			//Stand in for the mousedown blur that precedes the close: pressing
+			//on the non-focusable backdrop drops focus to <body>.
+			close.blur();
+			assert.strictEqual(element.shadowRoot.activeElement, null, 'precondition: the dialog should no longer hold focus');
+			assert.strictEqual(dom.window.document.activeElement, dom.window.document.body, 'precondition: focus should have fallen to body');
+
+			element.open = false;
+			await element.updateComplete;
+
+			assert.strictEqual(dom.window.document.activeElement, opener, 'a backdrop close should still return focus to the opener');
+		});
+
 		//REGRESSION 3. The Cmd-K link flow restores the caret to the card body
 		//as the dialog closes; firing return-focus anyway sent the user's next
 		//keystroke into the Title field instead.
@@ -213,16 +235,6 @@ describe('the DialogElement focus contract', () => {
 
 			assert.strictEqual(dom.window.document.activeElement, elsewhere, 'the dialog stole focus back from a deliberate claim; the next keystroke lands in the wrong field');
 			elsewhere.remove();
-		});
-
-		it('does not throw when the opener has gone away', async () => {
-			element.shadowRoot.querySelector('#close').focus();
-			opener.remove();
-
-			element.open = false;
-			await element.updateComplete;
-
-			assert.ok(true, 'closing with a detached opener should be a no-op, not a throw');
 		});
 
 	});

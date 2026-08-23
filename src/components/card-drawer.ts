@@ -259,7 +259,13 @@ class CardDrawer extends LitElement {
 				   token for that exact reason. This notice exists because
 				   silence here once let a typo'd filter widen an Edit All Cards
 				   selection, so it has to stay readable. The full explanation of
-				   what the app did instead is in the tooltip. */
+				   what the app did instead is in the tooltip.
+
+				   Honest about what this buys: 2.32:1 to 4.00:1 clears AA-large
+				   but is still short of AA's 4.5:1 for normal text. It is the
+				   darkest neutral the palette has — #767676 would be the
+				   smallest change that passes, and adding a token is a design
+				   decision rather than a drive-by. */
 				color: var(--app-dark-text-color);
 			}
 
@@ -293,8 +299,8 @@ class CardDrawer extends LitElement {
 		//impression. An empty list that is still loading has no count worth
 		//reporting yet -- say that instead. Once there ARE cards, the count is
 		//real and the dim + pin correctly mean "these are stale, refreshing".
-		? html`<em>loading…</em>`
-		: html`<strong>${currentCount}</strong> cards`}
+			? html`<em>loading…</em>`
+			: html`<strong>${currentCount}</strong> cards`}
 						</span>
 						${this.urlDiagnostics && this.urlDiagnostics.length ? this.urlDiagnostics.map(diagnostic => html`
 							<div class='diagnostic' title=${diagnostic.fallback}>Didn’t understand “${diagnostic.part}” in this URL</div>`) : ''}

@@ -363,7 +363,7 @@ export class DialogElement extends LitElement {
 		const previous = this._previouslyFocused;
 		this._previouslyFocused = null;
 		if (!previous || !previous.isConnected) return;
-		//ONLY hand focus back if this dialog still owns it. Something that ran
+		//ONLY hand focus back if nothing else has claimed it. Something that ran
 		//while we were closing may have deliberately put focus somewhere else,
 		//and stealing it back silently sends the user's next keystroke to the
 		//wrong place.
@@ -371,14 +371,22 @@ export class DialogElement extends LitElement {
 		//The case that proved it: Cmd-K (find-card-to-link) is
 		//focusPolicy:'allow-text-fields' on purpose, so it fires from the Title
 		//field too. Picking a card, or cancelling, runs restoreSelectionRange()
-		//synchronously — putting the caret back in the card BODY, where the
-		//link is applied. One microtask later this ran and pulled focus back to
-		//Title, so the next character the user typed went into the card's title
-		//instead of its body. shadowRoot.activeElement is non-null exactly when
-		//focus is still somewhere inside this dialog (including a nested shadow
-		//root), which is the normal Escape / X / backdrop case.
+		//synchronously; Selection.addRange() into a contenteditable moves focus
+		//to the card BODY, where the link is applied. One microtask later this
+		//ran and pulled focus back to Title, so the next character the user
+		//typed went into the card's title instead of its body.
+		//
+		//Two conditions, because "the dialog still has focus" alone is not the
+		//test. shadowRoot.activeElement covers Escape and the X button. It does
+		//NOT cover a backdrop click: mousedown on the non-focusable backdrop
+		//blurs to <body> before @click fires, so by the time this runs the
+		//dialog owns nothing and a single condition would silently drop
+		//return-focus for every backdrop close. Body is the "nobody claimed it"
+		//state, so it is safe to restore from — and it is NOT what the Cmd-K
+		//flow leaves behind, which is the editor host.
 		const shadowRoot = this.shadowRoot;
-		if (!shadowRoot || !shadowRoot.activeElement) return;
+		const nobodyElseClaimedIt = document.activeElement === document.body;
+		if (!nobodyElseClaimedIt && (!shadowRoot || !shadowRoot.activeElement)) return;
 		previous.focus();
 	}
 

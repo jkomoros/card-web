@@ -521,9 +521,9 @@ editor, remove a filter, change a field.
 - **No confirm.** These are fast, repeated actions; confirming them trains people
   to dismiss confirms without reading, which is what makes Tier 1 dangerous.
 
-The precedent is `card-web-app.ts:369` — the Stop button, the app's one
-warning-colored control, added with a comment saying "the most destructive
-control on screen keeps a visibly distinct treatment". Generalize it.
+The precedent was the save pill's Stop button, for a long time the app's only
+warning-colored control. It is now `button.small.destructive` in
+`ButtonSharedStyles`, and Stop uses it like anything else.
 
 Today the tiers are inverted in places: fork (recoverable) is confirmed, while
 resolving a thread and accepting a suggestion (not recoverable) are not.
@@ -684,7 +684,6 @@ Check this table before building. If the job is here, the primitive exists.
 | Stackable snackbar | Transient outcomes; today one slot, silently overwritten | #708, #758 |
 | Keyboard-shortcut sheet | The 19 labels rendered nowhere | #740 (stage 2) |
 | Loading placeholder | §3.6 state 1 — the one state with no primitive at all | — |
-| Destructive button variant in `ButtonSharedStyles` | §3.7; does not exist today | — |
 
 `alert()`/`confirm()` are **synchronous and re-entrant-safe** — the world cannot
 change while one is open. Their replacements are promises and can be raced. Every
