@@ -178,7 +178,14 @@ class CardDrawer extends LitElement {
 				margin:0.5em;
 			}
 
-			.label span {
+			/* DIRECT children only. Without the child combinator this also
+			   matched the nested .failure span and applied 0.7em a SECOND
+			   time, rendering the "this collection couldn't be computed"
+			   message at ~7.8px — the smallest text in the label, for the most
+			   important thing it ever says.
+			   (No backticks in here either: same tagged-template hazard the
+			   note below describes for backslash escapes.) */
+			.label > span {
 				/* can't be on .label itself because then it affects margin */
 				font-size:0.7em;
 			}
