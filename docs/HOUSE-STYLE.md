@@ -450,19 +450,23 @@ same state was two colors in the same app, often on screen simultaneously.
 **A paused save stays amber, not red.** It is recoverable, not destructive. Full
 warning red belongs to the Stop control alone (§3.7).
 
-**Open question — amber currently carries two meanings.** Alongside "not yet
-server-confirmed", `card-drawer.ts:237` uses it for "this one collection's
-computation failed, but the corpus is fine and nothing was lost", with a comment
-explaining the choice. That is a real state and the reasoning is sound, but it is
-not `pending`, and calling it `problem` would overstate it. Either it needs its
-own advisory tone or the ladder needs a documented fifth meaning for amber.
+**Amber means exactly one thing: not yet server-confirmed.** It had drifted to
+two other uses in `card-drawer`, and those two were not even the same as each
+other. They are separated as follows:
 
-And the drift has already happened twice: `card-drawer.ts:245` (`.diagnostic`,
-"we understood your URL differently than you wrote it") is a *second* advisory
-use, and it is not even the same as the first — `.failure` means something threw,
-while `.diagnostic` means nothing went wrong at all. Until this is resolved, the
-rule is narrow and absolute: **do not add another amber usage.** See §7 debt
-item D21.
+- `.failure` ("this collection couldn't be computed") **is** a problem, scoped to
+  one surface. It takes `--app-warning-color`, per the ladder. The reassurance
+  that the corpus is fine and nothing was lost belongs in the **copy** — that is
+  what §2.4 part 3 is for — not in a softened color. A color cannot say "nothing
+  was lost"; a sentence can.
+- `.diagnostic` ("we understood your URL differently than you wrote it") is not a
+  problem at all. Nothing failed; the app made a substitution and proceeded. It
+  is an informational note and takes `--app-dark-text-color-light`.
+
+This abandons the deliberate "same amber family" symmetry at
+`card-drawer.ts:242-244`, knowingly: the symmetry was pairing two states that
+differ in whether anything went wrong, which is the distinction that matters
+most to a reader.
 
 #### 3.6.3 Progress surfaces — MUST
 
@@ -700,7 +704,7 @@ replacement for any of them.
 | #758 | *Rationalize progress & outcome UX.* The direct precursor to §3.6. Source of the committed/queued/discarded vocabulary and of `progress-panel.ts`. |
 | #740 | *Factor out a keyboard-shortcut layer.* Stage 1 shipped as `src/shortcuts.ts`; §3.8's shortcut sheet is stage 2, and user-configurable bindings are stage 3 — do not foreclose it. |
 | #660 | *Do a pretty Error dialog.* Overlaps the persistent error banner; decide whether a transient tool error and a durable-write failure are one surface or two. |
-| #692 | *Use dialog element.* Native `<dialog>` would supply focus trapping, an `inert` backdrop and Escape for free — three of §3.3's gaps. Worth deciding before building more dialogs on the current base. |
+| #692 | *Use dialog element.* Native `<dialog>` would supply focus trapping, an `inert` backdrop and Escape for free — three of §3.3's gaps. **Decided:** harden the existing `DialogElement` instead, so all eight current dialogs are fixed at once and there is one code path; #692 stays open as a later migration that can be reviewed on its own. Do not build a second dialog system in the meantime. |
 | #381 | *Combine tags/sections.* Would collapse the §1.2 distinction into tags with groups. |
 | #722 | *Differentiate not-loaded cards.* Adjacent to §3.6 state 1 but a different problem: data that may never arrive without an explicit fetch, not data that is on its way. |
 | #745 | Its issue number is currently rendered in a user-facing tooltip (`find-dialog.ts:247`) — a §1.4 violation. |
@@ -756,7 +760,7 @@ rules.
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
 | D8 | `progress-panel` used by 2 of 11 long-running surfaces | §3.6 |
-| D9 | "Compendium" hardcoded in ~12 strings; `APP_TITLE` is config | §1.4 |
+| D9 | "Compendium" hardcoded in 18 strings plus `manifest.json`; `APP_TITLE` is config. **Deferred by owner decision:** the fix needs `APP_TITLE` inside `sync-copy.ts` and `corpus-status-glyph.ts`, both deliberately import-free — the latter so its layered-meaning contract stays Node-testable. Threading it as a parameter touches every caller; importing the generated config breaks that test harness. Only affects other deployments of this app | §1.4 |
 | D10 | `chat-view.ts` uses three undefined tokens and renders blue | §4.1 |
 | D11 | Tag/label, sign in/log in, suggested/missing concepts split | §1.4 |
 | D12 | 31 font sizes, 12 shadows, 11 radii, 8 translucent-whites | §4.1, §4.3, §4.4 |
@@ -768,7 +772,7 @@ rules.
 | D18 | `viewMode` is in every collection URL with no UI to set it | §1.3 |
 | D19 | Tag creation fails silently through **eight** paths (`data.ts:2117-2166`) — the densest silent-refusal cluster in the app | §3.5 |
 | D20 | `.small` hit target is 18px against 48 usages | §4.2 |
-| D21 | Amber means both "not yet server-confirmed" and "advisory failure, nothing lost"; the ladder has no tone for the second | §3.6.2 |
+| D21 | `card-drawer.ts:237` and `:245` still use amber for two non-pending meanings; §3.6.2 now resolves this — `.failure` to warning, `.diagnostic` to subordinate grey | §3.6.2 |
 | D22 | The tone ladder, the durability promise and the phase-aware ring exist only in `corpus-status-glyph.ts`; other status surfaces predate them and don't follow them | §3.6 |
 | D23 | Loading states are ad hoc — **eight** distinct idioms, no shared primitive: a dimmed list with an `updating…` pin, a bare `Loading...`, an `<em>loading…</em>`, a boot placeholder, `Preparing search (X of Y)…`, an unguarded pulse animation, a stale-content dim with a different constant, and a progress ring | §3.6 |
 | D24 | `applyOptimistically` (`user.ts:599-611`) silently reverts on failure — a star that fails to persist un-fills itself with no message, across six actions | §3.6.1 |
