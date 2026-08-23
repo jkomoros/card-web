@@ -88,6 +88,7 @@ import {
 import {
 	registerShortcuts,
 	whenKeyboardNavigates,
+	whenKeyboardNavigatesIgnoringCollectionComposer,
 	shortcutKeys,
 	SHORTCUT_COMBOS
 } from '../shortcuts.js';
@@ -628,11 +629,46 @@ class CardView extends connect(store)(PageViewElement) {
 				line-height: 1.25;
 			}
 
+			/* The summary is ~133px wide, so anything past two clauses is
+			   clamped away. The clamp's own ellipsis says more exists; the
+			   title and aria-label carry the whole expression for hover and
+			   assistive tech; and keyboard focus — which gets neither — unfolds
+			   it in place. */
+			.collection-summary-main:focus-visible .collection-summary-expression {
+				display: block;
+				-webkit-line-clamp: unset;
+			}
+
 			.collection-summary-action {
 				color: var(--app-primary-color);
 				display: block;
 				font-size: 0.7em;
 				margin-top: 0.25em;
+			}
+
+			.collection-empty {
+				align-items: center;
+				display: flex;
+				flex-direction: column;
+				gap: 0.35em;
+				padding: 1.5em 1em 0.5em;
+				text-align: center;
+			}
+
+			.collection-empty-message {
+				color: var(--app-dark-text-color);
+			}
+
+			.collection-empty-expression {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.8em;
+				overflow-wrap: anywhere;
+			}
+
+			.collection-empty-refine {
+				color: var(--app-primary-color);
+				margin: 0;
+				min-height: 44px;
 			}
 
 			#copy-collection-link {
@@ -699,6 +735,20 @@ class CardView extends connect(store)(PageViewElement) {
 			}
 		`
 	];
+
+	//An empty collection is only worth saying so about once the answer is
+	//final: not while the worker is still computing it, not while stale content
+	//is being held under an "updating" affordance, and not when the failure
+	//notice already explains why nothing is showing. A fallback collection is
+	//not empty on screen — it is showing placeholder cards.
+	get _showCollectionEmptyState() : boolean {
+		if (!collectionComposerEnabled()) return false;
+		if (!this._collection || !this._dataIsFullyLoaded) return false;
+		if (this._collectionPending || this._collectionUpdating) return false;
+		if (this._collectionFailureMessage) return false;
+		if (this._collectionIsFallback) return false;
+		return this._collection.finalSortedCards.length === 0;
+	}
 
 	override render() {
 		return html`
@@ -850,6 +900,27 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>
 		</card-drawer>
         <div id='center'>
+			<!-- The composer's primary entry point is the collection summary,
+			     which lives in the card drawer's visible-info slot — and the
+			     drawer collapses to zero width when the collection is empty.
+			     So the one surface that mentions the composer disappeared
+			     exactly when refining the collection was the only useful thing
+			     left to do. This says what is absent and offers the same
+			     dialog. -->
+			${this._showCollectionEmptyState ? html`
+				<div class='collection-empty' role='status'>
+					<span class='collection-empty-message'>No cards match this collection</span>
+					<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description) : ''}</span>
+					<!-- A text button, not a glyph: this is a gate, and the verb
+					     is clearer than an icon (HS-4.2). -->
+					<button
+						class='collection-empty-refine'
+						title=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
+						aria-label=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
+						@click=${this._handleConfigureCollectionClicked}
+					>Refine · ${shortcutKeys('open-collection-composer')}</button>
+				</div>
+			` : ''}
 			<!-- The loading property is what applies the uniform fade that
 			makes the boot placeholder read as pending rather than as real card
 			content; it was never set here, so the placeholder rendered at full
@@ -1543,15 +1614,19 @@ registerShortcuts([
 		},
 	},
 	{
-		//The Collection Composer's primary entry point (#498). Gated on
-		//whenKeyboardNavigates like the rest of this family, which is what
+		//The Collection Composer's primary entry point (#498). Gated on the
+		//same shared keyboard gate as the rest of this family, which is what
 		//keeps it from firing behind Find, bulk edit, or the corpus
 		//ownership overlay — `inert` does not stop a global keydown, so the
 		//feature's own dialog-open check was never sufficient by itself.
+		//The one term it drops is the composer's OWN dialog: the spec's
+		//keyboard table says Ctrl-K with the composer already open focuses
+		//its input, and gating on the full selector made that unreachable —
+		//the second Ctrl-K was a no-op, so the reducer never saw it.
 		id: 'open-collection-composer',
 		keys: SHORTCUT_COMBOS['open-collection-composer'],
 		label: 'Compose a collection',
-		when: (state) => whenKeyboardNavigates(state) && collectionComposerEnabled(),
+		when: (state) => whenKeyboardNavigatesIgnoringCollectionComposer(state) && collectionComposerEnabled(),
 		handler: () => {
 			store.dispatch(openConfigureCollectionDialog());
 		},

@@ -109,7 +109,11 @@ describe("Collection Composer interactions", () => {
     const open = binding("open-collection-composer");
     assert.match(open, /keys: SHORTCUT_COMBOS\['open-collection-composer'\]/,
       "Ctrl-K must come from the canonical combo table");
-    assert.match(open, /when:[^\n]*whenKeyboardNavigates/,
+    //Ctrl-K takes the shared gate minus one term: its own dialog. The spec's
+    //keyboard table defines what Ctrl-K does when the composer is already open,
+    //and the full gate made that unreachable. Every OTHER modal still refuses
+    //it — which is what the selector assertion below actually checks.
+    assert.match(open, /when:[^\n]*whenKeyboardNavigatesIgnoringCollectionComposer/,
       "the shared keyboard gate must guard Ctrl-K opening the composer");
     assert.match(open, /collectionComposerEnabled\(\)/);
 
@@ -120,6 +124,88 @@ describe("Collection Composer interactions", () => {
       "the shared keyboard gate must guard Ctrl-Shift-L opening Source");
     assert.match(navigate, /openConfigureCollectionDialog\('source'\)/,
       "Ctrl-Shift-L must open the composer in Source mode when it is enabled");
+  });
+
+  //A source pin, for the same reason the gate pin above is one: card-view
+  //cannot be mounted in this harness (its dependency graph reaches an
+  //extensionless import that only the bundler resolves), and the property is
+  //structural. An empty collection collapses the card drawer to zero width,
+  //taking the collection summary — the composer's only visible entry point —
+  //with it, exactly when refining is the only useful thing left to do.
+  it("offers the composer from the card view when the collection is empty", async () => {
+    const source = await readFile(path.join(REPO_ROOT, "src/components/card-view.ts"), "utf8");
+    const start = source.indexOf("get _showCollectionEmptyState()");
+    assert.ok(start >= 0, "card-view must decide when the collection reads as empty");
+    const predicate = source.slice(start, source.indexOf("\n\t}", start));
+    //Empty is only worth saying once the answer is final.
+    assert.match(predicate, /_collectionPending/);
+    assert.match(predicate, /_collectionUpdating/);
+    assert.match(predicate, /_collectionFailureMessage/);
+    assert.match(predicate, /_collectionIsFallback/);
+    assert.match(predicate, /collectionComposerEnabled\(\)/);
+    assert.match(predicate, /finalSortedCards\.length === 0/);
+
+    const emptyStart = source.indexOf("class='collection-empty'");
+    assert.ok(emptyStart >= 0, "the card view area must render an empty state");
+    const block = source.slice(emptyStart, source.indexOf("</div>", emptyStart));
+    //HS-2.6: one sentence-case fragment, no terminal period, no exclamation.
+    assert.match(block, /No cards match this collection/);
+    assert.ok(!/No cards match this collection[.!]/.test(block), "an empty state takes no terminal period");
+    //And the affordance is the same dialog, named with its shortcut.
+    assert.match(block, /_handleConfigureCollectionClicked/);
+    assert.match(block, /shortcutKeys\('open-collection-composer'\)/);
+    assert.match(block, /aria-label=/, "the affordance needs an accessible name (HS-2.5)");
+  });
+
+  //The summary is ~133px wide with a two-line clamp, so a draft of more than
+  //two clauses is visibly truncated. The spec requires the complete expression
+  //to be reachable from it.
+  it("exposes the whole collection expression from the truncated summary", async () => {
+    const source = await readFile(path.join(REPO_ROOT, "src/components/card-view.ts"), "utf8");
+    const start = source.indexOf("class='collection-summary-main'");
+    assert.ok(start >= 0);
+    const block = source.slice(start, source.indexOf("</button>", start));
+    assert.match(block, /title=\$\{readableCollectionExpression\(this\._collection\.description\)\}/,
+      "hover must reveal the complete expression");
+    assert.match(block, /aria-label=\$\{`Refine collection: \$\{readableCollectionExpression/,
+      "assistive tech must hear the complete expression");
+    assert.match(source, /\.collection-summary-main:focus-visible \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,
+      "keyboard focus, which gets neither a tooltip nor a label readout, must unfold it");
+  });
+
+  it("drops only the composer's own dialog from the keyboard gate", async () => {
+    const { selectKeyboardNavigates, selectKeyboardNavigatesIgnoringCollectionComposer } =
+      await import("../../lib/src/selectors.js");
+    const { UPDATE_PAGE } = await import("../../lib/src/actions.js");
+    const { PAGE_DEFAULT } = await import("../../lib/src/actions/app.js");
+    //The gate also requires being on the collection page, which nothing in this
+    //harness sets.
+    store.dispatch({ type: UPDATE_PAGE, page: PAGE_DEFAULT, location: "/c/main/", pageExtra: "main/" });
+    //The composer is open (beforeEach). The general gate refuses; Ctrl-K's
+    //does not, which is the whole difference between the two.
+    assert.strictEqual(selectKeyboardNavigates(store.getState()), false);
+    assert.strictEqual(selectKeyboardNavigatesIgnoringCollectionComposer(store.getState()), true);
+    //Everything else the gate guards still refuses it.
+    store.dispatch({ type: "TEST_SET_EDITING", value: true });
+    assert.strictEqual(selectKeyboardNavigatesIgnoringCollectionComposer(store.getState()), false);
+    store.dispatch({ type: "TEST_SET_EDITING", value: false });
+    store.dispatch({ type: UPDATE_PAGE, page: "", location: "/c/main/", pageExtra: "main/" });
+  });
+
+  //Spec keyboard table: Ctrl-K with the composer already open focuses the
+  //input. It used to do nothing at all — the binding was gated out, so the
+  //reducer never saw the second open.
+  it("refocuses the composer input when asked to open while already open", async () => {
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    const elsewhere = dialog.shadowRoot.querySelector('[role="option"]') ||
+      dialog.shadowRoot.querySelector(".composer-actions .primary");
+    elsewhere.focus();
+    assert.notStrictEqual(dialog.shadowRoot.activeElement, input);
+    store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+    assert.strictEqual(dialog.shadowRoot.activeElement, input);
   });
 
   it("clicking an Add suggestion updates only the draft", async () => {
@@ -608,6 +694,54 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
     assert.ok(dialog.shadowRoot.querySelector(".expression-clause").hasAttribute("data-selected"));
+  });
+
+  //Removing the clause the editor is open on used to leave the panel expanded
+  //with nothing in it: _selectedClauseIndex went to -1 while _builderExpanded
+  //stayed true, so '' rendered into a still-visible .builder container.
+  it("collapses the clause editor when the clause being edited is removed", async () => {
+    const add = (label) => {
+      const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+        .find((button) => button.textContent.includes(label));
+      assert.ok(suggestion, `no suggestion labeled ${label}`);
+      suggestion.click();
+      return dialog.updateComplete;
+    };
+    await add("Add Starred");
+    dialog.shadowRoot.querySelector(".expression-clause-label").click();
+    await dialog.updateComplete;
+    assert.ok(dialog.shadowRoot.querySelector(".clause-editor"));
+    dialog.shadowRoot.querySelector(".expression-clause-remove").click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+    assert.strictEqual(dialog.shadowRoot.querySelector(".clause-editor"), null);
+    assert.strictEqual(dialog.shadowRoot.querySelector(".builder"), null,
+      "an empty builder container must not stay on screen");
+  });
+
+  it("keeps editing the same clause when a different one is removed", async () => {
+    const add = (label) => {
+      const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+        .find((button) => button.textContent.includes(label));
+      assert.ok(suggestion, `no suggestion labeled ${label}`);
+      suggestion.click();
+      return dialog.updateComplete;
+    };
+    await add("Add Starred");
+    await add("Add Unread");
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred", "unread"]);
+    const clauses = () => Array.from(dialog.shadowRoot.querySelectorAll(".expression-clause"));
+    //Edit the second clause, then remove the first: the editor must follow the
+    //clause, which has just been renumbered from index 1 to index 0.
+    clauses()[1].querySelector(".expression-clause-label").click();
+    await dialog.updateComplete;
+    assert.ok(dialog.shadowRoot.querySelector(".clause-editor"));
+    clauses()[0].querySelector(".expression-clause-remove").click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["unread"]);
+    const editor = dialog.shadowRoot.querySelector(".clause-editor");
+    assert.ok(editor, "the editor must stay open on the clause it was editing");
+    assert.match(editor.textContent, /Unread/);
   });
 
   it("browses a categorized catalog and adds an ordinary filter without opening", async () => {

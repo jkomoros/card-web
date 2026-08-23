@@ -36,6 +36,7 @@ import {
 
 import {
 	selectKeyboardNavigates,
+	selectKeyboardNavigatesIgnoringCollectionComposer,
 	selectCorpusGateBlocking
 } from './selectors.js';
 
@@ -323,6 +324,13 @@ export const registerShortcuts = (bindings : ShortcutBinding[]) : (() => void) =
 //every modal by hand; bindings that want it opt in via `when` — but unlike
 //the legacy handlers, opting in is one reference, not a re-implementation.
 export const whenKeyboardNavigates = (state : State) : boolean => selectKeyboardNavigates(state);
+
+//The same gate minus the collection composer's own dialog, for the composer's
+//own shortcut — the one binding whose spec defines what it does when its
+//dialog is already open ("if already open, focus input"). Every other modal
+//still refuses it.
+export const whenKeyboardNavigatesIgnoringCollectionComposer = (state : State) : boolean =>
+	selectKeyboardNavigatesIgnoringCollectionComposer(state);
 
 //The one global listener, replacing five. Window + bubble phase, so a
 //component's own local @keydown handlers (a focus trap, a textarea's Enter

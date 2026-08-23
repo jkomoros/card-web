@@ -756,6 +756,9 @@ export type AppState = {
 	cardsDrawerInfoExpanded: boolean,
 	configureCollectionDialogOpen: boolean,
 	configureCollectionDialogMode: 'compose' | 'source',
+	//Bumped every time the composer is asked to open, including while it is
+	//already open, so "focus the input again" is observable by the dialog.
+	configureCollectionDialogFocusRequest: number,
 	presentationMode: boolean,
 	mobileMode: boolean,
 	hoverX: number,

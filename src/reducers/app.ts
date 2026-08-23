@@ -53,6 +53,7 @@ const INITIAL_STATE : AppState = {
 	cardsDrawerInfoExpanded: false,
 	configureCollectionDialogOpen: false,
 	configureCollectionDialogMode: 'compose',
+	configureCollectionDialogFocusRequest: 0,
 	presentationMode: false,
 	mobileMode: false,
 	hoverX: 0,
@@ -132,10 +133,16 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			cardsDrawerPanelOpen: false
 		};
 	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+		//Opening an already-open composer is not a no-op: the spec's keyboard
+		//table says Ctrl-K with the composer open focuses its input. Nothing
+		//else about the dialog changes, so the request is carried as a counter
+		//the dialog can observe -- otherwise a second open produces identical
+		//state and the component never hears about it.
 		return {
 			...state,
 			configureCollectionDialogOpen: true,
 			configureCollectionDialogMode: action.mode || 'compose',
+			configureCollectionDialogFocusRequest: state.configureCollectionDialogFocusRequest + 1,
 		};
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
 	case CANCEL_CONFIGURE_COLLECTION_DIALOG:

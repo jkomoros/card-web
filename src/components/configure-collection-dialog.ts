@@ -18,6 +18,7 @@ import {
 import {
 	selectConfigureCollectionDialogOpen,
 	selectConfigureCollectionDialogMode,
+	selectConfigureCollectionDialogFocusRequest,
 	selectFilterDescriptions,
 	selectCollectionComposerCandidates,
 	selectAuthorAndCollaboratorUserIDs,
@@ -215,6 +216,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_entryMode : 'compose' | 'source' = 'compose';
+
+	//Every request to open the composer, including the ones that arrive while
+	//it is already open. Ctrl-K on an open composer changes nothing else about
+	//the state, so this is what makes "focus the input again" observable.
+	@state()
+		_focusRequest = 0;
 
 	@state()
 		_sourceInput = '';
@@ -1775,11 +1782,35 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_removeDraftClause(index : number) {
 		const filter = this._collectionDescription.filters[index];
 		if (filter === undefined) return;
+		//What the clause editor was editing, before the removal renumbers
+		//everything after it. _commitDraftEdit clears the selection but leaves
+		//the panel expanded, which used to render '' into a still-visible
+		//.builder container -- an empty grey box where the editor had been.
+		const editing = this._builderExpanded ? this._selectedClauseIndex : -1;
 		this._commitDraftEdit(
 			collectionDescriptionWithFilterRemoved(this._collectionDescription, index),
 			'',
 			true
 		);
+		if (editing < 0) return;
+		if (editing === index) {
+			//The clause being edited is the one that just went away, so there is
+			//nothing left to edit. Collapse rather than show an empty panel.
+			this._builderExpanded = false;
+			this._clauseSelectionMessage = '';
+			return;
+		}
+		//A different clause was removed; keep editing the same one, at whatever
+		//index it now sits at.
+		const next = editing > index ? editing - 1 : editing;
+		const nextFilter = this._collectionDescription.filters[next];
+		if (nextFilter === undefined) {
+			this._builderExpanded = false;
+			this._clauseSelectionMessage = '';
+			return;
+		}
+		this._selectedClauseIndex = next;
+		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(nextFilter)}`;
 	}
 
 	_undoDraftEdit() {
@@ -2040,6 +2071,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (changedProps.has('open')) this._syncNestedEscapeShortcut();
 	}
 
+	//The one input the composer is composing with, in whichever mode it is in.
+	_focusComposerInput() {
+		const input = this._entryMode === 'source' ?
+			this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input') :
+			this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input');
+		input?.focus();
+	}
+
 	_handleDoneClicked() {
 		store.dispatch(closeConfigureCollectionDialog());
 	}
@@ -2087,6 +2126,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
 				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
 			}
+		}
+		//Ctrl-K on an already-open composer: put the caret back in the input the
+		//user is composing with, whichever mode they are in. Skipped on the
+		//request that OPENED the dialog, which DialogElement already focuses.
+		if (this.open && changedProps.has('_focusRequest') && !changedProps.has('open') && changedProps.get('_focusRequest') !== undefined) {
+			this.updateComplete.then(() => this._focusComposerInput());
 		}
 		if (this.open && changedProps.has('_entryMode') && this._entryMode === 'source') {
 			if (!this._sourceDirty && !this._sourceInput) this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
@@ -2167,6 +2212,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._requestedCard = selectRequestedCard(state) || '';
 		this._activeCard = selectActiveCard(state);
 		this._entryMode = selectConfigureCollectionDialogMode(state);
+		this._focusRequest = selectConfigureCollectionDialogFocusRequest(state);
 		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
 	}
 

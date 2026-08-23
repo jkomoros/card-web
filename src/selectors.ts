@@ -239,10 +239,6 @@ import {
 	PAGE_DEFAULT
 } from './actions/app.js';
 
-import {
-	selectModalOpen
-} from './modal.js';
-
 const selectState = (state : State) : State => state;
 
 export const selectPage = (state : State) => state.app.page;
@@ -252,6 +248,7 @@ export const selectCardBeingFetched = (state : State) => state.app.cardBeingFetc
 export const selectCardsDrawerInfoExpanded = (state : State) => state.app.cardsDrawerInfoExpanded;
 export const selectConfigureCollectionDialogOpen = (state : State) => state.app ? state.app.configureCollectionDialogOpen : false;
 export const selectConfigureCollectionDialogMode = (state : State) => state.app ? state.app.configureCollectionDialogMode : 'compose';
+export const selectConfigureCollectionDialogFocusRequest = (state : State) => state.app ? state.app.configureCollectionDialogFocusRequest : 0;
 export const selectCollectionWordCloudVersion = (state : State) => state.collection ? state.collection.collectionWordCloudVersion : 0;
 export const selectSuggestMissingConceptsEnabled = (state : State) => state.app.suggestMissingConceptsEnabled;
 
@@ -552,36 +549,35 @@ export const selectCorpusGateBlocking = createSelector(
 //(2026-08-02, `8816340a`) been made modifier-gated at the binding itself, but
 //the general hazard is unchanged for the bindings that are still bare —
 //arrows and Space — so this gate stays the load-bearing one.
-//
-//The #708 modal seam is NOT another hand-written entry: selectModalOpen covers
-//every parked confirm/prompt request at once, so a newly migrated call site
-//suppresses navigation the day it migrates, with no edit here.
-//
-//The dialogs are grouped in their own selector rather than inlined: reselect
-//caps a selector at twelve inputs, and the modal seam was the thirteenth gate.
-const selectAnyDialogOpen = createSelector(
+//Everything the gate checks EXCEPT the collection composer's own dialog. The
+//composer's Ctrl-K is the one shortcut whose spec says what it does when its
+//own dialog is already open ("if already open, focus input"), so it must stay
+//reachable then — while still being refused behind Find, bulk edit, the
+//multi-edit dialog and the corpus ownership overlay exactly like its siblings.
+//`inert` does not stop a global keydown, so this gate remains the load-bearing
+//one for every other modal.
+export const selectKeyboardNavigatesIgnoringCollectionComposer = createSelector(
+	selectIsEditing,
 	selectFindDialogOpen,
 	selectComposeOpen,
+	selectPage,
 	selectMultiEditDialogOpen,
-	selectConfigureCollectionDialogOpen,
 	selectBulkImportDialogOpen,
 	selectAIDialogOpen,
 	selectImagePropertiesDialogOpen,
 	selectImageBrowserDialogOpen,
+	selectCorpusGateBlocking,
 	selectShortcutSheetOpen,
-	(find, compose, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, shortcutSheet) =>
-		find || compose || multiEdit || configureCollection || bulkImport || ai || imageProperties || imageBrowser || shortcutSheet
+	(editing, find, compose, page, multiEdit, bulkImport, ai, imageProperties, imageBrowser, gateBlocking, shortcutSheet) =>
+		!editing && !find && !compose && page == PAGE_DEFAULT &&
+		!multiEdit && !bulkImport && !ai && !imageProperties && !imageBrowser && !shortcutSheet &&
+		!gateBlocking
 );
 
 export const selectKeyboardNavigates = createSelector(
-	selectIsEditing,
-	selectAnyDialogOpen,
-	selectModalOpen,
-	selectPage,
-	selectCorpusGateBlocking,
-	(editing, dialogOpen, modalOpen, page, gateBlocking) =>
-		!editing && !dialogOpen && !modalOpen && page == PAGE_DEFAULT &&
-		!gateBlocking
+	selectKeyboardNavigatesIgnoringCollectionComposer,
+	selectConfigureCollectionDialogOpen,
+	(navigates, configureCollection) => navigates && !configureCollection
 );
 
 export const selectFilters = createSelector(
