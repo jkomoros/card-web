@@ -1,4 +1,8 @@
 import {
+	ModalValidatorName
+} from './modal-validators.js';
+
+import {
 	z
 } from 'zod';
 
@@ -1296,8 +1300,12 @@ export type PermissionsState = {
 }
 
 //A request parked in the store while an in-app dialog satisfies it. The
-//RESOLVER lives in src/modal.ts, not here: a function in the store would break
-//serializability, which test/reactive-state pins.
+//RESOLVER lives in src/modal.ts, not here. Everything in a request must survive
+//a JSON round trip: a function in the store cannot be inspected by a devtool and
+//would throw DataCloneError if MODAL_OPEN ever joined FORWARDED_ACTION_TYPES and
+//got structured-cloned to the corpus worker. (No test enforces this today. An
+//earlier draft cited test/reactive-state as if it did; that test asserts
+//@state() decorators via the TypeScript AST and is unrelated.)
 export type ModalRequestID = string;
 
 export type ModalInputField = {
@@ -1306,8 +1314,13 @@ export type ModalInputField = {
 	value? : string,
 	hint? : string,
 	multiline? : boolean,
-	//Returns a sentence-case complaint, or null when the value is fine.
-	validate? : (value : string) => string | null,
+	//A NAME, not a function: the request is parked in the store and everything
+	//in it must survive a JSON round trip. Resolved through modal-validators.ts
+	//by both the fallback and the dialog, so they cannot drift.
+	validator? : ModalValidatorName,
+	//Index of an earlier field whose answer seeds this one. This is how the
+	//chained tag base-name/display-name pair is expressed without a closure.
+	defaultFromField? : number,
 };
 
 export type DestructiveConfirmRequest = {

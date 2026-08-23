@@ -13,9 +13,13 @@
 //  - once a dialog installs a handler, the request is parked in the store as a
 //    PLAIN OBJECT and the promise resolves from whatever the dialog reports.
 //
-//The store must never hold the resolver — test/reactive-state pins
-//serializability, and a function in the store breaks it. That is asserted here
-//directly rather than left to a comment.
+//The store must never hold a function. The first version of this file said that
+//constraint was pinned by test/reactive-state; it is not — that test asserts
+//@state() decorators via the TypeScript AST and has nothing to do with the
+//store. Nothing enforces it today, which is exactly why it is asserted here, on
+//the loaded case: the original "never puts a function in the store" test used a
+//field with NO validator, i.e. it avoided the only property that could be one,
+//and stayed green while the product shipped a function in the store.
 
 import assert from 'assert';
 import {bootstrapApp} from '../harness-support/app-harness.js';
@@ -27,7 +31,10 @@ const {
 	confirmDestructive,
 	askForInput,
 	installModalHandler,
-	resolveModal
+	uninstallModalHandler,
+	cancelAllModals,
+	resolveModal,
+	seedForField
 } = await import('../../lib/src/modal.js');
 
 //The seam's fallbacks call the globals. Capture them rather than letting jsdom's
@@ -99,12 +106,54 @@ describe('the async modal seam (#708)', () => {
 			assert.strictEqual(calls.prompt.length, 1, 'cancelling the first field should not ask for the second');
 		});
 
+		//The reason `fields` is an array at all: a tag's base name, then its
+		//display name defaulted from what the user just typed. An earlier
+		//version could not express this, so migrating the two sites it named
+		//would have shown an empty box instead of the typed name.
+		it('seeds a chained field from the answer before it', async () => {
+			promptAnswer = 'typed-base';
+			await askForInput({title: 'New Tag', verb: 'Create tag', fields: [
+				{label: 'Base Name'},
+				{label: 'Display Name', defaultFromField: 0},
+			]});
+			assert.strictEqual(calls.prompt[1].value, 'typed-base', 'the second field must default from the first answer');
+		});
+
+		it('carries the question, the specifics and what survives into the body', async () => {
+			await confirmDestructive({
+				title: 'Fork Card?',
+				what: 'These tags will be dropped.',
+				detail: ['tag-one', 'tag-two'],
+				survives: 'The card itself is unchanged.',
+				verb: 'Fork card',
+			});
+			const body = calls.confirm[0];
+			for (const fragment of ['Fork Card?', 'These tags will be dropped.', 'tag-one', 'tag-two', 'The card itself is unchanged.']) {
+				assert.ok(body.includes(fragment), `the confirm body dropped "${fragment}", which the user needs to answer the question`);
+			}
+		});
+
 		it('refuses a value its validator rejects', async () => {
 			promptAnswer = 'not a uid';
 			const values = await askForInput({title: 'Add User', verb: 'Add user', fields: [
-				{label: 'User ID', validate: value => value.includes(' ') ? 'That does not look like a user ID.' : null},
+				{label: 'User ID', validator: 'uid'},
 			]});
 			assert.strictEqual(values, null, 'a rejected value must not be returned as if it were accepted');
+		});
+
+	});
+
+	describe('field seeding is shared by the fallback and the dialog', () => {
+
+		it('prefers a chained answer over a static default', () => {
+			const request = {title: 'T', verb: 'V', fields: [{label: 'A'}, {label: 'B', value: 'static', defaultFromField: 0}]};
+			assert.strictEqual(seedForField(request, 1, ['chained']), 'chained');
+		});
+
+		it('falls back to the static default, then to empty', () => {
+			const request = {title: 'T', verb: 'V', fields: [{label: 'A', value: 'static'}, {label: 'B'}]};
+			assert.strictEqual(seedForField(request, 0, []), 'static');
+			assert.strictEqual(seedForField(request, 1, []), '');
 		});
 
 	});
@@ -128,22 +177,80 @@ describe('the async modal seam (#708)', () => {
 			assert.strictEqual(request.kind, 'destructive-confirm');
 			assert.strictEqual(request.verb, 'Delete card');
 
-			store.dispatch(resolveModal(request.id, {confirmed: true}));
+			resolveModal(request.id, {confirmed: true});
 			assert.strictEqual(await pending, true);
 			assert.strictEqual(modalState().requests.length, 0, 'resolving should clear the request');
 		});
 
-		//A function in the store would break serializability, which
-		//test/reactive-state pins. The resolver lives in a module-local map.
-		it('never puts a function in the store', async () => {
-			const pending = askForInput({title: 'Slug', verb: 'Add slug', fields: [{label: 'Slug'}]});
+		//The first version of this test used a field with NO validator, which is
+		//the only field property that could be a function — so it passed while
+		//the product shipped a function in the store. Use the loaded case.
+		it('never puts a function in the store, INCLUDING a validated field', async () => {
+			const pending = askForInput({title: 'Add User', verb: 'Add user', fields: [
+				{label: 'User ID', validator: 'uid'},
+				{label: 'Notes', defaultFromField: 0},
+			]});
 			await Promise.resolve();
 
 			const request = modalState().requests[0];
+			for (const field of request.fields) {
+				assert.notStrictEqual(typeof field.validator, 'function', 'a validator reached the store as a function');
+			}
 			assert.deepStrictEqual(JSON.parse(JSON.stringify(request)), request, 'the parked request must survive a JSON round trip');
 
-			store.dispatch(resolveModal(request.id, {values: ['a-slug']}));
-			assert.deepStrictEqual(await pending, ['a-slug']);
+			resolveModal(request.id, {values: ['abcdefghijklmnopqrstuvwxyz12', 'note']});
+			assert.ok(await pending);
+		});
+
+		//Validation must not live only in the fallback, or a migrated caller
+		//stops refusing bad input the day the dialog installs.
+		it('still refuses a value the validator rejects once a dialog is answering', async () => {
+			const pending = askForInput({title: 'Add User', verb: 'Add user', fields: [{label: 'User ID', validator: 'uid'}]});
+			await Promise.resolve();
+			const request = modalState().requests[0];
+
+			resolveModal(request.id, {values: ['not a uid at all']});
+			assert.strictEqual(await pending, null, 'an invalid value must not be returned as if accepted');
+		});
+
+		//resolveModal used to return an action-or-null for the caller to
+		//dispatch, so the already-handled case threw inside redux.
+		it('tolerates a repeat resolve without throwing', async () => {
+			const pending = confirmDestructive({title: 'Delete Card', what: 'Gone.', verb: 'Delete card'});
+			await Promise.resolve();
+			const request = modalState().requests[0];
+
+			resolveModal(request.id, {confirmed: true});
+			await pending;
+			assert.doesNotThrow(() => resolveModal(request.id, {confirmed: false}), 'a second resolve must be a no-op');
+			assert.strictEqual(modalState().requests.length, 0);
+		});
+
+		//A parked request whose promise never settles retains everything its
+		//awaiting thunk captured. deleteCard captures a whole state snapshot.
+		it('cancelAllModals settles every outstanding promise and empties the store', async () => {
+			const a = confirmDestructive({title: 'A', what: 'a.', verb: 'Do a'});
+			const b = askForInput({title: 'B', verb: 'Do b', fields: [{label: 'B'}]});
+			await Promise.resolve();
+			assert.strictEqual(modalState().requests.length, 2);
+
+			cancelAllModals();
+			assert.strictEqual(await a, false, 'a cancelled confirm should read as "no"');
+			assert.strictEqual(await b, null, 'a cancelled input should read as null');
+			assert.strictEqual(modalState().requests.length, 0, 'cancelling must not strand requests in the store');
+		});
+
+		//A one-way install flag is a trap: a dialog that unmounts would leave
+		//every later call hanging with no fallback and nothing to answer it.
+		it('uninstalling a handler settles what it had parked', async () => {
+			const pending = confirmDestructive({title: 'A', what: 'a.', verb: 'Do a'});
+			await Promise.resolve();
+			assert.strictEqual(modalState().requests.length, 1);
+
+			uninstallModalHandler('destructive-confirm');
+			assert.strictEqual(await pending, false);
+			assert.strictEqual(modalState().requests.length, 0);
+			installModalHandler('destructive-confirm');
 		});
 
 		//#708 anticipates "a stack of those currently active messages", because
@@ -158,24 +265,13 @@ describe('the async modal seam (#708)', () => {
 
 			//Out of order on purpose: dismissing the older one first must not
 			//strand the newer one.
-			store.dispatch(resolveModal(a.id, {confirmed: false}));
+			resolveModal(a.id, {confirmed: false});
 			assert.strictEqual(await first, false);
 			assert.strictEqual(modalState().requests.length, 1);
 			assert.strictEqual(modalState().requests[0].id, b.id, 'resolving one request should not drop the other');
 
-			store.dispatch(resolveModal(b.id, {confirmed: true}));
+			resolveModal(b.id, {confirmed: true});
 			assert.strictEqual(await second, true);
-		});
-
-		it('treats a repeat resolve as already-handled rather than an error', async () => {
-			const pending = confirmDestructive({title: 'Delete Card', what: 'Gone.', verb: 'Delete card'});
-			await Promise.resolve();
-			const request = modalState().requests[0];
-
-			store.dispatch(resolveModal(request.id, {confirmed: true}));
-			await pending;
-			//A dialog closed while its commit is in flight can report twice.
-			assert.strictEqual(resolveModal(request.id, {confirmed: false}), null, 'a second resolve should be a no-op, not a throw');
 		});
 
 		it('reports a cancelled input as null rather than an empty answer', async () => {
@@ -185,7 +281,7 @@ describe('the async modal seam (#708)', () => {
 
 			//The dialog reporting no values IS a cancel; '' would be a real
 			//answer and callers branch on the difference.
-			store.dispatch(resolveModal(request.id, {}));
+			resolveModal(request.id, {});
 			assert.strictEqual(await pending, null);
 		});
 
