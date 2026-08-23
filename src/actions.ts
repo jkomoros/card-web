@@ -255,6 +255,8 @@ export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 //Prompt
+export const OPEN_SHORTCUT_SHEET = 'OPEN_SHORTCUT_SHEET';
+export const CLOSE_SHORTCUT_SHEET = 'CLOSE_SHORTCUT_SHEET';
 export const REPORT_PERSISTENT_ERROR = 'REPORT_PERSISTENT_ERROR';
 export const DISMISS_PERSISTENT_ERROR = 'DISMISS_PERSISTENT_ERROR';
 export const PUSH_SNACKBAR = 'PUSH_SNACKBAR';
@@ -1171,6 +1173,14 @@ type ActionPermissionsResetAddCard = {
 	type: typeof PERMISSIONS_RESET_ADD_CARD
 };
 
+type ActionOpenShortcutSheet = {
+	type: typeof OPEN_SHORTCUT_SHEET,
+};
+
+type ActionCloseShortcutSheet = {
+	type: typeof CLOSE_SHORTCUT_SHEET,
+};
+
 type ActionReportPersistentError = {
 	type: typeof REPORT_PERSISTENT_ERROR,
 	error: PersistentError,
@@ -1491,6 +1501,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard
+	| ActionOpenShortcutSheet
+	| ActionCloseShortcutSheet
 	| ActionReportPersistentError
 	| ActionDismissPersistentError
 	| ActionPushSnackbar

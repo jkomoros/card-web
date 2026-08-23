@@ -130,6 +130,8 @@ import {
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	OPEN_HEADER_PANEL,
 	PUSH_SNACKBAR,
+	OPEN_SHORTCUT_SHEET,
+	CLOSE_SHORTCUT_SHEET,
 	REPORT_PERSISTENT_ERROR,
 	DISMISS_PERSISTENT_ERROR,
 	SomeAction,
@@ -746,3 +748,7 @@ export const runPersistentErrorAction = (errorID : PersistentErrorID, actionID :
 	const action = persistentErrorActions[actionID];
 	if (action) dispatch(action);
 };
+
+export const openShortcutSheet = () : SomeAction => ({type: OPEN_SHORTCUT_SHEET});
+
+export const closeShortcutSheet = () : SomeAction => ({type: CLOSE_SHORTCUT_SHEET});

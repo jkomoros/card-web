@@ -278,6 +278,11 @@ export const selectBulkImportDialogImporterVersion = (state : State) => state.bu
 export const selectBulkImportDialogOverrideCardOrder = (state : State) => state.bulkImport ? state.bulkImport.overrideCardOrder : null;
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
+
+//The shortcut sheet is a dialog like the others: while it is open, arrows and
+//Space must not navigate cards behind its own scrim.
+export const selectShortcutSheetOpen = (state : State) : boolean => state.app.shortcutSheetOpen;
+
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
 export const selectAIDialogKind = (state : State) : AIDialogType => state.ai ? state.ai.kind : 'summary';
 export const selectAIResult = (state : State) => state.ai ? state.ai.result : [];
@@ -553,9 +558,10 @@ export const selectKeyboardNavigates = createSelector(
 	selectImagePropertiesDialogOpen,
 	selectImageBrowserDialogOpen,
 	selectCorpusGateBlocking,
-	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, gateBlocking) =>
+	selectShortcutSheetOpen,
+	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, gateBlocking, shortcutSheet) =>
 		!editing && !find && !compose && page == PAGE_DEFAULT &&
-		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser &&
+		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser && !shortcutSheet &&
 		!gateBlocking
 );
 

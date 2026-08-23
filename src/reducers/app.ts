@@ -3,6 +3,8 @@ import {
 	UPDATE_OFFLINE,
 	PUSH_SNACKBAR,
 	DISMISS_SNACKBAR,
+	OPEN_SHORTCUT_SHEET,
+	CLOSE_SHORTCUT_SHEET,
 	OPEN_HEADER_PANEL,
 	CLOSE_HEADER_PANEL,
 	OPEN_COMMENTS_AND_INFO_PANEL,
@@ -42,6 +44,7 @@ const INITIAL_STATE : AppState = {
 	page: '',
 	pageExtra: '',
 	offline: false,
+	shortcutSheetOpen: false,
 	snackbars: [],
 	headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
 	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
@@ -76,6 +79,10 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			...state,
 			offline: action.offline
 		};
+	case OPEN_SHORTCUT_SHEET:
+		return {...state, shortcutSheetOpen: true};
+	case CLOSE_SHORTCUT_SHEET:
+		return {...state, shortcutSheetOpen: false};
 	case PUSH_SNACKBAR: {
 		//A dedupeKey REFRESHES in place rather than stacking a second copy:
 		//connectivity flapping should show one message, not six.

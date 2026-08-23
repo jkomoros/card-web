@@ -316,7 +316,7 @@ describe('shortcut layer (#740 stage 1)', () => {
 			//The notation pins prove nothing is HARDCODED; this proves the
 			//suffix was not simply deleted (review N4).
 			const source = fs.readFileSync(path.join(new URL('../../src/', import.meta.url).pathname, 'tabs.ts'), 'utf8');
-			assert.ok(source.includes("${shortcutKeys('random-card')}"),
+			assert.ok(source.includes('${shortcutKeys(\'random-card\')}'),
 				'the random tab must advertise its shortcut via the table');
 		});
 
@@ -379,4 +379,112 @@ describe('shortcut layer (#740 stage 1)', () => {
 			assert.match(editor, /id: 'accept-suggested-concepts',[\s\S]{0,1200}focusPolicy: 'allow-text-fields'/);
 		});
 	});
+});
+
+//#740 STAGE 2: THE SHEET
+//
+//Stage 1 shipped the registry. Nineteen bindings each carried a `label` that
+//shortcuts.ts described in a comment as "not rendered anywhere yet" — so the app
+//had nineteen shortcuts and no way to discover any of them.
+//
+//The contract that matters is COMPLETENESS: the sheet enumerates the registry,
+//so a new binding appears without anyone remembering to update a list. #740 asks
+//for exactly that ("a registry that can be enumerated"). These would catch a
+//sheet that had quietly gone back to holding its own copy.
+describe('the shortcut sheet catalog (#740 stage 2)', () => {
+
+	//Every declared combo must actually be registered or declared somewhere, or
+	//it exists in the table and appears in no reference. Checked against the
+	//SOURCE rather than by importing the components, because those need a DOM
+	//this suite does not have — and a source pin catches the drift either way.
+	it('has a home for every combo in the canonical table', async () => {
+		const {readFileSync, readdirSync} = await import('fs');
+		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
+
+		const dir = new URL('../../src/components/', import.meta.url);
+		let sources = '';
+		for (const name of readdirSync(dir)) {
+			if (name.endsWith('.ts')) sources += readFileSync(new URL(name, dir), 'utf8');
+		}
+
+		const homeless = Object.keys(SHORTCUT_COMBOS).filter(id => !sources.includes(`id: '${id}'`));
+		assert.deepStrictEqual(homeless, [], 'a combo with no registerShortcut/declareShortcut call can never reach the sheet');
+	});
+
+	it('picks up a NEW binding with no change to the sheet', async () => {
+		const {ShortcutRegistry} = await import('../../lib/src/shortcuts.js');
+		const local = new ShortcutRegistry();
+		local.register({id: 'synthetic-binding', keys: [{key: 'q', mod: true}], label: 'Do a synthetic thing', handler: () => true});
+
+		assert.ok(local.describe().some(entry => entry.id === 'synthetic-binding'), 'a new binding must appear automatically, or the sheet drifts from reality');
+	});
+
+	//dialog-element registers its Escape only while a dialog is OPEN, and
+	//card-editor registers its concept binding only while connected. A scan of
+	//what is live right now shows a set that blinks depending on when the sheet
+	//was opened.
+	it('does not forget a binding that has been unregistered', async () => {
+		const {ShortcutRegistry} = await import('../../lib/src/shortcuts.js');
+		const local = new ShortcutRegistry();
+		const unregister = local.register({id: 'transient', keys: [{key: 'q', mod: true}], label: 'Transient', handler: () => true});
+		unregister();
+
+		assert.strictEqual(local._bindings.length, 0, 'precondition: it should no longer be live');
+		assert.ok(local.describe().some(entry => entry.id === 'transient'), 'the catalog must survive unregistration');
+	});
+
+	it('gives every catalogued binding a label and a real group', async () => {
+		const {describeShortcuts} = await import('../../lib/src/shortcuts.js');
+		const groups = ['browsing', 'editing', 'formatting', 'dialogs'];
+		for (const entry of describeShortcuts()) {
+			assert.ok(entry.label && entry.label.length > 0, entry.id + ' has no label to render');
+			assert.ok(groups.includes(entry.group), entry.id + ' is in unknown group ' + entry.group);
+		}
+	});
+
+	//A tooltip wants the primary combo; a reference sheet must show them all, or
+	//it teaches a binding the user cannot find.
+	it('renders every combo a binding accepts, not just the first', async () => {
+		const {shortcutKeysAll} = await import('../../lib/src/shortcuts-data.js');
+		assert.ok(shortcutKeysAll('next-card', true).includes(' or '), 'next-card has two combos and both belong in a reference');
+	});
+
+	it('shares one formatter with the tooltips', async () => {
+		const {shortcutKeys, shortcutKeysAll} = await import('../../lib/src/shortcuts-data.js');
+		//Where a binding has one combo the two must agree exactly; #740 was
+		//filed about six hand-written strings in three notations.
+		assert.strictEqual(shortcutKeysAll('edit-card', true), shortcutKeys('edit-card', true));
+	});
+
+	it('registers its own combo without tripping the reserved-combo denylist', async () => {
+		const {ShortcutRegistry} = await import('../../lib/src/shortcuts.js');
+		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
+		const local = new ShortcutRegistry();
+		assert.doesNotThrow(() => local.register({id: 'show-shortcuts', keys: SHORTCUT_COMBOS['show-shortcuts'], label: 'Show keyboard shortcuts', handler: () => true}));
+	});
+
+	//comboMatches requires undeclared modifiers to be ABSENT, and '?' is Shift-/
+	//on a US layout but unshifted on several others.
+	it('accepts the question mark shifted AND unshifted', async () => {
+		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
+		const combos = SHORTCUT_COMBOS['show-shortcuts'];
+		assert.ok(combos.some(combo => combo.shift), 'the US-layout spelling');
+		assert.ok(combos.some(combo => !combo.shift), 'and the layouts where ? needs no shift');
+	});
+
+	//Arrows and Space must not navigate cards behind the sheet's own scrim.
+	//selectKeyboardNavigates enumerates dialogs by hand, and this is the ninth.
+	it('suppresses card navigation while it is open', async () => {
+		const {selectKeyboardNavigates} = await import('../../lib/src/selectors.js');
+		const {store} = await import('../../lib/src/store.js');
+		const {openShortcutSheet, closeShortcutSheet} = await import('../../lib/src/actions/app.js');
+
+		store.dispatch(closeShortcutSheet());
+		const before = selectKeyboardNavigates(store.getState());
+		store.dispatch(openShortcutSheet());
+		assert.strictEqual(selectKeyboardNavigates(store.getState()), false, 'the sheet must suppress navigation like every other dialog');
+		store.dispatch(closeShortcutSheet());
+		assert.strictEqual(selectKeyboardNavigates(store.getState()), before);
+	});
+
 });

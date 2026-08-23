@@ -77,6 +77,7 @@ import {
 
 // These are the actions needed by this element.
 import {
+	openShortcutSheet,
 	navigateToNextCard,
 	navigateToPreviousCard,
 	hoveredCardMouseMoved,
@@ -94,6 +95,7 @@ import {
 import './user-chip.js';
 import './corpus-status-indicator.js';
 import './find-dialog.js';
+import './shortcut-sheet.js';
 import './compose-dialog.js';
 import './configure-collection-dialog.js';
 import './card-preview.js';
@@ -363,6 +365,7 @@ class MainView extends connect(store)(PageViewElement) {
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<multi-edit-dialog></multi-edit-dialog>
 			<find-dialog></find-dialog>
+			<shortcut-sheet></shortcut-sheet>
 			<compose-dialog></compose-dialog>
 			<configure-collection-dialog></configure-collection-dialog>
 			<ai-dialog></ai-dialog>
@@ -558,6 +561,7 @@ registerShortcuts([
 	{
 		id: 'commit-edit',
 		keys: SHORTCUT_COMBOS['commit-edit'],
+		group: 'editing',
 		label: 'Save the open editor or dialog',
 		//Deliberately NOT gated on keyboardNavigates: committing is exactly
 		//for when an editor or dialog is open, and doCommit itself decides
@@ -589,6 +593,17 @@ registerShortcuts([
 		label: 'Find a card',
 		when: whenKeyboardNavigates,
 		handler: () => store.dispatch(openFindDialog()),
+	},
+	{
+		//#740 stage 2. '?' is the older and more widely recognised convention
+		//for this than Cmd-/ and needs no modifier; the default
+		//no-focused-control policy is what makes an unmodified key safe, so
+		//typing '?' into the find box or a card body never opens it.
+		id: 'show-shortcuts',
+		keys: SHORTCUT_COMBOS['show-shortcuts'],
+		label: 'Show keyboard shortcuts',
+		when: whenKeyboardNavigates,
+		handler: () => { store.dispatch(openShortcutSheet()); },
 	},
 	{
 		id: 'toggle-card-selected',

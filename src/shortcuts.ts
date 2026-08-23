@@ -63,13 +63,26 @@ export type {ShortcutCombo};
 //  concerns the focused element or a modal surface.
 export type ShortcutFocusPolicy = 'no-focused-control' | 'allow-text-fields' | 'in-contenteditable' | 'any-focus';
 
+export type ShortcutGroup = 'browsing' | 'editing' | 'formatting' | 'dialogs';
+
+export type CatalogEntry = {
+	id : string,
+	keys : ShortcutCombo | readonly ShortcutCombo[],
+	label : string,
+	group : ShortcutGroup,
+	focusPolicy? : ShortcutFocusPolicy,
+};
+
 export type ShortcutBinding = {
 	//Stable identifier; stage 2's label rendering and user configuration
 	//key on it. Also used in error messages.
 	id : string,
 	keys : ShortcutCombo | readonly ShortcutCombo[],
-	//For stage 2 and the eventual help sheet; not rendered anywhere yet.
+	//Rendered by the shortcut sheet (#740 stage 2).
 	label : string,
+	//Which section of the sheet this belongs in. A CLOSED union so a new
+	//binding must pick a home rather than inventing a fifth heading.
+	group? : ShortcutGroup,
 	//Higher priority is consulted first. Dialogs use DIALOG_SHORTCUT_PRIORITY
 	//so a dialog's Escape beats the page-level Escape.
 	priority? : number,
@@ -176,7 +189,32 @@ export class ShortcutRegistry {
 	_bindings : RegisteredBinding[] = [];
 	_nextOrder = 0;
 
+	//A binding is CATALOGUED on first registration and never forgotten.
+	//
+	//The live _bindings array is NOT an enumeration source: dialog-element
+	//registers its Escape only while a dialog is OPEN, and card-editor
+	//registers its concept binding only while the editor is connected. So a
+	//scan of what is registered right now shows a set that blinks depending on
+	//when the sheet happens to be opened, which is not what a reference is for.
+	_catalog : Map<string, CatalogEntry> = new Map();
+
+	catalog(binding : ShortcutBinding) : void {
+		if (this._catalog.has(binding.id)) return;
+		this._catalog.set(binding.id, {
+			id: binding.id,
+			keys: binding.keys,
+			label: binding.label,
+			group: binding.group || 'browsing',
+			focusPolicy: binding.focusPolicy,
+		});
+	}
+
+	describe() : CatalogEntry[] {
+		return [...this._catalog.values()];
+	}
+
 	register(binding : ShortcutBinding) : () => void {
+		this.catalog(binding);
 		const combos = Array.isArray(binding.keys) ? binding.keys : [binding.keys];
 		for (const combo of combos) {
 			if (binding.dangerouslyAllowReservedCombo) continue;
@@ -249,6 +287,15 @@ const registry = new ShortcutRegistry();
 //disconnectedCallback; the legacy handlers never unregistering is one of
 //the defects this layer retires.
 export const registerShortcut = (binding : ShortcutBinding) : (() => void) => registry.register(binding);
+
+//Catalogue a binding WITHOUT registering a handler, for one that may never have
+//been registered when the sheet is opened. dialog-escape is the case: it
+//registers only while some dialog is open, so a user who has never opened one
+//would find it missing from the reference.
+export const declareShortcut = (binding : ShortcutBinding) : void => registry.catalog(binding);
+
+//Everything the sheet knows about, whether or not it is live right now.
+export const describeShortcuts = () : CatalogEntry[] => registry.describe();
 
 export const registerShortcuts = (bindings : ShortcutBinding[]) : (() => void) => {
 	const unregisters = bindings.map(binding => registry.register(binding));

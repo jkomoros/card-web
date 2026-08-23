@@ -1134,6 +1134,7 @@ class CardEditor extends connect(store)(LitElement) {
 		if (this._unregisterShortcut) return;
 		this._unregisterShortcut = registerShortcut({
 			id: 'accept-suggested-concepts',
+			group: 'editing',
 			//NOT Cmd/Ctrl-Shift-C or -I: those are DevTools keys the browser
 			//also delivers to the page (#729) — the registry would throw on
 			//them. K is deliberate: Cmd-K below is "find card to link", so
@@ -1560,6 +1561,7 @@ registerShortcuts([
 	{
 		id: 'format-bold',
 		keys: SHORTCUT_COMBOS['format-bold'],
+		group: 'formatting',
 		label: 'Bold',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1568,6 +1570,7 @@ registerShortcuts([
 	{
 		id: 'format-italic',
 		keys: SHORTCUT_COMBOS['format-italic'],
+		group: 'formatting',
 		label: 'Italic',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1576,6 +1579,7 @@ registerShortcuts([
 	{
 		id: 'format-ordered-list',
 		keys: SHORTCUT_COMBOS['format-ordered-list'],
+		group: 'formatting',
 		label: 'Numbered list',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1584,6 +1588,7 @@ registerShortcuts([
 	{
 		id: 'format-unordered-list',
 		keys: SHORTCUT_COMBOS['format-unordered-list'],
+		group: 'formatting',
 		label: 'Bulleted list',
 		focusPolicy: 'in-contenteditable',
 		when: (state) => selectIsEditing(state),
@@ -1592,6 +1597,7 @@ registerShortcuts([
 	{
 		id: 'find-card-to-link',
 		keys: SHORTCUT_COMBOS['find-card-to-link'],
+		group: 'editing',
 		label: 'Link to a card',
 		focusPolicy: 'allow-text-fields',
 		when: (state) => selectIsEditing(state),

@@ -45,6 +45,11 @@ export const SHORTCUT_COMBOS = {
 	'find-card-to-link': [{key: 'k', mod: true}],
 	'accept-suggested-concepts': [{key: 'k', mod: true, shift: true}],
 	'dialog-escape': [{key: 'Escape'}],
+	//BOTH spellings on purpose. comboMatches requires undeclared modifiers to
+	//be ABSENT, and '?' is Shift-/ on a US layout but an unshifted key on
+	//several others — declaring only the shifted form would dead-key the sheet
+	//outside the US.
+	'show-shortcuts': [{key: '?', shift: true}, {key: '?'}],
 } as const satisfies {[id : string] : readonly ShortcutCombo[]};
 
 export type ShortcutID = keyof typeof SHORTCUT_COMBOS;
@@ -83,3 +88,11 @@ export const formatShortcutCombo = (combo : ShortcutCombo, mac = isMacPlatform()
 //it needs no registration to have happened and cannot drift from it.
 export const shortcutKeys = (id : ShortcutID, mac? : boolean) : string =>
 	formatShortcutCombo(SHORTCUT_COMBOS[id][0], mac);
+
+//EVERY combo for a binding, e.g. 'Down or Right' for next-card. A tooltip wants
+//the primary only; a reference sheet has to show them all, or it teaches a
+//binding the user cannot find. Shares formatShortcutCombo with shortcutKeys, so
+//the sheet and the tooltips cannot drift into the "six strings in three
+//notations" state #740 was filed about.
+export const shortcutKeysAll = (id : ShortcutID, mac? : boolean) : string =>
+	SHORTCUT_COMBOS[id].map(combo => formatShortcutCombo(combo, mac)).join(' or ');

@@ -747,6 +747,7 @@ export type AppState = {
 	//A QUEUE, not a slot. The old single message plus a single shared module
 	//timer meant a second outcome silently destroyed the first AND reset its
 	//clock, so two things happening close together showed one of them.
+	shortcutSheetOpen: boolean,
 	snackbars: SnackbarMessage[],
 	//Empty renders the legacy offline/online notice (#758).
 	headerPanelOpen: boolean,

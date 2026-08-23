@@ -2,6 +2,7 @@ import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import {
+	declareShortcut,
 	registerShortcut,
 	DIALOG_SHORTCUT_PRIORITY,
 	SHORTCUT_COMBOS
@@ -28,6 +29,19 @@ const deepestActiveElement = () : HTMLElement | null => {
 	}
 	return active instanceof HTMLElement ? active : null;
 };
+
+//Catalogued at module scope so the shortcut sheet knows about Escape even for a
+//user who has never opened a dialog. The binding itself registers only while a
+//dialog is OPEN (see _syncEscapeShortcut), so a live scan of the registry would
+//show it missing exactly when the sheet is most likely to be consulted.
+declareShortcut({
+	id: 'dialog-escape',
+	keys: SHORTCUT_COMBOS['dialog-escape'],
+	label: 'Close the dialog',
+	group: 'dialogs',
+	focusPolicy: 'any-focus',
+	handler: () => false,
+});
 
 @customElement('dialog-element')
 export class DialogElement extends LitElement {
@@ -205,6 +219,7 @@ export class DialogElement extends LitElement {
 			this._unregisterEscapeShortcut = registerShortcut({
 				id: 'dialog-escape',
 				keys: SHORTCUT_COMBOS['dialog-escape'],
+				group: 'dialogs',
 				label: 'Close the dialog',
 				priority: DIALOG_SHORTCUT_PRIORITY,
 				//Escape must close the dialog from its own text inputs.
