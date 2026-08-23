@@ -232,17 +232,23 @@ class CardDrawer extends LitElement {
 			}
 
 			#count .failure {
-				/* Amber, not destructive red: the corpus is fine and nothing
-				   was lost — this one collection's computation failed. */
-				color: var(--app-pending-color);
+				/* A computation THREW: that is a problem, so it takes the
+				   problem colour. It used to be amber to signal "nothing was
+				   lost", but amber means "not yet on the server" everywhere
+				   else in the app, and a colour cannot say nothing was lost —
+				   the sentence does that now. */
+				color: var(--app-warning-color);
 				font-weight: bold;
 			}
 
 			#count .diagnostic {
-				/* Same amber family as .failure: advisory, not destructive.
-				   The full explanation of what the app did instead is in the
+				/* NOT the same state as .failure, despite once sharing its
+				   colour: nothing went wrong here. The app understood the URL
+				   differently than it was written and proceeded. That is an
+				   informational note, so it takes the subordinate colour. The
+				   full explanation of what the app did instead is in the
 				   tooltip. */
-				color: var(--app-pending-color);
+				color: var(--app-dark-text-color-light);
 			}
 
 		`
@@ -268,7 +274,7 @@ class CardDrawer extends LitElement {
 		//collection that THREW is a lie (#739 — exactly how a one-line
 		//filter bug hid for weeks), and "loading…" would promise a result
 		//that is not coming. The full error is in the tooltip.
-		? html`<span class='failure' title=${this.failureMessage}>This collection couldn’t be computed</span>`
+		? html`<span class='failure' title=${this.failureMessage}>This collection couldn’t be computed — your cards are fine</span>`
 		: (this.updating || this.pending) && !currentCount
 		//"0 cards" plus an "updating…" pin reads as "this list is empty and
 		//something is wrong", which on a slow first visit is the site's first
