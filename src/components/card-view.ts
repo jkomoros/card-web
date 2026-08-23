@@ -801,8 +801,8 @@ class CardView extends connect(store)(PageViewElement) {
 					</span>
 				</div>
 				<div slot='actions' class='next-prev'>
-					<button class='round' title=${`Previous card (${shortcutKeys('previous-card')})`} aria-label=${`Previous card (${shortcutKeys('previous-card')})`} @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
-					<button class='round' title=${`Next card (${shortcutKeys('next-card')})`} aria-label=${`Next card (${shortcutKeys('next-card')})`} @click=${this._handleForwardClicked}>${ARROW_FORWARD_ICON}</button>
+					<button class='round' title='Previous card' aria-label='Previous card' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
+					<button class='round' title='Next card' aria-label='Next card' @click=${this._handleForwardClicked}>${ARROW_FORWARD_ICON}</button>
 				</div>
 				<div slot='tags'>
 					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags || []} .tagInfos=${this._tagInfos}></tag-list>

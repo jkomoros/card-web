@@ -224,9 +224,15 @@ why §5 lists the banner as blocking.
 ### 2.5 Accessible names — MUST
 
 **Every control has an accessible name.** An icon-only button MUST carry both a
-`title` (for sighted hover) and an `aria-label` (for assistive tech). ~27
-icon-only buttons currently have neither — including every dialog's close button
-and the primary confirm button of six dialogs. See §7 debt item D4.
+`title` (for sighted hover) and an `aria-label` (for assistive tech).
+
+A `title` on a `span.reason` WRAPPER does not name the button — verified against
+Chromium's accessibility tree. That idiom exists so a disabled control can still
+explain itself on hover; the name still has to be on the button. `card-view`'s
+star / read / reading-list buttons show the correct pairing.
+
+`test/accessible-names` ratchets both numbers: controls with no accessible name
+at all, and controls with nothing on hover. Lower the budgets; never raise them.
 
 - Tooltips are **commands**, not descriptions: `Edit card`, not `Opens the editor`.
 - A **disabled** control explains why, on the `span.reason` wrapper — not on the
@@ -762,7 +768,7 @@ rules.
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
 | D2 | 80 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
-| D4 | 29 icon-only buttons with no accessible name — including every dialog's close button and **five** dialogs' primary action; 43 more have a `title` but no `aria-label` | §2.5 |
+| D4 | 18 icon-only controls still have no accessible name, down from 32; 13 have nothing on hover. Ratcheted by `test/accessible-names` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
