@@ -65,6 +65,21 @@ describe("lossless collection source editor", () => {
     assert.strictEqual(parse("query/%73ort/").status, "valid");
   });
 
+  //Which origins are trusted is deployment configuration, so the refusal
+  //cannot promise "the production site" — a deployment that configures no
+  //public domain has exactly one trusted origin, its own.
+  it("phrases the foreign-origin refusal from the origins it was actually given", () => {
+    const refusal = (allowedOrigins) => parseCollectionSource(
+      "https://evil.example/c/everything/starred/card-7",
+      { ordinaryFilters: new Set(Object.keys(CARD_FILTER_DESCRIPTIONS)), allowedOrigins }
+    ).diagnostics.find(item => item.code === "foreign-origin").message;
+    assert.strictEqual(refusal(new Set(["https://example.com"])), "Use a URL from this app.");
+    const both = refusal(new Set(["https://example.com", "https://thecompendium.cards"]));
+    assert.strictEqual(both, "Use a URL from this app or its public address.");
+    //No deployment's name appears in either sentence.
+    assert.ok(!/compendium/i.test(both));
+  });
+
   it("teaches legal starting tokens and configurable arguments", () => {
     const empty = parse("");
     assert.strictEqual(empty.status, "incomplete");

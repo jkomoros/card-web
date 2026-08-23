@@ -9,6 +9,8 @@ import { store } from '../store.js';
 
 import { DialogElement } from './dialog-element.js';
 
+import { SITE_DOMAIN } from '../config.GENERATED.SECRET.js';
+
 import {
 	registerShortcut,
 	DIALOG_SHORTCUT_PRIORITY,
@@ -181,6 +183,20 @@ import {
 const CURRENT_DRAFT_SUGGESTION_ID = 'current-draft';
 
 const ALREADY_ACTIVE_MESSAGE = 'This collection is already open.';
+
+//Which origins a pasted collection URL may come from. Always the origin this
+//client is running on; plus this deployment's own public domain, which is
+//configuration (SITE_DOMAIN), not a literal. It was hardcoded to
+//thecompendium.cards in two places, so every other deployment of this app
+//trusted somebody else's site and not its production self. A deployment that
+//sets no site_domain simply trusts same-origin only.
+//
+//Computed once, at module scope: it is an input to the parse on every
+//keystroke, and a fresh Set each time would defeat memoizing that parse.
+const COMPOSER_ALLOWED_ORIGINS : ReadonlySet<string> = new Set([
+	...(typeof window === 'undefined' ? [] : [window.location.origin]),
+	...(SITE_DOMAIN ? [`https://${SITE_DOMAIN}`] : []),
+]);
 
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -800,7 +816,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			suggestedFilters: candidates.map(candidate => candidate.filter),
 			filterSearchValues: Object.fromEntries(candidates.map(candidate => [candidate.filter, [candidate.label, candidate.category, ...(candidate.aliases || [])]])),
 			preservedSelectedCard: this._draftSelectedCard,
-			allowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
+			allowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 		});
 	}
 
@@ -1310,7 +1326,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				activeCollection: this._activeCollectionDescription || undefined,
 				previousCollection,
 				preservedSelectedCard: this._draftSelectedCard,
-				sourceAllowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
+				sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 				candidates: this._contextualComposerCandidates,
 			}
 		);

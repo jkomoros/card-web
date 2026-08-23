@@ -173,6 +173,22 @@ describe("Collection Composer interactions", () => {
       "keyboard focus, which gets neither a tooltip nor a label readout, must unfold it");
   });
 
+  //A deployment's own domain is configuration, not a literal (HS-1.4 for
+  //APP_TITLE, same reasoning). It was hardcoded in two component literals, so
+  //every other deployment of this app trusted somebody else's site.
+  it("takes its trusted origins from configuration, not a literal", async () => {
+    const source = await readFile(path.join(REPO_ROOT, "src/components/configure-collection-dialog.ts"), "utf8");
+    assert.ok(!/'https:\/\/thecompendium\.cards'/.test(source),
+      "a deployment domain must not be a literal in a component");
+    assert.match(source, /import \{ SITE_DOMAIN \} from '\.\.\/config\.GENERATED\.SECRET\.js'/);
+    assert.match(source, /allowedOrigins: COMPOSER_ALLOWED_ORIGINS/);
+    assert.match(source, /sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS/);
+    const start = source.indexOf("const COMPOSER_ALLOWED_ORIGINS");
+    const block = source.slice(start, source.indexOf("]);", start));
+    assert.match(block, /window\.location\.origin/, "same-origin is always trusted");
+    assert.match(block, /SITE_DOMAIN \?/, "the configured domain is the only other one");
+  });
+
   it("drops only the composer's own dialog from the keyboard gate", async () => {
     const { selectKeyboardNavigates, selectKeyboardNavigatesIgnoringCollectionComposer } =
       await import("../../lib/src/selectors.js");

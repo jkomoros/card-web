@@ -203,9 +203,16 @@ export const parseCollectionSource = (
 			query = url.search;
 			hash = url.hash;
 			if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
-				diagnose('invalid', 'bad-url', 'Use an HTTP or HTTPS Card Web URL without credentials.');
+				diagnose('invalid', 'bad-url', 'Use an HTTP or HTTPS URL from this app, without credentials.');
 			}
-			if (context.allowedOrigins && !context.allowedOrigins.has(url.origin)) diagnose('invalid', 'foreign-origin', 'Use a Card Web URL from this app or the production site.');
+			//Which origins count is deployment configuration, so the message
+			//cannot promise "the production site" — most deployments of this
+			//app have exactly one trusted origin, their own.
+			if (context.allowedOrigins && !context.allowedOrigins.has(url.origin)) {
+				diagnose('invalid', 'foreign-origin', context.allowedOrigins.size > 1 ?
+					'Use a URL from this app or its public address.' :
+					'Use a URL from this app.');
+			}
 			if (url.pathname !== '/c' && !url.pathname.startsWith('/c/')) {
 				diagnose('invalid', 'wrong-route', 'The URL must point to a /c/ collection route.');
 			}
