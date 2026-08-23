@@ -6,6 +6,10 @@ import {
 } from '../../shared/collection-constants.js';
 
 import {
+	showSnackbar
+} from './app.js';
+
+import {
 	doc,
 	getDocFromServer,
 	runTransaction,
@@ -165,7 +169,7 @@ export const deleteMessage = (message : CommentMessage) : ThunkSomeAction => asy
 		}));
 		//'discarded' already alerted from inside the queue via DISCARD_LABELS.
 		if (outcome === 'queued' && typeof window !== 'undefined') {
-			window.setTimeout(() => alert('That comment could not be deleted right now. The deletion has been saved and will apply automatically when the connection recovers.'), 0);
+			store.dispatch(showSnackbar('That deletion is saved and will apply automatically when the connection recovers.', {kind: 'queued'}));
 		}
 	} catch (err) {
 		console.warn('Comment delete did not complete:', err);
@@ -445,7 +449,7 @@ const reportCommentOutcome = (outcome : AuxWriteOutcome, what : 'post' | 'edit' 
 	const noun = what === 'edit' ? 'edit' : 'comment';
 	console.warn(`Comment ${noun} is queued and will save automatically when the connection recovers.`);
 	if (typeof window !== 'undefined') {
-		window.setTimeout(() => alert(`Your comment ${noun} could not be saved right now. It has been saved and will apply automatically when the connection recovers.`), 0);
+		store.dispatch(showSnackbar(`That ${noun} is saved and will be posted automatically when the connection recovers.`, {kind: 'queued'}));
 	}
 };
 

@@ -236,7 +236,7 @@ export const navigateToComment = (commentId : CommentMessageID | CommentThreadID
 		dispatch(navigateToCardInDefaultCollection(thread.card));
 		return;
 	}
-	alert('That comment does not exist. Redirecting to the default card.');
+	dispatch(showSnackbar('That comment no longer exists, so this is the default card instead.', {kind: 'info'}));
 	dispatch(navigateToDefaultIfSectionsAndTagsLoaded(false));
 };
 

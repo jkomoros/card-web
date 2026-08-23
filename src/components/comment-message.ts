@@ -1,4 +1,10 @@
 import { LitElement, html, css } from 'lit';
+
+import { store } from '../store.js';
+
+import {
+	showSnackbar
+} from '../actions/app.js';
 import { customElement, property } from 'lit/decorators.js';
 
 import './author-chip.js';
@@ -88,7 +94,16 @@ class CommentMessage extends LitElement {
 	_handleLinkClicked() {
 		if (!this.message) return;
 		const url = window.location.origin + '/' + PAGE_COMMENT + '/' + this.message.id;
-		prompt('Share the following URL to deep link to this comment: ', url);
+		//B2: prompt() was being used as a COPY AFFORDANCE — a modal input box
+		//whose only purpose was to let the user select text. navigator.clipboard
+		//is already used elsewhere in this app for exactly this.
+		navigator.clipboard.writeText(url).then(
+			() => store.dispatch(showSnackbar('Link to this comment copied.', {kind: 'committed'})),
+			//A denied permission or an insecure context is a real refusal, and
+			//an unhandled rejection is how the sibling clipboard call currently
+			//fails.
+			() => store.dispatch(showSnackbar('That link couldn\u2019t be copied. You can copy it from the address bar after opening the comment.', {kind: 'refused'}))
+		);
 	}
 
 	_handleEditClicked() {

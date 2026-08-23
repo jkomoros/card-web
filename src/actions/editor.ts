@@ -3,6 +3,10 @@ import {
 } from './data.js';
 
 import {
+	showSnackbar
+} from './app.js';
+
+import {
 	blockedError,
 	SAVE_VERB
 } from '../sync-copy.js';
@@ -793,7 +797,7 @@ export const addImageWithFile = (file : File, index : number | undefined) : Thun
 	const state = getState();
 
 	if (!selectUserMayEditActiveCard(state)) {
-		alert('You don\'t have permission');
+		dispatch(showSnackbar('You don\u2019t have permission to add images to this card.', {kind: 'refused'}));
 		return;
 	}
 
@@ -816,7 +820,7 @@ export const addImageWithFile = (file : File, index : number | undefined) : Thun
 		await trackMutation(() => uploadBytes(fileRef, file));
 	} catch (err) {
 		console.warn(err);
-		alert('Failed to upload');
+		dispatch(showSnackbar('That image couldn\u2019t be uploaded. Try again.', {kind: 'refused'}));
 		return;
 	}
 
@@ -849,7 +853,7 @@ export const addImageWithURL = (src : string, uploadPath = '', index = 0) : Thun
 	});
 	const dim = await getImageDimensionsForImageAtURL(src);
 	if (!dim) {
-		alert('Image load failed to fetch resources');
+		dispatch(showSnackbar('That image couldn\u2019t be loaded from its address.', {kind: 'refused'}));
 		return;
 	}
 	images = getImagesFromCard(selectEditingCard(getState()));
@@ -1054,7 +1058,7 @@ export const mergeOvershadowedUnderlyingChanges = () : ThunkSomeAction => (dispa
 	const diff = selectOvershadowedUnderlyingCardChangesDiff(state);
 
 	if (!cardDiffHasChanges(diff)) {
-		alert('No changes to make!');
+		dispatch(showSnackbar('Nothing to merge \u2014 you haven\u2019t changed anything.', {kind: 'info'}));
 		return;
 	}
 

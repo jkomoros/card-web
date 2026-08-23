@@ -838,7 +838,7 @@ export const abandonPendingBulkTagOperation = () : ThunkSomeAction => (dispatch)
 	//anyway — directly contradicting the confirm dialog's promise that the rest
 	//"will be left unchanged".
 	if (bulkTagOperationRunning || durableMultiEditRunning) {
-		alert('That operation is running right now. Wait for the current chunk to finish, then Stop — the button will take effect between chunks.');
+		dispatch(showSnackbar('That operation is mid-chunk. Stop takes effect between chunks, so press it again in a moment.', {kind: 'info'}));
 		return;
 	}
 	const bulkInspection = inspectSavedOperation(readBulkTagOperation);
@@ -2946,7 +2946,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		return;
 	}
 
-	if (!confirm('This will create a forked copy of the current card. OK?')) return;
+	
 
 	const state = getState();
 
