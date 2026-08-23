@@ -84,4 +84,4 @@ export type AppThunkDispatch = ThunkDispatch<State, undefined, SomeAction>;
 
 export type AppGetState = () => State;
 
-export type ThunkSomeAction = ThunkAction<void, State, undefined, SomeAction>;
+export type ThunkSomeAction<R = void> = ThunkAction<R, State, undefined, SomeAction>;

@@ -136,8 +136,11 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 		//transient, non-blocking, same words.
 		assert.ok(!harnessAlerts.some(message => /cards modified/.test(message)),
 			`success must not alert() any more (got ${JSON.stringify(harnessAlerts)})`);
-		assert.match(store.getState().app.snackbarMessage, /12 cards modified/,
-			'the user must be told what happened, via the snack-bar');
+		//The snack-bar holds a QUEUE now, not one overwritable message: a second
+		//outcome used to destroy the first and reset its clock.
+		const messages = store.getState().app.snackbars.map(entry => entry.message);
+		assert.ok(messages.some(message => /12 cards modified/.test(message)),
+			`the user must be told what happened, via the snack-bar (got ${JSON.stringify(messages)})`);
 	});
 
 	it('RESUMES from nextIndex and leaves the already-committed prefix alone', async () => {

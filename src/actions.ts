@@ -72,7 +72,9 @@ import {
 	CorpusStatus,
 	Filters,
 	ModalRequest,
-	ModalRequestID
+	ModalRequestID,
+	SnackbarID,
+	SnackbarMessage
 } from './types.js';
 
 //AI
@@ -86,8 +88,6 @@ export const AI_UPDATE_MODEL = 'AI_UPDATE_MODEL';
 //App
 export const UPDATE_PAGE = 'UPDATE_PAGE';
 export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
-export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
-export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 export const OPEN_HEADER_PANEL = 'OPEN_HEADER_PANEL';
 export const CLOSE_HEADER_PANEL = 'CLOSE_HEADER_PANEL';
 export const OPEN_COMMENTS_AND_INFO_PANEL = 'OPEN_COMMENTS_AND_INFO_PANEL';
@@ -253,6 +253,8 @@ export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 //Prompt
+export const PUSH_SNACKBAR = 'PUSH_SNACKBAR';
+export const DISMISS_SNACKBAR = 'DISMISS_SNACKBAR';
 export const MODAL_OPEN = 'MODAL_OPEN';
 export const MODAL_RESOLVE = 'MODAL_RESOLVE';
 export const PROMPT_COMPOSE_SHOW = 'PROMPT_COMPOSE_SHOW';
@@ -328,17 +330,6 @@ type ActionUpdatePage = {
 type ActionUpdateOffline = {
 	type: typeof UPDATE_OFFLINE,
 	offline: boolean
-};
-
-type ActionOpenSnackbar = {
-	type: typeof OPEN_SNACKBAR,
-	//Empty means the legacy offline/online notice; anything else renders
-	//verbatim (#758 — transient success reports moved here from alert()).
-	message: string
-};
-
-type ActionCloseSnackbar = {
-	type: typeof CLOSE_SNACKBAR
 };
 
 type ActionOpenHeaderPanel = {
@@ -1176,6 +1167,16 @@ type ActionPermissionsResetAddCard = {
 	type: typeof PERMISSIONS_RESET_ADD_CARD
 };
 
+type ActionPushSnackbar = {
+	type: typeof PUSH_SNACKBAR,
+	message: SnackbarMessage,
+};
+
+type ActionDismissSnackbar = {
+	type: typeof DISMISS_SNACKBAR,
+	snackbarID: SnackbarID,
+};
+
 type ActionModalOpen = {
 	type: typeof MODAL_OPEN,
 	request: ModalRequest,
@@ -1323,8 +1324,6 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionAIUpdateModel
 	| ActionUpdatePage
 	| ActionUpdateOffline
-	| ActionOpenSnackbar
-	| ActionCloseSnackbar
 	| ActionOpenHeaderPanel
 	| ActionCloseHeaderPanel
 	| ActionOpenCommentsAndInfoPanel
@@ -1478,6 +1477,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard
+	| ActionPushSnackbar
+	| ActionDismissSnackbar
 	| ActionModalOpen
 	| ActionModalResolve
 	| ActionPromptComposeShow

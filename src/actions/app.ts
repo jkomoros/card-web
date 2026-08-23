@@ -119,7 +119,7 @@ import {
 	CLOSE_COMMENTS_AND_INFO_PANEL,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_HEADER_PANEL,
-	CLOSE_SNACKBAR,
+	DISMISS_SNACKBAR,
 	DISABLE_MOBILE_MODE,
 	DISABLE_PRESENTATION_MODE,
 	ENABLE_MOBILE_MODE,
@@ -129,7 +129,7 @@ import {
 	OPEN_COMMENTS_AND_INFO_PANEL,
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	OPEN_HEADER_PANEL,
-	OPEN_SNACKBAR,
+	PUSH_SNACKBAR,
 	SomeAction,
 	TURN_SUGGEST_MISSING_CONCEPTS,
 	UPDATE_CTRL_KEY_PRESSED,
@@ -493,26 +493,89 @@ export const updateHoveredCard = (x : number,y : number,cardId : CardID) : Thunk
 	}, HOVER_CARD_PREVIEW_DELAY);
 };
 
-let snackbarTimer : number;
+//Registered handlers for a snackbar's action button. A serializable id in the
+//message resolves to a thunk here, so no function ever enters the store.
+const snackbarActions : {[actionID : string] : ThunkSomeAction} = {};
 
-//message '' renders the legacy offline/online notice; anything else renders
-//verbatim. Transient outcome reports ("32 cards modified.") live here now
-//instead of alert() (#758) — the snack-bar existed for exactly this and was
-//used once, ever.
-export const showSnackbar = (message = '', durationMs = 3000) : ThunkSomeAction => (dispatch) => {
-	dispatch({
-		type: OPEN_SNACKBAR,
-		message
+export const registerSnackbarAction = (actionID : string, action : ThunkSomeAction) : void => {
+	snackbarActions[actionID] = action;
+};
+
+//Settled when a message leaves the screen, so a caller can tell "they pressed
+//the button" from "it timed out" without inspecting the store.
+const snackbarOutcomes : Map<SnackbarID, (outcome : SnackbarOutcome) => void> = new Map();
+
+let nextSnackbarID = 0;
+
+export const dismissSnackbar = (snackbarID : SnackbarID, outcome : SnackbarOutcome = 'dismissed') : ThunkSomeAction => (dispatch) => {
+	const settle = snackbarOutcomes.get(snackbarID);
+	//Dismissing twice is normal: a timer can fire on a message the user just
+	//closed. The second one is a no-op, not an error.
+	if (!settle) return;
+	snackbarOutcomes.delete(snackbarID);
+	dispatch({type: DISMISS_SNACKBAR, snackbarID});
+	settle(outcome);
+};
+
+export const runSnackbarAction = (snackbarID : SnackbarID, actionID : string) : ThunkSomeAction => (dispatch) => {
+	dispatch(dismissSnackbar(snackbarID, 'action'));
+	const action = snackbarActions[actionID];
+	if (action) dispatch(action);
+};
+
+//Report a transient outcome (HOUSE-STYLE §3.5).
+//
+//NOTE THE TIMER IS NOT HERE. It used to be a single module-level handle that
+//every call cleared and reset, so a second message both replaced the first's
+//text and restarted its clock — two outcomes in quick succession showed one.
+//The component owns one timer per VISIBLE message, because only the component
+//knows what is visible: a message waiting behind three others must not be
+//counting down, and hovering one must pause it. See snack-bar.ts.
+//
+//Returns a promise so a caller can await the user's answer where there is an
+//action button; ignoring it is fine and is the common case.
+import {
+	DEFAULT_DURATIONS,
+	MINIMUM_DURATION_WITH_ACTION
+} from '../snackbar-copy.js';
+
+import {
+	SnackbarID,
+	SnackbarMessage,
+	SnackbarOutcome,
+	ShowSnackbarOptions
+} from '../types.js';
+
+export const showSnackbar = (message : string, options : ShowSnackbarOptions = {}) : ThunkSomeAction<Promise<SnackbarOutcome>> => (dispatch) => {
+	const kind = options.kind || 'info';
+	nextSnackbarID++;
+	const id = `snackbar-${nextSnackbarID}`;
+	const base = options.durationMs === undefined ? DEFAULT_DURATIONS[kind] : options.durationMs;
+	//A message with something to press needs long enough to reach for it. A
+	//sticky message (0) stays sticky.
+	const durationMs = options.action && base !== 0 ? Math.max(base, MINIMUM_DURATION_WITH_ACTION) : base;
+	const pending = new Promise<SnackbarOutcome>(resolve => {
+		snackbarOutcomes.set(id, resolve);
 	});
-	window.clearTimeout(snackbarTimer);
-	snackbarTimer = window.setTimeout(() =>
-		dispatch({ type: CLOSE_SNACKBAR }), durationMs);
+	//Only set what was actually given: an undefined-valued key is dropped by
+	//JSON.stringify, so carrying them makes the message fail a round trip that
+	//it should pass.
+	const entry : SnackbarMessage = {id, message, kind, durationMs};
+	if (options.action) entry.action = options.action;
+	if (options.detailSummary) entry.detailSummary = options.detailSummary;
+	if (options.detailLines) entry.detailLines = options.detailLines;
+	if (options.dedupeKey) entry.dedupeKey = options.dedupeKey;
+	dispatch({type: PUSH_SNACKBAR, message: entry});
+	return pending;
 };
 
 export const updateOffline = (offline : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	// Show the snackbar only if offline status changes.
 	if (offline !== getState().app.offline) {
-		dispatch(showSnackbar());
+		//A real string, not the empty-message sentinel the renderer used to
+		//special-case. dedupeKey so flapping connectivity refreshes one message
+		//rather than stacking six.
+		dispatch(showSnackbar(`You are now ${offline ? 'offline' : 'online'}.`, {dedupeKey: 'connectivity'}));
 	}
 	dispatch({
 		type: UPDATE_OFFLINE,

@@ -757,7 +757,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		//Transient success belongs in the snack-bar, not a blocking modal
 		//(#758): the dialog has closed, the work is done, and there is
 		//nothing to decide.
-		if (total > 1 || bulkSkippedCount) dispatch(showSnackbar(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`, 5000));
+		if (total > 1 || bulkSkippedCount) dispatch(showSnackbar(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`, {kind: 'committed'}));
 		dispatch(modifyCardSuccess(total));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));
@@ -1317,7 +1317,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		if (operation.targetIDs.length > 1) {
 			const skipped = operation.skippedCount || 0;
 			const matched = operation.targetIDs.length - operation.modifiedCount - skipped;
-			dispatch(showSnackbar(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`, 5000));
+			dispatch(showSnackbar(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`, {kind: 'committed'}));
 		}
 		dispatch(modifyCardSuccess(operation.modifiedCount));
 	} catch (err) {
@@ -1640,7 +1640,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	//Success is transient (snack-bar); errors still demand attention and
 	//keep the modal until #758's remaining work gives them a real surface.
 	if (errorCount > 0) alert(`${modifiedCount} cards modified. ${errorCount} cards errored. See the console for details.`);
-	else if (modifiedCount > 1) dispatch(showSnackbar(`${modifiedCount} cards modified.`, 5000));
+	else if (modifiedCount > 1) dispatch(showSnackbar(`${modifiedCount} cards modified.`, {kind: 'committed'}));
 
 	dispatch(modifyCardSuccess(modifiedCount));
 };
@@ -2885,7 +2885,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 			//Calm phrasing for a recoverable state (#758): the card is
 			//durably saved and replays on its own — a blocking modal that
 			//led with "could not be created" read as loss.
-			dispatch(showSnackbar('That card is saved and will be created automatically when the connection recovers. Nothing is lost.', 8000));
+			dispatch(showSnackbar('That card is saved and will be created automatically when the connection recovers. Nothing is lost.', {kind: 'queued'}));
 		}
 		//The 'discarded' case already alerted from inside the queue.
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
@@ -3184,7 +3184,7 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		//The deletion is SAVED and will apply — but the UI already navigated
 		//away, so without this the card silently reappears on the next load
 		//with no explanation.
-		dispatch(showSnackbar('The deletion is saved and will apply automatically when the connection recovers.', 8000));
+		dispatch(showSnackbar('The deletion is saved and will apply automatically when the connection recovers.', {kind: 'queued'}));
 	}
 	if (outcome !== 'committed') {
 		//Stop expecting the removal until the queue actually lands it.

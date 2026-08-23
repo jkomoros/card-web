@@ -744,9 +744,11 @@ export type AppState = {
 	page: string,
 	pageExtra: string,
 	offline: boolean,
-	snackbarOpened: boolean,
+	//A QUEUE, not a slot. The old single message plus a single shared module
+	//timer meant a second outcome silently destroyed the first AND reset its
+	//clock, so two things happening close together showed one of them.
+	snackbars: SnackbarMessage[],
 	//Empty renders the legacy offline/online notice (#758).
-	snackbarMessage: string,
 	headerPanelOpen: boolean,
 	commentsAndInfoPanelOpen: boolean,
 	cardsDrawerPanelOpen: boolean,
@@ -1306,6 +1308,43 @@ export type PermissionsState = {
 //got structured-cloned to the corpus worker. (No test enforces this today. An
 //earlier draft cited test/reactive-state as if it did; that test asserts
 //@state() decorators via the TypeScript AST and is unrelated.)
+//The three-valued truth of AuxWriteOutcome (#758), plus the two states that are
+//not writes at all. Selects tone and aria routing; deliberately NOT free-form.
+export type SnackbarKind = 'committed' | 'queued' | 'discarded' | 'refused' | 'info';
+
+export type SnackbarID = string;
+
+export type SnackbarMessage = {
+	id : SnackbarID,
+	message : string,
+	kind : SnackbarKind,
+	//0 means "until dismissed". #758 asks directly where an outcome lives once
+	//the dialog that produced it has closed; a sticky message is the answer for
+	//the one kind that means data did not survive.
+	durationMs : number,
+	//At most one. A SERIALIZABLE id, never a function — same rule as the modal
+	//seam's request, for the same reasons.
+	action? : {label : string, actionID : string},
+	//Progressive disclosure of which cards, per #758's "how much card identity
+	//to show". Same <details> idiom progress-panel already uses.
+	detailSummary? : string,
+	detailLines? : string[],
+	//A repeat of the same outcome refreshes the existing message in place
+	//instead of stacking a second copy. 'connectivity', `tag-op-${tag}`, ...
+	dedupeKey? : string,
+};
+
+export type SnackbarOutcome = 'dismissed' | 'action';
+
+export type ShowSnackbarOptions = {
+	kind? : SnackbarKind,
+	durationMs? : number,
+	action? : {label : string, actionID : string},
+	detailSummary? : string,
+	detailLines? : string[],
+	dedupeKey? : string,
+};
+
 export type ModalRequestID = string;
 
 export type ModalInputField = {

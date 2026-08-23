@@ -1,8 +1,8 @@
 import {
 	UPDATE_PAGE,
 	UPDATE_OFFLINE,
-	OPEN_SNACKBAR,
-	CLOSE_SNACKBAR,
+	PUSH_SNACKBAR,
+	DISMISS_SNACKBAR,
 	OPEN_HEADER_PANEL,
 	CLOSE_HEADER_PANEL,
 	OPEN_COMMENTS_AND_INFO_PANEL,
@@ -42,8 +42,7 @@ const INITIAL_STATE : AppState = {
 	page: '',
 	pageExtra: '',
 	offline: false,
-	snackbarOpened: false,
-	snackbarMessage: '',
+	snackbars: [],
 	headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
 	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
@@ -77,16 +76,21 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			...state,
 			offline: action.offline
 		};
-	case OPEN_SNACKBAR:
+	case PUSH_SNACKBAR: {
+		//A dedupeKey REFRESHES in place rather than stacking a second copy:
+		//connectivity flapping should show one message, not six.
+		const existing = action.message.dedupeKey ? state.snackbars.findIndex(entry => entry.dedupeKey === action.message.dedupeKey) : -1;
+		if (existing >= 0) {
+			const snackbars = [...state.snackbars];
+			snackbars[existing] = action.message;
+			return {...state, snackbars};
+		}
+		return {...state, snackbars: [...state.snackbars, action.message]};
+	}
+	case DISMISS_SNACKBAR:
 		return {
 			...state,
-			snackbarOpened: true,
-			snackbarMessage: action.message
-		};
-	case CLOSE_SNACKBAR:
-		return {
-			...state,
-			snackbarOpened: false
+			snackbars: state.snackbars.filter(entry => entry.id !== action.snackbarID),
 		};
 	case OPEN_HEADER_PANEL:
 		return {
