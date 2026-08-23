@@ -365,10 +365,10 @@ class CardWebApp extends connect(store)(LitElement) {
 			   discarding, so a mis-tap is recoverable.) */
 			.save-status button.small { flex-shrink: 0; padding: 0.25rem; }
 			.save-status button.small svg { height: 18px; width: 18px; }
-			/* The most destructive control on screen keeps a visibly distinct
-			   treatment: warning-red glyph, unlike every safe subtle icon. */
-			.save-status button.small.stop svg { fill: var(--app-warning-color); }
-			.save-status button.small.stop:hover svg { fill: var(--app-warning-color-light, var(--app-warning-color)); }
+			/* The warning-red glyph that distinguishes this from every safe
+			   subtle icon now comes from button.small.destructive in
+			   ButtonSharedStyles — this control was the precedent it was
+			   generalized from. */
 		`
 	];
 
@@ -411,7 +411,7 @@ class CardWebApp extends connect(store)(LitElement) {
 				account switch, where resume returns silently on uid mismatch.
 				There was no in-app exit at all: DevTools or nothing. -->
 				<span class='reason' title='Retry the saved operation'><button class='small' aria-label='Retry the saved operation' @click=${this._retrySave}>${REPLAY_ICON}</button></span>
-				<span class='reason' title='Stop and discard the saved operation'><button class='small stop' aria-label='Stop and discard the saved operation' @click=${this._stopRetryingSave}>${CANCEL_ICON}</button></span>
+				<span class='reason' title='Stop and discard the saved operation'><button class='small destructive' aria-label='Stop and discard the saved operation' @click=${this._stopRetryingSave}>${CANCEL_ICON}</button></span>
 			</div>` : ''}
 		<corpus-ownership-gate></corpus-ownership-gate>
 		`;

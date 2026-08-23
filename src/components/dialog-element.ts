@@ -146,6 +146,20 @@ export class DialogElement extends LitElement {
 			.content:focus {
 				outline: none;
 			}
+
+			/* Tab wrap points. They must be in the tab order (tabindex 0) but
+			   never visible and never a scroll target. */
+			.focus-sentinel {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip-path: inset(50%);
+				white-space: nowrap;
+				outline: none;
+			}
 		`
 	];
 
@@ -153,12 +167,14 @@ export class DialogElement extends LitElement {
 		return html`
 			<div class='container ${this.open ? 'open' : 'closed'}'>
 				<div class='background ${this.mobile ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
-					<div class='content' role=${this.dialogRole} aria-modal='true' aria-labelledby='dialog-title' tabindex='-1' @keydown=${this._handleKeyDown}>
+					<div class='content' role=${this.dialogRole} aria-modal='true' aria-labelledby='dialog-title' tabindex='-1'>
+						<span class='focus-sentinel' tabindex='0' @focus=${this._handleSentinelStartFocused}></span>
 						<button class='small' id='close' title='Close dialog' aria-label='Close dialog' @click=${this.cancel}>${CANCEL_ICON}</button>
 						<h2 id='dialog-title'>${this.title || ''}</h2>
 						<div id='inner'>
 						${this.innerRender()}
 						</div>
+						<span class='focus-sentinel' tabindex='0' @focus=${this._handleSentinelEndFocused}></span>
 					</div>
 				</div>
 			</div>
@@ -236,46 +252,54 @@ export class DialogElement extends LitElement {
 	//keyboard user restarted from the top of the document every time.
 	private _previouslyFocused : HTMLElement | null = null;
 
-	//Standard focusable set. Deliberately scoped to THIS shadow root: content
-	//nested in a child custom element's own shadow root (card-drawer inside
-	//find-dialog) is not reachable from here, so the trap wraps around the
-	//controls this dialog itself renders. That is strictly better than the
-	//status quo of no trap at all; a full treewalk is a separate change.
-	private _focusableElements() : HTMLElement[] {
+	//Focusable descendants of .content, DESCENDING INTO SHADOW ROOTS.
+	//
+	//The obvious implementation — querySelectorAll on this shadow root, compare
+	//against shadowRoot.activeElement — is wrong, and wrong in a way that is
+	//worse than having no trap. shadowRoot.activeElement reports the HOST when
+	//focus is inside a child custom element, so a dialog containing a tag-list
+	//or a card-drawer reads "focus is nowhere in my list" and yanks it back to
+	//the first control. Adversarial review measured the result: multi-edit
+	//collapsed to a three-element Tab cycle, and find-dialog's "Next 250 cards"
+	//button became unreachable entirely.
+	private _deepFocusableElements() : HTMLElement[] {
 		const shadowRoot = this.shadowRoot;
 		if (!shadowRoot) return [];
 		const content = shadowRoot.querySelector('.content');
 		if (!content) return [];
 		const selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-		return [...content.querySelectorAll(selector)].filter((ele) : ele is HTMLElement => {
-			if (!(ele instanceof HTMLElement)) return false;
-			//offsetParent is null for display:none subtrees, which is what the
-			//?hidden'd branches of several dialogs render.
-			return ele.offsetParent !== null || ele === shadowRoot.activeElement;
-		});
+		const result : HTMLElement[] = [];
+		const visit = (root : ParentNode) => {
+			for (const ele of root.querySelectorAll('*')) {
+				if (ele.matches(selector) && ele instanceof HTMLElement && !ele.classList.contains('focus-sentinel')) {
+					//offsetParent is null for display:none subtrees, which is
+					//what the ?hidden'd branches of several dialogs render.
+					//NOTE: it is also null for position:fixed elements. No
+					//dialog uses one today; if one does, widen this test rather
+					//than letting the control silently drop out of the cycle.
+					if (ele.offsetParent !== null) result.push(ele);
+				}
+				if (ele.shadowRoot) visit(ele.shadowRoot);
+			}
+		};
+		visit(content);
+		return result;
 	}
 
-	private _handleKeyDown(e : KeyboardEvent) {
-		if (e.key !== 'Tab') return;
-		const focusable = this._focusableElements();
-		//WCAG 2.1.2: do not trap when there is nothing to trap into. Every
-		//dialog renders a close button so this is insurance, not a live case.
+	//Tab wrapping is done with sentinels rather than by intercepting keydown,
+	//because a sentinel receives focus no matter which shadow root the focus
+	//came from — including one this component cannot see into.
+	private _handleSentinelStartFocused() {
+		const focusable = this._deepFocusableElements();
+		//WCAG 2.1.2: never trap when there is nothing to trap into.
 		if (!focusable.length) return;
-		const shadowRoot = this.shadowRoot;
-		const active = shadowRoot ? shadowRoot.activeElement : null;
-		const index = active instanceof HTMLElement ? focusable.indexOf(active) : -1;
-		const first = focusable[0];
-		const last = focusable[focusable.length - 1];
-		if (e.shiftKey) {
-			//Focus on the panel itself (index -1) shift-tabs to the end.
-			if (index > 0) return;
-			e.preventDefault();
-			last.focus();
-			return;
-		}
-		if (index !== -1 && index < focusable.length - 1) return;
-		e.preventDefault();
-		first.focus();
+		focusable[focusable.length - 1].focus();
+	}
+
+	private _handleSentinelEndFocused() {
+		const focusable = this._deepFocusableElements();
+		if (!focusable.length) return;
+		focusable[0].focus();
 	}
 
 	_focusInputOnOpen() {

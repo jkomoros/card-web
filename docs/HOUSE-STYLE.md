@@ -576,7 +576,7 @@ and render native UA buttons next to the app's own.
 | **Circle icon** | `button.round` | Persistent toolbar actions, FABs, dialog confirm |
 | **Primary circle** | `button.round.primary` | The one committing action of a surface (Save, Accept, Send) |
 | **Toggle on** | `.selected` | A toggle in its on state; always paired with `aria-pressed` |
-| **Destructive** | `button.small` + warning-color fill — **does not exist yet** | Tier 1 acts only (§3.7) |
+| **Destructive** | `button.small.destructive` — warning-color glyph | Tier 1 acts only (§3.7) |
 | **Text button** | `button` | Banners and gates, where a verb is clearer than a glyph |
 
 **These are the only variants.** A surface needing something else should extend
@@ -584,11 +584,10 @@ and render native UA buttons next to the app's own.
 currently defines its own, including a `.secondary` outline variant that exists
 nowhere else.
 
-The destructive variant is the one row above that describes something not yet
-built: `button-shared-styles.ts` contains no reference to `--app-warning-color`
-at all. The only implementation is local, at `card-web-app.ts:365-369`
-(`.save-status button.small.stop svg`). Generalizing it into `ButtonSharedStyles`
-is a prerequisite for §3.7 Tier 1.
+The destructive variant is deliberately narrow. It exists for §3.7 Tier 1 acts
+only; putting it on a reversible-until-Save removal is what teaches people to
+stop reading the red ones. It was generalized from the save pill's Stop control,
+which was for a long time the app's only visually distinct destructive control.
 
 - **Never render a text glyph where an icon exists.** `+` and `X` appear as
   literal characters in four places while `PLUS_ICON` and `CANCEL_ICON` exist.
