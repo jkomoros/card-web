@@ -1295,6 +1295,57 @@ export type PermissionsState = {
 	pendingPermissionType: PermissionType
 }
 
+//A request parked in the store while an in-app dialog satisfies it. The
+//RESOLVER lives in src/modal.ts, not here: a function in the store would break
+//serializability, which test/reactive-state pins.
+export type ModalRequestID = string;
+
+export type ModalInputField = {
+	//Title Case, per HOUSE-STYLE §2.1 — it names a field.
+	label : string,
+	value? : string,
+	hint? : string,
+	multiline? : boolean,
+	//Returns a sentence-case complaint, or null when the value is fine.
+	validate? : (value : string) => string | null,
+};
+
+export type DestructiveConfirmRequest = {
+	//Title Case: it names the dialog.
+	title : string,
+	//§2.4 parts 1+2: what is lost, in the user's vocabulary.
+	what : string,
+	//§2.4 part 3: what survives, when anything does.
+	survives? : string,
+	//Sentence case. Repeated on the action button, so it reads 'Delete card'
+	//rather than 'OK'.
+	verb : string,
+	//Optional specifics — the tags a fork would drop, the cards an operation
+	//would leave unchanged.
+	detail? : string[],
+};
+
+export type InputRequest = {
+	title : string,
+	fields : ModalInputField[],
+	verb : string,
+};
+
+export type ModalRequest =
+	(DestructiveConfirmRequest & {kind : 'destructive-confirm', id : ModalRequestID})
+	| (InputRequest & {kind : 'input', id : ModalRequestID});
+
+export type ModalResult = {
+	confirmed? : boolean,
+	values? : string[],
+};
+
+export type ModalState = {
+	//A STACK, not a slot. #708: in-app dialogs do not block, so more than one
+	//request can legitimately be outstanding. The last entry is the live one.
+	requests : ModalRequest[],
+};
+
 export type PromptState = {
 	composeOpen: boolean,
 	content: string,
@@ -1367,6 +1418,10 @@ export type State = {
 	comments? : CommentsState,
 	chat? : ChatState,
 	maintenance? : MaintenanceState,
+	//Eagerly registered in store.ts, not lazily by a component: the async seam
+	//in modal.ts is called from ACTIONS, which can run long before any dialog
+	//component has been imported.
+	modal : ModalState,
 	multiedit? : MultiEditState,
 	permissions? : PermissionsState,
 	suggestions? :SuggestionsState,

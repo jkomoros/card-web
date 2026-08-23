@@ -70,7 +70,9 @@ import {
 import {
 	CardMetas,
 	CorpusStatus,
-	Filters
+	Filters,
+	ModalRequest,
+	ModalRequestID
 } from './types.js';
 
 //AI
@@ -251,6 +253,8 @@ export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 //Prompt
+export const MODAL_OPEN = 'MODAL_OPEN';
+export const MODAL_RESOLVE = 'MODAL_RESOLVE';
 export const PROMPT_COMPOSE_SHOW = 'PROMPT_COMPOSE_SHOW';
 export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
 export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
@@ -1172,6 +1176,16 @@ type ActionPermissionsResetAddCard = {
 	type: typeof PERMISSIONS_RESET_ADD_CARD
 };
 
+type ActionModalOpen = {
+	type: typeof MODAL_OPEN,
+	request: ModalRequest,
+};
+
+type ActionModalResolve = {
+	type: typeof MODAL_RESOLVE,
+	requestID: ModalRequestID,
+};
+
 type ActionPromptComposeShow = {
 	type: typeof PROMPT_COMPOSE_SHOW,
 	message: string,
@@ -1464,6 +1478,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard
+	| ActionModalOpen
+	| ActionModalResolve
 	| ActionPromptComposeShow
 	| ActionPromptComposeCancel
 	| ActionPromptComposeCommit

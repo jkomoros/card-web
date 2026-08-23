@@ -14,6 +14,7 @@ import { State } from './types.js';
 
 import app from './reducers/app.js';
 import data from './reducers/data.js';
+import modal from './reducers/modal.js';
 import { SomeAction } from './actions.js';
 import { perfEnabled, perfMiddleware } from './perf.js';
 import { actionForwarderMiddleware } from './action-forwarder.js';
@@ -52,6 +53,9 @@ export const store = createStore(
 store.addReducers({
 	app,
 	data,
+	//NOT lazy: src/modal.ts's seam is reachable from actions, which run before
+	//any dialog component is imported.
+	modal,
 });
 
 //Stash this here so it's easy to get access to it via console. Gated: the

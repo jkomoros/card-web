@@ -715,14 +715,27 @@ replacement for any of them.
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
 baseline is **81**.
 
+**`src/modal.ts` is the one exception, and it is the reason the rest can fall.**
+It is the async seam from #708, and its whole job is to be the single place that
+still calls out to the native functions, so every other site can migrate to an
+awaitable call *once* rather than twice. Its three calls are scaffolding with a
+scheduled demolition date: each one is deleted when its in-app dialog lands. It
+is excluded from the pin because counting it would mean the number rises when
+the migration starts and falls when it finishes, which is precisely backwards as
+a signal.
+
 ```bash
 grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --include="*.ts" \
+  | grep -v "^src/modal.ts:" \
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
 The command prints **82**, not 81. Exactly one match is a false positive:
 `src/components/bulk-import-dialog.ts:179` is a continuation line inside a block
 comment that happens to begin with `alert()`. Live call sites: **81**.
+
+**No file other than `src/modal.ts` may gain one.** If you find yourself wanting
+a second exception, the thing you actually want is to route through the seam.
 
 This is currently enforced **by review, not by a test**: run the command, subtract
 the one known false positive, compare against the number above. When you remove
