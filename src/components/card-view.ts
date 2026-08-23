@@ -674,8 +674,8 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
 				` : ''}
 				${this._userMayUseAI ? html`
-				<button id ='ai-assistant-summary' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-summary'>Summarize Cards</label><br/>
-				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>
+				<button id ='ai-assistant-summary' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assistant-summary'>Summarize Cards</label><br/>
+				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assistant-concepts'>Suggest Missing Concepts</label><br/>
 				<button id ='ai-chat-with-collection' class='small' title='Chat with these cards' @click=${this._handleAIAssistantChatWithCollection}>${FORUM_ICON}</button><label for='ai-chat-with-collection'>Chat with Cards</label><br/>` : ''}
 				${this._userMayCreateCard ? html`
 					<button
@@ -763,15 +763,15 @@ class CardView extends connect(store)(PageViewElement) {
 			weight and opacity, visually identical to a loaded card. -->
 			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
-					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
+					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' title='Present full screen' aria-label='Present full screen' aria-pressed=${this._presentationMode ? 'true' : 'false'} @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
 				<div slot='actions' class='panels'>
-					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${VIEW_DAY_ICON}</button>
-					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
-					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
+					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' title='Show the cards drawer' aria-label='Show the cards drawer' aria-pressed=${this._cardsDrawerPanelOpen ? 'true' : 'false'} @click=${this._handleCardsDrawerClicked}>${VIEW_DAY_ICON}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
 				<div slot='actions' class='modify'>
-					<button class='round' @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
+					<button class='round' title=${`Find a card (${shortcutKeys('find-card')})`} aria-label=${`Find a card (${shortcutKeys('find-card')})`} @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
 					<!-- Titles on wrappers, and a reason for the disabled state:
 					these three were ?disabled with the explanation either ON the
 					button (invisible in Chrome/Safari, which suppress hover on
@@ -801,8 +801,8 @@ class CardView extends connect(store)(PageViewElement) {
 					</span>
 				</div>
 				<div slot='actions' class='next-prev'>
-					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
-					<button class='round' @click=${this._handleForwardClicked}>${ARROW_FORWARD_ICON}</button>
+					<button class='round' title=${`Previous card (${shortcutKeys('previous-card')})`} aria-label=${`Previous card (${shortcutKeys('previous-card')})`} @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
+					<button class='round' title=${`Next card (${shortcutKeys('next-card')})`} aria-label=${`Next card (${shortcutKeys('next-card')})`} @click=${this._handleForwardClicked}>${ARROW_FORWARD_ICON}</button>
 				</div>
 				<div slot='tags'>
 					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags || []} .tagInfos=${this._tagInfos}></tag-list>

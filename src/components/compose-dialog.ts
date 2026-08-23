@@ -76,7 +76,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
 						${models.map((model) => html`<option value=${model} ?selected=${this._model === model}>${model}</option>`)}
 					</select>
 						` : html``}
-				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<button class='round' title='Submit' aria-label='Submit' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		`;
 	}

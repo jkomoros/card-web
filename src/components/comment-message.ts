@@ -73,7 +73,7 @@ class CommentMessage extends LitElement {
 					<author-chip .author=${this.message.expandedAuthor}></author-chip>
 					<div ?hidden=${!this.message.mayEdit}>
 						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${DELETE_FOREVER_ICON}</button>
-						<button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
+						<button class='small' title='Edit message' aria-label='Edit message' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 					</div>
 					<button class='small' @click=${this._handleLinkClicked}>${BASELINK_LINK_ICON}</button>
 				</div>

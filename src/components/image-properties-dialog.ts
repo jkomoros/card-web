@@ -109,7 +109,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 			<label>Alt Text</label> <input type='text' data-property=${'alt'} .value=${img.alt} @input=${this._handleTextInput}></input>
 			<label>Original Location</label> <input type='text' data-property=${'original'} .value=${img.original} @input=${this._handleTextInput}></input>
 			<div class='buttons'>
-				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<button class='round' title='Done' aria-label='Done' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		`;
 	}

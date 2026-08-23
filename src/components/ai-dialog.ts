@@ -168,9 +168,9 @@ class AIDialog extends connect(store)(DialogElement) {
 				${this._active ? this._renderLoading() : (this._error ? this._renderError() : this._renderResult())}
 			</div>
 			<div class='buttons'>
-				${this._kindConfig.rerunAction ? html`<button class='round' @click=${this._rerunAction}>${CASINO_ICON}</button>` : ''}
-				${this._kindConfig.commitAction ? html`<button class='round' @click=${this._shouldClose}>${CANCEL_ICON}</button>` : ''}
-				<button class='round' @click='${this._handleDoneClicked}' .disabled=${this._kindConfig.resultType == 'multi-line' && this._selectedIndex < 0}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				${this._kindConfig.rerunAction ? html`<button class='round' title='Run again' aria-label='Run again' @click=${this._rerunAction}>${CASINO_ICON}</button>` : ''}
+				${this._kindConfig.commitAction ? html`<button class='round' title='Cancel' aria-label='Cancel' @click=${this._shouldClose}>${CANCEL_ICON}</button>` : ''}
+				<button class='round' title='Use this result' aria-label='Use this result' @click='${this._handleDoneClicked}' .disabled=${this._kindConfig.resultType == 'multi-line' && this._selectedIndex < 0}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		</div>`;
 	}

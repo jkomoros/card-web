@@ -55,7 +55,7 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 			<label>or...</label>
 			<input type='file' id='file' accept='image/png, image/jpeg, image/gif, image/svg+xml' @input=${this._handleFileInput}></input>
 			<div class='buttons'>
-				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<button class='round' title='Use this image' aria-label='Use this image' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		`;
 	}
