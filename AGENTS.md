@@ -132,6 +132,34 @@ comments, and this file. Everything touching `src/`, `shared/`, `functions/`,
 
 ---
 
+## User-facing changes follow the house style
+
+Anything a user can see — a string, a control, a dialog, a color — follows
+[`docs/HOUSE-STYLE.md`](docs/HOUSE-STYLE.md). Read it before adding or changing
+one, and check its **canonical primitive index** (§5) before building a new
+surface.
+
+That index is the point. This codebase's recurring failure is not bad taste, it
+is a component re-inventing a primitive that already exists: `progress-panel.ts`
+was written to end progress-surface divergence and is used by two of eleven
+long-running surfaces; `snack-bar.ts` carries the comment "the snack-bar existed
+for exactly this and was used once, ever"; `sync-copy.ts` had to consolidate
+eight different sentences for the same idea. Look for the primitive first.
+
+Two rules there are hard and mechanically enforced:
+
+- **No new `alert()` / `confirm()` / `prompt()`.** The call-site count is pinned
+  (§6). It may fall; it may not rise. If you are already editing a function that
+  contains one, replace it.
+- **No literal colors in component CSS.** Every color comes from a token in
+  `src/components/card-web-app.ts`.
+
+The document is normative, not descriptive. Where the app does not comply yet,
+that is recorded as debt in its §7 — do not cite non-compliant code as
+precedent for writing more of it.
+
+---
+
 ## Environment traps
 
 These have each cost real debugging time. None are optional.
