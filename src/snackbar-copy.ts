@@ -19,15 +19,19 @@ import {
 //their work failed when it did not is its own defect.
 export const outcomeMessage = (kind : SnackbarKind, noun : string, count : number) : string => {
 	const things = count === 1 ? noun : noun + 's';
+	const they = count === 1 ? 'It' : 'They';
 	switch (kind) {
 	case 'committed':
 		return `${count} ${things} saved.`;
 	case 'queued':
-		return `${count} ${things} saved on this device. They'll reach the server when the connection recovers. Nothing is lost.`;
+		return `${count} ${things} saved on this device. ${they} will reach the server when the connection recovers. Nothing is lost.`;
 	case 'discarded':
 		return `${count} ${things} could not be saved and will not be retried.`;
 	default:
-		return `${count} ${things}.`;
+		//refused/info are not outcome counts; a caller passing one here has
+		//almost certainly picked the wrong kind, and a bare "1 card." is a
+		//fragment, not a message.
+		return `${count} ${things}`;
 	}
 };
 
@@ -35,9 +39,14 @@ export const outcomeMessage = (kind : SnackbarKind, noun : string, count : numbe
 //
 //Taken from what the app already chose, not from taste: the two
 //durability-promise messages in actions/data.ts already use 8000, and the
-//outcome counts use 5000. A discarded write is the one case where something was
-//actually lost, so it does not time out at all — HOUSE-STYLE §3.6.1 says a
-//broken promise escalates rather than evaporating.
+//outcome counts use 5000.
+//
+//A discarded write does not time out at all. Being straight about the rule:
+//HOUSE-STYLE §3.6.1 point 4 says a discarded write belongs in a persistent
+//ERROR BANNER, not a snackbar. That banner is listed in §5 as not yet built, so
+//a sticky toast is the interim, NOT what the rule asks for. When the banner
+//lands, `discarded` should move to it and this entry should go back to a
+//normal duration.
 export const DEFAULT_DURATIONS : {[kind in SnackbarKind] : number} = {
 	'committed': 5000,
 	'queued': 8000,

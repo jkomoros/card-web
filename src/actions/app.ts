@@ -517,7 +517,12 @@ export const dismissSnackbar = (snackbarID : SnackbarID, outcome : SnackbarOutco
 	settle(outcome);
 };
 
-export const runSnackbarAction = (snackbarID : SnackbarID, actionID : string) : ThunkSomeAction => (dispatch) => {
+export const runSnackbarAction = (snackbarID : SnackbarID, actionID : string) : ThunkSomeAction => (dispatch, getState) => {
+	//Only act if the message was still there. A press that races its own
+	//expiry should do nothing, not run the thunk against a message the user is
+	//no longer looking at.
+	const present = getState().app.snackbars.some(entry => entry.id === snackbarID);
+	if (!present) return;
 	dispatch(dismissSnackbar(snackbarID, 'action'));
 	const action = snackbarActions[actionID];
 	if (action) dispatch(action);
@@ -546,7 +551,7 @@ import {
 	ShowSnackbarOptions
 } from '../types.js';
 
-export const showSnackbar = (message : string, options : ShowSnackbarOptions = {}) : ThunkSomeAction<Promise<SnackbarOutcome>> => (dispatch) => {
+export const showSnackbar = (message : string, options : ShowSnackbarOptions = {}) : ThunkSomeAction<Promise<SnackbarOutcome>> => (dispatch, getState) => {
 	const kind = options.kind || 'info';
 	nextSnackbarID++;
 	const id = `snackbar-${nextSnackbarID}`;
@@ -557,6 +562,20 @@ export const showSnackbar = (message : string, options : ShowSnackbarOptions = {
 	const pending = new Promise<SnackbarOutcome>(resolve => {
 		snackbarOutcomes.set(id, resolve);
 	});
+	//A dedupeKey REPLACES an existing message, so whatever promise that one
+	//handed out must be settled here — the reducer swaps the entry in place and
+	//no DISMISS_SNACKBAR is ever dispatched for the displaced id, so its
+	//resolver would sit in the map forever and its caller would await nothing.
+	if (options.dedupeKey) {
+		const displaced = getState().app.snackbars.find(candidate => candidate.dedupeKey === options.dedupeKey);
+		if (displaced) {
+			const settle = snackbarOutcomes.get(displaced.id);
+			if (settle) {
+				snackbarOutcomes.delete(displaced.id);
+				settle('dismissed');
+			}
+		}
+	}
 	//Only set what was actually given: an undefined-valued key is dropped by
 	//JSON.stringify, so carrying them makes the message fail a round trip that
 	//it should pass.

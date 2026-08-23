@@ -1,5 +1,5 @@
 import { LitElement, html, css, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -35,8 +35,8 @@ class SnackBar extends connect(store)(LitElement) {
 	@state()
 		_snackbars : SnackbarMessage[] = [];
 
-	@property({ type : Boolean })
-		mobile : boolean;
+	@state()
+		mobile = false;
 
 	//ONE TIMER PER VISIBLE MESSAGE, owned by the component.
 	//
@@ -68,17 +68,41 @@ class SnackBar extends connect(store)(LitElement) {
 				bottom: max(0.75rem, env(safe-area-inset-bottom));
 				z-index: 960;
 				width: min(30rem, calc(100vw - 2rem));
-				display: flex;
-				flex-direction: column-reverse;
-				gap: 0.5rem;
+				display: block;
 				/* The container must never eat a click meant for something
 				   underneath it; only the toasts themselves are interactive. */
 				pointer-events: none;
 			}
 
-			:host([mobile]) {
+			/* The flex lives HERE, on the actual list of toasts. On :host it
+			   applied to the live-region divs instead, so gap never separated
+			   anything and column-reverse only swapped the two regions. */
+			.toasts {
+				display: flex;
+				flex-direction: column-reverse;
+				gap: 0.5rem;
+			}
+
+			/* A CLASS, not an attribute. mobile is a property and Lit does not
+			   reflect by default, so :host([mobile]) could never match and this
+			   whole branch was dead — the toast stayed at the desktop offset and
+			   covered the update banner's Reload button on a phone. HOUSE-STYLE
+			   §4.6 says the mobile flag is threaded down and set as a class, and
+			   every other component in the repo does that. */
+			:host(.mobile) {
 				width: calc(100vw - 1rem);
 				bottom: 5.5rem;
+			}
+
+			/* Carries the words for a screen reader and nothing else. Not
+			   display:none or hidden, which would remove it from the a11y tree. */
+			.announce {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+				clip-path: inset(50%);
+				white-space: nowrap;
 			}
 
 			/* Follows progress-panel: the dialog .content treatment, square
@@ -89,7 +113,12 @@ class SnackBar extends connect(store)(LitElement) {
 			.toast {
 				pointer-events: auto;
 				background-color: var(--card-color);
-				color: var(--app-dark-text-color);
+				/* NOT --app-dark-text-color at this size. progress-panel, the
+				   primitive this otherwise follows, carries a comment rejecting
+				   exactly that: it is calibrated for 24px headings and fails AA
+				   at body size (3.90:1 measured here). De-emphasize by SIZE, not
+				   by grey. */
+				color: var(--app-dark-text-color-darker, #4d4d4d);
 				box-shadow: var(--card-shadow);
 				padding: 0.75rem;
 				display: flex;
@@ -123,21 +152,19 @@ class SnackBar extends connect(store)(LitElement) {
 				font-size: 0.9em;
 			}
 
-			summary {
+			/* Subordinate by size, not by a grey that fails AA (2.26:1). */
+			summary, .detail-line {
 				cursor: pointer;
-				color: var(--app-dark-text-color-light);
+				font-size: 0.9em;
+				color: var(--app-dark-text-color);
 			}
 
-			.detail-line {
-				color: var(--app-dark-text-color-light);
-			}
-
-			button.action {
+			/* button.primary from ButtonSharedStyles, not a local seventh
+			   variant; only the margin and hit padding are adjusted for a toast. */
+			button.primary {
 				flex-shrink: 0;
 				margin: 0;
 				padding: 0.25rem 0.5rem;
-				background: var(--app-primary-color);
-				font-size: 0.85rem;
 			}
 
 			button.small {
@@ -161,18 +188,42 @@ class SnackBar extends connect(store)(LitElement) {
 		return this._snackbars.slice(-MAX_VISIBLE);
 	}
 
+	//The visual list and the announced text are SEPARATE.
+	//
+	//They were the same thing, with the toasts living inside two role'd divs.
+	//That broke both jobs at once: the divs were the host's only flex children,
+	//so column-reverse and gap applied to THEM and never to the toasts —
+	//messages rendered as one flush slab, oldest at top — while splitting by
+	//kind made reading order disagree with visual order. Announcing the toast
+	//subtree also re-read every button label on every new message, because
+	//status and alert are implicitly aria-atomic.
+	//
+	//So: one flex list of toasts, and two text-only live regions that carry
+	//nothing but the words.
 	override render() {
-		const visible = this._visible;
 		return html`
-			<!-- BOTH live regions exist before any message does. A live region
-			     created at the same moment as its content is not announced. -->
-			<div role='status' aria-live='polite'>
-				${visible.filter(entry => entry.kind !== 'discarded').map(entry => this._renderToast(entry))}
+			<div class='toasts'>
+				${this._visible.map(entry => this._renderToast(entry))}
 			</div>
-			<div role='alert'>
-				${visible.filter(entry => entry.kind === 'discarded').map(entry => this._renderToast(entry))}
-			</div>
+			<!-- Both regions exist before any message does: a live region created
+			     at the same moment as its content is not announced. -->
+			<div class='announce' role='status' aria-live='polite'>${this._announced.polite}</div>
+			<div class='announce' role='alert'>${this._announced.alert}</div>
 		`;
+	}
+
+	//What each region should say right now. Only the newest message of each
+	//routing is announced: re-announcing the whole visible set on every arrival
+	//is what aria-atomic would have done, and it is not useful.
+	private get _announced() : {polite : string, alert : string} {
+		const newest = (match : (entry : SnackbarMessage) => boolean) => {
+			const hits = this._visible.filter(match);
+			return hits.length ? hits[hits.length - 1].message : '';
+		};
+		return {
+			polite: newest(entry => entry.kind !== 'discarded'),
+			alert: newest(entry => entry.kind === 'discarded'),
+		};
 	}
 
 	private _renderToast(entry : SnackbarMessage) {
@@ -180,7 +231,7 @@ class SnackBar extends connect(store)(LitElement) {
 			<div class='toast' data-kind=${entry.kind}
 				@mouseenter=${this._handlePause} @mouseleave=${this._handleResume}
 				@focusin=${this._handlePause} @focusout=${this._handleResume}>
-				<span class='dot' aria-hidden='true'></span>
+				${entry.kind === 'queued' || entry.kind === 'discarded' ? html`<span class='dot' aria-hidden='true'></span>` : ''}
 				<div class='body'>
 					${entry.message}
 					${entry.detailLines && entry.detailLines.length ? html`
@@ -189,7 +240,7 @@ class SnackBar extends connect(store)(LitElement) {
 							${entry.detailLines.map(line => html`<div class='detail-line'>${line}</div>`)}
 						</details>` : ''}
 				</div>
-				${entry.action ? html`<button class='action' @click=${() => this._handleAction(entry)}>${entry.action.label}</button>` : ''}
+				${entry.action ? html`<button class='primary' @click=${() => this._handleAction(entry)}>${entry.action.label}</button>` : ''}
 				<button class='small' title='Dismiss' aria-label='Dismiss' @click=${() => this._handleDismiss(entry)}>${CANCEL_ICON}</button>
 			</div>
 		`;
@@ -243,6 +294,14 @@ class SnackBar extends connect(store)(LitElement) {
 		if (changedProps.has('_snackbars')) this._syncTimers();
 	}
 
+	//Timers are cleared on disconnect, and updated() only re-syncs when the
+	//message list CHANGES — so without this, a DOM move left every message on
+	//screen with no clock and made all of them permanent.
+	override connectedCallback() {
+		super.connectedCallback();
+		this._syncTimers();
+	}
+
 	override disconnectedCallback() {
 		for (const handle of this._timers.values()) window.clearTimeout(handle);
 		this._timers.clear();
@@ -252,6 +311,9 @@ class SnackBar extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._snackbars = state.app.snackbars;
 		this.mobile = state.app.mobileMode;
+		//A class on the host, so :host(.mobile) actually matches. See the note
+		//in the styles.
+		this.classList.toggle('mobile', Boolean(state.app.mobileMode));
 	}
 
 }

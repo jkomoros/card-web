@@ -129,6 +129,16 @@ describe('the snack bar queue (#758)', () => {
 
 	});
 
+	it('settles the promise of a message a dedupeKey replaces', async () => {
+		const first = store.dispatch(showSnackbar('offline', {dedupeKey: 'connectivity'}));
+		store.dispatch(showSnackbar('online', {dedupeKey: 'connectivity'}));
+
+		//The replaced message is gone from the screen, so its promise must
+		//settle. It used to sit unresolved forever, and any caller awaiting it
+		//hung.
+		assert.strictEqual(await first, 'dismissed');
+	});
+
 	describe('the action button', () => {
 
 		it('runs the registered thunk and reports that it was pressed', async () => {
@@ -191,10 +201,66 @@ describe('the snack bar queue (#758)', () => {
 			assert.ok(element.shadowRoot.querySelector('[role=alert]'), 'missing the alert region');
 		});
 
-		//HOUSE-STYLE §3.6.4 reserves assertive for work at risk, and names the
-		//unsaved-draft banner as the bar. A toast is never that.
-		it('never uses aria-live=assertive', () => {
-			assert.strictEqual(element.shadowRoot.querySelector('[aria-live=assertive]'), null);
+		//This test used to assert that no element carries aria-live=assertive,
+		//and it passed — while role='alert' supplied assertive IMPLICITLY. It
+		//pinned the absence of an attribute while the behaviour was the thing it
+		//claimed to forbid. A discarded write IS work at risk under §3.6.4, so
+		//the routing stays and the false claim goes.
+		it('routes ONLY a discarded write to the assertive region', async () => {
+			store.dispatch(showSnackbar('routine', {kind: 'committed'}));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+			assert.strictEqual(element.shadowRoot.querySelector('[role=alert]').textContent.trim(), '', 'a routine outcome must not interrupt');
+
+			store.dispatch(showSnackbar('lost it', {kind: 'discarded'}));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+			assert.ok(element.shadowRoot.querySelector('[role=alert]').textContent.includes('lost it'));
+		});
+
+		//The live regions carry TEXT ONLY. When the toasts lived inside them,
+		//every arrival re-announced the whole subtree including button labels,
+		//because status and alert are implicitly aria-atomic.
+		it('announces words, not the whole toast subtree', async () => {
+			store.dispatch(showSnackbar('a message', {action: {label: 'Press me', actionID: 'noop'}}));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+
+			const polite = element.shadowRoot.querySelector('[role=status]');
+			assert.ok(polite.textContent.includes('a message'));
+			assert.ok(!polite.textContent.includes('Press me'), 'a button label must not be read out as part of the message');
+			assert.strictEqual(polite.querySelector('button'), null, 'the live region must not contain controls');
+		});
+
+		//Layout lived on :host, whose only children were the two live-region
+		//divs — so gap never separated toasts and column-reverse only swapped
+		//the regions. Three messages rendered as one flush slab, oldest on top.
+		it('lays out the toasts themselves, newest first', async () => {
+			store.dispatch(showSnackbar('older'));
+			store.dispatch(showSnackbar('newer'));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+
+			const list = element.shadowRoot.querySelector('.toasts');
+			assert.ok(list, 'the toasts need their own flex container');
+			assert.strictEqual(list.querySelectorAll('.toast').length, 2, 'both toasts must be children of the list that has the flex');
+			//column-reverse renders the LAST child at the top.
+			const texts = [...list.querySelectorAll('.toast')].map(node => node.textContent.trim());
+			assert.ok(texts[texts.length - 1].includes('newer'), 'the newest must be last in DOM so column-reverse puts it on top');
+		});
+
+		//mobile was a @property, and Lit does not reflect by default, so
+		//:host([mobile]) could never match: the entire mobile branch was dead
+		//and a toast covered the update banner's Reload button on a phone.
+		it('marks mobile as a CLASS on the host, so the mobile rule can match', async () => {
+			const state = store.getState();
+			element.stateChanged({...state, app: {...state.app, mobileMode: true}});
+			await element.updateComplete;
+			assert.ok(element.classList.contains('mobile'), 'the mobile branch is unreachable without a class on the host');
+
+			element.stateChanged({...state, app: {...state.app, mobileMode: false}});
+			await element.updateComplete;
+			assert.ok(!element.classList.contains('mobile'));
 		});
 
 		it('routes a discarded write to the alert region and everything else to the polite one', async () => {
@@ -208,6 +274,9 @@ describe('the snack bar queue (#758)', () => {
 			assert.ok(alertText.includes('lost it'), 'a discarded write should be announced as an alert');
 			assert.ok(politeText.includes('saved it'));
 			assert.ok(!politeText.includes('lost it'));
+			//Both messages are still SHOWN, whatever their announcement routing.
+			const shown = element.shadowRoot.querySelector('.toasts').textContent;
+			assert.ok(shown.includes('lost it') && shown.includes('saved it'), 'announcement routing must not change what is visible');
 		});
 
 		it('shows at most three at once, and does not lose the rest', async () => {
@@ -254,6 +323,46 @@ describe('the snack bar queue (#758)', () => {
 			element.disconnectedCallback();
 			assert.strictEqual(element._timers.size, 0, 'a torn-down element must not dispatch later');
 			element.connectedCallback();
+		});
+
+		it('restarts timers after a hover ends', async () => {
+			store.dispatch(showSnackbar('a message'));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+
+			element._handlePause();
+			assert.strictEqual(element._timers.size, 0, 'hovering should stop the clock');
+			element._handleResume();
+			assert.ok(element._timers.size > 0, 'leaving must restart it, or one hover pins every message forever');
+		});
+
+		it('restarts timers when it is reconnected', async () => {
+			store.dispatch(showSnackbar('a message'));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+
+			element.disconnectedCallback();
+			assert.strictEqual(element._timers.size, 0);
+			element.connectedCallback();
+			await element.updateComplete;
+			assert.ok(element._timers.size > 0, 'a DOM move must not make everything on screen permanent');
+		});
+
+		//jsdom does no layout, so the tests above assert the DOM contract
+		//(newest LAST so column-reverse puts it on top) and cannot verify that
+		//the CSS actually does it. Adversarial review confirmed the gap by
+		//mutation: flipping column-reverse to column left all of them green.
+		//These are source-text pins, the same idiom test/util uses, for the
+		//three CSS invariants that carry real user consequences and that jsdom
+		//cannot reach.
+		it('pins the CSS invariants jsdom cannot see', async () => {
+			const {readFileSync} = await import('fs');
+			const source = readFileSync(new URL('../../src/components/snack-bar.ts', import.meta.url), 'utf8');
+
+			assert.ok(/\.toasts\s*\{[^}]*flex-direction:\s*column-reverse/.test(source), 'the toast list must be column-reverse, or the newest message renders at the bottom');
+			assert.ok(/:host\s*\{[^}]*pointer-events:\s*none/.test(source), 'the host must not eat clicks meant for what is underneath it');
+			assert.ok(/z-index:\s*960/.test(source), 'the toast must sit above the banners (950) and below dialogs (1000)');
+			assert.ok(/:host\(\.mobile\)/.test(source), 'the mobile rule must key off a CLASS; an attribute selector cannot match an unreflected property');
 		});
 
 		//The structural fix: a message waiting behind others has no clock at
