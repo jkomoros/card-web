@@ -169,11 +169,23 @@ import {
 	CollectionFilterCatalogItem,
 } from '../collection-filter-catalog.js';
 
+//The synthetic suggestion the primary action and a highlight-free Enter both
+//open. It is the only destination allowed to close the composer silently when
+//it turns out to be the collection already on screen.
+const CURRENT_DRAFT_SUGGESTION_ID = 'current-draft';
+
+const ALREADY_ACTIVE_MESSAGE = 'This collection is already open.';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_collectionDescription: CollectionDescription;
+
+	//The collection actually on screen. _collectionDescription is the draft,
+	//which diverges from this as soon as the user edits it.
+	@state()
+		_activeCollectionDescription: CollectionDescription | null = null;
 
 	@state()
 		_filterDescriptions: {[filterName : string]: string};
@@ -222,6 +234,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_highlightedSuggestion = 0;
+
+	//Whether _highlightedSuggestion currently means anything. The spec draws a
+	//hard line between "Enter with a highlighted suggestion" (open that
+	//destination) and "Enter with no highlighted suggestion" (open the current
+	//draft). A row is highlighted only once the user has pointed at one: by
+	//typing (the list is then interpretations of what they typed), by arrowing,
+	//or by genuinely moving the mouse over a row. Rebuilding the list — after a
+	//Tab materialization, a clause edit, or an undo — leaves nothing
+	//highlighted, so the next Enter commits the draft the user just composed
+	//rather than whatever happens to sit in row 0.
+	@state()
+		_suggestionHighlightActive = false;
+
+	//mouseenter fires whenever the list re-renders under a resting cursor, which
+	//would silently hand the Enter target to whichever row happened to land
+	//under the pointer. Pointer highlighting is armed only by a real mousemove
+	//and disarmed again by the next keystroke.
+	_pointerHighlightArmed = false;
 
 	@state()
 		_builderExpanded = false;
@@ -968,7 +998,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_composerRender() {
 		if (!this._collectionDescription) return html``;
 		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
-		const highlighted = suggestions[this._highlightedSuggestion];
+		const highlightedIndex = this._activeHighlightIndex(suggestions);
+		const highlighted = suggestions[highlightedIndex];
 		const expressionParts = collectionExpressionParts(this._collectionDescription, this._composerFilterLabels);
 		const draftCount = this._previewCounts[this._draftPreviewID];
 		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
@@ -1006,7 +1037,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					aria-expanded=${this._catalogOpen ? this._visibleCatalogItems.length > 0 : suggestions.length > 0}
 					aria-activedescendant=${ifDefined(this._catalogOpen ?
 						(this._visibleCatalogItems[this._catalogHighlightedIndex] ? `collection-filter-catalog-item-${this._catalogHighlightedIndex}` : undefined) :
-						(suggestions[this._highlightedSuggestion] ? `collection-suggestion-${this._highlightedSuggestion}` : undefined))}
+						(highlighted ? `collection-suggestion-${highlightedIndex}` : undefined))}
 					aria-busy=${this._activationPending}
 					placeholder=${this._catalogOpen ? 'Search dates, tags, authors, relationships…' : 'Type another condition…'}
 					.value=${this._composerInput}
@@ -1031,13 +1062,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					${recentSuggestions.length ? html`
 						<div role='group' aria-labelledby='recent-suggestion-heading'>
 							<div class='suggestion-heading' id='recent-suggestion-heading'>Continue</div>
-							${recentSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+							${recentSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion), highlightedIndex))}
 						</div>
 					` : ''}
 					${refinementSuggestions.length ? html`
 						<div role='group' aria-labelledby='refinement-suggestion-heading'>
 							<div class='suggestion-heading' id='refinement-suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
-							${refinementSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion)))}
+							${refinementSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion), highlightedIndex))}
 						</div>
 					` : ''}
 				</div>
@@ -1046,10 +1077,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
 			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter opens Source, configures, or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
-				'←→ choose clause · Delete removes · type to continue' : highlighted?.action === 'open' ?
+				'←→ choose clause · Delete removes · type to continue' : !highlighted ?
+				'↑↓ choose · Click edits · Enter opens this collection' : highlighted.action === 'open' ?
 				'↑↓ choose · Click or Enter opens' :
-				highlighted?.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
-				highlighted?.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
+				highlighted.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
+				highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
 				this._composerInput.trim() ? '↑↓ choose · Click or Tab adds · Enter adds and opens' : '↑↓ choose · Click edits · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
 				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
@@ -1063,7 +1095,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
-	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number) {
+	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number, highlightedIndex : number) {
 		const count = this._previewCounts[suggestion.id];
 		const draftCount = this._previewCounts[this._draftPreviewID];
 		const countDescription = count === undefined ? '' : `${formatCollectionCardCount(count)}${draftCount === undefined ? '' : ` · ${formatCollectionCountDelta(count, draftCount)}`}`;
@@ -1074,12 +1106,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								id='collection-suggestion-${index}'
 								role='option'
 								tabindex='-1'
-								aria-selected=${index === this._highlightedSuggestion}
+								aria-selected=${index === highlightedIndex}
 								aria-label=${`${visibleAction}: ${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
-								?data-highlighted=${index === this._highlightedSuggestion}
-								@mouseenter=${() => this._highlightedSuggestion = index}
+								?data-highlighted=${index === highlightedIndex}
+								@mousemove=${() => this._handleSuggestionPointerMove(index)}
+								@mouseenter=${() => this._handleSuggestionPointerEnter(index)}
 								@click=${() => this._applyComposerSuggestion(suggestion, suggestion.action === 'open')}
 							>
 								<div>
@@ -1091,6 +1124,36 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 							</button>
 						</div>
 		`;
+	}
+
+	//The index of the visibly highlighted suggestion, or -1 when nothing is
+	//highlighted. Everything that reads the highlight — the rendered marker,
+	//aria-activedescendant, the key hints, and the keydown handlers — goes
+	//through here, so "the transformation accepted on keydown is the one
+	//visibly highlighted on keydown" is a structural property rather than a
+	//coincidence.
+	_activeHighlightIndex(suggestions : CollectionComposerSuggestion[]) : number {
+		if (!this._suggestionHighlightActive) return -1;
+		if (!suggestions.length) return -1;
+		return Math.min(this._highlightedSuggestion, suggestions.length - 1);
+	}
+
+	_highlightSuggestionFromPointer(index : number) {
+		this._highlightedSuggestion = index;
+		this._suggestionHighlightActive = true;
+	}
+
+	_handleSuggestionPointerMove(index : number) {
+		//A mousemove is proof the pointer actually moved, so it both arms
+		//pointer highlighting and takes the highlight itself. mouseenter alone
+		//is not proof: it also fires when rows shift under a resting cursor.
+		this._pointerHighlightArmed = true;
+		this._highlightSuggestionFromPointer(index);
+	}
+
+	_handleSuggestionPointerEnter(index : number) {
+		if (!this._pointerHighlightArmed) return;
+		this._highlightSuggestionFromPointer(index);
 	}
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
@@ -1108,6 +1171,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			{
 				cardsSelected: this._cardsSelected,
 				recentCollections,
+				activeCollection: this._activeCollectionDescription || undefined,
 				preservedSelectedCard: this._draftSelectedCard,
 				sourceAllowedOrigins: new Set([window.location.origin, 'https://thecompendium.cards']),
 				candidates: this._contextualComposerCandidates,
@@ -1333,6 +1397,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._selectedClauseIndex = -1;
 		this._clauseSelectionMessage = '';
 		this._highlightedSuggestion = 0;
+		//Typed text makes the list interpretations of what was typed, so the
+		//top interpretation is the highlighted one and Enter opens it. Emptying
+		//the input returns the list to destinations nobody has pointed at, and
+		//Enter goes back to meaning "open the draft".
+		this._suggestionHighlightActive = Boolean(input.value.trim());
+		this._pointerHighlightArmed = false;
 		this._catalogHighlightedIndex = 0;
 		this._activationMessage = '';
 	}
@@ -1344,6 +1414,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		if (e.isComposing || e.keyCode === 229) return;
+		//A keystroke means the keyboard owns the highlight again: a resting
+		//pointer must not take it back when the list re-renders underneath.
+		this._pointerHighlightArmed = false;
 		if (this._catalogOpen) {
 			const items = this._visibleCatalogItems;
 			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length) {
@@ -1366,7 +1439,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				return;
 			}
 		}
-		const suggestions = this._composerSuggestions;
+		//Match what the composer actually shows: with the catalog open the
+		//suggestion list is hidden, so no suggestion can be the visibly
+		//highlighted one that Tab or Enter accepts.
+		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
 		if (!this._composerInput && this._collectionDescription.filters.length) {
 			if (e.key === 'Backspace') {
 				e.preventDefault();
@@ -1398,27 +1474,37 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				return;
 			}
 		}
+		const highlightedIndex = this._activeHighlightIndex(suggestions);
+		const highlighted = suggestions[highlightedIndex];
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
 			if (e.isComposing || e.keyCode === 229) return;
 			if (!suggestions.length) return;
 			e.preventDefault();
 			e.stopPropagation();
 			const direction = e.key === 'ArrowDown' ? 1 : -1;
-			this._highlightedSuggestion = (this._highlightedSuggestion + direction + suggestions.length) % suggestions.length;
+			//Arrowing into a list with nothing highlighted lands on the first
+			//(or last) row instead of skipping one.
+			this._highlightedSuggestion = highlightedIndex < 0 ?
+				(direction === 1 ? 0 : suggestions.length - 1) :
+				(highlightedIndex + direction + suggestions.length) % suggestions.length;
+			this._suggestionHighlightActive = true;
 			return;
 		}
-		if (e.key === 'Tab' && !e.shiftKey && suggestions.length && this._composerInput.trim() && suggestions[this._highlightedSuggestion].action !== 'open') {
+		if (e.key === 'Tab' && !e.shiftKey && highlighted && this._composerInput.trim() && highlighted.action !== 'open') {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
-			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], false);
+			this._applyComposerSuggestion(highlighted, false);
 			return;
 		}
-		if (e.key === 'Enter' && suggestions.length) {
+		if (e.key === 'Enter' && !this._catalogOpen) {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
-			this._applyComposerSuggestion(suggestions[this._highlightedSuggestion], true);
+			//Spec: Enter opens the highlighted destination including its visible
+			//preview, or the current draft when no suggestion is highlighted.
+			if (highlighted) this._applyComposerSuggestion(highlighted, true);
+			else this._handleOpenCurrentDraft();
 		}
 	}
 
@@ -1433,9 +1519,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		if (open) {
 			if (this._activationPending) return;
-			const alreadyActive = !suggestion.destinationPath && selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize();
+			const isDraft = suggestion.id === CURRENT_DRAFT_SUGGESTION_ID;
+			//Compare collections, not URL spellings: /c/ and /c/main/ name the
+			//same collection, so the path comparison inside navigatePathToResult
+			//would push a duplicate history entry for the collection already on
+			//screen. A suggestion carrying its own destination path can still be
+			//a real navigation (a different selected card, say), so only the
+			//draft — whose selected card is checkable here — gets the semantic
+			//comparison when a path is present.
+			const alreadyActive = (isDraft || !suggestion.destinationPath) &&
+				selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize() &&
+				(!isDraft || this._draftSelectedCard === this._requestedCard);
 			if (alreadyActive) {
-				store.dispatch(cancelConfigureCollectionDialog());
+				//Spec: if the draft is equivalent to the active collection, Enter
+				//simply closes the composer. Choosing a *destination* that is
+				//already on screen is a different act: it navigates nowhere, so
+				//say so rather than closing with no explanation, which would look
+				//to the user like their draft evaporated. Recents no longer offer
+				//the active collection at all, so that branch is a backstop.
+				if (isDraft) {
+					store.dispatch(cancelConfigureCollectionDialog());
+					return;
+				}
+				this._activationMessage = ALREADY_ACTIVE_MESSAGE;
 				return;
 			}
 			this._activationPending = true;
@@ -1449,7 +1555,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 			if (result.status === 'unchanged') {
 				this._activationPending = false;
-				store.dispatch(cancelConfigureCollectionDialog());
+				//Spec: if the draft is equivalent to the active collection,
+				//Enter simply closes the composer without a duplicate history
+				//entry. A chosen suggestion that turns out to resolve to the
+				//route already on screen instead says so.
+				if (suggestion.id === CURRENT_DRAFT_SUGGESTION_ID) {
+					store.dispatch(cancelConfigureCollectionDialog());
+					return;
+				}
+				this._activationMessage = ALREADY_ACTIVE_MESSAGE;
 				return;
 			}
 			store.dispatch(cancelConfigureCollectionDialog());
@@ -1482,6 +1596,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._draftSelectedCard = selectedCard;
 		this._draftReceiptMessage = message;
 		this._selectedClauseIndex = -1;
+		//The draft just changed, so the suggestion list is about to be rebuilt
+		//around it. Nothing in the new list is what the user was pointing at,
+		//so the next Enter commits the draft they just composed.
+		this._suggestionHighlightActive = false;
+		this._pointerHighlightArmed = false;
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
 		if (focusInput) this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
@@ -1506,6 +1625,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (selectedCard !== null) this._draftSelectedCard = selectedCard;
 		this._draftReceiptMessage = 'Restored previous draft';
 		this._selectedClauseIndex = -1;
+		this._suggestionHighlightActive = false;
+		this._pointerHighlightArmed = false;
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
@@ -1645,7 +1766,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_handleOpenCurrentDraft() {
 		this._applyComposerSuggestion({
-			id: 'current-draft',
+			id: CURRENT_DRAFT_SUGGESTION_ID,
 			kind: 'source',
 			action: 'open',
 			label: 'Open this collection',
@@ -1759,7 +1880,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	override updated(changedProps : PropertyValues<this>) {
 		super.updated(changedProps);
-		if (changedProps.has('_highlightedSuggestion')) {
+		if ((changedProps.has('_highlightedSuggestion') || changedProps.has('_suggestionHighlightActive')) && this._suggestionHighlightActive) {
 			this.shadowRoot?.querySelector(`#collection-suggestion-${this._highlightedSuggestion}`)?.scrollIntoView?.({block: 'nearest'});
 		}
 		if (changedProps.has('open')) {
@@ -1768,6 +1889,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			if (this.open) {
 				this._composerInput = '';
 				this._highlightedSuggestion = 0;
+				//Opening over a resting cursor must not decide what Enter does.
+				this._suggestionHighlightActive = false;
+				this._pointerHighlightArmed = false;
 				this._builderExpanded = false;
 				this._catalogOpen = false;
 				this._catalogHighlightedIndex = 0;
@@ -1804,6 +1928,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			changedProps.has('_sourceInput') ||
 			changedProps.has('_entryMode') ||
 			changedProps.has('_collectionDescription') ||
+			changedProps.has('_activeCollectionDescription') ||
 			changedProps.has('_activeCardID') ||
 			changedProps.has('_activeCard') ||
 			changedProps.has('_filterDescriptions') ||
@@ -1853,6 +1978,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.open = selectConfigureCollectionDialogOpen(state);
 		this.mobile = state.app ? state.app.mobileMode : false;
 		this._collectionDescription = selectSnapshotCollectionDescription(state);
+		this._activeCollectionDescription = selectActiveCollectionDescription(state);
 		this._filterDescriptions = selectFilterDescriptions(state);
 		this._composerCandidates = selectCollectionComposerCandidates(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);

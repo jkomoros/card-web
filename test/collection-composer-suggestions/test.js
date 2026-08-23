@@ -129,6 +129,36 @@ describe("Collection Composer suggestions", () => {
     assert.match(suggestions[0].detail, /Visited 3 times/);
   });
 
+  //Recents are destinations, and the collection you are already standing in is
+  //not one: "Back to <the thing on screen>" navigates nowhere and throws the
+  //draft away. Deduping against the draft alone stopped covering this the
+  //moment the draft diverged — the state every user is in after their first
+  //Tab.
+  it("never offers the active collection as a recent destination", () => {
+    const active = CollectionDescription.deserialize("main/");
+    const draft = CollectionDescription.deserialize("main/starred/");
+    const other = CollectionDescription.deserialize("main/unread/");
+    const context = {
+      activeCollection: active,
+      recentCollections: [
+        { description: active, visits: 9 },
+        { description: draft, visits: 4 },
+        { description: other, visits: 2 },
+      ],
+    };
+    const recents = collectionComposerSuggestions(draft, "", descriptions, context)
+      .filter((suggestion) => suggestion.kind === "recent");
+    assert.deepStrictEqual(
+      recents.map((suggestion) => suggestion.description.serialize()),
+      [other.serialize()],
+      "both the active collection and the draft itself are suppressed"
+    );
+    //And with no divergence yet, the same suppression holds.
+    const atRest = collectionComposerSuggestions(active, "", descriptions, context)
+      .filter((suggestion) => suggestion.kind === "recent");
+    assert.ok(!atRest.some((suggestion) => suggestion.description.serialize() === active.serialize()));
+  });
+
   it("explains promoted rolling-date memories mechanistically", () => {
     const suggestions = collectionComposerSuggestions(
       CollectionDescription.deserialize("everything/"),

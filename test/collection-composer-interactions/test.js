@@ -26,9 +26,13 @@ globalThis.BroadcastChannel = class {
 
 window.localStorage.setItem("collection-composer", "on");
 
+//The scope is the signed-in uid, which is empty in these tests.
+const HISTORY_KEY = "collection-composer-history:public";
+
 describe("Collection Composer interactions", () => {
   let store;
   let dialog;
+  let CollectionDescription;
   let OPEN_CONFIGURE_COLLECTION_DIALOG;
   let CANCEL_CONFIGURE_COLLECTION_DIALOG;
 
@@ -42,8 +46,34 @@ describe("Collection Composer interactions", () => {
       OPEN_CONFIGURE_COLLECTION_DIALOG,
       CANCEL_CONFIGURE_COLLECTION_DIALOG,
     } = await import("../../lib/src/actions.js"));
+    ({ CollectionDescription } = await import("../../lib/src/collection_description.js"));
     await import("../../lib/src/components/configure-collection-dialog.js");
   });
+
+  //Most users open the composer with a populated recent history. Seed one so
+  //the Enter tests exercise the list a real user sees rather than an empty one.
+  const seedRecents = async (entries) => {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.map(([raw, visits]) => {
+      const description = CollectionDescription.deserialize(raw);
+      return {
+        canonical: description.serialize(),
+        authoring: description.serializeOriginalOrder(),
+        visitedAt: Date.now(),
+        visits,
+      };
+    })));
+    dialog.requestUpdate();
+    await dialog.updateComplete;
+  };
+
+  const suggestionRows = () =>
+    Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
+
+  const suggestionLabels = () =>
+    suggestionRows().map((button) => button.textContent.replace(/\s+/g, " ").trim());
+
+  const highlightedRow = () =>
+    dialog.shadowRoot.querySelector('[role="option"][data-highlighted]');
 
   beforeEach(async () => {
     window.history.replaceState({}, "", "/c/main/");
@@ -58,6 +88,7 @@ describe("Collection Composer interactions", () => {
   afterEach(() => {
     store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
     dialog.remove();
+    window.localStorage.removeItem(HISTORY_KEY);
   });
 
   //Same guarantee, master's mechanism. This used to pin the ordering inside
@@ -206,6 +237,133 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     assert.strictEqual(window.location.pathname, "/c/starred/card-123");
     assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+  });
+
+  //The state every user is in after their first Tab. The Enter test above types
+  //"star" first, so the row that happens to be highlighted is also the row the
+  //user wanted; that coincidence hid a flow where Ctrl-K → type → Tab → Enter
+  //closed the dialog, left the URL alone, and discarded the clause in silence.
+  it("commits the composed draft when Enter follows Tab, with recents on offer", async () => {
+    await seedRecents([["main/", 9], ["main/starred/sort/recent/", 2]]);
+    assert.strictEqual(highlightedRow(), null,
+      "nothing is highlighted before the user points at a row, so no row looks primary");
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.match(highlightedRow().textContent, /Starred/,
+      "typing makes the list interpretations of what was typed, and the top one is highlighted");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
+    assert.strictEqual(highlightedRow(), null,
+      "Tab rebuilt the list, and nothing in the new list is what the user was pointing at");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/",
+      "Enter with no highlighted suggestion opens the draft the user just composed");
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+  });
+
+  it("Enter on an untouched draft closes the composer without navigating", async () => {
+    await seedRecents([["main/starred/", 4]]);
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/main/");
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+    assert.strictEqual(store.getState().collection.snapshot, null);
+  });
+
+  it("only an explicit Arrow key makes a suggestion the Enter target", async () => {
+    await seedRecents([["main/starred/", 4]]);
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    //Arrowing into a list with nothing highlighted lands on the first row
+    //rather than skipping one.
+    assert.strictEqual(highlightedRow().id, "collection-suggestion-0");
+    assert.match(highlightedRow().textContent, /Back to Main AND Starred/);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/");
+  });
+
+  //Recents are destinations, and the collection you are already standing in is
+  //not one: opening it throws the draft away and changes nothing.
+  it("never offers the collection already on screen as a recent destination", async () => {
+    await seedRecents([["main/", 9], ["main/starred/sort/recent/", 2]]);
+    assert.ok(suggestionLabels().some((label) => label.includes("Back to Main AND Starred")),
+      "an unrelated recent is still offered");
+    assert.ok(!suggestionLabels().some((label) => /Back to Main(?! AND)/.test(label)),
+      "the active collection is not offered even before the draft diverges");
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    //Now the draft is Main AND Starred, so deduping against the draft alone
+    //would let "Back to Main" — the collection on screen — reappear.
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"]);
+    assert.ok(!suggestionLabels().some((label) => /Back to Main(?! AND)/.test(label)),
+      "the active collection stays suppressed once the draft diverges from it");
+    assert.ok(suggestionLabels().some((label) => label.includes("Back to Main AND Starred")),
+      "and the recent that is genuinely a different collection survives");
+  });
+
+  it("says so, in the dialog, when a chosen destination is already open", async () => {
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    //"Remove Starred" rebuilds exactly the collection already on screen.
+    assert.match(highlightedRow().textContent, /Remove Starred/);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
+      "the composer stays open rather than vanishing with no explanation");
+    assert.match(dialog.shadowRoot.querySelector(".activation-message").textContent,
+      /This collection is already open\./);
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["starred"],
+      "the draft survives");
+    assert.strictEqual(window.location.pathname, "/c/main/");
+  });
+
+  //mouseenter fires whenever rows shift under a resting cursor, so a re-render
+  //used to hand whatever row landed under the pointer the power to decide what
+  //Enter does.
+  it("a re-render under a resting cursor does not take the highlight", async () => {
+    await seedRecents([["main/starred/", 4]]);
+    const rows = suggestionRows();
+    assert.ok(rows.length > 3);
+    rows[3].dispatchEvent(new MouseEvent("mouseenter"));
+    await dialog.updateComplete;
+    assert.strictEqual(highlightedRow(), null,
+      "mouseenter without a mousemove is not evidence the pointer moved");
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(highlightedRow().id, "collection-suggestion-0");
+    suggestionRows()[3].dispatchEvent(new MouseEvent("mouseenter"));
+    await dialog.updateComplete;
+    assert.strictEqual(highlightedRow().id, "collection-suggestion-0",
+      "the keyboard keeps the highlight across a re-render the user did not point at");
+    //Genuine hovering still works.
+    suggestionRows()[3].dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(highlightedRow().id, "collection-suggestion-3");
+    //And once the pointer has proven it moves, mouseenter is honored again.
+    suggestionRows()[1].dispatchEvent(new MouseEvent("mouseenter"));
+    await dialog.updateComplete;
+    assert.strictEqual(highlightedRow().id, "collection-suggestion-1");
   });
 
   it("Escape cancels the draft without changing the active collection", async () => {
@@ -987,7 +1145,14 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     dialog.shadowRoot.querySelector(".composer-actions .primary").click();
     await dialog.updateComplete;
-    assert.strictEqual(window.location.pathname, "/c/");
+    //Undo restored both halves, so the draft is the collection already on
+    //screen and, per the spec, opening it just closes the composer instead of
+    //adding a duplicate history entry. (This used to assert "/c/", the same
+    //collection spelled differently, which is the duplicate entry the spec
+    //forbids.) A half-undo -- description restored but card-42 still attached
+    //-- would show up here as a navigation to /c/card-42.
+    assert.strictEqual(window.location.pathname, "/c/main/");
+    assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
   });
 
   it("preserves the raw requested-card placeholder when a route becomes a fragment", async () => {

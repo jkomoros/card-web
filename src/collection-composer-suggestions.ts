@@ -56,6 +56,10 @@ export type CollectionComposerContext = {
   }>;
   preservedSelectedCard?: string;
   sourceAllowedOrigins?: ReadonlySet<string>;
+  //The collection actually on screen, which is not the same thing as `current`
+  //once the draft has been edited. Recents are destinations, and the
+  //collection you are already standing in is not one.
+  activeCollection?: CollectionDescription;
 };
 
 const SOURCE_ONLY_CONFIGURABLE_FILTERS = new Set(["combine", "exclude", "expand"]);
@@ -254,11 +258,19 @@ const recentSuggestions = (
   context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
   const filterLabels = Object.fromEntries((context.candidates || []).map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
+  //Suppress both the draft being composed and the collection already on
+  //screen. Deduping against the draft alone meant that as soon as the draft
+  //diverged from the active collection — the state every user is in after
+  //their first Tab — the recents happily offered "Back to <the collection you
+  //are looking at>", a destination whose only effect is to throw the draft
+  //away.
+  const suppressed = new Set<string>([current.serialize()]);
+  if (context.activeCollection) suppressed.add(context.activeCollection.serialize());
   const seen = new Set<string>();
   const result: CollectionComposerSuggestion[] = [];
   for (const recent of context.recentCollections || []) {
     const canonical = recent.description.serialize();
-    if (canonical === current.serialize() || seen.has(canonical)) continue;
+    if (suppressed.has(canonical) || seen.has(canonical)) continue;
     seen.add(canonical);
     result.push({
       id: `recent:${canonical}`,
