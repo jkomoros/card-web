@@ -1,6 +1,9 @@
 build/
 seo/
-node_modules/
+node_modules
+
+# Local preview/dev-server config: holds absolute paths for one machine.
+.claude/launch.json
 dist/
 test/integration/screenshots-current/
 _site/
