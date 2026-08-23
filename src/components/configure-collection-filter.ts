@@ -1,6 +1,7 @@
 import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
+import { live } from 'lit/directives/live.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
@@ -185,10 +186,15 @@ class ConfigureCollectionFilter extends LitElement {
 			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-multiple-cards>`;
 		case 'key-card':
 			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-key-card>`;
+		//The options select themselves, for the same reason _filterOptions does:
+		//a `.value` binding on the <select> commits before the child part that
+		//renders the <option>s, so it lands on an empty select and is silently
+		//dropped. The control then displays its first option while the filter
+		//says something else.
 		case 'user-id':
-			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item === ME_AUTHOR_ID ? 'Me' : (this.userInfos?.[item]?.title || item)}</option>`)}</select>`;
+			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option value=${item.toLowerCase()} .selected=${live(item.toLowerCase() === piece.value)}>${item === ME_AUTHOR_ID ? 'Me' : (this.userInfos?.[item]?.title || item)}</option>`)}</select>`;
 		case 'reference-type':
-			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[1].name}</option>`)}</select>`;
+			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option value=${entry[0]} .title=${entry[1].description} .selected=${live(entry[0] === piece.value)}>${entry[1].name}</option>`)}</select>`;
 		default:
 			return html`<input aria-label=${piece.description} type=${piece.controlType == 'int' ? 'number' : 'text'} min='0' step=${piece.controlType == 'float' ? 0.0001 : 1} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 		}
@@ -198,7 +204,10 @@ class ConfigureCollectionFilter extends LitElement {
 		//TODO: cache?
 		const entries = Object.entries(this.filterDescriptions).filter(entry => entry[0] != EXCLUDE_FILTER_NAME && entry[0] != COMBINE_FILTER_NAME);
 		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
-		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]] != undefined}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
+		//live() keeps that honest even when a change event does not move the
+		//value: without it Lit's dirty check would skip the re-assignment and
+		//leave the control displaying the user's pick rather than the filter.
+		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${live(selectedOptionName == entry[0])} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]] != undefined}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
 	}
 
 

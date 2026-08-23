@@ -1,5 +1,6 @@
 import { html, css, PropertyValues } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
+import { live } from 'lit/directives/live.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -786,14 +787,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<div class='row'>
 				<div>
 					<label for='collection-set'>Set</label>
-					<select id='collection-set' @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					<select id='collection-set' @change=${this._handleSetSelectChanged}>
+						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${entry[0]}</option>`)}
 					</select>
 				</div>
 				<div>
 					<label for='collection-sort'>Sort</label>
-					<select id='collection-sort' @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					<select id='collection-sort' @change=${this._handleSortSelectChanged}>
+						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${entry[0]}</option>`)}
 					</select>
 				</div>
 				<div>
@@ -857,25 +858,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const allItems = this._catalogItems;
 		return html`
 			<div class='catalog-setup' aria-label='Collection setup'>
+				<!-- Every <select> here has its options select themselves. A
+				     .value binding on the <select> commits before the child
+				     part that renders the <option>s, so it lands on an empty
+				     select and is dropped, and the control ends up displaying
+				     its first option while the draft says something else. -->
 				<label>Start from
-					<select aria-label='Starting collection set' @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					<select aria-label='Starting collection set' @change=${this._handleSetSelectChanged}>
+						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${entry[0]}</option>`)}
 					</select>
 				</label>
 				<label>Order by
-					<select aria-label='Card order' @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					<select aria-label='Card order' @change=${this._handleSortSelectChanged}>
+						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${entry[0]}</option>`)}
 					</select>
 				</label>
 				<label>Direction
-					<select aria-label='Sort direction' @change=${this._handleCatalogDirectionChanged} .value=${this._collectionDescription.sortReversed ? 'reverse' : 'normal'}>
-						<option value='normal'>Normal</option>
-						<option value='reverse'>Reverse</option>
+					<select aria-label='Sort direction' @change=${this._handleCatalogDirectionChanged}>
+						<option value='normal' .selected=${live(!this._collectionDescription.sortReversed)}>Normal</option>
+						<option value='reverse' .selected=${live(this._collectionDescription.sortReversed)}>Reverse</option>
 					</select>
 				</label>
 				<label>Display as
-					<select aria-label='Collection view' @change=${this._handleViewModeChanged} .value=${this._collectionDescription.viewMode}>
-						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode}>${mode}</option>`)}
+					<select aria-label='Collection view' @change=${this._handleViewModeChanged}>
+						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode} .selected=${live(mode === this._collectionDescription.viewMode)}>${mode}</option>`)}
 					</select>
 				</label>
 				${LEGAL_VIEW_MODES[this._collectionDescription.viewMode] ? html`

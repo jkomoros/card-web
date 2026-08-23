@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { live } from 'lit/directives/live.js';
 
 import {
 	parseKeyCardID,
@@ -60,10 +61,15 @@ class ConfigureCollectionKeyCard extends LitElement {
 		const currentIsKnown = Boolean(cardInfos[cardID]);
 		return html`
 			<div>
-				<select aria-label='Key card' .value=${cardID} @change=${this._handleCardChanged}>
-					${this.allowIncludeKeyCard ? '' : html`<option value='_'>First card in the collection</option>`}
-					${currentIsKnown || (!this.allowIncludeKeyCard && cardID === '_') ? '' : html`<option .value=${cardID}>${cardID && cardID !== 'key-card-id' ? `Unavailable card (${cardID})` : 'Choose a card…'}</option>`}
-					${Object.values(cardInfos).map(info => html`<option .value=${info.id}>${info.title}</option>`)}
+				<!-- The options select themselves. A .value binding on the
+				     <select> commits before the child part that renders the
+				     <option>s, so it lands on an empty select and is dropped,
+				     leaving the control displaying a card the filter does not
+				     name. -->
+				<select aria-label='Key card' @change=${this._handleCardChanged}>
+					${this.allowIncludeKeyCard ? '' : html`<option value='_' .selected=${live(cardID === '_')}>First card in the collection</option>`}
+					${currentIsKnown || (!this.allowIncludeKeyCard && cardID === '_') ? '' : html`<option value=${cardID} .selected=${live(true)}>${cardID && cardID !== 'key-card-id' ? `Unavailable card (${cardID})` : 'Choose a card…'}</option>`}
+					${Object.values(cardInfos).map(info => html`<option value=${info.id} .selected=${live(info.id === cardID)}>${info.title}</option>`)}
 				</select>
 				${this.allowIncludeKeyCard ? html`<label><input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}> Include the key card itself</label>` : ''}
 			</div>

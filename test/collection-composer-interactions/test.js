@@ -532,6 +532,66 @@ describe("Collection Composer interactions", () => {
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["updated/after/7-days-ago"]);
   });
 
+  //A readback test: assert what the control DISPLAYS, not what confirming it
+  //produces. The comparison <select> rendered at selectedIndex 0 ("Before")
+  //while the seeded filter said "after", and a 41-test suite that only ever
+  //asserted the committed value never saw it.
+  it("displays the comparison the seeded date filter actually names", async () => {
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    Array.from(dialog.shadowRoot.querySelectorAll("#collection-filter-catalog [role=option]"))
+      .find((button) => button.textContent.includes("Updated")).click();
+    await dialog.updateComplete;
+    const pending = dialog.shadowRoot.querySelector(".pending-filter-editor configure-collection-filter");
+    assert.strictEqual(pending.value, "updated/after/7-days-ago");
+    const dateControl = pending.shadowRoot.querySelector("configure-collection-date");
+    await dateControl.updateComplete;
+    const comparison = dateControl.shadowRoot.querySelector('[aria-label="Date comparison"]');
+    assert.strictEqual(comparison.value, "after");
+    assert.strictEqual(comparison.selectedIndex, 1);
+    assert.strictEqual(comparison.options[comparison.selectedIndex].textContent, "After");
+    assert.deepStrictEqual(
+      Array.from(comparison.options).filter((option) => option.selected).map((option) => option.value),
+      ["after"]
+    );
+    //And the same control, reopened on an applied clause, still reads back what
+    //the clause says rather than the first option.
+    Array.from(dialog.shadowRoot.querySelectorAll(".pending-filter-actions button"))
+      .find((button) => button.textContent.includes("Add configured filter")).click();
+    await dialog.updateComplete;
+    dialog.shadowRoot.querySelector(".expression-clause-label").click();
+    await dialog.updateComplete;
+    const appliedDate = dialog.shadowRoot
+      .querySelector("configure-collection-filter").shadowRoot
+      .querySelector("configure-collection-date");
+    await appliedDate.updateComplete;
+    assert.strictEqual(
+      appliedDate.shadowRoot.querySelector('[aria-label="Date comparison"]').value,
+      "after"
+    );
+  });
+
+  it("reads back every date sub-control rather than its first option", async () => {
+    const dateControl = document.createElement("configure-collection-date");
+    dateControl.value = "between/last-thursday/yesterday";
+    document.body.append(dateControl);
+    try {
+      await dateControl.updateComplete;
+      const displayed = (label) => {
+        const select = dateControl.shadowRoot.querySelector(`[aria-label="${label}"]`);
+        return select.options[select.selectedIndex].value;
+      };
+      assert.strictEqual(displayed("Date comparison"), "between");
+      assert.strictEqual(displayed("First rolling date kind"), "weekday");
+      assert.strictEqual(displayed("First rolling weekday"), "thursday");
+      assert.strictEqual(displayed("Second rolling date kind"), "special");
+      assert.strictEqual(displayed("Second rolling special date"), "yesterday");
+    } finally {
+      dateControl.remove();
+    }
+  });
+
   it("configures each boundary of a rolling date range independently", async () => {
     const dateControl = document.createElement("configure-collection-date");
     dateControl.value = "between/3-days-ago/yesterday";

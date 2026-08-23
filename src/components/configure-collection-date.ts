@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { live } from 'lit/directives/live.js';
 
 import {
 	parseDateSection,
@@ -20,6 +21,8 @@ import {
 import {
 	dateRangeType
 } from '../types.js';
+
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 @customElement('configure-collection-date')
 class ConfigureCollectionDate extends LitElement {
@@ -96,9 +99,15 @@ class ConfigureCollectionDate extends LitElement {
 
 		return html`
 			<div class="container">
-				<!-- Comparison type selector -->
-				<select aria-label='Date comparison' .value=${typ} @change=${this._handleTypeChanged}>
-					${dateRangeType.options.map(t => html`<option .value=${t}>${t[0].toUpperCase() + t.slice(1)}</option>`)}
+				<!-- Comparison type selector. The options select themselves: a
+				     .value binding on the <select> commits before the child
+				     part that renders the <option>s, so it lands on an empty
+				     select and is silently dropped, leaving the control showing
+				     "Before" while the filter says "after". live() keeps the
+				     rendered selection honest even when a change event does not
+				     move value. -->
+				<select aria-label='Date comparison' @change=${this._handleTypeChanged}>
+					${dateRangeType.options.map(t => html`<option value=${t} .selected=${live(t === typ)}>${t[0].toUpperCase() + t.slice(1)}</option>`)}
 				</select>
 
 				<!-- First date input -->
@@ -167,13 +176,12 @@ class ConfigureCollectionDate extends LitElement {
 				<!-- Type selector -->
 				<select
 					aria-label=${isFirst ? 'First rolling date kind' : 'Second rolling date kind'}
-					.value=${parts.type}
 					?data-first=${isFirst}
 					@change=${this._handleRelativeTypeChanged}
 				>
-					<option value="offset">A time ago</option>
-					<option value="weekday">Previous weekday</option>
-					<option value="special">Today or yesterday</option>
+					<option value="offset" .selected=${live(parts.type === 'offset')}>A time ago</option>
+					<option value="weekday" .selected=${live(parts.type === 'weekday')}>Previous weekday</option>
+					<option value="special" .selected=${live(parts.type === 'special')}>Today or yesterday</option>
 				</select>
 
 				<!-- Controls based on type -->
@@ -188,14 +196,13 @@ class ConfigureCollectionDate extends LitElement {
 					>
 					<select
 						aria-label=${isFirst ? 'First rolling date unit' : 'Second rolling date unit'}
-						.value=${parts.unit}
 						?data-first=${isFirst}
 						@change=${this._handleOffsetUnitChanged}
 					>
-						<option value="day">days</option>
-						<option value="week">weeks</option>
-						<option value="month">months</option>
-						<option value="year">years</option>
+						<option value="day" .selected=${live(parts.unit === 'day')}>days</option>
+						<option value="week" .selected=${live(parts.unit === 'week')}>weeks</option>
+						<option value="month" .selected=${live(parts.unit === 'month')}>months</option>
+						<option value="year" .selected=${live(parts.unit === 'year')}>years</option>
 					</select>
 					<span>ago</span>
 				` : ''}
@@ -204,29 +211,21 @@ class ConfigureCollectionDate extends LitElement {
 					<span>last</span>
 					<select
 						aria-label=${isFirst ? 'First rolling weekday' : 'Second rolling weekday'}
-						.value=${parts.weekday}
 						?data-first=${isFirst}
 						@change=${this._handleWeekdayChanged}
 					>
-						<option value="monday">Monday</option>
-						<option value="tuesday">Tuesday</option>
-						<option value="wednesday">Wednesday</option>
-						<option value="thursday">Thursday</option>
-						<option value="friday">Friday</option>
-						<option value="saturday">Saturday</option>
-						<option value="sunday">Sunday</option>
+						${WEEKDAYS.map(day => html`<option value=${day} .selected=${live(parts.weekday === day)}>${day[0].toUpperCase() + day.slice(1)}</option>`)}
 					</select>
 				` : ''}
 
 				${parts.type === 'special' ? html`
 					<select
 						aria-label=${isFirst ? 'First rolling special date' : 'Second rolling special date'}
-						.value=${parts.value}
 						?data-first=${isFirst}
 						@change=${this._handleSpecialChanged}
 					>
-						<option value="today">Today</option>
-						<option value="yesterday">Yesterday</option>
+						<option value="today" .selected=${live(parts.value === 'today')}>Today</option>
+						<option value="yesterday" .selected=${live(parts.value === 'yesterday')}>Yesterday</option>
 					</select>
 				` : ''}
 			</div>
