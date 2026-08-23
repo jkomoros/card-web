@@ -3268,15 +3268,39 @@ export const modifyCardFailure = (err : Error, skipReport? : boolean) : ThunkSom
 		console.warn(err);
 		return;
 	}
-	//The message is composed here, not taken from the Error: §2.4 forbids
-	//showing raw internals, and err.message is written for a developer. The
-	//detail still reaches the console.
 	console.warn(err);
+	//PASS THE MESSAGE THROUGH. An earlier version of this composed one generic
+	//sentence instead, on the premise that "err.message is written for a
+	//developer". That premise was wrong for most callers and adversarial review
+	//measured the damage: roughly 20 of the 27 sites compose a message TO §2.4
+	//before throwing, two of them lifted verbatim from HOUSE-STYLE, and the
+	//generic sentence destroyed all of them. Specifically it turned
+	//
+	//  - blockedError(...) — nine sites, the canonical §5 helper, which says
+	//    saving is REFUSED and will stay refused — into "could not be saved,
+	//    try again", which is both wrong and useless advice;
+	//  - the QUEUED fork report, which is good news, into a failure. Following
+	//    its "try again" duplicates the fork;
+	//  - honest counts ("5 of 12 cards are server-confirmed; 7 remain safely
+	//    retryable") into nothing.
+	//
+	//So the composed message is the message. The generic sentence is the
+	//fallback for the minority of sites that throw a raw SDK Error, and for
+	//those it is no worse than what shipped before, which alerted the raw Error
+	//object. Tagging those sites so they can be improved individually is
+	//follow-up work, not a reason to flatten the good ones.
+	const composed = (err.message || '').trim();
 	dispatch(reportPersistentError({
-		what: 'That change could not be saved.',
-		reassurance: 'Your work is still here — try again, or copy anything you need before leaving the page.',
-		//One failing write is one problem however many times it retries.
-		dedupeKey: 'card-write',
+		what: composed || 'That change could not be saved.',
+		//Only add generic reassurance when there is no composed message — the
+		//composed ones already carry their own §2.4 parts 3 and 4, and bolting
+		//"try again" onto "saving is unavailable because sync is interrupted"
+		//contradicts it.
+		reassurance: composed ? undefined : 'Your work is still here — copy anything you need before leaving the page.',
+		//One failing write is one problem however many times it retries. Keyed
+		//on the MESSAGE, not a constant: two genuinely different failures are
+		//two problems, and a constant key silently replaced one with the other.
+		dedupeKey: `card-write:${composed}`,
 	}));
 };
 

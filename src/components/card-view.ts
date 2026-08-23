@@ -1400,12 +1400,14 @@ registerShortcuts([
 		label: 'Add a new card of this type in this section',
 		when: whenKeyboardNavigates,
 		handler: (_e, state) => {
-			//createCard refuses via modifyCardFailure — which alerts. A HELD
-			//Cmd-M then produces one modal per repeat for the whole
-			//verification window. Swallow the shortcut instead; the drawer's
-			//buttons are disabled and carry the explanation. (The registry
-			//also blocks repeats, but a re-PRESS during verification hits
-			//this same guard.)
+			//createCard refuses via modifyCardFailure. That no longer opens a
+			//modal — it reports to the error banner, which dedupes — so the
+			//"one modal per key repeat" this guard was written for is gone.
+			//It stays anyway, and the reason is better than the old one:
+			//swallowing the shortcut is how a refusal gets EXPLAINED rather
+			//than merely reported, because the drawer's buttons are disabled
+			//and carry the reason. (The registry also blocks repeats, but a
+			//re-PRESS during verification hits this same guard.)
 			if (!selectCardSavesEligible(state)) return true;
 			store.dispatch(createCard({section: selectActiveSectionId(state)}));
 			return true;

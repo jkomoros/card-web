@@ -661,7 +661,7 @@ Check this table before building. If the job is here, the primitive exists.
 | Pick a card | `find-dialog.ts` (already supports picker modes) |
 | Long-running operation | `progress-panel.ts` |
 | Transient outcome | `showSnackbar()` — `src/actions/app.ts:502` |
-| Persistent failure | The save-status pill — `card-web-app.ts:350` |
+| Persistent failure | The error banner — `reportPersistentError()`, rendered in `card-web-app.ts`'s `.banners` stack |
 | Ambient status | `corpus-status-indicator.ts`, `limit-warning.ts` |
 | Buttons | `ButtonSharedStyles` |
 | Links, headings, `[hidden]` | `SharedStyles` |
@@ -680,10 +680,6 @@ Check this table before building. If the job is here, the primitive exists.
 | Async modal layer (`confirmDestructive` / `askForInput`) | The seam that lets 31 straight-line call sites migrate once, not twice | #708 |
 | Destructive-confirm dialog | §3.7 Tier 1 | #708 |
 | Generic input dialog | The 14 migratable `prompt()` sites | #708 |
-| Persistent error banner | A broken durability promise (§3.6.1 step 4) | #660, #758 |
-| Stackable snackbar | Transient outcomes; today one slot, silently overwritten | #708, #758 |
-| Keyboard-shortcut sheet | The 19 labels rendered nowhere | #740 (stage 2) |
-| Loading placeholder | §3.6 state 1 — the one state with no primitive at all | — |
 
 `alert()`/`confirm()` are **synchronous and re-entrant-safe** — the world cannot
 change while one is open. Their replacements are promises and can be raced. Every
@@ -713,7 +709,7 @@ replacement for any of them.
 
 **The native-modal ratchet.** The count of `alert(`/`confirm(`/`prompt(` call
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
-baseline is **81**.
+baseline is **80**.
 
 **`src/modal.ts` is the one exception, and it is the reason the rest can fall.**
 It is the async seam from #708, and its whole job is to be the single place that
@@ -730,9 +726,9 @@ grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --i
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
-The command prints **82**, not 81. Exactly one match is a false positive:
+The command prints **81**, not 80. Exactly one match is a false positive:
 `src/components/bulk-import-dialog.ts:179` is a continuation line inside a block
-comment that happens to begin with `alert()`. Live call sites: **81**.
+comment that happens to begin with `alert()`. Live call sites: **80**.
 
 **No file other than `src/modal.ts` may gain one.** If you find yourself wanting
 a second exception, the thing you actually want is to route through the seam.
@@ -764,13 +760,15 @@ rules.
 | # | Debt | Rule |
 |---|---|---|
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
-| D2 | 82 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
-| D3 | `alert(err)` on a raw `Error` is the default save-failure UI | §2.4 |
+| D2 | 80 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
+| D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
 | D4 | 29 icon-only buttons with no accessible name — including every dialog's close button and **five** dialogs' primary action; 43 more have a `title` but no `aria-label` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
 | D8 | `progress-panel` used by 2 of 11 long-running surfaces | §3.6 |
+| D14 | ~~19 shortcuts with zero discoverability~~ — **done**: the shortcut sheet renders the registry | §3.8 |
+| D23 | ~~Eight loading idioms~~ — **partly done**: `loading-placeholder` exists and six sites migrated; `card-drawer`'s dim/pin and `card-renderer`'s boot placeholder remain | §3.6 |
 | D9 | "Compendium" hardcoded in 18 strings plus `manifest.json`; `APP_TITLE` is config. **Deferred by owner decision:** the fix needs `APP_TITLE` inside `sync-copy.ts` and `corpus-status-glyph.ts`, both deliberately import-free — the latter so its layered-meaning contract stays Node-testable. Threading it as a parameter touches every caller; importing the generated config breaks that test harness. Only affects other deployments of this app | §1.4 |
 | D10 | `chat-view.ts` uses three undefined tokens and renders blue | §4.1 |
 | D11 | Tag/label, sign in/log in, suggested/missing concepts split | §1.4 |

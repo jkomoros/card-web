@@ -278,7 +278,18 @@ class CardWebApp extends connect(store)(LitElement) {
 				display: flex;
 				flex-wrap: wrap;
 				align-items: center;
-				max-width: calc(100vw - 5.5rem);
+				/* Leaves the bottom-LEFT corner alone. right:4.5rem plus this
+				   width let the left edge reach x=16px at narrow viewports,
+				   which is exactly where card-drawer's two create-card buttons
+				   live (left:1em, 44px rounds, x 16-104). Adversarial review
+				   drove real clicks at 390px: the first create button
+				   activated the draft banner's DISCARD control and the second
+				   was dead. The old .draft-recovery { bottom: 4.25rem } was
+				   clearing those buttons, not stacking — I read it as
+				   arithmetic and removed the clearance with it. Bounding the
+				   width fixes it at every viewport rather than for one banner
+				   at one offset. */
+				max-width: calc(100vw - 11.5rem);
 				gap: 0.65rem;
 				padding: 0.55rem 0.7rem;
 				border-radius: 0.45rem;
@@ -434,6 +445,13 @@ class CardWebApp extends connect(store)(LitElement) {
 		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<div class='banners ${this._editorOpen ? 'editor-open' : ''}'>
+			<!-- FIRST, not last. The column is bottom-anchored, so a child added
+			     at the END pushes everything above it up: with the snack bar
+			     there, every ordinary toast shifted the persistent banners 48px
+			     on arrival and back on expiry, and toasts fire on every
+			     committed write. Above them, arrivals and expiries move
+			     nothing the user might be reading or reaching for. -->
+			<snack-bar></snack-bar>
 			${this._persistentErrors.map(error => html`
 				<div class='update-ready error-banner' role='alert'>
 					<span class='error-mark' aria-hidden='true'></span>
@@ -452,9 +470,6 @@ class CardWebApp extends connect(store)(LitElement) {
 					<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
 					<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
 				</div>` : ''}
-			<!-- Last, so it sits nearest the corner: transient outcomes closest
-			     to the edge, things that persist stacked above them. -->
-			<snack-bar></snack-bar>
 		</div>
 		${this._saveStatus !== 'idle' ? html`
 			<div class='save-status ${this._saveStatus}' data-corpus-gate-keep-interactive role='status' aria-live='polite' title=${this._saveError}>
