@@ -93,7 +93,6 @@ import {
 	arrayDiffAsSets, arrayUnique
 } from '../util.js';
 
-
 import './card-link.js';
 
 import {
@@ -253,12 +252,6 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 			.bulk-error p {
 				margin: 0;
-			}
-
-			.buttons {
-				display:flex;
-				flex-direction: row;
-				justify-content:flex-end;
 			}
 
 			p.waiting {
@@ -572,7 +565,6 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	_handleRemoveTODODisablement(e : TagEvent) {
 		store.dispatch(removeTODODisablement(e.detail.tag as AutoTODOType));
 	}
-
 
 	override stateChanged(state : State) {
 		this._saveEligible = selectCardSavesEligible(state);

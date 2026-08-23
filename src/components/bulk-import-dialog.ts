@@ -169,12 +169,6 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				overflow-wrap: break-word;
 			}
 
-			.buttons {
-				display:flex;
-				flex-direction: row;
-				justify-content:flex-end;
-			}
-
 			/* The failure outcome lives IN the dialog (#758), not in an
 			   alert(): the dialog stays open on failure, so it is the
 			   natural surface, it can be read at leisure, and it does not

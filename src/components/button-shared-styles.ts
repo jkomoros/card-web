@@ -91,6 +91,24 @@ export const ButtonSharedStyles = css`
 		padding:0;
 	}
 
+	/* IRREVERSIBLE actions only — deleting a card or a comment, discarding a
+	   draft, stopping an operation. Reversible-until-Save removals (a tag, a
+	   reference, a filter) stay the plain subtle icon on purpose: colouring
+	   those too is what teaches people to stop reading the red ones.
+	   Generalized from the save pill's Stop control, which was the app's only
+	   visually distinct destructive control. */
+	button.small.destructive svg {
+		fill: var(--app-warning-color);
+	}
+
+	button.small.destructive:hover svg {
+		fill: var(--app-warning-color-light);
+	}
+
+	button.small.destructive:disabled svg, button.small.destructive.need-signin svg {
+		fill: var(--app-dark-text-color-light);
+	}
+
 	label {
 		font-size:0.75em;
 		color: var(--app-dark-text-color-light);

@@ -58,11 +58,6 @@ class ComposeDialog extends connect(store)(DialogElement) {
 				flex-grow:1;
 				width:100%;
 			}
-			.buttons {
-				display:flex;
-				flex-direction: row;
-				justify-content:flex-end;
-			}
 			h3 {
 				font-weight:normal;
 			}

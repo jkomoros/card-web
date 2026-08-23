@@ -19,6 +19,16 @@ import {
 	makeDialogShouldCloseEvent
 } from '../events.js';
 
+//document.activeElement stops at a shadow host, so a control inside another
+//component reads as that component. Walk down to the real one.
+const deepestActiveElement = () : HTMLElement | null => {
+	let active = document.activeElement;
+	while (active && active.shadowRoot && active.shadowRoot.activeElement) {
+		active = active.shadowRoot.activeElement;
+	}
+	return active instanceof HTMLElement ? active : null;
+};
+
 @customElement('dialog-element')
 export class DialogElement extends LitElement {
 
@@ -30,6 +40,13 @@ export class DialogElement extends LitElement {
 
 	@property({ type : Boolean })
 		mobile: boolean;
+
+	//'dialog' for a sub-task, 'alertdialog' for a surface whose whole content
+	//IS the message (a destructive confirmation). alertdialog is announced
+	//immediately on open, which is why such a dialog needs no separate
+	//role='status'/aria-live region.
+	@property({ type : String })
+		dialogRole : 'dialog' | 'alertdialog' = 'dialog';
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -115,6 +132,20 @@ export class DialogElement extends LitElement {
 				scrollbar-gutter: stable;
 				overscroll-behavior: contain;
 			}
+
+			/* Six subclasses each carried a byte-identical copy of this. It is
+			   the dialog contract's button row: bottom-right, primary last. */
+			.buttons {
+				display:flex;
+				flex-direction:row;
+				justify-content:flex-end;
+			}
+
+			/* The panel is the focus fallback when a dialog has no text field,
+			   so it must not paint a focus ring when focused programmatically. */
+			.content:focus {
+				outline: none;
+			}
 		`
 	];
 
@@ -122,9 +153,9 @@ export class DialogElement extends LitElement {
 		return html`
 			<div class='container ${this.open ? 'open' : 'closed'}'>
 				<div class='background ${this.mobile ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
-					<div class='content'>
-						<button class='small' id='close' @click=${this.cancel}>${CANCEL_ICON}</button>
-						<h2>${this.title || ''}</h2>
+					<div class='content' role=${this.dialogRole} aria-modal='true' aria-labelledby='dialog-title' tabindex='-1' @keydown=${this._handleKeyDown}>
+						<button class='small' id='close' title='Close dialog' aria-label='Close dialog' @click=${this.cancel}>${CANCEL_ICON}</button>
+						<h2 id='dialog-title'>${this.title || ''}</h2>
 						<div id='inner'>
 						${this.innerRender()}
 						</div>
@@ -177,6 +208,7 @@ export class DialogElement extends LitElement {
 	override disconnectedCallback() {
 		if (this._unregisterEscapeShortcut) this._unregisterEscapeShortcut();
 		this._unregisterEscapeShortcut = null;
+		this._previouslyFocused = null;
 		super.disconnectedCallback();
 	}
 
@@ -199,6 +231,53 @@ export class DialogElement extends LitElement {
 		this.dispatchEvent(makeDialogShouldCloseEvent(cancelled));
 	}
 
+	//What had focus before we opened, so it can be handed back on close.
+	//Nothing did this before, so closing a dialog dropped focus to <body> and a
+	//keyboard user restarted from the top of the document every time.
+	private _previouslyFocused : HTMLElement | null = null;
+
+	//Standard focusable set. Deliberately scoped to THIS shadow root: content
+	//nested in a child custom element's own shadow root (card-drawer inside
+	//find-dialog) is not reachable from here, so the trap wraps around the
+	//controls this dialog itself renders. That is strictly better than the
+	//status quo of no trap at all; a full treewalk is a separate change.
+	private _focusableElements() : HTMLElement[] {
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) return [];
+		const content = shadowRoot.querySelector('.content');
+		if (!content) return [];
+		const selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+		return [...content.querySelectorAll(selector)].filter((ele) : ele is HTMLElement => {
+			if (!(ele instanceof HTMLElement)) return false;
+			//offsetParent is null for display:none subtrees, which is what the
+			//?hidden'd branches of several dialogs render.
+			return ele.offsetParent !== null || ele === shadowRoot.activeElement;
+		});
+	}
+
+	private _handleKeyDown(e : KeyboardEvent) {
+		if (e.key !== 'Tab') return;
+		const focusable = this._focusableElements();
+		//WCAG 2.1.2: do not trap when there is nothing to trap into. Every
+		//dialog renders a close button so this is insurance, not a live case.
+		if (!focusable.length) return;
+		const shadowRoot = this.shadowRoot;
+		const active = shadowRoot ? shadowRoot.activeElement : null;
+		const index = active instanceof HTMLElement ? focusable.indexOf(active) : -1;
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		if (e.shiftKey) {
+			//Focus on the panel itself (index -1) shift-tabs to the end.
+			if (index > 0) return;
+			e.preventDefault();
+			last.focus();
+			return;
+		}
+		if (index !== -1 && index < focusable.length - 1) return;
+		e.preventDefault();
+		first.focus();
+	}
+
 	_focusInputOnOpen() {
 		//Override point for sub classes
 
@@ -209,6 +288,11 @@ export class DialogElement extends LitElement {
 		let input = shadowRoot.querySelector('input[type=text]');
 		if (!input) input = shadowRoot.querySelector('input[type=search]');
 		if (!input) input = shadowRoot.querySelector('textarea');
+		//Fall back to the panel rather than leaving focus outside the dialog:
+		//without this, a dialog with no text field (multi-edit,
+		//configure-collection) opened with focus still on the page behind it,
+		//so Tab walked the app instead of the dialog.
+		if (!input) input = shadowRoot.querySelector('.content');
 		if (!input) return;
 		if (input instanceof HTMLElement) input.focus();
 	}
@@ -219,13 +303,24 @@ export class DialogElement extends LitElement {
 		//override updated() without calling super, so a hook there silently
 		//never runs for them — and find-dialog is the most-used dialog.
 		//No dialog subclass overrides willUpdate.
-		if (changedProps.has('open')) this._syncEscapeShortcut();
-	}
-
-	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('open') && this.open) {
-			this._focusInputOnOpen();
+		if (!changedProps.has('open')) return;
+		this._syncEscapeShortcut();
+		//Focus is scheduled from HERE, via updateComplete, rather than from
+		//updated(). ai-dialog and find-dialog override updated() without
+		//calling super, so the old hook silently never ran for them — ai-dialog
+		//focused nothing at all on open. Same reasoning that moved the Escape
+		//sync up here; the focus hook was left behind.
+		if (this.open) {
+			this._previouslyFocused = deepestActiveElement();
+			this.updateComplete.then(() => {
+				//Re-check: a dialog can be closed again before the frame lands.
+				if (this.open) this._focusInputOnOpen();
+			});
+			return;
 		}
+		const previous = this._previouslyFocused;
+		this._previouslyFocused = null;
+		if (previous && previous.isConnected) previous.focus();
 	}
 
 }

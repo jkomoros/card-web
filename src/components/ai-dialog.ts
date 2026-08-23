@@ -93,11 +93,6 @@ class AIDialog extends connect(store)(DialogElement) {
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
-			.buttons {
-				display:flex;
-				flex-direction: row;
-				justify-content:flex-end;
-			}
 
 			textarea {
 				flex-grow:1;
