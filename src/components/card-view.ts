@@ -1073,10 +1073,14 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!this._collection) return;
 		const url = new URL(urlForCollection(this._collection.description), window.location.origin).toString();
 		try {
+			//'info': a clipboard write is not a write to a server, so none of
+			//the outcome words in snackbar-copy.ts apply to it.
 			await navigator.clipboard.writeText(url);
 			store.dispatch(showSnackbar('Collection link copied'));
 		} catch {
-			store.dispatch(showSnackbar('Could not copy the collection link'));
+			//'refused' is the kind for "this did not happen, and no data is at
+			//stake" — the browser declined clipboard access.
+			store.dispatch(showSnackbar('Could not copy the collection link', {kind: 'refused'}));
 		}
 	}
 

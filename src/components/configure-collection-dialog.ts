@@ -164,10 +164,33 @@ registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, (dispatch, getState
 		window.history.back();
 		return;
 	}
-	//A refusal is never silent (HOUSE-STYLE §3.5). Sentence case, no
-	//exclamation, and it does not blame the user for having moved on.
-	dispatch(showSnackbar('You have moved on since then, so there is nothing to undo.'));
+	//A refusal is never silent (HOUSE-STYLE §3.5). Sentence case, second person,
+	//contractions used consistently (§2.3), U+2019 apostrophes (§2.2), and it
+	//reports rather than scolds — moving on is not a mistake.
+	//'refused' is the kind for something that did not happen with no data at
+	//stake; 'committed'/'queued'/'discarded' are write outcomes and none apply.
+	dispatch(showSnackbar('You’ve moved on since then, so there’s nothing to undo.', {kind: 'refused'}));
 });
+
+//BOTH ways of opening a collection report it the same way. They were two
+//copies of the same call, already disagreeing about how to spell the card
+//count, which is exactly how a receipt and its Undo drift apart.
+const showCollectionNavigationReceipt = (expression : string, count : number | undefined) : void => {
+	//Recorded BEFORE the message: the guard reads this slot, and the dedupeKey
+	//replacing the visible receipt is what invalidates the previous one.
+	recordCollectionNavigationReceipt(currentBrowserLocation());
+	store.dispatch(showSnackbar(
+		`Now showing ${expression}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}`,
+		{
+			//'info', not 'committed'/'queued': nothing was written to a server.
+			//Those are write-outcome words (snackbar-copy.ts).
+			kind: 'info',
+			action: {label: 'Undo', actionID: UNDO_COLLECTION_NAVIGATION_ACTION_ID},
+			//One receipt at a time.
+			dedupeKey: COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
+		}
+	));
+};
 
 import {
 	parseCollectionSource,
@@ -1693,16 +1716,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		store.dispatch(cancelConfigureCollectionDialog());
-		const count = this._previewCounts[this._draftPreviewID];
-		recordCollectionNavigationReceipt(currentBrowserLocation());
-		store.dispatch(showSnackbar(
-			`Now showing ${readableCollectionExpression(parsed.description, this._composerFilterLabels)}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}`,
-			{
-				kind: 'info',
-				action: {label: 'Undo', actionID: UNDO_COLLECTION_NAVIGATION_ACTION_ID},
-				dedupeKey: COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
-			}
-		));
+		showCollectionNavigationReceipt(
+			readableCollectionExpression(parsed.description, this._composerFilterLabels),
+			this._previewCounts[this._draftPreviewID]
+		);
 	}
 
 	_handleComposerInput(e : InputEvent) {
@@ -1893,22 +1910,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				return;
 			}
 			store.dispatch(cancelConfigureCollectionDialog());
-			const count = this._previewCounts[suggestion.id];
-			const expression = readableCollectionExpression(suggestion.description, this._composerFilterLabels);
-			recordCollectionNavigationReceipt(currentBrowserLocation());
-			//'info', not 'committed'/'queued': nothing was written to a server.
-			//Those two words are reserved for write outcomes (snackbar-copy.ts).
-			store.dispatch(showSnackbar(
-				`Now showing ${expression}${count === undefined ? '' : ` · ${count} ${count === 1 ? 'card' : 'cards'}`}`,
-				{
-					kind: 'info',
-					action: {label: 'Undo', actionID: UNDO_COLLECTION_NAVIGATION_ACTION_ID},
-					//One receipt at a time: a second navigation replaces the
-					//first message in place, which is also what invalidates the
-					//first receipt's recorded location above.
-					dedupeKey: COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
-				}
-			));
+			showCollectionNavigationReceipt(
+				readableCollectionExpression(suggestion.description, this._composerFilterLabels),
+				this._previewCounts[suggestion.id]
+			);
 			return;
 		}
 		//A destination materialized by Tab is not "added"; the draft becomes it.

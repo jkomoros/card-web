@@ -69,8 +69,10 @@ export const SHORTCUT_COMBOS = {
 	//The Collection Composer (#498). Deliberately the SAME combo as
 	//find-card-to-link: that one is an editor binding with focus policy
 	//'allow-text-fields' and only applies while a card is being edited,
-	//while this one is gated on whenKeyboardNavigates (which is false while
-	//editing), so the registry's applicability guards keep them disjoint.
+	//while this one is gated on whenKeyboardNavigatesIgnoringCollectionComposer
+	//— which is also false while editing; it drops only the composer's OWN
+	//dialog from the shared gate — so the registry's applicability guards keep
+	//them disjoint.
 	'open-collection-composer': [{key: 'k', mod: true}],
 } as const satisfies {[id : string] : readonly ShortcutCombo[]};
 

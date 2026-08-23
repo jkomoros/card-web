@@ -448,6 +448,97 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
   });
 
+  //THE RECEIPT AS THE USER ACTUALLY SEES IT.
+  //
+  //The audit's ask was a test that renders the snack bar and asserts the
+  //receipt is really on screen, with something to press. Everything else about
+  //receipts is asserted against state; this one mounts the real component, so a
+  //receipt that reaches the store but never reaches a pixel fails here.
+  //
+  //It also drives the Undo through the registered action rather than calling
+  //the thunk directly, because the serializable actionID in the message and the
+  //thunk registered under it are two halves that can drift apart.
+  const mountSnackBar = async () => {
+    await import("../../lib/src/components/snack-bar.js");
+    const bar = document.createElement("snack-bar");
+    document.body.append(bar);
+    await bar.updateComplete;
+    return bar;
+  };
+
+  const visibleToasts = (bar) =>
+    Array.from(bar.shadowRoot.querySelectorAll(".toast"));
+
+  it("shows the navigation receipt on screen, with a working Undo", async () => {
+    for (const entry of [...store.getState().app.snackbars]) {
+      store.dispatch({ type: "DISMISS_SNACKBAR", snackbarID: entry.id });
+    }
+    const bar = await mountSnackBar();
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    assert.strictEqual(window.location.pathname, "/c/starred/");
+
+    await bar.updateComplete;
+    const toasts = visibleToasts(bar);
+    assert.strictEqual(toasts.length, 1, "the receipt must be on screen, not merely in the store");
+    assert.match(toasts[0].textContent, /Now showing/,
+      "the toast must carry the receipt's own words");
+    //'info' is the honest kind: nothing was written to a server, so it gets no
+    //status dot. 'committed'/'queued' are write-outcome words (snackbar-copy).
+    assert.strictEqual(toasts[0].dataset.kind, "info");
+    assert.strictEqual(toasts[0].querySelector(".dot"), null);
+    const undo = Array.from(toasts[0].querySelectorAll("button"))
+      .find((button) => button.textContent.trim() === "Undo");
+    assert.ok(undo, "a receipt with nothing to press is not a receipt");
+
+    undo.click();
+    await bar.updateComplete;
+    //Pressing it retires the receipt and says nothing further: the guard
+    //agreed the user was still where the receipt described.
+    assert.deepStrictEqual(store.getState().app.snackbars, []);
+    bar.remove();
+  });
+
+  it("refuses the receipt's Undo out loud once the user has moved on", async () => {
+    for (const entry of [...store.getState().app.snackbars]) {
+      store.dispatch({ type: "DISMISS_SNACKBAR", snackbarID: entry.id });
+    }
+    const bar = await mountSnackBar();
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await dialog.updateComplete;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await dialog.updateComplete;
+    await bar.updateComplete;
+
+    //The user wanders off somewhere the receipt never described.
+    window.history.replaceState({}, "", "/c/everything/reads/");
+    const undo = Array.from(bar.shadowRoot.querySelectorAll(".toast button"))
+      .find((button) => button.textContent.trim() === "Undo");
+    undo.click();
+    await bar.updateComplete;
+    //A refusal is never silent (HOUSE-STYLE §3.5): the receipt is replaced by
+    //a plain message rather than quietly doing nothing.
+    const snackbars = store.getState().app.snackbars;
+    assert.strictEqual(snackbars.length, 1);
+    assert.match(snackbars[0].message, /nothing to undo/);
+    assert.strictEqual(snackbars[0].action, undefined,
+      "the refusal has nothing to press; offering Undo again would be a lie");
+    bar.remove();
+    window.history.replaceState({}, "", "/c/main/");
+  });
+
   it("Enter on an untouched draft closes the composer without navigating", async () => {
     await seedRecents([["main/starred/", 4]]);
     const input = dialog.shadowRoot.querySelector("#collection-composer-input");
