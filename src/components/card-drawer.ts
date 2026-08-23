@@ -245,10 +245,15 @@ class CardDrawer extends LitElement {
 				/* NOT the same state as .failure, despite once sharing its
 				   colour: nothing went wrong here. The app understood the URL
 				   differently than it was written and proceeded. That is an
-				   informational note, so it takes the subordinate colour. The
-				   full explanation of what the app did instead is in the
-				   tooltip. */
-				color: var(--app-dark-text-color-light);
+				   informational note, so it steps down from amber — but only to
+				   body-text grey, NOT to --app-dark-text-color-light (#AAA),
+				   which is ~2.3:1 on white and fails WCAG AA outright.
+				   corpus-status-indicator.ts:111 already rejected that exact
+				   token for that exact reason. This notice exists because
+				   silence here once let a typo'd filter widen an Edit All Cards
+				   selection, so it has to stay readable. The full explanation of
+				   what the app did instead is in the tooltip. */
+				color: var(--app-dark-text-color);
 			}
 
 		`
