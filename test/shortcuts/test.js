@@ -404,10 +404,15 @@ describe('the shortcut sheet catalog (#740 stage 2)', () => {
 		const dir = new URL('../../src/components/', import.meta.url);
 		let sources = '';
 		for (const name of readdirSync(dir)) {
-			if (name.endsWith('.ts')) sources += readFileSync(new URL(name, dir), 'utf8');
+			if (name.endsWith('.ts')) sources += readFileSync(new URL(name, dir), 'utf8') + '\n';
 		}
 
-		const homeless = Object.keys(SHORTCUT_COMBOS).filter(id => !sources.includes(`id: '${id}'`));
+		//Comments stripped first. Review deleted the entire show-shortcuts
+		//binding, left `//TODO: reinstate. id: 'show-shortcuts'`, and this pin
+		//stayed green while `?` did nothing at all. HOUSE-STYLE §6 already
+		//prescribes stripping, and names test/util's idiom.
+		const code = sources.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+		const homeless = Object.keys(SHORTCUT_COMBOS).filter(id => !code.includes(`id: '${id}'`));
 		assert.deepStrictEqual(homeless, [], 'a combo with no registerShortcut/declareShortcut call can never reach the sheet');
 	});
 
@@ -433,13 +438,50 @@ describe('the shortcut sheet catalog (#740 stage 2)', () => {
 		assert.ok(local.describe().some(entry => entry.id === 'transient'), 'the catalog must survive unregistration');
 	});
 
+	//This iterated ZERO entries and passed unconditionally: the suite imports no
+	//component module, so nothing had registered. A loop over an empty list is
+	//not a test. Populate a registry explicitly, and assert it is non-empty
+	//before believing anything it says.
 	it('gives every catalogued binding a label and a real group', async () => {
-		const {describeShortcuts} = await import('../../lib/src/shortcuts.js');
+		const {ShortcutRegistry} = await import('../../lib/src/shortcuts.js');
+		const {SHORTCUT_COMBOS} = await import('../../lib/src/shortcuts-data.js');
 		const groups = ['browsing', 'editing', 'formatting', 'dialogs'];
-		for (const entry of describeShortcuts()) {
+		const local = new ShortcutRegistry();
+		for (const id of Object.keys(SHORTCUT_COMBOS)) {
+			local.catalog({id, keys: SHORTCUT_COMBOS[id], label: 'Label for ' + id, group: 'browsing', handler: () => true});
+		}
+
+		const entries = local.describe();
+		assert.ok(entries.length > 0, 'a loop over an empty catalog asserts nothing');
+		assert.strictEqual(entries.length, Object.keys(SHORTCUT_COMBOS).length);
+		for (const entry of entries) {
 			assert.ok(entry.label && entry.label.length > 0, entry.id + ' has no label to render');
 			assert.ok(groups.includes(entry.group), entry.id + ' is in unknown group ' + entry.group);
 		}
+	});
+
+	//B1: one catalogued id outside SHORTCUT_COMBOS used to throw inside the
+	//render and blank the ENTIRE sheet — zero rows under a heading. The combo
+	//comes from the catalog's own keys now.
+	it('renders a binding whose id is not in the canonical table', async () => {
+		const {ShortcutRegistry} = await import('../../lib/src/shortcuts.js');
+		const local = new ShortcutRegistry();
+		local.register({id: 'not-in-the-table', keys: [{key: 'q', mod: true}], label: 'Synthetic', group: 'browsing', handler: () => true});
+
+		const entry = local.describe().find(candidate => candidate.id === 'not-in-the-table');
+		assert.ok(entry, 'it must be catalogued');
+		assert.ok(entry.keys, 'and it must carry its OWN keys, or the sheet has nothing to render from');
+	});
+
+	//B2: a user-overridden binding displayed the frozen table's combo, which is
+	//the opposite of leaving #740 stage 3 possible.
+	it('carries overridden keys rather than the frozen table\'s', async () => {
+		const {ShortcutRegistry} = await import('../../lib/src/shortcuts.js');
+		const local = new ShortcutRegistry();
+		local.register({id: 'edit-card', keys: [{key: 'y', mod: true}], label: 'Edit card', group: 'browsing', handler: () => true});
+
+		const entry = local.describe().find(candidate => candidate.id === 'edit-card');
+		assert.strictEqual(entry.keys[0].key, 'y', 'the catalog must hold what was registered, not what the table says');
 	});
 
 	//A tooltip wants the primary combo; a reference sheet must show them all, or

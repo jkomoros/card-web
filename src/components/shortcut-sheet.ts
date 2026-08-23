@@ -14,8 +14,7 @@ import {
 } from '../shortcuts.js';
 
 import {
-	shortcutKeysAll,
-	ShortcutID
+	formatShortcutCombo
 } from '../shortcuts-data.js';
 
 import {
@@ -51,7 +50,12 @@ import {
 const GROUP_HEADINGS : {[group in ShortcutGroup] : {title : string, note : string}} = {
 	//The note is the focus policy in prose, stated ONCE per group rather than
 	//repeated on every row.
-	'browsing': {title: 'Browsing cards', note: 'When you are not typing'},
+	//NOT "when you are not typing". Most of these need that, but blur-focused
+	//is focusPolicy 'any-focus' and its entire job is to blur the thing you ARE
+	//typing in — the note stated the opposite of the truth for that row. Per-row
+	//context is the honest fix; until then the heading does not claim something
+	//false about one of its own entries.
+	'browsing': {title: 'Browsing cards', note: 'Most of these need the card list focused, not a text field'},
 	'editing': {title: 'Editing a card', note: 'Including from the title and notes fields'},
 	'formatting': {title: 'Formatting text', note: 'Only while the caret is in a card’s body'},
 	'dialogs': {title: 'Dialogs', note: ''},
@@ -115,9 +119,34 @@ class ShortcutSheet extends connect(store)(DialogElement) {
 			${entries.map(entry => html`
 				<div class='row'>
 					<span>${entry.label}</span>
-					<span class='keys'>${shortcutKeysAll(entry.id as ShortcutID)}</span>
+					<span class='keys'>${this._combos(entry)}</span>
 				</div>`)}
 		`;
+	}
+
+	//From the CATALOG's own keys, not SHORTCUT_COMBOS[id].
+	//
+	//The lookup version had two faults that review demonstrated. It cast
+	//entry.id to ShortcutID, and both register() and declareShortcut() accept
+	//any string — so one catalogued id outside the table threw inside the map()
+	//and rendered the WHOLE sheet blank: zero rows under a "Keyboard Shortcuts"
+	//heading. And it defeated the thing the commit claimed it enabled: #740's
+	//stage 3 is user-configurable bindings, and a binding registered with
+	//overridden keys still displayed the frozen table's combo. catalog() already
+	//stores keys; using them fixes both.
+	private _combos(entry : CatalogEntry) : string {
+		const keys = Array.isArray(entry.keys) ? entry.keys : [entry.keys];
+		const rendered = keys.map(combo => formatShortcutCombo(combo));
+		//Spellings that differ ONLY by shift are the same physical key on
+		//different layouts, and exactly one of them is pressable on yours.
+		//Showing both produced "Shift-? or ?", which is not an instruction
+		//anyone can follow — it is an implementation detail leaked into the
+		//reference (§1.4).
+		const deduped = rendered.filter((text, index) => {
+			const bare = text.replace(/^Shift-/, '');
+			return !rendered.some((other, otherIndex) => otherIndex < index && other.replace(/^Shift-/, '') === bare);
+		});
+		return deduped.join(' or ');
 	}
 
 	override _shouldClose() {
