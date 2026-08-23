@@ -69,8 +69,22 @@ const normalizedEntry = (value: unknown): RecentCollectionEntry | null => {
   }
 };
 
+//The remembered list is derived purely from the recent list, and the recent
+//list now has a stable identity while storage is unchanged — so repeated reads
+//during one keystroke's worth of renders reuse the same array rather than
+//re-grouping fifty entries, and the composer's downstream memos see an
+//argument that did not change.
+let rememberedMemo : {recent: RecentCollectionEntry[], result: RememberedCollectionEntry[]} | null = null;
+
 export const readRememberedCollections = (scope = ""): RememberedCollectionEntry[] => {
   const recent = readRecentCollections(scope);
+  if (rememberedMemo && rememberedMemo.recent === recent) return rememberedMemo.result;
+  const result = computeRememberedCollections(recent);
+  rememberedMemo = {recent, result};
+  return result;
+};
+
+const computeRememberedCollections = (recent: RecentCollectionEntry[]): RememberedCollectionEntry[] => {
   const groups = new Map<string, {
     authoring: string;
     exactCanonicals: Set<string>;
@@ -128,23 +142,86 @@ export const readRememberedCollections = (scope = ""): RememberedCollectionEntry
   ].slice(0, MAX_RECENT_COLLECTIONS);
 };
 
+const parseRecentCollections = (raw: string | null): RecentCollectionEntry[] => {
+  if (!raw) return [];
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) return [];
+  const seen = new Set<string>();
+  const result: RecentCollectionEntry[] = [];
+  for (const value of parsed) {
+    const entry = normalizedEntry(value);
+    if (!entry || seen.has(entry.canonical)) continue;
+    seen.add(entry.canonical);
+    result.push(entry);
+    if (result.length >= MAX_RECENT_COLLECTIONS) break;
+  }
+  return result;
+};
+
+//Parsing the stored list costs up to fifty deserialize+serialize round trips,
+//and every collection navigation used to pay it on the main thread before the
+//collection update was even dispatched. The parse is keyed on the exact string
+//that produced it, so a write from another tab (or a test writing storage
+//directly) still invalidates it — the cheap getItem happens either way; only
+//the validation is skipped.
+const parsedCache = new Map<string, {raw: string | null, entries: RecentCollectionEntry[]}>();
+
+//A recorded visit that has not been serialized to storage yet. Reads are served
+//from here, so the composer opened one instruction after a navigation still
+//sees that navigation. baseRaw is what storage held when the entry was built:
+//if storage has since changed underneath us, the pending write is stale and is
+//dropped rather than clobbering the newer value.
+const pendingWrites = new Map<string, {baseRaw: string | null, entries: RecentCollectionEntry[]}>();
+let flushScheduled = false;
+
+//The write itself — JSON.stringify plus a synchronous localStorage set — is the
+//part that has no business running inside a navigation. It is deferred to idle
+//(or, where that does not exist, to the end of the current task), and forced
+//before the page goes away.
+export const flushRecentCollections = (): void => {
+  flushScheduled = false;
+  if (typeof window === "undefined") return;
+  for (const [key, pending] of [...pendingWrites.entries()]) {
+    pendingWrites.delete(key);
+    try {
+      const raw = JSON.stringify(pending.entries);
+      window.localStorage.setItem(key, raw);
+      parsedCache.set(key, {raw, entries: pending.entries});
+    } catch {
+      //History is an enhancement and must never block navigation.
+    }
+  }
+};
+
+const scheduleFlush = (): void => {
+  if (flushScheduled || typeof window === "undefined") return;
+  flushScheduled = true;
+  const idle = (window as unknown as {requestIdleCallback? : (callback : () => void, options? : {timeout : number}) => void}).requestIdleCallback;
+  if (idle) idle.call(window, flushRecentCollections, {timeout: 500});
+  else queueMicrotask(flushRecentCollections);
+};
+
+if (typeof window !== "undefined") {
+  //pagehide, not beforeunload: it fires for bfcache navigations too, and it
+  //never blocks the unload.
+  window.addEventListener("pagehide", flushRecentCollections);
+}
+
 export const readRecentCollections = (scope = ""): RecentCollectionEntry[] => {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(storageKey(scope));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const seen = new Set<string>();
-    const result: RecentCollectionEntry[] = [];
-    for (const value of parsed) {
-      const entry = normalizedEntry(value);
-      if (!entry || seen.has(entry.canonical)) continue;
-      seen.add(entry.canonical);
-      result.push(entry);
-      if (result.length >= MAX_RECENT_COLLECTIONS) break;
+    const key = storageKey(scope);
+    const raw = window.localStorage.getItem(key);
+    const pending = pendingWrites.get(key);
+    if (pending) {
+      if (pending.baseRaw === raw) return pending.entries;
+      pendingWrites.delete(key);
     }
-    return result;
+    const cached = parsedCache.get(key);
+    if (cached && cached.raw === raw) return cached.entries;
+    const entries = parseRecentCollections(raw);
+    parsedCache.set(key, {raw, entries});
+    return entries;
   } catch {
     return [];
   }
@@ -157,6 +234,9 @@ export const recordRecentCollection = (
 ): void => {
   if (typeof window === "undefined") return;
   try {
+    const key = storageKey(scope);
+    const pending = pendingWrites.get(key);
+    const baseRaw = pending ? pending.baseRaw : window.localStorage.getItem(key);
     const recent = readRecentCollections(scope);
     const canonical = description.serialize();
     const previous = recent.find((entry) => entry.canonical === canonical);
@@ -180,7 +260,8 @@ export const recordRecentCollection = (
       entry,
       ...recent.filter((item) => item.canonical !== canonical),
     ].slice(0, MAX_RECENT_COLLECTIONS);
-    window.localStorage.setItem(storageKey(scope), JSON.stringify(next));
+    pendingWrites.set(key, {baseRaw, entries: next});
+    scheduleFlush();
   } catch {
     //History is an enhancement and must never block navigation.
   }

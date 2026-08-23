@@ -1441,6 +1441,74 @@ describe("Collection Composer interactions", () => {
     assert.strictEqual(window.location.pathname, "/c/starred/_");
   });
 
+  //All three are pure functions of state that the composer asks for several
+  //times per render, and all three used to recompute from scratch on every
+  //keystroke. A stable result IDENTITY across repeated reads is the observable
+  //form of "it did not recompute".
+  it("recomputes its pure derivations only when their inputs change", async () => {
+    const candidates = dialog._contextualComposerCandidates;
+    assert.strictEqual(dialog._contextualComposerCandidates, candidates);
+    assert.strictEqual(dialog._composerFilterLabels, dialog._composerFilterLabels);
+
+    const parsed = dialog._parsedSource;
+    assert.strictEqual(dialog._parsedSource, parsed);
+
+    const catalog = dialog._catalogItems;
+    assert.strictEqual(dialog._catalogItems, catalog);
+
+    const suggestions = dialog._composerSuggestions;
+    assert.strictEqual(dialog._composerSuggestions, suggestions);
+
+    //And they still recompute when something they depend on actually moves.
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    input.value = "star";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await dialog.updateComplete;
+    assert.notStrictEqual(dialog._catalogItems, catalog);
+    assert.notStrictEqual(dialog._composerSuggestions, suggestions);
+  });
+
+  //Every keystroke used to blank every count and re-enqueue, so each character
+  //erased counts that were still correct for the whole debounce plus a worker
+  //round trip — and the primary button flipped between "Open this collection"
+  //and "Open N cards" while the draft it describes had not changed at all.
+  it("keeps a count whose collection did not change across a keystroke", async () => {
+    window.localStorage.setItem("collection-composer-preview", "on");
+    try {
+      const draftKey = dialog._previewCountKey(dialog._collectionDescription);
+      dialog._retainedPreviewCounts.set(draftKey, 1307);
+      dialog._refreshPreviewCounts();
+      assert.strictEqual(dialog._previewCounts[dialog._draftPreviewID], 1307);
+      assert.strictEqual(dialog._draftCountPending, false,
+        "a known count is not a pending one");
+
+      //A keystroke changes the suggestion list but not the draft collection.
+      const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+      input.value = "sta";
+      input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      await dialog.updateComplete;
+      assert.strictEqual(dialog._previewCounts[dialog._draftPreviewID], 1307,
+        "typing must not blank the count of a collection that did not change");
+      assert.strictEqual(dialog._draftCountPending, false);
+      assert.match(dialog.shadowRoot.querySelector(".composer-actions .primary").textContent,
+        /Open 1307 cards/);
+
+      //Changing the DRAFT is a different collection, so the count is genuinely
+      //unknown — and says so, rather than silently reading as "no data".
+      Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+        .find((button) => button.textContent.includes("Add Starred")).click();
+      await dialog.updateComplete;
+      assert.strictEqual(dialog._previewCounts[dialog._draftPreviewID], undefined);
+      assert.strictEqual(dialog._draftCountPending, true);
+      //Counts are recomputed in updated(), so the DOM catches up one frame later.
+      await dialog.updateComplete;
+      assert.match(dialog.shadowRoot.querySelector(".expression").textContent, /counting…/);
+    } finally {
+      window.localStorage.removeItem("collection-composer-preview");
+      dialog._retainedPreviewCounts.clear();
+    }
+  });
+
   //An option must be owned by its listbox. A plain <div> in between silently
   //breaks the listbox -> option relationship, so a screen reader announces a
   //listbox with no options in it.

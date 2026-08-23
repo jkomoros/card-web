@@ -136,7 +136,12 @@ import {
 
 import {
 	readRememberedCollections,
+	RememberedCollectionEntry,
 } from '../collection-composer-history.js';
+
+import {
+	memoize,
+} from '../memoize.js';
 
 export const UNDO_COLLECTION_NAVIGATION_ACTION_ID = 'undo-collection-navigation';
 
@@ -183,6 +188,129 @@ import {
 const CURRENT_DRAFT_SUGGESTION_ID = 'current-draft';
 
 const ALREADY_ACTIVE_MESSAGE = 'This collection is already open.';
+
+//How many distinct collections' counts one composer session remembers. Every
+//keystroke can name a few new ones; this is generous for a session and small
+//enough to be free.
+const RETAINED_PREVIEW_COUNT_LIMIT = 120;
+
+//Stable stand-ins for the not-yet-populated cases. A fresh `{}` or a fresh
+//CollectionDescription every render would give the memos below a new cache key
+//each time and defeat them entirely.
+const EMPTY_FILTER_DESCRIPTIONS : {[filterName : string]: string} = {};
+const EMPTY_COLLECTION_DESCRIPTION = new CollectionDescription();
+
+//Four pure derivations that every render of the composer asks for, several of
+//them more than once per render, and all of which used to recompute from
+//scratch on every keystroke — measured at 1.4ms (source parse), 1.0ms (filter
+//catalog) and 0.74ms (suggestions) per call, up to five calls per character.
+//They are memoized here rather than on the instance so the cache key is the
+//arguments, which is what actually decides whether the answer can change; the
+//codebase's own memoize() compares argument tuples by identity, so each of
+//these takes only values whose identity is already stable (Redux selector
+//results, strings, and the outputs of the memos above it).
+const composerCandidatesFor = memoize((activeCard : ProcessedCard | null, composerCandidates : CollectionComposerCandidate[], activeCardID : string) : CollectionComposerCandidate[] => {
+	const activeMetadata = activeCardMetadataCandidates(activeCard ? {
+		section: activeCard.section,
+		tags: activeCard.tags,
+		cardType: activeCard.card_type,
+		contributors: [activeCard.author, ...activeCard.collaborators],
+	} : null, composerCandidates);
+	const contextualFilters = new Set(activeMetadata.map(candidate => candidate.filter));
+	return [
+		...activeMetadata,
+		...composerCandidates.filter(candidate => !contextualFilters.has(candidate.filter)),
+		...activeCardRelationshipCandidates(activeCardID),
+	];
+}, 2) as (activeCard : ProcessedCard | null, composerCandidates : CollectionComposerCandidate[], activeCardID : string) => CollectionComposerCandidate[];
+
+const composerFilterLabelsFor = memoize((candidates : CollectionComposerCandidate[]) : Record<string, string> =>
+	collectionFilterLabels(candidates), 2) as (candidates : CollectionComposerCandidate[]) => Record<string, string>;
+
+const parsedSourceFor = memoize((
+	sourceInput : string,
+	candidates : CollectionComposerCandidate[],
+	filterDescriptions : {[filterName : string]: string},
+	preservedSelectedCard : string
+) : ParsedCollectionSource => parseCollectionSource(sourceInput, {
+	ordinaryFilters: new Set(Object.keys(filterDescriptions || {})),
+	filterDescriptions,
+	suggestedFilters: candidates.map(candidate => candidate.filter),
+	filterSearchValues: Object.fromEntries(candidates.map(candidate => [candidate.filter, [candidate.label, candidate.category, ...(candidate.aliases || [])]])),
+	preservedSelectedCard,
+	allowedOrigins: COMPOSER_ALLOWED_ORIGINS,
+}), 2) as (sourceInput : string, candidates : CollectionComposerCandidate[], filterDescriptions : {[filterName : string]: string}, preservedSelectedCard : string) => ParsedCollectionSource;
+
+const catalogItemsFor = memoize((
+	filterDescriptions : {[filterName : string]: string},
+	candidates : CollectionComposerCandidate[],
+	draft : CollectionDescription,
+	query : string,
+	polarity : CollectionFilterCatalogPolarity
+) : CollectionFilterCatalogItem[] => buildCollectionFilterCatalog(filterDescriptions, candidates, draft, query, polarity), 2) as (
+	filterDescriptions : {[filterName : string]: string},
+	candidates : CollectionComposerCandidate[],
+	draft : CollectionDescription,
+	query : string,
+	polarity : CollectionFilterCatalogPolarity
+) => CollectionFilterCatalogItem[];
+
+type RecentComposerCollection = {description : CollectionDescription, visits : number, frequent? : boolean, relative? : boolean};
+
+//The remembered list already has a stable identity while storage is unchanged,
+//so deserializing it into descriptions can key on that identity.
+const recentCollectionsFor = memoize((remembered : RememberedCollectionEntry[]) : RecentComposerCollection[] =>
+	remembered.map(entry => ({
+		description: CollectionDescription.deserialize(entry.authoring),
+		visits: entry.visits,
+		frequent: entry.frequent,
+		relative: entry.relative,
+	})), 2) as (remembered : RememberedCollectionEntry[]) => RecentComposerCollection[];
+
+//The ranking and the frozen-order reshuffle are the last two steps of the same
+//per-keystroke derivation, so they are memoized on the same terms the list
+//itself is: the row set, and the counts that may reorder it.
+const rankedSuggestionsFor = memoize((suggestions : CollectionComposerSuggestion[], previewCounts : {[suggestionID : string]: number}) : CollectionComposerSuggestion[] =>
+	rankedComposerSuggestions(suggestions, previewCounts), 2) as (suggestions : CollectionComposerSuggestion[], previewCounts : {[suggestionID : string]: number}) => CollectionComposerSuggestion[];
+
+const frozenOrderSuggestions = memoize((suggestions : CollectionComposerSuggestion[], order : string[]) : CollectionComposerSuggestion[] => {
+	const position = new Map(order.map((id, index) => [id, index]));
+	return suggestions
+		.map((suggestion, index) => ({suggestion, index}))
+		.sort((left, right) =>
+			(position.get(left.suggestion.id) ?? left.index) - (position.get(right.suggestion.id) ?? right.index))
+		.map(({suggestion}) => suggestion);
+}, 2) as (suggestions : CollectionComposerSuggestion[], order : string[]) => CollectionComposerSuggestion[];
+
+const composerSuggestionsFor = memoize((
+	draft : CollectionDescription,
+	input : string,
+	filterDescriptions : {[filterName : string]: string},
+	cardsSelected : boolean,
+	recentCollections : RecentComposerCollection[],
+	activeCollection : CollectionDescription | undefined,
+	previousCollection : string | undefined,
+	preservedSelectedCard : string,
+	candidates : CollectionComposerCandidate[]
+) : CollectionComposerSuggestion[] => collectionComposerSuggestions(draft, input, filterDescriptions, {
+	cardsSelected,
+	recentCollections,
+	activeCollection,
+	previousCollection,
+	preservedSelectedCard,
+	sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
+	candidates,
+}), 2) as (
+	draft : CollectionDescription,
+	input : string,
+	filterDescriptions : {[filterName : string]: string},
+	cardsSelected : boolean,
+	recentCollections : RecentComposerCollection[],
+	activeCollection : CollectionDescription | undefined,
+	previousCollection : string | undefined,
+	preservedSelectedCard : string,
+	candidates : CollectionComposerCandidate[]
+) => CollectionComposerSuggestion[];
 
 //Which origins a pasted collection URL may come from. Always the origin this
 //client is running on; plus this deployment's own public domain, which is
@@ -313,6 +441,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_previewCounts: {[suggestionID : string]: number} = {};
+
+	//Whether the DRAFT's own count is still being computed. Every other count
+	//is decoration on a row; this one drives the primary button's label, and
+	//"we don't know yet" and "there is nothing to say" are different facts
+	//(HS-3.6) that both used to render as a bare "Open this collection".
+	@state()
+		_draftCountPending = false;
+
+	//Counts keyed by the collection they counted, not by the suggestion that
+	//happened to name it. _refreshPreviewCounts used to blank every count and
+	//re-enqueue on every keystroke, so each character erased counts that were
+	//still correct for ~150ms of debounce plus a worker round trip — and the
+	//primary button flipped between "Open this collection" and "Open 1307
+	//cards" while the draft it describes had not changed at all.
+	//
+	//Deliberately NOT kept past the composer session: the preview module does
+	//not cache completed results because corpus membership can change under it,
+	//and this cache accepts that same risk only for as long as one composer is
+	//open, where the alternative is measurably worse.
+	_retainedPreviewCounts = new Map<string, number>();
 
 	@state()
 		_activeCardID = '';
@@ -712,8 +860,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
 			}
 
+			/* The label alternates between "Open this collection" and "Open
+			   1307 cards" as counts arrive. Retention keeps that from happening
+			   on every keystroke; reserving the width keeps the remaining,
+			   genuine transitions from moving the button under the pointer. */
 			.composer-actions .primary {
 				min-height: 44px;
+				min-width: 12em;
+			}
+
+			.expression-count[data-pending] {
+				color: var(--app-dark-text-color-light);
+				font-style: italic;
 			}
 
 			.source-editor label,
@@ -809,15 +967,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	get _parsedSource() : ParsedCollectionSource {
-		const candidates = this._contextualComposerCandidates;
-		return parseCollectionSource(this._sourceInput, {
-			ordinaryFilters: new Set(Object.keys(this._filterDescriptions || {})),
-			filterDescriptions: this._filterDescriptions,
-			suggestedFilters: candidates.map(candidate => candidate.filter),
-			filterSearchValues: Object.fromEntries(candidates.map(candidate => [candidate.filter, [candidate.label, candidate.category, ...(candidate.aliases || [])]])),
-			preservedSelectedCard: this._draftSelectedCard,
-			allowedOrigins: COMPOSER_ALLOWED_ORIGINS,
-		});
+		return parsedSourceFor(this._sourceInput, this._contextualComposerCandidates, this._filterDescriptions, this._draftSelectedCard);
 	}
 
 	_sourceRender() {
@@ -997,10 +1147,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	get _catalogItems() : CollectionFilterCatalogItem[] {
-		return buildCollectionFilterCatalog(
-			this._filterDescriptions || {},
+		return catalogItemsFor(
+			this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
 			this._contextualComposerCandidates,
-			this._collectionDescription || new CollectionDescription(),
+			this._collectionDescription || EMPTY_COLLECTION_DESCRIPTION,
 			this._composerInput,
 			this._catalogPolarity
 		);
@@ -1172,7 +1322,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					</span>
 				`)}
 				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
-				${draftCount === undefined ? '' : html`<span class='expression-count'>· ${formatCollectionCardCount(draftCount)}</span>`}
+				${draftCount === undefined ?
+		(this._draftCountPending ? html`<span class='expression-count' data-pending role='status'>· counting…</span>` : '') :
+		html`<span class='expression-count'>· ${formatCollectionCardCount(draftCount)}</span>`}
 				<input
 					class='composer-input'
 					id='collection-composer-input'
@@ -1310,25 +1462,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//visited before it. That is the only thing that earns the words "Back
 		//to"; anything further back is a destination, not a direction.
 		const previousCollection = remembered.slice(0, 2).find(entry => entry.canonical !== activeCanonical)?.canonical;
-		const recentCollections = remembered.map(entry => ({
-			description: CollectionDescription.deserialize(entry.authoring),
-			visits: entry.visits,
-			frequent: entry.frequent,
-			relative: entry.relative,
-		}));
-		const suggestions = collectionComposerSuggestions(
+		const suggestions = composerSuggestionsFor(
 			this._collectionDescription,
 			this._composerInput,
-			this._filterDescriptions || {},
-			{
-				cardsSelected: this._cardsSelected,
-				recentCollections,
-				activeCollection: this._activeCollectionDescription || undefined,
-				previousCollection,
-				preservedSelectedCard: this._draftSelectedCard,
-				sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
-				candidates: this._contextualComposerCandidates,
-			}
+			this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
+			this._cardsSelected,
+			recentCollectionsFor(remembered),
+			this._activeCollectionDescription || undefined,
+			previousCollection,
+			this._draftSelectedCard,
+			this._contextualComposerCandidates
 		);
 		//Count-aware ranking, without the list moving under the user's hands.
 		//The identity of the row set is the "was this list rebuilt?" test: a
@@ -1338,35 +1481,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const key = suggestions.map(suggestion => suggestion.id).join('\n');
 		const memo = this._suggestionOrder;
 		if (memo && memo.key === key && this._suggestionHighlightActive) {
-			const position = new Map(memo.order.map((id, index) => [id, index]));
-			return suggestions
-				.map((suggestion, index) => ({suggestion, index}))
-				.sort((left, right) =>
-					(position.get(left.suggestion.id) ?? left.index) - (position.get(right.suggestion.id) ?? right.index))
-				.map(({suggestion}) => suggestion);
+			return frozenOrderSuggestions(suggestions, memo.order);
 		}
-		const ranked = rankedComposerSuggestions(suggestions, this._previewCounts);
-		this._suggestionOrder = {key, order: ranked.map(suggestion => suggestion.id)};
+		const ranked = rankedSuggestionsFor(suggestions, this._previewCounts);
+		const order = ranked.map(suggestion => suggestion.id);
+		//Only when the order actually moved: reassigning an identical memo would
+		//hand the frozen-order path a new array every render and defeat its
+		//cache, which is the whole reason the list is stable to begin with.
+		if (!memo || memo.key !== key || memo.order.length !== order.length || memo.order.some((id, index) => id !== order[index])) {
+			this._suggestionOrder = {key, order};
+		}
 		return ranked;
 	}
 
 	get _contextualComposerCandidates() : CollectionComposerCandidate[] {
-		const activeMetadata = activeCardMetadataCandidates(this._activeCard ? {
-			section: this._activeCard.section,
-			tags: this._activeCard.tags,
-			cardType: this._activeCard.card_type,
-			contributors: [this._activeCard.author, ...this._activeCard.collaborators],
-		} : null, this._composerCandidates);
-		const contextualFilters = new Set(activeMetadata.map(candidate => candidate.filter));
-		return [
-			...activeMetadata,
-			...this._composerCandidates.filter(candidate => !contextualFilters.has(candidate.filter)),
-			...activeCardRelationshipCandidates(this._activeCardID),
-		];
+		return composerCandidatesFor(this._activeCard, this._composerCandidates, this._activeCardID);
 	}
 
 	get _composerFilterLabels() : Record<string, string> {
-		return collectionFilterLabels(this._contextualComposerCandidates);
+		return composerFilterLabelsFor(this._contextualComposerCandidates);
 	}
 
 	_readableComposerFilter(filter : string) : string {
@@ -2129,6 +2262,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._pendingCatalogChanged = false;
 				this._expandedCatalogCategories = new Set();
 				this._catalogPolarity = {};
+				//A fresh session gets fresh counts: corpus membership may have
+				//changed since the last time this composer was open.
+				this._retainedPreviewCounts.clear();
 				this._selectedClauseIndex = -1;
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';
@@ -2175,13 +2311,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		) this._refreshPreviewCounts();
 	}
 
+	//The identity of the thing a count counts. Same shape the preview module
+	//groups its own work by, so two suggestions naming one collection share one
+	//count here for the same reason they share one worker run there.
+	_previewCountKey(description : CollectionDescription) : string {
+		return `${this._activeCardID}\n${description.serialize()}`;
+	}
+
+	_rememberPreviewCount(key : string, count : number) {
+		//Bounded: a long composing session must not grow a map forever.
+		if (this._retainedPreviewCounts.size >= RETAINED_PREVIEW_COUNT_LIMIT) {
+			const oldest = this._retainedPreviewCounts.keys().next().value;
+			if (oldest !== undefined) this._retainedPreviewCounts.delete(oldest);
+		}
+		this._retainedPreviewCounts.set(key, count);
+	}
+
 	_refreshPreviewCounts() {
 		if (this._cancelPreviews) this._cancelPreviews();
 		this._cancelPreviews = null;
 		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
 		const previewDescription = sourceDescription || this._collectionDescription;
-		this._previewCounts = {};
-		if (!this.open || !collectionComposerPreviewEnabled()) return;
+		if (!this.open || !collectionComposerPreviewEnabled()) {
+			this._previewCounts = {};
+			this._draftCountPending = false;
+			return;
+		}
 		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter && !suggestion.sourceFilter);
 		previewSuggestions.unshift({
 			id: this._draftPreviewID,
@@ -2192,12 +2347,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			detail: '',
 			description: previewDescription,
 		});
+		//Keep every count whose collection did not change, and ask only for the
+		//ones nobody has counted yet.
+		const retained : {[suggestionID : string]: number} = {};
+		const missing : CollectionComposerSuggestion[] = [];
+		const keyBySuggestionID = new Map<string, string>();
+		for (const suggestion of previewSuggestions) {
+			const key = this._previewCountKey(suggestion.description);
+			keyBySuggestionID.set(suggestion.id, key);
+			const known = this._retainedPreviewCounts.get(key);
+			if (known === undefined) missing.push(suggestion);
+			else retained[suggestion.id] = known;
+		}
+		this._previewCounts = retained;
+		this._draftCountPending = missing.some(suggestion => suggestion.id === this._draftPreviewID);
+		if (!missing.length) return;
 		this._cancelPreviews = startCollectionComposerPreviews(
-			previewSuggestions,
+			missing,
 			this._activeCardID,
 			corpusWorkerRunCollection,
 			(suggestionID, count) => {
 				if (!this.open) return;
+				const key = keyBySuggestionID.get(suggestionID);
+				if (key) this._rememberPreviewCount(key, count);
+				if (suggestionID === this._draftPreviewID) this._draftCountPending = false;
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}
 		);

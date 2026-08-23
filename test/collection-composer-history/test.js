@@ -15,6 +15,7 @@ let CollectionDescription;
 let readRecentCollections;
 let readRememberedCollections;
 let recordRecentCollection;
+let flushRecentCollections;
 let collectionDescriptionActuallyVisited;
 let collectionDescriptionWithRelativeDateMemory;
 
@@ -23,7 +24,7 @@ describe("Collection Composer history", () => {
     ({ CollectionDescription } = await import(
       "../../lib/src/collection_description.js"
     ));
-    ({ readRecentCollections, readRememberedCollections, recordRecentCollection, collectionDescriptionActuallyVisited } = await import(
+    ({ readRecentCollections, readRememberedCollections, recordRecentCollection, flushRecentCollections, collectionDescriptionActuallyVisited } = await import(
       "../../lib/src/collection-composer-history.js"
     ));
     ({ collectionDescriptionWithRelativeDateMemory } = await import(
@@ -31,7 +32,12 @@ describe("Collection Composer history", () => {
     ));
   });
 
-  beforeEach(() => window.localStorage.clear());
+  //Writes are deferred, so any write still queued from the previous test has
+  //to land before the storage it would land in is thrown away.
+  beforeEach(() => {
+    flushRecentCollections();
+    window.localStorage.clear();
+  });
 
   it("records the retained active collection for bare-card navigation", () => {
     const requestedFallback = CollectionDescription.deserialize("main/section-a/");
@@ -190,5 +196,65 @@ describe("Collection Composer history", () => {
   it("never throws on malformed storage", () => {
     window.localStorage.setItem("collection-composer-history:alex", "{");
     assert.deepStrictEqual(readRecentCollections("alex"), []);
+  });
+
+  //Recording a visit ran inside updateCardSelector, before the collection
+  //update was even dispatched: a full read + validate + write against
+  //localStorage on the main thread for every navigation. The write is now
+  //deferred -- but a composer opened immediately after must still show the
+  //navigation that just happened.
+  it("defers the write without ever serving a stale list", () => {
+    const key = "collection-composer-history:alex";
+    const first = CollectionDescription.deserialize("everything/starred/");
+    recordRecentCollection(first, "alex", 100);
+    assert.strictEqual(window.localStorage.getItem(key), null,
+      "the write must not happen on the navigation's critical path");
+    //The read a freshly-opened composer performs.
+    assert.deepStrictEqual(readRecentCollections("alex").map(entry => entry.canonical), [first.serialize()]);
+    assert.deepStrictEqual(readRememberedCollections("alex").map(entry => entry.canonical), [first.serialize()]);
+
+    //A second navigation before the first write has landed still stacks.
+    const second = CollectionDescription.deserialize("everything/unread/");
+    recordRecentCollection(second, "alex", 200);
+    assert.deepStrictEqual(readRecentCollections("alex").map(entry => entry.canonical),
+      [second.serialize(), first.serialize()]);
+
+    flushRecentCollections();
+    assert.deepStrictEqual(
+      JSON.parse(window.localStorage.getItem(key)).map(entry => entry.canonical),
+      [second.serialize(), first.serialize()]
+    );
+    //And the durable list reads back the same.
+    assert.deepStrictEqual(readRecentCollections("alex").map(entry => entry.canonical),
+      [second.serialize(), first.serialize()]);
+  });
+
+  it("flushes a deferred write without being asked", async () => {
+    const key = "collection-composer-history:alex";
+    recordRecentCollection(CollectionDescription.deserialize("everything/starred/"), "alex", 100);
+    assert.strictEqual(window.localStorage.getItem(key), null);
+    //Whatever the environment offers -- requestIdleCallback in a browser, the
+    //microtask queue otherwise -- the write lands on its own.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.ok(window.localStorage.getItem(key), "the deferred write must land by itself");
+  });
+
+  //The parse is cached to keep repeat navigations off the fifty-entry
+  //validation path, and the cache must not outlive the value it parsed.
+  it("keeps a cached parse honest about storage written elsewhere", () => {
+    const original = CollectionDescription.deserialize("everything/starred/");
+    recordRecentCollection(original, "alex", 100);
+    flushRecentCollections();
+    const cached = readRecentCollections("alex");
+    assert.strictEqual(readRecentCollections("alex"), cached, "an unchanged list keeps its identity");
+
+    const other = CollectionDescription.deserialize("everything/unread/");
+    window.localStorage.setItem("collection-composer-history:alex", JSON.stringify([{
+      canonical: other.serialize(),
+      authoring: other.serializeOriginalOrder(),
+      visitedAt: 500,
+      visits: 1,
+    }]));
+    assert.deepStrictEqual(readRecentCollections("alex").map(entry => entry.canonical), [other.serialize()]);
   });
 });
