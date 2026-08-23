@@ -299,28 +299,20 @@ class CardWebApp extends connect(store)(LitElement) {
 				max-width: calc(100vw - 11.5rem);
 				gap: 0.65rem;
 				padding: 0.55rem 0.7rem;
-				border-radius: 0.45rem;
-				background: white;
-				box-shadow: 0 2px 12px rgb(0 0 0 / 20%);
-				font: 0.85rem var(--app-default-font-family, sans-serif);
+				/* THE CARD LANGUAGE, not a fourth invented one. This box used to
+				   carry the repo's ONLY 0.45rem radius and its ONLY
+				   0 2px 12px rgb(0 0 0/20%) shadow, while var(--card-shadow) on a
+				   square surface has six uses across cards, dialogs, thumbnails,
+				   comment threads and progress-panel. §4.4 says core surfaces are
+				   square. Design review put a toast and a banner side by side and
+				   the honest conclusion was that the BANNER was the outlier —
+				   so it moves, and two one-off values leave the codebase. */
+				border-radius: 0;
+				background-color: var(--card-color);
+				box-shadow: var(--card-shadow);
+				font-size: 0.85rem;
 			}
-			.update-ready button {
-				border: 0;
-				border-radius: 0.3rem;
-				/* Neutralize the base button treatment ButtonSharedStyles now
-				   contributes: its margin, and its rest/hover drop shadows,
-				   which are the filled-workhorse-button look, not this
-				   banner's. */
-				margin: 0;
-				box-shadow: none;
-				padding: 0.4rem 0.6rem;
-				background: var(--app-primary-color);
-				color: white;
-				font: inherit;
-				font-weight: 600;
-				cursor: pointer;
-			}
-			.update-ready button:hover { box-shadow: none; }
+			/* button.text and button.discard come from ButtonSharedStyles. */
 			.update-ready button[disabled] { opacity: 0.55; cursor: not-allowed; }
 			/* button:disabled:hover (0,2,1) from ButtonSharedStyles otherwise
 			   outranks the banner rule and flips a disabled purple button to
@@ -367,8 +359,7 @@ class CardWebApp extends connect(store)(LitElement) {
 			   was scoped to one banner it rendered as filled purple — the app's
 			   PRIMARY action treatment, on the least consequential control on
 			   screen. */
-			.update-ready .discard { background: transparent; color: inherit; text-decoration: underline; box-shadow: none; font-weight: normal; }
-			.update-ready .discard:hover { box-shadow: none; background: transparent; }
+
 			.draft-error { color: var(--app-warning-color-light); }
 			/* The saving pill speaks the app's existing ambient-status idiom
 			   (#764): the CAPSULE treatment is byte-identical to the floating
@@ -422,7 +413,7 @@ class CardWebApp extends connect(store)(LitElement) {
 			   full-strength warning red belongs to the Stop control alone. */
 			.save-dot { width: 0.5rem; height: 0.5rem; flex-shrink: 0; border-radius: 50%; background: var(--app-pending-color); }
 			/* The reason is supporting detail, not a second headline. */
-			.save-reason { color: var(--app-dark-text-color-light); }
+			.save-reason { color: var(--app-dark-text-color-darker); }
 			/* 18px glyphs per the button.small idiom, plus real padding: the
 			   base idiom's zero-padding 18px hit target is too small for the
 			   app's only recovery controls, where the safe Retry sits beside
@@ -463,18 +454,18 @@ class CardWebApp extends connect(store)(LitElement) {
 				<div class='update-ready error-banner' role='alert'>
 					<span class='error-mark' aria-hidden='true'></span>
 					<span>${error.what}${error.reassurance ? html` <span class='reassurance'>${error.reassurance}</span>` : ''}</span>
-					${error.action ? html`<button @click=${() => this._runErrorAction(error)}>${error.action.label}</button>` : ''}
+					${error.action ? html`<button class='text' @click=${() => this._runErrorAction(error)}>${error.action.label}</button>` : ''}
 					<button class='discard' @click=${() => this._dismissError(error)}>Dismiss</button>
 				</div>`)}
 			${this._updateRegistration || this._updateActivated ? html`
 				<div class='update-ready' role='status' aria-live='polite'>
 					<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
-					<button ?disabled=${Boolean(this._currentUnsafeExitReason()) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
+					<button class='text' ?disabled=${Boolean(this._currentUnsafeExitReason()) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
 				</div>` : ''}
 			${this._draftAvailable ? html`
 				<div class='update-ready draft-recovery' role='alert' aria-live='assertive'>
 					<span>${this._draftError || (this._draftCount > 1 ? `${this._draftCount} unsaved card drafts are available.` : 'An unsaved card draft is available.')}</span>
-					<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
+					<button class='text' ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
 					<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
 				</div>` : ''}
 		</div>

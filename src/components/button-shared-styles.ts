@@ -114,6 +114,63 @@ export const ButtonSharedStyles = css`
 		fill: var(--app-dark-text-color-light);
 	}
 
+	/* TEXT BUTTON — §4.2's named variant, for banners and gates "where a verb is
+	   clearer than a glyph". It was hand-rolled in card-web-app and again in
+	   snack-bar, and both copies existed mostly to UNDO the base treatment's
+	   margin and drop shadows. Here once instead. */
+	button.text {
+		flex-shrink: 0;
+		border: 0;
+		border-radius: 0.3rem;
+		margin: 0;
+		box-shadow: none;
+		padding: 0.4rem 0.6rem;
+		background: var(--app-primary-color);
+		color: var(--app-light-text-color);
+	}
+
+	button.text:hover {
+		box-shadow: none;
+	}
+
+	button.text[disabled], button.text:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	/* button:disabled:hover from the base rule otherwise outranks this and flips
+	   a disabled purple button to grey under the cursor, which reads as broken. */
+	button.text:disabled:hover {
+		background: var(--app-primary-color);
+		box-shadow: none;
+	}
+
+	/* DISCARD — the low-emphasis companion to a text button: dismissing an error
+	   or discarding a draft should recede, not compete. box-shadow:none is
+	   load-bearing, or the base rule's shadows box the link. */
+	button.discard {
+		flex-shrink: 0;
+		margin: 0;
+		padding: 0.4rem 0.6rem;
+		background: transparent;
+		color: inherit;
+		box-shadow: none;
+		text-decoration: underline;
+	}
+
+	button.discard:hover {
+		background: transparent;
+		box-shadow: none;
+	}
+
+	/* These banners hold the app's ONLY recovery controls, and a keyboard user
+	   must be able to see which of two adjacent buttons — one destructive — is
+	   focused. ButtonSharedStyles strips the UA ring app-wide. */
+	button.text:focus-visible, button.discard:focus-visible {
+		outline: 2px solid var(--app-primary-color);
+		outline-offset: 2px;
+	}
+
 	label {
 		font-size:0.75em;
 		color: var(--app-dark-text-color-light);

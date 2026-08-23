@@ -123,10 +123,10 @@ class SnackBar extends connect(store)(LitElement) {
 			   settle by making a fourth box disagree with the other three. */
 			.toast {
 				pointer-events: auto;
-				background: white;
+				background-color: var(--card-color);
 				color: inherit;
-				border-radius: 0.45rem;
-				box-shadow: 0 2px 12px rgb(0 0 0 / 20%);
+				border-radius: 0;
+				box-shadow: var(--card-shadow);
 				padding: 0.55rem 0.7rem;
 				display: flex;
 				flex-direction: row;
@@ -168,36 +168,9 @@ class SnackBar extends connect(store)(LitElement) {
 
 			/* The banner's text-button treatment, so all four boxes in the
 			   column offer their actions the same way. */
-			button.primary {
-				flex-shrink: 0;
-				border: 0;
-				border-radius: 0.3rem;
-				margin: 0;
-				box-shadow: none;
-				padding: 0.4rem 0.6rem;
-				background: var(--app-primary-color);
-				color: white;
-				font: inherit;
-				cursor: pointer;
-			}
-			button.primary:hover { box-shadow: none; }
+			/* button.text comes from ButtonSharedStyles. */
 
-			/* An underlined text link, like the banners' Dismiss and Discard —
-			   not a filled circle-X. Four boxes in one column dismissing two
-			   different ways is the kind of thing a user notices without being
-			   able to say why. */
-			button.dismiss {
-				flex-shrink: 0;
-				margin: 0;
-				padding: 0.4rem 0.2rem;
-				background: transparent;
-				color: inherit;
-				box-shadow: none;
-				text-decoration: underline;
-				font: inherit;
-				cursor: pointer;
-			}
-			button.dismiss:hover { box-shadow: none; background: transparent; }
+			/* button.discard comes from ButtonSharedStyles. */
 
 			@media (prefers-reduced-motion: reduce) {
 				.toast { transition: none; }
@@ -267,8 +240,8 @@ class SnackBar extends connect(store)(LitElement) {
 							${entry.detailLines.map(line => html`<div class='detail-line'>${line}</div>`)}
 						</details>` : ''}
 				</div>
-				${entry.action ? html`<button class='primary' @click=${() => this._handleAction(entry)}>${entry.action.label}</button>` : ''}
-				<button class='dismiss' title='Dismiss' aria-label='Dismiss' @click=${() => this._handleDismiss(entry)}>Dismiss</button>
+				${entry.action ? html`<button class='text' @click=${() => this._handleAction(entry)}>${entry.action.label}</button>` : ''}
+				<button class='discard' title='Dismiss' aria-label='Dismiss' @click=${() => this._handleDismiss(entry)}>Dismiss</button>
 			</div>
 		`;
 	}

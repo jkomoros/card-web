@@ -110,10 +110,10 @@ class CorpusStatusIndicator extends connect(store)(LitElement) {
 			font-variant-numeric: tabular-nums;
 			/* NOT --app-dark-text-color-light (#AAA): ~2.3:1 on the pill's
 			   white background, for the one number this whole surface exists
-			   to show. #7f7f7f is 4.00:1 — better, though still short of AA's
-			   4.5:1 for normal text. (This said 4.6:1 until it was actually
-			   computed.) */
-			color: var(--app-dark-text-color);
+			   to show. --app-dark-text-color is 4.00:1 and still short of AA's
+			   4.5:1, so this uses the darker token at 8.24:1. (The comment said
+			   4.6:1 for a long time; it was never measured.) */
+			color: var(--app-dark-text-color-darker);
 			line-height: 1;
 		}
 

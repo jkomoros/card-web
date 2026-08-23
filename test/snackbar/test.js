@@ -309,7 +309,7 @@ describe('the snack bar queue (#758)', () => {
 			element.stateChanged(store.getState());
 			await element.updateComplete;
 
-			const dismiss = element.shadowRoot.querySelector('button.dismiss');
+			const dismiss = element.shadowRoot.querySelector('button.discard');
 			assert.strictEqual(dismiss.getAttribute('aria-label'), 'Dismiss');
 			assert.strictEqual(dismiss.getAttribute('title'), 'Dismiss');
 		});
