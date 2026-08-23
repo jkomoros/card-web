@@ -209,6 +209,13 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-section-even-color: #f7f7f7;
 				--app-section-odd-color: white;
 
+				/* Body text at chrome sizes. #7f7f7f is 4.00:1 on white and #AAA is
+				2.32:1 — both fail AA for normal text, and comments in
+				corpus-status-indicator and progress-panel already reject them for
+				exactly that. This is 8.24:1, and it is what the snack bar was
+				accidentally rendering through a var() fallback for a token that did
+				not exist — §4.1's named failure mode. Making it real is the fix. */
+				--app-dark-text-color-darker: #4d4d4d;
 				--app-dark-text-color-light: #AAA;
 				--app-dark-text-color-subtle: #CCC;
 				--app-divider-color: #eee;
@@ -352,7 +359,7 @@ class CardWebApp extends connect(store)(LitElement) {
 				flex-shrink: 0;
 				background: var(--app-warning-color);
 			}
-			.error-banner .reassurance { color: var(--app-dark-text-color); }
+			.error-banner .reassurance { color: var(--app-dark-text-color-darker); }
 			/* box-shadow: none is load-bearing: the base button rule's rest
 			   and hover shadows otherwise apply, boxing the text link.
 			   Scoped to .discard rather than to .draft-recovery .discard: the

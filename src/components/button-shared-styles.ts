@@ -16,6 +16,11 @@ export const ButtonSharedStyles = css`
 	}
 
 	button {
+		/* font, not just font-size: without the family a button falls back to
+		   the UA default and rendered in Arial beside Source Sans Pro. The
+		   banners patched this locally with their own font shorthand; it
+		   belongs here. (No backticks: tagged template.) */
+		font: inherit;
 		font-size: inherit;
 		vertical-align: middle;
 		color: var(--app-light-text-color);

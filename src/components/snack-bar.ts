@@ -13,10 +13,6 @@ import {
 } from '../actions/app.js';
 
 import {
-	CANCEL_ICON
-} from '../../shared/icons.js';
-
-import {
 	SnackbarID,
 	SnackbarMessage,
 	State
@@ -73,7 +69,13 @@ class SnackBar extends connect(store)(LitElement) {
 			   the same flex column. */
 			:host {
 				display: block;
-				width: min(30rem, calc(100vw - 2rem));
+				/* max-width, NOT width. A fixed width was WIDER than the
+				   shrink-wrapped .banners container, so on a 390px phone it
+				   dragged the whole column 40px off the left edge of the screen
+				   — carrying the pre-existing banners with it, and clipping the
+				   status dot and the first word of every toast. Sizing to
+				   content the way its three neighbours do cannot do that. */
+				max-width: calc(100vw - 5.5rem);
 				/* Still must not eat a click meant for what is underneath; only
 				   the toasts themselves are interactive. */
 				pointer-events: none;
@@ -94,10 +96,6 @@ class SnackBar extends connect(store)(LitElement) {
 			   covered the update banner's Reload button on a phone. HOUSE-STYLE
 			   §4.6 says the mobile flag is threaded down and set as a class, and
 			   every other component in the repo does that. */
-			:host(.mobile) {
-				width: calc(100vw - 1rem);
-			}
-
 			/* Carries the words for a screen reader and nothing else. Not
 			   display:none or hidden, which would remove it from the a11y tree. */
 			.announce {
@@ -109,26 +107,31 @@ class SnackBar extends connect(store)(LitElement) {
 				white-space: nowrap;
 			}
 
-			/* Follows progress-panel: the dialog .content treatment, square
-			   corners, the one real surface shadow. NOT the old teal fill —
-			   --app-secondary-color means "live/exists" in this app, and the
-			   previous snack-bar used it as a neutral background for every
-			   message it ever showed. */
+			/* It wears the BANNER's clothes, not progress-panel's.
+			   An earlier version copied progress-panel exactly — --card-color,
+			   var(--card-shadow), square — and that comment was right that those
+			   are the app's better-established values. It was still wrong,
+			   because a surface has to match what it is STACKED AGAINST, and
+			   once the toasts moved inside .banners they sit 8px from three
+			   rounded white banners. Design review put the two boxes side by
+			   side: same column, sharing nothing — different radius, shadow,
+			   background, padding, gap, text colour and even typeface.
+			   Whether the banner or the card is the app's real surface language
+			   is a live question (§4.4 says square, and the banner's shadow is
+			   the only one of its kind in the repo). But that is a change to
+			   .update-ready affecting three shipped surfaces, not something to
+			   settle by making a fourth box disagree with the other three. */
 			.toast {
 				pointer-events: auto;
-				background-color: var(--card-color);
-				/* NOT --app-dark-text-color at this size. progress-panel, the
-				   primitive this otherwise follows, carries a comment rejecting
-				   exactly that: it is calibrated for 24px headings and fails AA
-				   at body size (3.90:1 measured here). De-emphasize by SIZE, not
-				   by grey. */
-				color: var(--app-dark-text-color-darker, #4d4d4d);
-				box-shadow: var(--card-shadow);
-				padding: 0.75rem;
+				background: white;
+				color: inherit;
+				border-radius: 0.45rem;
+				box-shadow: 0 2px 12px rgb(0 0 0 / 20%);
+				padding: 0.55rem 0.7rem;
 				display: flex;
 				flex-direction: row;
 				align-items: flex-start;
-				gap: 0.5rem;
+				gap: 0.65rem;
 				font-size: 0.85rem;
 				transition: opacity var(--transition-fade), transform var(--transition-fade);
 			}
@@ -160,21 +163,41 @@ class SnackBar extends connect(store)(LitElement) {
 			summary, .detail-line {
 				cursor: pointer;
 				font-size: 0.9em;
-				color: var(--app-dark-text-color);
+				color: var(--app-dark-text-color-darker);
 			}
 
-			/* button.primary from ButtonSharedStyles, not a local seventh
-			   variant; only the margin and hit padding are adjusted for a toast. */
+			/* The banner's text-button treatment, so all four boxes in the
+			   column offer their actions the same way. */
 			button.primary {
 				flex-shrink: 0;
+				border: 0;
+				border-radius: 0.3rem;
 				margin: 0;
-				padding: 0.25rem 0.5rem;
+				box-shadow: none;
+				padding: 0.4rem 0.6rem;
+				background: var(--app-primary-color);
+				color: white;
+				font: inherit;
+				cursor: pointer;
 			}
+			button.primary:hover { box-shadow: none; }
 
-			button.small {
+			/* An underlined text link, like the banners' Dismiss and Discard —
+			   not a filled circle-X. Four boxes in one column dismissing two
+			   different ways is the kind of thing a user notices without being
+			   able to say why. */
+			button.dismiss {
 				flex-shrink: 0;
-				padding: 0.25rem;
+				margin: 0;
+				padding: 0.4rem 0.2rem;
+				background: transparent;
+				color: inherit;
+				box-shadow: none;
+				text-decoration: underline;
+				font: inherit;
+				cursor: pointer;
 			}
+			button.dismiss:hover { box-shadow: none; background: transparent; }
 
 			@media (prefers-reduced-motion: reduce) {
 				.toast { transition: none; }
@@ -245,7 +268,7 @@ class SnackBar extends connect(store)(LitElement) {
 						</details>` : ''}
 				</div>
 				${entry.action ? html`<button class='primary' @click=${() => this._handleAction(entry)}>${entry.action.label}</button>` : ''}
-				<button class='small' title='Dismiss' aria-label='Dismiss' @click=${() => this._handleDismiss(entry)}>${CANCEL_ICON}</button>
+				<button class='dismiss' title='Dismiss' aria-label='Dismiss' @click=${() => this._handleDismiss(entry)}>Dismiss</button>
 			</div>
 		`;
 	}
