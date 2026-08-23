@@ -171,6 +171,7 @@ import {
 	collectionFilterCatalogCategories,
 	CollectionFilterCatalogCategory,
 	CollectionFilterCatalogItem,
+	CollectionFilterCatalogPolarity,
 } from '../collection-filter-catalog.js';
 
 //The synthetic suggestion the primary action and a highlight-free Enter both
@@ -274,6 +275,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_expandedCatalogCategories = new Set<CollectionFilterCatalogCategory>();
+
+	//Which half of each `x` / `not-x` pair the catalog row is currently
+	//offering, for the pairs the user has flipped. One row stands for the whole
+	//pair; this is the only state the affordance needs.
+	@state()
+		_catalogPolarity : CollectionFilterCatalogPolarity = {};
 
 	@state()
 		_cardsSelected = false;
@@ -461,26 +468,50 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				text-transform: uppercase;
 			}
 
+			/* The list takes the height the dialog body has left rather than a
+			   fixed fraction of the viewport: at 800x450 the old
+			   min(42vh, 26em) showed two of twelve rows while the dialog had
+			   room for far more. flex-basis 0 plus min-height keeps it from
+			   collapsing when a long draft expression pushes it down. */
 			.suggestions {
+				flex: 1 1 0;
 				list-style: none;
 				margin: 0.25em 0 0;
-				max-height: min(42vh, 26em);
+				min-height: 7em;
 				overscroll-behavior: contain;
 				padding: 0;
 			}
 
 			.suggestion {
+				align-items: start;
 				border-top: 1px solid var(--app-divider-color);
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
 				margin: 0;
 			}
 
+			/* scrollIntoView({block:'nearest'}) scrolls to the row's own box, so
+			   the group heading above row 0 went out of view on the first arrow
+			   press and never came back — the CONTINUE label vanished for the
+			   rest of the session. The heading is 0.75em text with a 1.2em
+			   margin above it; reserving that much scroll margin keeps it on
+			   screen when its first row is revealed. */
 			.suggestion button {
 				background: transparent;
 				box-shadow: none;
 				color: var(--app-dark-text-color);
-				display: block;
+				column-gap: 0.75em;
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto auto;
+				grid-template-areas:
+					'category category category'
+					'label    count    action'
+					'detail   detail   detail'
+					'example  example  example'
+					'applied  applied  applied';
 				margin: 0;
 				padding: 0.65em 0.5em;
+				scroll-margin-top: 2.2em;
 				text-align: left;
 				width: 100%;
 			}
@@ -496,6 +527,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding-left: calc(0.5em - 3px);
 			}
 
+			.suggestion-label {
+				grid-area: label;
+				min-width: 0;
+				overflow-wrap: anywhere;
+			}
+
 			.suggestion-detail,
 			.key-hints,
 			.no-suggestions {
@@ -505,20 +542,55 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				overflow-wrap: anywhere;
 			}
 
+			.suggestion-detail {
+				grid-area: detail;
+			}
+
+			/* Was float:right inside the wrapping detail block, so on a 375px
+			   screen the count ran straight through the detail text. Its own
+			   grid area cannot overlap anything. */
 			.suggestion-count {
 				color: var(--app-dark-text-color-light);
-				float: right;
 				font-size: 0.82em;
-				margin-left: 1em;
+				grid-area: count;
+				white-space: nowrap;
 			}
 
 			.suggestion-action {
 				color: var(--app-primary-color);
-				float: right;
 				font-size: 0.68em;
+				grid-area: action;
 				letter-spacing: 0.04em;
-				margin-left: 0.75em;
 				text-transform: uppercase;
+				white-space: nowrap;
+			}
+
+			.catalog-polarity {
+				align-self: center;
+				color: var(--app-primary-color);
+				font-size: 0.7em;
+				letter-spacing: 0.04em;
+				margin: 0;
+				min-height: 44px;
+				min-width: 44px;
+				text-transform: uppercase;
+			}
+
+			/* The key-hints line sits below the list and outside it, so the
+			   list's last row was clipped underneath it on a narrow screen. */
+			.mobile .suggestions {
+				padding-bottom: 2.75em;
+			}
+
+			.mobile .suggestion button {
+				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-areas:
+					'category category'
+					'label    count'
+					'action   action'
+					'detail   detail'
+					'example  example'
+					'applied  applied';
 			}
 
 			.builder-toggle {
@@ -535,7 +607,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			.builder {
+				display: flex;
+				flex-direction: column;
 				margin-top: 0.5em;
+				min-height: 0;
+			}
+
+			/* The catalog's own scroller is nested two levels below the dialog
+			   body, so the intervening wrapper has to pass the available height
+			   down instead of shrink-wrapping its content. */
+			.builder-catalog {
+				flex: 1 1 0;
 			}
 
 			.catalog-setup,
@@ -561,18 +643,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				gap: 0.25em;
 			}
 
+			/* Same reason as .suggestions: at 800x450 the fixed max-height
+			   showed six of forty-seven filters inside a dialog with room to
+			   spare. */
 			.catalog-list {
-				max-height: min(36vh, 22em);
+				flex: 1 1 0;
+				min-height: 8em;
 			}
 
 			.catalog-item-applied {
 				color: var(--app-primary-color);
 				font-size: 0.75em;
+				grid-area: applied;
 			}
 
 			.catalog-example {
 				color: var(--app-secondary-color);
 				font-size: 0.78em;
+				grid-area: example;
 				margin-top: 0.15em;
 			}
 
@@ -651,6 +739,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.source-suggestion-category {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.68em;
+				grid-area: category;
 				letter-spacing: 0.04em;
 				text-transform: uppercase;
 			}
@@ -739,7 +828,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					spellcheck='false'
 					role='combobox'
 					aria-autocomplete='list'
-					aria-controls='collection-source-completions'
+					aria-controls=${ifDefined(completions.length ? 'collection-source-completions' : undefined)}
 					aria-expanded=${completions.length > 0}
 					aria-activedescendant=${ifDefined(completions.length ? `collection-source-completion-${this._sourceCompletionIndex}` : undefined)}
 					aria-describedby=${parsed.canonicalPath ? 'collection-source-status collection-source-destination' : 'collection-source-status'}
@@ -759,11 +848,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					${completions.map((completion, index) => {
 						const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
 						return html`
-						<div class='suggestion'>
+						<div class='suggestion' role='presentation'>
 							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @click=${() => this._acceptSourceCompletion(completion)}>
-								<div class='source-suggestion-category'>${presentation.category}</div>
-								<div>${presentation.label}<span class='suggestion-action'>${completionMode}</span></div>
-								<div class='suggestion-detail'>${presentation.detail} · <code>${completion}</code></div>
+								<span class='source-suggestion-category'>${presentation.category}</span>
+								<span class='suggestion-label'>${presentation.label}</span>
+								<span class='suggestion-action'>${completionMode}</span>
+								<span class='suggestion-detail'>${presentation.detail} · <code>${completion}</code></span>
 							</button>
 						</div>
 					`})}
@@ -888,7 +978,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._filterDescriptions || {},
 			this._contextualComposerCandidates,
 			this._collectionDescription || new CollectionDescription(),
-			this._composerInput
+			this._composerInput,
+			this._catalogPolarity
 		);
 	}
 
@@ -957,7 +1048,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 							${shown.map(item => {
 								const index = items.indexOf(item);
 								return html`
-									<div class='suggestion'>
+									<div class='suggestion' role='presentation'>
 										<button
 											id=${`collection-filter-catalog-item-${index}`}
 											role='option'
@@ -966,11 +1057,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 											?data-highlighted=${index === this._catalogHighlightedIndex}
 											@click=${() => this._handleCatalogItem(item)}
 										>
-											<div>${item.label}<span class='suggestion-action'>${!item.guided || item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span></div>
-											<div class='suggestion-detail'>${item.detail}</div>
-											<div class='catalog-example'>Example: ${item.example}</div>
-											${item.appliedIndex >= 0 ? html`<div class='catalog-item-applied'>Already in this collection</div>` : ''}
+											<span class='suggestion-label'>${item.label}</span>
+											<span class='suggestion-action'>${!item.guided || item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span>
+											<span class='suggestion-detail'>${item.detail}</span>
+											<span class='catalog-example'>Example: ${item.example}</span>
+											${item.appliedIndex >= 0 ? html`<span class='catalog-item-applied'>Already in this collection</span>` : ''}
 										</button>
+										${item.oppositeFilter ? html`
+											<button
+												class='small catalog-polarity ${item.negated ? 'selected' : ''}'
+												data-polarity-key=${item.polarityKey}
+												aria-pressed=${item.negated ? 'true' : 'false'}
+												title=${`Use ${this._readableComposerFilter(item.oppositeFilter)} instead`}
+												aria-label=${`Use ${this._readableComposerFilter(item.oppositeFilter)} instead of ${item.label}`}
+												@click=${() => this._handleCatalogPolarityToggle(item)}
+											>Not</button>
+										` : ''}
 									</div>
 								`;
 							})}
@@ -1055,7 +1157,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					role='combobox'
 					aria-label='Compose collection filters'
 					aria-autocomplete='list'
-					aria-controls=${this._catalogOpen ? 'collection-filter-catalog' : 'collection-composer-suggestions'}
+					aria-controls=${ifDefined(this._catalogOpen ? 'collection-filter-catalog' : (suggestions.length ? 'collection-composer-suggestions' : undefined))}
 					aria-expanded=${this._catalogOpen ? this._visibleCatalogItems.length > 0 : suggestions.length > 0}
 					aria-activedescendant=${ifDefined(this._catalogOpen ?
 						(this._visibleCatalogItems[this._catalogHighlightedIndex] ? `collection-filter-catalog-item-${this._catalogHighlightedIndex}` : undefined) :
@@ -1109,7 +1211,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small' @click=${this._handleEditSource}>Edit source</button>
 			</div>
-			${this._catalogOpen ? html`<div class='builder'>${this._catalogRender()}</div>` : ''}
+			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
 			${this._builderExpanded ? html`<div class='builder'>${this._selectedClauseEditorRender()}</div>` : ''}
 			<div class='composer-actions'>
 				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
@@ -1123,7 +1225,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const countDescription = count === undefined ? '' : `${formatCollectionCardCount(count)}${draftCount === undefined ? '' : ` · ${formatCollectionCountDelta(count, draftCount)}`}`;
 		const visibleAction = suggestion.sourceFilter ? 'edit' : suggestion.configureFilter ? (suggestion.action === 'replace' ? 'edit' : 'configure') : suggestion.action;
 		return html`
-						<div class='suggestion'>
+						<div class='suggestion' role='presentation'>
 							<button
 								id='collection-suggestion-${index}'
 								role='option'
@@ -1137,12 +1239,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								@mouseenter=${() => this._handleSuggestionPointerEnter(index)}
 								@click=${() => this._applyComposerSuggestion(suggestion, suggestion.action === 'open')}
 							>
-								<div>
-									${suggestion.label}
-									<span class='suggestion-action'>${visibleAction}</span>
-									${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
-								</div>
-								<div class='suggestion-detail'>${suggestion.detail}</div>
+								<span class='suggestion-label'>${suggestion.label}</span>
+								<span class='suggestion-action'>${visibleAction}</span>
+								${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
+								<span class='suggestion-detail'>${suggestion.detail}</span>
 							</button>
 						</div>
 		`;
@@ -1732,6 +1832,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 	}
 
+	//One row per `x` / `not-x` pair: the toggle swaps which half the row offers
+	//rather than adding anything, so the draft only changes when the row itself
+	//is chosen.
+	_handleCatalogPolarityToggle(item : CollectionFilterCatalogItem) {
+		if (!item.oppositeFilter) return;
+		this._catalogPolarity = {...this._catalogPolarity, [item.polarityKey]: item.oppositeFilter};
+	}
+
 	_handleCatalogCategoryToggle(category : CollectionFilterCatalogCategory) {
 		const expanded = new Set(this._expandedCatalogCategories);
 		if (expanded.has(category)) expanded.delete(category);
@@ -1965,6 +2073,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._pendingCatalogFilter = '';
 				this._pendingCatalogChanged = false;
 				this._expandedCatalogCategories = new Set();
+				this._catalogPolarity = {};
 				this._selectedClauseIndex = -1;
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';

@@ -1290,4 +1290,85 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     assert.strictEqual(window.location.pathname, "/c/starred/_");
   });
+
+  //An option must be owned by its listbox. A plain <div> in between silently
+  //breaks the listbox -> option relationship, so a screen reader announces a
+  //listbox with no options in it.
+  const assertListboxOwnership = (listbox) => {
+    const options = listbox.querySelectorAll('[role="option"]');
+    for (const option of options) {
+      let node = option.parentElement;
+      while (node && node !== listbox) {
+        const role = node.getAttribute("role");
+        assert.ok(
+          role === "presentation" || role === "none" || role === "group",
+          `an element with role="${role}" sits between the listbox and its option`
+        );
+        node = node.parentElement;
+      }
+      assert.strictEqual(node, listbox, "every option must live inside the listbox");
+    }
+  };
+
+  it("keeps every option owned by its listbox", async () => {
+    await seedRecents([["everything/starred/", 3]]);
+    const suggestions = dialog.shadowRoot.querySelector("#collection-composer-suggestions");
+    assert.ok(suggestions);
+    assert.ok(suggestions.querySelectorAll('[role="option"]').length);
+    assertListboxOwnership(suggestions);
+
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const catalog = dialog.shadowRoot.querySelector("#collection-filter-catalog");
+    assert.ok(catalog.querySelectorAll('[role="option"]').length);
+    assertListboxOwnership(catalog);
+  });
+
+  //aria-controls naming an element that is not in the document is a dangling
+  //reference; the composer renders a plain empty-state line, not a listbox,
+  //when nothing matches.
+  it("only points aria-controls at a listbox that is rendered", async () => {
+    const input = dialog.shadowRoot.querySelector("#collection-composer-input");
+    const controls = input.getAttribute("aria-controls");
+    assert.ok(controls && dialog.shadowRoot.querySelector(`#${controls}`),
+      `aria-controls names a missing #${controls}`);
+
+    //The empty-suggestion branch renders a plain line instead of a listbox.
+    //Real corpus state always produces at least a text-query interpretation, so
+    //the branch is driven directly rather than reached by typing something the
+    //composer refuses to interpret.
+    Object.defineProperty(dialog, "_composerSuggestions", { get: () => [], configurable: true });
+    dialog.requestUpdate();
+    await dialog.updateComplete;
+    assert.strictEqual(dialog.shadowRoot.querySelector("#collection-composer-suggestions"), null);
+    assert.strictEqual(input.getAttribute("aria-controls"), null);
+    delete dialog._composerSuggestions;
+  });
+
+  //One row stands for the whole x / not-x pair. Flipping its polarity and
+  //choosing it must add the OTHER filter, not the one the row started on.
+  it("adds the inverse filter when a catalog row's polarity is flipped", async () => {
+    Array.from(dialog.shadowRoot.querySelectorAll("button"))
+      .find((button) => button.textContent.includes("Browse all filters")).click();
+    await dialog.updateComplete;
+    const rowFor = (filterName) => {
+      const option = dialog.shadowRoot.querySelector(`#collection-filter-catalog [data-filter="${filterName}"]`);
+      return option ? option.closest(".suggestion") : null;
+    };
+    const starred = rowFor("starred");
+    assert.ok(starred, "the starred row must be in the catalog");
+    assert.strictEqual(rowFor("unstarred"), null, "unstarred is the same row, not a second one");
+    const polarity = starred.querySelector(".catalog-polarity");
+    assert.ok(polarity, "a merged row must offer a polarity affordance");
+    assert.strictEqual(polarity.getAttribute("aria-pressed"), "false");
+    polarity.click();
+    await dialog.updateComplete;
+    const flipped = rowFor("unstarred");
+    assert.ok(flipped, "flipping polarity must offer the inverse filter");
+    assert.strictEqual(flipped.querySelector(".catalog-polarity").getAttribute("aria-pressed"), "true");
+    flipped.querySelector('[role="option"]').click();
+    await dialog.updateComplete;
+    assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["unstarred"]);
+  });
 });

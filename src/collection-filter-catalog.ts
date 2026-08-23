@@ -1,6 +1,9 @@
 import {
 	CONFIGURABLE_FILTER_ARGUMENTS,
 	CONFIGURABLE_FILTER_NAMES,
+	INVERSE_FILTER_NAMES,
+	REVERSE_CARD_FILTER_CONFIG_MAP,
+	TODO_ALL_INFOS,
 } from './filters.js';
 
 import {
@@ -36,7 +39,22 @@ export type CollectionFilterCatalogItem = {
 	guided: boolean;
 	appliedIndex: number;
 	searchValues: string[];
+	//The other half of an `x` / `not-x` pair, or '' when this filter has no
+	//opposite. One catalog row stands for the whole pair; the polarity
+	//affordance swaps which half `filter` names.
+	oppositeFilter: string;
+	//True when `filter` is the excluding half of the pair, so the row can say
+	//so without re-deriving it from the name.
+	negated: boolean;
+	//The stable identity of the pair, which is what a polarity choice is
+	//recorded against — it does not change when the row flips.
+	polarityKey: string;
 };
+
+//Which filter this catalog row would use if the polarity were flipped, keyed
+//by the pair's stable identity. The component owns the record; the catalog
+//just honors it.
+export type CollectionFilterCatalogPolarity = Readonly<Record<string, string>>;
 
 const CATEGORY_ORDER : CollectionFilterCatalogCategory[] = [
 	'Suggested for this card',
@@ -72,6 +90,37 @@ const COMMON_FILTERS = new Set(COMMON_FILTER_ORDER);
 const SIMILARITY_FILTERS = new Set(['similar', 'similar-cutoff', 'same-type', 'different-type']);
 const STRUCTURAL_FILTERS = new Set(['combine', 'exclude', 'expand', 'limit', 'offset']);
 const SOURCE_ONLY_FILTERS = new Set(['combine', 'exclude', 'expand']);
+
+//The filter machinery already knows every `x` / `not-x` pair: INVERSE_FILTER_NAMES
+//maps each EXCLUDING filter to the including one it is the complement of, and
+//that is the same map the collection code uses to decide a filter is an exclude
+//set. Deriving the pairs from it — rather than string-matching a `not-` prefix —
+//is why `unread`/`read`, `no-todo`/`has-todo`, `missing-reciprocal-links`/
+//`has-all-reciprocal-links` and `all-cards`/`none` all merge correctly even
+//though none of them spell the negation the same way.
+const OPPOSITE_OF : Record<string, string> = {};
+for (const [negated, positive] of Object.entries(INVERSE_FILTER_NAMES)) {
+	if (!OPPOSITE_OF[positive]) OPPOSITE_OF[positive] = negated;
+	if (!OPPOSITE_OF[negated]) OPPOSITE_OF[negated] = positive;
+}
+const IS_NEGATED_FILTER = new Set(Object.keys(INVERSE_FILTER_NAMES));
+
+//The description machinery synthesizes exactly this sentence for every
+//excluding filter, so a row that flips polarity would otherwise show the app's
+//internal filter id back to the user. Recognizing the synthesized string by
+//reconstructing it (not by matching a prefix) is how we know there is no
+//authored description to prefer.
+const isSynthesizedInverseDescription = (description : string, negated : string) : boolean =>
+	description === `Inverse of ${INVERSE_FILTER_NAMES[negated]}`;
+
+//The card-editing hygiene family — every `has-x` / `no-x` / `needs-x` /
+//`does-not-need-x` filter the TODO machinery generates. They are real filters
+//and stay in the catalog, but they are tools for grooming the corpus, not ways
+//most people describe a set of cards, so they sort below the properties that
+//are. Derived from the filter machinery's own TODO configuration rather than
+//from the shape of the names.
+const isTodoMachineryFilter = (filter : string) : boolean =>
+	Boolean(TODO_ALL_INFOS[REVERSE_CARD_FILTER_CONFIG_MAP[filter]]);
 
 const commonFilterRank = (filter : string) => {
 	const rank = COMMON_FILTER_ORDER.indexOf(filter);
@@ -122,9 +171,9 @@ const exampleFor = (
 	return `${base} AND ${clause(configured)}`;
 };
 
-const relevance = (item : CollectionFilterCatalogItem, query : string) : number => {
+const relevance = (searchValues : string[], query : string) : number => {
 	if (!query) return 0;
-	const values = item.searchValues.map(value => value.toLowerCase());
+	const values = searchValues.map(value => value.toLowerCase());
 	if (values.some(value => value === query)) return 0;
 	if (values.some(value => value.startsWith(query))) return 1;
 	const words = query.split(/\s+/).filter(Boolean);
@@ -132,11 +181,30 @@ const relevance = (item : CollectionFilterCatalogItem, query : string) : number 
 	return Number.POSITIVE_INFINITY;
 };
 
+type CatalogSide = {
+	filter : string;
+	label : string;
+	detail : string;
+	example : string;
+	category : CollectionFilterCatalogCategory;
+	configurable : boolean;
+	guided : boolean;
+	appliedIndex : number;
+	searchValues : string[];
+	relevance : number;
+	candidateWorthy : boolean;
+	commonRank : number;
+	spotlight : boolean;
+	negated : boolean;
+	todoMachinery : boolean;
+};
+
 export const buildCollectionFilterCatalog = (
 	filterDescriptions : Readonly<Record<string, string>>,
 	candidates : readonly CollectionComposerCandidate[],
 	draft : CollectionDescription,
-	query = ''
+	query = '',
+	polarity : CollectionFilterCatalogPolarity = {}
 ) : CollectionFilterCatalogItem[] => {
 	const candidateByFilter = new Map(candidates.map(candidate => [candidate.filter, candidate]));
 	const labels = collectionFilterLabels(candidates);
@@ -144,15 +212,36 @@ export const buildCollectionFilterCatalog = (
 	const draftParts = collectionExpressionParts(draft, labels);
 	const base = [draftParts.set.label, ...draftParts.filters.map(part => part.label)].join(' AND ');
 	const filters = Array.from(new Set([...Object.keys(filterDescriptions), ...candidates.map(candidate => candidate.filter)]));
+	const known = new Set(filters);
 	const normalizedQuery = query.trim().toLowerCase();
-	return filters.map(filter => {
+
+	const buildSide = (filter : string) : CatalogSide => {
 		const candidate = candidateByFilter.get(filter);
 		const family = filter.split('/')[0];
 		const appliedIndex = appliedFilters.findIndex(applied => applied === filter ||
 			(filter === family && Boolean(CONFIGURABLE_FILTER_NAMES[family]) && applied.startsWith(`${family}/`)));
 		const label = collectionFilterDisplayName(filter, labels);
-		const detail = candidate?.detail || filterDescriptions[filter] || filterDescriptions[family] || `Keeps cards matching ${label}`;
+		const authoredDescription = filterDescriptions[filter] || filterDescriptions[family] || '';
+		const negated = IS_NEGATED_FILTER.has(filter);
+		//An excluding half whose only description is the synthesized "Inverse of
+		//<internal id>" would leak a raw filter name (HS-1.4). Say what it keeps
+		//instead, in the name the other half of the row is already using.
+		const detail = candidate?.detail ||
+			(negated && (!authoredDescription || isSynthesizedInverseDescription(authoredDescription, filter)) ?
+				`Cards not matching ${collectionFilterDisplayName(INVERSE_FILTER_NAMES[filter], labels)}` :
+				authoredDescription) ||
+			`Keeps cards matching ${label}`;
 		const example = exampleFor(filter, base, labels, candidate);
+		const searchValues = [
+			filter,
+			family,
+			label,
+			candidate?.label || '',
+			detail,
+			example,
+			candidate?.category || '',
+			...(candidate?.aliases || []),
+		].filter(Boolean);
 		return {
 			filter,
 			label,
@@ -162,20 +251,92 @@ export const buildCollectionFilterCatalog = (
 			configurable: Boolean(CONFIGURABLE_FILTER_NAMES[family]),
 			guided: !SOURCE_ONLY_FILTERS.has(family),
 			appliedIndex,
-			//The candidate's longer descriptive label no longer shows anywhere —
-			//a clause has one name — but it is still worth searching, so the
-			//words someone remembers ("cards Casey authored") still find it.
-			searchValues: [filter, family, label, candidate?.label || '', detail, example, candidate?.category || '', ...(candidate?.aliases || [])].filter(Boolean),
+			searchValues,
+			relevance: relevance(searchValues, normalizedQuery),
+			candidateWorthy: Boolean(candidate),
+			commonRank: commonFilterRank(filter),
+			spotlight: Boolean(candidate?.spotlight),
+			negated,
+			todoMachinery: isTodoMachineryFilter(filter),
 		};
-	}).map(item => ({item, relevance: relevance(item, normalizedQuery)}))
-		.filter(({relevance}) => Number.isFinite(relevance))
-		.sort((a, b) => a.relevance - b.relevance ||
-			CATEGORY_ORDER.indexOf(a.item.category) - CATEGORY_ORDER.indexOf(b.item.category) ||
-			Number(b.item.appliedIndex >= 0) - Number(a.item.appliedIndex >= 0) ||
-			Number(Boolean(candidateByFilter.get(b.item.filter)?.spotlight)) - Number(Boolean(candidateByFilter.get(a.item.filter)?.spotlight)) ||
-			commonFilterRank(a.item.filter) - commonFilterRank(b.item.filter) ||
-			a.item.label.localeCompare(b.item.label))
-		.map(({item}) => item);
+	};
+
+	const items : CollectionFilterCatalogItem[] = [];
+	const scored : {item : CollectionFilterCatalogItem, side : CatalogSide}[] = [];
+	for (const filter of filters) {
+		const opposite = OPPOSITE_OF[filter];
+		const paired = Boolean(opposite) && known.has(opposite);
+		//One row per pair. The row lives with the INCLUDING half so the same
+		//pair is never visited twice; the excluding half is reachable through
+		//the row's polarity affordance.
+		if (paired && IS_NEGATED_FILTER.has(filter)) continue;
+		const sides = paired ? [buildSide(filter), buildSide(opposite)] : [buildSide(filter)];
+		const polarityKey = filter;
+		//Which half the row shows when nobody has flipped it: the half actually
+		//in the draft (so an applied clause is always editable), then whichever
+		//half the query matched better, then the half the suggestion system or
+		//the common list already thinks is worth offering, and finally the
+		//including half.
+		const defaultSide = sides.find(candidateSide => candidateSide.appliedIndex >= 0) ||
+			[...sides].sort((left, right) =>
+				left.relevance - right.relevance ||
+				Number(right.candidateWorthy) - Number(left.candidateWorthy) ||
+				left.commonRank - right.commonRank ||
+				Number(left.negated) - Number(right.negated))[0];
+		//An explicit flip wins over all of that — it is the user pointing at the
+		//half they want. The row keeps the DEFAULT half's category and sort
+		//position either way, so flipping a row never makes it jump to another
+		//part of the catalog while the user is looking at it.
+		const side = sides.find(candidateSide => candidateSide.filter === polarity[polarityKey]) || defaultSide;
+		const otherSide = sides.find(candidateSide => candidateSide !== side);
+		const item : CollectionFilterCatalogItem = {
+			filter: side.filter,
+			label: side.label,
+			detail: side.detail,
+			example: side.example,
+			category: defaultSide.category,
+			configurable: side.configurable,
+			guided: side.guided,
+			appliedIndex: side.appliedIndex,
+			//Both halves stay searchable from one row: someone who remembers
+			//"unread" still finds the row even when it is currently showing
+			//"Read".
+			searchValues: [...side.searchValues, ...(otherSide?.searchValues || [])],
+			oppositeFilter: otherSide?.filter || '',
+			negated: side.negated,
+			polarityKey,
+		};
+		items.push(item);
+		scored.push({item, side: defaultSide});
+	}
+
+	//A row matches if EITHER half of its pair matches, so merging two entries
+	//into one never makes a filter unfindable by the name someone remembers.
+	const bestRelevance = new Map(items.map(item => [item, relevance(item.searchValues, normalizedQuery)]));
+	const sideOf = new Map(scored.map(({item, side}) => [item, side]));
+	return items
+		.filter(item => Number.isFinite(bestRelevance.get(item) ?? Number.POSITIVE_INFINITY))
+		.sort((a, b) => {
+			const sideA = sideOf.get(a)!;
+			const sideB = sideOf.get(b)!;
+			//Usefulness, not alphabet — inside Card properties, which is the
+			//category that was a straight alphabetical dump of everything the
+			//filter machinery happens to define. A filter the suggestion system
+			//already thinks is worth proposing comes first, then the ordinary
+			//properties, then the corpus-grooming TODO family. The other
+			//categories are already small and hand-ordered, so they keep the
+			//ordering they had.
+			const usefulness = a.category === 'Card properties' && b.category === 'Card properties' ?
+				(Number(sideB.candidateWorthy) - Number(sideA.candidateWorthy) ||
+					Number(sideA.todoMachinery) - Number(sideB.todoMachinery)) : 0;
+			return (bestRelevance.get(a) ?? 0) - (bestRelevance.get(b) ?? 0) ||
+				CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) ||
+				Number(b.appliedIndex >= 0) - Number(a.appliedIndex >= 0) ||
+				Number(sideB.spotlight) - Number(sideA.spotlight) ||
+				usefulness ||
+				sideA.commonRank - sideB.commonRank ||
+				a.label.localeCompare(b.label);
+		});
 };
 
 export const collectionFilterCatalogCategories = CATEGORY_ORDER;

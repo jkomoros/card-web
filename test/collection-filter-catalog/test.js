@@ -13,6 +13,10 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 
 let buildCollectionFilterCatalog;
 let CollectionDescription;
+let CARD_FILTER_DESCRIPTIONS;
+let INVERSE_FILTER_NAMES;
+let REVERSE_CARD_FILTER_CONFIG_MAP;
+let TODO_ALL_INFOS;
 
 //The catalog builds its examples on the draft the user is actually composing,
 //so every case here has to say which draft it is talking about.
@@ -22,6 +26,12 @@ describe("Collection filter catalog", () => {
   before(async () => {
     ({ buildCollectionFilterCatalog } = await import("../../lib/src/collection-filter-catalog.js"));
     ({ CollectionDescription } = await import("../../lib/src/collection_description.js"));
+    ({
+      CARD_FILTER_DESCRIPTIONS,
+      INVERSE_FILTER_NAMES,
+      REVERSE_CARD_FILTER_CONFIG_MAP,
+      TODO_ALL_INFOS,
+    } = await import("../../lib/src/filters.js"));
   });
 
   const descriptions = {
@@ -85,5 +95,86 @@ describe("Collection filter catalog", () => {
       unread: "Unread",
     }, [], draft("everything/content/"));
     assert.deepStrictEqual(result.map(item => item.filter), ["content", "unread", "starred", "alpha", "beta"]);
+  });
+
+  //The pairs are knowable from the filter machinery itself, so this asserts
+  //against INVERSE_FILTER_NAMES rather than against a list of names that would
+  //rot the moment a new card filter is defined.
+  it("merges every x / not-x pair into a single row", () => {
+    const result = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, [], draft());
+    const shown = new Set(result.map(item => item.filter));
+    const known = new Set(Object.keys(CARD_FILTER_DESCRIPTIONS));
+    for (const [negated, positive] of Object.entries(INVERSE_FILTER_NAMES)) {
+      if (!known.has(negated) || !known.has(positive)) continue;
+      assert.ok(
+        !(shown.has(negated) && shown.has(positive)),
+        `${negated} and ${positive} are the same row, so only one may be listed`
+      );
+      const row = result.find(item => item.polarityKey === positive);
+      assert.ok(row, `the ${positive} / ${negated} pair must still be reachable`);
+      assert.strictEqual(
+        new Set([row.filter, row.oppositeFilter]).size === 2 &&
+          [row.filter, row.oppositeFilter].includes(negated) &&
+          [row.filter, row.oppositeFilter].includes(positive),
+        true,
+        `the ${positive} row must carry ${negated} as its opposite`
+      );
+    }
+    //156 alphabetized card properties was the dump the composer set out to
+    //replace; merging the pairs is most of what makes it browsable.
+    const cardProperties = result.filter(item => item.category === "Card properties");
+    assert.ok(cardProperties.length < 100, `Card properties is still a dump: ${cardProperties.length} entries`);
+  });
+
+  it("flips a merged row to the inverse filter, with copy that names no internal id", () => {
+    const before = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, [], draft())
+      .find(item => item.polarityKey === "starred");
+    assert.strictEqual(before.filter, "starred");
+    assert.strictEqual(before.negated, false);
+    assert.strictEqual(before.oppositeFilter, "unstarred");
+
+    const after = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, [], draft(), "", { starred: "unstarred" })
+      .find(item => item.polarityKey === "starred");
+    assert.strictEqual(after.filter, "unstarred");
+    assert.strictEqual(after.negated, true);
+    assert.strictEqual(after.oppositeFilter, "starred");
+    assert.strictEqual(after.label, "Unstarred");
+    //"Inverse of starred" is the synthesized description; a user must never see
+    //a raw filter id (HS-1.4).
+    assert.ok(!/Inverse of/.test(after.detail), `detail leaked an internal name: ${after.detail}`);
+    assert.ok(!/\bstarred\b/.test(after.detail), `detail leaked a raw filter id: ${after.detail}`);
+  });
+
+  it("keeps both halves of a merged row findable by search", () => {
+    const hits = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, [], draft(), "unstarred");
+    const row = hits.find(item => item.polarityKey === "starred");
+    assert.ok(row, "searching for the excluding half must still find the row");
+    //And it shows the half that was searched for, not its opposite.
+    assert.strictEqual(row.filter, "unstarred");
+  });
+
+  it("orders card properties by usefulness rather than alphabet", () => {
+    const candidates = [{
+      filter: "zulu-property",
+      category: "other",
+      label: "Zulu property",
+      detail: "A property the suggestion system proposes",
+    }];
+    const result = buildCollectionFilterCatalog(
+      { "alpha-property": "Alpha", "zulu-property": "Zulu" },
+      candidates,
+      draft()
+    ).filter(item => item.category === "Card properties");
+    assert.deepStrictEqual(result.map(item => item.filter), ["zulu-property", "alpha-property"]);
+
+    //And the corpus-grooming TODO family sorts below ordinary properties, which
+    //alphabetical order buried the ordinary ones beneath.
+    const real = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, [], draft())
+      .filter(item => item.category === "Card properties");
+    const isTodoMachinery = (filter) => Boolean(TODO_ALL_INFOS[REVERSE_CARD_FILTER_CONFIG_MAP[filter]]);
+    const firstTodo = real.findIndex(item => isTodoMachinery(item.filter));
+    const lastOrdinary = real.map(item => isTodoMachinery(item.filter)).lastIndexOf(false);
+    assert.ok(firstTodo > 0, "there should be ordinary card properties before the TODO family");
+    assert.ok(firstTodo > lastOrdinary, "no TODO-machinery filter may precede an ordinary card property");
   });
 });
