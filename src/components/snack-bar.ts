@@ -61,16 +61,21 @@ class SnackBar extends connect(store)(LitElement) {
 			   them. card-web-app carries three separate comments about
 			   corner-collision bugs that shipped, one of which had a banner
 			   covering the very controls it told the user to press. */
+			/* NOT position:fixed. This used to anchor itself bottom-centre, which
+			   was chosen because both bottom corners were occupied — but the
+			   banner stack is bottom-anchored and up to 100vw-5.5rem wide, so at
+			   narrow viewports the toasts landed directly on top of it and the
+			   snack bar's higher z-index won. Rendering a toast over a banner is
+			   the same corner-collision defect card-web-app carries three
+			   comments about.
+			   There is one bottom band, so there is one stack: card-web-app
+			   renders this INSIDE .banners and everything in the corner shares
+			   the same flex column. */
 			:host {
-				position: fixed;
-				left: 50%;
-				transform: translateX(-50%);
-				bottom: max(0.75rem, env(safe-area-inset-bottom));
-				z-index: 960;
-				width: min(30rem, calc(100vw - 2rem));
 				display: block;
-				/* The container must never eat a click meant for something
-				   underneath it; only the toasts themselves are interactive. */
+				width: min(30rem, calc(100vw - 2rem));
+				/* Still must not eat a click meant for what is underneath; only
+				   the toasts themselves are interactive. */
 				pointer-events: none;
 			}
 
@@ -91,7 +96,6 @@ class SnackBar extends connect(store)(LitElement) {
 			   every other component in the repo does that. */
 			:host(.mobile) {
 				width: calc(100vw - 1rem);
-				bottom: 5.5rem;
 			}
 
 			/* Carries the words for a screen reader and nothing else. Not

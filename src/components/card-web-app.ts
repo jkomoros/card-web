@@ -343,9 +343,14 @@ class CardWebApp extends connect(store)(LitElement) {
 			}
 			.error-banner .reassurance { color: var(--app-dark-text-color); }
 			/* box-shadow: none is load-bearing: the base button rule's rest
-			   and hover shadows otherwise apply, boxing the text link. */
-			.draft-recovery .discard { background: transparent; color: inherit; text-decoration: underline; box-shadow: none; }
-			.draft-recovery .discard:hover { box-shadow: none; }
+			   and hover shadows otherwise apply, boxing the text link.
+			   Scoped to .discard rather than to .draft-recovery .discard: the
+			   error banner has a Dismiss with the same job, and while the rule
+			   was scoped to one banner it rendered as filled purple — the app's
+			   PRIMARY action treatment, on the least consequential control on
+			   screen. */
+			.update-ready .discard { background: transparent; color: inherit; text-decoration: underline; box-shadow: none; font-weight: normal; }
+			.update-ready .discard:hover { box-shadow: none; background: transparent; }
 			.draft-error { color: var(--app-warning-color-light); }
 			/* The saving pill speaks the app's existing ambient-status idiom
 			   (#764): the CAPSULE treatment is byte-identical to the floating
@@ -428,7 +433,6 @@ class CardWebApp extends connect(store)(LitElement) {
 		return html`
 		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
-		<snack-bar></snack-bar>
 		<div class='banners ${this._editorOpen ? 'editor-open' : ''}'>
 			${this._persistentErrors.map(error => html`
 				<div class='update-ready error-banner' role='alert'>
@@ -448,6 +452,9 @@ class CardWebApp extends connect(store)(LitElement) {
 					<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
 					<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
 				</div>` : ''}
+			<!-- Last, so it sits nearest the corner: transient outcomes closest
+			     to the edge, things that persist stacked above them. -->
+			<snack-bar></snack-bar>
 		</div>
 		${this._saveStatus !== 'idle' ? html`
 			<div class='save-status ${this._saveStatus}' data-corpus-gate-keep-interactive role='status' aria-live='polite' title=${this._saveError}>

@@ -361,7 +361,17 @@ describe('the snack bar queue (#758)', () => {
 
 			assert.ok(/\.toasts\s*\{[^}]*flex-direction:\s*column-reverse/.test(source), 'the toast list must be column-reverse, or the newest message renders at the bottom');
 			assert.ok(/:host\s*\{[^}]*pointer-events:\s*none/.test(source), 'the host must not eat clicks meant for what is underneath it');
-			assert.ok(/z-index:\s*960/.test(source), 'the toast must sit above the banners (950) and below dialogs (1000)');
+			//It used to anchor itself bottom-centre over everything else. There
+			//is only one bottom band, and the banner stack already owns it — a
+			//fixed toast landed on top of the error banner at narrow widths and
+			//won on z-index. card-web-app renders this inside .banners now, so
+			//positioning itself would put it back on top of them.
+			assert.ok(!/:host\s*\{[^}]*position:\s*fixed/.test(source), 'the snack bar must not position itself; it shares the banner stack');
+			//Matches a DECLARATION, not the word. An earlier version of this pin
+			//used /z-index/ and failed on the comment that explains why there
+			//is no z-index — the second time on this branch that a source pin
+			//matched prose instead of code.
+			assert.ok(!/z-index:\s*\d/.test(source), 'z-index belongs to the container that owns the corner, not to a member of the stack');
 			assert.ok(/:host\(\.mobile\)/.test(source), 'the mobile rule must key off a CLASS; an attribute selector cannot match an unreflected property');
 		});
 
