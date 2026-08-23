@@ -645,7 +645,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</select>` : html`<em>${card.section}</em>`}
 				</div>
 				<div>
-				<Label>Slugs ${help('Slugs are alternate identifiers for the card. You may not remove slugs. The one that is selected in this drop down is the default one that will be shown in end-user visible URLs')}</label>
+				<label>Slugs ${help('Slugs are alternate identifiers for the card. You may not remove slugs. The one that is selected in this drop down is the default one that will be shown in end-user visible URLs')}</label>
 				${this._pendingSlug ? html`<em>${this._pendingSlug}</em><button disabled>+</button>` : html`
 					<select .value=${card.name} @change='${this._handleNameUpdated}'>
 						${repeat([card.id, ...card.slugs], (item) => item, (item) => html`
@@ -674,7 +674,7 @@ class CardEditor extends connect(store)(LitElement) {
 					reason. Deletion shares the durable-write gate (the action
 					refuses too), so while sync verifies it is disabled with
 					the same explanation every other write control gives. -->
-					<span class='reason' title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : !this._saveEligible ? blockedReason(this._corpusStatus, DELETE_VERB) : 'Delete card permanently'}'>
+					<span class='reason' title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards reference them' : !this._saveEligible ? blockedReason(this._corpusStatus, DELETE_VERB) : 'Delete card permanently'}'>
 						<button
 							class='small'
 							@click=${this._handleDeleteClicked}

@@ -668,63 +668,63 @@ class CardView extends connect(store)(PageViewElement) {
 			>
 			<div slot='info'>
 				${this._collectionWordCloud ? html`<word-cloud .wordCloud=${this._collectionWordCloud}></word-cloud>` : html``}
-				<button id='regenerate-word-cloud' class='small' title='Regenerate Word Cloud' @click=${this._handleRegenerateWordCloudClicked}>${REPEAT_ICON}</button><label for='regenerate-word-cloud'>${this._collectionWordCloud ? html`Regenerate` : html`Generate`} Word Cloud</label><br/>
+				<button id='regenerate-word-cloud' class='small' title='Regenerate word cloud' @click=${this._handleRegenerateWordCloudClicked}>${REPEAT_ICON}</button><label for='regenerate-word-cloud'>${this._collectionWordCloud ? html`Regenerate` : html`Generate`} word cloud</label><br/>
 				${this._userIsAdmin ? html`
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
-				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
+				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit all cards</label><br/>
 				` : ''}
 				${this._userMayUseAI ? html`
-				<button id ='ai-assistant-summary' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assistant-summary'>Summarize Cards</label><br/>
-				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assistant-concepts'>Suggest Missing Concepts</label><br/>
-				<button id ='ai-chat-with-collection' class='small' title='Chat with these cards' @click=${this._handleAIAssistantChatWithCollection}>${FORUM_ICON}</button><label for='ai-chat-with-collection'>Chat with Cards</label><br/>` : ''}
+				<button id ='ai-assistant-summary' class='small' title='Summarize cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assistant-summary'>Summarize cards</label><br/>
+				<button id ='ai-assistant-concepts' class='small' title='Suggest concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assistant-concepts'>Suggest concepts</label><br/>
+				<button id ='ai-chat-with-collection' class='small' title='Chat with these cards' @click=${this._handleAIAssistantChatWithCollection}>${FORUM_ICON}</button><label for='ai-chat-with-collection'>Chat with cards</label><br/>` : ''}
 				${this._userMayCreateCard ? html`
 					<button
 						id='bulk-import'
 						class='small'
-						title='Bulk Import Cards'
+						title='Bulk import cards'
 						@click=${this._handleBulkImportClicked}
 					>
 						${PLUS_ICON}
 					</button>
-					<label for='bulk-import'>Bulk Import</label>
+					<label for='bulk-import'>Bulk import</label>
 					<br />
 					<!-- technically you don't need to have create card ability to use this, but don't clutter up most user's UI with it -->
 					<button
 						id='bulk-export'
 						class='small'
-						title='Bulk Export Cards'
+						title='Bulk export cards'
 						@click=${this._handleBulkExportClicked}
 					>
 						${SAVE_ICON}
 					</button>
-					<label for='bulk-export'>Bulk Export</label>
+					<label for='bulk-export'>Bulk export</label>
 					<br />
 				`: ''}
-				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
+				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			<div slot='visible-info'>
 				${this._cardsSelected ? 
 		html`<button
 				id='clear-selection'
 				class='small'
-				title='Clear Selected Cards'
+				title='Clear selected cards'
 				@click=${this._handleClearSelectionClicked}
 			>
 			${CANCEL_ICON}
 			</button>
-			<label for='clear-selection'>Clear Selection</label>
+			<label for='clear-selection'>Clear selection</label>
 			<br />
 			${this._collectionNotFilteredToSelected ?
 		html`
 				<button
 					id='filter-to-selected'
 					class='small'
-					title='Filter to Selected Cards'
+					title='Filter to selected cards'
 					@click=${this._handleFilterToSelectedClicked}
 				>
 				${FILTER_ALT_ICON}
 				</button>
-				<label for='filter-to-selected'>Show Only Selected</label>
+				<label for='filter-to-selected'>Show only selected</label>
 				<br />
 			` 
 		:''	
@@ -792,7 +792,7 @@ class CardView extends connect(store)(PageViewElement) {
 					     a reason. Title on the wrapper so it stays readable
 					     while the button is disabled. -->
 					<span class='reason' ?hidden='${!this._userMayForkCard}' title=${this._saveEligible ? 'Fork this card' : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' ?disabled=${!this._saveEligible} @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button></span>
-					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${PSYCHOLOGY_ICON}</button>
+					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show suggestions'>${PSYCHOLOGY_ICON}</button>
 					<!-- Title on the wrapper so it is readable while the button
 					is disabled (Chrome/Safari suppress hover on disabled
 					controls). -->

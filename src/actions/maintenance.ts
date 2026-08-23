@@ -366,7 +366,7 @@ const extractCardContent = (getState : AppGetState, filter : (card : Card) => bo
 	const div = document.createElement('div');
 	const generator = selectFingerprintGenerator(state);
 	const fullyLoaded = selectCardsLoaded(state);
-	if (!fullyLoaded && confirm('Unpublished cards arent loaded yet. Hit cancel to continue anyway or OK to exit and wait.')) return[];
+	if (!fullyLoaded && confirm('Unpublished cards aren’t loaded yet. Hit cancel to continue anyway or OK to exit and wait.')) return[];
 	for (const card of Object.values(cards)) {
 		if (card.card_type != 'working-notes' && card.card_type != 'content') continue;
 		if (!filter(card)) continue;

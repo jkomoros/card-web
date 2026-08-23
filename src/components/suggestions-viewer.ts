@@ -308,7 +308,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				<button
 					class='small ${this._aggressive ? 'selected' : ''}'
 					@click=${this._handleAggressiveClicked}
-					title='Aggressive Thesholds - ${this._aggressive ? 'Enabled' : 'Disabled'}'
+					title='Aggressive Thresholds - ${this._aggressive ? 'Enabled' : 'Disabled'}'
 				>
 					${HIGHLIGHT_ICON}
 				</button>

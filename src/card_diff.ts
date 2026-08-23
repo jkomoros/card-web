@@ -368,7 +368,7 @@ export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) =
 				return false;
 			}
 		} else {
-			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
+			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typically is not in a section, but with this edit it will be in a section. OK?')) {
 				return false;
 			}
 		}
