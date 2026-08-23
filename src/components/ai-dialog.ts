@@ -1,4 +1,6 @@
 import { html, css, PropertyValues } from 'lit';
+
+import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -121,7 +123,7 @@ class AIDialog extends connect(store)(DialogElement) {
 	];
 
 	_renderLoading() {
-		return html`<div><em>Loading... (This may take up to a minute...)</em></div>`;
+		return html`<div><loading-placeholder noun='the response' detail='This can take up to a minute.'></loading-placeholder></div>`;
 	}
 
 	_renderError() {

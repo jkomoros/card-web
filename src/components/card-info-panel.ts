@@ -1,4 +1,6 @@
 import { html, css } from 'lit';
+
+import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -279,7 +281,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					<h4>Tweets from <a href='https://twitter.com/${TWITTER_HANDLE}' target='_blank'>@${TWITTER_HANDLE}</a></h4>
 					${this._tweets && Object.values(this._tweets).length
 		? html`<ul class='${this._tweetsLoading ? 'loading' : ''}'>${Object.entries(this._tweets).map(entry => this._tweet(entry[1]))}</ul>`
-		: this._tweetsLoading ? html`<em class='loading'>Loading...</em>` : html`<em>No tweets</em>` 
+		: this._tweetsLoading ? html`<loading-placeholder noun='tweets'></loading-placeholder>` : html`<em>No tweets</em>` 
 }
 				</div>` : html``}
 				<div>

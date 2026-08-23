@@ -1,4 +1,6 @@
 import { html, css, PropertyValues } from 'lit';
+
+import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -403,7 +405,7 @@ class MainView extends connect(store)(PageViewElement) {
 						${USER_DOMAIN ? html`<p>Note: user accounts associated with ${USER_DOMAIN} get special permissions. Try logging in to an account from that domain.</p>`: ''}
 					</div>
 					<div ?hidden=${this._userPermissionsFinal}>
-						<h3>Loading...</h3>
+						<h3><loading-placeholder noun='the app'></loading-placeholder></h3>
 					</div>
 				</div>
 			</div>

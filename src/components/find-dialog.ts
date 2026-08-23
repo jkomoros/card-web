@@ -4,6 +4,8 @@ import {
 } from '../sync-copy.js';
 
 import { html, css, PropertyValues } from 'lit';
+
+import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -259,7 +261,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
-		${this._searchPreparing ? html`<div class='search-preparing'>Preparing search (${this._searchPreparing.built.toLocaleString()} of ${this._searchPreparing.total.toLocaleString()} cards indexed)…</div>` : ''}
+		${this._searchPreparing ? html`<loading-placeholder class='search-preparing' noun='the search index' .value=${this._searchPreparing.built} .total=${this._searchPreparing.total}></loading-placeholder>` : ''}
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .updating=${this._collectionUpdating} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>

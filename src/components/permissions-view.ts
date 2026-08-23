@@ -1,4 +1,6 @@
 import { html, css, PropertyValues } from 'lit';
+
+import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -84,7 +86,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
         <h2>Permissions</h2>
         <p>This page is where permissions can be changed.</p>
         <div ?hidden=${this._userMayEditPermissions}>
-		  <p ?hidden=${this._permissionsLoaded}><strong>Loading...</strong></p>
+		  <p ?hidden=${this._permissionsLoaded}><loading-placeholder noun='permissions'></loading-placeholder></p>
           <p ?hidden=${!this._permissionsLoaded}>You aren't allowed to edit permissions, so nothing is available here.</p>
         </div>
 		<div ?hidden=${!this._userMayEditPermissions}>

@@ -1,4 +1,6 @@
 import { html, css, PropertyValues, TemplateResult } from 'lit';
+
+import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -438,7 +440,7 @@ class ChatView extends connect(store)(PageViewElement) {
 						</div>
 					</div>
 					<div class='messages'>
-						${this._composedChat.messages.length === 0 ? (this._chatMessagesLoading ? html`<div class='loading'>Loading...</div>` : html`<p>No messages loaded.</p>`) :
+						${this._composedChat.messages.length === 0 ? (this._chatMessagesLoading ? html`<loading-placeholder noun='messages'></loading-placeholder>` : html`<p>No messages loaded.</p>`) :
 		this._composedChat.messages.map(message => this.renderMessage(message))}
 					</div>
 					<div class='compose'>
@@ -455,7 +457,7 @@ class ChatView extends connect(store)(PageViewElement) {
 					</div>
 				` : (this._chatsLoading ? html`
 					<div class='loading'>
-						Loading chat...
+						<loading-placeholder noun='the chat'></loading-placeholder>
 					</div>` : html`<p>No chats to view.</p>`)}
 				</div>
 			</section>
