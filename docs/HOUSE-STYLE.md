@@ -340,7 +340,82 @@ Note the snackbar's current limits: one message, one shared timer, no stacking,
 no action button, no `aria-live`. A second message overwrites the first
 silently. Fix the primitive rather than routing around it.
 
-### 3.6 Progress — MUST
+### 3.6 Time: loading, in flight, pending, and blocked — MUST
+
+Most of this app's hard UI problems are about time. A user acts, and the result
+is not instantly and permanently true. The app models **four distinct states**,
+and they mean genuinely different things to the user. Conflating them is the
+most common failure here.
+
+| State | What is true | What the user can do | Surface |
+|---|---|---|---|
+| **Loading** | The data isn't here yet. The user did not ask for this; it's the cost of arriving. | Wait, or work with what has arrived | Placeholder, dimmed list, `loading…` |
+| **In flight** | The user asked, and it is running right now. | Wait, or cancel if cancelling is safe | `progress-panel`, save-status pill |
+| **Pending** | It is committed **locally**. It survives reload. It has not been confirmed by the server. | Anything — including closing the tab | Amber dot, pending badge, snackbar |
+| **Blocked** | It cannot even start. Saving is *refused*, not slow. | Read and edit; not save | Padlock, disabled control + `span.reason` |
+
+The distinction that matters most is **pending vs. in flight**. "In flight" asks
+the user to wait. "Pending" asks nothing of them — the work is durable, and
+saying so is the whole point. And **blocked vs. in flight**: a padlock means
+"you can read, you can't yet save", which is a different promise from a spinner.
+`corpus-status-glyph.ts` names this explicitly — `writeLocked` exists so that
+"saving is REFUSED, not merely slow" is visible at a glance.
+
+#### 3.6.1 The durability promise — MUST
+
+When a user acts on something that writes, the app applies it **locally and
+immediately**, queues it durably, and reconciles when the server echoes it.
+Stars, reads, comments, card creations and card saves all work this way.
+
+This means the UI's job is not "block until confirmed". It is:
+
+1. **Apply optimistically.** The star fills now. Do not spin.
+2. **Show that it is not yet confirmed** — amber, per §3.6.2. Do not show an
+   error; nothing is wrong.
+3. **Say the promise out loud when the user might doubt it.** The canonical
+   phrasing already exists: *"That card is saved and will be created
+   automatically when the connection recovers. Nothing is lost."*
+4. **Escalate only when the promise breaks** — a write that has failed
+   repeatedly, or been discarded, is a persistent error banner, not a snackbar.
+
+Never make a user wait for a round trip to see their own action reflected. Never
+report a queued write as a failure.
+
+#### 3.6.2 The tone ladder — MUST
+
+`src/corpus-status-glyph.ts` defines five tones with a **strict override
+precedence**. This is the app's status vocabulary; use these meanings and this
+precedence anywhere status is shown, not just in the corpus indicator.
+
+| Tone | Means | Color |
+|---|---|---|
+| `problem` | Degraded, interrupted, wedged | `--app-warning-color` |
+| `pending` | Local changes not yet server-confirmed | `--app-pending-color` |
+| `working` | Actively fetching or verifying — **pulses** | `--app-secondary-color` |
+| `ok` | Live, nothing pending | `--app-secondary-color` |
+| `muted` | Deliberately not syncing | `--app-dark-text-color-light` |
+
+Precedence: **`problem` beats everything; `pending` beats `working` and `ok`**
+(the pulse survives when both apply). A state that is both "fetching" and "has
+unconfirmed writes" reads as pending, because that is the fact the user needs.
+
+**Work in flight is amber everywhere.** `--app-pending-color` is the token for
+exactly this meaning, and the comment at `card-web-app.ts:352` records why it was
+unified: the save pill used teal while the corpus indicator used amber, so the
+same state was two colors in the same app, often on screen simultaneously.
+
+**A paused save stays amber, not red.** It is recoverable, not destructive. Full
+warning red belongs to the Stop control alone (§3.7).
+
+**Open question — amber currently carries two meanings.** Alongside "not yet
+server-confirmed", `card-drawer.ts:237` uses it for "this one collection's
+computation failed, but the corpus is fine and nothing was lost", with a comment
+explaining the choice. That is a real state and the reasoning is sound, but it is
+not `pending`, and calling it `problem` would overstate it. Either it needs its
+own advisory tone or the ladder needs a documented fifth meaning for amber. Do
+not resolve this by quietly adding a third amber usage. See §7 debt item D21.
+
+#### 3.6.3 Progress surfaces — MUST
 
 Any operation that can exceed ~1 second uses `progress-panel.ts`. It provides a
 heading, a determinate-or-indeterminate bar, an honest count, and a `<details>`
@@ -350,6 +425,28 @@ A progress surface MUST say **what** is happening and, when the total is known,
 **how far along** it is. A bare translucent scrim is not a progress indicator —
 `suggestions-viewer.ts` still ships one, which is the exact defect
 `progress-panel.ts` was written to fix.
+
+- **Progress always describes the current phase**, and the phase is
+  distinguishable. The status ring reports the fetched fraction while
+  downloading and the completed-checks fraction while verifying, with a
+  different band color for each, so a stalled bar can be told from a finished
+  one.
+- **Counts are compact and honest**: `812`, `40.2k`, `12.4k↑` when the total is
+  unknown, `12.4k/40.2k` when it is known. Never invent a denominator.
+- **Unconfirmed local changes get a count, not just a color** — the superscript
+  `·2` badge. "Something is pending" is much less useful than "two things are".
+- **Gerund + ellipsis** for the label (§2.3).
+
+#### 3.6.4 Announcing state — MUST
+
+- Ambient status and progress: `role='status'` + `aria-live='polite'`.
+- Something the user must act on: `role='alert'`. Reserve
+  `aria-live='assertive'` for work at risk — the unsaved-draft banner is the
+  bar.
+- A surface that is already an `alertdialog` does not need either.
+- Use `aria-busy` on a region while its content is being replaced.
+- The reason a thing is paused or blocked is **visible text**, not only a
+  `title` — hover-only is unreachable on touch.
 
 ### 3.7 Destructive actions — MUST
 
@@ -476,9 +573,11 @@ keeping: `0.75em` + `--app-dark-text-color-light` for a subordinate label,
 | `--app-primary-color` (purple) | Brand; a link; the committing action |
 | `--app-secondary-color` (teal) | Live/exists; hover; a toggle that is on |
 | `--app-warning-color` (red) | Error, or a Tier 1 destructive control |
-| `--app-pending-color` (amber) | Not yet on the server |
+| `--app-pending-color` (amber) | Not yet on the server; a paused but recoverable operation |
 | `--app-dark-text-color` | Body text; a subtle icon |
 | `--app-dark-text-color-light` | Subordinate, or disabled |
+
+Status uses the five-tone ladder and its override precedence — see §3.6.2.
 
 Red currently also means "unpublished" (`card-link.ts:146`), which collides with
 "error". Unpublished should get its own treatment.
@@ -518,7 +617,9 @@ Check this table before building. If the job is here, the primitive exists.
 
 **Missing primitives** — build these rather than working around them:
 a destructive-confirm dialog, a generic input dialog, a persistent error banner,
-a keyboard-shortcut sheet, and a stackable snackbar.
+a keyboard-shortcut sheet, a stackable snackbar, and a loading-placeholder
+treatment for a list or panel whose data has not arrived yet (§3.6 state 1,
+which is the one state with no shared primitive at all).
 
 ---
 
@@ -577,3 +678,6 @@ rules.
 | D18 | `viewMode` is in every collection URL with no UI to set it | §1.3 |
 | D19 | Tag creation fails silently through six paths | §3.5 |
 | D20 | `.small` hit target is 18px against 48 usages | §4.2 |
+| D21 | Amber means both "not yet server-confirmed" and "advisory failure, nothing lost"; the ladder has no tone for the second | §3.6.2 |
+| D22 | The tone ladder, the durability promise and the phase-aware ring exist only in `corpus-status-glyph.ts`; other status surfaces predate them and don't follow them | §3.6 |
+| D23 | Loading states are ad hoc: a dimmed list with an `updating…` CSS pin, a bare `Loading...`, an `<em>loading…</em>`, a boot placeholder, and `Preparing search (X of Y cards indexed)…` — five idioms, no shared primitive | §3.6 |
