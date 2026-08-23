@@ -151,8 +151,14 @@ class SnackBar extends connect(store)(LitElement) {
 		`
 	];
 
+	//The NEWEST few, not the oldest few. A 'discarded' message never times out
+	//by design, so taking from the front let one sticky message plus two others
+	//occupy the window permanently and starve everything queued behind it — a
+	//burst of five would show three and silently never show the last two.
+	//Taking from the end means a new outcome always appears, and the sticky one
+	//is not lost: it stays queued and comes back as the newer ones expire.
 	private get _visible() : SnackbarMessage[] {
-		return this._snackbars.slice(0, MAX_VISIBLE);
+		return this._snackbars.slice(-MAX_VISIBLE);
 	}
 
 	override render() {

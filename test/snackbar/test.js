@@ -219,6 +219,22 @@ describe('the snack bar queue (#758)', () => {
 			assert.strictEqual(snackbars().length, 5, 'the overflow must still be queued, not dropped');
 		});
 
+		//A 'discarded' message is sticky by design. Taking the OLDEST three for
+		//the visible window let one sticky message plus two others hold it
+		//permanently, so a burst showed three and silently never showed the
+		//rest.
+		it('does not let a sticky message starve everything queued behind it', async () => {
+			store.dispatch(showSnackbar('lost it', {kind: 'discarded'}));
+			for (let i = 0; i < 4; i++) store.dispatch(showSnackbar(`later ${i}`));
+			element.stateChanged(store.getState());
+			await element.updateComplete;
+
+			const shown = element.shadowRoot.textContent;
+			assert.ok(shown.includes('later 3'), 'the newest message must be visible even behind a sticky one');
+			assert.strictEqual(snackbars().length, 5, 'the sticky message must still be queued, not dropped');
+			assert.ok(snackbars().some(entry => entry.kind === 'discarded'), 'a discarded write must not be evicted to make room');
+		});
+
 		it('names its dismiss button for hover AND assistive tech', async () => {
 			store.dispatch(showSnackbar('a message'));
 			element.stateChanged(store.getState());
