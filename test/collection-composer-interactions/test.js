@@ -644,15 +644,21 @@ describe("Collection Composer interactions", () => {
     await dialog.updateComplete;
     const catalog = dialog.shadowRoot.querySelector("#collection-filter-catalog");
     const before = catalog.querySelectorAll("[data-filter]").length;
+    //The visible label is a grammatical fragment for every category; the
+    //category lives in the accessible name, where it can be a phrase.
     const more = Array.from(catalog.querySelectorAll(".catalog-more"))
-      .find((button) => button.textContent.includes("more card properties filters"));
+      .find((button) => button.getAttribute("aria-label").includes("filters in card properties"));
     assert.ok(more);
-    assert.match(more.textContent, /Show \d+ more/);
+    assert.match(more.textContent, /^\s*Show \d+ more\s*$/);
+    assert.match(more.getAttribute("aria-label"), /^Show \d+ more filters in card properties$/);
     more.click();
     await dialog.updateComplete;
     const after = dialog.shadowRoot.querySelectorAll("#collection-filter-catalog [data-filter]").length;
     assert.ok(after > before);
-    assert.match(dialog.shadowRoot.querySelector("#collection-filter-catalog").textContent, /Show fewer card properties filters/);
+    const fewer = Array.from(dialog.shadowRoot.querySelectorAll("#collection-filter-catalog .catalog-more"))
+      .find((button) => button.getAttribute("aria-label") === "Show fewer filters in card properties");
+    assert.ok(fewer);
+    assert.match(fewer.textContent, /^\s*Show fewer\s*$/);
   });
 
   it("searches catalog aliases and configures a filter before committing it", async () => {

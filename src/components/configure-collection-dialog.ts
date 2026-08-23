@@ -827,13 +827,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div>
 					<label for='collection-set'>Set</label>
 					<select id='collection-set' @change=${this._handleSetSelectChanged}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${entry[0]}</option>`)}
+						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${collectionOptionDisplayName(entry[0])}</option>`)}
 					</select>
 				</div>
 				<div>
 					<label for='collection-sort'>Sort</label>
 					<select id='collection-sort' @change=${this._handleSortSelectChanged}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${entry[0]}</option>`)}
+						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${collectionOptionDisplayName(entry[0])}</option>`)}
 					</select>
 				</div>
 				<div>
@@ -904,12 +904,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				     its first option while the draft says something else. -->
 				<label>Start from
 					<select aria-label='Starting collection set' @change=${this._handleSetSelectChanged}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${entry[0]}</option>`)}
+						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${collectionOptionDisplayName(entry[0])}</option>`)}
 					</select>
 				</label>
 				<label>Order by
 					<select aria-label='Card order' @change=${this._handleSortSelectChanged}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${entry[0]}</option>`)}
+						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${collectionOptionDisplayName(entry[0])}</option>`)}
 					</select>
 				</label>
 				<label>Direction
@@ -920,7 +920,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</label>
 				<label>Display as
 					<select aria-label='Collection view' @change=${this._handleViewModeChanged}>
-						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode} .selected=${live(mode === this._collectionDescription.viewMode)}>${mode}</option>`)}
+						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode} .selected=${live(mode === this._collectionDescription.viewMode)}>${collectionOptionDisplayName(mode)}</option>`)}
 					</select>
 				</label>
 				${LEGAL_VIEW_MODES[this._collectionDescription.viewMode] ? html`
@@ -966,8 +966,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								`;
 							})}
 							${!this._composerInput.trim() && total > 6 ? html`
-								<button class='small catalog-more' @click=${() => this._handleCatalogCategoryToggle(category)}>
-									${expanded ? `Show fewer ${category.toLowerCase()} filters` : `Show ${total - shown.length} more ${category.toLowerCase()} filters`}
+								<button
+									class='small catalog-more'
+									aria-label=${expanded ? `Show fewer filters in ${category.toLowerCase()}` : `Show ${total - shown.length} more filters in ${category.toLowerCase()}`}
+									@click=${() => this._handleCatalogCategoryToggle(category)}
+								>
+									${expanded ? 'Show fewer' : `Show ${total - shown.length} more`}
 								</button>
 							` : ''}
 						</div>
