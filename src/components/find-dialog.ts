@@ -195,10 +195,12 @@ class FindDialog extends connect(store)(DialogElement) {
 				font-size:14px;
 			}
 
+			/* Spacing only. This used to also set font-size: 0.75em, italic and
+			   a colour — all three of which loading-placeholder sets itself, so
+			   the size applied TWICE and the line rendered at 9px. Same defect
+			   as commit 354ad2a5, in a different file: a host restating what its
+			   child already says. */
 			.search-preparing {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.75em;
-				font-style: italic;
 				margin: 0.25em 0;
 			}
 

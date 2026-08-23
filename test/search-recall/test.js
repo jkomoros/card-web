@@ -113,9 +113,14 @@ describe('stale-while-revalidate collection display (pins)', () => {
 	it('the drawer labels stale content instead of blanking', () => {
 		const drawer = read('src/components/card-drawer.ts');
 		assert.match(drawer, /updating: boolean;/);
-		assert.match(drawer, /container\.updating \.scroller/,
+		//The dim and the label are both loading-placeholder's now: the drawer
+		//was where that primitive was extracted FROM, and it kept running its
+		//own copies alongside it — in a grey that fails AA at 2.30:1. What this
+		//test guards is unchanged, so it checks the new mechanism rather than
+		//the old spelling: the scroller is dimmed, and the label is a pin.
+		assert.match(drawer, /loading-dim/,
 			'stale content must be visibly dimmed');
-		assert.match(drawer, /content: 'updating/,
+		assert.match(drawer, /loading-placeholder class='loading-pin' partial/,
 			'stale content must be labeled');
 	});
 

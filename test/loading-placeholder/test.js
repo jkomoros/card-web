@@ -191,12 +191,39 @@ describe('the loading placeholder', () => {
 		//used twice.
 		it('has real consumers, not just a definition', async () => {
 			const {readFileSync} = await import('fs');
-			const consumers = ['ai-dialog', 'chat-view', 'card-info-panel', 'main-view', 'permissions-view', 'find-dialog'];
+			const consumers = ['ai-dialog', 'chat-view', 'card-info-panel', 'main-view', 'permissions-view', 'find-dialog', 'card-drawer'];
 			for (const name of consumers) {
 				const source = readFileSync(new URL(`../../src/components/${name}.ts`, import.meta.url), 'utf8');
 				assert.ok(/<loading-placeholder/.test(source), `${name} should use the primitive`);
 				assert.ok(!/Loading\.\.\./.test(source), `${name} still has a bare ASCII "Loading..."`);
 			}
+		});
+
+		//The first version of this migration left card-drawer's two idioms
+		//running alongside the primitive extracted FROM them — in a different
+		//grey, one of which fails AA at 2.30:1. Shipping both is worse than
+		//shipping either.
+		it('left none of card-drawer\'s own loading idioms behind', async () => {
+			const {readFileSync} = await import('fs');
+			const source = readFileSync(new URL('../../src/components/card-drawer.ts', import.meta.url), 'utf8');
+			const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+			assert.ok(!/content:\s*'updating/.test(code), 'the CSS pin was superseded by the partial branch');
+			assert.ok(!/<em>loading/.test(code), 'the em loading line was superseded too');
+			assert.ok(!/opacity:\s*0\.55/.test(code), 'the dim comes from LoadingSharedStyles now, not a hand-rolled copy');
+		});
+
+		//A host that restates what its child already says is how the search line
+		//came out at 9px — size applied twice. Same defect as 354ad2a5.
+		it('is not double-styled by its hosts', async () => {
+			const {readFileSync} = await import('fs');
+			for (const name of ['find-dialog', 'main-view']) {
+				const source = readFileSync(new URL(`../../src/components/${name}.ts`, import.meta.url), 'utf8');
+				const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+				assert.ok(!/\.search-preparing\s*\{[^}]*font-size/.test(code), `${name} must not restate the size its child already sets`);
+			}
+			const mv = readFileSync(new URL('../../src/components/main-view.ts', import.meta.url), 'utf8');
+			assert.ok(!/<h3><loading-placeholder/.test(mv), 'the boot line inside a 3em heading rendered as a 36px slab');
 		});
 
 	});

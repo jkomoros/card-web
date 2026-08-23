@@ -109,9 +109,9 @@ export class LoadingPlaceholder extends LitElement {
 			   rejecting it for exactly this reason, and this branch shipped
 			   that mistake once already. */
 			.placeholder {
-				font-size: 0.75em;
+				font-size: 0.75rem;
 				font-style: italic;
-				color: var(--app-dark-text-color);
+				color: var(--app-dark-text-color-darker);
 			}
 
 			/* The non-blocking pin, from card-drawer: stays legible over
@@ -127,9 +127,9 @@ export class LoadingPlaceholder extends LitElement {
 			}
 
 			.detail {
-				font-size: 0.7em;
+				font-size: 0.7rem;
 				font-style: italic;
-				color: var(--app-dark-text-color);
+				color: var(--app-dark-text-color-darker);
 			}
 		`
 	];

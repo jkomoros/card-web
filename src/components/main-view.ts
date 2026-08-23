@@ -408,7 +408,10 @@ class MainView extends connect(store)(PageViewElement) {
 						${USER_DOMAIN ? html`<p>Note: user accounts associated with ${USER_DOMAIN} get special permissions. Try logging in to an account from that domain.</p>`: ''}
 					</div>
 					<div ?hidden=${this._userPermissionsFinal}>
-						<h3><loading-placeholder noun='the app'></loading-placeholder></h3>
+						<!-- NOT inside the h3: that heading is 3em, so the boot
+						     line rendered as a 36px bold italic slab on the
+						     app's first-impression screen. -->
+						<loading-placeholder noun='the app' .delayMs=${250}></loading-placeholder>
 					</div>
 				</div>
 			</div>

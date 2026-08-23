@@ -1,4 +1,7 @@
 import { LitElement, html, css } from 'lit';
+
+import './loading-placeholder.js';
+import { LoadingSharedStyles } from './loading-placeholder.js';
 import { customElement, property } from 'lit/decorators.js';
 
 import {
@@ -140,6 +143,7 @@ class CardDrawer extends LitElement {
 		ButtonSharedStyles,
 		ScrollingSharedStyles,
 		SharedStyles,
+		LoadingSharedStyles,
 		css`
 			:host {
 				max-height:100%;
@@ -190,9 +194,11 @@ class CardDrawer extends LitElement {
 				font-size:0.7em;
 			}
 
+			/* The dim itself comes from LoadingSharedStyles now — this rule
+			   hand-rolled the same 0.55 and the same 0.15s ease-in that the
+			   primitive exports, which is exactly the duplication it exists to
+			   end. Only the pointer-events override is local. */
 			.container.updating .scroller {
-				opacity: 0.55;
-				transition: opacity 0.15s ease-in;
 				pointer-events: auto;
 			}
 
@@ -203,27 +209,22 @@ class CardDrawer extends LitElement {
 			/* While the list is empty the label itself says "loading…", so the
 			   pin would be a second word for the same fact, and dimming an
 			   empty scroller communicates nothing. */
-			.container.updating.initial-load::after {
-				content: none;
+			.container.updating.initial-load .loading-pin {
+				display: none;
 			}
 
 			.container.updating.initial-load .scroller {
 				opacity: 1;
 			}
 
-			.container.updating::after {
-				content: 'updating…';
+			/* SUPERSEDED by loading-placeholder[partial], which was extracted
+			   from this rule. It stays only as the anchor for the pin's
+			   position; the pin itself renders in the element now, in a grey
+			   that passes rather than this one's 2.30:1. */
+			.container.updating .loading-pin {
 				position: absolute;
-				top: 0.5em;
-				right: 0.5em;
-				font-size: 0.7em;
-				font-style: italic;
-				color: var(--app-dark-text-color-light);
-				/* The count label scrolls with the list but this pin does not,
-				   so it can end up over a thumbnail. Keep it legible. */
-				background: rgb(255 255 255 / 88%);
-				padding: 0 0.3em;
-				border-radius: 3px;
+				top: 0;
+				right: 0;
 			}
 
 			.grid #count {
@@ -283,7 +284,8 @@ class CardDrawer extends LitElement {
 		//losing the list's scroll position each time. master used ?hidden here.
 		return html`
 			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating && !this.failureMessage ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount && !this.failureMessage ? 'initial-load' : ''}'>
-				<div class='scrolling scroller'>
+				${this.updating && !this.failureMessage ? html`<loading-placeholder class='loading-pin' partial noun='cards'></loading-placeholder>` : ''}
+				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
 					<div class='label' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
@@ -299,7 +301,7 @@ class CardDrawer extends LitElement {
 		//impression. An empty list that is still loading has no count worth
 		//reporting yet -- say that instead. Once there ARE cards, the count is
 		//real and the dim + pin correctly mean "these are stale, refreshing".
-			? html`<em>loading…</em>`
+			? html`<loading-placeholder noun='cards'></loading-placeholder>`
 			: html`<strong>${currentCount}</strong> cards`}
 						</span>
 						${this.urlDiagnostics && this.urlDiagnostics.length ? this.urlDiagnostics.map(diagnostic => html`
