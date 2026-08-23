@@ -500,6 +500,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//DialogElement #inner.
 		ScrollingSharedStyles,
 		css`
+			/* The composer is a full workspace, not a confirm box. The base
+			   .content sizes to its content, and the flex-basis-0 lists below
+			   contribute no intrinsic height — so a content-sized dialog gave
+			   the catalog only its min-height (128px in a 720px viewport).
+			   Pinning the dialog to its maximum height gives the suggestion
+			   list and catalog real space to flex into, and keeps the dialog
+			   from resizing as the lists change under typing. */
+			.content {
+				height: 90%;
+			}
+
 			.help {
 				font-size:0.75em;
 			}
