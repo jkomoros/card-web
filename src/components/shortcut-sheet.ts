@@ -35,9 +35,14 @@ import {
 //It ENUMERATES THE REGISTRY rather than holding its own list, which is #740's
 //own requirement ("a registry that can be enumerated"): a new binding appears
 //here automatically, and there is a test that registers a synthetic one to prove
-//it. It also never reads SHORTCUT_COMBOS directly and never snapshots at module
-//load, because #740's stage 3 is user-configurable bindings and resolving
-//through shortcutKeysAll is what leaves that possible.
+//it.
+//
+//The combos come from the CATALOG's own keys. An earlier version resolved them
+//through shortcutKeysAll and claimed in this very comment that doing so was what
+//left #740's stage 3 possible. It was the reverse: shortcutKeysAll IS
+//SHORTCUT_COMBOS[id], the frozen module table, so a user-overridden binding
+//displayed the stock combo — and any catalogued id outside that table threw and
+//blanked the whole sheet.
 //
 //A DIALOG, not a panel. HOUSE-STYLE §3.2 says a surface with no commit action is
 //not a dialog — but read what that rule is aimed at: configure-collection, which
@@ -72,32 +77,38 @@ class ShortcutSheet extends connect(store)(DialogElement) {
 	static override styles = [
 		...DialogElement.styles,
 		css`
+			/* inherit, copying progress-panel's reasoning: it carries a comment
+			   rejecting --app-dark-text-color for a heading because that token is
+			   calibrated for 24px and fails AA below it. I repeated the mistake
+			   it documents. */
 			h3 {
 				font-weight: normal;
-				color: var(--app-dark-text-color);
+				color: inherit;
 				margin: 1em 0 0.25em 0;
 			}
 
 			.note {
-				font-size: 0.75em;
-				color: var(--app-dark-text-color);
+				font-size: 0.75rem;
+				color: var(--app-dark-text-color-darker);
 				margin-bottom: 0.5em;
 			}
 
+			/* Bounded. At 1fr auto on a wide dialog, "Italic" and "Cmd-I" ended
+			   up 407px apart with nothing between them, which is not a table. */
 			.row {
 				display: grid;
-				grid-template-columns: 1fr auto;
+				grid-template-columns: minmax(0, 1fr) auto;
 				gap: 1em;
+				max-width: 32em;
 				padding: 0.15em 0;
 			}
 
-			/* tabular-nums so the combos line up down the column, following
-			   corpus-status-indicator. No keycap chips: this repo has no such
-			   idiom and §4.4 says core surfaces are square — inventing one is
-			   how a twelfth border-radius gets added. */
+			/* No keycap chips: this repo has no such idiom and §4.4 says core
+			   surfaces are square — inventing one is how a twelfth border-radius
+			   gets added. And no tabular-nums: two of twenty combos contain a
+			   digit and the column is already right-aligned by the grid. */
 			.keys {
-				color: var(--app-dark-text-color);
-				font-variant-numeric: tabular-nums;
+				color: var(--app-dark-text-color-darker);
 				white-space: nowrap;
 			}
 		`
