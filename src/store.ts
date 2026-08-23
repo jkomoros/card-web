@@ -15,6 +15,7 @@ import { State } from './types.js';
 import app from './reducers/app.js';
 import data from './reducers/data.js';
 import modal from './reducers/modal.js';
+import errors from './reducers/errors.js';
 import { SomeAction } from './actions.js';
 import { perfEnabled, perfMiddleware } from './perf.js';
 import { actionForwarderMiddleware } from './action-forwarder.js';
@@ -56,6 +57,9 @@ store.addReducers({
 	//NOT lazy: src/modal.ts's seam is reachable from actions, which run before
 	//any dialog component is imported.
 	modal,
+	//Same reason: a write can fail before anything that renders the failure has
+	//been imported.
+	errors,
 });
 
 //Stash this here so it's easy to get access to it via console. Gated: the

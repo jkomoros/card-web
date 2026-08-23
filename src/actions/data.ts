@@ -54,7 +54,8 @@ import {
 	navigateToCardInCurrentCollection,
 	navigateToCollection,
 	navigateToNextCard,
-	showSnackbar
+	showSnackbar,
+	reportPersistentError
 } from './app.js';
 
 import {
@@ -3249,16 +3250,34 @@ const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dis
 	}
 };
 
-export const modifyCardFailure = (err : Error, skipAlert? : boolean) : SomeAction => {
-	if (skipAlert) {
-		console.warn(err);
-	} else {
-		alert(err);
-	}
-	return {
+//A card write failed. This used to alert(err) — the raw Error object, so the
+//user read "Error: <internal message>" in OS chrome — and it was the ONLY
+//surface for roughly 25 dispatch paths: the save-status pill renders only when
+//there is a durable bulk intent (card-web-app: _saveStatus is 'idle'
+//otherwise), so a single-card failure set cardModificationError in a store
+//where nothing displayed it.
+//
+//`skipReport` (formerly `skipAlert`) is for callers that already show the
+//failure themselves — the editor's disabled Save carries its own reason.
+export const modifyCardFailure = (err : Error, skipReport? : boolean) : ThunkSomeAction => (dispatch) => {
+	dispatch({
 		type: MODIFY_CARD_FAILURE,
 		error: err,
-	};
+	});
+	if (skipReport) {
+		console.warn(err);
+		return;
+	}
+	//The message is composed here, not taken from the Error: §2.4 forbids
+	//showing raw internals, and err.message is written for a developer. The
+	//detail still reaches the console.
+	console.warn(err);
+	dispatch(reportPersistentError({
+		what: 'That change could not be saved.',
+		reassurance: 'Your work is still here — try again, or copy anything you need before leaving the page.',
+		//One failing write is one problem however many times it retries.
+		dedupeKey: 'card-write',
+	}));
 };
 
 export const reorderStatus = (pending : boolean) : SomeAction => {

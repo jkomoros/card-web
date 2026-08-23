@@ -74,7 +74,9 @@ import {
 	ModalRequest,
 	ModalRequestID,
 	SnackbarID,
-	SnackbarMessage
+	SnackbarMessage,
+	PersistentError,
+	PersistentErrorID
 } from './types.js';
 
 //AI
@@ -253,6 +255,8 @@ export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 //Prompt
+export const REPORT_PERSISTENT_ERROR = 'REPORT_PERSISTENT_ERROR';
+export const DISMISS_PERSISTENT_ERROR = 'DISMISS_PERSISTENT_ERROR';
 export const PUSH_SNACKBAR = 'PUSH_SNACKBAR';
 export const DISMISS_SNACKBAR = 'DISMISS_SNACKBAR';
 export const MODAL_OPEN = 'MODAL_OPEN';
@@ -1167,6 +1171,16 @@ type ActionPermissionsResetAddCard = {
 	type: typeof PERMISSIONS_RESET_ADD_CARD
 };
 
+type ActionReportPersistentError = {
+	type: typeof REPORT_PERSISTENT_ERROR,
+	error: PersistentError,
+};
+
+type ActionDismissPersistentError = {
+	type: typeof DISMISS_PERSISTENT_ERROR,
+	errorID: PersistentErrorID,
+};
+
 type ActionPushSnackbar = {
 	type: typeof PUSH_SNACKBAR,
 	message: SnackbarMessage,
@@ -1477,6 +1491,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard
+	| ActionReportPersistentError
+	| ActionDismissPersistentError
 	| ActionPushSnackbar
 	| ActionDismissSnackbar
 	| ActionModalOpen

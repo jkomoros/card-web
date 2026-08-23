@@ -1310,6 +1310,27 @@ export type PermissionsState = {
 //@state() decorators via the TypeScript AST and is unrelated.)
 //The three-valued truth of AuxWriteOutcome (#758), plus the two states that are
 //not writes at all. Selects tone and aria routing; deliberately NOT free-form.
+//A failure that is NOT transient: the durability promise broke, and the user
+//needs to know it is still broken. Distinct from a snackbar, which is for things
+//that are true and then over.
+export type PersistentErrorID = string;
+
+export type PersistentError = {
+	id : PersistentErrorID,
+	//§2.4 parts 1+2, in the user's vocabulary. NEVER String(err).
+	what : string,
+	//§2.4 part 3, when anything is true to say.
+	reassurance? : string,
+	//A serializable id, resolved to a thunk by the component. Never a function.
+	action? : {label : string, actionID : string},
+	//Collapses repeats of the same failure instead of stacking them.
+	dedupeKey? : string,
+};
+
+export type ErrorsState = {
+	errors : PersistentError[],
+};
+
 export type SnackbarKind = 'committed' | 'queued' | 'discarded' | 'refused' | 'info';
 
 export type SnackbarID = string;
@@ -1474,6 +1495,9 @@ export type State = {
 	//in modal.ts is called from ACTIONS, which can run long before any dialog
 	//component has been imported.
 	modal : ModalState,
+	//Eager, like modal: reportPersistentError is reachable from actions long
+	//before any component that renders it has been imported.
+	errors : ErrorsState,
 	multiedit? : MultiEditState,
 	permissions? : PermissionsState,
 	suggestions? :SuggestionsState,

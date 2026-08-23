@@ -130,6 +130,8 @@ import {
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	OPEN_HEADER_PANEL,
 	PUSH_SNACKBAR,
+	REPORT_PERSISTENT_ERROR,
+	DISMISS_PERSISTENT_ERROR,
 	SomeAction,
 	TURN_SUGGEST_MISSING_CONCEPTS,
 	UPDATE_CTRL_KEY_PRESSED,
@@ -548,7 +550,9 @@ import {
 	SnackbarID,
 	SnackbarMessage,
 	SnackbarOutcome,
-	ShowSnackbarOptions
+	ShowSnackbarOptions,
+	PersistentError,
+	PersistentErrorID
 } from '../types.js';
 
 export const showSnackbar = (message : string, options : ShowSnackbarOptions = {}) : ThunkSomeAction<Promise<SnackbarOutcome>> => (dispatch, getState) => {
@@ -708,4 +712,37 @@ export const turnSuggestMissingConcepts = (on : boolean) : SomeAction => {
 		type: TURN_SUGGEST_MISSING_CONCEPTS,
 		on,
 	};
+};
+
+//Report a failure the user needs to keep seeing (HOUSE-STYLE §3.6.1 point 4).
+//
+//NOT for a queued write. A write that is durably saved and merely waiting for
+//the connection is good news; reporting it as an error is the defect #758 names.
+//This is for the promise BREAKING: discarded, or failing repeatedly.
+const persistentErrorActions : {[actionID : string] : ThunkSomeAction} = {};
+
+export const registerPersistentErrorAction = (actionID : string, action : ThunkSomeAction) : void => {
+	persistentErrorActions[actionID] = action;
+};
+
+let nextErrorID = 0;
+
+export const reportPersistentError = (error : Omit<PersistentError, 'id'>) : ThunkSomeAction => (dispatch) => {
+	nextErrorID++;
+	const entry : PersistentError = {id: `error-${nextErrorID}`, what: error.what};
+	if (error.reassurance) entry.reassurance = error.reassurance;
+	if (error.action) entry.action = error.action;
+	if (error.dedupeKey) entry.dedupeKey = error.dedupeKey;
+	dispatch({type: REPORT_PERSISTENT_ERROR, error: entry});
+};
+
+export const dismissPersistentError = (errorID : PersistentErrorID) : ThunkSomeAction => (dispatch) => {
+	dispatch({type: DISMISS_PERSISTENT_ERROR, errorID});
+};
+
+export const runPersistentErrorAction = (errorID : PersistentErrorID, actionID : string) : ThunkSomeAction => (dispatch, getState) => {
+	if (!getState().errors.errors.some(entry => entry.id === errorID)) return;
+	dispatch(dismissPersistentError(errorID));
+	const action = persistentErrorActions[actionID];
+	if (action) dispatch(action);
 };

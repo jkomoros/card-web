@@ -12,6 +12,15 @@ import { APP_TITLE } from '../config.GENERATED.SECRET.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+import {
+	dismissPersistentError,
+	runPersistentErrorAction
+} from '../actions/app.js';
+
+import {
+	PersistentError
+} from '../types.js';
+
 // These are the actions needed by this element.
 import {
 	navigated,
@@ -233,13 +242,38 @@ class CardWebApp extends connect(store)(LitElement) {
 
 				--transition-fade: 0.25s linear;
 			}
-			.update-ready {
+			/* ONE container owns the corner, and the banners stack inside it.
+			   They each used to be position:fixed with a hand-computed bottom,
+			   which meant two banners needed four values (.update-ready,
+			   .draft-recovery, and an .editor-open variant of each) and a third
+			   would have needed eight. The comments on those rules record two
+			   real bugs from getting that arithmetic wrong. A flex column has
+			   no arithmetic to get wrong. */
+			.banners {
 				position: fixed;
 				/* Clears the comments panel's round add-comment button, which
 				   lives in exactly this corner (44px wide at right:1em) and
 				   was sitting underneath these banners. */
 				right: 4.5rem;
 				bottom: 0.75rem;
+				z-index: 950;
+				display: flex;
+				flex-direction: column;
+				align-items: flex-end;
+				gap: 0.5rem;
+				/* Only the banners themselves take clicks. */
+				pointer-events: none;
+			}
+
+			/* The card editor's Save and Cancel row is position:fixed in this
+			   same corner while editing. One offset on the container now moves
+			   every banner clear of it. */
+			.banners.editor-open {
+				bottom: 4.25rem;
+			}
+
+			.update-ready {
+				pointer-events: auto;
 				z-index: 950;
 				display: flex;
 				flex-wrap: wrap;
@@ -293,11 +327,21 @@ class CardWebApp extends connect(store)(LitElement) {
 			   controls it was blocking, with no way to comply. Same class of
 			   bug as the two corner clearances noted above; the editor's row
 			   was the case that got missed. */
-			.update-ready.editor-open { bottom: 4.25rem; }
-			.draft-recovery { bottom: 4.25rem; }
-			/* Keep the two banners from stacking on each other once the update
-			   banner has moved up. */
-			.draft-recovery.editor-open { bottom: 7.75rem; }
+			/* The four hand-computed bottom offsets that used to live here are
+			   gone: .banners is a flex column, so the stacking is automatic and
+			   adding a fourth banner costs nothing. */
+
+			/* The failure the user still needs to know about outranks the other
+			   two, so it renders first (topmost in a column that grows upward
+			   from the corner) and carries the only colour. */
+			.error-banner .error-mark {
+				width: 0.5rem;
+				height: 0.5rem;
+				border-radius: 50%;
+				flex-shrink: 0;
+				background: var(--app-warning-color);
+			}
+			.error-banner .reassurance { color: var(--app-dark-text-color); }
 			/* box-shadow: none is load-bearing: the base button rule's rest
 			   and hover shadows otherwise apply, boxing the text link. */
 			.draft-recovery .discard { background: transparent; color: inherit; text-decoration: underline; box-shadow: none; }
@@ -370,23 +414,41 @@ class CardWebApp extends connect(store)(LitElement) {
 		`
 	];
 
+	private _dismissError(error : PersistentError) {
+		store.dispatch(dismissPersistentError(error.id));
+	}
+
+	private _runErrorAction(error : PersistentError) {
+		if (!error.action) return;
+		store.dispatch(runPersistentErrorAction(error.id, error.action.actionID));
+	}
+
 	override render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
 		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar></snack-bar>
-		${this._updateRegistration || this._updateActivated ? html`
-			<div class='update-ready ${this._editorOpen ? 'editor-open' : ''}' role='status' aria-live='polite'>
-				<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
-				<button ?disabled=${Boolean(this._currentUnsafeExitReason()) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
-			</div>` : ''}
-		${this._draftAvailable ? html`
-			<div class='update-ready draft-recovery ${this._editorOpen ? 'editor-open' : ''}' role='alert' aria-live='assertive'>
-				<span>${this._draftError || (this._draftCount > 1 ? `${this._draftCount} unsaved card drafts are available.` : 'An unsaved card draft is available.')}</span>
-				<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
-				<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
-			</div>` : ''}
+		<div class='banners ${this._editorOpen ? 'editor-open' : ''}'>
+			${this._persistentErrors.map(error => html`
+				<div class='update-ready error-banner' role='alert'>
+					<span class='error-mark' aria-hidden='true'></span>
+					<span>${error.what}${error.reassurance ? html` <span class='reassurance'>${error.reassurance}</span>` : ''}</span>
+					${error.action ? html`<button @click=${() => this._runErrorAction(error)}>${error.action.label}</button>` : ''}
+					<button class='discard' @click=${() => this._dismissError(error)}>Dismiss</button>
+				</div>`)}
+			${this._updateRegistration || this._updateActivated ? html`
+				<div class='update-ready' role='status' aria-live='polite'>
+					<span>${this._currentUnsafeExitReason() ? `Update ready — ${this._currentUnsafeExitReason()}` : this._updateActivated ? 'Update active — reload to finish' : 'Update ready'}</span>
+					<button ?disabled=${Boolean(this._currentUnsafeExitReason()) || this._updateReloading} @click=${this._activateUpdate}>Reload</button>
+				</div>` : ''}
+			${this._draftAvailable ? html`
+				<div class='update-ready draft-recovery' role='alert' aria-live='assertive'>
+					<span>${this._draftError || (this._draftCount > 1 ? `${this._draftCount} unsaved card drafts are available.` : 'An unsaved card draft is available.')}</span>
+					<button ?disabled=${this._draftBusy} @click=${this._recoverDraft}>Recover</button>
+					<button class='discard' ?disabled=${this._draftBusy} @click=${this._discardDraft}>Discard</button>
+				</div>` : ''}
+		</div>
 		${this._saveStatus !== 'idle' ? html`
 			<div class='save-status ${this._saveStatus}' data-corpus-gate-keep-interactive role='status' aria-live='polite' title=${this._saveError}>
 				<span class='save-dot' aria-hidden='true'></span>
@@ -691,7 +753,11 @@ class CardWebApp extends connect(store)(LitElement) {
 		}
 	}
 
+	@state()
+		_persistentErrors : PersistentError[] = [];
+
 	override stateChanged(state : State) {
+		this._persistentErrors = state.errors.errors;
 		this._card = selectActiveCard(state);
 		this._editorOpen = Boolean(state.editor?.editing);
 		this._page = state.app.page;
