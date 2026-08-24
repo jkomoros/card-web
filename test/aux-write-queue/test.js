@@ -759,10 +759,11 @@ describe('aux write queue', () => {
 		//write would go through when the connection recovered. Exactly what
 		//happened when the card-create executor opened an atomic group it never
 		//closed: creation was 100% broken and the UI said "saved".
+		//Reported through the module's own seam now, not a setTimeout(alert).
+		//This asserts the CONTRACT rather than a stubbed global: the UI layer
+		//subscribes to exactly this and renders a banner from it.
 		const alerts = [];
-		globalThis.window = globalThis.window || {};
-		globalThis.window.setTimeout = (fn) => { fn(); return 0; };
-		globalThis.alert = (m) => alerts.push(String(m));
+		queue.onAuxWriteStuck((intent, detail) => alerts.push(`${intent.kind} is not going through: ${detail}`));
 		queue.setAuxWriteAttemptTimeoutForTesting(30);
 		queue.registerAuxWriteExecutor('card-create', async () => { throw new Error('the same deterministic bug'); });
 		const payload = {kind: 'card-create', card: {id: 'c'}, section: '', sectionUpdateKey: ''};

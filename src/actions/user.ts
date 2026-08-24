@@ -145,11 +145,27 @@ import {
 	FieldValue
 } from 'firebase/firestore';
 
+//The labels live with the queue so there is one copy; this only fixes the case
+//for the start of a sentence.
+const capitalize = (text : string) : string => text.charAt(0).toUpperCase() + text.slice(1);
+
+//Suppress a report ONLY when we positively know it belongs to someone else. An
+//equality test against selectUid looks equivalent and is not: before sign-in
+//resolves there is no current uid, and treating that as "different account"
+//silently drops the report for the user actually sitting there.
+const auxWriteBelongsToCurrentUser = (intent : AuxWriteIntent) : boolean => {
+	const currentUID = selectUid(store.getState() as State);
+	if (!currentUID) return true;
+	return intent.uid === currentUID;
+};
+
 import {
 	registerAuxWriteExecutor,
 	makeAuxWriteIntent,
 	runDurableAuxWrite,
 	onAuxWriteDiscarded,
+	onAuxWriteStuck,
+	auxWriteLabel,
 	onAuxWriteQueueDepthChanged,
 	readPendingAuxWrites,
 	AuxWriteOutcome,
@@ -787,7 +803,40 @@ export const installOptimisticUserStateReconciler = () : void => {
 			return;
 		}
 	});
+
 };
+
+//REGISTERED AT MODULE SCOPE, ON PURPOSE. These first lived inside
+//installOptimisticUserStateReconciler, which only runs once sign-in completes —
+//and test/comment-executors caught that immediately: a comment edit discarded
+//before then told the user nothing, which is precisely the silent-discard
+//failure mode this branch keeps rediscovering. Reporting that a write was lost
+//must not be contingent on any install step having happened first.
+//
+//Safe at module scope where a registerPersistentErrorAction call was not: this
+//imports from aux-write-queue.js, which does not import back, and
+//reportPersistentError is only dereferenced when the callback FIRES, long after
+//the app.ts cycle has settled.
+onAuxWriteDiscarded((intent, detail) => {
+	if (!auxWriteBelongsToCurrentUser(intent)) return;
+	store.dispatch(reportPersistentError({
+		what: `${capitalize(auxWriteLabel(intent))} couldn\u2019t be saved and has been discarded.`,
+		reassurance: detail,
+		//Per kind, not per intent: ten discarded stars are one problem.
+		dedupeKey: `aux-discarded-${intent.kind}`
+	}));
+});
+
+onAuxWriteStuck((intent, detail) => {
+	if (!auxWriteBelongsToCurrentUser(intent)) return;
+	store.dispatch(reportPersistentError({
+		what: `${capitalize(auxWriteLabel(intent))} isn\u2019t going through.`,
+		//The reassurance is the whole point of the queued state (§3.6): the work
+		//is not lost, it is still being retried, and nothing is asked of them.
+		reassurance: `Your change is still saved on this device and is being retried. ${detail}`,
+		dedupeKey: `aux-stuck-${intent.kind}`
+	}));
+});
 
 export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = [], optimistic = false) : ThunkSomeAction => (dispatch) => {
 	dispatch({

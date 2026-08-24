@@ -212,9 +212,22 @@ const recordFailure = (intent : AuxWriteIntent, error : unknown) : void => {
 		//better than a silent wedge.
 	}
 	console.error(`[aux-write] ${intent.kind} for ${intent.cardID} has failed ${count} times with the same error; it is being kept but is not succeeding:`, message);
-	if (typeof window === 'undefined') return;
-	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
-	window.setTimeout(() => alert(`${what} is not going through — it has failed repeatedly with the same error. Your change is still saved locally and will be retried, but something is wrong: ${message}`), 0);
+	for (const listener of stuckListeners) {
+		try {
+			listener(intent, message);
+		} catch (err) {
+			console.warn('[aux-write] a stuck listener threw:', err);
+		}
+	}
+};
+
+//The QUEUED half of the durability model (§3.6): still saved locally, still
+//being retried, but not getting through. Distinct from discarded, which is
+//terminal — different news, so a different seam and different copy.
+const stuckListeners : ((intent : AuxWriteIntent, detail : string) => void)[] = [];
+
+export const onAuxWriteStuck = (listener : (intent : AuxWriteIntent, detail : string) => void) : void => {
+	stuckListeners.push(listener);
 };
 
 const clearFailures = (id : string) : void => {
@@ -743,27 +756,36 @@ const DISCARD_LABELS : Record<AuxWriteKind, string> = {
 //outcome by observing its own first attempt — it has already returned.
 //
 //Every terminal discard funnels through reportDiscardedIntent, so this is the
-//one place that knows. Subscribers are notified BEFORE the user-facing alert,
-//so the UI has already corrected itself by the time the alert is read.
-const discardListeners : ((intent : AuxWriteIntent) => void)[] = [];
+//one place that knows. Subscribers are notified in order, and the one that
+//RENDERS this is registered last, so the optimistic revert has already run by
+//the time the banner naming it appears.
+//
+//This module deliberately does not reach for the UI itself. It used to end in
+//a setTimeout(alert), which was the only way a module this low could say
+//anything — it cannot import the store without a cycle. The listener seam it
+//already had is the better answer: src/actions/user.ts subscribes and raises
+//a persistent banner, so the durability outcome is reported on the same
+//surface as every other failure instead of in a modal box.
+const discardListeners : ((intent : AuxWriteIntent, detail : string) => void)[] = [];
 
-export const onAuxWriteDiscarded = (listener : (intent : AuxWriteIntent) => void) : void => {
+export const onAuxWriteDiscarded = (listener : (intent : AuxWriteIntent, detail : string) => void) : void => {
 	discardListeners.push(listener);
 };
 
+//What to call this intent in user-facing copy. Exported so the layer that
+//renders the report does not have to keep a second copy of these labels.
+export const auxWriteLabel = (intent : AuxWriteIntent) : string => DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
+
 const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {
+	const detail = (error as {message? : string})?.message || String(error);
 	for (const listener of discardListeners) {
 		try {
-			listener(intent);
+			listener(intent, detail);
 		} catch (err) {
 			//A broken subscriber must never suppress the user-facing report.
 			console.warn('[aux-write] a discard listener threw:', err);
 		}
 	}
-	if (typeof window === 'undefined') return;
-	const what = DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
-	const detail = (error as {message? : string})?.message || String(error);
-	window.setTimeout(() => alert(`${what} could not be saved and has been discarded: ${detail}`), 0);
 };
 
 //True for errors that will never succeed on retry, so the intent should be
@@ -1247,6 +1269,7 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	unsettledAttempts.clear();
 	discardListeners.length = 0;
 	depthListeners.length = 0;
+	stuckListeners.length = 0;
 	depthNotificationScheduled = false;
 	replayRunning = false;
 	replayRetryScheduled = false;

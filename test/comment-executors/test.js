@@ -109,8 +109,12 @@ describe('comment executors (real writes against the emulator)', () => {
 		//...and discarding the user's words SILENTLY is the failure mode this
 		//whole branch keeps rediscovering. They must be told.
 		await new Promise(resolve => setTimeout(resolve, 50));
-		assert.ok(harnessAlerts.some(a => /saving your edit to that comment/.test(a)),
-			`the user must be told their edit was discarded; alerts were ${JSON.stringify(harnessAlerts)}`);
+		//Told via the persistent error banner, not an alert(). The surface moved;
+		//the guarantee did not. This assertion is the reason the move was caught
+		//being made contingent on sign-in having installed a listener.
+		const told = (app.store.getState().errors?.errors || []).map(entry => `${entry.what} ${entry.reassurance || ''}`);
+		assert.ok(told.some(text => /saving your edit to that comment/i.test(text)),
+			`the user must be told their edit was discarded; banners were ${JSON.stringify(told)}, alerts were ${JSON.stringify(harnessAlerts)}`);
 	});
 
 	it('a REPLAYED edit that is already applied is a no-op, not a conflict', async () => {
