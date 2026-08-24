@@ -159,6 +159,11 @@ import {
 } from '../aux-write-queue.js';
 
 import {
+	reportPersistentError,
+	registerPersistentErrorAction
+} from './app.js';
+
+import {
 	idForPersonalCardInfo
 } from '../util.js';
 
@@ -286,7 +291,25 @@ export const showNeedSignin = () : ThunkSomeAction => (dispatch) => {
 	dispatch(signIn());
 };
 
+const SIGNIN_RETRY_ACTION = 'signin-retry';
+
+//The banner holds a serializable actionID, never a function — a thunk in the
+//store would break serializability. Registration is LAZY and idempotent, not at
+//module scope: app.ts transitively imports this file, so a top-level call here
+//runs inside the cycle's temporal dead zone and throws
+//"Cannot access 'registerPersistentErrorAction' before initialization" at boot.
+//Called from the two thunks that can raise this banner, so it is always
+//registered before any banner naming it can exist.
+let signInRetryRegistered = false;
+const ensureSignInRetryRegistered = () : void => {
+	if (signInRetryRegistered) return;
+	signInRetryRegistered = true;
+	registerPersistentErrorAction(SIGNIN_RETRY_ACTION, signIn());
+};
+
 export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
+
+	ensureSignInRetryRegistered();
 	const state = getState();
 	const isAnonymous = selectUserIsAnonymous(state);
 
@@ -328,7 +351,12 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 				return;
 			} catch (redirectErr) {
 				dispatch({type:SIGNIN_FAILURE, error: redirectErr});
-				alert('Could not open Google sign-in. Please allow popups for this site and try again.');
+				dispatch(reportPersistentError({
+					what: 'Google sign-in couldn\u2019t open.',
+					reassurance: 'Your browser is blocking the sign-in window. Allow pop-ups for this site, then try again.',
+					action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
+					dedupeKey: 'signin'
+				}));
 				return;
 			}
 		}
@@ -349,7 +377,12 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			const credential = OAuthProvider.credentialFromError(err);
 
 			if (!credential) {
-				alert('No credential provided, can\'t proceed');
+				dispatch(reportPersistentError({
+					what: 'Sign-in couldn\u2019t be completed.',
+					reassurance: 'Google didn\u2019t hand back a credential to sign in with.',
+					action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
+					dedupeKey: 'signin'
+				}));
 				return;
 			}
 
@@ -365,7 +398,12 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			//button, which is what made a blocked popup look like a loop.
 			const code = err instanceof FirebaseError ? err.code : '';
 			if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-				alert(`Sign-in did not complete${code ? ` (${code})` : ''}. Please try again; if it keeps failing, allow popups for this site.`);
+				dispatch(reportPersistentError({
+					what: `Sign-in didn\u2019t complete${code ? ` (${code})` : ''}.`,
+					reassurance: 'If it keeps failing, allow pop-ups for this site.',
+					action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
+					dedupeKey: 'signin'
+				}));
 			}
 		}
 	}
@@ -375,6 +413,7 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 //on boot: a redirect LINK keeps the same uid, so onAuthStateChanged does not
 //fire for it — the same reason the popup link path dispatches explicitly.
 export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) => {
+	ensureSignInRetryRegistered();
 	try {
 		const result = await getRedirectResult(auth);
 		if (result?.user) dispatch(signInSuccess(result.user));
@@ -386,9 +425,20 @@ export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) =
 		//a loop. The popup path already surfaces its failures the same way.
 		const code = (err as {code? : string})?.code || '';
 		if (code === 'auth/credential-already-in-use') {
-			alert('That account is already linked to different data. Sign in from the account menu to switch to it.');
+			//No retry action: pressing it again lands in the same place. The way
+			//out is a different sign-in, which lives in the account menu.
+			dispatch(reportPersistentError({
+				what: 'That account is already linked to different data.',
+				reassurance: 'Sign in from the account menu to switch to it.',
+				dedupeKey: 'signin'
+			}));
 		} else {
-			alert(`Sign in did not complete: ${(err as {message? : string})?.message || String(err)}`);
+			dispatch(reportPersistentError({
+				what: `Sign-in didn\u2019t complete${code ? ` (${code})` : ''}.`,
+				reassurance: 'Nothing about your account has changed. You can try again.',
+				action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
+				dedupeKey: 'signin'
+			}));
 		}
 	}
 };

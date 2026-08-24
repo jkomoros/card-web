@@ -13,6 +13,7 @@
 //25 rude failures into 25 silent ones. These tests pin that it did not.
 
 import assert from 'assert';
+import {readFileSync, readdirSync} from 'fs';
 import {bootstrapApp, harnessAlerts, clearHarnessAlerts} from '../harness-support/app-harness.js';
 
 const app = await bootstrapApp();
@@ -123,6 +124,37 @@ describe('the persistent error banner', () => {
 			store.dispatch(reportPersistentError({what: 'A failed.', dedupeKey: 'a'}));
 			store.dispatch(reportPersistentError({what: 'B failed.', dedupeKey: 'b'}));
 			assert.strictEqual(errors().length, 2);
+		});
+
+		//A banner whose actionID names nothing renders a button that does nothing
+		//when pressed — runPersistentErrorAction dismisses the banner and then
+		//finds no thunk, so the failure looks like it was handled. Source-text
+		//pin because the alternative is importing user.js, which drags in
+		//firebase. Idiom follows test/util/scrollbar-convention.test.js.
+		it('registers every actionID that any banner names', () => {
+			const root = new URL('../../src/', import.meta.url);
+			const walk = dir => readdirSync(dir, {withFileTypes: true}).flatMap(entry => {
+				const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
+				return entry.isDirectory() ? walk(child) : (entry.name.endsWith('.ts') ? [child] : []);
+			});
+			const files = walk(root);
+			const sources = files.map(file => readFileSync(file, 'utf8'));
+			const stripped = sources.map(source => source
+				.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''));
+			const joined = stripped.join('\n');
+
+			//Both the literal form and the `actionID: SOME_CONST` form, resolved
+			//through the const's own declaration.
+			const consts = new Map([...joined.matchAll(/const\s+([A-Z][A-Z0-9_]*)\s*=\s*'([^']+)'/g)]
+				.map(match => [match[1], match[2]]));
+			const named = [...joined.matchAll(/actionID:\s*(?:'([^']+)'|([A-Za-z_$][\w$]*))/g)]
+				.map(match => match[1] || consts.get(match[2]) || match[2]);
+			const registered = new Set([...joined.matchAll(/registerPersistentErrorAction\(\s*(?:'([^']+)'|([A-Za-z_$][\w$]*))/g)]
+				.map(match => match[1] || consts.get(match[2]) || match[2]));
+
+			assert.ok(named.length > 0, 'found no banner actions at all — this test has stopped seeing them');
+			const dead = [...new Set(named)].filter(id => !registered.has(id));
+			assert.deepStrictEqual(dead, [], `these banner buttons name an action nothing registers, so pressing them dismisses the banner and does nothing: ${dead.join(', ')}`);
 		});
 
 		it('never puts a function in the store', () => {
