@@ -6,7 +6,8 @@ import {
 } from '../../shared/collection-constants.js';
 
 import {
-	showSnackbar
+	showSnackbar,
+	reportPersistentError
 } from './app.js';
 
 import {
@@ -106,7 +107,7 @@ export const createAuthorStub = (uid : Uid) => {
 	return batch.commit();
 };
 
-export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, getState) => {
+export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 
 	if (!thread || !thread.id) {
@@ -143,7 +144,14 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, g
 		});
 	})).catch(err => {
 		console.warn('Comment write did not complete:', err);
-		alert(`That comment action could not be saved: ${err instanceof Error ? err.message : String(err)}`);
+		dispatch(reportPersistentError({
+			what: 'That comment change couldn\u2019t be saved.',
+			//Passed through, not flattened. Many of these messages are composed
+			//for the user — a generic sentence here would destroy copy that
+			//already says something specific and true.
+			reassurance: err instanceof Error ? err.message : String(err),
+			dedupeKey: 'comment-write'
+		}));
 	});
 };
 

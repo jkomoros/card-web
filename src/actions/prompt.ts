@@ -40,6 +40,10 @@ import {
 } from '../../shared/util.js';
 
 import {
+	showSnackbar
+} from './app.js';
+
+import {
 	createChatWithCurentCollection
 } from './chat.js';
 
@@ -93,7 +97,10 @@ export const composeCommit = () : ThunkSomeAction => async (dispatch, getState) 
 		//Give the text back rather than dropping it. The user can retry or copy
 		//it out; either beats silent loss.
 		dispatch(composeShow(message, content));
-		alert(`That couldn't be saved, so your text has been restored: ${err instanceof Error ? err.message : String(err)}`);
+		//The composer is already back up with the text in it, so this only has to
+		//name what happened. A modal box here would cover the very field it is
+		//telling them to look at.
+		dispatch(showSnackbar(`That couldn\u2019t be saved, so your text has been put back: ${err instanceof Error ? err.message : String(err)}`, {kind: 'refused'}));
 	}
 
 };

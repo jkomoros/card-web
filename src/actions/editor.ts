@@ -941,7 +941,7 @@ export const setCardToReference = (cardID : CardID) : ThunkSomeAction => (dispat
 		//earlier chunks had already committed. Reject the intent before any durable
 		//operation begins instead of leaving a surprising partial result.
 		if (selectSelectedCards(state).some(card => card.id === cardID)) {
-			alert('Choose a card outside the current selection. A card cannot reference itself.');
+			dispatch(showSnackbar('Choose a card outside the current selection \u2014 a card can\u2019t reference itself.', {kind: 'refused'}));
 			dispatch({type: EDITING_RESET_REFERENCE_CARD});
 			return;
 		}
