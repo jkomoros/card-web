@@ -2104,6 +2104,12 @@ export const addSlug = (cardId : CardID, newSlug : Slug) : ThunkSomeAction => as
 
 };
 
+//NOTE: callers must establish selectDataIsFullyLoaded THEMSELVES before
+//trusting a false answer from this. It still returns true when data is not
+//loaded — refusing is the safe default, since the reserved-name list is
+//incomplete until sections arrive — but "true" then means "cannot tell", not
+//"reserved", and a caller that reports it as "reserved" tells the user
+//something false about a name that may be perfectly fine.
 const reservedCollectionName = (state : State, name : string) : boolean => {
 
 	if (!selectDataIsFullyLoaded(state)) {
@@ -2126,41 +2132,72 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 	return false;
 };
 
+//D19: the densest silent-refusal cluster in the app. EIGHT ways to fail, all
+//of them console.warn-and-return, so an admin who types a reserved word, or a
+//name that normalizes to nothing, or one that already exists, sees the two
+//prompts close and then absolutely nothing happen. Every one of them is a
+//refusal the person can act on once they are told, which is what makes the
+//silence indefensible rather than merely unhelpful.
+//
+//They share one dedupe key: it is one attempt, and only one of these can fire.
+const refuseTag = (dispatch : AppThunkDispatch, message : string) : void => {
+	dispatch(showSnackbar(message, {kind: 'refused', dedupeKey: 'create-tag'}));
+};
+
 export const createTag = (name : TagID, displayName : string) : ThunkSomeAction => async (dispatch, getState) => {
 
+	//Captured BEFORE normalizeSlug rewrites it, so the "that normalized to
+	//nothing" message can quote what was actually typed.
+	const typedName = name;
+
 	if (!name) {
-		console.warn('No short name provided');
+		refuseTag(dispatch, 'A tag needs a short name.');
 		return;
 	}
 
 	name = normalizeSlug(name);
 
-	const state = getState();
-
-	if (reservedCollectionName(state, name)) {
-		console.warn('That name is reserved');
-		return;
-	}
-
+	//STRUCTURAL CHECKS FIRST, because they need nothing loaded to answer. The
+	//original order asked "is this reserved?" before "is this even a name?",
+	//which meant a user who typed "!!!" was told to wait for sections to load
+	//and then, once they had, that their name was reserved — two misleading
+	//answers in a row to a question that could have been settled immediately.
 	if (!name) {
-		console.warn('Tag name invalid');
+		refuseTag(dispatch, `“${typedName}” has no letters or numbers in it, so it can\u2019t be a tag name.`);
 		return;
 	}
 
 	if (!displayName) {
-		console.warn('No short name provided');
+		//This said "No short name provided", which is the message for a
+		//different field — it is the DISPLAY name that is missing here.
+		refuseTag(dispatch, 'A tag needs a display name as well as a short name.');
+		return;
+	}
+
+	const state = getState();
+
+	//BEFORE the reserved check, because that check answers "true" for both
+	//"reserved" and "I cannot tell yet", and reporting the second as the first
+	//tells the user their name is taken when it may be entirely available.
+	if (!selectDataIsFullyLoaded(state)) {
+		refuseTag(dispatch, 'The sections are still loading, so tag names can\u2019t be checked yet. Try again in a moment.');
+		return;
+	}
+
+	if (reservedCollectionName(state, name)) {
+		refuseTag(dispatch, `“${name}” is a reserved word, so it can\u2019t be a tag name.`);
 		return;
 	}
 
 	const user = selectUser(state);
 
 	if (!user) {
-		console.warn('No user logged in');
+		refuseTag(dispatch, 'You have to be signed in to create a tag.');
 		return;
 	}
 
 	if (!selectUserIsAdmin(state)) {
-		console.log('User isn\'t admin!');
+		refuseTag(dispatch, 'Only an admin can create tags.');
 		return;
 	}
 
@@ -2169,7 +2206,7 @@ export const createTag = (name : TagID, displayName : string) : ThunkSomeAction 
 	const tag = await getDoc(tagRef);
 
 	if (tag.exists()) {
-		console.warn('A tag with that name already exists');
+		refuseTag(dispatch, `A tag called “${name}” already exists.`);
 		return;
 	}
 
@@ -2179,7 +2216,10 @@ export const createTag = (name : TagID, displayName : string) : ThunkSomeAction 
 	const card = await getDoc(startCardRef);
 
 	if (card.exists()) {
-		console.warn('A card with that id already exists');
+		//Not "a card with that id exists" — the id is derived, so the person
+		//never chose it and cannot act on being told about it. What they can act
+		//on is picking a different short name.
+		refuseTag(dispatch, `Something already uses the name “${name}”, so pick a different short name.`);
 		return;
 	}
 

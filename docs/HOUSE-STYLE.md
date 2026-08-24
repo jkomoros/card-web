@@ -825,11 +825,11 @@ rules.
 | D16 | Typos in shipping copy: "Thesholds", "typcially", "arent", `ai-assitant` (breaking two label associations) | §2 |
 | D17 | Shareable-looking URLs that don't reproduce; `canonicalizeURL` erases the collection | §1.3 |
 | D18 | `viewMode` is in every collection URL with no UI to set it | §1.3 |
-| D19 | Tag creation fails silently through **eight** paths (`data.ts:2117-2166`) — the densest silent-refusal cluster in the app | §3.5 |
+| D19 | ~~Tag creation fails silently through **eight** paths~~ — **done**: all eight refuse to the user, pinned by `test/create-tag` including the paths its harness cannot reach. A ninth was found in the fixing: `reservedCollectionName` conflates "reserved" with "not loaded yet", so the first message told the user a name was taken when it was very likely free | §3.5 |
 | D20 | `.small` hit target is 18px against 48 usages | §4.2 |
 | D21 | `card-drawer.ts:237` and `:245` still use amber for two non-pending meanings; §3.6.2 now resolves this — `.failure` to warning, `.diagnostic` to subordinate grey | §3.6.2 |
 | D22 | The tone ladder, the durability promise and the phase-aware ring exist only in `corpus-status-glyph.ts`; other status surfaces predate them and don't follow them | §3.6 |
-| D24 | `applyOptimistically` (`user.ts:599-611`) silently reverts on failure — a star that fails to persist un-fills itself with no message, across six actions | §3.6.1 |
+| D24 | ~~`applyOptimistically` silently reverts on failure~~ — **done, but unverified at runtime**: the revert now names the action it undid across all six. No test exercises it: every one of the six awaits `awaitInteractableCollection` first, and the harness has no interactable collection, so the guard refuses before the revert is reached. Needs a seeded collection (see #774) | §3.6.1 |
 | D25 | The save pill presents a *pending* state as *in flight*, and arms a `beforeunload` prompt over durable work | §3.6 |
 | D26 | Guards for four destructive acts live in components, not actions; two have unguarded paths to the same erasure | §3.7 |
 | D27 | `suggestions-viewer` can wedge: a refused apply returns without clearing `pending`, leaving the scrim up until reload | §3.6 |
