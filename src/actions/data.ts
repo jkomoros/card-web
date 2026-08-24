@@ -1642,10 +1642,16 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		return;
 	}
 
-	//Success is transient (snack-bar); errors still demand attention and
-	//keep the modal until #758's remaining work gives them a real surface.
-	if (errorCount > 0) alert(`${modifiedCount} cards modified. ${errorCount} cards errored. See the console for details.`);
-	else if (modifiedCount > 1) dispatch(showSnackbar(`${modifiedCount} cards modified.`, {kind: 'committed'}));
+	//Success is transient (snack-bar); a partial failure is not — it leaves the
+	//corpus in a state the user has to go look at. That surface now exists, so
+	//the modal this comment was waiting on is gone.
+	if (errorCount > 0) {
+		dispatch(reportPersistentError({
+			what: `${errorCount} of ${modifiedCount + errorCount} cards couldn\u2019t be changed.`,
+			reassurance: `${modifiedCount} were changed and saved. The rest are unchanged; the errors are in the console.`,
+			dedupeKey: 'bulk-modify'
+		}));
+	} else if (modifiedCount > 1) dispatch(showSnackbar(`${modifiedCount} cards modified.`, {kind: 'committed'}));
 
 	dispatch(modifyCardSuccess(modifiedCount));
 };
@@ -2080,7 +2086,9 @@ export const addSlug = (cardId : CardID, newSlug : Slug) : ThunkSomeAction => as
 	}
 
 	if (!result.legal) {
-		alert('Couldn\'t add slug: ' + result.reason);
+		//result.reason is composed for the user and names the actual rule that
+		//was broken, so it IS the message.
+		dispatch(showSnackbar(`That slug can\u2019t be added: ${result.reason}`, {kind: 'refused'}));
 		dispatch(setPendingSlug(''));
 		return;
 	}
@@ -2791,7 +2799,9 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		try {
 			cardFinisher(obj, state);
 		} catch(err) {
-			alert(err);
+			//Blocks the save, so the user has to be told why and it must not
+			//vanish before they can read it against the field it refers to.
+			dispatch(showSnackbar(err instanceof Error ? err.message : String(err), {kind: 'refused'}));
 			console.warn('Card finisher threw an error');
 			return;
 		}

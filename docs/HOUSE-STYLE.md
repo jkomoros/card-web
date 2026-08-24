@@ -739,7 +739,7 @@ replacement for any of them.
 
 **The native-modal ratchet.** The count of `alert(`/`confirm(`/`prompt(` call
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
-baseline is **55**.
+baseline is **51**.
 
 **`src/modal.ts` is the one exception, and it is the reason the rest can fall.**
 It is the async seam from #708, and its whole job is to be the single place that
@@ -756,9 +756,23 @@ grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --i
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
-The command prints **56**, not 55. Exactly one match is a false positive:
+The command prints **52**, not 51. Exactly one match is a false positive:
 `src/components/bulk-import-dialog.ts:173` is a continuation line inside a block
-comment that happens to begin with `alert()`. Live call sites: **55**.
+comment that happens to begin with `alert()`. Live call sites: **51**.
+
+**Where the remaining 51 are.** Fifty of them are blocking `confirm()`/`prompt()`
+calls, which are paused: they need the in-app dialogs from #708 and they need to
+move a whole function at a time, because a save that answers on two different
+surfaces in one pass is worse than one that answers modally twice. The fifty-first
+is `card_diff.ts:359`, a one-way `alert()` that is only still here because it sits
+in the middle of `confirmationsForCardDiff`, five blocking confirms in a row.
+
+Every OTHER one-way `alert()` in the app is gone. That mattered more than the
+count: an `alert()` is modal, carries no action, and disappears on dismissal, so
+it was the worst available surface for exactly the news it was usually carrying —
+a write that failed, was discarded, or is stuck. Those now land on the persistent
+banner with a retry where retrying helps, and refusals the user can correct land
+on a refused-kind snackbar.
 
 **No file other than `src/modal.ts` may gain one.** If you find yourself wanting
 a second exception, the thing you actually want is to route through the seam.
@@ -790,7 +804,7 @@ rules.
 | # | Debt | Rule |
 |---|---|---|
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
-| D2 | 55 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
+| D2 | 51 native modals, all but one of them blocking `confirm()`/`prompt()`; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
 | D4 | 18 icon-only controls still have no accessible name, down from 32; 14 have nothing on hover; 4 more the survey cannot classify from source. All ratcheted by `test/accessible-names` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |

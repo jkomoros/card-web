@@ -437,7 +437,10 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 	try {
 		update = await generateCardDiff(underlyingCard, rawUpdatedCard);
 	} catch(err) {
-		alert(err);
+		//generateCardDiff throws with a message written for the person editing
+		//("that image has no dimensions yet"), so pass it through rather than
+		//replacing it with a tidier sentence that says less.
+		dispatch(showSnackbar(err instanceof Error ? err.message : String(err), {kind: 'refused'}));
 		return;
 	}
 
