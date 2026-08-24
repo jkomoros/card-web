@@ -811,7 +811,7 @@ rules.
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
 | D4 | **Closed.** Every icon-only control has an accessible name (was 32) and a hover name (was 14). Both budgets ratcheted at **0** by `test/accessible-names`, so this is now an invariant rather than a shrinking debt | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
-| D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
+| D6 | ~~No dialog traps focus or sets `role`/`aria-modal`~~ — **mostly done**: `DialogElement` sets `role`, `aria-modal` and `aria-labelledby`, and traps focus with sentinels plus a walk that descends into shadow roots. The backdrop is still not `inert`, so background content stays reachable by screen-reader virtual cursor; #692 (native `<dialog>`) would supply that | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
 | D8 | `progress-panel` used by 2 of 11 long-running surfaces | §3.6 |
 | D14 | ~~19 shortcuts with zero discoverability~~ — **done**: the shortcut sheet renders the registry | §3.8 |
@@ -821,7 +821,6 @@ rules.
 | D11 | Tag/label, sign in/log in, suggested/missing concepts split | §1.4 |
 | D12 | 31 font sizes, 12 shadows, 11 radii, 8 translucent-whites | §4.1, §4.3, §4.4 |
 | D13 | Title Case and sentence case alternate within one control group | §2.1 |
-| D14 | 19 shortcuts with zero discoverability | §3.8 |
 | D15 | Internal identifiers leak: raw enum keys, `(#745)` in a tooltip, "card finisher", DevTools instructions | §1.4, §2.4 |
 | D16 | Typos in shipping copy: "Thesholds", "typcially", "arent", `ai-assitant` (breaking two label associations) | §2 |
 | D17 | Shareable-looking URLs that don't reproduce; `canonicalizeURL` erases the collection | §1.3 |
@@ -830,7 +829,6 @@ rules.
 | D20 | `.small` hit target is 18px against 48 usages | §4.2 |
 | D21 | `card-drawer.ts:237` and `:245` still use amber for two non-pending meanings; §3.6.2 now resolves this — `.failure` to warning, `.diagnostic` to subordinate grey | §3.6.2 |
 | D22 | The tone ladder, the durability promise and the phase-aware ring exist only in `corpus-status-glyph.ts`; other status surfaces predate them and don't follow them | §3.6 |
-| D23 | Loading states are ad hoc — **eight** distinct idioms, no shared primitive: a dimmed list with an `updating…` pin, a bare `Loading...`, an `<em>loading…</em>`, a boot placeholder, `Preparing search (X of Y)…`, an unguarded pulse animation, a stale-content dim with a different constant, and a progress ring | §3.6 |
 | D24 | `applyOptimistically` (`user.ts:599-611`) silently reverts on failure — a star that fails to persist un-fills itself with no message, across six actions | §3.6.1 |
 | D25 | The save pill presents a *pending* state as *in flight*, and arms a `beforeunload` prompt over durable work | §3.6 |
 | D26 | Guards for four destructive acts live in components, not actions; two have unguarded paths to the same erasure | §3.7 |
