@@ -3,6 +3,10 @@ import {
 } from './database.js';
 
 import {
+	confirmDestructive
+} from '../modal.js';
+
+import {
 	blockedError,
 	SAVE_VERB,
 	CREATE_VERB,
@@ -838,7 +842,7 @@ export const abandonPendingBulkTagOperation = () : ThunkSomeAction => (dispatch)
 	//anyway — directly contradicting the confirm dialog's promise that the rest
 	//"will be left unchanged".
 	if (bulkTagOperationRunning || durableMultiEditRunning) {
-		dispatch(showSnackbar('That operation is mid-chunk. Stop takes effect between chunks, so press it again in a moment.', {kind: 'info'}));
+		dispatch(showSnackbar('That operation is still running. It can be stopped once it finishes the cards it has started.', {kind: 'info', dedupeKey: 'bulk-running'}));
 		return;
 	}
 	const bulkInspection = inspectSavedOperation(readBulkTagOperation);
@@ -2946,7 +2950,24 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		return;
 	}
 
-	
+	//RESTORED after adversarial review disproved the reason it was deleted.
+	//
+	//§3.7 lists fork as a tier inversion — "recoverable, delete the fork" — and
+	//I removed the confirm on that basis. A fork of a normal card CANNOT be
+	//deleted. This function copies `section` and copies `tags`, and
+	//getReasonUserMayNotDeleteCard refuses on both ("Card must be orphaned",
+	//"Card must not have any tags"). Worse, deleteCard answers that refusal with
+	//console.warn and a silent return, so the recovery is: unset the section,
+	//remove every tag, then delete — with nothing on screen saying why until you
+	//have. An unconfirmed click performs a durable write and navigates away from
+	//something the user cannot undo. Fork is Tier 1; the house style's
+	//classification of it is what was wrong, not this confirm.
+	if (!await confirmDestructive({
+		title: 'Fork Card',
+		what: 'This creates a copy of this card, with its section and tags.',
+		survives: 'The original card is unchanged.',
+		verb: 'Fork card',
+	})) return;
 
 	const state = getState();
 

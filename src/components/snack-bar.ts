@@ -107,20 +107,15 @@ class SnackBar extends connect(store)(LitElement) {
 				white-space: nowrap;
 			}
 
-			/* It wears the BANNER's clothes, not progress-panel's.
-			   An earlier version copied progress-panel exactly — --card-color,
-			   var(--card-shadow), square — and that comment was right that those
-			   are the app's better-established values. It was still wrong,
-			   because a surface has to match what it is STACKED AGAINST, and
-			   once the toasts moved inside .banners they sit 8px from three
-			   rounded white banners. Design review put the two boxes side by
-			   side: same column, sharing nothing — different radius, shadow,
-			   background, padding, gap, text colour and even typeface.
-			   Whether the banner or the card is the app's real surface language
-			   is a live question (§4.4 says square, and the banner's shadow is
-			   the only one of its kind in the repo). But that is a change to
-			   .update-ready affecting three shipped surfaces, not something to
-			   settle by making a fourth box disagree with the other three. */
+			/* The card language, same as everything else in the corner.
+			   This went through two wrong answers first. It copied
+			   progress-panel while stacked against rounded white banners, so it
+			   visibly did not belong; then it copied the banners, which matched
+			   its neighbours but kept two values that existed nowhere else in
+			   the app. The banners moved to the card language, so all four boxes
+			   — update, draft, error and toast — are now --card-color,
+			   var(--card-shadow) and square, like cards, dialogs and
+			   progress-panel. */
 			.toast {
 				pointer-events: auto;
 				background-color: var(--card-color);

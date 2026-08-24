@@ -121,7 +121,9 @@ export const ButtonSharedStyles = css`
 	button.text {
 		flex-shrink: 0;
 		border: 0;
-		border-radius: 0.3rem;
+		/* Square, per §4.4. The banner rule this was lifted from used 0.3rem,
+		   and carrying that into a stylesheet 27 components import would have
+		   spread the one-off rather than removed it. */
 		margin: 0;
 		box-shadow: none;
 		padding: 0.4rem 0.6rem;

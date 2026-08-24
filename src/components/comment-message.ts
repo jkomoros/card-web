@@ -97,6 +97,13 @@ class CommentMessage extends LitElement {
 		//B2: prompt() was being used as a COPY AFFORDANCE — a modal input box
 		//whose only purpose was to let the user select text. navigator.clipboard
 		//is already used elsewhere in this app for exactly this.
+		//Guarded: clipboard is [SecureContext], so over http the property is
+		//undefined and this throws synchronously rather than rejecting — review
+		//caught neither snackbar firing, and an uncaught page error instead.
+		if (!navigator.clipboard) {
+			store.dispatch(showSnackbar('Copying needs a secure connection. Open the comment and copy its address from the bar.', {kind: 'refused'}));
+			return;
+		}
 		navigator.clipboard.writeText(url).then(
 			() => store.dispatch(showSnackbar('Link to this comment copied.', {kind: 'committed'})),
 			//A denied permission or an insecure context is a real refusal, and

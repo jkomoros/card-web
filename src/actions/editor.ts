@@ -1058,7 +1058,7 @@ export const mergeOvershadowedUnderlyingChanges = () : ThunkSomeAction => (dispa
 	const diff = selectOvershadowedUnderlyingCardChangesDiff(state);
 
 	if (!cardDiffHasChanges(diff)) {
-		dispatch(showSnackbar('Nothing to merge \u2014 you haven\u2019t changed anything.', {kind: 'info'}));
+		dispatch(showSnackbar('Nothing to merge \u2014 none of your edits overlap with the other changes.', {kind: 'info'}));
 		return;
 	}
 
@@ -1073,7 +1073,7 @@ export const mergeOvershadowedUnderlyingChanges = () : ThunkSomeAction => (dispa
 	}
 
 	if (!cardDiffHasChanges(filteredDiff)) {
-		alert('You didn\'t elect to overwrite any changed fields');
+		dispatch(showSnackbar('Nothing was overwritten \u2014 no fields were selected.', {kind: 'info'}));
 		return;
 	}
 

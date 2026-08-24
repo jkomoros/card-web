@@ -173,7 +173,7 @@ export const deleteMessage = (message : CommentMessage) : ThunkSomeAction => asy
 		}
 	} catch (err) {
 		console.warn('Comment delete did not complete:', err);
-		alert(`That comment could not be deleted: ${err instanceof Error ? err.message : String(err)}`);
+		store.dispatch(showSnackbar('That comment couldn\u2019t be deleted. Nothing was changed.', {kind: 'refused'}));
 	}
 };
 

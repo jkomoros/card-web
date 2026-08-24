@@ -531,8 +531,17 @@ The precedent was the save pill's Stop button, for a long time the app's only
 warning-colored control. It is now `button.small.destructive` in
 `ButtonSharedStyles`, and Stop uses it like anything else.
 
-Today the tiers are inverted in places: fork (recoverable) is confirmed, while
-resolving a thread and accepting a suggestion (not recoverable) are not.
+Today the tiers are inverted in places: resolving a thread and accepting a
+suggestion are not recoverable and are not confirmed.
+
+**Correction, since this document got one wrong.** §3.7 used to cite fork as the
+inversion — confirmed despite being recoverable. It is NOT recoverable.
+`createForkedCard` copies the section and the tags, and
+`getReasonUserMayNotDeleteCard` refuses to delete a card that has either, with
+`deleteCard` answering that refusal by `console.warn`-ing and returning. So
+"just delete the fork" means unset the section, remove every tag, then delete,
+with nothing on screen explaining why until you have. Fork is Tier 1. A confirm
+was removed on the strength of the wrong classification and had to be restored.
 
 Guards belong in the **action**, not the component, so every caller is covered.
 
@@ -715,7 +724,7 @@ replacement for any of them.
 
 **The native-modal ratchet.** The count of `alert(`/`confirm(`/`prompt(` call
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
-baseline is **70**.
+baseline is **68**.
 
 **`src/modal.ts` is the one exception, and it is the reason the rest can fall.**
 It is the async seam from #708, and its whole job is to be the single place that
@@ -732,9 +741,9 @@ grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --i
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
-The command prints **71**, not 70. Exactly one match is a false positive:
+The command prints **69**, not 68. Exactly one match is a false positive:
 `src/components/bulk-import-dialog.ts:179` is a continuation line inside a block
-comment that happens to begin with `alert()`. Live call sites: **70**.
+comment that happens to begin with `alert()`. Live call sites: **68**.
 
 **No file other than `src/modal.ts` may gain one.** If you find yourself wanting
 a second exception, the thing you actually want is to route through the seam.
@@ -766,7 +775,7 @@ rules.
 | # | Debt | Rule |
 |---|---|---|
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
-| D2 | 70 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
+| D2 | 68 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
 | D4 | 18 icon-only controls still have no accessible name, down from 32; 13 have nothing on hover. Ratcheted by `test/accessible-names` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
