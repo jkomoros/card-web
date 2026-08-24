@@ -778,7 +778,9 @@ export const onAuxWriteDiscarded = (listener : (intent : AuxWriteIntent, detail 
 
 //What to call this intent in user-facing copy. Exported so the layer that
 //renders the report does not have to keep a second copy of these labels.
-export const auxWriteLabel = (intent : AuxWriteIntent) : string => DISCARD_LABELS[intent.kind] || `the ${intent.kind} action`;
+export const auxWriteLabelForKind = (kind : AuxWriteKind) : string => DISCARD_LABELS[kind] || `the ${kind} action`;
+
+export const auxWriteLabel = (intent : AuxWriteIntent) : string => auxWriteLabelForKind(intent.kind);
 
 const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void => {
 	const detail = (error as {message? : string})?.message || String(error);

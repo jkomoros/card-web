@@ -42,7 +42,12 @@ export const awaitInteractableCollection = async (
 	for (let attempt = 0; ; attempt++) {
 		const collection = getCollection();
 		if (!collection || !collection.isTransitional) {
-			if (collection && collection.isFallback) throw new Error('Interacting with fallback content is not allowed');
+			//BOTH messages here are shown to the user verbatim by the six actions that
+			//await this guard, so they are written as copy, not as diagnostics. The
+			//old text for this one was "Interacting with fallback content is not
+			//allowed" — an HS-1.4 internal-concept leak ("fallback content") wrapped
+			//around a rule rather than a next step.
+			if (collection && collection.isFallback) throw new Error('This view is still showing placeholder content, so it can\u2019t be changed yet.');
 			return;
 		}
 		if (attempt >= maxRechecks) throw new Error('The view is still loading; try again in a moment.');

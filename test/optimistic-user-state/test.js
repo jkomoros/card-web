@@ -18,6 +18,7 @@
 //queue rather than a truth table over the wrapper.
 
 import assert from 'assert';
+import {readFileSync} from 'fs';
 import {bootstrapApp, clearAuxQueue} from '../harness-support/app-harness.js';
 
 let queue;
@@ -118,6 +119,90 @@ describe('optimistic per-user state survives a LATE discard', () => {
 		//And once loaded, a later optimistic update must not UNSET it.
 		store.dispatch(user.updateStars(['card-z'], [], true));
 		assert.equal(store.getState().user.starsLoaded, true);
+	});
+});
+
+//D7. These six actions each swallowed the guard's refusal into a console.log
+//and returned: tap star, or read, or add-to-reading-list, and NOTHING happens —
+//no change, no message, an unmarked dead control. The copy to explain it already
+//existed one stack frame away and was being discarded.
+//
+//SCOPE NOTE, so the next reader is not misled about what is covered here. The
+//other half of this change (D24 — applyOptimistically explaining its revert)
+//is NOT exercised by this file, and I could not honestly make it be: every one
+//of the six actions awaits awaitInteractableCollection first, and in this
+//harness there is no interactable collection, so the guard refuses before
+//applyOptimistically is ever reached. Testing the revert message needs a seeded
+//active collection, which this harness cannot currently produce. Treat the D24
+//copy as unverified at runtime rather than as covered by these three tests.
+describe('a refused action says why instead of doing nothing', () => {
+	before(async () => {
+		const app = await bootstrapApp();
+		store = app.store;
+		UID = app.uid;
+		queue = await import('../../lib/src/aux-write-queue.js');
+		user = await import('../../lib/src/actions/user.js');
+	});
+
+	beforeEach(() => {
+		clearAuxQueue();
+		queue.resetAuxWriteQueueForTesting();
+		//An earlier block in this file leaves the store signed OUT, and addStar
+		//returns at its !uid guard before ever reaching the guard under test —
+		//which is how the first version of these tests passed in isolation and
+		//failed in the suite, asserting on an empty list either way.
+		store.dispatch({type: 'SIGNIN_SUCCESS', user: {
+			uid: UID, isAnonymous: false, photoURL: '', displayName: 'Harness', email: 'harness@example.com'
+		}});
+	});
+
+	const snackbars = () => (store.getState().app.snackbars || []).map(entry => entry.message);
+	//The action thunks await the guard, so the dispatch resolves after it, but
+	//let the microtask queue drain regardless.
+	const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+	it('tells the user when a star does nothing', async () => {
+		await store.dispatch(user.addStar({id: 'card-d7'}));
+		await settle();
+		const said = snackbars();
+		assert.ok(said.length > 0, 'a refused star must not be silent — that is an unmarked dead control');
+		assert.ok(said.some(text => /still loading|placeholder content/i.test(text)),
+			`the refusal must name the reason; snackbars were ${JSON.stringify(said)}`);
+	});
+
+	it('says the same for marking read', async () => {
+		await store.dispatch(user.markRead({id: 'card-d7b'}));
+		await settle();
+		assert.ok(snackbars().length > 0, 'a refused read must not be silent either');
+	});
+
+	it('collapses three refused controls into one message', async () => {
+		await store.dispatch(user.addStar({id: 'card-d7c'}));
+		await store.dispatch(user.markRead({id: 'card-d7d'}));
+		await store.dispatch(user.addToReadingList({id: 'card-d7e'}));
+		await settle();
+		//They share one cause, so they are one situation, not three.
+		assert.strictEqual(snackbars().length, 1,
+			`three controls refused for the same reason is one message; got ${JSON.stringify(snackbars())}`);
+	});
+
+	//SOURCE PIN, and it has to be. The runtime version of this test was VACUOUS:
+	//this harness has no collection at all, so the guard always takes its
+	//"still loading" branch and the fallback message is unreachable — I
+	//confirmed that by reintroducing the old internal phrase and watching the
+	//runtime assertion stay green. Both of the guard's messages are now shown to
+	//the user verbatim, so both have to read like copy, and the only way to check
+	//the one this harness cannot reach is to read it.
+	it('keeps internal vocabulary out of both messages the guard throws', () => {
+		const source = readFileSync(new URL('../../src/actions/fallback-guard.ts', import.meta.url), 'utf8');
+		const thrown = [...source.matchAll(/throw new Error\('([^']+)'\)/g)].map(match => match[1]);
+		assert.ok(thrown.length >= 2, `expected both guard messages, found ${thrown.length}`);
+		for (const message of thrown) {
+			assert.doesNotMatch(message, /fallback|isFallback|collection is not interactable/i,
+				`"${message}" leaks an internal concept (HS-1.4) and is shown to the user verbatim`);
+			assert.match(message, /[a-z]\u2019?t?\.?$|\.$/,
+				`"${message}" should read as a sentence, not a diagnostic`);
+		}
 	});
 });
 

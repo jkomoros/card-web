@@ -40,10 +40,15 @@ describe('awaitInteractableCollection (#767)', () => {
 		await awaitInteractableCollection(() => null);
 	});
 
+	//The regex discriminates WHICH branch rejected — the fallback refusal, not
+	//the recheck timeout — so it has to track the message. That message is now
+	//user-facing copy (the six actions that await this guard show it verbatim),
+	//which is why it no longer says "fallback content": that was an internal
+	//concept on screen, HS-1.4.
 	it('rejects on a concrete fallback collection', async () => {
 		await assert.rejects(
 			awaitInteractableCollection(() => FALLBACK),
-			/fallback content/);
+			/placeholder content/);
 	});
 
 	it('waits through a transition, then resolves once the collection is concrete', async () => {
@@ -59,7 +64,8 @@ describe('awaitInteractableCollection (#767)', () => {
 		let reads = 0;
 		await assert.rejects(
 			awaitInteractableCollection(() => (++reads <= 2 ? TRANSITIONAL : FALLBACK), 5),
-			/fallback content/);
+			//Still the fallback branch, not the timeout branch.
+			/placeholder content/);
 	});
 
 	it('gives up with a rejection when the transition never resolves', async () => {

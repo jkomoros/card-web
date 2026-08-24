@@ -178,6 +178,7 @@ import {
 	onAuxWriteDiscarded,
 	onAuxWriteStuck,
 	auxWriteLabel,
+	auxWriteLabelForKind,
 	onAuxWriteQueueDepthChanged,
 	readPendingAuxWrites,
 	AuxWriteOutcome,
@@ -188,7 +189,8 @@ import {
 
 import {
 	reportPersistentError,
-	registerPersistentErrorAction
+	registerPersistentErrorAction,
+	showSnackbar
 } from './app.js';
 
 import {
@@ -227,6 +229,7 @@ import {
 
 import {
 	ThunkSomeAction,
+	AppThunkDispatch,
 	store
 } from '../store.js';
 
@@ -678,7 +681,33 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 //
 //A THROW is still handled here, because it is the one failure with no intent to
 //be discarded later: if it threw before persisting there is nothing to notify.
+//D7: these six actions each swallowed the guard's refusal into a console.log
+//and returned. The user taps star, or read, or add-to-reading-list, and nothing
+//happens at all — no change, no message, an unmarked dead control. The copy to
+//explain it already existed; awaitInteractableCollection throws it, and it was
+//being thrown away one line later, six times over.
+//
+//Deduped on one key across all six, because they share a cause: if the view is
+//still catching up, mashing three different controls is one situation, not
+//three.
+const reportGuardRefusal = (dispatch : AppThunkDispatch, err : unknown) : void => {
+	const message = err instanceof Error ? err.message : String(err);
+	console.log(message);
+	dispatch(showSnackbar(message, {kind: 'refused', dedupeKey: 'collection-not-interactable'}));
+};
+
+//D24: this used to revert in silence. The user taps the star, it fills, and
+//then it un-fills itself with no explanation — which reads as the app being
+//broken or as the tap not having registered, and the natural response is to tap
+//again, into the same failure.
+//
+//`run()` THROWING is the narrow case where the write could not even be enqueued,
+//so unlike a queued or discarded write there is nothing pending and nothing to
+//retry in the background: the action simply did not happen. That is transient
+//and entirely retryable by hand, so it is a snackbar rather than a banner —
+//the durable-loss surfaces stay reserved for durable loss.
 const applyOptimistically = async (
+	kind : AuxWriteKind,
 	apply : () => void,
 	revert : () => void,
 	run : () => Promise<AuxWriteOutcome>
@@ -689,6 +718,8 @@ const applyOptimistically = async (
 	} catch (err) {
 		console.warn('[user-state] durable write failed before it could be persisted; reverting the optimistic update:', err);
 		revert();
+		//Deduped per kind: mashing a star produces one message, not six.
+		store.dispatch(showSnackbar(`${capitalize(auxWriteLabelForKind(kind))} didn\u2019t go through, so it has been undone.`, {kind: 'refused', dedupeKey: `optimistic-${kind}`}));
 	}
 };
 
@@ -915,7 +946,7 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => async 
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
-		console.log(err instanceof Error ? err.message : String(err));
+		reportGuardRefusal(dispatch, err);
 		return;
 	}
 
@@ -923,6 +954,7 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => async 
 	//value is computed from the list as it stands rather than expressed as a
 	//delta. Appending matches the server-side arrayUnion.
 	void applyOptimistically(
+		'reading-list-add',
 		() => {
 			const list = selectUserReadingList(getState());
 			if (!list.includes(cardToAdd)) dispatch(updateReadingList([...list, cardToAdd], true));
@@ -954,11 +986,12 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
-		console.log(err instanceof Error ? err.message : String(err));
+		reportGuardRefusal(dispatch, err);
 		return;
 	}
 
 	void applyOptimistically(
+		'reading-list-remove',
 		() => {
 			const list = selectUserReadingList(getState());
 			if (list.includes(cardToRemove)) dispatch(updateReadingList(list.filter((id : CardID) => id !== cardToRemove), true));
@@ -991,7 +1024,7 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => async (di
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
-		console.log(err instanceof Error ? err.message : String(err));
+		reportGuardRefusal(dispatch, err);
 		return;
 	}
 
@@ -1005,6 +1038,7 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => async (di
 		return;
 	}
 	void applyOptimistically(
+		'star-add',
 		() => dispatch(updateStars([starredID], [], true)),
 		() => dispatch(updateStars([], [starredID], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-add', starredID)));
@@ -1030,7 +1064,7 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => async 
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
-		console.log(err instanceof Error ? err.message : String(err));
+		reportGuardRefusal(dispatch, err);
 		return;
 	}
 
@@ -1041,6 +1075,7 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => async 
 		return;
 	}
 	void applyOptimistically(
+		'star-remove',
 		() => dispatch(updateStars([], [unstarredID], true)),
 		() => dispatch(updateStars([unstarredID], [], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'star-remove', unstarredID)));
@@ -1152,7 +1187,7 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
-		console.log(err instanceof Error ? err.message : String(err));
+		reportGuardRefusal(dispatch, err);
 		return;
 	}
 
@@ -1165,6 +1200,7 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 
 	const readID = cardToMarkRead.id;
 	void applyOptimistically(
+		'read-add',
 		() => dispatch(updateReads([readID], [], true)),
 		() => dispatch(updateReads([], [readID], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-add', readID)));
@@ -1190,7 +1226,7 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
-		console.log(err instanceof Error ? err.message : String(err));
+		reportGuardRefusal(dispatch, err);
 		return;
 	}
 
@@ -1205,6 +1241,7 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 
 	const unreadID = cardToMarkUnread.id;
 	void applyOptimistically(
+		'read-remove',
 		() => dispatch(updateReads([], [unreadID], true)),
 		() => dispatch(updateReads([unreadID], [], true)),
 		() => runDurableAuxWrite(makeAuxWriteIntent(uid, 'read-remove', unreadID)));
