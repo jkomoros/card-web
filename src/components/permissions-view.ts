@@ -26,6 +26,10 @@ import {
 } from '../actions/permissions.js';
 
 import {
+	showSnackbar
+} from '../actions/app.js';
+
+import {
 	PLUS_ICON
 } from '../../shared/icons.js';
 
@@ -119,7 +123,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		const uid = prompt('What is the uid of the user you\'d like to add permissions for? You can look it up in the firebase console.');
 		if (!uid) return;
 		if (!legalUid(uid)) {
-			alert(uid + ' does not appear to be a legal uid.');
+			store.dispatch(showSnackbar(`“${uid}” isn\u2019t a valid uid. You can look one up in the Firebase console.`, {kind: 'refused'}));
 			return;
 		}
 		store.dispatch(addPermissionsObjectForUser(uid));

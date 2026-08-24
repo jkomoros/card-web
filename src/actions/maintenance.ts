@@ -106,7 +106,8 @@ import {
 } from '../types.js';
 
 import {
-	urlForCard
+	urlForCard,
+	reportPersistentError
 } from './app.js';
 
 import {
@@ -664,7 +665,14 @@ const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig :
 		try {
 			await fn(dispatch, getState);
 		} catch(err) {
-			alert('Error: ' + err + '\nOpen the console, copy the contents, and create a new issue on github.com/jkomoros/card-web');
+			//Maintenance tasks are admin-only and run rarely, so the ask here is
+			//genuinely "file this" — but that belongs on a surface you can still
+			//read while you open the console, which a modal box is not.
+			dispatch(reportPersistentError({
+				what: `${taskName} didn\u2019t finish.`,
+				reassurance: 'The full error is in the console. Copy it into a new issue at github.com/jkomoros/card-web.',
+				dedupeKey: `maintenance-${taskName}`
+			}));
 			//Also put it in the console so they can copy and paste
 			console.warn('Error: ' + err);
 			dispatch({
