@@ -2140,6 +2140,23 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 //silence indefensible rather than merely unhelpful.
 //
 //They share one dedupe key: it is one attempt, and only one of these can fire.
+//WHY THESE GET A MESSAGE AND SOME OTHER console.warn GUARDS DO NOT.
+//
+//Creating a card is bound to a keyboard shortcut (Cmd-M, Shift-Cmd-M for
+//working notes), and a shortcut has NO DISABLED STATE. A button greys out and
+//carries its reason in a tooltip — which is exactly why editingStart's
+//save-still-finishing guard deliberately stays quiet, and why it should. A
+//keypress has none of that: press Cmd-M without permission and the app does
+//nothing at all, indistinguishable from a key that was never bound.
+//
+//So the rule applied here: a refusal reachable by a SHORTCUT must speak. One
+//reachable only through a control that is already disabled-with-reason need
+//not. An invariant guard that only a programming error can trip should not —
+//a message there is noise aimed at someone who cannot act on it.
+const refuseCardCreation = (dispatch : AppThunkDispatch, message : string) : void => {
+	dispatch(showSnackbar(message, {kind: 'refused', dedupeKey: 'create-card'}));
+};
+
 const refuseTag = (dispatch : AppThunkDispatch, message : string) : void => {
 	dispatch(showSnackbar(message, {kind: 'refused', dedupeKey: 'create-tag'}));
 };
@@ -2759,12 +2776,12 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	const user = selectUser(state);
 
 	if (!user) {
-		console.log('No user');
+		refuseCardCreation(dispatch, 'You have to be signed in to create a card.');
 		return;
 	}
 
 	if (!selectUserMayCreateCard(state)) {
-		console.log('User isn\'t allowed to create card');
+		refuseCardCreation(dispatch, 'You don\u2019t have permission to create cards.');
 		return;
 	}
 
@@ -2786,7 +2803,9 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	}
 
 	if (!section && !CARD_TYPE_CONFIG.orphanedByDefault) {
-		console.log('No section identified for a card type that is not orphaned by default');
+		//Not "no section identified for a card type that is not orphaned by
+		//default" — that sentence describes the code's predicament, not theirs.
+		refuseCardCreation(dispatch, 'There\u2019s no section to put this card in. Open a section first, then create the card.');
 		return;
 	}
 
@@ -2813,7 +2832,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	}
 
 	if (section && !getUserMayEditSection(state, section)) {
-		console.log('User doesn\'t have edit permission for section the card will be added to.');
+		refuseCardCreation(dispatch, `You don\u2019t have permission to add cards to “${section}”.`);
 		return;
 	}
 
@@ -2823,7 +2842,11 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	}
 
 	if (sortOrderIsDangerous(sortOrder)) {
+		//#199. The user cannot act on the arithmetic, but they CAN act on the
+		//fact that the card they asked for does not exist — which is what the
+		//silence hid.
 		console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
+		refuseCardCreation(dispatch, 'That card couldn\u2019t be placed in order, so it wasn\u2019t created. Try again from a different card.');
 		return;
 	}
 
@@ -3054,19 +3077,19 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	const cardType = cardToFork.card_type;
 
 	if (!getUserMayEditSection(state, section)) {
-		console.log('User doesn\'t have edit permission for section the card will be added to.');
+		refuseCardCreation(dispatch, `You don\u2019t have permission to add cards to “${section}”, so this card can\u2019t be forked there.`);
 		return;
 	}
 
 	const user = selectUser(state);
 
 	if (!user) {
-		console.log('No user');
+		refuseCardCreation(dispatch, 'You have to be signed in to fork a card.');
 		return;
 	}
 
 	if (!selectUserMayCreateCard(state)) {
-		console.log('User isn\'t allowed to create card');
+		refuseCardCreation(dispatch, 'You don\u2019t have permission to create cards, so this one can\u2019t be forked.');
 		return;
 	}
 

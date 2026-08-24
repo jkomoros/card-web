@@ -318,7 +318,9 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {
-		console.warn('This user is not allowed to edit!');
+		//Cmd-E has no disabled state to read, unlike the Edit button, so without
+		//this the shortcut is indistinguishable from an unbound key.
+		dispatch(showSnackbar('You don\u2019t have permission to edit this card.', {kind: 'refused', dedupeKey: 'edit-card'}));
 		return;
 	}
 	const card = selectActiveCard(state);

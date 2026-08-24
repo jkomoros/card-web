@@ -812,7 +812,7 @@ rules.
 | D4 | **Closed.** Every icon-only control has an accessible name (was 32) and a hover name (was 14). Both budgets ratcheted at **0** by `test/accessible-names`, so this is now an invariant rather than a shrinking debt | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | ~~No dialog traps focus or sets `role`/`aria-modal`~~ — **mostly done**: `DialogElement` sets `role`, `aria-modal` and `aria-labelledby`, and traps focus with sentinels plus a walk that descends into shadow roots. The backdrop is still not `inert`, so background content stays reachable by screen-reader virtual cursor; #692 (native `<dialog>`) would supply that | §3.3 |
-| D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
+| D7 | **Partly done.** A survey found **129** console-only refusals, not ~15 — but most are invariant guards a user cannot reach, and migrating those would be noise. The rule now applied: a refusal reachable by a **keyboard shortcut** must speak, because a shortcut has no disabled state to read; one behind an already-disabled control, a cancelled prompt, or a programming-error guard must not. Done for the six per-user controls, tag creation, card creation, forking and edit-entry, pinned in both directions by `test/shortcut-refusals` | §3.5 |
 | D8 | `progress-panel` used by 2 of 11 long-running surfaces | §3.6 |
 | D14 | ~~19 shortcuts with zero discoverability~~ — **done**: the shortcut sheet renders the registry | §3.8 |
 | D23 | ~~Eight loading idioms~~ — **partly done**: `loading-placeholder` exists and six sites migrated; `card-drawer`'s dim/pin and `card-renderer`'s boot placeholder remain | §3.6 |
