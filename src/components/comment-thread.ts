@@ -77,7 +77,7 @@ class CommentThread extends LitElement {
 		<div class='container'>
 			<div class='buttons'>
 				<div class='flex'>
-				<button class='small' @click=${this._handleZippyClicked}>${this._expanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>
+				<button class='small' title=${this._expanded ? 'Collapse this thread' : 'Expand this thread'} aria-label=${this._expanded ? 'Collapse this thread' : 'Expand this thread'} aria-expanded=${this._expanded ? 'true' : 'false'} @click=${this._handleZippyClicked}>${this._expanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>
 				</div>
 				<button class='small' title='${this.thread.mayResolve ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!this.thread.mayResolve}' @click=${this._handleResolveClicked}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>

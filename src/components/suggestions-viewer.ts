@@ -343,6 +343,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					<span class='reason' title=${this._saveEligible ? 'Accept Primary Action' : blockedReason(this._corpusStatus, SUGGESTION_VERB)}>
 						<button
 								class='round primary'
+								aria-label='Accept this suggestion'
 								?disabled=${!this._saveEligible}
 								@click=${this._handleAcceptPrimaryActionClicked}
 							>
@@ -370,6 +371,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 							<span class='reason' title=${this._saveEligible ? 'Accept Alternate Action' : blockedReason(this._corpusStatus, SUGGESTION_VERB)}>
 								<button
 									class='round'
+									aria-label='Accept the alternate suggestion'
 									?disabled=${!this._saveEligible}
 									@click=${this._handleAcceptAlternateActionClicked}
 									>
@@ -389,7 +391,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						<div class='flex'></div>
 						<div>
 							<span class='reason' title=${this._saveEligible ? 'Reject Suggestion' : blockedReason(this._corpusStatus, SUGGESTION_VERB)}>
-								<button
+								<button title='Reject this suggestion' aria-label='Reject this suggestion'
 									class='round'
 									?disabled=${!this._saveEligible}
 									@click=${this._handleRejectActionClicked}

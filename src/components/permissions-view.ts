@@ -99,7 +99,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 			<permissions-editor .title=${'Signed In Users Permissions'} .permissions=${COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			<permissions-editor .title=${'Signed In Domain Users Permissions'} .permissions=${COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			${Object.keys(this._uidsWithPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
-			<button class='round' @click='${this._handleAdd}'>${PLUS_ICON}</button>
+			<button title='Add permissions for a user' aria-label='Add permissions for a user' class='round' @click='${this._handleAdd}'>${PLUS_ICON}</button>
         </div>
       </section>
     `;

@@ -791,7 +791,7 @@ class CardView extends connect(store)(PageViewElement) {
 					     the click with an alert instead of being disabled with
 					     a reason. Title on the wrapper so it stays readable
 					     while the button is disabled. -->
-					<span class='reason' ?hidden='${!this._userMayForkCard}' title=${this._saveEligible ? 'Fork this card' : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' ?disabled=${!this._saveEligible} @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button></span>
+					<span class='reason' ?hidden='${!this._userMayForkCard}' title=${this._saveEligible ? 'Fork this card' : blockedReason(this._corpusStatus, CREATE_VERB)}><button title='Fork this card' aria-label='Fork this card' class='round' ?disabled=${!this._saveEligible} @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button></span>
 					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show suggestions'>${PSYCHOLOGY_ICON}</button>
 					<!-- Title on the wrapper so it is readable while the button
 					is disabled (Chrome/Safari suppress hover on disabled

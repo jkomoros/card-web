@@ -806,7 +806,7 @@ rules.
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
 | D2 | 51 native modals, all but one of them blocking `confirm()`/`prompt()`; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
-| D4 | 18 icon-only controls still have no accessible name, down from 32; 14 have nothing on hover; 4 more the survey cannot classify from source. All ratcheted by `test/accessible-names` | §2.5 |
+| D4 | **Closed.** Every icon-only control now has an accessible name (was 32, then 18, now 0). 5 still have nothing on **hover** — named for assistive tech but silent to a mouse. Ratcheted at 0 and 5 by `test/accessible-names` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |

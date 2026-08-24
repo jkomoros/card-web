@@ -78,10 +78,10 @@ class CommentMessage extends LitElement {
 				<div class='row'>
 					<author-chip .author=${this.message.expandedAuthor}></author-chip>
 					<div ?hidden=${!this.message.mayEdit}>
-						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${DELETE_FOREVER_ICON}</button>
+						<button title='Delete this comment' aria-label='Delete this comment' class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${DELETE_FOREVER_ICON}</button>
 						<button class='small' title='Edit message' aria-label='Edit message' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 					</div>
-					<button class='small' @click=${this._handleLinkClicked}>${BASELINK_LINK_ICON}</button>
+					<button title='Copy a link to this comment' aria-label='Copy a link to this comment' class='small' @click=${this._handleLinkClicked}>${BASELINK_LINK_ICON}</button>
 				</div>
 				<span>${prettyTime(this.message.updated)}</span>
 				<div>

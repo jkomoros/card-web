@@ -202,6 +202,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				<span class='reason' title=${!this._saveEligible ? blockedReason(this._corpusStatus, IMPORT_VERB) : 'Create these cards'}>
 					<button
 						class='round'
+						title='Import these cards' aria-label='Import these cards'
 						?disabled=${!this._bodies.length || !this._saveEligible}
 						@click='${this._handleDoneClicked}'
 					>

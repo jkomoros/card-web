@@ -675,7 +675,7 @@ class CardEditor extends connect(store)(LitElement) {
 					refuses too), so while sync verifies it is disabled with
 					the same explanation every other write control gives. -->
 					<span class='reason' title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards reference them' : !this._saveEligible ? blockedReason(this._corpusStatus, DELETE_VERB) : 'Delete card permanently'}'>
-						<button
+						<button title='Delete this card' aria-label='Delete this card'
 							class='small'
 							@click=${this._handleDeleteClicked}
 							?disabled=${this._mayNotDeleteReason != '' || !this._saveEligible}>
@@ -860,7 +860,7 @@ class CardEditor extends connect(store)(LitElement) {
         </div>
         <div class='buttons'>
 			<div class='header' @click=${this._handleMinimizedClicked}>
-				<button class='small'>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
+				<button class='small' title=${this._minimized ? 'Expand the editor' : 'Minimize the editor'} aria-label=${this._minimized ? 'Expand the editor' : 'Minimize the editor'} aria-expanded=${this._minimized ? 'false' : 'true'}>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
 				<h3>Editing</h3>
 			</div>
 			${this._minimized ? 

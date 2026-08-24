@@ -270,7 +270,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 				<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
 			</div>
-			<span class='reason' ?hidden=${!this._userMayCreateCard} title=${this._saveEligible ? 'Create a new stub card to link to of type ' + this._cardTypeToAdd : blockedReason(this._corpusStatus, CREATE_VERB)}><button class='round' @click='${this._handleAddSlide}' ?disabled=${!this._saveEligible}>${PLUS_ICON}</button></span>
+			<span class='reason' ?hidden=${!this._userMayCreateCard} title=${this._saveEligible ? 'Create a new stub card to link to of type ' + this._cardTypeToAdd : blockedReason(this._corpusStatus, CREATE_VERB)}><button title='Create a card' aria-label='Create a card' class='round' @click='${this._handleAddSlide}' ?disabled=${!this._saveEligible}>${PLUS_ICON}</button></span>
 		</div>
 	`;
 	}

@@ -155,8 +155,8 @@ const survey = () => {
 };
 
 //Measured, not inherited from an audit. Lower them; never raise them.
-const NO_ACCESSIBLE_NAME_BUDGET = 18;
-const NO_HOVER_NAME_BUDGET = 14;
+const NO_ACCESSIBLE_NAME_BUDGET = 0;
+const NO_HOVER_NAME_BUDGET = 5;
 //Measured: 4 today, all of them text buttons whose label is interpolated.
 const UNCLASSIFIABLE_BUDGET = 4;
 

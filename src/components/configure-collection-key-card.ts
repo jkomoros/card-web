@@ -49,7 +49,7 @@ class ConfigureCollectionKeyCard extends LitElement {
 		return html`
 			<div>
 				<input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
-				<tag-list .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []} .tapEvents=${true}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
+				<tag-list .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []} .tapEvents=${true}></tag-list><button title='Change this card' aria-label='Change this card' class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 			</div>
 		`;
 	}

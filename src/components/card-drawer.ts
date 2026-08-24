@@ -288,7 +288,7 @@ class CardDrawer extends LitElement {
 				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
 					<div class='label' id='count'>
 						<span>
-							${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
+							${this.infoCanBeExpanded ? html`<button class='small' title=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-label=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-expanded=${this.infoExpanded ? 'true' : 'false'} @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							${this.failureMessage
 		//A failed run outranks both other states: rendering "0 cards" for a
 		//collection that THREW is a lie (#739 — exactly how a one-line
@@ -328,8 +328,8 @@ class CardDrawer extends LitElement {
 }
 				</div>
 				<div class='buttons'>
-					<span class='reason' ?hidden='${!this.showCreateWorkingNotes}' title="${this.createEligible ? `Create a new working notes card (${shortcutKeys('create-working-notes-card')})` : this.createBlockedReason}"><button class='round' @click='${this._handleCreateWorkingNotes}' ?disabled='${!this.createEligible}'>${INSERT_DRIVE_FILE_ICON}</button></span>
-					<span class='reason' ?hidden='${!this.showCreateCard}' title=${this.createEligible ? `Add a new card of type ${this.cardTypeToAdd} in this section (${shortcutKeys('create-card')})` : this.createBlockedReason}><button class='round' @click='${this._handleAddSlide}' ?disabled='${!this.createEligible}'>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button></span>
+					<span class='reason' ?hidden='${!this.showCreateWorkingNotes}' title="${this.createEligible ? `Create a new working notes card (${shortcutKeys('create-working-notes-card')})` : this.createBlockedReason}"><button title='Create a working-notes card' aria-label='Create a working-notes card' class='round' @click='${this._handleCreateWorkingNotes}' ?disabled='${!this.createEligible}'>${INSERT_DRIVE_FILE_ICON}</button></span>
+					<span class='reason' ?hidden='${!this.showCreateCard}' title=${this.createEligible ? `Add a new card of type ${this.cardTypeToAdd} in this section (${shortcutKeys('create-card')})` : this.createBlockedReason}><button title='Create a card' aria-label='Create a card' class='round' @click='${this._handleAddSlide}' ?disabled='${!this.createEligible}'>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !cardTypeToAddConfiguration?.iconName ? PLUS_ICON : icons[cardTypeToAddConfiguration.iconName] }</button></span>
 				</div>
 			</div>
 		`;
