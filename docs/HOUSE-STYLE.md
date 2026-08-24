@@ -232,7 +232,22 @@ explain itself on hover; the name still has to be on the button. `card-view`'s
 star / read / reading-list buttons show the correct pairing.
 
 `test/accessible-names` ratchets both numbers: controls with no accessible name
-at all, and controls with nothing on hover. Lower the budgets; never raise them.
+at all, and controls with nothing on hover. Lower the budgets; never raise them —
+unless the SURVEY itself got stricter and began seeing real cases it used to
+miss, in which case the budget rises to match and the commit says so. Tell that
+apart from a regression by running the old survey against the new tree: if that
+number is unchanged, the rise is accuracy.
+
+It also ratchets its own **blind spots**, which is the part worth copying. A
+button whose entire body is one interpolation cannot be classified from source
+text — `${this._icon()}` needs a name, `${entry.action.label}` names itself, and
+they are indistinguishable without running the app. All four in the tree today
+are the harmless kind, so widening the icon test to swallow them would have
+manufactured four false positives. The count is pinned instead: when a fifth
+appears, a human decides which kind it is. Empty-bodied buttons are pinned at
+zero, and inline `<svg>` now counts as an icon so the first one cannot arrive
+unnamed. Saying nothing about a known hole is exactly how the first version of
+that file came to report 6 of 18 and look healthy.
 
 - Tooltips are **commands**, not descriptions: `Edit card`, not `Opens the editor`.
 - A **disabled** control explains why, on the `span.reason` wrapper — not on the
@@ -777,7 +792,7 @@ rules.
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
 | D2 | 67 native modals; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
-| D4 | 18 icon-only controls still have no accessible name, down from 32; 13 have nothing on hover. Ratcheted by `test/accessible-names` | §2.5 |
+| D4 | 18 icon-only controls still have no accessible name, down from 32; 14 have nothing on hover; 4 more the survey cannot classify from source. All ratcheted by `test/accessible-names` | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |

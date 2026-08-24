@@ -87,6 +87,8 @@ const contentOf = (source, tagEnd) => {
 const survey = () => {
 	const noName = [];
 	const noHover = [];
+	const unclassifiable = [];
+	const emptyBodied = [];
 	let buttons = 0;
 	let iconOnly = 0;
 
@@ -111,7 +113,9 @@ const survey = () => {
 			const content = contentOf(source, tagEnd);
 
 			//Icon-only: references an icon and carries no literal text of its own.
-			const hasIcon = /[A-Z][A-Z0-9_]*_ICON/.test(content);
+			//Inline <svg> counts as an icon too. It appears zero times in the
+			//tree today; it is here so the first one cannot arrive unnamed.
+			const hasIcon = /[A-Z][A-Z0-9_]*_ICON/.test(content) || /<svg[\s>]/.test(content);
 			const hasText = /[A-Za-z]{2,}/.test(content.replace(/\$\{[\s\S]*?\}/g, '').replace(/<[^>]*>/g, ''));
 			if (hasIcon && !hasText) {
 				iconOnly++;
@@ -131,15 +135,30 @@ const survey = () => {
 				const wrapped = /<span class='reason'[^>]*title=/.test(before);
 				if (!hasTitle && !wrapped && !namedByLabel) noHover.push(where);
 			}
+			//THE SURVEY'S REMAINING BLIND SPOT, pinned rather than papered over.
+			//A button whose whole body is one interpolation — `${this._icon()}`,
+			//`${entry.action.label}` — cannot be classified from source text:
+			//it may resolve to an icon (needs a name) or to text (names itself).
+			//All four in the tree today are the harmless kind, so widening the
+			//icon test to include them would manufacture four false positives.
+			//Instead the COUNT is pinned. If it rises, a human looks at the new
+			//one and decides which kind it is. Silence about a known hole is how
+			//the first version of this file came to report 6 of 18.
+			if (!hasIcon && !hasText && /\$\{/.test(content)) unclassifiable.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
+			//An entirely empty body is nameless unless the tag names it, and no
+			//interpolation can rescue it. Zero today; pinned at zero.
+			if (!content.trim() && !/aria-label|title=/.test(tag)) emptyBodied.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
 			index = source.indexOf('<button', tagEnd);
 		}
 	}
-	return {noName, noHover, buttons, iconOnly};
+	return {noName, noHover, buttons, iconOnly, unclassifiable, emptyBodied};
 };
 
 //Measured, not inherited from an audit. Lower them; never raise them.
 const NO_ACCESSIBLE_NAME_BUDGET = 18;
 const NO_HOVER_NAME_BUDGET = 14;
+//Measured: 4 today, all of them text buttons whose label is interpolated.
+const UNCLASSIFIABLE_BUDGET = 4;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
 
@@ -155,6 +174,23 @@ describe('accessible names on icon-only controls (HS-2.5)', () => {
 		const {noName} = survey();
 		assert.ok(noName.length <= NO_ACCESSIBLE_NAME_BUDGET,
 			`controls silent to assistive tech rose to ${noName.length} (budget ${NO_ACCESSIBLE_NAME_BUDGET}).\n` + noName.join('\n'));
+	});
+
+	//These two pin the survey's KNOWN HOLES, not the app's defects. A number
+	//here rising is not "the app got worse", it is "the survey can no longer
+	//tell you". Both are the same instruction: go look at the new one.
+	it('gains no new button the survey cannot classify', () => {
+		const {unclassifiable} = survey();
+		assert.ok(unclassifiable.length <= UNCLASSIFIABLE_BUDGET,
+			`buttons whose body is a bare interpolation rose to ${unclassifiable.length} (budget ${UNCLASSIFIABLE_BUDGET}).\n` +
+			'Look at the new one: if it renders an icon it needs an aria-label; if it renders text it is fine and the budget moves.\n' +
+			unclassifiable.join('\n'));
+	});
+
+	it('gains no empty-bodied button', () => {
+		const {emptyBodied} = survey();
+		assert.strictEqual(emptyBodied.length, 0,
+			`a button with an empty body and nothing naming it in the tag:\n${emptyBodied.join('\n')}`);
 	});
 
 	it('has a shrinking number of controls with no hover name', () => {
