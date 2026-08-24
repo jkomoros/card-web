@@ -412,7 +412,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				reason comes FIRST: when sync is down the missing cards are a
 				symptom, not the cause, and naming the symptom hides the cause. -->
 				<span class='reason' title=${!this._saveEligible ? blockedReason(this._corpusStatus, SAVE_VERB) : this._missingSelectedCount ? `${this._missingSelectedCount} selected ${this._missingSelectedCount === 1 ? 'card has' : 'cards have'} not loaded yet` : 'Save changes'}>
-					<button class='round' aria-label='Save changes' ?disabled=${!this._saveEligible || Boolean(this._missingSelectedCount)} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+					<button class='round' title='Save changes' aria-label='Save changes' ?disabled=${!this._saveEligible || Boolean(this._missingSelectedCount)} @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 				</span>
 			</div>
 			</div>

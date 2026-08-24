@@ -797,7 +797,7 @@ class CardView extends connect(store)(PageViewElement) {
 					is disabled (Chrome/Safari suppress hover on disabled
 					controls). -->
 					<span class='reason' ?hidden='${!this._userMayEdit}' title=${this._cardModificationsPending || this._durableCardMutationPending ? 'A saved card operation is still finishing — editing reopens when it clears, or use Retry/Stop on the save indicator' : !this._saveEligible ? `Edit card (${shortcutKeys('edit-card')}) — ${blockedReason(this._corpusStatus, SAVE_VERB)}` : `Edit card (${shortcutKeys('edit-card')})`}>
-						<button class='round' data-testid='edit-card' aria-label=${`Edit card (${shortcutKeys('edit-card')})`} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+						<button class='round' data-testid='edit-card' title=${`Edit card (${shortcutKeys('edit-card')})`} aria-label=${`Edit card (${shortcutKeys('edit-card')})`} ?disabled=${this._cardModificationsPending || this._durableCardMutationPending} @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 					</span>
 				</div>
 				<div slot='actions' class='next-prev'>

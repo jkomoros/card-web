@@ -961,14 +961,14 @@ class CardEditor extends connect(store)(LitElement) {
 					<input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
 				</div>
 			</div>
-			<button class='round' data-testid='cancel-card-edit' aria-label='Cancel editing' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
+			<button class='round' data-testid='cancel-card-edit' title='Cancel editing' aria-label='Cancel editing' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
 			<button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
 			<!-- The title lives on a WRAPPER, not on the button: Chrome and
 			Safari suppress pointer events on disabled controls, so a title on
 			the button itself never renders a tooltip — which is exactly the
 			state where the user most needs the reason. -->
 			<span class='reason' title=${!this._saveEligible ? `${blockedReason(this._corpusStatus, SAVE_VERB)} Your draft is safe.` : this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>
-				<button class='round primary' data-testid='save-card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges || !this._saveEligible}>${SAVE_ICON}</button>
+				<button class='round primary' data-testid='save-card' title='Save card' aria-label='Save card' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges || !this._saveEligible}>${SAVE_ICON}</button>
 			</span>
         </div>
       </div>

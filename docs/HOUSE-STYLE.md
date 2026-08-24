@@ -232,7 +232,10 @@ explain itself on hover; the name still has to be on the button. `card-view`'s
 star / read / reading-list buttons show the correct pairing.
 
 `test/accessible-names` ratchets both numbers: controls with no accessible name
-at all, and controls with nothing on hover. Lower the budgets; never raise them —
+at all, and controls with nothing on hover. **Both are now 0**, which changes what
+this file is: not a budget being spent down, but an invariant. The NEXT nameless
+icon button fails CI, rather than the eighteenth after it. Lower the budgets;
+never raise them —
 unless the SURVEY itself got stricter and began seeing real cases it used to
 miss, in which case the budget rises to match and the commit says so. Tell that
 apart from a regression by running the old survey against the new tree: if that
@@ -806,7 +809,7 @@ rules.
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
 | D2 | 51 native modals, all but one of them blocking `confirm()`/`prompt()`; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
-| D4 | **Closed.** Every icon-only control now has an accessible name (was 32, then 18, now 0). 5 still have nothing on **hover** — named for assistive tech but silent to a mouse. Ratcheted at 0 and 5 by `test/accessible-names` | §2.5 |
+| D4 | **Closed.** Every icon-only control has an accessible name (was 32) and a hover name (was 14). Both budgets ratcheted at **0** by `test/accessible-names`, so this is now an invariant rather than a shrinking debt | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |
 | D6 | No dialog traps focus, sets `inert`, or sets `role="dialog"` / `aria-modal` | §3.3 |
 | D7 | Silent success and silent `console.warn` refusals across ~15 operations | §3.5 |
