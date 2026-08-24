@@ -149,13 +149,25 @@ import {
 //for the start of a sentence.
 const capitalize = (text : string) : string => text.charAt(0).toUpperCase() + text.slice(1);
 
-//Suppress a report ONLY when we positively know it belongs to someone else. An
-//equality test against selectUid looks equivalent and is not: before sign-in
-//resolves there is no current uid, and treating that as "different account"
-//silently drops the report for the user actually sitting there.
+//Report only what belongs to the CURRENT uid, and treat "no current uid" as
+//not-ours rather than as ours.
+//
+//The permissive version — returning true when there is no current uid — was
+//written to avoid dropping reports before sign-in resolves. Review showed what
+//it actually bought: after sign-out, an `online` event calls
+//replayPendingAuxWrites(''), readPendingAuxWrites ages out 30-day-old intents
+//with no uid filter at all, and the previous account's discarded comment
+//surfaces as the current viewer's news on a shared browser. Verified by
+//discarding an intent whose uid was another user's while selectUid was empty:
+//"Posting your comment couldn't be saved and has been discarded."
+//
+//Every aux write is created after sign-in and carries a uid, so an intent with
+//no current uid to match against is never something the person now looking at
+//the screen did. The boot-race worry does not survive contact either: replay is
+//driven by uidProvider(), so a replay that can produce reports already has a uid.
 const auxWriteBelongsToCurrentUser = (intent : AuxWriteIntent) : boolean => {
 	const currentUID = selectUid(store.getState() as State);
-	if (!currentUID) return true;
+	if (!currentUID) return false;
 	return intent.uid === currentUID;
 };
 
