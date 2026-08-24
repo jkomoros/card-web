@@ -414,8 +414,11 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			//button, which is what made a blocked popup look like a loop.
 			const code = err instanceof FirebaseError ? err.code : '';
 			if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+				console.warn('[auth] sign-in failed:', code || err);
 				dispatch(reportPersistentError({
-					what: `Sign-in didn\u2019t complete${code ? ` (${code})` : ''}.`,
+					what: 'Sign-in didn\u2019t complete.',
+					//The auth code goes to the console, not the banner: HS-2.4 names
+					//"a Firebase auth code" as a thing never to interpolate into copy.
 					reassurance: 'If it keeps failing, allow pop-ups for this site.',
 					action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
 					dedupeKey: 'signin'
@@ -440,6 +443,7 @@ export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) =
 		//anonymous, staring at a sign-in button that appears to do nothing, in
 		//a loop. The popup path already surfaces its failures the same way.
 		const code = (err as {code? : string})?.code || '';
+		console.warn('[auth] redirect sign-in failed:', code || err);
 		if (code === 'auth/credential-already-in-use') {
 			//No retry action: pressing it again lands in the same place. The way
 			//out is a different sign-in, which lives in the account menu.
@@ -450,7 +454,7 @@ export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) =
 			}));
 		} else {
 			dispatch(reportPersistentError({
-				what: `Sign-in didn\u2019t complete${code ? ` (${code})` : ''}.`,
+				what: 'Sign-in didn\u2019t complete.',
 				reassurance: 'Nothing about your account has changed. You can try again.',
 				action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
 				dedupeKey: 'signin'
@@ -817,24 +821,42 @@ export const installOptimisticUserStateReconciler = () : void => {
 //imports from aux-write-queue.js, which does not import back, and
 //reportPersistentError is only dereferenced when the callback FIRES, long after
 //the app.ts cycle has settled.
+//ONE DEDUPE KEY FOR BOTH, per kind. Two keys looked tidier and was a defect:
+//stuck and discarded are two states of the SAME write, and an intent normally
+//passes through stuck on its way to discarded (always, for anything that hits
+//the 30-day age-out). With separate keys the user ends up holding both banners
+//at once — "still saved on this device and being retried" sitting directly
+//above "given up on" — with no way to clear the false one except by hand. That
+//is the two-surfaces-contradicting-each-other failure HS-2.4 opens with.
+//Sharing the key means the discard REPLACES the stuck notice in place.
+const auxWriteBannerKey = (intent : AuxWriteIntent) : string => `aux-write-${intent.kind}`;
+
 onAuxWriteDiscarded((intent, detail) => {
+	//The raw error goes to the console, never into the banner: HS-2.4 forbids
+	//interpolating String(err) into user-facing text, and these messages come
+	//straight from the Firestore SDK ("Missing or insufficient permissions").
+	//Unlike the composed messages modifyCardFailure passes through, nothing
+	//here was written for a reader.
+	console.warn(`[aux-write] ${intent.kind} discarded:`, detail);
 	if (!auxWriteBelongsToCurrentUser(intent)) return;
 	store.dispatch(reportPersistentError({
-		what: `${capitalize(auxWriteLabel(intent))} couldn\u2019t be saved and has been discarded.`,
-		reassurance: detail,
-		//Per kind, not per intent: ten discarded stars are one problem.
-		dedupeKey: `aux-discarded-${intent.kind}`
+		//Not "couldn't be saved": the labels are gerunds, so that produced
+		//"Saving your edit to that comment couldn't be saved."
+		what: `${capitalize(auxWriteLabel(intent))} didn\u2019t go through, and won\u2019t be retried again.`,
+		reassurance: 'You can try it again.',
+		dedupeKey: auxWriteBannerKey(intent)
 	}));
 });
 
 onAuxWriteStuck((intent, detail) => {
+	console.warn(`[aux-write] ${intent.kind} is stuck:`, detail);
 	if (!auxWriteBelongsToCurrentUser(intent)) return;
 	store.dispatch(reportPersistentError({
 		what: `${capitalize(auxWriteLabel(intent))} isn\u2019t going through.`,
 		//The reassurance is the whole point of the queued state (§3.6): the work
 		//is not lost, it is still being retried, and nothing is asked of them.
-		reassurance: `Your change is still saved on this device and is being retried. ${detail}`,
-		dedupeKey: `aux-stuck-${intent.kind}`
+		reassurance: 'Your change is still saved on this device and is being retried.',
+		dedupeKey: auxWriteBannerKey(intent)
 	}));
 });
 

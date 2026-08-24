@@ -756,9 +756,13 @@ const DISCARD_LABELS : Record<AuxWriteKind, string> = {
 //outcome by observing its own first attempt — it has already returned.
 //
 //Every terminal discard funnels through reportDiscardedIntent, so this is the
-//one place that knows. Subscribers are notified in order, and the one that
-//RENDERS this is registered last, so the optimistic revert has already run by
-//the time the banner naming it appears.
+//one place that knows. Subscribers are notified in registration order, and the
+//one that RENDERS this is registered FIRST — it sits at user.ts module scope,
+//while the optimistic reverter is installed at sign-in. (An earlier version of
+//this comment claimed the opposite and used it as the justification for the
+//ordering; it was written before the renderer moved to module scope.) Nothing
+//depends on the order: both subscribers dispatch synchronously and Lit renders
+//on a later microtask, so the revert has always landed before anything paints.
 //
 //This module deliberately does not reach for the UI itself. It used to end in
 //a setTimeout(alert), which was the only way a module this low could say
@@ -782,7 +786,13 @@ const reportDiscardedIntent = (intent : AuxWriteIntent, error : unknown) : void 
 		try {
 			listener(intent, detail);
 		} catch (err) {
-			//A broken subscriber must never suppress the user-facing report.
+			//This used to guarantee something real: the user-facing report was the
+			//setTimeout(alert) BELOW the loop, so a throwing subscriber could not
+			//suppress it. The report is now itself a subscriber, so this catch
+			//downgrades a failed report to a console warning. It is kept so one
+			//broken listener cannot stop the OTHERS — including the reporter —
+			//but it no longer makes the report unsuppressable, and nothing should
+			//be written on the assumption that it does.
 			console.warn('[aux-write] a discard listener threw:', err);
 		}
 	}
@@ -1267,6 +1277,14 @@ export const resetAuxWriteQueueForTesting = () : void => {
 	for (const key of Object.keys(executors)) delete executors[key as AuxWriteKind];
 	inFlight.clear();
 	unsettledAttempts.clear();
+	//WARNING: this wipes the USER-FACING REPORTERS too. src/actions/user.ts
+	//subscribes to discarded/stuck at module scope, so it registers exactly once
+	//per process and cannot re-register after this runs. Before the reporters
+	//moved onto these seams, clearing the lists was harmless — the report was a
+	//setTimeout(alert) outside the loop. Today, any suite that calls this and
+	//then asserts a banner will fail silently and order-dependently. If you need
+	//both, re-import user.js's subscribers or assert on these seams directly, as
+	//test/aux-write-queue does.
 	discardListeners.length = 0;
 	depthListeners.length = 0;
 	stuckListeners.length = 0;

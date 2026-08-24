@@ -120,41 +120,111 @@ describe('the persistent error banner', () => {
 			assert.strictEqual(errors().length, 0);
 		});
 
+		//A stuck write that is later discarded must REPLACE its own notice, not
+		//stack a second one under it. Review demonstrated the two-key version:
+		//"still saved on this device and is being retried" left sitting directly
+		//above "won't be retried again", with no way to clear the false one but by
+		//hand. Every intent that ages out at 30 days takes exactly this path, so it
+		//is the ordinary route rather than an exotic one.
+		it('replaces a stuck notice when the same write is later discarded', () => {
+			store.dispatch(reportPersistentError({
+				what: 'Saving your edit to that comment isn\u2019t going through.',
+				reassurance: 'Your change is still saved on this device and is being retried.',
+				dedupeKey: 'aux-write-comment-edit'
+			}));
+			store.dispatch(reportPersistentError({
+				what: 'Saving your edit to that comment didn\u2019t go through, and won\u2019t be retried again.',
+				reassurance: 'You can try it again.',
+				dedupeKey: 'aux-write-comment-edit'
+			}));
+			const live = errors();
+			assert.strictEqual(live.length, 1, `the discard must replace the stuck notice, not stack under it; got ${JSON.stringify(live.map(entry => entry.what))}`);
+			assert.match(live[0].what, /won\u2019t be retried again/);
+			assert.doesNotMatch(`${live[0].what} ${live[0].reassurance}`, /still saved on this device/,
+				'the retry reassurance is false once the write has been given up on');
+		});
+
+		//The two banners can only replace each other if they SHARE a key, so pin
+		//that the two subscribers still derive it the same way.
+		it('gives the stuck and discarded reports one dedupe key per kind', () => {
+			const source = readFileSync(new URL('../../src/actions/user.ts', import.meta.url), 'utf8');
+			const keys = [...source.matchAll(/dedupeKey:\s*([^,\n}]+)/g)]
+				.map(match => match[1].trim())
+				.filter(raw => /aux/i.test(raw));
+			assert.ok(keys.length >= 2, `expected both aux-write reports to set a dedupeKey, found ${keys.length}`);
+			assert.strictEqual(new Set(keys).size, 1,
+				`stuck and discarded must share one key or they stack: ${JSON.stringify(keys)}`);
+		});
+
 		it('keeps two unrelated failures apart', () => {
 			store.dispatch(reportPersistentError({what: 'A failed.', dedupeKey: 'a'}));
 			store.dispatch(reportPersistentError({what: 'B failed.', dedupeKey: 'b'}));
 			assert.strictEqual(errors().length, 2);
 		});
 
-		//A banner whose actionID names nothing renders a button that does nothing
-		//when pressed — runPersistentErrorAction dismisses the banner and then
-		//finds no thunk, so the failure looks like it was handled. Source-text
-		//pin because the alternative is importing user.js, which drags in
-		//firebase. Idiom follows test/util/scrollbar-convention.test.js.
+		//A banner whose actionID names nothing renders a button that, when
+		//pressed, dismisses the banner and then silently finds no thunk — the
+		//failure looks handled. Source-text pin because the alternative is
+		//importing user.js, which drags in firebase; idiom from
+		//test/util/scrollbar-convention.test.js.
+		//
+		//WHAT THIS CANNOT DO, stated plainly so nobody trusts it further than it
+		//goes: it is a SPELLING check, not a liveness check. Registration is lazy
+		//(ensureSignInRetryRegistered), so whether a thunk is actually found at
+		//press time depends on whether that ran — and deleting the call would
+		//leave this green. An earlier version of this test also only caught the
+		//single literal form it had been mutation-tested against; review showed
+		//template-literal, double-quoted, shorthand and helper-call forms all
+		//sailing through. So the rule now is: every actionID must be statically
+		//resolvable, and anything this test cannot resolve is a FAILURE rather
+		//than a silent pass. "I could not analyse it" must never read as "fine".
 		it('registers every actionID that any banner names', () => {
 			const root = new URL('../../src/', import.meta.url);
 			const walk = dir => readdirSync(dir, {withFileTypes: true}).flatMap(entry => {
 				const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
 				return entry.isDirectory() ? walk(child) : (entry.name.endsWith('.ts') ? [child] : []);
 			});
-			const files = walk(root);
-			const sources = files.map(file => readFileSync(file, 'utf8'));
-			const stripped = sources.map(source => source
-				.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''));
-			const joined = stripped.join('\n');
+			const joined = walk(root)
+				.map(file => readFileSync(file, 'utf8'))
+				.map(source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''))
+				.join('\n');
 
-			//Both the literal form and the `actionID: SOME_CONST` form, resolved
-			//through the const's own declaration.
-			const consts = new Map([...joined.matchAll(/const\s+([A-Z][A-Z0-9_]*)\s*=\s*'([^']+)'/g)]
+			//Const declarations in either quote style, so `actionID: SOME_CONST`
+			//and `registerPersistentErrorAction(SOME_CONST, …)` both resolve.
+			const consts = new Map([...joined.matchAll(/const\s+([A-Za-z_$][\w$]*)\s*=\s*['"]([^'"]+)['"]/g)]
 				.map(match => [match[1], match[2]]));
-			const named = [...joined.matchAll(/actionID:\s*(?:'([^']+)'|([A-Za-z_$][\w$]*))/g)]
-				.map(match => match[1] || consts.get(match[2]) || match[2]);
-			const registered = new Set([...joined.matchAll(/registerPersistentErrorAction\(\s*(?:'([^']+)'|([A-Za-z_$][\w$]*))/g)]
-				.map(match => match[1] || consts.get(match[2]) || match[2]));
+			const resolve = raw => {
+				const trimmed = raw.trim();
+				const literal = trimmed.match(/^['"]([^'"]*)['"]$/);
+				if (literal) return literal[1];
+				//A template literal with no ${} is just a string; one WITH ${} is
+				//computed and therefore unresolvable, which is the point.
+				const template = trimmed.match(/^`([^`]*)`$/);
+				if (template && !template[1].includes('${')) return template[1];
+				if (consts.has(trimmed)) return consts.get(trimmed);
+				return null;
+			};
+
+			//Everything up to the closing brace or the next property. TYPE positions
+			//match this shape too — `actionID : string` in the PersistentError type,
+			//and `{[actionID : string] : ThunkSomeAction}` in the registry — so drop
+			//values that are a bare TS primitive. Those are declarations, not banners.
+			const named = [...joined.matchAll(/actionID\s*:\s*([^,}\n]+)/g)]
+				.map(match => match[1])
+				.filter(raw => !/^(string|number|boolean)\b/.test(raw.trim()));
+			const registered = new Set([...joined.matchAll(/registerPersistentErrorAction\(\s*([^,]+),/g)]
+				.map(match => resolve(match[1])).filter(id => id !== null));
 
 			assert.ok(named.length > 0, 'found no banner actions at all — this test has stopped seeing them');
-			const dead = [...new Set(named)].filter(id => !registered.has(id));
-			assert.deepStrictEqual(dead, [], `these banner buttons name an action nothing registers, so pressing them dismisses the banner and does nothing: ${dead.join(', ')}`);
+
+			const unresolvable = named.filter(raw => resolve(raw) === null);
+			assert.deepStrictEqual(unresolvable, [],
+				'these actionIDs are computed, so this test cannot tell whether anything registers them. ' +
+				'Use a literal or a module-level const instead, or this check is worthless for them: ' + unresolvable.join(', '));
+
+			const dead = [...new Set(named.map(resolve))].filter(id => !registered.has(id));
+			assert.deepStrictEqual(dead, [],
+				`these banner buttons name an action nothing registers, so pressing them dismisses the banner and does nothing: ${dead.join(', ')}`);
 		});
 
 		it('never puts a function in the store', () => {

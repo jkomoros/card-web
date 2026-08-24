@@ -646,12 +646,12 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 				<label>Slugs ${help('Slugs are alternate identifiers for the card. You may not remove slugs. The one that is selected in this drop down is the default one that will be shown in end-user visible URLs')}</label>
-				${this._pendingSlug ? html`<em>${this._pendingSlug}</em><button disabled>+</button>` : html`
+				${this._pendingSlug ? html`<em>${this._pendingSlug}</em><button disabled title='Add this slug' aria-label='Add this slug'>+</button>` : html`
 					<select .value=${card.name} @change='${this._handleNameUpdated}'>
 						${repeat([card.id, ...card.slugs], (item) => item, (item) => html`
 						<option value="${item}" ?selected=${item == card.name}>${item}</option>`)}
 					</select>
-					<button @click='${this._handleAddSlug}'>+</button>
+					<button title='Add a slug' aria-label='Add a slug' @click='${this._handleAddSlug}'>+</button>
 				`}
 				</div>
 				<div>

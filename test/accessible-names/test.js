@@ -113,23 +113,31 @@ const survey = () => {
 			const content = contentOf(source, tagEnd);
 
 			//Icon-only: references an icon and carries no literal text of its own.
-			//Inline <svg> counts as an icon too. It appears zero times in the
-			//tree today; it is here so the first one cannot arrive unnamed.
-			const hasIcon = /[A-Z][A-Z0-9_]*_ICON/.test(content) || /<svg[\s>]/.test(content);
+			//Inline <svg> and <img> both count. Neither appears in the tree
+			//today; they are here so the first one cannot arrive unnamed. Review
+			//pointed out that an earlier version added <svg> alone, which left
+			//<img> coverage accidental rather than designed.
+			const hasIcon = /[A-Z][A-Z0-9_]*_ICON/.test(content) || /<svg[\s>]/.test(content) || /<img[\s>]/.test(content);
 			const hasText = /[A-Za-z]{2,}/.test(content.replace(/\$\{[\s\S]*?\}/g, '').replace(/<[^>]*>/g, ''));
+			const ownID = (tag.match(/id\s*=\s*'([^'$]+)'/) || [])[1];
+			const namedByLabel = ownID ? labelled.has(ownID) : false;
+			//A wrapper title does NOT name a button. Verified in Chromium.
+			//An empty or whitespace-only value names nothing; Chromium agrees.
+			const hasAria = /aria-label=(['"])\s*\S[\s\S]*?\1/.test(tag) || /aria-label=\$\{/.test(tag);
+			//A title on the BUTTON is the last fallback in the accessible
+			//name computation, so it does name it — unlike a title on an
+			//ancestor span, which names nothing.
+			const hasTitle = /\btitle=(['"])\s*\S[\s\S]*?\1/.test(tag) || /\btitle=\$\{/.test(tag);
+			//aria-labelledby names a button only if the id it points at EXISTS in
+			//this shadow root. This file already carries a test for a <label for>
+			//pointing at nothing, and notes that two such shipped.
+			const labelledByID = (tag.match(/aria-labelledby=['"]([^'"$]+)['"]/) || [])[1];
+			const hasLabelledBy = labelledByID ? ids.has(labelledByID) : false;
+			const named = hasAria || hasTitle || namedByLabel || hasLabelledBy;
 			if (hasIcon && !hasText) {
 				iconOnly++;
-				const ownID = (tag.match(/id\s*=\s*'([^'$]+)'/) || [])[1];
-				const namedByLabel = ownID ? labelled.has(ownID) : false;
-				//A wrapper title does NOT name a button. Verified in Chromium.
-				//An empty or whitespace-only value names nothing; Chromium agrees.
-				const hasAria = /aria-label=(['"])\s*\S[\s\S]*?\1/.test(tag) || /aria-label=\$\{/.test(tag);
-				//A title on the BUTTON is the last fallback in the accessible
-				//name computation, so it does name it — unlike a title on an
-				//ancestor span, which names nothing.
-				const hasTitle = /\btitle=(['"])\s*\S[\s\S]*?\1/.test(tag) || /\btitle=\$\{/.test(tag);
 				const where = `${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`;
-				if (!hasAria && !hasTitle && !namedByLabel) noName.push(where);
+				if (!named) noName.push(where);
 				//For hover, the reason-wrapper idiom legitimately counts.
 				const before = source.slice(Math.max(0, index - 240), index);
 				const wrapped = /<span class='reason'[^>]*title=/.test(before);
@@ -145,9 +153,21 @@ const survey = () => {
 			//one and decides which kind it is. Silence about a known hole is how
 			//the first version of this file came to report 6 of 18.
 			if (!hasIcon && !hasText && /\$\{/.test(content)) unclassifiable.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
-			//An entirely empty body is nameless unless the tag names it, and no
-			//interpolation can rescue it. Zero today; pinned at zero.
-			if (!content.trim() && !/aria-label|title=/.test(tag)) emptyBodied.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
+			//A body that RENDERS NOTHING is nameless unless the tag names it.
+			//This used to test `!content.trim()` against a bare `/aria-label|title=/`
+			//substring match — a weaker standard than the one applied just above.
+			//Review demonstrated that aria-label='', title='' and
+			//aria-labelledby='nope' all escaped it while being literally empty
+			//and naming nothing. It uses the SAME `named` test now, and counts an
+			//empty-RENDERING body (a `<span class='dot'></span>`) too, not merely
+			//a literally empty one.
+			//"Renders nothing" means NO rendered output, which is not the same as
+			//`!hasText` — hasText requires a two-letter word, so a `+` button
+			//looked empty to a first version of this line. Strip the markup and
+			//the interpolations and ask whether ANY glyph survives.
+			const visible = content.replace(/\$\{[\s\S]*?\}/g, '').replace(/<[^>]*>/g, '').trim();
+			const rendersNothing = !hasIcon && !visible && !/\$\{/.test(content);
+			if (rendersNothing && !named) emptyBodied.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
 			index = source.indexOf('<button', tagEnd);
 		}
 	}
@@ -181,7 +201,11 @@ describe('accessible names on icon-only controls (HS-2.5)', () => {
 	//tell you". Both are the same instruction: go look at the new one.
 	it('gains no new button the survey cannot classify', () => {
 		const {unclassifiable} = survey();
-		assert.ok(unclassifiable.length <= UNCLASSIFIABLE_BUDGET,
+		//strictEqual, not <=: the whole framing is "when a fifth appears, a human
+		//decides". With <=, a genuinely nameless ${this._icon()} button lands
+		//green if any of the four existing text buttons is refactored away in
+		//the same change.
+		assert.strictEqual(unclassifiable.length, UNCLASSIFIABLE_BUDGET,
 			`buttons whose body is a bare interpolation rose to ${unclassifiable.length} (budget ${UNCLASSIFIABLE_BUDGET}).\n` +
 			'Look at the new one: if it renders an icon it needs an aria-label; if it renders text it is fine and the budget moves.\n' +
 			unclassifiable.join('\n'));

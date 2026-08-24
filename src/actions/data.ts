@@ -2992,7 +2992,19 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	//than trusting the object captured before the await; a stale copy would fork
 	//the wrong section, type or tags.
 	const freshCard = selectCards(getState())[cardToFork.id];
-	if (freshCard) cardToFork = freshCard;
+	//DELETION is the case the awaited confirm newly exposes — the native
+	//confirm() this replaced blocked the event loop, so the card could not go
+	//away while it was open. Falling through on the stale snapshot is not a
+	//smaller failure than forking the wrong section: sort_order is computed
+	//from the live corpus, so getSortOrderImmediatelyAdjacentToCard looks the
+	//id up, misses, and reaches NaN -> undefined -> a TypeError on
+	//nextCard.sort_order. card-view dispatches this with no .catch, so the user
+	//gets an unhandled rejection and a button that did nothing.
+	if (!freshCard) {
+		dispatch(modifyCardFailure(new Error('That card no longer exists, so there was nothing to fork.')));
+		return;
+	}
+	cardToFork = freshCard;
 
 	const state = getState();
 
