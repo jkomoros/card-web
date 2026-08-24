@@ -34,7 +34,11 @@
 //  - NO HOVER NAME: nothing on mouse-over. A wrapper does count.
 //
 //Both budgets are set to what this file MEASURES, not to a number from an
-//audit. They may fall; they may not rise.
+//audit. They may fall; they may not rise — with one carve-out: if the SURVEY
+//itself gets stricter and starts seeing real cases it used to miss, the budget
+//rises to match and the commit says so. That is the survey becoming honest, not
+//the app regressing. Tell them apart by running the OLD survey against the NEW
+//tree: if that number is unchanged, the rise is accuracy.
 
 import assert from 'assert';
 import {readFileSync, readdirSync} from 'fs';
@@ -54,14 +58,16 @@ const scanTag = (source, start) => {
 	for (let i = start; i < source.length; i++) {
 		const ch = source[i];
 		if (quote) {
+			//INSIDE the quote branch. An earlier fix put this after it, where an
+			//escaped quote can never reach it — and that was worse than nothing,
+			//because it turned a DETECTABLE failure (scanTag returning -1, which
+			//the assert below catches) into a silent one: a wrong `>` index that
+			//quietly skips the rest of the file. Review injected two nameless
+			//buttons and the ratchet still reported 18 against a real 20.
+			if (ch === '\\') { i++; continue; }
 			if (ch === quote) quote = '';
 			continue;
 		}
-		//A backslash-escaped quote inside an attribute used to end the scan and
-		//return -1, and the caller BROKE out of the file — silently dropping
-		//every remaining button in it while still reporting a plausible number.
-		//Review injected one and had the ratchet report 18 when the truth was 20.
-		if (ch === '\\') { i++; continue; }
 		if (ch === '\'' || ch === '"' || ch === '`') { quote = ch; continue; }
 		if (ch === '$' && source[i + 1] === '{') { depth++; i++; continue; }
 		if (ch === '{' && depth > 0) { depth++; continue; }

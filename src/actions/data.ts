@@ -2969,6 +2969,21 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		verb: 'Fork card',
 	})) return;
 
+	//RE-CHECK AFTER THE AWAIT, per modal.ts's own rule. The eligibility test
+	//above ran BEFORE the dialog, and an awaited confirm — unlike the native one
+	//it replaces — lets sync go stale, a takeover land, or the card change while
+	//it is open. This is the codebase's first confirmDestructive caller, so it
+	//sets the pattern for the ~30 still to migrate: capture ids, re-read state.
+	if (!durableSaveEligible(getState())) {
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB))));
+		return;
+	}
+	//The card itself can have changed under the dialog. Re-read it by id rather
+	//than trusting the object captured before the await; a stale copy would fork
+	//the wrong section, type or tags.
+	const freshCard = selectCards(getState())[cardToFork.id];
+	if (freshCard) cardToFork = freshCard;
+
 	const state = getState();
 
 	const id = newID();

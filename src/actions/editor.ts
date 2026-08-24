@@ -834,7 +834,7 @@ export const addImageWithFile = (file : File, index : number | undefined) : Thun
 export const addImageWithURL = (src : string, uploadPath = '', index = 0) : ThunkSomeAction => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
-		alert('Src doesn\'t seem valid. It should start with https or http');
+		dispatch(showSnackbar('An image address has to start with http:// or https://.', {kind: 'refused'}));
 		return;
 	}
 
