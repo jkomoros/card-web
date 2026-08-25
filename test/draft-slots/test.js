@@ -143,6 +143,41 @@ describe('per-card draft slots (#766)', () => {
 		assert.strictEqual(editDraft.readEditDraft('card-fill-0'), null, 'the oldest unstamped draft is the victim instead');
 	});
 
+	it('stamped drafts consume slots first; unstamped eviction fits the remaining budget, oldest first', () => {
+		//Three stamped drafts leave a budget of MAX - 3 unstamped slots. Seed
+		//two more unstamped than that: exactly the two OLDEST unstamped drafts
+		//are evicted, and the newest unstamped draft always survives.
+		for (let i = 0; i < 3; i++) seed(storedDraft('card-stamp-' + i, {operationID: 'op-' + i}));
+		const budget = editDraft.MAX_EDIT_DRAFT_SLOTS - 3;
+		for (let i = 0; i < budget + 2; i++) seed(storedDraft('card-un-' + i));
+		editDraft.enforceEditDraftSlotCap();
+		assert.strictEqual(editDraft.readEditDraft('card-un-0'), null, 'oldest unstamped evicted');
+		assert.strictEqual(editDraft.readEditDraft('card-un-1'), null, 'second-oldest unstamped evicted');
+		assert.ok(editDraft.readEditDraft('card-un-2'), 'unstamped drafts within budget stay');
+		assert.ok(editDraft.readEditDraft('card-un-' + (budget + 1)), 'the newest unstamped draft always survives');
+		for (let i = 0; i < 3; i++) assert.ok(editDraft.readEditDraft('card-stamp-' + i), 'stamped drafts are never victims');
+		assert.strictEqual(editDraft.readEditDrafts().length, editDraft.MAX_EDIT_DRAFT_SLOTS);
+	});
+
+	it('a cap full of stamped drafts never claims the just-persisted draft', () => {
+		//The pre-fix arithmetic computed excess over ALL drafts and sliced the
+		//unstamped list by it: with MAX stamped drafts parked (budget 0), the
+		//slice wrapped around to the ENTIRE unstamped list — deleting the draft
+		//the persist had just written, every 200ms, violating the header
+		//invariant. justPersistedCardID must shield it unconditionally.
+		for (let i = 0; i < editDraft.MAX_EDIT_DRAFT_SLOTS; i++) seed(storedDraft('card-stamp-' + i, {operationID: 'op-' + i}));
+		seed(storedDraft('card-just-typed'));
+		editDraft.enforceEditDraftSlotCap('card-just-typed');
+		assert.ok(editDraft.readEditDraft('card-just-typed'), 'the just-persisted draft must survive a zero budget');
+		//Older unstamped drafts get no such shield: with budget 0 they are all
+		//over budget, and a stale one IS evicted.
+		seed(storedDraft('card-stale'));
+		seed(storedDraft('card-just-typed'));
+		editDraft.enforceEditDraftSlotCap('card-just-typed');
+		assert.strictEqual(editDraft.readEditDraft('card-stale'), null, 'an older unstamped draft is still evicted at zero budget');
+		assert.ok(editDraft.readEditDraft('card-just-typed'));
+	});
+
 	it('recoverEditDraft refuses another account\'s draft, per slot', async () => {
 		seed(storedDraft('card-other', {uid: 'someone-else'}));
 		await assert.rejects(editDraft.recoverEditDraft('card-other'), /No draft is available/);
@@ -206,6 +241,37 @@ describe('per-card draft slots (#766)', () => {
 				detail: {cardID: 'watch-c2', operationID: 'op-other'},
 			}));
 			assert.ok(editDraft.readEditDraft('watch-c2'), 'an operation mismatch must not clear');
+		});
+
+		it('a new session\'s draft survives its own persist even with a cap full of stamped drafts', async () => {
+			//The pre-fix loss loop, driven for real: with MAX stamped drafts
+			//parked (saves paused), the unstamped budget is zero — and the old
+			//arithmetic made every 200ms persist write the active session\'s
+			//recovery draft and immediately delete it. The just-persisted draft
+			//must survive; the stamped records must too.
+			for (let i = 0; i < editDraft.MAX_EDIT_DRAFT_SLOTS; i++) seed(storedDraft('watch-stamp-' + i, {operationID: 'op-' + i}));
+			store.dispatch({type: 'EDITING_START', card: card('watch-fresh')});
+			store.dispatch({type: 'EDITING_TEXT_FIELD_UPDATED', fieldName: 'title', value: 'edited fresh', fromContentEditable: false});
+			await waitForDebounce();
+			assert.ok(editDraft.readEditDraft('watch-fresh'), 'the active session\'s just-persisted draft must not be evicted');
+			for (let i = 0; i < editDraft.MAX_EDIT_DRAFT_SLOTS; i++) {
+				assert.ok(editDraft.readEditDraft('watch-stamp-' + i), 'stamped drafts survive alongside it');
+			}
+		});
+
+		it('persisting into an EXISTING slot never evicts anything', async () => {
+			//Cap enforcement is gated on slot creation: rewriting a slot cannot
+			//change the count, so the (whole-keyspace) enforcement pass must not
+			//run — and must not evict — on the steady 200ms debounce ticks.
+			//Seed an over-cap population where enforcement WOULD find a victim.
+			seed(storedDraft('watch-existing'));
+			const total = editDraft.MAX_EDIT_DRAFT_SLOTS + 1;
+			for (let i = 1; i < total; i++) seed(storedDraft('watch-keep-' + i));
+			store.dispatch({type: 'EDITING_START', card: card('watch-existing')});
+			store.dispatch({type: 'EDITING_TEXT_FIELD_UPDATED', fieldName: 'title', value: 'edited existing', fromContentEditable: false});
+			await waitForDebounce();
+			assert.strictEqual(editDraft.readEditDrafts().length, total, 'a rewrite of an existing slot evicts nothing');
+			assert.ok(editDraft.readEditDraft('watch-keep-1'), 'the oldest seeded draft in particular survives');
 		});
 
 		it('stamping targets the identified card\'s slot', async () => {

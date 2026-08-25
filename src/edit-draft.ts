@@ -24,7 +24,8 @@ export const EDIT_DRAFT_STORAGE_KEY = 'card-web-edit-draft-v1';
 //card's words, or none.
 export const EDIT_DRAFT_STORAGE_PREFIX = 'card-web-edit-draft-v2-';
 //Drafts are small diffs, but per-card slots could accrete without bound in
-//localStorage; keep the newest few. Enforced on every persist.
+//localStorage; keep the newest few. Enforced on every persist that creates a
+//new slot (rewrites to an existing slot cannot change the count).
 export const MAX_EDIT_DRAFT_SLOTS = 8;
 export const EDIT_DRAFT_CHANGED_EVENT = 'card-web-edit-draft-changed';
 
@@ -73,7 +74,23 @@ const readDraftAtKey = (key : string) : StoredEditDraft | null => {
 //Adopt a pre-upgrade v1 draft into its card's own slot, never clobbering a
 //newer v2 draft for the same card.
 const migrateLegacyDraft = () => {
-	const legacy = readDraftAtKey(EDIT_DRAFT_STORAGE_KEY);
+	//The overwhelmingly common case is that no v1 record exists at all: bail
+	//before issuing a removeItem for a key that was never there.
+	let encoded : string | null = null;
+	try {
+		encoded = localStorage.getItem(EDIT_DRAFT_STORAGE_KEY);
+	} catch {
+		return;
+	}
+	if (encoded === null) return;
+	let legacy : StoredEditDraft | null = null;
+	try {
+		const value : unknown = JSON.parse(encoded);
+		legacy = isDraft(value) ? value : null;
+	} catch {
+		//A malformed v1 record migrates nothing but is still removed below.
+		legacy = null;
+	}
 	if (legacy) {
 		const existing = readDraftAtKey(draftKey(legacy.cardID));
 		if (!existing || existing.savedAt <= legacy.savedAt) {
@@ -118,19 +135,32 @@ export const readEditDraft = (cardID? : CardID) : StoredEditDraft | null => {
 	return readEditDrafts()[0] ?? null;
 };
 
-//Exported for tests. Newest-first retention: the just-persisted draft is by
-//construction the newest, so it is never the one evicted. Stamped drafts are
-//EXEMPT (#766 review): an operationID marks a paused save's recovery record —
-//the exact artifact this module exists to protect — and stamped drafts
-//cannot accrete unboundedly, since confirmation or explicit discard clears
-//them deterministically. So the count may exceed the cap while saves are
-//paused; only unstamped drafts are eligible victims, oldest first.
-export const enforceEditDraftSlotCap = () => {
+//Exported for tests. Stamped drafts are EXEMPT victims (#766 review): an
+//operationID marks a paused save's recovery record — the exact artifact this
+//module exists to protect — and stamped drafts cannot accrete unboundedly,
+//since confirmation or explicit discard clears them deterministically. So the
+//count may exceed the cap while saves are paused. Stamped drafts consume
+//slots first; unstamped drafts get whatever budget remains, and only they are
+//eligible victims, oldest first. Because excess is measured against the
+//UNSTAMPED budget (never the raw total), the victim slice can never wrap
+//around to swallow the whole unstamped list — the newest unstamped draft
+//survives whenever the budget is at least 1. And when stamped drafts alone
+//fill the cap (budget 0, every unstamped draft over budget),
+//justPersistedCardID shields the slot that was just written. Together those
+//make the invariant unconditional: the just-persisted draft is never the one
+//evicted.
+export const enforceEditDraftSlotCap = (justPersistedCardID? : CardID) => {
 	const drafts = readEditDrafts();
-	const excess = drafts.length - MAX_EDIT_DRAFT_SLOTS;
-	if (excess <= 0) return;
+	const stamped = drafts.filter(draft => draft.operationID);
 	const unstamped = drafts.filter(draft => !draft.operationID);
+	//Clamped: an over-cap stamped population must not drive the budget
+	//negative and inflate excess past the unstamped count.
+	const unstampedBudget = Math.max(0, MAX_EDIT_DRAFT_SLOTS - stamped.length);
+	const excess = unstamped.length - unstampedBudget;
+	if (excess <= 0) return;
+	//unstamped is newest-first, so the last `excess` entries are the oldest.
 	for (const stale of unstamped.slice(-excess)) {
+		if (stale.cardID === justPersistedCardID) continue;
 		try {
 			localStorage.removeItem(draftKey(stale.cardID));
 		} catch {
@@ -143,8 +173,14 @@ const announceDraftChanged = () => window.dispatchEvent(new CustomEvent(EDIT_DRA
 
 const persistDraft = (draft : StoredEditDraft) => {
 	try {
-		localStorage.setItem(draftKey(draft.cardID), JSON.stringify(draft));
-		enforceEditDraftSlotCap();
+		//Enforce the cap only when this persist CREATES a slot: rewriting an
+		//existing slot cannot change the slot count, and enforcement re-reads
+		//(and JSON.parses) every stored draft — far too heavy to run on every
+		//200ms debounce tick of an editing session.
+		const key = draftKey(draft.cardID);
+		const createsSlot = localStorage.getItem(key) === null;
+		localStorage.setItem(key, JSON.stringify(draft));
+		if (createsSlot) enforceEditDraftSlotCap(draft.cardID);
 	} catch (err) {
 		//Quota or disabled storage. Unguarded, this threw from inside a
 		//setTimeout and from the preserve-for-save handler, which skipped
