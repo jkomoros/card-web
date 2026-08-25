@@ -2856,7 +2856,15 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		//fact that the card they asked for does not exist — which is what the
 		//silence hid.
 		console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
-		refuseCardCreation(dispatch, 'That card couldn\u2019t be placed in order, so it wasn\u2019t created.');
+		//The advice depends on where sortOrder came from. On the adjacent-card
+		//branch "try from a different card" is accurate and actionable; on the
+		//global-append branch it is inert, because no card was involved. Saying
+		//it unconditionally was untrue half the time; dropping it entirely left
+		//no next step on either. So it is said only where it is true.
+		const fromAdjacentCard = Boolean(section) && selectActiveSectionId(state) == section;
+		refuseCardCreation(dispatch, fromAdjacentCard
+			? 'That card couldn\u2019t be placed in order, so it wasn\u2019t created. Try again from a different card.'
+			: 'That card couldn\u2019t be placed in order, so it wasn\u2019t created.');
 		return;
 	}
 
@@ -2874,7 +2882,16 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		} catch(err) {
 			//Blocks the save, so the user has to be told why and it must not
 			//vanish before they can read it against the field it refers to.
-			dispatch(showSnackbar(err instanceof Error ? err.message : String(err), {kind: 'refused'}));
+			//
+			//err.message IS passed through here, and that is deliberate rather
+			//than an oversight of HS-2.4: card finishers throw copy written for
+			//the person editing ("Change the title to something that doesn't
+			//overlap in order to save"). This is the same distinction
+			//modifyCardFailure documents — pass through what was composed for a
+			//reader, never what was composed for a log. The String(err) fallback
+			//is NOT copy, though: a non-Error throw rendered "[object Object]" on
+			//screen, so that branch gets a sentence.
+			dispatch(showSnackbar(err instanceof Error ? err.message : 'That card couldn\u2019t be saved. The details are in the console.', {kind: 'refused'}));
 			console.warn('Card finisher threw an error');
 			return;
 		}

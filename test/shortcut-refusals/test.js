@@ -101,8 +101,23 @@ describe('a shortcut that refuses says why (HS-3.5, D7)', () => {
 		let at = body.indexOf(marker);
 		const blocks = [];
 		while (at >= 0) {
-			const open = body.indexOf('{', at + marker.length);
-			assert.ok(open > 0, `no block for "${condition}"`);
+			const after = body.slice(at + marker.length);
+			//UNBRACED GUARDS. `if (!user) return;` is idiomatic here — data.ts
+			//already contains 27 of them and eslint has no `curly` rule — and an
+			//earlier version of this function assumed a brace, so it skipped
+			//forward to the NEXT block in the function and asserted against a
+			//neighbour's refusal. Review proved it: replacing a guard with a bare
+			//`if (!user) return;` left all thirteen tests green. Seven of the eight
+			//pinned guards have no runtime coverage, so this pin is their only
+			//protection and it was checking the wrong code.
+			const lead = after.match(/^\s*/)[0];
+			if (after[lead.length] !== '{') {
+				const stop = after.indexOf(';');
+				blocks.push(after.slice(0, stop < 0 ? 0 : stop + 1));
+				at = body.indexOf(marker, at + marker.length);
+				continue;
+			}
+			const open = at + marker.length + lead.length;
 			let depth = 0;
 			let end = open;
 			for (; end < body.length; end++) {
@@ -126,12 +141,48 @@ describe('a shortcut that refuses says why (HS-3.5, D7)', () => {
 	//A guard "speaks" only if the call is real: present after comments are
 	//stripped, carrying a non-empty message, and not nested behind another
 	//condition. All three mutants review used are covered by those three checks.
+	//A guard "speaks" only if the call is real: present once comments are
+	//stripped, carrying at least one non-empty message and no empty ones, and
+	//not nested inside another block.
+	//
+	//Two shapes had to be handled explicitly rather than pattern-matched around.
+	//A message may be a TERNARY of two literals — the sort-order refusal says
+	//something different depending on where the order came from — and an earlier
+	//version of this check demanded a literal immediately after `dispatch,`, so
+	//it reported that perfectly good guard as saying nothing. And "non-empty"
+	//has to mean non-BLANK: the previous regex ended in `\s*\S`, which the
+	//closing quote satisfies, so `refuseCardCreation(dispatch, '   ')` was
+	//accepted while shipping a blank toast.
 	const assertSpeaks = (block, callee, context) => {
-		const call = new RegExp(`${callee}\\(\\s*dispatch\\s*,\\s*(['"\`])\\s*\\S`);
-		assert.match(block, call,
-			`${context} does not tell the user (a call with an empty message does not count):\n${block}`);
-		assert.doesNotMatch(block, /\bif\s*\(/,
-			`${context}'s refusal sits behind a nested condition, so it may never run:\n${block}`);
+		const at = block.indexOf(`${callee}(`);
+		assert.ok(at >= 0, `${context} does not tell the user at all:\n${block}`);
+
+		//The call's own argument list, brace/paren-matched.
+		let depth = 0;
+		let close = at + callee.length;
+		for (; close < block.length; close++) {
+			if (block[close] === '(') depth++;
+			else if (block[close] === ')') {
+				depth--;
+				if (depth === 0) break;
+			}
+		}
+		const args = block.slice(at + callee.length + 1, close);
+
+		const literals = [...args.matchAll(/(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g)].map(match => match[2]);
+		assert.ok(literals.length > 0,
+			`${context} passes no message literal, so nothing here can vouch for what the user sees:\n${block}`);
+		const blank = literals.filter(text => !text.trim());
+		assert.deepStrictEqual(blank, [],
+			`${context} can pass an empty or whitespace-only message, which flashes a blank toast:\n${block}`);
+
+		//Depth, not text: what matters is whether the REFUSAL is nested, not
+		//whether the block contains an `if` anywhere. The text version
+		//false-accused any guard that branched on something unrelated.
+		const before = block.slice(0, at);
+		const nesting = (before.match(/\{/g) || []).length - (before.match(/\}/g) || []).length;
+		assert.strictEqual(nesting, 0,
+			`${context}'s refusal sits inside a nested block, so it may never run:\n${block}`);
 	};
 
 	const MUST_SPEAK = [
@@ -155,7 +206,10 @@ describe('a shortcut that refuses says why (HS-3.5, D7)', () => {
 	it('editingStart tells the user when they may not edit', () => {
 		const block = guardBlock(bodyOf(readSource('editor.ts'), 'editingStart'), '!selectUserMayEditActiveCard(state)');
 		assert.match(block, /showSnackbar\(\s*(['"`])\s*\S/, 'Cmd-E must not be indistinguishable from an unbound key');
-		assert.doesNotMatch(block, /\bif\s*\(/, 'the refusal must not sit behind a nested condition');
+		const at = block.indexOf('showSnackbar(');
+		const lead = block.slice(0, at);
+		assert.strictEqual((lead.match(/\{/g) || []).length - (lead.match(/\}/g) || []).length, 0,
+			'the refusal must not sit inside a nested block');
 	});
 
 	//THE OTHER HALF OF THE RULE: these two assert a guard stays QUIET.

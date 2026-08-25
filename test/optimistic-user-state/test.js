@@ -192,13 +192,56 @@ describe('a refused action says why instead of doing nothing', () => {
 		['addToReadingList', () => user.addToReadingList({id: 'card-i5'})],
 		['removeFromReadingList', () => user.removeFromReadingList({id: 'card-i6'})],
 	]) {
-		it(`${label} on its own is not silent`, async () => {
+		it(`${label} on its own says the actual reason`, async () => {
 			await store.dispatch(act());
 			await settle();
-			assert.ok(snackbars().length > 0,
+			const said = snackbars();
+			assert.ok(said.length > 0,
 				`${label} refused without saying anything — an unmarked dead control`);
+			//Content, not just presence. Asserting length alone let five of the
+			//six stay green when the copy was swapped for the generic
+			//"that didn't work" fallback, which tells the user nothing.
+			assert.ok(said.some(text => /still loading|placeholder content/i.test(text)),
+				`${label} said something generic instead of the actual reason: ${JSON.stringify(said)}`);
 		});
 	}
+
+	//THE NARROW-RENDERING RULE, which had no test at all until review pointed
+	//that out. reportGuardRefusal used to render `err.message || String(err)`
+	//unconditionally from a catch wrapped around a whole awaited expression, so
+	//a selector TypeError went verbatim into a toast — the exact thing HS-2.4
+	//forbids, introduced while fixing a silent failure. Only the guard's own
+	//tagged error is copy; everything else gets a generic sentence.
+	it('shows the guard\'s own refusal verbatim', async () => {
+		await store.dispatch(user.addStar({id: 'card-narrow-1'}));
+		await settle();
+		const said = snackbars();
+		assert.ok(said.some(text => /still loading|placeholder content/i.test(text)),
+			`the guard's own copy must reach the user verbatim: ${JSON.stringify(said)}`);
+	});
+
+	it('never renders a non-tagged throw verbatim', async () => {
+		//A selector that blows up inside the awaited expression. The old code
+		//put this string on screen; the new code must not.
+		const boom = 'INTERNAL boom: cannot read properties of undefined';
+		//Drive the same path with a collection getter that throws. addStar reads
+		//the collection through selectActiveCollection, so corrupt the slice it
+		//reads rather than stubbing a module export.
+		const realGetState = store.getState;
+		store.getState = () => {
+			const state = realGetState.call(store);
+			return {...state, collection: {get sets() { throw new TypeError(boom); }}};
+		};
+		try {
+			await store.dispatch(user.addStar({id: 'card-narrow-2'}));
+			await settle();
+		} finally {
+			store.getState = realGetState;
+		}
+		const said = snackbars().join(' ');
+		assert.doesNotMatch(said, /INTERNAL boom/,
+			`a non-tagged throw was rendered verbatim (HS-2.4): "${said}"`);
+	});
 
 	it('collapses three refused controls into one message', async () => {
 		await store.dispatch(user.addStar({id: 'card-d7c'}));

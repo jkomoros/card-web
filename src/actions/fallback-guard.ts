@@ -64,7 +64,7 @@ export const awaitInteractableCollection = async (
 			//catch blocks were rendering String(err) verbatim in a toast, which is
 			//the thing HS-2.4 names outright: a selector TypeError in here would
 			//have gone straight to the screen.
-			if (collection && collection.isFallback) throw new NotInteractableError('This view is still showing placeholder content, so it\u2019t be changed yet.');
+			if (collection && collection.isFallback) throw new NotInteractableError('This view is still showing placeholder content, so it can\u2019t be changed yet.');
 			return;
 		}
 		if (attempt >= maxRechecks) throw new NotInteractableError('The view is still loading; try again in a moment.');
