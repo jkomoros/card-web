@@ -19,7 +19,7 @@
 
 import assert from 'assert';
 import {readFileSync} from 'fs';
-import {bootstrapApp, clearAuxQueue} from '../harness-support/app-harness.js';
+import {bootstrapApp, clearWhatUserWasTold, whatUserWasTold, clearAuxQueue} from '../harness-support/app-harness.js';
 
 let queue;
 let user;
@@ -147,6 +147,11 @@ describe('a refused action says why instead of doing nothing', () => {
 	beforeEach(() => {
 		clearAuxQueue();
 		queue.resetAuxWriteQueueForTesting();
+		//CLEAR THE SURFACE. Without this, "collapses three into one" held even
+		//when one of the three said nothing, because the entry left over from an
+		//earlier case was the one being counted — review demonstrated it by
+		//making addToReadingList a no-op and watching the test stay green.
+		clearWhatUserWasTold(store);
 		//An earlier block in this file leaves the store signed OUT, and addStar
 		//returns at its !uid guard before ever reaching the guard under test —
 		//which is how the first version of these tests passed in isolation and
@@ -156,7 +161,7 @@ describe('a refused action says why instead of doing nothing', () => {
 		}});
 	});
 
-	const snackbars = () => (store.getState().app.snackbars || []).map(entry => entry.message);
+	const snackbars = () => whatUserWasTold(store);
 	//The action thunks await the guard, so the dispatch resolves after it, but
 	//let the microtask queue drain regardless.
 	const settle = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -175,6 +180,25 @@ describe('a refused action says why instead of doing nothing', () => {
 		await settle();
 		assert.ok(snackbars().length > 0, 'a refused read must not be silent either');
 	});
+
+	//Each of the three INDIVIDUALLY, so a silent one cannot hide behind the
+	//others' single deduped message. This is the gap review found: the collapse
+	//assertion alone is satisfied by one control speaking and two saying nothing.
+	for (const [label, act] of [
+		['addStar', () => user.addStar({id: 'card-i1'})],
+		['removeStar', () => user.removeStar({id: 'card-i2'})],
+		['markRead', () => user.markRead({id: 'card-i3'})],
+		['markUnread', () => user.markUnread({id: 'card-i4'})],
+		['addToReadingList', () => user.addToReadingList({id: 'card-i5'})],
+		['removeFromReadingList', () => user.removeFromReadingList({id: 'card-i6'})],
+	]) {
+		it(`${label} on its own is not silent`, async () => {
+			await store.dispatch(act());
+			await settle();
+			assert.ok(snackbars().length > 0,
+				`${label} refused without saying anything — an unmarked dead control`);
+		});
+	}
 
 	it('collapses three refused controls into one message', async () => {
 		await store.dispatch(user.addStar({id: 'card-d7c'}));
@@ -195,13 +219,20 @@ describe('a refused action says why instead of doing nothing', () => {
 	//the one this harness cannot reach is to read it.
 	it('keeps internal vocabulary out of both messages the guard throws', () => {
 		const source = readFileSync(new URL('../../src/actions/fallback-guard.ts', import.meta.url), 'utf8');
-		const thrown = [...source.matchAll(/throw new Error\('([^']+)'\)/g)].map(match => match[1]);
+		//Any throw, any quote style, template literals included — the previous
+		//pattern saw only single-quoted Error(...) and would have gone blind to a
+		//third message written any other way while still counting two.
+		const thrown = [...source.matchAll(/throw new [A-Za-z]*Error\(\s*(['"`])([\s\S]*?)\1/g)].map(match => match[2]);
 		assert.ok(thrown.length >= 2, `expected both guard messages, found ${thrown.length}`);
 		for (const message of thrown) {
 			assert.doesNotMatch(message, /fallback|isFallback|collection is not interactable/i,
 				`"${message}" leaks an internal concept (HS-1.4) and is shown to the user verbatim`);
-			assert.match(message, /[a-z]\u2019?t?\.?$|\.$/,
-				`"${message}" should read as a sentence, not a diagnostic`);
+			//A real sentence test. The old one was /[a-z]\u2019?t?\.?$|\.$/, which
+			//matches ANY string ending in a lowercase letter — it accepted both the
+			//old leaky text and the string 'collection isFallback true'.
+			assert.match(message, /[.!?]$/, `"${message}" should end as a sentence, not a diagnostic`);
+			assert.match(message, /^[A-Z]/, `"${message}" should start as a sentence`);
+			assert.ok(message.split(' ').length >= 4, `"${message}" reads as a fragment, not a sentence`);
 		}
 	});
 });

@@ -217,6 +217,7 @@ import {
 import {
 	autoMarkReadScheduleDecision,
 	awaitInteractableCollection,
+	NotInteractableError,
 	TRANSITIONAL_RECHECK_DELAY_MS
 } from './fallback-guard.js';
 
@@ -691,9 +692,17 @@ export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 //still catching up, mashing three different controls is one situation, not
 //three.
 const reportGuardRefusal = (dispatch : AppThunkDispatch, err : unknown) : void => {
-	const message = err instanceof Error ? err.message : String(err);
-	console.log(message);
-	dispatch(showSnackbar(message, {kind: 'refused', dedupeKey: 'collection-not-interactable'}));
+	console.log(err);
+	//ONLY the guard's own refusals are copy. This used to render
+	//`err.message || String(err)` unconditionally, so any other throw from
+	//inside the awaited expression — a selector TypeError, say — went verbatim
+	//to a toast, which is precisely what HS-2.4 forbids. The catch is broad
+	//because it must be; the RENDERING is what has to be narrow.
+	if (err instanceof NotInteractableError) {
+		dispatch(showSnackbar(err.message, {kind: 'refused', dedupeKey: 'collection-not-interactable'}));
+		return;
+	}
+	dispatch(showSnackbar('That didn\u2019t work. Try again in a moment.', {kind: 'refused', dedupeKey: 'collection-not-interactable'}));
 };
 
 //D24: this used to revert in silence. The user taps the star, it fills, and

@@ -34,6 +34,17 @@ export const TRANSITIONAL_MAX_RECHECKS = 30;
 //posting) can restore them by letting the rejection propagate;
 //fire-and-forget callers catch and log. In the common concrete case this
 //resolves without ever scheduling a timer.
+//A refusal from this guard, carrying a message written FOR THE USER. The tag is
+//the contract: callers may show `message` verbatim if and only if the error is
+//one of these. Anything else reaching their catch is a real fault and must not
+//be rendered.
+export class NotInteractableError extends Error {
+	constructor(message : string) {
+		super(message);
+		this.name = 'NotInteractableError';
+	}
+}
+
 export const awaitInteractableCollection = async (
 	getCollection : () => CollectionFallbackView | null,
 	recheckDelayMs : number = TRANSITIONAL_RECHECK_DELAY_MS,
@@ -42,15 +53,21 @@ export const awaitInteractableCollection = async (
 	for (let attempt = 0; ; attempt++) {
 		const collection = getCollection();
 		if (!collection || !collection.isTransitional) {
-			//BOTH messages here are shown to the user verbatim by the six actions that
-			//await this guard, so they are written as copy, not as diagnostics. The
-			//old text for this one was "Interacting with fallback content is not
-			//allowed" — an HS-1.4 internal-concept leak ("fallback content") wrapped
-			//around a rule rather than a next step.
-			if (collection && collection.isFallback) throw new Error('This view is still showing placeholder content, so it can\u2019t be changed yet.');
+			//BOTH messages here are shown to the user verbatim by the six actions
+			//that await this guard, so they are written as copy, not diagnostics.
+			//The old text for this one was "Interacting with fallback content is
+			//not allowed" — an HS-1.4 internal-concept leak wrapped around a rule
+			//rather than a next step.
+			//
+			//They are thrown as a TAGGED type so a caller can tell "this is copy I
+			//may show" from "something else blew up". Without the tag the six
+			//catch blocks were rendering String(err) verbatim in a toast, which is
+			//the thing HS-2.4 names outright: a selector TypeError in here would
+			//have gone straight to the screen.
+			if (collection && collection.isFallback) throw new NotInteractableError('This view is still showing placeholder content, so it\u2019t be changed yet.');
 			return;
 		}
-		if (attempt >= maxRechecks) throw new Error('The view is still loading; try again in a moment.');
+		if (attempt >= maxRechecks) throw new NotInteractableError('The view is still loading; try again in a moment.');
 		await new Promise(resolve => setTimeout(resolve, recheckDelayMs));
 	}
 };

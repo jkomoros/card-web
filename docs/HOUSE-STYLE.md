@@ -825,7 +825,7 @@ rules.
 | D16 | ~~Typos in shipping copy~~ — **done** in `b3667434` and `f1aa9c89`; verified absent from `src/` and `shared/` | §2 |
 | D17 | Shareable-looking URLs that don't reproduce; `canonicalizeURL` erases the collection | §1.3 |
 | D18 | `viewMode` is in every collection URL with no UI to set it | §1.3 |
-| D19 | ~~Tag creation fails silently through **eight** paths~~ — **done**: all eight refuse to the user, pinned by `test/create-tag` including the paths its harness cannot reach. A ninth was found in the fixing: `reservedCollectionName` conflates "reserved" with "not loaded yet", so the first message told the user a name was taken when it was very likely free | §3.5 |
+| D19 | ~~Tag creation fails silently through **eight** paths~~ — **done**, with a correction to the count: **six** of the eight are reachable from the UI. Both callers already return before dispatching when the name or display name is empty, so those two fire only from code — and by the shortcut rule they would be exempt anyway, being the cancelled-prompt case one layer up. A ninth problem was found in the fixing: `reservedCollectionName` conflates "reserved" with "not loaded yet", so the first message told the user a name was taken when it was very likely free | §3.5 |
 | D20 | `.small` hit target is 18px against 48 usages | §4.2 |
 | D21 | `card-drawer.ts:237` and `:245` still use amber for two non-pending meanings; §3.6.2 now resolves this — `.failure` to warning, `.diagnostic` to subordinate grey | §3.6.2 |
 | D22 | The tone ladder, the durability promise and the phase-aware ring exist only in `corpus-status-glyph.ts`; other status surfaces predate them and don't follow them | §3.6 |

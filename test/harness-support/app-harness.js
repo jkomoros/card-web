@@ -130,3 +130,49 @@ export const wireCard = (id, uid, overrides = {}) => ({
 	tweet_count: 0,
 	...overrides
 });
+
+
+//WHAT THE USER WAS TOLD, and how to clear it between cases.
+//
+//These exist because three suites hand-rolled the same thing and got it wrong
+//the same way: they "reset" by dispatching {type: 'SHOW_SNACKBAR', ...}, an
+//action type that DOES NOT EXIST (the real one is PUSH_SNACKBAR), so the
+//reducer ignored it and the previous case's message survived. Combined with
+//dedupe-replace-in-place, a case whose code path said nothing then read the
+//PRECEDING case's message and passed. Review demonstrated a real regression —
+//a guard reverted to a bare return — sailing through five green tests.
+//
+//DISMISS_SNACKBAR filters by id, so clearing means dismissing each entry.
+export const clearSnackbars = (store) => {
+	for (const entry of [...(store.getState().app?.snackbars || [])]) {
+		store.dispatch({type: 'DISMISS_SNACKBAR', snackbarID: entry.id});
+	}
+};
+
+export const clearBanners = (store) => {
+	for (const entry of [...(store.getState().errors?.errors || [])]) {
+		store.dispatch({type: 'DISMISS_PERSISTENT_ERROR', errorID: entry.id});
+	}
+};
+
+export const clearWhatUserWasTold = (store) => {
+	clearSnackbars(store);
+	clearBanners(store);
+};
+
+//Both surfaces as one list. Read this rather than only the snackbars: a test
+//that checks one surface while the code reports on the other concludes
+//"silent" about something perfectly audible — or passes on a message the
+//change under test never produced.
+export const whatUserWasTold = (store) => {
+	const state = store.getState();
+	const snacks = (state.app?.snackbars || []).map(entry => entry.message);
+	const banners = (state.errors?.errors || []).map(entry => `${entry.what} ${entry.reassurance || ''}`);
+	return [...snacks, ...banners].map(text => (text || '').trim()).filter(Boolean);
+};
+
+//createCard gates on durableSaveEligible before ANY permission guard, so
+//without this the rest of the function is unreachable from a test.
+export const makeCorpusLive = (store) => {
+	store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
+};

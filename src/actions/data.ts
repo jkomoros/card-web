@@ -105,6 +105,7 @@ import {
 	selectUid,
 	selectUser,
 	selectUserIsAdmin,
+	selectSections,
 	selectFilters,
 	selectCards,
 	selectDataIsFullyLoaded,
@@ -2153,6 +2154,15 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 //reachable only through a control that is already disabled-with-reason need
 //not. An invariant guard that only a programming error can trip should not —
 //a message there is noise aimed at someone who cannot act on it.
+//A section's human title, falling back to its id only if the section is not
+//loaded. The copy used to quote the SectionID directly — a slug the person
+//never chose and may never have seen, which is the same HS-1.4 mistake that was
+//deliberately avoided one screen away for the tag start-card id.
+const sectionName = (state : State, section : SectionID) : string => {
+	const entry = selectSections(state)[section];
+	return entry && entry.title ? entry.title : section;
+};
+
 const refuseCardCreation = (dispatch : AppThunkDispatch, message : string) : void => {
 	dispatch(showSnackbar(message, {kind: 'refused', dedupeKey: 'create-card'}));
 };
@@ -2832,7 +2842,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	}
 
 	if (section && !getUserMayEditSection(state, section)) {
-		refuseCardCreation(dispatch, `You don\u2019t have permission to add cards to “${section}”.`);
+		refuseCardCreation(dispatch, `You don\u2019t have permission to add cards to “${sectionName(state, section)}”.`);
 		return;
 	}
 
@@ -2846,7 +2856,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		//fact that the card they asked for does not exist — which is what the
 		//silence hid.
 		console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
-		refuseCardCreation(dispatch, 'That card couldn\u2019t be placed in order, so it wasn\u2019t created. Try again from a different card.');
+		refuseCardCreation(dispatch, 'That card couldn\u2019t be placed in order, so it wasn\u2019t created.');
 		return;
 	}
 
@@ -3077,7 +3087,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	const cardType = cardToFork.card_type;
 
 	if (!getUserMayEditSection(state, section)) {
-		refuseCardCreation(dispatch, `You don\u2019t have permission to add cards to “${section}”, so this card can\u2019t be forked there.`);
+		refuseCardCreation(dispatch, `You don\u2019t have permission to add cards to “${sectionName(state, section)}”, so this card can\u2019t be forked there.`);
 		return;
 	}
 
