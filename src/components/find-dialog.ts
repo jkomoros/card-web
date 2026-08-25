@@ -248,7 +248,7 @@ class FindDialog extends connect(store)(DialogElement) {
 					` : ''}
 					<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
 					${!this._linking && !this._permissions && !this._referencing ? html`
-					<input type='checkbox' .checked=${this._stickyFiltersEnabled} id='sticky-filters' @change=${this._handleStickyFiltersChanged}><label for='sticky-filters' title=${'Only include cards matching: ' + this._stickyFiltersExpression + '. This choice is remembered on this device. (#745)'}>Only ${this._stickyFiltersExpression.replace(/\+/g, ' or ')}</label>` : ''}
+					<input type='checkbox' .checked=${this._stickyFiltersEnabled} id='sticky-filters' @change=${this._handleStickyFiltersChanged}><label for='sticky-filters' title=${'Only include cards matching: ' + this._stickyFiltersExpression + '. This choice is remembered on this device.'}>Only ${this._stickyFiltersExpression.replace(/\+/g, ' or ')}</label>` : ''}
 				</div>
 				<div class='spacer'></div>
 				<div class='limit'>

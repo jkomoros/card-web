@@ -142,8 +142,8 @@ class ChatView extends connect(store)(PageViewElement) {
 			.chats-sidebar {
 				width: 240px;
 				height: 100%;
-				background-color: var(--app-section-even-color, #f7f7f7);
-				border-right: 1px solid var(--app-divider-color, #e0e0e0);
+				background-color: var(--app-section-even-color);
+				border-right: 1px solid var(--app-divider-color);
 				padding: 1.5rem 0;
 				overflow-y: auto;
 			}
@@ -189,7 +189,7 @@ class ChatView extends connect(store)(PageViewElement) {
 			}
 			
 			.chats-sidebar a.active {
-				background-color: rgba(var(--app-primary-rgb, 0, 120, 212), 0.1);
+				background-color: var(--app-primary-color-light-very-transparent);
 				color: var(--app-primary-color);
 				border-left-color: var(--app-primary-color);
 				font-weight: 500;
@@ -242,8 +242,8 @@ class ChatView extends connect(store)(PageViewElement) {
 
 			.message[data-role="assistant"] {
 				align-self: flex-start;
-				background-color: var(--app-section-even-color, #f7f7f7);
-				border: 1px solid var(--app-divider-color, #e0e0e0);
+				background-color: var(--app-section-even-color);
+				border: 1px solid var(--app-divider-color);
 			}
 
 			.message[data-status="failed"], .message[data-status="failed"] svg {
@@ -259,9 +259,9 @@ class ChatView extends connect(store)(PageViewElement) {
 				gap: 0.5rem;
 				position: sticky;
 				bottom: 0;
-				background-color: var(--app-background-color, white);
+				background-color: var(--app-section-odd-color);
 				padding: 1rem 0;
-				border-top: 1px solid var(--app-divider-color, #e0e0e0);
+				border-top: 1px solid var(--app-divider-color);
 			}
 
 			.compose textarea {
@@ -269,7 +269,7 @@ class ChatView extends connect(store)(PageViewElement) {
 				height: 5em;
 				padding: 0.75rem;
 				border-radius: 0.5rem;
-				border: 1px solid var(--app-divider-color, #e0e0e0);
+				border: 1px solid var(--app-divider-color);
 				resize: vertical;
 				font-family: inherit;
 			}
@@ -277,7 +277,7 @@ class ChatView extends connect(store)(PageViewElement) {
 			.compose textarea:focus {
 				outline: none;
 				border-color: var(--app-primary-color);
-				box-shadow: 0 0 0 2px rgba(var(--app-primary-rgb, 0, 120, 212), 0.2);
+				box-shadow: 0 0 0 2px var(--app-primary-color-light-somewhat-transparent);
 			}
 
 			.loading {
@@ -319,7 +319,7 @@ class ChatView extends connect(store)(PageViewElement) {
 				gap: 0.5rem;
 				margin-bottom: 1.5rem;
 				padding-bottom: 1rem;
-				border-bottom: 1px solid var(--app-divider-color, #e0e0e0);
+				border-bottom: 1px solid var(--app-divider-color);
 			}
 
 			.metadata h3 {
@@ -328,7 +328,7 @@ class ChatView extends connect(store)(PageViewElement) {
 
 			.metadata label {
 				display: inline-block;
-				background-color: var(--app-light-accent-color, #e6f2ff);
+				background-color: var(--app-primary-color-light-very-transparent);
 				padding: 0.25rem 0.5rem;
 				border-radius: 0.25rem;
 				font-size: 0.8rem;

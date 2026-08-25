@@ -817,12 +817,12 @@ rules.
 | D14 | ~~19 shortcuts with zero discoverability~~ — **done**: the shortcut sheet renders the registry | §3.8 |
 | D23 | ~~Eight loading idioms~~ — **partly done**: `loading-placeholder` exists and six sites migrated; `card-drawer`'s dim/pin and `card-renderer`'s boot placeholder remain | §3.6 |
 | D9 | "Compendium" hardcoded in 18 strings plus `manifest.json`; `APP_TITLE` is config. **Deferred by owner decision:** the fix needs `APP_TITLE` inside `sync-copy.ts` and `corpus-status-glyph.ts`, both deliberately import-free — the latter so its layered-meaning contract stays Node-testable. Threading it as a parameter touches every caller; importing the generated config breaks that test harness. Only affects other deployments of this app | §1.4 |
-| D10 | `chat-view.ts` uses three undefined tokens and renders blue | §4.1 |
+| D10 | ~~`chat-view.ts` uses three undefined tokens and renders blue~~ — **done**: all three replaced with the existing purple family, and every `var()` fallback in the file removed. Ratcheted by `test/design-tokens`, which asserts no component names a token defined nowhere | §4.1 |
 | D11 | Tag/label, sign in/log in, suggested/missing concepts split | §1.4 |
 | D12 | 31 font sizes, 12 shadows, 11 radii, 8 translucent-whites | §4.1, §4.3, §4.4 |
 | D13 | Title Case and sentence case alternate within one control group | §2.1 |
-| D15 | Internal identifiers leak: raw enum keys, `(#745)` in a tooltip, "card finisher", DevTools instructions | §1.4, §2.4 |
-| D16 | Typos in shipping copy: "Thesholds", "typcially", "arent", `ai-assitant` (breaking two label associations) | §2 |
+| D15 | **Partly done**: `(#745)` is out of the find-dialog tooltip, and no user-facing string in `src/components` now contains an issue number. Raw enum keys, "card finisher" and the DevTools instructions remain | §1.4, §2.4 |
+| D16 | ~~Typos in shipping copy~~ — **done** in `b3667434` and `f1aa9c89`; verified absent from `src/` and `shared/` | §2 |
 | D17 | Shareable-looking URLs that don't reproduce; `canonicalizeURL` erases the collection | §1.3 |
 | D18 | `viewMode` is in every collection URL with no UI to set it | §1.3 |
 | D19 | ~~Tag creation fails silently through **eight** paths~~ — **done**: all eight refuse to the user, pinned by `test/create-tag` including the paths its harness cannot reach. A ninth was found in the fixing: `reservedCollectionName` conflates "reserved" with "not loaded yet", so the first message told the user a name was taken when it was very likely free | §3.5 |
