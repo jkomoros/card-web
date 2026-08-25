@@ -331,7 +331,7 @@ silently fail to suppress global shortcuts. Prefer fixing the enumeration.
 
 ### 3.4 Native browser modals — MUST NOT add new ones
 
-**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 81
+**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 51
 call sites today (`src/` + `shared/`). That number must not grow.
 
 The count is pinned and reviewers check it — see §6. Existing sites are migrated
