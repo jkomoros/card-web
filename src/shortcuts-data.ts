@@ -16,6 +16,18 @@ export type ShortcutCombo = {
 	mod? : boolean,
 	shift? : boolean,
 	alt? : boolean,
+	//Loosens "undeclared modifier fields mean must NOT be held" for shift and
+	//alt ONLY: declared ones are still required, extra ones no longer
+	//disqualify. For chords whose legacy handler tolerated them — commit-edit
+	//accepted Cmd-Shift-Enter (habituated from other apps, or Shift still held
+	//from typing a capital) and Cmd-Alt-Enter, and refusing them is worse than
+	//a dead key: the unconsumed modified Enter can ACTIVATE whatever control
+	//has focus. Exact-match stays the default because tolerance is what lets a
+	//combo shadow its shifted sibling (Cmd-M vs Cmd-Shift-M are DIFFERENT
+	//bindings) and the browser's own differently-modified defaults. `mod` is
+	//never loosened. Display code ignores this field entirely: the canonical
+	//label stays e.g. Cmd-Enter.
+	allowExtraShiftAlt? : boolean,
 };
 
 //THE canonical combo table (#740 stage 2): pure data, importable from
@@ -26,7 +38,11 @@ export type ShortcutCombo = {
 //(E)" for weeks after the binding became Cmd-E). Deleting an entry breaks
 //both the registration and every label that names it AT COMPILE TIME.
 export const SHORTCUT_COMBOS = {
-	'commit-edit': [{key: 'Enter', mod: true}],
+	//allowExtraShiftAlt: the pre-registry handler committed on
+	//`Enter && (metaKey || ctrlKey)` with any Shift/Alt state; see the flag's
+	//comment. Plain Enter and Shift-Enter still never commit — no mod, and
+	//they mean "newline" in every text field.
+	'commit-edit': [{key: 'Enter', mod: true, allowExtraShiftAlt: true}],
 	'edit-card': [{key: 'e', mod: true}],
 	'find-card': [{key: 'f', mod: true}],
 	'toggle-card-selected': [{key: ' '}],

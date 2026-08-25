@@ -137,12 +137,21 @@ const comboKey = (combo : ShortcutCombo) : string =>
 
 //Whether the event matches the combo, exactly: undeclared modifiers must
 //not be held, so declared combos never shadow the browser's own unmodified
-//or differently-modified defaults.
+//or differently-modified defaults. allowExtraShiftAlt (see its comment in
+//shortcuts-data.ts) loosens exactly that rule, for shift and alt only, on
+//the combos that declare it.
 export const comboMatches = (e : Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>, combo : ShortcutCombo) : boolean => {
 	const key = combo.key.length === 1 && e.key.length === 1 ? e.key.toLowerCase() === combo.key.toLowerCase() : e.key === combo.key;
 	if (!key) return false;
 	const mod = e.metaKey || e.ctrlKey;
 	if (Boolean(combo.mod) !== mod) return false;
+	if (combo.allowExtraShiftAlt) {
+		//Declared shift/alt are still required; extra held ones no longer
+		//disqualify. mod stays exact even here.
+		if (combo.shift && !e.shiftKey) return false;
+		if (combo.alt && !e.altKey) return false;
+		return true;
+	}
 	if (Boolean(combo.shift) !== e.shiftKey) return false;
 	if (Boolean(combo.alt) !== e.altKey) return false;
 	return true;

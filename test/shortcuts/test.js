@@ -89,6 +89,48 @@ describe('shortcut layer (#740 stage 1)', () => {
 				{key: 'e', metaKey: false, ctrlKey: true, shiftKey: false, altKey: false},
 				{key: 'e', mod: true}));
 		});
+
+		it('commit-edit tolerates extra Shift/Alt, as the legacy handler did', () => {
+			//The pre-registry handler committed on `Enter && (metaKey ||
+			//ctrlKey)` with any Shift/Alt state. Refusing Cmd-Shift-Enter
+			//(habituated from other apps, or Shift still held from typing a
+			//capital) is worse than a dead key: dispatch declines without
+			//consuming, and the unconsumed modified Enter can activate
+			//whatever control has focus.
+			const [combo] = shortcuts.SHORTCUT_COMBOS['commit-edit'];
+			assert.ok(combo.allowExtraShiftAlt, 'precondition: the table declares the tolerance');
+			assert.ok(shortcuts.comboMatches(
+				{key: 'Enter', metaKey: true, ctrlKey: false, shiftKey: true, altKey: false}, combo),
+			'Cmd-Shift-Enter must commit');
+			assert.ok(shortcuts.comboMatches(
+				{key: 'Enter', metaKey: true, ctrlKey: false, shiftKey: false, altKey: true}, combo),
+			'Cmd-Alt-Enter must commit');
+			assert.ok(shortcuts.comboMatches(
+				{key: 'Enter', metaKey: false, ctrlKey: true, shiftKey: true, altKey: true}, combo),
+			'Ctrl-Shift-Alt-Enter must commit');
+			//mod is never loosened: plain and Shift-Enter mean "newline" in
+			//every text field, not "commit".
+			assert.ok(!shortcuts.comboMatches(
+				{key: 'Enter', metaKey: false, ctrlKey: false, shiftKey: false, altKey: false}, combo),
+			'bare Enter must not commit');
+			assert.ok(!shortcuts.comboMatches(
+				{key: 'Enter', metaKey: false, ctrlKey: false, shiftKey: true, altKey: false}, combo),
+			'Shift-Enter must not commit');
+		});
+
+		it('the tolerance still requires DECLARED shift/alt, and is a commit-edit exception, not a policy change', () => {
+			assert.ok(!shortcuts.comboMatches(
+				{key: 'Enter', metaKey: true, ctrlKey: false, shiftKey: false, altKey: false},
+				{key: 'Enter', mod: true, shift: true, allowExtraShiftAlt: true}),
+			'a declared modifier is still required under the flag');
+			//Exact-match must stay the table's default: tolerance is what lets
+			//a combo shadow its shifted sibling (Cmd-M vs Cmd-Shift-M are
+			//different bindings) and the browser's own defaults.
+			const flagged = Object.entries(shortcuts.SHORTCUT_COMBOS)
+				.filter(([, combos]) => combos.some(combo => combo.allowExtraShiftAlt))
+				.map(([id]) => id);
+			assert.deepStrictEqual(flagged, ['commit-edit'], 'no other combo may quietly go loose');
+		});
 	});
 
 	describe('focus classification (#747)', () => {
@@ -292,6 +334,13 @@ describe('shortcut layer (#740 stage 1)', () => {
 			assert.strictEqual(shortcuts.shortcutKeys('edit-card', false), 'Ctrl-E');
 			assert.strictEqual(shortcuts.shortcutKeys('random-card', true), 'Cmd-Alt-Shift-R');
 			assert.strictEqual(shortcuts.shortcutKeys('create-working-notes-card', false), 'Ctrl-Shift-M');
+		});
+
+		it('the Shift/Alt tolerance never leaks into labels', () => {
+			//allowExtraShiftAlt widens what MATCHES; the canonical chord the
+			//sheet and tooltips advertise is unchanged.
+			assert.strictEqual(shortcuts.shortcutKeys('commit-edit', true), 'Cmd-Enter');
+			assert.strictEqual(shortcuts.shortcutKeys('commit-edit', false), 'Ctrl-Enter');
 		});
 
 		it('isMacPlatform reads the platform string', () => {
@@ -527,6 +576,29 @@ describe('the shortcut sheet catalog (#740 stage 2)', () => {
 		assert.strictEqual(selectKeyboardNavigates(store.getState()), false, 'the sheet must suppress navigation like every other dialog');
 		store.dispatch(closeShortcutSheet());
 		assert.strictEqual(selectKeyboardNavigates(store.getState()), before);
+	});
+
+	//The #708 modal seam: a parked confirm/prompt request must suppress
+	//navigation exactly like the hand-enumerated dialogs. modal.ts promised
+	//selectKeyboardNavigates would consult selectModalOpen, and forkCard
+	//already routes through confirmDestructive — arrows and Space navigating
+	//cards behind a "This can't be undone" dialog is the armed version of the
+	//hazard the enumeration exists to prevent.
+	it('suppresses card navigation while a modal request is parked', async () => {
+		const {selectKeyboardNavigates} = await import('../../lib/src/selectors.js');
+		const {store} = await import('../../lib/src/store.js');
+		const {UPDATE_PAGE, MODAL_OPEN, MODAL_RESOLVE} = await import('../../lib/src/actions.js');
+		const {PAGE_DEFAULT} = await import('../../lib/src/actions/app.js');
+
+		//Force the rest of the state into a navigating shape first, so the
+		//suppression assertion below is the MODAL flipping the answer — a
+		//baseline that was already false would let this pass vacuously.
+		store.dispatch({type: UPDATE_PAGE, location: '/' + PAGE_DEFAULT + '/', page: PAGE_DEFAULT, pageExtra: ''});
+		assert.strictEqual(selectKeyboardNavigates(store.getState()), true, 'precondition: everything else navigates');
+		store.dispatch({type: MODAL_OPEN, request: {kind: 'destructive-confirm', id: 'shortcut-suite-modal', title: 'Fork Card?', what: 'These tags will be dropped.', verb: 'Fork card'}});
+		assert.strictEqual(selectKeyboardNavigates(store.getState()), false, 'a parked modal request must suppress navigation');
+		store.dispatch({type: MODAL_RESOLVE, requestID: 'shortcut-suite-modal'});
+		assert.strictEqual(selectKeyboardNavigates(store.getState()), true, 'and release it when the request resolves');
 	});
 
 });

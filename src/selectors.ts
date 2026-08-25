@@ -238,6 +238,10 @@ import {
 	PAGE_DEFAULT
 } from './actions/app.js';
 
+import {
+	selectModalOpen
+} from './modal.js';
+
 const selectState = (state : State) : State => state;
 
 export const selectPage = (state : State) => state.app.page;
@@ -546,22 +550,35 @@ export const selectCorpusGateBlocking = createSelector(
 //(2026-08-02, `8816340a`) been made modifier-gated at the binding itself, but
 //the general hazard is unchanged for the bindings that are still bare —
 //arrows and Space — so this gate stays the load-bearing one.
-export const selectKeyboardNavigates = createSelector(
-	selectIsEditing,
+//
+//The #708 modal seam is NOT another hand-written entry: selectModalOpen covers
+//every parked confirm/prompt request at once, so a newly migrated call site
+//suppresses navigation the day it migrates, with no edit here.
+//
+//The dialogs are grouped in their own selector rather than inlined: reselect
+//caps a selector at twelve inputs, and the modal seam was the thirteenth gate.
+const selectAnyDialogOpen = createSelector(
 	selectFindDialogOpen,
 	selectComposeOpen,
-	selectPage,
 	selectMultiEditDialogOpen,
 	selectConfigureCollectionDialogOpen,
 	selectBulkImportDialogOpen,
 	selectAIDialogOpen,
 	selectImagePropertiesDialogOpen,
 	selectImageBrowserDialogOpen,
-	selectCorpusGateBlocking,
 	selectShortcutSheetOpen,
-	(editing, find, compose, page, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, gateBlocking, shortcutSheet) =>
-		!editing && !find && !compose && page == PAGE_DEFAULT &&
-		!multiEdit && !configureCollection && !bulkImport && !ai && !imageProperties && !imageBrowser && !shortcutSheet &&
+	(find, compose, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, shortcutSheet) =>
+		find || compose || multiEdit || configureCollection || bulkImport || ai || imageProperties || imageBrowser || shortcutSheet
+);
+
+export const selectKeyboardNavigates = createSelector(
+	selectIsEditing,
+	selectAnyDialogOpen,
+	selectModalOpen,
+	selectPage,
+	selectCorpusGateBlocking,
+	(editing, dialogOpen, modalOpen, page, gateBlocking) =>
+		!editing && !dialogOpen && !modalOpen && page == PAGE_DEFAULT &&
 		!gateBlocking
 );
 

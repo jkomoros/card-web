@@ -87,8 +87,8 @@ const mintID = () : ModalRequestID => {
 
 export const selectModalRequests = (state : State) : ModalRequest[] => state.modal.requests;
 
-//True when any modal request is outstanding. selectKeyboardNavigates should
-//consult this rather than growing a hand-written entry per dialog.
+//True when any modal request is outstanding. selectKeyboardNavigates consults
+//this, rather than growing a hand-written entry per dialog.
 export const selectModalOpen = (state : State) : boolean => state.modal.requests.length > 0;
 
 //Called by the dialog that satisfied the request. Dispatches internally and
