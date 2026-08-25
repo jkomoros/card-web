@@ -225,7 +225,8 @@ import {
 	UserInfo,
 	Card,
 	CardID,
-	State
+	State,
+	Uid
 } from '../types.js';
 
 import {
@@ -873,7 +874,7 @@ export const installOptimisticUserStateReconciler = () : void => {
 //imports from aux-write-queue.js, which does not import back, and
 //reportPersistentError is only dereferenced when the callback FIRES, long after
 //the app.ts cycle has settled.
-//ONE DEDUPE KEY FOR BOTH, per kind. Two keys looked tidier and was a defect:
+//ONE DEDUPE KEY FOR BOTH, per INTENT. Two keys looked tidier and was a defect:
 //stuck and discarded are two states of the SAME write, and an intent normally
 //passes through stuck on its way to discarded (always, for anything that hits
 //the 30-day age-out). With separate keys the user ends up holding both banners
@@ -881,7 +882,16 @@ export const installOptimisticUserStateReconciler = () : void => {
 //above "given up on" — with no way to clear the false one except by hand. That
 //is the two-surfaces-contradicting-each-other failure HS-2.4 opens with.
 //Sharing the key means the discard REPLACES the stuck notice in place.
-const auxWriteBannerKey = (intent : AuxWriteIntent) : string => `aux-write-${intent.kind}`;
+//
+//Keyed on intent.id, NOT intent.kind. The id is minted exactly once, in
+//makeAuxWriteIntent, and rides the intent unchanged through its whole
+//stuck-then-discarded lifecycle, so the same-write replacement above still
+//holds. The kind-based key went further than that justification: two
+//DIFFERENT lost writes of the same kind — two comments on different cards
+//discarded in one replay pass — collapsed into one banner, and the reducer's
+//replace-in-place meant the user was told about the second loss and never
+//the first.
+const auxWriteBannerKey = (intent : AuxWriteIntent) : string => `aux-write-${intent.id}`;
 
 onAuxWriteDiscarded((intent, detail) => {
 	//The raw error goes to the console, never into the banner: HS-2.4 forbids
@@ -935,18 +945,43 @@ export const toggleOnReadingList = (cardToToggle : CardID) : ThunkSomeAction => 
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => async (dispatch, getState) => {
-	if (!cardToAdd) {
-		console.log('Invalid card provided');
-		return;
-	}
-
-	const state = getState();
-	const uid = selectUid(state);
+//The shared preamble of the six user-state thunks below: resolve the acting
+//uid, hold the action until the active collection is concrete (#767), and only
+//then confirm the SAME account is still the one acting. One helper because the
+//guard block was copy-pasted six times and the post-await re-check has to ride
+//every copy.
+//
+//RE-CHECK AFTER THE AWAIT, per modal.ts's rule (createForkedCard in
+//actions/data.ts sets the pattern): awaitInteractableCollection can defer for
+//up to three seconds during a worker cutover, and a sign-out or a cross-tab
+//account takeover can land inside that window. A uid captured before the await
+//is then the WRONG account. Minting a durable intent under it earns a
+//permanent rules rejection on the immediate attempt — or a transient failure
+//that the uid-filtered replay will never retry — while
+//auxWriteBelongsToCurrentUser (correctly) suppresses the discard banner: a
+//silent durable loss. And the optimistic apply that follows would pollute the
+//NEW account's local state with the old account's action.
+//
+//The abandonment is DELIBERATELY silent, unlike the guard refusal one branch
+//up: the account that took the action is gone from this tab, so there is
+//nobody the refusal toast would be for — the person now looking at the screen
+//did not take this action, and telling them about it is the same
+//cross-account leak the uid filters elsewhere in this file exist to prevent.
+//
+//`silentRefusal` is for the auto-mark-read timer, the one caller that is not
+//a user tap: D7's refusals-must-speak rule is about unmarked dead CONTROLS,
+//and a background timer declining is not a dead control — a refused toast for
+//it complains about an action the user never took.
+const guardedActingUid = async (
+	dispatch : AppThunkDispatch,
+	getState : () => State,
+	silentRefusal = false
+) : Promise<Uid | null> => {
+	const uid = selectUid(getState());
 
 	if (!uid) {
 		console.log('Not logged in');
-		return;
+		return null;
 	}
 
 	//#767: the transitional cutover placeholder's isFallback:false is a
@@ -955,9 +990,30 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => async 
 	try {
 		await awaitInteractableCollection(() => selectActiveCollection(getState()));
 	} catch (err) {
+		if (silentRefusal) {
+			console.log('Declining a non-user-initiated action the guard refused:', err);
+			return null;
+		}
 		reportGuardRefusal(dispatch, err);
+		return null;
+	}
+
+	if (selectUid(getState()) !== uid) {
+		console.log('The signed-in account changed while the action was deferred; abandoning it');
+		return null;
+	}
+
+	return uid;
+};
+
+export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => async (dispatch, getState) => {
+	if (!cardToAdd) {
+		console.log('Invalid card provided');
 		return;
 	}
+
+	const uid = await guardedActingUid(dispatch, getState);
+	if (uid === null) return;
 
 	//The reading list is an ORDERED array replaced wholesale, so the optimistic
 	//value is computed from the list as it stands rather than expressed as a
@@ -981,23 +1037,8 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 		return;
 	}
 
-	const state = getState();
-	const uid = selectUid(state);
-
-	if (!uid) {
-		console.log('Not logged in');
-		return;
-	}
-
-	//#767: the transitional cutover placeholder's isFallback:false is a
-	//guess; wait for the concrete collection instead of acting on it, and
-	//refuse (like fallback) if it never resolves.
-	try {
-		await awaitInteractableCollection(() => selectActiveCollection(getState()));
-	} catch (err) {
-		reportGuardRefusal(dispatch, err);
-		return;
-	}
+	const uid = await guardedActingUid(dispatch, getState);
+	if (uid === null) return;
 
 	void applyOptimistically(
 		'reading-list-remove',
@@ -1019,23 +1060,8 @@ export const addStar = (cardToStar : Card | null) : ThunkSomeAction => async (di
 		return;
 	}
 
-	const state = getState();
-	const uid = selectUid(state);
-
-	if (!uid) {
-		console.log('Not logged in');
-		return;
-	}
-
-	//#767: the transitional cutover placeholder's isFallback:false is a
-	//guess; wait for the concrete collection instead of acting on it, and
-	//refuse (like fallback) if it never resolves.
-	try {
-		await awaitInteractableCollection(() => selectActiveCollection(getState()));
-	} catch (err) {
-		reportGuardRefusal(dispatch, err);
-		return;
-	}
+	const uid = await guardedActingUid(dispatch, getState);
+	if (uid === null) return;
 
 	const starredID = cardToStar.id;
 	//Re-check AFTER the guard: two clicks landing inside one deferral window
@@ -1059,23 +1085,8 @@ export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => async 
 		return;
 	}
 
-	const state = getState();
-	const uid = selectUid(state);
-
-	if (!uid) {
-		console.log('Not logged in');
-		return;
-	}
-
-	//#767: the transitional cutover placeholder's isFallback:false is a
-	//guess; wait for the concrete collection instead of acting on it, and
-	//refuse (like fallback) if it never resolves.
-	try {
-		await awaitInteractableCollection(() => selectActiveCollection(getState()));
-	} catch (err) {
-		reportGuardRefusal(dispatch, err);
-		return;
-	}
+	const uid = await guardedActingUid(dispatch, getState);
+	if (uid === null) return;
 
 	const unstarredID = cardToStar.id;
 	//Symmetric with addStar: a doubled remove would decrement twice.
@@ -1169,6 +1180,18 @@ export const markActiveCardReadIfLoggedIn = () : ThunkSomeAction => (dispatch, g
 		dispatch(scheduleAutoMarkRead());
 		return;
 	}
+	//#767 the other direction: a cutover can also RESOLVE to fallback content
+	//while the timer runs. autoMarkReadScheduleDecision already answers 'skip'
+	//for a fallback collection at schedule time; without the same answer at
+	//fire time this fell through to markRead, whose guard threw, and the
+	//refusal toast complained about an auto-action the user never took.
+	//markRead's auto path now declines its guard silently too (belt and
+	//braces), but the right outcome is to never attempt the read at all — and
+	//to take the pending animation down, since the read it promised is off.
+	if (activeCollection && activeCollection.isFallback) {
+		dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
+		return;
+	}
 	const activeCard = selectActiveCard(state);
 	if (!activeCard) return;
 	dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
@@ -1182,23 +1205,12 @@ export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError?
 		return;
 	}
 
-	const state = getState();
-	const uid = selectUid(state);
-
-	if (!uid) {
-		console.log('Not logged in');
-		return;
-	}
-
-	//#767: the transitional cutover placeholder's isFallback:false is a
-	//guess; wait for the concrete collection instead of acting on it, and
-	//refuse (like fallback) if it never resolves.
-	try {
-		await awaitInteractableCollection(() => selectActiveCollection(getState()));
-	} catch (err) {
-		reportGuardRefusal(dispatch, err);
-		return;
-	}
+	//`existingReadDoesNotError` is only ever passed by the auto-mark-read
+	//timer (markActiveCardReadIfLoggedIn), so it doubles as "this is not a
+	//user tap": a guard refusal on that path declines silently instead of
+	//rendering a refused toast for an action the user never took.
+	const uid = await guardedActingUid(dispatch, getState, existingReadDoesNotError);
+	if (uid === null) return;
 
 	if (getCardIsRead(getState(), cardToMarkRead.id)) {
 		if (!existingReadDoesNotError) {
@@ -1221,23 +1233,8 @@ export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => 
 		return;
 	}
 
-	const state = getState();
-	const uid = selectUid(state);
-
-	if (!uid) {
-		console.log('Not logged in');
-		return;
-	}
-
-	//#767: the transitional cutover placeholder's isFallback:false is a
-	//guess; wait for the concrete collection instead of acting on it, and
-	//refuse (like fallback) if it never resolves.
-	try {
-		await awaitInteractableCollection(() => selectActiveCollection(getState()));
-	} catch (err) {
-		reportGuardRefusal(dispatch, err);
-		return;
-	}
+	const uid = await guardedActingUid(dispatch, getState);
+	if (uid === null) return;
 
 	if (!getCardIsRead(getState(), cardToMarkUnread.id)) {
 		console.log('Card isn\'t read!');

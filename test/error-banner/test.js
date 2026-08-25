@@ -14,7 +14,7 @@
 
 import assert from 'assert';
 import {readFileSync, readdirSync} from 'fs';
-import {bootstrapApp, harnessAlerts, clearHarnessAlerts} from '../harness-support/app-harness.js';
+import {bootstrapApp, harnessAlerts, clearHarnessAlerts, clearAuxQueue} from '../harness-support/app-harness.js';
 
 const app = await bootstrapApp();
 const {store} = app;
@@ -125,17 +125,19 @@ describe('the persistent error banner', () => {
 		//"still saved on this device and is being retried" left sitting directly
 		//above "won't be retried again", with no way to clear the false one but by
 		//hand. Every intent that ages out at 30 days takes exactly this path, so it
-		//is the ordinary route rather than an exotic one.
+		//is the ordinary route rather than an exotic one. The key is the INTENT's
+		//id (minted once, stable through the whole lifecycle), so one write's two
+		//states still collapse.
 		it('replaces a stuck notice when the same write is later discarded', () => {
 			store.dispatch(reportPersistentError({
 				what: 'Saving your edit to that comment isn\u2019t going through.',
 				reassurance: 'Your change is still saved on this device and is being retried.',
-				dedupeKey: 'aux-write-comment-edit'
+				dedupeKey: 'aux-write-1724-1-abc123'
 			}));
 			store.dispatch(reportPersistentError({
 				what: 'Saving your edit to that comment didn\u2019t go through, and won\u2019t be retried again.',
 				reassurance: 'You can try it again.',
-				dedupeKey: 'aux-write-comment-edit'
+				dedupeKey: 'aux-write-1724-1-abc123'
 			}));
 			const live = errors();
 			assert.strictEqual(live.length, 1, `the discard must replace the stuck notice, not stack under it; got ${JSON.stringify(live.map(entry => entry.what))}`);
@@ -145,8 +147,14 @@ describe('the persistent error banner', () => {
 		});
 
 		//The two banners can only replace each other if they SHARE a key, so pin
-		//that the two subscribers still derive it the same way.
-		it('gives the stuck and discarded reports one dedupe key per kind', () => {
+		//that the two subscribers still derive it the same way \u2014 and that the
+		//derivation is per intent.id, NOT per intent.kind. The kind-based key
+		//collapsed two DIFFERENT lost writes of the same kind (two comments on
+		//different cards discarded in one replay pass) into one banner: the
+		//reducer's replace-in-place told the user about the second loss and never
+		//the first. The behavioral half of that lives in the 'two losses' suite
+		//below.
+		it('derives one dedupe key per INTENT for both the stuck and discarded reports', () => {
 			const source = readFileSync(new URL('../../src/actions/user.ts', import.meta.url), 'utf8');
 			const keys = [...source.matchAll(/dedupeKey:\s*([^,\n}]+)/g)]
 				.map(match => match[1].trim())
@@ -154,6 +162,13 @@ describe('the persistent error banner', () => {
 			assert.ok(keys.length >= 2, `expected both aux-write reports to set a dedupeKey, found ${keys.length}`);
 			assert.strictEqual(new Set(keys).size, 1,
 				`stuck and discarded must share one key or they stack: ${JSON.stringify(keys)}`);
+			//Comments stripped first, per this file's own rule: a pin a comment can
+			//satisfy is not testing the product.
+			const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+			const derivation = code.match(/auxWriteBannerKey\s*=[^;]*=>\s*`aux-write-\$\{intent\.(\w+)\}`/);
+			assert.ok(derivation, 'auxWriteBannerKey must derive the key from a single intent field this test can see');
+			assert.strictEqual(derivation[1], 'id',
+				`the key must ride the intent's identity, not its ${derivation[1]}: a per-kind key collapses distinct losses into one banner`);
 		});
 
 		it('keeps two unrelated failures apart', () => {
@@ -339,4 +354,51 @@ describe('the persistent error banner', () => {
 
 	});
 
+});
+
+//TWO DIFFERENT LOSSES ARE TWO BANNERS, driven through the real queue and the
+//real reporters rather than the reducer alone. The per-kind dedupe key made
+//two comments on different cards, discarded in one replay pass, collapse into
+//one banner: the reducer's replace-in-place told the user about the second
+//loss and never the first. The key justification — a stuck write's discard
+//must REPLACE its own notice — only ever covered two states of the SAME
+//intent, and the intent's once-minted id serves it equally well.
+describe('two distinct losses of the same kind', () => {
+
+	let queue;
+
+	before(async function() {
+		this.timeout(20000);
+		//Importing user.js registers the discard/stuck banner reporters at
+		//module scope (deliberately — see the comment there: reporting a lost
+		//write must not be contingent on any install step). It also registers
+		//the real Firestore executors, which the test below overrides with a
+		//stub — nothing here touches the network.
+		await import('../../lib/src/actions/user.js');
+		queue = await import('../../lib/src/aux-write-queue.js');
+	});
+
+	beforeEach(() => {
+		for (const entry of [...errors()]) store.dispatch(dismissPersistentError(entry.id));
+		clearHarnessAlerts();
+		clearAuxQueue();
+	});
+
+	//A coded error, so the queue classifies it permanent and DISCARDS rather
+	//than retaining for retry — the discard is what mints a banner.
+	const permanent = () => Object.assign(new Error('Missing or insufficient permissions.'), {code: 'permission-denied'});
+
+	it('produces TWO banners instead of the second silently replacing the first', async () => {
+		queue.registerAuxWriteExecutor('star-add', async () => { throw permanent(); });
+		//Two different cards, one kind, both given up on — the shape of one
+		//pass discarding two separate writes.
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(app.uid, 'star-add', 'card-loss-one'));
+		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(app.uid, 'star-add', 'card-loss-two'));
+		await new Promise(resolve => setTimeout(resolve, 0));
+		const live = errors();
+		assert.strictEqual(live.length, 2,
+			`two lost writes are two pieces of news, not one banner replaced in place; got ${JSON.stringify(live.map(entry => entry.what))}`);
+		assert.notStrictEqual(live[0].dedupeKey, live[1].dedupeKey,
+			'distinct intents must carry distinct dedupe keys or the reducer collapses them');
+	});
 });

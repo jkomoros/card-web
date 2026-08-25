@@ -19,7 +19,7 @@
 
 import assert from 'assert';
 import {readFileSync} from 'fs';
-import {bootstrapApp, clearWhatUserWasTold, whatUserWasTold, clearAuxQueue} from '../harness-support/app-harness.js';
+import {bootstrapApp, clearWhatUserWasTold, whatUserWasTold, clearAuxQueue, wireCard} from '../harness-support/app-harness.js';
 
 let queue;
 let user;
@@ -378,5 +378,168 @@ describe('a full re-delivery cannot reverse the user\'s last action', () => {
 			assert.equal(starred('theirs'), false);
 			assert.equal(starred('mine'), true);
 		});
+	});
+});
+
+//THE STALE-UID HALF OF THE GUARD (modal.ts's re-check-after-await rule). The
+//six user-state thunks capture the uid, then awaitInteractableCollection can
+//park them for up to three seconds during a worker cutover. A sign-out or a
+//cross-tab account takeover landing inside that window used to mint the
+//durable intent under the DEPARTED uid — whose attempt earns a permanent rules
+//rejection (or a transient failure the uid-filtered replay never retries),
+//whose discard banner auxWriteBelongsToCurrentUser rightly suppresses — and
+//then ran the optimistic apply into the NEW account's local state. Silent
+//durable loss on one side, cross-account pollution on the other.
+//
+//These tests drive that real sequence: the thunk parks on a transitional
+//collection, the account changes, the cutover resolves, and the thunk wakes up
+//holding a uid that is no longer acting.
+//
+//HOW THE COLLECTION IS DRIVEN. The harness store has no collection slice, so
+//the active collection is permanently transitional (which is what the D7 tests
+//above lean on). This block registers the real collection reducer and delivers
+//worker results by hand — the same UPDATE_WORKER_COLLECTION the corpus bridge
+//dispatches — so the guard can be parked and released on cue. It runs LAST in
+//this file on purpose: registering the slice changes what
+//selectActiveCollection sees for every later dispatch.
+describe('an account change during the guard deferral abandons the action', () => {
+	let comments;
+	let selectors;
+
+	before(async () => {
+		const app = await bootstrapApp();
+		store = app.store;
+		UID = app.uid;
+		queue = await import('../../lib/src/aux-write-queue.js');
+		user = await import('../../lib/src/actions/user.js');
+		comments = await import('../../lib/src/actions/comments.js');
+		selectors = await import('../../lib/src/selectors.js');
+		const {default: collectionReducer} = await import('../../lib/src/reducers/collection.js');
+		store.addReducers({collection: collectionReducer});
+	});
+
+	//A worker result for exactly the active description. transitional stays
+	//unset — this is the authoritative delivery that ends a cutover.
+	const deliverWorkerCollection = (overrides = {}) => store.dispatch({
+		type: 'UPDATE_WORKER_COLLECTION',
+		slot: 'active',
+		result: {
+			description: selectors.selectActiveCollectionDescription(store.getState()).serialize(),
+			ids: [],
+			labels: [],
+			numCards: 0,
+			numStartCards: 0,
+			isFallback: false,
+			preview: false,
+			partialMatches: {},
+			...overrides
+		}
+	});
+
+	//No worker result for the active description = the transitional
+	//placeholder = the guard defers.
+	const clearWorkerCollection = () => store.dispatch({type: 'UPDATE_WORKER_COLLECTION', slot: 'active', result: null});
+
+	const signIn = (uid) => store.dispatch({type: 'SIGNIN_SUCCESS', user: {
+		uid, isAnonymous: false, photoURL: '', displayName: 'Harness', email: 'harness@example.com'
+	}});
+
+	const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+	beforeEach(() => {
+		clearAuxQueue();
+		queue.resetAuxWriteQueueForTesting();
+		clearWhatUserWasTold(store);
+		clearWorkerCollection();
+		signIn(UID);
+	});
+
+	it('a takeover during the deferral mints NO intent and applies NO optimistic star', async () => {
+		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+		//The thunk captures the uid and parks on the transitional collection...
+		const acted = store.dispatch(user.addStar({id: 'card-account-switch'}));
+		//...the takeover lands while it is parked (SIGNIN_SUCCESS resets
+		//stars/reads, exactly as a real cross-tab switch does)...
+		signIn('second-account-uid');
+		//...and then the cutover resolves, waking the thunk with a stale uid.
+		deliverWorkerCollection();
+		await acted;
+		assert.deepEqual(queue.readPendingAuxWrites(), [],
+			'a durable intent minted under the departed uid is a silent durable loss — its replay is uid-filtered and its discard banner is uid-suppressed');
+		assert.equal(Boolean(store.getState().user.stars['card-account-switch']), false,
+			'the optimistic apply must not pollute the new account\'s local state');
+		assert.deepEqual(whatUserWasTold(store), [],
+			'and the abandonment is silent: the acting account is gone, and the person now looking did not take this action');
+	});
+
+	it('a SIGN-OUT during the deferral abandons likewise', async () => {
+		queue.registerAuxWriteExecutor('read-add', async () => { throw new Error('offline'); });
+		const acted = store.dispatch(user.markRead({id: 'card-signout-race'}));
+		store.dispatch({type: 'SIGNOUT_SUCCESS'});
+		deliverWorkerCollection();
+		await acted;
+		assert.deepEqual(queue.readPendingAuxWrites(), [],
+			'"the uid changed" includes it becoming empty');
+		assert.deepEqual(whatUserWasTold(store), []);
+	});
+
+	it('the SAME account riding out the deferral still proceeds', async () => {
+		//The inverse case, so the re-check cannot quietly turn into "always
+		//abandon" — which would pass both tests above while breaking every
+		//star clicked during an ordinary cutover.
+		queue.registerAuxWriteExecutor('star-add', async () => { throw new Error('offline'); });
+		const acted = store.dispatch(user.addStar({id: 'card-same-account'}));
+		deliverWorkerCollection();
+		await acted;
+		const pending = queue.readPendingAuxWrites();
+		assert.equal(pending.length, 1, 'the deferred star must still be minted once the cutover resolves');
+		assert.equal(pending[0].uid, UID);
+		assert.equal(Boolean(store.getState().user.stars['card-same-account']), true, 'and applied optimistically');
+	});
+
+	it('a takeover during a comment\'s deferral abandons it without minting the intent', async () => {
+		queue.registerAuxWriteExecutor('comment-add', async () => { throw new Error('offline'); });
+		//createThread needs an active card and the comment permission; the
+		//guard and the uid capture come after both checks.
+		const cardID = 'card-comment-switch';
+		store.dispatch({type: 'UPDATE_CARDS', cards: {[cardID]: {...wireCard(cardID, UID), id: cardID}}, fetchType: 'unpublished'});
+		store.dispatch({type: 'SHOW_CARD', requestedCard: cardID, card: cardID});
+		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {comment: true}});
+		const acted = store.dispatch(comments.createThread('typed while the old account was signed in'));
+		signIn('second-account-uid');
+		deliverWorkerCollection();
+		await acted;
+		assert.deepEqual(queue.readPendingAuxWrites(), [],
+			'a comment intent minted under the departed author is recorded against an account that is gone');
+		assert.deepEqual(whatUserWasTold(store), [],
+			'no "queued" toast either — nothing was queued, and the new account did not post anything');
+	});
+
+	//BUG: the 5s auto-mark-read timer's fire-time re-check covered only
+	//isTransitional. A collection that turned FALLBACK mid-timer fell through
+	//to markRead, whose guard threw, and reportGuardRefusal rendered a
+	//'refused' toast for an action the user never took. D7's
+	//refusals-must-speak rule is about unmarked dead CONTROLS; a background
+	//timer declining is not a dead control.
+	it('the auto-mark-read path declines a fallback silently, while a tap still speaks', async () => {
+		queue.registerAuxWriteExecutor('read-add', async () => { throw new Error('offline'); });
+		const cardID = 'card-auto-fallback';
+		store.dispatch({type: 'UPDATE_CARDS', cards: {[cardID]: {...wireCard(cardID, UID), id: cardID}}, fetchType: 'unpublished'});
+		store.dispatch({type: 'SHOW_CARD', requestedCard: cardID, card: cardID});
+		//The cutover resolved to real fallback content while the timer ran.
+		deliverWorkerCollection({isFallback: true, ids: [cardID], numCards: 1});
+
+		//The timer fires.
+		store.dispatch(user.markActiveCardReadIfLoggedIn());
+		await settle();
+		assert.deepEqual(whatUserWasTold(store), [],
+			'a background timer declining must not render a refused toast');
+		assert.deepEqual(queue.readPendingAuxWrites(), [], 'and must not mint a read either');
+
+		//The SAME refusal from an actual tap keeps speaking (D7).
+		await store.dispatch(user.markRead({id: cardID}));
+		await settle();
+		assert.ok(whatUserWasTold(store).some(text => /placeholder content/i.test(text)),
+			`a tapped control refusing must still say why; surfaces were ${JSON.stringify(whatUserWasTold(store))}`);
 	});
 });

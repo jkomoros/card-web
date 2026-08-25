@@ -428,7 +428,32 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkSome
 	//rejection (real fallback, or a cutover that never resolves) deliberately
 	//propagates: composeCommit restores the typed text and tells the user,
 	//where the old guard's silent return dropped the words on the floor.
-	await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	//EXCEPT when the acting account changed during the deferral: then the
+	//rejection must NOT propagate, because composeCommit's restore would
+	//re-open the composer holding the DEPARTED account's typed text — and show
+	//its refusal — to whoever is signed in now. Same silent-abandon rule as
+	//the resolved path below.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		if (selectUser(getState())?.uid !== user.uid) return;
+		throw err;
+	}
+
+	//RE-CHECK AFTER THE AWAIT, per modal.ts's rule (guardedActingUid in
+	//actions/user.ts carries the long form): the guard can defer for seconds
+	//during a worker cutover, and a sign-out or cross-tab account takeover
+	//inside that window makes `user` the wrong author. Minting the durable
+	//intent anyway records the comment under an account that is gone — its
+	//attempt earns a permanent rules rejection, the uid-filtered replay never
+	//retries it, and the discard report is (correctly) suppressed as
+	//not-the-current-user's: a silent durable loss. Abandoning SILENTLY is the
+	//right call here, even though this file's other guards insist on speaking:
+	//the account that hit send is no longer in this tab, and the person now
+	//looking did not send this comment. The CARD captured above is
+	//deliberately kept — the comment must attach to the card the user was on
+	//when they hit send.
+	if (selectUser(getState())?.uid !== user.uid) return;
 
 	const messageId = randomString(16);
 	const threadId = thread.id;
@@ -490,7 +515,21 @@ export const createThread = (message : string) : ThunkSomeAction => async (_, ge
 	//rejection (real fallback, or a cutover that never resolves) deliberately
 	//propagates: composeCommit restores the typed text and tells the user,
 	//where the old guard's silent return dropped the words on the floor.
-	await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	//EXCEPT on an account change mid-deferral — see addMessage above: the
+	//restore would hand the departed account's text to the new account.
+	try {
+		await awaitInteractableCollection(() => selectActiveCollection(getState()));
+	} catch (err) {
+		if (selectUser(getState())?.uid !== user.uid) return;
+		throw err;
+	}
+
+	//RE-CHECK AFTER THE AWAIT — same rule and same reasoning as addMessage
+	//above: if the acting account changed while the guard deferred, minting
+	//the intent under the captured `user` is a silent durable loss recorded
+	//against an account that is gone, so abandon without minting. The card
+	//capture stays: the thread belongs on the card the user was on.
+	if (selectUser(getState())?.uid !== user.uid) return;
 
 	const messageId = randomString(16);
 	const threadId = randomString(16);
