@@ -40,6 +40,35 @@ export const shouldAutoActivateUpdate = (firstSeenMs : number | null, nowMs : nu
 	return nowMs - firstSeenMs > UPDATE_AUTO_ACTIVATE_AFTER_MS;
 };
 
+//The auto-only gates, pure for the same reason. The manual path's
+//unsafeReason (dirty draft, pending durable mutation) was designed around a
+//human CLICK as consent, so half-typed text in non-card surfaces never
+//needed guarding there. An automatic reload has no such consent, and
+//beforeunload cannot catch it either: the guard only arms when
+//unsafeReason is truthy, which is exactly false on this path, and the
+//reload is programmatic besides. Each input names why it is here:
+//- chatComposing: a chat message being composed (selectChatComposingMessage).
+//- composeOpen/composeContent: the comment compose dialog holds its text
+//  purely in redux (state.prompt.content) with no persistence anywhere; a
+//  reload discards it outright. Gated only while the dialog is OPEN — after
+//  a cancel the leftover content is abandoned, not unsent.
+//- findDialogOpen/findQuery: the find dialog's query, likewise redux-only.
+//  Cheap to retype, but the same class of unsent user input.
+//Returns a reason string in the manual gates' format; empty means no unsent
+//input is at risk.
+export const unsentUserInputReason = (input : {
+	chatComposing : string,
+	composeOpen : boolean,
+	composeContent : string,
+	findDialogOpen : boolean,
+	findQuery : string
+}) : string => {
+	if (input.chatComposing) return 'a message is being composed';
+	if (input.composeOpen && input.composeContent) return 'the compose dialog has unsent text';
+	if (input.findDialogOpen && input.findQuery) return 'the find dialog has an unsubmitted search';
+	return '';
+};
+
 export const readUpdateFirstSeen = (nowMs = Date.now()) : number | null => {
 	try {
 		if (typeof localStorage === 'undefined') return null;

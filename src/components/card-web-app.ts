@@ -48,6 +48,7 @@ import {
 import {
 	UPDATE_AUTO_ACTIVATE_RECHECK_MS,
 	shouldAutoActivateUpdate,
+	unsentUserInputReason,
 	readUpdateFirstSeen,
 	recordUpdateFirstSeen,
 	clearUpdateFirstSeen,
@@ -57,8 +58,12 @@ import {
 	selectActiveCard,
 	selectCardModificationError,
 	selectChatComposingMessage,
+	selectComposeOpen,
+	selectFindDialogOpen,
 	selectPendingDeletions,
 	selectPendingModificationCount,
+	selectPromptContent,
+	selectQuery,
 	selectUid,
 } from '../selectors.js';
 
@@ -139,6 +144,18 @@ class CardWebApp extends connect(store)(LitElement) {
 			this._updateRegistration = registration;
 			void this._checkUpdateBackstop();
 		}
+	};
+	//The bootstrap's "registration is ready, nothing waiting" signal. The
+	//update event above cannot carry it (setting _updateRegistration is what
+	//shows the banner), and without it a registration that completes with NO
+	//waiting worker stays invisible until the HOURLY re-check — long enough
+	//for a stale first-seen record from an already-activated update (the
+	//all-tabs-closed activation path clears nothing) to be adopted by the
+	//next deploy and instant-fire it (#756). The check itself still decides:
+	//it only clears when a registration is genuinely visible with no waiting
+	//worker, never on ignorance.
+	private _registrationReadyHandler = () => {
+		this._checkUpdateBackstop();
 	};
 	private _currentUnsafeExitReason = () => this._unsafeExitReason ||
 		(inFlightMutationCount() > 0 ? 'wait for the current change to finish' : '');
@@ -567,13 +584,27 @@ class CardWebApp extends connect(store)(LitElement) {
 		}
 		if (!this._updateRegistration) this._updateRegistration = registration;
 		const firstSeen = recordUpdateFirstSeen(Date.now());
-		//The manual path's gates plus one auto-only gate: the manual path
+		//The manual path's gates plus the auto-only ones: the manual path
 		//implicitly had a human CLICK as consent, so half-typed text in
-		//non-card surfaces (a composing chat message) never needed guarding
-		//there. An automatic reload has no such consent; hold while any is
+		//non-card surfaces never needed guarding there. An automatic reload
+		//has no such consent, and beforeunload cannot catch it (the guard
+		//only arms on _currentUnsafeExitReason, which is exactly empty on
+		//this path). The gates and why each exists — a composing chat
+		//message, the compose dialog's redux-only unsent text, the find
+		//dialog's open query (kept until the dialog closes, so it may
+		//already have run; holding is the cheap side of that guess) — live
+		//with the pure helper in
+		//service-worker-update.ts so tests can pin them. Hold while any is
 		//present and let the hourly re-check try again.
-		const composing = selectChatComposingMessage(store.getState() as State) ? 'a message is being composed' : '';
-		if (shouldAutoActivateUpdate(firstSeen, Date.now(), this._currentUnsafeExitReason() || composing)) {
+		const state = store.getState() as State;
+		const unsentInput = unsentUserInputReason({
+			chatComposing: selectChatComposingMessage(state),
+			composeOpen: selectComposeOpen(state),
+			composeContent: selectPromptContent(state),
+			findDialogOpen: selectFindDialogOpen(state),
+			findQuery: selectQuery(state)
+		});
+		if (shouldAutoActivateUpdate(firstSeen, Date.now(), this._currentUnsafeExitReason() || unsentInput)) {
 			this._activateUpdate();
 		}
 	};
@@ -694,6 +725,7 @@ class CardWebApp extends connect(store)(LitElement) {
 	override connectedCallback() {
 		super.connectedCallback();
 		window.addEventListener('card-web-service-worker-update', this._updateEventHandler);
+		window.addEventListener('card-web-service-worker-registration-ready', this._registrationReadyHandler);
 		window.addEventListener('beforeunload', this._beforeUnloadHandler);
 		window.addEventListener('card-web-edit-draft-changed', this._draftEventHandler);
 		window.addEventListener('storage', this._durableStorageHandler);
@@ -753,6 +785,7 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	override disconnectedCallback() {
 		window.removeEventListener('card-web-service-worker-update', this._updateEventHandler);
+		window.removeEventListener('card-web-service-worker-registration-ready', this._registrationReadyHandler);
 		window.removeEventListener('beforeunload', this._beforeUnloadHandler);
 		window.removeEventListener('card-web-edit-draft-changed', this._draftEventHandler);
 		window.removeEventListener('storage', this._durableStorageHandler);

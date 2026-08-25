@@ -63,7 +63,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 				//cannot safely manage its persistent first-seen clock.
 				window.CARD_WEB_SW_REGISTRATION = reg;
 				const announceWaitingUpdate = () => {
-				  if (!reg.waiting) return;
+				  if (!reg.waiting) {
+					//Announce that we LOOKED and found nothing waiting. Without
+					//this the app hears nothing until its hourly re-check, and a
+					//stale first-seen record from an already-activated update
+					//(the all-tabs-closed path clears nothing) survives long
+					//enough for the next deploy to adopt it and activate
+					//instantly instead of starting a fresh 7-day clock.
+					window.dispatchEvent(new CustomEvent('card-web-service-worker-registration-ready', {detail: reg}));
+					return;
+				  }
 				  window.CARD_WEB_SW_UPDATE_REGISTRATION = reg;
 				  window.dispatchEvent(new CustomEvent('card-web-service-worker-update', {detail: reg}));
 				};

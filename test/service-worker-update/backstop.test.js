@@ -56,6 +56,45 @@ describe('service-worker auto-activation backstop (#756)', () => {
 		assert.strictEqual(mod.shouldAutoActivateUpdate(null, Number.MAX_SAFE_INTEGER, ''), false);
 	});
 
+	//The auto-only gates guard unsent user input the manual path never had
+	//to (a human click was consent there): redux-only text that a
+	//programmatic reload would silently discard, with beforeunload unable to
+	//intervene (the guard arms on unsafeReason, which is empty on exactly
+	//this path).
+	describe('unsent-input gates (auto-only)', () => {
+		const clear = {chatComposing: '', composeOpen: false, composeContent: '', findDialogOpen: false, findQuery: ''};
+
+		it('all clear means no hold, so a past-deadline update fires', () => {
+			assert.strictEqual(mod.unsentUserInputReason(clear), '');
+			assert.strictEqual(mod.shouldAutoActivateUpdate(1_000_000, 1_000_000 + 30 * DAY_MS, mod.unsentUserInputReason(clear)), true);
+		});
+
+		it('a composing chat message holds', () => {
+			const reason = mod.unsentUserInputReason({...clear, chatComposing: 'half a thought'});
+			assert.notStrictEqual(reason, '');
+			assert.strictEqual(mod.shouldAutoActivateUpdate(1_000_000, 1_000_000 + 30 * DAY_MS, reason), false);
+		});
+
+		it('an open compose dialog with unsent text holds', () => {
+			const reason = mod.unsentUserInputReason({...clear, composeOpen: true, composeContent: 'dear diary'});
+			assert.notStrictEqual(reason, '');
+			assert.strictEqual(mod.shouldAutoActivateUpdate(1_000_000, 1_000_000 + 30 * DAY_MS, reason), false);
+		});
+
+		it('compose content only gates while the dialog is open', () => {
+			//An open-but-empty dialog has nothing to lose; content behind a
+			//closed dialog was abandoned by a cancel, not left unsent.
+			assert.strictEqual(mod.unsentUserInputReason({...clear, composeOpen: true}), '');
+			assert.strictEqual(mod.unsentUserInputReason({...clear, composeContent: 'cancelled text'}), '');
+		});
+
+		it('an open find dialog with a query holds; open-and-empty does not', () => {
+			assert.notStrictEqual(mod.unsentUserInputReason({...clear, findDialogOpen: true, findQuery: 'blue'}), '');
+			assert.strictEqual(mod.unsentUserInputReason({...clear, findDialogOpen: true}), '');
+			assert.strictEqual(mod.unsentUserInputReason({...clear, findQuery: 'closed'}), '');
+		});
+	});
+
 	it('recordUpdateFirstSeen is first-write-wins and round-trips', () => {
 		assert.strictEqual(mod.readUpdateFirstSeen(), null);
 		assert.strictEqual(mod.recordUpdateFirstSeen(500), 500);
@@ -74,6 +113,55 @@ describe('service-worker auto-activation backstop (#756)', () => {
 		assert.strictEqual(mod.readUpdateFirstSeen(), null);
 	});
 
+	it('a record surviving an activation is cleared by the first no-waiting check, so the next update gets a fresh clock', () => {
+		//The all-tabs-closed activation path clears nothing, so a record can
+		//outlive the update it timed. Adopted as-is by the next deploy it
+		//fires instantly...
+		const stale = mod.recordUpdateFirstSeen(1_000_000);
+		const laterBoot = 1_000_000 + 30 * DAY_MS;
+		assert.strictEqual(mod.shouldAutoActivateUpdate(stale, laterBoot, ''), true,
+			'this is the instant-fire hazard the no-waiting clear exists to prevent');
+		//...which is why _checkUpdateBackstop's no-waiting branch clears it
+		//the moment a visible registration has nothing waiting.
+		mod.clearUpdateFirstSeen();
+		//A new update detected afterwards records first-seen NOW and waits
+		//the full seven days, instead of inheriting the stale stamp.
+		const fresh = mod.recordUpdateFirstSeen(laterBoot);
+		assert.strictEqual(fresh, laterBoot);
+		assert.strictEqual(mod.shouldAutoActivateUpdate(fresh, laterBoot + DAY_MS, ''), false);
+		assert.strictEqual(mod.shouldAutoActivateUpdate(fresh, laterBoot + 7 * DAY_MS + 1, ''), true);
+	});
+
+	it('a no-waiting registration is announced at boot, not left for the hourly re-check', () => {
+		//The hazard above is only prevented if the no-waiting check actually
+		//RUNS before a new deploy can be detected. At boot it cannot: the
+		//element's connect-time check precedes the bootstrap exposing the
+		//registration, and announceWaitingUpdate used to dispatch nothing
+		//when no worker was waiting — so the stale record survived the whole
+		//boot-to-first-recheck window, exactly where the bootstrap's explicit
+		//reg.update() makes a new deploy likeliest to land. Pin that the
+		//bootstrap's no-waiting branch dispatches a registration-ready event
+		//and that card-web-app listens and re-runs the check on it.
+		const template = fs.readFileSync(new URL('../../index.TEMPLATE.html', import.meta.url), 'utf8');
+		const registrationBlock = template.slice(template.indexOf('/* SERVICE-WORKER-START*/'), template.indexOf('/* SERVICE-WORKER-END */'));
+		const noWaitingStart = registrationBlock.indexOf('if (!reg.waiting)');
+		assert.ok(noWaitingStart >= 0, 'the bootstrap must still branch on reg.waiting');
+		const noWaitingBranch = registrationBlock.slice(noWaitingStart, registrationBlock.indexOf('return;', noWaitingStart));
+		assert.match(noWaitingBranch, /card-web-service-worker-registration-ready/,
+			'the "we looked, nothing waiting" state must be dispatched from the no-waiting branch itself');
+		//The registration global is exposed BEFORE the event can fire, so the
+		//listening check never acts on ignorance.
+		assert.ok(registrationBlock.indexOf('window.CARD_WEB_SW_REGISTRATION = reg;') < registrationBlock.indexOf('card-web-service-worker-registration-ready'));
+		const app = fs.readFileSync(new URL('../../src/components/card-web-app.ts', import.meta.url), 'utf8');
+		assert.match(app, /window\.addEventListener\('card-web-service-worker-registration-ready', this\._registrationReadyHandler\)/);
+		assert.match(app, /window\.removeEventListener\('card-web-service-worker-registration-ready', this\._registrationReadyHandler\)/);
+		const handlerStart = app.indexOf('_registrationReadyHandler = ()');
+		assert.ok(handlerStart >= 0, 'card-web-app must define the registration-ready handler');
+		const handler = app.slice(handlerStart, app.indexOf('\n\t};', handlerStart));
+		assert.match(handler, /_checkUpdateBackstop\(\)/,
+			'the handler must re-run the backstop check, whose no-waiting branch clears the stale record');
+	});
+
 	it('card-web-app wires the backstop to the same gates as the manual path', () => {
 		//Source-text pin, matching the sibling file's convention: the check
 		//consults _currentUnsafeExitReason (the manual path's gate), records
@@ -81,8 +169,15 @@ describe('service-worker auto-activation backstop (#756)', () => {
 		//stale record when nothing is waiting.
 		const app = fs.readFileSync(new URL('../../src/components/card-web-app.ts', import.meta.url), 'utf8');
 		const check = app.slice(app.indexOf('_checkUpdateBackstop = ('), app.indexOf('_activateUpdate = ()'));
-		assert.match(check, /shouldAutoActivateUpdate\(firstSeen, Date\.now\(\), this\._currentUnsafeExitReason\(\) \|\| composing\)/,
-			'the backstop must consult the manual path\'s gate, plus the auto-only composing gate');
+		assert.match(check, /shouldAutoActivateUpdate\(firstSeen, Date\.now\(\), this\._currentUnsafeExitReason\(\) \|\| unsentInput\)/,
+			'the backstop must consult the manual path\'s gate, plus the auto-only unsent-input gates');
+		//The auto-only gates must be fed from live state, one selector per
+		//guarded surface: chat composing, compose dialog open+content, find
+		//dialog open+query. The decision itself is the pure helper above.
+		assert.match(check, /unsentUserInputReason\(\{/);
+		for (const selector of ['selectChatComposingMessage', 'selectComposeOpen', 'selectPromptContent', 'selectFindDialogOpen', 'selectQuery']) {
+			assert.match(check, new RegExp(`${selector}\\(state\\)`), `the ${selector} gate input must come from live state`);
+		}
 		//Never act — or clear — before the registration is known: clearing on
 		//ignorance wiped the aging clock on every reload, making the backstop
 		//unable to fire for exactly its target cohort.
