@@ -161,7 +161,7 @@ class ConfigureCollectionFilter extends LitElement {
 		return html`
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li class='main'>
-			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${filterPiece}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' aria-label=${`Remove ${filterPiece} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
+			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${filterPiece}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' title='Remove this filter' aria-label=${`Remove ${filterPiece} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? this._argumentEditors() :
 		html`<button class='small' aria-label='Add an OR filter' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
