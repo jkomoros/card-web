@@ -14,6 +14,11 @@ for (const name of [
 	'customElements', 'CSSStyleSheet', 'Event', 'CustomEvent', 'MouseEvent',
 	'InputEvent', 'KeyboardEvent', 'ShadowRoot', 'HTMLInputElement',
 	'HTMLButtonElement', 'HTMLSelectElement', 'HTMLTextAreaElement', 'HTMLSlotElement',
+	//find-dialog reaches card-drawer, which reaches @polymer/polymer's gesture
+	//module — it reads navigator at module scope, so it must exist before the
+	//first import, not merely before the first render.
+	'navigator', 'getComputedStyle', 'MutationObserver', 'requestAnimationFrame',
+	'DocumentFragment', 'HTMLImageElement', 'HTMLAnchorElement',
 ]) globalThis[name] = name === 'window' ? dom.window : name === 'document' ? dom.window.document : dom.window[name];
 globalThis.location = dom.window.location;
 globalThis.history = dom.window.history;
@@ -32,6 +37,7 @@ const HISTORY_KEY = 'collection-composer-history:public';
 describe('Collection Composer interactions', () => {
 	let store;
 	let dialog;
+	let findDialog;
 	let CollectionDescription;
 	let OPEN_CONFIGURE_COLLECTION_DIALOG;
 	let CANCEL_CONFIGURE_COLLECTION_DIALOG;
@@ -41,13 +47,28 @@ describe('Collection Composer interactions', () => {
 		const collection = (await import('../../lib/src/reducers/collection.js')).default;
 		const editor = (state = { editing: false }, action) =>
 			action.type === 'TEST_SET_EDITING' ? { ...state, editing: action.value } : state;
-		store.addReducers({ collection, editor });
 		({
 			OPEN_CONFIGURE_COLLECTION_DIALOG,
 			CANCEL_CONFIGURE_COLLECTION_DIALOG,
 		} = await import('../../lib/src/actions.js'));
 		({ CollectionDescription } = await import('../../lib/src/collection_description.js'));
 		await import('../../lib/src/components/configure-collection-dialog.js');
+		//Picking a card is find-dialog's job now (HS-5), so the picker has to be
+		//really mounted: its Escape binding only exists while it is open, and
+		//the layering these tests pin is between two REGISTERED bindings.
+		//Importing it also registers the `find` reducer.
+		await import('../../lib/src/components/find-dialog.js');
+		//EAGERLY, so it cannot arrive later. navigated() lazy-imports main-view
+		//the first time a test navigates, and main-view registers the REAL
+		//editor reducer — which would replace the stub below PART WAY THROUGH
+		//the run, after which TEST_SET_EDITING means nothing and the two
+		//"editing blocks navigation" tests would assert against a navigation
+		//that was never blocked. Loading it here makes that later import a cache
+		//hit. (It used to reject instead, on an extensionless import plain Node
+		//cannot resolve, which is the only reason the stub survived at all.)
+		await import('../../lib/src/components/main-view.js');
+		//LAST, for the same reason: whoever registers `editor` last wins.
+		store.addReducers({ collection, editor });
 	});
 
 	//Most users open the composer with a populated recent history. Seed one so
@@ -66,6 +87,16 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 	};
 
+	//A picked card travels dialog → configure-collection-filter → key-card, and
+	//every element on that road has its own update cycle. One await settles the
+	//first of them, which is how an assertion about what the user SEES can read
+	//the frame before the answer arrived.
+	const settleRender = async (...elements) => {
+		for (let round = 0; round < 3; round++) {
+			for (const element of elements) await element.updateComplete;
+		}
+	};
+
 	const suggestionRows = () =>
 		Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
 
@@ -80,6 +111,8 @@ describe('Collection Composer interactions', () => {
 		store.dispatch({ type: 'TEST_SET_EDITING', value: false });
 		dialog = document.createElement('configure-collection-dialog');
 		document.body.append(dialog);
+		findDialog = document.createElement('find-dialog');
+		document.body.append(findDialog);
 		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
 		await dialog.updateComplete;
 		await dialog.updateComplete;
@@ -87,7 +120,9 @@ describe('Collection Composer interactions', () => {
 
 	afterEach(() => {
 		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		store.dispatch({ type: 'FIND_DIALOG_CLOSE' });
 		dialog.remove();
+		findDialog.remove();
 		window.localStorage.removeItem(HISTORY_KEY);
 	});
 
@@ -669,6 +704,68 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(window.location.pathname, '/c/main/');
 	});
 
+	//DIALOG OVER DIALOG. The composer's nested-Escape binding sits one notch
+	//ABOVE dialog priority so it can peel the composer's own layers first — and
+	//that outranks the Escape of a dialog stacked on TOP of it. Opening the card
+	//picker from inside the filter catalog and pressing Escape peeled the
+	//catalog, two layers below what the user was looking at, and left the picker
+	//on screen. The binding declines while any other dialog is open now.
+	it('lets Escape close only the card picker, leaving the composer and its draft', async () => {
+		dialog._cardTagInfos = { 'card-1': { id: 'card-1', title: 'Inductively Knowable' } };
+		Array.from(dialog.shadowRoot.querySelectorAll('button'))
+			.find((button) => button.textContent.includes('Browse all filters')).click();
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.value = 'similar';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._catalogOpen, true);
+		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/key-card-id');
+
+		const keyCard = dialog.shadowRoot
+			.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot
+			.querySelector('configure-collection-key-card');
+		await keyCard.updateComplete;
+		keyCard.shadowRoot.querySelector('#choose-card').click();
+		await keyCard.updateComplete;
+		assert.strictEqual(store.getState().find.open, true);
+
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await dialog.updateComplete;
+		await findDialog.updateComplete;
+		assert.strictEqual(store.getState().find.open, false, 'Escape closes the picker');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
+			'and only the picker — the composer is still open');
+		assert.strictEqual(dialog._catalogOpen, true, 'with the layer the user was in intact');
+		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/key-card-id',
+			'and the filter being configured not thrown away');
+
+		//The picker still works after the detour, and the value still lands.
+		keyCard.shadowRoot.querySelector('#choose-card').click();
+		await keyCard.updateComplete;
+		findDialog._handleThumbnailTapped({ detail: { card: 'card-1' } });
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/card-1');
+
+		//And with the picker gone, Escape peels the composer's own layers again.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._pendingCatalogFilter, '');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+	});
+
+	//Ctrl-K opens the composer, but every OTHER modal refuses it — including the
+	//picker the composer itself opens.
+	it('refuses Ctrl-K while the card picker it opened is in front', async () => {
+		const { selectKeyboardNavigatesIgnoringCollectionComposer } =
+			await import('../../lib/src/selectors.js');
+		assert.strictEqual(selectKeyboardNavigatesIgnoringCollectionComposer(store.getState()), true);
+		store.dispatch({ type: 'FIND_CARD_TO_CONFIGURE', query: '', requestID: 'a-request' });
+		assert.strictEqual(selectKeyboardNavigatesIgnoringCollectionComposer(store.getState()), false);
+	});
+
 	it('keeps the draft open and explains when editing blocks navigation', async () => {
 		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
 		buttons.find((button) => button.textContent.includes('Add Starred')).click();
@@ -1160,15 +1257,81 @@ describe('Collection Composer interactions', () => {
 		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
 		const keyCard = pending.shadowRoot.querySelector('configure-collection-key-card');
 		await keyCard.updateComplete;
-		const cardSelect = keyCard.shadowRoot.querySelector('select');
-		assert.match(cardSelect.textContent, /Inductively Knowable/);
-		assert.strictEqual(keyCard.shadowRoot.querySelector('button'), null);
-		cardSelect.value = 'card-1';
-		cardSelect.dispatchEvent(new Event('change', { bubbles: true }));
-		await dialog.updateComplete;
+		//HS-5: picking a card is find-dialog's job. The <select> this replaced
+		//could only offer the cards the app happened to have loaded, in load
+		//order, with no search.
+		assert.strictEqual(keyCard.shadowRoot.querySelector('select'), null);
+		//And with nothing picked yet it says so in words — never the raw id,
+		//which is an internal identifier (HS-1.4).
+		assert.match(keyCard.shadowRoot.textContent, /No card chosen yet/);
+		assert.doesNotMatch(keyCard.shadowRoot.textContent, /key-card-id/);
+
+		const choose = keyCard.shadowRoot.querySelector('#choose-card');
+		assert.strictEqual(choose.getAttribute('aria-label'), 'Choose card');
+		assert.strictEqual(choose.getAttribute('title'), 'Choose card', 'an icon-only button needs a hover name too (HS-2.5)');
+		choose.click();
+		await keyCard.updateComplete;
+		assert.strictEqual(store.getState().find.open, true, 'the choose button opens the picker');
+		assert.strictEqual(store.getState().find.configuring, true);
+		assert.ok(store.getState().find.configureRequestID, 'the picker is told which control asked');
+
+		//The pick travels the same road every other find mode's does: a tapped
+		//thumbnail, reported through the mode's own action.
+		findDialog._handleThumbnailTapped({ detail: { card: 'card-1' } });
+		await settleRender(dialog, pending, keyCard);
 		assert.strictEqual(pending.value, 'similar/card-1');
+		assert.strictEqual(store.getState().find.open, false, 'picking closes the picker');
+		//stateChanged recomputes _cardTagInfos from the (empty) corpus on every
+		//dispatch, so the fake has to be restated once they have all landed.
+		//That is this suite's standing fiction, not something the pick disturbed.
+		dialog._cardTagInfos = {
+			'card-1': { id: 'card-1', title: 'Inductively Knowable' },
+			'card-2': { id: 'card-2', title: 'Mechanistic Magic' },
+		};
+		await settleRender(dialog, pending, keyCard);
+		//The chosen card is shown by title, through the shared tag primitive.
+		const shown = keyCard.shadowRoot.querySelector('tag-list');
+		assert.deepStrictEqual(shown.tags, ['card-1']);
+		assert.strictEqual(shown.tagInfos['card-1'].title, 'Inductively Knowable');
+
 		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
 		assert.strictEqual(add.disabled, false);
+	});
+
+	//Two key-card controls can be on screen at once, and the picker is one
+	//dialog. Without an addressed answer, a pick made for the clause editor
+	//would also land in the web-focus-card control beside it.
+	it('delivers a picked card only to the control that asked for it', async () => {
+		dialog._cardTagInfos = { 'card-2': { id: 'card-2', title: 'Mechanistic Magic' } };
+		Array.from(dialog.shadowRoot.querySelectorAll('button'))
+			.find((button) => button.textContent.includes('Browse all filters')).click();
+		await dialog.updateComplete;
+		const view = dialog.shadowRoot.querySelector('[aria-label=\'Collection view\']');
+		view.value = 'web';
+		view.dispatchEvent(new Event('change', { bubbles: true }));
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.value = 'similar';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
+		await dialog.updateComplete;
+
+		const focusCard = dialog.shadowRoot.querySelector('.catalog-setup configure-collection-key-card');
+		const clauseCard = dialog.shadowRoot
+			.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot
+			.querySelector('configure-collection-key-card');
+		await focusCard.updateComplete;
+		await clauseCard.updateComplete;
+		assert.ok(focusCard && clauseCard && focusCard !== clauseCard, 'both controls are live at once');
+
+		clauseCard.shadowRoot.querySelector('#choose-card').click();
+		await clauseCard.updateComplete;
+		findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
+		await settleRender(dialog, focusCard, clauseCard);
+		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/card-2');
+		assert.notStrictEqual(store.getState().collection.snapshot.viewModeExtra, 'card-2',
+			'the control that did not ask must not take the answer');
 	});
 
 	it('shows contributor names while preserving durable author IDs', async () => {
@@ -1215,11 +1378,28 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		const focusCard = dialog.shadowRoot.querySelector('.catalog-setup configure-collection-key-card');
 		await focusCard.updateComplete;
-		const focusCardSelect = focusCard.shadowRoot.querySelector('select');
-		assert.match(focusCardSelect.textContent, /First card in the collection/);
-		assert.match(focusCardSelect.textContent, /Mechanistic Magic/);
-		focusCardSelect.value = 'card-2';
-		focusCardSelect.dispatchEvent(new Event('change', { bubbles: true }));
+		assert.strictEqual(focusCard.shadowRoot.querySelector('select'), null);
+		assert.match(focusCard.shadowRoot.textContent, /The first card in the collection/);
+		focusCard.shadowRoot.querySelector('#choose-card').click();
+		await focusCard.updateComplete;
+		findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
+		await settleRender(dialog, focusCard);
+		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, 'card-2');
+		//stateChanged recomputes _cardTagInfos from the (empty) corpus on every
+		//dispatch, so the fake has to be restated once they have all landed.
+		dialog._cardTagInfos = { 'card-2': { id: 'card-2', title: 'Mechanistic Magic' } };
+		await settleRender(dialog, focusCard);
+		assert.deepStrictEqual(focusCard.shadowRoot.querySelector('tag-list').tags, ['card-2']);
+		//The <select> also carried the way BACK to "whichever card the collection
+		//opens on". A card picker cannot offer that, so it is its own control now
+		//rather than something that quietly disappeared with the dropdown.
+		focusCard.shadowRoot.querySelector('.discard').click();
+		await settleRender(dialog, focusCard);
+		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, '_');
+		assert.match(focusCard.shadowRoot.textContent, /The first card in the collection/);
+		focusCard.shadowRoot.querySelector('#choose-card').click();
+		await focusCard.updateComplete;
+		findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
 		await dialog.updateComplete;
 		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, 'card-2');
 		const appliedStarred = Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))

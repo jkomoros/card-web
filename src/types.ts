@@ -18,6 +18,7 @@ import {
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
+	FIND_CARD_TO_CONFIGURE,
 	FIND_CARD_OPEN
 } from '../shared/card_fields.js';
 
@@ -737,7 +738,7 @@ export interface HTMLElementWithStashedSelectionOffset extends HTMLElement {
 	stashedSelectionOffset?: [number, number]
 }
 
-export type FindDialogType = typeof FIND_CARD_OPEN | typeof FIND_CARD_TO_LINK | typeof FIND_CARD_TO_PERMISSION | typeof FIND_CARD_TO_REFERENCE;
+export type FindDialogType = typeof FIND_CARD_OPEN | typeof FIND_CARD_TO_LINK | typeof FIND_CARD_TO_PERMISSION | typeof FIND_CARD_TO_REFERENCE | typeof FIND_CARD_TO_CONFIGURE;
 
 export type AppState = {
 	location: string,
@@ -1203,6 +1204,17 @@ export type FindState = {
 	cardTypeFilter: string,
 	//if true, the filter shouldn't be able to be changed
 	cardTypeFilterLocked: boolean,
+	//For when the collection composer wants the card a card-valued filter names.
+	configuring: boolean,
+	//WHICH key-card control asked. Several can be on screen at once, so the
+	//answer is addressed rather than broadcast. Deliberately NOT cleared by
+	//FIND_DIALOG_CLOSE: find-dialog closes itself BEFORE it reports the pick,
+	//exactly as the linking and permission modes do.
+	configureRequestID: string,
+	//The card that mode picked, '' until it does. Read once by the control
+	//whose requestID matches, which then forgets its own id so a later render
+	//cannot apply the same answer twice.
+	configuredCardID: CardID,
 }
 
 export type MaintenanceTaskMap = {

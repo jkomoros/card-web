@@ -2,7 +2,8 @@ import {
 	FIND_CARD_OPEN as OPEN,
 	FIND_CARD_TO_LINK as LINK,
 	FIND_CARD_TO_PERMISSION as PERMISSION,
-	FIND_CARD_TO_REFERENCE as REFRENCE
+	FIND_CARD_TO_REFERENCE as REFRENCE,
+	FIND_CARD_TO_CONFIGURE as CONFIGURE
 } from '../shared/card_fields.js';
 
 import {
@@ -233,6 +234,8 @@ export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
 export const FIND_UPDATE_SEARCH_RECALL = 'FIND_UPDATE_SEARCH_RECALL';
 export const FIND_CARD_TO_PERMISSION = PERMISSION;
 export const FIND_CARD_TO_REFERENCE = REFRENCE;
+export const FIND_CARD_TO_CONFIGURE = CONFIGURE;
+export const FIND_CARD_CONFIGURED = 'FIND_CARD_CONFIGURED';
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
 export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
 export const FIND_UPDATE_STICKY_FILTERS = 'FIND_UPDATE_STICKY_FILTERS';
@@ -1079,6 +1082,20 @@ type ActionFindCardToReference = {
 	cardTypeFilter: string
 };
 
+//requestID names WHICH key-card control asked. Several of them can be on
+//screen at once (the web-focus-card control and one per card-valued clause),
+//and only the one that opened the picker may take the answer.
+type ActionFindCardToConfigure = {
+	type: typeof FIND_CARD_TO_CONFIGURE,
+	query: string,
+	requestID: string
+};
+
+type ActionFindCardConfigured = {
+	type: typeof FIND_CARD_CONFIGURED,
+	cardID: CardID
+};
+
 type ActionFindUpdateCardTypeFilter = {
 	type: typeof FIND_UPDATE_CARD_TYPE_FILTER,
 	filter: string
@@ -1486,6 +1503,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionFindUpdateSearchRecall
 	| ActionFindCardToPermission
 	| ActionFindCardToReference
+	| ActionFindCardToConfigure
+	| ActionFindCardConfigured
 	| ActionFindUpdateCardTypeFilter
 	| ActionFindUpdateSortByRecent
 	| ActionFindUpdateStickyFilters

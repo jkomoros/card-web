@@ -34,6 +34,7 @@ import {
 	selectActiveCardID,
 	selectRequestedCard,
 	selectActiveCard,
+	selectAnyDialogOpenExceptCollectionComposer,
 } from '../selectors.js';
 
 import {
@@ -2326,6 +2327,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//the old `super._handleKeyDown(e)` fallthrough did. Registered on open
 	//and unregistered on close, matching the base class, so a closed
 	//composer never sits in front of another dialog's Escape.
+	//
+	//An OPEN composer still could, though, and that is what `when` is for.
+	//Priority +1 outranks every dialog's own Escape, including one stacked ON
+	//TOP of the composer — find-dialog, opened from the key-card control inside
+	//the filter catalog. Escape there peeled the catalog and left the picker on
+	//screen, which is the wrong layer by two. The registry applies `when`
+	//before the handler, so declining while any other dialog is open hands
+	//Escape to the surface actually in front (HS-3.8: Escape closes the topmost
+	//dismissable surface). The composer's OWN cancel needs no such term: it
+	//registers at plain dialog priority, where the registry's newest-first
+	//tiebreak already puts the later-opened dialog first.
 	private _syncNestedEscapeShortcut() {
 		if (this.open && !this._unregisterNestedEscapeShortcut) {
 			this._unregisterNestedEscapeShortcut = registerShortcut({
@@ -2333,6 +2345,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				keys: SHORTCUT_COMBOS['dialog-escape'],
 				label: 'Close the composer’s current layer',
 				priority: DIALOG_SHORTCUT_PRIORITY + 1,
+				when: (state) => !selectAnyDialogOpenExceptCollectionComposer(state),
 				focusPolicy: 'any-focus',
 				handler: (e) => {
 					//The registry already declines composing keystrokes via

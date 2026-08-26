@@ -8,6 +8,8 @@ import {
 	FIND_UPDATE_SEARCH_RECALL,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
+	FIND_CARD_TO_CONFIGURE,
+	FIND_CARD_CONFIGURED,
 	FIND_UPDATE_CARD_TYPE_FILTER,
 	FIND_UPDATE_SORT_BY_RECENT,
 	FIND_UPDATE_STICKY_FILTERS,
@@ -35,6 +37,9 @@ const INITIAL_STATE : FindState = {
 	sortByRecent: false,
 	cardTypeFilter: '',
 	cardTypeFilterLocked: false,
+	configuring: false,
+	configureRequestID: '',
+	configuredCardID: '',
 	//Initialized from localStorage so the preference applies from the first
 	//search of the session (#745). NOT reset by dialog open/close.
 	stickyFiltersEnabled: readStickySearchEnabled(),
@@ -60,6 +65,7 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: false,
 			permissions: false,
 			referencing: false,
+			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
 			renderOffset: 0,
@@ -96,6 +102,7 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: true,
 			permissions: false,
 			referencing: false,
+			configuring: false,
 			sortByRecent: false,
 			cardTypeFilter: '',
 			renderOffset: 0,
@@ -110,6 +117,7 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: false,
 			permissions: true,
 			referencing: false,
+			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
 			renderOffset: 0,
@@ -124,12 +132,38 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: false,
 			permissions: false,
 			referencing: true,
+			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
 			renderOffset: 0,
 			sortByRecent: true,
 			cardTypeFilter: action.cardTypeFilter || '',
 			cardTypeFilterLocked: !!action.cardTypeFilter,
+		};
+	case FIND_CARD_TO_CONFIGURE:
+		return {
+			...state,
+			open: true,
+			linking: false,
+			permissions: false,
+			referencing: false,
+			configuring: true,
+			//A fresh request ALWAYS clears the previous answer: without this a
+			//control whose id happened to be reused would read a stale pick the
+			//moment the picker opened, before the user chose anything.
+			configureRequestID: action.requestID,
+			configuredCardID: '',
+			query: action.query || '',
+			activeQuery: action.query || '',
+			renderOffset: 0,
+			sortByRecent: false,
+			cardTypeFilter: '',
+			cardTypeFilterLocked: false,
+		};
+	case FIND_CARD_CONFIGURED:
+		return {
+			...state,
+			configuredCardID: action.cardID,
 		};
 	case FIND_UPDATE_RENDER_OFFSET:
 		return {

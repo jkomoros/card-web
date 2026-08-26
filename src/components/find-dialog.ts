@@ -25,6 +25,7 @@ store.addReducers({
 
 import {
 	closeFindDialog,
+	setCardToConfigure,
 	updateQuery,
 	findUpdateCardTypeFilter,
 	findUpdateSortByRecent,
@@ -62,6 +63,7 @@ import {
 	selectFindCardTypeFilter,
 	selectFindCardTypeFilterLocked,
 	selectFindReferencing,
+	selectFindConfiguring,
 	selectEditingPendingReferenceType,
 	selectCollectionDescriptionForQuery,
 	selectFindPermissions,
@@ -149,6 +151,12 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_referencing: boolean;
+
+	//The collection composer picking the card a card-valued filter names. It is
+	//a PICKER like linking and permissions: no stub-card affordance, because a
+	//filter that names a card nobody has written yet matches nothing.
+	@state()
+		_configuring: boolean;
 
 	@state()
 		_pendingReferenceType: ReferenceType;
@@ -247,7 +255,7 @@ class FindDialog extends connect(store)(DialogElement) {
 						${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
 					` : ''}
 					<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
-					${!this._linking && !this._permissions && !this._referencing ? html`
+					${!this._linking && !this._permissions && !this._referencing && !this._configuring ? html`
 					<input type='checkbox' .checked=${this._stickyFiltersEnabled} id='sticky-filters' @change=${this._handleStickyFiltersChanged}><label for='sticky-filters' title=${'Only include cards matching: ' + this._stickyFiltersExpression + '. This choice is remembered on this device.'}>Only ${this._stickyFiltersExpression.replace(/\+/g, ' or ')}</label>` : ''}
 				</div>
 				<div class='spacer'></div>
@@ -392,6 +400,10 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleThumbnailTapped(e : ThumbnailTappedEvent) {
 		this._shouldClose();
+		if (this._configuring) {
+			store.dispatch(setCardToConfigure(e.detail.card));
+			return;
+		}
 		if (this._linking) {
 			store.dispatch(linkCard(e.detail.card));
 			return;
@@ -417,6 +429,9 @@ class FindDialog extends connect(store)(DialogElement) {
 		if (this._referencing) {
 			return this._pendingReferenceType ? 'Find card to reference as ' + REFERENCE_TYPES[this._pendingReferenceType].name : 'Find card to reference';
 		}
+		if (this._configuring) {
+			return 'Find card for this filter';
+		}
 		return 'Search';
 	}
 
@@ -430,7 +445,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			const ele = shadowRoot.getElementById('query') as HTMLInputElement;
 			ele.select();
 		}
-		if (changedProps.has('_linking') || changedProps.has('_referencing') || changedProps.has('_permissions')) {
+		if (changedProps.has('_linking') || changedProps.has('_referencing') || changedProps.has('_permissions') || changedProps.has('_configuring')) {
 			this.title = this._computedTitle;
 		}
 	}
@@ -481,6 +496,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._linking = selectFindLinking(state);
 		this._permissions = selectFindPermissions(state);
 		this._referencing = selectFindReferencing(state);
+		this._configuring = selectFindConfiguring(state);
 		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._saveEligible = selectCardSavesEligible(state);

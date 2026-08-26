@@ -267,6 +267,9 @@ export const selectFindDialogOpen = (state : State) => state.find ? state.find.o
 export const selectFindReferencing = (state : State) => state.find ? state.find.referencing : false;
 export const selectFindLinking = (state : State) => state.find ? state.find.linking : false;
 export const selectFindPermissions = (state : State) => state.find ? state.find.permissions : false;
+export const selectFindConfiguring = (state : State) => state.find ? state.find.configuring : false;
+export const selectFindConfigureRequestID = (state : State) => state.find ? state.find.configureRequestID : '';
+export const selectFindConfiguredCardID = (state : State) => state.find ? state.find.configuredCardID : '';
 
 export const selectMultiEditDialogOpen = (state : State) => state.multiedit ? state.multiedit.open : false;
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
@@ -567,7 +570,11 @@ export const selectCorpusGateBlocking = createSelector(
 //modal request and the corpus ownership overlay exactly like its siblings.
 //`inert` does not stop a global keydown, so this gate remains the load-bearing
 //one for every other modal.
-const selectAnyDialogOpenExceptCollectionComposer = createSelector(
+//Exported because the composer registers an Escape binding one notch ABOVE
+//dialog priority, to peel its own nested layers. That binding must DECLINE
+//while any of these is stacked on top of it, or the composer would peel a
+//layer instead of letting the dialog in front close (#498).
+export const selectAnyDialogOpenExceptCollectionComposer = createSelector(
 	selectFindDialogOpen,
 	selectComposeOpen,
 	selectMultiEditDialogOpen,
