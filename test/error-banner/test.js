@@ -227,7 +227,14 @@ describe('the persistent error banner', () => {
 			const named = [...joined.matchAll(/actionID\s*:\s*([^,}\n]+)/g)]
 				.map(match => match[1])
 				.filter(raw => !/^(string|number|boolean)\b/.test(raw.trim()));
-			const registered = new Set([...joined.matchAll(/registerPersistentErrorAction\(\s*([^,]+),/g)]
+			//The `actionID:` property shape is shared by both action registries —
+			//persistent-error banners AND snackbar messages (the collection
+			//composer's navigation receipts were the first snackbar actions in
+			//src/). The invariant is the same for both surfaces: a named action
+			//nothing registers is a dead button. Text-level scanning cannot tell
+			//which registry a given actionID: belongs to, so count registrations
+			//in either.
+			const registered = new Set([...joined.matchAll(/register(?:PersistentError|Snackbar)Action\(\s*([^,]+),/g)]
 				.map(match => resolve(match[1])).filter(id => id !== null));
 
 			assert.ok(named.length > 0, 'found no banner actions at all — this test has stopped seeing them');
