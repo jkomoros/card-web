@@ -1,9 +1,9 @@
-/*eslint-env node*/
+/*eslint-env node, es2022*/
 
-import { JSDOM } from "jsdom";
-import assert from "assert";
+import { JSDOM } from 'jsdom';
+import assert from 'assert';
 
-const dom = new JSDOM("");
+const dom = new JSDOM('');
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.Document = dom.window.Document;
@@ -18,57 +18,57 @@ let CLOSE_CONFIGURE_COLLECTION_DIALOG;
 let CANCEL_CONFIGURE_COLLECTION_DIALOG;
 let UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT;
 
-describe("Collection Composer draft lifecycle", () => {
-  before(async () => {
-    reducer = (await import("../../lib/src/reducers/collection.js")).default;
-    ({ INITIAL_STATE: initialState } = await import("../../lib/src/filters.js"));
-    ({
-      OPEN_CONFIGURE_COLLECTION_DIALOG,
-      CLOSE_CONFIGURE_COLLECTION_DIALOG,
-      CANCEL_CONFIGURE_COLLECTION_DIALOG,
-      UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-    } = await import("../../lib/src/actions.js"));
-  });
+describe('Collection Composer draft lifecycle', () => {
+	before(async () => {
+		reducer = (await import('../../lib/src/reducers/collection.js')).default;
+		({ INITIAL_STATE: initialState } = await import('../../lib/src/filters.js'));
+		({
+			OPEN_CONFIGURE_COLLECTION_DIALOG,
+			CLOSE_CONFIGURE_COLLECTION_DIALOG,
+			CANCEL_CONFIGURE_COLLECTION_DIALOG,
+			UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+		} = await import('../../lib/src/actions.js'));
+	});
 
-  const draft = {
-    setName: "main",
-    filterNames: ["starred"],
-    sortName: "default",
-    sortReversed: false,
-    viewMode: "list",
-    viewModeExtra: "",
-  };
+	const draft = {
+		setName: 'main',
+		filterNames: ['starred'],
+		sortName: 'default',
+		sortReversed: false,
+		viewMode: 'list',
+		viewModeExtra: '',
+	};
 
-  it("discards a composed draft on cancel", () => {
-    const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-    const changed = reducer(opened, {
-      type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-      collection: draft,
-    });
-    const cancelled = reducer(changed, { type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
-    assert.deepStrictEqual(cancelled.active, initialState.active);
-    assert.strictEqual(cancelled.snapshot, null);
-  });
+	it('discards a composed draft on cancel', () => {
+		const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		const changed = reducer(opened, {
+			type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+			collection: draft,
+		});
+		const cancelled = reducer(changed, { type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		assert.deepStrictEqual(cancelled.active, initialState.active);
+		assert.strictEqual(cancelled.snapshot, null);
+	});
 
-  it("preserves the legacy builder's explicit commit path", () => {
-    const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-    const changed = reducer(opened, {
-      type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-      collection: draft,
-    });
-    const committed = reducer(changed, { type: CLOSE_CONFIGURE_COLLECTION_DIALOG });
-    assert.deepStrictEqual(committed.active, draft);
-    assert.strictEqual(committed.snapshot, null);
-  });
+	it('preserves the legacy builder\'s explicit commit path', () => {
+		const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		const changed = reducer(opened, {
+			type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+			collection: draft,
+		});
+		const committed = reducer(changed, { type: CLOSE_CONFIGURE_COLLECTION_DIALOG });
+		assert.deepStrictEqual(committed.active, draft);
+		assert.strictEqual(committed.snapshot, null);
+	});
 
-  it("does not erase a draft when the composer is opened again", () => {
-    const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-    const changed = reducer(opened, {
-      type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-      collection: draft,
-    });
-    const reopened = reducer(changed, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-    assert.strictEqual(reopened, changed);
-    assert.deepStrictEqual(reopened.snapshot, draft);
-  });
+	it('does not erase a draft when the composer is opened again', () => {
+		const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		const changed = reducer(opened, {
+			type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
+			collection: draft,
+		});
+		const reopened = reducer(changed, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		assert.strictEqual(reopened, changed);
+		assert.deepStrictEqual(reopened.snapshot, draft);
+	});
 });
