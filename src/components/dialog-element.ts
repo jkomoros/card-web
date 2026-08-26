@@ -71,6 +71,17 @@ export class DialogElement extends LitElement {
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
+			/* Dialogs are siblings sharing one base z-index, so DOM order —
+			   not opening order — decided who painted on top: the composer's
+			   key-card picker opened find-dialog UNDER the composer, because
+			   find-dialog happens to come first in main-view's template.
+			   willUpdate raises --dialog-z on each open so the most recently
+			   opened dialog stacks above the ones beneath it. Defined here,
+			   fallback-free, per HS-4.1. */
+			:host {
+				--dialog-z: 1000;
+			}
+
 			.container {
 				position: absolute;
 				height: 100%;
@@ -78,14 +89,8 @@ export class DialogElement extends LitElement {
 				top: 0;
 				left: 0;
 				/* Note that card-preview has a z-index higher than this to
-				show up above it.
-				Dialogs are siblings sharing one base z-index, so DOM order —
-				not opening order — decided who painted on top: the composer's
-				key-card picker opened find-dialog UNDER the composer, because
-				find-dialog happens to come first in main-view's template. The
-				host sets --dialog-z on each open so the most recently opened
-				dialog stacks above the ones beneath it. */
-				z-index: var(--dialog-z, 1000);
+				show up above it. */
+				z-index: var(--dialog-z);
 				display: none;
 			}
 
