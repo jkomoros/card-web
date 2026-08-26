@@ -310,20 +310,23 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		const after = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
 		assert.deepStrictEqual(after.map((button) => button.id), before);
-		assert.match(dialog.shadowRoot.querySelector('.expression').textContent, /12 cards/);
 		assert.match(after.find((button) => button.textContent.includes('Add Starred')).textContent, /5 cards · 7 fewer/);
 		assert.match(after.find((button) => button.textContent.includes('Add Unread')).textContent, /19 cards · 7 more/);
-		assert.strictEqual(
-			Array.from(dialog.shadowRoot.querySelectorAll('button'))
-				.find((button) => button.classList.contains('primary')).textContent,
-			'Open 12 cards'
-		);
+		//The draft's own count is a readout BESIDE the primary now, not inside
+		//its label: HS-3.3 makes that button a round glyph, so it has no label
+		//to put a number in. The primary is asserted separately, and what it
+		//asserts is that it stayed a glyph with a stable name.
+		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(), '12 cards');
+		const primary = dialog.shadowRoot.querySelector('.composer-actions .primary');
+		assert.ok(primary.classList.contains('round'), 'the committing action is a round primary (HS-3.3)');
+		assert.strictEqual(primary.getAttribute('aria-label'), 'Open this collection');
+		assert.strictEqual(primary.textContent.trim(), '', 'a round primary carries a glyph, not a label');
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'star';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
 		await dialog.updateComplete;
 		await dialog.updateComplete;
-		assert.doesNotMatch(dialog.shadowRoot.querySelector('.expression').textContent, /12 cards/);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(), '');
 	});
 
 	//Tab in the empty state used to do nothing at all: it was gated on the input
@@ -402,8 +405,7 @@ describe('Collection Composer interactions', () => {
 		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
 		buttons.find((button) => button.textContent.includes('Add Starred')).click();
 		await dialog.updateComplete;
-		const primary = Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Open this collection'));
+		const primary = dialog.shadowRoot.querySelector('.composer-actions button[aria-label="Open this collection"]');
 		primary.click();
 		await dialog.updateComplete;
 		assert.match(window.location.pathname, /starred/);
@@ -672,8 +674,7 @@ describe('Collection Composer interactions', () => {
 		buttons.find((button) => button.textContent.includes('Add Starred')).click();
 		await dialog.updateComplete;
 		store.dispatch({ type: 'TEST_SET_EDITING', value: true });
-		const primary = Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Open this collection'));
+		const primary = dialog.shadowRoot.querySelector('.composer-actions button[aria-label="Open this collection"]');
 		primary.click();
 		await dialog.updateComplete;
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
@@ -934,8 +935,7 @@ describe('Collection Composer interactions', () => {
 		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
 		assert.ok(pending);
 		assert.strictEqual(pending.shadowRoot.querySelector('select'), null);
-		const add = Array.from(dialog.shadowRoot.querySelectorAll('.pending-filter-actions button'))
-			.find((button) => button.textContent.includes('Add configured filter'));
+		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
 		assert.strictEqual(add.disabled, true);
 		const queryInput = pending.shadowRoot.querySelector('.pieces input');
 		queryInput.value = 'inductively knowable';
@@ -1019,8 +1019,7 @@ describe('Collection Composer interactions', () => {
 		assert.ok(updated);
 		updated.click();
 		await dialog.updateComplete;
-		const add = Array.from(dialog.shadowRoot.querySelectorAll('.pending-filter-actions button'))
-			.find((button) => button.textContent.includes('Add configured filter'));
+		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
 		assert.strictEqual(add.disabled, false);
 		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
 		assert.strictEqual(pending.value, 'updated/after/7-days-ago');
@@ -1058,8 +1057,7 @@ describe('Collection Composer interactions', () => {
 		);
 		//And the same control, reopened on an applied clause, still reads back what
 		//the clause says rather than the first option.
-		Array.from(dialog.shadowRoot.querySelectorAll('.pending-filter-actions button'))
-			.find((button) => button.textContent.includes('Add configured filter')).click();
+		dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]').click();
 		await dialog.updateComplete;
 		dialog.shadowRoot.querySelector('.expression-clause-label').click();
 		await dialog.updateComplete;
@@ -1169,8 +1167,7 @@ describe('Collection Composer interactions', () => {
 		cardSelect.dispatchEvent(new Event('change', { bubbles: true }));
 		await dialog.updateComplete;
 		assert.strictEqual(pending.value, 'similar/card-1');
-		const add = Array.from(dialog.shadowRoot.querySelectorAll('.pending-filter-actions button'))
-			.find((button) => button.textContent.includes('Add configured filter'));
+		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
 		assert.strictEqual(add.disabled, false);
 	});
 
@@ -1575,8 +1572,10 @@ describe('Collection Composer interactions', () => {
 
 	//Every keystroke used to blank every count and re-enqueue, so each character
 	//erased counts that were still correct for the whole debounce plus a worker
-	//round trip — and the primary button flipped between "Open this collection"
-	//and "Open N cards" while the draft it describes had not changed at all.
+	//round trip — and the count beside the primary flickered between a number
+	//and nothing while the draft it describes had not changed at all. (It used
+	//to flicker INSIDE the button's own label; HS-3.3 moved it out beside a
+	//round glyph, which is why this now reads .action-count.)
 	it('keeps a count whose collection did not change across a keystroke', async () => {
 		window.localStorage.setItem('collection-composer-preview', 'on');
 		try {
@@ -1595,8 +1594,8 @@ describe('Collection Composer interactions', () => {
 			assert.strictEqual(dialog._previewCounts[dialog._draftPreviewID], 1307,
 				'typing must not blank the count of a collection that did not change');
 			assert.strictEqual(dialog._draftCountPending, false);
-			assert.match(dialog.shadowRoot.querySelector('.composer-actions .primary').textContent,
-				/Open 1307 cards/);
+			assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(),
+				'1307 cards');
 
 			//Changing the DRAFT is a different collection, so the count is genuinely
 			//unknown — and says so, rather than silently reading as "no data".
@@ -1608,10 +1607,10 @@ describe('Collection Composer interactions', () => {
 			//Counts are recomputed in updated(), so the DOM catches up one frame later.
 			await dialog.updateComplete;
 			//The hand-rolled '· counting…' is now the shared loading primitive, which
-			//renders its line into its own shadow root — so the assertion moves from
-			//the expression's text to the element being present and saying what is
-			//loading.
-			const placeholder = dialog.shadowRoot.querySelector('.expression loading-placeholder');
+			//renders its line into its own shadow root — so the assertion is that the
+			//element is present and says what is loading. It sits where the count it
+			//stands in for sits: beside the primary, not in the expression.
+			const placeholder = dialog.shadowRoot.querySelector('.composer-actions .action-count loading-placeholder');
 			assert.ok(placeholder, 'an unknown count must say it is still arriving');
 			assert.strictEqual(placeholder.noun, 'the card count');
 		} finally {

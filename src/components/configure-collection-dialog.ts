@@ -79,6 +79,7 @@ import {
 
 import {
 	LINK_ICON,
+	OPEN_IN_BROWSER_ICON,
 	PLUS_ICON
 } from '../../shared/icons.js';
 
@@ -913,6 +914,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   left here is only what genuinely differs: this one sits inside a
 			   nested editor and needs the gap and the rule of space above it. */
 			.buttons.pending-filter-actions {
+				align-items: center;
 				gap: 0.5em;
 				margin-top: 0.5em;
 			}
@@ -932,17 +934,31 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   needs its own top rule of space and the iOS safe-area inset under
 			   it. Everything else comes from .buttons. */
 			.buttons.composer-actions {
+				align-items: center;
+				gap: 0.5em;
 				margin-top: 0.75em;
 				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
 			}
 
-			/* The label alternates between "Open this collection" and "Open
-			   1307 cards" as counts arrive. Retention keeps that from happening
-			   on every keystroke; reserving the width keeps the remaining,
-			   genuine transitions from moving the button under the pointer. */
-			.composer-actions .primary {
+			/* §4.2's 44px hit target. button.round is 2.75em square, which is
+			   44px only while this dialog renders at 16px; pin both dimensions
+			   to the same floor so the button stays a circle rather than an
+			   ellipse when it is the min-width that binds. */
+			.buttons .primary {
 				min-height: 44px;
-				min-width: 12em;
+				min-width: 44px;
+			}
+
+			/* The count is a READOUT of what the primary would open, not part of
+			   the button's name (§3.3, §4.2: a round glyph has no label to vary).
+			   It arrives after the row is already on screen, so its width is
+			   reserved — this is the same reservation the button's label used to
+			   carry, moved to the element that now changes. Without it, the
+			   button slid left under the pointer the moment a number landed. */
+			.composer-actions .action-count {
+				color: var(--app-dark-text-color);
+				min-width: 7em;
+				text-align: right;
 			}
 
 			/* 400, not 500 (§4.3 loads only 400 and 700). These are the same
@@ -1120,7 +1136,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
 				${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
 			</div>
-			${count === undefined ? '' : html`<div>${formatCollectionCardCount(count)}</div>`}
 			${shown?.selectedCardRaw ? html`
 				<span class='source-interpretation-label'>Opens on</span>
 				<div>${shown.selectedCardRaw === '_' ? 'The first card in the collection' : shown.selectedCardRaw}</div>
@@ -1142,21 +1157,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<button class='small verb' @click=${this._handleBackToCompose}>Edit visually</button>
 				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? `↑↓ Choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` : `↑↓ Choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`) : (parsed.status === 'valid' ? `Enter opens · ${shortcutKeys('dialog-escape')} cancels` : `Keep editing · ${shortcutKeys('dialog-escape')} cancels`)}</span>
 			</div>
-			<div class='buttons composer-actions'>
-				<!-- The title goes on the WRAPPER: Chrome and Safari suppress
-				     hover on a disabled control, so on the button it would be
-				     unreachable exactly when it is needed (§2.5). The button
-				     keeps its own name. The visible half of the reason is the
-				     source status line above, which already names what is wrong
-				     with the text as it stands (§3.6.4). -->
-				<span class='reason' title=${parsed.status === 'valid' ?
-		(this._activationPending ? 'Already opening this collection' : 'Open this collection') :
-		'This source does not describe a collection yet, so there is nothing to open'}>
-					<button class='primary' aria-label='Open this collection' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
-						${count === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(count)}`}
-					</button>
-				</span>
-			</div>
+			${this._openActionRender(
+		count,
+		parsed.status !== 'valid' || this._activationPending,
+		parsed.status === 'valid' ?
+			(this._activationPending ? 'Already opening this collection' : 'Open this collection') :
+			'This source does not describe a collection yet, so there is nothing to open',
+		this._handleOpenSource
+	)}
 			${this._activationMessage ? html`<div class='activation-message' data-problem role='alert'>${this._activationMessage}</div>` : ''}
 		`;
 	}
@@ -1384,8 +1392,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</configure-collection-filter>
 				<div class='buttons pending-filter-actions'>
 					<button class='small verb' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
+					<!-- The one committing action of this nested editor, so §3.3's
+					     round primary glyph applies here too. PLUS_ICON is the
+					     app's add glyph (§4.2 names it by hand): the same one
+					     configure-collection-filter uses one level down for 'Add
+					     an OR filter', and find-dialog for its round 'Create a
+					     card'. The reason still lives on the wrapper, because the
+					     button spends most of its life disabled. -->
 					<span class='reason' title=${this._pendingCatalogChanged ? 'Add this filter to the draft' : 'Change a value first — adding this filter as it stands would not narrow anything'}>
-						<button class='primary' aria-label='Add this filter to the draft' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>Add configured filter</button>
+						<button class='round primary' title='Add this filter to the draft' aria-label='Add this filter to the draft' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>${PLUS_ICON}</button>
 					</span>
 				</div>
 			</div>
@@ -1423,15 +1438,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					</span>
 				`)}
 				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
-				<!-- The count is LOADING, not in flight (§3.6): the user typed a
-				     clause, not a request for a number, and the draft is fully
-				     usable without it. That is exactly what loading-placeholder is
-				     for, and it settles the colour question too — its header
-				     documents --app-dark-text-color-light as failing WCAG AA, and
-				     that is the token the hand-rolled '· counting…' used. -->
-				${draftCount === undefined ?
-		(this._draftCountPending ? html`<loading-placeholder noun='the card count'></loading-placeholder>` : '') :
-		html`<span class='expression-count'>· ${formatCollectionCardCount(draftCount)}</span>`}
 				<input
 					class='composer-input'
 					id='collection-composer-input'
@@ -1499,14 +1505,50 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</div>
 			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
 			${this._builderExpanded ? html`<div class='builder'>${this._selectedClauseEditorRender()}</div>` : ''}
+			${this._openActionRender(
+		draftCount,
+		this._activationPending,
+		this._activationPending ? 'Already opening this collection' : 'Open this collection',
+		this._handleOpenCurrentDraft
+	)}
+		`;
+	}
+
+	//BOTH modes commit through the same control, so it is described once.
+	//
+	//§3.3 makes the one committing action of a dialog a `button.round.primary`
+	//glyph, and §4.2 has no variant whose visible label changes under the user.
+	//The count is therefore a READOUT beside the button rather than part of it:
+	//it says what this button would open, the way find-dialog's OPEN_IN_BROWSER
+	//glyph says where its own navigate control goes. That also retires the
+	//uncomfortable half of the old arrangement, where the accessible name had to
+	//be pinned STATIC against a visible label that kept changing — with no
+	//label, the two can simply agree.
+	//
+	//When there is no count and none is arriving the readout is EMPTY, not the
+	//action phrase: the button's title already says 'Open this collection' on
+	//hover, and repeating it as body text would put a second, competing label
+	//next to a glyph that is meant to carry the name itself. The width is
+	//reserved in CSS so an empty readout and a full one occupy the same room.
+	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void) {
+		return html`
 			<div class='buttons composer-actions'>
-				<!-- aria-label is the STATIC name, not the count-bearing visible
-				     label (§3.3): the label alternates between "Open this
-				     collection" and "Open 1307 cards" as counts arrive, and a
-				     control whose accessible name changes under a screen reader
-				     reads as a different control each time. -->
-				<span class='reason' title=${this._activationPending ? 'Already opening this collection' : 'Open this collection'}>
-					<button class='primary' aria-label='Open this collection' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
+				<!-- The count is LOADING, not in flight (§3.6): the user typed a
+				     clause, not a request for a number, and the draft is fully
+				     usable without it. That is exactly what loading-placeholder is
+				     for, and it settles the colour question too — its header
+				     documents --app-dark-text-color-light as failing WCAG AA, and
+				     that is the token the hand-rolled '· counting…' used. -->
+				<span class='action-count' role='status'>${count === undefined ?
+		(this._draftCountPending ? html`<loading-placeholder noun='the card count'></loading-placeholder>` : '') :
+		formatCollectionCardCount(count)}</span>
+				<!-- The reason goes on the WRAPPER: Chrome and Safari suppress
+				     hover on a disabled control, so on the button it would be
+				     unreachable exactly when it is needed (§2.5). The button
+				     keeps its own title and aria-label, which a wrapper title
+				     does not supply. -->
+				<span class='reason' title=${reason}>
+					<button class='round primary' title='Open this collection' aria-label='Open this collection' ?disabled=${disabled} @click=${handler}>${OPEN_IN_BROWSER_ICON}</button>
 				</span>
 			</div>
 		`;

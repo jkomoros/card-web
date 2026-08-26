@@ -198,6 +198,15 @@ const NO_HOVER_NAME_BUDGET = 0;
 //one — and the survey no longer counts a button it can see a name on. Checked
 //the way this file requires: the OLD survey against the NEW tree still reports
 //10, so nothing was classified away.
+//
+//It STAYED 6 when the composer's three committing actions became round icon
+//primaries (HS-3.3, HS-4.2), and the reason is worth writing down because the
+//change was expected to lower it. Those three were never in this set: the two
+//'Open …' primaries already carried an aria-label, and 'Add configured filter'
+//was literal text, so all three were classifiable before and are classifiable
+//now. What changed is which population they belong to — they are icon-only
+//today, which the two ZERO budgets above cover, and both are still zero.
+//Measured, not assumed: the old survey run against the new tree reports 6.
 const UNCLASSIFIABLE_BUDGET = 6;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
@@ -257,6 +266,22 @@ describe('accessible names on icon-only controls (HS-2.5)', () => {
 			assert.ok(index > 0, `${file} should have a done handler`);
 			const tag = source.slice(source.lastIndexOf('<button', index), index);
 			assert.match(tag, /aria-label=/, `${file}'s primary action is unnamed`);
+		}
+	});
+
+	//The composer commits through `_openActionRender` and
+	//`_commitPendingCatalogFilter` rather than `_handleDoneClicked`, so the loop
+	//above cannot see it. Its committing actions are icon-only, which is exactly
+	//the population this file exists for: an icon needs BOTH names (HS-2.5), and
+	//a wrapper title supplies neither.
+	it('names the collection composer’s committing actions', () => {
+		const source = stripComments(readFileSync(new URL('configure-collection-dialog.ts', COMPONENTS), 'utf8'));
+		const tags = [...source.matchAll(/<button class='round primary'[^>]*>/g)].map(match => match[0]);
+		assert.strictEqual(tags.length, 2,
+			'the composer has two round primaries: the shared Open control and the pending filter’s Add');
+		for (const tag of tags) {
+			assert.match(tag, /aria-label='[^']+'/, `unnamed to assistive tech: ${tag}`);
+			assert.match(tag, /title='[^']+'/, `nothing on hover: ${tag}`);
 		}
 	});
 
