@@ -7,106 +7,106 @@
 //                         shadow diagnostics may be exposed.
 //  'on'                 — production-ready composer for normal users.
 
-const LOCAL_STORAGE_KEY = "collection-composer";
-const PREVIEW_LOCAL_STORAGE_KEY = "collection-composer-preview";
-const SESSION_STORAGE_KEY = "collection-composer-session";
-const PREVIEW_SESSION_STORAGE_KEY = "collection-composer-preview-session";
+const LOCAL_STORAGE_KEY = 'collection-composer';
+const PREVIEW_LOCAL_STORAGE_KEY = 'collection-composer-preview';
+const SESSION_STORAGE_KEY = 'collection-composer-session';
+const PREVIEW_SESSION_STORAGE_KEY = 'collection-composer-preview-session';
 
-export type CollectionComposerMode = "off" | "dogfood" | "on";
+export type CollectionComposerMode = 'off' | 'dogfood' | 'on';
 
 export const readCollectionComposerMode = (): CollectionComposerMode => {
-  if (typeof window === "undefined") return "off";
-  try {
-    const value = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (value === "dogfood" || value === "on") return value;
-  } catch {
-    //Best effort: capability remains safely disabled.
-  }
-  try {
-    const value = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (value === "dogfood" || value === "on") return value;
-  } catch {
-    //Best effort
-  }
-  //A tab-scoped development/admin override makes a dogfood URL easy to open
-  //and share without changing a browser profile. Seed session storage because
-  //ordinary collection navigation correctly replaces the URL hash.
-  try {
-    const value = new URLSearchParams(window.location?.hash.slice(1) || "").get(
-      LOCAL_STORAGE_KEY
-    );
-    if (value === "dogfood" || value === "on") {
-      try {
-        window.sessionStorage.setItem(SESSION_STORAGE_KEY, value);
-      } catch {
-        //Best effort
-      }
-      return value;
-    }
-  } catch {
-    //Best effort
-  }
-  return "off";
+	if (typeof window === 'undefined') return 'off';
+	try {
+		const value = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+		if (value === 'dogfood' || value === 'on') return value;
+	} catch {
+		//Best effort: capability remains safely disabled.
+	}
+	try {
+		const value = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+		if (value === 'dogfood' || value === 'on') return value;
+	} catch {
+		//Best effort
+	}
+	//A tab-scoped development/admin override makes a dogfood URL easy to open
+	//and share without changing a browser profile. Seed session storage because
+	//ordinary collection navigation correctly replaces the URL hash.
+	try {
+		const value = new URLSearchParams(window.location?.hash.slice(1) || '').get(
+			LOCAL_STORAGE_KEY
+		);
+		if (value === 'dogfood' || value === 'on') {
+			try {
+				window.sessionStorage.setItem(SESSION_STORAGE_KEY, value);
+			} catch {
+				//Best effort
+			}
+			return value;
+		}
+	} catch {
+		//Best effort
+	}
+	return 'off';
 };
 
 export const writeCollectionComposerMode = (
-  mode: CollectionComposerMode
+	mode: CollectionComposerMode
 ): void => {
-  if (typeof window === "undefined") return;
-  try {
-    if (mode === "off") {
-      window.localStorage.removeItem(LOCAL_STORAGE_KEY);
-      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(LOCAL_STORAGE_KEY, mode);
-    }
-  } catch {
-    //Best effort
-  }
+	if (typeof window === 'undefined') return;
+	try {
+		if (mode === 'off') {
+			window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+			window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+		} else {
+			window.localStorage.setItem(LOCAL_STORAGE_KEY, mode);
+		}
+	} catch {
+		//Best effort
+	}
 };
 
 //The master capability. Dogfood deliberately enables unfinished vertical
 //slices without implying that they are ready for normal users.
 export const collectionComposerEnabled = (): boolean =>
-  readCollectionComposerMode() !== "off";
+	readCollectionComposerMode() !== 'off';
 
 export const collectionComposerPublicEnabled = (): boolean =>
-  readCollectionComposerMode() === "on";
+	readCollectionComposerMode() === 'on';
 
 //Shadow diagnostics may inspect behavior but must never alter production
 //navigation. Keep them limited to the explicit dogfood mode.
 export const collectionComposerParserShadowEnabled = (): boolean =>
-  readCollectionComposerMode() === "dogfood";
+	readCollectionComposerMode() === 'dogfood';
 
 export const collectionComposerPreviewEnabled = (): boolean => {
-  if (!collectionComposerEnabled() || typeof window === "undefined")
-    return false;
-  try {
-    if (window.localStorage.getItem(PREVIEW_LOCAL_STORAGE_KEY) === "on")
-      return true;
-    if (window.sessionStorage.getItem(PREVIEW_SESSION_STORAGE_KEY) === "on") return true;
-    const hashEnabled = new URLSearchParams(window.location?.hash.slice(1) || "").get(
-      PREVIEW_LOCAL_STORAGE_KEY
-    ) === "on";
-    if (hashEnabled) window.sessionStorage.setItem(PREVIEW_SESSION_STORAGE_KEY, "on");
-    return hashEnabled;
-  } catch {
-    return false;
-  }
+	if (!collectionComposerEnabled() || typeof window === 'undefined')
+		return false;
+	try {
+		if (window.localStorage.getItem(PREVIEW_LOCAL_STORAGE_KEY) === 'on')
+			return true;
+		if (window.sessionStorage.getItem(PREVIEW_SESSION_STORAGE_KEY) === 'on') return true;
+		const hashEnabled = new URLSearchParams(window.location?.hash.slice(1) || '').get(
+			PREVIEW_LOCAL_STORAGE_KEY
+		) === 'on';
+		if (hashEnabled) window.sessionStorage.setItem(PREVIEW_SESSION_STORAGE_KEY, 'on');
+		return hashEnabled;
+	} catch {
+		return false;
+	}
 };
 
 export const writeCollectionComposerPreviewEnabled = (
-  enabled: boolean
+	enabled: boolean
 ): void => {
-  if (typeof window === "undefined") return;
-  try {
-    if (enabled) {
-      window.localStorage.setItem(PREVIEW_LOCAL_STORAGE_KEY, "on");
-    } else {
-      window.localStorage.removeItem(PREVIEW_LOCAL_STORAGE_KEY);
-      window.sessionStorage.removeItem(PREVIEW_SESSION_STORAGE_KEY);
-    }
-  } catch {
-    //Best effort
-  }
+	if (typeof window === 'undefined') return;
+	try {
+		if (enabled) {
+			window.localStorage.setItem(PREVIEW_LOCAL_STORAGE_KEY, 'on');
+		} else {
+			window.localStorage.removeItem(PREVIEW_LOCAL_STORAGE_KEY);
+			window.sessionStorage.removeItem(PREVIEW_SESSION_STORAGE_KEY);
+		}
+	} catch {
+		//Best effort
+	}
 };

@@ -66,7 +66,7 @@ function pumpPreviewQueue() {
 	for (let index = globalQueue.length - 1; index >= 0; index--) {
 		if (!globalQueue[index].owner.active) globalQueue.splice(index, 1);
 	}
-	while (true) {
+	for (;;) {
 		//Joining work that is already running consumes no additional worker slot,
 		//so attach those observers even while the global worker limit is full.
 		const sharedIndex = globalQueue.findIndex(job =>

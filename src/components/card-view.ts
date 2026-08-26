@@ -831,13 +831,13 @@ class CardView extends connect(store)(PageViewElement) {
 						>
 							<span class='collection-summary-expression'>${readableCollectionExpression(this._collection.description)}</span>
 							<span class='collection-summary-action'>${
-								this._collection.description.filters.length ||
+	this._collection.description.filters.length ||
 								this._collection.description.set !== 'main' ||
 								this._collection.description.sort !== 'default' ||
 								this._collection.description.sortReversed ||
 								this._collection.description.viewMode !== 'list' ?
-									`Refine · ${shortcutKeys('open-collection-composer')}` : `Show cards matching… · ${shortcutKeys('open-collection-composer')}`
-							}</span>
+		`Refine · ${shortcutKeys('open-collection-composer')}` : `Show cards matching… · ${shortcutKeys('open-collection-composer')}`
+}</span>
 						</button>
 						<button
 							id='copy-collection-link'

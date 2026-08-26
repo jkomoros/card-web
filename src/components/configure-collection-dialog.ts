@@ -1014,7 +1014,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const count = this._previewCounts[this._draftPreviewID];
 		const statusLabel = parsed.status === 'valid' ? 'Ready to open' :
 			parsed.status === 'incomplete' ? 'Keep typing' :
-			parsed.status === 'unsupported' ? 'Not supported here' : 'Can’t understand this source';
+				parsed.status === 'unsupported' ? 'Not supported here' : 'Can’t understand this source';
 		const diagnostic = parsed.diagnostics[0]?.message || 'This source is complete and safe to open.';
 		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
 		const completionMode = completionDiagnostic ? 'complete' : 'add';
@@ -1056,8 +1056,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='source-suggestion-heading'>${completionMode === 'add' ? 'Add another filter or modifier — type to search all filters' : 'Choose the next value'}</div>
 				<div id='collection-source-completions' class='suggestions scroller' role='listbox' aria-label='Legal next source values'>
 					${completions.map((completion, index) => {
-						const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
-						return html`
+		const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
+		return html`
 						<div class='suggestion' role='presentation'>
 							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @click=${() => this._acceptSourceCompletion(completion)}>
 								<span class='source-suggestion-category'>${presentation.category}</span>
@@ -1066,7 +1066,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								<span class='suggestion-detail'>${presentation.detail} · <code>${completion}</code></span>
 							</button>
 						</div>
-					`})}
+					`;
+	})}
 				</div>
 			` : ''}
 			<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
@@ -1247,17 +1248,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			${this._pendingCatalogFilter ? this._pendingCatalogFilterRender() : ''}
 			<div id='collection-filter-catalog' class='catalog-list scroller' role='listbox' aria-label='Filter catalog'>
 				${collectionFilterCatalogCategories.map(category => {
-					const categoryItems = items.filter(item => item.category === category);
-					const shown = categoryItems;
-					const total = allItems.filter(item => item.category === category).length;
-					const expanded = this._expandedCatalogCategories.has(category);
-					if (!shown.length) return '';
-					return html`
+		const categoryItems = items.filter(item => item.category === category);
+		const shown = categoryItems;
+		const total = allItems.filter(item => item.category === category).length;
+		const expanded = this._expandedCatalogCategories.has(category);
+		if (!shown.length) return '';
+		return html`
 						<div role='group' aria-label=${category}>
 							<div class='suggestion-heading'>${category}</div>
 							${shown.map(item => {
-								const index = items.indexOf(item);
-								return html`
+		const index = items.indexOf(item);
+		return html`
 									<div class='suggestion' role='presentation'>
 										<button
 											id=${`collection-filter-catalog-item-${index}`}
@@ -1285,7 +1286,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 										` : ''}
 									</div>
 								`;
-							})}
+	})}
 							${!this._composerInput.trim() && total > 6 ? html`
 								<button
 									class='small catalog-more'
@@ -1297,7 +1298,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 							` : ''}
 						</div>
 					`;
-				})}
+	})}
 			</div>
 			${!items.length ? html`<div class='no-suggestions'>No filters match yet. Try a broader word such as date, tag, author, relationship, or text.</div>` : ''}
 		`;
@@ -1372,8 +1373,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					aria-controls=${ifDefined(this._catalogOpen ? 'collection-filter-catalog' : (suggestions.length ? 'collection-composer-suggestions' : undefined))}
 					aria-expanded=${this._catalogOpen ? this._visibleCatalogItems.length > 0 : suggestions.length > 0}
 					aria-activedescendant=${ifDefined(this._catalogOpen ?
-						(this._visibleCatalogItems[this._catalogHighlightedIndex] ? `collection-filter-catalog-item-${this._catalogHighlightedIndex}` : undefined) :
-						(highlighted ? `collection-suggestion-${highlightedIndex}` : undefined))}
+		(this._visibleCatalogItems[this._catalogHighlightedIndex] ? `collection-filter-catalog-item-${this._catalogHighlightedIndex}` : undefined) :
+		(highlighted ? `collection-suggestion-${highlightedIndex}` : undefined))}
 					aria-busy=${this._activationPending}
 					placeholder=${this._catalogOpen ? 'Search dates, tags, authors, relationships…' : 'Type another condition…'}
 					.value=${this._composerInput}
@@ -1413,12 +1414,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
 			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter opens Source, configures, or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
-				'←→ choose clause · Delete removes · type to continue' : !highlighted ?
-				(suggestions.length ? '↑↓ or Tab choose · Click edits · Enter opens this collection' : 'Type to compose · Enter opens this collection') : highlighted.action === 'open' ?
+		'←→ choose clause · Delete removes · type to continue' : !highlighted ?
+			(suggestions.length ? '↑↓ or Tab choose · Click edits · Enter opens this collection' : 'Type to compose · Enter opens this collection') : highlighted.action === 'open' ?
 				'↑↓ choose · Enter opens · Tab copies it into the draft' :
 				highlighted.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
-				highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
-				'↑↓ choose · Click or Tab adds · Enter adds and opens'}</div>
+					highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
+						'↑↓ choose · Click or Tab adds · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
 				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small' @click=${this._handleEditSource}>Edit source</button>

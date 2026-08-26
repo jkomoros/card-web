@@ -124,7 +124,7 @@ export const parseCollectionSource = (
 		token === 'sort' ? 'Choose how cards are ordered' :
 			token === 'view' ? 'Choose how cards are displayed' :
 				SET_NAMES.includes(token as never) ? `Start from the ${token} collection set` :
-				context.filterDescriptions?.[token] || `Filter cards with ${token}`
+					context.filterDescriptions?.[token] || `Filter cards with ${token}`
 	]));
 	//Half a word is not a wrong word. A token that is a strict prefix of at
 	//least one filter this app knows is a filter the user has not finished
@@ -328,7 +328,7 @@ export const parseCollectionSource = (
 				const dateComparison = ['created', 'updated', 'last-tweeted'].includes(decodedParts[0]) ? decodedParts[1] : '';
 				const message = ['before', 'after'].includes(dateComparison) ? `${dateComparison} needs a date.` :
 					dateComparison === 'between' ? `between needs ${remaining} more ${remaining === 1 ? 'date' : 'dates'}.` :
-					`${segment.value} needs ${remaining} more ${remaining === 1 ? 'value' : 'values'}.`;
+						`${segment.value} needs ${remaining} more ${remaining === 1 ? 'value' : 'values'}.`;
 				let expected : string[] | undefined;
 				let expectedDetails : Record<string, string> | undefined;
 				if (['created', 'updated', 'last-tweeted'].includes(decodedParts[0]) && !dateComparison) {

@@ -1450,77 +1450,77 @@ export const selectCollectionComposerCandidates = createSelector(
 		}
 		const contributorNameOrdinals : Record<string, number> = {};
 		const candidates : CollectionComposerCandidate[] = [
-		...Object.entries(sections).filter(([id]) => !reserved.has(id) && !tagIDs.has(id)).map(([id, section]) => ({
-			filter: id,
-			category: 'section' as const,
-			label: `In section “${section.title}”`,
-			detail: `Keeps cards in the ${section.title} section`,
-			aliases: [id, section.title, 'section'],
-			valueLabel: section.title,
-			clauseLabel: `Section ${section.title}`,
-		})),
-		...Object.entries(tags).filter(([id]) => !reserved.has(id) && !sectionIDs.has(id)).map(([id, tag]) => ({
-			filter: id,
-			category: 'tag' as const,
-			label: `Tagged “${tag.title}”`,
-			detail: `Keeps cards tagged ${tag.title}`,
-			aliases: [id, tag.title, 'tag', 'tagged'],
-			valueLabel: tag.title,
-			clauseLabel: `Tagged ${tag.title}`,
-		})),
-		...Object.entries(CARD_TYPE_CONFIGURATION).map(([id, configuration]) => ({
-			filter: id,
-			category: 'card type' as const,
-			label: `Card type: ${toTitleCase(id.split('-').join(' '))}`,
-			detail: configuration.description || `Keeps ${id} cards`,
-			aliases: [id, 'type', 'card type'],
-			valueLabel: toTitleCase(id.split('-').join(' ')),
-			clauseLabel: `Card Type ${toTitleCase(id.split('-').join(' '))}`,
-		})),
-		{
-			filter: TODO_COMBINED_FILTER_NAME,
-			category: 'todo' as const,
-			label: 'Has any TODO',
-			detail: 'Keeps cards with at least one unfinished TODO',
-			aliases: ['todo', 'todos', 'unfinished', 'needs work'],
-		},
-		...visibleContributors.map(contributorID => {
-			const displayName = authors[contributorID].displayName;
-			const isMe = contributorID === uid;
-			const normalizedName = displayName.toLowerCase();
-			const ordinal = (contributorNameOrdinals[normalizedName] || 0) + 1;
-			contributorNameOrdinals[normalizedName] = ordinal;
-			const disambiguatedName = contributorNameCounts[normalizedName] > 1 && !isMe ? `${displayName} (${ordinal})` : displayName;
-			return {
-				filter: `author/${contributorID.toLowerCase()}`,
-				category: 'author' as const,
-				label: isMe ? 'My cards' : `Cards ${disambiguatedName} authored or collaborated on`,
-				detail: isMe ? 'Keeps cards I authored or collaborated on' : `Keeps cards ${disambiguatedName} authored or collaborated on`,
-				aliases: isMe ? ['my cards', 'mine', 'author', 'collaborator', 'contributor'] : [displayName, 'author', 'collaborator', 'contributor'],
-				searchValues: [displayName, isMe ? 'my cards' : '', isMe ? 'mine' : '', 'author', 'collaborator', 'contributor'].filter(Boolean).map(value => value.toLowerCase()),
-				urlDetail: 'Adds a durable contributor clause; copied links keep the same person',
-				valueLabel: displayName,
-				//The clause label is the one name this filter carries — in the row,
-				//the chip, and the receipt — so your own cards are "My Cards"
-				//everywhere rather than "My cards" in one place and "Contributed
-				//By Jordan" in another.
-				clauseLabel: isMe ? 'My Cards' : `Contributed By ${disambiguatedName}`,
-			};
-		}),
-		{
-			filter: 'updated/after/today',
-			category: 'date' as const,
-			label: 'Updated today',
-			detail: 'Keeps cards substantively updated after local midnight today',
-			aliases: ['today', 'updated today', 'changed today', 'recent'],
-		},
-		{
-			filter: 'updated/after/7-days-ago',
-			category: 'date' as const,
-			label: 'Updated since 7 days ago',
-			detail: 'Keeps cards substantively updated after local midnight seven days ago',
-			aliases: ['week', 'weekly', 'last 7 days', 'since 7 days ago', 'recent'],
-		},
+			...Object.entries(sections).filter(([id]) => !reserved.has(id) && !tagIDs.has(id)).map(([id, section]) => ({
+				filter: id,
+				category: 'section' as const,
+				label: `In section “${section.title}”`,
+				detail: `Keeps cards in the ${section.title} section`,
+				aliases: [id, section.title, 'section'],
+				valueLabel: section.title,
+				clauseLabel: `Section ${section.title}`,
+			})),
+			...Object.entries(tags).filter(([id]) => !reserved.has(id) && !sectionIDs.has(id)).map(([id, tag]) => ({
+				filter: id,
+				category: 'tag' as const,
+				label: `Tagged “${tag.title}”`,
+				detail: `Keeps cards tagged ${tag.title}`,
+				aliases: [id, tag.title, 'tag', 'tagged'],
+				valueLabel: tag.title,
+				clauseLabel: `Tagged ${tag.title}`,
+			})),
+			...Object.entries(CARD_TYPE_CONFIGURATION).map(([id, configuration]) => ({
+				filter: id,
+				category: 'card type' as const,
+				label: `Card type: ${toTitleCase(id.split('-').join(' '))}`,
+				detail: configuration.description || `Keeps ${id} cards`,
+				aliases: [id, 'type', 'card type'],
+				valueLabel: toTitleCase(id.split('-').join(' ')),
+				clauseLabel: `Card Type ${toTitleCase(id.split('-').join(' '))}`,
+			})),
+			{
+				filter: TODO_COMBINED_FILTER_NAME,
+				category: 'todo' as const,
+				label: 'Has any TODO',
+				detail: 'Keeps cards with at least one unfinished TODO',
+				aliases: ['todo', 'todos', 'unfinished', 'needs work'],
+			},
+			...visibleContributors.map(contributorID => {
+				const displayName = authors[contributorID].displayName;
+				const isMe = contributorID === uid;
+				const normalizedName = displayName.toLowerCase();
+				const ordinal = (contributorNameOrdinals[normalizedName] || 0) + 1;
+				contributorNameOrdinals[normalizedName] = ordinal;
+				const disambiguatedName = contributorNameCounts[normalizedName] > 1 && !isMe ? `${displayName} (${ordinal})` : displayName;
+				return {
+					filter: `author/${contributorID.toLowerCase()}`,
+					category: 'author' as const,
+					label: isMe ? 'My cards' : `Cards ${disambiguatedName} authored or collaborated on`,
+					detail: isMe ? 'Keeps cards I authored or collaborated on' : `Keeps cards ${disambiguatedName} authored or collaborated on`,
+					aliases: isMe ? ['my cards', 'mine', 'author', 'collaborator', 'contributor'] : [displayName, 'author', 'collaborator', 'contributor'],
+					searchValues: [displayName, isMe ? 'my cards' : '', isMe ? 'mine' : '', 'author', 'collaborator', 'contributor'].filter(Boolean).map(value => value.toLowerCase()),
+					urlDetail: 'Adds a durable contributor clause; copied links keep the same person',
+					valueLabel: displayName,
+					//The clause label is the one name this filter carries — in the row,
+					//the chip, and the receipt — so your own cards are "My Cards"
+					//everywhere rather than "My cards" in one place and "Contributed
+					//By Jordan" in another.
+					clauseLabel: isMe ? 'My Cards' : `Contributed By ${disambiguatedName}`,
+				};
+			}),
+			{
+				filter: 'updated/after/today',
+				category: 'date' as const,
+				label: 'Updated today',
+				detail: 'Keeps cards substantively updated after local midnight today',
+				aliases: ['today', 'updated today', 'changed today', 'recent'],
+			},
+			{
+				filter: 'updated/after/7-days-ago',
+				category: 'date' as const,
+				label: 'Updated since 7 days ago',
+				detail: 'Keeps cards substantively updated after local midnight seven days ago',
+				aliases: ['week', 'weekly', 'last 7 days', 'since 7 days ago', 'recent'],
+			},
 		];
 		return candidates.map(candidate => ({
 			...candidate,
