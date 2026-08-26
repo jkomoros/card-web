@@ -68,7 +68,12 @@ class ConfigureCollectionKeyCard extends LitElement {
 				     name. -->
 				<select aria-label='Key card' @change=${this._handleCardChanged}>
 					${this.allowIncludeKeyCard ? '' : html`<option value='_' .selected=${live(cardID === '_')}>First card in the collection</option>`}
-					${currentIsKnown || (!this.allowIncludeKeyCard && cardID === '_') ? '' : html`<option value=${cardID} .selected=${live(true)}>${cardID && cardID !== 'key-card-id' ? `Unavailable card (${cardID})` : 'Choose a card…'}</option>`}
+					<!-- A card id is an internal identifier and never reaches a
+					     user (§1.4). What the user needs to know is that the
+					     filter names a card this account cannot see — the id
+					     itself tells them nothing they can act on, and there is
+					     no admin exemption: the rule has no audience clause. -->
+					${currentIsKnown || (!this.allowIncludeKeyCard && cardID === '_') ? '' : html`<option value=${cardID} .selected=${live(true)}>${cardID && cardID !== 'key-card-id' ? 'A card you can’t see' : 'Choose a card…'}</option>`}
 					${Object.values(cardInfos).map(info => html`<option value=${info.id} .selected=${live(info.id === cardID)}>${info.title}</option>`)}
 				</select>
 				${this.allowIncludeKeyCard ? html`<label><input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}> Include the key card itself</label>` : ''}

@@ -262,7 +262,13 @@ describe("Collection Composer interactions", () => {
     const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
       .find((button) => button.textContent.includes("Tagged “Inductively Knowable”"));
     assert.ok(suggestion);
-    assert.match(suggestion.textContent, /inductively-knowable/);
+    //This used to assert the raw URL spelling was VISIBLE in the row, as proof
+    //the suggestion carried the exact filter. That is the HS-1.4 violation
+    //itself; the assertion below — that clicking it applies exactly
+    //"inductively-knowable" — proves the same thing without a raw key on
+    //screen, so the row is now checked for its ABSENCE.
+    assert.ok(!suggestion.textContent.includes("inductively-knowable"),
+      "a filter's URL spelling must not reach the user");
     suggestion.click();
     await dialog.updateComplete;
     assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ["inductively-knowable"]);

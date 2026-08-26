@@ -31,6 +31,10 @@ import {
 	REFERENCE_TYPES
 } from '../../shared/card_fields.js';
 
+import {
+	collectionFilterDisplayName
+} from '../collection-composer-suggestions.js';
+
 import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';
 import './configure-collection-date.js';
@@ -168,7 +172,12 @@ class ConfigureCollectionFilter extends LitElement {
 		return html`
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li class='main'>
-			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${filterPiece}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' title='Remove this filter' aria-label=${`Remove ${filterPiece} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
+			<!-- A filter's URL spelling is an internal identifier (§1.4), and an
+			     accessible name is user-facing copy like any other. Both names
+			     go through the one function that maps a clause to the word the
+			     product uses for it, so a screen reader hears "Working Notes"
+			     where the select shows the same clause. -->
+			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${collectionFilterDisplayName(filterPiece)}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' title='Remove this filter' aria-label=${`Remove the ${collectionFilterDisplayName(filterPiece)} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? this._argumentEditors() :
 		html`<button class='small' aria-label='Add an OR filter' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }

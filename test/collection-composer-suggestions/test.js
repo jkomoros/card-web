@@ -382,7 +382,11 @@ describe("Collection Composer suggestions", () => {
     );
     assert.strictEqual(suggestions[0].label, "Add Tagged “Inductively Knowable”");
     assert.deepStrictEqual(suggestions[0].description.filters, ["inductively-knowable"]);
-    assert.match(suggestions[0].detail, /“inductively-knowable” to the collection URL/);
+    //The URL note names the clause the way every other surface names it, and
+    //never by its URL spelling (HS-1.4). The raw key must not appear at all.
+    assert.match(suggestions[0].detail, /Adds Tagged “Inductively Knowable” to the collection URL/);
+    assert.ok(!suggestions[0].detail.includes("inductively-knowable"),
+      "a filter's URL spelling is an internal identifier, not a name");
     assert.strictEqual(suggestions.at(-1).label, "Add Text contains “tag inductively”");
   });
 

@@ -58,6 +58,19 @@ export type ParsedCollectionSource = {
 	nextExpectedDetails?: Record<string, string>;
 };
 
+//A URL token is an internal identifier and must not reach a user (§1.4). This
+//is the word-level half of that mapping — 'reading-list' -> 'Reading List' —
+//and it lives HERE, in the module that owns the URL vocabulary, because
+//collection-composer-suggestions imports this file: its
+//collectionFilterDisplayName and collectionOptionDisplayName are built on top
+//of this, and a copy in each direction is exactly the divergence §5 warns
+//about.
+export const humanizeCollectionToken = (value : string) : string =>
+	value
+		.split(/[- ]/)
+		.map(word => (word ? word[0].toUpperCase() + word.slice(1) : ''))
+		.join(' ');
+
 const STATUS_PRIORITY : Record<CollectionSourceStatus, number> = {
 	valid: 0,
 	unsupported: 1,
@@ -301,7 +314,7 @@ export const parseCollectionSource = (
 			if (!(mode.raw in LEGAL_VIEW_MODES)) diagnose('invalid', 'invalid-view', `“${mode.value}” is not a valid view.`, mode.index);
 			index++;
 			if (LEGAL_VIEW_MODES[mode.raw as keyof typeof LEGAL_VIEW_MODES]) {
-				if (!segments[index]) diagnose('incomplete', 'expected-token', `${mode.value} view needs a value.`, mode.index);
+				if (!segments[index]) diagnose('incomplete', 'expected-token', `The ${humanizeCollectionToken(mode.value)} view needs a value.`, mode.index);
 				else { viewExtra = segments[index].raw; index++; }
 			}
 			continue;
@@ -356,7 +369,7 @@ export const parseCollectionSource = (
 					if (!['before', 'after', 'between'].includes(values[1])) diagnose('invalid', 'invalid-argument', `“${values[1]}” is not a date comparison.`, segment.index);
 					for (const date of values.slice(2)) if (!strictDate(date)) diagnose('invalid', 'invalid-argument', `“${date}” is not a valid fixed or relative date.`, segment.index);
 				}
-				if (['limit', 'offset'].includes(values[0]) && !/^\d+$/.test(values[1])) diagnose('invalid', 'invalid-argument', `${values[0]} needs a non-negative integer.`, segment.index);
+				if (['limit', 'offset'].includes(values[0]) && !/^\d+$/.test(values[1])) diagnose('invalid', 'invalid-argument', `The ${humanizeCollectionToken(values[0])} filter needs a non-negative integer.`, segment.index);
 				const consumed = validateFilterExpression(parts, 0, segment.index);
 				if (consumed !== parts.length) diagnose('invalid', 'unexpected-argument', `“${segment.value}” has unexpected extra values.`, segment.index);
 				filters.push(parts.join('/'));

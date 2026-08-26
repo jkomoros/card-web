@@ -16,7 +16,7 @@ import {
 	TODO_COMBINED_FILTER_NAME,
 	parseRelativeDateParts,
 } from './filters.js';
-import { parseCollectionSource } from './collection-source.js';
+import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
 
 export type CollectionComposerSuggestionKind =
   | 'add'
@@ -133,21 +133,21 @@ export const activeCardRelationshipCandidates = (activeCardID: string): Collecti
 		filter: `children/+${activeCardID}`,
 		category: 'relationship',
 		label: 'This card and cards it links to',
-		detail: `Anchors to the open card (${activeCardID}) and follows its direct outgoing references; copied links keep this anchor`,
+		detail: 'Anchors to the open card and follows its direct outgoing references; copied links keep this anchor',
 		aliases: ['links from this card', 'linked from', 'children', 'outgoing references'],
 	},
 	{
 		filter: `parents/+${activeCardID}`,
 		category: 'relationship',
 		label: 'This card and cards linking here',
-		detail: `Anchors to the open card (${activeCardID}) and follows direct incoming references; copied links keep this anchor`,
+		detail: 'Anchors to the open card and follows direct incoming references; copied links keep this anchor',
 		aliases: ['links to this card', 'linking here', 'parents', 'incoming references'],
 	},
 	{
 		filter: `direct-connections/+${activeCardID}`,
 		category: 'relationship',
 		label: 'This card and directly connected cards',
-		detail: `Anchors to the open card (${activeCardID}) and follows references in either direction; copied links keep this anchor`,
+		detail: 'Anchors to the open card and follows references in either direction; copied links keep this anchor',
 		aliases: ['connected to this card', 'connections', 'either direction', 'related cards'],
 		spotlight: true,
 	},
@@ -164,11 +164,10 @@ const candidateRelevance = (candidate: CollectionComposerCandidate, query: strin
 	return Number.POSITIVE_INFINITY;
 };
 
-const humanize = (value: string): string =>
-	value
-		.split(/[- ]/)
-		.map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ''))
-		.join(' ');
+//The word-level humanizer lives in collection-source, which this file already
+//imports, so the parser's own diagnostics and these display names cannot drift
+//into two spellings of the same token.
+const humanize = humanizeCollectionToken;
 
 const decoded = (value: string): string => {
 	try {
@@ -438,7 +437,7 @@ const emptyStateSuggestions = (
 				action: 'add',
 				name,
 				label: verbLabel('add', name),
-				detail: `${candidate.detail} · ${candidate.urlDetail || `Adds “${candidate.filter}” to the collection URL`}`,
+				detail: `${candidate.detail} · ${candidate.urlDetail || `Adds ${name} to the collection URL; copied links keep it`}`,
 				description: collectionDescriptionWithFilterAppended(current, candidate.filter),
 			});
 		}
@@ -615,7 +614,7 @@ export const collectionComposerSuggestions = (
 				action: 'add',
 				name,
 				label: verbLabel('add', name),
-				detail: `${candidate.detail} · ${candidate.urlDetail || `Adds “${candidate.filter}” to the collection URL`}`,
+				detail: `${candidate.detail} · ${candidate.urlDetail || `Adds ${name} to the collection URL; copied links keep it`}`,
 				description: collectionDescriptionWithFilterAppended(current, candidate.filter),
 			};
 		} else {
