@@ -29,6 +29,10 @@ describe("Collection Composer preview coordinator", () => {
   it("formats counts and their consequences in plain language", () => {
     assert.strictEqual(formatCollectionCardCount(1), "1 card");
     assert.strictEqual(formatCollectionCardCount(12), "12 cards");
+    //Compact and honest (HS-3.6.3), through corpus-status-glyph's own helper:
+    //exact while a person can still read the number, abbreviated past that.
+    assert.strictEqual(formatCollectionCardCount(9999), "9999 cards");
+    assert.strictEqual(formatCollectionCardCount(40225), "40.2k cards");
     assert.strictEqual(formatCollectionCountDelta(7, 12), "5 fewer");
     assert.strictEqual(formatCollectionCountDelta(19, 12), "7 more");
     assert.strictEqual(formatCollectionCountDelta(12, 12), "same number of cards");

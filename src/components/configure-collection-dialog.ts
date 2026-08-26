@@ -84,7 +84,14 @@ import {
 
 import './configure-collection-filter.js';
 
+import './loading-placeholder.js';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import {
+	help,
+	HelpStyles,
+} from './help-badges.js';
 
 import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
@@ -353,6 +360,13 @@ const COMPOSER_ALLOWED_ORIGINS : ReadonlySet<string> = new Set([
 	...(SITE_DOMAIN ? [`https://${SITE_DOMAIN}`] : []),
 ]);
 
+//HS-1.3 is a MUST and D1 is the app's worst terminology defect: nothing in
+//the product has ever said what a collection IS, while the editor calls tags
+//collections and the info panel calls a section one. §1.3 names this dialog as
+//the natural home and gives the exact sentence; it appears wherever the dialog
+//first shows the user their collection, in all three of its modes.
+const COLLECTION_HELP = 'A collection is a set of cards you can link to.';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
@@ -405,9 +419,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_sourceReturnWarning = false;
-
-	@state()
-		_sourceCopyMessage = '';
 
 	_sourceDirty = false;
 	_sourceAutoDelimitedSegment = false;
@@ -520,6 +531,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
+		HelpStyles,
 		//The two nested panes below (the suggestion listbox and the filter
 		//catalog) are deliberate inner scrollers with their own max-height,
 		//which is the case the #759 convention reserves the shared .scroller
@@ -536,10 +548,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   from resizing as the lists change under typing. */
 			.content {
 				height: 90%;
-			}
-
-			.help {
-				font-size:0.75em;
 			}
 
 			.row {
@@ -588,6 +596,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.expression-modifiers {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.8em;
+			}
+
+			/* HelpStyles sizes the badge at 1.3em of whatever it sits in, which
+			   suits a 0.75em form label. The expression row runs at 1.05em,
+			   where that would make the badge the largest glyph in the dialog. */
+			.expression .help svg {
+				height: 1em;
+				width: 1em;
 			}
 
 			/* Square, per §4.4: a clause chip is a core surface, not a pill. */
@@ -662,16 +678,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.draft-receipt button {
 				color: var(--app-primary-color);
 				margin: 0;
-			}
-
-			.visually-hidden {
-				clip: rect(0 0 0 0);
-				clip-path: inset(50%);
-				height: 1px;
-				overflow: hidden;
-				position: absolute;
-				white-space: nowrap;
-				width: 1px;
 			}
 
 			.suggestion-heading {
@@ -880,10 +886,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin-top: 0.15em;
 			}
 
-			.pending-filter-actions {
-				display: flex;
+			/* Both of the composer's button rows ARE the dialog contract's row —
+			   bottom-right, primary last (§3.3) — so they take .buttons from
+			   DialogElement rather than restating its three properties. What is
+			   left here is only what genuinely differs: this one sits inside a
+			   nested editor and needs the gap and the rule of space above it. */
+			.buttons.pending-filter-actions {
 				gap: 0.5em;
-				justify-content: flex-end;
 				margin-top: 0.5em;
 			}
 
@@ -898,9 +907,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				max-width: 100%;
 			}
 
-			.composer-actions {
-				display: flex;
-				justify-content: flex-end;
+			/* And this one is the last thing in a scrolling workspace, so it
+			   needs its own top rule of space and the iOS safe-area inset under
+			   it. Everything else comes from .buttons. */
+			.buttons.composer-actions {
 				margin-top: 0.75em;
 				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
 			}
@@ -912,11 +922,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.composer-actions .primary {
 				min-height: 44px;
 				min-width: 12em;
-			}
-
-			.expression-count[data-pending] {
-				color: var(--app-dark-text-color-light);
-				font-style: italic;
 			}
 
 			/* 400, not 500 (§4.3 loads only 400 and 700). These are the same
@@ -1053,7 +1058,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const canonicalized = Boolean(parsed.canonicalPath) && parsed.canonicalPath !== this._sourceInput;
 		return html`
 			<div class='source-editor'>
-				<label for='collection-source-input'>Collection Source</label>
+				<label for='collection-source-input'>Collection Source ${help(COLLECTION_HELP)}</label>
 				<textarea
 					id='collection-source-input'
 					class='source-input'
@@ -1111,7 +1116,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			` : ''}
 			${parsed.notices.map(notice => html`<div class='key-hints'>${notice} ${parsed.query}${parsed.hash}</div>`)}
 			${fullDestination ? html`<button class='small' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
-			${this._sourceCopyMessage ? html`<span class='draft-receipt' role='status'>${this._sourceCopyMessage}</span>` : ''}
 			${this._sourceReturnWarning ? html`
 				<div id='collection-source-return-warning' class='source-status' role='alert' tabindex='-1'>
 					These source edits do not form an openable collection.
@@ -1122,7 +1126,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<button class='small' @click=${this._handleBackToCompose}>Edit visually</button>
 				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? `↑↓ Choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` : `↑↓ Choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`) : (parsed.status === 'valid' ? `Enter opens · ${shortcutKeys('dialog-escape')} cancels` : `Keep editing · ${shortcutKeys('dialog-escape')} cancels`)}</span>
 			</div>
-			<div class='composer-actions'>
+			<div class='buttons composer-actions'>
 				<button class='primary' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
 					${count === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(count)}`}
 				</button>
@@ -1133,7 +1137,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_builderRender() {
 		return html`
-			<label>Filters</label>
+			<label>Filters ${help(COLLECTION_HELP)}</label>
 			<ul>
 				${this._collectionDescription.filters.map((filterName, index) => html`
 					<configure-collection-filter
@@ -1348,7 +1352,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@filter-modified=${this._handlePendingCatalogFilterModified}
 					@filter-removed=${this._cancelPendingCatalogFilter}>
 				</configure-collection-filter>
-				<div class='pending-filter-actions'>
+				<div class='buttons pending-filter-actions'>
 					<button class='small' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
 					<button class='primary' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>Add configured filter</button>
 				</div>
@@ -1368,6 +1372,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return html`
 			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels)}</div>
 			<div class='expression' role='group' aria-label='Draft collection clauses'>
+				${help(COLLECTION_HELP)}
 				<span class='expression-set'>${expressionParts.set.label}</span>
 				${expressionParts.filters.map(filter => html`
 					<span class='expression-operator' aria-hidden='true'>AND</span>
@@ -1386,8 +1391,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					</span>
 				`)}
 				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
+				<!-- The count is LOADING, not in flight (§3.6): the user typed a
+				     clause, not a request for a number, and the draft is fully
+				     usable without it. That is exactly what loading-placeholder is
+				     for, and it settles the colour question too — its header
+				     documents --app-dark-text-color-light as failing WCAG AA, and
+				     that is the token the hand-rolled '· counting…' used. -->
 				${draftCount === undefined ?
-		(this._draftCountPending ? html`<span class='expression-count' data-pending role='status'>· counting…</span>` : '') :
+		(this._draftCountPending ? html`<loading-placeholder noun='the card count'></loading-placeholder>` : '') :
 		html`<span class='expression-count'>· ${formatCollectionCardCount(draftCount)}</span>`}
 				<input
 					class='composer-input'
@@ -1456,7 +1467,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</div>
 			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
 			${this._builderExpanded ? html`<div class='builder'>${this._selectedClauseEditorRender()}</div>` : ''}
-			<div class='composer-actions'>
+			<div class='buttons composer-actions'>
 				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
 			</div>
 		`;
@@ -1614,7 +1625,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._sourceReturnWarning = false;
 		this._sourceCompletionsDismissed = false;
 		this._sourceCompletionIndex = 0;
-		this._sourceCopyMessage = '';
 		const parsed = this._parsedSource;
 		if (parsed.status === 'valid') this._lastValidSource = parsed;
 		if (startsNewFilter || this._sourceAutoDelimitedSegment) this.updateComplete.then(() => {
@@ -1722,14 +1732,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 	}
 
+	//A transient outcome is a snackbar (§3.5, §5) — not a fourth kind of inline
+	//message with its own state field, its own CSS and its own lifetime rules.
+	//card-view's copy button on the same collection already says exactly these
+	//two sentences this way; two spellings of one outcome is how sync-copy's
+	//eight sentences happened.
 	async _handleCopySourceLink() {
 		const path = this._parsedSource.canonicalPath;
 		if (!path) return;
 		try {
 			await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
-			this._sourceCopyMessage = 'Collection link copied.';
+			store.dispatch(showSnackbar('Collection link copied.'));
 		} catch {
-			this._sourceCopyMessage = 'Could not copy the collection link.';
+			store.dispatch(showSnackbar('Could not copy the collection link.', {kind: 'refused'}));
 		}
 	}
 

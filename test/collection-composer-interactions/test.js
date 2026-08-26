@@ -1607,7 +1607,13 @@ describe("Collection Composer interactions", () => {
       assert.strictEqual(dialog._draftCountPending, true);
       //Counts are recomputed in updated(), so the DOM catches up one frame later.
       await dialog.updateComplete;
-      assert.match(dialog.shadowRoot.querySelector(".expression").textContent, /counting…/);
+      //The hand-rolled '· counting…' is now the shared loading primitive, which
+      //renders its line into its own shadow root — so the assertion moves from
+      //the expression's text to the element being present and saying what is
+      //loading.
+      const placeholder = dialog.shadowRoot.querySelector(".expression loading-placeholder");
+      assert.ok(placeholder, "an unknown count must say it is still arriving");
+      assert.strictEqual(placeholder.noun, "the card count");
     } finally {
       window.localStorage.removeItem("collection-composer-preview");
       dialog._retainedPreviewCounts.clear();

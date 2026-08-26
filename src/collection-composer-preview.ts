@@ -1,4 +1,5 @@
 import { CollectionComposerSuggestion } from './collection-composer-suggestions.js';
+import { compactCardCount } from './corpus-status-glyph.js';
 
 type PreviewResult = { numCards: number };
 type PreviewRunner = (
@@ -11,7 +12,12 @@ type PreviewOptions = {
 	maxConcurrent?: number;
 };
 
-export const formatCollectionCardCount = (count: number) => `${count} ${count === 1 ? 'card' : 'cards'}`;
+//Counts are compact and honest (§3.6.3): '812 cards', '40.2k cards'. The
+//compact helper is corpus-status-glyph's, which is where the convention is
+//defined and tested — a second threshold here is how '40225 cards' and '40.2k'
+//end up on screen at the same time. It leaves anything under 10k exact, so the
+//numbers a user can actually hold in their head are never abbreviated.
+export const formatCollectionCardCount = (count: number) => `${compactCardCount(count)} ${count === 1 ? 'card' : 'cards'}`;
 
 export const formatCollectionCountDelta = (destinationCount: number, currentCount: number) => {
 	const delta = destinationCount - currentCount;
