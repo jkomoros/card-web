@@ -179,8 +179,11 @@ const showCollectionNavigationReceipt = (expression : string, count : number | u
 	//Recorded BEFORE the message: the guard reads this slot, and the dedupeKey
 	//replacing the visible receipt is what invalidates the previous one.
 	recordCollectionNavigationReceipt(currentBrowserLocation());
+	//Hoisted rather than inlined: the copy-quality scanner reads the message
+	//literal, and a nested template ends its parse early.
+	const countSuffix = count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`;
 	store.dispatch(showSnackbar(
-		`Now showing ${expression}${count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`}`,
+		`Now showing ${expression}${countSuffix}.`,
 		{
 			//'info', not 'committed'/'queued': nothing was written to a server.
 			//Those are write-outcome words (snackbar-copy.ts).
@@ -1693,9 +1696,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!path) return;
 		try {
 			await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
-			this._sourceCopyMessage = 'Collection link copied';
+			this._sourceCopyMessage = 'Collection link copied.';
 		} catch {
-			this._sourceCopyMessage = 'Could not copy the collection link';
+			this._sourceCopyMessage = 'Could not copy the collection link.';
 		}
 	}
 
