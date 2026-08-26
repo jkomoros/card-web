@@ -177,8 +177,21 @@ export const navigatePathToResult = (path : string, silent? : boolean) => (
 };
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
+//
+//The legacy void-returning shape, kept for the six callers that predate
+//navigatePathToResult. Those callers cannot act on a result, but throwing it
+//away silently is worse than the state before it existed: 'blocked-editing'
+//means a navigation the user asked for did not happen, and §3.5 says a refusal
+//is never silent. This is the minimum honest signal — one line, at the seam
+//every legacy caller already goes through — not the fix. The fix is those six
+//flows reporting to the user in their own vocabulary, which is a per-caller
+//decision about which of §3.5's three resolutions each one wants; a snackbar
+//bolted onto all six here would be the "eight competing sentences" shape
+//sync-copy exists to warn about. Follow-up.
 export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeAction => (dispatch) => {
-	dispatch(navigatePathToResult(path, silent));
+	const result = dispatch(navigatePathToResult(path, silent));
+	//'unchanged' is not a refusal — the user is already where they asked to be.
+	if (result.status !== 'committed' && result.status !== 'unchanged') console.warn('Navigation refused: ' + result.status);
 };
 
 export const navigateToNextCard = () : ThunkSomeAction => (dispatch, getState) => {
