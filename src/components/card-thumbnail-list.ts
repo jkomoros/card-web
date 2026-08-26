@@ -26,7 +26,11 @@ import { cancelHoverTimeout } from '../actions/app.js';
 import {
 	selectBadgeMap,
 	selectCardsSelected
-} from '../selectors';
+	//Extension REQUIRED. rollup and web-dev-server both resolve the bare
+	//specifier, so the app builds and runs; plain Node ESM does not, and this
+	//one import made every module that reaches card-drawer — find-dialog most of
+	//all — unimportable from a test.
+} from '../selectors.js';
 
 import {
 	ARROW_UPWARD_ICON,
