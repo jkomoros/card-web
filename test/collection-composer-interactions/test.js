@@ -171,8 +171,10 @@ describe("Collection Composer interactions", () => {
     const start = source.indexOf("class='collection-summary-main'");
     assert.ok(start >= 0);
     const block = source.slice(start, source.indexOf("</button>", start));
-    assert.match(block, /title=\$\{readableCollectionExpression\(this\._collection\.description\)\}/,
-      "hover must reveal the complete expression");
+    //The tooltip still carries the whole expression, but as a COMMAND rather
+    //than a bare state readout (HS-2.5) — same shape as the aria-label below.
+    assert.match(block, /title=\$\{`Refine collection: \$\{readableCollectionExpression\(this\._collection\.description\)\}`\}/,
+      "hover must reveal the complete expression, in the command form");
     assert.match(block, /aria-label=\$\{`Refine collection: \$\{readableCollectionExpression/,
       "assistive tech must hear the complete expression");
     assert.match(source, /\.collection-summary-main:focus-visible \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,

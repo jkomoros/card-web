@@ -823,9 +823,13 @@ class CardView extends connect(store)(PageViewElement) {
 			<div slot='visible-info'>
 				${collectionComposerEnabled() && this._collection ? html`
 					<div class='collection-summary'>
+						<!-- A tooltip is a COMMAND, not a state readout (§2.5): the
+						     expression is already this button's visible text, so
+						     repeating it on hover said what this IS rather than what
+						     clicking it does. Same command form as the aria-label. -->
 						<button
 							class='collection-summary-main'
-							title=${readableCollectionExpression(this._collection.description)}
+							title=${`Refine collection: ${readableCollectionExpression(this._collection.description)}`}
 							aria-label=${`Refine collection: ${readableCollectionExpression(this._collection.description)}`}
 							@click=${this._handleConfigureCollectionClicked}
 						>

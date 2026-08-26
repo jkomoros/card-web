@@ -36,7 +36,7 @@ describe('dialog-element and the shortcut registry', () => {
 		this.timeout(20000);
 		await import('../../lib/src/components/dialog-element.js');
 		element = dom.window.document.createElement('dialog-element');
-		element.title = 'Compose a collection';
+		element.title = 'Compose a Collection';
 		dom.window.document.body.appendChild(element);
 		await nextTurn();
 		element.open = true;

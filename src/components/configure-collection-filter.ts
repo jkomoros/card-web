@@ -90,6 +90,15 @@ class ConfigureCollectionFilter extends LitElement {
 	@property({ type : Boolean })
 		allowRemove = true;
 
+	//The app has ONE breakpoint and it is not a CSS media query (§4.6): it lives
+	//in installMediaQueryWatcher and is threaded down as a property. This
+	//component sits inside another component's shadow root, so the dialog's own
+	//`.mobile` rules cannot reach it — the property comes down the same way the
+	//dialog gets it from the store, and reflects so :host([mobile]) can key off
+	//it.
+	@property({ type : Boolean, reflect : true })
+		mobile = false;
+
 	static override styles = [
 		ButtonSharedStyles,
 		HelpStyles,
@@ -131,17 +140,15 @@ class ConfigureCollectionFilter extends LitElement {
 				max-width: 100%;
 			}
 
-			@media (max-width: 480px) {
-				li {
-					margin: 0.5em 0;
-					padding-left: 0.5em;
-				}
+			:host([mobile]) li {
+				margin: 0.5em 0;
+				padding-left: 0.5em;
+			}
 
-				button,
-				select,
-				input {
-					min-height: 44px;
-				}
+			:host([mobile]) button,
+			:host([mobile]) select,
+			:host([mobile]) input {
+				min-height: 44px;
 			}
 
 		`

@@ -13,6 +13,7 @@ import { SITE_DOMAIN } from '../config.GENERATED.SECRET.js';
 
 import {
 	registerShortcut,
+	shortcutKeys,
 	DIALOG_SHORTCUT_PRIORITY,
 	SHORTCUT_COMBOS
 } from '../shortcuts.js';
@@ -574,9 +575,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.75em 0;
 			}
 
+			/* 700, not 500: only 400 and 700 are loaded (§4.3), so 500 was
+			   being synthesized. The set name is the lead term of the
+			   expression — the same emphasis register as the <strong> in
+			   .source-status — so it rounds up rather than down. */
 			.expression-set {
 				color: var(--app-primary-color);
-				font-weight: 500;
+				font-weight: 700;
 			}
 
 			.expression-operator,
@@ -585,10 +590,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				font-size: 0.8em;
 			}
 
+			/* Square, per §4.4: a clause chip is a core surface, not a pill. */
 			.expression-clause {
 				align-items: stretch;
 				border: 1px solid var(--app-divider-color);
-				border-radius: 2px;
 				display: inline-flex;
 				min-width: 0;
 			}
@@ -833,7 +838,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.clause-editor {
 				background: var(--app-primary-color-light-very-transparent);
 				border: 1px solid var(--app-divider-color);
-				border-radius: 2px;
 				margin: 0.5em 0;
 				padding: 0.65em;
 			}
@@ -865,8 +869,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				grid-area: applied;
 			}
 
+			/* Subordinate, not "live" (§4.5): teal means a thing exists or is on,
+			   and an example line is neither — it is the smallest supporting
+			   detail on the row, which is what --app-dark-text-color-light is
+			   for. */
 			.catalog-example {
-				color: var(--app-secondary-color);
+				color: var(--app-dark-text-color-light);
 				font-size: 0.78em;
 				grid-area: example;
 				margin-top: 0.15em;
@@ -911,11 +919,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				font-style: italic;
 			}
 
+			/* 400, not 500 (§4.3 loads only 400 and 700). These are the same
+			   subordinate small-caps register as .suggestion-heading and as
+			   ButtonSharedStyles' own label rule, both of which are already 400 —
+			   rounding up to 700 would make them the loudest thing in the
+			   source pane. */
 			.source-editor label,
 			.source-interpretation-label {
 				display: block;
 				font-size: 0.78em;
-				font-weight: 500;
+				font-weight: 400;
 				margin: 0.8em 0 0.35em;
 				text-transform: uppercase;
 			}
@@ -972,7 +985,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.source-step {
 				background: var(--app-primary-color-light-very-transparent);
 				border: 1px solid var(--app-divider-color);
-				border-radius: 2px;
 				padding: 0.3em 0.5em;
 			}
 
@@ -990,10 +1002,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-height: 44px;
 			}
 
+			/* One element, two tones, because it carries two different facts
+			   (§3.6.2). Unmarked is the WORKING state — "Opening collection…",
+			   the app is fetching and the user waits — which the tone ladder
+			   gives --app-primary-color-light. data-problem is the state that
+			   refused: the edit gate, or a collection that is already open.
+			   Those are problems and take --app-warning-color. Painting both
+			   the same brand purple made a refusal look like progress. */
 			.activation-message {
-				color: var(--app-primary-color);
+				color: var(--app-primary-color-light);
 				font-size: 0.85em;
 				margin-top: 0.5em;
+			}
+
+			.activation-message[data-problem] {
+				color: var(--app-warning-color);
 			}
 		`
 	];
@@ -1030,7 +1053,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const canonicalized = Boolean(parsed.canonicalPath) && parsed.canonicalPath !== this._sourceInput;
 		return html`
 			<div class='source-editor'>
-				<label for='collection-source-input'>Collection source</label>
+				<label for='collection-source-input'>Collection Source</label>
 				<textarea
 					id='collection-source-input'
 					class='source-input'
@@ -1071,7 +1094,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			` : ''}
 			<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
-			<div class='source-steps' aria-label=${readableCollectionExpression(description, this._composerFilterLabels)}>
+			<div class='source-steps' role='group' aria-label=${readableCollectionExpression(description, this._composerFilterLabels)}>
 				<span class='source-step'>Start with ${expressionParts.set.label}</span>
 				${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
 				${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
@@ -1097,14 +1120,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			` : ''}
 			<div class='mode-actions'>
 				<button class='small' @click=${this._handleBackToCompose}>Edit visually</button>
-				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? '↑↓ Choose · Tab adds · Enter opens · Esc dismisses suggestions' : '↑↓ Choose · Tab or Enter completes · Esc dismisses suggestions') : (parsed.status === 'valid' ? 'Enter opens · Esc cancels' : 'Keep editing · Esc cancels')}</span>
+				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? `↑↓ Choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` : `↑↓ Choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`) : (parsed.status === 'valid' ? `Enter opens · ${shortcutKeys('dialog-escape')} cancels` : `Keep editing · ${shortcutKeys('dialog-escape')} cancels`)}</span>
 			</div>
 			<div class='composer-actions'>
 				<button class='primary' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
 					${count === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(count)}`}
 				</button>
 			</div>
-			${this._activationMessage ? html`<div class='activation-message' role='alert'>${this._activationMessage}</div>` : ''}
+			${this._activationMessage ? html`<div class='activation-message' data-problem role='alert'>${this._activationMessage}</div>` : ''}
 		`;
 	}
 
@@ -1116,6 +1139,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					<configure-collection-filter
 						.value=${filterName}
 						.index=${index}
+						.mobile=${this.mobile}
 						.filterDescriptions=${this._filterDescriptions}
 						.cardTagInfos=${this._cardTagInfos}
 						.userIDs=${this._userIDs}
@@ -1171,6 +1195,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<configure-collection-filter
 					.value=${filterName}
 					.index=${index}
+					.mobile=${this.mobile}
 					.lockFilterFamily=${true}
 					.filterDescriptions=${this._filterDescriptions}
 					.cardTagInfos=${this._cardTagInfos}
@@ -1207,18 +1232,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const items = this._visibleCatalogItems;
 		const allItems = this._catalogItems;
 		return html`
-			<div class='catalog-setup' aria-label='Collection setup'>
+			<div class='catalog-setup' role='group' aria-label='Collection setup'>
 				<!-- Every <select> here has its options select themselves. A
 				     .value binding on the <select> commits before the child
 				     part that renders the <option>s, so it lands on an empty
 				     select and is dropped, and the control ends up displaying
 				     its first option while the draft says something else. -->
-				<label>Start from
+				<label>Start From
 					<select aria-label='Starting collection set' @change=${this._handleSetSelectChanged}>
 						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${collectionOptionDisplayName(entry[0])}</option>`)}
 					</select>
 				</label>
-				<label>Order by
+				<label>Order By
 					<select aria-label='Card order' @change=${this._handleSortSelectChanged}>
 						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${collectionOptionDisplayName(entry[0])}</option>`)}
 					</select>
@@ -1229,13 +1254,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 						<option value='reverse' .selected=${live(this._collectionDescription.sortReversed)}>Reverse</option>
 					</select>
 				</label>
-				<label>Display as
+				<label>Display As
 					<select aria-label='Collection view' @change=${this._handleViewModeChanged}>
 						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode} .selected=${live(mode === this._collectionDescription.viewMode)}>${collectionOptionDisplayName(mode)}</option>`)}
 					</select>
 				</label>
 				${LEGAL_VIEW_MODES[this._collectionDescription.viewMode] ? html`
-					<label>Web focus card
+					<label>Web Focus Card
 						<configure-collection-key-card
 							.value=${this._collectionDescription.viewModeExtra || '_'}
 							.cardTagInfos=${this._cardTagInfos}
@@ -1313,6 +1338,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<configure-collection-filter
 					.value=${this._pendingCatalogFilter}
 					.index=${-1}
+					.mobile=${this.mobile}
 					.lockFilterFamily=${true}
 					.allowRemove=${false}
 					.filterDescriptions=${this._filterDescriptions}
@@ -1341,7 +1367,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
 			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels)}</div>
-			<div class='expression' aria-label='Draft collection clauses'>
+			<div class='expression' role='group' aria-label='Draft collection clauses'>
 				<span class='expression-set'>${expressionParts.set.label}</span>
 				${expressionParts.filters.map(filter => html`
 					<span class='expression-operator' aria-hidden='true'>AND</span>
@@ -1390,7 +1416,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			` : ''}
 			${this._clauseSelectionMessage ? html`<div class='draft-receipt' role='status'>${this._clauseSelectionMessage}</div>` : ''}
 			${this._activationPending || this._activationMessage ? html`
-				<div class='activation-message' role=${this._activationMessage ? 'alert' : 'status'} aria-live=${this._activationMessage ? 'assertive' : 'polite'}>
+				<!-- role='alert' already announces immediately; the explicit
+				     assertive was a second, louder copy of the same instruction.
+				     §3.6.4 reserves assertive for work at RISK — the unsaved-draft
+				     banner is the bar, and "finish your edit first" is not it. -->
+				<div class='activation-message' ?data-problem=${Boolean(this._activationMessage)} role=${this._activationMessage ? 'alert' : 'status'} aria-live=${ifDefined(this._activationMessage ? undefined : 'polite')}>
 					${this._activationMessage || 'Opening collection…'}
 				</div>
 			` : ''}
@@ -1413,7 +1443,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>${this._catalogOpen ? 'Type to search · ↑↓ choose · Enter opens Source, configures, or adds · Esc closes catalog' : this._selectedClauseIndex >= 0 ?
+			<div class='key-hints'>${this._catalogOpen ? `Type to search · ↑↓ choose · Enter opens Source, configures, or adds · ${shortcutKeys('dialog-escape')} closes catalog` : this._selectedClauseIndex >= 0 ?
 		'←→ choose clause · Delete removes · type to continue' : !highlighted ?
 			(suggestions.length ? '↑↓ or Tab choose · Click edits · Enter opens this collection' : 'Type to compose · Enter opens this collection') : highlighted.action === 'open' ?
 				'↑↓ choose · Enter opens · Tab copies it into the draft' :
@@ -1558,7 +1588,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	constructor() {
 		super();
-		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
+		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
 	}
 
 	_handleSourceInput(e : InputEvent) {
@@ -2205,7 +2235,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._unregisterNestedEscapeShortcut = registerShortcut({
 				id: 'collection-composer-nested-escape',
 				keys: SHORTCUT_COMBOS['dialog-escape'],
-				label: 'Close the composer\'s current layer',
+				label: 'Close the composer’s current layer',
 				priority: DIALOG_SHORTCUT_PRIORITY + 1,
 				focusPolicy: 'any-focus',
 				handler: (e) => {
@@ -2422,7 +2452,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._activeCard = selectActiveCard(state);
 		this._entryMode = selectConfigureCollectionDialogMode(state);
 		this._focusRequest = selectConfigureCollectionDialogFocusRequest(state);
-		this.title = collectionComposerEnabled() ? 'Compose a collection' : 'Configure Collection';
+		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
 	}
 
 }
