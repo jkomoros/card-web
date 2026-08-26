@@ -675,9 +675,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				gap: 0.5em;
 			}
 
-			.draft-receipt button {
+			/* THE COMPOSER'S TEXT VERB — one rule, replacing three near-identical
+			   local repaints (.draft-receipt button, .builder-toggle
+			   button.small, .mode-actions button.small) and, more usefully,
+			   five omissions. ButtonSharedStyles' base button is
+			   --app-light-text-color on --app-dark-text-color, and .small clears
+			   only the BACKGROUND — so "Copy link", "Keep editing", "Return to
+			   last valid collection", "Done editing", "Cancel" and the catalog's
+			   "Show N more" were white text on the dialog's white surface. That
+			   is not a cosmetic gap; those buttons were invisible.
+
+			   Deliberately NOT button.text: §4.2's named text variant is the
+			   FILLED purple block for banners and gates — card-view's empty-state
+			   Refine is one, and it takes that variant. These eleven are inline
+			   verbs inside a workspace. As filled blocks they would repaint the
+			   dialog, which is a redesign, not a conformance fix. So this is the
+			   extension §4.2 asks for when a surface genuinely needs something
+			   the five variants do not cover: built ON button.small, in one
+			   place, rather than a local button system. */
+			button.small.verb {
 				color: var(--app-primary-color);
 				margin: 0;
+				/* §4.2's 44px minimum; .small is 18x18 with padding: 0. */
+				min-height: 44px;
 			}
 
 			.suggestion-heading {
@@ -784,13 +804,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				white-space: nowrap;
 			}
 
+			/* A genuine extension rather than a repaint: this is a toggle (it
+			   pairs with aria-pressed and takes .selected from
+			   ButtonSharedStyles), and it needs the small-caps register and a
+			   square hit target beside the row it modifies. Colour, margin and
+			   height come from .verb. */
 			.catalog-polarity {
 				align-self: center;
-				color: var(--app-primary-color);
 				font-size: 0.7em;
 				letter-spacing: 0.04em;
-				margin: 0;
-				min-height: 44px;
 				min-width: 44px;
 				text-transform: uppercase;
 			}
@@ -818,10 +840,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding-top: 0.5em;
 			}
 
-			.builder-toggle button.small {
-				color: var(--app-primary-color);
-				margin: 0;
-				min-height: 44px;
+			/* Only the padding differs from .verb here: this row's two toggles sit
+			   flush against its rule, not inset from it. */
+			.builder-toggle button.verb {
 				padding: 0.35em 0;
 			}
 
@@ -1002,11 +1023,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding-top: 0.5em;
 			}
 
-			.mode-actions button.small {
-				color: var(--app-primary-color);
-				min-height: 44px;
-			}
-
 			/* One element, two tones, because it carries two different facts
 			   (§3.6.2). Unmarked is the WORKING state — "Opening collection…",
 			   the app is fetching and the user waits — which the tone ladder
@@ -1115,21 +1131,31 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				${canonicalized ? html`<div class='key-hints'>Same collection, written in this app’s canonical form</div>` : ''}
 			` : ''}
 			${parsed.notices.map(notice => html`<div class='key-hints'>${notice} ${parsed.query}${parsed.hash}</div>`)}
-			${fullDestination ? html`<button class='small' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
+			${fullDestination ? html`<button class='small verb' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
 			${this._sourceReturnWarning ? html`
 				<div id='collection-source-return-warning' class='source-status' role='alert' tabindex='-1'>
 					These source edits do not form an openable collection.
-					<div><button class='small' @click=${() => this._sourceReturnWarning = false}>Keep editing</button><button class='small' @click=${this._returnToLastValidSource}>Return to last valid collection</button></div>
+					<div><button class='small verb' @click=${() => this._sourceReturnWarning = false}>Keep editing</button><button class='small verb' @click=${this._returnToLastValidSource}>Return to last valid collection</button></div>
 				</div>
 			` : ''}
 			<div class='mode-actions'>
-				<button class='small' @click=${this._handleBackToCompose}>Edit visually</button>
+				<button class='small verb' @click=${this._handleBackToCompose}>Edit visually</button>
 				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? `↑↓ Choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` : `↑↓ Choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`) : (parsed.status === 'valid' ? `Enter opens · ${shortcutKeys('dialog-escape')} cancels` : `Keep editing · ${shortcutKeys('dialog-escape')} cancels`)}</span>
 			</div>
 			<div class='buttons composer-actions'>
-				<button class='primary' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
-					${count === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(count)}`}
-				</button>
+				<!-- The title goes on the WRAPPER: Chrome and Safari suppress
+				     hover on a disabled control, so on the button it would be
+				     unreachable exactly when it is needed (§2.5). The button
+				     keeps its own name. The visible half of the reason is the
+				     source status line above, which already names what is wrong
+				     with the text as it stands (§3.6.4). -->
+				<span class='reason' title=${parsed.status === 'valid' ?
+		(this._activationPending ? 'Already opening this collection' : 'Open this collection') :
+		'This source does not describe a collection yet, so there is nothing to open'}>
+					<button class='primary' aria-label='Open this collection' ?disabled=${parsed.status !== 'valid' || this._activationPending} @click=${this._handleOpenSource}>
+						${count === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(count)}`}
+					</button>
+				</span>
 			</div>
 			${this._activationMessage ? html`<div class='activation-message' data-problem role='alert'>${this._activationMessage}</div>` : ''}
 		`;
@@ -1208,7 +1234,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@filter-modified=${this._handleFilterModified}
 					@filter-removed=${this._handleFilterRemoved}>
 				</configure-collection-filter>
-				<button class='small done-editing' @click=${this._handleBuilderToggle}>Done editing</button>
+				<button class='small verb done-editing' @click=${this._handleBuilderToggle}>Done editing</button>
 			</div>
 		`;
 	}
@@ -1305,7 +1331,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 										</button>
 										${item.oppositeFilter ? html`
 											<button
-												class='small catalog-polarity ${item.negated ? 'selected' : ''}'
+												class='small verb catalog-polarity ${item.negated ? 'selected' : ''}'
 												data-polarity-key=${item.polarityKey}
 												aria-pressed=${item.negated ? 'true' : 'false'}
 												title=${`Use ${this._readableComposerFilter(item.oppositeFilter)} instead`}
@@ -1318,7 +1344,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	})}
 							${!this._composerInput.trim() && total > 6 ? html`
 								<button
-									class='small catalog-more'
+									class='small verb catalog-more'
 									aria-label=${expanded ? `Show fewer filters in ${category.toLowerCase()}` : `Show ${total - shown.length} more filters in ${category.toLowerCase()}`}
 									@click=${() => this._handleCatalogCategoryToggle(category)}
 								>
@@ -1339,6 +1365,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<div class='pending-filter-editor' role='group' aria-label=${`Configure ${this._readableComposerFilter(family)}`}>
 				<div><strong>Configure ${this._readableComposerFilter(family)}</strong></div>
 				<div class='suggestion-detail'>Choose the values below before this filter is added. The collection will not change until you confirm.</div>
+				<!-- A reason a control is unavailable is VISIBLE text, not only a
+				     title: hover is unreachable on touch (§3.6.4). The wrapper's
+				     title below still explains it on hover for a mouse user. -->
+				${this._pendingCatalogChanged ? '' : html`<div class='suggestion-detail'>Change a value to add this filter.</div>`}
 				<configure-collection-filter
 					.value=${this._pendingCatalogFilter}
 					.index=${-1}
@@ -1353,8 +1383,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@filter-removed=${this._cancelPendingCatalogFilter}>
 				</configure-collection-filter>
 				<div class='buttons pending-filter-actions'>
-					<button class='small' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
-					<button class='primary' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>Add configured filter</button>
+					<button class='small verb' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
+					<span class='reason' title=${this._pendingCatalogChanged ? 'Add this filter to the draft' : 'Change a value first — adding this filter as it stands would not narrow anything'}>
+						<button class='primary' aria-label='Add this filter to the draft' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>Add configured filter</button>
+					</span>
 				</div>
 			</div>
 		`;
@@ -1422,7 +1454,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			${this._draftReceiptMessage ? html`
 				<div class='draft-receipt' role='status'>
 					<span>${this._draftReceiptMessage}</span>
-					${this._draftUndoDescription ? html`<button class='small' @click=${this._undoDraftEdit}>Undo</button>` : ''}
+					${this._draftUndoDescription ? html`<button class='small verb' @click=${this._undoDraftEdit}>Undo</button>` : ''}
 				</div>
 			` : ''}
 			${this._clauseSelectionMessage ? html`<div class='draft-receipt' role='status'>${this._clauseSelectionMessage}</div>` : ''}
@@ -1462,13 +1494,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
 						'↑↓ choose · Click or Tab adds · Enter adds and opens'}</div>
 			<div class='builder-toggle mode-actions'>
-				<button class='small' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
-				<button class='small' @click=${this._handleEditSource}>Edit source</button>
+				<button class='small verb' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
+				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
 			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
 			${this._builderExpanded ? html`<div class='builder'>${this._selectedClauseEditorRender()}</div>` : ''}
 			<div class='buttons composer-actions'>
-				<button class='primary' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
+				<!-- aria-label is the STATIC name, not the count-bearing visible
+				     label (§3.3): the label alternates between "Open this
+				     collection" and "Open 1307 cards" as counts arrive, and a
+				     control whose accessible name changes under a screen reader
+				     reads as a different control each time. -->
+				<span class='reason' title=${this._activationPending ? 'Already opening this collection' : 'Open this collection'}>
+					<button class='primary' aria-label='Open this collection' ?disabled=${this._activationPending} @click=${this._handleOpenCurrentDraft}>${draftCount === undefined ? 'Open this collection' : `Open ${formatCollectionCardCount(draftCount)}`}</button>
+				</span>
 			</div>
 		`;
 	}

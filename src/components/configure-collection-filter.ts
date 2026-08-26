@@ -135,8 +135,17 @@ class ConfigureCollectionFilter extends LitElement {
 				gap: 0.75em;
 			}
 
+			/* The only text-bearing button in this component. ButtonSharedStyles'
+			   base button is --app-light-text-color on --app-dark-text-color and
+			   .small clears only the BACKGROUND, so without a colour here this
+			   read as white text on the editor's white surface. Same fix the
+			   composer's .verb rule makes for its own eleven; a shadow root
+			   cannot share that rule, and one invisible button is not reason
+			   enough to add a sixth variant to the app's button vocabulary. */
 			.locked .remove-filter {
 				align-self: flex-start;
+				color: var(--app-primary-color);
+				min-height: 44px;
 			}
 
 			select,

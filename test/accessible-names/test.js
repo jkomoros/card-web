@@ -152,7 +152,14 @@ const survey = () => {
 			//Instead the COUNT is pinned. If it rises, a human looks at the new
 			//one and decides which kind it is. Silence about a known hole is how
 			//the first version of this file came to report 6 of 18.
-			if (!hasIcon && !hasText && /\$\{/.test(content)) unclassifiable.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
+			//...unless the tag NAMES it. The hole is "we cannot tell whether this
+			//needs a name"; a button that already has one is not in the hole,
+			//whichever way its body resolves. Adding `named` here narrows the
+			//set to exactly the buttons a human still has to look at, and the
+			//file's own rule for a survey change applies: run the OLD survey
+			//against the NEW tree first. It still reports 10, so this fall is
+			//the survey getting sharper, not four defects being deleted.
+			if (!hasIcon && !hasText && /\$\{/.test(content) && !named) unclassifiable.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
 			//A body that RENDERS NOTHING is nameless unless the tag names it.
 			//This used to test `!content.trim()` against a bare `/aria-label|title=/`
 			//substring match — a weaker standard than the one applied just above.
@@ -177,15 +184,21 @@ const survey = () => {
 //Measured, not inherited from an audit. Lower them; never raise them.
 const NO_ACCESSIBLE_NAME_BUDGET = 0;
 const NO_HOVER_NAME_BUDGET = 0;
-//Measured: 10 today, all of them text buttons whose label is interpolated.
-//The original four (card-web-app error action, corpus-ownership-gate reset,
-//maintenance-view task, snack-bar action) were joined by six from the
-//collection composer, each human-verified to render text, not an icon:
-//the source-completion and suggestion listbox rows (label spans), the two
-//'Open …' primaries whose label carries the live card count, the
-//'Browse all filters'/'Hide filter catalog' toggle, and the expression
-//clause-label button (which also carries an explicit aria-label).
-const UNCLASSIFIABLE_BUDGET = 10;
+//Measured: 6 today, all of them text buttons whose label is interpolated and
+//which carry no name in the tag — the original four (card-web-app error
+//action, corpus-ownership-gate reset, maintenance-view task, snack-bar
+//action) plus two from the collection composer, both human-verified to render
+//text: the source-completion listbox row (label spans) and the
+//'Browse all filters'/'Hide filter catalog' toggle, whose body is a ternary
+//between two sentences.
+//
+//This was 10. Four of those ten now carry an explicit aria-label — the
+//composer's two 'Open …' primaries, which gained one in this pass, and the
+//suggestion listbox row and expression clause-label button, which always had
+//one — and the survey no longer counts a button it can see a name on. Checked
+//the way this file requires: the OLD survey against the NEW tree still reports
+//10, so nothing was classified away.
+const UNCLASSIFIABLE_BUDGET = 6;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
 

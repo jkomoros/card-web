@@ -665,9 +665,10 @@ class CardView extends connect(store)(PageViewElement) {
 				overflow-wrap: anywhere;
 			}
 
+			/* Colour, background and margin all come from button.text now; what
+			   is left is the 44px hit target (§4.2), which that variant does not
+			   carry. */
 			.collection-empty-refine {
-				color: var(--app-primary-color);
-				margin: 0;
 				min-height: 44px;
 			}
 
@@ -918,9 +919,13 @@ class CardView extends connect(store)(PageViewElement) {
 					<span class='collection-empty-message'>No cards match this collection</span>
 					<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description) : ''}</span>
 					<!-- A text button, not a glyph: this is a gate, and the verb
-					     is clearer than an icon (HS-4.2). -->
+					     is clearer than an icon (HS-4.2). button.text is the
+					     NAMED variant for that case, and taking it fixes a real
+					     bug — the local rule set only a purple colour, so the
+					     base button treatment underneath it painted a dark-grey
+					     background, leaving purple text on dark grey. -->
 					<button
-						class='collection-empty-refine'
+						class='text collection-empty-refine'
 						title=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
 						aria-label=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
 						@click=${this._handleConfigureCollectionClicked}
