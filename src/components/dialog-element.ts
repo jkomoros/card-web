@@ -22,6 +22,11 @@ import {
 
 //document.activeElement stops at a shadow host, so a control inside another
 //component reads as that component. Walk down to the real one.
+//Rises by one per dialog open, so the newest-opened dialog stacks above its
+//siblings (see the .container z-index comment). card-preview sits at 10001;
+//reaching it would take ~9000 opens in one session.
+let nextDialogZ = 1000;
+
 const deepestActiveElement = () : HTMLElement | null => {
 	let active = document.activeElement;
 	while (active && active.shadowRoot && active.shadowRoot.activeElement) {
@@ -73,8 +78,14 @@ export class DialogElement extends LitElement {
 				top: 0;
 				left: 0;
 				/* Note that card-preview has a z-index higher than this to
-				show up above it */
-				z-index: 1000;
+				show up above it.
+				Dialogs are siblings sharing one base z-index, so DOM order —
+				not opening order — decided who painted on top: the composer's
+				key-card picker opened find-dialog UNDER the composer, because
+				find-dialog happens to come first in main-view's template. The
+				host sets --dialog-z on each open so the most recently opened
+				dialog stacks above the ones beneath it. */
+				z-index: var(--dialog-z, 1000);
 				display: none;
 			}
 
@@ -362,6 +373,12 @@ export class DialogElement extends LitElement {
 		//No dialog subclass overrides willUpdate.
 		if (!changedProps.has('open')) return;
 		this._syncEscapeShortcut();
+		//Stacking (see the .container comment): each open claims the next
+		//z-index, so a dialog opened from inside another paints above it
+		//regardless of where the two sit in their parent's template. The
+		//counter only ever rises within a session; it would take ~9000
+		//dialog opens to reach card-preview's 10001, and reload resets it.
+		if (this.open) this.style.setProperty('--dialog-z', String(++nextDialogZ));
 		//Focus is scheduled from HERE, via updateComplete, rather than from
 		//updated(). ai-dialog and find-dialog override updated() without
 		//calling super, so the old hook silently never ran for them — ai-dialog
