@@ -1177,6 +1177,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				width: 100%;
 			}
 
+			/* THE TONES WERE INVERTED. 'Ready to open' — the one state where
+			   nothing is wrong — took a loud 3px purple bar, while the parse
+			   error took --app-divider-color, which on white is invisible. So
+			   the pane shouted when it had nothing to say and went silent when
+			   the user had made a mistake.
+			   The spec asks for parse errors in the existing warning colour;
+			   §4.5 makes red the error tone and reserves purple for the
+			   committing action, which on this pane is the Open button. Keep
+			   typing is neither: an incomplete source is not an error, so it
+			   stays the neutral rule. */
 			.source-status {
 				border-left: 3px solid var(--app-divider-color);
 				font-size: 0.85em;
@@ -1184,8 +1194,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.35em 0.6em;
 			}
 
-			.source-status[data-valid] {
-				border-left-color: var(--app-primary-color);
+			/* Teal, not purple: §4.5's "this exists" is exactly what a valid
+			   source has established, and it is quieter than the action it
+			   enables. */
+			.source-status[data-status='valid'] {
+				border-left-color: var(--app-secondary-color);
+			}
+
+			/* An unsupported source is a refusal, not a stage on the way to a
+			   collection, so it takes the same tone as a parse error. */
+			.source-status[data-status='invalid'],
+			.source-status[data-status='unsupported'] {
+				border-left-color: var(--app-warning-color);
+			}
+
+			/* The label carries the tone too. A 3px bar alone is easy to miss
+			   beside a monospace field the eye is already inside. */
+			.source-status[data-status='invalid'] strong,
+			.source-status[data-status='unsupported'] strong {
+				color: var(--app-warning-color);
 			}
 
 			.source-link {
@@ -1298,7 +1325,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@input=${this._handleSourceInput}
 					@keydown=${this._handleSourceKeyDown}
 				></textarea>
-				<div id='collection-source-status' class='source-status' role='status' ?data-valid=${parsed.status === 'valid'}>
+				<div id='collection-source-status' class='source-status' role='status' data-status=${parsed.status}>
 					<strong>${statusLabel}</strong> — ${diagnostic}
 				</div>
 			</div>
@@ -1338,7 +1365,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			${parsed.notices.map(notice => html`<div class='key-hints'>${notice} ${parsed.query}${parsed.hash}</div>`)}
 			${fullDestination ? html`<button class='small verb' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
 			${this._sourceReturnWarning ? html`
-				<div id='collection-source-return-warning' class='source-status' role='alert' tabindex='-1'>
+				<div id='collection-source-return-warning' class='source-status' data-status='invalid' role='alert' tabindex='-1'>
 					These source edits do not form an openable collection.
 					<div><button class='small verb' @click=${() => this._sourceReturnWarning = false}>Keep editing</button><button class='small verb' @click=${this._returnToLastValidSource}>Return to last valid collection</button></div>
 				</div>

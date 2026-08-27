@@ -1534,6 +1534,51 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(dialog.shadowRoot.querySelector('configure-collection-filter'), null);
 	});
 
+	//THE SOURCE PANE'S TONES WERE INVERTED.
+	//
+	//'Ready to open' — the one state where nothing is wrong — took a loud 3px
+	//purple bar, while the parse error took --app-divider-color, which on white
+	//is invisible. The pane shouted when it had nothing to say and went silent
+	//when the user had made a mistake. The spec asks for parse errors in the
+	//existing warning colour, and §4.5 reserves purple for the committing
+	//action, which on this pane is the Open button.
+	it('tones the source diagnostic by what it is actually telling the user', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		window.history.replaceState({}, '', '/c/main/');
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
+		await settleRender(dialog);
+		const status = () => dialog.shadowRoot.querySelector('#collection-source-status');
+		const input = dialog.shadowRoot.querySelector('#collection-source-input');
+		const type = async (value) => {
+			input.value = value;
+			input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+			await settleRender(dialog);
+		};
+		assert.strictEqual(status().getAttribute('data-status'), 'valid');
+		await type('/c/exclude/');
+		assert.strictEqual(status().getAttribute('data-status'), 'incomplete',
+			'keep typing is not an error and must not be toned as one');
+		await type('/c/main/zzzznotafilter/');
+		assert.strictEqual(status().getAttribute('data-status'), 'unsupported');
+		await type('https://evil.example.com/c/main/');
+		assert.strictEqual(status().getAttribute('data-status'), 'invalid');
+
+		const styles = composerStyles();
+		assert.ok(!/\.source-status\[data-valid\]/.test(styles),
+			'the boolean that could only say "valid or not" is gone; the tone needs three answers');
+		assert.match(styles, /\.source-status\[data-status='valid'\]\s*\{[^}]*border-left-color:\s*var\(--app-secondary-color\)/,
+			'valid is a quiet confirmation, not the loudest thing on the pane');
+		assert.ok(!/\.source-status\[data-status='valid'\]\s*\{[^}]*var\(--app-primary-color\)/.test(styles),
+			'purple belongs to the committing action (HS-4.5)');
+		const error = styles.match(/\.source-status\[data-status='invalid'\],\s*\.source-status\[data-status='unsupported'\]\s*\{[^}]*\}/);
+		assert.ok(error, 'the two refusing states share one rule');
+		assert.match(error[0], /border-left-color:\s*var\(--app-warning-color\)/,
+			'the spec asks for parse errors in the existing warning colour');
+		//Neutral by omission: no rule may give the incomplete state a tone.
+		assert.ok(!/\[data-status='incomplete'\]/.test(styles),
+			'an incomplete source keeps the neutral rule');
+	});
+
 	it('opens Source mode from the current route with the exact text selected', async () => {
 		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
 		window.history.replaceState({}, '', '/c/everything/starred/card-7');
