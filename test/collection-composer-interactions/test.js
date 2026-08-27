@@ -41,6 +41,7 @@ describe('Collection Composer interactions', () => {
 	let CollectionDescription;
 	let OPEN_CONFIGURE_COLLECTION_DIALOG;
 	let CANCEL_CONFIGURE_COLLECTION_DIALOG;
+	let UPDATE_PAGE;
 
 	before(async () => {
 		({ store } = await import('../../lib/src/store.js'));
@@ -50,6 +51,7 @@ describe('Collection Composer interactions', () => {
 		({
 			OPEN_CONFIGURE_COLLECTION_DIALOG,
 			CANCEL_CONFIGURE_COLLECTION_DIALOG,
+			UPDATE_PAGE,
 		} = await import('../../lib/src/actions.js'));
 		({ CollectionDescription } = await import('../../lib/src/collection_description.js'));
 		await import('../../lib/src/components/configure-collection-dialog.js');
@@ -67,6 +69,11 @@ describe('Collection Composer interactions', () => {
 		//hit. (It used to reject instead, on an extensionless import plain Node
 		//cannot resolve, which is the only reason the stub survived at all.)
 		await import('../../lib/src/components/main-view.js');
+		//The Ctrl-Shift-L pin drives the REAL binding through the REAL registry,
+		//and card-view is the module that declares it. loadPage imports it
+		//lazily on the first navigation anyway; doing it here makes the binding's
+		//presence a fact of the suite rather than a side effect of test order.
+		await import('../../lib/src/components/card-view.js');
 		//LAST, for the same reason: whoever registers `editor` last wins.
 		store.addReducers({ collection, editor });
 	});
@@ -2278,4 +2285,28 @@ describe('Collection Composer interactions', () => {
 			'the existing mobile sizing survives the wrap');
 	});
 
+	//Ctrl/Cmd-Shift-L. One reviewer proved it opens Source with the path
+	//selected; another saw nothing happen. Driven through the real registry from
+	//the real binding, it works — so the discrepancy was modifier delivery, not
+	//the binding. Pinned so it stays that way.
+	it('opens Source with the path selected from the Ctrl-Shift-L combo', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		window.history.replaceState({}, '', '/c/everything/starred/card-7');
+		store.dispatch({ type: UPDATE_PAGE, location: 'https://example.com/c/everything/starred/card-7', page: 'c', pageExtra: 'everything/starred/card-7' });
+		await dialog.updateComplete;
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+		//metaKey is the macOS spelling of the same combo the table declares as
+		//`mod`; the registry accepts either.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', metaKey: true, shiftKey: true, cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+		assert.strictEqual(store.getState().app.configureCollectionDialogMode, 'source');
+		const input = dialog.shadowRoot.querySelector('#collection-source-input');
+		assert.ok(input, 'the combo must land in Source mode');
+		assert.strictEqual(input.value, '/c/everything/starred/card-7');
+		assert.strictEqual(input.selectionStart, 0);
+		assert.strictEqual(input.selectionEnd, input.value.length,
+			'the whole path is selected, so the next keystroke replaces it');
+		window.history.replaceState({}, '', '/c/main/');
+	});
 });
