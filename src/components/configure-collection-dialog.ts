@@ -1163,6 +1163,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
 			}
 
+			/* While a suggestion is highlighted there were two numbers on
+			   screen claiming to be what Enter would do — the row's, which was
+			   right, and this readout's, which described the draft. The
+			   button's act does not change (clicking it always opens the
+			   draft), so what recedes is its weight, not its meaning. Enough
+			   to stop competing, not so much that a live control reads as
+			   disabled; the disabled treatment is a grey fill, not a fade. */
+			.buttons.composer-actions[data-deemphasized] {
+				opacity: 0.6;
+			}
+
 			/* §4.2's 44px hit target. button.round is 2.75em square, which is
 			   44px only while this dialog renders at 16px; pin both dimensions
 			   to the same floor so the button stays a circle rather than an
@@ -1751,13 +1762,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
 				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
 			`}
-			<div class='key-hints'>${this._catalogOpen ? `Type to search · ↑↓ choose · Enter opens Source, configures, or adds · ${shortcutKeys('dialog-escape')} closes catalog` : this._selectedClauseIndex >= 0 ?
-		'←→ choose clause · Delete removes · type to continue' : !highlighted ?
-			(suggestions.length ? '↑↓ or Tab choose · Click edits · Enter opens this collection' : 'Type to compose · Enter opens this collection') : highlighted.action === 'open' ?
-				'↑↓ choose · Enter opens · Tab copies it into the draft' :
-				highlighted.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
-					highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
-						'↑↓ choose · Click or Tab adds · Enter adds and opens'}</div>
+			<div class='key-hints'>${this._composerKeyHints(suggestions, highlighted)}</div>
 			${this._modifierNoteRender()}
 			<div class='builder-toggle mode-actions'>
 				<button class='small verb' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
@@ -1769,9 +1774,53 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		draftCount,
 		this._activationPending,
 		this._activationPending ? 'Already opening this collection' : 'Open this collection',
-		this._handleOpenCurrentDraft
+		this._handleOpenCurrentDraft,
+		Boolean(highlighted)
 	)}
 		`;
+	}
+
+	//THE FOOTER STATES THE CONTRACT THAT IS ACTUALLY IN FORCE.
+	//
+	//Spec: "A persistent, context-sensitive footer states the active contract,
+	//for example Tab Add · Enter Open · Esc Cancel." Two of the states this
+	//line stated were not true.
+	//
+	//'Click edits' was printed whenever a list was on screen with nothing
+	//highlighted — including when every row in it was a destination that
+	//clicking OPENS, which is the one verb a footer must never get wrong. With
+	//nothing highlighted the rows differ from each other, so the honest line
+	//makes no claim about them at all and describes only the keys that mean the
+	//same thing whichever row the user is looking at. Each highlighted state
+	//then names that row's own verbs.
+	//
+	//And the main state never named Escape, though the spec's own example
+	//contract ends with it and it is the only way out that does not navigate.
+	//The word comes from the canonical combo table, like every other key this
+	//dialog names, rather than being spelled a second way here.
+	//
+	//The branches are ordered the way _applyComposerSuggestion and the row's
+	//own visible chip already order them — source, then configure, then the
+	//plain action — so the footer cannot promise a verb the click would not
+	//perform.
+	_composerKeyHints(suggestions : CollectionComposerSuggestion[], highlighted : CollectionComposerSuggestion | undefined) : string {
+		const escapeHint = `${shortcutKeys('dialog-escape')} cancels`;
+		if (this._catalogOpen) return `Type to search · ↑↓ choose · Enter opens Source, configures, or adds · ${shortcutKeys('dialog-escape')} closes catalog`;
+		if (this._selectedClauseIndex >= 0) return '←→ choose clause · Delete removes · type to continue';
+		if (!highlighted) {
+			return suggestions.length ?
+				`↑↓ or Tab choose · Enter opens this collection · ${escapeHint}` :
+				`Type to compose · Enter opens this collection · ${escapeHint}`;
+		}
+		if (highlighted.sourceFilter) return '↑↓ choose · Click, Tab, or Enter opens Source';
+		if (highlighted.configureFilter) return '↑↓ choose · Click, Tab, or Enter configures';
+		//A destination: clicking it and Enter do the same thing, and Tab is the
+		//spec's labeled secondary action.
+		if (highlighted.action === 'open') return '↑↓ choose · Click or Enter opens · Tab copies it into the draft';
+		//A transformation, named by what it does to the draft rather than by
+		//one word for both halves of the pair.
+		const verb = highlighted.action === 'replace' ? 'replaces' : 'adds';
+		return `↑↓ choose · Click or Tab ${verb} · Enter ${verb} and opens`;
 	}
 
 	//BOTH modes explain an inert modifier the same way, in the same place: on
@@ -1798,9 +1847,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//hover, and repeating it as body text would put a second, competing label
 	//next to a glyph that is meant to carry the name itself. The width is
 	//reserved in CSS so an empty readout and a full one occupy the same room.
-	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void) {
+	//deemphasized: a suggestion is highlighted, so ENTER belongs to that row and
+	//not to this button. The button's own act is unchanged — clicking it always
+	//opens the draft — so its readout keeps naming the draft's count rather than
+	//being repointed at a collection the button would not open. What changes is
+	//weight: while the keyboard is on a row that carries its own number, the
+	//draft's number recedes, and the two numbers on screen stop competing to be
+	//"what Enter will do". The key-hints line directly above says which one it
+	//is, and the reserved width means nothing moves either way.
+	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false) {
 		return html`
-			<div class='buttons composer-actions'>
+			<div class='buttons composer-actions' ?data-deemphasized=${deemphasized}>
 				<!-- The count is LOADING, not in flight (§3.6): the user typed a
 				     clause, not a request for a number, and the draft is fully
 				     usable without it. That is exactly what loading-placeholder is

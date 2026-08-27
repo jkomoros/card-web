@@ -2373,6 +2373,67 @@ describe('Collection Composer interactions', () => {
 			'no rule may hand the width back to the content');
 	});
 
+	//THE FOOTER MUST STATE A CONTRACT THAT IS ACTUALLY IN FORCE.
+	//
+	//'Click edits' was printed whenever a list was on screen with nothing
+	//highlighted, including when every row in it was a destination that
+	//clicking OPENS — the one verb a footer must never get wrong. And the main
+	//state never named Escape, though the spec's example contract ends with it.
+	it('states the key contract the highlighted row actually has', async () => {
+		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
+		await seedRecents([['main/starred/sort/recent/', 2]]);
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		const arrowTo = async (label) => {
+			for (let step = 0; step < 12; step++) {
+				input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+				await dialog.updateComplete;
+				if (label.test(highlightedRow().textContent)) return;
+			}
+			assert.fail(`never reached a row matching ${label}`);
+		};
+
+		//THE MAIN STATE: nothing highlighted, a list on screen.
+		assert.strictEqual(highlightedRow(), null);
+		assert.ok(!/Click edits/.test(hints()),
+			'with nothing highlighted the rows differ, so the footer must claim no verb for clicking one');
+		assert.match(hints(), /Enter opens this collection/);
+		assert.match(hints(), /Escape cancels/,
+			'the spec\'s example contract ends with Escape, and it is the only way out that does not navigate');
+
+		//AN OPEN ROW: clicking it navigates, so the footer says so.
+		await arrowTo(/Main AND Starred/);
+		assert.match(hints(), /Click or Enter opens/,
+			'a destination is opened by a click, not edited by one');
+		assert.match(hints(), /Tab copies it into the draft/);
+
+		//AN ADD ROW: clicking it changes the draft.
+		await arrowTo(/Add Starred/);
+		assert.match(hints(), /Click or Tab adds · Enter adds and opens/);
+	});
+
+	//Two numbers claimed to be "what Enter will do": the highlighted row's,
+	//which was right, and the primary's readout, which described the draft. The
+	//button's act never changes — clicking it always opens the draft — so
+	//repointing its readout would make the button lie about itself. What
+	//recedes is its weight.
+	it('lets the highlighted row carry the number while it owns Enter', async () => {
+		await seedRecents([['main/starred/sort/recent/', 2]]);
+		const actions = () => dialog.shadowRoot.querySelector('.buttons.composer-actions');
+		assert.ok(actions());
+		assert.ok(!actions().hasAttribute('data-deemphasized'),
+			'with nothing highlighted Enter belongs to the primary, at full strength');
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+		await dialog.updateComplete;
+		assert.ok(highlightedRow());
+		assert.ok(actions().hasAttribute('data-deemphasized'),
+			'with a row highlighted Enter belongs to the row, and the primary recedes');
+		//It recedes; it is not disabled. The act is unchanged and still available.
+		assert.ok(!actions().querySelector('button.primary').disabled);
+		assert.match(composerStyles(), /\.buttons\.composer-actions\[data-deemphasized\]\s*\{[^}]*opacity/,
+			'de-emphasis is weight, not the grey fill that means disabled');
+	});
+
 	//THE SCROLL PANES NEED A BOUNDARY, AND THEIR ROWS NEED TO LAND WHOLE.
 	//
 	//Both long lists take the shared .scroller treatment, which on an
