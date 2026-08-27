@@ -14,6 +14,7 @@ import {
 
 import {
 	SnackbarID,
+	SnackbarKind,
 	SnackbarMessage,
 	State
 } from '../types.js';
@@ -21,6 +22,12 @@ import {
 //At most this many on screen at once. More than three stacked toasts stops
 //being a report and starts being a wall; the rest wait their turn.
 const MAX_VISIBLE = 3;
+
+//The kinds that are not routine, and so get a status dot. committed and info
+//are deliberately absent: a dot for "it worked" is noise. The set lives beside
+//the CSS that colours each of these, so adding a kind to one and forgetting the
+//other is one edit rather than two.
+const DOTTED_KINDS : ReadonlySet<SnackbarKind> = new Set(['queued', 'discarded', 'refused']);
 
 @customElement('snack-bar')
 //NOT PageViewElement: its shouldUpdate() returns this.active, and nothing sets
@@ -141,9 +148,18 @@ class SnackBar extends connect(store)(LitElement) {
 
 			/* Amber is "not yet on the server", red is "this did not survive".
 			   committed and info get no dot at all — a dot for "it worked" is
-			   noise. */
+			   noise.
+			   'refused' is the third kind that is not routine: the app
+			   declined to do what was asked. It was pixel-identical to 'info',
+			   so a refusal and a running commentary looked the same. Red,
+			   because what the user asked for did not happen; HOLLOW rather
+			   than filled, because unlike 'discarded' nothing was lost — the
+			   distinction the dot has to carry is "did not happen" against
+			   "happened and did not survive". An inset shadow rather than a
+			   border, which would grow the 0.5rem dot into a 0.75rem one. */
 			.toast[data-kind='queued'] .dot { background: var(--app-pending-color); }
 			.toast[data-kind='discarded'] .dot { background: var(--app-warning-color); }
+			.toast[data-kind='refused'] .dot { box-shadow: inset 0 0 0 2px var(--app-warning-color); }
 
 			.body {
 				flex-grow: 1;
@@ -226,7 +242,7 @@ class SnackBar extends connect(store)(LitElement) {
 			<div class='toast' data-kind=${entry.kind}
 				@mouseenter=${this._handlePause} @mouseleave=${this._handleResume}
 				@focusin=${this._handlePause} @focusout=${this._handleResume}>
-				${entry.kind === 'queued' || entry.kind === 'discarded' ? html`<span class='dot' aria-hidden='true'></span>` : ''}
+				${DOTTED_KINDS.has(entry.kind) ? html`<span class='dot' aria-hidden='true'></span>` : ''}
 				<div class='body'>
 					${entry.message}
 					${entry.detailLines && entry.detailLines.length ? html`

@@ -304,6 +304,40 @@ describe('the snack bar queue (#758)', () => {
 			assert.ok(snackbars().some(entry => entry.kind === 'discarded'), 'a discarded write must not be evicted to make room');
 		});
 
+		//A REFUSAL MUST NOT LOOK LIKE A RUNNING COMMENTARY.
+		//
+		//The dot existed for 'queued' and 'discarded' only, so 'refused' — the
+		//app declining to do what was asked — rendered pixel-identical to
+		//'info'. The three dotted kinds are the three that are not routine;
+		//committed and info stay bare, because a dot for "it worked" is noise.
+		it('marks a refusal, and leaves routine outcomes unmarked', async () => {
+			const dotFor = async (kind) => {
+				clear();
+				store.dispatch(showSnackbar(`A ${kind} outcome.`, {kind}));
+				element.stateChanged(store.getState());
+				await element.updateComplete;
+				return element.shadowRoot.querySelector('.toast .dot');
+			};
+			assert.ok(await dotFor('refused'), 'a refusal is not routine and must be marked');
+			assert.ok(await dotFor('queued'));
+			assert.ok(await dotFor('discarded'));
+			assert.strictEqual(await dotFor('info'), null, 'a dot for "it worked" is noise');
+			assert.strictEqual(await dotFor('committed'), null);
+
+			//And the mark DIFFERS from the one 'discarded' carries: both are
+			//red, because in neither case did the user get what they asked for,
+			//but a refusal lost nothing, so it is hollow rather than filled.
+			//JSDOM computes no styles, so the rules are read directly.
+			const styles = element.constructor.styles.map(sheet => String(sheet.cssText || '')).join('\n');
+			const refused = styles.match(/\.toast\[data-kind='refused'\] \.dot \{[^}]*\}/);
+			assert.ok(refused, 'the refused kind needs a treatment of its own');
+			assert.match(refused[0], /var\(--app-warning-color\)/, 'what was asked for did not happen (HS-4.5)');
+			assert.ok(!/background:/.test(refused[0]),
+				'a filled dot is what "happened and did not survive" means; a refusal lost nothing');
+			assert.match(styles, /\.toast\[data-kind='discarded'\] \.dot \{[^}]*background:\s*var\(--app-warning-color\)/,
+				'and discarded keeps the filled one it had');
+		});
+
 		it('names its dismiss button for hover AND assistive tech', async () => {
 			store.dispatch(showSnackbar('a message'));
 			element.stateChanged(store.getState());
