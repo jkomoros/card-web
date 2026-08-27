@@ -545,13 +545,22 @@ describe('Collection Composer interactions', () => {
 
 		undo.click();
 		await bar.updateComplete;
-		//Pressing it retires the receipt and says nothing further: the guard
-		//agreed the user was still where the receipt described.
+		//Pressing it returns to the collection the receipt interrupted and says
+		//nothing further: the promise was kept, so there is nothing to report.
+		assert.strictEqual(window.location.pathname, '/c/main/');
 		assert.deepStrictEqual(store.getState().app.snackbars, []);
 		bar.remove();
 	});
 
-	it('refuses the receipt\'s Undo out loud once the user has moved on', async () => {
+	//THE UNDO REDESIGN, DRIVEN THROUGH THE REAL BUTTON.
+	//
+	//Undo used to be history.back() behind a guard that required the live URL's
+	//card to alias the one recorded at commit time. But the COMMIT auto-selects
+	//a card and the route then canonicalizes it, so the guard refused an Undo
+	//pressed with zero user actions in between — observed live. Undo now
+	//re-navigates to the collection the receipt interrupted, and the card at
+	//either end is none of its business.
+	const commitStarredWithReceipt = async () => {
 		for (const entry of [...store.getState().app.snackbars]) {
 			store.dispatch({ type: 'DISMISS_SNACKBAR', snackbarID: entry.id });
 		}
@@ -566,20 +575,56 @@ describe('Collection Composer interactions', () => {
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await bar.updateComplete;
+		assert.strictEqual(window.location.pathname, '/c/starred/');
+		return bar;
+	};
 
-		//The user wanders off somewhere the receipt never described.
-		window.history.replaceState({}, '', '/c/everything/reads/');
+	const pressUndo = async (bar) => {
 		const undo = Array.from(bar.shadowRoot.querySelectorAll('.toast button'))
 			.find((button) => button.textContent.trim() === 'Undo');
+		assert.ok(undo, 'the receipt must still offer an Undo to press');
 		undo.click();
 		await bar.updateComplete;
+	};
+
+	it('undoes after the commit has auto-selected a card for the user', async () => {
+		const bar = await commitStarredWithReceipt();
+		//What the app itself does a beat after arriving: pick a card and
+		//canonicalize the route around it. No user action at all.
+		window.history.replaceState({}, '', '/c/starred/auto-selected-card');
+		await pressUndo(bar);
+		assert.strictEqual(window.location.pathname, '/c/main/',
+			'the receipt returns to the collection it interrupted');
+		assert.deepStrictEqual(store.getState().app.snackbars, [],
+			'a kept promise reports nothing');
+		bar.remove();
+	});
+
+	it('undoes the collection even after the user picks a different card', async () => {
+		const bar = await commitStarredWithReceipt();
+		window.history.replaceState({}, '', '/c/starred/some-card-the-user-clicked');
+		await pressUndo(bar);
+		assert.strictEqual(window.location.pathname, '/c/main/',
+			'it is a collection-level undo; reading a card is not moving on');
+		bar.remove();
+	});
+
+	it('refuses the receipt\'s Undo out loud, and only once the user is back', async () => {
+		const bar = await commitStarredWithReceipt();
+		//The user has already walked back to where the receipt would return
+		//them. Now, and only now, there is genuinely nothing to undo.
+		window.history.replaceState({}, '', '/c/main/some-card');
+		await pressUndo(bar);
 		//A refusal is never silent (HOUSE-STYLE §3.5): the receipt is replaced by
-		//a plain message rather than quietly doing nothing.
+		//a plain message rather than quietly doing nothing. This is the ONLY
+		//outcome other than the navigation — the old silent no-op path (a
+		//history.back() with nothing behind it) no longer exists.
 		const snackbars = store.getState().app.snackbars;
 		assert.strictEqual(snackbars.length, 1);
 		assert.match(snackbars[0].message, /nothing to undo/);
 		assert.strictEqual(snackbars[0].action, undefined,
 			'the refusal has nothing to press; offering Undo again would be a lie');
+		assert.strictEqual(window.location.pathname, '/c/main/some-card');
 		bar.remove();
 		window.history.replaceState({}, '', '/c/main/');
 	});
@@ -1909,40 +1954,6 @@ describe('Collection Composer interactions', () => {
 			'and not under its readable name either — it is not a destination at all');
 		assert.ok(labels.some((label) => label.includes('Starred')),
 			'while the real recent beside it survives');
-	});
-
-	//THE MOBILE TOOLBAR MUST NOT LOSE CONTROLS.
-	//
-	//Live review at 375px: ten round buttons in a nowrap row with overflow
-	//visible, inside a column that centres its children — the row was far wider
-	//than the viewport and centring pushed its left edge off screen. The first
-	//item, the composer's own 'Compose collection' button, measured x=-107.
-	//JSDOM computes no layout, so what is pinned is the rule that makes the
-	//overflow impossible, read off the real registered component.
-	it('wraps the mobile card-stage toolbar instead of pushing controls off screen', async () => {
-		await import('../../lib/src/components/card-stage.js');
-		const CardStage = customElements.get('card-stage');
-		assert.ok(CardStage, 'card-stage must be registered');
-		const styles = CardStage.styles.map((sheet) => String(sheet.cssText || '')).join('\n');
-		const mobileToolbar = styles.match(/\.mobile \[name="actions"\]\s*\{[^}]*\}/);
-		assert.ok(mobileToolbar, 'the mobile toolbar needs a rule of its own');
-		assert.match(mobileToolbar[0], /flex-wrap:\s*wrap/,
-			'controls that do not fit must move to the next row, not off the screen');
-		assert.match(mobileToolbar[0], /max-width:\s*100%/,
-			'and the row must be bounded, or centring pushes its left edge negative');
-		assert.match(styles, /\.mobile \[name="actions"\]::slotted\(\*\)\s*\{[^}]*max-width:\s*100%/,
-			'each slotted group is bounded too, so a single wide group wraps inside itself');
-
-		//And the composer's own entry point is one of the controls in that row.
-		//card-view cannot be mounted in this harness, so its placement is pinned
-		//against the source the way the other card-view properties here are.
-		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		const start = source.indexOf('class=\'collection-mobile\'');
-		assert.ok(start >= 0, 'the compose control must live in the actions toolbar');
-		assert.match(source.slice(start - 200, start), /slot='actions'/);
-		assert.match(source.slice(start, start + 400), /aria-label='Compose collection'/);
-		assert.match(styles, /\.mobile \[name="actions"\]::slotted\(\*\)\s*\{[^}]*font-size/,
-			'the existing mobile sizing survives the wrap');
 	});
 
 	//THE MOBILE TOOLBAR MUST NOT LOSE CONTROLS.

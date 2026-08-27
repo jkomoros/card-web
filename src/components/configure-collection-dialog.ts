@@ -161,34 +161,43 @@ export const COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY = 'collection-navigation-r
 //The registry maps a serializable id to a thunk, so the mapping has to exist
 //before any message carrying that id can be pressed — putting both in one
 //module makes that true by construction rather than by boot ordering.
-registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, (dispatch, getState) => {
-	const expectedLocation = pendingCollectionNavigationReceipt();
+//A refusal is never silent (HOUSE-STYLE §3.5). Sentence case, second person,
+//contractions used consistently (§2.3), U+2019 apostrophes (§2.2), and it
+//reports rather than scolds — being back already is not a mistake.
+const UNDO_ALREADY_BACK_MESSAGE = 'You’re already back at that collection, so there’s nothing to undo.';
+
+registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, (dispatch) => {
+	const returnPath = pendingCollectionNavigationReceipt();
 	clearCollectionNavigationReceipt();
-	//The route canonicalizes the active card from an ID to its preferred slug
-	//after arrival, so a byte comparison against the recorded path would
-	//refuse a receipt the user never left. The aliases let the guard tell
-	//"same card, better spelling" from "somewhere else entirely".
-	const card = selectActiveCard(getState());
-	const aliases = card ? [card.id || '', card.name || '', ...(card.slugs || [])] : [];
-	if (collectionReceiptCanUndo(expectedLocation, currentBrowserLocation(), aliases)) {
-		window.history.back();
-		return;
-	}
-	//A refusal is never silent (HOUSE-STYLE §3.5). Sentence case, second person,
-	//contractions used consistently (§2.3), U+2019 apostrophes (§2.2), and it
-	//reports rather than scolds — moving on is not a mistake.
+	//EVERY press produces an outcome. The old shape had two ways to do nothing
+	//visible: a guard that refused an untouched receipt, and a history.back()
+	//with nothing behind it. Undo now NAVIGATES to the collection the receipt
+	//interrupted, so the only refusal left is the one that is actually true.
 	//'refused' is the kind for something that did not happen with no data at
 	//stake; 'committed'/'queued'/'discarded' are write outcomes and none apply.
-	dispatch(showSnackbar('You’ve moved on since then, so there’s nothing to undo.', {kind: 'refused'}));
+	if (!collectionReceiptCanUndo(returnPath, currentBrowserLocation())) {
+		dispatch(showSnackbar(UNDO_ALREADY_BACK_MESSAGE, {kind: 'refused'}));
+		return;
+	}
+	const result = dispatch(navigatePathToResult(returnPath));
+	if (result.status === 'committed') return;
+	//'unchanged' cannot reach here (the guard just proved the collections
+	//differ) but a blocked edit can, and it is the same refusal the composer's
+	//own commit paths speak.
+	dispatch(showSnackbar(result.status === 'blocked-editing' ?
+		'Finish or cancel the current card edit before undoing this.' :
+		UNDO_ALREADY_BACK_MESSAGE, {kind: 'refused'}));
 });
 
 //BOTH ways of opening a collection report it the same way. They were two
 //copies of the same call, already disagreeing about how to spell the card
 //count, which is exactly how a receipt and its Undo drift apart.
-const showCollectionNavigationReceipt = (expression : string, count : number | undefined) : void => {
+const showCollectionNavigationReceipt = (returnPath : string, expression : string, count : number | undefined) : void => {
 	//Recorded BEFORE the message: the guard reads this slot, and the dedupeKey
 	//replacing the visible receipt is what invalidates the previous one.
-	recordCollectionNavigationReceipt(currentBrowserLocation());
+	//returnPath is where the user was BEFORE this navigation — captured by the
+	//caller, because by the time this runs the URL is already the destination.
+	recordCollectionNavigationReceipt(returnPath);
 	//Hoisted rather than inlined: the copy-quality scanner reads the message
 	//literal, and a nested template ends its parse early.
 	const countSuffix = count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`;
@@ -1458,6 +1467,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@keydown=${this._handleComposerKeyDown}
 				>
 			</div>
+			<!-- Visible, not a title: hover is unreachable on touch (§3.6.4),
+			     and a clause the user cannot edit is exactly the one that has to
+			     explain itself. Empty for every ordinary clause. -->
+			${expressionParts.filters.filter(filter => filter.explanation).map(filter => html`
+				<div class='suggestion-detail unsupported-clause'>${filter.label}: ${filter.explanation}</div>
+			`)}
 			${this._draftReceiptMessage ? html`
 				<div class='draft-receipt' role='status'>
 					<span>${this._draftReceiptMessage}</span>
@@ -1524,12 +1539,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//glyph says where its own navigate control goes. That also retires the
 	//uncomfortable half of the old arrangement, where the accessible name had to
 	//be pinned STATIC against a visible label that kept changing — with no
-			<!-- Visible, not a title: hover is unreachable on touch (§3.6.4),
-			     and a clause the user cannot edit is exactly the one that has to
-			     explain itself. Empty for every ordinary clause. -->
-			${expressionParts.filters.filter(filter => filter.explanation).map(filter => html`
-				<div class='suggestion-detail unsupported-clause'>${filter.label}: ${filter.explanation}</div>
-			`)}
 	//label, the two can simply agree.
 	//
 	//When there is no count and none is arriving the readout is EMPTY, not the
@@ -1841,6 +1850,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (parsed.status !== 'valid' || !parsed.description || !parsed.canonicalPath || this._activationPending) return;
 		this._activationPending = true;
 		this._activationMessage = '';
+		//Captured before the push, because that is what Undo returns to.
+		const returnPath = window.location.pathname;
 		const result = store.dispatch(navigatePathToResult(parsed.canonicalPath));
 		if (result.status === 'blocked-editing') {
 			this._activationPending = false;
@@ -1854,6 +1865,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		store.dispatch(cancelConfigureCollectionDialog());
 		showCollectionNavigationReceipt(
+			returnPath,
 			readableCollectionExpression(parsed.description, this._composerFilterLabels),
 			this._previewCounts[this._draftPreviewID]
 		);
@@ -2026,6 +2038,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 			this._activationPending = true;
 			this._activationMessage = '';
+			//Captured before the push, because that is what Undo returns to.
+			const returnPath = window.location.pathname;
 			const destinationPath = suggestion.destinationPath || `/c/${suggestion.description.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
 			const result = store.dispatch(navigatePathToResult(destinationPath));
 			if (result.status === 'blocked-editing') {
@@ -2048,6 +2062,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 			store.dispatch(cancelConfigureCollectionDialog());
 			showCollectionNavigationReceipt(
+				returnPath,
 				readableCollectionExpression(suggestion.description, this._composerFilterLabels),
 				this._previewCounts[suggestion.id]
 			);

@@ -86,7 +86,7 @@ describe('Collection Composer navigation receipt', () => {
 		assert.deepStrictEqual(closed.snackbars, []);
 	});
 
-	it('records one pending receipt location, invalidated by the next one', () => {
+	it('records one pending return path, invalidated by the next one', () => {
 		receipt.clearCollectionNavigationReceipt();
 		assert.strictEqual(receipt.pendingCollectionNavigationReceipt(), '');
 		receipt.recordCollectionNavigationReceipt('/c/everything/starred/');
@@ -110,54 +110,70 @@ describe('Collection Composer navigation receipt', () => {
 		);
 	});
 
-	it('only undoes while the receipt still describes the current location', () => {
+	//UPDATED FOR THE UNDO REDESIGN, not weakened. The recorded slot used to be
+	//the DESTINATION and Undo was history.back(), so the guard asked "is the user
+	//still where the receipt sent them?". It now records where to RETURN and
+	//navigates there, so the only question left is "is that return still
+	//meaningful?" — the two tests below pin that inverted contract, and the third
+	//pins the fact that retired the old alias machinery entirely.
+	it('only undoes while the recorded collection is somewhere else', () => {
 		assert.strictEqual(
 			receipt.collectionReceiptCanUndo(
-				'/c/everything/starred/',
+				'/c/main/',
 				'/c/everything/starred/'
 			),
 			true
 		);
+		//Already back at the recorded collection: nothing left to undo.
 		assert.strictEqual(
-			receipt.collectionReceiptCanUndo(
-				'/c/everything/starred/',
-				'/c/everything/starred/card-a'
-			),
+			receipt.collectionReceiptCanUndo('/c/main/', '/c/main/'),
 			false
 		);
 		assert.strictEqual(receipt.collectionReceiptCanUndo('', ''), false);
+		//A return path that names no collection this app can express is not a
+		//promise it can keep.
+		assert.strictEqual(receipt.collectionReceiptCanUndo('/maintenance', '/c/main/'), false);
 	});
 
-	it('survives canonicalizing the active card from ID to preferred slug', () => {
+	it('compares collections, not URL spellings', () => {
+		//`/c/` and `/c/main/sort/default/` are one collection said two ways. A
+		//byte comparison would offer an Undo that navigates nowhere.
 		assert.strictEqual(
-			receipt.collectionReceiptCanUndo(
-				'/c/everything/starred/card-id',
-				'/c/everything/starred/preferred-slug',
-				['card-id', 'preferred-slug']
-			),
-			true
-		);
-		assert.strictEqual(
-			receipt.collectionReceiptCanUndo(
-				'/c/everything/starred/card-id',
-				'/c/everything/starred/a-different-card',
-				['different-id', 'a-different-card']
-			),
+			receipt.collectionReceiptCanUndo('/c/', '/c/main/sort/default/'),
 			false
 		);
 		assert.strictEqual(
+			receipt.collectionReceiptCanUndo('/c/main/', '/c/main/starred/'),
+			true
+		);
+	});
+
+	//THE DEFECT THIS REDESIGN EXISTS FOR. The commit auto-selects a card and the
+	//route then canonicalizes its ID to the preferred slug, so the old guard —
+	//which required the live URL's card to alias the recorded one — refused an
+	//Undo pressed with no user action in between. A collection-level undo does
+	//not care which card is showing, at either end.
+	it('ignores the card entirely, at both ends', () => {
+		assert.strictEqual(
 			receipt.collectionReceiptCanUndo(
-				'/c/everything/starred/older-valid-slug',
-				'/c/everything/starred/preferred-slug',
-				['card-id', 'preferred-slug', 'older-valid-slug']
+				'/c/main/card-id',
+				'/c/everything/starred/preferred-slug'
 			),
 			true
 		);
 		assert.strictEqual(
 			receipt.collectionReceiptCanUndo(
-				'/c/everything/starred/card-id?composer=1',
-				'/c/everything/starred/preferred-slug',
-				['card-id', 'preferred-slug']
+				'/c/main/card-id',
+				'/c/main/a-completely-different-card'
+			),
+			false,
+			'a different card in the recorded collection is still the recorded collection'
+		);
+		//A query string decorates the route; it does not name a second collection.
+		assert.strictEqual(
+			receipt.collectionReceiptCanUndo(
+				'/c/main/card-id',
+				'/c/main/preferred-slug?composer=1'
 			),
 			false
 		);
