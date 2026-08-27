@@ -32,6 +32,7 @@ import {
 } from '../../shared/card_fields.js';
 
 import {
+	collectionFilterDescription,
 	collectionFilterDisplayName
 } from '../collection-composer-suggestions.js';
 
@@ -186,7 +187,7 @@ class ConfigureCollectionFilter extends LitElement {
 			     go through the one function that maps a clause to the word the
 			     product uses for it, so a screen reader hears "Working Notes"
 			     where the select shows the same clause. -->
-			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${collectionFilterDisplayName(filterPiece)}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' title='Remove this filter' aria-label=${`Remove the ${collectionFilterDisplayName(filterPiece)} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
+			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select aria-label=${`Filter ${i + 1}: ${collectionFilterDisplayName(filterPiece)}`} @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(collectionFilterDescription(filterPiece, this.filterDescriptions))}<button class='small' title='Remove this filter' aria-label=${`Remove the ${collectionFilterDisplayName(filterPiece)} filter`} data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? this._argumentEditors() :
 		html`<button class='small' aria-label='Add an OR filter' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
@@ -232,7 +233,11 @@ class ConfigureCollectionFilter extends LitElement {
 		//live() keeps that honest even when a change event does not move the
 		//value: without it Lit's dirty check would skip the re-assignment and
 		//leave the control displaying the user's pick rather than the filter.
-		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${live(selectedOptionName == entry[0])} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]] != undefined}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
+		//The TITLE goes through the one function that decides a filter's
+		//description, so the synthesized 'Inverse of <internal id>' cannot reach
+		//a tooltip here while the catalog and the suggestion list two surfaces
+		//away both say something honest (HS-1.4).
+		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${collectionFilterDescription(entry[0], this.filterDescriptions)} .selected=${live(selectedOptionName == entry[0])} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]] != undefined}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
 	}
 
 
