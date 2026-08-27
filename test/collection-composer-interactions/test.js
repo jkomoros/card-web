@@ -1991,6 +1991,24 @@ describe('Collection Composer interactions', () => {
 		const flipped = rowFor('unstarred');
 		assert.ok(flipped, 'flipping polarity must offer the inverse filter');
 		assert.strictEqual(flipped.querySelector('.catalog-polarity').getAttribute('aria-pressed'), 'true');
+
+		//AND THE ON STATE MUST PAINT. aria-pressed=true and aria-pressed=false
+		//rendered identical pixels: ButtonSharedStyles gives a toggle its on
+		//state through `button.selected`, and `button.small`'s transparent
+		//background has the same specificity and comes after it, so the shared
+		//rule never reached the screen. The class is the pairing HS-4.2
+		//requires; the local rule is what makes it visible.
+		assert.ok(flipped.querySelector('.catalog-polarity').classList.contains('selected'),
+			'HS-4.2 pairs aria-pressed with .selected');
+		const styles = composerStyles();
+		const onState = styles.match(/button\.catalog-polarity\.selected\s*\{[^}]*\}/);
+		assert.ok(onState,
+			'the toggle needs an on-state rule the local .suggestion/.small rules cannot shadow');
+		assert.match(onState[0], /background:\s*var\(--app-secondary-color-light\)/,
+			'HS-4.5: teal is a toggle that is on');
+		assert.match(onState[0], /color:\s*var\(--app-dark-text-color-darker\)/,
+			'and the label darkens with it — the purple .verb sets is unreadable on teal');
+
 		flipped.querySelector('[role="option"]').click();
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred']);

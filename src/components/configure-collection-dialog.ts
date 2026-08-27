@@ -956,6 +956,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				text-transform: uppercase;
 			}
 
+			/* THE ON STATE HAS TO PAINT. aria-pressed=true and aria-pressed=
+			   false rendered identical pixels: ButtonSharedStyles gives a
+			   toggle its on state through button.selected, and button.small's
+			   transparent background has the same specificity and comes after
+			   it, so the shared rule never reached the screen.
+			   Restated here at a specificity the local rules cannot shadow,
+			   with §4.5's teal, which is what a toggle that is on means.
+			   The text darkens with it: the purple .verb sets is unreadable on
+			   teal, --app-dark-text-color-darker is 4.8:1. The selector carries
+			   the element too, because button.small.verb would otherwise
+			   out-specify the colour the same way button.small out-specified
+			   the background. */
+			button.catalog-polarity.selected {
+				background: var(--app-secondary-color-light);
+				color: var(--app-dark-text-color-darker);
+			}
+
 			/* The key-hints line sits below the list and outside it, so the
 			   list's last row was clipped underneath it on a narrow screen. */
 			.mobile .suggestions {
