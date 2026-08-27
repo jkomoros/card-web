@@ -2316,6 +2316,95 @@ describe('Collection Composer interactions', () => {
 		window.history.replaceState({}, '', '/c/main/');
 	});
 
+	//A DELETION IS NOT AN EXTENSION.
+	//
+	//The source editor closes a segment the moment you start typing one, and it
+	//used to decide what to do next by comparing prefixes. That test cannot tell
+	//a deletion from an insertion, and with an auto-delimiter in play the two are
+	//literally the same string operation: "backspaced over the closing slash" and
+	//"still extending this segment" both satisfy startsWith(). Read as an
+	//extension, a Backspace was answered by re-appending the very slash it had
+	//just removed — the keystroke silently undone, and _sourceInput left holding
+	//a string the textarea no longer showed. Live: Backspace at the end of the
+	//source did nothing, press after press.
+	it('honours every Backspace in Source, and retracts the delimiter it added itself', async () => {
+		const input = await openSourceMode();
+		await typeInto(input, '/c/');
+		//One character, typed where the auto-delimiter is meant to fire.
+		input.value = '/c/s';
+		input.setSelectionRange(4, 4);
+		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 's' }));
+		await dialog.updateComplete;
+		assert.strictEqual(input.value, '/c/s/', 'typing after a delimiter still closes its own segment');
+
+		//Backspace over that one character. The delimiter was this editor's idea,
+		//so it leaves with the segment it was closing; left behind it butts
+		//against the slash before it and the source reads `/c//`, which is the
+		//"empty path segments" refusal arrived at by DELETING.
+		input.value = '/c//';
+		input.setSelectionRange(3, 3);
+		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._sourceInput, '/c/', 'the auto delimiter is retracted with the segment it closed');
+		assert.strictEqual(input.value, '/c/', 'and the textarea says the same thing the component believes');
+		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /Ready to open/);
+
+		//And with the caret PAST the delimiter, Backspace takes the delimiter
+		//itself. This is the press that used to be undone outright.
+		input.value = '/c/s';
+		input.setSelectionRange(4, 4);
+		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 's' }));
+		await dialog.updateComplete;
+		assert.strictEqual(input.value, '/c/s/');
+		input.value = '/c/s';
+		input.setSelectionRange(4, 4);
+		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._sourceInput, '/c/s', 'the deletion stands');
+		assert.strictEqual(input.value, '/c/s', 'the textarea and the component never disagree about the source');
+	});
+
+	//A COLLECTION PATH IS ONE LINE, AND A PASTE IS NOT A COMMIT.
+	//
+	//Enter in this textarea is spoken for — the keydown half prevents the default
+	//and commits — so a line break that reaches the INPUT handler arrived by a
+	//route that never passed that guard: a paste, a drop, an injected insertion.
+	//It was kept verbatim, and the segment logic then read it as the start of a
+	//new filter and closed it with a slash nobody typed, so `…/` became `…/\n/`
+	//and the pane could only say "Empty path segments are not allowed": true, and
+	//no help at all about the newline that caused it.
+	it('takes a pasted line break as text a path cannot hold, not as a commit', async () => {
+		const input = await openSourceMode();
+		await typeInto(input, '/c/starred/');
+		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /Ready to open/);
+		input.value = '/c/starred/\n';
+		input.setSelectionRange(input.value.length, input.value.length);
+		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertLineBreak' }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._sourceInput, '/c/starred/', 'the line break is dropped, and nothing is added in its place');
+		assert.strictEqual(input.value, '/c/starred/',
+			'the strip lands in the textarea too: it rewrites to the value the component already held, so no re-render would carry it there');
+		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /Ready to open/,
+			'a source that was ready to open before the paste is ready to open after it');
+
+		//The same slash, manufactured the other way: text pasted in whole has
+		//already closed its own segment, and closing it again only builds the
+		//empty one.
+		input.value = '/c/starred/sort/recent/';
+		input.setSelectionRange(input.value.length, input.value.length);
+		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._sourceInput, '/c/starred/sort/recent/', 'a paste that ends in a delimiter is not given another');
+
+		//And the keystroke itself never gets that far, which is what makes the
+		//strip above a statement about paste rather than about Enter.
+		const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+		input.dispatchEvent(enter);
+		await dialog.updateComplete;
+		assert.ok(enter.defaultPrevented, 'Enter in Source commits, rather than typing a line into a path');
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
 	//THE PLACEHOLDER NEVER ENTERS HISTORY.
 	//
 	//The router rewrites "no card in the URL" to the internal placeholder '_'

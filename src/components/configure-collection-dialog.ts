@@ -261,6 +261,13 @@ const NEW_TAB_UNSUPPORTED_NOTE = 'Opening in a new tab isn’t supported — Ent
 //what the single-flight is keyed on. A WeakSet keeps no keystroke alive.
 const committedKeystrokes = new WeakSet<KeyboardEvent>();
 
+//A collection path is one line. Enter in the source textarea is spoken for —
+//_handleSourceKeyDown prevents the default and commits — so a line break that
+//reaches the INPUT handler arrived by a route that never passed that guard: a
+//paste, a drop, an injected insertion. Every one of those means "the text I
+//brought with me", not "commit".
+const SOURCE_LINE_BREAKS = /[\r\n]+/g;
+
 //How many distinct collections' counts one composer session remembers. Every
 //keystroke can name a few new ones; this is generous for a session and small
 //enough to be free.
@@ -2366,19 +2373,67 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleSourceInput(e : InputEvent) {
 		const input = e.composedPath()[0];
 		if (!(input instanceof HTMLTextAreaElement)) throw new Error('not textarea element');
+		//A line break is not a character any path can contain, and it is not a
+		//commit either — the commit half of this pair already refused to let one
+		//be typed. Left in, the segment logic below reads it as the start of a
+		//new filter and closes it with a slash nobody asked for, so `…/` becomes
+		//`…/\n/` and the editor can only report "Empty path segments are not
+		//allowed": true, and no help at all about the newline that caused it.
+		const value = input.value.replace(SOURCE_LINE_BREAKS, '');
+		const rawCaret = input.selectionStart;
+		const before = input.value.slice(0, rawCaret);
+		const nextCaret = rawCaret - (before.length - before.replace(SOURCE_LINE_BREAKS, '').length);
+		//WHICH WAY THE TEXT WENT, ASKED OF THE EVENT THAT KNOWS.
+		//
+		//Comparing prefixes cannot tell a deletion from an insertion, and with an
+		//auto-delimiter in play the two are literally indistinguishable that way:
+		//"backspaced over the closing slash" and "still extending this segment"
+		//both satisfy startsWith(). Read as an extension, a deletion was answered
+		//by re-appending the very slash it had just removed — the keystroke
+		//silently undone, and _sourceInput left holding a string the textarea no
+		//longer showed. The InputEvent states outright which it was.
+		//Every real edit names itself; an event that does not is treated as an
+		//insertion, which is what the untyped path meant before it was asked.
+		const inputType = e.inputType || 'insertText';
+		const deleting = inputType.startsWith('delete');
+		const inserting = inputType.startsWith('insert');
 		const previous = this._sourceInput;
-		const startsNewFilter = !this._sourceAutoDelimitedSegment && previous.endsWith('/') &&
-			input.value.startsWith(previous) && input.value.length > previous.length && Boolean(this._parsedSource.nextExpected?.length);
-		let nextValue = input.value;
-		const nextCaret = input.selectionStart;
+		//An insertion that already ends in a delimiter closed its own segment —
+		//a pasted `starred/updated/`, say. Adding another only manufactures the
+		//empty segment the parser then has to complain about.
+		const startsNewFilter = inserting && !this._sourceAutoDelimitedSegment && previous.endsWith('/') &&
+			value.startsWith(previous) && value.length > previous.length && !value.endsWith('/') &&
+			Boolean(this._parsedSource.nextExpected?.length);
+		let nextValue = value;
 		if (startsNewFilter) {
 			nextValue += '/';
 			this._sourceAutoDelimitedSegment = true;
-		} else if (this._sourceAutoDelimitedSegment) {
-			const extendsAutoDelimitedValue = input.value.startsWith(previous.slice(0, -1));
-			if (extendsAutoDelimitedValue && !input.value.endsWith('/')) nextValue += '/';
+		} else if (this._sourceAutoDelimitedSegment && deleting) {
+			//The delimiter was this editor's idea, so this editor takes it back.
+			//Backspacing away the last character of the segment it was closing
+			//leaves that slash butted against the one before it — `//`, which is
+			//the "empty path segment" error, arrived at by deleting. Retract the
+			//delimiter with the segment and the source lands back where it was
+			//before the character was ever typed.
+			const emptiedSegment = nextValue.endsWith('/') && nextCaret === nextValue.length - 1 &&
+				nextCaret > 0 && nextValue[nextCaret - 1] === '/';
+			if (emptiedSegment) nextValue = nextValue.slice(0, -1);
+			this._sourceAutoDelimitedSegment = !emptiedSegment && nextValue.endsWith('/') && nextCaret === nextValue.length - 1;
+		} else if (this._sourceAutoDelimitedSegment && inserting) {
+			const extendsAutoDelimitedValue = value.startsWith(previous.slice(0, -1));
+			if (extendsAutoDelimitedValue && !value.endsWith('/')) nextValue += '/';
 			const caretBeforeDelimiter = nextValue.endsWith('/') && nextCaret === nextValue.length - 1;
 			this._sourceAutoDelimitedSegment = caretBeforeDelimiter && nextValue !== previous.slice(0, previous.lastIndexOf('/') + 1);
+		}
+		//The textarea is where this has to end up, and a re-render cannot be
+		//counted on to put it there: when the rewrite lands back on the string
+		//the component already held, nothing in the render tree changed and Lit
+		//has nothing to commit — the stripped newline would stay on screen. Write
+		//it where it has to go, then let the render agree.
+		const rewrote = nextValue !== input.value;
+		if (rewrote) {
+			input.value = nextValue;
+			input.setSelectionRange(nextCaret, nextCaret);
 		}
 		this._sourceInput = nextValue;
 		this._sourceDirty = true;
@@ -2388,7 +2443,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._sourceCompletionIndex = 0;
 		const parsed = this._parsedSource;
 		if (parsed.status === 'valid') this._lastValidSource = parsed;
-		if (startsNewFilter || this._sourceAutoDelimitedSegment) this.updateComplete.then(() => {
+		if (rewrote || this._sourceAutoDelimitedSegment) this.updateComplete.then(() => {
 			const sourceInput = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
 			sourceInput?.setSelectionRange(nextCaret, nextCaret);
 		});
