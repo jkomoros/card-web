@@ -113,6 +113,11 @@ describe('Collection Composer interactions', () => {
 	const highlightedRow = () =>
 		dialog.shadowRoot.querySelector('[role="option"][data-highlighted]');
 
+	//JSDOM computes no layout, so every geometry property this suite cares
+	//about is pinned against the real registered component's own stylesheet.
+	const composerStyles = () =>
+		dialog.constructor.styles.map((sheet) => String(sheet.cssText || '')).join('\n');
+
 	beforeEach(async () => {
 		window.history.replaceState({}, '', '/c/main/');
 		store.dispatch({ type: 'TEST_SET_EDITING', value: false });
@@ -2217,6 +2222,33 @@ describe('Collection Composer interactions', () => {
 			'the footer never shrinks to make room for an editor');
 		assert.match(styles, /\.builder-catalog\s*\{[^}]*overflow:\s*hidden/,
 			'a shrunken flex item must clip rather than paint over what follows it');
+	});
+
+	//THE DIALOG'S BOX MUST NOT MOVE UNDER A KEYSTROKE.
+	//
+	//Live review measured the composer's content box at 512px, 896px and 567px
+	//on three consecutive characters of one session: .content sizes to its
+	//content horizontally between min-width:40% and max-width:70%, and
+	//.background centres it, so every re-measure moved the left edge of the
+	//input the user was typing into. The height was already pinned for exactly
+	//this reason; the width was the half nobody had done. JSDOM computes no
+	//layout, so what is pinned is the rule that makes the resize impossible.
+	it('pins the composer dialog to one box, so typing cannot move it', async () => {
+		const styles = composerStyles();
+		//Anchored on the custom property, because DialogElement's own .content
+		//rule is in the same concatenated sheet and comes first.
+		const content = styles.match(/\.content\s*\{[^}]*--composer-width[^}]*\}/);
+		assert.ok(content, 'the composer must have its own .content rule');
+		assert.match(content[0], /--composer-width:\s*min\(64em,\s*92vw\)/,
+			'one expression names the box, so the three properties below cannot drift apart');
+		for (const property of ['width', 'min-width', 'max-width']) {
+			assert.match(content[0], new RegExp(`[;{]\\s*${property}:\\s*var\\(--composer-width\\)`),
+				`${property} must take the pinned width, or the base rule's percentages re-enter and the box sizes to content again`);
+		}
+		assert.match(content[0], /height:\s*90%/, 'the height pin wave 1 added stays');
+		//And nothing in the composer's own sheet may size the box to content.
+		assert.ok(!/\.content\s*\{[^}]*width:\s*(auto|fit-content|max-content)/.test(styles),
+			'no rule may hand the width back to the content');
 	});
 
 	//A `none` clause is the router's placeholder for a route that names no

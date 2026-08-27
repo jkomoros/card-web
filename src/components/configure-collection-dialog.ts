@@ -585,9 +585,38 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   the catalog only its min-height (128px in a 720px viewport).
 			   Pinning the dialog to its maximum height gives the suggestion
 			   list and catalog real space to flex into, and keeps the dialog
-			   from resizing as the lists change under typing. */
+			   from resizing as the lists change under typing.
+
+			   THE WIDTH IS PINNED FOR THE SAME REASON THE HEIGHT IS, and it is
+			   the half that was missing. .content sizes to content
+			   horizontally between min-width:40% and max-width:70%, so the
+			   dialog's content box was measured at 512px, 896px and 567px on
+			   three consecutive keystrokes of one session — and because
+			   .background centres it, every change moved the dialog's left
+			   edge too. The suggestion list changing under typing must not be
+			   able to move the input the user is typing into.
+
+			   All three of width/min-width/max-width take the SAME value, so
+			   the base rule's percentages cannot re-enter and make the box
+			   content-sized again. 64em is chosen to fit the widest designed
+			   row — a 14em count column, a 5.5em action column, their gaps and
+			   the dialog's own padding still leave the label column ~39em,
+			   which is more than the longest filter label needs. 92vw is the
+			   same box on a viewport too narrow for 64em; it is a viewport
+			   unit, so it changes only when the window does. */
 			.content {
+				--composer-width: min(64em, 92vw);
 				height: 90%;
+				width: var(--composer-width);
+				min-width: var(--composer-width);
+				max-width: var(--composer-width);
+			}
+
+			/* Mobile is full-screen (.mobile .content in DialogElement wins on
+			   specificity for width/height/max-width); min-width is the one
+			   the base rule leaves for us to clear. */
+			.mobile .content {
+				min-width: 0;
 			}
 
 			.row {
