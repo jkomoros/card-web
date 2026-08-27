@@ -132,7 +132,14 @@ export class DialogElement extends LitElement {
 				max-width:none;
 			}
 
+			/* Raleway. §4.3 assigns --app-header-font-family to titles, and the
+			   composer spec asks for "a left-aligned Raleway heading
+			   consistent with current dialogs" — which no dialog was, because
+			   this rule never named a family and every dialog title inherited
+			   Source Sans Pro from the body. One line here fixes all nine of
+			   them rather than one. */
 			h2 {
+				font-family: var(--app-header-font-family);
 				font-weight: normal;
 				font-size:1.5em;
 				text-align:left;

@@ -53,6 +53,37 @@ describe('dialog-element and the shortcut registry', () => {
 		element.remove();
 	});
 
+	//THE TITLE IS THE ACCESSIBLE NAME, and there is only one of it.
+	//
+	//A dialog whose visible heading and announced name differ is a dialog
+	//nobody can talk to anybody else about. They cannot differ here, and this
+	//pins why: aria-labelledby points at the same h2 the title property
+	//renders, so there is no second string to keep in sync.
+	it('names itself with the heading it shows', () => {
+		const heading = element.shadowRoot.querySelector('h2');
+		const content = element.shadowRoot.querySelector('.content');
+		assert.strictEqual(heading.textContent, 'Compose a Collection');
+		assert.strictEqual(content.getAttribute('aria-label'), null,
+			'a second name would be free to drift from the visible one');
+		assert.strictEqual(content.getAttribute('aria-labelledby'), heading.id,
+			'the name must BE the heading, not a copy of it');
+	});
+
+	//§4.3 assigns --app-header-font-family to titles, and the composer spec
+	//asks for a Raleway heading "consistent with current dialogs" — which no
+	//dialog was: this rule named no family, so every dialog title inherited
+	//Source Sans Pro from the body.
+	it('sets its title in the app\'s header family', () => {
+		//The dialog's OWN block: SharedStyles also carries an h2 rule, and this
+		//one comes after it and overrides what it sets.
+		const sheets = element.constructor.styles;
+		const styles = String(sheets[sheets.length - 1].cssText || '');
+		assert.match(styles, /\.focus-sentinel/, 'the last sheet must be dialog-element\'s own');
+		const rule = styles.match(/\n\s*h2 \{[^}]*\}/);
+		assert.ok(rule, 'the dialog title needs a rule of its own');
+		assert.match(rule[0], /font-family:\s*var\(--app-header-font-family\)/);
+	});
+
 	it('closes on a plain Escape, so the decline cases below can fail', () => {
 		const event = new dom.window.KeyboardEvent('keydown', {key: 'Escape', cancelable: true});
 		dom.window.dispatchEvent(event);

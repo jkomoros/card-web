@@ -2373,6 +2373,26 @@ describe('Collection Composer interactions', () => {
 			'no rule may hand the width back to the content');
 	});
 
+	//THE DIALOG'S NAME AND ITS HEADING ARE ONE STRING.
+	//
+	//A review reported the composer announcing itself as 'Compose' while its
+	//heading read 'Compose a Collection'. It does not: the heading the title
+	//property renders IS the element aria-labelledby points at, so there is no
+	//second string that could drift. ('Compose' is compose-dialog's title —
+	//a different dialog, in a different shadow root.) Pinned so the property
+	//stays structural rather than remaining a coincidence.
+	it('announces itself with the heading it shows', async () => {
+		const heading = dialog.shadowRoot.querySelector('h2');
+		const content = dialog.shadowRoot.querySelector('.content');
+		assert.strictEqual(heading.textContent.trim(), 'Compose a Collection');
+		assert.strictEqual(dialog.title, heading.textContent,
+			'the title property and the visible heading are the same string');
+		assert.strictEqual(content.getAttribute('aria-label'), null,
+			'a second name would be free to drift from the visible one');
+		assert.strictEqual(content.getAttribute('aria-labelledby'), heading.id,
+			'the accessible name must BE the heading, not a copy of it');
+	});
+
 	//THE COMPOSER HAD NO MOTION AT ALL — not one transition or animation in
 	//the whole component, while the spec asks for Card Web's existing short
 	//fade timing on exactly the moments below. HS-4.4 gives the timing a token
