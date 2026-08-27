@@ -257,4 +257,53 @@ describe('Collection Composer history', () => {
 		}]));
 		assert.deepStrictEqual(readRecentCollections('alex').map(entry => entry.canonical), [other.serialize()]);
 	});
+
+	//THE `none` PLACEHOLDER POISONING.
+	//
+	//actions/collection.ts installs a `none` filter while a card-link redirect
+	//resolves — a description that matches no cards and lives for about one
+	//dispatch. Recorded as a visit it became permanent: CONTINUE offered
+	//'Open Main AND None · 0 cards' forever, with a chip reading the bare word
+	//'None'.
+	it('never records the router\'s none placeholder as a visited collection', () => {
+		const real = CollectionDescription.deserialize('everything/starred/');
+		recordRecentCollection(real, 'alex', 100);
+		recordRecentCollection(CollectionDescription.deserialize('main/none/'), 'alex', 200);
+		recordRecentCollection(CollectionDescription.deserialize('everything/none/'), 'alex', 300);
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[real.serialize()],
+			'a placeholder is not a destination anybody chose'
+		);
+	});
+
+	//The guard lives on the module rather than on the one call site, so every
+	//future caller inherits it — and it runs on READ as well, so a list poisoned
+	//before it existed heals the next time it is opened.
+	it('prunes an already-stored none placeholder on read', () => {
+		const poisoned = CollectionDescription.deserialize('main/none/');
+		const real = CollectionDescription.deserialize('everything/starred/');
+		window.localStorage.setItem('collection-composer-history:alex', JSON.stringify([
+			{
+				canonical: poisoned.serialize(),
+				authoring: poisoned.serializeOriginalOrder(),
+				visitedAt: 500,
+				visits: 12,
+			},
+			{
+				canonical: real.serialize(),
+				authoring: real.serializeOriginalOrder(),
+				visitedAt: 400,
+				visits: 2,
+			},
+		]));
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[real.serialize()]
+		);
+		assert.ok(
+			!readRememberedCollections('alex').some((entry) => entry.canonical.includes('none')),
+			'and it can never be promoted into what the composer offers'
+		);
+	});
 });

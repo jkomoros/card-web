@@ -12,6 +12,7 @@ import {
 import {
 	CARD_FILTER_DESCRIPTIONS,
 	CONFIGURABLE_FILTER_INFO,
+	NONE_FILTER_NAME,
 	SELECTED_FILTER_NAME,
 	TODO_COMBINED_FILTER_NAME,
 	parseRelativeDateParts,
@@ -184,7 +185,24 @@ const decoded = (value: string): string => {
 const FILTER_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
 	[SELECTED_FILTER_NAME]: 'Selected Cards',
 	[TODO_COMBINED_FILTER_NAME]: 'Has any TODO',
+	//`none` is a router placeholder, not a filter anyone composed. It should
+	//never reach a draft now that history refuses to record it, but a hand-typed
+	//route or an old bookmark still can — and humanize() rendered it as the bare
+	//word 'None', which reads like a real, chosen condition. Named and explained,
+	//it reads as what it is.
+	[NONE_FILTER_NAME]: 'Nothing (placeholder)',
 };
+
+//Clauses the app can produce but the composer cannot meaningfully edit, each
+//with the sentence that says why it is there and what to do about it. The spec
+//("Unknown and unsupported source") asks for exactly this shape: a readable
+//name plus a line of explanation, never a raw identifier on its own.
+const UNSUPPORTED_FILTER_EXPLANATIONS: Record<string, string> = {
+	[NONE_FILTER_NAME]: 'The app puts this in a route that names no collection yet. It matches no cards, so remove it to see anything.',
+};
+
+export const collectionFilterExplanation = (filter: string): string =>
+	UNSUPPORTED_FILTER_EXPLANATIONS[filter] || '';
 
 const DATE_FILTER_DISPLAY_NAMES: Record<string, string> = {
 	updated: 'Updated',
@@ -682,7 +700,9 @@ export const readableCollectionExpression = (
 
 export type CollectionExpressionParts = {
   set: { raw: string; label: string };
-  filters: Array<{ raw: string; label: string; index: number }>;
+  //`explanation` is non-empty only for a clause the composer cannot edit, and
+  //carries the sentence that says why it is in the draft at all.
+  filters: Array<{ raw: string; label: string; index: number; explanation: string }>;
   modifiers: string[];
 };
 
@@ -701,7 +721,7 @@ export const collectionExpressionParts = (
 	}
 	return {
 		set: {raw: description.set, label: collectionOptionDisplayName(description.set)},
-		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels)})),
+		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels), explanation: collectionFilterExplanation(raw)})),
 		modifiers,
 	};
 };

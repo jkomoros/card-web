@@ -8,7 +8,8 @@ import {
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
 	QUERY_FILTER_NAME,
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	NONE_FILTER_NAME
 } from './filter-constants.js';
 
 // Re-export for external use
@@ -21,7 +22,8 @@ export {
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
 	QUERY_FILTER_NAME,
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	NONE_FILTER_NAME
 };
 
 import {
@@ -231,7 +233,6 @@ export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, desc
 //If filter names have this character in them then they're actually a union of
 //the filters (re-exported from filter-constants.js at top of file)
 
-export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);

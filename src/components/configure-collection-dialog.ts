@@ -1524,6 +1524,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//glyph says where its own navigate control goes. That also retires the
 	//uncomfortable half of the old arrangement, where the accessible name had to
 	//be pinned STATIC against a visible label that kept changing — with no
+			<!-- Visible, not a title: hover is unreachable on touch (§3.6.4),
+			     and a clause the user cannot edit is exactly the one that has to
+			     explain itself. Empty for every ordinary clause. -->
+			${expressionParts.filters.filter(filter => filter.explanation).map(filter => html`
+				<div class='suggestion-detail unsupported-clause'>${filter.label}: ${filter.explanation}</div>
+			`)}
 	//label, the two can simply agree.
 	//
 	//When there is no count and none is arriving the readout is EMPTY, not the

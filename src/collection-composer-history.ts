@@ -1,4 +1,5 @@
 import { CollectionDescription } from './collection_description.js';
+import { NONE_FILTER_NAME } from './filter-constants.js';
 import {
 	collectionDescriptionHasRelativeDateMemory,
 	collectionDescriptionWithRelativeDateMemory,
@@ -20,6 +21,18 @@ export type RememberedCollectionEntry = RecentCollectionEntry & {
   frequent?: boolean;
   relative?: boolean;
 };
+
+//`none` is not a collection anybody chose. actions/collection.ts installs it as
+//a PLACEHOLDER while a card-link redirect resolves — a description that matches
+//no cards and exists for about one dispatch. Recorded as a visit it became
+//permanent: CONTINUE offered 'Open Main AND None · 0 cards' forever, with a chip
+//that read the bare word 'None'.
+//
+//The check lives HERE rather than at the one call site, so every future caller
+//of recordRecentCollection inherits it, and it runs on READ as well as on write
+//so an already-poisoned localStorage heals itself the next time it is opened.
+export const collectionDescriptionIsPlaceholder = (description: CollectionDescription): boolean =>
+	description.filters.includes(NONE_FILTER_NAME);
 
 export const collectionDescriptionActuallyVisited = (
 	requested: CollectionDescription,
@@ -52,6 +65,8 @@ const normalizedEntry = (value: unknown): RecentCollectionEntry | null => {
 	try {
 		const description = CollectionDescription.deserialize(candidate.authoring);
 		if (description.serialize() !== candidate.canonical) return null;
+		//Pruned on read, so a list poisoned before this guard existed heals.
+		if (collectionDescriptionIsPlaceholder(description)) return null;
 		const relativeDescription = candidate.relativeAuthoring ? CollectionDescription.deserialize(candidate.relativeAuthoring) : null;
 		if (relativeDescription && relativeDescription.serialize() !== candidate.relativeCanonical) return null;
 		return {
@@ -233,6 +248,7 @@ export const recordRecentCollection = (
 	visitedAt = Date.now()
 ): void => {
 	if (typeof window === 'undefined') return;
+	if (collectionDescriptionIsPlaceholder(description)) return;
 	try {
 		const key = storageKey(scope);
 		const pending = pendingWrites.get(key);

@@ -1879,6 +1879,72 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred']);
 	});
+	//A `none` clause is the router's placeholder for a route that names no
+	//collection. It should never reach a draft now, but a hand-typed route or an
+	//old bookmark still can — and it used to render as the bare word 'None',
+	//which reads like a condition somebody chose.
+	it('names and explains a placeholder clause instead of showing the raw word', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		await dialog.updateComplete;
+		dialog._collectionDescription = CollectionDescription.deserialize('main/none/');
+		dialog.requestUpdate();
+		await settleRender(dialog);
+		const chip = dialog.shadowRoot.querySelector('.expression-clause-label');
+		assert.ok(chip);
+		assert.strictEqual(chip.textContent.trim(), 'Nothing (placeholder)');
+		assert.notStrictEqual(chip.textContent.trim(), 'None');
+		const explanation = dialog.shadowRoot.querySelector('.unsupported-clause');
+		assert.ok(explanation, 'a clause the composer cannot edit has to say why it is there');
+		assert.match(explanation.textContent, /matches no cards/i);
+	});
+
+	it('never offers a none placeholder as somewhere to continue', async () => {
+		await seedRecents([['main/none/', 9], ['everything/starred/', 2]]);
+		const labels = suggestionLabels();
+		assert.ok(labels.length, 'the list must actually have rows to check');
+		assert.ok(!labels.some((label) => /\bNone\b/.test(label)),
+			'a poisoned recent must never reach the CONTINUE list');
+		assert.ok(!labels.some((label) => label.includes('Nothing (placeholder)')),
+			'and not under its readable name either — it is not a destination at all');
+		assert.ok(labels.some((label) => label.includes('Starred')),
+			'while the real recent beside it survives');
+	});
+
+	//THE MOBILE TOOLBAR MUST NOT LOSE CONTROLS.
+	//
+	//Live review at 375px: ten round buttons in a nowrap row with overflow
+	//visible, inside a column that centres its children — the row was far wider
+	//than the viewport and centring pushed its left edge off screen. The first
+	//item, the composer's own 'Compose collection' button, measured x=-107.
+	//JSDOM computes no layout, so what is pinned is the rule that makes the
+	//overflow impossible, read off the real registered component.
+	it('wraps the mobile card-stage toolbar instead of pushing controls off screen', async () => {
+		await import('../../lib/src/components/card-stage.js');
+		const CardStage = customElements.get('card-stage');
+		assert.ok(CardStage, 'card-stage must be registered');
+		const styles = CardStage.styles.map((sheet) => String(sheet.cssText || '')).join('\n');
+		const mobileToolbar = styles.match(/\.mobile \[name="actions"\]\s*\{[^}]*\}/);
+		assert.ok(mobileToolbar, 'the mobile toolbar needs a rule of its own');
+		assert.match(mobileToolbar[0], /flex-wrap:\s*wrap/,
+			'controls that do not fit must move to the next row, not off the screen');
+		assert.match(mobileToolbar[0], /max-width:\s*100%/,
+			'and the row must be bounded, or centring pushes its left edge negative');
+		assert.match(styles, /\.mobile \[name="actions"\]::slotted\(\*\)\s*\{[^}]*max-width:\s*100%/,
+			'each slotted group is bounded too, so a single wide group wraps inside itself');
+
+		//And the composer's own entry point is one of the controls in that row.
+		//card-view cannot be mounted in this harness, so its placement is pinned
+		//against the source the way the other card-view properties here are.
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
+		const start = source.indexOf('class=\'collection-mobile\'');
+		assert.ok(start >= 0, 'the compose control must live in the actions toolbar');
+		assert.match(source.slice(start - 200, start), /slot='actions'/);
+		assert.match(source.slice(start, start + 400), /aria-label='Compose collection'/);
+		assert.match(styles, /\.mobile \[name="actions"\]::slotted\(\*\)\s*\{[^}]*font-size/,
+			'the existing mobile sizing survives the wrap');
+	});
+
 	//THE MOBILE TOOLBAR MUST NOT LOSE CONTROLS.
 	//
 	//Live review at 375px: ten round buttons in a nowrap row with overflow
