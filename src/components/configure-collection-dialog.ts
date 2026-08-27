@@ -866,9 +866,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			/* The catalog's own scroller is nested two levels below the dialog
 			   body, so the intervening wrapper has to pass the available height
-			   down instead of shrink-wrapping its content. */
+			   down instead of shrink-wrapping its content. hidden, not visible:
+			   a flex item that has been shrunk still PAINTS its overflow, and
+			   an unclipped one hit-tests over whatever the footer draws. */
 			.builder-catalog {
 				flex: 1 1 0;
+				overflow: hidden;
+			}
+
+			/* THE CLAUSE EDITOR IS A BOUNDED PANE, NOT LOOSE CONTENT.
+			   Live review: with a date-range clause plus two more, the
+			   262px 'Editing Updated between…' panel ran past the bottom of a
+			   720px dialog. It was a flex item with no bound and no clipping,
+			   so it shrank to nothing in layout while still painting at full
+			   height — and .composer-actions, laid out after it, hit-tested
+			   ABOVE both date inputs. The fields were click-dead and 'Done
+			   editing' and 'Remove filter' rendered where nothing paints.
+			   Bounding this container (it takes .scroller, per the #759
+			   convention for a deliberate inner pane) means the editor's own
+			   content scrolls INSIDE the dialog body and can never reach the
+			   footer's box, so every control in it is clickable at 720px. */
+			.builder-clause {
+				flex: 1 1 0;
+				min-height: 6em;
+				overscroll-behavior: contain;
 			}
 
 			.catalog-setup,
@@ -942,9 +963,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			/* And this one is the last thing in a scrolling workspace, so it
 			   needs its own top rule of space and the iOS safe-area inset under
-			   it. Everything else comes from .buttons. */
+			   it. Everything else comes from .buttons.
+
+			   flex: 0 0 auto is load-bearing, not cosmetic: the footer is a
+			   sibling of the editor panes above it, and its room must be
+			   RESERVED out of theirs. Left shrinkable it gave up its own height
+			   to a growing editor and the two ended up sharing pixels. */
 			.buttons.composer-actions {
 				align-items: center;
+				flex: 0 0 auto;
 				gap: 0.5em;
 				margin-top: 0.75em;
 				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
@@ -1520,7 +1547,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
 			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
-			${this._builderExpanded ? html`<div class='builder'>${this._selectedClauseEditorRender()}</div>` : ''}
+			${this._builderExpanded ? html`<div class='builder builder-clause scroller'>${this._selectedClauseEditorRender()}</div>` : ''}
 			${this._openActionRender(
 		draftCount,
 		this._activationPending,

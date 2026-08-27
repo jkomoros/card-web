@@ -1924,6 +1924,49 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred']);
 	});
+	//THE CLAUSE EDITOR IS A BOUNDED PANE.
+	//
+	//Live review: the 'Editing Updated between…' panel measured 262px inside a
+	//720px dialog and ran past its bottom; .composer-actions, laid out after it,
+	//hit-tested ABOVE both date inputs, so the fields were click-dead and 'Done
+	//editing' and 'Remove filter' rendered where nothing paints. JSDOM computes
+	//no layout, so the STRUCTURE that makes the overlap impossible is what is
+	//pinned: the editor is its own scroll container, and the footer is not
+	//inside it and cannot be squeezed out of its own room.
+	it('keeps the clause editor inside a bounded pane, with the footer out of its flow', async () => {
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		await typeInto(input, 'star');
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+		await settleRender(dialog);
+		dialog.shadowRoot.querySelector('.expression-clause-label').click();
+		await settleRender(dialog);
+
+		const editor = dialog.shadowRoot.querySelector('.clause-editor');
+		assert.ok(editor, 'the clause editor must be on screen');
+		const pane = editor.closest('.builder');
+		assert.ok(pane, 'the editor lives in a builder region');
+		assert.ok(pane.classList.contains('scroller'),
+			'that region must be a bounded scroll container, not loose content that overflows the dialog');
+
+		const footer = dialog.shadowRoot.querySelector('.buttons.composer-actions');
+		assert.ok(footer);
+		assert.strictEqual(footer.closest('.builder'), null,
+			'the footer must be outside the editor pane, never a sibling it can paint over');
+		assert.ok(footer.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_PRECEDING,
+			'and it must come after it, so its room is reserved rather than borrowed');
+		//Both controls the review found unreachable are inside the bounded pane.
+		assert.match(pane.textContent, /Done editing/);
+		assert.match(editor.querySelector('configure-collection-filter').shadowRoot.textContent, /Remove filter/);
+
+		const styles = dialog.constructor.styles.map((sheet) => String(sheet.cssText || '')).join('\n');
+		assert.match(styles, /\.builder-clause\s*\{[^}]*flex:\s*1 1 0/,
+			'the pane takes the room the dialog body has left rather than its content height');
+		assert.match(styles, /\.buttons\.composer-actions\s*\{[^}]*flex:\s*0 0 auto/,
+			'the footer never shrinks to make room for an editor');
+		assert.match(styles, /\.builder-catalog\s*\{[^}]*overflow:\s*hidden/,
+			'a shrunken flex item must clip rather than paint over what follows it');
+	});
+
 	//A `none` clause is the router's placeholder for a route that names no
 	//collection. It should never reach a draft now, but a hand-typed route or an
 	//old bookmark still can — and it used to render as the bare word 'None',
