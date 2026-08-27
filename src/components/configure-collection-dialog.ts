@@ -2521,6 +2521,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 						this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 						return true;
 					}
+					//Source is a LAYER too, and Escape peels it exactly like the
+					//catalog above. It used to close the whole dialog and take
+					//the typed source with it — which the spec's "Error
+					//recovery" forbids outright: switching back must not lose
+					//invalid text. Nothing is committed and nothing is
+					//confirmed; _sourceInput stays in component state, so
+					//re-entering Source restores what was typed, to the
+					//character. A third Escape, from the quick composer, closes
+					//as it always did.
+					if (this._entryMode === 'source') {
+						store.dispatch(openConfigureCollectionDialog('compose'));
+						this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+						return true;
+					}
 					return false;
 				},
 			});

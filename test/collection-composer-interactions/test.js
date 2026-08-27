@@ -2121,6 +2121,54 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(shiftTab.defaultPrevented, false);
 	});
 
+	//ESCAPE PEELS SOURCE, IT DOES NOT CLOSE OVER IT.
+	//
+	//Spec, "Error recovery": switching back must not lose invalid text. Escape
+	//used to close the whole dialog from Source, discarding whatever had been
+	//typed with no confirmation and no way back.
+	it('peels Source back to the quick composer, keeping what was typed', async () => {
+		const input = await openSourceMode();
+		await typeInto(input, 'updated/before/');
+		//First Escape dismisses the completion list, exactly as it did before.
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-completions'), null);
+		assert.strictEqual(dialog._entryMode, 'source');
+
+		//Second Escape returns to the quick composer. The dialog stays open and
+		//nothing is confirmed — the text is invalid, and that is allowed.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._entryMode, 'compose');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
+			'the dialog stays open; Source is a layer, not the dialog');
+		assert.ok(dialog.shadowRoot.querySelector('#collection-composer-input'));
+
+		//Re-entering Source restores exactly what was typed, to the character.
+		Array.from(dialog.shadowRoot.querySelectorAll('button'))
+			.find((button) => button.textContent.includes('Edit source')).click();
+		await dialog.updateComplete;
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._entryMode, 'source');
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-input').value, 'updated/before/',
+			'nothing was lost, and nothing had to be confirmed');
+	});
+
+	it('closes on the Escape after the one that peeled Source', async () => {
+		const input = await openSourceMode();
+		await typeInto(input, '/c/everything/starred/');
+		//Valid source offers no completions to dismiss, so the first Escape is
+		//the one that peels.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._entryMode, 'compose');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+		assert.strictEqual(window.location.pathname, '/c/main/');
+	});
+
 	//THE CLAUSE EDITOR IS A BOUNDED PANE.
 	//
 	//Live review: the 'Editing Updated between…' panel measured 262px inside a
