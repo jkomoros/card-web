@@ -35,6 +35,10 @@ import {
 } from '../shortcuts-data.js';
 
 import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
+
+import {
 	CardID,
 	CardType,
 } from '../types.js';
@@ -239,6 +243,27 @@ class CardDrawer extends LitElement {
 				width: 12em;
 			}
 
+			/* THE COUNT AND THE COLLECTION SENTENCE ARE ONE BLOCK.
+			   The sentence arrives through the visible-info slot, so the two
+			   were rendered by different components and looked it: a centred
+			   12em count on one row, a left-aligned sentence on the next, with
+			   a gap between them — an "N cards" floating above something
+			   unrelated, when N is precisely the number of cards that sentence
+			   describes. Sharing an alignment and closing the gap is what makes
+			   them read as one statement.
+			   Scoped to the composer, because the sentence only exists there;
+			   the legacy drawer keeps the centred count it has always had. */
+			#count.grouped {
+				text-align: left;
+				width: auto;
+				max-width: 13em;
+			}
+
+			#count.grouped > span {
+				display: block;
+				margin: 0 0.4em 0.15em;
+			}
+
 			#count .failure {
 				/* A computation THREW: that is a problem, so it takes the
 				   problem colour. It used to be amber to signal "nothing was
@@ -286,7 +311,7 @@ class CardDrawer extends LitElement {
 			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating && !this.failureMessage ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount && !this.failureMessage ? 'initial-load' : ''}'>
 				${this.updating && !this.failureMessage ? html`<loading-placeholder class='loading-pin' partial noun='cards'></loading-placeholder>` : ''}
 				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
-					<div class='label' id='count'>
+					<div class='label ${collectionComposerEnabled() ? 'grouped' : ''}' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' title=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-label=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-expanded=${this.infoExpanded ? 'true' : 'false'} @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							${this.failureMessage

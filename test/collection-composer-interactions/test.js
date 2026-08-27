@@ -2976,4 +2976,62 @@ describe('Collection Composer interactions', () => {
 			'the whole path is selected, so the next keystroke replaces it');
 		window.history.replaceState({}, '', '/c/main/');
 	});
+
+	//THE PERSISTENT COLLECTION SENTENCE, in the drawer.
+	//
+	//card-view cannot be mounted in this harness, so these are source pins, the
+	//same idiom the card-stage toolbar test above uses.
+	//
+	//The whole sentence rendered as one flat interpolation, so AND and
+	//"sorted by" carried the same weight as the clause names they join — the
+	//spec makes operators quiet textual structure, and the composer's own draft
+	//has said so since the last wave. The copy-link glyph was centred against a
+	//block that is one line for Everything and three for anything else, so it
+	//floated in the middle of a wrapped paragraph. And the card count sat in a
+	//centred row above a left-aligned sentence, reading as unrelated to the
+	//sentence whose cards it is counting.
+	it('renders the drawer collection sentence with quiet operators, beside its count', async () => {
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
+		assert.match(source, /collectionExpressionParts/,
+			'the sentence is built from parts, so operators can be styled apart from clauses');
+		assert.match(source, /class='collection-summary-operator'/);
+		assert.match(source, /\.collection-summary-operator\s*\{[^}]*color:\s*var\(--app-dark-text-color-light\)/,
+			'the operators step down to the subordinate colour');
+		assert.match(source, /\.collection-summary\s*\{[^}]*align-items:\s*start/,
+			'the copy-link glyph sits on the sentence’s first line, not centred over a wrapped block');
+
+		const drawer = await readFile(path.join(REPO_ROOT, 'src/components/card-drawer.ts'), 'utf8');
+		assert.match(drawer, /#count\.grouped\s*\{[^}]*text-align:\s*left/,
+			'the count shares the sentence’s alignment');
+		assert.match(drawer, /collectionComposerEnabled\(\) \? 'grouped' : ''/,
+			'and only where the sentence exists — the legacy drawer keeps its centred count');
+	});
+
+	//EMPTY-STATE HIERARCHY. The three elements arrived in inverse order of
+	//importance: a filled purple Refine button out-shouted everything, the
+	//sentence that says WHAT is absent was at body size, and the expression —
+	//the thing a user would have to change — was the smallest text on an
+	//otherwise empty stage.
+	it('leads the empty state with what is absent, not with the button', async () => {
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
+		const rule = (selector) => {
+			const match = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(source);
+			assert.ok(match, `${selector} must have a rule`);
+			return match[1];
+		};
+		const message = rule('.collection-empty-message');
+		assert.match(message, /font-size:\s*1\.3em/, 'the heading leads');
+		assert.match(message, /font-family:\s*var\(--app-header-font-family\)/,
+			'§4.3 gives a title moment the display family');
+		const expression = rule('.collection-empty-expression');
+		assert.match(expression, /font-size:\s*0\.95em/, 'the expression is readable second');
+		assert.match(expression, /color:\s*var\(--app-dark-text-color-darker\)/,
+			'and readable at all — the light token is ~2.3:1 on white');
+		const refine = rule('.collection-empty-refine');
+		assert.match(refine, /font-size:\s*0\.85em/, 'the gate is present, not dominant');
+		assert.match(refine, /min-height:\s*44px/, 'and still a 44px hit target (§4.2)');
+		//The variant itself is right and stays: §4.2 names the filled text
+		//button for a gate, and taking it fixed purple-on-dark-grey.
+		assert.match(source, /class='text collection-empty-refine'/);
+	});
 });

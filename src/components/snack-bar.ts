@@ -91,9 +91,19 @@ class SnackBar extends connect(store)(LitElement) {
 			/* The flex lives HERE, on the actual list of toasts. On :host it
 			   applied to the live-region divs instead, so gap never separated
 			   anything and column-reverse only swapped the two regions. */
+			/* ONE STACK, ONE LEFT EDGE. The host sits in a flex-end column
+			   (card-web-app's .banners), so it is sized to fit its content —
+			   and each toast then sized itself, leaving three messages of
+			   different lengths hanging off a shared right edge with three
+			   different left edges. That reads as three unrelated boxes rather
+			   than one stack. This is the file's own sizing decision restated
+			   one level down rather than reversed: the host still shrinks to the
+			   widest message (the comment above records why a fixed width was
+			   wrong), and every toast now takes exactly that width. */
 			.toasts {
 				display: flex;
 				flex-direction: column-reverse;
+				align-items: stretch;
 				gap: 0.5rem;
 			}
 
@@ -124,6 +134,10 @@ class SnackBar extends connect(store)(LitElement) {
 			   var(--card-shadow) and square, like cards, dialogs and
 			   progress-panel. */
 			.toast {
+				/* The other half of the one-left-edge rule above: an explicit
+				   full width cannot be defeated by a shrink-to-fit path. */
+				box-sizing: border-box;
+				width: 100%;
 				pointer-events: auto;
 				background-color: var(--card-color);
 				color: inherit;

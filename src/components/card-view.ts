@@ -131,6 +131,7 @@ import {
 } from '../collection-composer-mode.js';
 
 import {
+	collectionExpressionParts,
 	readableCollectionExpression,
 } from '../collection-composer-suggestions.js';
 
@@ -596,12 +597,21 @@ class CardView extends connect(store)(PageViewElement) {
 				vertical-align: middle;
 			}
 
+			/* align-items: start, not center. The copy-link glyph is a 44px
+			   square beside a block that is one line when the collection is
+			   Everything and three when it is not, so centring floated it in
+			   the middle of a wrapped paragraph with nothing beside it. Aligned
+			   to the top it sits on the sentence's FIRST line, which is where
+			   the thing it copies begins.
+			   The top margin is gone: the card count directly above is part of
+			   the same block now (card-drawer groups them), and a gap there was
+			   what made the count read as an unrelated row. */
 			.collection-summary {
 				display: grid;
 				grid-template-columns: minmax(0, 1fr) 44px;
-				align-items: center;
+				align-items: start;
 				gap: 0.15em;
-				margin: 0.35em 0.4em 0.65em;
+				margin: 0 0.4em 0.65em;
 				text-align: left;
 			}
 
@@ -627,6 +637,14 @@ class CardView extends connect(store)(PageViewElement) {
 				overflow: hidden;
 				font-size: 0.82em;
 				line-height: 1.25;
+			}
+
+			/* The operators are structure, not content: they take the same
+			   subordinate step down the composer's own .expression-operator
+			   takes, so the clause names are what the eye lands on. */
+			.collection-summary-operator {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.85em;
 			}
 
 			/* The summary is ~133px wide, so anything past two clauses is
@@ -655,20 +673,38 @@ class CardView extends connect(store)(PageViewElement) {
 				text-align: center;
 			}
 
+			/* THE HEADING LEADS. The three elements of this state arrived in
+			   inverse order of importance: the filled purple Refine button
+			   out-shouted everything, the sentence that says WHAT is absent was
+			   at body size, and the expression — the thing the user would have
+			   to change — was the smallest text on the screen.
+			   The heading takes the display family §4.3 reserves for title
+			   moments, which is what this is: it is the only thing on an
+			   otherwise empty stage. */
 			.collection-empty-message {
 				color: var(--app-dark-text-color);
+				font-family: var(--app-header-font-family);
+				font-size: 1.3em;
 			}
 
+			/* Readable second, and readable at all: --app-dark-text-color-light
+			   is ~2.3:1 on white, and this line is the one a user has to read to
+			   know what to change. */
 			.collection-empty-expression {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.8em;
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.95em;
 				overflow-wrap: anywhere;
 			}
 
 			/* Colour, background and margin all come from button.text now; what
 			   is left is the 44px hit target (§4.2), which that variant does not
-			   carry. */
+			   carry, and a step down in scale. The variant is right — this is a
+			   gate, and §4.2 names the filled text button for exactly that — but
+			   a gate is an offer, not the headline, and at body scale a filled
+			   purple block was the loudest thing in the state. */
 			.collection-empty-refine {
+				font-size: 0.85em;
+				margin-top: 0.35em;
 				min-height: 44px;
 			}
 
@@ -834,7 +870,19 @@ class CardView extends connect(store)(PageViewElement) {
 							aria-label=${`Refine collection: ${readableCollectionExpression(this._collection.description)}`}
 							@click=${this._handleConfigureCollectionClicked}
 						>
-							<span class='collection-summary-expression'>${readableCollectionExpression(this._collection.description)}</span>
+							<!-- STRUCTURE, NOT ONE FLAT STRING. The whole sentence
+							     rendered at one weight, so "AND" and "sorted by"
+							     read as loudly as the clause names they join —
+							     the operators are quiet textual structure, per
+							     the spec's expression rules, and the composer's
+							     own draft has said so since the last wave. Same
+							     parts function it uses, so the two surfaces
+							     cannot drift into two readings of one
+							     collection. -->
+							<span class='collection-summary-expression'>${(() => {
+		const parts = collectionExpressionParts(this._collection.description);
+		return html`<span class='collection-summary-clause'>${parts.set.label}</span>${parts.filters.map(filter => html`<span class='collection-summary-operator'> AND </span><span class='collection-summary-clause'>${filter.label}</span>`)}${parts.modifiers.length ? html`<span class='collection-summary-operator'> · ${parts.modifiers.join(' · ')}</span>` : ''}`;
+	})()}</span>
 							<span class='collection-summary-action'>${
 	this._collection.description.filters.length ||
 								this._collection.description.set !== 'main' ||

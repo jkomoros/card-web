@@ -96,28 +96,28 @@ class CardWebApp extends connect(store)(LitElement) {
 		_updateRegistration : ServiceWorkerRegistration | null = null;
 
 	@state()
-	_unsafeExitReason = '';
+		_unsafeExitReason = '';
 
 	@state()
-	_draftAvailable = false;
+		_draftAvailable = false;
 
 	@state()
-	_draftBusy = false;
+		_draftBusy = false;
 
 	@state()
 		_draftCount = 0;
 
 	@state()
-	_draftError = '';
+		_draftError = '';
 
 	@state()
-	_saveStatus : 'idle' | 'saving' | 'paused' = 'idle';
+		_saveStatus : 'idle' | 'saving' | 'paused' = 'idle';
 
 	@state()
-	_saveError = '';
+		_saveError = '';
 
 	@state()
-	_saveIsMulti = false;
+		_saveIsMulti = false;
 
 	@state()
 	private _updateReloading = false;
@@ -129,6 +129,12 @@ class CardWebApp extends connect(store)(LitElement) {
 	//same bottom-right corner these banners use.
 	@state()
 	private _editorOpen = false;
+
+	//Drives .banners.mobile. The card stage's action row is the app's only
+	//navigation on a phone and it lives at the bottom of the stage, so this
+	//column has to sit above it rather than on top of it.
+	@state()
+	private _mobileMode = false;
 
 	private _lastDraftUid = '';
 	//The card whose draft the banner is currently showing; Recover/Discard
@@ -296,6 +302,25 @@ class CardWebApp extends connect(store)(LitElement) {
 				bottom: 4.25rem;
 			}
 
+			/* THE ONLY NAVIGATION A PHONE HAS MUST NOT BE COVERED.
+			   On mobile the card stage's action row is the app's whole toolbar,
+			   and it sits at the bottom of the stage — exactly where this
+			   bottom-anchored column draws. A receipt toast lives for seconds
+			   at a time, and for all of them it took the toolbar with it. Same
+			   class of bug as the three corner collisions this file already
+			   records, and the worst instance of it: the composer's own
+			   'Compose collection' button is in that row, so the surface that
+			   produced the toast was the one it hid.
+			   5.5rem is measured from what it has to clear: the toolbar wraps
+			   at 375px (card-stage), so two rows of 2.75em round buttons at the
+			   0.8em mobile scale is ~4.4rem, plus the 0.75rem this column
+			   already leaves at the desktop offset, rounded up. It is stated
+			   AFTER .editor-open so it wins for both — 5.5rem clears the
+			   editor's Save/Cancel row too. */
+			.banners.mobile {
+				bottom: calc(5.5rem + env(safe-area-inset-bottom));
+			}
+
 			.update-ready {
 				pointer-events: auto;
 				z-index: 950;
@@ -459,7 +484,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		return html`
 		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
-		<div class='banners ${this._editorOpen ? 'editor-open' : ''}'>
+		<div class='banners ${this._editorOpen ? 'editor-open' : ''} ${this._mobileMode ? 'mobile' : ''}'>
 			<!-- FIRST, not last. The column is bottom-anchored, so a child added
 			     at the END pushes everything above it up: with the snack bar
 			     there, every ordinary toast shifted the persistent banners 48px
@@ -490,8 +515,8 @@ class CardWebApp extends connect(store)(LitElement) {
 			<div class='save-status ${this._saveStatus}' data-corpus-gate-keep-interactive role='status' aria-live='polite' title=${this._saveError}>
 				<span class='save-dot' aria-hidden='true'></span>
 				<span>${this._saveStatus === 'saving'
-					? this._saveIsMulti ? 'Saving cards…' : 'Saving card…'
-					: this._saveIsMulti ? 'Multi-edit paused' : 'Save paused'}</span>
+		? this._saveIsMulti ? 'Saving cards…' : 'Saving card…'
+		: this._saveIsMulti ? 'Multi-edit paused' : 'Save paused'}</span>
 				<!-- The reason was only in the title attribute, i.e. hover-only
 				and unreachable on touch, while the visible text was a fixed
 				string. Show it. -->
@@ -813,6 +838,8 @@ class CardWebApp extends connect(store)(LitElement) {
 		this._persistentErrors = state.errors.errors;
 		this._card = selectActiveCard(state);
 		this._editorOpen = Boolean(state.editor?.editing);
+		//§4.6: one breakpoint, threaded down as a property, never a CSS query.
+		this._mobileMode = Boolean(state.app.mobileMode);
 		this._page = state.app.page;
 		this._offline = state.app.offline;
 		const uid = selectUid(state);
