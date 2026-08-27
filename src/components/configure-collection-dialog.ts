@@ -234,6 +234,26 @@ const CURRENT_DRAFT_SUGGESTION_ID = 'current-draft';
 
 const ALREADY_ACTIVE_MESSAGE = 'This collection is already open.';
 
+//Sentence case, honest about the reason, and it names what the key the user
+//actually has does instead (HS-2.3, §3.5: a refusal reports and offers the
+//next move). U+2019 apostrophe (§2.2).
+const NEW_TAB_UNSUPPORTED_NOTE = 'Opening in a new tab isn’t supported — Enter opens here.';
+
+//A keystroke that has already been spent on a commit.
+//
+//The composer has two commit handlers — one per mode — and they are mutually
+//exclusive by mode. That is not enough on its own: a commit flips the mode
+//SYNCHRONOUSLY (cancelConfigureCollectionDialog runs stateChanged before it
+//returns), so an Enter that reaches the second handler after the first has
+//acted finds exactly the mode that handler wants and commits again. The live
+//review caught the result: one Enter in Source mode pushed the source's
+//destination AND then opened the quick composer's first recents row, leaving a
+//receipt that named a collection the user never chose.
+//
+//The EVENT is the only identity a commit cannot change under us, so that is
+//what the single-flight is keyed on. A WeakSet keeps no keystroke alive.
+const committedKeystrokes = new WeakSet<KeyboardEvent>();
+
 //How many distinct collections' counts one composer session remembers. Every
 //keystroke can name a few new ones; this is generous for a session and small
 //enough to be free.
@@ -519,6 +539,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_activationMessage = '';
+
+	//A note about a KEY, not about the collection: it explains a modifier the
+	//composer deliberately does nothing with, so it lives beside the key hints
+	//rather than in the activation line, which is reserved for what did or did
+	//not happen to a navigation.
+	@state()
+		_modifierNote = '';
+
+	_newTabNoteShown = false;
 
 	@state()
 		_selectedClauseIndex = -1;
@@ -1190,6 +1219,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					<div><button class='small verb' @click=${() => this._sourceReturnWarning = false}>Keep editing</button><button class='small verb' @click=${this._returnToLastValidSource}>Return to last valid collection</button></div>
 				</div>
 			` : ''}
+			${this._modifierNoteRender()}
 			<div class='mode-actions'>
 				<button class='small verb' @click=${this._handleBackToCompose}>Edit visually</button>
 				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? `↑↓ Choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` : `↑↓ Choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`) : (parsed.status === 'valid' ? `Enter opens · ${shortcutKeys('dialog-escape')} cancels` : `Keep editing · ${shortcutKeys('dialog-escape')} cancels`)}</span>
@@ -1542,6 +1572,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				highlighted.sourceFilter ? '↑↓ choose · Click, Tab, or Enter opens Source' :
 					highlighted.configureFilter ? '↑↓ choose · Click, Tab, or Enter configures' :
 						'↑↓ choose · Click or Tab adds · Enter adds and opens'}</div>
+			${this._modifierNoteRender()}
 			<div class='builder-toggle mode-actions'>
 				<button class='small verb' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
@@ -1555,6 +1586,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._handleOpenCurrentDraft
 	)}
 		`;
+	}
+
+	//BOTH modes explain an inert modifier the same way, in the same place: on
+	//the key-hints line, which is where the composer already states its key
+	//contract.
+	_modifierNoteRender() {
+		if (!this._modifierNote) return '';
+		return html`<div class='key-hints modifier-note' role='status'>${this._modifierNote}</div>`;
 	}
 
 	//BOTH modes commit through the same control, so it is described once.
@@ -1759,6 +1798,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_handleSourceKeyDown(e : KeyboardEvent) {
 		if (e.isComposing || e.keyCode === 229) return;
+		//Commit handling is MODE-EXCLUSIVE. Both halves of this pair decline
+		//outright when the composer is not in their mode, and decline a
+		//keystroke another handler has already spent.
+		if (this._entryMode !== 'source') return;
+		if (committedKeystrokes.has(e)) return;
+		if (e.key === 'Enter' && e.shiftKey) {
+			this._refuseNewTab(e);
+			return;
+		}
 		const parsed = this._parsedSource;
 		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
 		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || parsed.nextExpected || []);
@@ -1768,7 +1816,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._sourceCompletionIndex = (this._sourceCompletionIndex + direction + completions.length) % completions.length;
 			return;
 		}
-		if (completions.length && (e.key === 'Tab' || (e.key === 'Enter' && completionDiagnostic))) {
+		//Shift-Tab is reverse focus traversal, here as everywhere else: it must
+		//not accept a completion any more than it materializes a suggestion in
+		//the quick composer.
+		if (completions.length && ((e.key === 'Tab' && !e.shiftKey) || (e.key === 'Enter' && completionDiagnostic))) {
 			e.preventDefault();
 			this._acceptSourceCompletion(completions[this._sourceCompletionIndex]);
 			return;
@@ -1781,7 +1832,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		if (e.key !== 'Enter') return;
 		e.preventDefault();
-		if (parsed.status === 'valid') this._handleOpenSource();
+		//The other half of "mode-exclusive": the keystroke stops here rather
+		//than continuing up the tree to whatever else is listening. #740's
+		//registry already declines a defaultPrevented event; this covers the
+		//local listeners it does not speak for.
+		e.stopPropagation();
+		if (parsed.status !== 'valid') return;
+		committedKeystrokes.add(e);
+		this._handleOpenSource();
 	}
 
 	_acceptSourceCompletion(completion : string) {
@@ -1872,9 +1930,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 	}
 
+	//Whether a destination names the collection already on screen. Collections
+	//are compared, not URL spellings: `/c/main/sort/default/` and `/c/` are the
+	//same collection said two ways, and navigatePathToResult only compares
+	//paths — so a textually different spelling of the active route pushed a
+	//duplicate history entry for a navigation that went nowhere.
+	//
+	//`selectedCard` is the card the destination would request, or null for a
+	//destination that carries its own path and so may legitimately be a real
+	//navigation to a different card within the same collection.
+	_destinationIsActiveCollection(description : CollectionDescription, selectedCard : string | null) : boolean {
+		if (selectActiveCollectionDescription(store.getState() as State).serialize() !== description.serialize()) return false;
+		return selectedCard === null || selectedCard === this._requestedCard;
+	}
+
 	_handleOpenSource() {
+		//Mode-exclusive: the Source commit belongs to Source mode only.
+		if (this._entryMode !== 'source') return;
 		const parsed = this._parsedSource;
 		if (parsed.status !== 'valid' || !parsed.description || !parsed.canonicalPath || this._activationPending) return;
+		//Spec ("Committing navigation"): a draft equivalent to the collection
+		//already open simply closes the composer — no push, no receipt. Source
+		//is a second spelling of the same draft and gets the same answer; it
+		//used to push, and then say "Now showing …" about a navigation that
+		//never happened.
+		if (this._destinationIsActiveCollection(parsed.description, parsed.selectedCardRaw)) {
+			store.dispatch(cancelConfigureCollectionDialog());
+			return;
+		}
 		this._activationPending = true;
 		this._activationMessage = '';
 		//Captured before the push, because that is what Undo returns to.
@@ -1922,6 +2005,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		if (e.isComposing || e.keyCode === 229) return;
+		//Commit handling is MODE-EXCLUSIVE; see _handleSourceKeyDown.
+		if (this._entryMode !== 'compose') return;
+		if (committedKeystrokes.has(e)) return;
+		if (e.key === 'Enter' && e.shiftKey) {
+			this._refuseNewTab(e);
+			return;
+		}
 		//A keystroke means the keyboard owns the highlight again: a resting
 		//pointer must not take it back when the list re-renders underneath.
 		this._pointerHighlightArmed = false;
@@ -1937,6 +2027,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			if (e.key === 'Enter' && items[this._catalogHighlightedIndex]) {
 				e.preventDefault();
 				e.stopPropagation();
+				committedKeystrokes.add(e);
 				this._handleCatalogItem(items[this._catalogHighlightedIndex]);
 				return;
 			}
@@ -2020,11 +2111,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			if (e.isComposing || e.keyCode === 229) return;
 			e.preventDefault();
 			e.stopPropagation();
+			committedKeystrokes.add(e);
 			//Spec: Enter opens the highlighted destination including its visible
 			//preview, or the current draft when no suggestion is highlighted.
 			if (highlighted) this._applyComposerSuggestion(highlighted, true);
 			else this._handleOpenCurrentDraft();
 		}
+	}
+
+	//Spec's keyboard table offers Shift-Enter as "open in a new browser tab, IF
+	//browser behavior can be supported safely". It cannot be: the app holds a
+	//one-active-tab ownership lease, so a second tab of the same corpus is
+	//precisely the state that lease exists to prevent. Silently treating the
+	//modifier as a plain Enter is the worst of the three options — the user asks
+	//for a new tab and gets a navigation in this one with no word about it.
+	//
+	//So the modifier is deliberately INERT on both commit paths, and says so
+	//once per composer session (a note repeated on every press would be nagging
+	//about a key the user is entitled to keep trying).
+	_refuseNewTab(e : KeyboardEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (this._newTabNoteShown) return;
+		this._newTabNoteShown = true;
+		this._modifierNote = NEW_TAB_UNSUPPORTED_NOTE;
 	}
 
 	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
@@ -2039,16 +2149,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (open) {
 			if (this._activationPending) return;
 			const isDraft = suggestion.id === CURRENT_DRAFT_SUGGESTION_ID;
-			//Compare collections, not URL spellings: /c/ and /c/main/ name the
-			//same collection, so the path comparison inside navigatePathToResult
-			//would push a duplicate history entry for the collection already on
-			//screen. A suggestion carrying its own destination path can still be
-			//a real navigation (a different selected card, say), so only the
-			//draft — whose selected card is checkable here — gets the semantic
+			//A suggestion carrying its own destination path can still be a real
+			//navigation (a different selected card, say), so only the draft —
+			//whose selected card is checkable here — gets the semantic
 			//comparison when a path is present.
 			const alreadyActive = (isDraft || !suggestion.destinationPath) &&
-				selectActiveCollectionDescription(store.getState() as State).serialize() === suggestion.description.serialize() &&
-				(!isDraft || this._draftSelectedCard === this._requestedCard);
+				this._destinationIsActiveCollection(suggestion.description, isDraft ? this._draftSelectedCard : null);
 			if (alreadyActive) {
 				//Spec: if the draft is equivalent to the active collection, Enter
 				//simply closes the composer. Choosing a *destination* that is
@@ -2314,6 +2420,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleOpenCurrentDraft() {
+		//Mode-exclusive: the draft commit belongs to the quick composer only.
+		if (this._entryMode !== 'compose') return;
 		this._applyComposerSuggestion({
 			id: CURRENT_DRAFT_SUGGESTION_ID,
 			kind: 'source',
@@ -2475,6 +2583,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._selectedClauseIndex = -1;
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';
+				//Once per composer session, not once per app lifetime: a user
+				//who comes back a week later has earned the explanation again.
+				this._modifierNote = '';
+				this._newTabNoteShown = false;
 				this._draftUndoDescription = null;
 				this._draftUndoSelectedCard = null;
 				this._sourceDirty = false;

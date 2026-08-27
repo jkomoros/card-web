@@ -1924,6 +1924,203 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred']);
 	});
+
+	//SOURCE MODE'S ENTER — the one keystroke the live review caught spending
+	//itself twice.
+	//
+	//Counting pushes rather than reading history.length: the assertion is about
+	//how many history entries a single Enter creates, and that is exactly what
+	//pushState calls are.
+	const countingPushes = async (body) => {
+		const original = window.history.pushState;
+		const pushed = [];
+		window.history.pushState = function (...args) {
+			pushed.push(args[2]);
+			return original.apply(this, args);
+		};
+		try {
+			await body(pushed);
+		} finally {
+			window.history.pushState = original;
+		}
+	};
+
+	const openSourceMode = async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
+		await dialog.updateComplete;
+		await dialog.updateComplete;
+		return dialog.shadowRoot.querySelector('#collection-source-input');
+	};
+
+	//Typed the way a user does rather than pasted over the top: the source editor
+	//auto-delimits a segment that EXTENDS what is already there, so assigning a
+	//value that happens to start with the current one produces an extra slash.
+	//Clearing first is what select-all-and-type does.
+	const typeInto = async (input, value) => {
+		input.value = '';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		input.value = value;
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+	};
+
+	const pressEnter = (element, overrides = {}) =>
+		element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...overrides }));
+
+	//Repro: on /c/main/, Edit source, type a DIFFERENT SPELLING of the same
+	//collection, press Enter once. It pushed /c/ and then let the quick
+	//composer's highlighted-suggestion Enter fire as well, landing somewhere the
+	//user never chose with a receipt that named it. Both halves are asserted
+	//here: zero pushes, and nothing said about a navigation that did not happen.
+	it('closes silently when Source names the collection already open, in any spelling', async () => {
+		for (const entry of [...store.getState().app.snackbars]) {
+			store.dispatch({ type: 'DISMISS_SNACKBAR', snackbarID: entry.id });
+		}
+		await seedRecents([['everything/sort/stars/', 9], ['main/starred/', 2]]);
+		const input = await openSourceMode();
+		await typeInto(input, '/c/main/sort/default/');
+		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /Ready to open/);
+		await countingPushes(async (pushed) => {
+			pressEnter(input);
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, [],
+				'a different spelling of the collection already open is not a navigation');
+		});
+		assert.strictEqual(window.location.pathname, '/c/main/');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+		assert.deepStrictEqual(store.getState().app.snackbars, [],
+			'nothing happened, so there is no receipt to show');
+	});
+
+	it('pushes exactly once from Source, and the receipt names that destination', async () => {
+		for (const entry of [...store.getState().app.snackbars]) {
+			store.dispatch({ type: 'DISMISS_SNACKBAR', snackbarID: entry.id });
+		}
+		//A populated CONTINUE list is what made the second, stolen navigation
+		//visible in the live app; seeding one keeps this test honest.
+		await seedRecents([['everything/sort/stars/', 9], ['main/starred/', 2]]);
+		const input = await openSourceMode();
+		await typeInto(input, '/c/everything/starred/');
+		await countingPushes(async (pushed) => {
+			pressEnter(input);
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, ['/c/everything/starred/'],
+				'one Enter is one history entry, and it is the one Source named');
+		});
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+		const snackbars = store.getState().app.snackbars;
+		assert.strictEqual(snackbars.length, 1);
+		assert.match(snackbars[0].message, /Now showing Everything AND Starred/,
+			'the receipt names the destination Source opened, not a suggestion row');
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
+	//The structural half of the same defect: a keystroke may never be consumed
+	//by two commit handlers. Both mode handlers decline a keystroke the other has
+	//already spent, and each declines outright while the composer is in the other
+	//mode — which is what a commit that flips the mode synchronously would
+	//otherwise defeat.
+	it('spends one keystroke on at most one commit', async () => {
+		//The live repro exactly: a populated CONTINUE list whose first row is a
+		//collection the user never chose, and a Source Enter that ended up
+		//opening it.
+		await seedRecents([['everything/sort/stars/', 9], ['main/starred/', 2]]);
+		const input = await openSourceMode();
+		await typeInto(input, '/c/everything/starred/');
+		const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+		await countingPushes(async (pushed) => {
+			input.dispatchEvent(enter);
+			await dialog.updateComplete;
+			dialog._suggestionHighlightActive = true;
+			dialog._highlightedSuggestion = 0;
+			//The same event, offered to the OTHER mode's handler exactly as the
+			//live app offered it. The commit closes the dialog, which flips
+			//_entryMode synchronously; and one Lit microtask later — which the
+			//browser runs BETWEEN two listeners of the same keydown — updated()
+			//clears the single-flight flag that would otherwise have caught the
+			//second commit. Reproduced here, both are already true when the
+			//second handler is reached.
+			dialog._entryMode = 'compose';
+			dialog._activationPending = false;
+			dialog._handleComposerKeyDown(enter);
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, ['/c/everything/starred/'],
+				'the second handler must decline a keystroke already spent');
+		});
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
+	//Shift-Enter. The spec offers a new tab "if browser behavior can be
+	//supported safely"; it cannot be — the app enforces a one-active-tab
+	//ownership lease — so the modifier is deliberately inert and says so.
+	//Silently aliasing Enter was the worst option: the user asks for a new tab
+	//and gets a navigation in this one with no word about it.
+	it('makes Shift-Enter inert, and says why once per composer session', async () => {
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		await typeInto(input, 'star');
+		await countingPushes(async (pushed) => {
+			pressEnter(input, { shiftKey: true });
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, [], 'Shift-Enter navigates nowhere');
+		});
+		assert.strictEqual(window.location.pathname, '/c/main/');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+		const note = dialog.shadowRoot.querySelector('.modifier-note');
+		assert.ok(note, 'an inert modifier must explain itself rather than do nothing');
+		assert.match(note.textContent, /Opening in a new tab isn’t supported — Enter opens here\./);
+		//And plain Enter still commits, so the note is about the modifier, not a
+		//new refusal of the key itself.
+		pressEnter(input);
+		await dialog.updateComplete;
+		assert.strictEqual(window.location.pathname, '/c/starred/');
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
+	it('makes Shift-Enter inert in Source mode too', async () => {
+		const input = await openSourceMode();
+		await typeInto(input, '/c/everything/starred/');
+		await countingPushes(async (pushed) => {
+			pressEnter(input, { shiftKey: true });
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, []);
+		});
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+		assert.ok(dialog.shadowRoot.querySelector('.modifier-note'));
+	});
+
+	//Shift+Tab is reverse focus traversal, everywhere. It must not materialize a
+	//suggestion into the draft the way Tab does; the dialog's own focus trap
+	//handles the wrapping.
+	it('leaves the draft alone on Shift+Tab', async () => {
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		await typeInto(input, 'star');
+		assert.match(highlightedRow().textContent, /Starred/);
+		const before = store.getState().collection.snapshot;
+		const shiftTab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+		input.dispatchEvent(shiftTab);
+		await dialog.updateComplete;
+		assert.strictEqual(store.getState().collection.snapshot, before,
+			'Shift+Tab must not materialize the highlighted row');
+		assert.strictEqual(dialog.shadowRoot.querySelector('.draft-receipt'), null,
+			'and it must not claim it replaced the draft');
+		assert.strictEqual(shiftTab.defaultPrevented, false,
+			'the browser keeps its own reverse-focus behavior');
+	});
+
+	it('leaves Source completions alone on Shift+Tab', async () => {
+		const input = await openSourceMode();
+		await typeInto(input, 'updated/before/');
+		const shiftTab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+		input.dispatchEvent(shiftTab);
+		await dialog.updateComplete;
+		assert.strictEqual(input.value, 'updated/before/',
+			'Shift+Tab must not accept a completion either');
+		assert.strictEqual(shiftTab.defaultPrevented, false);
+	});
+
 	//THE CLAUSE EDITOR IS A BOUNDED PANE.
 	//
 	//Live review: the 'Editing Updated between…' panel measured 262px inside a
