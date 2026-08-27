@@ -742,10 +742,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				border-bottom-color: var(--app-primary-color);
 			}
 
+			/* INSET, not offset. The input flexes to exactly the width of
+			   #inner, which is the dialog's scroll container, so an outline
+			   drawn 2px OUTSIDE it fell in the overflow on both sides and was
+			   clipped: the ring rendered as two disconnected purple bars above
+			   and below the field, which reads as a rendering fault rather
+			   than as focus. Drawn 2px inside its own box it is one
+			   rectangle, and it cannot be clipped by anything. */
 			.composer-input:focus-visible {
 				border-bottom-color: transparent;
 				outline: 2px solid var(--app-primary-color);
-				outline-offset: 2px;
+				outline-offset: -2px;
 			}
 
 			.draft-receipt {
@@ -802,6 +809,39 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0;
 			}
 
+			/* A SCROLL PANE HAS TO LOOK LIKE ONE, AND LAND ON WHOLE ROWS.
+			   Both long lists take the shared .scroller treatment, which on an
+			   overlay-scrollbar system is nothing at all — so a list of twelve
+			   showing five gave no sign the other seven existed, and the row at
+			   the boundary was cut through its own label.
+
+			   THE BOTTOM FADE IS THE AFFORDANCE, and it is self-limiting: both
+			   panes are flex: 1 1 0, so they are as tall as the dialog lets
+			   them be and their content only reaches the bottom edge when there
+			   is more of it than fits. A short list leaves blank space there
+			   and fades nothing. currentColor rather than a colour of any kind
+			   (§4.1): a mask reads the alpha channel, so the colour is
+			   irrelevant and naming a token here would be inventing a meaning
+			   for it.
+
+			   SCROLL-PADDING IS WHY A ROW LANDS WHOLE. It replaces the
+			   scroll-margin-top the row used to carry: the reason for the top
+			   value is unchanged — scrollIntoView({block:'nearest'}) scrolls to
+			   the row's own box, so the group heading above row 0 went out of
+			   view on the first arrow press and never came back, taking the
+			   CONTINUE label with it for the rest of the session — but the
+			   bottom edge needs the same reservation, and one property on the
+			   container states both without the two adding up. The bottom value
+			   is the fade, so a row scrolled to never lands underneath it. */
+			.suggestions,
+			.catalog-list {
+				--composer-edge-fade: 1.5em;
+				mask-image: linear-gradient(to bottom,
+					currentColor calc(100% - var(--composer-edge-fade)),
+					transparent 100%);
+				scroll-padding-block: 2.2em var(--composer-edge-fade);
+			}
+
 			/* ONE GRID FOR EVERY ROW IN THE DIALOG.
 			   The three lists that use .suggestion — the composer's
 			   suggestions, the source completions and the filter catalog —
@@ -828,12 +868,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				grid-template-columns: minmax(0, 1fr) 3.25em;
 			}
 
-			/* scrollIntoView({block:'nearest'}) scrolls to the row's own box, so
-			   the group heading above row 0 went out of view on the first arrow
-			   press and never came back — the CONTINUE label vanished for the
-			   rest of the session. The heading is 0.75em text with a 1.2em
-			   margin above it; reserving that much scroll margin keeps it on
-			   screen when its first row is revealed. */
 			/* The count column is FIXED, not auto, and it is fixed even while
 			   the counts are still being computed — that is what stops the
 			   whole row re-flowing when a number lands 150ms after the row
@@ -862,7 +896,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin: 0;
 				padding: 0.65em 0.5em;
 				padding-left: calc(0.5em - 3px);
-				scroll-margin-top: 2.2em;
 				text-align: left;
 				width: 100%;
 			}

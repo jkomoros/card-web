@@ -2373,6 +2373,50 @@ describe('Collection Composer interactions', () => {
 			'no rule may hand the width back to the content');
 	});
 
+	//THE SCROLL PANES NEED A BOUNDARY, AND THEIR ROWS NEED TO LAND WHOLE.
+	//
+	//Both long lists take the shared .scroller treatment, which on an
+	//overlay-scrollbar system is nothing at all: a list of twelve showing five
+	//gave no sign the other seven existed, and the row at the boundary was cut
+	//through its own label. The bottom fade is the affordance and it is
+	//self-limiting — both panes are flex: 1 1 0, so content reaches the bottom
+	//edge only when there is more of it than fits.
+	it('bounds its scrolling lists and lands scrolled rows whole', async () => {
+		const styles = composerStyles();
+		const pane = styles.match(/\.suggestions,\s*\.catalog-list\s*\{[^}]*\}/);
+		assert.ok(pane, 'both scroll panes must take one boundary rule');
+		assert.match(pane[0], /mask-image:\s*linear-gradient\(to bottom,[^)]*currentColor[^}]*transparent 100%\)/,
+			'a bottom fade is the affordance that says there is more below');
+		assert.ok(!/mask-image:[^;]*#[0-9a-f]{3}/i.test(pane[0]),
+			'a mask reads the alpha channel, so it must not name a colour (HS-4.1)');
+		assert.match(pane[0], /scroll-padding-block:\s*2\.2em var\(--composer-edge-fade\)/,
+			'the top value keeps the group heading on screen; the bottom value is the fade, so a row never lands under it');
+		//And the reservation lives in ONE place: the row's own scroll-margin
+		//would add to the container's padding rather than replace it.
+		assert.ok(!/\.suggestion button\s*\{[^}]*scroll-margin/.test(styles),
+			'the row must not carry a second, additive reservation');
+		//The heading really is above row 0 inside the same scroller, which is
+		//what the top value exists for.
+		await seedRecents([['everything/starred/', 3]]);
+		const list = dialog.shadowRoot.querySelector('#collection-composer-suggestions');
+		assert.ok(list.querySelector('.suggestion-heading'), 'the heading scrolls with its rows');
+		assert.ok(list.classList.contains('scroller'), 'the pane keeps the app-wide scroller idiom');
+	});
+
+	//The input flexes to exactly the width of #inner, the dialog's scroll
+	//container, so a ring drawn 2px OUTSIDE it fell in the overflow on both
+	//sides: the live review saw focus render as two disconnected purple bars
+	//above and below the field, which reads as a rendering fault.
+	it('draws the composer input\'s focus ring inside its own box', async () => {
+		const styles = composerStyles();
+		const ring = styles.match(/\.composer-input:focus-visible\s*\{[^}]*\}/);
+		assert.ok(ring, 'the input needs a focus ring of its own');
+		assert.match(ring[0], /outline-offset:\s*-2px/,
+			'an inset ring cannot be clipped by the scroll container the input is exactly as wide as');
+		assert.ok(!/\.composer-input:focus-visible\s*\{[^}]*outline-offset:\s*[0-9]/.test(styles),
+			'a positive offset is the defect itself');
+	});
+
 	//EVERY ROW SHARES ONE COLUMN GRID.
 	//
 	//A CSS grid is scoped to its own container, so a per-row `auto` track is
