@@ -790,6 +790,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0;
 			}
 
+			/* ONE GRID FOR EVERY ROW IN THE DIALOG.
+			   The three lists that use .suggestion — the composer's
+			   suggestions, the source completions and the filter catalog —
+			   all used content-sized auto tracks, and a CSS grid is scoped
+			   to its own container, so every row measured its own columns.
+			   The live review measured adjacent count columns starting at
+			   634px and 739px, and ADD / REPLACE chips landing at a different
+			   x on every line. Fixed tracks below are what make a column a
+			   column. */
 			.suggestion {
 				align-items: start;
 				border-top: 1px solid var(--app-divider-color);
@@ -798,19 +807,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin: 0;
 			}
 
+			/* Only some catalog rows offer a polarity toggle, so an auto
+			   second track made the ROW's own width — and therefore every
+			   column inside it — depend on whether this particular filter has
+			   an opposite. Reserved on every catalog row instead: 3.25em is
+			   §4.2's 44px floor plus the room the uppercase word needs. */
+			.catalog-list .suggestion {
+				grid-template-columns: minmax(0, 1fr) 3.25em;
+			}
+
 			/* scrollIntoView({block:'nearest'}) scrolls to the row's own box, so
 			   the group heading above row 0 went out of view on the first arrow
 			   press and never came back — the CONTINUE label vanished for the
 			   rest of the session. The heading is 0.75em text with a 1.2em
 			   margin above it; reserving that much scroll margin keeps it on
 			   screen when its first row is revealed. */
+			/* The count column is FIXED, not auto, and it is fixed even while
+			   the counts are still being computed — that is what stops the
+			   whole row re-flowing when a number lands 150ms after the row
+			   does. 14em holds the longest thing this cell can say ('9,999
+			   cards · same number of cards') without wrapping; the action
+			   column holds the longest chip ('CONFIGURE'). */
 			.suggestion button {
 				background: transparent;
 				box-shadow: none;
 				color: var(--app-dark-text-color);
 				column-gap: 0.75em;
 				display: grid;
-				grid-template-columns: minmax(0, 1fr) auto auto;
+				grid-template-columns: minmax(0, 1fr) 14em 5.5em;
 				grid-template-areas:
 					'category category category'
 					'label    count    action'
@@ -856,19 +880,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			/* Was float:right inside the wrapping detail block, so on a 375px
 			   screen the count ran straight through the detail text. Its own
-			   grid area cannot overlap anything. */
+			   grid area cannot overlap anything.
+			   RIGHT-ALIGNED, so the numbers line up with each other rather
+			   than with the variable-length words that follow them. */
 			.suggestion-count {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.82em;
 				grid-area: count;
+				text-align: right;
 				white-space: nowrap;
 			}
 
+			/* justify-self: start, inside a fixed track: every chip on every
+			   row begins at the same x. The padding is unconditional so that
+			   filling it for the highlighted row (below) moves nothing. */
 			.suggestion-action {
+				align-self: start;
+				background: transparent;
 				color: var(--app-primary-color);
 				font-size: 0.68em;
 				grid-area: action;
+				justify-self: start;
 				letter-spacing: 0.04em;
+				padding: 0.2em 0.4em;
 				text-transform: uppercase;
 				white-space: nowrap;
 			}
@@ -892,8 +926,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding-bottom: 2.75em;
 			}
 
+			/* Same discipline, a narrower column: 14em of a 375px screen would
+			   leave the label nothing. The count is allowed to wrap here
+			   instead of being cut off, since it no longer shares its row with
+			   anything but the label. */
+			.mobile .suggestion-count {
+				white-space: normal;
+			}
+
 			.mobile .suggestion button {
-				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-columns: minmax(0, 1fr) 9em;
 				grid-template-areas:
 					'category category'
 					'label    count'

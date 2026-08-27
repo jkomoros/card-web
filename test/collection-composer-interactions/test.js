@@ -2251,6 +2251,40 @@ describe('Collection Composer interactions', () => {
 			'no rule may hand the width back to the content');
 	});
 
+	//EVERY ROW SHARES ONE COLUMN GRID.
+	//
+	//A CSS grid is scoped to its own container, so a per-row `auto` track is
+	//measured per row: the live review found adjacent count columns starting
+	//at 634px and 739px, and ADD / REPLACE chips at a different x on every
+	//line. Three lists share the .suggestion markup, so fixing the tracks
+	//fixes all three at once. Again, JSDOM computes no layout — the rule is
+	//what is pinned, plus the DOM fact that all three lists really do use it.
+	it('gives every row in every list the same column grid', async () => {
+		const styles = composerStyles();
+		const row = styles.match(/\.suggestion button\s*\{[^}]*\}/);
+		assert.ok(row, 'the row button carries the grid');
+		assert.match(row[0], /grid-template-columns:\s*minmax\(0, 1fr\) 14em 5\.5em/,
+			'label flexes; count and action are FIXED, so their left edges cannot wander between rows');
+		assert.ok(!/grid-template-columns:\s*minmax\(0, 1fr\) auto/.test(row[0]),
+			'a content-sized track is the defect itself');
+		assert.match(styles, /\.suggestion-count\s*\{[^}]*text-align:\s*right/,
+			'the numbers line up with each other, not with the words after them');
+		assert.match(styles, /\.suggestion-action\s*\{[^}]*justify-self:\s*start/,
+			'the chip starts at the left edge of its fixed track, which is the same x on every row');
+		assert.match(styles, /\.catalog-list \.suggestion\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 3\.25em/,
+			'the polarity column is reserved on every catalog row, so a row with a Not toggle is no narrower than one without');
+
+		//The count cell's width is reserved by the track, so it exists before
+		//any count arrives — which is what stops the reflow when one lands.
+		await seedRecents([['everything/starred/', 6], ['main/updated/after/3-days-ago/', 3]]);
+		const rows = suggestionRows();
+		assert.ok(rows.length >= 2, 'the list must actually have rows to check');
+		assert.ok(rows.every((button) => button.closest('.suggestion')),
+			'every option is a .suggestion row, so every option takes the shared grid');
+		assert.ok(rows.some((button) => !button.querySelector('.suggestion-count')),
+			'rows render before their counts arrive — the track, not the span, is what reserves the room');
+	});
+
 	//A `none` clause is the router's placeholder for a route that names no
 	//collection. It should never reach a draft now, but a hand-typed route or an
 	//old bookmark still can — and it used to render as the bare word 'None',
