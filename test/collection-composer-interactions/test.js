@@ -749,6 +749,65 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(highlightedRow().id, 'collection-suggestion-1');
 	});
 
+	//HOVER AND KEYBOARD SELECTION MUST NOT BOTH READ AS SELECTED.
+	//
+	//They painted the identical lavender fill, with keyboard selection adding
+	//only a 3px bar — so with the cursor resting anywhere over the list, two
+	//rows looked chosen and only one of them was the one Enter would take. The
+	//spec's MUST is that "the transformation accepted on keydown is the one
+	//visibly highlighted on keydown", so hover paints only while the POINTER
+	//owns the highlight, and in that state the hovered row IS the highlighted
+	//row. JSDOM computes no styles, so the rule's shape is pinned; the state it
+	//is gated on is driven for real.
+	it('paints a hover fill only while the pointer owns the highlight', async () => {
+		const styles = composerStyles();
+		const hover = styles.match(/[^}]*\.suggestion button:hover\s*\{[^}]*\}/g) || [];
+		assert.ok(hover.length, 'there must be a hover rule to check');
+		for (const rule of hover) {
+			assert.match(rule, /:host\(\[data-pointer-armed\]\)\s*\.suggestion button:hover/,
+				'every hover rule for a row must be gated on the pointer owning the highlight');
+		}
+		//And the keyboard-owned row gets more than a bar: the fill, the bar,
+		//and its action chip filled rather than outlined.
+		assert.match(styles, /\.suggestion button\[data-highlighted\]\s*\{[^}]*border-left-color:\s*var\(--app-primary-color\)/);
+		assert.match(styles, /\.suggestion button\[data-highlighted\] \.suggestion-action\s*\{[^}]*background:\s*var\(--app-primary-color\)/,
+			'the chip on the accepted row is filled, which no hovered row ever is');
+
+		await seedRecents([['main/starred/', 4]]);
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+		await dialog.updateComplete;
+		assert.ok(!dialog.hasAttribute('data-pointer-armed'),
+			'a keystroke hands the highlight back to the keyboard, and hover stops painting');
+		suggestionRows()[2].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.ok(dialog.hasAttribute('data-pointer-armed'),
+			'a real mousemove hands it to the pointer, and hover paints again');
+		assert.strictEqual(highlightedRow().id, 'collection-suggestion-2',
+			'and the row under the cursor is the highlighted one, so there is still only one');
+	});
+
+	//The catalog is painted by the same .suggestion rules, so it needs the same
+	//rule: the row under a moving cursor becomes the highlighted row, rather
+	//than hover fill landing on one row while the keyboard index sits on
+	//another. Its Enter acts on _catalogHighlightedIndex.
+	it('moves the catalog highlight to the row a moving pointer is over', async () => {
+		dialog.shadowRoot.querySelector('.builder-toggle button').click();
+		await settleRender(dialog);
+		const rows = Array.from(dialog.shadowRoot.querySelectorAll('.catalog-list [role="option"]'));
+		assert.ok(rows.length > 2, 'the catalog must have rows to check');
+		assert.strictEqual(dialog._catalogHighlightedIndex, 0);
+		rows[2].dispatchEvent(new MouseEvent('mouseenter'));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._catalogHighlightedIndex, 0,
+			'mouseenter without a mousemove is not evidence the pointer moved, here either');
+		rows[2].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._catalogHighlightedIndex, 2);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-list [role="option"][data-highlighted]'), rows[2],
+			'and it is the visibly highlighted one, which is what Enter takes');
+	});
+
 	it('Escape cancels the draft without changing the active collection', async () => {
 		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
 		buttons.find((button) => button.textContent.includes('Add Starred')).click();

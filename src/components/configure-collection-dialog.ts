@@ -227,6 +227,10 @@ import {
 	CollectionFilterCatalogPolarity,
 } from '../collection-filter-catalog.js';
 
+//The three lists that are painted by the .suggestion rules. Naming them means
+//the pointer rule below is written once rather than three times.
+type ComposerRowList = 'suggestion' | 'catalog' | 'source-completion';
+
 //The synthetic suggestion the primary action and a highlight-free Enter both
 //open. It is the only destination allowed to close the composer silently when
 //it turns out to be the collection already on screen.
@@ -476,7 +480,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//would silently hand the Enter target to whichever row happened to land
 	//under the pointer. Pointer highlighting is armed only by a real mousemove
 	//and disarmed again by the next keystroke.
-	_pointerHighlightArmed = false;
+	//
+	//REACTIVE, because it is also what decides whether hover PAINTS. While the
+	//keyboard owns the highlight, a hovered row that is not the highlighted one
+	//is a second row reading as selected — and the spec's MUST is that "the
+	//transformation accepted on keydown is the one visibly highlighted on
+	//keydown". updated() mirrors it onto the host so one CSS rule gates every
+	//list's hover on it.
+	@state()
+		_pointerHighlightArmed = false;
 
 	@state()
 		_builderExpanded = false;
@@ -830,6 +842,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   column holds the longest chip ('CONFIGURE'). */
 			.suggestion button {
 				background: transparent;
+				/* Declared on every row, painted on one. The bar used to be
+				   added by the highlighted rule alone, so the border box
+				   appeared and disappeared under the highlight; now only its
+				   COLOUR changes, which is also the only thing that can be
+				   transitioned without moving anything. */
+				border-left: 3px solid transparent;
 				box-shadow: none;
 				color: var(--app-dark-text-color);
 				column-gap: 0.75em;
@@ -843,20 +861,38 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					'applied  applied  applied';
 				margin: 0;
 				padding: 0.65em 0.5em;
+				padding-left: calc(0.5em - 3px);
 				scroll-margin-top: 2.2em;
 				text-align: left;
 				width: 100%;
 			}
 
-			.suggestion button:hover,
-			.suggestion button[data-highlighted] {
+			/* HOVER PAINTS ONLY WHILE THE POINTER OWNS THE HIGHLIGHT.
+			   Hover and keyboard selection used to paint the same lavender
+			   fill, so with the cursor resting anywhere over the list two rows
+			   read as selected and only one of them was the one Enter would
+			   take. The pointer owns the highlight exactly when
+			   _pointerHighlightArmed is set — a real mousemove since the last
+			   keystroke — and in that state every list moves its highlight to
+			   the row under the cursor, so the hovered row IS the highlighted
+			   row and there is still only one. While the keyboard owns it,
+			   hover paints nothing at all. */
+			:host([data-pointer-armed]) .suggestion button:hover {
 				background: var(--app-primary-color-light-very-transparent);
 				box-shadow: none;
 			}
 
+			/* Categorically stronger than a hover tint: the fill, the bar, and
+			   the row's action chip filled rather than outlined. */
 			.suggestion button[data-highlighted] {
-				border-left: 3px solid var(--app-primary-color);
-				padding-left: calc(0.5em - 3px);
+				background: var(--app-primary-color-light-very-transparent);
+				border-left-color: var(--app-primary-color);
+				box-shadow: none;
+			}
+
+			.suggestion button[data-highlighted] .suggestion-action {
+				background: var(--app-primary-color);
+				color: var(--app-light-text-color);
 			}
 
 			.suggestion-label {
@@ -1256,7 +1292,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
 		return html`
 						<div class='suggestion' role='presentation'>
-							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @click=${() => this._acceptSourceCompletion(completion)}>
+							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @mousemove=${() => this._handleRowPointerMove('source-completion', index)} @mouseenter=${() => this._handleRowPointerEnter('source-completion', index)} @click=${() => this._acceptSourceCompletion(completion)}>
 								<span class='source-suggestion-category'>${presentation.category}</span>
 								<span class='suggestion-label'>${presentation.label}</span>
 								<span class='suggestion-action'>${completionMode}</span>
@@ -1467,6 +1503,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 											data-filter=${item.filter}
 											aria-selected=${index === this._catalogHighlightedIndex}
 											?data-highlighted=${index === this._catalogHighlightedIndex}
+											@mousemove=${() => this._handleRowPointerMove('catalog', index)}
+											@mouseenter=${() => this._handleRowPointerEnter('catalog', index)}
 											@click=${() => this._handleCatalogItem(item)}
 										>
 											<span class='suggestion-label'>${item.label}</span>
@@ -1723,8 +1761,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === highlightedIndex}
-								@mousemove=${() => this._handleSuggestionPointerMove(index)}
-								@mouseenter=${() => this._handleSuggestionPointerEnter(index)}
+								@mousemove=${() => this._handleRowPointerMove('suggestion', index)}
+								@mouseenter=${() => this._handleRowPointerEnter('suggestion', index)}
 								@click=${() => this._applyComposerSuggestion(suggestion, suggestion.action === 'open')}
 							>
 								<span class='suggestion-label'>${suggestion.label}</span>
@@ -1748,22 +1786,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return Math.min(this._highlightedSuggestion, suggestions.length - 1);
 	}
 
-	_highlightSuggestionFromPointer(index : number) {
-		this._highlightedSuggestion = index;
-		this._suggestionHighlightActive = true;
+	//ALL THREE LISTS FOLLOW ONE POINTER RULE, so none of them can end up with a
+	//hover fill on one row and a keyboard highlight on another. The suggestion
+	//list had this already; the catalog and the source completions did not, and
+	//they are painted by the same .suggestion rules.
+	_highlightListRowFromPointer(list : ComposerRowList, index : number) {
+		if (list === 'suggestion') {
+			this._highlightedSuggestion = index;
+			this._suggestionHighlightActive = true;
+			return;
+		}
+		if (list === 'catalog') {
+			this._catalogHighlightedIndex = index;
+			return;
+		}
+		this._sourceCompletionIndex = index;
 	}
 
-	_handleSuggestionPointerMove(index : number) {
+	_handleRowPointerMove(list : ComposerRowList, index : number) {
 		//A mousemove is proof the pointer actually moved, so it both arms
 		//pointer highlighting and takes the highlight itself. mouseenter alone
 		//is not proof: it also fires when rows shift under a resting cursor.
 		this._pointerHighlightArmed = true;
-		this._highlightSuggestionFromPointer(index);
+		this._highlightListRowFromPointer(list, index);
 	}
 
-	_handleSuggestionPointerEnter(index : number) {
+	_handleRowPointerEnter(list : ComposerRowList, index : number) {
 		if (!this._pointerHighlightArmed) return;
-		this._highlightSuggestionFromPointer(index);
+		this._highlightListRowFromPointer(list, index);
 	}
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
@@ -1874,6 +1924,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//keystroke another handler has already spent.
 		if (this._entryMode !== 'source') return;
 		if (committedKeystrokes.has(e)) return;
+		//A keystroke means the keyboard owns the highlight again, in this mode
+		//as in the other one: the completions list is painted by the same rules
+		//and must not show a hover fill on a row the keyboard is not on.
+		this._pointerHighlightArmed = false;
 		if (e.key === 'Enter' && e.shiftKey) {
 			this._refuseNewTab(e);
 			return;
@@ -2643,6 +2697,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	override updated(changedProps : PropertyValues<this>) {
 		super.updated(changedProps);
+		//Mirrored onto the host so ONE rule can gate hover for all three lists,
+		//rather than three containers each having to remember the attribute.
+		//(The same idiom snack-bar uses for its mobile class, and for the same
+		//reason: a property Lit does not reflect cannot be matched from CSS.)
+		this.toggleAttribute('data-pointer-armed', this._pointerHighlightArmed);
 		if ((changedProps.has('_highlightedSuggestion') || changedProps.has('_suggestionHighlightActive')) && this._suggestionHighlightActive) {
 			this.shadowRoot?.querySelector(`#collection-suggestion-${this._highlightedSuggestion}`)?.scrollIntoView?.({block: 'nearest'});
 		}
