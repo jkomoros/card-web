@@ -2373,6 +2373,43 @@ describe('Collection Composer interactions', () => {
 			'no rule may hand the width back to the content');
 	});
 
+	//THE COMPOSER HAD NO MOTION AT ALL — not one transition or animation in
+	//the whole component, while the spec asks for Card Web's existing short
+	//fade timing on exactly the moments below. HS-4.4 gives the timing a token
+	//and requires prefers-reduced-motion to be respected.
+	it('fades its layers with the app\'s timing, and holds still when asked to', async () => {
+		//The composer's OWN block, not the shared sheets it imports:
+		//ButtonSharedStyles carries the app-wide button transition, and that is
+		//not this component's to gate.
+		const sheets = dialog.constructor.styles;
+		const styles = String(sheets[sheets.length - 1].cssText || '');
+		assert.match(styles, /\.expression-clause/, 'the last sheet must be the composer\'s own');
+		//Every rule that moves anything is inside the gate, so reduced motion
+		//gets the end state rather than a shortened version of the movement.
+		const gate = styles.match(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*\n\t{3}\}/);
+		assert.ok(gate, 'the composer must gate its motion on prefers-reduced-motion');
+		const outside = styles.replace(gate[0], '');
+		assert.ok(!/\n\s*(transition|animation):/.test(outside),
+			'no transition or animation may sit outside the gate:\n' +
+			(outside.match(/.*\b(transition|animation):.*/g) || []).join('\n'));
+		//The timing is the token's, never a hand-written duration (HS-4.4).
+		for (const declaration of gate[0].match(/\b(transition|animation):[^;]*/g) || []) {
+			assert.match(declaration, /var\(--transition-fade\)/,
+				`motion must take the app's timing token: ${declaration}`);
+		}
+		//The moments the spec names: the surface arriving, the highlight
+		//moving, and a layer being revealed.
+		assert.match(gate[0], /\.container\.open \.content\s*\{[^}]*animation:\s*composer-settle/);
+		assert.match(gate[0], /\.suggestion button,\s*\.suggestion-action\s*\{[^}]*transition:/);
+		assert.match(gate[0], /\.builder,\s*\.pending-filter-editor\s*\{[^}]*animation:/);
+		//And nothing animated is a layout property — the box and the row
+		//columns were pinned precisely so nothing moves under a keystroke.
+		for (const property of ['width', 'height', 'margin', 'padding', 'grid-template', 'flex']) {
+			assert.ok(!new RegExp(`(transition|animation):[^;]*\\b${property}\\b`).test(gate[0]),
+				`${property} is a layout property and must not be animated`);
+		}
+	});
+
 	//THE FOOTER MUST STATE A CONTRACT THAT IS ACTUALLY IN FORCE.
 	//
 	//'Click edits' was printed whenever a list was on screen with nothing

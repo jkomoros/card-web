@@ -1316,6 +1316,75 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.activation-message[data-problem] {
 				color: var(--app-warning-color);
 			}
+
+			/* MOTION — §4.4, and the spec's "Card Web's existing short fade
+			   timing". The composer had none anywhere: it appeared, its
+			   highlight teleported between rows, and its layers snapped open.
+
+			   EVERY property animated here is opacity, colour or transform.
+			   None of them is a layout property, on purpose: the dialog's box
+			   and its rows' columns were just pinned so that nothing moves
+			   under a keystroke, and an animated width or height would put the
+			   movement straight back in.
+
+			   THE WHOLE BLOCK IS GATED on prefers-reduced-motion:
+			   no-preference, so a reader who has asked for stillness gets the
+			   end state immediately rather than a shortened version of the
+			   same movement — the surface stays fully understandable with
+			   transitions disabled, which is what the spec asks for.
+
+			   Closing is not animated: .container goes to display:none, and
+			   there is no state left to animate out of. */
+			@media (prefers-reduced-motion: no-preference) {
+				@keyframes composer-appear {
+					from { opacity: 0; }
+					to { opacity: 1; }
+				}
+
+				/* A settle, not an entrance. It ends at transform:none, so it
+				   leaves nothing behind on the pinned box. */
+				@keyframes composer-settle {
+					from { opacity: 0; transform: scale(0.985); }
+					to { opacity: 1; transform: none; }
+				}
+
+				.container.open .background {
+					animation: composer-appear var(--transition-fade) both;
+				}
+
+				.container.open .content {
+					animation: composer-settle var(--transition-fade) both;
+				}
+
+				/* The highlight MOVES between rows instead of teleporting.
+				   Exactly the three properties the highlight changes — the
+				   fill, the bar's colour, and the chip — so nothing in this
+				   transition can shift a row. */
+				.suggestion button,
+				.suggestion-action {
+					transition:
+						background-color var(--transition-fade),
+						border-left-color var(--transition-fade),
+						color var(--transition-fade);
+				}
+
+				/* "Expanding a layer should feel like revealing familiar
+				   detail." The height is deliberately not part of it. */
+				.builder,
+				.pending-filter-editor {
+					animation: composer-appear var(--transition-fade) both;
+				}
+
+				/* The tone the source diagnostic changes to, and the weight
+				   the primary gives up while a highlighted row owns Enter. */
+				.source-status {
+					transition: border-left-color var(--transition-fade), color var(--transition-fade);
+				}
+
+				.buttons.composer-actions {
+					transition: opacity var(--transition-fade);
+				}
+			}
 		`
 	];
 
