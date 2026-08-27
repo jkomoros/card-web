@@ -86,6 +86,23 @@ describe('Collection filter catalog', () => {
 		assert.strictEqual(result.find(item => item.filter === 'direct-connections/+card-1').appliedIndex, -1);
 	});
 
+	//AN EXAMPLE OF AN APPLIED FILTER IS THE DRAFT.
+	//
+	//exampleFor() composed "<draft> AND <this filter>" unconditionally, so a row
+	//already in the draft showed the clause twice — "Everything AND Starred AND
+	//Starred" — directly above its own "Already in this collection" badge, which
+	//says the opposite. The draft already contains the filter, so the honest
+	//example of choosing that row is the draft exactly as it stands.
+	it('shows an applied filter’s example as the draft itself, not the draft plus a duplicate', () => {
+		const result = buildCollectionFilterCatalog(descriptions, candidates, draft('everything/starred/'));
+		const applied = result.find(item => item.filter === 'starred');
+		assert.strictEqual(applied.appliedIndex, 0);
+		assert.strictEqual(applied.example, 'Everything AND Starred');
+		//An UNapplied row still previews what choosing it would produce.
+		assert.strictEqual(result.find(item => item.filter === 'inductively-knowable').example,
+			'Everything AND Starred AND Tagged “Inductively Knowable”');
+	});
+
 	it('promotes applied and common filters within a category', () => {
 		const result = buildCollectionFilterCatalog({
 			alpha: 'Alpha',

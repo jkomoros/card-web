@@ -735,4 +735,51 @@ describe('Collection Composer suggestions', () => {
 		]);
 		assert.deepStrictEqual(parts.modifiers, ['sorted by reverse Recent', 'viewed as Web (Graph)']);
 	});
+
+	//THE LABEL DESCRIBES THE WINDOW THAT ACTUALLY FILTERS.
+	//
+	//filters.ts accepts `between`'s two bounds in either order and swaps them
+	//deliberately, so `between/2026-08-19/2020-01-01` really does select the
+	//2020→2026 window. Every label built from it said "between 2026-08-19 and
+	//2020-01-01", which describes a window that runs backwards and therefore
+	//matches nothing — a sentence about a collection the user is not looking at.
+	//The engine keeps its tolerance; the DISPLAY puts the earlier bound first.
+	it('names a date range in the order it actually filters', () => {
+		const reversed = CollectionDescription.deserialize('everything/updated/between/2026-08-19/2020-01-01/');
+		assert.strictEqual(
+			readableCollectionExpression(reversed),
+			'Everything AND Updated between 2020-01-01 and 2026-08-19'
+		);
+		//An already-ordered range is untouched, and so is the URL either way:
+		//only the sentence changes.
+		const ordered = CollectionDescription.deserialize('everything/updated/between/2020-01-01/2026-08-19/');
+		assert.strictEqual(
+			readableCollectionExpression(ordered),
+			'Everything AND Updated between 2020-01-01 and 2026-08-19'
+		);
+		assert.strictEqual(reversed.filters[0], 'updated/between/2026-08-19/2020-01-01');
+		//A relative bound resolves through the engine's own resolver, so a mixed
+		//pair still orders: 3 days ago is later than a fixed 2020 date.
+		assert.strictEqual(
+			readableCollectionExpression(CollectionDescription.deserialize('everything/updated/between/3-days-ago/2020-01-01/')),
+			'Everything AND Updated between 2020-01-01 and 3 days ago'
+		);
+	});
+
+	//'Inverse of <internal id>' is what CARD_FILTER_DESCRIPTIONS synthesizes for
+	//every excluding filter, and it is a raw filter id pointed at a user (§1.4).
+	//The catalog had already been taught not to show it; the suggestion list had
+	//not, so typing "unstarred" offered a row whose entire explanation was the
+	//app's own identifier for the other half of the pair.
+	it('never explains a filter with the app’s own identifier for another one', () => {
+		const suggestions = collectionComposerSuggestions(
+			CollectionDescription.deserialize('everything/'),
+			'unstarred',
+			{ unstarred: 'Inverse of starred', starred: 'Cards you have starred' }
+		);
+		const row = suggestions.find((suggestion) => suggestion.name === 'Unstarred');
+		assert.ok(row, 'typing the excluding half must still offer it');
+		assert.ok(!/Inverse of/.test(row.detail), `detail leaked the synthesized sentence: ${row.detail}`);
+		assert.strictEqual(row.detail, 'Cards not matching Starred');
+	});
 });

@@ -12,6 +12,7 @@ import {
 
 import {
 	collectionExpressionParts,
+	collectionFilterDescription,
 	collectionFilterDisplayName,
 	collectionFilterLabels,
 	type CollectionComposerCandidate,
@@ -104,14 +105,6 @@ for (const [negated, positive] of Object.entries(INVERSE_FILTER_NAMES)) {
 	if (!OPPOSITE_OF[negated]) OPPOSITE_OF[negated] = positive;
 }
 const IS_NEGATED_FILTER = new Set(Object.keys(INVERSE_FILTER_NAMES));
-
-//The description machinery synthesizes exactly this sentence for every
-//excluding filter, so a row that flips polarity would otherwise show the app's
-//internal filter id back to the user. Recognizing the synthesized string by
-//reconstructing it (not by matching a prefix) is how we know there is no
-//authored description to prefer.
-const isSynthesizedInverseDescription = (description : string, negated : string) : boolean =>
-	description === `Inverse of ${INVERSE_FILTER_NAMES[negated]}`;
 
 //The card-editing hygiene family — every `has-x` / `no-x` / `needs-x` /
 //`does-not-need-x` filter the TODO machinery generates. They are real filters
@@ -221,17 +214,21 @@ export const buildCollectionFilterCatalog = (
 		const appliedIndex = appliedFilters.findIndex(applied => applied === filter ||
 			(filter === family && Boolean(CONFIGURABLE_FILTER_NAMES[family]) && applied.startsWith(`${family}/`)));
 		const label = collectionFilterDisplayName(filter, labels);
-		const authoredDescription = filterDescriptions[filter] || filterDescriptions[family] || '';
 		const negated = IS_NEGATED_FILTER.has(filter);
 		//An excluding half whose only description is the synthesized "Inverse of
-		//<internal id>" would leak a raw filter name (HS-1.4). Say what it keeps
-		//instead, in the name the other half of the row is already using.
+		//<internal id>" would leak a raw filter name (HS-1.4). One shared
+		//function decides that, for this catalog and for the suggestion list, so
+		//the same filter cannot be honest in one and leaky in the other.
 		const detail = candidate?.detail ||
-			(negated && (!authoredDescription || isSynthesizedInverseDescription(authoredDescription, filter)) ?
-				`Cards not matching ${collectionFilterDisplayName(INVERSE_FILTER_NAMES[filter], labels)}` :
-				authoredDescription) ||
+			collectionFilterDescription(filter, filterDescriptions, labels) ||
 			`Keeps cards matching ${label}`;
-		const example = exampleFor(filter, base, labels, candidate);
+		//AN EXAMPLE OF AN APPLIED FILTER IS THE DRAFT ITSELF. Composing one
+		//unconditionally produced "Main AND Tagged tag-14 AND Tagged tag-14" for
+		//a filter the row's own badge says is "Already in this collection" — an
+		//example of a collection nobody can reach, contradicting the badge two
+		//lines below it. The draft already contains the filter, so showing the
+		//draft as it stands is both the honest example and the true one.
+		const example = appliedIndex >= 0 ? base : exampleFor(filter, base, labels, candidate);
 		const searchValues = [
 			filter,
 			family,

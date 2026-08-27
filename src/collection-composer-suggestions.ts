@@ -12,9 +12,11 @@ import {
 import {
 	CARD_FILTER_DESCRIPTIONS,
 	CONFIGURABLE_FILTER_INFO,
+	INVERSE_FILTER_NAMES,
 	NONE_FILTER_NAME,
 	SELECTED_FILTER_NAME,
 	TODO_COMBINED_FILTER_NAME,
+	parseRelativeDate,
 	parseRelativeDateParts,
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
@@ -228,18 +230,44 @@ const readableDateBoundary = (value: string): string => {
 	return `last ${humanize(parts.weekday)}`;
 };
 
+//WHEN a boundary is, as a number, so two of them can be put in the order a
+//reader expects. Both spellings a bound can take resolve here: a relative one
+//through the engine's own resolver, a fixed one through Date. A bound that
+//resolves to neither sorts as NaN, and the comparison below leaves the pair
+//alone rather than guessing at an order for something it cannot read.
+const dateBoundaryValue = (value: string): number => {
+	const relative = parseRelativeDate(value);
+	if (relative) return relative.getTime();
+	return new Date(value).getTime();
+};
+
+//`between` DELIBERATELY accepts its bounds in either order — filters.ts swaps
+//them so the range still filters (the comment there says so in as many words).
+//The LABEL had no such licence: 'Updated between 2026-08-19 and 2020-01-01'
+//describes a window that runs backwards and therefore matches nothing, while
+//the collection it names matches plenty. The engine keeps its tolerance; the
+//display puts the earlier bound first, so the sentence describes the window
+//that actually filters.
+const displayOrderedBounds = (values: string[]): string[] => {
+	if (values.length !== 2) return values;
+	const [first, second] = values.map(dateBoundaryValue);
+	if (!Number.isFinite(first) || !Number.isFinite(second)) return values;
+	return first <= second ? values : [values[1], values[0]];
+};
+
 const derivedDateFilterName = (family: string, values: string[]): string => {
 	const name = DATE_FILTER_DISPLAY_NAMES[family];
 	if (!name) return '';
 	const [comparison, ...boundaries] = values;
+	if (comparison === 'between' && boundaries.length === 2) {
+		const readable = displayOrderedBounds(boundaries).map(readableDateBoundary);
+		return `${name} between ${readable[0]} and ${readable[1]}`;
+	}
 	const readable = boundaries.map(readableDateBoundary);
 	if (comparison === 'after' && readable.length === 1) {
 		return readable[0] === 'today' ? `${name} today` : `${name} since ${readable[0]}`;
 	}
 	if (comparison === 'before' && readable.length === 1) return `${name} before ${readable[0]}`;
-	if (comparison === 'between' && readable.length === 2) {
-		return `${name} between ${readable[0]} and ${readable[1]}`;
-	}
 	return '';
 };
 
@@ -278,6 +306,36 @@ export const collectionFilterDisplayName = (
 	}
 	if (!rawValues.length) return readableFamily(family);
 	return `${readableFamily(family)} ${rawValues.map(readableValue).join(' · ')}`;
+};
+
+//THE ONE PLACE A FILTER'S DESCRIPTION IS DECIDED, for the same reason
+//collectionFilterDisplayName is the one place its NAME is.
+//
+//CARD_FILTER_DESCRIPTIONS synthesizes 'Inverse of <internal id>' for every
+//excluding filter (filters.ts, where INVERSE_FILTER_NAMES is folded in), and
+//that string is a raw filter id pointed straight at a user — the §1.4 MUST.
+//It reached suggestion details, catalog rows, and every aria-label composed
+//from them. Here the synthesized sentence is recognized by RECONSTRUCTING it
+//rather than by matching a prefix, so an authored description that happens to
+//begin with those words is still preferred, and the replacement goes through
+//the display-name path so it names the other half of the pair the way the rest
+//of the composer already does.
+//
+//The negative form is a whole authored sentence, never a prefix concatenated
+//onto a positive one: 'Does not need ' + 'Whether the card has…' is how
+//'Does not need Whether the card has citations…' shipped.
+export const collectionFilterDescription = (
+	filter: string,
+	filterDescriptions: Readonly<Record<string, string>> = {},
+	labels: Record<string, string> = {}
+): string => {
+	const family = filter.split('/')[0];
+	const authored = filterDescriptions[filter] || filterDescriptions[family] || '';
+	const positive = INVERSE_FILTER_NAMES[filter];
+	if (positive && (!authored || authored === `Inverse of ${positive}`)) {
+		return `Cards not matching ${collectionFilterDisplayName(positive, labels)}`;
+	}
+	return authored;
 };
 
 //Sets, sorts, and view modes are URL enum tokens too, and they reach the UI in
@@ -597,11 +655,15 @@ export const collectionComposerSuggestions = (
 		.map(candidate => ({candidate, relevance: candidateRelevance(candidate, normalizedQuery)}))
 		.filter(match => Number.isFinite(match.relevance))
 		.sort((left, right) => left.relevance - right.relevance || left.candidate.label.localeCompare(right.candidate.label));
-	const matchingFilters = Object.entries(filterDescriptions)
-		.filter(([name, detail]) =>
+	//The honest description is computed BEFORE the match, not after it: a row
+	//that matched on the words 'Inverse of not-starred' and then displayed
+	//something else would be answering a query the user cannot see.
+	const matchingFilters = Object.keys(filterDescriptions)
+		.map(name => ({name, detail: collectionFilterDescription(name, filterDescriptions, filterLabels)}))
+		.filter(({name, detail}) =>
 			name.toLowerCase().includes(normalizedQuery) || detail.toLowerCase().includes(normalizedQuery)
 		)
-		.map(([name, detail]) => {
+		.map(({name, detail}) => {
 			const relevance = (() => {
 				const normalizedName = name.toLowerCase();
 				if (normalizedName === normalizedQuery) return 0;

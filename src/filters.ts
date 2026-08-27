@@ -2381,7 +2381,21 @@ const makeDoesNotNeedFunc = (baseFunc : CardTestFunc, overrideKeyName : AutoTODO
 	};
 };
 
-const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.autoApply).map(entry => [entry[1].filterNames[2], {func: makeDoesNotNeedFunc(entry[1].test, REVERSE_CARD_FILTER_CONFIG_MAP[entry[1].filterNames[2]]), description: 'Does not need ' + entry[1].description}]));
+//A DESCRIPTION IS NOT A FRAGMENT YOU CAN PUT A PREFIX ON.
+//
+//These descriptions reach the user: CARD_FILTER_DESCRIPTIONS feeds the
+//composer's suggestion details, the filter catalog's rows, and the aria-labels
+//built from them. The prefix form composed 'Does not need ' with a sentence that
+//already starts 'Whether the card has…', producing 'Does not need Whether the
+//card has citations that need to be formally represented' — a sentence no one
+//wrote and no one can read. HS-2.4's formula is about what happened in the
+//user's vocabulary, and a mechanical prefix cannot produce one.
+//
+//So the negative form is AUTHORED from the TODO's own display title (the same
+//toTitleCase(key) name TODO_ALL_INFOS shows in the editor's TODO list) rather
+//than derived from the positive sentence. It says the plain, honest thing this
+//filter does and stays grammatical for every member of the family.
+const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.autoApply).map(entry => [entry[1].filterNames[2], {func: makeDoesNotNeedFunc(entry[1].test, REVERSE_CARD_FILTER_CONFIG_MAP[entry[1].filterNames[2]]), description: `Cards marked as not needing the ${toTitleCase(entry[0].split('-').join(' '))} TODO`}]));
 
 const FREEFORM_TODO_FUNC = CARD_FILTER_FREEFORM_TODO_CONFIGS['freeform-todo'].test;
 
