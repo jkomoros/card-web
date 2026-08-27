@@ -125,8 +125,30 @@ export class CardStage extends LitElement {
 				transition: opacity var(--transition-fade);
 			}
 
+			/* THE MOBILE TOOLBAR MUST NOT LOSE CONTROLS.
+			   Ten round buttons in a nowrap row with overflow visible, inside a
+			   column that centres its children: at 375px the row measured far
+			   wider than the viewport and the centring pushed its LEFT edge off
+			   screen. The live review measured the first item — the composer's
+			   own 'Compose collection' button — at x=-107, unreachable by any
+			   gesture.
+
+			   WRAPPING, not horizontal scrolling. Wrapping is this app's own
+			   narrow-screen toolbar idiom (the composer's .row, .catalog-setup
+			   and .source-steps all wrap; so do configure-collection-filter's
+			   controls), and it needs no scroll affordance to discover: every
+			   control is simply on screen. max-width is what bounds the row
+			   against the centring, and the slotted groups wrap inside
+			   themselves because their round buttons are inline-block. */
+			.mobile [name="actions"] {
+				flex-wrap: wrap;
+				justify-content: center;
+				max-width: 100%;
+			}
+
 			.mobile [name="actions"]::slotted(*) {
 				font-size:0.8em;
+				max-width: 100%;
 			}
 
 			.presenting [name="actions"]:hover {
