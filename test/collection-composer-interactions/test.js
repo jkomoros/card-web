@@ -914,6 +914,77 @@ describe('Collection Composer interactions', () => {
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 	});
 
+	//THE DRAFT READS AS A SENTENCE, NOT AS A FORM.
+	//
+	//Four separate ways it did not. The remove control was a literal × where
+	//CANCEL_ICON exists, which §4.2 forbids outright. The set name — the one
+	//term that is NOT interactive — was bold purple 700, the loudest token in
+	//the dialog, while every editable clause sat in a quiet grey box. The chip
+	//itself was a bordered white box with a second rule down its middle, which
+	//is the anatomy of a table cell. And AND was a sibling of the chip it
+	//introduces in a wrapping row, so a line could end on a dangling operator
+	//with its clause on the line below.
+	it('renders the draft as a sentence rather than a row of form fields', async () => {
+		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+			.find((button) => button.textContent.includes('Add Starred'));
+		suggestion.click();
+		await dialog.updateComplete;
+
+		const remove = dialog.shadowRoot.querySelector('.expression-clause-remove');
+		assert.ok(remove.querySelector('svg'), 'the remove control is an icon, not a text glyph');
+		assert.ok(!remove.textContent.includes('×'), 'the literal × is gone');
+		assert.strictEqual(remove.getAttribute('aria-label'), 'Remove Starred filter');
+
+		//The operator and the clause it introduces are ONE inline group, so they
+		//cannot be split across a wrap.
+		const term = dialog.shadowRoot.querySelector('.expression-term');
+		assert.ok(term, 'each clause is bound to its operator');
+		assert.match(term.querySelector('.expression-operator').textContent, /AND/);
+		assert.ok(term.querySelector('.expression-clause'), 'the chip lives inside that group');
+
+		//The help badge defines a word; it is a footnote to the sentence, not
+		//its first element.
+		const expressionChildren = Array.from(dialog.shadowRoot.querySelector('.expression').children);
+		assert.ok(!expressionChildren[0].classList.contains('help'),
+			'the badge must not open the sentence');
+		assert.ok(expressionChildren[expressionChildren.length - 1].classList.contains('help'),
+			'it follows the expression instead');
+
+		const styles = composerStyles();
+		//The non-interactive set name reads at the sentence's own weight; purple
+		//is the brand/link/committing colour (§4.5) and this is none of those.
+		assert.match(styles, /\.expression-set\s*\{[^}]*color:\s*var\(--app-dark-text-color\)/);
+		assert.match(styles, /\.expression-set\s*\{[^}]*font-weight:\s*400/);
+		//The chip carries the presence instead, as a wash rather than a cell.
+		assert.match(styles, /\.expression-clause\s*\{[^}]*background:\s*var\(--app-primary-color-light-very-transparent\)/);
+		assert.ok(!/\.expression-clause-remove\s*\{[^}]*border-left/.test(styles),
+			'the internal vertical rule that made the chip read as a table cell is gone');
+		//And the removal stays quiet until it is hovered or focused, with no
+		//warning colour: removing a draft clause loses nothing (§3.7 Tier 2).
+		assert.match(styles, /\.expression-clause-remove svg\s*\{[^}]*fill:\s*var\(--app-dark-text-color-light\)/);
+		assert.ok(!/expression-clause-remove[^}]*--app-warning-color/.test(styles));
+		//The input continues the sentence: its flex basis is what decides
+		//whether it fits beside the last chip, so it must be a typing minimum
+		//rather than a full field width.
+		assert.match(styles, /\.composer-input\s*\{[^}]*flex:\s*1 1 8em/);
+	});
+
+	//A RECEIPT IS A THING, SO IT NEEDS AN EDGE. This strip floated between the
+	//input and the suggestion list with no container of its own, in a grey
+	//(#AAA, ~2.3:1) that this file has already rejected once for text that has
+	//to be read — and it sat hard against the list's clipping fade.
+	it('gives the draft receipt a container of its own', async () => {
+		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+			.find((button) => button.textContent.includes('Add Starred'));
+		suggestion.click();
+		await dialog.updateComplete;
+		assert.ok(dialog.shadowRoot.querySelector('.draft-receipt'));
+		const styles = composerStyles();
+		assert.match(styles, /\.draft-receipt\s*\{[^}]*background:\s*var\(--app-primary-color-light-very-transparent\)/);
+		assert.match(styles, /\.draft-receipt\s*\{[^}]*padding:/);
+		assert.match(styles, /\.draft-receipt\s*\{[^}]*color:\s*var\(--app-dark-text-color-darker\)/);
+	});
+
 	it('uses two-step Backspace to select and then remove the last clause', async () => {
 		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
 			.find((button) => button.textContent.includes('Add Starred'));
@@ -1186,7 +1257,15 @@ describe('Collection Composer interactions', () => {
 			.find((button) => button.textContent.includes('Edit Exclude in Source'));
 		assert.ok(suggestion);
 		assert.match(suggestion.textContent, /source/i);
-		assert.strictEqual(suggestion.querySelector('.suggestion-action').textContent, 'edit');
+		//Sentence case, and in the DOM rather than only on the screen. The chip
+		//used to be lowercase text painted ALL-CAPS by text-transform, so the
+		//accessible name said "edit" while the screen said "EDIT" — and HS-2.1
+		//asks for sentence case on an action label, which is neither of those.
+		assert.strictEqual(suggestion.querySelector('.suggestion-action').textContent, 'Edit');
+		//Opening a nested expression in Source does not LEAVE the composer, so
+		//the chip carries the quiet transform treatment rather than Open's
+		//filled one.
+		assert.strictEqual(suggestion.querySelector('.suggestion-action').getAttribute('data-consequence'), 'transform');
 		suggestion.click();
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
@@ -1824,6 +1903,91 @@ describe('Collection Composer interactions', () => {
 		assert.match(dialog.shadowRoot.textContent, /Link/);
 	});
 
+	//A TRANSLATED ORIGIN IS NOT A SPELLING.
+	//
+	//A pasted link from this deployment's public address is accepted, and it is
+	//genuinely the same collection — but "written in this app's canonical form"
+	//describes a change of SPELLING, and this one changed the host the link
+	//points at. On a build served from somewhere else, that sentence claimed the
+	//two were interchangeable when the whole point is that they are not.
+	it('says an origin was translated rather than calling it a spelling', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
+		await dialog.updateComplete;
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-source-input');
+		//The configured site_domain, which is not the origin this client runs on.
+		input.value = 'https://thecompendium.cards/c/main/starred/';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /Ready to open/,
+			'the deployment’s own public address is still accepted');
+		assert.match(dialog.shadowRoot.textContent, /From thecompendium\.cards, opened in this app/);
+		assert.doesNotMatch(dialog.shadowRoot.textContent, /canonical form/);
+
+		//A same-origin route keeps the copy it had.
+		input.value = '';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		input.value = '/c/main/starred/';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.match(dialog.shadowRoot.textContent, /Same collection, written in this app’s canonical form/);
+		assert.doesNotMatch(dialog.shadowRoot.textContent, /opened in this app/);
+	});
+
+	//ONE HONEST HEADER PER STATE CLASS (§2.4). 'Not supported here' and 'Can’t
+	//understand this source' were two headers for one class — the source cannot
+	//be opened — and each was wrong about the other's half: the app understands
+	//`zzznope` perfectly well and simply has no such filter, and a malformed
+	//date is understood and rejected. The header states what both share; the
+	//diagnostic underneath says which it was.
+	it('uses one header for every source it cannot open', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
+		await dialog.updateComplete;
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-source-input');
+		const headerFor = async (value) => {
+			input.value = '';
+			input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+			await dialog.updateComplete;
+			input.value = value;
+			input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+			await dialog.updateComplete;
+			return dialog.shadowRoot.querySelector('.source-status strong').textContent;
+		};
+		//unsupported and invalid, in that order.
+		assert.strictEqual(await headerFor('zzznope/'), 'Can’t open this source');
+		assert.strictEqual(await headerFor('updated/after/not-a-date/'), 'Can’t open this source');
+		//The incomplete state stays distinct: nothing is wrong there yet.
+		assert.strictEqual(await headerFor('updated/'), 'Keep typing');
+		assert.strictEqual(await headerFor('starred/'), 'Ready to open');
+	});
+
+	//A collection with no cards opens on nothing, so "Opens on: the first card
+	//in the collection" names a card that does not exist. Suppressed only at a
+	//RESOLVED zero — undefined means the answer is not in yet, which is a
+	//different fact (§3.6), and guessing is what produced the claim.
+	it('does not claim a collection with no cards opens on one', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		window.history.replaceState({}, '', '/c/main/card-7');
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
+		await dialog.updateComplete;
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-source-input');
+		input.value = '/c/main/starred/card-7';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		dialog._previewCounts = { [dialog._draftPreviewID]: 4 };
+		await dialog.updateComplete;
+		assert.match(dialog.shadowRoot.textContent, /Opens on/);
+		dialog._previewCounts = { [dialog._draftPreviewID]: 0 };
+		await dialog.updateComplete;
+		assert.doesNotMatch(dialog.shadowRoot.textContent, /Opens on/);
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
 	it('preserves a Source selected card through Compose activation', async () => {
 		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
 		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
@@ -2152,6 +2316,43 @@ describe('Collection Composer interactions', () => {
 		window.history.replaceState({}, '', '/c/main/');
 	});
 
+	//THE PLACEHOLDER NEVER ENTERS HISTORY.
+	//
+	//The router rewrites "no card in the URL" to the internal placeholder '_'
+	//(actions/collection.ts) and canonicalizeURL rewrites it straight back to an
+	//empty segment. The composer carried it into the path it PUSHED, so every
+	//navigation from the quick composer put `/c/…/_` into history and then
+	//replaceState'd the real path a tick later — a URL the user never asked for,
+	//built from an identifier §1.4 says never reaches them. Building the final
+	//path before the push is the only fix that keeps it out of history at all,
+	//rather than correcting it after the fact.
+	it('never pushes the internal card placeholder into history', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		window.history.replaceState({}, '', '/c/main/');
+		//What the router leaves behind on a collection URL with no card.
+		store.dispatch({ type: 'SHOW_CARD', requestedCard: '_', card: '' });
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		await dialog.updateComplete;
+		assert.strictEqual(dialog._draftSelectedCard, '',
+			'the placeholder is stripped where it enters the component');
+		const composerInput = dialog.shadowRoot.querySelector('#collection-composer-input');
+		composerInput.value = 'starred';
+		composerInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		const row = suggestionRows().find((button) => button.textContent.includes('Add Starred'));
+		assert.ok(row, 'the Starred row is what this test navigates with');
+		row.click();
+		await dialog.updateComplete;
+		await countingPushes(async (pushed) => {
+			dialog.shadowRoot.querySelector('.composer-actions .primary').click();
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, ['/c/starred/'],
+				'the pushed path is the final one, with no placeholder segment');
+		});
+		store.dispatch({ type: 'SHOW_CARD', requestedCard: '', card: '' });
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
 	//The structural half of the same defect: a keystroke may never be consumed
 	//by two commit handlers. Both mode handlers decline a keystroke the other has
 	//already spent, and each declines outright while the composer is in the other
@@ -2466,6 +2667,122 @@ describe('Collection Composer interactions', () => {
 		//AN ADD ROW: clicking it changes the draft.
 		await arrowTo(/Add Starred/);
 		assert.match(hints(), /Click or Tab adds · Enter adds and opens/);
+	});
+
+	//'0 cards' IS A NUMBER, NOT A SENTENCE, and the spec asks for the sentence.
+	//A draft that resolves to nothing said only "0 cards" beside the button that
+	//would open it, which reads like a count still arriving.
+	it('says a draft matches nothing, next to the control that would open it', async () => {
+		const actions = () => dialog.shadowRoot.querySelector('.buttons.composer-actions');
+		dialog._previewCounts = { [dialog._draftPreviewID]: 12 };
+		await dialog.updateComplete;
+		assert.strictEqual(actions().querySelector('.no-cards-note'), null,
+			'a draft with cards says nothing about being empty');
+
+		dialog._previewCounts = { [dialog._draftPreviewID]: 0 };
+		await dialog.updateComplete;
+		assert.strictEqual(actions().querySelector('.no-cards-note').textContent, 'No cards currently match');
+		//The count is still there: the sentence adds to it rather than replacing it.
+		assert.match(actions().querySelector('.action-count').textContent, /0 cards/);
+
+		//Undefined is "not in yet", which is a different fact and gets no claim.
+		dialog._previewCounts = {};
+		await dialog.updateComplete;
+		assert.strictEqual(actions().querySelector('.no-cards-note'), null);
+	});
+
+	//MOBILE READING ORDER: what it is, what it costs, what it does, why.
+	//The verb had a full-width row of its own between the label and the
+	//description, so a row read "Add Starred / 18 cards / ADD / Adds Starred to
+	//this collection" — the consequence interrupting the thing it is a
+	//consequence of.
+	it('keeps a mobile row’s verb beside its count instead of between label and description', () => {
+		const styles = composerStyles();
+		const mobileGrid = /\.mobile \.suggestion button\s*\{([^}]*)\}/.exec(styles);
+		assert.ok(mobileGrid, 'the mobile row grid must exist');
+		const areas = mobileGrid[1].replace(/\s+/g, ' ');
+		assert.match(areas, /'label\s+count'\s*'label\s+action'/,
+			`the verb must share the count's column, under it: ${areas}`);
+		assert.ok(!/'action\s+action'/.test(areas),
+			'the verb must not take a full-width row of its own');
+		//And detail stays after both, unbroken.
+		assert.ok(areas.indexOf('detail') > areas.indexOf('action'));
+		assert.match(styles, /\.mobile \.suggestion-action\s*\{[^}]*justify-self:\s*end/);
+	});
+
+	//A FOOTER MUST NOT NAME CONTROLS THE DEVICE DOES NOT HAVE.
+	//
+	//On a touch layout the contract line still read "↑↓ or Tab choose · Click
+	//edits…" — four inputs a phone has none of. Same class of defect as naming
+	//the wrong verb, one level up. Each row now carries its own visible verb
+	//chip, so the touch line points at that.
+	it('states a contract a touch layout can actually keep', async () => {
+		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
+		await seedRecents([['main/starred/sort/recent/', 2]]);
+		assert.match(hints(), /↑↓/, 'the desktop line names the keys');
+
+		dialog.mobile = true;
+		await dialog.updateComplete;
+		const mobileHints = hints();
+		for (const keyboardOnly of ['↑↓', 'Tab', 'Enter', 'Escape', 'Click']) {
+			assert.ok(!mobileHints.includes(keyboardOnly),
+				`the touch contract must not name ${keyboardOnly}: ${mobileHints}`);
+		}
+		assert.match(mobileHints, /Tap a row to use it/);
+		assert.match(mobileHints, /tap the open button for this collection/);
+		dialog.mobile = false;
+		await dialog.updateComplete;
+	});
+
+	//SENTENCE CASE, AND A VISIBLE CONSEQUENCE CLASS.
+	//
+	//The row verbs were lowercase text painted ALL-CAPS by text-transform: a
+	//register §2.1 reserves for nothing, and one the DOM never agreed with, so
+	//a screen reader said "add" while the screen said "ADD". Sentence case makes
+	//them quieter, so the one verb that LEAVES — Open commits a navigation and
+	//closes the composer — has to be told apart from the ones that rewrite the
+	//draft by treatment as well as by the word.
+	it('writes its row verbs in sentence case and marks the one that navigates', async () => {
+		await seedRecents([['main/starred/sort/recent/', 2]]);
+		const chips = () => Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-action'));
+		assert.ok(chips().length, 'there are rows to check');
+		for (const chip of chips()) {
+			const word = chip.textContent.trim();
+			assert.notStrictEqual(word, word.toLowerCase(), `a verb chip is still lowercase: ${word}`);
+			assert.notStrictEqual(word, word.toUpperCase(), `a verb chip is still ALL CAPS: ${word}`);
+			assert.strictEqual(chip.getAttribute('data-consequence'),
+				word === 'Open' ? 'navigate' : 'transform', `wrong consequence class for ${word}`);
+		}
+		assert.ok(chips().some((chip) => chip.textContent.trim() === 'Open'), 'a recents row opens');
+		assert.ok(chips().some((chip) => chip.textContent.trim() === 'Add'), 'a refinement row adds');
+
+		const styles = composerStyles();
+		assert.ok(!/\.suggestion-action\s*\{[^}]*text-transform/.test(styles),
+			'the chip must not be painted ALL CAPS by CSS either');
+		assert.match(styles, /\.suggestion-action\[data-consequence='navigate'\]\s*\{[^}]*background:\s*var\(--app-primary-color\)/,
+			'the navigational verb is filled');
+		assert.match(styles, /\.suggestion-action\[data-consequence='transform'\]\s*\{[^}]*border-color:\s*var\(--app-primary-color\)/,
+			'the draft-transforming verbs are outlined');
+	});
+
+	//§4.6's heading register is h3-weight-normal in the subordinate colour, and
+	//the spec writes every one of these headings sentence case. They were the
+	//app's only ALL-CAPS headings — a fourth type register invented for one
+	//dialog. text-transform never changed textContent, so the words were already
+	//right; only the screen disagreed.
+	it('sets its section headings in the app’s own subordinate register', async () => {
+		await seedRecents([['main/starred/sort/recent/', 2]]);
+		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
+			.map((element) => element.textContent.trim());
+		assert.ok(headings.includes('Continue'), `expected a Continue heading: ${headings.join(' | ')}`);
+		for (const heading of headings) {
+			assert.notStrictEqual(heading, heading.toUpperCase(), `heading is ALL CAPS: ${heading}`);
+		}
+		const styles = composerStyles();
+		assert.ok(!/\.suggestion-heading\s*\{[^}]*text-transform/.test(styles));
+		assert.ok(!/\.source-interpretation-label\s*\{[^}]*text-transform/.test(styles));
+		assert.match(styles, /\.suggestion-heading\s*\{[^}]*font-weight:\s*400/);
+		assert.match(styles, /\.suggestion-heading\s*\{[^}]*color:\s*var\(--app-dark-text-color-light\)/);
 	});
 
 	//Two numbers claimed to be "what Enter will do": the highlighted row's,

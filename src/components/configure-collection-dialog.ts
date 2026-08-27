@@ -56,6 +56,7 @@ import {
 } from '../collection-composer-receipt.js';
 
 import {
+	PLACEHOLDER_CARD_ID_CHARACTER,
 	updateCollectionConfigurationSnapshot,
 } from '../actions/collection.js';
 
@@ -79,6 +80,7 @@ import {
 } from '../filters.js';
 
 import {
+	CANCEL_ICON,
 	LINK_ICON,
 	OPEN_IN_BROWSER_ICON,
 	PLUS_ICON
@@ -216,6 +218,7 @@ const showCollectionNavigationReceipt = (returnPath : string, expression : strin
 
 import {
 	parseCollectionSource,
+	CollectionSourceExpectedKind,
 	ParsedCollectionSource,
 } from '../collection-source.js';
 
@@ -401,6 +404,30 @@ const COMPOSER_ALLOWED_ORIGINS : ReadonlySet<string> = new Set([
 //the natural home and gives the exact sentence; it appears wherever the dialog
 //first shows the user their collection, in all three of its modes.
 const COLLECTION_HELP = 'A collection is a set of cards you can link to.';
+
+//SENTENCE CASE, IN THE DOM AND NOT ONLY ON THE SCREEN (HS-2.1).
+//
+//The row action chips were lowercase text painted ALL-CAPS by
+//text-transform, which §2.1 reserves for nothing: these are action labels, so
+//they are sentence case. text-transform never changed textContent, so the
+//accessible name and the visible word disagreed for the whole life of the
+//control — a screen reader said "add" while the screen said "ADD".
+const sentenceCase = (value : string) : string => value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+
+//WHAT A ROW COSTS YOU, in one word the eye can sort on.
+//
+//Open is the only verb that LEAVES: it commits a navigation and closes the
+//composer. Add / Remove / Replace / Configure / Edit all rewrite the draft (or
+//its representation) in place and leave the user composing. Sentence case makes
+//the words quieter than the old caps did, so the consequence class has to be
+//carried visually as well as lexically — filled for the one that navigates,
+//outlined for the ones that do not.
+const rowConsequence = (verb : string) : 'navigate' | 'transform' => verb === 'open' ? 'navigate' : 'transform';
+
+//The spec's own words for a draft that resolves to nothing. A sentence-case
+//fragment with no terminal period (HS-2.6): it states what is absent, and the
+//recovery rows underneath are the offer.
+const NO_CARDS_MATCH_NOTE = 'No cards currently match';
 
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -664,19 +691,37 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.75em 0;
 			}
 
-			/* 700, not 500: only 400 and 700 are loaded (§4.3), so 500 was
-			   being synthesized. The set name is the lead term of the
-			   expression — the same emphasis register as the <strong> in
-			   .source-status — so it rounds up rather than down. */
+			/* THE EMPHASIS WAS UPSIDE DOWN.
+			   The set name is the one term in this sentence that is NOT
+			   interactive — it is a plain span, changed from the catalog's
+			   "Start From" control — and it was bold purple 700, the loudest
+			   token in the dialog, while every editable clause sat in a quiet
+			   grey box beside it. Purple is the brand/link/committing colour
+			   (§4.5), so painting a non-control with it promises a click that
+			   does not exist.
+			   It now reads at the sentence's own weight and colour, and the
+			   presence goes to the clauses, which are what the user can act on.
+			   The operators stay subordinate below both. */
 			.expression-set {
-				color: var(--app-primary-color);
-				font-weight: 700;
+				color: var(--app-dark-text-color);
+				font-weight: 400;
 			}
 
 			.expression-operator,
 			.expression-modifiers {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.8em;
+			}
+
+			/* One operator plus the clause it introduces, as one unwrappable
+			   unit. inline-flex rather than white-space:nowrap so the CHIP may
+			   still wrap its own label internally. */
+			.expression-term {
+				align-items: center;
+				display: inline-flex;
+				gap: 0.3em;
+				max-width: 100%;
+				min-width: 0;
 			}
 
 			/* HelpStyles sizes the badge at 1.3em of whatever it sits in, which
@@ -687,9 +732,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				width: 1em;
 			}
 
-			/* Square, per §4.4: a clause chip is a core surface, not a pill. */
+			/* A TOKEN IN A SENTENCE, NOT A CELL IN A TABLE.
+			   The chip was a white box with a 1px divider around it and a
+			   SECOND 1px divider down its middle, splitting label from remove —
+			   which is exactly the anatomy of a two-column table cell, and it
+			   read as one. Square corners stay (§4.4: a clause is a core
+			   surface, not a pill); what changes is that the outer rule becomes
+			   the subtle primary wash the spec asks for ("focused/editable
+			   clauses receive a clear outline or subtle primary wash using
+			   existing theme colors"), and the internal rule is gone. The wash
+			   is also what gives the clauses the presence the set name just gave
+			   up. */
 			.expression-clause {
 				align-items: stretch;
+				background: var(--app-primary-color-light-very-transparent);
 				border: 1px solid var(--app-divider-color);
 				display: inline-flex;
 				min-width: 0;
@@ -710,7 +766,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			.expression-clause button:hover,
 			.expression-clause button:focus-visible {
-				background: var(--app-primary-color-light-very-transparent);
+				background: var(--app-primary-color-light-transparent);
 				box-shadow: none;
 			}
 
@@ -722,18 +778,45 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			.expression-clause-remove {
-				border-left: 1px solid var(--app-divider-color);
-				font-size: 1.2em;
+				align-items: center;
+				display: inline-flex;
+				justify-content: center;
 				min-width: 44px;
 				padding: 0.35em;
 			}
 
+			/* QUIET UNTIL HOVER OR FOCUS. The spec asks for destructive removal
+			   to stay visually quiet until focused, and §3.7 keeps the warning
+			   colour for Tier 1 acts — removing a draft clause is Tier 2 and
+			   loses nothing, so the escalation is from subordinate grey to body
+			   grey, not to red. It is never invisible: hover-only affordances
+			   are unreachable on touch (§3.6.4). */
+			.expression-clause-remove svg {
+				fill: var(--app-dark-text-color-light);
+				height: 1em;
+				width: 1em;
+			}
+
+			.expression-clause-remove:hover svg,
+			.expression-clause-remove:focus-visible svg {
+				fill: var(--app-dark-text-color);
+			}
+
+			/* THE INPUT CONTINUES THE SENTENCE; IT IS NOT A SECOND FIELD.
+			   A 14em flex-basis is the width the flex algorithm uses to decide
+			   whether this item fits on the current line, so with a couple of
+			   chips on a narrow-ish dialog the input jumped to a line of its
+			   own and then grew to fill it — two stacked underlined boxes, which
+			   is a form, not a sentence. 8em is a real minimum typing width and
+			   is what the line-breaking test now uses, so the input wraps only
+			   when there is genuinely no room left beside the last chip. */
 			.composer-input {
 				border: 0;
 				border-bottom: 1px solid var(--app-dark-text-color);
 				box-sizing: border-box;
-				flex: 1 1 14em;
+				flex: 1 1 8em;
 				font: inherit;
+				min-width: 8em;
 				padding: 0.6em 0.2em;
 				width: auto;
 			}
@@ -755,12 +838,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				outline-offset: -2px;
 			}
 
+			/* A RECEIPT IS A THING, SO IT NEEDS AN EDGE.
+			   This strip floated between the input and the suggestion list with
+			   no container of its own, so "Added Starred · Undo" read as loose
+			   text that had come adrift — and it sat hard against the top of the
+			   list, where the fade clips the first row, so the two collided.
+			   A wash and a rule of its own space give it a boundary; the tokens
+			   are the same two the clause chips and the divider already use.
+			   The colour also steps up from --app-dark-text-color-light, which
+			   is ~2.3:1 on white and which this file has already rejected once
+			   for text that has to be read (see the loading-placeholder note
+			   below). A receipt is precisely that: it is the only record of what
+			   the last keystroke did to the draft. */
 			.draft-receipt {
 				align-items: center;
-				color: var(--app-dark-text-color-light);
+				background: var(--app-primary-color-light-very-transparent);
+				border-left: 3px solid var(--app-divider-color);
+				color: var(--app-dark-text-color-darker);
 				display: flex;
 				font-size: 0.82em;
 				gap: 0.5em;
+				margin: 0.4em 0;
+				padding: 0.3em 0.6em;
 			}
 
 			/* THE COMPOSER'S TEXT VERB — one rule, replacing three near-identical
@@ -788,11 +887,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-height: 44px;
 			}
 
+			/* §4.6's panel heading register: subordinate weight, subordinate
+			   colour, and the words as they were written. These were the app's
+			   only ALL-CAPS headings — CONTINUE, REFINE THIS COLLECTION,
+			   SUGGESTED FOR THIS CARD — a fourth type register invented for one
+			   dialog, and the spec writes every one of them sentence case. The
+			   uppercase came from text-transform, so the DOM already said the
+			   sentence-case words; only the screen disagreed. Dropping the
+			   transform takes the letter-spacing with it: that spacing existed
+			   to open up small caps and is noise without them. */
 			.suggestion-heading {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.75em;
+				font-size: 0.78em;
+				font-weight: 400;
 				margin-top: 1.2em;
-				text-transform: uppercase;
 			}
 
 			/* The list takes the height the dialog body has left rather than a
@@ -962,31 +1070,60 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			/* justify-self: start, inside a fixed track: every chip on every
 			   row begins at the same x. The padding is unconditional so that
-			   filling it for the highlighted row (below) moves nothing. */
+			   filling it for the highlighted row (below) moves nothing.
+			   Sentence case now (§2.1), with the letter-spacing that was
+			   opening up the caps removed with them. A 1px transparent border
+			   is declared on every chip so that giving the transform chips a
+			   real one below moves nothing either. */
 			.suggestion-action {
 				align-self: start;
 				background: transparent;
+				border: 1px solid transparent;
 				color: var(--app-primary-color);
-				font-size: 0.68em;
+				font-size: 0.72em;
 				grid-area: action;
 				justify-self: start;
-				letter-spacing: 0.04em;
 				padding: 0.2em 0.4em;
-				text-transform: uppercase;
 				white-space: nowrap;
+			}
+
+			/* THE CONSEQUENCE CLASS IS SCANNABLE WITHOUT READING THE WORD.
+			   Open is the only verb in any of these three lists that LEAVES —
+			   it commits a navigation and closes the composer. Everything else
+			   rewrites the draft, or its representation, and hands the user back
+			   to composing. In ALL CAPS the seven verbs were one undifferentiated
+			   register; in sentence case they are quieter still, so the
+			   difference moves into the treatment: the navigational verb is a
+			   filled 700 chip, the draft-transforming ones are outlined at 400.
+			   Both weights exist (§4.3 loads 400 and 700 and nothing else).
+			   Judgment call worth stating: the highlighted-row rule below fills
+			   whichever chip is highlighted, so on that ONE row the fill stops
+			   discriminating — deliberately, because a categorically stronger
+			   highlight is what the previous wave established and what keeps
+			   "the transformation accepted on keydown is the one visibly
+			   highlighted" legible. The weight survives the fill, and the
+			   key-hints line names that row's verb outright. */
+			.suggestion-action[data-consequence='navigate'] {
+				background: var(--app-primary-color);
+				color: var(--app-light-text-color);
+				font-weight: 700;
+			}
+
+			.suggestion-action[data-consequence='transform'] {
+				border-color: var(--app-primary-color);
 			}
 
 			/* A genuine extension rather than a repaint: this is a toggle (it
 			   pairs with aria-pressed and takes .selected from
-			   ButtonSharedStyles), and it needs the small-caps register and a
-			   square hit target beside the row it modifies. Colour, margin and
-			   height come from .verb. */
+			   ButtonSharedStyles), and it needs a square hit target beside the
+			   row it modifies. Colour, margin and height come from .verb.
+			   Its label is the word "Not", which §2.1 wants in sentence case
+			   like every other button label — so the caps and the spacing that
+			   was opening them up are both gone. */
 			.catalog-polarity {
 				align-self: center;
-				font-size: 0.7em;
-				letter-spacing: 0.04em;
+				font-size: 0.75em;
 				min-width: 44px;
-				text-transform: uppercase;
 			}
 
 			/* THE ON STATE HAS TO PAINT. aria-pressed=true and aria-pressed=
@@ -1020,15 +1157,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				white-space: normal;
 			}
 
+			/* READING ORDER: WHAT IT IS, WHAT IT COSTS, WHAT IT DOES, WHY.
+			   The verb had a full-width row of its own between the label and the
+			   description, so a mobile row read "Add Starred / 18 cards / ADD /
+			   Adds Starred to this collection" — the consequence interrupting
+			   the thing it is a consequence of. The label now spans two rows so
+			   the count and the verb can stack in the same right-hand column,
+			   which puts the verb directly under the number it applies to and
+			   leaves the description last and unbroken. Both areas stay
+			   rectangular, which is what lets one track serve two rows. */
 			.mobile .suggestion button {
 				grid-template-columns: minmax(0, 1fr) 9em;
 				grid-template-areas:
 					'category category'
 					'label    count'
-					'action   action'
+					'label    action'
 					'detail   detail'
 					'example  example'
 					'applied  applied';
+			}
+
+			/* Right-aligned under the right-aligned count, so the two elements
+			   of the same column share an edge. */
+			.mobile .suggestion-action {
+				justify-self: end;
 			}
 
 			.builder-toggle {
@@ -1183,6 +1335,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-width: 44px;
 			}
 
+			/* Subordinate to the count it qualifies, and to the button it sits
+			   beside — it is a statement of fact about the draft, not a warning:
+			   an empty draft is valid, and the recovery rows above are the
+			   offer. --app-dark-text-color-darker rather than -light for the
+			   same reason the receipt takes it: this one has to be read. */
+			.composer-actions .no-cards-note {
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.85em;
+				margin-right: auto;
+			}
+
 			/* The count is a READOUT of what the primary would open, not part of
 			   the button's name (§3.3, §4.2: a round glyph has no label to vary).
 			   It arrives after the row is already on screen, so its width is
@@ -1196,17 +1359,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			/* 400, not 500 (§4.3 loads only 400 and 700). These are the same
-			   subordinate small-caps register as .suggestion-heading and as
+			   subordinate register as .suggestion-heading and as
 			   ButtonSharedStyles' own label rule, both of which are already 400 —
 			   rounding up to 700 would make them the loudest thing in the
-			   source pane. */
+			   source pane. The uppercase is gone with the rest of §4.6's
+			   heading register: "COLLECTION SOURCE", "THIS MEANS", "OPENS ON"
+			   and "WILL OPEN AS" were shouted versions of strings already
+			   written in the case they should be read in. */
 			.source-editor label,
 			.source-interpretation-label {
+				color: var(--app-dark-text-color-light);
 				display: block;
 				font-size: 0.78em;
 				font-weight: 400;
 				margin: 0.8em 0 0.35em;
-				text-transform: uppercase;
 			}
 
 			.source-input {
@@ -1270,12 +1436,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin: 0.65em 0 0.25em;
 			}
 
+			/* The row's kind word — Sort, View, Set, Filter, Date, Value, or a
+			   live candidate's own category. Sentence case, and the presentation
+			   function authors it that way rather than a transform painting it. */
 			.source-suggestion-category {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.68em;
+				font-size: 0.72em;
 				grid-area: category;
-				letter-spacing: 0.04em;
-				text-transform: uppercase;
 			}
 
 			.source-steps {
@@ -1402,13 +1569,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const shown = parsed.status === 'valid' ? parsed : this._lastValidSource;
 		const description = shown?.description || this._collectionDescription;
 		const count = this._previewCounts[this._draftPreviewID];
+		//ONE HONEST HEADER PER STATE CLASS (HS-2.4).
+		//
+		//'Not supported here' and 'Can’t understand this source' were two headers
+		//for one class — the source cannot be opened — and each was wrong about
+		//half of it. The app understands `foo` perfectly well and simply has no
+		//such filter, so "can't understand" is false; a malformed date is
+		//understood and rejected, so "not supported" is false. The header now
+		//states the one fact both share, and the diagnostic underneath says which
+		//it was, which is the division of labour §2.4 asks for. The
+		//incomplete/keep-typing state stays distinct, because nothing is wrong
+		//there yet.
 		const statusLabel = parsed.status === 'valid' ? 'Ready to open' :
-			parsed.status === 'incomplete' ? 'Keep typing' :
-				parsed.status === 'unsupported' ? 'Not supported here' : 'Can’t understand this source';
+			parsed.status === 'incomplete' ? 'Keep typing' : 'Can’t open this source';
 		const diagnostic = parsed.diagnostics[0]?.message || 'This source is complete and safe to open.';
 		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
 		const completionMode = completionDiagnostic ? 'complete' : 'add';
 		const completionDetails = completionDiagnostic?.expectedDetails || parsed.nextExpectedDetails || {};
+		//Which production the completions belong to. Only the parser knows, and
+		//without it every completion fell through to 'filter'.
+		const completionKind : CollectionSourceExpectedKind = completionDiagnostic?.expectedKind || parsed.nextExpectedKind || 'root';
 		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || parsed.nextExpected || []);
 		const expressionParts = collectionExpressionParts(description, this._composerFilterLabels);
 		const fullDestination = parsed.canonicalPath ? new URL(parsed.canonicalPath, window.location.origin).toString() : '';
@@ -1418,6 +1598,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//typed. Naming it as the same collection in canonical form is the whole
 		//difference between a rewrite and a spelling.
 		const canonicalized = Boolean(parsed.canonicalPath) && parsed.canonicalPath !== this._sourceInput;
+		//AN ORIGIN THAT WAS TRANSLATED IS NOT A SPELLING.
+		//
+		//A pasted link from this deployment's public address is accepted, and it
+		//is genuinely the same collection — but "written in this app's canonical
+		//form" describes a change of SPELLING, and this one changed the host the
+		//link points at. On a dev build opening a thecompendium.cards link, that
+		//sentence claimed the two were interchangeable when the whole point is
+		//that they are not. Same-origin canonicalization keeps its own copy.
+		const foreignOrigin = parsed.origin && parsed.origin !== window.location.origin ? new URL(parsed.origin).hostname : '';
 		return html`
 			<div class='source-editor'>
 				<label for='collection-source-input'>Collection Source ${help(COLLECTION_HELP)}</label>
@@ -1446,13 +1635,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<div class='source-suggestion-heading'>${completionMode === 'add' ? 'Add another filter or modifier — type to search all filters' : 'Choose the next value'}</div>
 				<div id='collection-source-completions' class='suggestions scroller' role='listbox' aria-label='Legal next source values'>
 					${completions.map((completion, index) => {
-		const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion]);
+		const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion], completionKind);
 		return html`
 						<div class='suggestion' role='presentation'>
 							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @mousemove=${() => this._handleRowPointerMove('source-completion', index)} @mouseenter=${() => this._handleRowPointerEnter('source-completion', index)} @click=${() => this._acceptSourceCompletion(completion)}>
 								<span class='source-suggestion-category'>${presentation.category}</span>
 								<span class='suggestion-label'>${presentation.label}</span>
-								<span class='suggestion-action'>${completionMode}</span>
+								<span class='suggestion-action' data-consequence=${rowConsequence(completionMode)}>${sentenceCase(completionMode)}</span>
 								<span class='suggestion-detail'>${presentation.detail} · <code>${completion}</code></span>
 							</button>
 						</div>
@@ -1466,14 +1655,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
 				${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
 			</div>
-			${shown?.selectedCardRaw ? html`
+			<!-- A collection with no cards opens on nothing, so "Opens on: the
+			     first card in the collection" names a card that does not exist.
+			     Suppressed only at a RESOLVED zero: while the count is still
+			     undefined we do not yet know, and guessing is what produced the
+			     claim in the first place. -->
+			${shown?.selectedCardRaw && count !== 0 ? html`
 				<span class='source-interpretation-label'>Opens on</span>
-				<div>${shown.selectedCardRaw === '_' ? 'The first card in the collection' : shown.selectedCardRaw}</div>
+				<div>${shown.selectedCardRaw === PLACEHOLDER_CARD_ID_CHARACTER ? 'The first card in the collection' : shown.selectedCardRaw}</div>
 			` : ''}
 			${fullDestination ? html`
 				<span class='source-interpretation-label'>${canonicalized ? 'Will open as' : 'Link'}</span>
 				<div id='collection-source-destination' class='source-link'>${fullDestination}</div>
-				${canonicalized ? html`<div class='key-hints'>Same collection, written in this app’s canonical form</div>` : ''}
+				${canonicalized ? html`<div class='key-hints'>${foreignOrigin ? `From ${foreignOrigin}, opened in this app` : 'Same collection, written in this app’s canonical form'}</div>` : ''}
 			` : ''}
 			${parsed.notices.map(notice => html`<div class='key-hints'>${notice} ${parsed.query}${parsed.hash}</div>`)}
 			${fullDestination ? html`<button class='small verb' @click=${this._handleCopySourceLink} aria-label='Copy collection link'>Copy link</button>` : ''}
@@ -1486,7 +1680,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			${this._modifierNoteRender()}
 			<div class='mode-actions'>
 				<button class='small verb' @click=${this._handleBackToCompose}>Edit visually</button>
-				<span class='key-hints'>${completions.length ? (completionMode === 'add' ? `↑↓ Choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` : `↑↓ Choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`) : (parsed.status === 'valid' ? `Enter opens · ${shortcutKeys('dialog-escape')} cancels` : `Keep editing · ${shortcutKeys('dialog-escape')} cancels`)}</span>
+				<span class='key-hints'>${this._sourceKeyHints(completions.length > 0, completionMode, parsed.status === 'valid')}</span>
 			</div>
 			${this._openActionRender(
 		count,
@@ -1665,7 +1859,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 											@click=${() => this._handleCatalogItem(item)}
 										>
 											<span class='suggestion-label'>${item.label}</span>
-											<span class='suggestion-action'>${!item.guided || item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add'}</span>
+											${(() => {
+		const verb = !item.guided || item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add';
+		return html`<span class='suggestion-action' data-consequence=${rowConsequence(verb)}>${sentenceCase(verb)}</span>`;
+	})()}
 											<span class='suggestion-detail'>${item.detail}</span>
 											<span class='catalog-example'>Example: ${item.example}</span>
 											${item.appliedIndex >= 0 ? html`<span class='catalog-item-applied'>Already in this collection</span>` : ''}
@@ -1752,22 +1949,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return html`
 			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels)}</div>
 			<div class='expression' role='group' aria-label='Draft collection clauses'>
-				${help(COLLECTION_HELP)}
 				<span class='expression-set'>${expressionParts.set.label}</span>
+				<!-- AN OPERATOR BELONGS TO THE CLAUSE IT INTRODUCES.
+				     AND was a sibling of its chip in a wrapping flex row, so a
+				     line whose next chip did not fit ended on a dangling "AND"
+				     and the clause it announced started the line below. Bound
+				     into one inline group, the pair can only wrap together. -->
 				${expressionParts.filters.map(filter => html`
-					<span class='expression-operator' aria-hidden='true'>AND</span>
-					<span class='expression-clause' role='group' aria-label=${`${filter.label} filter`} ?data-selected=${filter.index === this._selectedClauseIndex}>
-						<button
-							class='expression-clause-label'
-							aria-label=${`Edit ${filter.label} filter`}
-							@click=${() => this._handleClauseEdit(filter.index)}
-						>${filter.label}</button>
-						<button
-							class='expression-clause-remove'
-							aria-label=${`Remove ${filter.label} filter`}
-							title=${`Remove ${filter.label} filter`}
-							@click=${() => this._removeDraftClause(filter.index)}
-						>×</button>
+					<span class='expression-term'>
+						<span class='expression-operator' aria-hidden='true'>AND</span>
+						<span class='expression-clause' role='group' aria-label=${`${filter.label} filter`} ?data-selected=${filter.index === this._selectedClauseIndex}>
+							<button
+								class='expression-clause-label'
+								aria-label=${`Edit ${filter.label} filter`}
+								@click=${() => this._handleClauseEdit(filter.index)}
+							>${filter.label}</button>
+							<!-- CANCEL_ICON, not a literal ×. §4.2's MUST: never
+							     render a text glyph where an icon exists. It is
+							     quiet until hover or focus, per the spec's
+							     "destructive removal remains visually quiet until
+							     focused" — and it takes no warning colour, because
+							     removing a draft clause loses nothing (§3.7 Tier 2). -->
+							<button
+								class='expression-clause-remove'
+								aria-label=${`Remove ${filter.label} filter`}
+								title=${`Remove ${filter.label} filter`}
+								@click=${() => this._removeDraftClause(filter.index)}
+							>${CANCEL_ICON}</button>
+						</span>
 					</span>
 				`)}
 				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
@@ -1789,6 +1998,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@input=${this._handleComposerInput}
 					@keydown=${this._handleComposerKeyDown}
 				>
+				<!-- AFTER the expression, not in front of it. The badge was the
+				     first element of the sentence, so the draft opened with a
+				     help glyph and only then said what collection it was. It
+				     defines the word "collection" (HS-1.3's MUST, debt item D1),
+				     which is a footnote to the sentence, not its subject. -->
+				${help(COLLECTION_HELP)}
 			</div>
 			<!-- Visible, not a title: hover is unreachable on touch (§3.6.4),
 			     and a clause the user cannot edit is exactly the one that has to
@@ -1872,8 +2087,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//own visible chip already order them — source, then configure, then the
 	//plain action — so the footer cannot promise a verb the click would not
 	//perform.
+	//
+	//AND A TOUCH LAYOUT HAS NO KEYBOARD TO STATE A CONTRACT FOR. On a phone this
+	//line named ↑↓, Tab, Click and Escape — four inputs the device does not
+	//have — which is the same defect as the wrong verb, one level up: a footer
+	//that describes controls the user cannot reach. Each row now carries its own
+	//visible verb chip (Open / Add / Remove / Replace / Configure / Edit), so the
+	//touch line points at the affordance that IS there rather than restating a
+	//keyboard grammar. It makes no per-row claim, for the same reason the
+	//nothing-highlighted desktop branch makes none.
 	_composerKeyHints(suggestions : CollectionComposerSuggestion[], highlighted : CollectionComposerSuggestion | undefined) : string {
 		const escapeHint = `${shortcutKeys('dialog-escape')} cancels`;
+		if (this.mobile) {
+			if (this._catalogOpen) return 'Tap a filter to add or configure it';
+			if (this._selectedClauseIndex >= 0) return 'Tap a clause to edit it · tap its remove button to take it out';
+			return suggestions.length ?
+				'Tap a row to use it — each says what it does · tap the open button for this collection' :
+				'Type to compose · tap the open button for this collection';
+		}
 		if (this._catalogOpen) return `Type to search · ↑↓ choose · Enter opens Source, configures, or adds · ${shortcutKeys('dialog-escape')} closes catalog`;
 		if (this._selectedClauseIndex >= 0) return '←→ choose clause · Delete removes · type to continue';
 		if (!highlighted) {
@@ -1927,6 +2158,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false) {
 		return html`
 			<div class='buttons composer-actions' ?data-deemphasized=${deemphasized}>
+				<!-- '0 cards' is a number, not a sentence, and the spec asks for
+				     the sentence: a draft that resolves to nothing has to SAY so
+				     next to the control that would open it, or the user reads the
+				     zero as a count still arriving. Only at a resolved zero —
+				     undefined means the answer is not in yet, which is a
+				     different fact (§3.6). -->
+				${count === 0 ? html`<span class='no-cards-note'>${NO_CARDS_MATCH_NOTE}</span>` : ''}
 				<!-- The count is LOADING, not in flight (§3.6): the user typed a
 				     clause, not a request for a number, and the draft is fully
 				     usable without it. That is exactly what loading-placeholder is
@@ -1969,7 +2207,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								@click=${() => this._applyComposerSuggestion(suggestion, suggestion.action === 'open')}
 							>
 								<span class='suggestion-label'>${suggestion.label}</span>
-								<span class='suggestion-action'>${visibleAction}</span>
+								<span class='suggestion-action' data-consequence=${rowConsequence(visibleAction)}>${sentenceCase(visibleAction)}</span>
 								${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
 								<span class='suggestion-detail'>${suggestion.detail}</span>
 							</button>
@@ -2072,16 +2310,52 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return collectionFilterDisplayName(filter, this._composerFilterLabels);
 	}
 
-	_sourceCompletionPresentation(token : string, grammarDetail = '') : {label: string, detail: string, category: string} {
+	//EVERY COMPLETION SAYS WHAT KIND OF THING IT IS.
+	//
+	//This function used to classify by the token alone, so anything it did not
+	//recognize fell through to the last line — and the last line asserts
+	//"filter". After `sort/`, every sort name in the app was therefore offered
+	//as a filter, described as "A legal collection filter", in a list whose
+	//heading says "Choose the next value". Three claims, one of them true.
+	//
+	//`kind` is the parser's answer to "which production is this?", which is the
+	//only place that fact exists. It is consulted FIRST for the positions where
+	//it is decisive (a sort name and a view name are never anything else), and
+	//as a fallback for a filter ARGUMENT, whose token could be anything at all.
+	//Between the two, the token-level rules stay: at a root position a candidate,
+	//`sort`, `view`, a set name and a date boundary are each recognizable on
+	//sight and each deserve their own word.
+	_sourceCompletionPresentation(token : string, grammarDetail = '', kind : CollectionSourceExpectedKind = 'root') : {label: string, detail: string, category: string} {
+		if (kind === 'sort') return {label: collectionOptionDisplayName(token), detail: grammarDetail || 'A card order', category: 'Sort'};
+		if (kind === 'view') return {label: collectionOptionDisplayName(token), detail: grammarDetail || 'A way to display the collection', category: 'View'};
 		const candidate = this._contextualComposerCandidates.find(item => item.filter === token);
-		if (candidate) return {label: this._readableComposerFilter(token), detail: candidate.detail, category: candidate.category};
-		if (token === 'sort') return {label: 'Choose an order', detail: grammarDetail || 'Control the order cards appear in', category: 'ordering'};
-		if (token === 'view') return {label: 'Choose a view', detail: grammarDetail || 'Control how cards are displayed', category: 'display'};
-		if (['main', 'everything', 'reading-list'].includes(token)) return {label: collectionOptionDisplayName(token), detail: grammarDetail, category: 'starting set'};
+		if (candidate) return {label: this._readableComposerFilter(token), detail: candidate.detail, category: sentenceCase(candidate.category)};
+		if (token === 'sort') return {label: 'Choose an order', detail: grammarDetail || 'Control the order cards appear in', category: 'Sort'};
+		if (token === 'view') return {label: 'Choose a view', detail: grammarDetail || 'Control how cards are displayed', category: 'View'};
+		if (['main', 'everything', 'reading-list'].includes(token)) return {label: collectionOptionDisplayName(token), detail: grammarDetail || 'A starting set for the collection', category: 'Set'};
 		if (['before', 'after', 'between', 'today', 'yesterday'].includes(token) || /-ago$/.test(token)) {
-			return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A date boundary', category: 'date'};
+			return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A date boundary', category: 'Date'};
 		}
-		return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A legal collection filter', category: 'filter'};
+		if (kind === 'value') return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A value this filter needs', category: 'Value'};
+		return {label: this._readableComposerFilter(token), detail: grammarDetail || 'A legal collection filter', category: 'Filter'};
+	}
+
+	//The same contract Source mode has always stated, plus the touch branch the
+	//quick composer needed for the same reason: on a phone there is no ↑↓, no
+	//Tab and no Escape key, so naming them is a contract the device cannot keep.
+	_sourceKeyHints(hasCompletions : boolean, completionMode : string, valid : boolean) : string {
+		if (this.mobile) {
+			if (hasCompletions) return completionMode === 'add' ? 'Tap a row to add it to the source' : 'Tap a row to fill in the next value';
+			return valid ? 'Tap the open button for this collection' : 'Keep editing — the note above says what is missing';
+		}
+		if (hasCompletions) {
+			return completionMode === 'add' ?
+				`↑↓ choose · Tab adds · Enter opens · ${shortcutKeys('dialog-escape')} dismisses suggestions` :
+				`↑↓ choose · Tab or Enter completes · ${shortcutKeys('dialog-escape')} dismisses suggestions`;
+		}
+		return valid ?
+			`Enter opens · ${shortcutKeys('dialog-escape')} cancels` :
+			`Keep editing · ${shortcutKeys('dialog-escape')} cancels`;
 	}
 
 	constructor() {
@@ -3064,7 +3338,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
 		this._activeCardID = selectActiveCardID(state);
-		this._requestedCard = selectRequestedCard(state) || '';
+		//THE PLACEHOLDER NEVER REACHES A PATH THIS DIALOG BUILDS.
+		//
+		//The router rewrites "no card in the URL" to the internal placeholder
+		//'_' (actions/collection.ts) and canonicalizeURL rewrites it straight
+		//back to an empty segment. Carrying it into a destination meant every
+		//composer navigation pushed `/c/…/_` and then replaceState'd the real
+		//path a tick later — a URL the user never asked for, entered into
+		//history, and the app's own §1.4 rule is that an internal identifier
+		//never reaches a user. Stripped where the value ENTERS the component, so
+		//both consumers (the paths built from it and the already-open comparison
+		//that is made against it) agree without either having to remember.
+		const requestedCard = selectRequestedCard(state) || '';
+		this._requestedCard = requestedCard === PLACEHOLDER_CARD_ID_CHARACTER ? '' : requestedCard;
 		this._activeCard = selectActiveCard(state);
 		this._entryMode = selectConfigureCollectionDialogMode(state);
 		this._focusRequest = selectConfigureCollectionDialogFocusRequest(state);
