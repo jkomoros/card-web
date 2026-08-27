@@ -14,6 +14,16 @@ import {
 export type CollectionSourceKind = 'fragment' | 'route' | 'url';
 export type CollectionSourceStatus = 'valid' | 'incomplete' | 'unsupported' | 'invalid';
 
+//WHAT KIND OF THING THE NEXT TOKEN IS. The completion list is rendered by one
+//row treatment for every grammar position, and without this it had to guess:
+//every completion that was not obviously a date fell through to "filter", so
+//the sort names offered after `sort/` were labeled 'filter' and described as
+//'A legal collection filter'. The parser is the only thing that knows which
+//production it is in, so it says so rather than leaving the UI to infer it.
+//'root' is the position where a set, a filter, `sort` and `view` are all legal,
+//and there the per-token classification the UI already does is the right answer.
+export type CollectionSourceExpectedKind = 'root' | 'filter' | 'sort' | 'view' | 'value';
+
 export type CollectionSourceDiagnostic = {
 	code: string;
 	status: Exclude<CollectionSourceStatus, 'valid'>;
@@ -21,6 +31,7 @@ export type CollectionSourceDiagnostic = {
 	segment?: number;
 	expected?: string[];
 	expectedDetails?: Record<string, string>;
+	expectedKind?: CollectionSourceExpectedKind;
 };
 
 export type CollectionSourceSegment = {
@@ -49,6 +60,11 @@ export type ParsedCollectionSource = {
 	selectedCardSource: 'explicit' | 'preserved' | 'default';
 	query: string;
 	hash: string;
+	//The origin a full URL was written against, or '' for a route or a bare
+	//fragment. The parser knows which origins are ALLOWED (context.allowedOrigins)
+	//but not which of them is the one this client is running on, so it reports
+	//what it read and lets the UI decide whether an origin was translated.
+	origin: string;
 	notices: string[];
 	status: CollectionSourceStatus;
 	diagnostics: CollectionSourceDiagnostic[];
@@ -56,6 +72,7 @@ export type ParsedCollectionSource = {
 	canonicalPath?: string;
 	nextExpected?: string[];
 	nextExpectedDetails?: Record<string, string>;
+	nextExpectedKind?: CollectionSourceExpectedKind;
 };
 
 //A URL token is an internal identifier and must not reach a user (§1.4). This
@@ -87,6 +104,27 @@ const strictDate = (value : string) : boolean => {
 		date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3]);
 };
 
+//THE `/c/` PREFIX IS A SEGMENT, NOT THREE CHARACTERS.
+//
+//`new URL()` normalizes `..` before this module ever sees a path, so
+//`/c/../zzzfoo/` arrives as `/zzzfoo/` and `/c/../../etc/passwd` as
+//`/etc/passwd`. The fixed-length slice(3)/slice(2) that used to strip the route
+//then ate the first character of whatever was actually there, and every
+//diagnostic downstream quoted a token the user never typed — “zzfoo” for
+//zzzfoo, “tc” for etc. A quoted token that is not the user's own text is worse
+//than no quote at all: it sends them hunting for a typo that is ours.
+//
+//Splitting on `/` and dropping the literal `c` segment cannot eat a character.
+//When that segment is not there — which only happens when `..` has climbed out
+//of the collection route — nothing is dropped, and the caller says so instead
+//of silently parsing whatever the climb landed on.
+const stripCollectionRouteSegment = (pathname : string) : {text : string, onRoute : boolean} => {
+	//A pathname always begins with '/', so segments[0] is ''.
+	const segments = pathname.split('/');
+	if (segments[1] !== 'c') return {text: segments.slice(1).join('/'), onRoute: false};
+	return {text: segments.slice(2).join('/'), onRoute: true};
+};
+
 const tokenize = (text : string) : {segments: CollectionSourceSegment[]; badEncoding: number[]} => {
 	const segments : CollectionSourceSegment[] = [];
 	const badEncoding : number[] = [];
@@ -114,12 +152,13 @@ export const parseCollectionSource = (
 	let collectionText = raw;
 	let query = '';
 	let hash = '';
+	let origin = '';
 	const notices : string[] = [];
 	const diagnostics : CollectionSourceDiagnostic[] = [];
 	let routeHasTrailingSlash = false;
 
-	const diagnose = (status : Exclude<CollectionSourceStatus, 'valid'>, code : string, message : string, segment? : number, expected? : string[], expectedDetails? : Record<string, string>) =>
-		diagnostics.push({status, code, message, segment, expected, expectedDetails});
+	const diagnose = (status : Exclude<CollectionSourceStatus, 'valid'>, code : string, message : string, segment? : number, expected? : string[], expectedDetails? : Record<string, string>, expectedKind : CollectionSourceExpectedKind = 'root') =>
+		diagnostics.push({status, code, message, segment, expected, expectedDetails, expectedKind});
 	const allRootTokens = Array.from(new Set([
 		...SET_NAMES,
 		...context.ordinaryFilters,
@@ -139,6 +178,19 @@ export const parseCollectionSource = (
 				SET_NAMES.includes(token as never) ? `Start from the ${token} collection set` :
 					context.filterDescriptions?.[token] || `Filter cards with ${token}`
 	]));
+	//A sort and a view have their own vocabularies, and their own descriptions
+	//to go with them. Offering them with no detail is what made the completion
+	//list fall back to 'A legal collection filter' for every sort name in the
+	//app. SORTS already carries an authored description per sort; the view modes
+	//carry only whether they take an extra value, which is exactly the thing a
+	//user about to type one needs to know.
+	const sortNames = Object.keys(SORTS);
+	const sortDetails = Object.fromEntries(Object.entries(SORTS).map(([name, info]) => [name, info.description]));
+	const viewNames = Object.keys(LEGAL_VIEW_MODES);
+	const viewDetails = Object.fromEntries(viewNames.map(name => [name,
+		LEGAL_VIEW_MODES[name as keyof typeof LEGAL_VIEW_MODES] ?
+			'Shows the collection this way, anchored to one card' :
+			'Shows the collection this way']));
 	//Half a word is not a wrong word. A token that is a strict prefix of at
 	//least one filter this app knows is a filter the user has not finished
 	//typing, and saying "not supported here" on every keystroke of `sta` —
@@ -160,9 +212,9 @@ export const parseCollectionSource = (
 						(token.toLowerCase().startsWith(search) ||
 							(context.filterSearchValues?.[token] || []).some(value => value.toLowerCase().includes(search)))).slice(0, 12);
 					if (unfinishedToken(member)) {
-						diagnose('incomplete', 'unfinished-nested-filter', `“${member}” is the start of a filter name, so this nested filter is not finished yet. Choose one below or keep typing.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails);
+						diagnose('incomplete', 'unfinished-nested-filter', `“${member}” is the start of a filter name, so this nested filter is not finished yet. Choose one below or keep typing.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails, 'filter');
 					} else {
-						diagnose('unsupported', 'unknown-nested-filter', `This app does not know the nested “${member || name}” filter.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails);
+						diagnose('unsupported', 'unknown-nested-filter', `This app does not know the nested “${member || name}” filter.`, diagnosticSegment, expected.length ? expected : undefined, rootDetails, 'filter');
 					}
 				}
 			}
@@ -226,10 +278,12 @@ export const parseCollectionSource = (
 					'Use a URL from this app or its public address.' :
 					'Use a URL from this app.');
 			}
-			if (url.pathname !== '/c' && !url.pathname.startsWith('/c/')) {
+			origin = url.origin;
+			const route = stripCollectionRouteSegment(url.pathname);
+			if (!route.onRoute) {
 				diagnose('invalid', 'wrong-route', 'The URL must point to a /c/ collection route.');
 			}
-			collectionText = url.pathname === '/c' ? '' : url.pathname.slice(3);
+			collectionText = route.text;
 			routeHasTrailingSlash = url.pathname.endsWith('/');
 		} catch {
 			diagnose('invalid', 'bad-url', 'This is not a valid URL.');
@@ -240,7 +294,12 @@ export const parseCollectionSource = (
 		const routeURL = new URL(raw.startsWith('/') ? raw : `/${raw}`, 'https://source.invalid');
 		query = routeURL.search;
 		hash = routeURL.hash;
-		collectionText = routeURL.pathname.startsWith('/c/') ? routeURL.pathname.slice(3) : routeURL.pathname.slice(2);
+		const route = stripCollectionRouteSegment(routeURL.pathname);
+		//The only way a path that STARTED with /c/ arrives without it is `..`
+		//climbing above the collection route. Naming that is honest; parsing
+		//whatever the climb landed on as if it were a collection is not.
+		if (!route.onRoute) diagnose('invalid', 'wrong-route', 'This path uses “..” to climb out of the /c/ collection route.');
+		collectionText = route.text;
 		routeHasTrailingSlash = routeURL.pathname.endsWith('/');
 	} else if (raw === '/c' || raw === 'c') {
 		kind = 'route';
@@ -293,11 +352,26 @@ export const parseCollectionSource = (
 			index++;
 			if (segments[index]?.raw === 'reverse') { sortReversed = true; index++; }
 			if (!segments[index]) {
-				diagnose('incomplete', 'expected-token', 'Sort needs a sort name.', segment.index, Object.keys(SORTS));
+				diagnose('incomplete', 'expected-token', 'Sort needs a sort name.', segment.index, sortNames, sortDetails, 'sort');
 				continue;
 			}
-			sort = segments[index].raw;
-			if (!(segments[index].raw in SORTS)) diagnose('unsupported', 'unknown-sort', `This app does not know the “${segments[index].value}” sort.`, segments[index].index);
+			const sortSegment = segments[index];
+			sort = sortSegment.raw;
+			if (sortSegment.raw && !(sortSegment.raw in SORTS)) {
+				//HALF A SORT NAME IS NOT A WRONG ONE, exactly as it is not for a
+				//filter. `sort/sta` used to report "This app does not know the
+				//“sta” sort" — a hard failure claimed about a state that is going
+				//fine — while `sta` in a filter position had said "keep typing"
+				//since the last wave. Same production, same answer, with the
+				//completions that make the keep-typing state actionable.
+				const search = sortSegment.raw.toLowerCase();
+				const matches = sortNames.filter(name => name.toLowerCase().startsWith(search));
+				if (matches.length) {
+					diagnose('incomplete', 'unfinished-sort', `“${sortSegment.value}” is the start of a sort name, so this source is not finished yet. Choose one below or keep typing.`, sortSegment.index, matches, sortDetails, 'sort');
+				} else {
+					diagnose('unsupported', 'unknown-sort', `This app does not know the “${sortSegment.value}” sort.`, sortSegment.index, sortNames, sortDetails, 'sort');
+				}
+			}
 			index++;
 			continue;
 		}
@@ -306,12 +380,22 @@ export const parseCollectionSource = (
 			sawView = true;
 			index++;
 			if (!segments[index]) {
-				diagnose('incomplete', 'expected-token', 'View needs a view mode.', segment.index, Object.keys(LEGAL_VIEW_MODES));
+				diagnose('incomplete', 'expected-token', 'View needs a view mode.', segment.index, viewNames, viewDetails, 'view');
 				continue;
 			}
 			const mode = segments[index];
 			view = mode.raw;
-			if (!(mode.raw in LEGAL_VIEW_MODES)) diagnose('invalid', 'invalid-view', `“${mode.value}” is not a valid view.`, mode.index);
+			if (mode.raw && !(mode.raw in LEGAL_VIEW_MODES)) {
+				//Same rule as sort and as filters: a strict prefix is unfinished,
+				//not wrong.
+				const search = mode.raw.toLowerCase();
+				const matches = viewNames.filter(name => name.toLowerCase().startsWith(search));
+				if (matches.length) {
+					diagnose('incomplete', 'unfinished-view', `“${mode.value}” is the start of a view name, so this source is not finished yet. Choose one below or keep typing.`, mode.index, matches, viewDetails, 'view');
+				} else {
+					diagnose('invalid', 'invalid-view', `“${mode.value}” is not a valid view.`, mode.index, viewNames, viewDetails, 'view');
+				}
+			}
 			index++;
 			if (LEGAL_VIEW_MODES[mode.raw as keyof typeof LEGAL_VIEW_MODES]) {
 				if (!segments[index]) diagnose('incomplete', 'expected-token', `The ${humanizeCollectionToken(mode.value)} view needs a value.`, mode.index);
@@ -344,6 +428,7 @@ export const parseCollectionSource = (
 						`${segment.value} needs ${remaining} more ${remaining === 1 ? 'value' : 'values'}.`;
 				let expected : string[] | undefined;
 				let expectedDetails : Record<string, string> | undefined;
+				let expectedKind : CollectionSourceExpectedKind = 'value';
 				if (['created', 'updated', 'last-tweeted'].includes(decodedParts[0]) && !dateComparison) {
 					expected = ['before', 'after', 'between'];
 					expectedDetails = {before: 'Cards dated before a date', after: 'Cards dated after a date', between: 'Cards between two dates'};
@@ -355,12 +440,13 @@ export const parseCollectionSource = (
 					if (nextArgument?.type === 'sub-filter' || nextArgument?.type === 'expand-filter') {
 						expected = rootTokens.filter(token => token !== 'sort' && token !== 'view' && !SET_NAMES.includes(token as never));
 						expectedDetails = rootDetails;
+						expectedKind = 'filter';
 					} else if (nextArgument) {
 						expected = [encodeURIComponent(nextArgument.default)];
 						expectedDetails = {[expected[0]]: nextArgument.description};
 					}
 				}
-				diagnose('incomplete', 'expected-token', message, segment.index, expected, expectedDetails);
+				diagnose('incomplete', 'expected-token', message, segment.index, expected, expectedDetails, expectedKind);
 			} else {
 				const values = parts.map(part => {
 					try { return decodeURIComponent(part); } catch { return part; }
@@ -403,6 +489,7 @@ export const parseCollectionSource = (
 	let canonicalPath : string | undefined;
 	let nextExpected : string[] | undefined;
 	let nextExpectedDetails : Record<string, string> | undefined;
+	let nextExpectedKind : CollectionSourceExpectedKind | undefined;
 	if (status === 'valid') {
 		try {
 			const legacySource = [...(set ? [set] : []), ...filters];
@@ -420,6 +507,7 @@ export const parseCollectionSource = (
 					nextExpected = rootTokens.filter(token => !SET_NAMES.includes(token as never) &&
 						!(token === 'sort' && sawSort) && !(token === 'view' && sawView) && !filters.includes(token)).slice(0, 12);
 					nextExpectedDetails = rootDetails;
+					nextExpectedKind = 'root';
 				}
 			}
 		} catch {
@@ -428,5 +516,5 @@ export const parseCollectionSource = (
 		}
 	}
 
-	return {raw, kind, collectionText, segments, selectedCardRaw, selectedCardSource, query, hash, notices, status, diagnostics, description, canonicalPath, nextExpected, nextExpectedDetails};
+	return {raw, kind, collectionText, segments, selectedCardRaw, selectedCardSource, query, hash, origin, notices, status, diagnostics, description, canonicalPath, nextExpected, nextExpectedDetails, nextExpectedKind};
 };

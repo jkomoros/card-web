@@ -201,4 +201,73 @@ describe('lossless collection source editor', () => {
 		assert.strictEqual(parse('systems/', ['systems']).status, 'valid');
 		assert.strictEqual(parse('systems/').status, 'unsupported');
 	});
+
+	//A QUOTED TOKEN IS THE USER'S OWN TEXT, OR IT IS A LIE.
+	//
+	//`new URL()` collapses `..` before this module sees the path, so
+	//`/c/../zzzfoo/` arrived as `/zzzfoo/` and the fixed-length slice that used
+	//to strip `/c/` ate a character off whatever was actually there. The
+	//diagnostics then quoted “zzfoo” and “tc” — tokens nobody typed, sending the
+	//reader hunting for a typo that was ours. The prefix is a SEGMENT now, so a
+	//climb out of the route is reported as a climb rather than silently parsed.
+	it('quotes the token the user typed, even when the URL normalizer moved the path', () => {
+		const climbed = parse('/c/../zzzfoo/');
+		assert.notStrictEqual(climbed.status, 'valid');
+		const quoted = climbed.diagnostics.map(diagnostic => diagnostic.message).join(' ');
+		assert.ok(!/zzfoo/.test(quoted.replace(/zzzfoo/g, '')), `a diagnostic quoted a mangled token: ${quoted}`);
+		assert.ok(climbed.diagnostics.some(diagnostic => diagnostic.code === 'wrong-route'),
+			'climbing out of /c/ is itself the thing to report');
+
+		const escaped = parse('/c/../../etc/passwd');
+		assert.notStrictEqual(escaped.status, 'valid');
+		const escapedQuoted = escaped.diagnostics.map(diagnostic => diagnostic.message).join(' ');
+		assert.ok(!/“tc”/.test(escapedQuoted), `a diagnostic quoted a mangled token: ${escapedQuoted}`);
+
+		//An ordinary route is unaffected: the segment split has to be a pure
+		//refactor for every path that never left /c/.
+		const plain = parse('/c/everything/starred/card-7');
+		assert.strictEqual(plain.status, 'valid');
+		assert.strictEqual(plain.canonicalPath, '/c/everything/starred/card-7');
+		assert.strictEqual(parse('/c/').status, 'valid');
+	});
+
+	//A COMPLETION SAYS WHAT KIND OF THING IT IS.
+	//
+	//`sort/` offered every sort name in the app with no expectedKind and no
+	//details, so the one row treatment that renders completions fell through to
+	//its last case and labeled each of them a filter, described as "A legal
+	//collection filter". And `sort/sta` reported a hard "this app does not know
+	//the sort" while `sta` in a filter position had said "keep typing" since the
+	//last wave — the same production answered two different ways.
+	it('tags sort and view completions with their real kind, and keeps a half-typed one open', () => {
+		const needsSort = parse('starred/sort/');
+		assert.strictEqual(needsSort.status, 'incomplete');
+		const sortDiagnostic = needsSort.diagnostics.find(diagnostic => diagnostic.expected?.length);
+		assert.strictEqual(sortDiagnostic.expectedKind, 'sort');
+		assert.ok(sortDiagnostic.expected.includes('recent'));
+		assert.ok(sortDiagnostic.expectedDetails.recent, 'every offered sort carries its own description');
+
+		const halfSort = parse('starred/sort/sta');
+		assert.strictEqual(halfSort.status, 'incomplete', 'half a sort name is not a wrong one');
+		const halfDiagnostic = halfSort.diagnostics.find(diagnostic => diagnostic.expected?.length);
+		assert.strictEqual(halfDiagnostic.expectedKind, 'sort');
+		assert.ok(halfDiagnostic.expected.length, 'the keep-typing state offers something to choose');
+		assert.ok(halfDiagnostic.expected.every(name => name.startsWith('sta')), 'completions narrow to what was typed');
+
+		//A sort name that is not the start of anything is still unsupported —
+		//the keep-typing path must not swallow a real mistake.
+		assert.strictEqual(parse('starred/sort/zzz').status, 'unsupported');
+
+		const needsView = parse('starred/view/');
+		assert.strictEqual(needsView.diagnostics.find(diagnostic => diagnostic.expected?.length).expectedKind, 'view');
+		assert.strictEqual(parse('starred/view/we').status, 'incomplete');
+	});
+
+	//The parser reports the origin it READ; only the UI knows which origin is
+	//the one this client runs on, and therefore whether one was translated.
+	it('reports the origin a full URL was written against', () => {
+		assert.strictEqual(parse('https://thecompendium.cards/c/everything/starred/').origin, 'https://thecompendium.cards');
+		assert.strictEqual(parse('/c/everything/starred/').origin, '');
+		assert.strictEqual(parse('everything/starred/').origin, '');
+	});
 });
