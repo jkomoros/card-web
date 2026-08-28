@@ -4,6 +4,8 @@ import {
 	collectionDescriptionHasRelativeDateMemory,
 	collectionDescriptionWithRelativeDateMemory,
 } from './collection-composer-memory.js';
+import { currentURLDiagnostics } from '../shared/url-diagnostics.js';
+import { urlDiagnosticsForRawURL } from './url-diagnostics-scope.js';
 
 const STORAGE_PREFIX = 'collection-composer-history:';
 const MAX_RECENT_COLLECTIONS = 50;
@@ -33,6 +35,40 @@ export type RememberedCollectionEntry = RecentCollectionEntry & {
 //so an already-poisoned localStorage heals itself the next time it is opened.
 export const collectionDescriptionIsPlaceholder = (description: CollectionDescription): boolean =>
 	description.filters.includes(NONE_FILTER_NAME);
+
+//RECENTS MUST NOT LAUNDER A BROKEN COLLECTION INTO A CONFIDENT DESTINATION.
+//
+//A URL with a clause the app could not understand shows a "Didn't understand"
+//notice and a count computed WITHOUT that clause. Recorded as a visit, the
+//broken URL came back as a Continue row offering 'Tag 33x' with a card count
+//beside it — a phantom collection presented with more confidence than the
+//arrival it came from ever had. The same guard that keeps the `none`
+//placeholder out keeps these out, and for the same reason: what is recorded is
+//a place the user can be sent BACK to.
+//
+//The signal is the arrival's own diagnostics, scoped the way the drawer notice
+//scopes them. rawURL is what the router was actually given, when the caller
+//knows it: several report sites name parts the parser DROPPED, which by
+//construction never appear in the description's serialization.
+export const collectionDescriptionArrivedWithDiagnostics = (description: CollectionDescription, rawURL = ''): boolean => {
+	const diagnostics = currentURLDiagnostics();
+	if (!diagnostics.length) return false;
+	if (urlDiagnosticsForRawURL(diagnostics, description.serializeOriginalOrder()).length) return true;
+	return Boolean(rawURL) && urlDiagnosticsForRawURL(diagnostics, rawURL).length > 0;
+};
+
+//A filter name this app has no definition for. Configurable filters carry
+//their arguments after a '/', and a union is legal as long as one member
+//resolves — the same rule the collection engine itself applies.
+const filterNameIsKnown = (filterName: string, knownFilterNames: ReadonlySet<string>): boolean => {
+	if (filterName.includes('/')) return true;
+	return filterName.split('+').some(part => knownFilterNames.has(part));
+};
+
+export const collectionDescriptionNamesUnknownFilter = (description: CollectionDescription, knownFilterNames?: ReadonlySet<string>): boolean => {
+	if (!knownFilterNames || !knownFilterNames.size) return false;
+	return description.filters.some(filterName => !filterNameIsKnown(filterName, knownFilterNames));
+};
 
 export const collectionDescriptionActuallyVisited = (
 	requested: CollectionDescription,
@@ -89,13 +125,25 @@ const normalizedEntry = (value: unknown): RecentCollectionEntry | null => {
 //during one keystroke's worth of renders reuse the same array rather than
 //re-grouping fifty entries, and the composer's downstream memos see an
 //argument that did not change.
-let rememberedMemo : {recent: RecentCollectionEntry[], result: RememberedCollectionEntry[]} | null = null;
+let rememberedMemo : {recent: RecentCollectionEntry[], knownFilterNames: ReadonlySet<string> | undefined, result: RememberedCollectionEntry[]} | null = null;
 
-export const readRememberedCollections = (scope = ''): RememberedCollectionEntry[] => {
+//HEALING ON READ, WITHOUT DESTROYING HISTORY.
+//
+//An entry recorded before the guard above existed can still name a filter this
+//app has no definition for. Those are suppressed HERE rather than pruned from
+//storage, because "unknown" is not always permanent: section and tag filter
+//names load async, and a list rewritten during that window would lose real
+//history for good. Suppressed entries come back on their own once the names
+//arrive. The caller supplies the names it knows; with no set (or an empty one,
+//which is the not-loaded-yet state) nothing is suppressed.
+export const readRememberedCollections = (scope = '', knownFilterNames?: ReadonlySet<string>): RememberedCollectionEntry[] => {
 	const recent = readRecentCollections(scope);
-	if (rememberedMemo && rememberedMemo.recent === recent) return rememberedMemo.result;
-	const result = computeRememberedCollections(recent);
-	rememberedMemo = {recent, result};
+	if (rememberedMemo && rememberedMemo.recent === recent && rememberedMemo.knownFilterNames === knownFilterNames) return rememberedMemo.result;
+	const legible = knownFilterNames && knownFilterNames.size ?
+		recent.filter(entry => !collectionDescriptionNamesUnknownFilter(CollectionDescription.deserialize(entry.authoring), knownFilterNames)) :
+		recent;
+	const result = computeRememberedCollections(legible);
+	rememberedMemo = {recent, knownFilterNames, result};
 	return result;
 };
 
@@ -242,13 +290,37 @@ export const readRecentCollections = (scope = ''): RecentCollectionEntry[] => {
 	}
 };
 
+//What the caller knows about the arrival, beyond the description itself.
+export type CollectionArrival = {
+	//The selector the router was actually given. Several diagnostic sites name
+	//parts the parser DROPPED, which by construction never appear in the
+	//description's serialization, so the raw text catches more than it can.
+	rawURL? : string,
+	//Every filter name resolvable right now; empty or absent means "cannot
+	//tell yet", and nothing is judged on that basis.
+	knownFilterNames? : ReadonlySet<string>,
+};
+
 export const recordRecentCollection = (
 	description: CollectionDescription,
 	scope = '',
-	visitedAt = Date.now()
+	visitedAt = Date.now(),
+	arrival: CollectionArrival = {}
 ): void => {
 	if (typeof window === 'undefined') return;
 	if (collectionDescriptionIsPlaceholder(description)) return;
+	//Spec §Activation failure: "Recent is recorded only after successful
+	//activation." An arrival that raised diagnostics did not activate as the
+	//URL described it — a clause was dropped and the count is of something
+	//else — so it is not a destination to offer back.
+	//
+	//Two signals, because they catch different halves. Diagnostics are
+	//reported LAZILY by the filter run, so at record time they cover the
+	//eagerly-parsed parts (a bogus view mode, a bad sort) but not necessarily
+	//this arrival's filters yet. The name check covers exactly those, without
+	//waiting for anything.
+	if (collectionDescriptionNamesUnknownFilter(description, arrival.knownFilterNames)) return;
+	if (collectionDescriptionArrivedWithDiagnostics(description, arrival.rawURL)) return;
 	try {
 		const key = storageKey(scope);
 		const pending = pendingWrites.get(key);

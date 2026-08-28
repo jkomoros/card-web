@@ -18,6 +18,7 @@ let recordRecentCollection;
 let flushRecentCollections;
 let collectionDescriptionActuallyVisited;
 let collectionDescriptionWithRelativeDateMemory;
+let diagnosticsModule;
 
 describe('Collection Composer history', () => {
 	before(async () => {
@@ -30,6 +31,9 @@ describe('Collection Composer history', () => {
 		({ collectionDescriptionWithRelativeDateMemory } = await import(
 			'../../lib/src/collection-composer-memory.js'
 		));
+		//The SAME module instance the history module imports — shared/dist is a
+		//separate build with separate module state.
+		diagnosticsModule = await import('../../lib/shared/url-diagnostics.js');
 	});
 
 	//Writes are deferred, so any write still queued from the previous test has
@@ -37,6 +41,7 @@ describe('Collection Composer history', () => {
 	beforeEach(() => {
 		flushRecentCollections();
 		window.localStorage.clear();
+		diagnosticsModule.clearURLDiagnostics();
 	});
 
 	it('records the retained active collection for bare-card navigation', () => {
@@ -305,5 +310,96 @@ describe('Collection Composer history', () => {
 			!readRememberedCollections('alex').some((entry) => entry.canonical.includes('none')),
 			'and it can never be promoted into what the composer offers'
 		);
+	});
+
+	//RECENTS MUST NOT LAUNDER A BROKEN COLLECTION.
+	//
+	//Live: a URL with an unrecognised clause shows a "Didn't understand" notice
+	//and a count computed without that clause. Recorded as a visit, it came back
+	//as a confident Continue row — 'Tag 33x', with a card count beside it — for a
+	//collection that never existed.
+	it('does not record an arrival whose URL raised diagnostics', () => {
+		const real = CollectionDescription.deserialize('everything/starred/');
+		recordRecentCollection(real, 'alex', 100);
+		diagnosticsModule.reportURLDiagnostic('tag-33x', 'ignored it, because it is not a filter or set');
+		recordRecentCollection(CollectionDescription.deserialize('everything/tag-33x/'), 'alex', 200);
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[real.serialize()],
+			'the app did not show what that URL described, so it is not a destination'
+		);
+		//A diagnostic about a DIFFERENT URL must not veto a good arrival: the
+		//list is scoped the way the drawer notice is.
+		recordRecentCollection(CollectionDescription.deserialize('everything/unread/'), 'alex', 300);
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[CollectionDescription.deserialize('everything/unread/').serialize(), real.serialize()]
+		);
+	});
+
+	//The diagnostics for an arrival's FILTERS are reported lazily, by the
+	//collection run — which has not happened yet when the visit is recorded. The
+	//name check is the half that does not have to wait.
+	it('does not record an arrival naming a filter this app cannot resolve', () => {
+		const known = new Set(['starred', 'unread', 'tag-7']);
+		const real = CollectionDescription.deserialize('everything/starred/');
+		recordRecentCollection(real, 'alex', 100, {knownFilterNames: known});
+		recordRecentCollection(CollectionDescription.deserialize('everything/frobnicate/'), 'alex', 200, {knownFilterNames: known});
+		//A union with one resolvable member is a real collection; the engine
+		//drops the unknown member and keeps going.
+		recordRecentCollection(CollectionDescription.deserialize('everything/tag-33x+tag-7/'), 'alex', 300, {knownFilterNames: known});
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[
+				CollectionDescription.deserialize('everything/tag-33x+tag-7/').serialize(),
+				real.serialize(),
+			]
+		);
+	});
+
+	//Sections and tags load async, so "unknown" and "not here yet" are the same
+	//observation until they arrive. With no names to judge against, nothing is.
+	it('judges nothing when the filter names have not loaded', () => {
+		const phantom = CollectionDescription.deserialize('everything/frobnicate/');
+		recordRecentCollection(phantom, 'alex', 100, {knownFilterNames: new Set()});
+		recordRecentCollection(CollectionDescription.deserialize('everything/starred/'), 'alex', 200);
+		assert.ok(readRecentCollections('alex').some((entry) => entry.canonical === phantom.serialize()));
+	});
+
+	//HEALING ON READ, WITHOUT DESTROYING HISTORY. An entry stored before the
+	//guard existed is suppressed from what the composer offers, but it is NOT
+	//pruned from storage: a name that is unknown today may simply be a tag that
+	//has not loaded, and a rewrite would lose real history for good.
+	it('suppresses an already-stored phantom collection on read, and keeps the rest', () => {
+		const phantom = CollectionDescription.deserialize('everything/frobnicate/');
+		const real = CollectionDescription.deserialize('everything/starred/');
+		window.localStorage.setItem('collection-composer-history:alex', JSON.stringify([
+			{
+				canonical: phantom.serialize(),
+				authoring: phantom.serializeOriginalOrder(),
+				visitedAt: 500,
+				visits: 9,
+			},
+			{
+				canonical: real.serialize(),
+				authoring: real.serializeOriginalOrder(),
+				visitedAt: 400,
+				visits: 2,
+			},
+		]));
+		const known = new Set(['starred', 'unread']);
+		assert.deepStrictEqual(
+			readRememberedCollections('alex', known).map((entry) => entry.canonical),
+			[real.serialize()],
+			'a phantom collection is never offered as a destination');
+		//Still in storage, and still offered once the name is resolvable again.
+		assert.deepStrictEqual(
+			readRememberedCollections('alex', new Set(['starred', 'unread', 'frobnicate'])).map((entry) => entry.canonical),
+			[phantom.serialize(), real.serialize()],
+			'suppression is not deletion');
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[phantom.serialize(), real.serialize()],
+			'and storage is left alone');
 	});
 });

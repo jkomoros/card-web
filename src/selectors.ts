@@ -11,6 +11,10 @@ import {
 } from '../shared/url-diagnostics.js';
 
 import {
+	urlDiagnosticsForRawURL
+} from './url-diagnostics-scope.js';
+
+import {
 	stickySearchFilterComponents
 } from './sticky-search-filters.js';
 
@@ -1437,6 +1441,18 @@ export const selectFilterDescriptions = createSelector(
 	}
 );
 
+//Every filter name this app can resolve RIGHT NOW, as a set: the static
+//registry, its inverses, and the section/tag names that have loaded. Empty
+//until sections and tags are in, which is the honest answer — before then
+//"this name is unknown" cannot be distinguished from "this name has not
+//arrived yet", and callers treat an empty set as "do not judge".
+export const selectKnownCollectionFilterNames = createSelector(
+	selectFilterDescriptions,
+	selectSectionsAndTagsLoaded,
+	(descriptions, loaded) : ReadonlySet<string> =>
+		loaded ? new Set([...Object.keys(descriptions), ...Object.keys(INVERSE_FILTER_NAMES)]) : new Set<string>()
+);
+
 export const selectCollectionComposerCandidates = createSelector(
 	selectSections,
 	selectTags,
@@ -1993,29 +2009,10 @@ const selectWorkerActiveCollectionError = (state : State) => state.collection ? 
 
 const selectURLDiagnosticsState = (state : State) => state.collection ? state.collection.urlDiagnostics : {main: [], worker: []};
 
-//The diagnostics that apply to a given URL: a diagnostic names the URL part
-//it could not understand, so it applies exactly when that part (as a whole
-//segment sequence) is present in the URL being looked at. This is what
-//makes the notice self-scoping (#757): navigating away hides it,
-//revisiting the same bad URL shows it again, and there is no clear/
-//re-report cycle to get wrong.
-//
-//Scope against the RAW URL, never against description.serialize(): the
-//canonical serialization by construction contains only the parts the
-//parser KEPT, and several report sites name parts the parser DROPPED — a
-//bogus view mode ('view/bogus') or a reversed bad sort ('sort/bogus'
-//against a serialized 'sort/reverse/bogus') — so those notices could never
-//match their own URL (#757 review, verified by execution).
-//
-//Known accepted limitation: matching is textual, so a stale un-retracted
-//part from URL A can match a coincidentally identical segment on URL B
-//where that text is valid in a different role (e.g. a former filter typo
-//'stars' on /sort/stars/). Bounded by retraction, the 24-entry cap, and
-//self-hiding on navigation. Pure and exported for tests.
-export const urlDiagnosticsForRawURL = (diagnostics : URLDiagnostic[], rawURL : string) : URLDiagnostic[] => {
-	const haystack = '/' + rawURL.replace(/^\/+|\/+$/g, '') + '/';
-	return diagnostics.filter(diagnostic => haystack.includes('/' + diagnostic.part.replace(/^\/+|\/+$/g, '') + '/'));
-};
+//Re-exported from its own leaf module: collection history asks the same
+//question and cannot import this file, which reaches firebase. See
+//url-diagnostics-scope.ts for the matching rule and its limitations.
+export { urlDiagnosticsForRawURL };
 
 //URL parts of the ACTIVE collection that the parser did not understand
 //(#757): the URL says one thing and the app is showing another, which is

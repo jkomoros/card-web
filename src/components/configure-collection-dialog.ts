@@ -38,6 +38,7 @@ import {
 	selectCards,
 	selectCollectionConstructorArguments,
 	selectDefaultCollectionDescription,
+	selectKnownCollectionFilterNames,
 	selectPageExtra,
 	getIdForCard,
 } from '../selectors.js';
@@ -462,6 +463,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_filterDescriptions: {[filterName : string]: string};
+
+	//Every filter name resolvable right now, or an empty set while sections and
+	//tags are still loading. Recents are read against it, so an entry naming a
+	//filter this app has no definition for is not offered as a destination.
+	@state()
+		_knownFilterNames : ReadonlySet<string> = new Set<string>();
 
 	@state()
 		_composerCandidates: CollectionComposerCandidate[] = [];
@@ -2279,7 +2286,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	get _composerSuggestions() : CollectionComposerSuggestion[] {
 		if (!this._collectionDescription) return [];
-		const remembered = readRememberedCollections(this._userScope);
+		const remembered = readRememberedCollections(this._userScope, this._knownFilterNames);
 		const activeCanonical = this._activeCollectionDescription?.serialize();
 		//The first two remembered entries are in raw visit order, so the first
 		//of them that is not the collection on screen is genuinely the one
@@ -3470,6 +3477,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._collectionDescription = selectSnapshotCollectionDescription(state);
 		this._activeCollectionDescription = selectActiveCollectionDescription(state);
 		this._filterDescriptions = selectFilterDescriptions(state);
+		this._knownFilterNames = selectKnownCollectionFilterNames(state);
 		this._composerCandidates = selectCollectionComposerCandidates(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._userInfos = selectAuthorsForTagList(state);

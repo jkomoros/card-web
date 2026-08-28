@@ -49,6 +49,7 @@ import {
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
 	selectExplicitlySelectedCardIDs,
+	selectKnownCollectionFilterNames,
 	selectUid,
 } from '../selectors.js';
 
@@ -215,7 +216,10 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 		selectActiveCollectionDescription(getState()),
 		doUpdateCollection
 	);
-	if (collectionComposerEnabled()) recordRecentCollection(descriptionActuallyVisited, selectUid(getState()));
+	if (collectionComposerEnabled()) recordRecentCollection(descriptionActuallyVisited, selectUid(getState()), Date.now(), {
+		rawURL: cardSelector,
+		knownFilterNames: selectKnownCollectionFilterNames(getState()),
+	});
 	if (doUpdateCollection) dispatch(updateCollection(resolvedDescription.set, resolvedDescription.filters, resolvedDescription.sort, resolvedDescription.sortReversed, resolvedDescription.viewMode, resolvedDescription.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));
 };
