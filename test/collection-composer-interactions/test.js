@@ -2883,16 +2883,25 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(window.location.pathname, '/c/main/');
 	});
 
-	//THE CLAUSE EDITOR IS A BOUNDED PANE.
+	//THE CLAUSE EDITOR IS ANCHORED TO THE SENTENCE, AND BOUNDED THERE.
 	//
-	//Live review: the 'Editing Updated between…' panel measured 262px inside a
-	//720px dialog and ran past its bottom; .composer-actions, laid out after it,
-	//hit-tested ABOVE both date inputs, so the fields were click-dead and 'Done
-	//editing' and 'Remove filter' rendered where nothing paints. JSDOM computes
-	//no layout, so the STRUCTURE that makes the overlap impossible is what is
-	//pinned: the editor is its own scroll container, and the footer is not
-	//inside it and cannot be squeezed out of its own room.
-	it('keeps the clause editor inside a bounded pane, with the footer out of its flow', async () => {
+	//REWRITTEN, not deleted. The property this test defends is unchanged — the
+	//'Editing Updated between…' panel measured 262px inside a 720px dialog and
+	//ran past its bottom, .composer-actions hit-tested ABOVE both date inputs,
+	//and 'Done editing' and 'Remove filter' rendered where nothing paints — but
+	//the structure that defends it has moved. The editor used to be the last
+	//flex child of #inner in a `.builder.builder-clause.scroller` wrapper, and
+	//the old assertions named that wrapper. It now renders in the anchored slot
+	//directly under the draft sentence, where being on screen is a property of
+	//its POSITION rather than of a scroll into it, and the bounding moved one
+	//level in: the slot caps its height and the editor's own body scrolls.
+	//
+	//So the same three facts are pinned against the new shape: the editor sits
+	//between the sentence and everything else, its scrolling part is inside it,
+	//and the footer is neither inside it nor able to give up its own room.
+	//JSDOM computes no layout, so geometry is still pinned through the
+	//component's own stylesheet.
+	it('anchors the clause editor under the sentence, bounded, with the footer out of its flow', async () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		await typeInto(input, 'star');
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
@@ -2902,14 +2911,33 @@ describe('Collection Composer interactions', () => {
 
 		const editor = dialog.shadowRoot.querySelector('.clause-editor');
 		assert.ok(editor, 'the clause editor must be on screen');
-		const pane = editor.closest('.builder');
-		assert.ok(pane, 'the editor lives in a builder region');
-		assert.ok(pane.classList.contains('scroller'),
-			'that region must be a bounded scroll container, not loose content that overflows the dialog');
+		const pane = editor.closest('.anchored-editor');
+		assert.ok(pane, 'the editor lives in the anchored slot');
+
+		//ATTACHED TO THE SENTENCE: the slot's immediately preceding sibling is
+		//the expression row itself, so no list, heading or message can come
+		//between a chip and the editor it opened.
+		const expression = dialog.shadowRoot.querySelector('.expression');
+		assert.ok(expression);
+		assert.strictEqual(pane.previousElementSibling, expression,
+			'the editor must render directly under the row whose chip opened it');
+
+		//Its BODY is the scroller, so the action row is a sibling of the
+		//scrolling part rather than the last thing inside it.
+		const body = editor.querySelector('.clause-editor-body');
+		assert.ok(body, 'the editor has its own body');
+		assert.ok(body.classList.contains('scroller'),
+			'a filter whose controls overflow scrolls inside the editor, not the dialog');
+		assert.ok(editor.querySelector('configure-collection-filter').closest('.clause-editor-body'),
+			'the controls are what scrolls');
+		const actions = editor.querySelector('.clause-editor-actions');
+		assert.ok(actions, 'the action row exists');
+		assert.strictEqual(actions.closest('.clause-editor-body'), null,
+			'and it is outside the scroller, so it cannot fall off the bottom of it');
 
 		const footer = dialog.shadowRoot.querySelector('.buttons.composer-actions');
 		assert.ok(footer);
-		assert.strictEqual(footer.closest('.builder'), null,
+		assert.strictEqual(footer.closest('.anchored-editor'), null,
 			'the footer must be outside the editor pane, never a sibling it can paint over');
 		assert.ok(footer.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_PRECEDING,
 			'and it must come after it, so its room is reserved rather than borrowed');
@@ -2917,13 +2945,298 @@ describe('Collection Composer interactions', () => {
 		assert.match(pane.textContent, /Done editing/);
 		assert.match(editor.querySelector('configure-collection-filter').shadowRoot.textContent, /Remove filter/);
 
-		const styles = dialog.constructor.styles.map((sheet) => String(sheet.cssText || '')).join('\n');
-		assert.match(styles, /\.builder-clause\s*\{[^}]*flex:\s*1 1 0/,
-			'the pane takes the room the dialog body has left rather than its content height');
+		const styles = composerStyles();
+		//The cap is what keeps the panel from taking the whole scroll port, and
+		//it is viewport-relative rather than a percentage of a flex-resolved
+		//parent, so it resolves whatever the dialog body ends up measuring.
+		assert.match(styles, /\.anchored-editor\s*\{[^}]*max-height:\s*min\(22em,\s*40vh\)/,
+			'the anchored slot budgets its height rather than growing without bound');
+		assert.match(styles, /\.anchored-editor\s*\{[^}]*min-height:\s*0/,
+			'and it may shrink, so its body scrolls before the dialog does');
+		assert.match(styles, /\.pending-filter-body,\s*\.clause-editor-body\s*\{[^}]*flex:\s*1 1 auto/,
+			'only the body takes the room, so the action row keeps its own');
+		assert.match(styles, /\.buttons\.pending-filter-actions,\s*\.clause-editor-actions,\s*\.pending-filter-heading,\s*\.clause-editor-heading\s*\{[^}]*flex:\s*0 0 auto/,
+			'and neither panel’s fixed ends — heading or action row — shrink');
+		//THE HEADING IS OUTSIDE THE SCROLLER TOO. Focus lands in the first
+		//control as the panel opens, and the browser scrolls the nearest
+		//scrollable ancestor to reveal it — verified live: with the heading
+		//inside the scroller, 'Editing Updated between 2023-01-01 and
+		//2023-12-31' and the contract sentence under it were scrolled off on
+		//the frame the panel appeared.
+		const heading = editor.querySelector('.clause-editor-heading');
+		assert.ok(heading, 'the panel states what it is editing');
+		assert.match(heading.textContent, /Editing /);
+		assert.match(heading.textContent, /Changes update the draft immediately/,
+			'and the contract it keeps');
+		assert.strictEqual(heading.closest('.clause-editor-body'), null,
+			'the heading must not scroll away when focus lands in a control');
 		assert.match(styles, /\.buttons\.composer-actions\s*\{[^}]*flex:\s*0 0 auto/,
 			'the footer never shrinks to make room for an editor');
 		assert.match(styles, /\.builder-catalog\s*\{[^}]*overflow:\s*hidden/,
 			'a shrunken flex item must clip rather than paint over what follows it');
+		//AND THE LISTS YIELD FIRST. The slot is bounded, but a list with a 7em
+		//or 8em floor would still push it: while an editor is open both drop to
+		//two rows and the heading, which is also what keeps the 0-card
+		//diagnostics on screen beside an open editor.
+		assert.match(styles, /:host\(\[data-editor-open\]\) \.suggestions,\s*:host\(\[data-editor-open\]\) \.catalog-list\s*\{[^}]*min-height:\s*4em/,
+			'the lists give up their floor to the anchored editor');
+		assert.ok(dialog.hasAttribute('data-editor-open'),
+			'and the attribute the rule keys off is actually set while an editor is open');
+	});
+
+	//Seeds a draft without going through the suggestion list, for the tests
+	//below whose subject is the editor rather than how the clause got there.
+	const seedDraft = async (source) => {
+		const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
+		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize(source)));
+		await settleRender(dialog);
+	};
+
+	const openClauseEditor = async (index = 0) => {
+		const clauses = Array.from(dialog.shadowRoot.querySelectorAll('.expression-clause-label'));
+		assert.ok(clauses[index], `there is a clause ${index} to edit`);
+		clauses[index].click();
+		await settleRender(dialog);
+		const editor = dialog.shadowRoot.querySelector('.clause-editor');
+		assert.ok(editor, 'the editor opened');
+		return editor;
+	};
+
+	//The real date control, three shadow roots down, settled.
+	const editorDateControl = async () => {
+		const filter = dialog.shadowRoot.querySelector('.clause-editor configure-collection-filter');
+		assert.ok(filter, 'the editor holds a filter control');
+		await settleRender(dialog, filter);
+		const date = filter.shadowRoot.querySelector('configure-collection-date');
+		assert.ok(date, 'the filter holds a date control');
+		await settleRender(dialog, filter, date);
+		return date;
+	};
+
+	//ONE EDIT PER OPENING WAS THE WHOLE COST.
+	//
+	//_commitDraftEdit clears _selectedClauseIndex, because for every other way
+	//the draft changes the selected clause is no longer what the user is
+	//pointing at. A clause edit is the one change that comes FROM the selected
+	//clause, so it closed the editor on the field that had just been changed:
+	//the audited session set the start of a date window, watched the panel
+	//vanish, and had to re-open it from the chip to set the end.
+	it('keeps the clause editor open across field edits', async () => {
+		await seedDraft('everything/updated/between/2026-01-01/2026-02-01/');
+		await openClauseEditor();
+
+		const setDate = async (label, value) => {
+			const date = await editorDateControl();
+			const input = date.shadowRoot.querySelector(`[aria-label="${label}"]`);
+			assert.ok(input, `the ${label} field is on screen`);
+			input.value = value;
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+			await settleRender(dialog);
+		};
+
+		await setDate('First fixed date', '2026-01-15');
+		assert.ok(dialog.shadowRoot.querySelector('.clause-editor'),
+			'changing one date must not close the editor');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+			['updated/between/2026-01-15/2026-02-01'],
+			'and the change reaches the draft immediately');
+		assert.ok(dialog._builderExpanded);
+		assert.strictEqual(dialog._selectedClauseIndex, 0,
+			'the editor is still on the clause it was editing');
+
+		//THE SECOND FIELD, without re-opening anything. This is the step the
+		//audited session could not take.
+		await setDate('Second fixed date', '2026-03-01');
+		assert.ok(dialog.shadowRoot.querySelector('.clause-editor'), 'still open');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+			['updated/between/2026-01-15/2026-03-01'],
+			'both edits are in the draft');
+
+		//The refinement list is still on screen beside the open editor — the
+		//0-card 'Remove …' diagnostics live in it, and they must not be hidden
+		//behind an editor the user has to close to see them.
+		assert.ok(dialog.shadowRoot.querySelector('.suggestions [role="option"]'),
+			'the suggestion list stays readable while an editor is open');
+
+		//And it closes when the user says so, not before.
+		Array.from(dialog.shadowRoot.querySelectorAll('.clause-editor button'))
+			.find((button) => button.textContent.includes('Done editing')).click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.clause-editor'), null,
+			'Done editing closes it');
+		assert.strictEqual(dialog.shadowRoot.querySelector('.anchored-editor'), null,
+			'and takes the anchored slot with it, rather than leaving an empty box');
+		//The chip says what the clause now is.
+		assert.match(dialog.shadowRoot.querySelector('.expression-clause').textContent, /2026-01-15/);
+		assert.match(dialog.shadowRoot.querySelector('.expression-clause').textContent, /2026-03-01/);
+	});
+
+	//TEACH THROUGH CONSEQUENCE, AT THE MOMENT OF CHOICE (spec §8, §Count
+	//preview). Choosing values with no idea what they yield is an act of faith;
+	//the count that answers it belongs inside the editor, next to the values,
+	//and it has to move when they do. Driven through the component's own
+	//retained-count cache, the way the keystroke-retention test above drives it:
+	//that is the layer the count is read from, and it makes the assertion about
+	//WHAT IS DISPLAYED rather than about worker timing.
+	it('runs a live count inside the clause editor as its values change', async () => {
+		window.localStorage.setItem('collection-composer-preview', 'on');
+		try {
+			await seedDraft('everything/updated/between/2026-01-01/2026-02-01/');
+			const known = (count) => {
+				dialog._retainedPreviewCounts.set(dialog._previewCountKey(dialog._collectionDescription), count);
+				dialog._refreshPreviewCounts();
+			};
+			known(57);
+			await openClauseEditor();
+			const readout = () => dialog.shadowRoot.querySelector('.clause-editor .editor-count');
+			const text = () => readout().textContent.replace(/\s+/g, ' ').trim();
+			assert.ok(readout(), 'the open editor states what the draft matches');
+			//'now', because a clause edit is already in the draft — the panel's
+			//own contract sentence one line above says so.
+			assert.match(text(), /The draft now matches 57 cards/);
+
+			//Changing a value makes it a different collection, so the number is
+			//genuinely unknown — and says so through the shared loading
+			//primitive rather than blanking or lying.
+			const date = await editorDateControl();
+			const input = date.shadowRoot.querySelector('[aria-label="First fixed date"]');
+			input.value = '2026-01-15';
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+			await settleRender(dialog);
+			assert.ok(dialog.shadowRoot.querySelector('.clause-editor'), 'the editor is still open');
+			const placeholder = readout().querySelector('loading-placeholder');
+			assert.ok(placeholder, 'a count still arriving must say it is still arriving');
+			assert.strictEqual(placeholder.noun, 'the card count');
+
+			//And the answer for the new values lands in the same place.
+			known(12);
+			await settleRender(dialog);
+			assert.match(text(), /The draft now matches 12 cards/);
+		} finally {
+			window.localStorage.removeItem('collection-composer-preview');
+			dialog._retainedPreviewCounts.clear();
+		}
+	});
+
+	//THE PENDING-ADD PANEL PREVIEWS WHAT CONFIRMING WOULD PRODUCE. Nothing is
+	//added until the user confirms — that contract is unchanged — so the count
+	//is explicitly conditional ('Would match'), and it is a count of the draft
+	//PLUS the filter as currently valued, which is a different collection from
+	//the draft's own.
+	it('previews what a pending Configure would match, from the anchored panel', async () => {
+		window.localStorage.setItem('collection-composer-preview', 'on');
+		try {
+			Array.from(dialog.shadowRoot.querySelectorAll('button'))
+				.find((button) => button.textContent.includes('Browse all filters')).click();
+			await settleRender(dialog);
+			Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
+				.find((button) => button.textContent.includes('Updated')).click();
+			await settleRender(dialog);
+
+			const panel = dialog.shadowRoot.querySelector('.pending-filter-editor');
+			assert.ok(panel, 'the Configure panel is on screen');
+			//ANCHORED IN THE SAME SLOT AS THE CLAUSE EDITOR, under the sentence —
+			//not at the bottom of the catalog's scrolling column.
+			const slot = panel.closest('.anchored-editor');
+			assert.ok(slot, 'the Configure panel renders in the anchored slot');
+			assert.strictEqual(slot.previousElementSibling,
+				dialog.shadowRoot.querySelector('.expression'),
+				'directly under the draft sentence');
+			assert.strictEqual(panel.closest('.builder-catalog'), null,
+				'and no longer inside the catalog list’s own column');
+			assert.ok(dialog.shadowRoot.querySelector('#collection-filter-catalog'),
+				'the catalog is still browsable underneath it');
+
+			const readout = () => dialog.shadowRoot.querySelector('.pending-filter-editor .editor-count');
+			const text = () => readout().textContent.replace(/\s+/g, ' ').trim();
+			//Unknown at first, and honest about it.
+			assert.ok(readout()?.querySelector('loading-placeholder'),
+				'an unresolved count says it is still arriving');
+
+			//The collection it counts is the DRAFT PLUS the configured filter.
+			const { collectionDescriptionWithFilterAppended } = await import('../../lib/src/collection_description.js');
+			const withPending = () => collectionDescriptionWithFilterAppended(
+				dialog._collectionDescription, dialog._pendingCatalogFilter);
+			const known = (count) => {
+				dialog._retainedPreviewCounts.set(dialog._previewCountKey(withPending()), count);
+				dialog._refreshPreviewCounts();
+			};
+			known(57);
+			await settleRender(dialog);
+			assert.match(text(), /Would match 57 cards/);
+			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [],
+				'and previewing a pending filter has still added nothing');
+
+			//Change a value: the panel stays open, and the count follows it.
+			const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
+			pending.dispatchEvent(new CustomEvent('filter-modified', {
+				composed: true,
+				detail: { value: 'updated/after/30-days-ago', index: -1 },
+			}));
+			await settleRender(dialog);
+			assert.ok(dialog.shadowRoot.querySelector('.pending-filter-editor'),
+				'a value change must not close the Configure panel');
+			assert.strictEqual(dialog._pendingCatalogFilter, 'updated/after/30-days-ago');
+			assert.ok(readout().querySelector('loading-placeholder'),
+				'the count for the new values is not the old one');
+			known(4);
+			await settleRender(dialog);
+			assert.match(text(), /Would match 4 cards/);
+
+			//And the explicit confirm still is the only thing that adds it.
+			dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]').click();
+			await settleRender(dialog);
+			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/30-days-ago']);
+			assert.strictEqual(dialog.shadowRoot.querySelector('.anchored-editor'), null,
+				'the panel closes once its filter is in the draft');
+		} finally {
+			window.localStorage.removeItem('collection-composer-preview');
+			dialog._retainedPreviewCounts.clear();
+		}
+	});
+
+	//THE KEYBOARD CLAUSE-SELECTION FLOW COULD NOT REACH WHAT IT SELECTED.
+	//
+	//Backspace selects the last clause and ←→ move between them, but Enter fell
+	//through to the generic commit below — with no suggestion highlighted that
+	//opens the current draft, and selecting a clause does not change the draft,
+	//so the draft was equivalent to the collection already on screen and 'open'
+	//meant 'close the composer'. The one obvious key threw the session away.
+	it('opens the editor when Enter activates a selected clause', async () => {
+		await seedDraft('everything/starred/updated/between/2026-01-01/2026-02-01/');
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.focus();
+		//Arrow into the suggestion list first: selecting a clause has to take
+		//the highlight back from it, or two things read as selected and only
+		//one is what Enter takes.
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+		await settleRender(dialog);
+		assert.ok(highlightedRow(), 'a suggestion row is highlighted');
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(dialog._selectedClauseIndex, 1, 'the last clause is selected');
+		assert.strictEqual(highlightedRow(), null,
+			'and the list gives up its highlight, so Enter is unambiguous');
+		assert.ok(!dialog._builderExpanded, 'selecting is not yet editing');
+		//The footer names the key before it is pressed.
+		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Enter edits it/);
+
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(dialog.open, true,
+			'Enter on a selected clause must not close the composer');
+		assert.strictEqual(window.location.pathname, '/c/main/', 'and must not navigate');
+		const editor = dialog.shadowRoot.querySelector('.clause-editor');
+		assert.ok(editor, 'it opens the editor for the clause it had selected');
+		assert.match(editor.textContent, /Editing Updated/);
+
+		//FOCUS LANDS ON THE FIRST CONTROL, the same way a click does — the
+		//existing focusPrimaryControl path, reached from the keyboard.
+		const filter = dialog.shadowRoot.querySelector('.clause-editor configure-collection-filter');
+		assert.strictEqual(dialog.shadowRoot.activeElement, filter,
+			'focus is inside the editor that just opened');
+		assert.ok(filter.shadowRoot.activeElement?.closest('configure-collection-date'),
+			'and specifically in the clause’s own first control');
 	});
 
 	//THE DIALOG'S BOX MUST NOT MOVE UNDER A KEYSTROKE.
@@ -3001,7 +3314,11 @@ describe('Collection Composer interactions', () => {
 		//moving, and a layer being revealed.
 		assert.match(gate[0], /\.container\.open \.content\s*\{[^}]*animation:\s*composer-settle/);
 		assert.match(gate[0], /\.suggestion button,\s*\.suggestion-action\s*\{[^}]*transition:/);
-		assert.match(gate[0], /\.builder,\s*\.pending-filter-editor\s*\{[^}]*animation:/);
+		//The revealed layer is now the ANCHORED SLOT rather than the Configure
+		//panel by name: both editors render into that one slot, so animating it
+		//covers the pair the old selector had to list. Same moment, same
+		//keyframes, one fewer place to forget.
+		assert.match(gate[0], /\.builder,\s*\.anchored-editor\s*\{[^}]*animation:/);
 		//And nothing animated is a layout property — the box and the row
 		//columns were pinned precisely so nothing moves under a keystroke.
 		for (const property of ['width', 'height', 'margin', 'padding', 'grid-template', 'flex']) {
@@ -3613,10 +3930,11 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(pane().scrollTop, 0, 'closing the catalog returns to the top of the list');
 	});
 
-	//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED. Both editors are the
-	//last flex children of #inner, under lists with min-heights of their own, so
-	//in a short dialog they opened past its visible edge with nothing to scroll
-	//them into view — activating a clause looked like it did nothing at all.
+	//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED. The anchored slot is
+	//the second child of #inner, so this is now a backstop rather than the whole
+	//defence — a session scrolled down to the catalog before clicking a chip
+	//would still open the editor above its scroll position. REWRITTEN for the
+	//element that is actually scrolled: '.builder-clause' no longer exists.
 	it('scrolls a clause editor into view when it opens', async () => {
 		const scrolled = [];
 		const original = Element.prototype.scrollIntoView;
@@ -3634,12 +3952,27 @@ describe('Collection Composer interactions', () => {
 			assert.ok(clause, 'there is a clause to edit');
 			clause.click();
 			await settleRender(dialog);
-			assert.ok(dialog.shadowRoot.querySelector('.builder-clause'), 'the editor is rendered');
-			const editorScroll = scrolled.find(entry => entry.element.classList?.contains('builder-clause'));
+			assert.ok(dialog.shadowRoot.querySelector('.anchored-editor'), 'the editor is rendered');
+			const editorScroll = scrolled.find(entry => entry.element.classList?.contains('anchored-editor'));
 			assert.ok(editorScroll, 'the editor that just opened must be scrolled into view');
 			//'nearest' scrolls the least that makes it visible, so an editor
 			//already on screen does not jump.
 			assert.deepStrictEqual(editorScroll.options, { block: 'nearest' });
+
+			//AND IT DOES NOT SCROLL AGAIN ON EVERY FIELD EDIT. _selectedClauseIndex
+			//now leaves and re-enters its own value on each edit (that is what
+			//keeps the editor open), which Lit reports as a change; scrolling on
+			//that would yank the port under someone typing a date.
+			scrolled.length = 0;
+			const filter = dialog.shadowRoot.querySelector('.clause-editor configure-collection-filter');
+			filter.dispatchEvent(new CustomEvent('filter-modified', {
+				composed: true,
+				bubbles: true,
+				detail: { value: 'unread', index: dialog._selectedClauseIndex },
+			}));
+			await settleRender(dialog);
+			assert.ok(!scrolled.some(entry => entry.element.classList?.contains('anchored-editor')),
+				'an edit inside the open editor must not re-scroll the dialog');
 		} finally {
 			Element.prototype.scrollIntoView = original;
 		}
@@ -3657,26 +3990,39 @@ describe('Collection Composer interactions', () => {
 			return match[1];
 		};
 		//Shrinkable, and scrolling inside its own box rather than out of the
-		//pane that clips it.
-		const editor = rule('\\.pending-filter-editor');
+		//pane that clips it. REWRITTEN as the shared rule: the Configure panel
+		//and the clause editor now render in the same anchored slot and are
+		//bounded by one rule apiece rather than two copies, so the selectors
+		//name both. The properties, and the reason for them, are unchanged.
+		const editor = rule('\\.pending-filter-editor,\\s*\\.clause-editor');
 		assert.match(editor, /flex:\s*0 1 auto/);
 		assert.match(editor, /min-height:\s*0/);
 		//Only the BODY scrolls: the action row is a sibling of the scroller and
 		//reserves its room out of it, so 'Cancel' and 'Add' are on screen
 		//whatever height the panel gets. Left inside the scroller they were the
 		//first things to fall off the bottom of it.
-		assert.match(rule('\\.pending-filter-body'), /flex:\s*1 1 auto/);
-		assert.match(rule('\\.pending-filter-body'), /min-height:\s*0/);
-		assert.match(rule('\\.buttons\\.pending-filter-actions'), /flex:\s*0 0 auto/);
+		const body = rule('\\.pending-filter-body,\\s*\\.clause-editor-body');
+		assert.match(body, /flex:\s*1 1 auto/);
+		assert.match(body, /min-height:\s*0/);
+		assert.match(rule('\\.buttons\\.pending-filter-actions,\\s*\\.clause-editor-actions,\\s*\\.pending-filter-heading,\\s*\\.clause-editor-heading'), /flex:\s*0 0 auto/);
 		//The scroller idiom is declared in markup, per #759 — the module owns
 		//`overflow: auto` and no component restates it.
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/configure-collection-dialog.ts'), 'utf8');
 		assert.match(source, /class='pending-filter-body scroller'/,
 			'the configure panel body is a deliberate inner pane');
-		//And the list gives up its floor first, so the panel keeps a usable
-		//size before anything has to scroll.
-		assert.match(styles, /\.builder-catalog\[data-configuring\] \.catalog-list\s*\{[^}]*min-height:\s*4em/);
-		assert.match(source, /\?data-configuring=\$\{Boolean\(this\._pendingCatalogFilter\)\}/,
+		//And its heading — which carries the 'nothing changes until you
+		//confirm' contract — is outside that pane, so opening the panel cannot
+		//scroll the contract off screen.
+		assert.match(source, /class='pending-filter-heading'/,
+			'the configure panel states its contract outside its scroller');
+		//And the lists give up their floor first, so the panel keeps a usable
+		//size before anything has to scroll. This used to key off
+		//`data-configuring` on .builder-catalog, which only existed while the
+		//panel was INSIDE the catalog; the panel is anchored under the sentence
+		//now, so the flag is reflected on the host and covers both lists and
+		//both editors.
+		assert.match(styles, /:host\(\[data-editor-open\]\) \.suggestions,\s*:host\(\[data-editor-open\]\) \.catalog-list\s*\{[^}]*min-height:\s*4em/);
+		assert.match(source, /toggleAttribute\('data-editor-open'/,
 			'the attribute has to be set for the rule to fire');
 		//The footer is the last flex child of the scroll port, so scrolling an
 		//editor to its bottom edge would push Open and Cancel out of view.

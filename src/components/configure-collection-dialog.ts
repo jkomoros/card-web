@@ -633,6 +633,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_draftCountPending = false;
 
+	//And whether the ANCHORED EDITOR's own count is still being computed. Same
+	//distinction, one surface further in: while a pending-add filter is being
+	//configured, the draft's count and the count the confirm would produce are
+	//two different numbers, so "still arriving" has to be tracked separately for
+	//each of them.
+	@state()
+		_editorCountPending = false;
+
 	//Counts keyed by the collection they counted, not by the suggestion that
 	//happened to name it. _refreshPreviewCounts used to blank every count and
 	//re-enqueue on every keystroke, so each character erased counts that were
@@ -688,6 +696,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_draftUndoSelectedCard : string | null = null;
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
+	//The draft PLUS whatever the open Configure panel is currently valued at.
+	//Only the pending-add flow needs one: a clause edit is already in the draft,
+	//so the draft's own count IS the count of the editor's current values, and
+	//counting it twice would be two names for one number.
+	readonly _editorPreviewID = 'anchored-editor-preview';
 
 	static override styles = [
 		...DialogElement.styles,
@@ -1324,35 +1337,66 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				overflow: hidden;
 			}
 
-			/* THE CLAUSE EDITOR IS A BOUNDED PANE, NOT LOOSE CONTENT.
-			   Live review: with a date-range clause plus two more, the
-			   262px 'Editing Updated between…' panel ran past the bottom of a
-			   720px dialog. It was a flex item with no bound and no clipping,
-			   so it shrank to nothing in layout while still painting at full
-			   height — and .composer-actions, laid out after it, hit-tested
-			   ABOVE both date inputs. The fields were click-dead and 'Done
-			   editing' and 'Remove filter' rendered where nothing paints.
-			   Bounding this container (it takes .scroller, per the #759
-			   convention for a deliberate inner pane) means the editor's own
-			   content scrolls INSIDE the dialog body and can never reach the
-			   footer's box, so every control in it is clickable at 720px. */
-			.builder-clause {
-				flex: 1 1 0;
-				min-height: 6em;
-				overscroll-behavior: contain;
+			/* THE ANCHORED EDITOR SLOT: bounded, and second in the column.
+			   Both editors used to be the LAST flex children of #inner, under
+			   panes with min-heights of their own, so at 720px the 262px
+			   'Editing Updated between…' panel ran past the dialog's bottom
+			   edge — it was a flex item with no bound and no clipping, so it
+			   shrank to nothing in layout while still painting at full height,
+			   and .composer-actions hit-tested ABOVE both date inputs. Anchoring
+			   the slot under the sentence puts it at the TOP of the scroll port,
+			   where it is on screen by construction; the bound is what keeps it
+			   from taking the whole port and pushing the suggestion list out.
+
+			   THE CAP IS VIEWPORT-RELATIVE, not a percentage of a flex-resolved
+			   parent: 40vh of the dialog's pinned 90% height is a little under
+			   half of it, which leaves the list below its own floor at every
+			   size the composer is designed for, and it changes only when the
+			   window does.
+
+			   AND THE CAP IS THE ONLY THING THAT BOUNDS IT — flex: 0 0 auto,
+			   NOT 0 1 auto. Shrinkable, it lost every argument with the
+			   suggestion list: that list is flex: 1 1 0, so its shrink
+			   contribution is weighted by a basis of zero and it gives up
+			   nothing, while this slot's basis is its content height and it
+			   gives up everything. Measured live at 740px: the panel collapsed
+			   from 290px to 150px, of which the heading and the action row take
+			   89 — leaving a 14px scroll port over 150px of date controls.
+			   Refusing to shrink, the panel takes the height its content asks
+			   for up to the cap, the list falls to its own 4em floor, and #inner
+			   scrolls if even that is not enough — which puts the overflow where
+			   the dialog already has a scroll container for it, rather than
+			   inside a 14px window. */
+			.anchored-editor {
+				display: flex;
+				flex: 0 0 auto;
+				flex-direction: column;
+				max-height: min(22em, 40vh);
+				min-height: 0;
 			}
 
-			/* THE CONFIGURE PANEL IS BOUNDED FOR THE SAME REASON THE CLAUSE
-			   EDITOR IS. It is a sibling of the catalog list inside
-			   .builder-catalog, which CLIPS its overflow — so a tall panel
-			   (Direct References with a three-chip draft) pushed its own
-			   action row past the pane's bottom edge, where the buttons
-			   painted but no click could reach them: a real click at y=644 in
-			   a dialog ending at y=636 did nothing. Shrinkable and scrolling
-			   INSIDE its own box, the Cancel and Add row is always inside the
+			/* AND THE LISTS GIVE UP THEIR FLOOR FIRST, so the anchored panel
+			   keeps a usable size before anything has to scroll. 4em is two rows
+			   plus the heading — still enough for a list to read as a list, and
+			   enough that the 0-card 'Remove …' diagnostics stay on screen while
+			   an editor is open. Reflected onto the host (the idiom
+			   data-pointer-armed already uses) so ONE rule covers both lists
+			   rather than each container having to remember. */
+			:host([data-editor-open]) .suggestions,
+			:host([data-editor-open]) .catalog-list {
+				min-height: 4em;
+			}
+
+			/* BOTH EDITORS ARE BOUNDED, AND FOR THE SAME REASON. A tall panel
+			   (Configure Direct References with a three-chip draft) pushed its
+			   own action row past its pane's clipped bottom edge, where the
+			   buttons painted but no click could reach them: a real click at
+			   y=644 in a dialog ending at y=636 did nothing. Shrinkable and
+			   scrolling INSIDE its own box, an action row is always inside the
 			   dialog and always clickable, worst case after a scroll of the
 			   panel itself. */
-			.pending-filter-editor {
+			.pending-filter-editor,
+			.clause-editor {
 				display: flex;
 				flex: 0 1 auto;
 				flex-direction: column;
@@ -1360,19 +1404,53 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			}
 
 			/* Only the BODY scrolls. Left as the last thing inside one
-			   scrolling box, 'Cancel' and 'Add' were the first things to fall
-			   off the bottom of it — the same defect one level down from the
-			   one .buttons.composer-actions solves by refusing to shrink. The
-			   action row is a sibling of the scroller and reserves its room
-			   out of it, so it is on screen whatever height the panel gets. */
-			.pending-filter-body {
+			   scrolling box, 'Cancel' and 'Add' — and 'Done editing' one panel
+			   over — were the first things to fall off the bottom of it: the
+			   same defect one level down from the one .buttons.composer-actions
+			   solves by refusing to shrink. The action row is a sibling of the
+			   scroller and reserves its room out of it, so it is on screen
+			   whatever height the panel gets. */
+			.pending-filter-body,
+			.clause-editor-body {
 				flex: 1 1 auto;
 				min-height: 0;
 				overscroll-behavior: contain;
 			}
 
-			.buttons.pending-filter-actions {
+			/* The heading and the action row are the panel's fixed ends; only
+			   the controls between them scroll. */
+			.buttons.pending-filter-actions,
+			.clause-editor-actions,
+			.pending-filter-heading,
+			.clause-editor-heading {
 				flex: 0 0 auto;
+			}
+
+			/* The clause editor's own row: the count on the left, the one way
+			   out of the editor on the right. Not .buttons — this row is not the
+			   dialog's contract row (§3.3), it holds no committing action, and
+			   its edits are already in the draft. */
+			.clause-editor-actions {
+				align-items: center;
+				display: flex;
+				gap: 0.5em;
+				justify-content: space-between;
+				margin-top: 0.5em;
+			}
+
+			/* A READOUT, not a control, and subordinate to the action beside it —
+			   the same register .composer-actions .action-count takes for the
+			   same job one level up. In the Configure panel it takes the left of
+			   a flex-end .buttons row, which is how .no-cards-note already sits
+			   opposite the primary it qualifies. */
+			.editor-count {
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.85em;
+				margin-right: auto;
+			}
+
+			.editor-count-value {
+				color: var(--app-dark-text-color);
 			}
 
 			/* The footer is the LAST flex child of #inner, so scrolling an
@@ -1382,13 +1460,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   scrollIntoView below lands the editor above it. */
 			#inner {
 				scroll-padding-block-end: 3.5em;
-			}
-
-			/* And the list gives up its floor first, so the panel keeps a
-			   usable size before anything has to scroll. 4em is two rows plus
-			   the heading — still enough for the list to read as a list. */
-			.builder-catalog[data-configuring] .catalog-list {
-				min-height: 4em;
 			}
 
 			.catalog-setup,
@@ -1699,7 +1770,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				/* "Expanding a layer should feel like revealing familiar
 				   detail." The height is deliberately not part of it. */
 				.builder,
-				.pending-filter-editor {
+				.anchored-editor {
 					animation: composer-appear var(--transition-fade) both;
 				}
 
@@ -1944,29 +2015,104 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
+	//WHETHER A CLAUSE EDITOR HAS ANYTHING TO EDIT.
+	//
+	//_builderExpanded and a real clause used to be two facts kept in step by
+	//hand, and every path that dropped one without the other rendered an empty
+	//grey panel. Asked as one question here, an editor with no clause behind it
+	//cannot be rendered at all.
+	get _clauseEditorOpen() : boolean {
+		if (!this._builderExpanded) return false;
+		if (this._selectedClauseIndex < 0) return false;
+		return Boolean(this._collectionDescription?.filters[this._selectedClauseIndex]);
+	}
+
+	//Whether the anchored slot is showing anything at all — either editor.
+	get _anchoredEditorOpen() : boolean {
+		return Boolean(this._pendingCatalogFilter) || this._clauseEditorOpen;
+	}
+
+	//THE EDITOR IS ANCHORED TO THE SENTENCE IT EDITS.
+	//
+	//Both editors used to render at the BOTTOM of the composer's column — the
+	//clause editor below the suggestion list, the Configure panel below the
+	//catalog — so activating a chip put the controls for it a scroll away from
+	//the chip, inside a pane that had its own scrollbar. The audited session
+	//spent its time hunting for the panel rather than editing in it.
+	//
+	//One slot, directly under the draft sentence, holds whichever editor is
+	//open: the two are mutually exclusive by construction (_handleClauseEdit
+	//closes the catalog, _configureFilterFamily collapses the clause editor), so
+	//there is one anchored position rather than two competing ones. Bounded in
+	//CSS, with each editor's BODY scrolling inside it, so the panel is fully on
+	//screen at the dialog's pinned 90% height without any pane having to scroll.
+	_anchoredEditorRender() {
+		if (this._pendingCatalogFilter) return html`<div class='anchored-editor'>${this._pendingCatalogFilterRender()}</div>`;
+		if (this._clauseEditorOpen) return html`<div class='anchored-editor'>${this._selectedClauseEditorRender()}</div>`;
+		return '';
+	}
+
+	//THE COUNT THE EDITOR'S CURRENT VALUES WOULD PRODUCE, beside the control that
+	//commits them (spec §8 "Teach through consequence", §Count preview: applied
+	//at the moment of choice). Every value change re-asks through the same
+	//debounced preview machinery and the same retained-count cache the primary's
+	//own readout uses, so an unchanged collection keeps its number rather than
+	//blanking between keystrokes.
+	//
+	//The LABEL carries the contract, because the two editors have different ones.
+	//A clause edit is already in the draft ('Changes update the draft
+	//immediately'), so its number is a fact about the draft and says so; a
+	//pending add is NOT in the draft until it is confirmed, so its number is
+	//explicitly conditional. One wording for both would have had to lie about one
+	//of them.
+	_editorCountRender(label : string, count : number | undefined, pending : boolean) {
+		//Nothing to say and nothing on the way — previews are off, or this build
+		//has no worker. An empty row would reserve space for a number that is
+		//never coming.
+		if (count === undefined && !pending) return '';
+		return html`<span class='editor-count'>${label}
+			<span class='editor-count-value'>${count === undefined ?
+		html`<loading-placeholder noun='the card count'></loading-placeholder>` :
+		formatCollectionCardCount(count)}</span></span>`;
+	}
+
 	_selectedClauseEditorRender() {
 		const index = this._selectedClauseIndex;
 		const filterName = this._collectionDescription.filters[index];
 		if (index < 0 || !filterName) return '';
 		return html`
 			<div class='clause-editor'>
-				<div>
+				<!-- OUTSIDE THE SCROLLER, with the action row. Focus lands in
+				     the first control the moment the panel opens, and the
+				     browser scrolls the nearest scrollable ancestor to reveal
+				     it — which, with the heading inside that scroller, took the
+				     panel's own title and its contract sentence off screen on
+				     the very frame it appeared. What scrolls is the CONTROLS. -->
+				<div class='clause-editor-heading'>
 					<strong>Editing ${this._readableComposerFilter(filterName)}</strong>
-					<div class='suggestion-detail'>Changes update the draft immediately. You can undo them before opening.</div>
+					<div class='suggestion-detail'>Changes update the draft immediately, and this editor stays open until you close it. You can undo them before opening.</div>
 				</div>
-				<configure-collection-filter
-					.value=${filterName}
-					.index=${index}
-					.mobile=${this.mobile}
-					.lockFilterFamily=${true}
-					.filterDescriptions=${this._filterDescriptions}
-					.cardTagInfos=${this._cardTagInfos}
-					.userIDs=${this._userIDs}
-					.userInfos=${this._userInfos}
-					@filter-modified=${this._handleFilterModified}
-					@filter-removed=${this._handleFilterRemoved}>
-				</configure-collection-filter>
-				<button class='small verb done-editing' @click=${this._handleBuilderToggle}>Done editing</button>
+				<!-- THE PANEL'S OWN SCROLLER, for the same reason the Configure
+				     panel below has one: its action row must be a sibling of the
+				     scrolling part, not the last thing inside it. See the CSS. -->
+				<div class='clause-editor-body scroller'>
+					<configure-collection-filter
+						.value=${filterName}
+						.index=${index}
+						.mobile=${this.mobile}
+						.lockFilterFamily=${true}
+						.filterDescriptions=${this._filterDescriptions}
+						.cardTagInfos=${this._cardTagInfos}
+						.userIDs=${this._userIDs}
+						.userInfos=${this._userInfos}
+						@filter-modified=${this._handleFilterModified}
+						@filter-removed=${this._handleFilterRemoved}>
+					</configure-collection-filter>
+				</div>
+				<div class='clause-editor-actions'>
+					${this._editorCountRender('The draft now matches', this._previewCounts[this._draftPreviewID], this._draftCountPending)}
+					<button class='small verb done-editing' @click=${this._handleBuilderToggle}>Done editing</button>
+				</div>
 			</div>
 		`;
 	}
@@ -2032,7 +2178,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					</label>
 				` : ''}
 			</div>
-			${this._pendingCatalogFilter ? this._pendingCatalogFilterRender() : ''}
+			<!-- The Configure panel is NOT here any more: it renders in the
+			     anchored slot under the draft sentence, with every other editor
+			     this composer opens. The catalog list yields its floor to it
+			     (see .catalog-list's min-height under [data-editor-open]) rather
+			     than hosting it below the fold. -->
 			<div id='collection-filter-catalog' class='catalog-list scroller' role='listbox' aria-label='Filter catalog'>
 				${collectionFilterCatalogCategories.map(category => {
 		const categoryItems = items.filter(item => item.category === category);
@@ -2100,15 +2250,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const family = this._pendingCatalogFilter.split('/')[0];
 		return html`
 			<div class='pending-filter-editor' role='group' aria-label=${`Configure ${this._readableComposerFilter(family)}`}>
+				<!-- OUTSIDE THE SCROLLER, with the action row: focus lands in the
+				     first control as the panel opens, and the browser scrolls the
+				     nearest scrollable ancestor to reveal it — which would take
+				     the panel's own title and its "nothing changes until you
+				     confirm" contract off screen on the frame it appeared. -->
+				<div class='pending-filter-heading'>
+					<div><strong>Configure ${this._readableComposerFilter(family)}</strong></div>
+					<div class='suggestion-detail'>Choose the values below before this filter is added. The collection will not change until you confirm.</div>
+					<!-- A reason a control is unavailable is VISIBLE text, not only a
+					     title: hover is unreachable on touch (§3.6.4). The wrapper's
+					     title below still explains it on hover for a mouse user. -->
+					${this._pendingCatalogChanged ? '' : html`<div class='suggestion-detail'>Change a value to add this filter.</div>`}
+				</div>
 				<!-- THE PANEL'S OWN SCROLLER, so its action row can be a sibling
 				     of it rather than the last thing inside it. See the CSS. -->
 				<div class='pending-filter-body scroller'>
-				<div><strong>Configure ${this._readableComposerFilter(family)}</strong></div>
-				<div class='suggestion-detail'>Choose the values below before this filter is added. The collection will not change until you confirm.</div>
-				<!-- A reason a control is unavailable is VISIBLE text, not only a
-				     title: hover is unreachable on touch (§3.6.4). The wrapper's
-				     title below still explains it on hover for a mouse user. -->
-				${this._pendingCatalogChanged ? '' : html`<div class='suggestion-detail'>Change a value to add this filter.</div>`}
 				<configure-collection-filter
 					.value=${this._pendingCatalogFilter}
 					.index=${-1}
@@ -2124,6 +2281,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</configure-collection-filter>
 				</div>
 				<div class='buttons pending-filter-actions'>
+					<!-- What confirming would produce, while the values are still
+					     being chosen — the whole point of the explicit-confirm
+					     contract is that the user gets to know before they take
+					     it. 'Would match', because nothing has been added yet. -->
+					${this._editorCountRender('Would match', this._previewCounts[this._editorPreviewID], this._editorCountPending)}
 					<button class='small verb' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
 					<!-- The one committing action of this nested editor, so §3.3's
 					     round primary glyph applies here too. PLUS_ICON is the
@@ -2215,6 +2377,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				     which is a footnote to the sentence, not its subject. -->
 				${help(COLLECTION_HELP)}
 			</div>
+			<!-- ATTACHED TO THE SENTENCE, directly under the row whose chip opened
+			     it. See _anchoredEditorRender. -->
+			${this._anchoredEditorRender()}
 			<!-- Visible, not a title: hover is unreachable on touch (§3.6.4),
 			     and a clause the user cannot edit is exactly the one that has to
 			     explain itself. Empty for every ordinary clause. -->
@@ -2227,7 +2392,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					${this._draftUndoDescription ? html`<button class='small verb' @click=${this._undoDraftEdit}>Undo</button>` : ''}
 				</div>
 			` : ''}
-			${this._clauseSelectionMessage ? html`<div class='draft-receipt' role='status'>${this._clauseSelectionMessage}</div>` : ''}
+			<!-- THE ANNOUNCEMENT SURVIVES; THE DUPLICATE ROW DOES NOT.
+			     "Editing Updated between 2023-01-01 and 2023-12-31" was rendered
+			     here as a visible status row while the anchored editor two rows
+			     above was already headed with that exact sentence — the same
+			     words twice, and the second copy costs a row of the height the
+			     editor is competing for. It is still a live region, because the
+			     panel's heading is not one and a screen reader has to be told
+			     that an editor opened; it simply stops repeating itself on
+			     screen. Every state with no editor open ("… selected · Backspace
+			     again to remove") is unchanged and still visible. -->
+			${this._clauseSelectionMessage ? html`<div class=${this._anchoredEditorOpen ? 'visually-hidden' : 'draft-receipt'} role='status'>${this._clauseSelectionMessage}</div>` : ''}
 			${this._activationPending || this._activationMessage ? html`
 				<!-- role='alert' already announces immediately; the explicit
 				     assertive was a second, louder copy of the same instruction.
@@ -2262,8 +2437,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<button class='small verb' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
-			${this._catalogOpen ? html`<div class='builder builder-catalog' ?data-configuring=${Boolean(this._pendingCatalogFilter)}>${this._catalogRender()}</div>` : ''}
-			${this._builderExpanded ? html`<div class='builder builder-clause scroller'>${this._selectedClauseEditorRender()}</div>` : ''}
+			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
 			${this._openActionRender(
 		draftCount,
 		this._activationPending,
@@ -2338,8 +2512,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//the editor to make the old line true would break editing a date in
 		//order to keep a footer honest — so the footer states what is in force
 		//in this mode instead, which is what §3.5's contract asks of it.
-		if (this._builderExpanded) return `Editing a clause · ${shortcutKeys('dialog-escape')} closes the editor · click another clause to edit it`;
-		if (this._selectedClauseIndex >= 0) return '←→ choose clause · Delete removes · type to continue';
+		if (this._builderExpanded) return `Editing a clause · edits apply to the draft as you make them · ${shortcutKeys('dialog-escape')} closes the editor · click another clause to edit it`;
+		//Enter is named because it now DOES something here. An unnamed key is an
+		//unreachable one for the keyboard flow this line exists to describe.
+		if (this._selectedClauseIndex >= 0) return '←→ choose clause · Enter edits it · Delete removes · type to continue';
 		if (!highlighted) {
 			return suggestions.length ?
 				`↑↓ or Tab choose · Enter opens this collection · ${escapeHint}` :
@@ -3054,11 +3230,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//highlighted one that Tab or Enter accepts.
 		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
 		if (!this._composerInput && this._collectionDescription.filters.length) {
+			//SELECTING A CLAUSE TAKES THE HIGHLIGHT AWAY FROM THE LIST.
+			//
+			//The key hints already say so — the _selectedClauseIndex branch of
+			//_composerKeyHints outranks every highlighted-row branch — but the
+			//list went on PAINTING its highlighted row, so two things read as
+			//selected and only one of them was what the next Enter would take.
+			//That was harmless while Enter on a selected clause did nothing of
+			//its own; now that it activates the clause, the paint has to agree
+			//with the act (spec: the transformation accepted on keydown is the
+			//one visibly highlighted on keydown).
+			const selectClause = (index : number) => {
+				this._selectedClauseIndex = index;
+				this._suggestionHighlightActive = false;
+			};
 			if (e.key === 'Backspace') {
 				e.preventDefault();
 				e.stopPropagation();
 				if (this._selectedClauseIndex < 0) {
-					this._selectedClauseIndex = this._collectionDescription.filters.length - 1;
+					selectClause(this._collectionDescription.filters.length - 1);
 					this._clauseSelectionMessage = `${this._readableComposerFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected · Backspace again to remove`;
 				} else {
 					this._removeDraftClause(this._selectedClauseIndex);
@@ -3071,13 +3261,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._removeDraftClause(this._selectedClauseIndex);
 				return;
 			}
+			//ENTER ON A SELECTED CLAUSE OPENS ITS EDITOR.
+			//
+			//It used to fall through to the generic Enter below, which — with no
+			//suggestion highlighted — opens the current draft; and since
+			//selecting a clause does not change the draft, the draft was
+			//equivalent to the collection already on screen, so "open" meant
+			//"close the composer". The whole keyboard clause-selection flow
+			//(Backspace, then ←→) therefore had no way to reach the thing it had
+			//selected, and its one obvious key threw the session away instead.
+			//
+			//Enter is the ACTIVATION key for a selected object throughout this
+			//dialog, so it does here what clicking the chip does, focus and all.
+			if (e.key === 'Enter' && this._selectedClauseIndex >= 0 && !this._builderExpanded) {
+				e.preventDefault();
+				e.stopPropagation();
+				committedKeystrokes.add(e);
+				void this._handleClauseEdit(this._selectedClauseIndex);
+				return;
+			}
 			if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
 				e.preventDefault();
 				e.stopPropagation();
 				if (e.key === 'ArrowLeft') {
-					this._selectedClauseIndex = this._selectedClauseIndex < 0 ? this._collectionDescription.filters.length - 1 : Math.max(0, this._selectedClauseIndex - 1);
+					selectClause(this._selectedClauseIndex < 0 ? this._collectionDescription.filters.length - 1 : Math.max(0, this._selectedClauseIndex - 1));
 				} else {
-					this._selectedClauseIndex = this._selectedClauseIndex < 0 ? 0 : this._selectedClauseIndex + 1;
+					selectClause(this._selectedClauseIndex < 0 ? 0 : this._selectedClauseIndex + 1);
 					if (this._selectedClauseIndex >= this._collectionDescription.filters.length) this._selectedClauseIndex = -1;
 				}
 				this._clauseSelectionMessage = this._selectedClauseIndex < 0 ? '' : `${this._readableComposerFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected`;
@@ -3477,8 +3686,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		store.dispatch(askForPathToNavigateTo());
 	}
 
+	//EDITING A FIELD DOES NOT CLOSE THE EDITOR.
+	//
+	//_commitDraftEdit clears _selectedClauseIndex, because for every OTHER way
+	//the draft changes — a suggestion, a catalog row, an undo — the clause the
+	//user had selected is no longer what they are pointing at. A clause edit is
+	//the one change that comes FROM the selected clause, so clearing the
+	//selection there closed the editor on the field the user had just changed:
+	//the audited session set the start date, watched the panel vanish, and had
+	//to re-open it from the chip to set the end date.
+	//
+	//The selection is captured before the commit and restored after it, the same
+	//shape _removeDraftClause already uses to keep the editor on a clause that
+	//has been renumbered underneath it. The draft itself is updated immediately,
+	//which is the contract the panel states.
 	_handleFilterModified(e : FilterModifiedEvent) {
+		const editing = this._builderExpanded ? this._selectedClauseIndex : -1;
 		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value));
+		if (editing < 0) return;
+		const filter = this._collectionDescription.filters[editing];
+		if (filter === undefined) return;
+		this._selectedClauseIndex = editing;
+		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(filter)}`;
 	}
 
 	_handleFilterRemoved(e : FilterModifiedEvent) {
@@ -3626,6 +3855,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//(The same idiom snack-bar uses for its mobile class, and for the same
 		//reason: a property Lit does not reflect cannot be matched from CSS.)
 		this.toggleAttribute('data-pointer-armed', this._pointerHighlightArmed);
+		//Mirrored for the same reason: the two lists that have to yield their
+		//floor to the anchored editor are in different containers, and a
+		//property Lit does not reflect cannot be matched from CSS.
+		this.toggleAttribute('data-editor-open', this._anchoredEditorOpen);
 		if ((changedProps.has('_highlightedSuggestion') || changedProps.has('_suggestionHighlightActive')) && this._suggestionHighlightActive) {
 			this.shadowRoot?.querySelector(`#collection-suggestion-${this._highlightedSuggestion}`)?.scrollIntoView?.({block: 'nearest'});
 		}
@@ -3644,15 +3877,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED.
 		//
-		//Both editors are the LAST flex children of #inner, under a suggestion
-		//list and a catalog that have min-heights of their own, so in a short
-		//dialog they open past its visible edge — and nothing scrolled them
-		//into view, so activating a clause looked like it did nothing at all.
-		//block:'nearest' scrolls the least that makes the pane visible, and
-		//#inner's scroll-padding keeps the result clear of the footer.
-		if (this.open && (changedProps.has('_builderExpanded') || changedProps.has('_selectedClauseIndex') || changedProps.has('_pendingCatalogFilter'))) {
+		//The anchored slot is the second child of #inner, so it is on screen by
+		//construction in every case the old bottom-of-column position was not —
+		//but #inner is still a scroll container, and a session that had scrolled
+		//down to the catalog before clicking a chip would open the editor above
+		//its scroll position. block:'nearest' scrolls the least that makes the
+		//pane visible, so an editor already in view does not jump.
+		//
+		//ONLY WHEN THE EDITOR ACTUALLY OPENS OR MOVES. _selectedClauseIndex now
+		//leaves and re-enters its own value on every field edit (see
+		//_handleFilterModified), which Lit reports as a change — scrolling on
+		//that would yank the port under a user in the middle of typing a date.
+		//The same is true one panel over: _pendingCatalogFilter holds the
+		//configured VALUE, so it changes on every field edit too. Only the
+		//transition into a configured state is an opening.
+		const clauseMoved = changedProps.has('_selectedClauseIndex') && changedProps.get('_selectedClauseIndex') !== this._selectedClauseIndex;
+		const configureOpened = changedProps.has('_pendingCatalogFilter') && !changedProps.get('_pendingCatalogFilter') && Boolean(this._pendingCatalogFilter);
+		if (this.open && (changedProps.has('_builderExpanded') || clauseMoved || configureOpened)) {
 			this.updateComplete.then(() => {
-				const editor = this.shadowRoot?.querySelector('.pending-filter-editor, .builder-clause');
+				const editor = this.shadowRoot?.querySelector('.anchored-editor');
 				editor?.scrollIntoView?.({block: 'nearest'});
 			});
 		}
@@ -3739,7 +3982,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			changedProps.has('_filterDescriptions') ||
 			changedProps.has('_composerCandidates') ||
 			changedProps.has('_cardsSelected') ||
-			changedProps.has('_userScope')
+			changedProps.has('_userScope') ||
+			//The Configure panel's running count is a count of the draft plus
+			//THIS value, so it has to be re-asked when the value moves.
+			changedProps.has('_pendingCatalogFilter')
 		) this._refreshPreviewCounts();
 	}
 
@@ -3767,9 +4013,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!this.open || !collectionComposerPreviewEnabled()) {
 			this._previewCounts = {};
 			this._draftCountPending = false;
+			this._editorCountPending = false;
 			return;
 		}
 		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter && !suggestion.sourceFilter);
+		//THE OPEN EDITOR'S OWN COLLECTION IS COUNTED LIKE ANY OTHER. It goes
+		//through the same debounce, the same worker budget and the same retained
+		//cache as every row, which is what makes a count that moves under a
+		//changing date field affordable at all.
+		if (this._entryMode !== 'source' && this._pendingCatalogFilter) {
+			previewSuggestions.unshift({
+				id: this._editorPreviewID,
+				kind: 'source',
+				action: 'open',
+				name: 'Configured filter',
+				label: 'Configured filter',
+				detail: '',
+				description: collectionDescriptionWithFilterAppended(previewDescription, this._pendingCatalogFilter),
+			});
+		}
 		previewSuggestions.unshift({
 			id: this._draftPreviewID,
 			kind: 'source',
@@ -3793,6 +4055,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		this._previewCounts = retained;
 		this._draftCountPending = missing.some(suggestion => suggestion.id === this._draftPreviewID);
+		this._editorCountPending = missing.some(suggestion => suggestion.id === this._editorPreviewID);
 		if (!missing.length) return;
 		this._cancelPreviews = startCollectionComposerPreviews(
 			missing,
@@ -3803,6 +4066,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				const key = keyBySuggestionID.get(suggestionID);
 				if (key) this._rememberPreviewCount(key, count);
 				if (suggestionID === this._draftPreviewID) this._draftCountPending = false;
+				if (suggestionID === this._editorPreviewID) this._editorCountPending = false;
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}
 		);
