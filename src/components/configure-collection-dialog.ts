@@ -1725,41 +1725,63 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return parsedSourceFor(this._sourceInput, this._contextualComposerCandidates, this._filterDescriptions, this._draftSelectedCard);
 	}
 
+	//ONE DECISION, TWO SENTENCES — SO THEY CANNOT CONTRADICT EACH OTHER.
+	//
+	//The heading and the body used to be computed independently: the heading
+	//branched on parsed.status, and the body took the first diagnostic with a
+	//single fallback shared by every state. An incomplete or invalid source that
+	//produced NO diagnostic therefore fell through to the valid state's own
+	//sentence, and the pane read "Keep typing — This source is complete and safe
+	//to open": one element saying, in two halves, that the source both is and is
+	//not openable. §2.4's honest-header rule is not satisfiable by a header
+	//alone if the body underneath it is free to say something else.
+	//
+	//Both halves now come out of the same branch, so every state owns its own
+	//fallback and the valid sentence is reachable from exactly one place.
+	//
+	//ONE HONEST HEADER PER STATE CLASS. 'Not supported here' and 'Can’t
+	//understand this source' were two headers for one class — the source cannot
+	//be opened — and each was wrong about half of it. The app understands `foo`
+	//perfectly well and simply has no such filter, so "can't understand" is
+	//false; a malformed date is understood and rejected, so "not supported" is
+	//false. The header states the one fact both share, and the sentence
+	//underneath says which it was. The incomplete state stays distinct, because
+	//nothing is wrong there yet.
+	//
+	//"Safe to open" is a claim about the source. It says nothing about who gets
+	//what when the resulting link is opened, and Source is the surface whose
+	//whole job is the URL — the one place a user is looking at the link itself,
+	//and therefore the one place most likely to copy it. A personal clause makes
+	//the link resolve against the reader's own stars, reads and reading list, so
+	//the sentence says that instead of implying the opposite.
+	_sourceStatus(parsed : ParsedCollectionSource, description : CollectionDescription) : {label : string, sentence : string} {
+		const diagnostic = parsed.diagnostics[0]?.message || '';
+		if (parsed.status === 'valid') {
+			return {
+				label: 'Ready to open',
+				sentence: diagnostic || (filterNamesAreViewerDependent(description.filters) ?
+					'opens for you; this link’s results depend on who views it.' :
+					'This source is complete and safe to open.'),
+			};
+		}
+		if (parsed.status === 'incomplete') {
+			return {
+				label: 'Keep typing',
+				sentence: diagnostic || 'This source is not a whole collection yet.',
+			};
+		}
+		return {
+			label: 'Can’t open this source',
+			sentence: diagnostic || 'This source does not describe a collection this app can open.',
+		};
+	}
+
 	_sourceRender() {
 		const parsed = this._parsedSource;
 		const shown = parsed.status === 'valid' ? parsed : this._lastValidSource;
 		const description = shown?.description || this._collectionDescription;
 		const count = this._previewCounts[this._draftPreviewID];
-		//ONE HONEST HEADER PER STATE CLASS (HS-2.4).
-		//
-		//'Not supported here' and 'Can’t understand this source' were two headers
-		//for one class — the source cannot be opened — and each was wrong about
-		//half of it. The app understands `foo` perfectly well and simply has no
-		//such filter, so "can't understand" is false; a malformed date is
-		//understood and rejected, so "not supported" is false. The header now
-		//states the one fact both share, and the diagnostic underneath says which
-		//it was, which is the division of labour §2.4 asks for. The
-		//incomplete/keep-typing state stays distinct, because nothing is wrong
-		//there yet.
-		const statusLabel = parsed.status === 'valid' ? 'Ready to open' :
-			parsed.status === 'incomplete' ? 'Keep typing' : 'Can’t open this source';
-		//"Safe to open" is a claim about the source. It says nothing about who
-		//gets what when the resulting link is opened, and Source is the surface
-		//whose whole job is the URL — the one place a user is looking at the
-		//link itself, and therefore the one place most likely to copy it. A
-		//personal clause makes the link resolve against the reader's own stars,
-		//reads and reading list, so the sentence says that instead of implying
-		//the opposite. The valid-source wording is otherwise untouched.
-		//Only in the valid state, which is the only state that makes the claim.
-		//(This fallback also fires for incomplete and invalid sources that
-		//produced no diagnostic, pairing 'Keep typing' with 'complete and safe
-		//to open'. That is a real defect and it is older than this change; it is
-		//left alone here rather than fixed in passing.)
-		const viewerDependent = parsed.status === 'valid' && filterNamesAreViewerDependent(description.filters);
-		const readySentence = viewerDependent ?
-			'opens for you; this link’s results depend on who views it.' :
-			'This source is complete and safe to open.';
-		const diagnostic = parsed.diagnostics[0]?.message || readySentence;
+		const {label: statusLabel, sentence: diagnostic} = this._sourceStatus(parsed, description);
 		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
 		const completionMode = completionDiagnostic ? 'complete' : 'add';
 		const completionDetails = completionDiagnostic?.expectedDetails || parsed.nextExpectedDetails || {};

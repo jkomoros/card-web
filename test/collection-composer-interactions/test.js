@@ -2094,6 +2094,51 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(await headerFor('starred/'), 'Ready to open');
 	});
 
+	//A HEADING AND ITS BODY MUST NOT BE ABLE TO CONTRADICT EACH OTHER.
+	//
+	//They used to be computed independently: the heading branched on
+	//parsed.status, while the body took the first diagnostic and fell back to a
+	//single sentence shared by every state — the VALID state's own sentence. An
+	//incomplete or invalid source that produced no diagnostic therefore rendered
+	//'Keep typing — This source is complete and safe to open.': one status
+	//element saying, in two halves, that the source both is and is not openable.
+	//
+	//The fix is structural rather than a third fallback, so this pins the
+	//structure: both halves come out of one decision, and each state owns its
+	//own sentence. The no-diagnostic case is the one that used to fall through,
+	//so it is asked about directly.
+	it('never pairs a source heading with a body that contradicts it', async () => {
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG, mode: 'source' });
+		await settleRender(dialog);
+		const description = CollectionDescription.deserialize('everything/starred/');
+		const READY = /complete and safe to open|opens for you/;
+		for (const status of ['valid', 'incomplete', 'invalid', 'unsupported']) {
+			//No diagnostic: exactly the shape that used to fall through.
+			const bare = dialog._sourceStatus({ status, diagnostics: [] }, description);
+			assert.ok(bare.sentence.trim(), `${status} must say something`);
+			assert.strictEqual(READY.test(bare.sentence), status === 'valid',
+				`only a valid source may claim it is ready to open, not ${status}: "${bare.label} — ${bare.sentence}"`);
+			assert.strictEqual(bare.label === 'Ready to open', status === 'valid',
+				`only a valid source may be headed Ready to open, not ${status}`);
+			//And with a diagnostic, the diagnostic is what is shown — the
+			//heading is unchanged, so the pair still agrees.
+			const diagnosed = dialog._sourceStatus(
+				{ status, diagnostics: [{ message: 'needs 1 more value' }] }, description);
+			assert.strictEqual(diagnosed.sentence, 'needs 1 more value');
+			assert.strictEqual(diagnosed.label, bare.label);
+		}
+		//The real thing, through the real parser: an incomplete source can never
+		//be told it is safe to open.
+		const input = dialog.shadowRoot.querySelector('#collection-source-input');
+		input.value = 'updated/';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await settleRender(dialog);
+		const rendered = dialog.shadowRoot.querySelector('.source-status').textContent;
+		assert.match(rendered, /Keep typing/);
+		assert.ok(!READY.test(rendered), `an incomplete source must not claim it is openable: ${rendered}`);
+	});
+
 	//A collection with no cards opens on nothing, so "Opens on: the first card
 	//in the collection" names a card that does not exist. Suppressed only at a
 	//RESOLVED zero — undefined means the answer is not in yet, which is a
