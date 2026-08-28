@@ -2995,6 +2995,32 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 	});
 
+	it('keeps the collection sentence out of the card scroller', async () => {
+		//The sentence is the spec's persistent anchor and the composer's only
+		//mouse entry point, and it was the first child of the scrolling card
+		//list — so a few arrow-key steps down the list scrolled it off the top.
+		//Nothing that says "persistent" can be an item in a scrolling region.
+		const drawer = document.createElement('card-drawer');
+		drawer.showing = true;
+		document.body.append(drawer);
+		await drawer.updateComplete;
+		const scroller = drawer.shadowRoot.querySelector('.scrolling.scroller');
+		const count = drawer.shadowRoot.querySelector('#count');
+		assert.ok(scroller, 'the card list still scrolls');
+		assert.ok(count, 'the summary block still exists');
+		assert.ok(!scroller.contains(count), 'the summary must not live inside the scroller');
+		assert.strictEqual(count.parentElement, scroller.parentElement, 'it is the scroller’s sibling');
+		assert.ok(count.compareDocumentPosition(scroller) & Node.DOCUMENT_POSITION_FOLLOWING,
+			'and it comes above the list, not below it');
+		//Both slots travel with it, so the sentence card-view supplies through
+		//visible-info is anchored too — it is the half a user actually reads.
+		assert.ok(count.querySelector('slot[name="visible-info"]'), 'the sentence slot moved with the count');
+		assert.ok(count.querySelector('slot[name="info"]'), 'and so did the details slot');
+		//The list itself is still the scroller's business, drag targets and all.
+		assert.ok(scroller.querySelector('card-thumbnail-list'), 'the thumbnails stayed in the scroller');
+		drawer.remove();
+	});
+
 	it('brings a closed draft back, chips typed text and all, on the same collection', async () => {
 		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
 			.find((button) => button.textContent.includes('Add Starred'));

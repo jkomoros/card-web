@@ -168,6 +168,19 @@ class CardDrawer extends LitElement {
 			.scrolling {
 				max-height:100%;
 				flex-grow:1;
+				/* A flex item's default min-height is auto, i.e. "as tall as my
+				   content", which in a column means the scroller grows to fit
+				   the whole list and never scrolls — the page does instead. It
+				   got away with that while the scroller was the only child;
+				   with a header above it, min-height:0 is what lets it take
+				   the remaining space and overflow inside it. */
+				min-height: 0;
+			}
+
+			/* The header keeps its natural height and never gives it up, so a
+			   long list cannot squeeze the sentence the list is anchored to. */
+			#count {
+				flex: 0 0 auto;
 			}
 
 			.buttons {
@@ -219,6 +232,16 @@ class CardDrawer extends LitElement {
 			}
 
 			.container.updating.initial-load .scroller {
+				opacity: 1;
+			}
+
+			/* The header takes the same exemption for the same reason. On an
+			   initial load its own label already reads "loading…", so dimming
+			   it is a second, quieter word for the fact it is already
+			   stating. This rule exists because the header is now a sibling
+			   of the scroller rather than its first child, and so no longer
+			   inherits the exemption above. */
+			.container.updating.initial-load #count {
 				opacity: 1;
 			}
 
@@ -327,8 +350,17 @@ class CardDrawer extends LitElement {
 		return html`
 			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating && !this.failureMessage ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount && !this.failureMessage ? 'initial-load' : ''}'>
 				${this.updating && !this.failureMessage ? html`<loading-placeholder class='loading-pin' partial noun='cards'></loading-placeholder>` : ''}
-				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
-					<div class='label ${collectionComposerEnabled() ? 'grouped' : ''}' id='count'>
+				<!-- A NON-SCROLLING HEADER, not the first thing in the scroller.
+				     The collection sentence is the spec's persistent anchor — the
+				     surface that "persistently shows a readable collection
+				     sentence" and the composer's only mouse entry point — and it
+				     lived INSIDE the card scroller, so about four arrow-key steps
+				     down the list scrolled the thing the whole feature is
+				     anchored to off the top of the screen. Nothing that says
+				     "persistent" can be the first item of a scrolling region.
+				     The dim still covers it: while the cards below are stale the
+				     count above them is stale too, and §3.6 wants that said. -->
+				<div class='label ${collectionComposerEnabled() ? 'grouped' : ''} ${this.updating && !this.failureMessage ? 'loading-dim' : ''}' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' title=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-label=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-expanded=${this.infoExpanded ? 'true' : 'false'} @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							${this.failureMessage
@@ -368,7 +400,8 @@ class CardDrawer extends LitElement {
 						<div class='info-panel'>
 							<slot name='visible-info'></slot>
 						</div>
-					</div>
+				</div>
+				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
 					${this.collection && this.collection.description.viewMode == 'web' ?
 		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
 		html`<card-thumbnail-list
