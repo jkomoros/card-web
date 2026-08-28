@@ -860,6 +860,40 @@ const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]
 export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterName, extras : FilterExtras) : ConfigurableFilterResult => {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
+		//AN UNKNOWN MEMBER OF A UNION IS AN UNKNOWN FILTER.
+		//
+		//It used to be neither reported nor treated like one. `tag-33x` on its
+		//own reports "Didn't understand" and no-ops, so /c/published/tag-33x/
+		//showed 224 cards; inside a union the same name resolved to undefined,
+		//contributed the empty set, and /c/published/tag-33x+tag-7/ silently
+		//showed 25 — a DIFFERENT collection than the URL described, with
+		//nothing said about it. Ahead of Edit All Cards that silence is the
+		//dangerous half.
+		//
+		//So: the same diagnostic, and the same semantics. An unknown member is
+		//dropped from the OR group (which is what contributing the empty set
+		//already amounted to), and a union whose members are ALL unknown
+		//behaves exactly like a standalone unknown — a no-op that excludes
+		//nothing — rather than an empty set that excludes everything.
+		//
+		//The part reported is the WHOLE segment, not the bare member: the
+		//surfacing selector matches diagnostics against the raw URL by whole
+		//path segment, and `tag-33x` never appears as one in
+		//`/published/tag-33x+tag-7/`. A report nobody can see is not a report.
+		const subFilterNames = filterDefinitionItem.split(UNION_FILTER_DELIMITER);
+		const unknown = subFilterNames.filter(name => !filterSetMemberships[name] && !INVERSE_FILTER_NAMES[name]);
+		const quoted = unknown.map(name => '“' + name + '”').join(', ');
+		if (!unknown.length) {
+			//Same self-correction as the standalone path: section and tag
+			//filter names load async, so an early boot recompute can report
+			//against a URL that is perfectly valid a moment later (#757).
+			retractURLDiagnostic(filterDefinitionItem);
+		} else if (unknown.length === subFilterNames.length) {
+			reportURLDiagnostic(filterDefinitionItem, 'ignored the whole OR group, because ' + quoted + (unknown.length === 1 ? ' is' : ' are') + ' not a filter or set');
+			return [{}, true, null, null, false];
+		} else {
+			reportURLDiagnostic(filterDefinitionItem, 'dropped ' + quoted + ' from the OR group, because ' + (unknown.length === 1 ? 'it is' : 'they are') + ' not a filter or set');
+		}
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards, extras.cardsContentToken), false, null, null, false];
 	}
 	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
