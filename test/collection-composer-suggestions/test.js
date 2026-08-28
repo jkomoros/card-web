@@ -169,6 +169,37 @@ describe('Collection Composer suggestions', () => {
 		assert.ok(!atRest.some((suggestion) => suggestion.description.serialize() === active.serialize()));
 	});
 
+	it('offers four Continue rows, so a rotation plus a frequent hub still fits', () => {
+		const active = CollectionDescription.deserialize('main/');
+		const named = (name) => CollectionDescription.deserialize(`main/${name}/`);
+		//Three legs of a rotation, plus the frequency-promoted hub the history
+		//module hoists in beside them. At three rows the last leg was dropped.
+		//None of these are EMPTY_STATE_FILTERS, which would otherwise dedupe
+		//against the refine rows offering the same destination.
+		const context = {
+			activeCollection: active,
+			recentCollections: [
+				{ description: named('half-baked'), visits: 2 },
+				{ description: named('content'), visits: 2 },
+				{ description: named('has-todo'), visits: 2 },
+				{ description: named('published'), visits: 9 },
+				{ description: named('has-links'), visits: 1 },
+			],
+		};
+		const recents = collectionComposerSuggestions(active, '', descriptions, context)
+			.filter((suggestion) => suggestion.kind === 'recent');
+		assert.deepStrictEqual(
+			recents.map((suggestion) => suggestion.description.serialize()),
+			[
+				named('half-baked').serialize(),
+				named('content').serialize(),
+				named('has-todo').serialize(),
+				named('published').serialize(),
+			],
+			'all three rotation legs survive alongside the fourth row'
+		);
+	});
+
 	it('explains promoted rolling-date memories mechanistically', () => {
 		const suggestions = collectionComposerSuggestions(
 			CollectionDescription.deserialize('everything/'),

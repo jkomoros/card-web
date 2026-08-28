@@ -462,7 +462,11 @@ const recentSuggestions = (
 			detail: `${collectionDifference(current, recent.description, recent.visits, filterLabels)}${recent.relative ? ' · Recognized as the same rolling date window' : ''}`,
 			description: recent.description,
 		});
-		if (result.length >= 3) break;
+		//FOUR rows, matching the budget the history module reserves: three
+		//recents plus the one frequency-promoted collection. At three, a
+		//three-legged rotation lost a leg — the row on screen is suppressed
+		//above, so the visible list was never as deep as its cap suggested.
+		if (result.length >= 4) break;
 	}
 	return result;
 };

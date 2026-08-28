@@ -119,14 +119,17 @@ describe('Collection Composer history', () => {
 			new Date(2026, 6, 12, 12).getTime()
 		);
 		const remembered = readRememberedCollections('alex');
-		assert.deepStrictEqual(remembered.slice(0, 2).map(entry => entry.authoring), [
+		//The immediate window is three deep, so all three exact visits precede
+		//the rolling window they group into.
+		assert.deepStrictEqual(remembered.slice(0, 3).map(entry => entry.authoring), [
 			'everything/created/after/2026-7-9/',
 			'everything/created/after/2026-7-8/',
+			'everything/created/after/2026-7-7/',
 		]);
-		assert.strictEqual(remembered[2].authoring, 'everything/created/after/3-days-ago/');
-		assert.strictEqual(remembered[2].visits, 3);
-		assert.strictEqual(remembered[2].frequent, true);
-		assert.strictEqual(remembered[2].relative, true);
+		assert.strictEqual(remembered[3].authoring, 'everything/created/after/3-days-ago/');
+		assert.strictEqual(remembered[3].visits, 3);
+		assert.strictEqual(remembered[3].frequent, true);
+		assert.strictEqual(remembered[3].relative, true);
 	});
 
 	it('keeps an often-used exact collection available beyond immediate recents', () => {
@@ -139,11 +142,31 @@ describe('Collection Composer history', () => {
 		recordRecentCollection(favorite, 'alex', 500);
 		recordRecentCollection(other('published'), 'alex', 600);
 		recordRecentCollection(other('unread'), 'alex', 700);
+		//Three distinct collections visited since the favorite, so it is genuinely
+		//beyond the immediate window rather than still sitting inside it.
+		recordRecentCollection(other('content'), 'alex', 800);
 		const remembered = readRememberedCollections('alex');
-		assert.strictEqual(remembered[2].canonical, favorite.serialize());
-		assert.strictEqual(remembered[2].visits, 3);
-		assert.strictEqual(remembered[2].frequent, true);
-		assert.ok(!remembered[2].relative);
+		assert.strictEqual(remembered[3].canonical, favorite.serialize());
+		assert.strictEqual(remembered[3].visits, 3);
+		assert.strictEqual(remembered[3].frequent, true);
+		assert.ok(!remembered[3].relative);
+	});
+
+	it('keeps every leg of a three-collection rotation reachable', () => {
+		const leg = (name) => CollectionDescription.deserialize(`everything/${name}/`);
+		recordRecentCollection(leg('starred'), 'alex', 100);
+		recordRecentCollection(leg('unread'), 'alex', 200);
+		recordRecentCollection(leg('has-todo'), 'alex', 300);
+		recordRecentCollection(leg('starred'), 'alex', 400);
+		const remembered = readRememberedCollections('alex');
+		//The immediate window holds all three legs. At two, the leg visited
+		//longest ago fell past the rows the composer shows, and a rotation the
+		//user was actively running lost a third of itself.
+		assert.deepStrictEqual(remembered.slice(0, 3).map(entry => entry.canonical), [
+			leg('starred').serialize(),
+			leg('has-todo').serialize(),
+			leg('unread').serialize(),
+		]);
 	});
 
 	it('does not reinterpret a fixed absolute milestone as a rolling window', () => {

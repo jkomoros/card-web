@@ -194,7 +194,20 @@ const computeRememberedCollections = (recent: RecentCollectionEntry[]): Remember
 				relative: inferredRelative,
 			};
 		});
-	const immediate = recent.slice(0, 2);
+	//THREE, because a rotation has three legs. Two immediate slots plus one
+	//frequency-promoted slot cannot hold an a→b→c→a loop: the collection on
+	//screen is suppressed at display time, the promoted row spends a slot on
+	//whichever leg is the hub, and the third leg falls off the end of the list
+	//the composer actually shows. Three immediate slots plus the promoted one
+	//is the smallest budget that keeps every leg of the smallest rotation
+	//reachable without typing.
+	//
+	//The promoted row is chosen from what is NOT already immediate, and the
+	//tail is the rest of the recents in recency order, so when frequency
+	//promotes nothing new the fourth row backfills with the next distinct
+	//recent rather than going blank. That is the same `seen` set doing both
+	//jobs; there is no separate backfill pass to keep in sync.
+	const immediate = recent.slice(0, 3);
 	const seen = new Set(immediate.map(entry => entry.canonical));
 	const promoted = frequent.find(entry => !seen.has(entry.canonical));
 	if (promoted) seen.add(promoted.canonical);
