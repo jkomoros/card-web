@@ -17,6 +17,7 @@ let CARD_FILTER_DESCRIPTIONS;
 let INVERSE_FILTER_NAMES;
 let REVERSE_CARD_FILTER_CONFIG_MAP;
 let TODO_ALL_INFOS;
+let CONFIGURABLE_FILTER_INFO;
 
 //The catalog builds its examples on the draft the user is actually composing,
 //so every case here has to say which draft it is talking about.
@@ -31,6 +32,7 @@ describe('Collection filter catalog', () => {
 			INVERSE_FILTER_NAMES,
 			REVERSE_CARD_FILTER_CONFIG_MAP,
 			TODO_ALL_INFOS,
+			CONFIGURABLE_FILTER_INFO,
 		} = await import('../../lib/src/filters.js'));
 	});
 
@@ -193,5 +195,90 @@ describe('Collection filter catalog', () => {
 		const lastOrdinary = real.map(item => isTodoMachinery(item.filter)).lastIndexOf(false);
 		assert.ok(firstTodo > 0, 'there should be ordinary card properties before the TODO family');
 		assert.ok(firstTodo > lastOrdinary, 'no TODO-machinery filter may precede an ordinary card property');
+	});
+
+	//A FILTER'S DESCRIPTION IS THE ONLY THING MOST USERS EVER READ ABOUT IT.
+	//
+	//`references-outbound` carried a VERBATIM copy of the sentence
+	//`direct-references-inbound` carries — so the catalog offered the outbound
+	//half of the pair under a description of the inbound half — and
+	//`references-inbound` said the opposite of what it does, in a voice ('cards
+	//that is referenced') that had never been read aloud. Both are user-facing
+	//claims about a DIRECTION, which is exactly the kind of claim that cannot be
+	//checked by reading it.
+	//
+	//So it is checked against the ENGINE rather than against another sentence: a
+	//two-card corpus where A references B, each filter actually run from key
+	//card A, and the description required to agree with what came back.
+	describe('reference filters describe the direction they actually walk', () => {
+		const card = (id) => ({
+			id,
+			references_info: {},
+			references: {},
+			references_info_inbound: {},
+			references_inbound: {},
+		});
+
+		//A --link--> B, spelled on both sides the way card processing writes it.
+		const corpus = () => {
+			const a = card('a');
+			const b = card('b');
+			a.references_info = { b: { link: '' } };
+			a.references = { b: true };
+			b.references_info_inbound = { a: { link: '' } };
+			b.references_inbound = { a: true };
+			return { a, b };
+		};
+
+		const matchesFromKeyCardA = (filterName) => {
+			const cards = corpus();
+			const [func] = CONFIGURABLE_FILTER_INFO[filterName].factory(filterName, 'a', 'link', '2');
+			return Object.values(cards)
+				.filter((item) => func(item, { cards, keyCardID: 'a', editingCard: null }).matches)
+				.map((item) => item.id);
+		};
+
+		for (const filterName of ['references-inbound', 'references-outbound', 'direct-references-inbound', 'direct-references-outbound']) {
+			it(`${filterName} says which way it goes`, () => {
+				const matched = matchesFromKeyCardA(filterName);
+				const description = CONFIGURABLE_FILTER_INFO[filterName].description;
+				assert.ok(description, `${filterName} must have a description`);
+				//Downstream: the key card references B, so an outbound filter
+				//returns B. Upstream: nothing references the key card in this
+				//corpus, so an inbound filter returns nothing.
+				const downstream = matched.includes('b');
+				assert.deepStrictEqual(matched, downstream ? ['b'] : [],
+					`${filterName} must match one direction or the other, not both`);
+				//The sentence has to name the same direction. 'what it
+				//references' against 'what references it' is precisely the
+				//distinction the old copy had backwards, so it is the
+				//distinction asserted — in whichever voice each sentence uses.
+				//('other cards' is how the direct pair names the key card. It
+				//is vague, not wrong, and the direction it states is right.)
+				const otherCard = '(the key card|the given card|a given card|other cards)';
+				const saysOutbound = new RegExp(`what it references|referenced by ${otherCard}`).test(description);
+				const saysInbound = new RegExp(`what references it|references? ${otherCard}`).test(description);
+				if (downstream) {
+					assert.ok(saysOutbound && !saysInbound,
+						`${filterName} walks the key card's OWN references, so its description must say so: "${description}"`);
+				} else {
+					assert.ok(saysInbound && !saysOutbound,
+						`${filterName} walks the references pointing AT the key card, so its description must say so: "${description}"`);
+				}
+			});
+		}
+
+		//And no two of them may say the same thing, which is the shape the
+		//original defect took: a correct sentence, copied onto the wrong filter.
+		it('gives every configurable filter its own description', () => {
+			const seen = new Map();
+			for (const [name, info] of Object.entries(CONFIGURABLE_FILTER_INFO)) {
+				if (!info.description) continue;
+				const previous = seen.get(info.description);
+				assert.strictEqual(previous, undefined,
+					`${name} and ${previous} share one description: "${info.description}"`);
+				seen.set(info.description, name);
+			}
+		});
 	});
 });

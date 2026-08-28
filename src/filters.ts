@@ -1292,7 +1292,14 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that is referenced by other cards with a particular type of reference',
+		//UPSTREAM, and said so. This sentence and the outbound one below were
+		//BOTH the wrong way round: the engine walks the key card's INBOUND
+		//references for this filter (makeCardLinksConfigurableFilter's isInbound
+		//list names it), so the cards it selects are the ones that reference the
+		//key card — which is what ANCESTORS, the same traversal without a
+		//reference type, already says of itself. The old line said the opposite,
+		//in a voice ('cards that is referenced') that had never been read aloud.
+		description: 'Selects everything upstream of the key card through a particular type of reference: what references it that way, what references those, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
@@ -1315,7 +1322,14 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that reference other cards with a particular type of reference',
+		//DOWNSTREAM, and said so. This was a verbatim copy of the sentence
+		//`direct-references-inbound` carries — the INBOUND one — so the filter
+		//catalog offered the outbound half of the pair under a description of
+		//the inbound half. The engine leaves this name out of
+		//makeCardLinksConfigurableFilter's isInbound list, so cardBFS walks the
+		//key card's own references: the selected cards are the ones it points
+		//at, which is DESCENDANTS restricted to one reference type.
+		description: 'Selects everything downstream of the key card through a particular type of reference: what it references that way, what those reference, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
