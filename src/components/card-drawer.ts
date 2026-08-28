@@ -10,6 +10,7 @@ import {
 
 import './card-renderer.js';
 import './card-thumbnail-list.js';
+import { PARTIAL_MATCH_COUNT_NOTE } from './card-thumbnail-list.js';
 import './web-renderer.js';
 
 import {
@@ -264,6 +265,14 @@ class CardDrawer extends LitElement {
 				margin: 0 0.4em 0.15em;
 			}
 
+			/* A qualifier on the count, not a state of its own. Subordinate
+			   tone (§4.5) for the same reason .diagnostic takes it: nothing
+			   went wrong, the app is telling the user something true about
+			   the results it did produce. */
+			#count .partial-note {
+				color: var(--app-dark-text-color-light);
+			}
+
 			#count .failure {
 				/* A computation THREW: that is a problem, so it takes the
 				   problem colour. It used to be amber to signal "nothing was
@@ -302,6 +311,14 @@ class CardDrawer extends LitElement {
 
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
 		const currentCount = this.collection ? this.collection.numCards : 0;
+		//Counted over exactly the cards `currentCount` counts — sortedCards is
+		//the windowed list, and numCards excludes start cards and honours
+		//offset/limit. Counting the whole partialMatches map instead would let a
+		//windowed collection claim more partial matches than it has rows, which
+		//is the sort of arithmetic the '-761 cards' bug above came from.
+		const partialCount = this.collection ?
+			this.collection.sortedCards.filter(card => this.collection?.partialMatches[card.id]).length :
+			0;
 
 		//HIDE, don't destroy. Returning a fresh `<div hidden>` when not showing
 		//tore down card-thumbnail-list and rebuilt it on every drawer toggle —
@@ -327,7 +344,21 @@ class CardDrawer extends LitElement {
 		//reporting yet -- say that instead. Once there ARE cards, the count is
 		//real and the dim + pin correctly mean "these are stale, refreshing".
 			? html`<loading-placeholder noun='cards'></loading-placeholder>`
-			: html`<strong>${currentCount}</strong> cards`}
+			//THE COUNT INCLUDES THE PARTIAL MATCHES, so it says so. A
+			//partial match is a full member of the collection — it is
+			//counted, it is listed, it is navigable — that simply
+			//matched some of the query's words rather than all of them
+			//together. It was rendered at 50% opacity with no legend
+			//anywhere, so a user looking at '117 cards' over a list
+			//half of which was faded had no way to learn what the
+			//fading meant or whether those cards were in the 117. They
+			//are. The qualifier is a subordinate note (§4.5), not a
+			//warning: nothing failed.
+			//The separator is inside ONE interpolated string rather than
+			//written as markup, because a leading space at the start of
+			//an element's text is collapsed away and the count read
+			//'590 cards· 389 …'.
+			: html`<strong>${currentCount}</strong> cards${partialCount ? html`<span class='partial-note'>${` · ${partialCount === currentCount ? 'all' : partialCount} ${PARTIAL_MATCH_COUNT_NOTE}`}</span>` : ''}`}
 						</span>
 						${this.urlDiagnostics && this.urlDiagnostics.length ? this.urlDiagnostics.map(diagnostic => html`
 							<div class='diagnostic' title=${diagnostic.fallback}>Didn’t understand “${diagnostic.part}” in this URL</div>`) : ''}

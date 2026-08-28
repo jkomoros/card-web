@@ -146,6 +146,22 @@ describe('Collection Composer suggestions', () => {
 		});
 	});
 
+	it('says a text query admits cards matching only some of its words', () => {
+		//The engine's own contract, pinned in test/fingerprint: a multi-word
+		//non-strict query admits a card whose score is above zero, and reports
+		//partialMatch when no field held the whole word set. The chip reads
+		//`Text contains “…”`, which sounds like a promise that the words appear
+		//together, so the row is where the qualification has to live.
+		const suggestions = collectionComposerSuggestions(
+			CollectionDescription.deserialize('everything/'),
+			'systems thinking',
+			descriptions
+		);
+		const query = suggestions.find((suggestion) => suggestion.kind === 'search');
+		assert.ok(query, 'a text-query row is always offered');
+		assert.match(query.detail, /only some of its words/);
+	});
+
 	describe('naming the card an anchored clause anchors', () => {
 		const names = {'perf-card-12': 'Perf card 12', 'perf-card-42': 'Perf card 42'};
 

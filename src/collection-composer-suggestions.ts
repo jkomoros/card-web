@@ -832,7 +832,15 @@ export const collectionComposerSuggestions = (
 		action: queryAction,
 		name: queryName,
 		label: verbLabel(queryAction, queryName),
-		detail: 'Explicitly adds a text-query clause to this collection',
+		//SAY THAT IT MATCHES PARTIALLY. filters.ts's own description for this
+		//family — 'Selects cards that contain text that at least partially
+		//matches a provided query' — reaches the catalog, but this row overrode
+		//it with a sentence about the mechanism ('adds a text-query clause')
+		//that says nothing about what the clause will DO. Meanwhile the chip
+		//reads `Text contains “systems thinking”`, which sounds like a promise
+		//that both words appear together. The row is where the user decides, so
+		//it is where the qualification belongs.
+		detail: 'Keeps cards whose text matches this query, including cards matching only some of its words',
 		description: queryDescription,
 	});
 
