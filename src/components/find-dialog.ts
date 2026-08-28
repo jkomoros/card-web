@@ -7,6 +7,7 @@ import { html, css, PropertyValues } from 'lit';
 
 import './loading-placeholder.js';
 import { customElement, state } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -107,6 +108,7 @@ import {
 } from '../util.js';
 
 import {
+	CardID,
 	CardType,
 	CreateCardOpts,
 	ReferenceType,
@@ -157,6 +159,12 @@ class FindDialog extends connect(store)(DialogElement) {
 	//filter that names a card nobody has written yet matches nothing.
 	@state()
 		_configuring: boolean;
+
+	//The card the keyboard is pointing at, in picker mode. Empty until the user
+	//arrows into the list, so opening the dialog does not preselect anything
+	//Enter would then commit by accident.
+	@state()
+		_highlightedCardID: CardID = '';
 
 	@state()
 		_pendingReferenceType: ReferenceType;
@@ -267,12 +275,38 @@ class FindDialog extends connect(store)(DialogElement) {
 				</div>
 			</div>
 			<div class='row'>
-				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
+				<!-- The composer's listbox idiom, in the one mode that needs it.
+				     In a picker the thumbnails ARE the choices, and they were
+				     reachable only by mouse: no keydown handler anywhere in this
+				     file, and card-thumbnail-list's thumbnails are plain divs
+				     with no tabindex, so dialog-element's own Tab cycle skips
+				     them too. A keyboard user could type a query and then had
+				     nowhere to go with the results. -->
+				<input
+					placeholder='Text to search for'
+					id='query'
+					type='search'
+					role=${ifDefined(this._picker ? 'combobox' : undefined)}
+					aria-expanded=${ifDefined(this._picker ? String(this._pickerCardIDs.length > 0) : undefined)}
+					@keydown=${this._handleQueryKeyDown}
+					@input=${this._handleQueryChanged}
+					.value=${this._query}></input>
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
 		${this._searchPreparing ? html`<loading-placeholder class='search-preparing' noun='the search index' .value=${this._searchPreparing.built} .total=${this._searchPreparing.total}></loading-placeholder>` : ''}
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .updating=${this._collectionUpdating} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
+		<!-- highlightedCardId is card-drawer's existing property, and
+		     card-thumbnail-list already paints the highlighted thumbnail and
+		     scrolls it into view. The picker did not need a new highlight
+		     mechanism; it needed to use the one that was already there.
+		     (No backticks in this comment: it is inside a tagged template, and
+		     one would end the template right here.) -->
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .updating=${this._collectionUpdating} .highlightedCardId=${this._picker ? this._highlightedCardID : ''} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
+		<!-- The highlight cannot be announced with aria-activedescendant: the
+		     thumbnail it names lives two shadow roots down, and that attribute
+		     does not cross shadow boundaries. A polite live region says the same
+		     thing in the one place a screen reader can hear it. -->
+		${this._picker ? html`<div class='visually-hidden' aria-live='polite'>${this._highlightedCardAnnouncement}</div>` : ''}
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
@@ -287,6 +321,56 @@ class FindDialog extends connect(store)(DialogElement) {
 		super();
 		this.title = this._computedTitle;
 		this._legalCardTypeFilters = [];
+	}
+
+	//The four picker modes, asked once. Every other test in this file spells
+	//the same four flags out longhand, which is how `_configuring` came to be
+	//added to some of those lists and not others.
+	get _picker() : boolean {
+		return this._linking || this._permissions || this._referencing || this._configuring;
+	}
+
+	get _pickerCardIDs() : CardID[] {
+		return this._collection ? this._collection.finalSortedCards.map(card => card.id) : [];
+	}
+
+	get _highlightedCardAnnouncement() : string {
+		if (!this._highlightedCardID) return '';
+		const cards = this._collection?.finalSortedCards || [];
+		const index = cards.findIndex(card => card.id === this._highlightedCardID);
+		if (index < 0) return '';
+		const card = cards[index];
+		return `${card.title || card.name || card.id}, ${index + 1} of ${cards.length}`;
+	}
+
+	//ArrowUp/ArrowDown move the highlight, Enter picks it. Deliberately only in
+	//picker mode: in the ordinary find dialog Enter is the form's own submit
+	//(the link-a-URL path) and the arrows belong to the query field.
+	_handleQueryKeyDown(e : KeyboardEvent) {
+		if (!this._picker) return;
+		//An IME composition sends keyCode 229 for every keystroke; treating one
+		//as ArrowDown would move the highlight while somebody is typing kana.
+		if (e.keyCode === 229) return;
+		const ids = this._pickerCardIDs;
+		if (!ids.length) return;
+		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+			e.preventDefault();
+			const current = ids.indexOf(this._highlightedCardID);
+			//From nowhere, ArrowDown enters at the top and ArrowUp at the
+			//bottom, which is what every listbox does and what the composer's
+			//own suggestion list does.
+			const next = current < 0 ?
+				(e.key === 'ArrowDown' ? 0 : ids.length - 1) :
+				(current + (e.key === 'ArrowDown' ? 1 : -1) + ids.length) % ids.length;
+			this._highlightedCardID = ids[next];
+			return;
+		}
+		if (e.key === 'Enter' && this._highlightedCardID) {
+			//The form's submit handler would otherwise also see this.
+			e.preventDefault();
+			e.stopPropagation();
+			this._pickCard(this._highlightedCardID);
+		}
 	}
 
 	override _shouldClose(cancelled  = false) {
@@ -399,24 +483,31 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleThumbnailTapped(e : ThumbnailTappedEvent) {
+		this._pickCard(e.detail.card);
+	}
+
+	//ONE path for picking a card, whichever input chose it. Enter on the
+	//highlighted thumbnail and a click on it have to mean the same thing, and
+	//they cannot if the keyboard gets its own copy of this five-way branch.
+	_pickCard(cardID : CardID) {
 		this._shouldClose();
 		if (this._configuring) {
-			store.dispatch(setCardToConfigure(e.detail.card));
+			store.dispatch(setCardToConfigure(cardID));
 			return;
 		}
 		if (this._linking) {
-			store.dispatch(linkCard(e.detail.card));
+			store.dispatch(linkCard(cardID));
 			return;
 		}
 		if (this._permissions) {
-			store.dispatch(setCardToAddPermissionTo(e.detail.card));
+			store.dispatch(setCardToAddPermissionTo(cardID));
 			return;
 		}
 		if (this._referencing) {
-			store.dispatch(setCardToReference(e.detail.card));
+			store.dispatch(setCardToReference(cardID));
 			return;
 		}
-		store.dispatch(navigateToCardInCurrentCollection(e.detail.card));
+		store.dispatch(navigateToCardInCurrentCollection(cardID));
 	}
 
 	get _computedTitle() {
@@ -444,6 +535,9 @@ class FindDialog extends connect(store)(DialogElement) {
 			if (!shadowRoot) throw new Error('no shadowroot');
 			const ele = shadowRoot.getElementById('query') as HTMLInputElement;
 			ele.select();
+			//A fresh picker points at nothing, so the first Enter cannot commit
+			//a card left over from the last time this dialog was open.
+			this._highlightedCardID = '';
 		}
 		if (changedProps.has('_linking') || changedProps.has('_referencing') || changedProps.has('_permissions') || changedProps.has('_configuring')) {
 			this.title = this._computedTitle;
@@ -491,6 +585,12 @@ class FindDialog extends connect(store)(DialogElement) {
 				this._collectionUpdatingTimeout = 0;
 			}
 		}
+		//A highlight names a card in the list. Once the query changes that card
+		//may not be in the list any more, and a highlight pointing at a card
+		//nobody can see is one Enter away from picking a card the user cannot
+		//even read the title of. Dropping it also puts ArrowDown back at the top
+		//of the new results, which is where it belongs.
+		if (this._highlightedCardID && !this._pickerCardIDs.includes(this._highlightedCardID)) this._highlightedCardID = '';
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
 		this._renderOffset = selectFindRenderOffset(state);
 		this._linking = selectFindLinking(state);

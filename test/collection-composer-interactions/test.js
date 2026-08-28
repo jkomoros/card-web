@@ -887,6 +887,79 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
 	});
 
+	it('lets the keyboard drive the card picker, and hands focus back on close', async () => {
+		//The picker was mouse-only: no keydown handler anywhere in find-dialog,
+		//and card-thumbnail-list's thumbnails are plain divs with no tabindex,
+		//so dialog-element's own Tab cycle skipped them too. A keyboard user
+		//could type a query and then had nowhere to go with the results.
+		dialog._cardTagInfos = {
+			'card-1': { id: 'card-1', title: 'Inductively Knowable' },
+			'card-2': { id: 'card-2', title: 'Mechanistically Knowable' },
+		};
+		Array.from(dialog.shadowRoot.querySelectorAll('button'))
+			.find((button) => button.textContent.includes('Browse all filters')).click();
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.value = 'similar';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
+		await dialog.updateComplete;
+		const keyCard = dialog.shadowRoot
+			.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot
+			.querySelector('configure-collection-key-card');
+		await keyCard.updateComplete;
+		const invoker = keyCard.shadowRoot.querySelector('#choose-card');
+		invoker.focus();
+		invoker.click();
+		await keyCard.updateComplete;
+		await findDialog.updateComplete;
+		assert.strictEqual(findDialog._picker, true, 'configuring is a picker like linking and permissions');
+
+		//The harness's find collection is empty (no corpus worker), so the list
+		//the keyboard walks is stood in for directly. What is under test is the
+		//navigation and the pick, not the query that produced the results.
+		findDialog._collection = {
+			finalSortedCards: [
+				{ id: 'card-1', title: 'Inductively Knowable' },
+				{ id: 'card-2', title: 'Mechanistically Knowable' },
+			],
+		};
+		await findDialog.updateComplete;
+
+		const query = findDialog.shadowRoot.querySelector('#query');
+		assert.strictEqual(query.getAttribute('role'), 'combobox', 'the picker states its idiom');
+		const arrow = (key) => query.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+
+		//Nothing is highlighted until the user arrows in, so the first Enter
+		//cannot commit a card nobody chose.
+		assert.strictEqual(findDialog._highlightedCardID, '');
+		const ids = findDialog._pickerCardIDs;
+		assert.ok(ids.length >= 2, 'the fixture has cards to arrow through');
+		arrow('ArrowDown');
+		await findDialog.updateComplete;
+		assert.strictEqual(findDialog._highlightedCardID, ids[0], 'ArrowDown enters at the top');
+		arrow('ArrowDown');
+		await findDialog.updateComplete;
+		assert.strictEqual(findDialog._highlightedCardID, ids[1]);
+		arrow('ArrowUp');
+		await findDialog.updateComplete;
+		assert.strictEqual(findDialog._highlightedCardID, ids[0]);
+		//The highlight is visible, through card-drawer's existing property.
+		assert.strictEqual(findDialog.shadowRoot.querySelector('card-drawer').highlightedCardId, ids[0]);
+		//And audible, because aria-activedescendant cannot name an element two
+		//shadow roots down.
+		assert.match(findDialog._highlightedCardAnnouncement, new RegExp(`1 of ${ids.length}`));
+
+		query.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+		await dialog.updateComplete;
+		await findDialog.updateComplete;
+		assert.strictEqual(store.getState().find.open, false, 'Enter picks and closes');
+		assert.strictEqual(dialog._pendingCatalogFilter, `similar/${ids[0]}`, 'and the value lands');
+		//Enter and a click are the same act, so they go through one path.
+		assert.strictEqual(typeof findDialog._pickCard, 'function');
+	});
+
 	//Ctrl-K opens the composer, but every OTHER modal refuses it — including the
 	//picker the composer itself opens.
 	it('refuses Ctrl-K while the card picker it opened is in front', async () => {
