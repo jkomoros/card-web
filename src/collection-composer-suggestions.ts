@@ -84,6 +84,10 @@ export type CollectionComposerContext = {
   //the active one, when history can say so. This is the only destination
   //allowed to be labeled "Back to"; everything else is just a destination.
   previousCollection?: string;
+  //Card id → title, for naming the card an anchored clause is anchored to. A
+  //missing entry is normal (the card's title has not loaded, or this account
+  //cannot see it) and falls back to the id.
+  cardNames?: Record<string, string>;
 };
 
 const SOURCE_ONLY_CONFIGURABLE_FILTERS = new Set(['combine', 'exclude', 'expand']);
@@ -275,19 +279,78 @@ const derivedDateFilterName = (family: string, values: string[]): string => {
 //a clause means the same thing everywhere. `labels` carries the names the live
 //corpus knows (a tag's title, a contributor's display name); everything else is
 //derived from the filter's own URL parts, which is what keeps an edited value
+//The families whose first argument is a card, and the sentence each one makes
+//once that card has a name. Every one of them reads as a relationship to a
+//named thing rather than as a family name with an identifier stuck on the end
+//("Direct Connections Perf Card 42"), which is what the generic value path
+//produced for the ones that were not in the hardcoded trio at all.
+const ANCHORED_CLAUSE_NAMES: Record<string, (card: string) => string> = {
+	'children': card => `Cards ${card} links to`,
+	'parents': card => `Cards linking to ${card}`,
+	'direct-connections': card => `Connected to ${card}`,
+	'similar': card => `Similar to ${card}`,
+};
+
+//A card's name as a clause should say it: its title in quotes, or its id when
+//no title has loaded. Quoted because a title is arbitrary user text and can be
+//a whole sentence; without quotes "Connected to Cards linking to X" is
+//unparseable.
+const anchorCardName = (rawValue: string, cardNames: Record<string, string>): string => {
+	//`+` is INCLUDE_KEY_CARD_PREFIX — whether the anchor card is itself in the
+	//results. It changes the membership, not which card is being named.
+	const id = decoded(rawValue).replace(/^\+/, '');
+	if (!id) return '';
+	const title = cardNames[id];
+	return title ? `“${title}”` : id;
+};
+
+const anchoredClauseName = (
+	family: string,
+	rawValues: string[],
+	cardNames: Record<string, string>
+): string => {
+	const sentence = ANCHORED_CLAUSE_NAMES[family];
+	//Only the one-argument spellings. `children/<id>/<ply>` and friends carry a
+	//degree as well, and a name that silently dropped it would describe a
+	//different collection from the one that runs.
+	if (!sentence || rawValues.length !== 1) return '';
+	const card = anchorCardName(rawValues[0], cardNames);
+	if (!card) return '';
+	return sentence(card);
+};
+
 //("14 days ago") as well-named as the seeded one it replaced.
 export const collectionFilterDisplayName = (
 	filter: string,
-	labels: Record<string, string> = {}
+	labels: Record<string, string> = {},
+	cardNames: Record<string, string> = {}
 ): string => {
 	const known = labels[filter];
 	if (known) return known;
 	const [family, ...rawValues] = filter.split('/');
-	if (rawValues[0]?.startsWith('+')) {
-		if (family === 'children') return 'This card and cards it links to';
-		if (family === 'parents') return 'This card and cards linking here';
-		if (family === 'direct-connections') return 'This card and directly connected cards';
-	}
+	//AN ANCHORED CLAUSE IS NAMED BY THE CARD IT ANCHORS.
+	//
+	//This branch used to return 'This card and cards it links to' for any
+	//`+`-prefixed clause of these three families, keyed on the prefix and the
+	//family and never on WHICH card. That is only true when the anchor is the
+	//card on screen — and the `labels` lookup two lines above already handles
+	//exactly that case, because activeCardRelationshipCandidates seeds labels
+	//with `children/+<activeCardID>` and its two siblings. So everything
+	//reaching here is a clause anchored to some OTHER card, and calling it
+	//"this card" was false in every one of them.
+	//
+	//The visible damage: two Continue rows anchored to different cards were
+	//indistinguishable, and swapping the anchor produced the receipt "Changed
+	//This card and directly connected cards to This card and directly
+	//connected cards". Naming the card fixes both at once, because the receipt
+	//is composed from this same function.
+	//
+	//The id is the fallback and ONLY the fallback — for a card whose title has
+	//not loaded, or which this account cannot see. It is not a good name, but
+	//it is the one honest thing left to say, and it is strictly better than a
+	//confident sentence about the wrong card.
+	const anchorName = anchoredClauseName(family, rawValues, cardNames);
+	if (anchorName) return anchorName;
 	const readableFamily = (value: string) => {
 		const alternatives = decoded(value)
 			.split('+')
@@ -382,10 +445,11 @@ const verbLabel = (action: CollectionComposerSuggestion['action'], name: string)
 
 const removalSuggestions = (
 	current: CollectionDescription,
-	filterLabels: Record<string, string>
+	filterLabels: Record<string, string>,
+	cardNames: Record<string, string> = {}
 ): CollectionComposerSuggestion[] =>
 	current.filters.map((filter, index) => {
-		const name = collectionFilterDisplayName(filter, filterLabels);
+		const name = collectionFilterDisplayName(filter, filterLabels, cardNames);
 		return {
 			id: `remove:${index}:${filter}`,
 			kind: 'broaden' as const,
@@ -401,7 +465,8 @@ const collectionDifference = (
 	current: CollectionDescription,
 	destination: CollectionDescription,
 	visits: number,
-	filterLabels: Record<string, string>
+	filterLabels: Record<string, string>,
+	cardNames: Record<string, string> = {}
 ): string => {
 	const changes: string[] = [];
 	if (current.set !== destination.set) {
@@ -418,9 +483,9 @@ const collectionDifference = (
 		(filter) => !currentFilters.has(filter)
 	);
 	if (removed.length)
-		changes.push(`Removes ${removed.map(filter => collectionFilterDisplayName(filter, filterLabels)).join(', ')}`);
+		changes.push(`Removes ${removed.map(filter => collectionFilterDisplayName(filter, filterLabels, cardNames)).join(', ')}`);
 	if (added.length)
-		changes.push(`Adds ${added.map(filter => collectionFilterDisplayName(filter, filterLabels)).join(', ')}`);
+		changes.push(`Adds ${added.map(filter => collectionFilterDisplayName(filter, filterLabels, cardNames)).join(', ')}`);
 	if (
 		current.sort !== destination.sort ||
     current.sortReversed !== destination.sortReversed
@@ -467,7 +532,7 @@ const recentSuggestions = (
 		const canonical = recent.description.serialize();
 		if (suppressed.has(canonical) || seen.has(canonical)) continue;
 		seen.add(canonical);
-		const name = readableCollectionExpression(recent.description, filterLabels);
+		const name = readableCollectionExpression(recent.description, filterLabels, context.cardNames || {});
 		//A recent is named by what it IS. "Back to" is a claim about direction, so
 		//it is spent only on the one collection the history can actually prove you
 		//came from; every other recent is simply a destination you can open.
@@ -478,7 +543,7 @@ const recentSuggestions = (
 			action: 'open',
 			name,
 			label: previous ? `Back to ${name}` : verbLabel('open', name),
-			detail: `${collectionDifference(current, recent.description, recent.visits, filterLabels)}${recent.relative ? ' · Recognized as the same rolling date window' : ''}`,
+			detail: `${collectionDifference(current, recent.description, recent.visits, filterLabels, context.cardNames || {})}${recent.relative ? ' · Recognized as the same rolling date window' : ''}`,
 			description: recent.description,
 			//A recent is a destination, not a clause, so the question is whether
 			//the collection it opens is personal — one personal clause anywhere in
@@ -519,7 +584,7 @@ const emptyStateSuggestions = (
 			description: collectionDescriptionWithSelected(current),
 		});
 	}
-	refinements.push(...removalSuggestions(current, filterLabels));
+	refinements.push(...removalSuggestions(current, filterLabels, context.cardNames || {}));
 	//Teach the coherent outgoing/incoming/either-direction family only when it
 	//will not displace recents, selection, or removal actions. In denser states
 	//the same candidates remain discoverable by typing.
@@ -776,9 +841,10 @@ export const collectionComposerSuggestions = (
 
 export const readableCollectionExpression = (
 	description: CollectionDescription,
-	filterLabels: Record<string, string> = {}
+	filterLabels: Record<string, string> = {},
+	cardNames: Record<string, string> = {}
 ): string => {
-	const parts = collectionExpressionParts(description, filterLabels);
+	const parts = collectionExpressionParts(description, filterLabels, cardNames);
 	const clauses = [parts.set.label];
 	clauses.push(...parts.filters.map(filter => filter.label));
 	let result = clauses.join(' AND ');
@@ -803,7 +869,8 @@ export const VIEWER_DEPENDENT_CHIP_EXPLANATION = 'Membership depends on who is s
 
 export const collectionExpressionParts = (
 	description: CollectionDescription,
-	filterLabels: Record<string, string> = {}
+	filterLabels: Record<string, string> = {},
+	cardNames: Record<string, string> = {}
 ): CollectionExpressionParts => {
 	const modifiers: string[] = [];
 	if (description.sort !== 'default' || description.sortReversed) {
@@ -816,7 +883,7 @@ export const collectionExpressionParts = (
 	}
 	return {
 		set: {raw: description.set, label: collectionOptionDisplayName(description.set)},
-		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels), explanation: collectionFilterExplanation(raw), viewerDependent: filterNameIsViewerDependent(raw)})),
+		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels, cardNames), explanation: collectionFilterExplanation(raw), viewerDependent: filterNameIsViewerDependent(raw)})),
 		modifiers,
 	};
 };
@@ -837,13 +904,14 @@ const namedList = (names: string[]): string => {
 export const collectionDraftReceipt = (
 	before: CollectionDescription,
 	after: CollectionDescription,
-	filterLabels: Record<string, string> = {}
+	filterLabels: Record<string, string> = {},
+	cardNames: Record<string, string> = {}
 ): string => {
 	const beforeFilters = new Set(before.filters);
 	const afterFilters = new Set(after.filters);
 	const removed = before.filters.filter(filter => !afterFilters.has(filter));
 	const added = after.filters.filter(filter => !beforeFilters.has(filter));
-	const name = (filter: string) => collectionFilterDisplayName(filter, filterLabels);
+	const name = (filter: string) => collectionFilterDisplayName(filter, filterLabels, cardNames);
 	if (removed.length === 1 && added.length === 1 && removed[0].split('/')[0] === added[0].split('/')[0]) {
 		return `Changed ${truncatedName(name(removed[0]))} to ${truncatedName(name(added[0]))}`;
 	}

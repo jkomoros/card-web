@@ -54,10 +54,11 @@ const durabilityNote = (description : CollectionDescription) : string => (
 export const collectionLinkCopiedMessage = (
 	description : CollectionDescription,
 	filterLabels : Record<string, string> = {},
-	count? : number
+	count? : number,
+	cardNames : Record<string, string> = {}
 ) : string => {
 	const segments = [
-		`Copied a link to ${truncatedExpression(readableCollectionExpression(description, filterLabels))}`,
+		`Copied a link to ${truncatedExpression(readableCollectionExpression(description, filterLabels, cardNames))}`,
 	];
 	if (count !== undefined) segments.push(formatCollectionCardCount(count));
 	segments.push(durabilityNote(description));

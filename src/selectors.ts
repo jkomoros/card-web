@@ -1207,12 +1207,27 @@ export const selectAllCardsFilter = createSelector(
 
 //selectTagInfosForCards selects a tagInfos map based on all cards. Used for
 //example for showing missing link auto todos in card-editor.
+//
+//TagInfo.title is what tag-chip renders (tag-chip._displayName returns
+//info.title || the raw tag). This set it to card.name — which is a
+//CardIdentifier, i.e. the URL slug, or the raw Firestore id for a card with no
+//slug. So every card chip in the app rendered `perf-card-42`, and the
+//key-card control's careful branch between "a card by its title" and "a card
+//you can't see" resolved to the first arm with an identifier in it. HS-1.4:
+//a card id is an internal identifier and never reaches a user.
+//
+//card.title is the card's own display title, and it is what card-thumbnail-list
+//shows for the same card. The slug remains the fallback rather than being
+//dropped: a card genuinely without a title (a full-bleed card titled from its
+//body) has nothing better, and falling back to what was shown before cannot be
+//a regression. needsRecompute now watches title as well, or a rename would not
+//reach the chips.
 export const selectTagInfosForCards = createSelector(
 	selectRawCards,
 	createCardsDiffSelector({
 		name: 'tagInfosForCards',
-		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name),
-		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
+		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name || prev.title !== next.title),
+		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title: entry[1] ? (entry[1].title || entry[1].name) : '', previewCard: entry[0]}]))
 	})
 );
 

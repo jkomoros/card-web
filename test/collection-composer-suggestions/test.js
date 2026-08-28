@@ -146,6 +146,70 @@ describe('Collection Composer suggestions', () => {
 		});
 	});
 
+	describe('naming the card an anchored clause anchors', () => {
+		const names = {'perf-card-12': 'Perf card 12', 'perf-card-42': 'Perf card 42'};
+
+		it('names the card, in each anchored family', () => {
+			const name = (filter) => collectionFilterDisplayName(filter, {}, names);
+			assert.strictEqual(name('direct-connections/perf-card-12'), 'Connected to “Perf card 12”');
+			assert.strictEqual(name('children/perf-card-12'), 'Cards “Perf card 12” links to');
+			assert.strictEqual(name('parents/perf-card-12'), 'Cards linking to “Perf card 12”');
+			assert.strictEqual(name('similar/perf-card-12'), 'Similar to “Perf card 12”');
+		});
+
+		it('names the same card whether or not the anchor is included in the results', () => {
+			//`+` decides whether the anchor is itself a member. It does not change
+			//which card is being named.
+			assert.strictEqual(
+				collectionFilterDisplayName('direct-connections/+perf-card-12', {}, names),
+				'Connected to “Perf card 12”'
+			);
+		});
+
+		it('falls back to the id, and only to the id, when no title has loaded', () => {
+			assert.strictEqual(
+				collectionFilterDisplayName('direct-connections/+perf-card-99', {}, names),
+				'Connected to perf-card-99'
+			);
+			assert.strictEqual(
+				collectionFilterDisplayName('direct-connections/+perf-card-99'),
+				'Connected to perf-card-99'
+			);
+		});
+
+		it('never says “this card” about a card that is not the open one', () => {
+			//The open card's own clauses come through `labels`, which is the only
+			//thing that knows which card is on screen.
+			const labels = { 'children/+open-card': 'This card and cards it links to' };
+			assert.strictEqual(
+				collectionFilterDisplayName('children/+open-card', labels, names),
+				'This card and cards it links to'
+			);
+			const other = collectionFilterDisplayName('children/+perf-card-42', labels, names);
+			assert.strictEqual(other, 'Cards “Perf card 42” links to');
+			assert.ok(!other.toLowerCase().includes('this card'), other);
+		});
+
+		it('leaves a clause carrying a degree to the generic path', () => {
+			//`descendants/<card>/<ply>` describes a different collection from
+			//`descendants/<card>`, so a one-card sentence would be a lie.
+			assert.ok(!collectionFilterDisplayName('children/perf-card-12/2', {}, names).startsWith('Cards “Perf card 12” links to'));
+		});
+
+		it('says which card an anchor changed from and to', () => {
+			//This receipt read 'Changed This card and directly connected cards to
+			//This card and directly connected cards' — both sides named by a
+			//function that never looked at the card.
+			const receipt = collectionDraftReceipt(
+				CollectionDescription.deserialize('everything/direct-connections/+perf-card-12/'),
+				CollectionDescription.deserialize('everything/direct-connections/+perf-card-42/'),
+				{},
+				names
+			);
+			assert.strictEqual(receipt, 'Changed Connected to “Perf card 12” to Connected to “Perf card 42”');
+		});
+	});
+
 	//The clipboard itself is unreachable from a test runner and blocked in the
 	//browser harness, so what is pinned here is the sentence the success path
 	//hands to the snack bar — the part that actually had to change.
@@ -690,9 +754,24 @@ describe('Collection Composer suggestions', () => {
 		assert.match(suggestions[0].detail, /copied links keep this anchor/);
 		assert.doesNotMatch(suggestions[0].description.serialize(), /key-card-id/);
 		assert.strictEqual(suggestions.at(-1).kind, 'search');
+		//With the open card's labels in hand, the clause is the open card's, and
+		//says so.
+		assert.strictEqual(
+			readableCollectionExpression(suggestions[0].description, collectionFilterLabels(candidates)),
+			'Everything AND This card and cards it links to'
+		);
+		//Without them, nothing here knows card-123 is the card on screen, so the
+		//clause is named by the card it anchors rather than by a guess. This used
+		//to read 'This card and cards it links to' for every anchor, which made
+		//two clauses anchored to different cards indistinguishable.
 		assert.strictEqual(
 			readableCollectionExpression(suggestions[0].description),
-			'Everything AND This card and cards it links to'
+			'Everything AND Cards card-123 links to'
+		);
+		//And with a title loaded, the card is named the way a person would.
+		assert.strictEqual(
+			readableCollectionExpression(suggestions[0].description, {}, {'card-123': 'Perf card 12'}),
+			'Everything AND Cards “Perf card 12” links to'
 		);
 		const byFamilyName = collectionComposerSuggestions(
 			CollectionDescription.deserialize('everything/'),

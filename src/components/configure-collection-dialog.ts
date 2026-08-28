@@ -328,6 +328,13 @@ const composerCandidatesFor = memoize((activeCard : ProcessedCard | null, compos
 const composerFilterLabelsFor = memoize((candidates : CollectionComposerCandidate[]) : Record<string, string> =>
 	collectionFilterLabels(candidates), 2) as (candidates : CollectionComposerCandidate[]) => Record<string, string>;
 
+//The tag-info map, flattened to the id → title shape the clause namer wants.
+//Memoized on the map's identity, which is a selector result and so is stable
+//until a card's name or title actually changes — this runs once per render of
+//a list whose every row may ask for it.
+const composerCardNamesFor = memoize((cardTagInfos : TagInfos) : Record<string, string> =>
+	Object.fromEntries(Object.entries(cardTagInfos || {}).map(entry => [entry[0], entry[1].title])), 2) as (cardTagInfos : TagInfos) => Record<string, string>;
+
 const parsedSourceFor = memoize((
 	sourceInput : string,
 	candidates : CollectionComposerCandidate[],
@@ -392,7 +399,8 @@ const composerSuggestionsFor = memoize((
 	activeCollection : CollectionDescription | undefined,
 	previousCollection : string | undefined,
 	preservedSelectedCard : string,
-	candidates : CollectionComposerCandidate[]
+	candidates : CollectionComposerCandidate[],
+	cardNames : Record<string, string>
 ) : CollectionComposerSuggestion[] => collectionComposerSuggestions(draft, input, filterDescriptions, {
 	cardsSelected,
 	recentCollections,
@@ -401,6 +409,7 @@ const composerSuggestionsFor = memoize((
 	preservedSelectedCard,
 	sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 	candidates,
+	cardNames,
 }), 2) as (
 	draft : CollectionDescription,
 	input : string,
@@ -410,7 +419,8 @@ const composerSuggestionsFor = memoize((
 	activeCollection : CollectionDescription | undefined,
 	previousCollection : string | undefined,
 	preservedSelectedCard : string,
-	candidates : CollectionComposerCandidate[]
+	candidates : CollectionComposerCandidate[],
+	cardNames : Record<string, string>
 ) => CollectionComposerSuggestion[];
 
 //Which origins a pasted collection URL may come from. Always the origin this
@@ -1720,7 +1730,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//without it every completion fell through to 'filter'.
 		const completionKind : CollectionSourceExpectedKind = completionDiagnostic?.expectedKind || parsed.nextExpectedKind || 'root';
 		const completions = this._sourceCompletionsDismissed ? [] : (completionDiagnostic?.expected || parsed.nextExpected || []);
-		const expressionParts = collectionExpressionParts(description, this._composerFilterLabels);
+		const expressionParts = collectionExpressionParts(description, this._composerFilterLabels, this._composerCardNames);
 		const fullDestination = parsed.canonicalPath ? new URL(parsed.canonicalPath, window.location.origin).toString() : '';
 		//The app elides the default set, so a perfectly good `/c/main/starred/`
 		//canonicalizes to `/c/starred/`. Shown under "Will open as" with no
@@ -1780,7 +1790,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			` : ''}
 			<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
-			<div class='source-steps' role='group' aria-label=${readableCollectionExpression(description, this._composerFilterLabels)}>
+			<div class='source-steps' role='group' aria-label=${readableCollectionExpression(description, this._composerFilterLabels, this._composerCardNames)}>
 				<span class='source-step'>Start with ${expressionParts.set.label}</span>
 				${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
 				${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
@@ -2076,12 +2086,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
 		const highlightedIndex = this._activeHighlightIndex(suggestions);
 		const highlighted = suggestions[highlightedIndex];
-		const expressionParts = collectionExpressionParts(this._collectionDescription, this._composerFilterLabels);
+		const expressionParts = collectionExpressionParts(this._collectionDescription, this._composerFilterLabels, this._composerCardNames);
 		const draftCount = this._previewCounts[this._draftPreviewID];
 		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
 		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
-			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels)}</div>
+			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames)}</div>
 			<div class='expression' role='group' aria-label='Draft collection clauses'>
 				<span class='expression-set'>${expressionParts.set.label}</span>
 				<!-- AN OPERATOR BELONGS TO THE CLAUSE IT INTRODUCES.
@@ -2460,7 +2470,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._activeCollectionDescription || undefined,
 			previousCollection,
 			this._draftSelectedCard,
-			this._contextualComposerCandidates
+			this._contextualComposerCandidates,
+			this._composerCardNames
 		);
 		//Count-aware ranking, without the list moving under the user's hands.
 		//The identity of the row set is the "was this list rebuilt?" test: a
@@ -2491,8 +2502,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return composerFilterLabelsFor(this._contextualComposerCandidates);
 	}
 
+	//Card id → title, for the clause namer to name an anchor with. The tag
+	//infos are the map the key-card control already renders cards through, so
+	//a card is called the same thing in the chip and in the control that
+	//chose it.
+	get _composerCardNames() : Record<string, string> {
+		return composerCardNamesFor(this._cardTagInfos);
+	}
+
 	_readableComposerFilter(filter : string) : string {
-		return collectionFilterDisplayName(filter, this._composerFilterLabels);
+		return collectionFilterDisplayName(filter, this._composerFilterLabels, this._composerCardNames);
 	}
 
 	//EVERY COMPLETION SAYS WHAT KIND OF THING IT IS.
@@ -2776,7 +2795,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			//saying no number at all. A collection nobody previewed gets no
 			//count segment rather than somebody else's.
 			const description = parsed.description || this._collectionDescription;
-			store.dispatch(showSnackbar(collectionLinkCopiedMessage(description, this._composerFilterLabels, this._countForDescription(description))));
+			store.dispatch(showSnackbar(collectionLinkCopiedMessage(description, this._composerFilterLabels, this._countForDescription(description), this._composerCardNames)));
 		} catch {
 			store.dispatch(showSnackbar(COLLECTION_LINK_COPY_FAILED_MESSAGE, {kind: 'refused'}));
 		}
@@ -2862,7 +2881,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const arrived = this._arrivedDescription(requested);
 		showCollectionNavigationReceipt(
 			returnPath,
-			readableCollectionExpression(arrived, this._composerFilterLabels),
+			readableCollectionExpression(arrived, this._composerFilterLabels, this._composerCardNames),
 			this._countForDescription(arrived)
 		);
 	}
@@ -3135,7 +3154,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._draftUndoDescription = this._collectionDescription;
 		this._draftUndoSelectedCard = this._draftSelectedCard;
 		this._draftSelectedCard = selectedCard;
-		this._draftReceiptMessage = message || collectionDraftReceipt(this._collectionDescription, description, this._composerFilterLabels);
+		this._draftReceiptMessage = message || collectionDraftReceipt(this._collectionDescription, description, this._composerFilterLabels, this._composerCardNames);
 		this._selectedClauseIndex = -1;
 		//The draft just changed, so the suggestion list is about to be rebuilt
 		//around it. Nothing in the new list is what the user was pointing at,
@@ -3344,9 +3363,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			id: CURRENT_DRAFT_SUGGESTION_ID,
 			kind: 'source',
 			action: 'open',
-			name: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
+			name: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames),
 			label: 'Open this collection',
-			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
+			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames),
 			description: this._collectionDescription,
 			destinationPath: collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true}),
 		}, true);
