@@ -3248,4 +3248,103 @@ describe('Collection Composer interactions', () => {
 		//button for a gate, and taking it fixed purple-on-dark-grey.
 		assert.match(source, /class='text collection-empty-refine'/);
 	});
+
+	//A LIST OPENS AT ITS TOP.
+	//
+	//The panes are not recreated between sessions, so their scrollTop survived
+	//close-and-reopen: a session that had arrowed down the suggestions reopened
+	//HEADERLESS in the middle of the list, with the CONTINUE heading and the
+	//0-card Remove diagnostics scrolled away and no sign anything was above.
+	it('reopens its lists at the top, and starts every transition there', async () => {
+		await seedRecents([['main/starred/sort/recent/', 2], ['everything/unread/', 3]]);
+		const pane = () => dialog.shadowRoot.querySelector('.suggestions');
+		assert.ok(pane(), 'there is a suggestion pane to scroll');
+		pane().scrollTop = 120;
+		//Close and reopen, the way a user does.
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+		await settleRender(dialog);
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		await settleRender(dialog);
+		assert.strictEqual(pane().scrollTop, 0, 'a reopened list starts at its top');
+		//And so does every transition that replaces what the pane holds.
+		pane().scrollTop = 90;
+		dialog._catalogOpen = true;
+		await settleRender(dialog);
+		const catalog = dialog.shadowRoot.querySelector('.catalog-list');
+		assert.ok(catalog, 'the catalog is on screen');
+		catalog.scrollTop = 140;
+		dialog._catalogOpen = false;
+		await settleRender(dialog);
+		assert.strictEqual(pane().scrollTop, 0, 'closing the catalog returns to the top of the list');
+	});
+
+	//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED. Both editors are the
+	//last flex children of #inner, under lists with min-heights of their own, so
+	//in a short dialog they opened past its visible edge with nothing to scroll
+	//them into view — activating a clause looked like it did nothing at all.
+	it('scrolls a clause editor into view when it opens', async () => {
+		const scrolled = [];
+		const original = Element.prototype.scrollIntoView;
+		Element.prototype.scrollIntoView = function (options) {
+			scrolled.push({ element: this, options });
+		};
+		try {
+			store.dispatch(await (async () => {
+				const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
+				return updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/unread/'));
+			})());
+			await settleRender(dialog);
+			scrolled.length = 0;
+			const clause = dialog.shadowRoot.querySelector('.expression-clause-label');
+			assert.ok(clause, 'there is a clause to edit');
+			clause.click();
+			await settleRender(dialog);
+			assert.ok(dialog.shadowRoot.querySelector('.builder-clause'), 'the editor is rendered');
+			const editorScroll = scrolled.find(entry => entry.element.classList?.contains('builder-clause'));
+			assert.ok(editorScroll, 'the editor that just opened must be scrolled into view');
+			//'nearest' scrolls the least that makes it visible, so an editor
+			//already on screen does not jump.
+			assert.deepStrictEqual(editorScroll.options, { block: 'nearest' });
+		} finally {
+			Element.prototype.scrollIntoView = original;
+		}
+	});
+
+	//AND ITS ACTION ROW STAYS INSIDE THE DIALOG. Live: a tall Configure Direct
+	//References panel pushed Cancel and Add past .builder-catalog's clipped
+	//bottom edge — the buttons painted, and a real click at y=644 in a dialog
+	//ending at y=636 did nothing.
+	it('bounds the configure panel so its own action row stays clickable', async () => {
+		const styles = composerStyles();
+		const rule = (selector) => {
+			const match = new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(styles);
+			assert.ok(match, `${selector} must have a rule`);
+			return match[1];
+		};
+		//Shrinkable, and scrolling inside its own box rather than out of the
+		//pane that clips it.
+		const editor = rule('\\.pending-filter-editor');
+		assert.match(editor, /flex:\s*0 1 auto/);
+		assert.match(editor, /min-height:\s*0/);
+		//Only the BODY scrolls: the action row is a sibling of the scroller and
+		//reserves its room out of it, so 'Cancel' and 'Add' are on screen
+		//whatever height the panel gets. Left inside the scroller they were the
+		//first things to fall off the bottom of it.
+		assert.match(rule('\\.pending-filter-body'), /flex:\s*1 1 auto/);
+		assert.match(rule('\\.pending-filter-body'), /min-height:\s*0/);
+		assert.match(rule('\\.buttons\\.pending-filter-actions'), /flex:\s*0 0 auto/);
+		//The scroller idiom is declared in markup, per #759 — the module owns
+		//`overflow: auto` and no component restates it.
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/configure-collection-dialog.ts'), 'utf8');
+		assert.match(source, /class='pending-filter-body scroller'/,
+			'the configure panel body is a deliberate inner pane');
+		//And the list gives up its floor first, so the panel keeps a usable
+		//size before anything has to scroll.
+		assert.match(styles, /\.builder-catalog\[data-configuring\] \.catalog-list\s*\{[^}]*min-height:\s*4em/);
+		assert.match(source, /\?data-configuring=\$\{Boolean\(this\._pendingCatalogFilter\)\}/,
+			'the attribute has to be set for the rule to fire');
+		//The footer is the last flex child of the scroll port, so scrolling an
+		//editor to its bottom edge would push Open and Cancel out of view.
+		assert.match(styles, /#inner\s*\{[^}]*scroll-padding-block-end/);
+	});
 });

@@ -1257,6 +1257,55 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				overscroll-behavior: contain;
 			}
 
+			/* THE CONFIGURE PANEL IS BOUNDED FOR THE SAME REASON THE CLAUSE
+			   EDITOR IS. It is a sibling of the catalog list inside
+			   .builder-catalog, which CLIPS its overflow — so a tall panel
+			   (Direct References with a three-chip draft) pushed its own
+			   action row past the pane's bottom edge, where the buttons
+			   painted but no click could reach them: a real click at y=644 in
+			   a dialog ending at y=636 did nothing. Shrinkable and scrolling
+			   INSIDE its own box, the Cancel and Add row is always inside the
+			   dialog and always clickable, worst case after a scroll of the
+			   panel itself. */
+			.pending-filter-editor {
+				display: flex;
+				flex: 0 1 auto;
+				flex-direction: column;
+				min-height: 0;
+			}
+
+			/* Only the BODY scrolls. Left as the last thing inside one
+			   scrolling box, 'Cancel' and 'Add' were the first things to fall
+			   off the bottom of it — the same defect one level down from the
+			   one .buttons.composer-actions solves by refusing to shrink. The
+			   action row is a sibling of the scroller and reserves its room
+			   out of it, so it is on screen whatever height the panel gets. */
+			.pending-filter-body {
+				flex: 1 1 auto;
+				min-height: 0;
+				overscroll-behavior: contain;
+			}
+
+			.buttons.pending-filter-actions {
+				flex: 0 0 auto;
+			}
+
+			/* The footer is the LAST flex child of #inner, so scrolling an
+			   editor to the scroll port's bottom edge pushed Open and Cancel
+			   out of view — trading one unreachable control for another.
+			   Reserving the footer's room at the port's end means every
+			   scrollIntoView below lands the editor above it. */
+			#inner {
+				scroll-padding-block-end: 3.5em;
+			}
+
+			/* And the list gives up its floor first, so the panel keeps a
+			   usable size before anything has to scroll. 4em is two rows plus
+			   the heading — still enough for the list to read as a list. */
+			.builder-catalog[data-configuring] .catalog-list {
+				min-height: 4em;
+			}
+
 			.catalog-setup,
 			.pending-filter-editor,
 			.clause-editor {
@@ -1928,6 +1977,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const family = this._pendingCatalogFilter.split('/')[0];
 		return html`
 			<div class='pending-filter-editor' role='group' aria-label=${`Configure ${this._readableComposerFilter(family)}`}>
+				<!-- THE PANEL'S OWN SCROLLER, so its action row can be a sibling
+				     of it rather than the last thing inside it. See the CSS. -->
+				<div class='pending-filter-body scroller'>
 				<div><strong>Configure ${this._readableComposerFilter(family)}</strong></div>
 				<div class='suggestion-detail'>Choose the values below before this filter is added. The collection will not change until you confirm.</div>
 				<!-- A reason a control is unavailable is VISIBLE text, not only a
@@ -1947,6 +1999,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@filter-modified=${this._handlePendingCatalogFilterModified}
 					@filter-removed=${this._cancelPendingCatalogFilter}>
 				</configure-collection-filter>
+				</div>
 				<div class='buttons pending-filter-actions'>
 					<button class='small verb' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
 					<!-- The one committing action of this nested editor, so §3.3's
@@ -2079,7 +2132,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<button class='small verb' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
-			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
+			${this._catalogOpen ? html`<div class='builder builder-catalog' ?data-configuring=${Boolean(this._pendingCatalogFilter)}>${this._catalogRender()}</div>` : ''}
 			${this._builderExpanded ? html`<div class='builder builder-clause scroller'>${this._selectedClauseEditorRender()}</div>` : ''}
 			${this._openActionRender(
 		draftCount,
@@ -3327,6 +3380,33 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.toggleAttribute('data-pointer-armed', this._pointerHighlightArmed);
 		if ((changedProps.has('_highlightedSuggestion') || changedProps.has('_suggestionHighlightActive')) && this._suggestionHighlightActive) {
 			this.shadowRoot?.querySelector(`#collection-suggestion-${this._highlightedSuggestion}`)?.scrollIntoView?.({block: 'nearest'});
+		}
+		//A LIST OPENS AT ITS TOP.
+		//
+		//These panes are not recreated between sessions, so their scrollTop
+		//survives close-and-reopen: a session that had arrowed down the
+		//suggestions reopened HEADERLESS in the middle of the list, with the
+		//CONTINUE heading and the 0-card Remove diagnostics scrolled off the
+		//top and no sign that anything was above. Every transition that
+		//REPLACES what a pane holds — opening the dialog, entering or leaving
+		//Source, opening or closing the catalog — puts it back at the top,
+		//which is where the row the keyboard is about to land on lives.
+		if (changedProps.has('open') || changedProps.has('_entryMode') || changedProps.has('_catalogOpen')) {
+			for (const pane of this.shadowRoot?.querySelectorAll('.suggestions, .catalog-list') || []) pane.scrollTop = 0;
+		}
+		//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED.
+		//
+		//Both editors are the LAST flex children of #inner, under a suggestion
+		//list and a catalog that have min-heights of their own, so in a short
+		//dialog they open past its visible edge — and nothing scrolled them
+		//into view, so activating a clause looked like it did nothing at all.
+		//block:'nearest' scrolls the least that makes the pane visible, and
+		//#inner's scroll-padding keeps the result clear of the footer.
+		if (this.open && (changedProps.has('_builderExpanded') || changedProps.has('_selectedClauseIndex') || changedProps.has('_pendingCatalogFilter'))) {
+			this.updateComplete.then(() => {
+				const editor = this.shadowRoot?.querySelector('.pending-filter-editor, .builder-clause');
+				editor?.scrollIntoView?.({block: 'nearest'});
+			});
 		}
 		if (changedProps.has('open')) {
 			this._activationPending = false;
