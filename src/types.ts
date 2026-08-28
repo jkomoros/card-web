@@ -344,6 +344,9 @@ export type SortConfigurationMap = {
 export type ConfigurableFilterControlPiece = {
 	controlType : ConfigurableFilterFuncURLPart,
 	description : string,
+	//Carried through from the argument definition so the editor can explain the
+	//control it is rendering, rather than only labelling it.
+	help? : string,
 	value : string
 }
 
@@ -392,7 +395,13 @@ type ConfigurableFilterFuncURLPart = z.infer<typeof _configurableFilterFuncURLPa
 
 type ConfigurableFilterFuncArgument = {
 	type : ConfigurableFilterFuncURLPart,
+	//The argument's visible label, and the control's accessible name.
 	description : string,
+	//An optional sentence explaining what the argument MEANS, shown through the
+	//app's help badge beside the control. A label can name an argument; it
+	//cannot teach one, and 'Degrees of separation' next to a bare number
+	//spinner still leaves a first-time reader guessing what a step is.
+	help? : string,
 	default : number | string | boolean,
 };
 

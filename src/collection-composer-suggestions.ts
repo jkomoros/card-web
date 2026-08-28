@@ -279,16 +279,50 @@ const derivedDateFilterName = (family: string, values: string[]): string => {
 //a clause means the same thing everywhere. `labels` carries the names the live
 //corpus knows (a tag's title, a contributor's display name); everything else is
 //derived from the filter's own URL parts, which is what keeps an edited value
-//The families whose first argument is a card, and the sentence each one makes
-//once that card has a name. Every one of them reads as a relationship to a
-//named thing rather than as a family name with an identifier stuck on the end
-//("Direct Connections Perf Card 42"), which is what the generic value path
-//produced for the ones that were not in the hardcoded trio at all.
-const ANCHORED_CLAUSE_NAMES: Record<string, (card: string) => string> = {
-	'children': card => `Cards ${card} links to`,
-	'parents': card => `Cards linking to ${card}`,
-	'direct-connections': card => `Connected to ${card}`,
-	'similar': card => `Similar to ${card}`,
+//The families whose first argument is a card, the sentence each one makes once
+//that card has a name, and WHAT ITS REMAINING ARGUMENTS ARE. Every one of them
+//reads as a relationship to a named thing rather than as a family name with an
+//identifier stuck on the end ("Direct Connections Perf Card 42"), which is what
+//the generic value path produced for the families that had no special case at
+//all.
+//
+//The `rest` shapes exist because the generic path joined every positional
+//argument with ' · ' and named none of them: `References “X” · Link · 2` gave
+//a reference type and a search depth the same formatting and no label, so the
+//`2` could have been anything. Direction (who references whom) is taken from
+//the engine's own isInbound/twoWay test in makeCardLinksConfigurableFilter,
+//not from the family descriptions — two of those descriptions currently
+//contradict each other.
+type AnchoredArgument = 'reference-types' | 'ply';
+
+const ANCHORED_CLAUSE_SHAPES: Record<string, {sentence: (card: string) => string; rest: AnchoredArgument[]}> = {
+	'children': {sentence: card => `Cards ${card} links to`, rest: []},
+	'parents': {sentence: card => `Cards linking to ${card}`, rest: []},
+	'direct-connections': {sentence: card => `Connected to ${card}`, rest: []},
+	'similar': {sentence: card => `Similar to ${card}`, rest: []},
+	//Downstream/upstream rather than another pair of mirror sentences. The two
+	//descriptions these replace differed only in voice ("referenced by a given
+	//card" against "reference the given card"), which is exactly the pair a
+	//reader has to parse twice to tell apart.
+	'descendants': {sentence: card => `Downstream of ${card}`, rest: ['ply']},
+	'ancestors': {sentence: card => `Upstream of ${card}`, rest: ['ply']},
+	'connections': {sentence: card => `Connected to ${card}`, rest: ['ply']},
+	'direct-references': {sentence: card => `Connected to ${card}`, rest: ['reference-types']},
+	'direct-references-inbound': {sentence: card => `Referencing ${card}`, rest: ['reference-types']},
+	'direct-references-outbound': {sentence: card => `Referenced by ${card}`, rest: ['reference-types']},
+	'references': {sentence: card => `Connected to ${card}`, rest: ['reference-types', 'ply']},
+	'references-inbound': {sentence: card => `Referencing ${card}`, rest: ['reference-types', 'ply']},
+	'references-outbound': {sentence: card => `Referenced by ${card}`, rest: ['reference-types', 'ply']},
+};
+
+//'within 2 steps' is the spec's own spelling for a ply — its opening-state
+//example reads "Adds Working notes + References within 2 steps" — and it is
+//what the word 'Ply' has to become everywhere it is shown, because nobody
+//outside a graph-search paper reads a bare '2' as a search depth.
+export const readablePly = (value: string): string => {
+	const steps = Number(value);
+	if (!Number.isFinite(steps)) return `within ${value} steps`;
+	return steps === 1 ? 'within 1 step' : `within ${steps} steps`;
 };
 
 //A card's name as a clause should say it: its title in quotes, or its id when
@@ -304,19 +338,41 @@ const anchorCardName = (rawValue: string, cardNames: Record<string, string>): st
 	return title ? `“${title}”` : id;
 };
 
+//Reference types arrive as a `+`-joined union, optionally behind the invert
+//prefix. Humanized and joined with 'or', because that is what a union of them
+//means to the person reading it.
+const readableReferenceTypes = (rawValue: string): string => {
+	const value = decoded(rawValue);
+	const inverted = value.startsWith('-');
+	const types = (inverted ? value.slice(1) : value).split('+').filter(Boolean).map(humanize);
+	if (!types.length) return '';
+	const joined = types.length > 1 ? `${types.slice(0, -1).join(', ')} or ${types[types.length - 1]}` : types[0];
+	return inverted ? `by any reference except ${joined}` : `by ${joined} references`;
+};
+
 const anchoredClauseName = (
 	family: string,
 	rawValues: string[],
 	cardNames: Record<string, string>
 ): string => {
-	const sentence = ANCHORED_CLAUSE_NAMES[family];
-	//Only the one-argument spellings. `children/<id>/<ply>` and friends carry a
-	//degree as well, and a name that silently dropped it would describe a
-	//different collection from the one that runs.
-	if (!sentence || rawValues.length !== 1) return '';
+	const shape = ANCHORED_CLAUSE_SHAPES[family];
+	if (!shape) return '';
+	//A clause with MORE arguments than the family's shape accounts for is a
+	//spelling this function does not understand, and a name that silently
+	//dropped an argument would describe a different collection from the one
+	//that runs. Fewer is fine — a trailing argument the URL omits is one the
+	//engine defaults, and there is nothing to say about it.
+	if (!rawValues.length || rawValues.length > shape.rest.length + 1) return '';
 	const card = anchorCardName(rawValues[0], cardNames);
 	if (!card) return '';
-	return sentence(card);
+	const parts = [shape.sentence(card)];
+	for (const [index, kind] of shape.rest.entries()) {
+		const raw = rawValues[index + 1];
+		if (raw === undefined) continue;
+		const readable = kind === 'ply' ? readablePly(decoded(raw)) : readableReferenceTypes(raw);
+		if (readable) parts.push(readable);
+	}
+	return parts.join(' · ');
 };
 
 //("14 days ago") as well-named as the seeded one it replaced.

@@ -206,10 +206,52 @@ describe('Collection Composer suggestions', () => {
 			assert.ok(!other.toLowerCase().includes('this card'), other);
 		});
 
-		it('leaves a clause carrying a degree to the generic path', () => {
-			//`descendants/<card>/<ply>` describes a different collection from
-			//`descendants/<card>`, so a one-card sentence would be a lie.
+		it('leaves a spelling with more arguments than the family has to the generic path', () => {
+			//`children` takes one argument. A name that silently dropped a second
+			//would describe a different collection from the one that runs.
 			assert.ok(!collectionFilterDisplayName('children/perf-card-12/2', {}, names).startsWith('Cards “Perf card 12” links to'));
+		});
+
+		it('labels a degree instead of leaving a bare number', () => {
+			//`Descendants Perf-card-12 · 2` gave a search depth no label at all.
+			assert.strictEqual(
+				collectionFilterDisplayName('descendants/perf-card-12/2', {}, names),
+				'Downstream of “Perf card 12” · within 2 steps'
+			);
+			assert.strictEqual(
+				collectionFilterDisplayName('ancestors/perf-card-12/1', {}, names),
+				'Upstream of “Perf card 12” · within 1 step'
+			);
+			//Upstream and downstream are distinguishable at a glance; the
+			//sentences they replaced differed only in voice.
+			assert.notStrictEqual(
+				collectionFilterDisplayName('descendants/perf-card-12/2', {}, names),
+				collectionFilterDisplayName('ancestors/perf-card-12/2', {}, names)
+			);
+		});
+
+		it('names a reference type as a reference type', () => {
+			//`References “X” · Link · 2` formatted a reference type and a search
+			//depth identically and labelled neither.
+			assert.strictEqual(
+				collectionFilterDisplayName('references/perf-card-12/link/2', {}, names),
+				'Connected to “Perf card 12” · by Link references · within 2 steps'
+			);
+			assert.strictEqual(
+				collectionFilterDisplayName('direct-references-inbound/perf-card-12/link', {}, names),
+				'Referencing “Perf card 12” · by Link references'
+			);
+			assert.strictEqual(
+				collectionFilterDisplayName('references-outbound/perf-card-12/link+see-also/3', {}, names),
+				'Referenced by “Perf card 12” · by Link or See Also references · within 3 steps'
+			);
+		});
+
+		it('omits an argument the URL omits rather than inventing its default', () => {
+			assert.strictEqual(
+				collectionFilterDisplayName('descendants/perf-card-12', {}, names),
+				'Downstream of “Perf card 12”'
+			);
 		});
 
 		it('says which card an anchor changed from and to', () => {

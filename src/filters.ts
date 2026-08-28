@@ -1186,14 +1186,22 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that are direct or indirectly referenced by a given card',
+		//Downstream, and said so. This and ANCESTORS were mirror sentences
+		//differing only in voice ('referenced by a given card' against
+		//'reference the given card'), which a reader has to parse twice to tell
+		//apart — and this one also said 'direct or indirectly'.
+		description: 'Selects everything downstream of the key card: what it links to, what those link to, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1212,14 +1220,18 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that directly or indirectly reference the given card',
+		description: 'Selects everything upstream of the key card: what links to it, what links to those, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1245,7 +1257,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: LINK_FILTER_BASE
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1264,7 +1280,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: referenceType('link'),
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1283,7 +1303,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: referenceType('link'),
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1302,7 +1326,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: referenceType('link'),
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1634,6 +1662,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
+				help: arg.help,
 				value: subPieces.join('/')
 			});
 			break;
@@ -1644,6 +1673,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
+				help: arg.help,
 				value: nextSubFilter,
 			});
 			pieceIndex += nextSubFilter.split('/').length;
@@ -1660,6 +1690,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
+				help: arg.help,
 				value: pieces[pieceIndex],
 			});
 			pieceIndex++;

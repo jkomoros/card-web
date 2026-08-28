@@ -199,8 +199,14 @@ class ConfigureCollectionFilter extends LitElement {
 		`;
 	}
 
+	//The help badge is OUTSIDE the <label>, beside it. Inside, its aria-label
+	//would be read as part of the control's own name — the badge is a tab stop
+	//with role='note' precisely so a touch user can reach the explanation, and
+	//folding it into the label would say the whole sentence every time the
+	//control takes focus. The filter-family select one level up already places
+	//its help() the same way.
 	_argumentEditors() {
-		return html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<label class='piece'><span>${piece.description}</span>${this._configurableFilterPart(piece, i)}</label>`)}</div>`;
+		return html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<label class='piece'><span>${piece.description}</span>${this._configurableFilterPart(piece, i)}</label>${piece.help ? help(piece.help) : ''}`)}</div>`;
 	}
 
 	_handleRemoveWholeFilterClicked() {

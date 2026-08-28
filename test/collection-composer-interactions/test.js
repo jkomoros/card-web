@@ -2989,6 +2989,33 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 	});
 
+	it('names the catalog row Enter would act on, not every action the catalog has', async () => {
+		//'Enter opens Source, configures, or adds' is three claims of which
+		//exactly one is in force, with nothing saying which. The suggestion list
+		//one branch over already lets the highlighted row decide the sentence.
+		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
+		Array.from(dialog.shadowRoot.querySelectorAll('button'))
+			.find((button) => button.textContent.includes('Browse all filters')).click();
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+
+		input.value = 'text';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.match(hints(), /Enter configures it before adding/, hints());
+		assert.ok(!hints().includes('opens Source, configures, or adds'), hints());
+
+		input.value = 'starred';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.match(hints(), /Enter adds it to the draft/, hints());
+
+		//And the row's own verb chip agrees with the footer, because both come
+		//from the one decision _handleCatalogItem makes.
+		const row = dialog.shadowRoot.querySelector('#collection-filter-catalog [role=option]');
+		assert.strictEqual(row.querySelector('.suggestion-action').textContent.trim(), 'Add');
+	});
+
 	//SENTENCE CASE, AND A VISIBLE CONSEQUENCE CLASS.
 	//
 	//The row verbs were lowercase text painted ALL-CAPS by text-transform: a

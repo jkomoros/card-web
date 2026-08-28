@@ -463,6 +463,37 @@ const sentenceCase = (value : string) : string => value ? value.charAt(0).toUppe
 //outlined for the ones that do not.
 const rowConsequence = (verb : string) : 'navigate' | 'transform' => verb === 'open' ? 'navigate' : 'transform';
 
+//WHAT ENTER ON A CATALOG ROW ACTUALLY DOES. _handleCatalogItem is the
+//authority, and this is the same four-way decision written once so that the
+//authority, the row's own verb chip, and the footer cannot disagree. They did:
+//a row the handler OPENS SOURCE for was chipped 'Edit', and the footer
+//enumerated all three of the other outcomes at once for every row.
+type CatalogItemAction = 'source' | 'edit' | 'configure' | 'add';
+
+const catalogItemAction = (item : CollectionFilterCatalogItem) : CatalogItemAction => {
+	if (!item.guided) return 'source';
+	if (item.appliedIndex >= 0) return 'edit';
+	const family = item.filter.split('/')[0];
+	if (item.configurable && item.filter === family) return 'configure';
+	return 'add';
+};
+
+//The verb chip on the row, and the phrase the footer completes 'Enter …' with.
+//Both are derived from the one decision above.
+const CATALOG_ACTION_CHIPS : {[action in CatalogItemAction] : string} = {
+	source: 'source',
+	edit: 'edit',
+	configure: 'configure',
+	add: 'add',
+};
+
+const CATALOG_ACTION_HINTS : {[action in CatalogItemAction] : string} = {
+	source: 'Enter opens this filter in Source',
+	edit: 'Enter edits this clause',
+	configure: 'Enter configures it before adding',
+	add: 'Enter adds it to the draft',
+};
+
 //The spec's own words for a draft that resolves to nothing. A sentence-case
 //fragment with no terminal period (HS-2.6): it states what is absent, and the
 //recovery rows underneath are the offer.
@@ -2000,7 +2031,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 										>
 											<span class='suggestion-label'>${item.label}</span>
 											${(() => {
-		const verb = !item.guided || item.appliedIndex >= 0 ? 'edit' : item.configurable && !item.filter.includes('/') ? 'configure' : 'add';
+		const verb = CATALOG_ACTION_CHIPS[catalogItemAction(item)];
 		return html`<span class='suggestion-action' data-consequence=${rowConsequence(verb)}>${sentenceCase(verb)}</span>`;
 	})()}
 											<span class='suggestion-detail'>${item.detail}</span>
@@ -2257,7 +2288,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				'Tap a row to use it — each says what it does · tap the open button for this collection' :
 				'Type to compose · tap the open button for this collection';
 		}
-		if (this._catalogOpen) return `Type to search · ↑↓ choose · Enter opens Source, configures, or adds · ${shortcutKeys('dialog-escape')} closes catalog`;
+		//THE FOOTER NAMES THE HIGHLIGHTED ROW'S ACTION, not the union of every
+		//action the catalog contains. 'Enter opens Source, configures, or adds'
+		//is three claims of which exactly one is in force, and the user has no
+		//way to tell which — the same defect §Keyboard behavior's footer rules
+		//already fixed for the suggestion list one branch below, where the
+		//highlighted row decides the sentence. The catalog was the one list
+		//still enumerating, because it is the one list whose highlighted row is
+		//not a CollectionComposerSuggestion.
+		if (this._catalogOpen) {
+			const item = this._visibleCatalogItems[this._catalogHighlightedIndex];
+			//No highlighted row makes no per-row claim, exactly as the
+			//nothing-highlighted branch below does.
+			const enterHint = item ? CATALOG_ACTION_HINTS[catalogItemAction(item)] : 'Enter chooses the highlighted filter';
+			return `Type to search · ↑↓ choose · ${enterHint} · ${shortcutKeys('dialog-escape')} closes catalog`;
+		}
 		//AN OPEN EDITOR OWNS THE ARROW KEYS. ←→ choose a clause only while the
 		//composer INPUT has focus, because the handler that implements them
 		//lives on that input; once a clause editor is open, focus is inside it
