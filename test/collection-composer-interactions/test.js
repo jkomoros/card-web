@@ -1056,6 +1056,9 @@ describe('Collection Composer interactions', () => {
 		dialog.shadowRoot.querySelector('.expression-clause-label').click();
 		await dialog.updateComplete;
 		const filter = dialog.shadowRoot.querySelector('configure-collection-filter');
+		//Focus now waits for the editor's own render before deciding whether it
+		//found a control, so the assertion has to wait for the same road.
+		await settleRender(dialog, filter);
 		assert.strictEqual(filter.shadowRoot.querySelector('select'), null);
 		assert.strictEqual(dialog.shadowRoot.activeElement?.textContent, 'Done editing');
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
@@ -1084,6 +1087,7 @@ describe('Collection Composer interactions', () => {
 		dialog.shadowRoot.querySelector('.expression-clause-label').click();
 		await dialog.updateComplete;
 		const filter = dialog.shadowRoot.querySelector('configure-collection-filter');
+		await settleRender(dialog, filter);
 		const queryInput = filter.shadowRoot.querySelector('.pieces input');
 		assert.strictEqual(filter.shadowRoot.activeElement, queryInput);
 		queryInput.value = 'mechanistically knowable';
@@ -1239,6 +1243,34 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/inductively knowable']);
 		assert.match(dialog.shadowRoot.textContent, /Added Text contains “inductively knowable”/);
+	});
+
+	it('lands focus inside the editor a Configure row just opened', async () => {
+		//Opening an editor and leaving focus in the search field behind it puts
+		//the field the user asked for a dozen Tabs away. focusPrimaryControl was
+		//always wired here; what it lacked was anything to find, because it ran
+		//before the editor it queries had rendered.
+		Array.from(dialog.shadowRoot.querySelectorAll('button'))
+			.find((button) => button.textContent.includes('Browse all filters')).click();
+		await dialog.updateComplete;
+		const catalogInput = dialog.shadowRoot.querySelector('#collection-composer-input');
+		catalogInput.value = 'text';
+		catalogInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
+			.find((button) => button.textContent.includes('Query')).click();
+		await dialog.updateComplete;
+		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
+		await settleRender(dialog, pending);
+		assert.notStrictEqual(dialog.shadowRoot.activeElement?.id, 'collection-composer-input',
+			'focus must not stay in the search field behind the editor');
+		assert.strictEqual(dialog.shadowRoot.activeElement, pending);
+		assert.strictEqual(pending.shadowRoot.activeElement, pending.shadowRoot.querySelector('.pieces input'));
+		//And Escape still peels this layer rather than closing the composer.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await dialog.updateComplete;
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.pending-filter-editor'), null);
 	});
 
 	it('routes typed configurable families through guided controls before changing the draft', async () => {

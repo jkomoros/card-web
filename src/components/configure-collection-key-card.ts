@@ -52,8 +52,10 @@ const FIRST_CARD_IN_COLLECTION = '_';
 @customElement('configure-collection-key-card')
 class ConfigureCollectionKeyCard extends connect(store)(LitElement) {
 
-	focusPrimaryControl() {
-		this.shadowRoot?.querySelector<HTMLButtonElement>('#choose-card')?.focus();
+	focusPrimaryControl() : boolean {
+		const control = this.shadowRoot?.querySelector<HTMLButtonElement>('#choose-card');
+		control?.focus();
+		return Boolean(control);
 	}
 
 	@property({ type : String })

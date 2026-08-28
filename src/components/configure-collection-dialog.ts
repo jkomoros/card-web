@@ -3216,15 +3216,41 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 	}
 
+	//FOCUS CAN ONLY LAND IN A CONTROL THAT EXISTS YET.
+	//
+	//Lit renders one component per microtask turn. Awaiting this dialog's
+	//updateComplete gets the <configure-collection-filter> ELEMENT into the
+	//DOM, but its own first render — and the date/key-card/multiple-cards
+	//control nested one level further in — happen on later turns.
+	//focusPrimaryControl works by querying shadow roots, so calling it after a
+	//single await queries roots that are still empty: it finds nothing, and
+	//focus stays behind in the composer input, a dozen Tabs from the field the
+	//user just asked to edit. Awaiting each level on the way down is what makes
+	//the existing machinery actually reach the control; nothing about
+	//focusPrimaryControl itself was wrong.
+	//
+	//The clause editor happened to look fine because its fallback caught the
+	//miss and landed on Done editing — right pane, wrong control, and no
+	//indication that the primary path had failed at all.
+	async _focusEditorPrimaryControl(editorSelector : string, fallbackSelector : string) {
+		await this.updateComplete;
+		const control = this.shadowRoot?.querySelector<HTMLElement & {updateComplete? : Promise<unknown>, focusPrimaryControl? : () => boolean}>(editorSelector);
+		if (control?.updateComplete) await control.updateComplete;
+		const nested = control?.shadowRoot?.querySelector<HTMLElement & {updateComplete? : Promise<unknown>}>(
+			'.pieces configure-collection-date, .pieces configure-collection-key-card, .pieces configure-collection-multiple-cards'
+		);
+		if (nested?.updateComplete) await nested.updateComplete;
+		if (control?.focusPrimaryControl?.()) return;
+		this.shadowRoot?.querySelector<HTMLElement>(fallbackSelector)?.focus();
+	}
+
 	async _handleClauseEdit(index : number) {
 		this._catalogOpen = false;
 		this._pendingCatalogFilter = '';
 		this._selectedClauseIndex = index;
 		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(this._collectionDescription.filters[index])}`;
 		this._builderExpanded = true;
-		await this.updateComplete;
-		const control = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => boolean}>('.clause-editor configure-collection-filter');
-		if (!control?.focusPrimaryControl?.()) this.shadowRoot?.querySelector<HTMLElement>('.clause-editor .done-editing')?.focus();
+		await this._focusEditorPrimaryControl('.clause-editor configure-collection-filter', '.clause-editor .done-editing');
 	}
 
 	_handleBuilderToggle() {
@@ -3287,8 +3313,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._composerInput = '';
 		this._catalogHighlightedIndex = 0;
 		this._expandedCatalogCategories = new Set();
-		await this.updateComplete;
-		this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>('.pending-filter-editor configure-collection-filter')?.focusPrimaryControl?.();
+		//Cancel is the fallback rather than the round Add: Add spends most of
+		//its life disabled ("Change a value to add this filter"), and focus that
+		//lands on a disabled control is focus that has gone nowhere. Cancel is
+		//always live, is inside the editor, and is one Tab from Add.
+		await this._focusEditorPrimaryControl('.pending-filter-editor configure-collection-filter', '.pending-filter-actions button');
 	}
 
 	_catalogDefaultIsReady(family : string) : boolean {

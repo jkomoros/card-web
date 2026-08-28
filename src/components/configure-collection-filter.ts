@@ -55,13 +55,17 @@ import {
 @customElement('configure-collection-filter')
 class ConfigureCollectionFilter extends LitElement {
 
+	//Returns whether focus actually landed, so a caller can fall back to
+	//something else rather than leaving the user's focus behind the editor it
+	//just opened. The nested branch used to report `true` for merely HAVING a
+	//nested control, whether or not that control found anything to focus — so
+	//the one case that most needed a fallback was the one that claimed success.
 	focusPrimaryControl() : boolean {
-		const nestedControl = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => void}>(
+		const nestedControl = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl?: () => boolean}>(
 			'.pieces configure-collection-date, .pieces configure-collection-key-card, .pieces configure-collection-multiple-cards'
 		);
 		if (nestedControl?.focusPrimaryControl) {
-			nestedControl.focusPrimaryControl();
-			return true;
+			return nestedControl.focusPrimaryControl();
 		}
 		const configurableControl = this.shadowRoot?.querySelector<HTMLElement>('.pieces select, .pieces input, .pieces button');
 		const control = configurableControl || (this.lockFilterFamily ? null : this.shadowRoot?.querySelector<HTMLElement>('select, input, button'));
