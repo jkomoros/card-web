@@ -279,6 +279,15 @@ export const copyCollectionConfiguration = (config : CollectionConfiguration) : 
 	};
 };
 
+//WHETHER TWO CONFIGURATIONS NAME THE SAME COLLECTION. serialize() is faithful
+//down to sort and view mode, which is exactly the comparison a preserved draft
+//needs: "is this still the collection that draft was an adjustment to?" It is
+//defined here, beside the copy helper, so the reducer can ask the question
+//without reimplementing a field-by-field comparison that would drift the first
+//time CollectionConfiguration grows a field.
+export const collectionConfigurationIdentity = (config : CollectionConfiguration) : string =>
+	CollectionDescription.withConfiguration(config).serialize();
+
 export class CollectionDescription {
 
 	_setNameExplicitlySet : boolean;

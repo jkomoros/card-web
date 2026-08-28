@@ -131,6 +131,11 @@ describe('Collection Composer interactions', () => {
 	});
 
 	afterEach(() => {
+		//Cancelling now PRESERVES an un-committed draft so the next open can
+		//resume it — that is the point of the feature. A second cancel, with
+		//nothing left to preserve, clears it: every test has to begin from
+		///c/main/ rather than from whatever the previous test was composing.
+		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
 		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
 		store.dispatch({ type: 'FIND_DIALOG_CLOSE' });
 		dialog.remove();
@@ -2988,6 +2993,36 @@ describe('Collection Composer interactions', () => {
 		assert.match(mobileHints, /tap the open button for this collection/);
 		dialog.mobile = false;
 		await dialog.updateComplete;
+	});
+
+	it('brings a closed draft back, chips typed text and all, on the same collection', async () => {
+		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
+			.find((button) => button.textContent.includes('Add Starred'));
+		suggestion.click();
+		await dialog.updateComplete;
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.value = 'work in progress';
+		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await dialog.updateComplete;
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
+
+		//Escape. Source mode has always kept its text through this; the quick
+		//composer threw a multi-clause draft away in silence.
+		dialog.cancel();
+		await dialog.updateComplete;
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
+
+		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+		await dialog.updateComplete;
+		await dialog.updateComplete;
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
+			'the chips come back');
+		assert.strictEqual(dialog.shadowRoot.querySelector('.expression-clause-label').textContent.trim(), 'Starred');
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-composer-input').value, 'work in progress',
+			'and so does the half-typed text');
+		assert.match(dialog.shadowRoot.querySelector('.draft-receipt').textContent,
+			/Restored the draft you were composing/,
+			'chips reappearing with no explanation is its own small mystery');
 	});
 
 	it('names the catalog row Enter would act on, not every action the catalog has', async () => {

@@ -670,6 +670,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_draftReceiptMessage = '';
 
+	//The typed text of a draft that was closed without being committed, and the
+	//collection it was an adjustment to. Not @state: nothing renders from them
+	//directly, and they are read once, on the next open.
+	_preservedComposerInput = '';
+	_preservedDraftBase = '';
+
 	@state()
 		_clauseSelectionMessage = '';
 
@@ -3575,6 +3581,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	override _shouldClose() {
 		//Override base class.
 		if (collectionComposerEnabled()) {
+			//The half-typed text belongs to the same un-committed draft the
+			//reducer is about to preserve, so it is kept under the same
+			//condition: only when the draft actually diverged from the
+			//collection on screen, and keyed to that collection. The two
+			//conditions are the same comparison of the same two values —
+			//serialize() on the snapshot and on the active collection.
+			const base = this._activeCollectionDescription?.serialize() || '';
+			const diverged = Boolean(base) && this._collectionDescription?.serialize() !== base;
+			this._preservedComposerInput = diverged ? this._composerInput : '';
+			this._preservedDraftBase = diverged ? base : '';
 			store.dispatch(cancelConfigureCollectionDialog());
 		} else {
 			store.dispatch(closeConfigureCollectionDialog());
@@ -3653,6 +3669,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				const parsed = this._entryMode === 'source' ? this._parsedSource : null;
 				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
 				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
+				//The reducer has already decided whether to resume the chips, on
+				//the same comparison this makes: is the collection this draft was
+				//an adjustment to still the one on screen? If it is, the typed
+				//text comes back with them, and the receipt says so — chips
+				//reappearing with no explanation is its own small mystery.
+				//
+				//No Undo on this receipt. Undo means "put the draft back the way
+				//it was before that edit", and there was no edit here; wiring the
+				//existing single-level undo to mean "discard the thing you just
+				//got back" would give one button two meanings. The Refine list's
+				//own "Start from Everything" is the discard path.
+				const resumed = Boolean(this._preservedDraftBase) && this._preservedDraftBase === (this._activeCollectionDescription?.serialize() || '');
+				if (resumed) {
+					this._composerInput = this._preservedComposerInput;
+					this._draftReceiptMessage = 'Restored the draft you were composing';
+				}
+				this._preservedComposerInput = '';
+				this._preservedDraftBase = '';
 			}
 		}
 		//Ctrl-K on an already-open composer: put the caret back in the input the

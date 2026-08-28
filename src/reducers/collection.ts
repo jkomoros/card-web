@@ -55,7 +55,8 @@ import {
 } from '../../shared/util.js';
 
 import {
-	copyCollectionConfiguration
+	copyCollectionConfiguration,
+	collectionConfigurationIdentity
 } from '../collection_description.js';
 
 import {
@@ -201,24 +202,47 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			collectionWordCloudVersion: state.collectionWordCloudVersion + 1
 		};
-	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+	case OPEN_CONFIGURE_COLLECTION_DIALOG: {
 		//Opening is idempotent. In particular, a repeated Ctrl-K must not replace
 		//an in-progress draft with the active collection.
 		if (state.snapshot) return state;
+		//A DRAFT BELONGS TO A PLACE. Source mode already keeps its text across a
+		//close ("switching back must not lose invalid text"), while a
+		//multi-clause draft composed in the quick composer was thrown away in
+		//silence by the same Escape — the two halves of one surface disagreeing
+		//about whether un-committed work is worth keeping.
+		//
+		//It is resumed only while the collection it was derived from is still
+		//the one on screen. §"Begin from where the user is" is the reason for
+		//both halves of that: a draft is an adjustment to what you are looking
+		//at, so as long as you are still looking at it the adjustment stands —
+		//and once you have navigated somewhere else, rebuilding it there would
+		//be a draft about a place you have left.
+		const preserved = state.preservedSnapshot;
+		const resumable = preserved && preserved.base === collectionConfigurationIdentity(state.active);
 		return {
 			...state,
-			snapshot: copyCollectionConfiguration(state.active),
+			snapshot: copyCollectionConfiguration(resumable ? preserved.configuration : state.active),
+			preservedSnapshot: null,
 		};
+	}
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
+		//Committed. There is nothing un-committed left to resume.
 		return {
 			...state,
 			active: state.snapshot ? copyCollectionConfiguration(state.snapshot) : state.active,
 			snapshot: null,
+			preservedSnapshot: null,
 		};
 	case CANCEL_CONFIGURE_COLLECTION_DIALOG:
 		return {
 			...state,
 			snapshot: null,
+			//A draft identical to the collection it came from is not work; there
+			//is nothing to resume and nothing to tell the user about.
+			preservedSnapshot: state.snapshot && collectionConfigurationIdentity(state.snapshot) !== collectionConfigurationIdentity(state.active) ?
+				{configuration: copyCollectionConfiguration(state.snapshot), base: collectionConfigurationIdentity(state.active)} :
+				null,
 		};
 	case UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT:
 		return {
