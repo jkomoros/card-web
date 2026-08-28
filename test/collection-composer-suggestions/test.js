@@ -860,7 +860,19 @@ describe('Collection Composer suggestions', () => {
 				}],
 			}
 		);
-		assert.ok(!withRecent.some(suggestion => suggestion.kind === 'add' && suggestion.label.includes('This card')));
+		//The active-card destination SURVIVES a recent now. It used to reach the
+		//empty list only through the spotlight branch, which requires no recents,
+		//no refinements and no filters — so the one row that depends on where the
+		//user actually is was the row the opening list almost never offered, and
+		//§Opening state names active-card destinations in its first section.
+		const anchored = withRecent.filter(suggestion => suggestion.kind === 'add' && suggestion.label.includes('This card'));
+		assert.deepStrictEqual(anchored.map(suggestion => suggestion.label), [
+			'Add This card and directly connected cards',
+		], 'exactly one active-card row, not the family of three');
+		//And it is ranked after the recents, ahead of the generic refinements.
+		const labels = withRecent.map(suggestion => suggestion.label);
+		assert.ok(labels.indexOf('Add This card and directly connected cards') > labels.findIndex((_, index) => withRecent[index].kind === 'recent'));
+		assert.ok(labels.indexOf('Add This card and directly connected cards') < labels.indexOf('Add Unread'));
 		assert.ok(withRecent.some(suggestion => suggestion.label === 'Add Unread'));
 	});
 
@@ -905,10 +917,13 @@ describe('Collection Composer suggestions', () => {
 		const withoutTyping = collectionComposerSuggestions(
 			CollectionDescription.deserialize('everything/'), '', descriptions, { candidates: combined }
 		);
+		//The active-card destination leads the refinements now; the tag and
+		//section spotlights keep their slots behind it rather than being
+		//displaced by it.
 		assert.deepStrictEqual(withoutTyping.slice(0, 3).map(suggestion => suggestion.label), [
+			'Add This card and directly connected cards',
 			'Add Tagged Inductively Knowable',
 			'Add Section Half Baked',
-			'Add This card and directly connected cards',
 		]);
 	});
 

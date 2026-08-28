@@ -349,10 +349,11 @@ describe('Collection Composer interactions', () => {
 			.slice(0, 3)
 			.map((button) => button.textContent);
 		//One clause, one name: the row says exactly what the chip it produces will
-		//say, with the action grammar's verb in front of it.
-		assert.match(labels[0], /Add Tagged Systems/);
-		assert.match(labels[1], /Add Section Half Baked/);
-		assert.match(labels[2], /Add This card and directly connected cards/);
+		//say, with the action grammar's verb in front of it. The active-card
+		//destination leads, because it is the one row about where the user is.
+		assert.match(labels[0], /Add This card and directly connected cards/);
+		assert.match(labels[1], /Add Tagged Systems/);
+		assert.match(labels[2], /Add Section Half Baked/);
 	});
 
 	it('explains preview counts as consequences without changing row order', async () => {

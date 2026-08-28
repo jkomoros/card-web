@@ -624,6 +624,33 @@ const emptyStateSuggestions = (
 	const filterLabels = collectionFilterLabels(context.candidates);
 	const recents = recentSuggestions(current, context);
 	const refinements: CollectionComposerSuggestion[] = [];
+	//THE OPENING STATE'S OWN EXAMPLE. Spec §Opening state lists "recent, pinned,
+	//resumable, or ACTIVE-CARD destinations" as the first of the two stable
+	//sections, and its worked example leads with exactly this row:
+	//
+	//    Working notes connected to this card                         8
+	//    Adds Working notes + References within 2 steps
+	//
+	//The relationship candidates existed and the typed path already built rows
+	//from them, but the empty state only reached them through the spotlight
+	//branch below, which requires no recents, no refinements AND no filters —
+	//a state almost nobody is in. So the one suggestion that depends on where
+	//the user actually is was the one the opening list never offered, and it
+	//could only be found by typing a phrase you would have to already know.
+	//
+	//ONE row, not the family of three: the other two (links out, links in) are
+	//narrower cases of it, and the empty list is a budget of six to eight rows
+	//that recents and refinements have prior claims on. Its count arrives
+	//through the ordinary preview machinery, which keys on the row's id and so
+	//needs nothing new here.
+	//BUILT HERE, UNSHIFTED AT THE END. It must not be in `refinements` while the
+	//spotlight branch below tests `!refinements.length`: that guard is what
+	//keeps the tag/section spotlights to the genuinely bare state, and counting
+	//this row against it silently deleted them for every user with a card open.
+	const activeCardCandidate = (context.candidates || []).find(candidate => candidate.filter.startsWith('direct-connections/+'));
+	const activeCardDestination = activeCardCandidate && !current.filters.includes(activeCardCandidate.filter) ?
+		activeCardCandidate :
+		undefined;
 	if (
 		context.cardsSelected &&
     !current.filters.includes(SELECTED_FILTER_NAME)
@@ -645,7 +672,9 @@ const emptyStateSuggestions = (
 	//will not displace recents, selection, or removal actions. In denser states
 	//the same candidates remain discoverable by typing.
 	if (!recents.length && !refinements.length && !current.filters.length) {
-		for (const candidate of (context.candidates || []).filter(candidate => candidate.spotlight).slice(0, 3)) {
+		//The active-card destination is added unconditionally below, so it does
+		//not spend one of these three slots on a row that is coming anyway.
+		for (const candidate of (context.candidates || []).filter(candidate => candidate.spotlight && candidate.filter !== activeCardDestination?.filter).slice(0, 3)) {
 			const name = collectionFilterDisplayName(candidate.filter, filterLabels);
 			refinements.push({
 				id: `candidate:${candidate.category}:${candidate.filter}`,
@@ -700,6 +729,22 @@ const emptyStateSuggestions = (
 			!current.sortReversed
 		),
 	});
+	//After recents, before every generic refinement. It is the one row on this
+	//list that is about where the user actually is, which is the whole premise
+	//of §"Begin from where the user is".
+	if (activeCardDestination) {
+		const name = collectionFilterDisplayName(activeCardDestination.filter, filterLabels, context.cardNames || {});
+		refinements.unshift({
+			id: `candidate:${activeCardDestination.category}:${activeCardDestination.filter}`,
+			kind: 'add',
+			action: 'add',
+			name,
+			label: verbLabel('add', name),
+			detail: `${activeCardDestination.detail} · ${candidateURLNote(activeCardDestination.filter, name, activeCardDestination.urlDetail)}`,
+			description: collectionDescriptionWithFilterAppended(current, activeCardDestination.filter),
+			viewerDependent: filterNameIsViewerDependent(activeCardDestination.filter),
+		});
+	}
 	//One destination, one row. A recent whose destination a refinement already
 	//rebuilds is the same collection reached by a different verb; the refinement
 	//wins because it teaches the transformation, and because serialize() is
