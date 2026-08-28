@@ -1270,7 +1270,12 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
 		assert.strictEqual(dialog._entryMode, 'source');
-		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-input').value, '/c/exclude/');
+		//`/c/main/exclude/`, not `/c/exclude/`: every collection path the composer
+		//writes now comes from collectionURLPath, whose whole point is that the
+		//bare Main collection is never spelled as nothing. Both texts parse to
+		//the same description — Main is the default set — so this is the same
+		//source said unambiguously.
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-input').value, '/c/main/exclude/');
 		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /needs 1 more value/);
 		assert.match(dialog.shadowRoot.querySelector('#collection-source-completions').textContent, /Working Notes/);
 		const source = dialog.shadowRoot.querySelector('#collection-source-input');
@@ -1684,7 +1689,11 @@ describe('Collection Composer interactions', () => {
 		input.setSelectionRange(input.value.length, input.value.length);
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'upd' }));
 		await dialog.updateComplete;
-		assert.strictEqual(input.value, '/c/upd/');
+		//Source now OPENS at '/c/main/', because '/c/' names no collection at
+		//all — the old text handed the router an empty collection portion. The
+		//add-next position is still the end of that text, which is the property
+		//this test is about.
+		assert.strictEqual(input.value, '/c/main/upd/');
 		assert.match(dialog.shadowRoot.textContent, /Updated/);
 	});
 
@@ -2313,6 +2322,122 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(snackbars.length, 1);
 		assert.match(snackbars[0].message, /Now showing Everything AND Starred/,
 			'the receipt names the destination Source opened, not a suggestion row');
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
+	//`/c/` IS NOT A SPELLING OF MAIN.
+	//
+	//Live repro: standing in a filtered collection, the recents row that opens
+	//Main pushed `/c/` — because serializeShort() elides the default set and the
+	//bare Main collection has nothing else to say — and the router resolved that
+	//pathless route through its own default substitution, landing on
+	///c/everything/sort/stars/ under a receipt that read "Now showing Main · 765
+	//cards", with an Undo that did nothing.
+	it('opens the bare Main collection at a path that names it', async () => {
+		const { updateCollection, updateCollectionConfigurationSnapshot } =
+      await import('../../lib/src/actions/collection.js');
+		for (const entry of [...store.getState().app.snackbars]) {
+			store.dispatch({ type: 'DISMISS_SNACKBAR', snackbarID: entry.id });
+		}
+		//Standing in a filtered collection, with bare Main as the draft — the
+		//"Open Main"/"Back to Main" shape.
+		window.history.replaceState({}, '', '/c/starred/');
+		store.dispatch(updateCollection('main', ['starred'], 'default', false, 'list', ''));
+		store.dispatch(updateCollectionConfigurationSnapshot(new CollectionDescription()));
+		await settleRender(dialog);
+		await countingPushes(async (pushed) => {
+			dialog.shadowRoot.querySelector('.composer-actions .primary').click();
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, ['/c/main/'],
+				'`/c/` is a route with no collection in it, so Main is spelled `/c/main/`');
+		});
+		assert.strictEqual(window.location.pathname, '/c/main/');
+		const snackbars = store.getState().app.snackbars;
+		assert.strictEqual(snackbars.length, 1);
+		assert.match(snackbars[0].message, /^Now showing Main\b/);
+		window.history.replaceState({}, '', '/c/main/');
+		store.dispatch(updateCollection('main', [], 'default', false, 'list', ''));
+	});
+
+	//THE RECEIPT REPORTS THE ARRIVAL, NOT THE REQUEST.
+	//
+	//The receipt used to be composed from the description the composer ASKED
+	//for, which is why a commit that landed somewhere else could still announce
+	//"Now showing Main". It is now composed from what the router actually
+	//resolves the committed path to — the same resolution updateCardSelector
+	//performs — so a wrong landing is at least reported honestly.
+	it('names the collection that actually became active, not the one requested', async () => {
+		const { updateCollection, updateCollectionConfigurationSnapshot } =
+      await import('../../lib/src/actions/collection.js');
+		for (const entry of [...store.getState().app.snackbars]) {
+			store.dispatch({ type: 'DISMISS_SNACKBAR', snackbarID: entry.id });
+		}
+		window.history.replaceState({}, '', '/c/starred/');
+		store.dispatch(updateCollection('main', ['starred'], 'default', false, 'list', ''));
+		store.dispatch(updateCollectionConfigurationSnapshot(new CollectionDescription()));
+		await settleRender(dialog);
+		//The commit lands somewhere other than what the draft named — which is
+		//what a malformed destination path did for real, and what any future
+		//one would do. The receipt must report the landing.
+		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/')));
+		await settleRender(dialog);
+		dialog._pathWithLiveSelectedCard = () => '/c/has-todo/';
+		dialog.shadowRoot.querySelector('.composer-actions .primary').click();
+		await dialog.updateComplete;
+		const snackbars = store.getState().app.snackbars;
+		assert.strictEqual(snackbars.length, 1);
+		assert.ok(!/Everything AND Starred/.test(snackbars[0].message),
+			'a landing the user did not ask for must not be reported as the one they did');
+		assert.match(snackbars[0].message, /^Now showing Main AND Has any TODO\./,
+			'the receipt names what the router resolved the committed path to');
+		delete dialog._pathWithLiveSelectedCard;
+		window.history.replaceState({}, '', '/c/main/');
+		store.dispatch(updateCollection('main', [], 'default', false, 'list', ''));
+	});
+
+	//Spec §Navigation to selected card. The corpus question — is this card in
+	//that collection? — has no answer in this harness (there is no card data),
+	//so it is the one thing stubbed; everything from the commit handler outward
+	//is the real thing, which is where the bug lived.
+	it('drops a selected card the destination does not contain', async () => {
+		const { updateCollection, updateCollectionConfigurationSnapshot } =
+      await import('../../lib/src/actions/collection.js');
+		window.history.replaceState({}, '', '/c/main/card-42');
+		store.dispatch({ type: 'SHOW_CARD', requestedCard: 'card-42', card: 'card-42' });
+		store.dispatch(updateCollection('main', [], 'default', false, 'list', ''));
+		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/')));
+		await settleRender(dialog);
+		dialog._draftSelectedCard = 'card-42';
+		dialog._destinationContainsCard = () => false;
+		await countingPushes(async (pushed) => {
+			dialog.shadowRoot.querySelector('.composer-actions .primary').click();
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, ['/c/everything/starred/'],
+				'the ejected card is dropped, and the trailing slash asks for the default item');
+		});
+		delete dialog._destinationContainsCard;
+		store.dispatch({ type: 'SHOW_CARD', requestedCard: '', card: '' });
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
+	it('keeps a selected card the destination still contains', async () => {
+		const { updateCollection, updateCollectionConfigurationSnapshot } =
+      await import('../../lib/src/actions/collection.js');
+		window.history.replaceState({}, '', '/c/main/card-42');
+		store.dispatch({ type: 'SHOW_CARD', requestedCard: 'card-42', card: 'card-42' });
+		store.dispatch(updateCollection('main', [], 'default', false, 'list', ''));
+		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/')));
+		await settleRender(dialog);
+		dialog._draftSelectedCard = 'card-42';
+		dialog._destinationContainsCard = () => true;
+		await countingPushes(async (pushed) => {
+			dialog.shadowRoot.querySelector('.composer-actions .primary').click();
+			await dialog.updateComplete;
+			assert.deepStrictEqual(pushed, ['/c/everything/starred/card-42'],
+				'a card that survives the transformation is preserved by default');
+		});
+		delete dialog._destinationContainsCard;
+		store.dispatch({ type: 'SHOW_CARD', requestedCard: '', card: '' });
 		window.history.replaceState({}, '', '/c/main/');
 	});
 

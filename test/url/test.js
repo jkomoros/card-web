@@ -1,4 +1,4 @@
-/*eslint-env node*/
+/*eslint-env node, es2020*/
 
 import {
 	JSDOM
@@ -16,6 +16,8 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 
 let CollectionDescription;
 let collectionDescriptionWithQuery;
+let collectionURLPath;
+let COLLECTION_URL_PREFIX;
 let UNION_FILTER_DELIMITER;
 
 describe('card-web url parsing', () => {
@@ -23,6 +25,8 @@ describe('card-web url parsing', () => {
 		({
 			CollectionDescription,
 			collectionDescriptionWithQuery,
+			collectionURLPath,
+			COLLECTION_URL_PREFIX,
 		} = await import('../../lib/src/collection_description.js'));
 		({
 			UNION_FILTER_DELIMITER
@@ -170,6 +174,55 @@ describe('card-web url parsing', () => {
 		const description = CollectionDescription.deserialize('main/half-baked/view/web/similar/sort/tweet-order/');
 		const golden = new CollectionDescription('main', ['half-baked'], 'tweet-order', false, 'web', 'similar');
 		assert.ok(description.equivalent(golden));
+	});
+
+	//THE BARE MAIN COLLECTION SERIALIZES SHORT TO THE EMPTY STRING.
+	//
+	//That is correct — serializeShort elides the default set, and Main with no
+	//filters, default sort and the list view has nothing else to say. It is
+	//also the reason every hand-built `/c/${serializeShort()}` path produced
+	//`/c/` for Main, which is a route with NO COLLECTION IN IT: the router
+	//resolves it through its own default substitution and lands somewhere the
+	//user never named. With a card appended it produced `/c/<cardid>`, where
+	//the card id is read as the collection's first URL part.
+	it('never builds a collection path with an empty collection portion', async () => {
+		const bareMain = new CollectionDescription();
+		assert.strictEqual(bareMain.serializeShort(), '', 'the premise: the short form really is empty');
+		assert.strictEqual(collectionURLPath(bareMain), '/c/main/');
+		assert.strictEqual(collectionURLPath(bareMain, {originalOrder: true}), '/c/main/');
+		//And the path round-trips to the collection it names.
+		const [roundTripped] = CollectionDescription.deserializeWithExtra(collectionURLPath(bareMain).slice(COLLECTION_URL_PREFIX.length));
+		assert.ok(roundTripped.equivalent(bareMain));
+	});
+
+	it('appends a selected card only after the collection\'s trailing slash', async () => {
+		const bareMain = new CollectionDescription();
+		assert.strictEqual(collectionURLPath(bareMain, {selectedCard: 'card-123'}), '/c/main/card-123');
+		const filtered = new CollectionDescription('', ['starred']);
+		assert.strictEqual(collectionURLPath(filtered, {selectedCard: 'card-123'}), '/c/starred/card-123');
+		//The card is the 'rest', not a filter, on the way back out.
+		const [description, card] = CollectionDescription.deserializeWithExtra(
+			collectionURLPath(bareMain, {selectedCard: 'card-123'}).slice(COLLECTION_URL_PREFIX.length));
+		assert.ok(description.equivalent(bareMain));
+		assert.strictEqual(card, 'card-123');
+	});
+
+	it('keeps authoring order when asked, and canonical order otherwise', async () => {
+		const description = new CollectionDescription('', ['starred', 'has-todo']);
+		assert.strictEqual(collectionURLPath(description, {originalOrder: true}), '/c/starred/has-todo/');
+		assert.strictEqual(collectionURLPath(description), '/c/has-todo/starred/');
+	});
+
+	//The prefix is duplicated — actions/app.ts sits above collection_description
+	//in the import graph, so the constant cannot be imported from it. A SOURCE
+	//pin rather than an import, because importing actions/app.js here would drag
+	//in the whole firebase-backed component graph for one literal.
+	it('agrees with the router about which page collections live under', async () => {
+		const { readFile } = await import('fs/promises');
+		const source = await readFile(new URL('../../src/actions/app.ts', import.meta.url), 'utf8');
+		const match = source.match(/export const PAGE_DEFAULT = '([^']+)';/);
+		assert.ok(match, 'actions/app.ts must still declare PAGE_DEFAULT');
+		assert.strictEqual(COLLECTION_URL_PREFIX, '/' + match[1] + '/');
 	});
 
 });

@@ -509,6 +509,46 @@ export class CollectionDescription {
 	}
 }
 
+//The page every collection URL lives under. actions/app.ts's PAGE_DEFAULT is
+//the same 'c'; it cannot be imported here, because actions/app.ts sits above
+//this module in the import graph. The url test pins the two together so the
+//duplication cannot drift.
+export const COLLECTION_URL_PREFIX = '/c/';
+
+type CollectionURLPathOptions = {
+	//The card the path should select. '' means "the default item in the
+	//collection", which is what a bare trailing slash already says.
+	selectedCard? : string,
+	//Keep the clauses in the order the user wrote them rather than the
+	//canonical sorted order (spec §Canonicalization: authoring order is
+	//retained during the editing session).
+	originalOrder? : boolean,
+};
+
+//THE ONE PLACE A COLLECTION PATH IS BUILT.
+//
+//`serializeShort` elides the default set name, and for the bare Main
+//collection — no filters, default sort, list view — that leaves NOTHING at
+//all. Every caller that pasted `/c/${description.serializeShort()}` therefore
+//produced `/c/` for Main, which is not a spelling of Main: it is a route with
+//no collection in it, which the router resolves through its own
+//default-substitution path and lands somewhere the user never named. With a
+//selected card appended it was worse still — `/c/` + a card id is `/c/<id>`,
+//where the card id is read as the collection's first URL part.
+//
+//So: never an empty serialization (fall back to the full one, which always
+//names the set), and the card suffix is only ever appended after the trailing
+//slash the serialization already ends with.
+export const collectionURLPath = (description : CollectionDescription, options : CollectionURLPathOptions = {}) : string => {
+	const {selectedCard = '', originalOrder = false} = options;
+	const short = originalOrder ? description.serializeShortOriginalOrder() : description.serializeShort();
+	const serialized = short || (originalOrder ? description.serializeOriginalOrder() : description.serialize());
+	//Belt and braces: every serialization ends in '/' by construction, and the
+	//card suffix is only legal after one.
+	const collection = serialized.endsWith('/') ? serialized : serialized + '/';
+	return COLLECTION_URL_PREFIX + collection + selectedCard;
+};
+
 const filterNameIsUnionFilter = (filterName : FilterName) : boolean => {
 	//the + can be include in a configurable filter, e.g `children/+ab123`
 	return filterName.includes(UNION_FILTER_DELIMITER)  && !filterNameIsConfigurableFilter(filterName);

@@ -80,7 +80,8 @@ import {
 	collectionDescriptionWithQuery,
 	collectionDescriptionWithConfigurableFilter,
 	CollectionDescription,
-	collectionDescriptionWithSelected
+	collectionDescriptionWithSelected,
+	collectionURLPath
 } from '../collection_description.js';
 
 import {
@@ -331,7 +332,9 @@ export const navigateToCollectionWithSelected = () : ThunkSomeAction => (dispatc
 };
 
 export const urlForCollection = (collection : CollectionDescription) : string => {
-	return '/' + PAGE_DEFAULT + '/' + collection.serializeShortOriginalOrder();
+	//Through the shared builder, so the bare Main collection is spelled
+	//`/c/main/` rather than the `/c/` this used to hand the router.
+	return collectionURLPath(collection, {originalOrder: true});
 };
 
 export const navigateToCollection = (collection : CollectionDescription) => {

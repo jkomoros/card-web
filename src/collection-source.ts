@@ -1,4 +1,4 @@
-import { CollectionDescription } from './collection_description.js';
+import { CollectionDescription, collectionURLPath } from './collection_description.js';
 import {
 	CONFIGURABLE_FILTER_NAMES,
 	CONFIGURABLE_FILTER_ARGUMENTS,
@@ -502,7 +502,7 @@ export const parseCollectionSource = (
 				status = 'invalid';
 				description = undefined;
 			} else {
-				canonicalPath = `/c/${description.serializeShort()}${selectedCardRaw}`;
+				canonicalPath = collectionURLPath(description, {selectedCard: selectedCardRaw});
 				if (raw.endsWith('/') && (kind === 'fragment' || routeHasTrailingSlash)) {
 					nextExpected = rootTokens.filter(token => !SET_NAMES.includes(token as never) &&
 						!(token === 'sort' && sawSort) && !(token === 'view' && sawView) && !filters.includes(token)).slice(0, 12);

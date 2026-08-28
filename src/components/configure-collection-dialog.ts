@@ -35,6 +35,11 @@ import {
 	selectRequestedCard,
 	selectActiveCard,
 	selectAnyDialogOpenExceptCollectionComposer,
+	selectCards,
+	selectCollectionConstructorArguments,
+	selectDefaultCollectionDescription,
+	selectPageExtra,
+	getIdForCard,
 } from '../selectors.js';
 
 import {
@@ -57,6 +62,7 @@ import {
 
 import {
 	PLACEHOLDER_CARD_ID_CHARACTER,
+	resolveCardSelector,
 	updateCollectionConfigurationSnapshot,
 } from '../actions/collection.js';
 
@@ -68,6 +74,8 @@ import {
 	collectionDescriptionWithFilterRemoved,
 	collectionDescriptionWithFilterModified,
 	collectionDescriptionWithFilterAppended,
+	collectionURLPath,
+	COLLECTION_URL_PREFIX,
 	CollectionDescription
 } from '../collection_description.js';
 
@@ -124,6 +132,11 @@ import {
 import {
 	corpusWorkerRunCollection,
 } from '../corpus-bridge.js';
+
+import {
+	cardIDIsPlaceholder,
+	commitPathDroppingLostCard,
+} from '../collection-navigation.js';
 
 import {
 	formatCollectionCardCount,
@@ -2540,7 +2553,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_openSource(filterToAppend = '') {
 		if (!this._sourceDirty) {
 			const appendedFilter = filterToAppend ? `${filterToAppend}/` : '';
-			this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${appendedFilter}${this._draftSelectedCard}`;
+			//The filter being appended may be a HALF-TYPED clause, so it is
+			//spliced into the text rather than appended to the description —
+			//but the part before it is still built by the one path builder, so
+			//the bare Main draft opens Source at `/c/main/` and not at `/c/`.
+			const base = collectionURLPath(this._collectionDescription, {originalOrder: true});
+			this._sourceInput = `${base}${appendedFilter}${this._draftSelectedCard}`;
 			this._sourceDirty = Boolean(filterToAppend);
 		}
 		store.dispatch(openConfigureCollectionDialog('source'));
@@ -2601,6 +2619,77 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return selectedCard === null || selectedCard === this._requestedCard;
 	}
 
+	//Whether the card a destination path selects survives into that
+	//destination. Run once, at commit, over the real collection — not on the
+	//typing path, and only when there is a card at stake.
+	_destinationContainsCard(description : CollectionDescription, cardIDOrSlug : string) : boolean {
+		const state = store.getState() as State;
+		const cardID = getIdForCard(state, cardIDOrSlug);
+		//A card this app has never heard of is not evidence that the
+		//destination excludes it — it may simply not be loaded yet. Dropping
+		//the suffix on that basis would throw away a card the user asked for,
+		//which is the opposite of the bug being fixed here.
+		if (!selectCards(state)[cardID]) return true;
+		const collection = description.collection(selectCollectionConstructorArguments(state));
+		return collection.finalSortedCards.some(card => card.id === cardID);
+	}
+
+	//SPEC §Navigation to selected card: when a draft transformation removes the
+	//selected card from the result, committing navigates to the DEFAULT item in
+	//the new collection. Keeping the suffix stranded the user — the URL still
+	//named a card the new collection does not contain, so the stage went on
+	//rendering it while the drawer highlighted nothing and the arrow keys, which
+	//walk the collection by the selected card's index, had nowhere to step.
+	//
+	//Applied to the finished PATH rather than to each producer of one, so every
+	//route into a commit — quick composer, recents, Source, a suggestion
+	//carrying its own destinationPath — is covered by construction. A
+	//well-formed collection path is `<collection>/<card>`, so dropping the card
+	//leaves the trailing slash that already means "the default item".
+	_pathWithLiveSelectedCard(path : string) : string {
+		if (!path.startsWith(COLLECTION_URL_PREFIX)) return path;
+		const [description, selectedCard] = CollectionDescription.deserializeWithExtra(path.slice(COLLECTION_URL_PREFIX.length));
+		if (!selectedCard || cardIDIsPlaceholder(selectedCard)) return path;
+		return commitPathDroppingLostCard(path, selectedCard, this._destinationContainsCard(description, selectedCard));
+	}
+
+	//What the router will ACTUALLY make active for a path, asked of the router's
+	//own resolution rather than guessed at. A receipt built from the requested
+	//description said "Now showing Main · 765 cards" about a URL that had landed
+	//somewhere else entirely; built from this, a wrong landing is at least
+	//reported honestly.
+	_arrivedDescription(fallback : CollectionDescription) : CollectionDescription {
+		const state = store.getState() as State;
+		//navigatePathToResult dispatches UPDATE_PAGE synchronously, so pageExtra
+		//is already the committed path by the time a commit path reads it.
+		const pageExtra = selectPageExtra(state);
+		//An EMPTY page extra is not "nothing to go on": it is precisely the
+		//`/c/` case, and card-view answers it by navigating to the app's own
+		//default collection. Naming the draft there is how "Now showing Main ·
+		//765 cards" ended up over a screen showing the default view instead.
+		if (!pageExtra) return selectDefaultCollectionDescription(state) || fallback;
+		return resolveCardSelector(state, pageExtra).description;
+	}
+
+	//The receipt's count must be the ARRIVAL's count, not the request's. Counts
+	//are retained by collection, so an arrival that matches something already
+	//previewed has one; an arrival nobody previewed gets no count rather than
+	//somebody else's.
+	_countForDescription(description : CollectionDescription) : number | undefined {
+		return this._retainedPreviewCounts.get(this._previewCountKey(description));
+	}
+
+	//One place both commit paths report from, so the receipt cannot drift from
+	//what arrived.
+	_showArrivalReceipt(returnPath : string, requested : CollectionDescription) {
+		const arrived = this._arrivedDescription(requested);
+		showCollectionNavigationReceipt(
+			returnPath,
+			readableCollectionExpression(arrived, this._composerFilterLabels),
+			this._countForDescription(arrived)
+		);
+	}
+
 	_handleOpenSource() {
 		//Mode-exclusive: the Source commit belongs to Source mode only.
 		if (this._entryMode !== 'source') return;
@@ -2619,7 +2708,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._activationMessage = '';
 		//Captured before the push, because that is what Undo returns to.
 		const returnPath = window.location.pathname;
-		const result = store.dispatch(navigatePathToResult(parsed.canonicalPath));
+		const result = store.dispatch(navigatePathToResult(this._pathWithLiveSelectedCard(parsed.canonicalPath)));
 		if (result.status === 'blocked-editing') {
 			this._activationPending = false;
 			this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
@@ -2631,11 +2720,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		store.dispatch(cancelConfigureCollectionDialog());
-		showCollectionNavigationReceipt(
-			returnPath,
-			readableCollectionExpression(parsed.description, this._composerFilterLabels),
-			this._previewCounts[this._draftPreviewID]
-		);
+		this._showArrivalReceipt(returnPath, parsed.description);
 	}
 
 	_handleComposerInput(e : InputEvent) {
@@ -2830,7 +2915,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._activationMessage = '';
 			//Captured before the push, because that is what Undo returns to.
 			const returnPath = window.location.pathname;
-			const destinationPath = suggestion.destinationPath || `/c/${suggestion.description.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+			const destinationPath = this._pathWithLiveSelectedCard(
+				suggestion.destinationPath ||
+				collectionURLPath(suggestion.description, {selectedCard: this._draftSelectedCard, originalOrder: true})
+			);
 			const result = store.dispatch(navigatePathToResult(destinationPath));
 			if (result.status === 'blocked-editing') {
 				this._activationPending = false;
@@ -2851,11 +2939,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				return;
 			}
 			store.dispatch(cancelConfigureCollectionDialog());
-			showCollectionNavigationReceipt(
-				returnPath,
-				readableCollectionExpression(suggestion.description, this._composerFilterLabels),
-				this._previewCounts[suggestion.id]
-			);
+			this._showArrivalReceipt(returnPath, suggestion.description);
 			return;
 		}
 		//A destination materialized by Tab is not "added"; the draft becomes it.
@@ -3087,7 +3171,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			label: 'Open this collection',
 			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels),
 			description: this._collectionDescription,
-			destinationPath: `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`,
+			destinationPath: collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true}),
 		}, true);
 	}
 
@@ -3281,7 +3365,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this.updateComplete.then(() => this._focusComposerInput());
 		}
 		if (this.open && changedProps.has('_entryMode') && this._entryMode === 'source') {
-			if (!this._sourceDirty && !this._sourceInput) this._sourceInput = `/c/${this._collectionDescription.serializeShortOriginalOrder()}${this._draftSelectedCard}`;
+			if (!this._sourceDirty && !this._sourceInput) this._sourceInput = collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true});
 			this.updateComplete.then(() => {
 				const input = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
 				if (!input) return;
