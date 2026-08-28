@@ -12,6 +12,7 @@ import {
 	queryTextFromQueryFilter,
 	SET_INFOS,
 	SELECTED_FILTER_NAME,
+	parseRelativeDate,
 } from './filters.js';
 
 import {
@@ -189,6 +190,58 @@ export const collectionDescriptionWithViewMode = (description : CollectionDescri
 //collectionDescriptionWithQuery returns a new cloned collection description,
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
+//THE URL WAS THE LAST SURFACE STILL SHOWING THE TYPED ORDER.
+//
+//`between` DELIBERATELY accepts its bounds either way round — the filter's own
+//comparison is order-insensitive, and the composer's display already puts the
+//earlier bound first, because 'Updated between 2026-08-21 and 2023-12-31'
+//describes a window that runs backwards. Source, though, called such a source
+//"safe to open" with nothing to say about it and then opened a URL that kept
+//the reversed order — the one place where what executed, what was displayed,
+//and what was in the address bar could all disagree.
+//
+//Spec §Canonicalization: "Canonical ordering applies when producing the final
+//canonical URL." So the ordering lives with the path builder, where the source
+//editor's existing canonicalization notice picks it up for free.
+const DATE_RANGE_FAMILIES = ['created', 'updated', 'last-tweeted'];
+const DATE_RANGE_KEYWORD = 'between';
+
+const dateBoundaryMillis = (value : string) : number => {
+	const relative = parseRelativeDate(value);
+	if (relative) return relative.getTime();
+	return new Date(value).getTime();
+};
+
+//Exported because the display ordering and the URL ordering must be the same
+//rule; two copies is how they came to disagree in the first place.
+export const chronologicalDateBounds = (values : string[]) : string[] => {
+	if (values.length !== 2) return values;
+	const [first, second] = values.map(dateBoundaryMillis);
+	//An unparseable bound is not evidence of anything, so leave it as typed.
+	if (!Number.isFinite(first) || !Number.isFinite(second)) return values;
+	return first <= second ? values : [values[1], values[0]];
+};
+
+export const collectionDescriptionWithOrderedDateBounds = (description : CollectionDescription) : CollectionDescription => {
+	let changed = false;
+	const filters = description.filters.map(filter => {
+		const parts = filter.split('/');
+		//The keyword only means a date range after a date FAMILY: `query/between`
+		//is somebody searching for the word.
+		const at = parts.findIndex((part, index) => part === DATE_RANGE_KEYWORD && index > 0 && DATE_RANGE_FAMILIES.includes(parts[index - 1]));
+		if (at < 0 || parts.length < at + 3) return filter;
+		const ordered = chronologicalDateBounds([parts[at + 1], parts[at + 2]]);
+		if (ordered[0] === parts[at + 1]) return filter;
+		changed = true;
+		const next = [...parts];
+		next[at + 1] = ordered[0];
+		next[at + 2] = ordered[1];
+		return next.join('/');
+	});
+	if (!changed) return description;
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
 export const collectionDescriptionWithQuery = (description : CollectionDescription, queryText : string) : CollectionDescription => {
 	return collectionDescriptionWithConfigurableFilter(description, queryFilter(queryText));
 };

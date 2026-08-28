@@ -220,10 +220,19 @@ describe('Collection Composer interactions', () => {
 		const block = source.slice(start, source.indexOf('</button>', start));
 		//The tooltip still carries the whole expression, but as a COMMAND rather
 		//than a bare state readout (HS-2.5) — same shape as the aria-label below.
-		assert.match(block, /title=\$\{`Refine collection: \$\{readableCollectionExpression\(this\._collection\.description\)\}`\}/,
+		//Both now read one getter rather than two copies of one template: the
+		//name also has to say when a clause was struck (see the unresolved-clause
+		//test below), and two literals would have drifted the first time it did.
+		assert.match(block, /title=\$\{this\._collectionSummaryName\}/,
 			'hover must reveal the complete expression, in the command form');
-		assert.match(block, /aria-label=\$\{`Refine collection: \$\{readableCollectionExpression/,
+		assert.match(block, /aria-label=\$\{this\._collectionSummaryName\}/,
 			'assistive tech must hear the complete expression');
+		const nameStart = source.indexOf('get _collectionSummaryName()');
+		assert.ok(nameStart >= 0, 'card-view must compose the summary\'s name in one place');
+		const name = source.slice(nameStart, source.indexOf('\n\t}', nameStart));
+		assert.match(name, /`Refine collection: \$\{expression\}`/,
+			'and it is still the complete expression in the command form');
+		assert.match(name, /readableCollectionExpression\(this\._collection\.description\)/);
 		assert.match(source, /\.collection-summary-main:focus-visible \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,
 			'keyboard focus, which gets neither a tooltip nor a label readout, must unfold it');
 	});
@@ -3247,6 +3256,93 @@ describe('Collection Composer interactions', () => {
 		//The variant itself is right and stays: §4.2 names the filled text
 		//button for a gate, and taking it fixed purple-on-dark-grey.
 		assert.match(source, /class='text collection-empty-refine'/);
+	});
+
+	//THE SENTENCE AND THE COUNT HAVE TO AGREE.
+	//
+	//When "Didn't understand 'tag-33x' in this URL" fires, the collection is
+	//computed WITHOUT that clause — but the sentence went on listing it in the
+	//same weight as every real clause, two lines above the notice contradicting
+	//it. The clause stays visible (the user asked for it, and §Unavailable
+	//filter says preserve and explain) and reads as what it is: named, not
+	//applied.
+	it('marks a clause the URL parser could not resolve in the collection sentence', async () => {
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
+		const start = source.indexOf('class=\'collection-summary-expression\'');
+		assert.ok(start >= 0, 'the summary must render the expression');
+		//To the NEXT element of the summary, not to the first '</span>': the
+		//expression's own template closes several spans of its own.
+		const block = source.slice(start, source.indexOf('collection-summary-action', start));
+		assert.match(block, /\?data-unresolved=\$\{unresolved\.has\(filter\.raw\)\}/,
+			'each clause is marked against the arrival\'s own diagnostics');
+		//The STRIKE is the signal, not the colour — colour alone would carry it
+		//to nobody who cannot see it (§4.1).
+		assert.match(source, /\.collection-summary-clause\[data-unresolved\]\s*\{[^}]*text-decoration:\s*line-through/);
+		assert.ok(!/\.collection-summary-clause\[data-unresolved\]\s*\{[^}]*var\(--app-warning-color\)/.test(source),
+			'nothing went wrong here, so it does not take the amber state colour');
+		//And assistive tech, which gets neither the strike nor the tooltip,
+		//hears it in the button's name.
+		const nameStart = source.indexOf('get _collectionSummaryName()');
+		const name = source.slice(nameStart, source.indexOf('\n\t}', nameStart));
+		assert.match(name, /not understood and/, 'the accessible name says which clauses were struck');
+		//The diagnostic itself stays where it was — this marks the sentence, it
+		//does not replace the notice.
+		const drawer = await readFile(path.join(REPO_ROOT, 'src/components/card-drawer.ts'), 'utf8');
+		assert.match(drawer, /Didn’t understand/, 'the notice is still shown');
+	});
+
+	//SPEC §Narrow: suggestions are suppressed when they are contradictory. A
+	//narrowing clause whose RESOLVED count is zero, offered under the heading
+	//"Refine this collection", proposes a refinement that refines the collection
+	//out of existence.
+	it('keeps a contradictory refinement out of the Refine list, and in the catalog', async () => {
+		await seedRecents([['main/starred/sort/recent/', 2]]);
+		//A resolved, non-zero draft, and a resolved zero for one add row.
+		const draftKey = dialog._previewCountKey(dialog._collectionDescription);
+		dialog._retainedPreviewCounts.set(draftKey, 42);
+		const addRow = dialog._composerSuggestions.find(suggestion => suggestion.action === 'add');
+		assert.ok(addRow, 'there is an add row to suppress');
+		dialog._retainedPreviewCounts.set(dialog._previewCountKey(addRow.description), 0);
+		dialog.requestUpdate();
+		await settleRender(dialog);
+		assert.ok(!dialog._composerSuggestions.some(suggestion => suggestion.id === addRow.id),
+			'a clause that resolves to nothing is not a refinement');
+		//Still findable: the catalog is a different surface and is untouched.
+		assert.ok(dialog._catalogItems.some(item => addRow.description.filters.includes(item.filter)),
+			'the filter itself is still in the catalog');
+		//And once the user NAMES it, it comes back — the rows are then
+		//interpretations of what they typed, not unsolicited offers.
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		await typeInto(input, dialog._composerFilterLabels[addRow.description.filters.slice(-1)[0]] ||
+			addRow.description.filters.slice(-1)[0]);
+		assert.ok(dialog._composerSuggestions.some(suggestion => suggestion.description.serialize() === addRow.description.serialize()),
+			'a filter the user asked for by name is never hidden from them');
+		await typeInto(input, '');
+	});
+
+	//THE FOOTER STATES THE CONTRACT THAT IS IN FORCE. '←→ choose clause' is true
+	//only while the composer INPUT has focus; once a clause editor is open,
+	//focus is inside it and ←→ move the caret in its own fields. Routing the
+	//keys away from the editor would break editing a date to keep a footer
+	//honest, so the footer says what this mode actually offers.
+	it('stops promising ←→ once a clause editor owns the arrow keys', async () => {
+		const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
+		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/unread/')));
+		await settleRender(dialog);
+		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent.trim();
+		//Selecting a clause without opening its editor: the keys really are the
+		//composer input's, and the line is unchanged.
+		dialog._selectedClauseIndex = 0;
+		await settleRender(dialog);
+		assert.match(hints(), /←→ choose clause/);
+		//Opening the editor moves focus into it.
+		dialog.shadowRoot.querySelector('.expression-clause-label').click();
+		await settleRender(dialog);
+		assert.ok(dialog._builderExpanded, 'the editor is open');
+		assert.ok(!/←→/.test(hints()), `the footer must not promise a key the editor owns: ${hints()}`);
+		assert.match(hints(), /Editing a clause/);
+		//And it names the way out that is actually registered for this layer.
+		assert.match(hints(), /closes the editor/);
 	});
 
 	//A LIST OPENS AT ITS TOP.

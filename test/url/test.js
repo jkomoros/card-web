@@ -17,6 +17,7 @@ globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 let CollectionDescription;
 let collectionDescriptionWithQuery;
 let collectionURLPath;
+let collectionDescriptionWithOrderedDateBounds;
 let COLLECTION_URL_PREFIX;
 let UNION_FILTER_DELIMITER;
 
@@ -26,6 +27,7 @@ describe('card-web url parsing', () => {
 			CollectionDescription,
 			collectionDescriptionWithQuery,
 			collectionURLPath,
+			collectionDescriptionWithOrderedDateBounds,
 			COLLECTION_URL_PREFIX,
 		} = await import('../../lib/src/collection_description.js'));
 		({
@@ -211,6 +213,31 @@ describe('card-web url parsing', () => {
 		const description = new CollectionDescription('', ['starred', 'has-todo']);
 		assert.strictEqual(collectionURLPath(description, {originalOrder: true}), '/c/starred/has-todo/');
 		assert.strictEqual(collectionURLPath(description), '/c/has-todo/starred/');
+	});
+
+	//`between` accepts its bounds either way round, and the display already puts
+	//the earlier one first. The URL was the last surface still showing the typed
+	//order, which is why Source could call a reversed range "safe to open" with
+	//nothing to add. Spec §Canonicalization: canonical ordering applies when
+	//producing the final canonical URL.
+	it('orders a reversed date range when producing the canonical URL', async () => {
+		const reversed = CollectionDescription.deserialize('main/updated/between/2026-08-21/2023-12-31/');
+		const ordered = collectionDescriptionWithOrderedDateBounds(reversed);
+		assert.deepStrictEqual([...ordered.filters], ['updated/between/2023-12-31/2026-08-21']);
+		//Already in order: the SAME object, so nothing downstream sees a change
+		//that did not happen.
+		assert.strictEqual(collectionDescriptionWithOrderedDateBounds(ordered), ordered);
+	});
+
+	it('leaves a `between` that is not a date range alone', async () => {
+		//The keyword only means a date range after a date FAMILY. `query/between`
+		//is somebody searching for the word, and its neighbours are filters of
+		//their own, not bounds.
+		const query = CollectionDescription.deserialize('main/query/between/starred/');
+		assert.strictEqual(collectionDescriptionWithOrderedDateBounds(query), query);
+		//And an unparseable bound is not evidence of anything either.
+		const vague = CollectionDescription.deserialize('main/updated/between/not-a-date/2023-12-31/');
+		assert.strictEqual(collectionDescriptionWithOrderedDateBounds(vague), vague);
 	});
 
 	//The prefix is duplicated — actions/app.ts sits above collection_description

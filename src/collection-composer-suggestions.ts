@@ -7,6 +7,7 @@ import {
 	collectionDescriptionWithSelected,
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSortReversed,
+	chronologicalDateBounds,
 } from './collection_description.js';
 
 import {
@@ -16,7 +17,6 @@ import {
 	NONE_FILTER_NAME,
 	SELECTED_FILTER_NAME,
 	TODO_COMBINED_FILTER_NAME,
-	parseRelativeDate,
 	parseRelativeDateParts,
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
@@ -235,25 +235,17 @@ const readableDateBoundary = (value: string): string => {
 //through the engine's own resolver, a fixed one through Date. A bound that
 //resolves to neither sorts as NaN, and the comparison below leaves the pair
 //alone rather than guessing at an order for something it cannot read.
-const dateBoundaryValue = (value: string): number => {
-	const relative = parseRelativeDate(value);
-	if (relative) return relative.getTime();
-	return new Date(value).getTime();
-};
-
-//`between` DELIBERATELY accepts its bounds in either order — filters.ts swaps
-//them so the range still filters (the comment there says so in as many words).
-//The LABEL had no such licence: 'Updated between 2026-08-19 and 2020-01-01'
-//describes a window that runs backwards and therefore matches nothing, while
-//the collection it names matches plenty. The engine keeps its tolerance; the
-//display puts the earlier bound first, so the sentence describes the window
-//that actually filters.
-const displayOrderedBounds = (values: string[]): string[] => {
-	if (values.length !== 2) return values;
-	const [first, second] = values.map(dateBoundaryValue);
-	if (!Number.isFinite(first) || !Number.isFinite(second)) return values;
-	return first <= second ? values : [values[1], values[0]];
-};
+//`between` DELIBERATELY accepts its bounds in either order — filters.ts's
+//comparison is order-insensitive. The LABEL had no such licence: 'Updated
+//between 2026-08-19 and 2020-01-01' describes a window that runs backwards and
+//therefore matches nothing, while the collection it names matches plenty. The
+//engine keeps its tolerance; the display puts the earlier bound first, so the
+//sentence describes the window that actually filters.
+//
+//ONE rule, shared with the path builder, which orders the same bounds when it
+//produces the canonical URL. Two copies is how the display and the URL came to
+//disagree about the same range.
+const displayOrderedBounds = chronologicalDateBounds;
 
 const derivedDateFilterName = (family: string, values: string[]): string => {
 	const name = DATE_FILTER_DISPLAY_NAMES[family];

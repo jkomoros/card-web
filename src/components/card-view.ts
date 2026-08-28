@@ -1,4 +1,5 @@
 import { html, css, PropertyValues } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -310,6 +311,14 @@ const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
 const COLLECTION_UPDATING_GRACE_MS = 200;
 
 
+
+//A stable empty set, so the summary's memo-free getter does not hand Lit a new
+//object on every render when there is nothing to mark.
+const EMPTY_UNRESOLVED_CLAUSES : ReadonlySet<string> = new Set<string>();
+
+//One sentence for a mouse; the drawer's own notice carries the full
+//explanation of what the app did instead. U+2019 apostrophe (§2.2).
+const UNRESOLVED_CLAUSE_NOTE = 'This app didn’t understand this clause, so it isn’t part of the collection or its count';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -657,6 +666,24 @@ class CardView extends connect(store)(PageViewElement) {
 				-webkit-line-clamp: unset;
 			}
 
+			/* A CLAUSE THE APP COULD NOT RESOLVE IS NOT PART OF THE COUNT.
+			   The sentence went on listing a phantom clause in the same weight
+			   as every real one, over a card count computed WITHOUT it — the
+			   drawer said "Didn't understand 'tag-33x' in this URL" two lines
+			   below, and the sentence contradicted it. Struck through, the
+			   clause is still visible (the user asked for it, and the spec's
+			   "Unavailable filter" says preserve it and explain) while reading
+			   as what it is: named, not applied.
+			   The strike is the signal, not the colour — colour alone would
+			   fail §4.1 — and the colour steps down to the same body-text grey
+			   card-drawer's own notice uses, because nothing went wrong here.
+			   The title says what happened for a mouse, and the button's
+			   aria-label says it for assistive tech. */
+			.collection-summary-clause[data-unresolved] {
+				color: var(--app-dark-text-color-light);
+				text-decoration: line-through;
+			}
+
 			.collection-summary-action {
 				color: var(--app-primary-color);
 				display: block;
@@ -789,6 +816,27 @@ class CardView extends connect(store)(PageViewElement) {
 		return this._collection.finalSortedCards.length === 0;
 	}
 
+	//What a struck clause means, in one sentence, for a mouse. The drawer's own
+	//notice carries the full explanation of what the app did instead.
+	get _unresolvedClauses() : ReadonlySet<string> {
+		if (!this._urlDiagnostics || !this._urlDiagnostics.length) return EMPTY_UNRESOLVED_CLAUSES;
+		return new Set(this._urlDiagnostics.map(diagnostic => diagnostic.part));
+	}
+
+	//THE SENTENCE AND THE COUNT HAVE TO AGREE. A clause the parser could not
+	//resolve is not in the collection the count describes, so the accessible
+	//name says so too — the strike below carries it on screen, and colour and
+	//decoration alone reach nobody using a screen reader.
+	get _collectionSummaryName() : string {
+		if (!this._collection) return '';
+		const expression = readableCollectionExpression(this._collection.description);
+		const unresolved = this._unresolvedClauses;
+		const struck = this._collection.description.filters.filter(filter => unresolved.has(filter));
+		if (!struck.length) return `Refine collection: ${expression}`;
+		const named = struck.map(filter => `“${filter}”`).join(', ');
+		return `Refine collection: ${expression} — ${named} ${struck.length === 1 ? 'was' : 'were'} not understood and ${struck.length === 1 ? 'is' : 'are'} not part of this collection`;
+	}
+
 	override render() {
 		return html`
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
@@ -866,8 +914,8 @@ class CardView extends connect(store)(PageViewElement) {
 						     clicking it does. Same command form as the aria-label. -->
 						<button
 							class='collection-summary-main'
-							title=${`Refine collection: ${readableCollectionExpression(this._collection.description)}`}
-							aria-label=${`Refine collection: ${readableCollectionExpression(this._collection.description)}`}
+							title=${this._collectionSummaryName}
+							aria-label=${this._collectionSummaryName}
 							@click=${this._handleConfigureCollectionClicked}
 						>
 							<!-- STRUCTURE, NOT ONE FLAT STRING. The whole sentence
@@ -881,7 +929,8 @@ class CardView extends connect(store)(PageViewElement) {
 							     collection. -->
 							<span class='collection-summary-expression'>${(() => {
 		const parts = collectionExpressionParts(this._collection.description);
-		return html`<span class='collection-summary-clause'>${parts.set.label}</span>${parts.filters.map(filter => html`<span class='collection-summary-operator'> AND </span><span class='collection-summary-clause'>${filter.label}</span>`)}${parts.modifiers.length ? html`<span class='collection-summary-operator'> · ${parts.modifiers.join(' · ')}</span>` : ''}`;
+		const unresolved = this._unresolvedClauses;
+		return html`<span class='collection-summary-clause'>${parts.set.label}</span>${parts.filters.map(filter => html`<span class='collection-summary-operator'> AND </span><span class='collection-summary-clause' ?data-unresolved=${unresolved.has(filter.raw)} title=${ifDefined(unresolved.has(filter.raw) ? UNRESOLVED_CLAUSE_NOTE : undefined)}>${filter.label}</span>`)}${parts.modifiers.length ? html`<span class='collection-summary-operator'> · ${parts.modifiers.join(' · ')}</span>` : ''}`;
 	})()}</span>
 							<span class='collection-summary-action'>${
 	this._collection.description.filters.length ||

@@ -2180,12 +2180,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const escapeHint = `${shortcutKeys('dialog-escape')} cancels`;
 		if (this.mobile) {
 			if (this._catalogOpen) return 'Tap a filter to add or configure it';
+			if (this._builderExpanded) return 'Editing a clause · tap Done editing to close it · tap another clause to edit it';
 			if (this._selectedClauseIndex >= 0) return 'Tap a clause to edit it · tap its remove button to take it out';
 			return suggestions.length ?
 				'Tap a row to use it — each says what it does · tap the open button for this collection' :
 				'Type to compose · tap the open button for this collection';
 		}
 		if (this._catalogOpen) return `Type to search · ↑↓ choose · Enter opens Source, configures, or adds · ${shortcutKeys('dialog-escape')} closes catalog`;
+		//AN OPEN EDITOR OWNS THE ARROW KEYS. ←→ choose a clause only while the
+		//composer INPUT has focus, because the handler that implements them
+		//lives on that input; once a clause editor is open, focus is inside it
+		//and ←→ move the caret in its own fields. Routing the keys away from
+		//the editor to make the old line true would break editing a date in
+		//order to keep a footer honest — so the footer states what is in force
+		//in this mode instead, which is what §3.5's contract asks of it.
+		if (this._builderExpanded) return `Editing a clause · ${shortcutKeys('dialog-escape')} closes the editor · click another clause to edit it`;
 		if (this._selectedClauseIndex >= 0) return '←→ choose clause · Delete removes · type to continue';
 		if (!highlighted) {
 			return suggestions.length ?
@@ -2295,6 +2304,33 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
+	//SPEC §Narrow: "Suggestions should be suppressed when they are redundant,
+	//contradictory, or known to produce the same set." A narrowing clause whose
+	//RESOLVED count is zero while the collection itself is not empty is
+	//contradictory by measurement — offering 'Add Starred · 0 cards' in a list
+	//headed "Refine this collection" proposes a refinement that refines the
+	//collection out of existence.
+	//
+	//Only in the empty-input state, which is the Refine list the spec is
+	//talking about. Once the user has typed, the rows are INTERPRETATIONS of
+	//what they typed, and hiding the filter somebody just named is a different
+	//and worse defect. The filter catalog is unaffected either way, so a
+	//contradictory clause is always still findable — this suppresses an
+	//unsolicited offer, not the filter.
+	//
+	//Counts come from the retained map, keyed by COLLECTION, rather than from
+	//_previewCounts, which is keyed by suggestion id and rebuilt from the
+	//visible list: suppressing a row on a count that then stops being requested
+	//because the row is gone is an oscillation, not a suppression.
+	_withoutContradictoryRefinements(suggestions : CollectionComposerSuggestion[]) : CollectionComposerSuggestion[] {
+		if (this._composerInput.trim()) return suggestions;
+		const draftCount = this._countForDescription(this._collectionDescription);
+		if (draftCount === undefined || draftCount === 0) return suggestions;
+		const filtered = suggestions.filter(suggestion =>
+			suggestion.action !== 'add' || this._countForDescription(suggestion.description) !== 0);
+		return filtered.length === suggestions.length ? suggestions : filtered;
+	}
+
 	//The index of the visibly highlighted suggestion, or -1 when nothing is
 	//highlighted. Everything that reads the highlight — the rendered marker,
 	//aria-activedescendant, the key hints, and the keydown handlers — goes
@@ -2367,7 +2403,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (memo && memo.key === key && this._suggestionHighlightActive) {
 			return frozenOrderSuggestions(suggestions, memo.order);
 		}
-		const ranked = rankedSuggestionsFor(suggestions, this._previewCounts);
+		const ranked = rankedSuggestionsFor(this._withoutContradictoryRefinements(suggestions), this._previewCounts);
 		const order = ranked.map(suggestion => suggestion.id);
 		//Only when the order actually moved: reassigning an identical memo would
 		//hand the frozen-order path a new array every render and defeat its

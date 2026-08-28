@@ -1,4 +1,4 @@
-import { CollectionDescription, collectionURLPath } from './collection_description.js';
+import { CollectionDescription, collectionDescriptionWithOrderedDateBounds, collectionURLPath } from './collection_description.js';
 import {
 	CONFIGURABLE_FILTER_NAMES,
 	CONFIGURABLE_FILTER_ARGUMENTS,
@@ -502,7 +502,11 @@ export const parseCollectionSource = (
 				status = 'invalid';
 				description = undefined;
 			} else {
-				canonicalPath = collectionURLPath(description, {selectedCard: selectedCardRaw});
+				//The canonical URL, which is where a reversed `between` range is
+				//put back in order — the source editor's canonicalization
+				//notice then fires on its own, because the path it would open
+				//is no longer the text that was typed.
+				canonicalPath = collectionURLPath(collectionDescriptionWithOrderedDateBounds(description), {selectedCard: selectedCardRaw});
 				if (raw.endsWith('/') && (kind === 'fragment' || routeHasTrailingSlash)) {
 					nextExpected = rootTokens.filter(token => !SET_NAMES.includes(token as never) &&
 						!(token === 'sort' && sawSort) && !(token === 'view' && sawView) && !filters.includes(token)).slice(0, 12);

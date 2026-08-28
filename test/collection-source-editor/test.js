@@ -263,6 +263,31 @@ describe('lossless collection source editor', () => {
 		assert.strictEqual(parse('starred/view/we').status, 'incomplete');
 	});
 
+	//A REVERSED `between` RANGE IS A REWRITE, AND HAS TO SAY SO.
+	//
+	//`between` accepts its bounds either way round — the comparison is
+	//order-insensitive — and the composer's display already puts the earlier
+	//bound first, because 'Updated between 2026-08-21 and 2023-12-31' names a
+	//window that runs backwards. Source was the one surface that still said
+	//"safe to open" with nothing to add and then opened a URL in the typed
+	//order: what executed, what was displayed, and what was in the address bar
+	//could all disagree. The canonical path now carries the ordered form, which
+	//is what makes the editor's existing canonicalization notice fire.
+	it('puts a reversed date range back in order in the canonical URL', () => {
+		const reversed = parse('updated/between/2026-08-21/2023-12-31/');
+		assert.strictEqual(reversed.status, 'valid');
+		//The harness's parse() preserves a selected card, which rides along on
+		//the end of every canonical path it builds.
+		assert.strictEqual(reversed.canonicalPath, '/c/updated/between/2023-12-31/2026-08-21/active-card');
+		//The DESCRIPTION keeps what was typed, so the visual rows do not jump
+		//around mid-session (spec §Canonicalization); only the final URL is
+		//canonical.
+		assert.deepStrictEqual([...reversed.description.filters], ['updated/between/2026-08-21/2023-12-31']);
+		//And a range already in order is not a rewrite, so nothing is claimed.
+		const ordered = parse('updated/between/2023-12-31/2026-08-21/');
+		assert.strictEqual(ordered.canonicalPath, '/c/updated/between/2023-12-31/2026-08-21/active-card');
+	});
+
 	//The parser reports the origin it READ; only the UI knows which origin is
 	//the one this client runs on, and therefore whether one was translated.
 	it('reports the origin a full URL was written against', () => {
