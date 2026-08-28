@@ -33,6 +33,8 @@ let makeConfigurableFilter;
 let configurableFilterCacheKey;
 let filterNameIsViewerDependent;
 let filterNamesAreViewerDependent;
+let collectionLinkCopiedMessage;
+let COLLECTION_LINK_COPY_FAILED_MESSAGE;
 
 const descriptions = {
 	starred: 'Cards you have starred',
@@ -65,6 +67,10 @@ describe('Collection Composer suggestions', () => {
 			filterNameIsViewerDependent,
 			filterNamesAreViewerDependent,
 		} = await import('../../lib/src/filters.js'));
+		({
+			collectionLinkCopiedMessage,
+			COLLECTION_LINK_COPY_FAILED_MESSAGE,
+		} = await import('../../lib/src/collection-link-copy.js'));
 	});
 
 	describe('viewer-dependent filters', () => {
@@ -137,6 +143,70 @@ describe('Collection Composer suggestions', () => {
 			assert.ok(row, 'the typed path offers the candidate');
 			assert.ok(row.detail.includes('copied links keep it'), row.detail);
 			assert.ok(!row.viewerDependent);
+		});
+	});
+
+	//The clipboard itself is unreachable from a test runner and blocked in the
+	//browser harness, so what is pinned here is the sentence the success path
+	//hands to the snack bar — the part that actually had to change.
+	describe('the sentence after Copy link', () => {
+		it('names the collection and its size instead of only confirming a copy', () => {
+			assert.strictEqual(
+				collectionLinkCopiedMessage(
+					CollectionDescription.deserialize('everything/working-notes/has-todo/'),
+					{},
+					42
+				),
+				'Copied a link to Everything AND Working Notes AND Has any TODO · 42 cards · Works for anyone.'
+			);
+		});
+
+		it('says the link resolves differently for other people when it does', () => {
+			assert.strictEqual(
+				collectionLinkCopiedMessage(
+					CollectionDescription.deserialize('everything/unread/'),
+					{},
+					7
+				),
+				'Copied a link to Everything AND Unread · 7 cards · Results depend on who views it.'
+			);
+		});
+
+		it('drops the count rather than claiming zero when none has resolved', () => {
+			assert.strictEqual(
+				collectionLinkCopiedMessage(CollectionDescription.deserialize('everything/has-todo/')),
+				'Copied a link to Everything AND Has any TODO · Works for anyone.'
+			);
+		});
+
+		it('keeps a long expression to a sentence', () => {
+			const message = collectionLinkCopiedMessage(
+				CollectionDescription.deserialize('everything/working-notes/has-todo/has-links/has-comments/published/'),
+				{},
+				3
+			);
+			const expression = message.slice('Copied a link to '.length, message.indexOf(' · 3 cards'));
+			assert.ok(expression.length <= 60, `expression was ${expression.length} chars: ${expression}`);
+			assert.ok(expression.endsWith('…'), expression);
+			assert.ok(message.endsWith('· 3 cards · Works for anyone.'), message);
+		});
+
+		it('uses the labels the composer names clauses with', () => {
+			assert.strictEqual(
+				collectionLinkCopiedMessage(
+					CollectionDescription.deserialize('everything/author/visibleperson/'),
+					{ 'author/visibleperson': 'Contributed By Casey' },
+					2
+				),
+				'Copied a link to Everything AND Contributed By Casey · 2 cards · Works for anyone.'
+			);
+		});
+
+		it('offers a next step when the browser refuses the clipboard', () => {
+			assert.strictEqual(
+				COLLECTION_LINK_COPY_FAILED_MESSAGE,
+				'Could not copy the collection link. The link is shown in Edit source.'
+			);
 		});
 	});
 

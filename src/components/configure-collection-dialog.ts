@@ -164,6 +164,11 @@ import {
 } from '../collection-composer-suggestions.js';
 
 import {
+	collectionLinkCopiedMessage,
+	COLLECTION_LINK_COPY_FAILED_MESSAGE,
+} from '../collection-link-copy.js';
+
+import {
 	readRememberedCollections,
 	RememberedCollectionEntry,
 } from '../collection-composer-history.js';
@@ -2751,17 +2756,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	//A transient outcome is a snackbar (§3.5, §5) — not a fourth kind of inline
 	//message with its own state field, its own CSS and its own lifetime rules.
-	//card-view's copy button on the same collection already says exactly these
-	//two sentences this way; two spellings of one outcome is how sync-copy's
-	//eight sentences happened.
+	//card-view's copy button on the same collection says exactly these two
+	//sentences; two spellings of one outcome is how sync-copy's eight sentences
+	//happened. Now that the success message is COMPOSED rather than literal,
+	//keeping the two in step means calling one builder, not copying one string:
+	//collection-link-copy.ts owns the wording for both.
 	async _handleCopySourceLink() {
-		const path = this._parsedSource.canonicalPath;
+		const parsed = this._parsedSource;
+		const path = parsed.canonicalPath;
 		if (!path) return;
 		try {
 			await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
-			store.dispatch(showSnackbar('Collection link copied.'));
+			//The description that produced the path, so the sentence describes
+			//what was actually copied rather than the draft it came from — and
+			//_countForDescription for the same reason the arrival receipt uses
+			//it: a count belongs to the collection it was measured for. Reaching
+			//for the DRAFT's count here said '0 cards' about a link to a
+			//collection nobody had counted, which is the one thing worse than
+			//saying no number at all. A collection nobody previewed gets no
+			//count segment rather than somebody else's.
+			const description = parsed.description || this._collectionDescription;
+			store.dispatch(showSnackbar(collectionLinkCopiedMessage(description, this._composerFilterLabels, this._countForDescription(description))));
 		} catch {
-			store.dispatch(showSnackbar('Could not copy the collection link.', {kind: 'refused'}));
+			store.dispatch(showSnackbar(COLLECTION_LINK_COPY_FAILED_MESSAGE, {kind: 'refused'}));
 		}
 	}
 

@@ -124,6 +124,11 @@ import {
 } from '../actions/app.js';
 
 import {
+	collectionLinkCopiedMessage,
+	COLLECTION_LINK_COPY_FAILED_MESSAGE,
+} from '../collection-link-copy.js';
+
+import {
 	deepActiveElement
 } from '../util.js';
 
@@ -1182,11 +1187,16 @@ class CardView extends connect(store)(PageViewElement) {
 			//'info': a clipboard write is not a write to a server, so none of
 			//the outcome words in snackbar-copy.ts apply to it.
 			await navigator.clipboard.writeText(url);
-			store.dispatch(showSnackbar('Collection link copied.'));
+			//DESCRIBE THE LINKED VIEW, which is what the spec asks Copy link to
+			//do. 'Collection link copied.' confirmed that something was copied;
+			//with two collections open and one clipboard, that is not enough to
+			//tell which. numCards is already computed for the count this button
+			//sits beside, so naming it costs nothing.
+			store.dispatch(showSnackbar(collectionLinkCopiedMessage(this._collection.description, {}, this._collection.numCards)));
 		} catch {
 			//'refused' is the kind for "this did not happen, and no data is at
 			//stake" — the browser declined clipboard access.
-			store.dispatch(showSnackbar('Could not copy the collection link.', {kind: 'refused'}));
+			store.dispatch(showSnackbar(COLLECTION_LINK_COPY_FAILED_MESSAGE, {kind: 'refused'}));
 		}
 	}
 
