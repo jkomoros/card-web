@@ -31,6 +31,8 @@ let activeCardRelationshipCandidates;
 let activeCardMetadataCandidates;
 let makeConfigurableFilter;
 let configurableFilterCacheKey;
+let filterNameIsViewerDependent;
+let filterNamesAreViewerDependent;
 
 const descriptions = {
 	starred: 'Cards you have starred',
@@ -57,7 +59,85 @@ describe('Collection Composer suggestions', () => {
 			activeCardMetadataCandidates,
 		} = await import('../../lib/src/collection-composer-suggestions.js'));
 		({ selectCollectionComposerCandidates } = await import('../../lib/src/selectors.js'));
-		({ makeConfigurableFilter, configurableFilterCacheKey } = await import('../../lib/src/filters.js'));
+		({
+			makeConfigurableFilter,
+			configurableFilterCacheKey,
+			filterNameIsViewerDependent,
+			filterNamesAreViewerDependent,
+		} = await import('../../lib/src/filters.js'));
+	});
+
+	describe('viewer-dependent filters', () => {
+		it('flags every filter whose membership is computed from the signed-in account', () => {
+			for (const filter of ['starred', 'unstarred', 'read', 'unread', 'in-reading-list', 'not-in-reading-list']) {
+				assert.ok(filterNameIsViewerDependent(filter), `${filter} depends on who is looking`);
+			}
+		});
+
+		it('separates naming yourself from naming a person', () => {
+			//`me` is resolved against extras.userID at evaluation time, so the same
+			//URL names a different person for every reader.
+			assert.ok(filterNameIsViewerDependent('author/me'));
+			assert.ok(filterNameIsViewerDependent('author/me+visibleperson'));
+			//A concrete uid is durable, which is exactly what lets the contributor
+			//candidates promise a copied link keeps the same person.
+			assert.ok(!filterNameIsViewerDependent('author/visibleperson'));
+		});
+
+		it('leaves impersonal filters alone', () => {
+			for (const filter of ['working-notes', 'has-todo', 'published', 'query/systems', 'updated/after/3-days-ago', 'selected']) {
+				assert.ok(!filterNameIsViewerDependent(filter), `${filter} is the same collection for everyone`);
+			}
+		});
+
+		it('treats one personal clause as making the whole collection personal', () => {
+			assert.ok(filterNamesAreViewerDependent(['working-notes', 'unread']));
+			assert.ok(!filterNamesAreViewerDependent(['working-notes', 'has-todo']));
+			assert.ok(!filterNamesAreViewerDependent([]));
+		});
+
+		it('marks the chip for a personal clause and not for its neighbours', () => {
+			const parts = collectionExpressionParts(
+				CollectionDescription.deserialize('everything/working-notes/unread/')
+			);
+			assert.deepStrictEqual(
+				parts.filters.map((filter) => [filter.raw, filter.viewerDependent]),
+				[['working-notes', false], ['unread', true]]
+			);
+		});
+
+		it('refuses to promise durability for a clause that is recomputed per reader', () => {
+			const suggestions = collectionComposerSuggestions(
+				CollectionDescription.deserialize('everything/'),
+				'',
+				descriptions
+			);
+			const starred = suggestions.find((suggestion) => suggestion.name === 'Starred');
+			assert.ok(starred, 'the empty state offers Starred');
+			assert.strictEqual(starred.viewerDependent, true);
+			//The reassuring sentence is the one thing this row must not say.
+			assert.ok(!starred.detail.includes('copied links keep'), starred.detail);
+		});
+
+		it('keeps the durability promise for a clause that really is durable', () => {
+			const candidate = {
+				filter: 'working-notes',
+				category: 'todo',
+				label: 'Working Notes',
+				detail: 'Anchors to the open card',
+				spotlight: true,
+			};
+			const suggestions = collectionComposerSuggestions(
+				CollectionDescription.deserialize('everything/'),
+				'working',
+				descriptions,
+				{ candidates: [candidate] }
+			);
+			const row = suggestions.find((suggestion) => suggestion.id.startsWith('candidate:'));
+			assert.ok(row, 'the typed path offers the candidate');
+			assert.ok(row.detail.includes('copied links keep it'), row.detail);
+			assert.ok(!row.viewerDependent);
+		});
 	});
 
 	it('starts from the current collection with deterministic transformations', () => {

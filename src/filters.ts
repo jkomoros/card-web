@@ -2438,6 +2438,59 @@ export const CARD_FILTER_DESCRIPTIONS = Object.assign(
 	Object.fromEntries(Object.entries(INVERSE_FILTER_NAMES).map(entry => [entry[0], 'Inverse of ' + entry[1]]))
 );
 
+//WHOSE cards these are. A filter is viewer-dependent when its membership is
+//computed from the signed-in account's own data rather than from the cards
+//themselves: two people opening the same URL get different collections, and
+//the person who copied the link is the only one who sees what they saw.
+//
+//This is metadata about a filter, so it lives beside the other derived filter
+//registries rather than in the composer. Every surface that has to be honest
+//about personal scope — the caution on a chip, Source's readiness sentence,
+//the durability note on a suggestion — asks this one predicate, so they cannot
+//drift into disagreeing about which filters are personal.
+//
+//Deliberately NOT included: `selected`/`not-selected`. Those depend on the
+//current session's selection, not on who is looking, and they already carry
+//their own honest detail explaining that. Widening this flag to cover them
+//would make "only for you" the answer to two different questions.
+const VIEWER_DEPENDENT_POSITIVE_FILTER_NAMES = [
+	//state.collection.filters.starred and .read, populated by UPDATE_STARS and
+	//UPDATE_READS out of this account's own documents.
+	'starred',
+	'read',
+	//A reading list is a per-user set, and its filter equivalent inherits that.
+	SET_INFOS['reading-list'].filterEquivalent,
+];
+
+export const VIEWER_DEPENDENT_FILTER_NAMES : ReadonlySet<string> = new Set([
+	...VIEWER_DEPENDENT_POSITIVE_FILTER_NAMES,
+	//Inverting a personal filter does not make it impersonal: `unread` is every
+	//bit as much about you as `read` is. Derived from the inverse map so a new
+	//per-user filter only has to be named once, above.
+	...Object.entries(INVERSE_FILTER_NAMES)
+		.filter(entry => VIEWER_DEPENDENT_POSITIVE_FILTER_NAMES.includes(entry[1]))
+		.map(entry => entry[0]),
+]);
+
+//The configurable author filter takes user ids, and ME_AUTHOR_ID is a
+//late-bound reference to whoever is looking: `author/me` is resolved against
+//extras.userID at evaluation time, so one URL names a different person for
+//every reader. A concrete uid is durable and is NOT viewer-dependent — that
+//distinction is the whole reason the composer's contributor candidates can
+//promise a copied link keeps the same person. The id list is split the way
+//makeAuthorConfigurableFilter splits it, so the two cannot disagree about
+//what counts as naming yourself.
+export const filterNameIsViewerDependent = (filter : string) : boolean => {
+	if (VIEWER_DEPENDENT_FILTER_NAMES.has(filter)) return true;
+	const [family, ...rest] = filter.split('/');
+	if (family !== AUTHOR_FILTER_NAME) return false;
+	return rest.join('/').split(INCLUDE_KEY_CARD_PREFIX).includes(ME_AUTHOR_ID);
+};
+
+//True when ANY clause makes the result depend on who is looking. One personal
+//clause is enough: the collection as a whole is then personal.
+export const filterNamesAreViewerDependent = (filters : readonly string[]) : boolean => filters.some(filterNameIsViewerDependent);
+
 //We pull this out because it has to be the same in filters and filtersSnapshot
 //and to avoid having to duplicate it.
 const INITIAL_STATE_FILTERS = Object.assign(

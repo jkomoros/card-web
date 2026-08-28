@@ -17,6 +17,8 @@ import {
 	NONE_FILTER_NAME,
 	SELECTED_FILTER_NAME,
 	TODO_COMBINED_FILTER_NAME,
+	filterNameIsViewerDependent,
+	filterNamesAreViewerDependent,
 	parseRelativeDateParts,
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
@@ -44,6 +46,10 @@ export type CollectionComposerSuggestion = {
   destinationPath?: string;
   configureFilter?: string;
   sourceFilter?: string;
+  //True when the clause this row adds — or, for a destination row, the
+  //collection it opens — is computed from the signed-in account. The row says
+  //so, quietly, because the consequence only shows up once the link is shared.
+  viewerDependent?: boolean;
 };
 
 export type CollectionComposerCandidate = {
@@ -429,6 +435,19 @@ const collectionDifference = (
 	return changes.join(' · ');
 };
 
+//A URL note that is true. The default promise — "copied links keep it" — is a
+//claim about durability, and it is false for a clause whose membership is
+//recomputed from whoever opens the link: the value in the URL is kept, and it
+//still resolves to somebody else's cards. Saying the reassuring sentence
+//anyway is precisely what §"Never hide ambiguity" forbids, so a personal
+//clause gets the honest one instead. The personal test runs FIRST, ahead of
+//any authored `urlDetail`, because a hand-written durability promise on a
+//personal clause would be the same lie with better prose.
+const candidateURLNote = (filter: string, name: string, urlDetail?: string): string => {
+	if (filterNameIsViewerDependent(filter)) return `Adds ${name} to the collection URL; the results depend on who opens it`;
+	return urlDetail || `Adds ${name} to the collection URL; copied links keep it`;
+};
+
 const recentSuggestions = (
 	current: CollectionDescription,
 	context: CollectionComposerContext
@@ -461,6 +480,10 @@ const recentSuggestions = (
 			label: previous ? `Back to ${name}` : verbLabel('open', name),
 			detail: `${collectionDifference(current, recent.description, recent.visits, filterLabels)}${recent.relative ? ' · Recognized as the same rolling date window' : ''}`,
 			description: recent.description,
+			//A recent is a destination, not a clause, so the question is whether
+			//the collection it opens is personal — one personal clause anywhere in
+			//it is enough.
+			viewerDependent: filterNamesAreViewerDependent(recent.description.filters),
 		});
 		//FOUR rows, matching the budget the history module reserves: three
 		//recents plus the one frequency-promoted collection. At three, a
@@ -509,8 +532,9 @@ const emptyStateSuggestions = (
 				action: 'add',
 				name,
 				label: verbLabel('add', name),
-				detail: `${candidate.detail} · ${candidate.urlDetail || `Adds ${name} to the collection URL; copied links keep it`}`,
+				detail: `${candidate.detail} · ${candidateURLNote(candidate.filter, name, candidate.urlDetail)}`,
 				description: collectionDescriptionWithFilterAppended(current, candidate.filter),
+				viewerDependent: filterNameIsViewerDependent(candidate.filter),
 			});
 		}
 	}
@@ -525,6 +549,7 @@ const emptyStateSuggestions = (
 			label: verbLabel('add', name),
 			detail: `Adds ${name} to this collection`,
 			description: collectionDescriptionWithFilterAppended(current, filter),
+			viewerDependent: filterNameIsViewerDependent(filter),
 		});
 	}
 	if (current.set !== 'everything') {
@@ -690,8 +715,9 @@ export const collectionComposerSuggestions = (
 				action: 'add',
 				name,
 				label: verbLabel('add', name),
-				detail: `${candidate.detail} · ${candidate.urlDetail || `Adds ${name} to the collection URL; copied links keep it`}`,
+				detail: `${candidate.detail} · ${candidateURLNote(candidate.filter, name, candidate.urlDetail)}`,
 				description: collectionDescriptionWithFilterAppended(current, candidate.filter),
+				viewerDependent: filterNameIsViewerDependent(candidate.filter),
 			};
 		} else {
 			const {name, detail} = interpretation;
@@ -715,6 +741,10 @@ export const collectionComposerSuggestions = (
 				description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
 				configureFilter: configurable && !sourceOnly ? name : undefined,
 				sourceFilter: sourceOnly ? name : undefined,
+				//Ask the clause this row would actually produce, not the family the
+				//user typed: `author` defaults to `author/me`, and it is the `me`
+				//that makes the destination personal.
+				viewerDependent: filterNameIsViewerDependent(filter),
 			};
 		}
 		const destination = suggestion.description.serialize();
@@ -760,9 +790,16 @@ export type CollectionExpressionParts = {
   set: { raw: string; label: string };
   //`explanation` is non-empty only for a clause the composer cannot edit, and
   //carries the sentence that says why it is in the draft at all.
-  filters: Array<{ raw: string; label: string; index: number; explanation: string }>;
+  //`viewerDependent` marks a clause whose membership is computed from the
+  //signed-in account rather than from the cards, so the chip can say so.
+  filters: Array<{ raw: string; label: string; index: number; explanation: string; viewerDependent: boolean }>;
   modifiers: string[];
 };
+
+//The words the app uses for personal scope, in one place, so a chip, a
+//suggestion row and Source cannot each invent their own phrasing for it.
+export const VIEWER_DEPENDENT_CHIP_NOTE = 'only for you';
+export const VIEWER_DEPENDENT_CHIP_EXPLANATION = 'Membership depends on who is signed in; a copied link shows other people their own cards, not yours.';
 
 export const collectionExpressionParts = (
 	description: CollectionDescription,
@@ -779,7 +816,7 @@ export const collectionExpressionParts = (
 	}
 	return {
 		set: {raw: description.set, label: collectionOptionDisplayName(description.set)},
-		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels), explanation: collectionFilterExplanation(raw)})),
+		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels), explanation: collectionFilterExplanation(raw), viewerDependent: filterNameIsViewerDependent(raw)})),
 		modifiers,
 	};
 };

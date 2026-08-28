@@ -86,6 +86,7 @@ import {
 	ALL_FILTER_NAME,
 	CONFIGURABLE_FILTER_INFO,
 	LEGAL_VIEW_MODES,
+	filterNamesAreViewerDependent,
 } from '../filters.js';
 
 import {
@@ -158,6 +159,8 @@ import {
 	collectionComposerSuggestions,
 	rankedComposerSuggestions,
 	readableCollectionExpression,
+	VIEWER_DEPENDENT_CHIP_NOTE,
+	VIEWER_DEPENDENT_CHIP_EXPLANATION,
 } from '../collection-composer-suggestions.js';
 
 import {
@@ -812,6 +815,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.35em;
 			}
 
+			/* WHOSE CARDS THIS IS ABOUT. Subordinate tone and nothing else: a
+			   personal clause is not a problem, and §4.5 gives that case
+			   --app-dark-text-color-light, the same tone the .diagnostic note
+			   takes for the same reason. No amber — amber means exactly one
+			   thing, and this is not "not yet on the server". No badge, border
+			   or new colour, because the note has to survive sitting next to
+			   twenty other chips without turning the sentence into a warning
+			   panel. */
+			.viewer-dependent {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.7em;
+				white-space: nowrap;
+			}
+
+			.expression-clause .viewer-dependent {
+				align-self: center;
+				padding-right: 0.5em;
+			}
+
 			/* QUIET UNTIL HOVER OR FOCUS. The spec asks for destructive removal
 			   to stay visually quiet until focused, and §3.7 keeps the warning
 			   colour for Tier 1 acts — removing a draft clause is Tier 2 and
@@ -1025,6 +1047,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				grid-template-areas:
 					'category category category'
 					'label    count    action'
+					'personal personal personal'
 					'detail   detail   detail'
 					'example  example  example'
 					'applied  applied  applied';
@@ -1080,6 +1103,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			.suggestion-detail {
 				grid-area: detail;
+			}
+
+			/* Its own row rather than a tail on the detail sentence: the detail
+			   is the line a scanning reader skips, and personal scope is the one
+			   property of a row whose consequence shows up somewhere the row
+			   cannot follow it to. Rows without it lose no height — an empty
+			   grid area collapses. */
+			.suggestion .viewer-dependent {
+				font-size: 0.72em;
+				grid-area: personal;
 			}
 
 			/* Was float:right inside the wrapping detail block, so on a 375px
@@ -1658,7 +1691,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//there yet.
 		const statusLabel = parsed.status === 'valid' ? 'Ready to open' :
 			parsed.status === 'incomplete' ? 'Keep typing' : 'Can’t open this source';
-		const diagnostic = parsed.diagnostics[0]?.message || 'This source is complete and safe to open.';
+		//"Safe to open" is a claim about the source. It says nothing about who
+		//gets what when the resulting link is opened, and Source is the surface
+		//whose whole job is the URL — the one place a user is looking at the
+		//link itself, and therefore the one place most likely to copy it. A
+		//personal clause makes the link resolve against the reader's own stars,
+		//reads and reading list, so the sentence says that instead of implying
+		//the opposite. The valid-source wording is otherwise untouched.
+		//Only in the valid state, which is the only state that makes the claim.
+		//(This fallback also fires for incomplete and invalid sources that
+		//produced no diagnostic, pairing 'Keep typing' with 'complete and safe
+		//to open'. That is a real defect and it is older than this change; it is
+		//left alone here rather than fixed in passing.)
+		const viewerDependent = parsed.status === 'valid' && filterNamesAreViewerDependent(description.filters);
+		const readySentence = viewerDependent ?
+			'opens for you; this link’s results depend on who views it.' :
+			'This source is complete and safe to open.';
+		const diagnostic = parsed.diagnostics[0]?.message || readySentence;
 		const completionDiagnostic = parsed.diagnostics.find(item => item.expected?.length);
 		const completionMode = completionDiagnostic ? 'complete' : 'add';
 		const completionDetails = completionDiagnostic?.expectedDetails || parsed.nextExpectedDetails || {};
@@ -2038,12 +2087,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				${expressionParts.filters.map(filter => html`
 					<span class='expression-term'>
 						<span class='expression-operator' aria-hidden='true'>AND</span>
-						<span class='expression-clause' role='group' aria-label=${`${filter.label} filter`} ?data-selected=${filter.index === this._selectedClauseIndex}>
+						<span class='expression-clause' role='group' aria-label=${`${filter.label} filter${filter.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`} ?data-selected=${filter.index === this._selectedClauseIndex}>
 							<button
 								class='expression-clause-label'
 								aria-label=${`Edit ${filter.label} filter`}
-								@click=${() => this._handleClauseEdit(filter.index)}
+							@click=${() => this._handleClauseEdit(filter.index)}
 							>${filter.label}</button>
+							<!-- WHOSE cards this clause is about. A chip reading
+							     "Starred" makes a claim about the collection that is
+							     only true for the person looking at it, and the
+							     consequence surfaces after the link is shared, when
+							     nobody can see the chip any more. Quiet, subordinate,
+							     and no colour of its own (§4.5) — nothing is wrong. -->
+							${filter.viewerDependent ? html`<span class='viewer-dependent' aria-hidden='true'>${VIEWER_DEPENDENT_CHIP_NOTE}</span>` : ''}
 							<!-- CANCEL_ICON, not a literal ×. §4.2's MUST: never
 							     render a text glyph where an icon exists. It is
 							     quiet until hover or focus, per the spec's
@@ -2287,7 +2343,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								role='option'
 								tabindex='-1'
 								aria-selected=${index === highlightedIndex}
-								aria-label=${`${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}`}
+								aria-label=${`${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}${suggestion.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`}
 								data-index=${index}
 								?disabled=${this._activationPending}
 								?data-highlighted=${index === highlightedIndex}
@@ -2298,6 +2354,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								<span class='suggestion-label'>${suggestion.label}</span>
 								<span class='suggestion-action' data-consequence=${rowConsequence(visibleAction)}>${sentenceCase(visibleAction)}</span>
 								${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
+								<!-- The caution is IN the row, not only in its detail
+								     sentence: the detail is the line people skim past,
+								     and personal scope is the one property of a row
+								     whose consequence appears somewhere else entirely —
+								     in a link, after it has been sent. It takes the
+								     subordinate text tone (§4.5) and no colour of its
+								     own, because nothing is wrong. -->
+								${suggestion.viewerDependent ? html`<span class='viewer-dependent'>${VIEWER_DEPENDENT_CHIP_NOTE}</span>` : ''}
 								<span class='suggestion-detail'>${suggestion.detail}</span>
 							</button>
 						</div>
