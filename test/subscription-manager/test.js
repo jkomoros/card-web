@@ -67,6 +67,37 @@ describe('SubscriptionManager', () => {
 		assert.deepStrictEqual(pushes[1].ids, ['d', 'a', 'b', 'c']);
 	});
 
+	it('flushImmediately is leading-edge only: a burst coalesces onto the batching floor', async () => {
+		const {engine, manager, pushes} = setup();
+		manager.subscribe(1, params('everything/'));
+		manager.flush();
+		assert.strictEqual(pushes.length, 1);
+		//First interactive echo after an idle stretch: flushes in this turn.
+		//(subscribe() scheduled its own prompt flush at the 50ms floor; wait
+		//long enough that it has fired AND its end is more than a floor ago,
+		//so the manager is genuinely idle.)
+		await new Promise(resolve => setTimeout(resolve, 150));
+		engine.updateCards({d: card('d', {sort_order: 9.0})}, []);
+		manager.markDirty();
+		manager.flushImmediately();
+		assert.strictEqual(pushes.length, 2, 'the first echo after idle must flush immediately');
+		//A burst right behind it must NOT pay a full recompute per echo — at a
+		//large corpus that wedged the worker for the length of the burst and
+		//froze every navigation's subscribe message queued behind it. The
+		//burst falls back to the flush markDirty scheduled.
+		engine.updateCards({e: card('e', {sort_order: 10.0})}, []);
+		manager.markDirty();
+		manager.flushImmediately();
+		engine.updateCards({f: card('f', {sort_order: 11.0})}, []);
+		manager.markDirty();
+		manager.flushImmediately();
+		assert.strictEqual(pushes.length, 2, 'echoes within the floor of the last flush must coalesce');
+		//The scheduled flush then covers the whole burst in ONE recompute.
+		await new Promise(resolve => setTimeout(resolve, 80));
+		assert.strictEqual(pushes.length, 3, 'one coalesced flush must cover the burst');
+		assert.deepStrictEqual(pushes[2].ids, ['f', 'e', 'd', 'a', 'b', 'c']);
+	});
+
 	it('tracks filter membership changes from replayed actions', async () => {
 		const {engine, manager, pushes} = setup();
 		manager.subscribe(7, params('everything/starred/'));
