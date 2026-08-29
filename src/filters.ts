@@ -192,7 +192,12 @@ export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES
 const AUTHOR_FILTER_NAME = 'author';
 const CARDS_FILTER_NAME = 'cards';
 // (filter constants re-exported at top of file)
-const EXPAND_FILTER_NAME = 'expand';
+//Exported because the boolean draft layer (collection-expression.ts) has to
+//RECOGNIZE this head in order to refuse it: expand/ is a
+//sub-collection-plus-expansion rule, not a boolean operator, so the draft layer
+//preserves it verbatim instead of pretending it is one. A private copy of the
+//string over there is exactly the drift the URL vocabulary cannot afford.
+export const EXPAND_FILTER_NAME = 'expand';
 export const QUERY_STRICT_FILTER_NAME = 'query-strict';
 const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';

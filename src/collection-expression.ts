@@ -1,0 +1,238 @@
+//THE BOOLEAN DRAFT LAYER.
+//
+//`CollectionDescription.filters` is a flat array of URL segments. That is the
+//right canonical execution form and a hopeless editing form: `combine` and
+//`exclude` are spelled as prefixes on a slash-joined string, an OR is sometimes
+//`a+b` and sometimes `combine/a/b` depending on whether its members happen to be
+//single-token, and the arity of a compound is decided by a table in filters.ts
+//that the string itself does not carry. A composer that edits those strings
+//directly has to re-derive all of that at every keystroke, and every surface
+//that re-derives it gets a slightly different answer.
+//
+//So this module is the ONE place the URL's boolean spelling is decoded into a
+//tree and re-encoded back. Everything above it (the sentence renderer, the
+//pill row, the keyboard grammar) edits the tree; nothing above it composes an
+//`exclude/` or a `+` by hand.
+//
+//THE CONTRACT, from the spec's "Round-trip contract":
+//
+//  CollectionDescription -> expression -> CollectionDescription must preserve
+//  SEMANTICS for every valid existing description.
+//
+//Semantics, not spelling. The compiler is allowed to pick a better spelling
+//than the one it read (`combine/a/b` becomes `a+b`; a flattened chain of
+//combines becomes one n-ary OR), and the test suite asserts ENGINE-level
+//equivalence for exactly those cases. What it is never allowed to do is lose a
+//segment or change what a segment selects. Anything this layer cannot model
+//honestly becomes a `manual` node holding the segment's text verbatim, which
+//compiles back to itself character-for-character.
+//
+//WHAT THE UI MODELS vs WHAT THE MODEL EXPRESSES. The user-facing scope
+//(collection-composer-spec, "Boolean expression model") is: an AND of
+//conditions; OR inside a condition; NOT on a condition or on an OR group. The
+//TYPES here are honestly recursive anyway — an `or` may contain a `not` may
+//contain an `or` — so deeper source-authored shapes round-trip as real nodes
+//where the engine can express them, and unlimited nesting is a later UI unlock
+//rather than a rewrite of this file.
+
+import {
+	CollectionDescription,
+} from './collection_description.js';
+
+import {
+	COMBINE_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
+	EXPAND_FILTER_NAME,
+	INVERSE_FILTER_NAMES,
+	UNION_FILTER_DELIMITER,
+} from './filters.js';
+
+import {
+	SET_NAMES,
+} from '../shared/collection_description_base.js';
+
+import {
+	FilterName,
+} from '../shared/types.js';
+
+//A single concrete filter, possibly configurable and therefore possibly
+//spelled across several URL parts (`updated/between/2020-01-01/2021-01-01`).
+//The whole multi-part spelling is ONE leaf: the composer edits its arguments
+//through the existing piecesForConfigurableFilter machinery, not through this
+//tree.
+export type FilterExpressionFilterNode = {
+	kind: 'filter',
+	filter: FilterName
+};
+
+//Two or more alternatives, any of which satisfies the condition. Members are
+//nodes, not bare filters: `combine/exclude/published/no-tags` is a legal URL
+//and means "unpublished OR untagged".
+export type FilterExpressionOrNode = {
+	kind: 'or',
+	members: FilterExpressionNode[]
+};
+
+export type FilterExpressionNotNode = {
+	kind: 'not',
+	child: FilterExpressionNode
+};
+
+//Legal engine text this layer will not pretend to understand — an `expand/`
+//rule, or a `combine/` whose two halves the engine's own sub-splitter cannot
+//recover. Preserved verbatim and compiled back verbatim; the UI renders it as
+//a gray pill offering only edit-in-source and remove.
+export type FilterExpressionManualNode = {
+	kind: 'manual',
+	source: string
+};
+
+export type FilterExpressionNode =
+	| FilterExpressionFilterNode
+	| FilterExpressionOrNode
+	| FilterExpressionNotNode
+	| FilterExpressionManualNode;
+
+//The top level is the AND of its conditions, one per `filters` segment — the
+//same conjunction the URL's path segments already are.
+export type CollectionExpression = FilterExpressionNode[];
+
+//THE INVERSE MAP RUNS BOTH WAYS, and only INVERSE_FILTER_NAMES knows either
+//direction. It is keyed by the NEGATIVE name ('unpublished' -> 'published'), so
+//negating a positive filter needs the reverse index. Both directions are
+//derived from the same source of truth so a filter family that grows a named
+//inverse gets it in the composer for free.
+const POSITIVE_TO_INVERSE_FILTER_NAMES : Record<string, string> = Object.fromEntries(
+	Object.entries(INVERSE_FILTER_NAMES).map(([negative, positive]) => [positive, negative])
+);
+
+//The name that means "not this filter", when the app already has a word for it.
+//`published` -> `unpublished`, and `unpublished` -> `published`. Returns ''
+//when there is no such word, which is the caller's cue to reach for `exclude/`.
+export const namedInverseFilterName = (filter : FilterName) : string => {
+	const towardsPositive = INVERSE_FILTER_NAMES[filter];
+	if (towardsPositive) return towardsPositive;
+	return POSITIVE_TO_INVERSE_FILTER_NAMES[filter] || '';
+};
+
+//Whether flipping this condition produces a WORD rather than an operator. The
+//sentence renderer asks so it can promise "this pill will read 'unpublished'"
+//before the user commits to the flip.
+export const conditionCanUseNamedInverse = (node : FilterExpressionNode) : boolean => {
+	if (node.kind === 'filter') return Boolean(namedInverseFilterName(node.filter));
+	//A not-of-filter un-negates into the plain filter, which is always a word.
+	if (node.kind === 'not' && node.child.kind === 'filter') return true;
+	return false;
+};
+
+//NEGATION PREFERS THE APP'S OWN WORD, IN BOTH DIRECTIONS.
+//
+//Flipping `published` yields the filter `unpublished` — a plain leaf, not a
+//not-node — so the pill reads as language and the compiler has nothing to
+//spell. Flipping it back yields `published` again, by the same map. Only a
+//filter with no named inverse becomes a not-node, and flipping THAT back
+//unwraps it. Negation is therefore an involution on every node kind: applying
+//it twice is the identity.
+//
+//The PARSER runs through here too, which is what makes the model canonical: a
+//not-node never wraps a filter that has a word of its own, so `exclude/published`
+//and `unpublished` produce the SAME tree — as they must, since they select the
+//same cards, and a draft layer that told them apart would let the composer
+//re-spell one into the other and call it an edit.
+export const negatedExpressionNode = (node : FilterExpressionNode) : FilterExpressionNode => {
+	if (node.kind === 'filter') {
+		const named = namedInverseFilterName(node.filter);
+		if (named) return {kind: 'filter', filter: named};
+		return {kind: 'not', child: node};
+	}
+	if (node.kind === 'not') return node.child;
+	return {kind: 'not', child: node};
+};
+
+const SET_NAME_TOKENS : ReadonlySet<string> = new Set<string>(SET_NAMES);
+
+//COMBINE IS BINARY, AND ITS TWO HALVES ARE FOUND BY RE-PARSING.
+//
+//Verified against the engine (filters.ts makeCombineConfigurableFilter ->
+//extractSubFilters): `combine` claims 2 URL parts in
+//CONFIGURABLE_FILTER_URL_PARTS, and at run time it hands everything after
+//`combine/` back to `CollectionDescription.deserialize(rest + '/')` and takes
+//`filters[0]` and `filters[1]`. Anything past the second sub-filter is
+//DISCARDED, and fewer than two makes the whole clause a silent no-op ("Expected
+//two sub-filters for combine but didn't get it"). So n-ary OR has to be
+//chained, and this function is the exact inverse of that split — it calls the
+//same parser the engine calls, so the two cannot disagree about where the first
+//sub-filter ends.
+const splitCombineMembers = (rest : string) : [string, string] | null => {
+	//A SET NAME IN THE FIRST POSITION EATS A MEMBER.
+	//
+	//`deserialize` shifts a leading `main` / `reading-list` / `everything` off
+	//as the SET, so `combine/everything/starred` reaches the factory as one
+	//sub-filter and no-ops the whole clause. Filter names are open (every tag
+	//becomes one), so a tag literally named `everything` really can produce
+	//this. We refuse to model such a segment rather than re-spell it into
+	//something that runs differently, and the compiler below never PRODUCES one.
+	if (SET_NAME_TOKENS.has(rest.split('/')[0])) return null;
+	const filters = CollectionDescription.deserialize(rest + '/').filters;
+	if (filters.length !== 2) return null;
+	//Paranoia with teeth: the URL parser DROPS a multi-part group whose head is
+	//not a filter (the #757 orphan-head path). If the two halves do not rejoin
+	//into exactly what we handed it, a part went missing and this segment is
+	//not ours to rewrite.
+	if (filters.join('/') !== rest) return null;
+	return [filters[0], filters[1]];
+};
+
+//An OR flattens: `combine/a/combine/b/c` and `a+b+c` are the same three-way
+//union to the engine (verified on a synthetic corpus in the test suite), and
+//one n-ary node is what the UI's fused pill actually is.
+const flattenedOrMembers = (members : FilterExpressionNode[]) : FilterExpressionNode[] =>
+	members.flatMap(member => member.kind === 'or' ? member.members : [member]);
+
+//parseFilterSegment turns ONE `filters[]` segment into a node. Total: every
+//input produces a node, and no input throws.
+const parseFilterSegment = (segment : string) : FilterExpressionNode => {
+	const slash = segment.indexOf('/');
+	if (slash < 0) {
+		const members = segment.split(UNION_FILTER_DELIMITER);
+		if (members.length > 1 && members.every(member => member)) {
+			return {
+				kind: 'or',
+				members: members.map(member => ({kind: 'filter', filter: member} as FilterExpressionNode))
+			};
+		}
+		return {kind: 'filter', filter: segment};
+	}
+	const head = segment.slice(0, slash);
+	const rest = segment.slice(slash + 1);
+	//`exclude/` with nothing after it is not a negation of anything; leave it
+	//as the leaf the engine will shrug at.
+	if (!rest) return {kind: 'filter', filter: segment};
+	if (head === EXCLUDE_FILTER_NAME) {
+		//Through negatedExpressionNode, not a raw not-node: `exclude/published`
+		//is the app's `unpublished`, and `exclude/exclude/x` is x. Both
+		//normalizations are engine-verified in the round-trip matrix.
+		return negatedExpressionNode(parseFilterSegment(rest));
+	}
+	if (head === COMBINE_FILTER_NAME) {
+		const halves = splitCombineMembers(rest);
+		if (!halves) return {kind: 'manual', source: segment};
+		return {
+			kind: 'or',
+			members: flattenedOrMembers(halves.map(parseFilterSegment))
+		};
+	}
+	//expand/ is a subcollection plus an expansion rule, not a boolean operator.
+	//Modeling it as one would let the UI offer "or"/"flip" on a shape those
+	//verbs do not describe.
+	if (head === EXPAND_FILTER_NAME) return {kind: 'manual', source: segment};
+	//Every other slash-bearing segment is one configurable filter, multi-part
+	//spelling and all.
+	return {kind: 'filter', filter: segment};
+};
+
+//parseCollectionExpression is TOTAL: it never throws, and it never drops a
+//segment. A segment it cannot decompose comes back as a leaf or a manual node
+//that compiles to itself.
+export const parseCollectionExpression = (filters : readonly string[]) : CollectionExpression =>
+	filters.map(parseFilterSegment);
