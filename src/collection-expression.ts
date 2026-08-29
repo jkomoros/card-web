@@ -45,6 +45,7 @@ import {
 	EXPAND_FILTER_NAME,
 	INVERSE_FILTER_NAMES,
 	UNION_FILTER_DELIMITER,
+	excludeFilter,
 } from './filters.js';
 
 import {
@@ -236,3 +237,72 @@ const parseFilterSegment = (segment : string) : FilterExpressionNode => {
 //that compiles to itself.
 export const parseCollectionExpression = (filters : readonly string[]) : CollectionExpression =>
 	filters.map(parseFilterSegment);
+
+//A `+` union is only a union when the segment carries no `/` — filters.ts's own
+//rule, because `children/+ab123` puts a `+` inside a configurable filter's
+//argument. Mirrored here rather than imported because collection_description
+//keeps its copy private.
+const isPlainUnionToken = (spelling : string) : boolean =>
+	Boolean(spelling) && !spelling.includes('/') && !spelling.includes(UNION_FILTER_DELIMITER);
+
+//COMBINE'S FIRST MEMBER IS THE ONE AT RISK, so nothing else has to be.
+//
+//Chaining left — `combine/combine/a/b/c` — means every nesting level except the
+//outermost begins with the literal word `combine`, and only member ONE is ever
+//re-parsed in leading position. (Chaining right, `combine/a/combine/b/c`,
+//exposes every member but the last.) So a single reorder — float any member
+//whose first URL token is a set name past the front — is enough to make the
+//set-name hazard above unreachable from anything this compiler emits.
+const orderedCombineMembers = (spellings : string[]) : string[] => {
+	if (!SET_NAME_TOKENS.has(spellings[0].split('/')[0])) return spellings;
+	const safeIndex = spellings.findIndex(spelling => !SET_NAME_TOKENS.has(spelling.split('/')[0]));
+	//Every member starts with a set name: there is no legal chaining, so leave
+	//the order alone rather than pretend a rotation fixed it. Such an
+	//expression cannot be built by parsing (splitCombineMembers refuses it) —
+	//only by hand-constructing nodes out of names that collide with set names.
+	if (safeIndex < 0) return spellings;
+	const reordered = [...spellings];
+	const [safe] = reordered.splice(safeIndex, 1);
+	return [safe, ...reordered];
+};
+
+const combineSpelling = (spellings : string[]) : string =>
+	orderedCombineMembers(spellings).reduce((accumulated, spelling) =>
+		accumulated === '' ? spelling : COMBINE_FILTER_NAME + '/' + accumulated + '/' + spelling, '');
+
+//serializeFilterNode picks the ENGINE'S OPTIMAL SPELLING for a node, which is
+//not always the spelling it was parsed from:
+// - an OR of plain tokens is `a+b`, the short form;
+// - an OR that involves a configurable or negated member has to be `combine/`,
+//   chained pairwise for three or more;
+// - a NOT of a filter is the app's own inverse WORD when one exists
+//   (`published` -> `unpublished`), and `exclude/` only when it does not;
+// - a NOT of a group is `exclude/` over the group's own best spelling;
+// - a manual node is its source, byte for byte.
+export const serializeFilterNode = (node : FilterExpressionNode) : string => {
+	switch (node.kind) {
+	case 'filter':
+		return node.filter;
+	case 'manual':
+		return node.source;
+	case 'not':
+		if (node.child.kind === 'filter') {
+			const named = namedInverseFilterName(node.child.filter);
+			if (named) return named;
+		}
+		return excludeFilter(serializeFilterNode(node.child));
+	case 'or': {
+		if (!node.members.length) return '';
+		if (node.members.length === 1) return serializeFilterNode(node.members[0]);
+		const spellings = node.members.map(serializeFilterNode);
+		if (spellings.every(isPlainUnionToken)) return spellings.join(UNION_FILTER_DELIMITER);
+		return combineSpelling(spellings);
+	}
+	}
+};
+
+//serializeCollectionExpression compiles the whole sentence back into the
+//`filters[]` an engine run consumes. An empty OR contributes nothing rather
+//than an empty segment, which would parse back as an unknown filter.
+export const serializeCollectionExpression = (expression : CollectionExpression) : string[] =>
+	expression.map(serializeFilterNode).filter(spelling => spelling !== '');
