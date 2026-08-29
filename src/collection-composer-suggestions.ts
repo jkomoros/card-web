@@ -22,6 +22,7 @@ import {
 	parseRelativeDateParts,
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
+import { curatedFilterDescription, filterSynonyms } from './collection-filter-synonyms.js';
 
 export type CollectionComposerSuggestionKind =
   | 'add'
@@ -447,6 +448,16 @@ export const collectionFilterDescription = (
 	labels: Record<string, string> = {}
 ): string => {
 	const family = filter.split('/')[0];
+	//THE CURATED SENTENCE OUTRANKS THE REGISTRY'S OWN, and only for the filters
+	//collection-filter-synonyms has actually rewritten. The registry's
+	//descriptions were authored for a catalog that listed mechanisms; the
+	//composer shows them to somebody choosing a collection, and the two audiences
+	//want different sentences about the same filter. A live section or tag
+	//description (which arrives through `filterDescriptions` keyed by its own id)
+	//is never overridden, because the corpus knows its own tags better than a
+	//static table can.
+	const curated = curatedFilterDescription(filter) || curatedFilterDescription(family);
+	if (curated) return curated;
 	const authored = filterDescriptions[filter] || filterDescriptions[family] || '';
 	const positive = INVERSE_FILTER_NAMES[filter];
 	if (positive && (!authored || authored === `Inverse of ${positive}`)) {
@@ -569,7 +580,13 @@ const candidateURLNote = (filter: string, name: string, urlDetail?: string): str
 	return urlDetail || `Adds ${name} to the collection URL; copied links keep it`;
 };
 
-const recentSuggestions = (
+//EXPORTED so the completion index can offer the same recents rows the idle list
+//offers, rather than re-deriving "a recent collection, named and deduped" a
+//second time. The meta-proposal makes recents "the first content of the first
+//gesture" in BOTH the idle list and the typed list (convergence 4), and two
+//derivations of one row is how those two lists would come to disagree about
+//which collection you were last in.
+export const collectionComposerRecentSuggestions = (
 	current: CollectionDescription,
 	context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
@@ -622,7 +639,7 @@ const emptyStateSuggestions = (
 	context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
 	const filterLabels = collectionFilterLabels(context.candidates);
-	const recents = recentSuggestions(current, context);
+	const recents = collectionComposerRecentSuggestions(current, context);
 	const refinements: CollectionComposerSuggestion[] = [];
 	//THE OPENING STATE'S OWN EXAMPLE. Spec §Opening state lists "recent, pinned,
 	//resumable, or ACTIVE-CARD destinations" as the first of the two stable
@@ -760,7 +777,7 @@ const emptyStateSuggestions = (
 //No row may offer the collection it is already standing in, and no two rows may
 //offer the same one. Both are the same rule: a row whose destination is
 //indistinguishable from another row's — or from the draft's — is not a choice.
-const dedupedByDestination = (
+export const dedupedByDestination = (
 	suggestions: CollectionComposerSuggestion[],
 	current: CollectionDescription
 ): CollectionComposerSuggestion[] => {
@@ -846,18 +863,35 @@ export const collectionComposerSuggestions = (
 	//that matched on the words 'Inverse of not-starred' and then displayed
 	//something else would be answering a query the user cannot see.
 	const matchingFilters = Object.keys(filterDescriptions)
-		.map(name => ({name, detail: collectionFilterDescription(name, filterDescriptions, filterLabels)}))
-		.filter(({name, detail}) =>
-			name.toLowerCase().includes(normalizedQuery) || detail.toLowerCase().includes(normalizedQuery)
+		//THE CURATED SYNONYMS ARE A RANKING INPUT HERE TOO, not only in the new
+		//completion index. Proposal C's flow ③ ("aliases catch 'pub'") and the
+		//meta-proposal's convergence 5 both describe the same behavior for the
+		//typed list this function already feeds, and a word that finds a family
+		//in the palette but not in this list would be a synonym that works in one
+		//half of the app.
+		.map(name => ({
+			name,
+			detail: collectionFilterDescription(name, filterDescriptions, filterLabels),
+			synonyms: filterSynonyms(name),
+		}))
+		.filter(({name, detail, synonyms}) =>
+			name.toLowerCase().includes(normalizedQuery) ||
+			detail.toLowerCase().includes(normalizedQuery) ||
+			synonyms.some(synonym => synonym.startsWith(normalizedQuery))
 		)
-		.map(({name, detail}) => {
+		.map(({name, detail, synonyms}) => {
 			const relevance = (() => {
 				const normalizedName = name.toLowerCase();
 				if (normalizedName === normalizedQuery) return 0;
 				if (normalizedName.startsWith(normalizedQuery)) return 1;
 				if (normalizedName.includes(normalizedQuery)) return 2;
-				if (detail.toLowerCase().startsWith(normalizedQuery)) return 3;
-				return 4;
+				//A synonym match sits between the name and the description prose:
+				//it is a word somebody chose to mean this filter, which the
+				//description's incidental wording is not.
+				if (synonyms.some(synonym => synonym === normalizedQuery)) return 2;
+				if (synonyms.some(synonym => synonym.startsWith(normalizedQuery))) return 3;
+				if (detail.toLowerCase().startsWith(normalizedQuery)) return 4;
+				return 5;
 			})();
 			return {name, detail, relevance};
 		});
