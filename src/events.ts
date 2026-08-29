@@ -5,6 +5,13 @@ import {
 	ComposedCommentThread
 } from './types.js';
 
+//TYPE-ONLY, deliberately: collection-expression pulls in the filter engine and
+//the display-name module, and events.ts is imported by nearly every component.
+//A value import here would put that whole graph behind `<tag-chip>`.
+import type {
+	CollectionExpression
+} from './collection-expression.js';
+
 type TagEventDetail = {
 	tag : string,
 	subtle : boolean,
@@ -41,6 +48,19 @@ const REORDER_CARD_EVENT_NAME = 'reorder-card';
 const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
 const ADD_CARD_EVENT_NAME = 'add-card';
 const ADD_WORKING_NOTES_CARD_EVENT_NAME = 'add-working-notes-card';
+//THE COLLECTION SENTENCE'S VOCABULARY. One renderer serves the drawer header
+//and the composer palette, so it must not know which of them it is inside: it
+//reports what the user did to a token and each host decides what that means
+//(the drawer navigates; the palette edits a draft).
+const CONDITION_SELECTED_EVENT_NAME = 'condition-selected';
+const MEMBER_SELECTED_EVENT_NAME = 'member-selected';
+const GROUP_EDGE_SELECTED_EVENT_NAME = 'group-edge-selected';
+const CONDITION_ACTIVATED_EVENT_NAME = 'condition-activated';
+const CONDITION_REMOVED_EVENT_NAME = 'condition-removed';
+const SET_CLICKED_EVENT_NAME = 'set-clicked';
+const SORT_CLICKED_EVENT_NAME = 'sort-clicked';
+const EXPRESSION_MODIFIED_EVENT_NAME = 'expression-modified';
+const PILL_OR_REQUESTED_EVENT_NAME = 'pill-or-requested';
 
 export type TagEvent = CustomEvent<TagEventDetail>;
 
@@ -236,3 +256,67 @@ export type AddWorkingNotesCardEvent = CustomEvent<null>;
 export const makeAddWorkingNotesCardEvent = () : AddWorkingNotesCardEvent => {
 	return new CustomEvent(ADD_WORKING_NOTES_CARD_EVENT_NAME, {composed : true, detail: null});
 };
+
+//--- The collection sentence ------------------------------------------------
+
+//WHICH TOKEN, IN TWO NUMBERS. `index` is the condition's place in the AND;
+//`memberIndex` is -1 for the condition itself and >= 0 for one alternative
+//inside an OR-group. Two numbers rather than a path array because these details
+//are read at the call site, where `detail.memberIndex` says what it means and
+//`detail.path[1]` does not.
+type CollectionConditionDetail = {
+	index : number,
+	memberIndex : number,
+};
+
+export type CollectionConditionEvent = CustomEvent<CollectionConditionDetail>;
+
+const makeCollectionConditionEvent = (eventName : string, index : number, memberIndex = -1) : CollectionConditionEvent =>
+	new CustomEvent(eventName, {composed: true, detail: {index, memberIndex}});
+
+export const makeConditionSelectedEvent = (index : number) : CollectionConditionEvent =>
+	makeCollectionConditionEvent(CONDITION_SELECTED_EVENT_NAME, index);
+
+export const makeMemberSelectedEvent = (index : number, memberIndex : number) : CollectionConditionEvent =>
+	makeCollectionConditionEvent(MEMBER_SELECTED_EVENT_NAME, index, memberIndex);
+
+//The EDGE of a group, as distinct from one of its segments: tapping the border
+//scopes an edit to the whole group, tapping a segment scopes it to that
+//alternative. The two gestures are different enough to be different events, so
+//a host cannot handle one and silently inherit the other.
+export const makeGroupEdgeSelectedEvent = (index : number) : CollectionConditionEvent =>
+	makeCollectionConditionEvent(GROUP_EDGE_SELECTED_EVENT_NAME, index);
+
+export const makeConditionActivatedEvent = (index : number, memberIndex = -1) : CollectionConditionEvent =>
+	makeCollectionConditionEvent(CONDITION_ACTIVATED_EVENT_NAME, index, memberIndex);
+
+export const makeConditionRemovedEvent = (index : number, memberIndex = -1) : CollectionConditionEvent =>
+	makeCollectionConditionEvent(CONDITION_REMOVED_EVENT_NAME, index, memberIndex);
+
+//"or…" is a REQUEST, not an edit: the sentence and the pill row know which
+//token the alternative would join, but not what the alternative is. The host
+//owns the picker that answers that.
+export const makePillOrRequestedEvent = (index : number, memberIndex = -1) : CollectionConditionEvent =>
+	makeCollectionConditionEvent(PILL_OR_REQUESTED_EVENT_NAME, index, memberIndex);
+
+export type CollectionSentenceWordEvent = CustomEvent<null>;
+
+export const makeSetClickedEvent = () : CollectionSentenceWordEvent =>
+	new CustomEvent(SET_CLICKED_EVENT_NAME, {composed: true, detail: null});
+
+export const makeSortClickedEvent = () : CollectionSentenceWordEvent =>
+	new CustomEvent(SORT_CLICKED_EVENT_NAME, {composed: true, detail: null});
+
+//THE WHOLE NEXT EXPRESSION, not a description of the edit. The editing helpers
+//in collection-expression are pure and return a new tree, so handing the tree
+//itself over is both the cheapest thing to send and the only thing a host can
+//act on without re-deriving the edit — which is the duplication this layer
+//exists to prevent.
+type ExpressionModifiedDetail = {
+	expression : CollectionExpression,
+};
+
+export type ExpressionModifiedEvent = CustomEvent<ExpressionModifiedDetail>;
+
+export const makeExpressionModifiedEvent = (expression : CollectionExpression) : ExpressionModifiedEvent =>
+	new CustomEvent(EXPRESSION_MODIFIED_EVENT_NAME, {composed: true, detail: {expression}});
