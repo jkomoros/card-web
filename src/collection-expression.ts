@@ -353,6 +353,26 @@ export const withMemberRemoved = (expression : CollectionExpression, index : num
 	return withConditionReplaced(expression, index, {kind: 'or', members});
 };
 
+//REPLACING A NODE IN PLACE IS WHAT AN ARGUMENT EDIT IS: the clause keeps its
+//place in the sentence and changes what it selects. `memberIndex` addresses one
+//alternative inside a group when it is >= 0 and the condition itself otherwise
+//— the same two-number address the sentence's events carry, so the pill row can
+//pass one straight through without deciding what it means.
+export const withNodeReplaced = (
+	expression : CollectionExpression,
+	index : number,
+	memberIndex : number,
+	node : FilterExpressionNode
+) : CollectionExpression => {
+	if (index < 0 || index >= expression.length) return expression;
+	if (memberIndex < 0) return withConditionReplaced(expression, index, node);
+	const condition = expression[index];
+	if (condition.kind !== 'or') return expression;
+	if (memberIndex >= condition.members.length) return expression;
+	const members = condition.members.map((member, current) => current === memberIndex ? node : member);
+	return withConditionReplaced(expression, index, {kind: 'or', members});
+};
+
 export const withNegationToggled =(expression : CollectionExpression, index : number) : CollectionExpression => {
 	if (index < 0 || index >= expression.length) return expression;
 	return withConditionReplaced(expression, index, negatedExpressionNode(expression[index]));
