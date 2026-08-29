@@ -43,6 +43,7 @@ import {
 	FilterExpressionNode,
 	negatedExpressionNode,
 	serializeCollectionExpression,
+	serializeFilterNode,
 	withConditionAppended,
 	withMemberAddedToOr,
 	describeExpressionNode,
@@ -467,13 +468,29 @@ export const completionValences = (
 	const nodeFamily = valueFamilyForNode(node, candidates);
 	const valences : CompletionValence[] = [];
 
-	valences.push({
-		id: `${options.idPrefix}:add`,
-		kind: 'add',
-		label: name,
-		expression: withConditionAppended(expression, node),
-		rank: valenceRank('add', true, negated),
-	});
+	//A ROW THAT WOULD CHANGE NOTHING IS NOT A ROW.
+	//
+	//`a AND a` is `a`, and `(a or a)` is `a` — the first changes the sentence
+	//not at all, the second changes only its spelling. Both were offered by the
+	//first cut of this function whenever the user typed a clause their draft
+	//already had, which is complaint #9's dead affordance in a new place: a row
+	//with a count beside it promising a consequence it cannot deliver. So a
+	//condition already in the sentence suppresses its own add, and suppresses
+	//the or that would widen it with itself. Its `not` survives, because
+	//`a AND NOT a` really is a different (empty) collection, and the preview
+	//count says so honestly.
+	const spelling = serializeFilterNode(node);
+	const alreadyPresent = expression.map(serializeFilterNode);
+
+	if (!alreadyPresent.includes(spelling)) {
+		valences.push({
+			id: `${options.idPrefix}:add`,
+			kind: 'add',
+			label: name,
+			expression: withConditionAppended(expression, node),
+			rank: valenceRank('add', true, negated),
+		});
+	}
 
 	const negatedNode = negatedExpressionNode(node);
 	valences.push({
@@ -492,6 +509,10 @@ export const completionValences = (
 		//A manual condition is text this layer refused to model. Growing an OR
 		//inside it would mean rewriting a spelling we said we did not understand.
 		if (condition.kind === 'manual') continue;
+		//Widening a condition with a member it already contains is the same
+		//no-op as above, one level down.
+		if (condition.kind === 'or' && condition.members.map(serializeFilterNode).includes(spelling)) continue;
+		if (condition.kind !== 'or' && serializeFilterNode(condition) === spelling) continue;
 		const targetLabel = describeExpressionNode(condition, labels, cardNames).label;
 		const conditionFamily = valueFamilyForNode(condition, candidates);
 		const compatible = conditionFamily !== 'mixed' && conditionFamily !== 'manual' && conditionFamily === nodeFamily;

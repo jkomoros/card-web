@@ -357,6 +357,37 @@ describe('Collection completion index', () => {
 			assert.deepStrictEqual(valences.map(valence => valence.kind), ['add', 'not']);
 		});
 
+		it('offers no row that would change nothing', () => {
+			//`a AND a` is `a`, and `(a or a)` is `a`. Both were offered before this
+			//guard, which is complaint #9's dead affordance wearing a count.
+			const expression = parseCollectionExpression(['tag-b']);
+			const valences = completionValences(node('tag-b'), expression, {
+				idPrefix: 'x',
+				candidates: candidates(),
+			});
+			//The negation survives: `a AND NOT a` really is a different collection,
+			//and its preview count says so honestly.
+			assert.deepStrictEqual(valences.map(valence => valence.kind), ['not']);
+
+			//Same rule, one level down, but ONLY for the or: widening
+			//`(tag-b or tag-c)` with `tag-c` changes only the spelling. Appending
+			//it as a new condition is a different matter — `(b or c) AND c` really
+			//is `c`, a narrowing — so `add` survives and only `or` is suppressed.
+			const group = parseCollectionExpression(['tag-b+tag-c']);
+			const inGroup = completionValences(node('tag-c'), group, {
+				idPrefix: 'y',
+				candidates: candidates(),
+			});
+			assert.deepStrictEqual(inGroup.map(valence => valence.kind), ['add', 'not']);
+
+			//And a genuinely new member still widens the group.
+			const fresh = completionValences(node('notes-section'), group, {
+				idPrefix: 'z',
+				candidates: candidates(),
+			});
+			assert.ok(fresh.some(valence => valence.kind === 'or'));
+		});
+
 		it('promotes not to the top when the user led with a negation', () => {
 			const result = complete('not published');
 			const row = result.find(candidate => candidate.filter === 'published');
