@@ -1113,6 +1113,12 @@ describe('Collection Composer suggestions', () => {
 		const row = suggestions.find((suggestion) => suggestion.name === 'Unstarred');
 		assert.ok(row, 'typing the excluding half must still offer it');
 		assert.ok(!/Inverse of/.test(row.detail), `detail leaked the synthesized sentence: ${row.detail}`);
-		assert.strictEqual(row.detail, 'Cards not matching Starred');
+		//'Cards not matching Starred' is the DERIVED repair, and it is the
+		//fallback. Once collection-filter-synonyms curates a real sentence for
+		//this half of the pair, that sentence wins: an authored description is
+		//strictly better than one composed out of the other half's display name,
+		//and it still names no identifier.
+		assert.strictEqual(row.detail, 'Cards you have never marked with a star.');
+		assert.ok(!/\bstarred\b/.test(row.detail), `detail leaked a raw filter id: ${row.detail}`);
 	});
 });

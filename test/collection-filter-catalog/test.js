@@ -77,7 +77,12 @@ describe('Collection filter catalog', () => {
 
 	it('searches labels, descriptions, categories, and aliases', () => {
 		assert.deepStrictEqual(buildCollectionFilterCatalog(descriptions, candidates, draft(), 'epistemology').map(item => item.filter), ['inductively-knowable']);
-		assert.deepStrictEqual(buildCollectionFilterCatalog(descriptions, candidates, draft(), 'related').map(item => item.filter), ['direct-connections/+card-1']);
+		//'related' is now a CURATED word for the similarity family as well as an
+		//alias of the connection candidate (collection-filter-synonyms), and both
+		//answers are honest: "related cards" is what a person calls each of them.
+		//What matters is the ORDER — the row anchored to the card on screen still
+		//leads, because it is about where the user actually is.
+		assert.deepStrictEqual(buildCollectionFilterCatalog(descriptions, candidates, draft(), 'related').map(item => item.filter), ['direct-connections/+card-1', 'similar']);
 		assert.ok(buildCollectionFilterCatalog(descriptions, candidates, draft(), 'date').some(item => item.filter === 'updated'));
 	});
 

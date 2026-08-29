@@ -18,6 +18,10 @@ import {
 	type CollectionComposerCandidate,
 } from './collection-composer-suggestions.js';
 
+import {
+	filterSynonyms,
+} from './collection-filter-synonyms.js';
+
 export type CollectionFilterCatalogCategory =
 	| 'Suggested for this card'
 	| 'Common'
@@ -238,6 +242,13 @@ export const buildCollectionFilterCatalog = (
 			example,
 			candidate?.category || '',
 			...(candidate?.aliases || []),
+			//The curated words a person would actually type for this family. The
+			//catalog survives the redesign as "Browse all", a seeded expansion of
+			//the same list the palette types into (meta-proposal, risks on
+			//record), so it has to be searchable by the same vocabulary — a
+			//synonym that finds a row while typing but not while browsing would
+			//be a synonym that half exists.
+			...filterSynonyms(filter),
 		].filter(Boolean);
 		return {
 			filter,
