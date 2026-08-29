@@ -175,6 +175,21 @@ class CollectionSentence extends LitElement {
 	@property({ type : Boolean })
 		subtle = false;
 
+	//ONE CONDITION, WITHOUT THE SENTENCE AROUND IT.
+	//
+	//A completion row renders AS THE PILL IT WOULD BECOME (proposal A's token
+	//discipline), and the pill it would become is a condition — not a whole
+	//collection. Rendered by the ordinary path a one-condition expression comes
+	//out as "Main · tagged systems", which names a set the row is not proposing
+	//and an interpunct joining it to nothing.
+	//
+	//The alternative was a second pill renderer for the list, which is exactly
+	//the fork this component exists to prevent: the row's pill and the pill it
+	//turns into a keystroke later have to be the same component over the same
+	//node, or they can disagree about a colour, a negation or a group.
+	@property({ type : Boolean })
+		conditionsOnly = false;
+
 	//CONTROLLED, not self-managed. The host owns the selection, because the host
 	//is what shows the pill row for it. Keyboard and pointer gestures report;
 	//they do not decide. One source of truth, at the cost of a host that must
@@ -272,6 +287,7 @@ class CollectionSentence extends LitElement {
 	];
 
 	override render() {
+		if (this.conditionsOnly) return html`<span class='sentence ${this.subtle ? 'subtle' : ''}'>${this._conditions()}</span>`;
 		return html`<span class='sentence ${this.subtle ? 'subtle' : ''}'>${this._setWord()}${this._conditions()}${this._tail()}<slot name='count'></slot></span>`;
 	}
 
@@ -310,7 +326,10 @@ class CollectionSentence extends LitElement {
 	//--- The conditions ------------------------------------------------------
 
 	_conditions() : TemplateResult {
-		const tokens = this.expression.map((node, index) => html`<span class='operator' aria-hidden='true'> · </span>${this._condition(node, index)}`);
+		//The interpunct joins a condition to what came BEFORE it, which in the
+		//full sentence is always at least the set word. Standing alone, the
+		//first condition has nothing to be joined to.
+		const tokens = this.expression.map((node, index) => html`${index || !this.conditionsOnly ? html`<span class='operator' aria-hidden='true'> · </span>` : ''}${this._condition(node, index)}`);
 		if (!this.interactive) return html`<span class='conditions'>${tokens}</span>`;
 		return html`<span
 			class='conditions'

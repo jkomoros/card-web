@@ -29,6 +29,7 @@ import {
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
 	selectActiveCollectionDescription,
+	selectTags,
 	selectCardsSelected,
 	selectUid,
 	selectActiveCardID,
@@ -81,13 +82,15 @@ import {
 } from '../filters.js';
 
 import {
-	CANCEL_ICON,
 	LINK_ICON,
 	OPEN_IN_BROWSER_ICON,
 	PLUS_ICON
 } from '../../shared/icons.js';
 
 import './configure-collection-filter.js';
+
+import './collection-sentence.js';
+import './collection-pill-row.js';
 
 import './loading-placeholder.js';
 
@@ -114,6 +117,8 @@ import {
 } from '../types.js';
 
 import {
+	CollectionConditionEvent,
+	ExpressionModifiedEvent,
 	FilterModifiedEvent
 } from '../events.js';
 
@@ -133,7 +138,6 @@ import {
 
 import {
 	formatCollectionCardCount,
-	formatCollectionCountDelta,
 	startCollectionComposerPreviews,
 } from '../collection-composer-preview.js';
 
@@ -147,7 +151,6 @@ import {
 	collectionFilterDisplayName,
 	collectionFilterLabels,
 	collectionOptionDisplayName,
-	collectionComposerSuggestions,
 	rankedComposerSuggestions,
 	readableCollectionExpression,
 	VIEWER_DEPENDENT_CHIP_NOTE,
@@ -189,20 +192,54 @@ import {
 
 import {
 	buildCollectionFilterCatalog,
-	collectionFilterCatalogCategories,
-	CollectionFilterCatalogCategory,
 	CollectionFilterCatalogItem,
-	CollectionFilterCatalogPolarity,
 } from '../collection-filter-catalog.js';
 
-//The three lists that are painted by the .suggestion rules. Naming them means
-//the pointer rule below is written once rather than three times.
-type ComposerRowList = 'suggestion' | 'catalog' | 'source-completion';
+import {
+	CollectionExpression,
+	FilterExpressionNode,
+	collectionDescriptionWithExpression,
+	collectionExpressionForDescription,
+	serializeFilterNode,
+	withConditionAppended,
+	withConditionRemoved,
+	withMemberNegationToggled,
+	withMemberRemoved,
+	withNegationToggled,
+} from '../collection-expression.js';
 
-//The synthetic suggestion the primary action and a highlight-free Enter both
-//open. It is the only destination allowed to close the composer silently when
-//it turns out to be the collection already on screen.
-const CURRENT_DRAFT_SUGGESTION_ID = 'current-draft';
+import {
+	CollectionSentencePath,
+} from './collection-sentence.js';
+
+import {
+	PILL_ROW_KEY_HINTS,
+	pillRowSpellingFor,
+} from './collection-pill-row.js';
+
+import {
+	CollectionCompletionContext,
+	collectionCompletionCandidates,
+	collectionCompletionIdleRows,
+	CompletionCandidate,
+} from '../collection-completion-index.js';
+
+import {
+	PaletteRow,
+	frozenPaletteOrder,
+	paletteBrowseRows,
+	paletteIdleRows,
+	paletteOrScopedRows,
+	paletteOrderKey,
+	paletteTypingRows,
+	paletteWordRows,
+	PaletteWordScope,
+	RECENT_SECTION,
+} from '../collection-palette-rows.js';
+
+//The two lists that are painted by the .row rules. Naming them means the
+//pointer rule below is written once rather than twice.
+type ComposerRowList = 'palette' | 'source-completion';
 
 const ALREADY_ACTIVE_MESSAGE = 'This collection is already open.';
 
@@ -243,6 +280,35 @@ const RETAINED_PREVIEW_COUNT_LIMIT = 120;
 //each time and defeat them entirely.
 const EMPTY_FILTER_DESCRIPTIONS : {[filterName : string]: string} = {};
 const EMPTY_COLLECTION_DESCRIPTION = new CollectionDescription();
+const EMPTY_TAG_INFOS : TagInfos = {};
+
+//HOW MANY MEANINGS ONE TYPED WORD IS ALLOWED TO PRODUCE.
+//
+//A candidate becomes up to three rows (add, or, not), and the index offers
+//eight candidates by default — twenty-four rows for one keystroke, in a list
+//whose whole design premise is that there is one of it and it is short. Six
+//candidates is what fits the palette's own measure; twelve rows is the cap on
+//what the flattening produces from them, and because the flattening preserves
+//the engine's own ranking the rows it drops are the ones the engine already
+//ranked last.
+const TYPING_CANDIDATE_LIMIT = 6;
+const TYPING_ROW_LIMIT = 12;
+
+//A destination row renders as a miniature sentence, which needs the expression
+//behind its description. Keyed on the description's identity — the recents
+//list hands back the same objects until storage changes — so a list of rows
+//parses each of its collections once rather than once per render. A WeakMap
+//rather than the shared memoize() because there are as many of these as there
+//are rows, and memoize's cache is two deep.
+const rowExpressions = new WeakMap<CollectionDescription, CollectionExpression>();
+
+const expressionForDescription = (description : CollectionDescription) : CollectionExpression => {
+	const known = rowExpressions.get(description);
+	if (known) return known;
+	const expression = collectionExpressionForDescription(description);
+	rowExpressions.set(description, expression);
+	return expression;
+};
 
 //Four pure derivations that every render of the composer asks for, several of
 //them more than once per render, and all of which used to recompute from
@@ -292,19 +358,92 @@ const parsedSourceFor = memoize((
 	allowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 }), 2) as (sourceInput : string, candidates : CollectionComposerCandidate[], filterDescriptions : {[filterName : string]: string}, preservedSelectedCard : string) => ParsedCollectionSource;
 
-const catalogItemsFor = memoize((
+//BROWSE ALL IS THE CATALOG'S DATA WITHOUT THE CATALOG'S SURFACE. The module
+//still answers "every filter family, grouped, with a one-line description", which
+//is exactly what the surviving quiet link seeds the one list with. What died is
+//the wall it used to be rendered as: the setup strip, the category caps, the
+//per-row examples and the Not toggles. Polarity is passed empty because the Not
+//toggle is gone — flipping is a verb on a pill now, not a control on a row.
+const NO_CATALOG_POLARITY : Readonly<Record<string, string>> = {};
+
+const browseItemsFor = memoize((
 	filterDescriptions : {[filterName : string]: string},
 	candidates : CollectionComposerCandidate[],
 	draft : CollectionDescription,
-	query : string,
-	polarity : CollectionFilterCatalogPolarity
-) : CollectionFilterCatalogItem[] => buildCollectionFilterCatalog(filterDescriptions, candidates, draft, query, polarity), 2) as (
+	query : string
+) : CollectionFilterCatalogItem[] => buildCollectionFilterCatalog(filterDescriptions, candidates, draft, query, NO_CATALOG_POLARITY), 2) as (
 	filterDescriptions : {[filterName : string]: string},
 	candidates : CollectionComposerCandidate[],
 	draft : CollectionDescription,
-	query : string,
-	polarity : CollectionFilterCatalogPolarity
+	query : string
 ) => CollectionFilterCatalogItem[];
+
+//THE DRAFT IS A DESCRIPTION; THE EXPRESSION IS A VIEW OF IT. Keeping the tree
+//as a second source of truth would mean two things to keep in step across
+//undo, source round-trips and draft preservation — all of which already work on
+//the description. Memoized on the description's identity so the sentence, the
+//pill row and the completion index are all handed the SAME array and Lit's
+//dirty check can do its job.
+const draftExpressionFor = memoize((description : CollectionDescription) : CollectionExpression =>
+	collectionExpressionForDescription(description), 2) as (description : CollectionDescription) => CollectionExpression;
+
+//Everything the completion index needs, assembled once per render rather than
+//once per call. Its identity is the memo key for both calls below, which is what
+//keeps a keystroke from rebuilding the index's whole world twice.
+const completionContextFor = memoize((
+	candidates : CollectionComposerCandidate[],
+	cardNames : Record<string, string>,
+	filterDescriptions : {[filterName : string]: string},
+	tagInfos : TagInfos,
+	recentCollections : RecentComposerCollection[],
+	activeCollection : CollectionDescription | undefined,
+	previousCollection : string | undefined,
+	preservedSelectedCard : string,
+	cardsSelected : boolean
+) : CollectionCompletionContext => ({
+	candidates,
+	cardNames,
+	filterDescriptions,
+	tagInfos,
+	recentCollections,
+	activeCollection,
+	previousCollection,
+	preservedSelectedCard,
+	cardsSelected,
+	sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
+}), 2) as (
+	candidates : CollectionComposerCandidate[],
+	cardNames : Record<string, string>,
+	filterDescriptions : {[filterName : string]: string},
+	tagInfos : TagInfos,
+	recentCollections : RecentComposerCollection[],
+	activeCollection : CollectionDescription | undefined,
+	previousCollection : string | undefined,
+	preservedSelectedCard : string,
+	cardsSelected : boolean
+) => CollectionCompletionContext;
+
+const idleRowsFor = memoize((
+	description : CollectionDescription,
+	context : CollectionCompletionContext
+) => collectionCompletionIdleRows(description, context), 2) as (
+	description : CollectionDescription,
+	context : CollectionCompletionContext
+) => ReturnType<typeof collectionCompletionIdleRows>;
+
+const completionCandidatesFor = memoize((
+	token : string,
+	expression : CollectionExpression,
+	description : CollectionDescription,
+	context : CollectionCompletionContext,
+	limit : number
+) : CompletionCandidate[] => collectionCompletionCandidates({token, expression, description, context, limit}), 2) as (
+	token : string,
+	expression : CollectionExpression,
+	description : CollectionDescription,
+	context : CollectionCompletionContext,
+	limit : number
+) => CompletionCandidate[];
 
 type RecentComposerCollection = {description : CollectionDescription, visits : number, frequent? : boolean, relative? : boolean};
 
@@ -323,48 +462,6 @@ const recentCollectionsFor = memoize((remembered : RememberedCollectionEntry[]) 
 //itself is: the row set, and the counts that may reorder it.
 const rankedSuggestionsFor = memoize((suggestions : CollectionComposerSuggestion[], previewCounts : {[suggestionID : string]: number}) : CollectionComposerSuggestion[] =>
 	rankedComposerSuggestions(suggestions, previewCounts), 2) as (suggestions : CollectionComposerSuggestion[], previewCounts : {[suggestionID : string]: number}) => CollectionComposerSuggestion[];
-
-const frozenOrderSuggestions = memoize((suggestions : CollectionComposerSuggestion[], order : string[]) : CollectionComposerSuggestion[] => {
-	const position = new Map(order.map((id, index) => [id, index]));
-	return suggestions
-		.map((suggestion, index) => ({suggestion, index}))
-		.sort((left, right) =>
-			(position.get(left.suggestion.id) ?? left.index) - (position.get(right.suggestion.id) ?? right.index))
-		.map(({suggestion}) => suggestion);
-}, 2) as (suggestions : CollectionComposerSuggestion[], order : string[]) => CollectionComposerSuggestion[];
-
-const composerSuggestionsFor = memoize((
-	draft : CollectionDescription,
-	input : string,
-	filterDescriptions : {[filterName : string]: string},
-	cardsSelected : boolean,
-	recentCollections : RecentComposerCollection[],
-	activeCollection : CollectionDescription | undefined,
-	previousCollection : string | undefined,
-	preservedSelectedCard : string,
-	candidates : CollectionComposerCandidate[],
-	cardNames : Record<string, string>
-) : CollectionComposerSuggestion[] => collectionComposerSuggestions(draft, input, filterDescriptions, {
-	cardsSelected,
-	recentCollections,
-	activeCollection,
-	previousCollection,
-	preservedSelectedCard,
-	sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
-	candidates,
-	cardNames,
-}), 2) as (
-	draft : CollectionDescription,
-	input : string,
-	filterDescriptions : {[filterName : string]: string},
-	cardsSelected : boolean,
-	recentCollections : RecentComposerCollection[],
-	activeCollection : CollectionDescription | undefined,
-	previousCollection : string | undefined,
-	preservedSelectedCard : string,
-	candidates : CollectionComposerCandidate[],
-	cardNames : Record<string, string>
-) => CollectionComposerSuggestion[];
 
 //Which origins a pasted collection URL may come from. Always the origin this
 //client is running on; plus this deployment's own public domain, which is
@@ -396,45 +493,29 @@ const COLLECTION_HELP = 'A collection is a set of cards you can link to.';
 //control — a screen reader said "add" while the screen said "ADD".
 const sentenceCase = (value : string) : string => value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
-//WHAT A ROW COSTS YOU, in one word the eye can sort on.
-//
-//Open is the only verb that LEAVES: it commits a navigation and closes the
-//composer. Add / Remove / Replace / Configure / Edit all rewrite the draft (or
-//its representation) in place and leave the user composing. Sentence case makes
-//the words quieter than the old caps did, so the consequence class has to be
-//carried visually as well as lexically — filled for the one that navigates,
-//outlined for the ones that do not.
+//WHAT A ROW COSTS YOU, in one word the eye can sort on. Only Source mode's
+//completion list still wears this as a chip: the palette's verb chips are
+//deleted outright (the section heading carries the grammar, and a navigating row
+//under a typing list gets the one OPEN_IN_BROWSER glyph), but the source
+//completions are a different list with a different grammar — 'add' and
+//'complete' are not distinguishable from the token itself — and source mode is
+//kept as it was.
 const rowConsequence = (verb : string) : 'navigate' | 'transform' => verb === 'open' ? 'navigate' : 'transform';
 
-//WHAT ENTER ON A CATALOG ROW ACTUALLY DOES. _handleCatalogItem is the
-//authority, and this is the same four-way decision written once so that the
-//authority, the row's own verb chip, and the footer cannot disagree. They did:
-//a row the handler OPENS SOURCE for was chipped 'Edit', and the footer
-//enumerated all three of the other outcomes at once for every row.
-type CatalogItemAction = 'source' | 'edit' | 'configure' | 'add';
+//The default a configurable family is ADDED with when the user chooses it by
+//name — from Browse all, or from a Refine row that names a family rather than a
+//clause. Nothing is pending any more: the clause lands in the draft with these
+//values and its pill row opens on it, so the count beside the sentence is
+//already the count of what they chose, and Undo is one click away. The dates
+//get a rolling window rather than the family's own placeholder, which is the
+//difference between a default that answers a question and one that asks for an
+//edit before it means anything.
+const ROLLING_DATE_FAMILIES : ReadonlySet<string> = new Set(['created', 'updated', 'last-tweeted']);
 
-const catalogItemAction = (item : CollectionFilterCatalogItem) : CatalogItemAction => {
-	if (!item.guided) return 'source';
-	if (item.appliedIndex >= 0) return 'edit';
-	const family = item.filter.split('/')[0];
-	if (item.configurable && item.filter === family) return 'configure';
-	return 'add';
-};
-
-//The verb chip on the row, and the phrase the footer completes 'Enter …' with.
-//Both are derived from the one decision above.
-const CATALOG_ACTION_CHIPS : {[action in CatalogItemAction] : string} = {
-	source: 'source',
-	edit: 'edit',
-	configure: 'configure',
-	add: 'add',
-};
-
-const CATALOG_ACTION_HINTS : {[action in CatalogItemAction] : string} = {
-	source: 'Enter opens this filter in Source',
-	edit: 'Enter edits this clause',
-	configure: 'Enter configures it before adding',
-	add: 'Enter adds it to the draft',
+const defaultFilterForFamily = (family : string) : string => {
+	if (ROLLING_DATE_FAMILIES.has(family)) return `${family}/after/7-days-ago`;
+	const info = CONFIGURABLE_FILTER_INFO[family];
+	return info ? `${family}/${info.arguments.map(argument => argument.default).join('/')}` : family;
 };
 
 //The spec's own words for a draft that resolves to nothing. A sentence-case
@@ -477,6 +558,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_cardTagInfos: TagInfos;
 
+	//The REAL colours, and the authored prose behind a tag. The sentence paints a
+	//value pill in the colour its tag already has everywhere else in the app, and
+	//the completion index matches a typed word against a tag's own description —
+	//both from here. _cardTagInfos is a different map for a different job (naming
+	//the CARD a clause is anchored to) and the two must not be confused.
+	@state()
+		_tagInfos: TagInfos = {};
+
 	@state()
 		_composerInput = '';
 
@@ -508,9 +597,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_lastValidSource : ParsedCollectionSource | null = null;
 
 	@state()
-		_highlightedSuggestion = 0;
+		_highlightedRow = 0;
 
-	//Whether _highlightedSuggestion currently means anything. The spec draws a
+	//Whether _highlightedRow currently means anything. The spec draws a
 	//hard line between "Enter with a highlighted suggestion" (open that
 	//destination) and "Enter with no highlighted suggestion" (open the current
 	//draft). A row is highlighted only once the user has pointed at one: by
@@ -520,7 +609,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//highlighted, so the next Enter commits the draft the user just composed
 	//rather than whatever happens to sit in row 0.
 	@state()
-		_suggestionHighlightActive = false;
+		_rowHighlightActive = false;
 
 	//mouseenter fires whenever the list re-renders under a resting cursor, which
 	//would silently hand the Enter target to whichever row happened to land
@@ -536,29 +625,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_pointerHighlightArmed = false;
 
+	//The legacy builder's own expansion, for the composer-off path only. The
+	//composer's clause editor is the pill row now, and it is opened by selecting
+	//a pill rather than by a toggle.
 	@state()
 		_builderExpanded = false;
 
+	//"BROWSE ALL FILTERS" IS A FEED, NOT A PLACE. The catalog mode is gone: this
+	//seeds the SAME list with every family under the same headings, and Escape
+	//peels it like any other layer.
 	@state()
-		_catalogOpen = false;
+		_browseOpen = false;
 
+	//Which sentence word the list is currently showing alternatives for, when
+	//the user clicked one. '' the rest of the time.
 	@state()
-		_catalogHighlightedIndex = 0;
+		_wordScope : PaletteWordScope | '' = '';
 
+	//THE OR-SCOPED INPUT. The pill row's "or…" is a request — it knows which
+	//token an alternative would join and not what the alternative is — so the
+	//palette answers by scoping the input to that condition: every row is now an
+	//alternative joining it.
 	@state()
-		_pendingCatalogFilter = '';
-
-	@state()
-		_pendingCatalogChanged = false;
-
-	@state()
-		_expandedCatalogCategories = new Set<CollectionFilterCatalogCategory>();
-
-	//Which half of each `x` / `not-x` pair the catalog row is currently
-	//offering, for the pairs the user has flipped. One row stands for the whole
-	//pair; this is the only state the affordance needs.
-	@state()
-		_catalogPolarity : CollectionFilterCatalogPolarity = {};
+		_orTarget : {index : number, memberIndex : number} | null = null;
 
 	@state()
 		_cardsSelected = false;
@@ -575,14 +664,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//(HS-3.6) that both used to render as a bare "Open this collection".
 	@state()
 		_draftCountPending = false;
-
-	//And whether the ANCHORED EDITOR's own count is still being computed. Same
-	//distinction, one surface further in: while a pending-add filter is being
-	//configured, the draft's count and the count the confirm would produce are
-	//two different numbers, so "still arriving" has to be tracked separately for
-	//each of them.
-	@state()
-		_editorCountPending = false;
 
 	//Counts keyed by the collection they counted, not by the suggestion that
 	//happened to name it. _refreshPreviewCounts used to blank every count and
@@ -615,8 +696,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_newTabNoteShown = false;
 
+	//WHICH TOKEN OF THE SENTENCE IS SELECTED, in the sentence's own address:
+	//[] for nothing, [index] for a condition or a group's edge, [index, member]
+	//for one alternative inside a group. Controlled, because this dialog is what
+	//shows the pill row for it — the sentence reports gestures and does not
+	//decide.
 	@state()
-		_selectedClauseIndex = -1;
+		_selectedPath : CollectionSentencePath = [];
 
 	@state()
 		_draftReceiptMessage = '';
@@ -630,20 +716,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_clauseSelectionMessage = '';
 
-	//The order the suggestion list was last ranked in, keyed by the identity of
-	//the rows it ranked. Deliberately not @state: it is a memo of a render, not
-	//an input to one.
-	_suggestionOrder : {key : string, order : string[]} | null = null;
+	//The order the list was last ranked in, keyed by the identity of the rows it
+	//ranked. Deliberately not @state: it is a memo of a render, not an input to
+	//one.
+	_paletteOrder : {key : string, order : string[]} | null = null;
 
 	_draftUndoDescription : CollectionDescription | null = null;
 	_draftUndoSelectedCard : string | null = null;
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
-	//The draft PLUS whatever the open Configure panel is currently valued at.
-	//Only the pending-add flow needs one: a clause edit is already in the draft,
-	//so the draft's own count IS the count of the editor's current values, and
-	//counting it twice would be two names for one number.
-	readonly _editorPreviewID = 'anchored-editor-preview';
+	//THE SECOND OF THE PILL ROW'S TWO COUNT ROLES. "Draft now matches N" is the
+	//draft's own count — the same fact the footer states, asked once — and "without
+	//this pill: N" is a different collection, so it is a different preview. There
+	//is no third: a clause being edited is already IN the draft, so the draft's
+	//count IS the count of the editor's current values, and counting it twice
+	//would be two names for one number.
+	readonly _withoutPreviewID = 'without-pill-preview';
 
 	static override styles = [
 		...DialogElement.styles,
@@ -656,34 +744,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//DialogElement #inner.
 		ScrollingSharedStyles,
 		css`
-			/* The composer is a full workspace, not a confirm box. The base
-			   .content sizes to its content, and the flex-basis-0 lists below
-			   contribute no intrinsic height — so a content-sized dialog gave
-			   the catalog only its min-height (128px in a 720px viewport).
-			   Pinning the dialog to its maximum height gives the suggestion
-			   list and catalog real space to flex into, and keeps the dialog
-			   from resizing as the lists change under typing.
+			/* A LIGHT PALETTE, NOT A WORKSPACE.
+			   The composer used to be pinned to 90% of the viewport's height
+			   and 64em wide because it contained seven things — a setup strip,
+			   a catalog wall, two editor panels, two lists and a footer — and
+			   every one of them was competing for the same column. It contains
+			   four now: the sentence, the input, ONE list and the footer
+			   (03-proposal-c-grow-it-native.md §2b). A box that tall around
+			   that little content is a room with the furniture pushed to the
+			   walls, so the height goes back to the base .content's own
+			   content-sizing, with a cap so a long list scrolls rather than
+			   growing the dialog off the screen.
 
-			   THE WIDTH IS PINNED FOR THE SAME REASON THE HEIGHT IS, and it is
-			   the half that was missing. .content sizes to content
-			   horizontally between min-width:40% and max-width:70%, so the
-			   dialog's content box was measured at 512px, 896px and 567px on
-			   three consecutive keystrokes of one session — and because
-			   .background centres it, every change moved the dialog's left
-			   edge too. The suggestion list changing under typing must not be
-			   able to move the input the user is typing into.
-
-			   All three of width/min-width/max-width take the SAME value, so
-			   the base rule's percentages cannot re-enter and make the box
-			   content-sized again. 64em is chosen to fit the widest designed
-			   row — a 14em count column, a 5.5em action column, their gaps and
-			   the dialog's own padding still leave the label column ~39em,
-			   which is more than the longest filter label needs. 92vw is the
-			   same box on a viewport too narrow for 64em; it is a viewport
-			   unit, so it changes only when the window does. */
+			   THE WIDTH IS STILL PINNED, and for the reason it always was: the
+			   base rule sizes .content to its content between 40% and 70%, and
+			   .background centres it, so a list changing under typing moved the
+			   left edge of the field being typed into. All three of
+			   width/min-width/max-width take the same value so the percentages
+			   cannot re-enter. 44em is the palette's own measure — wide enough
+			   for a sentence of pills and a right-aligned count, narrow enough
+			   that a one-line row reads as a line rather than as a table. */
 			.content {
-				--composer-width: min(64em, 92vw);
-				height: 90%;
+				--composer-width: min(44em, 92vw);
+				max-height: 80vh;
 				width: var(--composer-width);
 				min-width: var(--composer-width);
 				max-width: var(--composer-width);
@@ -717,165 +800,68 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-width: 0;
 			}
 
-			.expression {
-				align-items: center;
+			/* THE SENTENCE IS THE FIRST THING UNDER THE TITLE, and it is prose,
+			   not a form row. collection-sentence renders inline so its pills
+			   wrap like words; this block is only the space around it and the
+			   help badge that rides at its end. */
+			.sentence {
 				color: var(--app-dark-text-color);
-				display: flex;
-				flex-wrap: wrap;
 				font-size: 1.05em;
-				gap: 0.3em;
-				line-height: 1.55;
+				line-height: 1.8;
 				overflow-wrap: anywhere;
-				padding: 0.75em 0;
-			}
-
-			/* THE EMPHASIS WAS UPSIDE DOWN.
-			   The set name is the one term in this sentence that is NOT
-			   interactive — it is a plain span, changed from the catalog's
-			   "Start From" control — and it was bold purple 700, the loudest
-			   token in the dialog, while every editable clause sat in a quiet
-			   grey box beside it. Purple is the brand/link/committing colour
-			   (§4.5), so painting a non-control with it promises a click that
-			   does not exist.
-			   It now reads at the sentence's own weight and colour, and the
-			   presence goes to the clauses, which are what the user can act on.
-			   The operators stay subordinate below both. */
-			.expression-set {
-				color: var(--app-dark-text-color);
-				font-weight: 400;
-			}
-
-			.expression-operator,
-			.expression-modifiers {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.8em;
-			}
-
-			/* One operator plus the clause it introduces, as one unwrappable
-			   unit. inline-flex rather than white-space:nowrap so the CHIP may
-			   still wrap its own label internally. */
-			.expression-term {
-				align-items: center;
-				display: inline-flex;
-				gap: 0.3em;
-				max-width: 100%;
-				min-width: 0;
+				padding: 0.75em 0 0.5em;
 			}
 
 			/* HelpStyles sizes the badge at 1.3em of whatever it sits in, which
-			   suits a 0.75em form label. The expression row runs at 1.05em,
-			   where that would make the badge the largest glyph in the dialog. */
-			.expression .help svg {
+			   suits a 0.75em form label. The sentence runs at 1.05em, where
+			   that would make the badge the largest glyph in the dialog. */
+			.sentence .help svg {
 				height: 1em;
 				width: 1em;
 			}
 
-			/* A TOKEN IN A SENTENCE, NOT A CELL IN A TABLE.
-			   The chip was a white box with a 1px divider around it and a
-			   SECOND 1px divider down its middle, splitting label from remove —
-			   which is exactly the anatomy of a two-column table cell, and it
-			   read as one. Square corners stay (§4.4: a clause is a core
-			   surface, not a pill); what changes is that the outer rule becomes
-			   the subtle primary wash the spec asks for ("focused/editable
-			   clauses receive a clear outline or subtle primary wash using
-			   existing theme colors"), and the internal rule is gone. The wash
-			   is also what gives the clauses the presence the set name just gave
-			   up. */
-			.expression-clause {
-				align-items: stretch;
-				background: var(--app-primary-color-light-very-transparent);
-				border: 1px solid var(--app-divider-color);
-				display: inline-flex;
-				min-width: 0;
-			}
-
-			.expression-clause[data-selected] {
-				border-color: var(--app-primary-color);
-				box-shadow: 0 0 0 1px var(--app-primary-color);
-			}
-
-			.expression-clause button {
-				background: transparent;
-				box-shadow: none;
-				color: var(--app-dark-text-color);
-				margin: 0;
-				min-height: 44px;
-			}
-
-			.expression-clause button:hover,
-			.expression-clause button:focus-visible {
-				background: var(--app-primary-color-light-transparent);
-				box-shadow: none;
-			}
-
-			.expression-clause-label {
-				max-width: 18em;
-				overflow-wrap: anywhere;
-				padding: 0.35em 0.6em;
-				text-align: left;
-			}
-
-			.expression-clause-remove {
-				align-items: center;
-				display: inline-flex;
-				justify-content: center;
-				min-width: 44px;
-				padding: 0.35em;
+			/* THE PILL ROW IS ATTACHED TO THE SENTENCE, always directly under
+			   it, because the whole argument for a one-line editor is that
+			   everything you can do to a clause appears at the place you see it
+			   (03-proposal-c §2b). It cannot squash — it is one row — so unlike
+			   the anchored panels it replaced it needs no bound, no inner
+			   scroller and no floor to steal from the list. */
+			.pill-row {
+				border-left: 3px solid var(--app-primary-color);
+				margin-bottom: 0.5em;
+				padding-left: 0.6em;
 			}
 
 			/* WHOSE CARDS THIS IS ABOUT. Subordinate tone and nothing else: a
 			   personal clause is not a problem, and §4.5 gives that case
-			   --app-dark-text-color-light, the same tone the .diagnostic note
-			   takes for the same reason. No amber — amber means exactly one
-			   thing, and this is not "not yet on the server". No badge, border
-			   or new colour, because the note has to survive sitting next to
-			   twenty other chips without turning the sentence into a warning
-			   panel. */
+			   --app-dark-text-color-light. It survives only where it still has
+			   a job — on a LIST row, where the consequence of choosing a
+			   personal clause is not yet visible anywhere else. The chip note
+			   inside the sentence is deleted: "only for you" dies in
+			   composition (meta-proposal convergence 6), and viewer-dependence
+			   speaks once, at copy-link and in Source's status, which is where
+			   somebody is actually about to share the thing. */
 			.viewer-dependent {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.7em;
 				white-space: nowrap;
 			}
 
-			.expression-clause .viewer-dependent {
-				align-self: center;
-				padding-right: 0.5em;
-			}
-
-			/* QUIET UNTIL HOVER OR FOCUS. The spec asks for destructive removal
-			   to stay visually quiet until focused, and §3.7 keeps the warning
-			   colour for Tier 1 acts — removing a draft clause is Tier 2 and
-			   loses nothing, so the escalation is from subordinate grey to body
-			   grey, not to red. It is never invisible: hover-only affordances
-			   are unreachable on touch (§3.6.4). */
-			.expression-clause-remove svg {
-				fill: var(--app-dark-text-color-light);
-				height: 1em;
-				width: 1em;
-			}
-
-			.expression-clause-remove:hover svg,
-			.expression-clause-remove:focus-visible svg {
-				fill: var(--app-dark-text-color);
-			}
-
-			/* THE INPUT CONTINUES THE SENTENCE; IT IS NOT A SECOND FIELD.
-			   A 14em flex-basis is the width the flex algorithm uses to decide
-			   whether this item fits on the current line, so with a couple of
-			   chips on a narrow-ish dialog the input jumped to a line of its
-			   own and then grew to fill it — two stacked underlined boxes, which
-			   is a form, not a sentence. 8em is a real minimum typing width and
-			   is what the line-breaking test now uses, so the input wraps only
-			   when there is genuinely no room left beside the last chip. */
+			/* THE INPUT IS FIND-DIALOG'S #query, IN THIS DIALOG.
+			   Borderless with a bottom rule, full width, and the placeholder
+			   continuing the sentence above it. It is a block of its own rather
+			   than an item flexed in beside the last chip, because the sentence
+			   is now a real sentence that wraps: an input that tried to sit on
+			   the same line as its last pill either got 8em of a wrapped line or
+			   pushed the pill off it. */
 			.composer-input {
 				border: 0;
 				border-bottom: 1px solid var(--app-dark-text-color);
 				box-sizing: border-box;
-				flex: 1 1 8em;
+				display: block;
 				font: inherit;
-				min-width: 8em;
 				padding: 0.6em 0.2em;
-				width: auto;
+				width: 100%;
 			}
 
 			.composer-input:focus {
@@ -960,16 +946,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin-top: 1.2em;
 			}
 
-			/* The list takes the height the dialog body has left rather than a
-			   fixed fraction of the viewport: at 800x450 the old
-			   min(42vh, 26em) showed two of twelve rows while the dialog had
-			   room for far more. flex-basis 0 plus min-height keeps it from
-			   collapsing when a long draft expression pushes it down. */
+			/* ONE LIST, and it is content-sized until it runs out of room. The
+			   dialog is no longer pinned to 90% of the viewport, so a
+			   flex-basis-0 list would collapse to nothing; a max-height is what
+			   makes a long list scroll instead of growing the palette off the
+			   screen, and it is the only bound the list needs now that there is
+			   no catalog or editor panel to negotiate with. */
+			.palette-list,
 			.suggestions {
-				flex: 1 1 0;
 				list-style: none;
 				margin: 0.25em 0 0;
-				min-height: 7em;
+				max-height: 40vh;
 				overscroll-behavior: contain;
 				padding: 0;
 			}
@@ -998,8 +985,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   bottom edge needs the same reservation, and one property on the
 			   container states both without the two adding up. The bottom value
 			   is the fade, so a row scrolled to never lands underneath it. */
-			.suggestions,
-			.catalog-list {
+			.palette-list,
+			.suggestions {
 				--composer-edge-fade: 1.5em;
 				mask-image: linear-gradient(to bottom,
 					currentColor calc(100% - var(--composer-edge-fade)),
@@ -1007,15 +994,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				scroll-padding-block: 2.2em var(--composer-edge-fade);
 			}
 
-			/* ONE GRID FOR EVERY ROW IN THE DIALOG.
-			   The three lists that use .suggestion — the composer's
-			   suggestions, the source completions and the filter catalog —
-			   all used content-sized auto tracks, and a CSS grid is scoped
-			   to its own container, so every row measured its own columns.
-			   The live review measured adjacent count columns starting at
-			   634px and 739px, and ADD / REPLACE chips landing at a different
-			   x on every line. Fixed tracks below are what make a column a
-			   column. */
+			/* ONE ROW ANATOMY, and it is the whole of proposal B §2.1: one
+			   label, a right-aligned quiet count, and a detail line only on
+			   the highlighted row. No verb chip — the section heading carries
+			   the grammar — and one navigate glyph on a destination row under
+			   a typing list.
+
+			   The count column is FIXED, not auto, and it is fixed even while
+			   the counts are still being computed: that is what stops the whole
+			   row re-flowing when a number lands 150ms after the row does.
+			   11em holds the longest thing this cell can say ('9,999 cards →
+			   9,999 cards') at this width without wrapping. */
+			.palette-row,
 			.suggestion {
 				align-items: start;
 				border-top: 1px solid var(--app-divider-color);
@@ -1024,21 +1014,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin: 0;
 			}
 
-			/* Only some catalog rows offer a polarity toggle, so an auto
-			   second track made the ROW's own width — and therefore every
-			   column inside it — depend on whether this particular filter has
-			   an opposite. Reserved on every catalog row instead: 3.25em is
-			   §4.2's 44px floor plus the room the uppercase word needs. */
-			.catalog-list .suggestion {
-				grid-template-columns: minmax(0, 1fr) 3.25em;
-			}
-
-			/* The count column is FIXED, not auto, and it is fixed even while
-			   the counts are still being computed — that is what stops the
-			   whole row re-flowing when a number lands 150ms after the row
-			   does. 14em holds the longest thing this cell can say ('9,999
-			   cards · same number of cards') without wrapping; the action
-			   column holds the longest chip ('CONFIGURE'). */
+			.palette-row button,
 			.suggestion button {
 				background: transparent;
 				/* Declared on every row, painted on one. The bar used to be
@@ -1051,19 +1027,30 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-dark-text-color);
 				column-gap: 0.75em;
 				display: grid;
-				grid-template-columns: minmax(0, 1fr) 14em 5.5em;
-				grid-template-areas:
-					'category category category'
-					'label    count    action'
-					'personal personal personal'
-					'detail   detail   detail'
-					'example  example  example'
-					'applied  applied  applied';
 				margin: 0;
-				padding: 0.65em 0.5em;
+				padding: 0.5em;
 				padding-left: calc(0.5em - 3px);
 				text-align: left;
 				width: 100%;
+			}
+
+			.palette-row button {
+				grid-template-columns: minmax(0, 1fr) 11em auto;
+				grid-template-areas:
+					'label count glyph'
+					'widens count glyph'
+					'detail detail detail'
+					'personal personal personal';
+			}
+
+			/* The source completion list keeps the columns it always had,
+			   including the verb chip its two modes genuinely need. */
+			.suggestion button {
+				grid-template-columns: minmax(0, 1fr) 5.5em;
+				grid-template-areas:
+					'category category'
+					'label    action'
+					'detail   detail';
 			}
 
 			/* HOVER PAINTS ONLY WHILE THE POINTER OWNS THE HIGHLIGHT.
@@ -1076,13 +1063,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   the row under the cursor, so the hovered row IS the highlighted
 			   row and there is still only one. While the keyboard owns it,
 			   hover paints nothing at all. */
+			:host([data-pointer-armed]) .palette-row button:hover,
 			:host([data-pointer-armed]) .suggestion button:hover {
 				background: var(--app-primary-color-light-very-transparent);
 				box-shadow: none;
 			}
 
-			/* Categorically stronger than a hover tint: the fill, the bar, and
-			   the row's action chip filled rather than outlined. */
+			/* Categorically stronger than a hover tint: the fill and the bar. */
+			.palette-row button[data-highlighted],
 			.suggestion button[data-highlighted] {
 				background: var(--app-primary-color-light-very-transparent);
 				border-left-color: var(--app-primary-color);
@@ -1094,12 +1082,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-light-text-color);
 			}
 
+			.row-label,
 			.suggestion-label {
 				grid-area: label;
 				min-width: 0;
 				overflow-wrap: anywhere;
 			}
 
+			/* WHAT AN "OR" ROW WIDENS, as the subordinate clause it is. Proposal
+			   B §3.1 requires the row to be labeled with its target; the label
+			   already reads "<target> or <new>", so this says which half of that
+			   sentence was already there. */
+			.row-widens {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				grid-area: widens;
+			}
+
+			.row-detail,
 			.suggestion-detail,
 			.key-hints,
 			.no-suggestions {
@@ -1107,6 +1107,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				font-size: 0.78em;
 				margin-top: 0.2em;
 				overflow-wrap: anywhere;
+			}
+
+			.row-detail {
+				grid-area: detail;
 			}
 
 			.suggestion-detail {
@@ -1118,22 +1122,42 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   property of a row whose consequence shows up somewhere the row
 			   cannot follow it to. Rows without it lose no height — an empty
 			   grid area collapses. */
-			.suggestion .viewer-dependent {
+			.palette-row .viewer-dependent {
 				font-size: 0.72em;
 				grid-area: personal;
 			}
 
-			/* Was float:right inside the wrapping detail block, so on a 375px
-			   screen the count ran straight through the detail text. Its own
-			   grid area cannot overlap anything.
-			   RIGHT-ALIGNED, so the numbers line up with each other rather
-			   than with the variable-length words that follow them. */
-			.suggestion-count {
+			/* RIGHT-ALIGNED, so the numbers line up with each other rather than
+			   with the variable-length words that follow them, and reserved even
+			   while empty so a number landing 150ms late moves nothing. */
+			.row-count {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.82em;
 				grid-area: count;
 				text-align: right;
 				white-space: nowrap;
+			}
+
+			/* THE ONE GLYPH THAT SURVIVED THE VERB CHIPS. A destination under a
+			   typing list is the only row whose consequence differs from its
+			   neighbours', so it is the only row that has to say so — and it
+			   says it the way find-dialog already does. */
+			.row-navigate {
+				align-self: center;
+				grid-area: glyph;
+			}
+
+			.row-navigate svg {
+				fill: var(--app-dark-text-color-light);
+				height: 1em;
+				width: 1em;
+			}
+
+			/* A recent renders as the sentence it is, in miniature. The
+			   renderer is the same component the palette's own sentence is, so
+			   a collection is called the same thing in both places. */
+			.row-sentence {
+				color: var(--app-dark-text-color);
 			}
 
 			/* justify-self: start, inside a fixed track: every chip on every
@@ -1184,65 +1208,40 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			/* A genuine extension rather than a repaint: this is a toggle (it
 			   pairs with aria-pressed and takes .selected from
 			   ButtonSharedStyles), and it needs a square hit target beside the
-			   row it modifies. Colour, margin and height come from .verb.
-			   Its label is the word "Not", which §2.1 wants in sentence case
-			   like every other button label — so the caps and the spacing that
-			   was opening them up are both gone. */
-			.catalog-polarity {
-				align-self: center;
-				font-size: 0.75em;
-				min-width: 44px;
-			}
-
-			/* THE ON STATE HAS TO PAINT. aria-pressed=true and aria-pressed=
-			   false rendered identical pixels: ButtonSharedStyles gives a
-			   toggle its on state through button.selected, and button.small's
-			   transparent background has the same specificity and comes after
-			   it, so the shared rule never reached the screen.
-			   Restated here at a specificity the local rules cannot shadow,
-			   with §4.5's teal, which is what a toggle that is on means.
-			   The text darkens with it: the purple .verb sets is unreadable on
-			   teal, --app-dark-text-color-darker is 4.8:1. The selector carries
-			   the element too, because button.small.verb would otherwise
-			   out-specify the colour the same way button.small out-specified
-			   the background. */
-			button.catalog-polarity.selected {
-				background: var(--app-secondary-color-light);
-				color: var(--app-dark-text-color-darker);
-			}
+			   row it modifies. Kept for the legacy builder path, which still
+			   renders its own selects. */
 
 			/* The key-hints line sits below the list and outside it, so the
 			   list's last row was clipped underneath it on a narrow screen. */
+			.mobile .palette-list,
 			.mobile .suggestions {
 				padding-bottom: 2.75em;
 			}
 
-			/* Same discipline, a narrower column: 14em of a 375px screen would
-			   leave the label nothing. The count is allowed to wrap here
-			   instead of being cut off, since it no longer shares its row with
-			   anything but the label. */
-			.mobile .suggestion-count {
+			/* Same discipline, a narrower column: 11em of a 375px screen would
+			   leave the label nothing, so the count takes its own row under the
+			   label and is allowed to wrap. */
+			.mobile .palette-row button {
+				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-areas:
+					'label glyph'
+					'widens glyph'
+					'count count'
+					'detail detail'
+					'personal personal';
+			}
+
+			.mobile .row-count {
+				text-align: left;
 				white-space: normal;
 			}
 
-			/* READING ORDER: WHAT IT IS, WHAT IT COSTS, WHAT IT DOES, WHY.
-			   The verb had a full-width row of its own between the label and the
-			   description, so a mobile row read "Add Starred / 18 cards / ADD /
-			   Adds Starred to this collection" — the consequence interrupting
-			   the thing it is a consequence of. The label now spans two rows so
-			   the count and the verb can stack in the same right-hand column,
-			   which puts the verb directly under the number it applies to and
-			   leaves the description last and unbroken. Both areas stay
-			   rectangular, which is what lets one track serve two rows. */
 			.mobile .suggestion button {
 				grid-template-columns: minmax(0, 1fr) 9em;
 				grid-template-areas:
 					'category category'
-					'label    count'
 					'label    action'
-					'detail   detail'
-					'example  example'
-					'applied  applied';
+					'detail   detail';
 			}
 
 			/* Right-aligned under the right-aligned count, so the two elements
@@ -1251,15 +1250,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				justify-self: end;
 			}
 
-			.builder-toggle {
+			/* THE TWO QUIET LINKS THAT SURVIVED. "Browse all filters" seeds this
+			   same list with every family; "Edit source" is the one way into
+			   Source. Everything else that used to live on this rule — the
+			   catalog toggle's setup strip, the clause-builder toggle — is
+			   deleted. */
+			.mode-links {
 				border-top: 1px solid var(--app-divider-color);
 				margin-top: 0.75em;
 				padding-top: 0.5em;
 			}
 
-			/* Only the padding differs from .verb here: this row's two toggles sit
+			/* Only the padding differs from .verb here: this row's two links sit
 			   flush against its rule, not inset from it. */
-			.builder-toggle button.verb {
+			.mode-links button.verb {
 				padding: 0.35em 0;
 			}
 
@@ -1270,197 +1274,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-height: 0;
 			}
 
-			/* The catalog's own scroller is nested two levels below the dialog
-			   body, so the intervening wrapper has to pass the available height
-			   down instead of shrink-wrapping its content. hidden, not visible:
-			   a flex item that has been shrunk still PAINTS its overflow, and
-			   an unclipped one hit-tests over whatever the footer draws. */
-			.builder-catalog {
-				flex: 1 1 0;
-				overflow: hidden;
-			}
-
-			/* THE ANCHORED EDITOR SLOT: bounded, and second in the column.
-			   Both editors used to be the LAST flex children of #inner, under
-			   panes with min-heights of their own, so at 720px the 262px
-			   'Editing Updated between…' panel ran past the dialog's bottom
-			   edge — it was a flex item with no bound and no clipping, so it
-			   shrank to nothing in layout while still painting at full height,
-			   and .composer-actions hit-tested ABOVE both date inputs. Anchoring
-			   the slot under the sentence puts it at the TOP of the scroll port,
-			   where it is on screen by construction; the bound is what keeps it
-			   from taking the whole port and pushing the suggestion list out.
-
-			   THE CAP IS VIEWPORT-RELATIVE, not a percentage of a flex-resolved
-			   parent: 40vh of the dialog's pinned 90% height is a little under
-			   half of it, which leaves the list below its own floor at every
-			   size the composer is designed for, and it changes only when the
-			   window does.
-
-			   AND THE CAP IS THE ONLY THING THAT BOUNDS IT — flex: 0 0 auto,
-			   NOT 0 1 auto. Shrinkable, it lost every argument with the
-			   suggestion list: that list is flex: 1 1 0, so its shrink
-			   contribution is weighted by a basis of zero and it gives up
-			   nothing, while this slot's basis is its content height and it
-			   gives up everything. Measured live at 740px: the panel collapsed
-			   from 290px to 150px, of which the heading and the action row take
-			   89 — leaving a 14px scroll port over 150px of date controls.
-			   Refusing to shrink, the panel takes the height its content asks
-			   for up to the cap, the list falls to its own 4em floor, and #inner
-			   scrolls if even that is not enough — which puts the overflow where
-			   the dialog already has a scroll container for it, rather than
-			   inside a 14px window. */
-			.anchored-editor {
-				display: flex;
-				flex: 0 0 auto;
-				flex-direction: column;
-				max-height: min(22em, 40vh);
-				min-height: 0;
-			}
-
-			/* AND THE LISTS GIVE UP THEIR FLOOR FIRST, so the anchored panel
-			   keeps a usable size before anything has to scroll. 4em is two rows
-			   plus the heading — still enough for a list to read as a list, and
-			   enough that the 0-card 'Remove …' diagnostics stay on screen while
-			   an editor is open. Reflected onto the host (the idiom
-			   data-pointer-armed already uses) so ONE rule covers both lists
-			   rather than each container having to remember. */
-			:host([data-editor-open]) .suggestions,
-			:host([data-editor-open]) .catalog-list {
-				min-height: 4em;
-			}
-
-			/* BOTH EDITORS ARE BOUNDED, AND FOR THE SAME REASON. A tall panel
-			   (Configure Direct References with a three-chip draft) pushed its
-			   own action row past its pane's clipped bottom edge, where the
-			   buttons painted but no click could reach them: a real click at
-			   y=644 in a dialog ending at y=636 did nothing. Shrinkable and
-			   scrolling INSIDE its own box, an action row is always inside the
-			   dialog and always clickable, worst case after a scroll of the
-			   panel itself. */
-			.pending-filter-editor,
-			.clause-editor {
-				display: flex;
-				flex: 0 1 auto;
-				flex-direction: column;
-				min-height: 0;
-			}
-
-			/* Only the BODY scrolls. Left as the last thing inside one
-			   scrolling box, 'Cancel' and 'Add' — and 'Done editing' one panel
-			   over — were the first things to fall off the bottom of it: the
-			   same defect one level down from the one .buttons.composer-actions
-			   solves by refusing to shrink. The action row is a sibling of the
-			   scroller and reserves its room out of it, so it is on screen
-			   whatever height the panel gets. */
-			.pending-filter-body,
-			.clause-editor-body {
-				flex: 1 1 auto;
-				min-height: 0;
-				overscroll-behavior: contain;
-			}
-
-			/* The heading and the action row are the panel's fixed ends; only
-			   the controls between them scroll. */
-			.buttons.pending-filter-actions,
-			.clause-editor-actions,
-			.pending-filter-heading,
-			.clause-editor-heading {
-				flex: 0 0 auto;
-			}
-
-			/* The clause editor's own row: the count on the left, the one way
-			   out of the editor on the right. Not .buttons — this row is not the
-			   dialog's contract row (§3.3), it holds no committing action, and
-			   its edits are already in the draft. */
-			.clause-editor-actions {
-				align-items: center;
-				display: flex;
-				gap: 0.5em;
-				justify-content: space-between;
+			/* THE URL THE DRAFT WOULD OPEN, under the list, while composing.
+			   The plus and minus keys in the sentence's own keyboard grammar
+			   are literally the URL's spellings for union and exclusion, and
+			   this line is where a user first sees what they produce — the
+			   ladder teaching downward, one quiet line at a time (proposal C
+			   §4.6). Subordinate colour and monospace: it is a path, not a
+			   sentence. */
+			.compiled-path {
+				color: var(--app-dark-text-color-light);
+				font-family: monospace;
+				font-size: 0.75em;
 				margin-top: 0.5em;
+				overflow-wrap: anywhere;
 			}
 
-			/* A READOUT, not a control, and subordinate to the action beside it —
-			   the same register .composer-actions .action-count takes for the
-			   same job one level up. In the Configure panel it takes the left of
-			   a flex-end .buttons row, which is how .no-cards-note already sits
-			   opposite the primary it qualifies. */
-			.editor-count {
-				color: var(--app-dark-text-color-darker);
-				font-size: 0.85em;
-				margin-right: auto;
-			}
-
-			.editor-count-value {
-				color: var(--app-dark-text-color);
-			}
-
-			/* The footer is the LAST flex child of #inner, so scrolling an
-			   editor to the scroll port's bottom edge pushed Open and Cancel
-			   out of view — trading one unreachable control for another.
-			   Reserving the footer's room at the port's end means every
-			   scrollIntoView below lands the editor above it. */
+			/* The footer is the last child of #inner, so scrolling the list to
+			   the port's bottom edge would push Open out of view. Reserving its
+			   room at the port's end is what keeps it reachable. */
 			#inner {
 				scroll-padding-block-end: 3.5em;
-			}
-
-			.catalog-setup,
-			.pending-filter-editor,
-			.clause-editor {
-				background: var(--app-primary-color-light-very-transparent);
-				border: 1px solid var(--app-divider-color);
-				margin: 0.5em 0;
-				padding: 0.65em;
-			}
-
-			.catalog-setup {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 0.65em 1em;
-			}
-
-			.catalog-setup label {
-				display: flex;
-				flex-direction: column;
-				font-size: 0.78em;
-				gap: 0.25em;
-			}
-
-			/* Same reason as .suggestions: at 800x450 the fixed max-height
-			   showed six of forty-seven filters inside a dialog with room to
-			   spare. */
-			.catalog-list {
-				flex: 1 1 0;
-				min-height: 8em;
-			}
-
-			.catalog-item-applied {
-				color: var(--app-primary-color);
-				font-size: 0.75em;
-				grid-area: applied;
-			}
-
-			/* Subordinate, not "live" (§4.5): teal means a thing exists or is on,
-			   and an example line is neither — it is the smallest supporting
-			   detail on the row, which is what --app-dark-text-color-light is
-			   for. */
-			.catalog-example {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.78em;
-				grid-area: example;
-				margin-top: 0.15em;
-			}
-
-			/* Both of the composer's button rows ARE the dialog contract's row —
-			   bottom-right, primary last (§3.3) — so they take .buttons from
-			   DialogElement rather than restating its three properties. What is
-			   left here is only what genuinely differs: this one sits inside a
-			   nested editor and needs the gap and the rule of space above it. */
-			.buttons.pending-filter-actions {
-				align-items: center;
-				gap: 0.5em;
-				margin-top: 0.5em;
 			}
 
 			.mobile .builder ul {
@@ -1702,6 +1535,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				   Exactly the three properties the highlight changes — the
 				   fill, the bar's colour, and the chip — so nothing in this
 				   transition can shift a row. */
+				.palette-row button,
 				.suggestion button,
 				.suggestion-action {
 					transition:
@@ -1713,7 +1547,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				/* "Expanding a layer should feel like revealing familiar
 				   detail." The height is deliberately not part of it. */
 				.builder,
-				.anchored-editor {
+				.pill-row {
 					animation: composer-appear var(--transition-fade) both;
 				}
 
@@ -1958,429 +1792,427 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
-	//WHETHER A CLAUSE EDITOR HAS ANYTHING TO EDIT.
-	//
-	//_builderExpanded and a real clause used to be two facts kept in step by
-	//hand, and every path that dropped one without the other rendered an empty
-	//grey panel. Asked as one question here, an editor with no clause behind it
-	//cannot be rendered at all.
-	get _clauseEditorOpen() : boolean {
-		if (!this._builderExpanded) return false;
-		if (this._selectedClauseIndex < 0) return false;
-		return Boolean(this._collectionDescription?.filters[this._selectedClauseIndex]);
-	}
+	//--- The sentence ---------------------------------------------------------
 
-	//Whether the anchored slot is showing anything at all — either editor.
-	get _anchoredEditorOpen() : boolean {
-		return Boolean(this._pendingCatalogFilter) || this._clauseEditorOpen;
-	}
-
-	//THE EDITOR IS ANCHORED TO THE SENTENCE IT EDITS.
+	//THE SAME RENDERER THE DRAWER USES, interactive and at full size. The
+	//composer used to build the draft out of its own chip markup — a white box
+	//with a divider down its middle — which is why a clause could look like a
+	//chip in the drawer and a table cell here. One component, two hosts: the
+	//drawer navigates on a gesture and this dialog edits a draft, and that is
+	//the only difference between them.
 	//
-	//Both editors used to render at the BOTTOM of the composer's column — the
-	//clause editor below the suggestion list, the Configure panel below the
-	//catalog — so activating a chip put the controls for it a scroll away from
-	//the chip, inside a pane that had its own scrollbar. The audited session
-	//spent its time hunting for the panel rather than editing in it.
-	//
-	//One slot, directly under the draft sentence, holds whichever editor is
-	//open: the two are mutually exclusive by construction (_handleClauseEdit
-	//closes the catalog, _configureFilterFamily collapses the clause editor), so
-	//there is one anchored position rather than two competing ones. Bounded in
-	//CSS, with each editor's BODY scrolling inside it, so the panel is fully on
-	//screen at the dialog's pinned 90% height without any pane having to scroll.
-	_anchoredEditorRender() {
-		if (this._pendingCatalogFilter) return html`<div class='anchored-editor'>${this._pendingCatalogFilterRender()}</div>`;
-		if (this._clauseEditorOpen) return html`<div class='anchored-editor'>${this._selectedClauseEditorRender()}</div>`;
-		return '';
-	}
-
-	//THE COUNT THE EDITOR'S CURRENT VALUES WOULD PRODUCE, beside the control that
-	//commits them (spec §8 "Teach through consequence", §Count preview: applied
-	//at the moment of choice). Every value change re-asks through the same
-	//debounced preview machinery and the same retained-count cache the primary's
-	//own readout uses, so an unchanged collection keeps its number rather than
-	//blanking between keystrokes.
-	//
-	//The LABEL carries the contract, because the two editors have different ones.
-	//A clause edit is already in the draft ('Changes update the draft
-	//immediately'), so its number is a fact about the draft and says so; a
-	//pending add is NOT in the draft until it is confirmed, so its number is
-	//explicitly conditional. One wording for both would have had to lie about one
-	//of them.
-	_editorCountRender(label : string, count : number | undefined, pending : boolean) {
-		//Nothing to say and nothing on the way — previews are off, or this build
-		//has no worker. An empty row would reserve space for a number that is
-		//never coming.
-		if (count === undefined && !pending) return '';
-		return html`<span class='editor-count'>${label}
-			<span class='editor-count-value'>${count === undefined ?
-		html`<loading-placeholder noun='the card count'></loading-placeholder>` :
-		formatCollectionCardCount(count)}</span></span>`;
-	}
-
-	_selectedClauseEditorRender() {
-		const index = this._selectedClauseIndex;
-		const filterName = this._collectionDescription.filters[index];
-		if (index < 0 || !filterName) return '';
+	//The help badge rides at the END of the sentence rather than in front of it:
+	//it defines the word "collection" (HS-1.3's MUST, debt item D1), which is a
+	//footnote to the sentence and not its subject.
+	_sentenceRender() {
 		return html`
-			<div class='clause-editor'>
-				<!-- OUTSIDE THE SCROLLER, with the action row. Focus lands in
-				     the first control the moment the panel opens, and the
-				     browser scrolls the nearest scrollable ancestor to reveal
-				     it — which, with the heading inside that scroller, took the
-				     panel's own title and its contract sentence off screen on
-				     the very frame it appeared. What scrolls is the CONTROLS. -->
-				<div class='clause-editor-heading'>
-					<strong>Editing ${this._readableComposerFilter(filterName)}</strong>
-					<div class='suggestion-detail'>Changes update the draft immediately, and this editor stays open until you close it. You can undo them before opening.</div>
-				</div>
-				<!-- THE PANEL'S OWN SCROLLER, for the same reason the Configure
-				     panel below has one: its action row must be a sibling of the
-				     scrolling part, not the last thing inside it. See the CSS. -->
-				<div class='clause-editor-body scroller'>
-					<configure-collection-filter
-						.value=${filterName}
-						.index=${index}
-						.mobile=${this.mobile}
-						.lockFilterFamily=${true}
-						.filterDescriptions=${this._filterDescriptions}
-						.cardTagInfos=${this._cardTagInfos}
-						.userIDs=${this._userIDs}
-						.userInfos=${this._userInfos}
-						@filter-modified=${this._handleFilterModified}
-						@filter-removed=${this._handleFilterRemoved}>
-					</configure-collection-filter>
-				</div>
-				<div class='clause-editor-actions'>
-					${this._editorCountRender('The draft now matches', this._previewCounts[this._draftPreviewID], this._draftCountPending)}
-					<button class='small verb done-editing' @click=${this._handleBuilderToggle}>Done editing</button>
-				</div>
+			<div class='sentence'>
+				<collection-sentence
+					.expression=${this._draftExpression}
+					.set=${this._collectionDescription.set}
+					.sort=${this._collectionDescription.sort}
+					.sortReversed=${this._collectionDescription.sortReversed}
+					.viewMode=${this._collectionDescription.viewMode}
+					.viewModeExtra=${this._collectionDescription.viewModeExtra}
+					.tagInfos=${this._tagInfos}
+					.labels=${this._composerFilterLabels}
+					.cardNames=${this._composerCardNames}
+					.filterDescriptions=${this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS}
+					.interactive=${true}
+					.selectedPath=${this._selectedPath}
+					@condition-selected=${this._handleTokenSelected}
+					@member-selected=${this._handleTokenSelected}
+					@group-edge-selected=${this._handleTokenSelected}
+					@condition-activated=${this._handleTokenSelected}
+					@condition-removed=${this._handleTokenRemoved}
+					@set-clicked=${this._handleSetWordClicked}
+					@sort-clicked=${this._handleSortWordClicked}
+				></collection-sentence>${help(COLLECTION_HELP)}
 			</div>
 		`;
 	}
 
-	get _catalogItems() : CollectionFilterCatalogItem[] {
-		return catalogItemsFor(
-			this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
-			this._contextualComposerCandidates,
-			this._collectionDescription || EMPTY_COLLECTION_DESCRIPTION,
-			this._composerInput,
-			this._catalogPolarity
-		);
+	//--- The pill row ---------------------------------------------------------
+
+	//WHETHER THERE IS A TOKEN TO EDIT. A selection and a real token used to be
+	//two facts kept in step by hand, and every path that dropped one without the
+	//other rendered an empty panel. Asked as one question here, a row with no
+	//token behind it cannot be rendered at all.
+	get _pillRowOpen() : boolean {
+		if (!this._selectedPath.length) return false;
+		return Boolean(pillRowSpellingFor(this._draftExpression, this._selectedPath[0], this._selectedMemberIndex));
 	}
 
-	get _visibleCatalogItems() : CollectionFilterCatalogItem[] {
-		const items = this._catalogItems;
-		if (this._composerInput.trim()) return items;
-		return collectionFilterCatalogCategories.flatMap(category => {
-			const categoryItems = items.filter(item => item.category === category);
-			return this._expandedCatalogCategories.has(category) ? categoryItems : categoryItems.slice(0, 6);
-		});
+	get _selectedMemberIndex() : number {
+		return this._selectedPath.length === 2 ? this._selectedPath[1] : -1;
 	}
 
-	_catalogRender() {
-		const items = this._visibleCatalogItems;
-		const allItems = this._catalogItems;
+	//THE TWO COUNT ROLES, WIRED LIVE. "Draft now matches N" is the fact — the
+	//same number the footer states, asked once through the same debounced
+	//preview machinery and the same retained cache — and "without this pill: N"
+	//is a prediction about a different collection, so it is a different preview.
+	//`without this pill` is what replaced the old "Remove X" suggestion rows
+	//entirely: the question they answered is answered here, beside the clause
+	//they were about.
+	_pillRowRender() {
+		if (!this._pillRowOpen) return '';
 		return html`
-			<div class='catalog-setup' role='group' aria-label='Collection setup'>
-				<!-- Every <select> here has its options select themselves. A
-				     .value binding on the <select> commits before the child
-				     part that renders the <option>s, so it lands on an empty
-				     select and is dropped, and the control ends up displaying
-				     its first option while the draft says something else. -->
-				<label>Start From
-					<select aria-label='Starting collection set' @change=${this._handleSetSelectChanged}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${collectionOptionDisplayName(entry[0])}</option>`)}
-					</select>
-				</label>
-				<label>Order By
-					<select aria-label='Card order' @change=${this._handleSortSelectChanged}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${collectionOptionDisplayName(entry[0])}</option>`)}
-					</select>
-				</label>
-				<label>Direction
-					<select aria-label='Sort direction' @change=${this._handleCatalogDirectionChanged}>
-						<option value='normal' .selected=${live(!this._collectionDescription.sortReversed)}>Normal</option>
-						<option value='reverse' .selected=${live(this._collectionDescription.sortReversed)}>Reverse</option>
-					</select>
-				</label>
-				<label>Display As
-					<select aria-label='Collection view' @change=${this._handleViewModeChanged}>
-						${Object.keys(LEGAL_VIEW_MODES).map(mode => html`<option value=${mode} .selected=${live(mode === this._collectionDescription.viewMode)}>${collectionOptionDisplayName(mode)}</option>`)}
-					</select>
-				</label>
-				${LEGAL_VIEW_MODES[this._collectionDescription.viewMode] ? html`
-					<label>Web Focus Card
-						<configure-collection-key-card
-							.value=${this._collectionDescription.viewModeExtra || '_'}
-							.cardTagInfos=${this._cardTagInfos}
-							.allowIncludeKeyCard=${false}
-							@filter-modified-complex=${this._handleViewCardChanged}>
-						</configure-collection-key-card>
-					</label>
-				` : ''}
-			</div>
-			<!-- The Configure panel is NOT here any more: it renders in the
-			     anchored slot under the draft sentence, with every other editor
-			     this composer opens. The catalog list yields its floor to it
-			     (see .catalog-list's min-height under [data-editor-open]) rather
-			     than hosting it below the fold. -->
-			<div id='collection-filter-catalog' class='catalog-list scroller' role='listbox' aria-label='Filter catalog'>
-				${collectionFilterCatalogCategories.map(category => {
-		const categoryItems = items.filter(item => item.category === category);
-		const shown = categoryItems;
-		const total = allItems.filter(item => item.category === category).length;
-		const expanded = this._expandedCatalogCategories.has(category);
-		if (!shown.length) return '';
-		return html`
-						<div role='group' aria-label=${category}>
-							<div class='suggestion-heading'>${category}</div>
-							${shown.map(item => {
-		const index = items.indexOf(item);
-		return html`
-									<div class='suggestion' role='presentation'>
-										<button
-											id=${`collection-filter-catalog-item-${index}`}
-											role='option'
-											data-filter=${item.filter}
-											aria-selected=${index === this._catalogHighlightedIndex}
-											?data-highlighted=${index === this._catalogHighlightedIndex}
-											@mousemove=${() => this._handleRowPointerMove('catalog', index)}
-											@mouseenter=${() => this._handleRowPointerEnter('catalog', index)}
-											@click=${() => this._handleCatalogItem(item)}
-										>
-											<span class='suggestion-label'>${item.label}</span>
-											${(() => {
-		const verb = CATALOG_ACTION_CHIPS[catalogItemAction(item)];
-		return html`<span class='suggestion-action' data-consequence=${rowConsequence(verb)}>${sentenceCase(verb)}</span>`;
-	})()}
-											<span class='suggestion-detail'>${item.detail}</span>
-											<span class='catalog-example'>Example: ${item.example}</span>
-											${item.appliedIndex >= 0 ? html`<span class='catalog-item-applied'>Already in this collection</span>` : ''}
-										</button>
-										${item.oppositeFilter ? html`
-											<button
-												class='small verb catalog-polarity ${item.negated ? 'selected' : ''}'
-												data-polarity-key=${item.polarityKey}
-												aria-pressed=${item.negated ? 'true' : 'false'}
-												title=${`Use ${this._readableComposerFilter(item.oppositeFilter)} instead`}
-												aria-label=${`Use ${this._readableComposerFilter(item.oppositeFilter)} instead of ${item.label}`}
-												@click=${() => this._handleCatalogPolarityToggle(item)}
-											>Not</button>
-										` : ''}
-									</div>
-								`;
-	})}
-							${!this._composerInput.trim() && total > 6 ? html`
-								<button
-									class='small verb catalog-more'
-									aria-label=${expanded ? `Show fewer filters in ${category.toLowerCase()}` : `Show ${total - shown.length} more filters in ${category.toLowerCase()}`}
-									@click=${() => this._handleCatalogCategoryToggle(category)}
-								>
-									${expanded ? 'Show fewer' : `Show ${total - shown.length} more`}
-								</button>
-							` : ''}
-						</div>
-					`;
-	})}
-			</div>
-			${!items.length ? html`<div class='no-suggestions'>No filters match yet. Try a broader word such as date, tag, author, relationship, or text.</div>` : ''}
-		`;
-	}
-
-	_pendingCatalogFilterRender() {
-		const family = this._pendingCatalogFilter.split('/')[0];
-		return html`
-			<div class='pending-filter-editor' role='group' aria-label=${`Configure ${this._readableComposerFilter(family)}`}>
-				<!-- OUTSIDE THE SCROLLER, with the action row: focus lands in the
-				     first control as the panel opens, and the browser scrolls the
-				     nearest scrollable ancestor to reveal it — which would take
-				     the panel's own title and its "nothing changes until you
-				     confirm" contract off screen on the frame it appeared. -->
-				<div class='pending-filter-heading'>
-					<div><strong>Configure ${this._readableComposerFilter(family)}</strong></div>
-					<div class='suggestion-detail'>Choose the values below before this filter is added. The collection will not change until you confirm.</div>
-					<!-- A reason a control is unavailable is VISIBLE text, not only a
-					     title: hover is unreachable on touch (§3.6.4). The wrapper's
-					     title below still explains it on hover for a mouse user. -->
-					${this._pendingCatalogChanged ? '' : html`<div class='suggestion-detail'>Change a value to add this filter.</div>`}
-				</div>
-				<!-- THE PANEL'S OWN SCROLLER, so its action row can be a sibling
-				     of it rather than the last thing inside it. See the CSS. -->
-				<div class='pending-filter-body scroller'>
-				<configure-collection-filter
-					.value=${this._pendingCatalogFilter}
-					.index=${-1}
-					.mobile=${this.mobile}
-					.lockFilterFamily=${true}
-					.allowRemove=${false}
-					.filterDescriptions=${this._filterDescriptions}
+			<div class='pill-row'>
+				<collection-pill-row
+					.expression=${this._draftExpression}
+					.index=${this._selectedPath[0]}
+					.memberIndex=${this._selectedMemberIndex}
+					.labels=${this._composerFilterLabels}
+					.cardNames=${this._composerCardNames}
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
 					.userInfos=${this._userInfos}
-					@filter-modified=${this._handlePendingCatalogFilterModified}
-					@filter-removed=${this._cancelPendingCatalogFilter}>
-				</configure-collection-filter>
-				</div>
-				<div class='buttons pending-filter-actions'>
-					<!-- What confirming would produce, while the values are still
-					     being chosen — the whole point of the explicit-confirm
-					     contract is that the user gets to know before they take
-					     it. 'Would match', because nothing has been added yet. -->
-					${this._editorCountRender('Would match', this._previewCounts[this._editorPreviewID], this._editorCountPending)}
-					<button class='small verb' @click=${this._cancelPendingCatalogFilter}>Cancel</button>
-					<!-- The one committing action of this nested editor, so §3.3's
-					     round primary glyph applies here too. PLUS_ICON is the
-					     app's add glyph (§4.2 names it by hand): the same one
-					     configure-collection-filter uses one level down for 'Add
-					     an OR filter', and find-dialog for its round 'Create a
-					     card'. The reason still lives on the wrapper, because the
-					     button spends most of its life disabled. -->
-					<span class='reason' title=${this._pendingCatalogChanged ? 'Add this filter to the draft' : 'Change a value first — adding this filter as it stands would not narrow anything'}>
-						<button class='round primary' title='Add this filter to the draft' aria-label='Add this filter to the draft' ?disabled=${!this._pendingCatalogChanged} @click=${this._commitPendingCatalogFilter}>${PLUS_ICON}</button>
-					</span>
-				</div>
+					.draftCount=${this._previewCounts[this._draftPreviewID]}
+					.withoutCount=${this._previewCounts[this._withoutPreviewID]}
+					@expression-modified=${this._handleExpressionModified}
+					@pill-or-requested=${this._handlePillOrRequested}
+				></collection-pill-row>
 			</div>
 		`;
+	}
+
+	//--- The one list, as data ------------------------------------------------
+
+	get _draftExpression() : CollectionExpression {
+		return draftExpressionFor(this._collectionDescription || EMPTY_COLLECTION_DESCRIPTION);
+	}
+
+	get _completionContext() : CollectionCompletionContext {
+		const remembered = readRememberedCollections(this._userScope, this._knownFilterNames);
+		const activeCanonical = this._activeCollectionDescription?.serialize();
+		//The first two remembered entries are in raw visit order, so the first
+		//of them that is not the collection on screen is genuinely the one
+		//visited before it. That is the only thing that earns the words "Back
+		//to"; anything further back is a destination, not a direction.
+		const previousCollection = remembered.slice(0, 2).find(entry => entry.canonical !== activeCanonical)?.canonical;
+		return completionContextFor(
+			this._contextualComposerCandidates,
+			this._composerCardNames,
+			this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
+			this._tagInfos || EMPTY_TAG_INFOS,
+			recentCollectionsFor(remembered),
+			this._activeCollectionDescription || undefined,
+			previousCollection,
+			this._draftSelectedCard,
+			this._cardsSelected
+		);
+	}
+
+	//THE FOUR FEEDS, IN THE ORDER THEY OUTRANK EACH OTHER.
+	//
+	//An or-scoped input is the narrowest question the palette can be asking, so
+	//it wins outright; a sentence word being edited is the next; Browse all is a
+	//seeded list and typing FILTERS it rather than leaving it; and with none of
+	//those in force the list is the idle two sections or the typing valences.
+	//One `if` ladder rather than four booleans consulted in four places, because
+	//the list has exactly one content at a time and that is the whole design.
+	_rawPaletteRows() : PaletteRow[] {
+		const description = this._collectionDescription;
+		const expression = this._draftExpression;
+		const context = this._completionContext;
+		if (this._orTarget) {
+			return paletteOrScopedRows(
+				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
+				description,
+				this._orTarget.index
+			).slice(0, TYPING_ROW_LIMIT);
+		}
+		if (this._wordScope) return paletteWordRows(description, this._wordScope);
+		if (this._browseOpen) return paletteBrowseRows(
+			browseItemsFor(
+				this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
+				this._contextualComposerCandidates,
+				description,
+				this._composerInput
+			),
+			description
+		);
+		if (this._composerInput.trim()) {
+			return paletteTypingRows(
+				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
+				description
+			).slice(0, TYPING_ROW_LIMIT);
+		}
+		return this._idleRows(description, context);
+	}
+
+	//RECENTS AND AT MOST THREE, and the cap is the completion index's own — the
+	//owner's complaint #6 ("random suggestions") answered by arithmetic rather
+	//than by taste. The count-aware ranking and the contradictory-refinement
+	//suppression are ported unchanged from the old suggestion path; they are
+	//applied to the whole idle list and the sections are re-derived from `kind`
+	//afterwards, so "recents first, always" is structural rather than a property
+	//of the ranking.
+	_idleRows(description : CollectionDescription, context : CollectionCompletionContext) : PaletteRow[] {
+		const idle = idleRowsFor(description, context);
+		const ranked = rankedSuggestionsFor(
+			this._withoutContradictoryRefinements([...idle.recents, ...idle.contextual]),
+			this._previewCounts
+		);
+		return paletteIdleRows(
+			ranked.filter(suggestion => suggestion.kind === 'recent'),
+			ranked.filter(suggestion => suggestion.kind !== 'recent')
+		);
+	}
+
+	get _paletteRows() : PaletteRow[] {
+		if (!this._collectionDescription) return [];
+		const rows = this._rawPaletteRows();
+		//THE LIST DOES NOT MOVE UNDER THE KEYBOARD. The identity of the row set
+		//is the "was this list rebuilt?" test: a new input or draft produces
+		//different rows, and only then may counts reorder them. While a row is
+		//highlighted the order is frozen outright, so the transformation
+		//accepted on keydown is the one that was visible on keydown.
+		const key = paletteOrderKey(rows);
+		const memo = this._paletteOrder;
+		if (memo && memo.key === key && this._rowHighlightActive) return frozenPaletteOrder(rows, memo.order);
+		const order = rows.map(row => row.id);
+		//Only when the order actually moved: reassigning an identical memo would
+		//hand the frozen-order path a new array every render and defeat its
+		//cache, which is the whole reason the list is stable to begin with.
+		if (!memo || memo.key !== key || memo.order.length !== order.length || memo.order.some((id, index) => id !== order[index])) {
+			this._paletteOrder = {key, order};
+		}
+		return rows;
+	}
+
+	//--- The one list, rendered -----------------------------------------------
+
+	//A ROW WITH NOTHING TO PROMISE HAS NO NUMBER.
+	//
+	//A count answers "how many cards", so a row that changes only the ORDER or
+	//the VIEW has no answer to give: it would render "1,842 cards → 1,842 cards"
+	//and take a column to say nothing. A row that names a FAMILY has not decided
+	//a collection yet. And Browse all is a directory of filters rather than a
+	//list of predictions — the design's own line for it is "one line per family:
+	//name + gray description", with no number in it.
+	//
+	//The same rule gates the PREVIEW REQUEST, so a number that would not be
+	//rendered is never asked of the worker either.
+	_rowCountMeaningful(row : PaletteRow) : boolean {
+		if (this._browseOpen) return false;
+		if (row.configurable && row.filter) return false;
+		const draft = this._collectionDescription;
+		const other = row.description;
+		if (other.set !== draft.set) return true;
+		return other.filters.join('/') !== draft.filters.join('/');
+	}
+
+	//THE COLLECTION WITHOUT THE SELECTED PILL, which is what the pill row's
+	//second count counts. Built through the same removal helpers the Remove verb
+	//uses, so "without this pill: N" and pressing Remove cannot disagree about
+	//what removing it would do.
+	get _expressionWithoutSelection() : CollectionExpression {
+		const path = this._selectedPath;
+		if (!path.length) return this._draftExpression;
+		const memberIndex = this._selectedMemberIndex;
+		return memberIndex < 0 ?
+			withConditionRemoved(this._draftExpression, path[0]) :
+			withMemberRemoved(this._draftExpression, path[0], memberIndex);
+	}
+
+	//TWO COUNT ROLES, AND THIS IS THE SECOND ONE. The sentence's count is a
+	//FACT about the draft and lives beside the primary; a row's count is a
+	//PREDICTION and is written as the transition it predicts. A destination is
+	//the exception the design already draws: it is a whole other collection
+	//rather than an edit to this one, so it states its own size rather than a
+	//delta from a draft it does not descend from.
+	_rowCountText(row : PaletteRow) : string {
+		if (!this._rowCountMeaningful(row)) return '';
+		const count = this._previewCounts[row.id];
+		if (count === undefined) return '';
+		if (row.kind === 'destination') return formatCollectionCardCount(count);
+		const draftCount = this._previewCounts[this._draftPreviewID];
+		if (draftCount === undefined) return formatCollectionCardCount(count);
+		return `${formatCollectionCardCount(draftCount)} → ${formatCollectionCardCount(count)}`;
+	}
+
+	//THE PILL IT WOULD BECOME, rendered by the component that will render it in
+	//the sentence a keystroke later (proposal A's token discipline). A
+	//destination is a whole collection, so it renders as the whole sentence in
+	//miniature — the same idiom, one size down. Everything else is one line of
+	//text, because a family name and a sort name are words rather than clauses.
+	_rowLabelRender(row : PaletteRow) {
+		if (row.kind === 'destination') {
+			return html`<collection-sentence
+				class='row-sentence'
+				.expression=${expressionForDescription(row.description)}
+				.set=${row.description.set}
+				.sort=${row.description.sort}
+				.sortReversed=${row.description.sortReversed}
+				.viewMode=${row.description.viewMode}
+				.viewModeExtra=${row.description.viewModeExtra}
+				.tagInfos=${this._tagInfos}
+				.labels=${this._composerFilterLabels}
+				.cardNames=${this._composerCardNames}
+				.filterDescriptions=${this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS}
+				.subtle=${true}
+			></collection-sentence>`;
+		}
+		if (row.kind === 'valence' && row.pillExpression) {
+			return html`<collection-sentence
+				class='row-sentence'
+				.expression=${row.pillExpression}
+				.conditionsOnly=${true}
+				.tagInfos=${this._tagInfos}
+				.labels=${this._composerFilterLabels}
+				.cardNames=${this._composerCardNames}
+				.filterDescriptions=${this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS}
+				.subtle=${true}
+			></collection-sentence>`;
+		}
+		return html`${row.label}`;
+	}
+
+	_paletteRowRender(row : PaletteRow, index : number, highlightedIndex : number) {
+		const highlighted = index === highlightedIndex;
+		const countText = this._rowCountText(row);
+		//THE DETAIL LINE IS ON THE HIGHLIGHTED ROW AND NOWHERE ELSE (proposal B
+		//§2.1). A list where every row explains itself is a list nobody scans.
+		//The one exception is Browse all, whose whole content IS "name + one
+		//line of description" — that list has no other way to tell a family from
+		//its neighbour.
+		const showDetail = Boolean(row.detail) && (highlighted || row.alwaysDetail);
+		return html`
+			<div class='palette-row' role='presentation'>
+				<button
+					id='collection-palette-row-${index}'
+					role='option'
+					tabindex='-1'
+					aria-selected=${highlighted}
+					aria-label=${`${row.label}. ${row.detail}${countText ? `. ${countText}` : ''}${row.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`}
+					data-index=${index}
+					data-row-id=${row.id}
+					?disabled=${this._activationPending}
+					?data-highlighted=${highlighted}
+					@mousemove=${() => this._handleRowPointerMove('palette', index)}
+					@mouseenter=${() => this._handleRowPointerEnter('palette', index)}
+					@click=${() => this._activateRow(row, row.navigates)}
+				>
+					<span class='row-label'>${this._rowLabelRender(row)}</span>
+					<!-- WHAT AN "OR" WIDENS, named. The label already reads
+					     "<target> or <new>"; this says which half of it was
+					     already in the sentence, which is the fact that makes the
+					     row causal rather than arbitrary. -->
+					${row.targetLabel ? html`<span class='row-widens'>widens ${row.targetLabel}</span>` : ''}
+					${countText ? html`<span class='row-count'>${countText}</span>` : ''}
+					<!-- THE ONE GLYPH THAT SURVIVED THE VERB CHIPS. Under a
+					     typing list the rows are edits and a recent is not, so
+					     the one row whose consequence differs says so. In the
+					     idle list the "Recent" heading has already said it. -->
+					${row.navigates && row.section !== RECENT_SECTION ? html`<span class='row-navigate' aria-hidden='true'>${OPEN_IN_BROWSER_ICON}</span>` : ''}
+					<!-- The caution is IN the row, not only in its detail
+					     sentence: personal scope is the one property of a row
+					     whose consequence appears somewhere else entirely — in a
+					     link, after it has been sent. -->
+					${row.viewerDependent ? html`<span class='viewer-dependent'>${VIEWER_DEPENDENT_CHIP_NOTE}</span>` : ''}
+					${showDetail ? html`<span class='row-detail'>${row.detail}</span>` : ''}
+				</button>
+			</div>
+		`;
+	}
+
+	//ONE LIST, WITH HEADINGS RATHER THAN SECTIONS. A run of rows sharing a
+	//section gets one heading in the app's panel-h3 register — normal weight,
+	//subordinate colour, sentence case — and the heading is what carries the
+	//grammar that the deleted verb chips used to restate on every row.
+	_paletteListRender(rows : PaletteRow[], highlightedIndex : number) {
+		if (!rows.length) {
+			return html`<div class='no-suggestions'>${this._browseOpen ?
+				'No filters match yet. Try a broader word such as date, tag, author, relationship, or text.' :
+				'No complete interpretation yet. Keep typing or browse all filters.'}</div>`;
+		}
+		let section = '';
+		return html`
+			<div class='palette-list scroller' id='collection-palette-list' role='listbox' aria-label='Collection choices'>
+				${rows.map((row, index) => {
+		const heading = row.section && row.section !== section ? row.section : '';
+		section = row.section;
+		return html`${heading ? html`<div class='suggestion-heading'>${heading}</div>` : ''}${this._paletteRowRender(row, index, highlightedIndex)}`;
+	})}
+			</div>
+		`;
+	}
+
+	//THE URL THE DRAFT WOULD OPEN, one quiet line under the list.
+	//
+	//Nothing depends on it and it asks for nothing — which is exactly why it
+	//teaches. The keyboard grammar's `+` and `-` are the URL's own spellings for
+	//union and exclusion, so a user who has been pressing them has already been
+	//authoring this string; this is where they first see it, and the step from
+	//here into Source is a step they have already taken without noticing.
+	_compiledPathRender() {
+		const path = collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true});
+		if (!path) return '';
+		return html`<div class='compiled-path' aria-hidden='true'>${path}</div>`;
 	}
 
 	_composerRender() {
 		if (!this._collectionDescription) return html``;
-		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
-		const highlightedIndex = this._activeHighlightIndex(suggestions);
-		const highlighted = suggestions[highlightedIndex];
+		const rows = this._paletteRows;
+		const highlightedIndex = this._activeHighlightIndex(rows);
+		const highlighted = rows[highlightedIndex];
 		const expressionParts = collectionExpressionParts(this._collectionDescription, this._composerFilterLabels, this._composerCardNames);
 		const draftCount = this._previewCounts[this._draftPreviewID];
-		const recentSuggestions = suggestions.filter(suggestion => suggestion.kind === 'recent');
-		const refinementSuggestions = suggestions.filter(suggestion => suggestion.kind !== 'recent');
 		return html`
 			<div class='visually-hidden' aria-live='polite'>Draft: ${readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames)}</div>
-			<div class='expression' role='group' aria-label='Draft collection clauses'>
-				<span class='expression-set'>${expressionParts.set.label}</span>
-				<!-- AN OPERATOR BELONGS TO THE CLAUSE IT INTRODUCES.
-				     AND was a sibling of its chip in a wrapping flex row, so a
-				     line whose next chip did not fit ended on a dangling "AND"
-				     and the clause it announced started the line below. Bound
-				     into one inline group, the pair can only wrap together. -->
-				${expressionParts.filters.map(filter => html`
-					<span class='expression-term'>
-						<span class='expression-operator' aria-hidden='true'>AND</span>
-						<span class='expression-clause' role='group' aria-label=${`${filter.label} filter${filter.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`} ?data-selected=${filter.index === this._selectedClauseIndex}>
-							<button
-								class='expression-clause-label'
-								aria-label=${`Edit ${filter.label} filter`}
-							@click=${() => this._handleClauseEdit(filter.index)}
-							>${filter.label}</button>
-							<!-- WHOSE cards this clause is about. A chip reading
-							     "Starred" makes a claim about the collection that is
-							     only true for the person looking at it, and the
-							     consequence surfaces after the link is shared, when
-							     nobody can see the chip any more. Quiet, subordinate,
-							     and no colour of its own (§4.5) — nothing is wrong. -->
-							${filter.viewerDependent ? html`<span class='viewer-dependent' aria-hidden='true'>${VIEWER_DEPENDENT_CHIP_NOTE}</span>` : ''}
-							<!-- CANCEL_ICON, not a literal ×. §4.2's MUST: never
-							     render a text glyph where an icon exists. It is
-							     quiet until hover or focus, per the spec's
-							     "destructive removal remains visually quiet until
-							     focused" — and it takes no warning colour, because
-							     removing a draft clause loses nothing (§3.7 Tier 2). -->
-							<button
-								class='expression-clause-remove'
-								aria-label=${`Remove ${filter.label} filter`}
-								title=${`Remove ${filter.label} filter`}
-								@click=${() => this._removeDraftClause(filter.index)}
-							>${CANCEL_ICON}</button>
-						</span>
-					</span>
-				`)}
-				${expressionParts.modifiers.length ? html`<span class='expression-modifiers'>· ${expressionParts.modifiers.join(' · ')}</span>` : ''}
-				<input
-					class='composer-input'
-					id='collection-composer-input'
-					type='text'
-					role='combobox'
-					aria-label='Compose collection filters'
-					aria-autocomplete='list'
-					aria-controls=${ifDefined(this._catalogOpen ? 'collection-filter-catalog' : (suggestions.length ? 'collection-composer-suggestions' : undefined))}
-					aria-expanded=${this._catalogOpen ? this._visibleCatalogItems.length > 0 : suggestions.length > 0}
-					aria-activedescendant=${ifDefined(this._catalogOpen ?
-		(this._visibleCatalogItems[this._catalogHighlightedIndex] ? `collection-filter-catalog-item-${this._catalogHighlightedIndex}` : undefined) :
-		(highlighted ? `collection-suggestion-${highlightedIndex}` : undefined))}
-					aria-busy=${this._activationPending}
-					placeholder=${this._catalogOpen ? 'Search dates, tags, authors, relationships…' : 'Type another condition…'}
-					.value=${this._composerInput}
-					@input=${this._handleComposerInput}
-					@keydown=${this._handleComposerKeyDown}
-				>
-				<!-- AFTER the expression, not in front of it. The badge was the
-				     first element of the sentence, so the draft opened with a
-				     help glyph and only then said what collection it was. It
-				     defines the word "collection" (HS-1.3's MUST, debt item D1),
-				     which is a footnote to the sentence, not its subject. -->
-				${help(COLLECTION_HELP)}
-			</div>
-			<!-- ATTACHED TO THE SENTENCE, directly under the row whose chip opened
-			     it. See _anchoredEditorRender. -->
-			${this._anchoredEditorRender()}
+			${this._sentenceRender()}
+			<!-- DIRECTLY UNDER THE SENTENCE, at the place the clause is. That is
+			     the whole argument for a one-line editor: everything you can do
+			     to a clause appears where you see it. -->
+			${this._pillRowRender()}
 			<!-- Visible, not a title: hover is unreachable on touch (§3.6.4),
 			     and a clause the user cannot edit is exactly the one that has to
 			     explain itself. Empty for every ordinary clause. -->
 			${expressionParts.filters.filter(filter => filter.explanation).map(filter => html`
-				<div class='suggestion-detail unsupported-clause'>${filter.label}: ${filter.explanation}</div>
+				<div class='row-detail unsupported-clause'>${filter.label}: ${filter.explanation}</div>
 			`)}
+			<input
+				class='composer-input'
+				id='collection-composer-input'
+				type='text'
+				role='combobox'
+				aria-label='Compose collection filters'
+				aria-autocomplete='list'
+				aria-controls=${ifDefined(rows.length ? 'collection-palette-list' : undefined)}
+				aria-expanded=${rows.length > 0}
+				aria-activedescendant=${ifDefined(highlighted ? `collection-palette-row-${highlightedIndex}` : undefined)}
+				aria-busy=${this._activationPending}
+				placeholder=${this._inputPlaceholder}
+				.value=${this._composerInput}
+				@input=${this._handleComposerInput}
+				@keydown=${this._handleComposerKeyDown}
+			>
 			${this._draftReceiptMessage ? html`
 				<div class='draft-receipt' role='status'>
 					<span>${this._draftReceiptMessage}</span>
 					${this._draftUndoDescription ? html`<button class='small verb' @click=${this._undoDraftEdit}>Undo</button>` : ''}
 				</div>
 			` : ''}
-			<!-- THE ANNOUNCEMENT SURVIVES; THE DUPLICATE ROW DOES NOT.
-			     "Editing Updated between 2023-01-01 and 2023-12-31" was rendered
-			     here as a visible status row while the anchored editor two rows
-			     above was already headed with that exact sentence — the same
-			     words twice, and the second copy costs a row of the height the
-			     editor is competing for. It is still a live region, because the
-			     panel's heading is not one and a screen reader has to be told
-			     that an editor opened; it simply stops repeating itself on
-			     screen. Every state with no editor open ("… selected · Backspace
-			     again to remove") is unchanged and still visible. -->
-			${this._clauseSelectionMessage ? html`<div class=${this._anchoredEditorOpen ? 'visually-hidden' : 'draft-receipt'} role='status'>${this._clauseSelectionMessage}</div>` : ''}
+			<!-- ANNOUNCED, NOT SHOWN. The pill row under the sentence is the
+			     visible answer to "which clause is selected", and it says so in
+			     more detail than a status line could. A screen reader still has
+			     to be told that the selection moved, because focus stays in the
+			     input while the arrow keys walk the sentence. -->
+			${this._clauseSelectionMessage ? html`<div class='visually-hidden' role='status'>${this._clauseSelectionMessage}</div>` : ''}
 			${this._activationPending || this._activationMessage ? html`
-				<!-- role='alert' already announces immediately; the explicit
-				     assertive was a second, louder copy of the same instruction.
-				     §3.6.4 reserves assertive for work at RISK — the unsaved-draft
-				     banner is the bar, and "finish your edit first" is not it. -->
 				<div class='activation-message' ?data-problem=${Boolean(this._activationMessage)} role=${this._activationMessage ? 'alert' : 'status'} aria-live=${ifDefined(this._activationMessage ? undefined : 'polite')}>
 					${this._activationMessage || 'Opening collection…'}
 				</div>
 			` : ''}
-			${this._catalogOpen ? '' : suggestions.length ? html`
-				<div class='suggestions scroller' id='collection-composer-suggestions' role='listbox'>
-					${recentSuggestions.length ? html`
-						<div role='group' aria-labelledby='recent-suggestion-heading'>
-							<div class='suggestion-heading' id='recent-suggestion-heading'>Continue</div>
-							${recentSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion), highlightedIndex))}
-						</div>
-					` : ''}
-					${refinementSuggestions.length ? html`
-						<div role='group' aria-labelledby='refinement-suggestion-heading'>
-							<div class='suggestion-heading' id='refinement-suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
-							${refinementSuggestions.map(suggestion => this._suggestionRow(suggestion, suggestions.indexOf(suggestion), highlightedIndex))}
-						</div>
-					` : ''}
-				</div>
-			` : html`
-				<div class='suggestion-heading'>${this._composerInput ? 'Interpretations' : 'Refine this collection'}</div>
-				<div class='no-suggestions'>No complete interpretation yet. Keep typing or browse all filters.</div>
-			`}
-			<div class='key-hints'>${this._composerKeyHints(suggestions, highlighted)}</div>
+			${this._paletteListRender(rows, highlightedIndex)}
+			<div class='key-hints'>${this._composerKeyHints(rows, highlighted)}</div>
 			${this._modifierNoteRender()}
-			<div class='builder-toggle mode-actions'>
-				<button class='small verb' @click=${this._handleCatalogToggle}>${this._catalogOpen ? 'Hide filter catalog' : 'Browse all filters'}</button>
+			${this._compiledPathRender()}
+			<div class='mode-links'>
+				<button class='small verb' @click=${this._handleBrowseToggle}>${this._browseOpen ? 'Hide all filters' : 'Browse all filters'}</button>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
-			${this._catalogOpen ? html`<div class='builder builder-catalog'>${this._catalogRender()}</div>` : ''}
 			${this._openActionRender(
 		draftCount,
 		this._activationPending,
@@ -2389,6 +2221,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		Boolean(highlighted)
 	)}
 		`;
+	}
+
+	//THE INPUT SAYS WHAT QUESTION IT IS ASKING. Ordinarily it continues the
+	//sentence; scoped by "or…" it is asking for an alternative to ONE named
+	//condition, and a placeholder that went on saying "type another condition"
+	//would be describing the wrong edit.
+	get _inputPlaceholder() : string {
+		if (this._orTarget) {
+			const label = this._readableComposerFilter(pillRowSpellingFor(this._draftExpression, this._orTarget.index, -1));
+			return `Also match… (widens ${label})`;
+		}
+		if (this._browseOpen) return 'Search dates, tags, authors, relationships…';
+		return 'Type another condition…';
 	}
 
 	//THE FOOTER STATES THE CONTRACT THAT IS ACTUALLY IN FORCE.
@@ -2410,69 +2255,54 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//The word comes from the canonical combo table, like every other key this
 	//dialog names, rather than being spelled a second way here.
 	//
-	//The branches are ordered the way _applyComposerSuggestion and the row's
-	//own visible chip already order them — source, then configure, then the
-	//plain action — so the footer cannot promise a verb the click would not
-	//perform.
+	//The branches are ordered the way _activateRow already orders them — source,
+	//then set-up-and-add, then the plain action — so the footer cannot promise a
+	//verb the click would not perform.
 	//
 	//AND A TOUCH LAYOUT HAS NO KEYBOARD TO STATE A CONTRACT FOR. On a phone this
 	//line named ↑↓, Tab, Click and Escape — four inputs the device does not
 	//have — which is the same defect as the wrong verb, one level up: a footer
-	//that describes controls the user cannot reach. Each row now carries its own
-	//visible verb chip (Open / Add / Remove / Replace / Configure / Edit), so the
-	//touch line points at the affordance that IS there rather than restating a
-	//keyboard grammar. It makes no per-row claim, for the same reason the
-	//nothing-highlighted desktop branch makes none.
-	_composerKeyHints(suggestions : CollectionComposerSuggestion[], highlighted : CollectionComposerSuggestion | undefined) : string {
+	//that describes controls the user cannot reach. The touch line points at the
+	//affordances that ARE there rather than restating a keyboard grammar, and it
+	//makes no per-row claim, for the same reason the nothing-highlighted desktop
+	//branch makes none.
+	//
+	//THE PILL ROW'S OWN KEYS COME FROM THE MODULE THAT PERFORMS THEM
+	//(PILL_ROW_KEY_HINTS), so the line that teaches `+ adds an or` and the row
+	//that implements it cannot drift apart. `+` and `-` are deliberately the
+	//URL's own spellings for union and exclusion: the shortcut a user learns
+	//here is the character they will one day read in the compiled-path line
+	//under the list, and then in Source.
+	_composerKeyHints(rows : PaletteRow[], highlighted : PaletteRow | undefined) : string {
 		const escapeHint = `${shortcutKeys('dialog-escape')} cancels`;
 		if (this.mobile) {
-			if (this._catalogOpen) return 'Tap a filter to add or configure it';
-			if (this._builderExpanded) return 'Editing a clause · tap Done editing to close it · tap another clause to edit it';
-			if (this._selectedClauseIndex >= 0) return 'Tap a clause to edit it · tap its remove button to take it out';
-			return suggestions.length ?
-				'Tap a row to use it — each says what it does · tap the open button for this collection' :
+			if (this._browseOpen) return 'Tap a filter to add it or set it up';
+			if (this._pillRowOpen) return 'Editing a clause · tap its verbs to change it · tap another pill to edit that one';
+			return rows.length ?
+				'Tap a row to use it · tap the open button for this collection' :
 				'Type to compose · tap the open button for this collection';
 		}
-		//THE FOOTER NAMES THE HIGHLIGHTED ROW'S ACTION, not the union of every
-		//action the catalog contains. 'Enter opens Source, configures, or adds'
-		//is three claims of which exactly one is in force, and the user has no
-		//way to tell which — the same defect §Keyboard behavior's footer rules
-		//already fixed for the suggestion list one branch below, where the
-		//highlighted row decides the sentence. The catalog was the one list
-		//still enumerating, because it is the one list whose highlighted row is
-		//not a CollectionComposerSuggestion.
-		if (this._catalogOpen) {
-			const item = this._visibleCatalogItems[this._catalogHighlightedIndex];
-			//No highlighted row makes no per-row claim, exactly as the
-			//nothing-highlighted branch below does.
-			const enterHint = item ? CATALOG_ACTION_HINTS[catalogItemAction(item)] : 'Enter chooses the highlighted filter';
-			return `Type to search · ↑↓ choose · ${enterHint} · ${shortcutKeys('dialog-escape')} closes catalog`;
+		//A SCOPED INPUT STATES ITS OWN SCOPE. Every row is an alternative
+		//joining one named condition, so the generic line would be describing a
+		//different list.
+		if (this._orTarget) return `Type an alternative · Tab widens the clause · ${shortcutKeys('dialog-escape')} goes back to the pill`;
+		//THE PILL ROW OWNS THE PILL'S KEYS while a pill is selected, and the
+		//line names them from the module that performs them.
+		if (this._pillRowOpen) {
+			const keys = PILL_ROW_KEY_HINTS.map(hint => `${hint.key} ${hint.means}`).join(' · ');
+			return `←→ choose clause · ${keys} · ${shortcutKeys('dialog-escape')} closes the row`;
 		}
-		//AN OPEN EDITOR OWNS THE ARROW KEYS. ←→ choose a clause only while the
-		//composer INPUT has focus, because the handler that implements them
-		//lives on that input; once a clause editor is open, focus is inside it
-		//and ←→ move the caret in its own fields. Routing the keys away from
-		//the editor to make the old line true would break editing a date in
-		//order to keep a footer honest — so the footer states what is in force
-		//in this mode instead, which is what §3.5's contract asks of it.
-		if (this._builderExpanded) return `Editing a clause · edits apply to the draft as you make them · ${shortcutKeys('dialog-escape')} closes the editor · click another clause to edit it`;
-		//Enter is named because it now DOES something here. An unnamed key is an
-		//unreachable one for the keyboard flow this line exists to describe.
-		if (this._selectedClauseIndex >= 0) return '←→ choose clause · Enter edits it · Delete removes · type to continue';
 		if (!highlighted) {
-			return suggestions.length ?
+			return rows.length ?
 				`↑↓ or Tab choose · Enter opens this collection · ${escapeHint}` :
 				`Type to compose · Enter opens this collection · ${escapeHint}`;
 		}
 		if (highlighted.sourceFilter) return '↑↓ choose · Click, Tab, or Enter opens Source';
-		if (highlighted.configureFilter) return '↑↓ choose · Click, Tab, or Enter configures';
+		if (highlighted.configurable && highlighted.filter) return '↑↓ choose · Click, Tab, or Enter adds it and opens its controls';
 		//A destination: clicking it and Enter do the same thing, and Tab is the
 		//spec's labeled secondary action.
-		if (highlighted.action === 'open') return '↑↓ choose · Click or Enter opens · Tab copies it into the draft';
-		//A transformation, named by what it does to the draft rather than by
-		//one word for both halves of the pair.
-		const verb = highlighted.action === 'replace' ? 'replaces' : 'adds';
-		return `↑↓ choose · Click or Tab ${verb} · Enter ${verb} and opens`;
+		if (highlighted.navigates) return '↑↓ choose · Click or Enter opens · Tab copies it into the draft';
+		return '↑↓ choose · Click or Tab adds · Enter adds and opens';
 	}
 
 	//BOTH modes explain an inert modifier the same way, in the same place: on
@@ -2538,61 +2368,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
-	_suggestionRow(suggestion : CollectionComposerSuggestion, index : number, highlightedIndex : number) {
-		const count = this._previewCounts[suggestion.id];
-		const draftCount = this._previewCounts[this._draftPreviewID];
-		const countDescription = count === undefined ? '' : `${formatCollectionCardCount(count)}${draftCount === undefined ? '' : ` · ${formatCollectionCountDelta(count, draftCount)}`}`;
-		const visibleAction = suggestion.sourceFilter ? 'edit' : suggestion.configureFilter ? (suggestion.action === 'replace' ? 'edit' : 'configure') : suggestion.action;
-		return html`
-						<div class='suggestion' role='presentation'>
-							<button
-								id='collection-suggestion-${index}'
-								role='option'
-								tabindex='-1'
-								aria-selected=${index === highlightedIndex}
-								aria-label=${`${suggestion.label}. ${suggestion.detail}${countDescription ? `. ${countDescription}` : ''}${suggestion.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`}
-								data-index=${index}
-								?disabled=${this._activationPending}
-								?data-highlighted=${index === highlightedIndex}
-								@mousemove=${() => this._handleRowPointerMove('suggestion', index)}
-								@mouseenter=${() => this._handleRowPointerEnter('suggestion', index)}
-								@click=${() => this._applyComposerSuggestion(suggestion, suggestion.action === 'open')}
-							>
-								<span class='suggestion-label'>${suggestion.label}</span>
-								<span class='suggestion-action' data-consequence=${rowConsequence(visibleAction)}>${sentenceCase(visibleAction)}</span>
-								${countDescription ? html`<span class='suggestion-count'>${countDescription}</span>` : ''}
-								<!-- The caution is IN the row, not only in its detail
-								     sentence: the detail is the line people skim past,
-								     and personal scope is the one property of a row
-								     whose consequence appears somewhere else entirely —
-								     in a link, after it has been sent. It takes the
-								     subordinate text tone (§4.5) and no colour of its
-								     own, because nothing is wrong. -->
-								${suggestion.viewerDependent ? html`<span class='viewer-dependent'>${VIEWER_DEPENDENT_CHIP_NOTE}</span>` : ''}
-								<span class='suggestion-detail'>${suggestion.detail}</span>
-							</button>
-						</div>
-		`;
-	}
-
 	//SPEC §Narrow: "Suggestions should be suppressed when they are redundant,
 	//contradictory, or known to produce the same set." A narrowing clause whose
 	//RESOLVED count is zero while the collection itself is not empty is
-	//contradictory by measurement — offering 'Add Starred · 0 cards' in a list
-	//headed "Refine this collection" proposes a refinement that refines the
-	//collection out of existence.
+	//contradictory by measurement — offering 'Starred · 0 cards' in a list
+	//headed "Refine" proposes a refinement that refines the collection out of
+	//existence.
 	//
 	//Only in the empty-input state, which is the Refine list the spec is
 	//talking about. Once the user has typed, the rows are INTERPRETATIONS of
 	//what they typed, and hiding the filter somebody just named is a different
-	//and worse defect. The filter catalog is unaffected either way, so a
-	//contradictory clause is always still findable — this suppresses an
-	//unsolicited offer, not the filter.
+	//and worse defect. Browse all is unaffected either way, so a contradictory
+	//clause is always still findable — this suppresses an unsolicited offer, not
+	//the filter.
 	//
 	//Counts come from the retained map, keyed by COLLECTION, rather than from
-	//_previewCounts, which is keyed by suggestion id and rebuilt from the
-	//visible list: suppressing a row on a count that then stops being requested
-	//because the row is gone is an oscillation, not a suppression.
+	//_previewCounts, which is keyed by row id and rebuilt from the visible list:
+	//suppressing a row on a count that then stops being requested because the
+	//row is gone is an oscillation, not a suppression.
 	_withoutContradictoryRefinements(suggestions : CollectionComposerSuggestion[]) : CollectionComposerSuggestion[] {
 		if (this._composerInput.trim()) return suggestions;
 		const draftCount = this._countForDescription(this._collectionDescription);
@@ -2602,30 +2395,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return filtered.length === suggestions.length ? suggestions : filtered;
 	}
 
-	//The index of the visibly highlighted suggestion, or -1 when nothing is
+	//The index of the visibly highlighted row, or -1 when nothing is
 	//highlighted. Everything that reads the highlight — the rendered marker,
 	//aria-activedescendant, the key hints, and the keydown handlers — goes
 	//through here, so "the transformation accepted on keydown is the one
 	//visibly highlighted on keydown" is a structural property rather than a
 	//coincidence.
-	_activeHighlightIndex(suggestions : CollectionComposerSuggestion[]) : number {
-		if (!this._suggestionHighlightActive) return -1;
-		if (!suggestions.length) return -1;
-		return Math.min(this._highlightedSuggestion, suggestions.length - 1);
+	_activeHighlightIndex(rows : {length : number}) : number {
+		if (!this._rowHighlightActive) return -1;
+		if (!rows.length) return -1;
+		return Math.min(this._highlightedRow, rows.length - 1);
 	}
 
-	//ALL THREE LISTS FOLLOW ONE POINTER RULE, so none of them can end up with a
-	//hover fill on one row and a keyboard highlight on another. The suggestion
-	//list had this already; the catalog and the source completions did not, and
-	//they are painted by the same .suggestion rules.
+	//BOTH LISTS FOLLOW ONE POINTER RULE, so neither can end up with a hover fill
+	//on one row and a keyboard highlight on another.
 	_highlightListRowFromPointer(list : ComposerRowList, index : number) {
-		if (list === 'suggestion') {
-			this._highlightedSuggestion = index;
-			this._suggestionHighlightActive = true;
-			return;
-		}
-		if (list === 'catalog') {
-			this._catalogHighlightedIndex = index;
+		if (list === 'palette') {
+			this._highlightedRow = index;
+			this._rowHighlightActive = true;
 			return;
 		}
 		this._sourceCompletionIndex = index;
@@ -2642,48 +2429,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleRowPointerEnter(list : ComposerRowList, index : number) {
 		if (!this._pointerHighlightArmed) return;
 		this._highlightListRowFromPointer(list, index);
-	}
-
-	get _composerSuggestions() : CollectionComposerSuggestion[] {
-		if (!this._collectionDescription) return [];
-		const remembered = readRememberedCollections(this._userScope, this._knownFilterNames);
-		const activeCanonical = this._activeCollectionDescription?.serialize();
-		//The first two remembered entries are in raw visit order, so the first
-		//of them that is not the collection on screen is genuinely the one
-		//visited before it. That is the only thing that earns the words "Back
-		//to"; anything further back is a destination, not a direction.
-		const previousCollection = remembered.slice(0, 2).find(entry => entry.canonical !== activeCanonical)?.canonical;
-		const suggestions = composerSuggestionsFor(
-			this._collectionDescription,
-			this._composerInput,
-			this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
-			this._cardsSelected,
-			recentCollectionsFor(remembered),
-			this._activeCollectionDescription || undefined,
-			previousCollection,
-			this._draftSelectedCard,
-			this._contextualComposerCandidates,
-			this._composerCardNames
-		);
-		//Count-aware ranking, without the list moving under the user's hands.
-		//The identity of the row set is the "was this list rebuilt?" test: a
-		//new input or draft produces different rows, and only then may counts
-		//reorder them. While a row is highlighted the order is frozen outright,
-		//so the transformation accepted on keydown is the one that was visible.
-		const key = suggestions.map(suggestion => suggestion.id).join('\n');
-		const memo = this._suggestionOrder;
-		if (memo && memo.key === key && this._suggestionHighlightActive) {
-			return frozenOrderSuggestions(suggestions, memo.order);
-		}
-		const ranked = rankedSuggestionsFor(this._withoutContradictoryRefinements(suggestions), this._previewCounts);
-		const order = ranked.map(suggestion => suggestion.id);
-		//Only when the order actually moved: reassigning an identical memo would
-		//hand the frozen-order path a new array every render and defeat its
-		//cache, which is the whole reason the list is stable to begin with.
-		if (!memo || memo.key !== key || memo.order.length !== order.length || memo.order.some((id, index) => id !== order[index])) {
-			this._suggestionOrder = {key, order};
-		}
-		return ranked;
 	}
 
 	get _contextualComposerCandidates() : CollectionComposerCandidate[] {
@@ -3115,16 +2860,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const input = e.composedPath()[0];
 		if (!(input instanceof HTMLInputElement)) throw new Error('not input element');
 		this._composerInput = input.value;
-		this._selectedClauseIndex = -1;
-		this._clauseSelectionMessage = '';
-		this._highlightedSuggestion = 0;
+		//TYPING LEAVES A SEEDED LIST. Browse all and the sentence-word lists are
+		//answers to a gesture; a keystroke is a new question, and the completions
+		//are its answer. The exception is an OR-scoped input, where typing is
+		//precisely what the scope asked for — so the scope, and the pill row
+		//under it, survive.
+		if (!this._orTarget) {
+			this._selectedPath = [];
+			this._clauseSelectionMessage = '';
+			this._wordScope = '';
+		}
+		this._highlightedRow = 0;
 		//Typed text makes the list interpretations of what was typed, so the
 		//top interpretation is the highlighted one and Enter opens it. Emptying
 		//the input returns the list to destinations nobody has pointed at, and
 		//Enter goes back to meaning "open the draft".
-		this._suggestionHighlightActive = Boolean(input.value.trim());
+		this._rowHighlightActive = Boolean(input.value.trim());
 		this._pointerHighlightArmed = false;
-		this._catalogHighlightedIndex = 0;
 		this._activationMessage = '';
 	}
 
@@ -3145,140 +2897,133 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//A keystroke means the keyboard owns the highlight again: a resting
 		//pointer must not take it back when the list re-renders underneath.
 		this._pointerHighlightArmed = false;
-		if (this._catalogOpen) {
-			const items = this._visibleCatalogItems;
-			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length) {
-				e.preventDefault();
-				e.stopPropagation();
-				const direction = e.key === 'ArrowDown' ? 1 : -1;
-				this._catalogHighlightedIndex = (this._catalogHighlightedIndex + direction + items.length) % items.length;
-				return;
-			}
-			if (e.key === 'Enter' && items[this._catalogHighlightedIndex]) {
-				e.preventDefault();
-				e.stopPropagation();
-				committedKeystrokes.add(e);
-				this._handleCatalogItem(items[this._catalogHighlightedIndex]);
-				return;
-			}
-			if (e.key === 'Escape') {
-				e.preventDefault();
-				e.stopPropagation();
-				this._handleCatalogToggle();
-				return;
-			}
-		}
-		//Match what the composer actually shows: with the catalog open the
-		//suggestion list is hidden, so no suggestion can be the visibly
-		//highlighted one that Tab or Enter accepts.
-		const suggestions = this._catalogOpen ? [] : this._composerSuggestions;
-		if (!this._composerInput && this._collectionDescription.filters.length) {
-			//SELECTING A CLAUSE TAKES THE HIGHLIGHT AWAY FROM THE LIST.
-			//
-			//The key hints already say so — the _selectedClauseIndex branch of
-			//_composerKeyHints outranks every highlighted-row branch — but the
-			//list went on PAINTING its highlighted row, so two things read as
-			//selected and only one of them was what the next Enter would take.
-			//That was harmless while Enter on a selected clause did nothing of
-			//its own; now that it activates the clause, the paint has to agree
-			//with the act (spec: the transformation accepted on keydown is the
-			//one visibly highlighted on keydown).
-			const selectClause = (index : number) => {
-				this._selectedClauseIndex = index;
-				this._suggestionHighlightActive = false;
-			};
-			if (e.key === 'Backspace') {
-				e.preventDefault();
-				e.stopPropagation();
-				if (this._selectedClauseIndex < 0) {
-					selectClause(this._collectionDescription.filters.length - 1);
-					this._clauseSelectionMessage = `${this._readableComposerFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected · Backspace again to remove`;
-				} else {
-					this._removeDraftClause(this._selectedClauseIndex);
-				}
-				return;
-			}
-			if (e.key === 'Delete' && this._selectedClauseIndex >= 0) {
-				e.preventDefault();
-				e.stopPropagation();
-				this._removeDraftClause(this._selectedClauseIndex);
-				return;
-			}
-			//ENTER ON A SELECTED CLAUSE OPENS ITS EDITOR.
-			//
-			//It used to fall through to the generic Enter below, which — with no
-			//suggestion highlighted — opens the current draft; and since
-			//selecting a clause does not change the draft, the draft was
-			//equivalent to the collection already on screen, so "open" meant
-			//"close the composer". The whole keyboard clause-selection flow
-			//(Backspace, then ←→) therefore had no way to reach the thing it had
-			//selected, and its one obvious key threw the session away instead.
-			//
-			//Enter is the ACTIVATION key for a selected object throughout this
-			//dialog, so it does here what clicking the chip does, focus and all.
-			if (e.key === 'Enter' && this._selectedClauseIndex >= 0 && !this._builderExpanded) {
-				e.preventDefault();
-				e.stopPropagation();
-				committedKeystrokes.add(e);
-				void this._handleClauseEdit(this._selectedClauseIndex);
-				return;
-			}
-			if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-				e.preventDefault();
-				e.stopPropagation();
-				if (e.key === 'ArrowLeft') {
-					selectClause(this._selectedClauseIndex < 0 ? this._collectionDescription.filters.length - 1 : Math.max(0, this._selectedClauseIndex - 1));
-				} else {
-					selectClause(this._selectedClauseIndex < 0 ? 0 : this._selectedClauseIndex + 1);
-					if (this._selectedClauseIndex >= this._collectionDescription.filters.length) this._selectedClauseIndex = -1;
-				}
-				this._clauseSelectionMessage = this._selectedClauseIndex < 0 ? '' : `${this._readableComposerFilter(this._collectionDescription.filters[this._selectedClauseIndex])} selected`;
-				return;
-			}
-		}
-		const highlightedIndex = this._activeHighlightIndex(suggestions);
-		const highlighted = suggestions[highlightedIndex];
+		const rows = this._paletteRows;
+		if (!this._composerInput && this._draftExpression.length && this._handleSentenceKeyDown(e)) return;
+		const highlightedIndex = this._activeHighlightIndex(rows);
+		const highlighted = rows[highlightedIndex];
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-			if (e.isComposing || e.keyCode === 229) return;
-			if (!suggestions.length) return;
+			if (!rows.length) return;
 			e.preventDefault();
 			e.stopPropagation();
 			const direction = e.key === 'ArrowDown' ? 1 : -1;
 			//Arrowing into a list with nothing highlighted lands on the first
 			//(or last) row instead of skipping one.
-			this._highlightedSuggestion = highlightedIndex < 0 ?
-				(direction === 1 ? 0 : suggestions.length - 1) :
-				(highlightedIndex + direction + suggestions.length) % suggestions.length;
-			this._suggestionHighlightActive = true;
+			this._highlightedRow = highlightedIndex < 0 ?
+				(direction === 1 ? 0 : rows.length - 1) :
+				(highlightedIndex + direction + rows.length) % rows.length;
+			this._rowHighlightActive = true;
 			return;
 		}
-		if (e.key === 'Tab' && !e.shiftKey && suggestions.length) {
-			if (e.isComposing || e.keyCode === 229) return;
+		if (e.key === 'Tab' && !e.shiftKey && rows.length) {
 			e.preventDefault();
 			e.stopPropagation();
 			//Tab is how the keyboard reaches the list without typing first.
 			//With nothing highlighted it highlights the first row — the list
-			//becomes enterable — and with a row highlighted it materializes
-			//that row into the draft. A destination materializes as its
-			//expression rather than opening, which is the labeled secondary
-			//action the spec allows for an Open row.
+			//becomes enterable — and with a row highlighted it MATERIALIZES
+			//that row: the valence's own expression becomes the draft, the
+			//input clears, and focus stays where it was. A destination
+			//materializes as its expression rather than opening, which is the
+			//labeled secondary action the spec allows for an Open row.
 			if (!highlighted) {
-				this._highlightedSuggestion = 0;
-				this._suggestionHighlightActive = true;
+				this._highlightedRow = 0;
+				this._rowHighlightActive = true;
 				return;
 			}
-			this._applyComposerSuggestion(highlighted, false);
+			this._activateRow(highlighted, false);
 			return;
 		}
-		if (e.key === 'Enter' && !this._catalogOpen) {
-			if (e.isComposing || e.keyCode === 229) return;
+		if (e.key === 'Enter') {
 			e.preventDefault();
 			e.stopPropagation();
 			committedKeystrokes.add(e);
 			//Spec: Enter opens the highlighted destination including its visible
-			//preview, or the current draft when no suggestion is highlighted.
-			if (highlighted) this._applyComposerSuggestion(highlighted, true);
+			//preview, or the current draft when no row is highlighted.
+			if (highlighted) this._activateRow(highlighted, true);
 			else this._handleOpenCurrentDraft();
+		}
+	}
+
+	//THE SENTENCE'S OWN KEYS, DRIVEN FROM THE INPUT.
+	//
+	//The sentence implements this grammar itself when it has focus, but focus
+	//lives in the input for the whole composing flow — a user who has just typed
+	//a clause and wants to flip it should not have to Tab into a toolbar first.
+	//So the input forwards the keys, and the two implementations agree because
+	//they call the same editing helpers on the same tree.
+	//
+	//Returns whether the key was spent here, so the list's own keys are reached
+	//only by a keystroke the sentence did not want.
+	_handleSentenceKeyDown(e : KeyboardEvent) : boolean {
+		const expression = this._draftExpression;
+		const path = this._selectedPath;
+		const memberIndex = this._selectedMemberIndex;
+		switch (e.key) {
+		case 'Backspace':
+			e.preventDefault();
+			e.stopPropagation();
+			//TWO-STEP, as it always was: the first Backspace on an empty input
+			//SELECTS the last condition and says so, and only the second one
+			//removes it. Deleting on the first keystroke would make an
+			//unrecoverable edit out of a key people press without looking.
+			if (!path.length) {
+				this._selectToken([expression.length - 1]);
+				this._clauseSelectionMessage = `${this._selectedTokenLabel} selected · Backspace again to remove`;
+				return true;
+			}
+			this._removeSelectedToken();
+			return true;
+		case 'Delete':
+			if (!path.length) return false;
+			e.preventDefault();
+			e.stopPropagation();
+			this._removeSelectedToken();
+			return true;
+		case 'Enter':
+			//ENTER EDITS THE SELECTED PILL, which is what the footer's own key
+			//table (PILL_ROW_KEY_HINTS) promises. The row is already open, so
+			//"edit" means putting the caret in its first control.
+			if (!path.length) return false;
+			e.preventDefault();
+			e.stopPropagation();
+			committedKeystrokes.add(e);
+			void this._focusPillRowControl();
+			return true;
+		case '+':
+			//THE URL'S OWN SPELLING FOR UNION, as the shortcut for adding one.
+			//The compiled-path line under the list is where the user sees the
+			//character they just pressed appear in a path (proposal C §4.6).
+			if (!path.length) return false;
+			e.preventDefault();
+			e.stopPropagation();
+			this._requestOr(path[0], memberIndex);
+			return true;
+		case '-':
+			//And the URL's own spelling for exclusion. It flips through the
+			//draft layer, so `published` becomes the WORD `unpublished` rather
+			//than an operator.
+			if (!path.length) return false;
+			e.preventDefault();
+			e.stopPropagation();
+			this._applyExpression(memberIndex < 0 ?
+				withNegationToggled(expression, path[0]) :
+				withMemberNegationToggled(expression, path[0], memberIndex), '', path);
+			return true;
+		case 'ArrowLeft':
+		case 'ArrowRight': {
+			e.preventDefault();
+			e.stopPropagation();
+			const last = expression.length - 1;
+			if (e.key === 'ArrowLeft') {
+				this._selectToken([path.length ? Math.max(0, path[0] - 1) : last]);
+				return true;
+			}
+			const next = path.length ? path[0] + 1 : 0;
+			if (next > last) this._clearSelection();
+			else this._selectToken([next]);
+			return true;
+		}
+		default:
+			return false;
 		}
 	}
 
@@ -3300,79 +3045,284 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._modifierNote = NEW_TAB_UNSUPPORTED_NOTE;
 	}
 
-	_applyComposerSuggestion(suggestion : CollectionComposerSuggestion, open : boolean) {
-		if (suggestion.sourceFilter) {
-			this._openSource(suggestion.action === 'replace' ? '' : suggestion.sourceFilter);
+	//--- Choosing a row -------------------------------------------------------
+
+	//WHAT A ROW DOES, IN ONE PLACE. The footer's branches read this order back,
+	//so the line that promises a verb and the handler that performs it cannot
+	//disagree — which they did, in the list this replaces, for the whole life of
+	//the catalog's verb chips.
+	_activateRow(row : PaletteRow, open : boolean) {
+		//A clause this layer will not compose. Source is the honest offer, and
+		//the family is spliced into the text so the user lands where the clause
+		//would go rather than at the end of a path.
+		if (row.sourceFilter) {
+			this._openSource(row.sourceFilter.split('/')[0]);
 			return;
 		}
-		if (suggestion.configureFilter) {
-			void this._configureFilterFamily(suggestion.configureFilter);
+		//A row that names a FAMILY rather than a clause. Nothing is pending any
+		//more: the clause lands in the draft with the family's own defaults and
+		//its pill row opens on it, so the count beside the sentence is already
+		//the count of what was chosen and Undo is one click away. The old
+		//explicit-confirm gate existed because the panel it gated was a
+		//six-control wall the draft could not show; a one-line row under the
+		//sentence needs no gate.
+		if (row.configurable && row.filter) {
+			void this._addFamilyWithDefaults(row.filter.split('/')[0]);
 			return;
 		}
 		if (open) {
-			if (this._activationPending) return;
-			const isDraft = suggestion.id === CURRENT_DRAFT_SUGGESTION_ID;
-			//A suggestion carrying its own destination path can still be a real
-			//navigation (a different selected card, say), so only the draft —
-			//whose selected card is checkable here — gets the semantic
-			//comparison when a path is present.
-			const alreadyActive = (isDraft || !suggestion.destinationPath) &&
-				this._destinationIsActiveCollection(suggestion.description, isDraft ? this._draftSelectedCard : null);
-			if (alreadyActive) {
-				//Spec: if the draft is equivalent to the active collection, Enter
-				//simply closes the composer. Choosing a *destination* that is
-				//already on screen is a different act: it navigates nowhere, so
-				//say so rather than closing with no explanation, which would look
-				//to the user like their draft evaporated. Recents no longer offer
-				//the active collection at all, so that branch is a backstop.
-				if (isDraft) {
-					store.dispatch(cancelConfigureCollectionDialog());
-					return;
-				}
-				this._activationMessage = ALREADY_ACTIVE_MESSAGE;
-				return;
-			}
-			this._activationPending = true;
-			this._activationMessage = '';
-			//Captured before the push, because that is what Undo returns to.
-			const returnPath = window.location.pathname;
-			const destinationPath = this._pathWithLiveSelectedCard(
-				suggestion.destinationPath ||
-				collectionURLPath(suggestion.description, {selectedCard: this._draftSelectedCard, originalOrder: true})
-			);
-			const result = store.dispatch(navigatePathToResult(destinationPath));
-			if (result.status === 'blocked-editing') {
-				this._activationPending = false;
-				this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
-				return;
-			}
-			if (result.status === 'unchanged') {
-				this._activationPending = false;
-				//Spec: if the draft is equivalent to the active collection,
-				//Enter simply closes the composer without a duplicate history
-				//entry. A chosen suggestion that turns out to resolve to the
-				//route already on screen instead says so.
-				if (suggestion.id === CURRENT_DRAFT_SUGGESTION_ID) {
-					store.dispatch(cancelConfigureCollectionDialog());
-					return;
-				}
-				this._activationMessage = ALREADY_ACTIVE_MESSAGE;
-				return;
-			}
-			store.dispatch(cancelConfigureCollectionDialog());
-			this._showArrivalReceipt(returnPath, suggestion.description);
+			this._openDestination(row.description, row.destinationPath || '', false, row.label);
 			return;
 		}
 		//A destination materialized by Tab is not "added"; the draft becomes it.
 		//Everything else says what it did to the draft, derived from the same
 		//canonical names the row used.
-		this._commitDraftEdit(
-			suggestion.description,
-			suggestion.action === 'open' ? `Replaced the draft with ${suggestion.name}` : '',
-			true
-		);
+		this._commitDraftEdit(row.description, row.navigates ? `Replaced the draft with ${row.label}` : '', true);
 		this._composerInput = '';
-		this._highlightedSuggestion = 0;
+		this._highlightedRow = 0;
+		this._orTarget = null;
+		this._browseOpen = false;
+		this._wordScope = '';
+	}
+
+	//THE ONE COMMIT PATH, AND EVERY GUARD IT EVER GREW. Ported whole: the
+	//already-active semantic close, the editing block, the unchanged-route
+	//report, the return path captured BEFORE the push, and the receipt built
+	//from what actually arrived. The only thing that changed is what hands it a
+	//destination.
+	_openDestination(description : CollectionDescription, explicitPath : string, isDraft : boolean, name : string) {
+		if (this._activationPending) return;
+		//A destination carrying its own path can still be a real navigation (a
+		//different selected card, say), so only the draft — whose selected card
+		//is checkable here — gets the semantic comparison when a path is present.
+		const alreadyActive = (isDraft || !explicitPath) &&
+			this._destinationIsActiveCollection(description, isDraft ? this._draftSelectedCard : null);
+		if (alreadyActive) {
+			//Spec: if the draft is equivalent to the active collection, Enter
+			//simply closes the composer. Choosing a *destination* that is
+			//already on screen is a different act: it navigates nowhere, so
+			//say so rather than closing with no explanation, which would look
+			//to the user like their draft evaporated.
+			if (isDraft) {
+				store.dispatch(cancelConfigureCollectionDialog());
+				return;
+			}
+			this._activationMessage = ALREADY_ACTIVE_MESSAGE;
+			return;
+		}
+		this._activationPending = true;
+		this._activationMessage = '';
+		//Captured before the push, because that is what Undo returns to.
+		const returnPath = window.location.pathname;
+		const destinationPath = this._pathWithLiveSelectedCard(
+			explicitPath || collectionURLPath(description, {selectedCard: this._draftSelectedCard, originalOrder: true})
+		);
+		const result = store.dispatch(navigatePathToResult(destinationPath));
+		if (result.status === 'blocked-editing') {
+			this._activationPending = false;
+			this._activationMessage = 'Finish or cancel the current card edit before opening this collection.';
+			return;
+		}
+		if (result.status === 'unchanged') {
+			this._activationPending = false;
+			//Spec: if the draft is equivalent to the active collection, Enter
+			//simply closes the composer without a duplicate history entry. A
+			//chosen destination that turns out to resolve to the route already
+			//on screen instead says so.
+			if (isDraft) {
+				store.dispatch(cancelConfigureCollectionDialog());
+				return;
+			}
+			this._activationMessage = ALREADY_ACTIVE_MESSAGE;
+			return;
+		}
+		store.dispatch(cancelConfigureCollectionDialog());
+		this._showArrivalReceipt(returnPath, description);
+		//Referenced so a future caller that wants the row's own name in the
+		//receipt has it; the arrival's name is what actually gets reported.
+		void name;
+	}
+
+	//--- Editing the sentence -------------------------------------------------
+
+	//THE DRAFT IS A DESCRIPTION AND THE EXPRESSION IS A VIEW OF IT, so every
+	//tree edit lands through the one seam and then through the one commit. That
+	//is what keeps undo, draft preservation and the source round-trip working
+	//on a boolean edit without any of them learning what a FilterExpressionNode
+	//is.
+	_applyExpression(expression : CollectionExpression, message = '', selectPath : CollectionSentencePath | null = null) {
+		this._commitDraftEdit(collectionDescriptionWithExpression(this._collectionDescription, expression), message);
+		if (selectPath && selectPath.length) this._selectToken(selectPath);
+	}
+
+	//WHETHER THE ADDRESS STILL NAMES THE SAME TOKEN after an edit. A flip and an
+	//argument edit leave the shape alone, so the row stays open on the clause
+	//the user is working on — closing it there is the defect the audited session
+	//hit, where setting a start date made the panel vanish before the end date
+	//could be set. A REMOVAL changes the shape, and then the address means
+	//something else: index 0 of a two-condition sentence names the survivor
+	//after the first is removed, so keeping the selection would silently
+	//repoint the row at a clause nobody chose.
+	_selectionSurvives(previous : CollectionExpression, next : CollectionExpression) : boolean {
+		const path = this._selectedPath;
+		if (!path.length) return false;
+		if (previous.length !== next.length) return false;
+		if (path.length < 2) return true;
+		const members = (expression : CollectionExpression) => {
+			const node = expression[path[0]];
+			return node && node.kind === 'or' ? node.members.length : -1;
+		};
+		return members(previous) === members(next);
+	}
+
+	_handleExpressionModified(e : ExpressionModifiedEvent) {
+		const previous = this._draftExpression;
+		const survives = this._selectionSurvives(previous, e.detail.expression);
+		const path = this._selectedPath;
+		this._applyExpression(e.detail.expression, '', survives ? path : null);
+		if (!survives) this._focusComposerInputSoon();
+	}
+
+	_handleTokenSelected(e : CollectionConditionEvent) {
+		this._selectToken(e.detail.memberIndex >= 0 ? [e.detail.index, e.detail.memberIndex] : [e.detail.index]);
+	}
+
+	_handleTokenRemoved(e : CollectionConditionEvent) {
+		const expression = e.detail.memberIndex >= 0 ?
+			withMemberRemoved(this._draftExpression, e.detail.index, e.detail.memberIndex) :
+			withConditionRemoved(this._draftExpression, e.detail.index);
+		this._applyExpression(expression);
+		this._focusComposerInputSoon();
+	}
+
+	_removeSelectedToken() {
+		const path = this._selectedPath;
+		if (!path.length) return;
+		const memberIndex = this._selectedMemberIndex;
+		this._applyExpression(memberIndex < 0 ?
+			withConditionRemoved(this._draftExpression, path[0]) :
+			withMemberRemoved(this._draftExpression, path[0], memberIndex));
+	}
+
+	get _selectedTokenLabel() : string {
+		if (!this._selectedPath.length) return '';
+		return this._readableComposerFilter(pillRowSpellingFor(this._draftExpression, this._selectedPath[0], this._selectedMemberIndex));
+	}
+
+	//SELECTING A TOKEN TAKES THE HIGHLIGHT AWAY FROM THE LIST. The key hints
+	//already say so — the pill-row branch outranks every highlighted-row branch
+	//— but a list that went on PAINTING its highlighted row would mean two
+	//things read as selected and only one of them was what the next Enter would
+	//take (spec: the transformation accepted on keydown is the one visibly
+	//highlighted on keydown).
+	_selectToken(path : CollectionSentencePath) {
+		this._selectedPath = path;
+		this._orTarget = null;
+		this._rowHighlightActive = false;
+		this._clauseSelectionMessage = path.length ? `${this._selectedTokenLabel} selected` : '';
+	}
+
+	_clearSelection() {
+		this._selectedPath = [];
+		this._orTarget = null;
+		this._clauseSelectionMessage = '';
+	}
+
+	_requestOr(index : number, memberIndex : number) {
+		this._orTarget = {index, memberIndex};
+		this._composerInput = '';
+		this._highlightedRow = 0;
+		this._rowHighlightActive = false;
+		this._focusComposerInputSoon();
+	}
+
+	_handlePillOrRequested(e : CollectionConditionEvent) {
+		this._requestOr(e.detail.index, e.detail.memberIndex);
+	}
+
+	//SET AND SORT ARE WORDS, and clicking one fills the list with its
+	//alternatives. The four-select setup strip is deleted; this is what replaced
+	//it, and typing a set or sort name reaches the same rows through the
+	//completion index.
+	_handleSetWordClicked() {
+		this._openWordScope('set');
+	}
+
+	_handleSortWordClicked() {
+		this._openWordScope('sort');
+	}
+
+	_openWordScope(scope : PaletteWordScope) {
+		this._wordScope = scope;
+		this._browseOpen = false;
+		this._clearSelection();
+		this._composerInput = '';
+		this._highlightedRow = 0;
+		this._rowHighlightActive = false;
+		this._focusComposerInputSoon();
+	}
+
+	_handleBrowseToggle() {
+		this._browseOpen = !this._browseOpen;
+		this._wordScope = '';
+		this._clearSelection();
+		this._composerInput = '';
+		this._highlightedRow = 0;
+		this._rowHighlightActive = false;
+		this._focusComposerInputSoon();
+	}
+
+	//A FAMILY CHOSEN BY NAME LANDS IN THE DRAFT AND OPENS ITS ROW. If the draft
+	//already has a clause from that family, the row opens on THAT clause instead
+	//of adding a second one — which is what the catalog's "Already in this
+	//collection" line used to say and this simply does.
+	async _addFamilyWithDefaults(family : string) {
+		const expression = this._draftExpression;
+		const applied = expression.findIndex(node => {
+			const spelling = serializeFilterNode(node);
+			return spelling === family || spelling.startsWith(`${family}/`);
+		});
+		if (applied >= 0) {
+			this._selectToken([applied]);
+			this._composerInput = '';
+			this._browseOpen = false;
+			await this._focusPillRowControl();
+			return;
+		}
+		const node : FilterExpressionNode = {kind: 'filter', filter: defaultFilterForFamily(family)};
+		const next = withConditionAppended(expression, node);
+		this._composerInput = '';
+		this._browseOpen = false;
+		this._applyExpression(next, '', [next.length - 1]);
+		await this._focusPillRowControl();
+	}
+
+	//FOCUS CAN ONLY LAND IN A CONTROL THAT EXISTS YET.
+	//
+	//Lit renders one component per microtask turn. Awaiting this dialog's
+	//updateComplete gets the <collection-pill-row> ELEMENT into the DOM, but its
+	//own first render — and the date/key-card/multiple-cards control nested one
+	//level further in — happen on later turns. focusPrimaryControl works by
+	//querying shadow roots, so calling it after a single await queries roots that
+	//are still empty: it finds nothing, and focus stays behind in the composer
+	//input, a dozen Tabs from the field the user just asked to edit.
+	async _focusPillRowControl() {
+		await this.updateComplete;
+		const row = this.shadowRoot?.querySelector<HTMLElement & {updateComplete? : Promise<unknown>, focusPrimaryControl? : () => boolean}>('collection-pill-row');
+		if (row?.updateComplete) await row.updateComplete;
+		const nested = row?.shadowRoot?.querySelector<HTMLElement & {updateComplete? : Promise<unknown>}>(
+			'.argument configure-collection-date, .argument configure-collection-key-card, .argument configure-collection-multiple-cards'
+		);
+		if (nested?.updateComplete) await nested.updateComplete;
+		if (row?.focusPrimaryControl?.()) return;
+		//A pill with no arguments has verbs and nothing else, and its first verb
+		//is a live control inside the row — which is where "Enter edits" has to
+		//land, rather than nowhere.
+		row?.shadowRoot?.querySelector<HTMLElement>('button.verb')?.focus();
+	}
+
+	_focusComposerInputSoon() {
+		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 	}
 
 	_commitDraftEdit(description : CollectionDescription, message = '', focusInput = false, selectedCard = this._draftSelectedCard) {
@@ -3380,49 +3330,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._draftUndoSelectedCard = this._draftSelectedCard;
 		this._draftSelectedCard = selectedCard;
 		this._draftReceiptMessage = message || collectionDraftReceipt(this._collectionDescription, description, this._composerFilterLabels, this._composerCardNames);
-		this._selectedClauseIndex = -1;
-		//The draft just changed, so the suggestion list is about to be rebuilt
-		//around it. Nothing in the new list is what the user was pointing at,
-		//so the next Enter commits the draft they just composed.
-		this._suggestionHighlightActive = false;
+		this._selectedPath = [];
+		//The draft just changed, so the list is about to be rebuilt around it.
+		//Nothing in the new list is what the user was pointing at, so the next
+		//Enter commits the draft they just composed.
+		this._rowHighlightActive = false;
 		this._pointerHighlightArmed = false;
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
-		if (focusInput) this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-	}
-
-	_removeDraftClause(index : number) {
-		const filter = this._collectionDescription.filters[index];
-		if (filter === undefined) return;
-		//What the clause editor was editing, before the removal renumbers
-		//everything after it. _commitDraftEdit clears the selection but leaves
-		//the panel expanded, which used to render '' into a still-visible
-		//.builder container -- an empty grey box where the editor had been.
-		const editing = this._builderExpanded ? this._selectedClauseIndex : -1;
-		this._commitDraftEdit(
-			collectionDescriptionWithFilterRemoved(this._collectionDescription, index),
-			'',
-			true
-		);
-		if (editing < 0) return;
-		if (editing === index) {
-			//The clause being edited is the one that just went away, so there is
-			//nothing left to edit. Collapse rather than show an empty panel.
-			this._builderExpanded = false;
-			this._clauseSelectionMessage = '';
-			return;
-		}
-		//A different clause was removed; keep editing the same one, at whatever
-		//index it now sits at.
-		const next = editing > index ? editing - 1 : editing;
-		const nextFilter = this._collectionDescription.filters[next];
-		if (nextFilter === undefined) {
-			this._builderExpanded = false;
-			this._clauseSelectionMessage = '';
-			return;
-		}
-		this._selectedClauseIndex = next;
-		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(nextFilter)}`;
+		if (focusInput) this._focusComposerInputSoon();
 	}
 
 	_undoDraftEdit() {
@@ -3433,163 +3349,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._draftUndoSelectedCard = null;
 		if (selectedCard !== null) this._draftSelectedCard = selectedCard;
 		this._draftReceiptMessage = 'Restored previous draft';
-		this._selectedClauseIndex = -1;
-		this._suggestionHighlightActive = false;
+		this._selectedPath = [];
+		this._orTarget = null;
+		this._rowHighlightActive = false;
 		this._pointerHighlightArmed = false;
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
-		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-	}
-
-	//FOCUS CAN ONLY LAND IN A CONTROL THAT EXISTS YET.
-	//
-	//Lit renders one component per microtask turn. Awaiting this dialog's
-	//updateComplete gets the <configure-collection-filter> ELEMENT into the
-	//DOM, but its own first render — and the date/key-card/multiple-cards
-	//control nested one level further in — happen on later turns.
-	//focusPrimaryControl works by querying shadow roots, so calling it after a
-	//single await queries roots that are still empty: it finds nothing, and
-	//focus stays behind in the composer input, a dozen Tabs from the field the
-	//user just asked to edit. Awaiting each level on the way down is what makes
-	//the existing machinery actually reach the control; nothing about
-	//focusPrimaryControl itself was wrong.
-	//
-	//The clause editor happened to look fine because its fallback caught the
-	//miss and landed on Done editing — right pane, wrong control, and no
-	//indication that the primary path had failed at all.
-	async _focusEditorPrimaryControl(editorSelector : string, fallbackSelector : string) {
-		await this.updateComplete;
-		const control = this.shadowRoot?.querySelector<HTMLElement & {updateComplete? : Promise<unknown>, focusPrimaryControl? : () => boolean}>(editorSelector);
-		if (control?.updateComplete) await control.updateComplete;
-		const nested = control?.shadowRoot?.querySelector<HTMLElement & {updateComplete? : Promise<unknown>}>(
-			'.pieces configure-collection-date, .pieces configure-collection-key-card, .pieces configure-collection-multiple-cards'
-		);
-		if (nested?.updateComplete) await nested.updateComplete;
-		if (control?.focusPrimaryControl?.()) return;
-		this.shadowRoot?.querySelector<HTMLElement>(fallbackSelector)?.focus();
-	}
-
-	async _handleClauseEdit(index : number) {
-		this._catalogOpen = false;
-		this._pendingCatalogFilter = '';
-		this._selectedClauseIndex = index;
-		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(this._collectionDescription.filters[index])}`;
-		this._builderExpanded = true;
-		await this._focusEditorPrimaryControl('.clause-editor configure-collection-filter', '.clause-editor .done-editing');
-	}
-
-	_handleBuilderToggle() {
-		this._builderExpanded = !this._builderExpanded;
-		if (!this._builderExpanded) {
-			this._selectedClauseIndex = -1;
-			this._clauseSelectionMessage = '';
-			this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-		}
-	}
-
-	_handleCatalogToggle() {
-		this._catalogOpen = !this._catalogOpen;
-		this._catalogHighlightedIndex = 0;
-		this._pendingCatalogFilter = '';
-		this._pendingCatalogChanged = false;
-		if (this._catalogOpen) this._expandedCatalogCategories = new Set();
-		if (this._catalogOpen) {
-			this._builderExpanded = false;
-			this._selectedClauseIndex = -1;
-			this._clauseSelectionMessage = '';
-		}
-		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-	}
-
-	//One row per `x` / `not-x` pair: the toggle swaps which half the row offers
-	//rather than adding anything, so the draft only changes when the row itself
-	//is chosen.
-	_handleCatalogPolarityToggle(item : CollectionFilterCatalogItem) {
-		if (!item.oppositeFilter) return;
-		this._catalogPolarity = {...this._catalogPolarity, [item.polarityKey]: item.oppositeFilter};
-	}
-
-	_handleCatalogCategoryToggle(category : CollectionFilterCatalogCategory) {
-		const expanded = new Set(this._expandedCatalogCategories);
-		if (expanded.has(category)) expanded.delete(category);
-		else expanded.add(category);
-		this._expandedCatalogCategories = expanded;
-		this._catalogHighlightedIndex = 0;
-	}
-
-	_defaultCatalogFilter(family : string) : string {
-		if (['created', 'updated', 'last-tweeted'].includes(family)) return `${family}/after/7-days-ago`;
-		const info = CONFIGURABLE_FILTER_INFO[family];
-		return info ? `${family}/${info.arguments.map(argument => argument.default).join('/')}` : family;
-	}
-
-	async _configureFilterFamily(family : string) {
-		const appliedIndex = this._collectionDescription.filters.findIndex(filter => filter === family || filter.startsWith(`${family}/`));
-		if (appliedIndex >= 0) {
-			await this._handleClauseEdit(appliedIndex);
-			return;
-		}
-		this._catalogOpen = true;
-		this._builderExpanded = false;
-		this._selectedClauseIndex = -1;
-		this._clauseSelectionMessage = '';
-		this._pendingCatalogFilter = this._defaultCatalogFilter(family);
-		this._pendingCatalogChanged = this._catalogDefaultIsReady(family);
-		this._composerInput = '';
-		this._catalogHighlightedIndex = 0;
-		this._expandedCatalogCategories = new Set();
-		//Cancel is the fallback rather than the round Add: Add spends most of
-		//its life disabled ("Change a value to add this filter"), and focus that
-		//lands on a disabled control is focus that has gone nowhere. Cancel is
-		//always live, is inside the editor, and is one Tab from Add.
-		await this._focusEditorPrimaryControl('.pending-filter-editor configure-collection-filter', '.pending-filter-actions button');
-	}
-
-	_catalogDefaultIsReady(family : string) : boolean {
-		return ['created', 'updated', 'last-tweeted', 'author', 'limit', 'offset'].includes(family);
-	}
-
-	async _handleCatalogItem(item : CollectionFilterCatalogItem) {
-		if (!item.guided) {
-			this._openSource(item.appliedIndex >= 0 ? '' : item.filter.split('/')[0]);
-			return;
-		}
-		if (item.appliedIndex >= 0) {
-			this._catalogOpen = false;
-			await this._handleClauseEdit(item.appliedIndex);
-			return;
-		}
-		const family = item.filter.split('/')[0];
-		if (item.configurable && item.filter === family) {
-			await this._configureFilterFamily(family);
-			return;
-		}
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, item.filter));
-		this._composerInput = '';
-		this._catalogHighlightedIndex = 0;
-		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-	}
-
-	_handlePendingCatalogFilterModified(e : FilterModifiedEvent) {
-		this._pendingCatalogFilter = e.detail.value;
-		this._pendingCatalogChanged = true;
-	}
-
-	_cancelPendingCatalogFilter() {
-		this._pendingCatalogFilter = '';
-		this._pendingCatalogChanged = false;
-		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
-	}
-
-	_commitPendingCatalogFilter() {
-		if (!this._pendingCatalogFilter || !this._pendingCatalogChanged) return;
-		const filter = this._pendingCatalogFilter;
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, filter));
-		this._pendingCatalogFilter = '';
-		this._pendingCatalogChanged = false;
-		this._composerInput = '';
-		this._catalogHighlightedIndex = 0;
-		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+		this._focusComposerInputSoon();
 	}
 
 	_handleCatalogDirectionChanged(e : Event) {
@@ -3613,48 +3379,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleOpenCurrentDraft() {
 		//Mode-exclusive: the draft commit belongs to the quick composer only.
 		if (this._entryMode !== 'compose') return;
-		this._applyComposerSuggestion({
-			id: CURRENT_DRAFT_SUGGESTION_ID,
-			kind: 'source',
-			action: 'open',
-			name: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames),
-			label: 'Open this collection',
-			detail: readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames),
-			description: this._collectionDescription,
-			destinationPath: collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true}),
-		}, true);
+		this._openDestination(
+			this._collectionDescription,
+			collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true}),
+			true,
+			readableCollectionExpression(this._collectionDescription, this._composerFilterLabels, this._composerCardNames)
+		);
 	}
 
 	_handleModifyPath() {
 		store.dispatch(askForPathToNavigateTo());
 	}
 
-	//EDITING A FIELD DOES NOT CLOSE THE EDITOR.
-	//
-	//_commitDraftEdit clears _selectedClauseIndex, because for every OTHER way
-	//the draft changes — a suggestion, a catalog row, an undo — the clause the
-	//user had selected is no longer what they are pointing at. A clause edit is
-	//the one change that comes FROM the selected clause, so clearing the
-	//selection there closed the editor on the field the user had just changed:
-	//the audited session set the start date, watched the panel vanish, and had
-	//to re-open it from the chip to set the end date.
-	//
-	//The selection is captured before the commit and restored after it, the same
-	//shape _removeDraftClause already uses to keep the editor on a clause that
-	//has been renumbered underneath it. The draft itself is updated immediately,
-	//which is the contract the panel states.
+	//THE LEGACY BUILDER'S OWN HANDLERS. They serve the composer-OFF path, where
+	//the dialog is still the original filter list; the composer's own clause
+	//editing goes through the sentence and the pill row, which never touch a
+	//filter index.
 	_handleFilterModified(e : FilterModifiedEvent) {
-		const editing = this._builderExpanded ? this._selectedClauseIndex : -1;
 		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value));
-		if (editing < 0) return;
-		const filter = this._collectionDescription.filters[editing];
-		if (filter === undefined) return;
-		this._selectedClauseIndex = editing;
-		this._clauseSelectionMessage = `Editing ${this._readableComposerFilter(filter)}`;
 	}
 
 	_handleFilterRemoved(e : FilterModifiedEvent) {
-		this._removeDraftClause(e.detail.index);
+		this._commitDraftEdit(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index));
 	}
 
 	_handleAddFilterClicked() {
@@ -3720,16 +3466,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					//IMEs still send.
 					if (e.keyCode === 229) return false;
 					if (!this.open) return false;
-					if (this._catalogOpen) {
-						if (this._pendingCatalogFilter) this._cancelPendingCatalogFilter();
-						else this._handleCatalogToggle();
+					//THE LAYERS PEEL IN THE ORDER THEY WERE OPENED, innermost
+					//first. An or-scoped input was opened FROM the pill row, so
+					//Escape there returns to the pill rather than closing it;
+					//the pill row was opened from the sentence, so Escape there
+					//returns to the sentence. Every step is one layer, and the
+					//user's place is never further away than the number of
+					//Escapes they have pressed.
+					if (this._orTarget) {
+						this._orTarget = null;
+						this._focusComposerInputSoon();
 						return true;
 					}
-					if (this._builderExpanded) {
-						this._builderExpanded = false;
-						this._selectedClauseIndex = -1;
-						this._clauseSelectionMessage = '';
-						this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
+					if (this._selectedPath.length) {
+						this._clearSelection();
+						this._focusComposerInputSoon();
+						return true;
+					}
+					if (this._browseOpen || this._wordScope) {
+						this._browseOpen = false;
+						this._wordScope = '';
+						this._highlightedRow = 0;
+						this._rowHighlightActive = false;
+						this._focusComposerInputSoon();
 						return true;
 					}
 					//Source is a LAYER too, and Escape peels it exactly like the
@@ -3793,75 +3552,44 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	override updated(changedProps : PropertyValues<this>) {
 		super.updated(changedProps);
-		//Mirrored onto the host so ONE rule can gate hover for all three lists,
-		//rather than three containers each having to remember the attribute.
-		//(The same idiom snack-bar uses for its mobile class, and for the same
-		//reason: a property Lit does not reflect cannot be matched from CSS.)
+		//Mirrored onto the host so ONE rule can gate hover for both lists,
+		//rather than each container having to remember the attribute. (The same
+		//idiom snack-bar uses for its mobile class, and for the same reason: a
+		//property Lit does not reflect cannot be matched from CSS.)
 		this.toggleAttribute('data-pointer-armed', this._pointerHighlightArmed);
-		//Mirrored for the same reason: the two lists that have to yield their
-		//floor to the anchored editor are in different containers, and a
-		//property Lit does not reflect cannot be matched from CSS.
-		this.toggleAttribute('data-editor-open', this._anchoredEditorOpen);
-		if ((changedProps.has('_highlightedSuggestion') || changedProps.has('_suggestionHighlightActive')) && this._suggestionHighlightActive) {
-			this.shadowRoot?.querySelector(`#collection-suggestion-${this._highlightedSuggestion}`)?.scrollIntoView?.({block: 'nearest'});
+		if ((changedProps.has('_highlightedRow') || changedProps.has('_rowHighlightActive')) && this._rowHighlightActive) {
+			this.shadowRoot?.querySelector(`#collection-palette-row-${this._highlightedRow}`)?.scrollIntoView?.({block: 'nearest'});
 		}
 		//A LIST OPENS AT ITS TOP.
 		//
 		//These panes are not recreated between sessions, so their scrollTop
-		//survives close-and-reopen: a session that had arrowed down the
-		//suggestions reopened HEADERLESS in the middle of the list, with the
-		//CONTINUE heading and the 0-card Remove diagnostics scrolled off the
-		//top and no sign that anything was above. Every transition that
-		//REPLACES what a pane holds — opening the dialog, entering or leaving
-		//Source, opening or closing the catalog — puts it back at the top,
-		//which is where the row the keyboard is about to land on lives.
-		if (changedProps.has('open') || changedProps.has('_entryMode') || changedProps.has('_catalogOpen')) {
-			for (const pane of this.shadowRoot?.querySelectorAll('.suggestions, .catalog-list') || []) pane.scrollTop = 0;
-		}
-		//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED.
-		//
-		//The anchored slot is the second child of #inner, so it is on screen by
-		//construction in every case the old bottom-of-column position was not —
-		//but #inner is still a scroll container, and a session that had scrolled
-		//down to the catalog before clicking a chip would open the editor above
-		//its scroll position. block:'nearest' scrolls the least that makes the
-		//pane visible, so an editor already in view does not jump.
-		//
-		//ONLY WHEN THE EDITOR ACTUALLY OPENS OR MOVES. _selectedClauseIndex now
-		//leaves and re-enters its own value on every field edit (see
-		//_handleFilterModified), which Lit reports as a change — scrolling on
-		//that would yank the port under a user in the middle of typing a date.
-		//The same is true one panel over: _pendingCatalogFilter holds the
-		//configured VALUE, so it changes on every field edit too. Only the
-		//transition into a configured state is an opening.
-		const clauseMoved = changedProps.has('_selectedClauseIndex') && changedProps.get('_selectedClauseIndex') !== this._selectedClauseIndex;
-		const configureOpened = changedProps.has('_pendingCatalogFilter') && !changedProps.get('_pendingCatalogFilter') && Boolean(this._pendingCatalogFilter);
-		if (this.open && (changedProps.has('_builderExpanded') || clauseMoved || configureOpened)) {
-			this.updateComplete.then(() => {
-				const editor = this.shadowRoot?.querySelector('.anchored-editor');
-				editor?.scrollIntoView?.({block: 'nearest'});
-			});
+		//survives close-and-reopen: a session that had arrowed down the list
+		//reopened HEADERLESS in the middle of it, with the Recent heading
+		//scrolled off the top and no sign that anything was above. Every
+		//transition that REPLACES what a pane holds — opening the dialog,
+		//entering or leaving Source, seeding or clearing Browse all — puts it
+		//back at the top, which is where the row the keyboard is about to land
+		//on lives.
+		if (changedProps.has('open') || changedProps.has('_entryMode') || changedProps.has('_browseOpen') || changedProps.has('_wordScope')) {
+			for (const pane of this.shadowRoot?.querySelectorAll('.palette-list, .suggestions') || []) pane.scrollTop = 0;
 		}
 		if (changedProps.has('open')) {
 			this._activationPending = false;
 			this._activationMessage = '';
 			if (this.open) {
 				this._composerInput = '';
-				this._highlightedSuggestion = 0;
+				this._highlightedRow = 0;
 				//Opening over a resting cursor must not decide what Enter does.
-				this._suggestionHighlightActive = false;
+				this._rowHighlightActive = false;
 				this._pointerHighlightArmed = false;
 				this._builderExpanded = false;
-				this._catalogOpen = false;
-				this._catalogHighlightedIndex = 0;
-				this._pendingCatalogFilter = '';
-				this._pendingCatalogChanged = false;
-				this._expandedCatalogCategories = new Set();
-				this._catalogPolarity = {};
+				this._browseOpen = false;
+				this._wordScope = '';
+				this._orTarget = null;
 				//A fresh session gets fresh counts: corpus membership may have
 				//changed since the last time this composer was open.
 				this._retainedPreviewCounts.clear();
-				this._selectedClauseIndex = -1;
+				this._selectedPath = [];
 				this._draftReceiptMessage = '';
 				this._clauseSelectionMessage = '';
 				//Once per composer session, not once per app lifetime: a user
@@ -3926,9 +3654,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			changedProps.has('_composerCandidates') ||
 			changedProps.has('_cardsSelected') ||
 			changedProps.has('_userScope') ||
-			//The Configure panel's running count is a count of the draft plus
-			//THIS value, so it has to be re-asked when the value moves.
-			changedProps.has('_pendingCatalogFilter')
+			//THE PILL ROW'S SECOND COUNT MOVES WITH THE SELECTION. "Without this
+			//pill" is a question about a different collection for every pill, so
+			//it has to be re-asked when the selection does.
+			changedProps.has('_selectedPath') ||
+			//And the list's own rows change with every feed, so the counts they
+			//carry have to be asked for the rows actually on screen.
+			changedProps.has('_browseOpen') ||
+			changedProps.has('_wordScope') ||
+			changedProps.has('_orTarget')
 		) this._refreshPreviewCounts();
 	}
 
@@ -3956,23 +3690,38 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (!this.open || !collectionComposerPreviewEnabled()) {
 			this._previewCounts = {};
 			this._draftCountPending = false;
-			this._editorCountPending = false;
 			return;
 		}
-		const previewSuggestions = this._entryMode === 'source' ? [] : this._composerSuggestions.filter(suggestion => !suggestion.configureFilter && !suggestion.sourceFilter);
-		//THE OPEN EDITOR'S OWN COLLECTION IS COUNTED LIKE ANY OTHER. It goes
+		//A ROW IS COUNTED WHEN ITS COUNT WOULD MEAN SOMETHING. A row that opens
+		//Source has no collection, a row that names a FAMILY has not decided one
+		//yet, and Browse all is a directory of filters rather than a set of
+		//predictions — asking the worker for forty family counts nobody will
+		//read is what the budget exists to prevent.
+		const previewSuggestions : CollectionComposerSuggestion[] = this._entryMode === 'source' ? [] :
+			this._paletteRows
+				.filter(row => !row.sourceFilter && !row.configurable && this._rowCountMeaningful(row))
+				.map(row => ({
+					id: row.id,
+					kind: 'source' as const,
+					action: 'open' as const,
+					name: row.label,
+					label: row.label,
+					detail: '',
+					description: row.description,
+				}));
+		//THE PILL ROW'S SECOND COUNT IS COUNTED LIKE ANY OTHER ROW. It goes
 		//through the same debounce, the same worker budget and the same retained
-		//cache as every row, which is what makes a count that moves under a
-		//changing date field affordable at all.
-		if (this._entryMode !== 'source' && this._pendingCatalogFilter) {
+		//cache, which is what makes a count that moves under a changing
+		//selection affordable at all.
+		if (this._entryMode !== 'source' && this._pillRowOpen) {
 			previewSuggestions.unshift({
-				id: this._editorPreviewID,
+				id: this._withoutPreviewID,
 				kind: 'source',
 				action: 'open',
-				name: 'Configured filter',
-				label: 'Configured filter',
+				name: 'Without this pill',
+				label: 'Without this pill',
 				detail: '',
-				description: collectionDescriptionWithFilterAppended(previewDescription, this._pendingCatalogFilter),
+				description: collectionDescriptionWithExpression(previewDescription, this._expressionWithoutSelection),
 			});
 		}
 		previewSuggestions.unshift({
@@ -3998,7 +3747,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 		this._previewCounts = retained;
 		this._draftCountPending = missing.some(suggestion => suggestion.id === this._draftPreviewID);
-		this._editorCountPending = missing.some(suggestion => suggestion.id === this._editorPreviewID);
 		if (!missing.length) return;
 		this._cancelPreviews = startCollectionComposerPreviews(
 			missing,
@@ -4009,7 +3757,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				const key = keyBySuggestionID.get(suggestionID);
 				if (key) this._rememberPreviewCount(key, count);
 				if (suggestionID === this._draftPreviewID) this._draftCountPending = false;
-				if (suggestionID === this._editorPreviewID) this._editorCountPending = false;
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}
 		);
@@ -4035,6 +3782,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._userInfos = selectAuthorsForTagList(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._tagInfos = selectTags(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
 		this._activeCardID = selectActiveCardID(state);
