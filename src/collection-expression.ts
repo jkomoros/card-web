@@ -430,3 +430,32 @@ export const describeExpressionNode = (
 	}
 	}
 };
+
+//--- The one consumer ------------------------------------------------------
+
+//collectionDescriptionWithExpression is the seam between the draft layer and
+//the engine: everything else about the description — set, sort, view — is
+//carried through untouched, because this layer has an opinion about exactly one
+//of the six fields.
+//
+//The set is passed through as `undefined` when it was never explicitly named,
+//mirroring collection_description's own private overrides helper: editing the
+//CLAUSES is not an occasion to change a description's account of its own set,
+//and the two helpers must not disagree about how that account survives an edit.
+export const collectionDescriptionWithExpression = (
+	description : CollectionDescription,
+	expression : CollectionExpression
+) : CollectionDescription =>
+	new CollectionDescription(
+		description.setNameExplicitlySet ? description.set : undefined,
+		serializeCollectionExpression(expression),
+		description.sort,
+		description.sortReversed,
+		description.viewMode,
+		description.viewModeExtra
+	);
+
+//collectionExpressionForDescription is the other half of that seam, named to
+//read in the same breath at the call site.
+export const collectionExpressionForDescription = (description : CollectionDescription) : CollectionExpression =>
+	parseCollectionExpression(description.filters);

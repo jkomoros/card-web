@@ -28,6 +28,7 @@ globalThis.customElements = dom.window.customElements;
 globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
 
 let CollectionDescription;
+let collectionURLPath;
 let QueryEngine;
 let INITIAL_STATE;
 let INVERSE_FILTER_NAMES;
@@ -77,7 +78,7 @@ const assertEngineEquivalent = (a, b, message) => {
 describe('Collection expression boolean draft layer', () => {
 
 	before(async () => {
-		({ CollectionDescription } = await import('../../lib/src/collection_description.js'));
+		({ CollectionDescription, collectionURLPath } = await import('../../lib/src/collection_description.js'));
 		({ QueryEngine } = await import('../../lib/src/worker/query-engine.js'));
 		({ INITIAL_STATE, INVERSE_FILTER_NAMES } = await import('../../lib/src/filters.js'));
 		expression = await import('../../lib/src/collection-expression.js');
@@ -353,6 +354,89 @@ describe('Collection expression boolean draft layer', () => {
 			assert.strictEqual(described.kind, 'manual');
 			assert.strictEqual(described.label, 'expand/published/children/+one');
 			assert.strictEqual(described.source, 'expand/published/children/+one');
+		});
+	});
+
+	describe('the seam onto CollectionDescription', () => {
+
+		it('carries set, sort and view through untouched', () => {
+			const description = CollectionDescription.deserialize('everything/published/sort/reverse/stars/view/web/');
+			const parsed = expression.collectionExpressionForDescription(description);
+			assert.deepStrictEqual(parsed, [{kind: 'filter', filter: 'published'}]);
+			const next = expression.collectionDescriptionWithExpression(description,
+				expression.withConditionAppended(parsed, {kind: 'filter', filter: 'has-tags'}));
+			assert.strictEqual(next.set, 'everything');
+			assert.strictEqual(next.sort, 'stars');
+			assert.strictEqual(next.sortReversed, true);
+			assert.strictEqual(next.viewMode, 'web');
+			assert.deepStrictEqual(next.filters, ['published', 'has-tags']);
+		});
+
+		it('preserves whether the set name was explicitly named', () => {
+			//`setNameExplicitlySet` is carried, not recomputed, exactly as
+			//collection_description's own private overrides helper carries it —
+			//an edit to the CLAUSES is not an occasion to change the
+			//description's account of its own set. (Note that `deserialize`
+			//marks the set explicit even for `/c/starred/`, because it always
+			//hands the constructor a name; the elision that keeps the URL short
+			//is serializeShort's, not this flag's.)
+			const built = new CollectionDescription(undefined, ['starred']);
+			assert.strictEqual(built.setNameExplicitlySet, false);
+			const nextBuilt = expression.collectionDescriptionWithExpression(built,
+				expression.collectionExpressionForDescription(built));
+			assert.strictEqual(nextBuilt.setNameExplicitlySet, false);
+			assert.strictEqual(collectionURLPath(nextBuilt), '/c/starred/');
+
+			const deserialized = CollectionDescription.deserialize('starred/');
+			const nextDeserialized = expression.collectionDescriptionWithExpression(deserialized,
+				expression.collectionExpressionForDescription(deserialized));
+			assert.strictEqual(nextDeserialized.setNameExplicitlySet, deserialized.setNameExplicitlySet);
+			assert.strictEqual(collectionURLPath(nextDeserialized), '/c/starred/');
+		});
+
+		it('produces proposal C’s URL spellings for a quick-composer edit', () => {
+			//§3: type a tag, fuse an "or" onto it, flip a pill — and the URL
+			//that falls out is `+` for the group and the inverse WORD for the
+			//flip, with `exclude/` reserved for the group flip.
+			const start = CollectionDescription.deserialize('main/');
+			let expr = expression.collectionExpressionForDescription(start);
+			assert.deepStrictEqual(expr, []);
+
+			expr = expression.withConditionAppended(expr, {kind: 'filter', filter: 'tag-3'});
+			assert.strictEqual(collectionURLPath(expression.collectionDescriptionWithExpression(start, expr)),
+				'/c/tag-3/');
+
+			expr = expression.withMemberAddedToOr(expr, 0, {kind: 'filter', filter: 'tag-7'});
+			assert.strictEqual(collectionURLPath(expression.collectionDescriptionWithExpression(start, expr)),
+				'/c/tag-3+tag-7/');
+
+			expr = expression.withConditionAppended(expr, {kind: 'filter', filter: 'published'});
+			expr = expression.withNegationToggled(expr, 1);
+			assert.strictEqual(collectionURLPath(expression.collectionDescriptionWithExpression(start, expr)),
+				'/c/tag-3+tag-7/unpublished/',
+				'flipping a pill with a word for it must read as that word, never as exclude/');
+
+			expr = expression.withNegationToggled(expr, 0);
+			assert.deepStrictEqual(
+				expression.collectionDescriptionWithExpression(start, expr).filters,
+				['exclude/tag-3+tag-7', 'unpublished'],
+				'flipping the GROUP is where exclude/ finally appears');
+
+			//And the whole sentence reads back as the same tree it was built as.
+			assert.deepStrictEqual(
+				expression.collectionExpressionForDescription(expression.collectionDescriptionWithExpression(start, expr)),
+				expr);
+		});
+
+		it('round-trips a description through the draft layer without changing what it selects', () => {
+			for (const fixture of ROUND_TRIP_FIXTURES) {
+				const description = new CollectionDescription('main', fixture.filters);
+				const next = expression.collectionDescriptionWithExpression(
+					description,
+					expression.collectionExpressionForDescription(description)
+				);
+				assertEngineEquivalent(description.filters, next.filters, fixture.name);
+			}
 		});
 	});
 });
