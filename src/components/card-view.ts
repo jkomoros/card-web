@@ -32,7 +32,7 @@ import {
 	selectUserMayCreateCard,
 	selectSectionsAndTagsLoaded,
 	selectEditingUpdatedFromContentEditable,
-	selectPendingNewCardIDToNavigateTo,
+	selectPendingNewCardArrived,
 	selectUserMayForkActiveCard,
 	selectWordCloudForMainCardDrawer,
 	selectCardsDrawerInfoExpanded,
@@ -467,7 +467,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_cardTodos: TODOType[];
 
 	@state()
-		_pendingNewCardIDToNavigateTo: CardID;
+		_pendingNewCardArrived: boolean;
 
 	@state()
 		_collectionWordCloud: WordCloud | null;
@@ -1260,7 +1260,7 @@ class CardView extends connect(store)(PageViewElement) {
 			(!corpusWorkerServesCollections() || selectWorkerActiveCollectionReady(state));
 		this._sectionsAndTagsLoaded = selectSectionsAndTagsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
-		this._pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
+		this._pendingNewCardArrived = selectPendingNewCardArrived(state);
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
 		this._userIsAdmin = selectUserIsAdmin(state);
@@ -1338,7 +1338,13 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(navigateToDefaultIfSectionsAndTagsLoaded());
 			}
 		}
-		if ((changedProps.has('_pendingNewCardIDToNavigateTo') || changedProps.has('_dataIsFullyLoaded')) && this._dataIsFullyLoaded && this._pendingNewCardIDToNavigateTo) {
+		//Arrival-keyed: navigate when the pending card itself (and its section
+		//membership, when it has one) is in the store — not when loading flags
+		//clear, which anything could do first. The arrived selector is false
+		//whenever no card is pending, so it carries the pending check too.
+		//_dataIsFullyLoaded stays in the condition to keep a boot-time replay
+		//from navigating mid-load.
+		if ((changedProps.has('_pendingNewCardArrived') || changedProps.has('_dataIsFullyLoaded')) && this._dataIsFullyLoaded && this._pendingNewCardArrived) {
 			store.dispatch(navigateToNewCard());
 		}
 		if (changedProps.has('_editing') && !this._editing) {

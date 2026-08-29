@@ -159,9 +159,15 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			pendingAuxWriteCount: action.count,
 		};
 	case EXPECT_NEW_CARD:
-		//This means that although we may think we're fully loaded now, there's
-		//a new card that was just added to database that firebase hasn't yet
-		//told us about.
+		//A new card was just written that the listeners haven't delivered yet.
+		//This used to also flip sectionsLoaded and a loadingCardFetchTypes
+		//flag, making the whole app read as "not fully loaded" — which force-
+		//showed the card drawer for a fallback collection, faded the card
+		//stage, and (worse) gated navigation on flags that ANY delivery of the
+		//same fetch type — an unrelated batch, the bridge's loadComplete sweep
+		//— could clear before the card itself arrived. Navigation is now keyed
+		//on the pending card's own arrival (selectPendingNewCardArrived), so
+		//this records only the expectation.
 		if (!action.navigate) {
 			return {
 				...state,
@@ -169,20 +175,13 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 				pendingNewCardType: action.cardType
 			};
 		}
-		const newState : DataState = {
+		return {
 			...state,
-			//by default we assume we need a section to load, but if it's a card
-			//without a section, that won't happen.
-			sectionsLoaded: action.noSectionChange ? true : false,
 			pendingReorder: true,
 			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
 			pendingNewCardType: action.cardType,
-			//We'll be modifying them in the next few lines
-			loadingCardFetchTypes: {...state.loadingCardFetchTypes}
 		};
-		newState.loadingCardFetchTypes[action.cardLoadingChannel] = true;
-		return newState;
 	case NAVIGATED_TO_NEW_CARD:
 		return {
 			...state,
@@ -271,11 +270,13 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case REMOVE_CARDS:
 		return removeCardIDs(action.cardIDs, state);
 	case EXPECTED_NEW_CARD_FAILED:
+		//EXPECT_NEW_CARD no longer touches sectionsLoaded or the loading
+		//flags, so this stopped resetting them: wiping loadingCardFetchTypes
+		//here could cancel a genuine boot-time load that happened to overlap a
+		//failed creation.
 		return {
 			...state,
 			pendingReorder: false,
-			sectionsLoaded: true,
-			loadingCardFetchTypes: {},
 			pendingNewCardID: '',
 			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',

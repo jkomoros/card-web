@@ -32,6 +32,7 @@ const {doc, getDoc} = firestore;
 //Importing data.js is what REGISTERS the card-create executor.
 await import('../../lib/src/actions/data.js');
 const queue = await import('../../lib/src/aux-write-queue.js');
+const corpusMode = await import('../../lib/src/corpus-mode.js');
 
 
 
@@ -312,6 +313,86 @@ describe('bulk import hand-back', () => {
 		selectSelectedCardsMissingCount = (await import('../../lib/src/selectors.js')).selectSelectedCardsMissingCount;
 	});
 
+	it('echoes a committed card into the store, with its placeholder id repaired', async function() {
+		this.timeout(120000);
+		clearAuxQueue();
+		//In worker modes nothing latency-compensates a main-thread commit, so
+		//the executor echoes the committed card itself. The id assertion pins
+		//the sharp edge: the card doc's own `id` field is the placeholder
+		//defaultCardObject stamps, and ingestion normally repairs it from
+		//snapshot.id — an echo that skips that repair inserts a ghost card
+		//under the placeholder key and the real card never arrives locally.
+		const id = 'echo-card-' + Date.now();
+		const outcome = await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-create', id, '', {
+			kind: 'card-create',
+			card: wireCard(id),
+			section: '',
+			sectionUpdateKey: '',
+			serverTimestampFields: ['created', 'updated', 'updated_substantive', 'updated_message']
+		}));
+		assert.equal(outcome, 'committed');
+		//The echo is dispatched fire-and-forget after the commit resolves.
+		await new Promise(resolve => setTimeout(resolve, 50));
+		const card = store.getState().data.cards[id];
+		assert.ok(card, 'a committed card must be echoed into the store without any listener delivery');
+		assert.equal(card.id, id, 'the echo must repair the placeholder id from the intent');
+		assert.ok(!store.getState().data.cards['?DEFAULT-INVALID-ID?'],
+			'no ghost card may be inserted under the placeholder id');
+
+		//THE SECOND HALF OF THE ECHO CONTRACT: the echoed timestamps are
+		//client-materialized, and the server's later delivery of this card is
+		//the only carrier of the REAL created/updated values. The
+		//timestamp-ignoring dedupe used to drop it, leaving a skewed clock's
+		//card in the wrong day bucket and sort position for the session.
+		const {receiveCards} = await import('../../lib/src/actions/data.js');
+		const {Timestamp} = firestore;
+		const serverUpdated = Timestamp.fromMillis(Date.now() + 60 * 1000);
+		store.dispatch(receiveCards({[id]: {...card, updated: serverUpdated}}, 'unpublished'));
+		const confirmed = store.getState().data.cards[id];
+		assert.equal(confirmed.updated.toMillis(), serverUpdated.toMillis(),
+			'the server delivery for an echoed card must apply even when only timestamps differ');
+		//And only ONCE: with the mark consumed, an identical re-delivery takes
+		//the ordinary dedupe path again.
+		const before = store.getState().data.cards;
+		store.dispatch(receiveCards({[id]: {...card, updated: Timestamp.fromMillis(Date.now() + 120 * 1000)}}, 'unpublished'));
+		assert.strictEqual(store.getState().data.cards, before,
+			'after confirmation, a timestamps-only re-delivery is deduped as before');
+	});
+
+	it('echoes the inbound-link mirror onto the forked-from card', async function() {
+		this.timeout(120000);
+		clearAuxQueue();
+		//The batch UPDATEs the origin card, so it must exist on the server, and
+		//the echo materializes onto the origin's LOCAL copy, so it must be in
+		//the store.
+		const {setDoc: seed} = await import('firebase/firestore');
+		const originID = 'fork-origin-' + Date.now();
+		const originCard = {...wireCard(originID), id: originID};
+		await seed(doc(db, 'cards', originID), {...originCard, id: '?DEFAULT-INVALID-ID?'});
+		store.dispatch({type: 'UPDATE_CARDS', cards: {[originID]: originCard}, fetchType: 'unpublished'});
+
+		const forkID = 'fork-card-' + Date.now();
+		const forkCard = wireCard(forkID);
+		forkCard.references = {[originID]: true};
+		forkCard.references_info = {[originID]: {'fork-of': ''}};
+
+		const outcome = await queue.runDurableAuxWrite(queue.makeAuxWriteIntent(UID, 'card-create', forkID, '', {
+			kind: 'card-create',
+			card: forkCard,
+			section: '',
+			sectionUpdateKey: '',
+			deriveInboundLinks: true,
+			serverTimestampFields: ['created', 'updated', 'updated_substantive', 'updated_message']
+		}));
+		assert.equal(outcome, 'committed');
+		await new Promise(resolve => setTimeout(resolve, 50));
+		const origin = store.getState().data.cards[originID];
+		assert.ok(origin.references_inbound && origin.references_inbound[forkID],
+			'the origin card\'s inbound references must include the fork without waiting for the server echo');
+		assert.deepEqual(origin.references_info_inbound[forkID], {'fork-of': ''},
+			'the inbound reference info must be materialized locally too');
+	});
+
 	it('does not select a card it has not received yet', async function() {
 		this.timeout(120000);
 		clearAuxQueue();
@@ -443,6 +524,12 @@ describe('bulk import hand-back', () => {
 		this.timeout(120000);
 		clearAuxQueue();
 		clearHarnessAlerts();
+		//In worker modes the executor's post-commit echo delivers every
+		//committed card into the store without any listener, so withholding a
+		//delivery can no longer strand a card. The give-up machinery is the
+		//fallback for exactly the configurations where the echo is inert —
+		//run the scenario there.
+		corpusMode.writeCorpusWorkerMode('off');
 		store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
 		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {edit: true}});
 		//The real flow starts from an open dialog; the outcome assertions
@@ -479,6 +566,7 @@ describe('bulk import hand-back', () => {
 			await store.dispatch(bulkCreateWorkingNotes(bodies, {importer: 'google-docs-flat', importer_version: 1}));
 		} finally {
 			clearInterval(deliveryTimer);
+			corpusMode.writeCorpusWorkerMode('on');
 		}
 		const elapsed = Date.now() - started;
 

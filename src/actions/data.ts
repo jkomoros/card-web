@@ -131,7 +131,7 @@ import {
 	selectEnqueuedCards,
 	selectPendingModificationCount,
 	selectPendingModificationCardIDs,
-	selectExpectedCardFetchTypeForNewUnpublishedCard,
+	getCardIndexForActiveCollection,
 	selectUserMayViewUnpublished,
 	selectCorpusStatus,
 } from '../selectors.js';
@@ -1698,7 +1698,23 @@ const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAu
 	if (!scopeStillCurrent()) return;
 	if (Object.keys(published).length) dispatch(receiveCards(published, 'published'));
 	if (Object.keys(unpublished).length) dispatch(receiveCards(unpublished, 'unpublished'));
+	//Marked AFTER the dispatches above, so this call's own deliveries take the
+	//ordinary dedupe path and only a LATER delivery — the server's
+	//confirmation — consumes the mark. See awaitingServerTimestampIDs.
+	for (const id of Object.keys(localEchoes)) awaitingServerTimestampIDs.add(id);
 };
+
+//Cards whose local copy carries client-materialized timestamps (an optimistic
+//echo — a create or an edit), awaiting the server's authoritative stamps.
+//receiveCards' timestamp-ignoring dedupe exists to drop a redundant listener
+//re-delivery of an echo — but for these cards the "redundant" delivery is the
+//only carrier of the REAL created/updated values, and dropping it left a
+//skewed clock's card in the wrong day bucket and the wrong sort/recent
+//position for the whole session. A delivery for a marked card applies even
+//when only timestamps differ, and clears the mark: timestamps are authoritative
+//again from then on. The worker keeps the same discipline for its corpus
+//(clientClockCardIDs); this is the main-thread analog.
+const awaitingServerTimestampIDs : Set<CardID> = new Set();
 
 //returns true if a modificatioon was made to the card, or false if it was a no
 //op. When an error is thrown, that's an implied 'false'. If echoCards is
@@ -2470,9 +2486,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		type: EXPECT_NEW_CARD,
 		ID: firstID,
 		cardType: 'working-notes',
-		navigate: false,
-		noSectionChange: true,
-		cardLoadingChannel: selectExpectedCardFetchTypeForNewUnpublishedCard(state)
+		navigate: false
 	});
 
 	let outcomes : AuxWriteOutcome[];
@@ -2722,14 +2736,13 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	//per-document write ceiling.
 	if (author && !payload.skipAuthor) ensureAuthor(batch, author);
 	if (!cardAlreadyExists) batch.set(cardDocRef, card);
-	if (payload.deriveInboundLinks) {
-		//Recomputed, not replayed from storage: these updates carry arrayUnion
-		//sentinels that JSON cannot represent, and they are a pure function of
-		//the card we just wrote.
-		const inboundUpdates = inboundLinksUpdates(intent.cardID, null, card);
-		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
-			batch.update(doc(db, CARDS_COLLECTION, otherCardID), otherCardUpdate);
-		}
+	//Recomputed, not replayed from storage: these updates carry arrayUnion
+	//sentinels that JSON cannot represent, and they are a pure function of
+	//the card we just wrote. Hoisted out of the write block because the echo
+	//below materializes the same updates onto the local copies.
+	const inboundUpdates = payload.deriveInboundLinks ? inboundLinksUpdates(intent.cardID, null, card) : {};
+	for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+		batch.update(doc(db, CARDS_COLLECTION, otherCardID), otherCardUpdate);
 	}
 	for (const [tagName, tagUpdateKey] of Object.entries(payload.tagUpdateKeys || {})) {
 		const tagRef = doc(db, TAGS_COLLECTION, tagName);
@@ -2763,6 +2776,63 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	//saved and would appear when the connection recovered.
 	batch.endAtomicGroup();
 	await batch.commit();
+
+	//Latency compensation (worker modes only, inside echoLocalCardModifications):
+	//the worker's Firestore client cannot see this thread's just-committed
+	//write, so without an echo the card — and everything gated on its
+	//arrival, navigation included — waits a full server round trip out to
+	//the worker's delta listener. Same mechanism modifyCards uses for edits;
+	//receiveCards' timestamp-ignoring dedupe drops the real echo when it
+	//lands. It lives HERE rather than at the creation call sites so every
+	//path through this executor — createCard, createForkedCard, bulk import,
+	//an offline replay — gets it uniformly.
+	//
+	//The `id` override is load-bearing: the card doc's own `id` field is the
+	//placeholder defaultCardObject stamps ('?DEFAULT-INVALID-ID?'), and
+	//ingestion normally repairs it from snapshot.id — so the echo does the
+	//same repair from the intent, or it would insert a ghost card under the
+	//placeholder key.
+	//
+	//The scope guard refuses the echo if the acting account is no longer the
+	//signed-in one by the time the commit lands.
+	const echoCards : Cards = {[intent.cardID]: {...card, id: intent.cardID}};
+	//The inbound-link mirror the batch wrote onto OTHER cards (a fork's
+	//origin gains references_inbound entries) gets echoed too, exactly as
+	//modifyCards echoes its own inbound updates — otherwise the origin's
+	//"referenced by" surfaces lag a full server round trip behind the fork
+	//they show. applyCardFirebaseUpdate resolves the vended arrayUnion
+	//sentinels against the local copy.
+	if (Object.keys(inboundUpdates).length) {
+		const rawCards = selectRawCards(store.getState() as State);
+		for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
+			const base = rawCards[otherCardID];
+			if (!base) continue;
+			echoCards[otherCardID] = applyCardFirebaseUpdate(base, otherCardUpdate);
+		}
+	}
+	void store.dispatch(echoLocalCardModifications(
+		echoCards,
+		{uid: intent.uid, mayViewUnpublished: selectUserMayViewUnpublished(store.getState() as State)}
+	));
+
+	//Section membership gets the same treatment: the batch's arrayUnion onto
+	//sections/{id} is otherwise visible only after the worker's sections
+	//listener hears it from the server, and the arrival gate for a sectioned
+	//card (selectPendingNewCardArrived) waits on exactly that. Appending to
+	//the local copy mirrors what arrayUnion does server-side, so the
+	//listener's eventual authoritative delivery converges to the same array.
+	//UPDATE_SECTIONS is in FORWARDED_ACTION_TYPES, so the worker's collection
+	//reducer receives this partial merge through the action tap for free.
+	if (payload.section) {
+		const sections = selectSections(store.getState() as State);
+		const sectionDoc = sections[payload.section];
+		if (sectionDoc && Array.isArray(sectionDoc.cards) && !sectionDoc.cards.includes(intent.cardID)) {
+			store.dispatch({
+				type: UPDATE_SECTIONS,
+				sections: {[payload.section]: {...sectionDoc, cards: [...sectionDoc.cards, intent.cardID]}},
+			});
+		}
+	}
 });
 
 export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
@@ -2918,15 +2988,14 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		}
 	}
 
-	//Tell card-view to expect a new card to be loaded, and when data is
-	//fully loaded again, it will then trigger the navigation.
+	//Tell card-view to expect a new card; once the card itself (and, for a
+	//sectioned card, its section membership) arrives in the store, card-view
+	//triggers the navigation. See selectPendingNewCardArrived.
 	dispatch({
 		type: EXPECT_NEW_CARD,
 		ID: id,
 		cardType: cardType,
-		navigate: !noNavigate,
-		noSectionChange: !section,
-		cardLoadingChannel: obj.published ? 'published' : selectExpectedCardFetchTypeForNewUnpublishedCard(state)
+		navigate: !noNavigate
 	});
 
 	if (idFromOpts && !idWasVended(id)) {
@@ -2997,10 +3066,21 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		return;
 	}
 
+	//The card-create executor above echoed the committed card into the store
+	//and the worker, so for an orphaned card the arrival gate is already (or
+	//imminently) satisfied. A SECTIONED card's arrival additionally waits for
+	//the section's own listener delivery, which nothing latency-compensates —
+	//and if that delivery never comes (a split batch's section half failing,
+	//a wedged Listen stream), the pending expectation would latch
+	//pendingReorder and hold corpus status at 'pending', refusing every
+	//subsequent save. The backstop clears the expectation instead: the card
+	//IS committed; only this tab's navigation gives up on it.
+	scheduleNewCardArrivalBackstop(dispatch, getState, id);
+
 	//updateSections will be called and update the current view. card-view's
-	//updated will call navigateToNewCard once the data is fully loaded again
-	//(if EXPECT_NEW_CARD was dispatched above). If noSectionChange is true
-	//above, it will only wait for the card, not the section, to load.
+	//updated will call navigateToNewCard once the pending card (and, for a
+	//sectioned card, its section membership) arrives in the store (if
+	//EXPECT_NEW_CARD was dispatched above).
 
 	if (!autoSlug) return;
 
@@ -3154,15 +3234,13 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	}
 
 
-	//Tell card-view to expect a new card to be loaded, and when data is
-	//fully loaded again, it will then trigger the navigation.
+	//Tell card-view to expect a new card; navigation triggers when the card
+	//arrives. See selectPendingNewCardArrived.
 	dispatch({
 		type: EXPECT_NEW_CARD,
 		ID: id,
 		cardType: cardType,
-		navigate: true,
-		noSectionChange: !section,
-		cardLoadingChannel: newCard.published ? 'published' : selectExpectedCardFetchTypeForNewUnpublishedCard(state)
+		navigate: true
 	});
 
 	//Write-ahead, same as createCard. The inbound-link mirror updates are NOT
@@ -3200,9 +3278,12 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		return;
 	}
 
-	//updateSections will be called and update the current view. card-view's
-	//updated will call navigateToNewCard once the data is fully loaded again
-	//(if EXPECT_NEW_CARD was dispatched above)
+	//The card-create executor echoed the committed card; same backstop as
+	//createCard for the section-membership half of the arrival gate.
+	scheduleNewCardArrivalBackstop(dispatch, getState, id);
+
+	//card-view's updated will call navigateToNewCard once the pending card
+	//(and its section membership) arrives in the store.
 };
 
 //--- Durable card deletion -------------------------------------------------
@@ -3344,16 +3425,76 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 
 };
 
-export const navigateToNewCard = () : ThunkSomeAction => (dispatch, getState) => {
+//If a pending new-card navigation has not fired by this deadline, give up on
+//it (mirrors BULK_IMPORT_ARRIVAL_TIMEOUT_MS). This exists for the sectioned
+//half of the arrival gate: the card and its section membership are echoed
+//locally the moment the commit lands, but if a delivery is somehow never
+//reflected the expectation would latch pendingReorder forever — which holds
+//corpus status at 'pending', refuses every later save, and arms the
+//beforeunload prompt. Clearing the expectation costs only this tab's
+//automatic navigation; the card is committed and appears when sync catches
+//up.
+const NEW_CARD_ARRIVAL_BACKSTOP_MS = 15 * 1000;
+
+const scheduleNewCardArrivalBackstop = (dispatch : AppThunkDispatch, getState : () => State, id : CardID) : void => {
+	setTimeout(() => {
+		if (selectPendingNewCardIDToNavigateTo(getState()) !== id) return;
+		console.warn(`Card ${id} was created but has not fully arrived after ${NEW_CARD_ARRIVAL_BACKSTOP_MS / 1000}s; giving up on navigating to it.`);
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		dispatch(showSnackbar('That card was created, but it’s taking a while to sync. It will appear shortly.', {kind: 'queued'}));
+	}, NEW_CARD_ARRIVAL_BACKSTOP_MS);
+};
+
+//How long navigateToNewCard waits for the active collection to include the
+//just-arrived card before falling through to the default-collection branch.
+//In worker mode the collection recompute trails the card batch by one
+//subscription flush (the worker marks dirty before it forwards; the echo
+//path flushes immediately, so the result normally rides a postMessage round
+//trip behind the card), and navigating before it always took the fallback
+//branch, changed the collection description, and flashed the transitional
+//loading state. Bounded: a card that legitimately does not belong to the
+//active collection stops waiting here and falls through as before.
+const NEW_CARD_IN_COLLECTION_GRACE_MS = 150;
+
+const waitForActiveCollectionToContain = (cardID : CardID, timeoutMs : number) : Promise<void> => {
+	const contains = () => getCardIndexForActiveCollection(store.getState() as State, cardID) >= 0;
+	if (contains()) return Promise.resolve();
+	return new Promise(resolve => {
+		let unsubscribe : (() => void) | null = null;
+		const timer = setTimeout(() => {
+			if (unsubscribe) unsubscribe();
+			resolve();
+		}, timeoutMs);
+		unsubscribe = store.subscribe(() => {
+			if (!contains()) return;
+			clearTimeout(timer);
+			if (unsubscribe) unsubscribe();
+			resolve();
+		});
+	});
+};
+
+export const navigateToNewCard = () : ThunkSomeAction => async (dispatch, getState) => {
 	const ID = selectPendingNewCardIDToNavigateTo(getState());
 	if (!ID) return;
-	//navigateToNewCard is called when the expected cards/sections are loaded.
+	//navigateToNewCard is called when the expected card has arrived.
 	//Ensure that we have the up-to-date sections loaded. The case of adding a
 	//card to the current secitno works fine because updateSections will have
 	//called refreshCardSelector with force. But it doesn't work automatically
 	//for working-notes being added when viewinng working ntoes, since those
 	//cards are all oprhaned.
 	dispatch(updateCollectionSnapshot());
+	const activeCardBeforeWait = selectActiveCardID(getState());
+	await waitForActiveCollectionToContain(ID, NEW_CARD_IN_COLLECTION_GRACE_MS);
+	//The wait yielded; a competing navigation may have consumed the pending
+	//flag meanwhile.
+	if (selectPendingNewCardIDToNavigateTo(getState()) !== ID) return;
+	//If the user navigated somewhere themselves during the wait, don't yank
+	//them off the card they chose — stop expecting the new one instead.
+	if (selectActiveCardID(getState()) !== activeCardBeforeWait) {
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		return;
+	}
 	//navigateToCard will intiate a chain of actions that culminates in
 	//showCard, where we will note that we navigated to new card so we don't do
 	//it again.
@@ -3553,6 +3694,15 @@ export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe
 	const inputCount = Object.keys(cards).length;
 	for (const card of Object.values(cards)) {
 		const existing = existingCards[card.id];
+		if (existing && awaitingServerTimestampIDs.has(card.id)) {
+			//The local copy's timestamps are client-materialized (an optimistic
+			//echo); this delivery carries the server's authoritative stamps and
+			//must not be dropped as "same card, different timestamps". Apply
+			//unconditionally and trust timestamps again.
+			awaitingServerTimestampIDs.delete(card.id);
+			if (!ownsInput) cardsToUpdate[card.id] = card;
+			continue;
+		}
 		if (existing) {
 			if (fastDedupe && timestampsEquivalent(existing.updated as TimestampLike, card.updated as TimestampLike)) {
 				const validate = Math.random() < FAST_DEDUPE_VALIDATION_RATE;

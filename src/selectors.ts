@@ -214,8 +214,7 @@ import {
 	ReferenceType,
 	SortExtra,
 	CardDiff,
-	Filters,
-	CardFetchType
+	Filters
 } from './types.js';
 
 import {
@@ -1558,12 +1557,25 @@ export const selectActiveTagId = createSelector(
 	}
 );
 
-export const selectExpectedCardFetchTypeForNewUnpublishedCard = createSelector(
-	selectUserMayViewUnpublished,
-	(mayViewUnpublished) : CardFetchType => {
-		if (mayViewUnpublished) return 'unpublished';
-		//Technically this is only true if we have a uid, but otheriwse there's nothing to fetch anyway.
-		return 'unpublished-author';
+//Whether the card named by pendingNewCardIDToNavigateTo has actually arrived:
+//present in the cards map, and — when it belongs to a section — present in
+//that section's cards list, so the navigation lands in a collection that
+//already contains it. Keyed on the card's OWN arrival rather than on
+//fetch-type loading flags, which anything could clear first (an unrelated
+//batch of the same fetch type, the bridge's loadComplete sweep) — navigating
+//on those raced the card's delivery and auto-opened the editor on a card the
+//store did not have yet.
+export const selectPendingNewCardArrived = createSelector(
+	selectPendingNewCardIDToNavigateTo,
+	selectRawCards,
+	selectSections,
+	(id, cards, sections) : boolean => {
+		if (!id) return false;
+		const card = cards[id];
+		if (!card) return false;
+		if (!card.section) return true;
+		const section = sections[card.section];
+		return Boolean(section && section.cards && section.cards.includes(id));
 	}
 );
 

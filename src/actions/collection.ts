@@ -428,13 +428,25 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 	dispatch(canonicalizeURL());
 	dispatch(scheduleAutoMarkRead());
 
-	const pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
+	//Re-read: `state` above predates the SHOW_CARD dispatch, so selectors run
+	//against it resolve the PREVIOUS card — the existence guard below passed on
+	//the old card's presence while the new card had not arrived, and the
+	//autoSlug bail-out tested the old card's type. The dispatches above can
+	//also re-enter showCard synchronously (redirectIfInvalidCardOrCollection →
+	//'select-first'), consuming the pending flag this frame is about to check.
+	const stateAfterShow = getState();
+	const pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(stateAfterShow);
 
 	if (pendingNewCardIDToNavigateTo == cardId) {
-		//This is where we note that we were told to navigate 
+		//This is where we note that we were told to navigate
 		dispatch(navigatedToNewCard());
 
-		const card = selectActiveCard(state);
+		//By the ID this frame resolved, not selectActiveCard: the dispatches
+		//above can re-enter navigation (redirectIfInvalidCardOrCollection),
+		//and if the active card has since moved elsewhere the editor must not
+		//open on whatever it moved to.
+		if (selectActiveCardID(stateAfterShow) !== cardId) return;
+		const card = selectActiveCard(stateAfterShow);
 		if (!card) return;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 		//If it's a card type that autoSlugs (like concept card) then don't open
