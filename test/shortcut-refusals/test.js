@@ -203,6 +203,25 @@ describe('a shortcut that refuses says why (HS-3.5, D7)', () => {
 		});
 	}
 
+	it('editingStart checks the card exists before judging permission, and both branches speak', () => {
+		//selectUserMayEditActiveCard is keyed per-card off the cards map, so a
+		//card that has not ARRIVED yet reads as "may not edit". With the
+		//permission guard first, the auto-open after creating a card reported
+		//a loading race as a permissions refusal ("You don't have permission
+		//to edit this card" — about the user's own just-created card).
+		const body = bodyOf(readSource('editor.ts'), 'editingStart');
+		const cardCheck = body.indexOf('selectActiveCard(state)');
+		const permissionCheck = body.indexOf('!selectUserMayEditActiveCard(state)');
+		assert.ok(cardCheck > 0 && permissionCheck > 0, 'one of the two guards moved');
+		assert.ok(cardCheck < permissionCheck,
+			'an absent card must be handled before — never reported as — a permissions problem');
+		//And the absent-card branch is itself a shortcut-reachable refusal, so
+		//it must speak too — moving it in front of the permission branch must
+		//not convert it into a silent return.
+		const absentCardBlock = guardBlock(body, '!card || !card.id');
+		assertSpeaks(absentCardBlock, 'showSnackbar', 'editingStart\'s absent-card guard');
+	});
+
 	it('editingStart tells the user when they may not edit', () => {
 		const block = guardBlock(bodyOf(readSource('editor.ts'), 'editingStart'), '!selectUserMayEditActiveCard(state)');
 		assert.match(block, /showSnackbar\(\s*(['"`])\s*\S/, 'Cmd-E must not be indistinguishable from an unbound key');

@@ -177,6 +177,21 @@ export class SubscriptionManager {
 		this._scheduleFlush(scope === 'selection' ? 0 : this._flushDelayMs);
 	}
 
+	//For interactive local echoes (a just-created card, whose navigation
+	//gates on the next collection result): the batching floor that protects
+	//ingestion sweeps is pure added latency when a user is actively waiting.
+	//Flushes synchronously and cancels any scheduled flush — flush()
+	//recomputes every subscription regardless of dirt, so leaving the timer
+	//armed would only buy a second full recompute that pushes nothing.
+	flushImmediately() : void {
+		if (this._paused) return;
+		if (this._flushTimeout) {
+			clearTimeout(this._flushTimeout);
+			this._flushTimeout = null;
+		}
+		this.flush();
+	}
+
 	_scheduleFlush(delayMs = this._flushDelayMs) : void {
 		if (this._paused) return;
 		if (this._flushTimeout) {

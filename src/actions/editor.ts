@@ -317,15 +317,22 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		console.warn('Can\'t start editing because already editing');
 		return;
 	}
+	//Card presence BEFORE the permission check: selectUserMayEditActiveCard is
+	//keyed per-card off the cards map, so a card that has not arrived yet has
+	//no entry and reads as "may not edit". Answering that with the permission
+	//refusal told the user something false about their own just-created card.
+	//An absent card is a loading condition, not a permissions one \u2014 but a
+	//shortcut's refusal still has to speak (HS-3.5), so it gets its own
+	//message rather than falling through to the wrong one.
+	const card = selectActiveCard(state);
+	if (!card || !card.id) {
+		dispatch(showSnackbar('There isn\u2019t a loaded card to edit. If one is still loading, try again in a moment.', {kind: 'refused', dedupeKey: 'edit-card'}));
+		return;
+	}
 	if (!selectUserMayEditActiveCard(state)) {
 		//Cmd-E has no disabled state to read, unlike the Edit button, so without
 		//this the shortcut is indistinguishable from an unbound key.
 		dispatch(showSnackbar('You don\u2019t have permission to edit this card.', {kind: 'refused', dedupeKey: 'edit-card'}));
-		return;
-	}
-	const card = selectActiveCard(state);
-	if (!card || !card.id) {
-		console.warn('There doesn\'t appear to be an active card.');
 		return;
 	}
 	//A durable single-card save releases the editor before its server commit

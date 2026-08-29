@@ -714,10 +714,7 @@ type ActionExpectNewCard = {
 	type: typeof EXPECT_NEW_CARD,
 	ID: CardID
 	cardType: CardType,
-	navigate: boolean,
-	noSectionChange: boolean,
-	//Which channel to expect to hear the card on.
-	cardLoadingChannel: CardFetchType
+	navigate: boolean
 };
 
 type ActionExpectedNewCardFailed = {

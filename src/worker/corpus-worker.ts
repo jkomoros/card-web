@@ -3365,6 +3365,10 @@ workerScope.addEventListener('message', event => {
 			//from watermark derivation until a server snapshot confirms them.
 			for (const id of Object.keys(echoCards)) clientClockCardIDs.add(id);
 			updateLocalState(echoCards, []);
+			//A local echo means a user is actively waiting on the next
+			//collection result (a just-created card's navigation gates on
+			//it) — skip the batching delay updateLocalState scheduled.
+			subscriptions.flushImmediately();
 			break;
 		}
 		engine.applyAction(action);
