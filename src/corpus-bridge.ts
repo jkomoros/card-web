@@ -1238,7 +1238,10 @@ const handleMessageInner = (event : MessageEvent<WorkerToMainMessage>) => {
 		recoverFromWorkerFailure(`worker expected protocol version ${message.expectedProtocolVersion}, received ${message.receivedProtocolVersion}`);
 		break;
 	case 'status':
-		console.log('[corpus-worker]', message.message);
+		//Gated: sync-health narration is for someone actively debugging, not
+		//every production console. DEBUG_PERF.enable() (and the perf harness)
+		//turn it on; errors below stay unconditional.
+		if (perfEnabled()) console.log('[corpus-worker]', message.message);
 		break;
 	case 'error':
 		console.warn('[corpus-worker]', message.message);

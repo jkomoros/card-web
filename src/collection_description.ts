@@ -82,7 +82,8 @@ import { references } from './references.js';
 
 import {
 	perfCount,
-	perfRecord
+	perfRecord,
+	perfEnabled
 } from './perf.js';
 
 const SLOW_COLLECTION_WORK_THRESHOLD_MS = 50;
@@ -92,6 +93,10 @@ const logSlowCollectionWork = (operation : string, description : CollectionDescr
 	perfCount('collection:' + operation);
 	perfRecord('collection:' + operation, duration);
 	if (duration < SLOW_COLLECTION_WORK_THRESHOLD_MS) return;
+	//Gated: on a large corpus nearly EVERY recompute clears the 50ms bar, so
+	//an ungated log here narrated ordinary operation to every production
+	//user's console. DEBUG_PERF.enable() (and the perf harness) turn it on.
+	if (!perfEnabled()) return;
 	const executionContext = typeof document === 'undefined' ? 'worker' : 'main';
 	console.log(`[PERF] ${executionContext} collection ${operation}: ${duration.toFixed(1)}ms over ${count} cards for ${description.serialize()}`);
 };

@@ -88,6 +88,10 @@ export class SubscriptionManager {
 	_dirty : boolean;
 	_dirtyScope : DirtyScope | null;
 	_paused : boolean;
+	//When the last flush ENDED — the leading-edge guard in flushImmediately
+	//reads this so an echo burst coalesces onto the batching floor instead of
+	//paying a full recompute per echo.
+	_lastFlushEndMs : number;
 
 	//push is called with each fresh result; flushDelayMs coalesces bursts of
 	//engine mutations (e.g. ingestion batches) into one recompute. onError is
@@ -105,6 +109,9 @@ export class SubscriptionManager {
 		this._dirty = false;
 		this._dirtyScope = null;
 		this._paused = false;
+		//Far enough in the past that the first interactive echo of a session
+		//takes the immediate path.
+		this._lastFlushEndMs = -Infinity;
 	}
 
 	//While paused, no flush runs at all: subscriptions can be registered and
@@ -183,8 +190,20 @@ export class SubscriptionManager {
 	//Flushes synchronously and cancels any scheduled flush — flush()
 	//recomputes every subscription regardless of dirt, so leaving the timer
 	//armed would only buy a second full recompute that pushes nothing.
+	//
+	//LEADING EDGE ONLY. An echo BURST — twenty rapid creations, a bulk
+	//import's per-card commits — must not pay a full every-subscription
+	//recompute per card: at a 40k corpus that wedged the worker for the
+	//length of the burst, and every navigation's subscribe message froze in
+	//the queue behind it (the very hazard the batching floor exists for).
+	//The first echo after an idle stretch flushes in this turn; an echo
+	//landing within the batching floor of the previous flush's END falls
+	//back to the flush markDirty already scheduled. Measured from the end,
+	//not the start: a flush long enough to matter ends just before the next
+	//queued echo message is processed, so every echo behind it coalesces.
 	flushImmediately() : void {
 		if (this._paused) return;
+		if (performance.now() - this._lastFlushEndMs < this._flushDelayMs) return;
 		if (this._flushTimeout) {
 			clearTimeout(this._flushTimeout);
 			this._flushTimeout = null;
@@ -276,5 +295,6 @@ export class SubscriptionManager {
 				ms: Math.round((performance.now() - start) * 10) / 10
 			});
 		}
+		this._lastFlushEndMs = performance.now();
 	}
 }
