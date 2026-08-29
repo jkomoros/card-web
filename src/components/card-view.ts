@@ -150,6 +150,7 @@ import {
 } from './collection-sentence.js';
 
 import {
+	CollectionExpression,
 	collectionDescriptionWithExpression,
 	collectionExpressionForDescription,
 	withConditionRemoved,
@@ -271,7 +272,9 @@ import {
 } from '../sync-copy.js';
 
 import {
-	Collection
+	Collection,
+	CollectionDescription,
+	collectionURLPath
 } from '../collection_description.js';
 
 
@@ -345,6 +348,8 @@ const COLLECTION_UPDATING_GRACE_MS = 200;
 const EMPTY_UNRESOLVED_CLAUSES : ReadonlySet<string> = new Set<string>();
 
 const EMPTY_UNRESOLVED_FILTER_LIST : readonly string[] = [];
+
+const EMPTY_SUMMARY_EXPRESSION : CollectionExpression = [];
 
 //The one refusal removing a drawer clause can produce: an open card edit blocks
 //navigation, and the composer's own commit paths say it in these words.
@@ -860,6 +865,23 @@ class CardView extends connect(store)(PageViewElement) {
 		return this._collection.finalSortedCards.length === 0;
 	}
 
+	//THE PARSED SENTENCE, STABLE ACROSS RENDERS. card-view re-renders on every
+	//state change it subscribes to, and a fresh expression tree each time would
+	//make lit re-set the property and the sentence rebuild every pill — chips,
+	//shadow roots and all — for a change of, say, the word cloud. Keyed on the
+	//description's identity, which is what the tree is derived from.
+	_summaryExpressionCache : CollectionExpression = [];
+	_summaryExpressionFrom : CollectionDescription | null = null;
+
+	get _summaryExpression() : CollectionExpression {
+		const description = this._collection ? this._collection.description : null;
+		if (!description) return EMPTY_SUMMARY_EXPRESSION;
+		if (this._summaryExpressionFrom === description) return this._summaryExpressionCache;
+		this._summaryExpressionFrom = description;
+		this._summaryExpressionCache = collectionExpressionForDescription(description);
+		return this._summaryExpressionCache;
+	}
+
 	//What a struck clause means, in one sentence, for a mouse. The drawer's own
 	//notice carries the full explanation of what the app did instead.
 	get _unresolvedClauses() : ReadonlySet<string> {
@@ -986,7 +1008,7 @@ class CardView extends connect(store)(PageViewElement) {
 							     reveals the ✕ that removes it from the collection on
 							     the spot. -->
 							<span class='collection-summary-expression'><collection-sentence
-								.expression=${collectionExpressionForDescription(this._collection.description)}
+								.expression=${this._summaryExpression}
 								.set=${this._collection.description.set}
 								.sort=${this._collection.description.sort}
 								.sortReversed=${this._collection.description.sortReversed}
@@ -1277,9 +1299,19 @@ class CardView extends connect(store)(PageViewElement) {
 			withMemberRemoved(expression, e.detail.index, e.detail.memberIndex);
 		if (next === expression) return;
 		const destination = collectionDescriptionWithExpression(description, next);
+		//THE CARD ON SCREEN COMES ALONG. Removing a clause WIDENS a collection,
+		//so the card the user is reading is almost always still in it, and
+		//dropping it from the URL would answer "show me fewer conditions" by
+		//also navigating away from what they were reading. If the card is not in
+		//the new collection the router falls back the same way it does for any
+		//other arrival naming a card it cannot show.
+		const destinationPath = collectionURLPath(destination, {
+			selectedCard: this._card ? this._card.id : '',
+			originalOrder: true,
+		});
 		//Captured before the push, because that is what Undo returns to.
 		const returnPath = window.location.pathname;
-		const result = store.dispatch(navigatePathToResult(urlForCollection(destination)));
+		const result = store.dispatch(navigatePathToResult(destinationPath));
 		if (result.status !== 'committed') {
 			//A refusal is never silent (§3.5). 'unchanged' cannot happen — the
 			//expression provably differs — so what is left is an open card edit.
