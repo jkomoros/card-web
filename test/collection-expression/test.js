@@ -210,4 +210,149 @@ describe('Collection expression boolean draft layer', () => {
 			);
 		});
 	});
+
+	describe('editing helpers', () => {
+
+		const tag3 = {kind: 'filter', filter: 'tag-3'};
+		const tag7 = {kind: 'filter', filter: 'tag-7'};
+
+		it('appends a condition without touching the original', () => {
+			const before = [tag3];
+			const after = expression.withConditionAppended(before, tag7);
+			assert.deepStrictEqual(after, [tag3, tag7]);
+			assert.deepStrictEqual(before, [tag3], 'the input expression must not be mutated');
+		});
+
+		it('removes a condition by index and ignores an out-of-range one', () => {
+			const before = [tag3, tag7];
+			assert.deepStrictEqual(expression.withConditionRemoved(before, 0), [tag7]);
+			assert.deepStrictEqual(expression.withConditionRemoved(before, 5), before);
+			assert.deepStrictEqual(before, [tag3, tag7]);
+		});
+
+		it('grows a plain condition into an or-group when a member is added', () => {
+			const after = expression.withMemberAddedToOr([tag3], 0, tag7);
+			assert.deepStrictEqual(after, [{kind: 'or', members: [tag3, tag7]}]);
+			assert.deepStrictEqual(expression.serializeCollectionExpression(after), ['tag-3+tag-7']);
+		});
+
+		it('adds a third member to a group that is already one', () => {
+			const grown = expression.withMemberAddedToOr([tag3], 0, tag7);
+			const after = expression.withMemberAddedToOr(grown, 0, {kind: 'filter', filter: 'tag-9'});
+			assert.deepStrictEqual(expression.serializeCollectionExpression(after), ['tag-3+tag-7+tag-9']);
+		});
+
+		it('dissolves a one-member group back into a plain condition', () => {
+			const grown = expression.withMemberAddedToOr([tag3], 0, tag7);
+			const after = expression.withMemberRemoved(grown, 0, 1);
+			assert.deepStrictEqual(after, [tag3], 'a group of one must not survive as a group');
+			assert.deepStrictEqual(expression.serializeCollectionExpression(after), ['tag-3']);
+		});
+
+		it('removes the condition entirely when its last member goes', () => {
+			const after = expression.withMemberRemoved([{kind: 'or', members: [tag3]}], 0, 0);
+			assert.deepStrictEqual(after, []);
+		});
+
+		it('leaves a non-group condition alone when asked to remove a member', () => {
+			const before = [tag3];
+			assert.strictEqual(expression.withMemberRemoved(before, 0, 0), before);
+		});
+
+		it('prefers the named inverse when negating, in both directions', () => {
+			const published = [{kind: 'filter', filter: 'published'}];
+			const negated = expression.withNegationToggled(published, 0);
+			assert.deepStrictEqual(negated, [{kind: 'filter', filter: 'unpublished'}]);
+			assert.deepStrictEqual(expression.serializeCollectionExpression(negated), ['unpublished'],
+				'a flip with a word for it must never compile to exclude/');
+			//And back again — the pill reads `published`, not `not unpublished`.
+			assert.deepStrictEqual(expression.withNegationToggled(negated, 0), published);
+		});
+
+		it('falls back to exclude/ only when there is no word', () => {
+			const query = [{kind: 'filter', filter: 'query/zebra'}];
+			const negated = expression.withNegationToggled(query, 0);
+			assert.deepStrictEqual(negated, [{kind: 'not', child: {kind: 'filter', filter: 'query/zebra'}}]);
+			assert.deepStrictEqual(expression.serializeCollectionExpression(negated), ['exclude/query/zebra']);
+			assert.deepStrictEqual(expression.withNegationToggled(negated, 0), query);
+		});
+
+		it('negates a whole group with exclude/ over the group spelling', () => {
+			const group = [{kind: 'or', members: [tag3, tag7]}];
+			const negated = expression.withNegationToggled(group, 0);
+			assert.deepStrictEqual(expression.serializeCollectionExpression(negated), ['exclude/tag-3+tag-7']);
+			assert.deepStrictEqual(expression.withNegationToggled(negated, 0), group);
+		});
+
+		it('negates one member of a group without touching the others', () => {
+			const group = [{kind: 'or', members: [{kind: 'filter', filter: 'published'}, tag7]}];
+			const negated = expression.withMemberNegationToggled(group, 0, 0);
+			assert.deepStrictEqual(negated, [{kind: 'or', members: [{kind: 'filter', filter: 'unpublished'}, tag7]}]);
+			assert.deepStrictEqual(expression.serializeCollectionExpression(negated), ['unpublished+tag-7']);
+		});
+
+		it('negating a member of a non-group condition negates the condition', () => {
+			const before = [{kind: 'filter', filter: 'published'}];
+			assert.deepStrictEqual(expression.withMemberNegationToggled(before, 0, 0),
+				[{kind: 'filter', filter: 'unpublished'}]);
+		});
+
+		it('a member with no word compiles the group as combine', () => {
+			const group = [{kind: 'or', members: [{kind: 'filter', filter: 'query/zebra'}, tag7]}];
+			const negated = expression.withMemberNegationToggled(group, 0, 0);
+			assert.deepStrictEqual(expression.serializeCollectionExpression(negated),
+				['combine/exclude/query/zebra/tag-7']);
+			assert.deepStrictEqual(
+				expression.parseCollectionExpression(['combine/exclude/query/zebra/tag-7']),
+				negated, 'the combine spelling must read back as the same group');
+		});
+	});
+
+	describe('display structure', () => {
+
+		it('delegates leaf names to the composer display-name function', () => {
+			const described = expression.describeExpressionNode(
+				{kind: 'filter', filter: 'published'},
+				{'published': 'Published'}
+			);
+			assert.deepStrictEqual(described, {kind: 'filter', label: 'Published', negated: false});
+		});
+
+		it('reads a group as its members joined by a subordinate or', () => {
+			const described = expression.describeExpressionNode(
+				{kind: 'or', members: [{kind: 'filter', filter: 'tag-3'}, {kind: 'filter', filter: 'tag-7'}]},
+				{'tag-3': 'Systems', 'tag-7': 'AI'}
+			);
+			assert.strictEqual(described.kind, 'or');
+			assert.strictEqual(described.label, 'Systems or AI');
+			assert.strictEqual(described.negated, false);
+			assert.deepStrictEqual(described.members.map(member => member.label), ['Systems', 'AI']);
+		});
+
+		it('marks a not-node negated and keeps the child described', () => {
+			const described = expression.describeExpressionNode(
+				{kind: 'not', child: {kind: 'filter', filter: 'query/zebra'}},
+				{'query/zebra': 'Text contains “zebra”'}
+			);
+			assert.strictEqual(described.negated, true);
+			assert.strictEqual(described.label, 'not Text contains “zebra”');
+			assert.strictEqual(described.child.label, 'Text contains “zebra”');
+		});
+
+		it('does NOT mark a named inverse as negated — it is a word, not an operator', () => {
+			const described = expression.describeExpressionNode(
+				{kind: 'filter', filter: 'unpublished'},
+				{'unpublished': 'Unpublished'}
+			);
+			assert.strictEqual(described.negated, false);
+			assert.strictEqual(described.label, 'Unpublished');
+		});
+
+		it('shows a manual condition as its own source text', () => {
+			const described = expression.describeExpressionNode({kind: 'manual', source: 'expand/published/children/+one'});
+			assert.strictEqual(described.kind, 'manual');
+			assert.strictEqual(described.label, 'expand/published/children/+one');
+			assert.strictEqual(described.source, 'expand/published/children/+one');
+		});
+	});
 });

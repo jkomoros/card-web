@@ -53,6 +53,10 @@ import {
 } from '../shared/collection_description_base.js';
 
 import {
+	collectionFilterDisplayName,
+} from './collection-composer-suggestions.js';
+
+import {
 	FilterName,
 } from '../shared/types.js';
 
@@ -306,3 +310,123 @@ export const serializeFilterNode = (node : FilterExpressionNode) : string => {
 //than an empty segment, which would parse back as an unknown filter.
 export const serializeCollectionExpression = (expression : CollectionExpression) : string[] =>
 	expression.map(serializeFilterNode).filter(spelling => spelling !== '');
+
+//--- Editing helpers -------------------------------------------------------
+//
+//All pure: each returns a NEW expression and leaves its input untouched, so the
+//composer's history store can keep every intermediate draft by reference.
+
+export const withConditionAppended = (expression : CollectionExpression, node : FilterExpressionNode) : CollectionExpression =>
+	[...expression, node];
+
+export const withConditionRemoved = (expression : CollectionExpression, index : number) : CollectionExpression => {
+	if (index < 0 || index >= expression.length) return expression;
+	return expression.filter((_, current) => current !== index);
+};
+
+const withConditionReplaced = (expression : CollectionExpression, index : number, node : FilterExpressionNode) : CollectionExpression =>
+	expression.map((current, currentIndex) => currentIndex === index ? node : current);
+
+//Adding an alternative to a condition that is not yet a group GROWS it into
+//one — the "or fuses two pills into one pill" gesture. A condition that is
+//already a group just gains a member.
+export const withMemberAddedToOr = (expression : CollectionExpression, index : number, node : FilterExpressionNode) : CollectionExpression => {
+	if (index < 0 || index >= expression.length) return expression;
+	const condition = expression[index];
+	if (condition.kind === 'or') {
+		return withConditionReplaced(expression, index, {kind: 'or', members: [...condition.members, node]});
+	}
+	return withConditionReplaced(expression, index, {kind: 'or', members: [condition, node]});
+};
+
+//Removing an alternative DISSOLVES a group that no longer needs to be one: a
+//one-member OR is just the member, and the sentence must never render a group
+//container around a single pill.
+export const withMemberRemoved = (expression : CollectionExpression, index : number, memberIndex : number) : CollectionExpression => {
+	if (index < 0 || index >= expression.length) return expression;
+	const condition = expression[index];
+	if (condition.kind !== 'or') return expression;
+	if (memberIndex < 0 || memberIndex >= condition.members.length) return expression;
+	const members = condition.members.filter((_, current) => current !== memberIndex);
+	if (!members.length) return withConditionRemoved(expression, index);
+	if (members.length === 1) return withConditionReplaced(expression, index, members[0]);
+	return withConditionReplaced(expression, index, {kind: 'or', members});
+};
+
+export const withNegationToggled =(expression : CollectionExpression, index : number) : CollectionExpression => {
+	if (index < 0 || index >= expression.length) return expression;
+	return withConditionReplaced(expression, index, negatedExpressionNode(expression[index]));
+};
+
+export const withMemberNegationToggled = (expression : CollectionExpression, index : number, memberIndex : number) : CollectionExpression => {
+	if (index < 0 || index >= expression.length) return expression;
+	const condition = expression[index];
+	if (condition.kind !== 'or') return withNegationToggled(expression, index);
+	if (memberIndex < 0 || memberIndex >= condition.members.length) return expression;
+	const members = condition.members.map((member, current) =>
+		current === memberIndex ? negatedExpressionNode(member) : member);
+	return withConditionReplaced(expression, index, {kind: 'or', members});
+};
+
+//--- Display ---------------------------------------------------------------
+
+//WHAT THE RENDERER NEEDS AND NOTHING MORE: the shape, one label per node, and
+//the negation flag that decides outlined-vs-filled. Leaf NAMES are not decided
+//here — collectionFilterDisplayName is the one place a filter's name is, and
+//this delegates to it so a pill, a suggestion row and a receipt cannot disagree.
+export type ExpressionNodeDescription = {
+	kind: FilterExpressionNode['kind'],
+	//The whole node read as a phrase, for a collapsed pill or an aria-label.
+	label: string,
+	//True when this node reads as a negation the renderer should show as one.
+	//A named inverse is NOT negated: `unpublished` is a word, not an operator.
+	negated: boolean,
+	//Present for 'or': one entry per alternative, in sentence order.
+	members?: ExpressionNodeDescription[],
+	//Present for 'not': what is being negated.
+	child?: ExpressionNodeDescription,
+	//Present for 'manual': the verbatim source, which is also its label.
+	source?: string,
+};
+
+export const describeExpressionNode = (
+	node : FilterExpressionNode,
+	labels : Record<string, string> = {},
+	cardNames : Record<string, string> = {}
+) : ExpressionNodeDescription => {
+	switch (node.kind) {
+	case 'filter':
+		return {
+			kind: 'filter',
+			label: collectionFilterDisplayName(node.filter, labels, cardNames),
+			negated: false,
+		};
+	case 'manual':
+		return {
+			kind: 'manual',
+			label: node.source,
+			negated: false,
+			source: node.source,
+		};
+	case 'or': {
+		const members = node.members.map(member => describeExpressionNode(member, labels, cardNames));
+		return {
+			kind: 'or',
+			//Lowercase 'or' because the operator is subordinate text in the
+			//sentence, not a keyword the user is being taught.
+			label: members.map(member => member.label).join(' or '),
+			negated: false,
+			members,
+		};
+	}
+	case 'not': {
+		const child = describeExpressionNode(node.child, labels, cardNames);
+		return {
+			kind: 'not',
+			label: 'not ' + child.label,
+			negated: true,
+			child,
+		};
+	}
+	}
+};
