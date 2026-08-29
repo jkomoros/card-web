@@ -271,6 +271,21 @@ describe('Collection completion index', () => {
 				'stripping must happen before matching, not after');
 		});
 
+		it('never offers the engine’s boolean plumbing as a clause', () => {
+			//"Never exclude, combine, not, or invert as UI nouns" (proposal C §3).
+			//The engineering reason is sharper than the style one: a configurable
+			//family is offered spelled with its own defaults, and these three
+			//default to placeholders — `exclude/all-cards` excludes everything, so
+			//the row would silently empty the collection while showing a count.
+			for (const token of ['exclude', 'combine', 'expand', 'either', 'invert']) {
+				const rows = complete(token).filter(candidate => ['combine', 'exclude', 'expand'].includes((candidate.filter || '').split('/')[0]));
+				assert.deepStrictEqual(rows.map(row => row.id), [], `typing “${token}” offered the plumbing`);
+			}
+			//They are still reachable as what they actually are: the valences.
+			const published = complete('published').find(candidate => candidate.filter === 'published');
+			assert.ok(published.valences.some(valence => valence.kind === 'not'));
+		});
+
 		it('offers set, sort and view as words in the sentence', () => {
 			const result = complete('reading');
 			assert.ok(result.some(candidate => candidate.kind === 'set' && candidate.id === 'set:reading-list'),

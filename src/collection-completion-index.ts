@@ -551,6 +551,28 @@ const defaultConfigurableFilter = (family : string) : string => {
 
 const filterNode = (filter : string) : FilterExpressionNode => ({kind: 'filter', filter});
 
+//THE THREE WORDS THE PALETTE PROMISES NEVER TO SHOW, and the concrete reason
+//the promise is also the correct engineering.
+//
+//`exclude`, `combine` and `expand` are the engine's boolean plumbing, and
+//proposal C §3 states the vocabulary rule flatly: "never exclude, combine, not,
+//or invert as UI nouns". They are reachable here as the `not` and `or`
+//VALENCES, which is the entire point of the design — the user authors the same
+//shapes without meeting the words.
+//
+//Offering them as clause candidates anyway would not merely have been off-key.
+//A configurable family is offered spelled with its own defaults, and these
+//three default to placeholders: `exclude/all-cards` excludes everything (a row
+//that silently empties the collection), `combine/all-cards/all-cards` unions
+//everything with itself, and `expand/all-cards/children/+key-card-id` names a
+//key card that does not exist. Every one of those is a row with a count beside
+//it that lies about what choosing it does.
+//
+//They keep their curated synonyms, which still serve the catalog's surviving
+//"Browse all" list and source mode's completions — the two places where the
+//words are the honest name for the thing.
+const STRUCTURAL_FILTER_FAMILIES : ReadonlySet<string> = new Set(['combine', 'exclude', 'expand']);
+
 export type CollectionCompletionOptions = {
 	//What the user typed, verbatim. Negation prefixes are stripped here, not by
 	//the caller, so every consumer strips them the same way.
@@ -672,6 +694,7 @@ export const collectionCompletionCandidates = (
 		//A name the live corpus already offered as a value is that value, not a
 		//second row for the same clause.
 		if (candidates.some(candidate => candidate.filter === name)) continue;
+		if (STRUCTURAL_FILTER_FAMILIES.has(name)) continue;
 		const configurable = Boolean(CONFIGURABLE_FILTER_INFO[name]);
 		const filter = configurable ? defaultConfigurableFilter(name) : name;
 		const label = collectionFilterDisplayName(configurable ? name : filter, labels);
