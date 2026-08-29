@@ -49,17 +49,8 @@ import {
 	closeConfigureCollectionDialog,
 	openConfigureCollectionDialog,
 	navigatePathToResult,
-	registerSnackbarAction,
 	showSnackbar,
 } from '../actions/app.js';
-
-import {
-	collectionReceiptCanUndo,
-	currentBrowserLocation,
-	clearCollectionNavigationReceipt,
-	pendingCollectionNavigationReceipt,
-	recordCollectionNavigationReceipt,
-} from '../collection-composer-receipt.js';
 
 import {
 	PLACEHOLDER_CARD_ID_CHARACTER,
@@ -177,66 +168,18 @@ import {
 	memoize,
 } from '../memoize.js';
 
-export const UNDO_COLLECTION_NAVIGATION_ACTION_ID = 'undo-collection-navigation';
+//The receipt and its Undo now live in collection-navigation-receipt.ts: the
+//drawer sentence's pills navigate too, and one navigation reported two ways by
+//two surfaces is the drift the receipt exists to prevent. Re-exported here so
+//the ids stay importable from where they were first published.
+export {
+	COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
+	UNDO_COLLECTION_NAVIGATION_ACTION_ID,
+} from '../collection-navigation-receipt.js';
 
-export const COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY = 'collection-navigation-receipt';
-
-//Registered at MODULE scope, and in the same module that shows the receipt.
-//The registry maps a serializable id to a thunk, so the mapping has to exist
-//before any message carrying that id can be pressed — putting both in one
-//module makes that true by construction rather than by boot ordering.
-//A refusal is never silent (HOUSE-STYLE §3.5). Sentence case, second person,
-//contractions used consistently (§2.3), U+2019 apostrophes (§2.2), and it
-//reports rather than scolds — being back already is not a mistake.
-const UNDO_ALREADY_BACK_MESSAGE = 'You’re already back at that collection, so there’s nothing to undo.';
-
-registerSnackbarAction(UNDO_COLLECTION_NAVIGATION_ACTION_ID, (dispatch) => {
-	const returnPath = pendingCollectionNavigationReceipt();
-	clearCollectionNavigationReceipt();
-	//EVERY press produces an outcome. The old shape had two ways to do nothing
-	//visible: a guard that refused an untouched receipt, and a history.back()
-	//with nothing behind it. Undo now NAVIGATES to the collection the receipt
-	//interrupted, so the only refusal left is the one that is actually true.
-	//'refused' is the kind for something that did not happen with no data at
-	//stake; 'committed'/'queued'/'discarded' are write outcomes and none apply.
-	if (!collectionReceiptCanUndo(returnPath, currentBrowserLocation())) {
-		dispatch(showSnackbar(UNDO_ALREADY_BACK_MESSAGE, {kind: 'refused'}));
-		return;
-	}
-	const result = dispatch(navigatePathToResult(returnPath));
-	if (result.status === 'committed') return;
-	//'unchanged' cannot reach here (the guard just proved the collections
-	//differ) but a blocked edit can, and it is the same refusal the composer's
-	//own commit paths speak.
-	dispatch(showSnackbar(result.status === 'blocked-editing' ?
-		'Finish or cancel the current card edit before undoing this.' :
-		UNDO_ALREADY_BACK_MESSAGE, {kind: 'refused'}));
-});
-
-//BOTH ways of opening a collection report it the same way. They were two
-//copies of the same call, already disagreeing about how to spell the card
-//count, which is exactly how a receipt and its Undo drift apart.
-const showCollectionNavigationReceipt = (returnPath : string, expression : string, count : number | undefined) : void => {
-	//Recorded BEFORE the message: the guard reads this slot, and the dedupeKey
-	//replacing the visible receipt is what invalidates the previous one.
-	//returnPath is where the user was BEFORE this navigation — captured by the
-	//caller, because by the time this runs the URL is already the destination.
-	recordCollectionNavigationReceipt(returnPath);
-	//Hoisted rather than inlined: the copy-quality scanner reads the message
-	//literal, and a nested template ends its parse early.
-	const countSuffix = count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`;
-	store.dispatch(showSnackbar(
-		`Now showing ${expression}${countSuffix}.`,
-		{
-			//'info', not 'committed'/'queued': nothing was written to a server.
-			//Those are write-outcome words (snackbar-copy.ts).
-			kind: 'info',
-			action: {label: 'Undo', actionID: UNDO_COLLECTION_NAVIGATION_ACTION_ID},
-			//One receipt at a time.
-			dedupeKey: COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
-		}
-	));
-};
+import {
+	showCollectionNavigationReceipt,
+} from '../collection-navigation-receipt.js';
 
 import {
 	parseCollectionSource,

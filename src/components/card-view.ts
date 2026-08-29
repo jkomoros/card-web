@@ -1,5 +1,4 @@
 import { html, css, PropertyValues } from 'lit';
-import { ifDefined } from 'lit/directives/if-defined.js';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -21,6 +20,8 @@ import {
 	getCardHasStar,
 	getCardIsRead,
 	selectTags,
+	selectCollectionComposerCandidates,
+	selectFilterDescriptions,
 	getCardInReadingList,
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
@@ -118,6 +119,7 @@ import {
 	toggleCardsDrawerInfo,
 	openConfigureCollectionDialog,
 	navigateToCollectionWithSelected,
+	navigatePathToResult,
 	askForPathToNavigateTo,
 	showSnackbar,
 	urlForCollection,
@@ -137,9 +139,30 @@ import {
 } from '../collection-composer-mode.js';
 
 import {
-	collectionExpressionParts,
+	collectionFilterLabels,
 	readableCollectionExpression,
 } from '../collection-composer-suggestions.js';
+
+import './collection-sentence.js';
+
+import {
+	CollectionSentencePath,
+} from './collection-sentence.js';
+
+import {
+	collectionDescriptionWithExpression,
+	collectionExpressionForDescription,
+	withConditionRemoved,
+	withMemberRemoved,
+} from '../collection-expression.js';
+
+import {
+	showCollectionNavigationReceipt,
+} from '../collection-navigation-receipt.js';
+
+import {
+	CollectionConditionEvent,
+} from '../events.js';
 
 import {
 	addStar,
@@ -321,9 +344,15 @@ const COLLECTION_UPDATING_GRACE_MS = 200;
 //object on every render when there is nothing to mark.
 const EMPTY_UNRESOLVED_CLAUSES : ReadonlySet<string> = new Set<string>();
 
-//One sentence for a mouse; the drawer's own notice carries the full
-//explanation of what the app did instead. U+2019 apostrophe (§2.2).
-const UNRESOLVED_CLAUSE_NOTE = 'This app didn’t understand this clause, so it isn’t part of the collection or its count';
+const EMPTY_UNRESOLVED_FILTER_LIST : readonly string[] = [];
+
+//The one refusal removing a drawer clause can produce: an open card edit blocks
+//navigation, and the composer's own commit paths say it in these words.
+const REMOVE_CLAUSE_BLOCKED_MESSAGE = 'Finish or cancel the current card edit before changing this collection.';
+
+//The note that explains a struck clause now lives with the renderer that draws
+//the strike (collection-sentence's UNRESOLVED_CLAUSE_NOTE), so the words and the
+//treatment cannot drift apart.
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -490,6 +519,25 @@ class CardView extends connect(store)(PageViewElement) {
 	@state()
 		_tagInfos: TagInfos;
 
+	//The corpus's own names for its filters — sections, tags, people — so a
+	//clause in the drawer sentence is called what the composer calls it. The
+	//tag titles come through tagInfos on their own; this is what names
+	//everything else.
+	@state()
+		_collectionFilterLabels: Record<string, string> = {};
+
+	@state()
+		_filterDescriptions: Record<string, string> = {};
+
+	//WHICH PILL IS SELECTED, in the drawer. The sentence is a controlled
+	//component: it reports where a click or an arrow key pointed and this view
+	//decides what that means. In the drawer the meaning is small — a selected
+	//pill is just the one the keyboard is on — but it has to be somebody's
+	//state, and the palette will own the same property when it hosts the same
+	//renderer.
+	@state()
+		_summarySelectedPath: CollectionSentencePath = [];
+
 	@state()
 		_cardTodos: TODOType[];
 
@@ -629,10 +677,17 @@ class CardView extends connect(store)(PageViewElement) {
 				text-align: left;
 			}
 
+			/* NO LONGER A BUTTON, because it now CONTAINS buttons: the sentence's
+			   pills are real controls with their own remove affordance, and
+			   nesting those inside a button is invalid and unreachable for
+			   assistive tech alike. The wrapper keeps the click — clicking
+			   anywhere that is not a pill still opens the composer — and the
+			   keyboard paths are the ones that were always more honest anyway:
+			   the Refine control below, the pills' own Enter, and the shortcut
+			   the wrapper names. */
 			.collection-summary-main {
-				background: transparent;
-				box-shadow: none;
 				color: var(--app-dark-text-color);
+				cursor: pointer;
 				margin: 0;
 				min-width: 0;
 				padding: 0.4em;
@@ -641,7 +696,6 @@ class CardView extends connect(store)(PageViewElement) {
 
 			.collection-summary-main:hover {
 				background: var(--app-primary-color-light-very-transparent);
-				box-shadow: none;
 			}
 
 			.collection-summary-expression {
@@ -653,47 +707,32 @@ class CardView extends connect(store)(PageViewElement) {
 				line-height: 1.25;
 			}
 
-			/* The operators are structure, not content: they take the same
-			   subordinate step down the composer's own .expression-operator
-			   takes, so the clause names are what the eye lands on. */
-			.collection-summary-operator {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.85em;
-			}
-
 			/* The summary is ~133px wide, so anything past two clauses is
 			   clamped away. The clamp's own ellipsis says more exists; the
 			   title and aria-label carry the whole expression for hover and
 			   assistive tech; and keyboard focus — which gets neither — unfolds
-			   it in place. */
-			.collection-summary-main:focus-visible .collection-summary-expression {
+			   it in place.
+			   :focus-within, not :focus-visible: the focus now lands on a pill
+			   or on the Refine control INSIDE this block, never on the block. */
+			.collection-summary-main:focus-within .collection-summary-expression {
 				display: block;
 				-webkit-line-clamp: unset;
 			}
 
-			/* A CLAUSE THE APP COULD NOT RESOLVE IS NOT PART OF THE COUNT.
-			   The sentence went on listing a phantom clause in the same weight
-			   as every real one, over a card count computed WITHOUT it — the
-			   drawer said "Didn't understand 'tag-33x' in this URL" two lines
-			   below, and the sentence contradicted it. Struck through, the
-			   clause is still visible (the user asked for it, and the spec's
-			   "Unavailable filter" says preserve it and explain) while reading
-			   as what it is: named, not applied.
-			   The strike is the signal, not the colour — colour alone would
-			   fail §4.1 — and the colour steps down to the same body-text grey
-			   card-drawer's own notice uses, because nothing went wrong here.
-			   The title says what happened for a mouse, and the button's
-			   aria-label says it for assistive tech. */
-			.collection-summary-clause[data-unresolved] {
-				color: var(--app-dark-text-color-light);
-				text-decoration: line-through;
-			}
-
-			.collection-summary-action {
+			/* button.small, the sanctioned transparent variant (§4.2), carrying a
+			   verb rather than a glyph: this is the keyboard and assistive-tech
+			   path to the composer now that the block around it is not a button.
+			   The colour and scale are the same ones the line had as text. */
+			button.collection-summary-action {
 				color: var(--app-primary-color);
 				display: block;
 				font-size: 0.7em;
 				margin-top: 0.25em;
+				text-align: left;
+			}
+
+			button.collection-summary-action:hover {
+				text-decoration: underline;
 			}
 
 			.collection-empty {
@@ -828,6 +867,21 @@ class CardView extends connect(store)(PageViewElement) {
 		return new Set(this._urlDiagnostics.map(diagnostic => diagnostic.part));
 	}
 
+	//The same set, as the array the sentence takes, and STABLE across renders:
+	//a fresh array every render would make lit re-set the property and the
+	//sentence re-render on every unrelated update of this view.
+	_unresolvedFilterListCache : readonly string[] = EMPTY_UNRESOLVED_FILTER_LIST;
+	_unresolvedFilterListFrom : URLDiagnostic[] | null = null;
+
+	get _unresolvedFilterList() : readonly string[] {
+		const diagnostics = this._urlDiagnostics || null;
+		if (this._unresolvedFilterListFrom === diagnostics) return this._unresolvedFilterListCache;
+		this._unresolvedFilterListFrom = diagnostics;
+		this._unresolvedFilterListCache = diagnostics && diagnostics.length ?
+			diagnostics.map(diagnostic => diagnostic.part) : EMPTY_UNRESOLVED_FILTER_LIST;
+		return this._unresolvedFilterListCache;
+	}
+
 	//THE SENTENCE AND THE COUNT HAVE TO AGREE. A clause the parser could not
 	//resolve is not in the collection the count describes, so the accessible
 	//name says so too — the strike below carries it on screen, and colour and
@@ -914,38 +968,58 @@ class CardView extends connect(store)(PageViewElement) {
 				${collectionComposerEnabled() && this._collection ? html`
 					<div class='collection-summary'>
 						<!-- A tooltip is a COMMAND, not a state readout (§2.5): the
-						     expression is already this button's visible text, so
-						     repeating it on hover said what this IS rather than what
-						     clicking it does. Same command form as the aria-label. -->
-						<button
+						     expression is already visible here, so repeating it on
+						     hover said what this IS rather than what clicking it
+						     does. Same command form as the Refine control's
+						     aria-label. -->
+						<div
 							class='collection-summary-main'
 							title=${this._collectionSummaryName}
-							aria-label=${this._collectionSummaryName}
 							@click=${this._handleConfigureCollectionClicked}
 						>
-							<!-- STRUCTURE, NOT ONE FLAT STRING. The whole sentence
-							     rendered at one weight, so "AND" and "sorted by"
-							     read as loudly as the clause names they join —
-							     the operators are quiet textual structure, per
-							     the spec's expression rules, and the composer's
-							     own draft has said so since the last wave. Same
-							     parts function it uses, so the two surfaces
-							     cannot drift into two readings of one
-							     collection. -->
-							<span class='collection-summary-expression'>${(() => {
-		const parts = collectionExpressionParts(this._collection.description);
-		const unresolved = this._unresolvedClauses;
-		return html`<span class='collection-summary-clause'>${parts.set.label}</span>${parts.filters.map(filter => html`<span class='collection-summary-operator'> AND </span><span class='collection-summary-clause' ?data-unresolved=${unresolved.has(filter.raw)} title=${ifDefined(unresolved.has(filter.raw) ? UNRESOLVED_CLAUSE_NOTE : undefined)}>${filter.label}</span>`)}${parts.modifiers.length ? html`<span class='collection-summary-operator'> · ${parts.modifiers.join(' · ')}</span>` : ''}`;
-	})()}</span>
-							<span class='collection-summary-action'>${
+							<!-- THE SAME RENDERER THE COMPOSER USES. The drawer used
+							     to build its own sentence out of expression parts,
+							     which is why it said "AND" in capitals over a draft
+							     whose operators were already quiet. Now the clauses
+							     are the app's own chips — in the tag's own colour,
+							     with the tag's own hover preview — and hovering one
+							     reveals the ✕ that removes it from the collection on
+							     the spot. -->
+							<span class='collection-summary-expression'><collection-sentence
+								.expression=${collectionExpressionForDescription(this._collection.description)}
+								.set=${this._collection.description.set}
+								.sort=${this._collection.description.sort}
+								.sortReversed=${this._collection.description.sortReversed}
+								.viewMode=${this._collection.description.viewMode}
+								.viewModeExtra=${this._collection.description.viewModeExtra}
+								.tagInfos=${this._tagInfos}
+								.labels=${this._collectionFilterLabels}
+								.filterDescriptions=${this._filterDescriptions}
+								.unresolvedFilters=${this._unresolvedFilterList}
+								.interactive=${true}
+								.subtle=${true}
+								.selectedPath=${this._summarySelectedPath}
+								@condition-selected=${this._handleSummaryTokenSelected}
+								@member-selected=${this._handleSummaryTokenSelected}
+								@group-edge-selected=${this._handleSummaryTokenSelected}
+								@condition-activated=${this._handleConfigureCollectionClicked}
+								@condition-removed=${this._handleSummaryConditionRemoved}
+								@set-clicked=${this._handleConfigureCollectionClicked}
+								@sort-clicked=${this._handleConfigureCollectionClicked}
+							></collection-sentence></span>
+							<button
+								class='small collection-summary-action'
+								aria-label=${this._collectionSummaryName}
+								@click=${this._handleConfigureCollectionClicked}
+							>${
 	this._collection.description.filters.length ||
 								this._collection.description.set !== 'main' ||
 								this._collection.description.sort !== 'default' ||
 								this._collection.description.sortReversed ||
 								this._collection.description.viewMode !== 'list' ?
 		`Refine · ${shortcutKeys('open-collection-composer')}` : `Show cards matching… · ${shortcutKeys('open-collection-composer')}`
-}</span>
-						</button>
+}</button>
+						</div>
 						<button
 							id='copy-collection-link'
 							class='small'
@@ -1178,6 +1252,49 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleConfigureCollectionClicked() {
 		store.dispatch(openConfigureCollectionDialog());
+	}
+
+	_handleSummaryTokenSelected(e : CollectionConditionEvent) {
+		this._summarySelectedPath = e.detail.memberIndex < 0 ? [e.detail.index] : [e.detail.index, e.detail.memberIndex];
+	}
+
+	//THE DRAWER'S PILLS ARE LIVE (proposal D's down-payment). Hovering a clause
+	//and pressing its ✕ removes that clause from the collection you are looking
+	//at and navigates there immediately — the cheapest possible refinement, with
+	//no dialog in the way — reported by the same receipt and undone by the same
+	//Undo as every other way of opening a collection.
+	//
+	//The edit goes through the boolean draft layer rather than through the
+	//filters array, so removing one alternative from an OR-group dissolves the
+	//group when a single member is left, exactly as it does in the composer.
+	//Nothing here composes a `+` or an `exclude/` by hand.
+	_handleSummaryConditionRemoved(e : CollectionConditionEvent) {
+		if (!this._collection) return;
+		const description = this._collection.description;
+		const expression = collectionExpressionForDescription(description);
+		const next = e.detail.memberIndex < 0 ?
+			withConditionRemoved(expression, e.detail.index) :
+			withMemberRemoved(expression, e.detail.index, e.detail.memberIndex);
+		if (next === expression) return;
+		const destination = collectionDescriptionWithExpression(description, next);
+		//Captured before the push, because that is what Undo returns to.
+		const returnPath = window.location.pathname;
+		const result = store.dispatch(navigatePathToResult(urlForCollection(destination)));
+		if (result.status !== 'committed') {
+			//A refusal is never silent (§3.5). 'unchanged' cannot happen — the
+			//expression provably differs — so what is left is an open card edit.
+			if (result.status === 'blocked-editing') {
+				store.dispatch(showSnackbar(REMOVE_CLAUSE_BLOCKED_MESSAGE, {kind: 'refused'}));
+			}
+			return;
+		}
+		//The selection cannot survive an edit that renumbered the sentence.
+		this._summarySelectedPath = [];
+		showCollectionNavigationReceipt(
+			returnPath,
+			readableCollectionExpression(destination, this._collectionFilterLabels),
+			undefined
+		);
 	}
 
 	async _handleCopyCollectionLink() {
@@ -1560,6 +1677,12 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
+		//The same candidate labels the composer names its clauses with, so the
+		//drawer sentence and the palette sentence cannot call one clause two
+		//things. Both selectors are memoized on sections/tags/authors, so this
+		//costs a reference comparison per state change.
+		this._collectionFilterLabels = collectionFilterLabels(selectCollectionComposerCandidates(state));
+		this._filterDescriptions = selectFilterDescriptions(state);
 		this._drawerReorderPending = state.data.pendingReorder;
 		this._activeSectionId = selectActiveSectionId(state);
 		//Raw cards finish installing before the worker's authoritative collection

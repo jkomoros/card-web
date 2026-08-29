@@ -39,6 +39,8 @@ describe('Collection Composer interactions', () => {
 	let dialog;
 	let findDialog;
 	let CollectionDescription;
+	let UNDO_COLLECTION_NAVIGATION_ACTION_ID;
+	let COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY;
 	let OPEN_CONFIGURE_COLLECTION_DIALOG;
 	let CANCEL_CONFIGURE_COLLECTION_DIALOG;
 	let UPDATE_PAGE;
@@ -54,6 +56,10 @@ describe('Collection Composer interactions', () => {
 			UPDATE_PAGE,
 		} = await import('../../lib/src/actions.js'));
 		({ CollectionDescription } = await import('../../lib/src/collection_description.js'));
+		({
+			UNDO_COLLECTION_NAVIGATION_ACTION_ID,
+			COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
+		} = await import('../../lib/src/collection-navigation-receipt.js'));
 		await import('../../lib/src/components/configure-collection-dialog.js');
 		//Picking a card is find-dialog's job now (HS-5), so the picker has to be
 		//really mounted: its Escape binding only exists while it is open, and
@@ -218,27 +224,36 @@ describe('Collection Composer interactions', () => {
 	//The summary is ~133px wide with a two-line clamp, so a draft of more than
 	//two clauses is visibly truncated. The spec requires the complete expression
 	//to be reachable from it.
+	//
+	//UPDATED with the sentence renderer. The summary block is no longer a
+	//<button>: it now CONTAINS buttons — the sentence's pills are real controls
+	//with their own remove affordance, and nesting those inside a button is both
+	//invalid and unreachable for assistive tech. So the tooltip stays on the
+	//block (a title works on any element) while the accessible name moves to the
+	//Refine control, which is the thing that is actually activated. The
+	//complete-expression requirement is unchanged, and so is the one getter both
+	//read; only which element carries each half moved.
 	it('exposes the whole collection expression from the truncated summary', async () => {
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
 		const start = source.indexOf('class=\'collection-summary-main\'');
 		assert.ok(start >= 0);
-		const block = source.slice(start, source.indexOf('</button>', start));
-		//The tooltip still carries the whole expression, but as a COMMAND rather
-		//than a bare state readout (HS-2.5) — same shape as the aria-label below.
-		//Both now read one getter rather than two copies of one template: the
-		//name also has to say when a clause was struck (see the unresolved-clause
-		//test below), and two literals would have drifted the first time it did.
+		const block = source.slice(start, source.indexOf('id=\'copy-collection-link\'', start));
 		assert.match(block, /title=\$\{this\._collectionSummaryName\}/,
 			'hover must reveal the complete expression, in the command form');
 		assert.match(block, /aria-label=\$\{this\._collectionSummaryName\}/,
 			'assistive tech must hear the complete expression');
+		const action = block.slice(block.indexOf('collection-summary-action'));
+		assert.match(action, /aria-label=\$\{this\._collectionSummaryName\}/,
+			'and it hangs on the control that opens the composer, not on a div nobody can focus');
 		const nameStart = source.indexOf('get _collectionSummaryName()');
 		assert.ok(nameStart >= 0, 'card-view must compose the summary\'s name in one place');
 		const name = source.slice(nameStart, source.indexOf('\n\t}', nameStart));
 		assert.match(name, /`Refine collection: \$\{expression\}`/,
 			'and it is still the complete expression in the command form');
 		assert.match(name, /readableCollectionExpression\(this\._collection\.description\)/);
-		assert.match(source, /\.collection-summary-main:focus-visible \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,
+		//:focus-within, not :focus-visible — the focus now lands on a pill or on
+		//the Refine control INSIDE this block, never on the block itself.
+		assert.match(source, /\.collection-summary-main:focus-within \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,
 			'keyboard focus, which gets neither a tooltip nor a label readout, must unfold it');
 	});
 
@@ -3769,13 +3784,25 @@ describe('Collection Composer interactions', () => {
 	//floated in the middle of a wrapped paragraph. And the card count sat in a
 	//centred row above a left-aligned sentence, reading as unrelated to the
 	//sentence whose cards it is counting.
+	//UPDATED with the sentence renderer. The drawer built its own sentence out of
+	//expression parts, which is why it said "AND" in capitals over a draft whose
+	//operators were already quiet. It now MOUNTS the one renderer both surfaces
+	//use, so the quiet-operator rule is asserted where the operators now live —
+	//the drawer cannot drift from the palette because there is only one of them.
 	it('renders the drawer collection sentence with quiet operators, beside its count', async () => {
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		assert.match(source, /collectionExpressionParts/,
-			'the sentence is built from parts, so operators can be styled apart from clauses');
-		assert.match(source, /class='collection-summary-operator'/);
-		assert.match(source, /\.collection-summary-operator\s*\{[^}]*color:\s*var\(--app-dark-text-color-light\)/,
+		assert.match(source, /<collection-sentence/,
+			'the drawer hosts the one sentence renderer rather than a second copy of it');
+		assert.match(source, /\.subtle=\$\{true\}/, 'in drawer scale');
+		assert.match(source, /\.interactive=\$\{true\}/, 'and live, so a pill can be removed from here');
+		assert.ok(!/collectionExpressionParts/.test(source),
+			'and it no longer assembles a second sentence of its own');
+
+		const sentence = await readFile(path.join(REPO_ROOT, 'src/components/collection-sentence.ts'), 'utf8');
+		assert.match(sentence, /\.operator,\s*\n\s*\.tail \{[^}]*color: var\(--app-dark-text-color-light\)/,
 			'the operators step down to the subordinate colour');
+		assert.ok(!/> AND </.test(sentence), 'AND is punctuation in this sentence, not a word');
+
 		assert.match(source, /\.collection-summary\s*\{[^}]*align-items:\s*start/,
 			'the copy-link glyph sits on the sentence’s first line, not centred over a wrapped block');
 
@@ -3784,6 +3811,92 @@ describe('Collection Composer interactions', () => {
 			'the count shares the sentence’s alignment');
 		assert.match(drawer, /collectionComposerEnabled\(\) \? 'grouped' : ''/,
 			'and only where the sentence exists — the legacy drawer keeps its centred count');
+	});
+
+	//THE DRAWER'S PILLS ARE LIVE — proposal D's down-payment, and the whole
+	//reason the drawer sentence became the shared component rather than staying
+	//a string. Removing a clause from the drawer must navigate on the spot and
+	//report itself with the SAME receipt every other way of opening a collection
+	//uses; a second, quieter navigation path is exactly how two surfaces end up
+	//telling a user two different stories about one act.
+	//
+	//card-view is a connected component that this harness cannot mount, so the
+	//seam is driven directly: the handler the sentence's event is wired to, over
+	//a real store and a real history. That is the part with something to get
+	//wrong — the template binding is pinned above.
+	describe('removing a clause from the drawer sentence', () => {
+
+		let cardView;
+
+		const drawerAt = (raw) => {
+			window.history.replaceState({}, '', '/c/' + raw);
+			cardView = document.createElement('card-view');
+			cardView._collection = { description: CollectionDescription.deserialize(raw) };
+			cardView._collectionFilterLabels = {};
+			return cardView;
+		};
+
+		const receipts = () => store.getState().app.snackbars.map((entry) => entry);
+
+		beforeEach(() => {
+			for (const entry of [...store.getState().app.snackbars]) {
+				store.dispatch({ type: 'DISMISS_SNACKBAR', snackbarID: entry.id });
+			}
+			store.dispatch({ type: 'TEST_SET_EDITING', value: false });
+		});
+
+		after(() => {
+			window.history.replaceState({}, '', '/c/main/');
+		});
+
+		it('navigates immediately to the collection without that clause', () => {
+			const view = drawerAt('main/starred/has-todo/');
+
+			view._handleSummaryConditionRemoved({ detail: { index: 1, memberIndex: -1 } });
+
+			//`main` is the default set and this description never named it
+			//explicitly, so the compiled URL leaves it implicit — the draft
+			//layer's documented pass-through, not a change of collection.
+			assert.strictEqual(window.location.pathname, '/c/starred/',
+				'the clause is gone from the URL, with no dialog in between');
+		});
+
+		it('leaves the same receipt, with the same Undo, as any other arrival', () => {
+			const view = drawerAt('main/starred/has-todo/');
+
+			view._handleSummaryConditionRemoved({ detail: { index: 1, memberIndex: -1 } });
+
+			const [receipt] = receipts();
+			assert.ok(receipt, 'a navigation the user did not ask for by name still has to say what happened');
+			assert.match(receipt.message, /^Now showing /);
+			assert.strictEqual(receipt.action.actionID, UNDO_COLLECTION_NAVIGATION_ACTION_ID);
+			assert.strictEqual(receipt.dedupeKey, COLLECTION_NAVIGATION_RECEIPT_DEDUPE_KEY,
+				'one receipt at a time, so an earlier promise cannot be pressed after a later navigation');
+		});
+
+		it('dissolves an OR-group when its last alternative but one is removed', () => {
+			const view = drawerAt('main/tag-3+tag-7/');
+
+			view._handleSummaryConditionRemoved({ detail: { index: 0, memberIndex: 1 } });
+
+			assert.strictEqual(window.location.pathname, '/c/tag-3/',
+				'a one-member OR is just the member — the group must not survive as a container of one');
+		});
+
+		//§3.5: a refusal is never silent. An open card edit blocks navigation,
+		//and it is the only refusal this path can produce.
+		it('says why nothing happened when a card edit blocks the navigation', () => {
+			const view = drawerAt('main/starred/has-todo/');
+			store.dispatch({ type: 'TEST_SET_EDITING', value: true });
+
+			view._handleSummaryConditionRemoved({ detail: { index: 1, memberIndex: -1 } });
+
+			assert.strictEqual(window.location.pathname, '/c/main/starred/has-todo/', 'nothing moved');
+			const messages = receipts().map((entry) => entry.message);
+			assert.ok(messages.some((message) => /card edit/.test(message)),
+				'and the user was told, rather than left wondering why the pill came back');
+			store.dispatch({ type: 'TEST_SET_EDITING', value: false });
+		});
 	});
 
 	//EMPTY-STATE HIERARCHY. The three elements arrived in inverse order of
@@ -3822,19 +3935,27 @@ describe('Collection Composer interactions', () => {
 	//it. The clause stays visible (the user asked for it, and §Unavailable
 	//filter says preserve and explain) and reads as what it is: named, not
 	//applied.
+	//UPDATED with the sentence renderer: the strike is the sentence's business
+	//now, and so are the words that explain it. What card-view still owes is the
+	//DIAGNOSTICS — the arrival's own account of what it could not resolve — and
+	//the accessible name, which is composed here because it names the whole
+	//collection. The strike's own treatment is pinned in the sentence's suite.
 	it('marks a clause the URL parser could not resolve in the collection sentence', async () => {
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
 		const start = source.indexOf('class=\'collection-summary-expression\'');
 		assert.ok(start >= 0, 'the summary must render the expression');
-		//To the NEXT element of the summary, not to the first '</span>': the
-		//expression's own template closes several spans of its own.
 		const block = source.slice(start, source.indexOf('collection-summary-action', start));
-		assert.match(block, /\?data-unresolved=\$\{unresolved\.has\(filter\.raw\)\}/,
+		assert.match(block, /\.unresolvedFilters=\$\{this\._unresolvedFilterList\}/,
 			'each clause is marked against the arrival\'s own diagnostics');
+		const listStart = source.indexOf('get _unresolvedFilterList()');
+		assert.ok(listStart >= 0);
+		assert.match(source.slice(listStart, source.indexOf('\n\t}', listStart)),
+			/diagnostics\.map\(diagnostic => diagnostic\.part\)/);
+		const sentence = await readFile(path.join(REPO_ROOT, 'src/components/collection-sentence.ts'), 'utf8');
 		//The STRIKE is the signal, not the colour — colour alone would carry it
 		//to nobody who cannot see it (§4.1).
-		assert.match(source, /\.collection-summary-clause\[data-unresolved\]\s*\{[^}]*text-decoration:\s*line-through/);
-		assert.ok(!/\.collection-summary-clause\[data-unresolved\]\s*\{[^}]*var\(--app-warning-color\)/.test(source),
+		assert.match(sentence, /\[data-unresolved\] \{[^}]*text-decoration: line-through/);
+		assert.ok(!/\[data-unresolved\] \{[^}]*var\(--app-warning-color\)/.test(sentence),
 			'nothing went wrong here, so it does not take the amber state colour');
 		//And assistive tech, which gets neither the strike nor the tooltip,
 		//hears it in the button's name.
