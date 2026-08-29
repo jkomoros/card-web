@@ -580,7 +580,13 @@ const candidateURLNote = (filter: string, name: string, urlDetail?: string): str
 	return urlDetail || `Adds ${name} to the collection URL; copied links keep it`;
 };
 
-const recentSuggestions = (
+//EXPORTED so the completion index can offer the same recents rows the idle list
+//offers, rather than re-deriving "a recent collection, named and deduped" a
+//second time. The meta-proposal makes recents "the first content of the first
+//gesture" in BOTH the idle list and the typed list (convergence 4), and two
+//derivations of one row is how those two lists would come to disagree about
+//which collection you were last in.
+export const collectionComposerRecentSuggestions = (
 	current: CollectionDescription,
 	context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
@@ -633,7 +639,7 @@ const emptyStateSuggestions = (
 	context: CollectionComposerContext
 ): CollectionComposerSuggestion[] => {
 	const filterLabels = collectionFilterLabels(context.candidates);
-	const recents = recentSuggestions(current, context);
+	const recents = collectionComposerRecentSuggestions(current, context);
 	const refinements: CollectionComposerSuggestion[] = [];
 	//THE OPENING STATE'S OWN EXAMPLE. Spec §Opening state lists "recent, pinned,
 	//resumable, or ACTIVE-CARD destinations" as the first of the two stable
@@ -771,7 +777,7 @@ const emptyStateSuggestions = (
 //No row may offer the collection it is already standing in, and no two rows may
 //offer the same one. Both are the same rule: a row whose destination is
 //indistinguishable from another row's — or from the draft's — is not a choice.
-const dedupedByDestination = (
+export const dedupedByDestination = (
 	suggestions: CollectionComposerSuggestion[],
 	current: CollectionDescription
 ): CollectionComposerSuggestion[] => {
