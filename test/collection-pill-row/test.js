@@ -279,5 +279,62 @@ describe('the pill row', () => {
 			assert.deepStrictEqual(next, [{ kind: 'not', child: filter('updated/after/2021-06-01') }],
 				'"not updated after X" is still a question about X');
 		});
+
+		//THE REST OF THE FAMILY EDITORS MOVED ACROSS TOO. The palette has no
+		//anchored panel to fall back to any more, so a clause whose control did
+		//not reparent would be a pill with nothing behind it.
+		it('reparents the find-dialog card picker for a card-valued clause', async () => {
+			const element = await mount({ expression: [filter('children/+abc123')], index: 0 });
+			const control = element.shadowRoot.querySelector('configure-collection-key-card');
+			assert.ok(control, 'a card value is picked with the app\'s own picker');
+			assert.strictEqual(control.value, '+abc123');
+		});
+
+		it('reparents the multiple-cards control', async () => {
+			const element = await mount({ expression: [filter('cards/abc123')], index: 0 });
+			assert.ok(element.shadowRoot.querySelector('configure-collection-multiple-cards'),
+				'a multi-card clause edits its own list');
+		});
+
+		//A ply is an int and a reference type is a select, and both live on the
+		//same clause — so this pins that a multi-argument family gets every one
+		//of its controls, addressed by its own sub-index.
+		it('offers every argument of a reference clause, ply included', async () => {
+			const element = await mount({ expression: [filter('references/+abc123/link/2')], index: 0 });
+			assert.ok(element.shadowRoot.querySelector('configure-collection-key-card'), 'the card');
+			assert.ok(element.shadowRoot.querySelector('.argument select'), 'the reference type');
+			const ply = element.shadowRoot.querySelector('.argument input[type="number"]');
+			assert.ok(ply, 'the ply');
+			assert.strictEqual(ply.value, '2');
+		});
+
+		it('rebuilds the clause from a plain control, at the sub-index it edits', async () => {
+			const element = await mount({ expression: [filter('references/+abc123/link/2')], index: 0 });
+			let next = null;
+			element.addEventListener('expression-modified', (e) => { next = e.detail.expression; });
+
+			const ply = element.shadowRoot.querySelector('.argument input[type="number"]');
+			ply.value = '5';
+			ply.dispatchEvent(new dom.window.Event('change', { bubbles: true, composed: true }));
+
+			assert.deepStrictEqual(next, [filter('references/+abc123/link/5')],
+				'only the argument the control owns changes');
+		});
+
+		//The refusal is the point: a manual clause is one this layer said it
+		//could not model, and offering a control for it would be a promise the
+		//compiler cannot keep.
+		it('offers no control for the structural families it models as manual pills', async () => {
+			const element = await mount({ expression: [filter('expand/all-cards/children/+abc123')], index: 0 });
+			assert.strictEqual(element.shadowRoot.querySelector('.argument'), null,
+				'edit-in-source is the honest offer for a clause this layer does not understand');
+		});
+
+		it('lands focus in the control the row just opened', async () => {
+			const element = await mount({ expression: [filter('limit/10')], index: 0 });
+			assert.strictEqual(element.focusPrimaryControl(), true,
+				'a caller can fall back rather than leaving focus behind the row it opened');
+			assert.strictEqual(element.shadowRoot.activeElement, element.shadowRoot.querySelector('.argument input'));
+		});
 	});
 });

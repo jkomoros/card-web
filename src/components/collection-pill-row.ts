@@ -12,14 +12,18 @@
 //A one-row editor cannot squash, and every pill has real contents — polarity,
 //or, remove at minimum — so a dead Edit affordance is structurally impossible.
 //
-//WHAT THIS STEP BUILDS AND WHAT IT DOES NOT. The shell, the scope line, and the
-//flip/remove/or wiring against the draft layer's own editing helpers, plus the
-//date argument control reparented from configure-collection-filter as proof
-//that reparenting is all it takes. The counts are PROPERTIES: this component
-//never asks what a draft would match, because the thing that knows is the
-//palette's preview machinery and it arrives with the palette. Card-valued
-//arguments (key-card, multiple-cards) come with it too — they need the
-//find-dialog picker, which is the palette's to open.
+//EVERY ARGUMENT CONTROL THE GUIDED FAMILIES NEED IS REPARENTED HERE. The first
+//cut carried only the date control, as proof that reparenting is all it takes;
+//the palette needs the rest, so the whole switch from configure-collection-filter
+//moved across — card values through the find-dialog picker
+//(configure-collection-key-card already opens it), multiple cards, contributor
+//ids, reference types, and the plain number/text fields a ply or a limit is.
+//What did NOT move is `sub-filter` / `expand-filter`: those are the structural
+//families this layer models as manual pills, and offering a control for a clause
+//we said we could not edit is exactly the dead affordance the design forbids.
+//
+//The counts stay PROPERTIES: this component never asks what a draft would match,
+//because the thing that knows is the palette's preview machinery.
 //
 //NO STORE, LIKE THE SENTENCE. Flip and remove produce a whole new expression and
 //hand it over; "or…" is a REQUEST, because this row knows which token an
@@ -27,10 +31,13 @@
 
 import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { live } from 'lit/directives/live.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './configure-collection-date.js';
+import './configure-collection-key-card.js';
+import './configure-collection-multiple-cards.js';
 
 import {
 	CollectionExpression,
@@ -52,9 +59,14 @@ import {
 
 import {
 	CONFIGURABLE_FILTER_INFO,
+	ME_AUTHOR_ID,
 	piecesForConfigurableFilter,
 	splitCompoundFilter,
 } from '../filters.js';
+
+import {
+	REFERENCE_TYPES,
+} from '../../shared/card_fields.js';
 
 import {
 	FilterModifiedEvent,
@@ -64,6 +76,8 @@ import {
 
 import {
 	ConfigurableFilterControlPiece,
+	TagInfos,
+	Uid,
 } from '../types.js';
 
 //THE KEYS THE FOOTER TEACHES, in one place, because the footer that teaches them
@@ -78,9 +92,16 @@ export const PILL_ROW_KEY_HINTS : readonly {key : string, means : string}[] = [
 	{key: 'Delete', means: 'removes'},
 ];
 
-//The one control type this step reparents. The rest are named so the switch
-//below is a decision rather than a fallthrough.
-const REPARENTED_CONTROL_TYPES : ReadonlySet<string> = new Set(['date']);
+//THE TWO CONTROL TYPES THIS ROW REFUSES, stated as a refusal rather than as an
+//allow-list so that a family which grows a new argument type gets the plain
+//field the filter editor's own switch would have given it, instead of silently
+//losing its control.
+//
+//`sub-filter` and `expand-filter` are the structural families the draft layer
+//preserves as manual pills. A clause we told the user we cannot edit here must
+//not sprout a control that says otherwise — that is complaint #8's dead
+//affordance, one level down.
+const REFUSED_CONTROL_TYPES : ReadonlySet<string> = new Set(['sub-filter', 'expand-filter']);
 
 @customElement('collection-pill-row')
 class CollectionPillRow extends LitElement {
@@ -104,6 +125,19 @@ class CollectionPillRow extends LitElement {
 
 	@property({ type : Object })
 		cardNames : Record<string, string> = {};
+
+	//What the card-valued controls need to call a card by its title rather than
+	//its id, and what the contributor control needs to offer names. Passed
+	//straight through to the reparented controls, exactly as
+	//configure-collection-filter passed them.
+	@property({ type : Object })
+		cardTagInfos : TagInfos = {};
+
+	@property({ type : Array })
+		userIDs : Uid[] = [];
+
+	@property({ type : Object })
+		userInfos : TagInfos = {};
 
 	//WHAT THE DRAFT WOULD MATCH, and what it would match WITHOUT this pill.
 	//Properties, not questions this row asks: the preview machinery that knows
@@ -149,6 +183,30 @@ class CollectionPillRow extends LitElement {
 			.count {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.85em;
+			}
+
+			/* AN ARGUMENT IS A LABELLED CONTROL, INLINE. The label rides above
+			   its field at the app's subordinate size rather than beside it, so
+			   a two-boundary date range still reads as two questions when the
+			   row wraps. */
+			.argument {
+				display: inline-flex;
+				flex-direction: column;
+				gap: 0.15em;
+				min-width: 0;
+			}
+
+			.argument-label {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+			}
+
+			/* §4.2's 44px floor: the reparented controls brought their own
+			   sizing from a panel that had room, and this is a one-line row. */
+			.argument select,
+			.argument input {
+				max-width: 100%;
+				min-height: 44px;
 			}
 
 			.verbs {
@@ -222,30 +280,88 @@ class CollectionPillRow extends LitElement {
 		return html`${pieces.map((piece, subIndex) => this._argumentControl(piece, subIndex))}`;
 	}
 
-	//REPARENTED, NOT REWRITTEN. configure-collection-date already knows how to
-	//edit a date boundary, including the rolling-date vocabulary, and it already
-	//speaks filter-modified-complex. It is dropped in here unchanged; a control
-	//type this step has not reparented yet renders nothing rather than a broken
+	//REPARENTED, NOT REWRITTEN. Each of these controls already knows its own
+	//vocabulary — configure-collection-date the rolling-date words,
+	//configure-collection-key-card the find-dialog picker, the two selects the
+	//app's own contributor and reference-type names — and each already speaks
+	//the event the handler below listens for. They are dropped in unchanged; a
+	//control type this row refuses renders nothing rather than a broken
 	//affordance, which is the same rule that kills dead Edit buttons.
+	//
+	//The label is the argument's own `description`, which is the only text that
+	//says what the field is FOR — a bare date box beside a pill reads as a date
+	//with no question attached.
 	_argumentControl(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {
-		if (!REPARENTED_CONTROL_TYPES.has(piece.controlType)) return html``;
-		return html`<configure-collection-date
-			.value=${piece.value}
-			data-sub-index=${subIndex}
-			@filter-modified-complex=${this._handleArgumentChanged}
-		></configure-collection-date>`;
+		if (REFUSED_CONTROL_TYPES.has(piece.controlType)) return html``;
+		return html`<label class='argument'><span class='argument-label'>${piece.description}</span>${this._argumentControlPart(piece, subIndex)}</label>`;
 	}
 
+	_argumentControlPart(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {
+		switch (piece.controlType) {
+		case 'date':
+			return html`<configure-collection-date
+				.value=${piece.value}
+				data-sub-index=${subIndex}
+				@filter-modified-complex=${this._handleArgumentChanged}
+			></configure-collection-date>`;
+		case 'multiple-cards':
+			return html`<configure-collection-multiple-cards
+				.value=${piece.value}
+				.cardTagInfos=${this.cardTagInfos}
+				data-sub-index=${subIndex}
+				@filter-modified-complex=${this._handleArgumentChanged}
+			></configure-collection-multiple-cards>`;
+		case 'key-card':
+			return html`<configure-collection-key-card
+				.value=${piece.value}
+				.cardTagInfos=${this.cardTagInfos}
+				data-sub-index=${subIndex}
+				@filter-modified-complex=${this._handleArgumentChanged}
+			></configure-collection-key-card>`;
+		//The options select THEMSELVES, for the reason the filter editor's own
+		//comment gives: a `.value` binding on the <select> commits before the
+		//child part that renders the <option>s, so it lands on an empty select
+		//and is dropped, leaving the control showing its first option while the
+		//clause says something else.
+		case 'user-id':
+			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleArgumentInput}>${[ME_AUTHOR_ID, ...this.userIDs].map(item => html`<option value=${item.toLowerCase()} .selected=${live(item.toLowerCase() === piece.value)}>${item === ME_AUTHOR_ID ? 'Me' : (this.userInfos?.[item]?.title || item)}</option>`)}</select>`;
+		case 'reference-type':
+			return html`<select aria-label=${piece.description} data-sub-index=${subIndex} @change=${this._handleArgumentInput}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option value=${entry[0]} .title=${entry[1].description} .selected=${live(entry[0] === piece.value)}>${entry[1].name}</option>`)}</select>`;
+		default:
+			return html`<input
+				aria-label=${piece.description}
+				type=${piece.controlType === 'int' || piece.controlType === 'float' ? 'number' : 'text'}
+				min='0'
+				step=${piece.controlType === 'float' ? 0.0001 : 1}
+				data-sub-index=${subIndex}
+				@change=${this._handleArgumentInput}
+				.value=${piece.value}
+			>`;
+		}
+	}
+
+	//The two shapes an argument edit arrives in, funnelled to one rule. A
+	//complex control carries its new value in the event; a plain select or input
+	//carries it on the element.
 	_handleArgumentChanged(e : FilterModifiedEvent) {
+		this._applyArgumentValue(e.composedPath()[0], e.detail.value);
+	}
+
+	_handleArgumentInput(e : Event) {
+		const element = e.composedPath()[0];
+		if (!(element instanceof HTMLSelectElement) && !(element instanceof HTMLInputElement)) return;
+		this._applyArgumentValue(element, element.value);
+	}
+
+	_applyArgumentValue(target : EventTarget | undefined, value : string) {
 		const leaf = this._argumentLeaf;
 		if (!leaf || leaf.kind !== 'filter') return;
-		const element = e.composedPath()[0];
-		if (!(element instanceof HTMLElement)) return;
-		const subIndex = parseInt(element.dataset.subIndex || '0');
+		if (!(target instanceof HTMLElement)) return;
+		const subIndex = parseInt(target.dataset.subIndex || '0');
 		const [family] = splitCompoundFilter(leaf.filter);
 		const pieces = piecesForConfigurableFilter(leaf.filter);
 		if (!pieces[subIndex]) return;
-		pieces[subIndex].value = e.detail.value;
+		pieces[subIndex].value = value;
 		const spelling = family + '/' + pieces.map(piece => piece.value).join('/');
 		const node = this._node;
 		//A negated clause keeps its negation across an argument edit. It has to
@@ -255,6 +371,20 @@ class CollectionPillRow extends LitElement {
 			negatedExpressionNode({kind: 'filter', filter: spelling}) :
 			{kind: 'filter', filter: spelling};
 		this._emit(withNodeReplaced(this.expression, this.index, this.memberIndex, replacement));
+	}
+
+	//Whether focus actually landed, so the palette can fall back rather than
+	//leaving the caret behind the row it just opened. Same contract
+	//configure-collection-filter's own focusPrimaryControl states.
+	focusPrimaryControl() : boolean {
+		const nested = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl? : () => boolean}>(
+			'.argument configure-collection-date, .argument configure-collection-key-card, .argument configure-collection-multiple-cards'
+		);
+		if (nested?.focusPrimaryControl) return nested.focusPrimaryControl();
+		const plain = this.shadowRoot?.querySelector<HTMLElement>('.argument select, .argument input');
+		if (!plain) return false;
+		plain.focus();
+		return true;
 	}
 
 	//--- The verbs -----------------------------------------------------------
