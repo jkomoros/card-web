@@ -71,6 +71,13 @@ export type CollectionComposerCandidate = {
   valueLabel?: string;
   spotlight?: boolean;
   clauseLabel?: string;
+  //HOW MANY CARDS THIS VALUE COVERS, when the corpus can say — sections and
+  //tags know their own membership. It is a RANKING input (the completion
+  //index's corpus-fit term: a tag on four hundred cards is a likelier thing to
+  //reach for than a tag on one), never a displayed number: the counts a row
+  //shows come from running the collection, and a membership list is a different
+  //and staler fact than that.
+  corpusCount?: number;
 };
 
 export type CollectionComposerContext = {

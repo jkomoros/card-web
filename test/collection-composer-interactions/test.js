@@ -154,11 +154,49 @@ describe('Collection Composer interactions', () => {
 		await settleRender(dialog);
 	};
 
-	//The link toggles its own label, so match either half of the pair: a test
-	//that closed the feed by clicking "Browse all filters" would be looking for
-	//a button that says "Hide all filters" by then.
-	const browseAll = () => Array.from(dialog.shadowRoot.querySelectorAll('.mode-links button'))
-		.find((button) => /(Browse|Hide) all filters/.test(button.textContent));
+	//SUPERSEDED CONTRACT (D1). "Browse all filters" was a link that seeded the
+	//one list with the vocabulary; the owner's round-2 model puts the whole
+	//vocabulary in the list to begin with ("don't hide the full set of filters —
+	//it shows the power"), so the link and the feed behind it are deleted.
+	//
+	//The state those tests were reaching for — every family in the list, ranked,
+	//with no draft-specific filtering — is now simply the IDLE state, so the
+	//helper survives with the same NAME and a new body: it clears the input.
+	//Keeping the name is deliberate; each call site below still reads as "look
+	//at the whole vocabulary", and the diff shows the contract change in exactly
+	//one place instead of forty.
+	//A ROW FOR ONE FILTER FAMILY. The old Browse-all feed labelled a family row
+	//with the bare family name; the vocabulary feed labels it with the clause it
+	//would insert — the family spelled with its own defaults — because that is
+	//what the row actually adds, and the row has to be able to carry a count.
+	//Both are "the row for this family", so the tests ask for it that way.
+	const familyRow = (family) => suggestionRows()
+		.find((button) => (button.dataset.filter || '').split('/')[0] === family);
+
+	//THE DOM IS WINDOWED; THE LIST IS NOT. The palette renders the first ~60
+	//rows and grows on scroll, which is what keeps a several-hundred-row idle
+	//list inside one frame. A test that wants to look at ALL of it asks for all
+	//of it — the ranking, the ids and the counts are over every row either way.
+	const showAllRows = async () => {
+		await settleRender(dialog);
+		for (let attempt = 0; attempt < 10; attempt++) {
+			if (dialog._renderedRowLimit >= dialog._paletteRows.length) break;
+			dialog._renderedRowLimit = dialog._paletteRows.length;
+			await settleRender(dialog);
+		}
+	};
+
+	const browseAll = () => ({
+		click: () => {
+			dialog._composerInput = '';
+			dialog._wordScope = '';
+			dialog._highlightedRow = 0;
+			dialog._rowHighlightActive = false;
+			//The window the DOM renders is a scroll position in disguise; a test
+			//that asks to see the whole vocabulary is asking to see all of it.
+			dialog._renderedRowLimit = Number.MAX_SAFE_INTEGER;
+		},
+	});
 
 	const pillRow = () => dialog.shadowRoot.querySelector('collection-pill-row');
 
@@ -564,7 +602,7 @@ describe('Collection Composer interactions', () => {
 		//the sentence renderer's own shadow root one level down.
 		assert.match(rowText(highlightedRow()), /Starred/);
 		await pressComposer('Enter');
-		assert.strictEqual(window.location.pathname, '/c/starred/card-123');
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/card-123');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
 
@@ -589,7 +627,15 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(highlightedRow(), null,
 			'Tab rebuilt the list, and nothing in the new list is what the user was pointing at');
 		await pressComposer('Enter');
-		assert.strictEqual(window.location.pathname, '/c/starred/sort/recent/',
+		//THE STICKY STARTING SET (D4). A composition that begins at the app's own
+		//bare default view (`/c/main/`, no conditions) starts from the user's
+		//sticky set the moment the first clause lands, and the shipped default
+		//for that is Everything — composing from `main` silently narrowed every
+		//subsequent clause to the published sections before anybody had typed
+		//anything, and the count they got was smaller than the corpus for a
+		//reason nothing on screen explained. Refining a collection the user is
+		//already in is untouched (spec principle 1).
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/sort/recent/',
 			'Enter with no highlighted row opens the draft the user just composed');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
@@ -629,7 +675,7 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
-		assert.strictEqual(window.location.pathname, '/c/starred/');
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
 
 		await bar.updateComplete;
 		const toasts = visibleToasts(bar);
@@ -676,7 +722,7 @@ describe('Collection Composer interactions', () => {
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await bar.updateComplete;
-		assert.strictEqual(window.location.pathname, '/c/starred/');
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
 		return bar;
 	};
 
@@ -753,7 +799,7 @@ describe('Collection Composer interactions', () => {
 		assert.ok(!suggestionLabels().some((label) => label.includes('Main · Starred')),
 			'the recent that duplicates a refinement\'s destination is not offered twice');
 		await pressComposer('Enter');
-		assert.strictEqual(window.location.pathname, '/c/starred/');
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
 	});
 
 	//Recents are destinations, and the collection you are already standing in is
@@ -912,7 +958,7 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		await typeComposer('similar');
-		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
+		familyRow('similar').click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['similar/key-card-id']);
@@ -961,7 +1007,7 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		await typeComposer('similar');
-		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
+		familyRow('similar').click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
 		const keyCard = pillRow().shadowRoot.querySelector('configure-collection-key-card');
@@ -1078,7 +1124,10 @@ describe('Collection Composer interactions', () => {
 		const sentence = dialog.shadowRoot.querySelector('collection-sentence');
 		assert.ok(sentence, 'one renderer, shared with the recents rows and the why-here panel');
 		assert.strictEqual(sentence.interactive, true, 'the palette’s copy is editable');
-		assert.match(sentenceText(), /Main/, 'the set is the sentence’s first word');
+		//EVERYTHING, not Main: see the sticky-start note above. The point of this
+		//assertion is that the SET is the sentence's first word at all, and it
+		//still is.
+		assert.match(sentenceText(), /Everything/, 'the set is the sentence’s first word');
 		assert.match(pillLabels().join(' '), /Starred/);
 
 		//The remove control is the chip's own, and it is an icon rather than a
@@ -1280,13 +1329,20 @@ describe('Collection Composer interactions', () => {
 
 	//BROWSE ALL IS A FEED OF THE ONE LIST, NOT A PLACE.
 	//
-	//The catalog mode is deleted — the setup dropdown strip, the category walls
-	//with per-row examples, the Not toggles, the "Show N more" caps, the
-	//"Already in this collection" line and the second highlight index that went
-	//with them. What survives is the wall's one virtue: a name and one line of
-	//description per family, grouped under the same headings, seeded into the
-	//same list by one quiet link.
-	it('seeds the one list with every family, grouped, and adds one without opening', async () => {
+	//THE LIST *IS* BROWSE-ALL (D1, superseding the seeded-feed contract).
+	//
+	//The catalog mode was deleted first — the setup dropdown strip, the category
+	//walls with per-row examples, the Not toggles, the "Show N more" caps, the
+	//"Already in this collection" line and the second highlight index. What
+	//survived was a quiet `Browse all filters` link that seeded this same list
+	//with the families under the catalog's category headings.
+	//
+	//Round 2 deletes the link too: the idle list now contains the whole
+	//vocabulary already, ranked by personal likelihood, under ONE heading with a
+	//quiet per-row annotation where the category walls used to be. So this test
+	//asserts what replaced them — every family present and addable, no walls, no
+	//setup strip, no chips.
+	it('holds the whole vocabulary in one ranked run, and adds one without opening', async () => {
 		dialog._composerCandidates = [{
 			filter: 'inductively-knowable',
 			category: 'tag',
@@ -1301,8 +1357,29 @@ describe('Collection Composer interactions', () => {
 			'browse all is the SAME list, so the combobox still points at it');
 		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
 			.map((heading) => heading.textContent.trim());
-		assert.ok(headings.includes('Dates'), 'the families keep their headings');
-		assert.ok(headings.includes('Tags and sections'));
+		//SUPERSEDED PIN: the catalog's category headings ('Dates', 'Tags and
+		//sections') were the wall, and the wall is gone. One heading for the
+		//vocabulary; the categories survive as quiet per-row annotations, which
+		//is an attribute rather than a structure imposed on the ranking.
+		assert.ok(headings.includes('Everything you can add'), `one heading for the vocabulary: ${headings.join(' | ')}`);
+		assert.ok(!headings.includes('Dates'), 'the category walls are deleted');
+		assert.ok(!headings.includes('Tags and sections'));
+		await showAllRows();
+		const annotations = suggestionRows()
+			.map((button) => button.querySelector('.row-annotation')?.textContent.trim())
+			.filter(Boolean);
+		assert.ok(annotations.includes('tag'), `a row says what kind of thing it is: ${annotations.join(', ')}`);
+		assert.ok(annotations.includes('family'),
+			`and so does a family row: ${[...new Set(annotations)].join(', ')}`);
+		//EVERY FILTER FAMILY, including the three the palette will not compose:
+		//`combine`, `exclude` and `expand` default to placeholders, so they are
+		//offered as the honest route into Source rather than as clauses. Before
+		//this they lived only in the deleted Browse-all feed, which would have
+		//meant deleting them from the product.
+		for (const family of ['combine', 'exclude', 'expand']) {
+			const row = dialog._paletteRows.find((row) => row.sourceFilter === family);
+			assert.ok(row, `the engine's ${family} is still reachable, as Source`);
+		}
 		//The setup strip is gone: set, sort and view are words in the sentence.
 		for (const label of ['Starting collection set', 'Card order', 'Collection view']) {
 			assert.strictEqual(dialog.shadowRoot.querySelector(`[aria-label='${label}']`), null,
@@ -1312,18 +1389,24 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-example'), null);
 		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-polarity'), null);
 		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-more'), null);
-		//A browse row is a name and a gray description — the one place the
-		//detail line shows without the row being highlighted, because it is the
-		//only way to tell one family from its neighbour.
-		const starred = suggestionRows().find((button) => button.dataset.filter === 'starred');
-		assert.ok(starred);
-		assert.ok(starred.querySelector('.row-detail'), 'a browse row explains itself');
-		assert.strictEqual(starred.querySelector('.suggestion-action'), null, 'and carries no verb chip');
-		starred.click();
+		//SUPERSEDED PIN: a vocabulary row is a name and a quiet category word,
+		//not a name and a sentence. `alwaysDetail` was the old browse feed's one
+		//exception to detail-on-highlight, and it existed because a wall of
+		//identical-looking family names had no other way to distinguish itself.
+		//Three hundred rows each carrying a sentence is a list nobody can scan,
+		//so the annotation carries the distinction and the detail line stays on
+		//the highlighted row where §2.1 puts it.
+		//A filter that no contextual suggestion happens to be offering, so this
+		//asserts the VOCABULARY run rather than the Refine run above it.
+		const hasImages = suggestionRows().find((button) => button.dataset.filter === 'has-images');
+		assert.ok(hasImages, 'every filter in the registry is in the list');
+		assert.strictEqual(hasImages.querySelector('.row-detail'), null,
+			'an unhighlighted row does not explain itself');
+		assert.strictEqual(hasImages.querySelector('.suggestion-action'), null, 'and carries no verb chip');
+		hasImages.click();
 		await settleRender(dialog);
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['has-images']);
 		assert.strictEqual(window.location.pathname, '/c/main/', 'adding does not navigate');
-		assert.strictEqual(dialog._browseOpen, false, 'and choosing a row leaves the feed');
 	});
 
 	//THE EXPLICIT-CONFIRM GATE IS DELETED WITH THE PANEL IT GATED. A family
@@ -1335,8 +1418,8 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		await typeComposer('text');
-		const query = suggestionRows().find((button) => button.dataset.filter === 'query');
-		assert.ok(query, 'Browse all still searches by alias');
+		const query = familyRow('query');
+		assert.ok(query, 'the one list still finds a family by its alias');
 		query.click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
@@ -1358,7 +1441,7 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		await typeComposer('text');
-		suggestionRows().find((button) => button.dataset.filter === 'query').click();
+		familyRow('query').click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
 		assert.notStrictEqual(dialog.shadowRoot.activeElement?.id, 'collection-composer-input',
@@ -1377,6 +1460,170 @@ describe('Collection Composer interactions', () => {
 	//number on it — and the user authors `a AND (b OR c) AND NOT d` by choosing
 	//between English sentences rather than by meeting the words exclude and
 	//combine.
+	//THE WHOLE SENTENCE, TYPED, WITH NOTHING BUT KEYS (D6).
+	//
+	//Every other test in this file exercises one gesture. This one exercises the
+	//claim the redesign actually makes — that a person can author a compound
+	//collection by typing words and pressing Enter — and it does so with ZERO
+	//mouse events, which is the part that cannot be asserted by looking at any
+	//single gesture. If a row ever stops being reachable from the keyboard, or
+	//the top row ever stops being the one the typed word meant, this is where it
+	//shows up as a failing assertion rather than as an owner's complaint.
+	//
+	//It also walks the round-2 model end to end: a SINGLETON set switch that
+	//replaces rather than stacks, a SYNONYM that reaches a family with no name of
+	//its own, a NEGATION prefix, an OR fusion between siblings, a deterministic
+	//DATE PHRASE, and a SORT — with the whole CollectionDescription asserted at
+	//the end.
+	it('composes a whole collection from the keyboard alone', async () => {
+		//stateChanged recomputes the candidate list from the (empty) corpus on
+		//every dispatch, and every accepted row dispatches — so this suite's
+		//standing fiction has to be restated after each one, exactly as the
+		//contributor test does.
+		const seedTags = () => {
+			dialog._composerCandidates = TAGS;
+		};
+		//ESCAPE PEELS ONE LAYER, and with no layer open it closes the dialog —
+		//which would end the run rather than continue it. So the pill row is
+		//closed only when there IS one, which is also exactly what a user does.
+		const closePillRow = async () => {
+			if (!pillRow()) return;
+			window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+			await settleRender(dialog);
+		};
+		const TAGS = [
+			{
+				filter: 'tag-systems',
+				category: 'tag',
+				label: 'Tagged “Systems”',
+				detail: 'Keeps cards tagged Systems',
+				aliases: ['tag-systems', 'Systems', 'tag', 'tagged'],
+				searchValues: ['tagged “systems”', 'tag-systems', 'tag', 'systems', 'tagged'],
+			},
+			{
+				filter: 'tag-complexity',
+				category: 'tag',
+				label: 'Tagged “Complexity”',
+				detail: 'Keeps cards tagged Complexity',
+				aliases: ['tag-complexity', 'Complexity', 'tag', 'tagged'],
+				searchValues: ['tagged “complexity”', 'tag-complexity', 'tag', 'complexity', 'tagged'],
+			},
+		];
+		seedTags();
+		await settleRender(dialog);
+
+		//A guard, not a flourish: the whole point is that no pointer is used, so
+		//the test refuses to pass if one sneaks in through a helper.
+		let mouseEvents = 0;
+		const countMouse = () => { mouseEvents++; };
+		for (const type of ['click', 'mousedown', 'mouseup', 'mousemove', 'mouseenter']) {
+			dialog.addEventListener(type, countMouse, true);
+		}
+
+		//THE TOP ROW IS THE ONE THE WORD MEANT, every time — that is the owner's
+		//metric, so every step asserts it before pressing anything.
+		const acceptTop = async (expectedRowID, key = 'Tab') => {
+			assert.strictEqual(dialog._paletteRows[0]?.id, expectedRowID,
+				`the top row must be ${expectedRowID}, not ${dialog._paletteRows.slice(0, 3).map((row) => row.id).join(' | ')}`);
+			await pressComposer(key);
+		};
+
+		//1. THE SET, as a typed word. It REPLACES; it never stacks.
+		await typeComposer('everything');
+		await acceptTop('set:everything');
+		assert.strictEqual(store.getState().collection.snapshot.setName, 'everything');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+		assert.match(dialog.shadowRoot.querySelector('.draft-receipt').textContent, /Starting from Everything/,
+			'and the receipt names the state, not the act of changing it');
+
+		//2. A SYNONYM that reaches a family with no name of its own. 'stale' is
+		//the design's own worked example for why curated metadata was worth
+		//building; the family it reaches is `updated`, spelled with the rolling
+		//default so it is a real collection the moment it lands.
+		seedTags();
+		await settleRender(dialog);
+		await typeComposer('stale');
+		const staleTop = dialog._paletteRows[0];
+		assert.strictEqual((staleTop.filter || '').split('/')[0], 'updated',
+			`“stale” must lead with the updated family: ${dialog._paletteRows.slice(0, 3).map((row) => row.id).join(' | ')}`);
+		await pressComposer('Tab');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
+		//A configurable clause opens its controls; Escape peels that layer without
+		//touching the draft, and it is a KEY, so the run continues.
+		await closePillRow();
+		assert.strictEqual(pillRow(), null);
+
+		//3. A NEGATION, by prefix. The negated row leads, so Tab takes it.
+		seedTags();
+		await settleRender(dialog);
+		await typeComposer('not tag-complexity');
+		assert.strictEqual(dialog._paletteRows[0].valenceKind, 'not',
+			`a typed negation must lead: ${dialog._paletteRows.slice(0, 3).map((row) => `${row.id}:${row.valenceKind}`).join(' | ')}`);
+		await pressComposer('Tab');
+		//`exclude/…`, not `-…`: the draft layer picks the engine's own spelling
+		//for the shape it is building, and the user never meets either word — the
+		//row said "Tagged Complexity" with a Not on it.
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+			['updated/after/7-days-ago', 'exclude/tag-complexity']);
+
+		//4. AN OR, FUSED WITH ITS SIBLING. The draft already has a negated tag, so
+		//a second tag is family-compatible and its widening row is offered —
+		//reached by arrow key, taken by Tab.
+		seedTags();
+		await settleRender(dialog);
+		await typeComposer('systems');
+		const widen = dialog._paletteRows.findIndex((row) => row.valenceKind === 'or');
+		assert.ok(widen >= 0, `an or-row must be offered: ${dialog._paletteRows.map((row) => `${row.id}:${row.valenceKind}`).join(' | ')}`);
+		//TYPING ALREADY POINTS AT THE TOP ROW, so reaching row N costs N
+		//arrow-downs and not N+1. That is the owner's metric in its literal form,
+		//and this is the one place the suite counts them.
+		for (let step = 0; step < widen; step++) await pressComposer('ArrowDown');
+		assert.strictEqual(highlightedRow().dataset.rowId, dialog._paletteRows[widen].id,
+			'the arrow keys walk the list the ranking produced');
+		await pressComposer('Tab');
+		//ONE clause, not two: `combine/…` is the engine's spelling for a union
+		//whose members are not both plain tokens (one of them is negated). The
+		//user typed a tag and chose a row that read "Tagged Complexity or Tagged
+		//Systems"; the word `combine` appears only in the URL.
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+			['updated/after/7-days-ago', 'combine/exclude/tag-complexity/tag-systems'],
+			'the two tags fuse into ONE union clause rather than becoming a second condition');
+
+		//5. A DATE PHRASE, parsed rather than guessed at. It leads the list.
+		seedTags();
+		await settleRender(dialog);
+		await typeComposer('last 30 days');
+		assert.strictEqual(dialog._paletteRows[0].filter, 'updated/after/30-days-ago',
+			`a parsed phrase leads: ${dialog._paletteRows.slice(0, 3).map((row) => row.id).join(' | ')}`);
+		await pressComposer('Tab');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+			['updated/after/7-days-ago', 'combine/exclude/tag-complexity/tag-systems', 'updated/after/30-days-ago']);
+		await closePillRow();
+
+		//6. THE SORT, by alias, and it replaces the word rather than adding a
+		//clause. Enter rather than Tab, because Enter on a row that changes only a
+		//word in the sentence is the same acceptance.
+		seedTags();
+		await settleRender(dialog);
+		await typeComposer('by stars');
+		assert.strictEqual(dialog._paletteRows[0].id, 'sort:stars',
+			`“by stars” must lead with the sort: ${dialog._paletteRows.slice(0, 3).map((row) => row.id).join(' | ')}`);
+		await pressComposer('Tab');
+		assert.strictEqual(store.getState().collection.snapshot.sortName, 'stars');
+
+		//THE WHOLE DESCRIPTION, assembled without a single pointer event.
+		const snapshot = store.getState().collection.snapshot;
+		assert.strictEqual(snapshot.setName, 'everything');
+		assert.deepStrictEqual(snapshot.filterNames,
+			['updated/after/7-days-ago', 'combine/exclude/tag-complexity/tag-systems', 'updated/after/30-days-ago']);
+		assert.strictEqual(snapshot.sortName, 'stars');
+		assert.strictEqual(mouseEvents, 0, 'the whole composition used no pointer at all');
+
+		for (const type of ['click', 'mousedown', 'mouseup', 'mousemove', 'mouseenter']) {
+			dialog.removeEventListener(type, countMouse, true);
+		}
+	});
+
 	it('offers a typed token’s meanings as rows, ranked and counted', async () => {
 		await addRefineRow('Starred');
 		await typeComposer('unread');
@@ -1451,7 +1698,7 @@ describe('Collection Composer interactions', () => {
 		assert.ok(path(), 'the line is there before anything has been composed');
 		assert.strictEqual(path().textContent.trim(), '/c/main/');
 		await addRefineRow('Starred');
-		assert.strictEqual(path().textContent.trim(), '/c/starred/');
+		assert.strictEqual(path().textContent.trim(), '/c/everything/starred/');
 		//And it is under the LIST, where it teaches rather than competing with
 		//the sentence above.
 		const list = dialog.shadowRoot.querySelector('.palette-list');
@@ -1531,7 +1778,6 @@ describe('Collection Composer interactions', () => {
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
 		assert.ok(pillRow(), 'Enter on the highlighted family row opens its controls');
-		assert.strictEqual(dialog._browseOpen, false);
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
 		await settleRender(dialog);
 		assert.strictEqual(pillRow(), null, 'the first Escape peels the row');
@@ -1551,7 +1797,7 @@ describe('Collection Composer interactions', () => {
 	it('offers a safe rolling date default without requiring a meaningless edit', async () => {
 		browseAll().click();
 		await settleRender(dialog);
-		const updated = suggestionRows().find((button) => button.dataset.filter === 'updated');
+		const updated = familyRow('updated');
 		assert.ok(updated);
 		updated.click();
 		await settleRender(dialog);
@@ -1570,7 +1816,7 @@ describe('Collection Composer interactions', () => {
 	it('displays the comparison the seeded date filter actually names', async () => {
 		browseAll().click();
 		await settleRender(dialog);
-		suggestionRows().find((button) => button.dataset.filter === 'updated').click();
+		familyRow('updated').click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
@@ -1680,7 +1926,7 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		await typeComposer('similar');
-		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
+		familyRow('similar').click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
 		const keyCard = pillRow().shadowRoot.querySelector('configure-collection-key-card');
@@ -1766,7 +2012,7 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		await typeComposer('author');
-		dialog.shadowRoot.querySelector('[data-filter=\'author\']').click();
+		familyRow('author').click();
 		await settleRender(dialog);
 		//stateChanged recomputes the contributor lists from the (empty) corpus on
 		//every dispatch, so this suite's standing fiction has to be restated once
@@ -1803,10 +2049,15 @@ describe('Collection Composer interactions', () => {
 		await settleRender(dialog);
 		assert.strictEqual(dialog._wordScope, 'set');
 		const setRows = suggestionLabels();
-		assert.ok(setRows.includes('Everything'), `the alternatives are the sets: ${setRows.join(', ')}`);
-		suggestionRows().find((button) => rowText(button) === 'Everything').click();
+		assert.ok(setRows.includes('Main'), `the alternatives are the sets: ${setRows.join(', ')}`);
+		//The draft already starts from Everything (the sticky default), so the
+		//CHANGE this pins is the one back to Main — the list marks the one in
+		//force rather than deleting it, which is what makes it answerable.
+		assert.ok(setRows.some((label) => label.includes('Everything') && label.includes('current')),
+			`the list says which set you are in: ${setRows.join(', ')}`);
+		suggestionRows().find((button) => rowText(button) === 'Main').click();
 		await settleRender(dialog);
-		assert.strictEqual(store.getState().collection.snapshot.setName, 'everything');
+		assert.strictEqual(store.getState().collection.snapshot.setName, 'main');
 		assert.strictEqual(dialog._wordScope, '', 'and choosing one leaves the feed');
 
 		//And the sort tail, once there is one, opens the order alternatives —
@@ -2100,6 +2351,9 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(input.getAttribute('aria-expanded'), 'true');
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
+		//Source commits the collection the TEXT names. The composer's sticky
+		//starting set is a default for a composition, and a typed path is not
+		//one — the user has written the set they want, or written none.
 		assert.strictEqual(window.location.pathname, '/c/starred/');
 	});
 
@@ -2929,7 +3183,7 @@ describe('Collection Composer interactions', () => {
 		await countingPushes(async (pushed) => {
 			dialog.shadowRoot.querySelector('.composer-actions .primary').click();
 			await dialog.updateComplete;
-			assert.deepStrictEqual(pushed, ['/c/starred/'],
+			assert.deepStrictEqual(pushed, ['/c/everything/starred/'],
 				'the pushed path is the final one, with no placeholder segment');
 		});
 		store.dispatch({ type: 'SHOW_CARD', requestedCard: '', card: '' });
@@ -2993,7 +3247,7 @@ describe('Collection Composer interactions', () => {
 		//new refusal of the key itself.
 		pressEnter(input);
 		await dialog.updateComplete;
-		assert.strictEqual(window.location.pathname, '/c/starred/');
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
 		window.history.replaceState({}, '', '/c/main/');
 	});
 
@@ -3590,7 +3844,7 @@ describe('Collection Composer interactions', () => {
 		browseAll().click();
 		await settleRender(dialog);
 		const highlight = async (filterName) => {
-			const row = suggestionRows().find((button) => button.dataset.filter === filterName);
+			const row = familyRow(filterName);
 			assert.ok(row, `no row for ${filterName}`);
 			row.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
 			await settleRender(dialog);
@@ -3661,11 +3915,22 @@ describe('Collection Composer interactions', () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
 		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
 			.map((element) => element.textContent.trim());
-		//TWO SECTIONS AND NOTHING ELSE, in the words the design names: recents
-		//are "the first content of the first gesture", and the refinements under
-		//them are capped at three.
-		assert.deepStrictEqual(headings, ['Recent', 'Refine'],
-			`the idle list is recents then a short Refine: ${headings.join(' | ')}`);
+		//THREE RUNS, in the words the design names — and the third is the
+		//round-2 correction. Recents are "the first content of the first
+		//gesture"; the refinements under them are still capped at three; and
+		//under THOSE is the entire vocabulary, which used to sit behind a
+		//`Browse all filters` link. The owner's model: "the list should show
+		//some pre-configured items (recents/suggestions) but also just filter
+		//the WHOLE set (don't hide the full set of filters — it shows the
+		//power)."
+		//
+		//It is ONE heading for the whole vocabulary, not one per category. The
+		//category is an annotation on each row instead, because a wall of
+		//headings would outrank the ranking — which is exactly the defect that
+		//made 'Suggested for this card' beat an exact name match in the feed
+		//this replaced.
+		assert.deepStrictEqual(headings, ['Recent', 'Refine', 'Everything you can add'],
+			`the idle list is recents, a short Refine, then the vocabulary: ${headings.join(' | ')}`);
 		for (const heading of headings) {
 			assert.notStrictEqual(heading, heading.toUpperCase(), `heading is ALL CAPS: ${heading}`);
 		}
@@ -4090,6 +4355,14 @@ describe('Collection Composer interactions', () => {
 			await settleRender(dialog);
 			const recovery = dialog._paletteRows.filter(row => row.section.startsWith('Nothing matches'));
 			assert.strictEqual(recovery.length, 2, 'one row per clause the draft has');
+			//AND IT LEADS. It used to sit at the END of a list of recents plus
+			//three refinements, where it was the last few rows on screen. The
+			//idle list is the whole vocabulary now — 275 rows on the owner's
+			//corpus — so appended it is two hundred scroll-lines away from the
+			//question it answers. Observed live before this: a 0-card draft
+			//showed the "No cards currently match" note with nothing to act on.
+			assert.deepStrictEqual(dialog._paletteRows.slice(0, 2).map(row => row.id), recovery.map(row => row.id),
+				`recovery leads the idle list: ${dialog._paletteRows.slice(0, 4).map(row => `${row.section}/${row.id}`).join(' | ')}`);
 			assert.deepStrictEqual(
 				recovery.map(row => row.description.filters),
 				[['has-todo'], ['starred']],
@@ -4189,14 +4462,16 @@ describe('Collection Composer interactions', () => {
 		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
 		await settleRender(dialog);
 		assert.strictEqual(pane().scrollTop, 0, 'a reopened list starts at its top');
-		//And so does every transition that REPLACES what the pane holds — which
-		//is now a change of feed inside one list rather than a second surface.
+		//And so does every transition that REPLACES what the pane holds. The
+		//`Browse all` feed was one such transition and is deleted (the list is
+		//the vocabulary now); the sentence-word scope is another, and it is the
+		//one that survived, so it is what this pins.
 		pane().scrollTop = 90;
-		browseAll().click();
+		dialog._openWordScope('sort');
 		await settleRender(dialog);
-		assert.strictEqual(pane().scrollTop, 0, 'seeding Browse all starts at the top');
+		assert.strictEqual(pane().scrollTop, 0, 'opening a sentence word’s list starts at the top');
 		pane().scrollTop = 140;
-		browseAll().click();
+		dialog._wordScope = '';
 		await settleRender(dialog);
 		assert.strictEqual(pane().scrollTop, 0, 'and so does leaving it');
 	});

@@ -1,3 +1,20 @@
+//THE CATALOG'S DATA, WITHOUT A SURFACE.
+//
+//This module built the filter wall, then (after the wall was deleted) the
+//`Browse all filters` feed that seeded the palette's one list with it. Round 2
+//of the owner's feedback retires that feed too: the list contains the whole
+//vocabulary already, ranked by personal likelihood, so there is nothing left to
+//browse TO and a second ranking over the same data could only disagree with the
+//first one.
+//
+//WHAT SURVIVES IS THE METADATA GATE. test/collection-filter-catalog runs every
+//name in the filter registry through the composer's description path and fails
+//on any internal-identifier pattern (`Inverse of <filter-id>`, raw argument
+//names, "Whether the card…"). That sweep is the reason the description tier can
+//be trusted at all, and this module is the harness it runs through. It has no
+//other consumer today; if it acquires one, that consumer should be reading the
+//same descriptions the completion index does rather than a second copy.
+
 import {
 	CONFIGURABLE_FILTER_ARGUMENTS,
 	CONFIGURABLE_FILTER_NAMES,

@@ -71,6 +71,30 @@ import {
 } from './collection-source.js';
 
 import {
+	CompletionDocument,
+	CompletionIDFIndex,
+	completionDescriptionMatchedWord,
+	completionDescriptionScore,
+	completionIDFIndexFor,
+	completionStemPairs,
+	completionStems,
+} from './collection-completion-idf.js';
+
+import {
+	boundedDamerauLevenshtein,
+	typoBudgetForToken,
+} from './collection-completion-typos.js';
+
+import {
+	collectionDatePhraseFilters,
+	parseCollectionDatePhrase,
+} from './collection-date-phrases.js';
+
+import {
+	CompletionUsageWeights,
+} from './collection-composer-usage.js';
+
+import {
 	CARD_FILTER_DESCRIPTIONS,
 	CONFIGURABLE_FILTER_INFO,
 	SORTS,
@@ -113,54 +137,113 @@ export type CompletionCandidateKind =
 	| 'sort'
 	| 'view';
 
-//THE TIERS, in the order the task and proposal C §2b state them. The names are
+//THE TIERS, in the hard order the owner's round-2 model states. The names are
 //the vocabulary a failing ranking test should speak in.
+//
+//  parsed       the app PARSED what was typed rather than guessing at it: a
+//               pasted collection URL, or a date phrase the grammar accepted.
+//               Nothing outranks a successful parse — there is no ambiguity
+//               left to rank.
+//  name-exact   the display name IS the token
+//  name-prefix  the display name (or a word of it) STARTS WITH the token
+//  alias        a curated synonym, a candidate alias, or a searchValue
+//  typo         a bounded Damerau-Levenshtein hit on a name or alias token, or
+//               on its stem. A misspelled NAME is still a name, so this tier
+//               sits ABOVE description: somebody who typed 'staarred' meant
+//               Starred, not the filter whose prose happens to mention stars.
+//  description  TF-IDF over stemmed prose (see collection-completion-idf)
+//  structural   the subsequence fallback: the token's characters appear in
+//               order, close together. The last thing that is still a MATCH.
+//  vocabulary   no token at all — the idle list, which is the whole vocabulary
+//               ranked by personal likelihood alone.
+//  guess        `text contains "WORD"`. ALWAYS the floor, by arithmetic.
 export type CompletionMatchTier =
+	| 'parsed'
 	| 'name-exact'
 	| 'name-prefix'
 	| 'alias'
+	| 'typo'
 	| 'description'
-	| 'fuzzy';
+	| 'structural'
+	| 'vocabulary'
+	| 'guess';
 
-//THE SCORE IS THREE DIGITS IN ONE NUMBER, in strict order of authority:
+//THE SCORE IS THREE PLACES IN ONE NUMBER, in strict order of authority:
 //
-//    TIER (thousands)  ·  KIND (twenties)  ·  quality of the match (units)
+//    TIER (millions) · DESTINATION (hundred-thousands) · LIKELIHOOD (below)
 //
-//The magnitudes are chosen so a lower place can never carry a higher one: the
-//largest possible kind term (120) is smaller than one tier step (1000), and the
-//largest possible quality term (~10) is smaller than one kind step (20). A tier
-//boundary is a promise about order, so it is kept by arithmetic rather than by
-//care — no accumulation of tiebreakers can promote a description match above an
-//alias match, and no name-prefix nicety can promote a filter above a recent
-//that matched just as well.
+//The magnitudes are chosen so a lower place can never carry a higher one, which
+//is what makes a tier boundary a PROMISE rather than a tendency: the largest
+//possible destination term (100_000) is smaller than one tier step (1_000_000),
+//and the largest possible likelihood term (LIKELIHOOD_CEILING) is smaller than
+//one destination step. No accumulation of personal-usage evidence can promote a
+//description match above an alias match; personal likelihood ranks WITHIN a
+//tier, which is exactly what the owner asked for and exactly what a list that
+//re-ranked across tiers would stop being able to promise.
+//
+//LOWER SORTS FIRST, so likelihood enters as a subtraction from a ceiling.
+const TIER_STEP = 1_000_000;
+
 const TIER_SCORES : Record<CompletionMatchTier, number> = {
-	'name-exact': 0,
-	'name-prefix': 1000,
-	'alias': 2000,
-	'description': 3000,
-	'fuzzy': 4000,
+	'parsed': 0,
+	'name-exact': 1 * TIER_STEP,
+	'name-prefix': 2 * TIER_STEP,
+	'alias': 3 * TIER_STEP,
+	'typo': 4 * TIER_STEP,
+	'description': 5 * TIER_STEP,
+	'structural': 6 * TIER_STEP,
+	'vocabulary': 7 * TIER_STEP,
+	'guess': 8 * TIER_STEP,
 };
 
-//RECENTS RANK FIRST AMONG EQUALS. A recent that matched at the same tier as a
-//raw filter is a collection the user has actually been IN, which is strictly
-//more evidence than a name that merely also matches (meta-proposal convergence
-//4). It is a tiebreak, not a tier: a recent matched by a fuzzy subsequence
-//still loses to a filter matched by its own name.
-const KIND_STEP = 20;
+//RECENTS AND PASTED SOURCES RANK FIRST AMONG EQUALS. A recent that matched at
+//the same tier as a raw filter is a collection the user has actually been IN,
+//which is strictly more evidence than a name that merely also matches
+//(meta-proposal convergence 4); a pasted source is not a guess at all. It is a
+//tiebreak, not a tier: a recent matched by a subsequence still loses to a filter
+//matched by its own name.
+const DESTINATION_STEP = 100_000;
 
-const KIND_RANK : Record<CompletionCandidateKind, number> = {
-	//A pasted source is not a guess about what the user meant: they handed the
-	//app a collection, spelled the way the app spells collections. Nothing
-	//outranks it.
-	'source': 0,
-	'recent': 0,
-	'value': 1,
-	'filter': 2,
-	'filter-family': 3,
-	'set': 4,
-	'sort': 5,
-	'view': 6,
-};
+//The likelihood budget, and the ceiling it is subtracted from. Every component
+//below is bounded, and their bounds sum to less than this — asserted by the
+//ranking tests rather than trusted.
+const LIKELIHOOD_CEILING = 99_999;
+
+//WHAT "HOW LIKELY IS THIS PERSON TO PICK THIS" IS MADE OF. Five bounded terms,
+//each answering a different question the owner named:
+//
+//  MATCH QUALITY   how well this candidate answers what was actually typed,
+//                  measured in the terms of its own tier (whole-name prefix vs
+//                  interior word; edit distance; summed TF-IDF).
+//  USAGE           what this person has ACCEPTED before, frequency and recency
+//                  decayed (collection-composer-usage). The largest single
+//                  term, because it is the only evidence about this user
+//                  specifically.
+//  CORPUS FIT      how much of the corpus this value actually covers. A tag on
+//                  four hundred cards is a more likely destination than a tag
+//                  on one, and the composer knows the difference.
+//  CONTEXT         what is already in the collection description: a clause of a
+//                  family already present is one the user is plausibly in the
+//                  middle of widening.
+//  KIND PRIOR      the old KIND_RANK, demoted to a tiebreak. A tag and a filter
+//                  that match equally well and are equally used should still
+//                  come out in a stable, sensible order.
+const MATCH_QUALITY_MAXIMUM = 30_000;
+const USAGE_MAXIMUM = 40_000;
+const CORPUS_FIT_MAXIMUM = 12_000;
+const CONTEXT_BOOST = 6_000;
+const KIND_PRIOR_STEP = 750;
+
+//How many accepted uses it takes to reach half the usage budget. Three: one
+//acceptance is a fact, three is a habit, and a habit is what the ranking should
+//be shaped by.
+const USAGE_HALF_SATURATION = 3;
+
+//How many cards it takes for a value to reach half the corpus-fit budget.
+const CORPUS_FIT_HALF_SATURATION = 20;
+
+const saturating = (value : number, halfSaturation : number, maximum : number) : number =>
+	value > 0 ? maximum * (value / (value + halfSaturation)) : 0;
 
 //HOW MANY RECENTS A TYPED LIST MAY LEAD WITH WHEN THE MATCH IS WEAK.
 //
@@ -169,10 +252,11 @@ const KIND_RANK : Record<CompletionCandidateKind, number> = {
 //whose detail happens to contain the word, and three destinations — some of
 //them zero-card junk — then sit above the first actual interpretation of what
 //was typed. A name-tier match is evidence the user meant that collection; an
-//alias, description or fuzzy match is not, and one such row is the whole budget.
+//alias, typo, description or structural match is not, and one such row is the
+//whole budget.
 const WEAK_MATCH_RECENT_LIMIT = 1;
 
-const NAME_TIERS : ReadonlySet<CompletionMatchTier> = new Set<CompletionMatchTier>(['name-exact', 'name-prefix']);
+const NAME_TIERS : ReadonlySet<CompletionMatchTier> = new Set<CompletionMatchTier>(['parsed', 'name-exact', 'name-prefix']);
 
 export type CompletionValenceKind = 'add' | 'or' | 'not';
 
@@ -244,6 +328,27 @@ export type CompletionCandidate = {
 	valences : CompletionValence[];
 	//True when this clause's membership is computed from the signed-in account.
 	viewerDependent : boolean;
+	//THE KEY THIS CANDIDATE IS REMEMBERED UNDER when the user accepts it. It is
+	//coarser than `id` on purpose: every configuration of the `updated` family
+	//is one habit, not thirty, and a key that carried the arguments would learn
+	//nothing that transfers to the next window the user asks for. Absent for the
+	//kinds there is nothing to learn from — a pasted source, a free-text guess.
+	usageKey? : string;
+	//A QUIET WORD SAYING WHAT KIND OF THING THIS IS ('tag', 'section',
+	//'author', 'sort'). The idle list is the whole vocabulary in one ranked run,
+	//so a row needs to be able to say what it is without the list growing
+	//category walls to say it for them.
+	annotation? : string;
+	//A CANDIDATE WHOSE ACCEPTANCE REPLACES A WORD rather than appending a
+	//clause: the set, the sort, the view. They are singletons — a collection has
+	//exactly one of each — so the palette must never treat them as stacking.
+	singleton? : boolean;
+	//A FAMILY THIS LAYER WILL NOT COMPOSE, offered as the honest route into
+	//Source instead of as a clause. See STRUCTURAL_FILTER_FAMILIES: their
+	//defaults are placeholders that would silently empty a collection, so they
+	//get a row that OPENS the text editor at that family rather than a row that
+	//adds something and lies about the count beside it.
+	sourceFilter? : string;
 };
 
 //Everything the index needs that it cannot derive. Deliberately the same shape
@@ -260,18 +365,27 @@ export type CollectionCompletionContext = CollectionComposerContext & {
 	sortNames? : readonly string[];
 	viewModes? : readonly string[];
 	setNames? : readonly string[];
+	//WHAT THIS PERSON HAS ACCEPTED BEFORE: usage key -> decayed weight, from
+	//collection-composer-usage. Passed in rather than read here so this module
+	//stays pure and so a session's ranking cannot shift under the user
+	//mid-keystroke — the composer reads the store once, when it opens.
+	usage? : CompletionUsageWeights;
+	//The reference instant for the date-phrase grammar. Defaulted to now;
+	//passed explicitly by tests so 'this month' is a fixture rather than a
+	//moving target.
+	now? : Date;
 };
 
 //--- Matching --------------------------------------------------------------
 
 const normalized = (value : string) : string => value.trim().toLowerCase();
 
-//A DESCRIPTION MATCHES BY WORD PREFIX, NOT BY SUBSTRING.
+//A NAME MATCHES BY WORD PREFIX, NOT BY SUBSTRING.
 //
-//Substring matching on prose is what makes a search feel haunted: typing 'or'
-//matches "auth-OR", "categ-OR-ized", and "col-OR". Prose is long, so it has a
-//lot of interior. A description therefore matches only when the token starts a
-//WORD in it, which is the only kind of match a reader can see the reason for.
+//Substring matching is what makes a search feel haunted: typing 'or' matches
+//"auth-OR", "categ-OR-ized", and "col-OR". A name therefore matches only when
+//the token starts a WORD in it, which is the only kind of match a reader can see
+//the reason for.
 const wordPrefixMatch = (prose : string, token : string) : string => {
 	if (!prose || !token) return '';
 	for (const word of prose.toLowerCase().split(/[^a-z0-9]+/)) {
@@ -280,18 +394,20 @@ const wordPrefixMatch = (prose : string, token : string) : string => {
 	return '';
 };
 
-//FUZZY IS A SUBSEQUENCE, AND IT IS LAST FOR A REASON.
+//THE SUBSEQUENCE FALLBACK, AND IT IS LAST FOR A REASON.
 //
-//'tgs' finding 'tags' is a real recovery from a typo; 'tgs' finding
-//'not-automatically-prioritized' is noise wearing the same clothes. So fuzzy
+//'tgs' finding 'tags' is a real recovery; 'tgs' finding
+//'not-automatically-prioritized' is noise wearing the same clothes. So it
 //requires three characters (below that every candidate matches something) and
 //refuses to span more than a bounded stretch of the haystack, which is what
-//separates a typo from a coincidence.
-const FUZZY_MINIMUM_TOKEN_LENGTH = 3;
-const FUZZY_MAXIMUM_SPAN = 24;
+//separates a slip from a coincidence. It sits BELOW the typo tier because it
+//makes no claim about how many mistakes were made — only that the letters
+//appear in order, which a lot of long names satisfy by accident.
+const STRUCTURAL_MINIMUM_TOKEN_LENGTH = 3;
+const STRUCTURAL_MAXIMUM_SPAN = 24;
 
-const fuzzyMatch = (haystack : string, token : string) : boolean => {
-	if (token.length < FUZZY_MINIMUM_TOKEN_LENGTH) return false;
+const subsequenceMatch = (haystack : string, token : string) : boolean => {
+	if (token.length < STRUCTURAL_MINIMUM_TOKEN_LENGTH) return false;
 	const value = haystack.toLowerCase();
 	let start = -1;
 	let position = 0;
@@ -301,70 +417,175 @@ const fuzzyMatch = (haystack : string, token : string) : boolean => {
 		if (start < 0) start = position;
 		position++;
 	}
-	return position - start <= FUZZY_MAXIMUM_SPAN;
+	return position - start <= STRUCTURAL_MAXIMUM_SPAN;
+};
+
+//THE KIND PRIOR, demoted from a rank to a tiebreak. Two candidates that match
+//equally well and are equally used still need a stable, sensible order, and this
+//is it: what the corpus contains, then what the app defines, then the words of
+//the sentence.
+const KIND_RANK : Record<CompletionCandidateKind, number> = {
+	'source': 0,
+	'recent': 0,
+	'value': 1,
+	'filter': 2,
+	'filter-family': 3,
+	'set': 4,
+	'sort': 5,
+	'view': 6,
 };
 
 type Match = {
 	tier : CompletionMatchTier;
 	matchedOn : string;
+	//The tier-local measure of how good this match is, already scaled into
+	//[0, MATCH_QUALITY_MAXIMUM]. Computed where the tier is decided, because
+	//only there is it known what "good" means for that tier.
+	quality : number;
 };
 
-//THE ONE SCORING FUNCTION, and the whole of the tier contract:
+//THE WORDS OF A NAME OR ALIAS, and their stems, as the typo tier compares them.
+//Stemming is the app's own (shared/nlp, through the completion IDF module), so
+//'updating' typed against a candidate called 'Updated' is one comparison of two
+//identical stems rather than two edits apart.
+const comparisonTokens = (values : readonly string[]) : string[] => {
+	const result = new Set<string>();
+	for (const value of values) {
+		if (!value) continue;
+		const lowered = value.toLowerCase();
+		result.add(lowered);
+		for (const word of lowered.split(/[^a-z0-9]+/)) {
+			if (word.length >= STRUCTURAL_MINIMUM_TOKEN_LENGTH) result.add(word);
+		}
+		for (const stem of completionStems(value)) {
+			if (stem.length >= STRUCTURAL_MINIMUM_TOKEN_LENGTH) result.add(stem);
+		}
+	}
+	return [...result];
+};
+
+//THE TYPO TIER. The bound comes from the TYPED token's length (3-5 chars: one
+//edit; 6+: two; never at 2 or below), transpositions cost one, and the candidate
+//side is compared word-by-word and stem-by-stem so a slip inside a long phrase
+//name is still recoverable. Returns the distance, or -1 for no hit.
+const typoDistance = (token : string, comparisons : readonly string[]) : number => {
+	const budget = typoBudgetForToken(token);
+	if (!budget) return -1;
+	let best = -1;
+	for (const comparison of comparisons) {
+		//A prefix relationship is a higher tier's business, not this one's.
+		if (comparison === token || comparison.startsWith(token)) continue;
+		const distance = boundedDamerauLevenshtein(token, comparison, budget);
+		if (distance > budget) continue;
+		if (best < 0 || distance < best) best = distance;
+		if (best === 1) break;
+	}
+	return best;
+};
+
+//THE ONE MATCHING FUNCTION, and the whole of the tier contract. Every caller
+//passes the same buckets, so a tag, a filter family and a recent collection are
+//all matched by one rule and cannot drift into three.
 //
-//  1. name-exact   the display name IS the token
-//  2. name-prefix  the display name STARTS WITH the token (any word of it)
-//  3. alias        a curated synonym, a candidate alias, or a searchValue
-//  4. description  the token starts a word in the prose (filter descriptions
-//                  AND tagInfos[].description)
-//  5. fuzzy        the token's characters appear in order, close together
-//
-//Every caller passes the same four buckets, so a tag, a filter family and a
-//recent collection are all ranked by one rule and cannot drift into three.
+//The DESCRIPTION tier is not decided here: it needs the corpus-wide IDF table,
+//which the entry point owns. Callers pass a `descriptionScore` closure that
+//answers "how much does this candidate's prose weigh against the typed stems",
+//and a zero answer means the tier does not fire.
 const matchTier = (
 	token : string,
 	name : string,
 	aliases : readonly string[],
-	prose : readonly string[]
+	descriptionScore : () => {score : number, matchedOn : string}
 ) : Match | null => {
 	const normalizedName = normalized(name);
-	if (normalizedName === token) return {tier: 'name-exact', matchedOn: name};
-	if (normalizedName.startsWith(token)) return {tier: 'name-prefix', matchedOn: name};
+	if (normalizedName === token) return {tier: 'name-exact', matchedOn: name, quality: MATCH_QUALITY_MAXIMUM};
+	//Inside the prefix tier, a match on the whole name beats a match on a word
+	//in the middle of it, and a shorter name beats a longer one — the token is a
+	//larger fraction of what the user actually named.
+	const lengthPenalty = Math.min(name.length, 40) * 100;
+	if (normalizedName.startsWith(token)) {
+		return {tier: 'name-prefix', matchedOn: name, quality: MATCH_QUALITY_MAXIMUM - lengthPenalty};
+	}
 	//A name is often a phrase ('Updated since 7 days ago'), and typing a word
 	//from the middle of it is still typing its name. Ranked inside the prefix
-	//tier rather than below it, with a point of penalty so the whole-name prefix
+	//tier rather than below it, at half the quality so the whole-name prefix
 	//wins when both match.
 	const nameWord = wordPrefixMatch(name, token);
-	if (nameWord) return {tier: 'name-prefix', matchedOn: nameWord};
+	if (nameWord) {
+		return {tier: 'name-prefix', matchedOn: nameWord, quality: MATCH_QUALITY_MAXIMUM / 2 - lengthPenalty};
+	}
 	for (const alias of aliases) {
 		const normalizedAlias = normalized(alias);
 		if (normalizedAlias === token || normalizedAlias.startsWith(token)) {
-			return {tier: 'alias', matchedOn: alias};
+			return {
+				tier: 'alias',
+				matchedOn: alias,
+				quality: MATCH_QUALITY_MAXIMUM - Math.min(alias.length, 40) * 100,
+			};
 		}
 	}
-	for (const sentence of prose) {
-		const word = wordPrefixMatch(sentence, token);
-		if (word) return {tier: 'description', matchedOn: word};
+	//A FUZZY NAME HIT OUTRANKS ANY DESCRIPTION HIT. This is the tier order's one
+	//genuinely contestable call and it is made deliberately: a person who
+	//mistypes a name is reaching for that thing, while a person whose token
+	//appears in some prose may be reaching for anything that prose is about.
+	const distance = typoDistance(token, comparisonTokens([name, ...aliases]));
+	if (distance >= 0) {
+		return {
+			tier: 'typo',
+			matchedOn: name,
+			//One edit wrong is much better evidence than two.
+			quality: MATCH_QUALITY_MAXIMUM - distance * (MATCH_QUALITY_MAXIMUM / 3),
+		};
 	}
-	if (fuzzyMatch(name, token)) return {tier: 'fuzzy', matchedOn: name};
+	//THE TIER FIRES ON PRESENCE AND RANKS ON RARITY. `matchedOn` is the presence
+	//answer and `score` is the rarity one; a common stem is a real hit worth
+	//almost no rank, which is a different fact from a miss.
+	const description = descriptionScore();
+	if (description.matchedOn) {
+		return {
+			tier: 'description',
+			matchedOn: description.matchedOn,
+			//TF-IDF is unbounded above in principle; in this corpus a strong
+			//single-stem hit is around 1.0-1.5. Scaled and clamped so a
+			//pathological document cannot borrow a whole tier's worth of rank.
+			quality: Math.min(MATCH_QUALITY_MAXIMUM, Math.round(description.score * 20_000)),
+		};
+	}
+	if (subsequenceMatch(name, token)) return {tier: 'structural', matchedOn: name, quality: MATCH_QUALITY_MAXIMUM / 6};
 	for (const alias of aliases) {
-		if (fuzzyMatch(alias, token)) return {tier: 'fuzzy', matchedOn: alias};
+		if (subsequenceMatch(alias, token)) return {tier: 'structural', matchedOn: alias, quality: 0};
 	}
 	return null;
 };
 
-const scoreFor = (match : Match, kind : CompletionCandidateKind, name : string, token : string) : number => {
-	//The units place: inside the prefix tier, a match on the whole name beats a
-	//match on a word in the middle of it, and a shorter name beats a longer one
-	//— the token is a larger fraction of what the user actually named. This
-	//discriminates BETWEEN two candidates of the same kind and never across
-	//kinds, which is the whole reason it is confined to the units place.
-	let quality = 0;
-	if (match.tier === 'name-prefix') {
-		if (!normalized(name).startsWith(token)) quality += 10;
-		quality += Math.min(name.length, 40) / 100;
-	}
-	return TIER_SCORES[match.tier] + KIND_RANK[kind] * KIND_STEP + quality;
+//WHAT THE RANKING KNOWS ABOUT A CANDIDATE BEYOND HOW IT MATCHED.
+type LikelihoodInputs = {
+	kind : CompletionCandidateKind;
+	quality : number;
+	//The decayed acceptance weight for this candidate's usage key.
+	usage : number;
+	//How many cards this value covers, when the corpus can say.
+	corpusCount : number;
+	//True when a condition of this candidate's family is already in the draft.
+	familyPresent : boolean;
 };
+
+//P(SELECT | TYPED, HISTORY, CORPUS, DESCRIPTION), as a bounded number. Every
+//term is named above; the sum is asserted to stay under LIKELIHOOD_CEILING by
+//the ranking tests, which is what keeps the tier boundaries arithmetic.
+const likelihoodFor = (inputs : LikelihoodInputs) : number =>
+	Math.max(0, Math.min(inputs.quality, MATCH_QUALITY_MAXIMUM)) +
+	saturating(inputs.usage, USAGE_HALF_SATURATION, USAGE_MAXIMUM) +
+	saturating(inputs.corpusCount, CORPUS_FIT_HALF_SATURATION, CORPUS_FIT_MAXIMUM) +
+	(inputs.familyPresent ? CONTEXT_BOOST : 0) +
+	(6 - KIND_RANK[inputs.kind]) * KIND_PRIOR_STEP;
+
+const DESTINATION_KINDS : ReadonlySet<CompletionCandidateKind> = new Set<CompletionCandidateKind>(['recent', 'source']);
+
+const scoreFor = (tier : CompletionMatchTier, inputs : LikelihoodInputs) : number =>
+	TIER_SCORES[tier] +
+	(DESTINATION_KINDS.has(inputs.kind) ? 0 : DESTINATION_STEP) +
+	(LIKELIHOOD_CEILING - Math.min(LIKELIHOOD_CEILING, likelihoodFor(inputs)));
 
 //--- Family compatibility --------------------------------------------------
 
@@ -454,10 +675,22 @@ const VALENCE_RANKS = {
 
 //WHEN THE USER LED WITH A NEGATION, THE NEGATION LEADS.
 //
-//'not published', '-published', 'without tags', 'except starred'. The prefix is
-//stripped before matching (so 'not pub' still finds published) and remembered,
-//so the `not` row is what the highlighted row already is when they stop typing.
-const NOT_PREFIXES = ['not ', 'no ', 'without ', 'except ', '-', '!'];
+//'not published', 'exclude published', '-published', 'without tags', '!starred'.
+//The prefix is stripped before matching (so 'not pub' still finds published) and
+//remembered, so the `not` row is what the highlighted row already is when they
+//stop typing.
+//
+//`exclude` is here even though it is one of the three words the palette promises
+//never to SHOW (proposal C §3: "never exclude, combine, not, or invert as UI
+//nouns"). That promise is about the app's vocabulary, not the user's: somebody
+//who types 'exclude starred' has said exactly what they want, and answering with
+//`Text contains "exclude starred"` because the word is off-limits in our copy is
+//the UI refusing to hear a sentence it understands perfectly.
+//
+//ORDER MATTERS: longer prefixes first, so 'not ' is tried before the bare '-'
+//would ever get a chance at a hyphenated token, and 'without ' before 'w'-shaped
+//nothing. Each entry is checked as a literal prefix of the normalized input.
+const NOT_PREFIXES = ['not ', 'exclude ', 'excluding ', 'without ', 'except ', 'no ', '-', '!'];
 
 export type StrippedToken = {
 	token : string;
@@ -526,6 +759,14 @@ export const completionValences = (
 		cardNames? : Record<string, string>,
 		candidates? : readonly CollectionComposerCandidate[],
 		filterDescriptions? : Readonly<Record<string, string>>,
+		//'add' asks for the plain append and nothing else. The IDLE list is the
+		//whole vocabulary — hundreds of candidates — and it is a list of THINGS
+		//rather than of interpretations of a token: offering each of them its
+		//own or-per-condition and its own flip would turn three hundred rows
+		//into fifteen hundred and bury the vocabulary inside its own valences.
+		//The other valences are one typed character away, which is where the
+		//design has always put them.
+		only? : 'add',
 	}
 ) : CompletionValence[] => {
 	const labels = options.labels || {};
@@ -559,6 +800,11 @@ export const completionValences = (
 			expression: withConditionAppended(expression, node),
 			rank: valenceRank('add', true, negated),
 		});
+	}
+
+	if (options.only === 'add') {
+		const beforeAddOnly = serializeCollectionExpression(expression).join('\n');
+		return valences.filter(valence => serializeCollectionExpression(valence.expression).join('\n') !== beforeAddOnly);
 	}
 
 	//THE NOT-ROW IS ASKED FOR, NOT ISSUED WITH EVERY CANDIDATE.
@@ -743,8 +989,11 @@ const pastedCollectionSource = (
 		kind: 'source',
 		label: readableCollectionExpression(parsed.description, labels, cardNames),
 		detail: 'Opens the collection this link names',
-		tier: 'name-exact',
-		score: TIER_SCORES['name-exact'] + KIND_RANK['source'] * KIND_STEP,
+		//PARSED, NOT GUESSED. The user handed the app a collection written in the
+		//app's own URL grammar and the parser accepted it; there is no
+		//interpretation left to rank against.
+		tier: 'parsed',
+		score: TIER_SCORES['parsed'],
 		matchedOn: query,
 		description: parsed.description,
 		destinationPath: parsed.canonicalPath,
@@ -769,22 +1018,186 @@ export type CollectionCompletionOptions = {
 	limit? : number;
 };
 
+//HOW MANY CANDIDATES ONE CALL RETURNS BY DEFAULT. Unchanged for the typed case,
+//and deliberately not the number the idle list uses — the idle caller asks for
+//the whole vocabulary explicitly, because "the list IS browse-all" is a decision
+//the palette makes, not a default this module quietly imposes.
+const DEFAULT_CANDIDATE_LIMIT = 8;
+
+const EMPTY_USAGE : CompletionUsageWeights = {};
+const EMPTY_IDF_INDEX : CompletionIDFIndex = {idf: {}, documents: {}, documentCount: 0};
+
+//THE SENTENCE WORDS DECLINE THE DESCRIPTION TIER, said once rather than by a
+//boolean threaded through the matcher. See sentenceWord below for why.
+const NO_DESCRIPTION_MATCH = () => ({score: 0, matchedOn: ''});
+
+//THE WORDS PEOPLE ACTUALLY TYPE FOR THE SINGLETONS.
+//
+//These three lists are short because the vocabulary is short, and they are
+//curated for the same reason the filter synonyms are: 'everything', 'reading
+//list', 'newest', 'grid' are what somebody types, and none of them is a prefix
+//of the name the app displays. They are matched at the ALIAS tier like any other
+//synonym, so a set named by its own name still wins.
+const SET_ALIASES : Readonly<Record<string, readonly string[]>> = {
+	'everything': ['all', 'all cards', 'whole corpus', 'unfiltered', 'anything'],
+	'main': ['sections', 'the sections', 'published sections', 'default'],
+	'reading-list': ['reading list', 'queue', 'to read', 'saved for later', 'later'],
+};
+
+const SORT_ALIASES : Readonly<Record<string, readonly string[]>> = {
+	'default': ['section order', 'natural order', 'as filed'],
+	'original-order': ['section order', 'natural order', 'as filed'],
+	'stars': ['sort by stars', 'most starred', 'popular', 'favorites', 'best'],
+	'updated': ['newest', 'most recently updated', 'freshest', 'latest'],
+	'created': ['newest', 'most recently created', 'youngest', 'latest'],
+	'recent': ['newest', 'latest activity', 'most recent'],
+	'link-count': ['most linked', 'inbound links', 'most referenced'],
+	'commented': ['most recently discussed', 'latest comments'],
+	'card-rank': ['page rank', 'most important', 'authority'],
+	'random': ['shuffle', 'surprise me', 'any order'],
+	'todo-difficulty': ['hardest todos', 'by difficulty'],
+	'tweet-count': ['most tweeted'],
+	'tweet-order': ['most tweetable'],
+	'last-tweeted': ['least recently tweeted'],
+};
+
+const VIEW_ALIASES : Readonly<Record<string, readonly string[]>> = {
+	'list': ['grid', 'cards', 'card grid', 'gallery', 'normal'],
+	'web': ['graph', 'map', 'network', 'diagram', 'links'],
+};
+
+//PEOPLE SAY THE VERB WITH THE NOUN. 'by stars', 'sort by stars', 'start from
+//everything', 'show as grid' — the preposition is part of how the phrase is
+//typed, and none of it is a prefix of the display name, so without these the
+//whole phrase falls past the name tiers into the guess floor.
+//
+//`order by …` is deliberately ABSENT. It begins with the letters 'or', and an
+//alias-prefix match on those would put every sort in the app above whatever the
+//user was actually reaching for — the exact regression the sentence-word matcher
+//was narrowed to prevent, reintroduced through the back door of an alias table.
+const phrasedAliases = (kind : CompletionCandidateKind, displayName : string) : string[] => {
+	const name = displayName.toLowerCase();
+	if (kind === 'sort') return [`by ${name}`, `sort by ${name}`, `sorted by ${name}`];
+	if (kind === 'set') return [`from ${name}`, `start from ${name}`, `starting from ${name}`];
+	return [`as ${name}`, `show as ${name}`, `shown as ${name}`];
+};
+
+//THE DOCUMENT SET THE DESCRIPTION TIER'S IDF IS COMPUTED OVER: one document per
+//candidate, made of its name, its aliases and its description. The list's
+//IDENTITY is what the IDF module caches on, so this is memoized on the inputs
+//that can change it — the live corpus's candidates, the filter registry, the tag
+//metadata. A keystroke never rebuilds it.
+let documentsMemo : {
+	candidates : readonly CollectionComposerCandidate[],
+	filterDescriptions : Readonly<Record<string, string>>,
+	tagInfos : TagInfos,
+	labels : Record<string, string>,
+	documents : CompletionDocument[],
+} | null = null;
+
+const completionDocumentsFor = (
+	candidates : readonly CollectionComposerCandidate[],
+	filterDescriptions : Readonly<Record<string, string>>,
+	tagInfos : TagInfos,
+	labels : Record<string, string>,
+	cardNames : Record<string, string>
+) : CompletionDocument[] => {
+	if (
+		documentsMemo &&
+		documentsMemo.candidates === candidates &&
+		documentsMemo.filterDescriptions === filterDescriptions &&
+		documentsMemo.tagInfos === tagInfos &&
+		documentsMemo.labels === labels
+	) return documentsMemo.documents;
+	const documents : CompletionDocument[] = [];
+	for (const candidate of candidates) {
+		const label = collectionFilterDisplayName(candidate.filter, labels, cardNames);
+		documents.push({
+			id: `value:${candidate.category}:${candidate.filter}`,
+			text: [
+				label,
+				...(candidate.aliases || []),
+				...filterSynonyms(candidate.filter),
+				tagInfos[candidate.filter]?.description || '',
+				candidate.detail,
+			].filter(Boolean).join(' '),
+		});
+	}
+	for (const name of Object.keys(filterDescriptions)) {
+		if (candidates.some(candidate => candidate.filter === name)) continue;
+		if (STRUCTURAL_FILTER_FAMILIES.has(name)) continue;
+		const configurable = Boolean(CONFIGURABLE_FILTER_INFO[name]);
+		const filter = configurable ? defaultConfigurableFilter(name) : name;
+		documents.push({
+			id: configurable ? `family:${name}` : `filter:${filter}`,
+			text: [
+				collectionFilterDisplayName(configurable ? name : filter, labels),
+				...filterSynonyms(name),
+				collectionFilterDescription(name, filterDescriptions, labels),
+			].filter(Boolean).join(' '),
+		});
+	}
+	documentsMemo = {candidates, filterDescriptions, tagInfos, labels, documents};
+	return documents;
+};
+
 //THE ONE ENTRY POINT THE PALETTE CALLS.
 export const collectionCompletionCandidates = (
 	options : CollectionCompletionOptions
 ) : CompletionCandidate[] => {
 	const context = options.context || {};
 	const {token, negated} = strippedNegationPrefix(options.token);
-	if (!token) return [];
 	const candidates = context.candidates || [];
 	const labels = collectionFilterLabels(candidates);
 	const cardNames = context.cardNames || {};
 	const filterDescriptions = context.filterDescriptions || {};
 	const tagInfos = context.tagInfos || {};
 	const expression = options.expression;
+	const usage = context.usage || EMPTY_USAGE;
+	//THE IDLE LIST IS THE SAME LIST WITH NOTHING TYPED YET.
+	//
+	//The owner's model is one ranked list over the entire vocabulary that typing
+	//FILTERS. So there is no second code path for "idle": an empty token means
+	//every candidate matches, at the `vocabulary` tier, ranked by personal
+	//likelihood alone. A separate idle generator is exactly how the old build
+	//came to show a capped list of three things that had nothing to do with the
+	//list you got as soon as you typed a character.
+	const browsing = !token;
+
+	//THE IDF TABLE, built once per vocabulary rather than once per keystroke.
+	//It is keyed on the document list's identity inside the IDF module, and the
+	//document list is rebuilt only when the corpus or the metadata behind it
+	//changes.
+	const idfIndex = browsing ? EMPTY_IDF_INDEX : completionIDFIndexFor(
+		completionDocumentsFor(candidates, filterDescriptions, tagInfos, labels, cardNames)
+	);
+	const tokenPairs = browsing ? [] : completionStemPairs(token);
+	const tokenStems = tokenPairs.map(pair => pair.stem);
 
 	const results : CompletionCandidate[] = [];
 	const seen = new Set<string>();
+
+	//WHAT IS ALREADY IN THE SENTENCE, as families, so a candidate that continues
+	//the thought the user is already having ranks above one that starts a new
+	//one. This is the "what's already in the collection description" half of the
+	//owner's likelihood model.
+	const presentFamilies = new Set(
+		expression
+			.map(condition => valueFamilyForNode(condition, candidates))
+			.filter(family => family !== 'mixed' && family !== 'manual')
+	);
+
+	//The description tier for one candidate, deferred so it costs nothing for
+	//the candidates that matched at a name tier — which is most of them.
+	const descriptionScoreFor = (id : string) => () => browsing ? {score: 0, matchedOn: ''} : {
+		score: completionDescriptionScore(idfIndex, id, tokenStems),
+		matchedOn: completionDescriptionMatchedWord(idfIndex, id, tokenPairs),
+	};
+
+	//IDLE MATCHES EVERYTHING, EQUALLY. The quality term is zero for every row,
+	//so the whole of the idle ordering is personal likelihood — usage, corpus
+	//fit, context, and the kind prior — which is the list the owner asked for.
+	const browseMatch : Match = {tier: 'vocabulary', matchedOn: '', quality: 0};
 
 	const clauseCandidate = (
 		id : string,
@@ -792,21 +1205,36 @@ export const collectionCompletionCandidates = (
 		filter : string,
 		label : string,
 		detail : string,
-		match : Match
+		match : Match,
+		extra : {usageKey? : string, annotation? : string, corpusCount? : number} = {}
 	) => {
 		if (seen.has(id)) return;
 		seen.add(id);
 		const node = filterNode(filter);
+		//`??`, not `||`: the free-text guess passes '' DELIBERATELY, meaning "there
+		//is nothing here worth learning". With `||` that empty string fell back to
+		//the default key and the ranking learned that this person likes searching
+		//card text in general — which is not a fact about any candidate it can
+		//offer them next time.
+		const usageKey = extra.usageKey ?? `filter:${filter}`;
 		results.push({
 			id,
 			kind,
 			label,
 			detail,
 			tier: match.tier,
-			score: scoreFor(match, kind, label, token),
+			score: scoreFor(match.tier, {
+				kind,
+				quality: match.quality,
+				usage: usage[usageKey] || 0,
+				corpusCount: extra.corpusCount || 0,
+				familyPresent: presentFamilies.has(valueFamilyForFilter(filter, candidates)),
+			}),
 			matchedOn: match.matchedOn,
 			filter,
 			node,
+			usageKey,
+			annotation: extra.annotation,
 			valences: completionValences(node, expression, {
 				idPrefix: id,
 				negated,
@@ -814,6 +1242,7 @@ export const collectionCompletionCandidates = (
 				cardNames,
 				candidates,
 				filterDescriptions,
+				only: browsing ? 'add' : undefined,
 			}),
 			viewerDependent: filterNameIsViewerDependent(filter),
 		});
@@ -824,15 +1253,48 @@ export const collectionCompletionCandidates = (
 	//collection written in the app's own URL grammar, and the parser accepted
 	//it. Without this the palette read a pasted link as free text and offered
 	//`Text contains “http://…”`.
-	const pastedSource = pastedCollectionSource(options.token, context, filterDescriptions);
+	const pastedSource = browsing ? null : pastedCollectionSource(options.token, context, filterDescriptions);
 	if (pastedSource && !seen.has(pastedSource.id)) {
 		seen.add(pastedSource.id);
 		results.push(pastedSource);
 	}
 
+	//A DATE PHRASE IS A PARSE, NOT A GUESS (D5). 'last 7 days' is not the name
+	//of anything, so every tier below would have missed it and the honest floor —
+	//`Text contains "last 7 days"` — would have led the list with a search over
+	//card prose for the word 'days'. The grammar is deterministic and lives in
+	//its own module; when it accepts, its clauses lead, spelled as the pill they
+	//would become ('Updated in the last 7 days').
+	const datePhrase = browsing ? null : parseCollectionDatePhrase(token, context.now);
+	if (datePhrase) {
+		for (const [order, filter] of collectionDatePhraseFilters(datePhrase).entries()) {
+			const family = filter.split('/')[0];
+			clauseCandidate(
+				`filter:${filter}`,
+				'filter',
+				filter,
+				collectionFilterDisplayName(filter, labels),
+				collectionFilterDescription(family, filterDescriptions, labels),
+				//THE PARSER'S OWN ORDER SURVIVES ITS SCORING. A phrase that
+				//names no field offers both, and the grammar says which comes
+				//first (updated: "when did this change" is asked far more often
+				//than "when did this begin"). Without this term the two rows
+				//scored identically and the alphabetical tiebreak silently put
+				//Created on top.
+				{tier: 'parsed', matchedOn: token, quality: MATCH_QUALITY_MAXIMUM - order * 1000},
+				{usageKey: `family:${family}`, annotation: 'date'}
+			);
+		}
+	}
+
 	//RECENTS FIRST, as content rather than as a section. They are built by the
 	//existing recents generator, so a recent row here and a recent row in the
 	//idle list are the same row with the same id, name and dedupe.
+	//
+	//IDLE DOES NOT GENERATE THEM HERE. The idle feed builds its recents through
+	//collectionCompletionIdleRows, which already dedupes them against the draft
+	//and the collection on screen; generating a second copy at the vocabulary
+	//tier would put every recent in the list twice.
 	//
 	//WEAK MATCHES ARE CAPPED. See WEAK_MATCH_RECENT_LIMIT: a name-tier match is
 	//evidence the user meant that collection and every one of those is offered;
@@ -840,8 +1302,21 @@ export const collectionCompletionCandidates = (
 	//and it must not push the first real interpretation of what was typed below
 	//the fold.
 	let weakRecents = 0;
-	for (const recent of collectionComposerRecentSuggestions(options.description, context)) {
-		const match = matchTier(token, recent.name, [], [recent.detail]);
+	for (const recent of browsing ? [] : collectionComposerRecentSuggestions(options.description, context)) {
+		const match = matchTier(token, recent.name, [], () => {
+			//A recent has no document in the vocabulary table — it is a
+			//collection, not a filter — so its prose is matched by the same
+			//stem test, weighted by the table's own IDF. One rule, one corpus.
+			const stems = new Set(completionStems(recent.detail));
+			let score = 0;
+			let matchedOn = '';
+			for (const pair of tokenPairs) {
+				if (!stems.has(pair.stem)) continue;
+				score += idfIndex.idf[pair.stem] || 0;
+				if (!matchedOn) matchedOn = pair.word;
+			}
+			return {score, matchedOn};
+		});
 		if (!match) continue;
 		if (!NAME_TIERS.has(match.tier)) {
 			if (weakRecents >= WEAK_MATCH_RECENT_LIMIT) continue;
@@ -855,7 +1330,13 @@ export const collectionCompletionCandidates = (
 			label: recent.name,
 			detail: recent.detail,
 			tier: match.tier,
-			score: scoreFor(match, 'recent', recent.name, token),
+			score: scoreFor(match.tier, {
+				kind: 'recent',
+				quality: match.quality,
+				usage: 0,
+				corpusCount: 0,
+				familyPresent: false,
+			}),
 			matchedOn: match.matchedOn,
 			description: recent.description,
 			//A recent is a destination, not an edit. Offering it valences would
@@ -870,9 +1351,10 @@ export const collectionCompletionCandidates = (
 	//seeded date and relationship clauses. Their `description` prose comes from
 	//tagInfos, which is where a tag's authored explanation lives.
 	for (const candidate of candidates) {
+		const id = `value:${candidate.category}:${candidate.filter}`;
 		const label = collectionFilterDisplayName(candidate.filter, labels, cardNames);
 		const tagDescription = tagInfos[candidate.filter]?.description || '';
-		const match = matchTier(
+		const match = browsing ? browseMatch : matchTier(
 			token,
 			label,
 			[
@@ -880,38 +1362,93 @@ export const collectionCompletionCandidates = (
 				...(candidate.searchValues || []),
 				...filterSynonyms(candidate.filter),
 			],
-			[tagDescription, candidate.detail]
+			descriptionScoreFor(id)
 		);
 		if (!match) continue;
 		clauseCandidate(
-			`value:${candidate.category}:${candidate.filter}`,
+			id,
 			'value',
 			candidate.filter,
 			label,
 			tagDescription || candidate.detail,
-			match
+			match,
+			{
+				usageKey: `value:${candidate.filter}`,
+				annotation: candidate.category,
+				//CORPUS FIT: a tag on four hundred cards is a likelier
+				//destination than a tag on one, and the selector knows the
+				//difference. Absent for the kinds that have no count (a card
+				//type, a person), which simply score zero on this term.
+				corpusCount: candidate.corpusCount || 0,
+			}
 		);
 	}
 
-	//FILTERS AND CONFIGURABLE FAMILIES.
+	//FILTERS AND CONFIGURABLE FAMILIES — the WHOLE registry, because the owner's
+	//model is that the list never hides the full set of filters: "don't hide the
+	//full set of filters — it shows the power". With a token this is a filter;
+	//with none it is the browsable vocabulary itself.
 	for (const name of Object.keys(filterDescriptions)) {
 		//A name the live corpus already offered as a value is that value, not a
 		//second row for the same clause.
 		if (candidates.some(candidate => candidate.filter === name)) continue;
-		if (STRUCTURAL_FILTER_FAMILIES.has(name)) continue;
+		//THE ENGINE'S BOOLEAN PLUMBING IS REACHABLE, AS SOURCE.
+		//
+		//`exclude`, `combine` and `expand` still may not be offered as CLAUSES —
+		//their defaults are placeholders (`exclude/all-cards` empties the
+		//collection) and a row with a count beside it must not lie about what
+		//choosing it does. But the vocabulary is supposed to be complete, and
+		//before this they were reachable only through the deleted Browse-all
+		//feed, so deleting that feed would have deleted them from the product.
+		//They come back as what they honestly are: a row that opens Source at
+		//that family. The user still never meets the words as UI nouns — the row
+		//is only reached by typing one.
+		if (STRUCTURAL_FILTER_FAMILIES.has(name)) {
+			const structuralID = `source-family:${name}`;
+			const structuralLabel = collectionFilterDisplayName(name, labels);
+			const structuralDetail = collectionFilterDescription(name, filterDescriptions, labels);
+			const structuralMatch = browsing ? browseMatch : matchTier(token, structuralLabel, filterSynonyms(name), descriptionScoreFor(structuralID));
+			if (!structuralMatch || seen.has(structuralID)) continue;
+			seen.add(structuralID);
+			results.push({
+				id: structuralID,
+				kind: 'filter-family',
+				label: structuralLabel,
+				detail: structuralDetail,
+				tier: structuralMatch.tier,
+				score: scoreFor(structuralMatch.tier, {
+					kind: 'filter-family',
+					quality: structuralMatch.quality,
+					usage: usage[structuralID] || 0,
+					corpusCount: 0,
+					familyPresent: false,
+				}),
+				matchedOn: structuralMatch.matchedOn,
+				filter: name,
+				sourceFilter: name,
+				usageKey: structuralID,
+				annotation: 'source',
+				//Not an edit this layer can make: no valences, no description.
+				valences: [],
+				viewerDependent: false,
+			});
+			continue;
+		}
 		const configurable = Boolean(CONFIGURABLE_FILTER_INFO[name]);
 		const filter = configurable ? defaultConfigurableFilter(name) : name;
+		const id = configurable ? `family:${name}` : `filter:${filter}`;
 		const label = collectionFilterDisplayName(configurable ? name : filter, labels);
 		const detail = collectionFilterDescription(name, filterDescriptions, labels);
-		const match = matchTier(token, label, filterSynonyms(name), [detail]);
+		const match = browsing ? browseMatch : matchTier(token, label, filterSynonyms(name), descriptionScoreFor(id));
 		if (!match) continue;
 		clauseCandidate(
-			configurable ? `family:${name}` : `filter:${filter}`,
+			id,
 			configurable ? 'filter-family' : 'filter',
 			filter,
 			label,
 			detail,
-			match
+			match,
+			{usageKey: id, annotation: configurable ? 'family' : 'filter'}
 		);
 	}
 
@@ -924,42 +1461,62 @@ export const collectionCompletionCandidates = (
 	//it, typing a phrase that is not a filter's name produces an empty list, and
 	//the typed-token spine the whole design rests on has a hole in it.
 	//
-	//It is scored in the FUZZY tier so it sits under every real name match: a
-	//user who typed 'star' meant the Starred filter, and the literal reading is
-	//the fallback rather than the answer. The token used is the RAW one, with any
-	//negation prefix stripped, because that is the text the clause will search
-	//for.
-	if (token.length >= FREE_TEXT_MINIMUM_LENGTH) {
+	//It is scored in the GUESS tier, which is the ranked FLOOR by arithmetic: no
+	//accumulation of personal usage, corpus fit or context can lift it above a
+	//real name match. A user who typed 'star' meant the Starred filter, and the
+	//literal reading is the fallback rather than the answer — it is labeled as
+	//the guess it is. The token used is the RAW one, with any negation prefix
+	//stripped, because that is the text the clause will search for.
+	if (!browsing && token.length >= FREE_TEXT_MINIMUM_LENGTH) {
 		const filter = `${QUERY_FILTER_FAMILY}/${token}`;
 		clauseCandidate(
 			`filter:${filter}`,
 			'filter',
 			filter,
 			collectionFilterDisplayName(filter, labels),
-			FREE_TEXT_DETAIL,
-			{tier: 'fuzzy', matchedOn: token}
+			//THE FALLBACK SAYS THAT IT IS ONE. 'Search card text for "stale"' is
+			//what this row actually does, and naming it that way is what stops it
+			//reading as a confident interpretation when it is the last one.
+			`Search card text for “${token}” — the fallback when nothing else matches. ${FREE_TEXT_DETAIL}.`,
+			{tier: 'guess', matchedOn: token, quality: 0},
+			//A guess is not a habit. Recording acceptances of it would teach the
+			//ranking that this user likes free-text search in general, which is
+			//not a fact about any candidate the list can offer next time.
+			{usageKey: '', annotation: 'text'}
 		);
 	}
 
 	//SET, SORT AND VIEW ARE WORDS IN THE SENTENCE (meta-proposal convergence 7),
-	//so they are typeable like every other word. They change the description
-	//rather than the expression, which is why they carry no valences.
+	//so they are typeable like every other word — and they are SINGLETONS. A
+	//collection has exactly one set, one sort and one view, so accepting one of
+	//these REPLACES the word rather than appending a clause; they change the
+	//description rather than the expression, which is why they carry no valences
+	//and why the palette must never stack them.
 	const sentenceWord = (
 		id : string,
 		kind : CompletionCandidateKind,
 		name : string,
 		label : string,
 		detail : string,
+		aliases : readonly string[],
 		description : CollectionDescription
 	) => {
-		const match = matchTier(token, label, [name], [detail]);
-		//A SENTENCE WORD IS NAMED, NOT DESCRIBED. There are three sets, a
-		//handful of views, and a short list of sorts; a person types their names.
-		//Matching their prose instead turned the generated line 'Orders this
-		//collection by …' into a hit for the token 'or', which put every sort in
-		//the app above whatever the user was actually reaching for. So these
-		//kinds match by name and by their URL token, and stop there.
-		if (!match || match.tier === 'description' || match.tier === 'fuzzy') return;
+		//A SENTENCE WORD IS NAMED, NOT DESCRIBED. There are three sets, two
+		//views, and a short list of sorts; a person types their names. Matching
+		//their prose instead turned the generated line 'Orders this collection
+		//by …' into a hit for the token 'or', which put every sort in the app
+		//above whatever the user was actually reaching for. So these kinds match
+		//by name, by their URL token and by curated aliases, and stop there —
+		//the description closure below always answers zero.
+		const match = browsing ? browseMatch : matchTier(
+			token,
+			label,
+			[name, ...aliases, ...phrasedAliases(kind, label)],
+			NO_DESCRIPTION_MATCH
+		);
+		//And a typo is a name mistake, so it stays; the tiers below a name are
+		//what this kind declines.
+		if (!match || match.tier === 'description' || match.tier === 'structural') return;
 		if (seen.has(id)) return;
 		seen.add(id);
 		results.push({
@@ -968,14 +1525,27 @@ export const collectionCompletionCandidates = (
 			label,
 			detail,
 			tier: match.tier,
-			score: scoreFor(match, kind, label, token),
+			score: scoreFor(match.tier, {
+				kind,
+				quality: match.quality,
+				usage: usage[id] || 0,
+				corpusCount: 0,
+				familyPresent: false,
+			}),
 			matchedOn: match.matchedOn,
 			description,
 			valences: [],
 			viewerDependent: false,
+			usageKey: id,
+			annotation: kind,
+			singleton: true,
 		});
 	};
 
+	//THE CURRENT VALUE IS NOT A CANDIDATE. Choosing the set you are already in is
+	//a no-op with a count beside it — the same dead affordance the valence layer
+	//refuses one level down. The sentence itself always shows which one is in
+	//force, and the word's own list marks it; this list is of CHANGES.
 	for (const name of context.setNames || SET_NAMES) {
 		if (name === options.description.set) continue;
 		sentenceWord(
@@ -984,6 +1554,7 @@ export const collectionCompletionCandidates = (
 			name,
 			collectionOptionDisplayName(name),
 			`Starts this collection from the ${collectionOptionDisplayName(name)} set instead.`,
+			SET_ALIASES[name] || [],
 			collectionDescriptionWithSet(options.description, name as SetName)
 		);
 	}
@@ -995,6 +1566,7 @@ export const collectionCompletionCandidates = (
 			name,
 			collectionOptionDisplayName(name),
 			SORTS[name as SortName]?.description || `Orders this collection by ${collectionOptionDisplayName(name)}.`,
+			SORT_ALIASES[name] || [],
 			collectionDescriptionWithSort(options.description, name as SortName)
 		);
 	}
@@ -1006,13 +1578,14 @@ export const collectionCompletionCandidates = (
 			name,
 			collectionOptionDisplayName(name),
 			`Shows this collection as ${collectionOptionDisplayName(name)}.`,
+			VIEW_ALIASES[name] || [],
 			collectionDescriptionWithViewMode(options.description, name as ViewMode)
 		);
 	}
 
 	return results
 		.sort((left, right) => left.score - right.score || left.label.localeCompare(right.label) || left.id.localeCompare(right.id))
-		.slice(0, options.limit === undefined ? 8 : options.limit);
+		.slice(0, options.limit === undefined ? DEFAULT_CANDIDATE_LIMIT : options.limit);
 };
 
 //--- The idle contract -----------------------------------------------------

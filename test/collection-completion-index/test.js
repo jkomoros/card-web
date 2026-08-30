@@ -47,9 +47,9 @@ let serializeCollectionExpression;
 let CARD_FILTER_DESCRIPTIONS;
 let collectionFilterDescription;
 let paletteTypingRows;
-let paletteBrowseRows;
-let buildCollectionFilterCatalog;
+let paletteIdleRows;
 let paletteWordRows;
+let VOCABULARY_SECTION;
 
 //A small closed world. Two tags, one section, so a tag/tag OR and a tag/section
 //OR are both expressible and can be told apart.
@@ -115,29 +115,39 @@ describe('Collection completion index', () => {
 		({ parseCollectionExpression, serializeCollectionExpression } = await import('../../lib/src/collection-expression.js'));
 		({ CARD_FILTER_DESCRIPTIONS } = await import('../../lib/src/filters.js'));
 		({ collectionFilterDescription } = await import('../../lib/src/collection-composer-suggestions.js'));
-		({ paletteTypingRows, paletteBrowseRows, paletteWordRows } = await import('../../lib/src/collection-palette-rows.js'));
-		({ buildCollectionFilterCatalog } = await import('../../lib/src/collection-filter-catalog.js'));
+		({ paletteTypingRows, paletteIdleRows, paletteWordRows, VOCABULARY_SECTION } = await import('../../lib/src/collection-palette-rows.js'));
 	});
 
 	//THE FREE-TEXT READING IS ALWAYS AVAILABLE, so the tier tests below exclude
-	//it: it is not a NAME match and it is deliberately in the fuzzy tier, under
-	//every real one. It has its own pins further down.
+	//it: it is not a NAME match and it is deliberately in the `guess` tier — the
+	//ranked floor, by arithmetic, under every real one. It has its own pins
+	//further down.
 	const isFreeText = (candidate) => Boolean(candidate.filter && candidate.filter.startsWith('query/'));
 
 	describe('matching tiers', () => {
 		//THE TIER ORDER, asserted on one token against four candidates built to
 		//match at exactly one tier each. Anything that reorders the tiers reorders
 		//this list.
-		it('ranks name over alias over description over fuzzy', () => {
+		//THE TIER ORDER, ROUND 2. `fuzzy` split into two tiers that were doing
+		//two different jobs under one name: a bounded edit-distance TYPO hit
+		//(evidence the user meant that NAME and mistyped it) now sits ABOVE the
+		//description tier, and the subsequence fallback — the letters appear in
+		//order, which long names satisfy by accident — became `structural` and
+		//stayed at the bottom. The owner's metric is arrow-downs, and a
+		//transposed letter used to cost the whole ranking.
+		it('ranks name over alias over typo over description over structural', () => {
 			const world = [
 				//name-exact
 				{ filter: 'zebra', category: 'tag', label: 'zebra', detail: 'nothing relevant here' },
 				//alias: the name does not contain the token, a search word does
 				{ filter: 'aardvark', category: 'tag', label: 'Aardvark', detail: 'nothing relevant here', aliases: ['zebra stripes'] },
-				//description: the token starts a word in the prose only
+				//typo: one transposition away from the typed token
+				{ filter: 'zerba-crossing', category: 'tag', label: 'Zerba', detail: 'nothing relevant here' },
+				//description: the token is a word in the prose only
 				{ filter: 'bison', category: 'tag', label: 'Bison', detail: 'A herd of zebra graze nearby' },
-				//fuzzy: z-e-b-r-a appear in order, close together, and at no
-				//better tier — no word of the name starts with 'zebra'
+				//structural: z-e-b-r-a appear in order, close together, and at no
+				//better tier — no word of the name starts with 'zebra' and it is
+				//more than two edits away
 				{ filter: 'zebu-barn', category: 'tag', label: 'Zebu Barn Area', detail: 'nothing relevant here' },
 			].map(candidate => ({
 				...candidate,
@@ -155,10 +165,14 @@ describe('Collection completion index', () => {
 				[
 					['zebra', 'name-exact'],
 					['aardvark', 'alias'],
+					['zerba-crossing', 'typo'],
 					['bison', 'description'],
-					['zebu-barn', 'fuzzy'],
+					['zebu-barn', 'structural'],
 				]
 			);
+			//AND THE GUESS IS THE FLOOR, always, under every one of them.
+			assert.strictEqual(result[result.length - 1].tier, 'guess');
+			assert.ok(isFreeText(result[result.length - 1]));
 		});
 
 		it('prefers a whole-name prefix to a word inside the name', () => {
@@ -333,8 +347,25 @@ describe('Collection completion index', () => {
 			//default to placeholders — `exclude/all-cards` excludes everything, so
 			//the row would silently empty the collection while showing a count.
 			for (const token of ['exclude', 'combine', 'expand', 'either', 'invert']) {
-				const rows = complete(token).filter(candidate => ['combine', 'exclude', 'expand'].includes((candidate.filter || '').split('/')[0]));
-				assert.deepStrictEqual(rows.map(row => row.id), [], `typing “${token}” offered the plumbing`);
+				const rows = complete(token).filter(candidate =>
+					['combine', 'exclude', 'expand'].includes((candidate.filter || '').split('/')[0]));
+				//AS A CLAUSE, never. Their defaults are placeholders —
+				//`exclude/all-cards` empties the collection — so a row that ADDED
+				//one would carry a count that lies about what choosing it does.
+				assert.deepStrictEqual(rows.filter(row => row.valences.length).map(row => row.id), [],
+					`typing “${token}” offered the plumbing as a clause`);
+				//AS A ROUTE INTO SOURCE, yes, and this is a round-2 addition
+				//rather than a relaxation. The vocabulary is supposed to be
+				//complete, and these three used to be reachable only through the
+				//deleted `Browse all filters` feed — so deleting that feed
+				//without this would have deleted them from the product. They
+				//still never appear as UI nouns: the only way to this row is to
+				//type the word yourself.
+				for (const row of rows) {
+					assert.ok(row.sourceFilter, `${row.id} must be a Source route, not a clause`);
+					assert.deepStrictEqual(row.valences, []);
+					assert.strictEqual(row.description, undefined, 'and it promises no collection');
+				}
 			}
 			//They are still reachable as what they actually are: the valences.
 			const published = complete('not published').find(candidate => candidate.filter === 'published');
@@ -683,21 +714,45 @@ describe('Collection completion index', () => {
 				'the negated row must not explain itself with the positive clause’s sentence');
 		});
 
-		it('lets an exact match outrank a seeded contextual row in Browse all', () => {
-			//The catalog sorts by relevance FIRST; regrouping by a fixed category
-			//order threw that away, so "Suggested for this card" led whatever the
-			//user had typed — and Tab, which takes the top row, added it.
-			const world = candidates().map(candidate =>
-				candidate.filter === 'notes-section' ? {...candidate, spotlight: true} : candidate);
-			const description = draft('everything/');
-			const items = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, world, description, 'starred');
-			const rows = paletteBrowseRows(items, description);
-			assert.ok(rows.length, 'something must match');
-			assert.strictEqual(rows[0].filter, 'starred',
-				`an exact name match must lead: ${rows.slice(0, 4).map(row => `${row.section}/${row.filter}`).join(', ')}`);
-			//And with no query the wall keeps its authored category order.
-			const idle = paletteBrowseRows(buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, world, description, ''), description);
-			assert.strictEqual(idle[0].section, 'Suggested for this card');
+		//SUPERSEDED PIN (D1). This used to assert that the `Browse all filters`
+		//feed's category regrouping preserved the catalog's match ranking. That
+		//feed is deleted — the one list contains the whole vocabulary, so there
+		//is nothing to browse TO — and with it went paletteBrowseRows and the
+		//category walls it grouped by.
+		//
+		//What replaced it is asserted here instead: the idle list IS the
+		//vocabulary, it arrives through the same scoring function as the typed
+		//list (an empty token, matching everything at the `vocabulary` tier),
+		//and it carries ONE section rather than a wall per category.
+		it('puts the whole vocabulary in one ranked run when nothing is typed', () => {
+			const idle = collectionCompletionCandidates({
+				token: '',
+				expression: [],
+				description: draft('everything/'),
+				context: { candidates: candidates(), filterDescriptions: CARD_FILTER_DESCRIPTIONS },
+				//THE CALLER ASKS FOR THE WHOLE VOCABULARY EXPLICITLY. "The list
+				//IS browse-all" is a decision the palette makes, so the default
+				//limit stays what the typed list wants.
+				limit: 1000,
+			});
+			assert.ok(idle.length > 100, `the idle list is the whole vocabulary: ${idle.length} rows`);
+			assert.ok(idle.every(candidate => candidate.tier === 'vocabulary'),
+				'with nothing typed, nothing is a better or worse MATCH — only a more or less likely pick');
+			//Every family of thing is in it.
+			const kinds = new Set(idle.map(candidate => candidate.kind));
+			for (const kind of ['value', 'filter', 'filter-family', 'set', 'sort']) {
+				assert.ok(kinds.has(kind), `the idle list is missing every ${kind}: ${[...kinds].join(', ')}`);
+			}
+			//And no free-text guess: there is no text to guess about. (The query
+			//FAMILY is in the list, spelled with its own default — that is a
+			//family row like any other, not the guess-tier fallback.)
+			assert.ok(!idle.some(candidate => candidate.tier === 'guess'),
+				'nothing typed means nothing to search for');
+			//ONE SECTION, NOT A WALL PER CATEGORY.
+			const rows = paletteIdleRows([], [], paletteTypingRows(idle, draft('everything/')));
+			assert.deepStrictEqual([...new Set(rows.map(row => row.section))], [VOCABULARY_SECTION]);
+			assert.ok(rows.some(row => row.annotation === 'tag'),
+				'the category survives as a quiet annotation on the row');
 		});
 
 		it('marks the sort and view already in force rather than deleting them', () => {

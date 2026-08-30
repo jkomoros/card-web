@@ -37,7 +37,6 @@
 
 import {
 	CollectionDescription,
-	collectionDescriptionWithFilterAppended,
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSort,
 	collectionDescriptionWithSortReversed,
@@ -62,11 +61,6 @@ import {
 	CollectionComposerSuggestion,
 	collectionOptionDisplayName,
 } from './collection-composer-suggestions.js';
-
-import {
-	CollectionFilterCatalogItem,
-	collectionFilterCatalogCategories,
-} from './collection-filter-catalog.js';
 
 import {
 	SET_INFOS,
@@ -146,6 +140,17 @@ export type PaletteRow = {
 	//it changes nothing; it is here so a list of alternatives says which one you
 	//are looking at.
 	current? : boolean;
+	//A QUIET WORD SAYING WHAT KIND OF THING THIS IS ('tag', 'section', 'sort').
+	//The idle list is the whole vocabulary in ONE ranked run, so a row has to be
+	//able to say what it is without the list growing category walls to say it
+	//for them — that wall is exactly what the redesign deleted.
+	annotation? : string;
+	//The key this row's acceptance is remembered under, for the personal-usage
+	//store. Absent for rows there is nothing to learn from.
+	usageKey? : string;
+	//This row REPLACES a word in the sentence rather than appending a clause:
+	//the set, the sort, the view. The palette must never stack these.
+	singleton? : boolean;
 };
 
 //THE RECOVERY SECTION, and it exists only when there is something to recover
@@ -193,23 +198,67 @@ const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : s
 	destinationPath: suggestion.destinationPath,
 });
 
-//THE IDLE CONTRACT, IN TWO SECTIONS AND NOTHING ELSE. The cap on the second one
-//is the completion index's (IDLE_CONTEXTUAL_ROW_LIMIT); this only names the
-//sections, because "recents first, always" is a promise about ORDER and order is
-//what a flat list has instead of layout.
+//THE IDLE CONTRACT, IN THREE RUNS: recents, the pre-configured suggestions, and
+//then THE ENTIRE VOCABULARY.
+//
+//This is the owner's round-2 correction, and it reverses a decision the previous
+//build made deliberately. The old contract was "recents + 3 contextual rows and
+//nothing else", with everything else behind a `Browse all filters` link. The
+//owner's model is the opposite: "the list should show some pre-configured items
+//(recents/suggestions) but also just filter the WHOLE set — don't hide the full
+//set of filters, it shows the power." A gate that hides the vocabulary makes the
+//product look smaller than it is, and it makes typing feel like a search against
+//an unknown index rather than a filter over a visible one.
+//
+//The cap on the SECOND run is unchanged (IDLE_CONTEXTUAL_ROW_LIMIT); those are
+//still the deterministic contextual rows, and complaint #6 was about THEM being
+//arbitrary, not about the vocabulary being absent.
+//
+//THE THIRD RUN IS ONE SECTION, NOT A WALL. It is ranked purely by personal
+//likelihood — usage, corpus fit, description context — and every row carries a
+//quiet annotation saying what kind of thing it is. Grouping it by category would
+//rebuild the catalog inside the list it replaced, and the categories would then
+//outrank the ranking, which is precisely the defect that made 'Suggested for
+//this card' beat an exact name match under the old Browse-all feed.
+export const VOCABULARY_SECTION = 'Everything you can add';
+
 export const paletteIdleRows = (
 	recents : readonly CollectionComposerSuggestion[],
-	contextual : readonly CollectionComposerSuggestion[]
-) : PaletteRow[] => [
-	...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION)),
-	//"REMOVE X" ROWS ARE DELETED, and the design says where their question went:
-	//`without this pill: N` in the pill row answers it, beside the clause it is
-	//about, instead of in a list of offers to undo things the user chose. A
-	//clause exists in exactly one place — the sentence — and its removal belongs
-	//there too.
-	...contextual.filter(suggestion => suggestion.action !== 'remove')
-		.map(suggestion => rowForSuggestion(suggestion, REFINE_SECTION)),
-];
+	contextual : readonly CollectionComposerSuggestion[],
+	vocabulary : readonly PaletteRow[] = []
+) : PaletteRow[] => {
+	const rows = [
+		...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION)),
+		//"REMOVE X" ROWS ARE DELETED, and the design says where their question
+		//went: `without this pill: N` in the pill row answers it, beside the
+		//clause it is about, instead of in a list of offers to undo things the
+		//user chose. A clause exists in exactly one place — the sentence — and
+		//its removal belongs there too.
+		...contextual.filter(suggestion => suggestion.action !== 'remove')
+			.map(suggestion => rowForSuggestion(suggestion, REFINE_SECTION)),
+	];
+	//A ROW THAT IS ALREADY ABOVE IS NOT SHOWN AGAIN. The suggestion feed and the
+	//vocabulary feed are two views of one world, so they overlap by design; the
+	//dedupe is on the EDIT (a row's own description), which is the same identity
+	//the typing feed dedupes on, so "the same offer twice" cannot survive either
+	//path.
+	//
+	//EXCEPT FOR THE ROWS THAT MAKE NO EDIT. A row that opens Source carries the
+	//draft's own description because nothing has been added yet — so all three
+	//of them serialize identically, and an edit-keyed dedupe silently kept the
+	//first and deleted the rest. Those rows are identified by the family they
+	//open at, which is the thing that actually differs between them.
+	const identityOf = (row : PaletteRow) : string =>
+		row.sourceFilter ? `source:${row.sourceFilter}` : row.description.serialize();
+	const seen = new Set(rows.map(identityOf));
+	for (const row of vocabulary) {
+		const identity = identityOf(row);
+		if (seen.has(identity)) continue;
+		seen.add(identity);
+		rows.push({...row, section: VOCABULARY_SECTION});
+	}
+	return rows;
+};
 
 //--- Valences (the typing feed) --------------------------------------------
 
@@ -274,6 +323,31 @@ export const paletteTypingRows = (
 			});
 			continue;
 		}
+		if (candidate.sourceFilter) {
+			//A CLAUSE THIS LAYER WILL NOT COMPOSE. Source is the honest offer —
+			//it carries the draft's own description, because nothing has been
+			//added yet and a count here would be a number for a clause that does
+			//not exist.
+			rows.push({
+				id: candidate.id,
+				kind: 'transform',
+				section,
+				label: candidate.label,
+				detail: candidate.detail,
+				navigates: false,
+				description,
+				sourceFilter: candidate.sourceFilter,
+				filter: candidate.filter,
+				//This row's whole content is "name + what it is for"; without
+				//the line there is no way to tell what opening Source would even
+				//be for.
+				alwaysDetail: true,
+				annotation: candidate.annotation,
+				usageKey: candidate.usageKey,
+				viewerDependent: candidate.viewerDependent,
+			});
+			continue;
+		}
 		if (!candidate.valences.length) {
 			//A sentence word: set, sort or view. It replaces a word in the
 			//sentence and leaves the conditions alone.
@@ -287,6 +361,12 @@ export const paletteTypingRows = (
 				navigates: false,
 				description: candidate.description,
 				viewerDependent: candidate.viewerDependent,
+				annotation: candidate.annotation,
+				usageKey: candidate.usageKey,
+				//A SET, A SORT AND A VIEW ARE NOT STACKING CLAUSES. The flag
+				//rides the row so the palette can refuse to treat accepting one
+				//as an append, wherever the row came from.
+				singleton: candidate.singleton,
 			});
 			continue;
 		}
@@ -322,6 +402,8 @@ export const paletteTypingRows = (
 				targetLabel: valence.targetLabel,
 				targetIndex: valence.targetIndex,
 				viewerDependent: candidate.viewerDependent,
+				annotation: candidate.annotation,
+				usageKey: candidate.usageKey,
 			});
 		}
 	}
@@ -347,75 +429,25 @@ export const paletteOrScopedRows = (
 	paletteTypingRows(candidates, description, section)
 		.filter(row => row.valenceKind === 'or' && row.targetIndex === targetIndex);
 
-//--- Browse all -------------------------------------------------------------
+//--- Browse all, deleted ----------------------------------------------------
 
-//THE CATALOG STOPS BEING A PLACE (meta-proposal convergence 5). What survives is
-//one quiet link that seeds THIS list with every family under the same headings —
-//one line each, name and gray description. No examples, no Not toggles, no
-//"Show N more", no setup strip: those were the wall, and the wall is what the
-//owner's complaints were about.
+//THE `Browse all filters` GATE IS GONE, AND SO IS THE FEED BEHIND IT.
 //
-//The DATA is the catalog module's, unchanged and still tested on its own terms.
-//Only the surface died.
-//THE CATALOG'S RANKING SURVIVES ITS REGROUPING.
+//The previous build kept the catalog's DATA behind a quiet link that seeded this
+//list with every family under its own category headings. The owner's round-2
+//model retires the link and the headings together: "the list should show some
+//pre-configured items (recents/suggestions) but also just filter the WHOLE set
+//(don't hide the full set of filters — it shows the power)". A list that already
+//contains the whole vocabulary has nothing to browse TO, and a second feed over
+//the same data could only ever rank it differently from the one feed that
+//matters — which is exactly what happened: the category order outranked the
+//match relevance, and Tab added the wrong filter.
 //
-//The catalog already sorts by match relevance FIRST and by category second, so
-//an exact name match is its first item whatever category it is in. Regrouping
-//by a fixed category order threw that away: 'Suggested for this card' is the
-//first heading, so a seeded contextual row outranked the exact match for what
-//the user had actually typed — and Tab, which takes the top row, added the
-//wrong filter. (Observed: Browse-all open, an exact filter name typed, Tab.)
-//
-//Categories are therefore ordered by WHERE THEIR BEST ITEM RANKS, and the items
-//inside one keep the catalog's own order. With no query every item ranks
-//equally and the catalog's second sort key is the category order itself, so the
-//idle Browse list is unchanged; with a query the first row is the catalog's
-//best match, by construction.
-const categoriesByBestMatch = (items : readonly CollectionFilterCatalogItem[]) : string[] => {
-	const best = new Map<string, number>();
-	for (const [index, item] of items.entries()) {
-		if (!best.has(item.category)) best.set(item.category, index);
-	}
-	return [...collectionFilterCatalogCategories]
-		.filter(category => best.has(category))
-		.sort((left, right) => (best.get(left) ?? 0) - (best.get(right) ?? 0));
-};
-
-export const paletteBrowseRows = (
-	items : readonly CollectionFilterCatalogItem[],
-	description : CollectionDescription
-) : PaletteRow[] => {
-	const rows : PaletteRow[] = [];
-	for (const category of categoriesByBestMatch(items)) {
-		for (const item of items) {
-			if (item.category !== category) continue;
-			//A FAMILY HAS NO COLLECTION YET; A PLAIN FILTER DOES. The first keeps
-			//the draft's own description, because its arguments have not been
-			//chosen and any count beside it would be a number for a clause that
-			//does not exist. The second is a whole clause already, so its row
-			//carries the collection it would produce — which is what makes
-			//choosing it an ordinary add rather than a special case.
-			const guidedClause = item.guided && !item.configurable;
-			rows.push({
-				id: `browse:${item.filter}`,
-				kind: 'transform',
-				section: category,
-				label: item.label,
-				detail: item.detail,
-				navigates: false,
-				description: guidedClause ? collectionDescriptionWithFilterAppended(description, item.filter) : description,
-				//A clause this layer cannot compose opens in Source instead of
-				//pretending to a guided editor.
-				sourceFilter: item.guided ? undefined : item.filter,
-				configurable: item.configurable,
-				filter: item.filter,
-				alwaysDetail: true,
-				viewerDependent: false,
-			});
-		}
-	}
-	return rows;
-};
+//The vocabulary now arrives through paletteIdleRows' third run, built by the
+//completion index with an empty token, ranked by the one scoring function, and
+//annotated per row instead of walled per category. collection-filter-catalog
+//survives as the metadata-quality gate it always also was (its test sweeps every
+//filter description for internal identifiers); it no longer feeds a surface.
 
 //--- Sentence words ---------------------------------------------------------
 

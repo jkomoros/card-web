@@ -207,7 +207,14 @@ const NO_HOVER_NAME_BUDGET = 0;
 //now. What changed is which population they belong to — they are icon-only
 //today, which the two ZERO budgets above cover, and both are still zero.
 //Measured, not assumed: the old survey run against the new tree reports 6.
-const UNCLASSIFIABLE_BUDGET = 6;
+//
+//It FELL TO 5 when the composer's 'Browse all filters' link was deleted (the
+//palette's one list now contains the whole vocabulary, so there is nothing to
+//browse to). That button's body was a bare interpolation — a ternary over two
+//literal strings — so it was in this population and is now gone. A budget that
+//falls is a ratchet doing its job: it is lowered here so that re-adding a
+//button the survey cannot classify has to be a deliberate edit to this line.
+const UNCLASSIFIABLE_BUDGET = 5;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
 

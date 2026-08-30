@@ -173,10 +173,21 @@ export const collectionDraftReceipt = (
 	const changes: string[] = [];
 	if (removed.length) changes.push(`Removed ${namedList(removed.map(name))}`);
 	if (added.length) changes.push(`Added ${namedList(added.map(name))}`);
-	if (before.set !== after.set) changes.push(`Changed the starting set to ${collectionOptionDisplayName(after.set)}`);
-	if (before.sort !== after.sort) changes.push(`Changed the order to ${collectionOptionDisplayName(after.sort)}`);
+	//THE SINGLETONS NAME THEIR NEW STATE, NOT THE ACT OF CHANGING IT.
+	//
+	//'Changed the starting set to Everything' is a sentence about the edit;
+	//'Starting from Everything' is a sentence about the collection, and the
+	//collection is what the user is looking at. These three are SINGLETONS — a
+	//collection has exactly one set, one order and one view — so there is no
+	//ambiguity for the verb to resolve: saying where you are now says everything
+	//saying what you did would have, in fewer words and in the same voice the
+	//sentence above the receipt already speaks.
+	//
+	//Reversal keeps its verb, because 'reversed' IS the state.
+	if (before.set !== after.set) changes.push(`Starting from ${collectionOptionDisplayName(after.set)}`);
+	if (before.sort !== after.sort) changes.push(`Sorted by ${collectionOptionDisplayName(after.sort)}`);
 	if (before.sortReversed !== after.sortReversed) changes.push(after.sortReversed ? 'Reversed the order' : 'Restored the normal order');
-	if (before.viewMode !== after.viewMode) changes.push(`Changed the view to ${collectionOptionDisplayName(after.viewMode)}`);
+	if (before.viewMode !== after.viewMode) changes.push(`Shown as ${collectionOptionDisplayName(after.viewMode)}`);
 	else if (before.viewModeExtra !== after.viewModeExtra) changes.push('Changed the focus card');
 	if (!changes.length) return 'Updated this draft';
 	return changes.join(' · ');

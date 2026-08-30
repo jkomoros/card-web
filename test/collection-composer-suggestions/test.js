@@ -626,11 +626,16 @@ describe('Collection Composer suggestions', () => {
 		);
 		assert.strictEqual(
 			collectionDraftReceipt(base, CollectionDescription.deserialize('everything/')),
-			'Changed the starting set to Everything'
+			//SUPERSEDED PIN (D4). The singleton receipts used to narrate the
+			//EDIT ('Changed the starting set to Everything'); they now name the
+			//STATE ('Starting from Everything'), which is the sentence the
+			//collection is actually in and the wording the round-2 feedback
+			//asked for. Same voice as the sentence above the receipt.
+			'Starting from Everything'
 		);
 		assert.strictEqual(
 			collectionDraftReceipt(base, CollectionDescription.deserialize('main/sort/recent/')),
-			'Changed the order to Recent'
+			'Sorted by Recent'
 		);
 		assert.strictEqual(
 			collectionDraftReceipt(base, CollectionDescription.deserialize('main/starred/unread/working-notes/')),

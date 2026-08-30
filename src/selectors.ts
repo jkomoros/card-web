@@ -1562,6 +1562,12 @@ export const selectCollectionComposerCandidates = createSelector(
 				aliases: [id, section.title, 'section'],
 				valueLabel: section.title,
 				clauseLabel: `Section ${section.title}`,
+				//THE CORPUS-FIT TERM IN THE COMPLETION RANKING: how much of the
+				//corpus this value actually covers. A section's own membership
+				//list is the cheapest honest answer and it is already in the
+				//store. Never displayed — a row's number comes from running the
+				//collection, which is a fresher and different fact.
+				corpusCount: (section.cards || []).length,
 			})),
 			...Object.entries(tags).filter(([id]) => !reserved.has(id) && !sectionIDs.has(id)).map(([id, tag]) => ({
 				filter: id,
@@ -1571,6 +1577,7 @@ export const selectCollectionComposerCandidates = createSelector(
 				aliases: [id, tag.title, 'tag', 'tagged'],
 				valueLabel: tag.title,
 				clauseLabel: `Tagged ${tag.title}`,
+				corpusCount: (tag.cards || []).length,
 			})),
 			...Object.entries(CARD_TYPE_CONFIGURATION).map(([id, configuration]) => ({
 				filter: id,

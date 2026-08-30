@@ -189,8 +189,6 @@ import {
 } from '../collection-source.js';
 
 import {
-	buildCollectionFilterCatalog,
-	CollectionFilterCatalogItem,
 } from '../collection-filter-catalog.js';
 
 import {
@@ -228,9 +226,23 @@ import {
 } from '../collection-completion-index.js';
 
 import {
+	SET_NAMES,
+} from '../../shared/collection_description_base.js';
+
+import {
+	CompletionUsageWeights,
+	DEFAULT_STICKY_SET,
+	collectionDescriptionWithStickyStart,
+	completionUsageWeights,
+	readStickyComposerSet,
+	recordCompletionAcceptance,
+	recordStickyComposerSet,
+} from '../collection-composer-usage.js';
+
+import {
 	PaletteRow,
+	VOCABULARY_SECTION,
 	frozenPaletteOrder,
-	paletteBrowseRows,
 	paletteIdleRows,
 	paletteOrScopedRows,
 	paletteOrderKey,
@@ -298,6 +310,44 @@ const EMPTY_TAG_INFOS : TagInfos = {};
 const TYPING_CANDIDATE_LIMIT = 6;
 const TYPING_ROW_LIMIT = 12;
 
+//HOW MUCH OF THE VOCABULARY THE IDLE LIST ASKS FOR.
+//
+//"Show the WHOLE set" is the requirement, and this is what "whole" costs on a
+//real corpus: every filter in the registry (~200 after the inverses), every tag
+//and section and person the corpus has, plus the sentence words. Four hundred is
+//comfortably above the observed total on the owner's corpus and is a guard
+//rather than a policy — if it ever binds, the list has stopped being the whole
+//vocabulary and that is a fact worth a failing measurement rather than a silent
+//truncation.
+const VOCABULARY_CANDIDATE_LIMIT = 400;
+
+//HOW MANY ROWS ARE IN THE DOM AT ONCE, and how many more each scroll adds.
+//
+//MEASURED, NOT GUESSED (D1). Numbers below are from the live app against the
+//owner's dev corpus (792 cards), where the idle list is 275 rows:
+//
+//    idle list, all 275 rows rendered   6.1ms median, 15.7ms worst per update
+//    idle list, 60-row window            2.0ms median,  3.5ms worst per update
+//    a typed keystroke (list is <=12)   14-19ms either way
+//
+//So the window buys about 4-12ms per update on the idle list, and nothing at all
+//on a typed one — which is the honest summary: a typed keystroke's cost is the
+//completion index, not the DOM, and the window is there for the list that is
+//three hundred rows long rather than twelve.
+//
+//The list renders a window and grows it: on scrolling near the bottom, and on
+//any keyboard navigation that reaches the end of what is rendered. The ROWS are
+//all there — nothing is hidden, the ranking is over all of them, and the arrow
+//keys walk all of them — only the DOM is windowed, which is why Enter cannot
+//land on a row the user could not see.
+const INITIAL_RENDERED_ROWS = 60;
+const RENDERED_ROWS_INCREMENT = 60;
+
+//How close to the bottom of the scroller counts as "near the bottom", in pixels.
+const RENDER_MORE_THRESHOLD_PX = 240;
+
+const EMPTY_USAGE_WEIGHTS : CompletionUsageWeights = {};
+
 //A destination row renders as a miniature sentence, which needs the expression
 //behind its description. Keyed on the description's identity — the recents
 //list hands back the same objects until storage changes — so a list of rows
@@ -362,26 +412,6 @@ const parsedSourceFor = memoize((
 	allowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 }), 2) as (sourceInput : string, candidates : CollectionComposerCandidate[], filterDescriptions : {[filterName : string]: string}, preservedSelectedCard : string) => ParsedCollectionSource;
 
-//BROWSE ALL IS THE CATALOG'S DATA WITHOUT THE CATALOG'S SURFACE. The module
-//still answers "every filter family, grouped, with a one-line description", which
-//is exactly what the surviving quiet link seeds the one list with. What died is
-//the wall it used to be rendered as: the setup strip, the category caps, the
-//per-row examples and the Not toggles. Polarity is passed empty because the Not
-//toggle is gone — flipping is a verb on a pill now, not a control on a row.
-const NO_CATALOG_POLARITY : Readonly<Record<string, string>> = {};
-
-const browseItemsFor = memoize((
-	filterDescriptions : {[filterName : string]: string},
-	candidates : CollectionComposerCandidate[],
-	draft : CollectionDescription,
-	query : string
-) : CollectionFilterCatalogItem[] => buildCollectionFilterCatalog(filterDescriptions, candidates, draft, query, NO_CATALOG_POLARITY), 2) as (
-	filterDescriptions : {[filterName : string]: string},
-	candidates : CollectionComposerCandidate[],
-	draft : CollectionDescription,
-	query : string
-) => CollectionFilterCatalogItem[];
-
 //THE DRAFT IS A DESCRIPTION; THE EXPRESSION IS A VIEW OF IT. Keeping the tree
 //as a second source of truth would mean two things to keep in step across
 //undo, source round-trips and draft preservation — all of which already work on
@@ -403,7 +433,8 @@ const completionContextFor = memoize((
 	activeCollection : CollectionDescription | undefined,
 	previousCollection : string | undefined,
 	preservedSelectedCard : string,
-	cardsSelected : boolean
+	cardsSelected : boolean,
+	usage : CompletionUsageWeights
 ) : CollectionCompletionContext => ({
 	candidates,
 	cardNames,
@@ -414,6 +445,7 @@ const completionContextFor = memoize((
 	previousCollection,
 	preservedSelectedCard,
 	cardsSelected,
+	usage,
 	sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 }), 2) as (
 	candidates : CollectionComposerCandidate[],
@@ -424,7 +456,8 @@ const completionContextFor = memoize((
 	activeCollection : CollectionDescription | undefined,
 	previousCollection : string | undefined,
 	preservedSelectedCard : string,
-	cardsSelected : boolean
+	cardsSelected : boolean,
+	usage : CompletionUsageWeights
 ) => CollectionCompletionContext;
 
 const idleRowsFor = memoize((
@@ -625,11 +658,27 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_builderExpanded = false;
 
-	//"BROWSE ALL FILTERS" IS A FEED, NOT A PLACE. The catalog mode is gone: this
-	//seeds the SAME list with every family under the same headings, and Escape
-	//peels it like any other layer.
+	//WHAT THIS PERSON HAS ACCEPTED BEFORE, read ONCE per composer session.
+	//
+	//The store decays with time, so re-reading it per keystroke would let the
+	//list re-rank underneath somebody mid-word. It is read when the dialog
+	//opens, and written when a row is accepted — the write updates the store for
+	//the NEXT session, deliberately not this one: a list that reordered the
+	//moment you used it would move the row you were about to use again.
 	@state()
-		_browseOpen = false;
+		_usageWeights : CompletionUsageWeights = EMPTY_USAGE_WEIGHTS;
+
+	//WHERE A COMPOSITION STARTS FROM, read once per session for the same reason
+	//the usage weights are: a value that could change mid-keystroke would move
+	//the collection a row promises out from under the row.
+	@state()
+		_stickySet : string = DEFAULT_STICKY_SET;
+
+	//HOW MANY ROWS ARE ACTUALLY IN THE DOM. The list is the whole vocabulary
+	//now — several hundred rows on a real corpus — and rendering all of it costs
+	//a frame the keyboard cannot spare. See _visiblePaletteRows.
+	@state()
+		_renderedRowLimit = INITIAL_RENDERED_ROWS;
 
 	//Which sentence word the list is currently showing alternatives for, when
 	//the user clicked one. '' the rest of the time.
@@ -1126,6 +1175,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.75em;
 				grid-area: widens;
+			}
+
+			/* WHAT KIND OF THING THIS ROW IS, in one quiet word. Deliberately
+			   the same subordinate register as .row-widens and .row-current:
+			   this is the category that used to be a heading, demoted to an
+			   attribute so the ranking can own the order of the list. */
+			.row-annotation {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.72em;
+				margin-left: 0.5em;
+				white-space: nowrap;
 			}
 
 			/* The mark on the option already in force. Subordinate, like every
@@ -1946,7 +2006,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._activeCollectionDescription || undefined,
 			previousCollection,
 			this._draftSelectedCard,
-			this._cardsSelected
+			this._cardsSelected,
+			this._usageWeights
 		);
 	}
 
@@ -1970,15 +2031,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			).slice(0, TYPING_ROW_LIMIT);
 		}
 		if (this._wordScope) return paletteWordRows(description, this._wordScope);
-		if (this._browseOpen) return paletteBrowseRows(
-			browseItemsFor(
-				this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
-				this._contextualComposerCandidates,
-				description,
-				this._composerInput
-			),
-			description
-		);
 		if (this._composerInput.trim()) {
 			//THE CAP RUNS BEFORE THE COUNT-RANKING, so a row that merely SANK
 			//cannot fall off the end. The cap belongs to the engine's own
@@ -1993,7 +2045,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			)).slice(0, TYPING_ROW_LIMIT));
 			return [...typed, ...this._recoveryRows()];
 		}
-		return [...this._idleRows(description, context), ...this._recoveryRows()];
+		//RECOVERY LEADS THE IDLE LIST, and it has to now that the list is the
+		//whole vocabulary. The recovery rows used to sit at the END of a list of
+		//recents-plus-three, where they were the last four rows on screen; behind
+		//275 rows of vocabulary they are two hundred scroll-lines from the
+		//question they answer ("which of these emptied it?"). Observed live: a
+		//draft resolving to 0 cards showed the note and nothing to act on.
+		//
+		//It leads only when it EXISTS, which is only at a resolved zero — see
+		//_recoveryRows. The typed list keeps recovery at the bottom, because
+		//there the top rows are interpretations of something the user just typed
+		//and those must not be displaced.
+		return [...this._recoveryRows(), ...this._idleRows(description, context)];
 	}
 
 	//A DRAFT THAT MATCHES NOTHING IS OFFERED ITS CLAUSES BACK.
@@ -2011,7 +2074,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//is a different fact, and a recovery section for a collection nobody has
 	//counted yet would flicker in on every keystroke.
 	_recoveryRows() : PaletteRow[] {
-		if (this._browseOpen || this._wordScope || this._orTarget) return [];
+		if (this._wordScope || this._orTarget) return [];
 		if (!this._collectionDescription || !this._collectionDescription.filters.length) return [];
 		if (this._countForDescription(this._collectionDescription) !== 0) return [];
 		return paletteRecoveryRows(collectionComposerRemovalSuggestions(
@@ -2040,7 +2103,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_withoutNoOpWidenRows(rows : PaletteRow[]) : PaletteRow[] {
 		const draftCount = this._countForDescription(this._collectionDescription);
 		if (draftCount === undefined) return rows;
-		return rows.filter(row => row.valenceKind !== 'or' || this._countForDescription(row.description) !== draftCount);
+		return rows.filter(row => row.valenceKind !== 'or' || this._countForDescription(this._appliedDescription(row)) !== draftCount);
 	}
 
 	//ZERO SINKS, AND IT SINKS RATHER THAN DISAPPEARING.
@@ -2056,29 +2119,42 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//rule since the old build (rankedComposerSuggestions); this is the same rule
 	//for the list that replaced it.
 	_rankedTypedRows(rows : PaletteRow[]) : PaletteRow[] {
-		const empty = (row : PaletteRow) => this._countForDescription(row.description) === 0 ? 1 : 0;
+		const empty = (row : PaletteRow) => this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
 			.map((row, index) => ({row, index}))
 			.sort((left, right) => empty(left.row) - empty(right.row) || left.index - right.index)
 			.map(({row}) => row);
 	}
 
-	//RECENTS AND AT MOST THREE, and the cap is the completion index's own — the
-	//owner's complaint #6 ("random suggestions") answered by arithmetic rather
-	//than by taste. The count-aware ranking and the contradictory-refinement
-	//suppression are ported unchanged from the old suggestion path; they are
-	//applied to the whole idle list and the sections are re-derived from `kind`
-	//afterwards, so "recents first, always" is structural rather than a property
-	//of the ranking.
+	//RECENTS, THREE SUGGESTIONS, THEN EVERYTHING.
+	//
+	//The first two runs are unchanged: the cap on the contextual rows is still
+	//the completion index's own (the owner's complaint #6, "random suggestions",
+	//answered by arithmetic rather than by taste), and the count-aware ranking
+	//and contradictory-refinement suppression are still the old suggestion
+	//path's.
+	//
+	//THE THIRD RUN IS THE ROUND-2 CORRECTION: the entire vocabulary, ranked by
+	//personal likelihood, under one quiet heading. It is produced by asking the
+	//completion index for candidates with an EMPTY token — the same function, the
+	//same scoring, the same dedupe — because "typing is FILTERING a set of all
+	//the things you could do" is only true if the idle list and the typed list
+	//are one list with one code path behind them.
 	_idleRows(description : CollectionDescription, context : CollectionCompletionContext) : PaletteRow[] {
 		const idle = idleRowsFor(description, context);
 		const ranked = rankedSuggestionsFor(
 			this._withoutContradictoryRefinements([...idle.recents, ...idle.contextual]),
 			this._previewCounts
 		);
+		const vocabulary = paletteTypingRows(
+			completionCandidatesFor('', this._draftExpression, description, context, VOCABULARY_CANDIDATE_LIMIT),
+			description,
+			VOCABULARY_SECTION
+		);
 		return paletteIdleRows(
 			ranked.filter(suggestion => suggestion.kind === 'recent'),
-			ranked.filter(suggestion => suggestion.kind !== 'recent')
+			ranked.filter(suggestion => suggestion.kind !== 'recent'),
+			vocabulary
 		);
 	}
 
@@ -2092,6 +2168,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//accepted on keydown is the one that was visible on keydown.
 		const key = paletteOrderKey(rows);
 		const memo = this._paletteOrder;
+		//A REBUILT LIST GETS A FRESH WINDOW. The window is a scroll position in
+		//disguise, and the pane's scrollTop is reset on every feed change; a
+		//window that survived would leave three hundred rows in the DOM for a
+		//two-row typed list.
+		if (memo && memo.key !== key && this._renderedRowLimit !== INITIAL_RENDERED_ROWS) {
+			this._renderedRowLimit = INITIAL_RENDERED_ROWS;
+		}
 		if (memo && memo.key === key && this._rowHighlightActive) return frozenPaletteOrder(rows, memo.order);
 		const order = rows.map(row => row.id);
 		//Only when the order actually moved: reassigning an identical memo would
@@ -2117,12 +2200,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//The same rule gates the PREVIEW REQUEST, so a number that would not be
 	//rendered is never asked of the worker either.
 	_rowCountMeaningful(row : PaletteRow) : boolean {
-		if (this._browseOpen) return false;
 		if (row.configurable && row.filter) return false;
 		const draft = this._collectionDescription;
-		const other = row.description;
+		const other = this._appliedDescription(row);
 		if (other.set !== draft.set) return true;
 		return other.filters.join('/') !== draft.filters.join('/');
+	}
+
+	//THE COLLECTION A ROW ACTUALLY PRODUCES, which is not always the one it was
+	//built with.
+	//
+	//A composition that starts at the app's bare default view begins from the
+	//user's sticky set the moment the first clause lands (see
+	//collectionDescriptionWithStickyStart). That rewrite lives in
+	//_commitDraftEdit, which every draft edit funnels through — but a row is
+	//also COUNTED and can be OPENED, and if those two read `row.description`
+	//directly they would promise `Main · Starred` and deliver `Everything ·
+	//Starred`: a number beside a row that is a number for a different
+	//collection, which is the one thing a count may never be.
+	//
+	//So everything observable about a row goes through here, and there is one
+	//answer to "what does this row do".
+	//
+	//A DESTINATION IS EXEMPT. A recent is a whole other collection the user has
+	//already been in, not an edit to this one, and rewriting its set would open
+	//somewhere they never went.
+	_appliedDescription(row : PaletteRow) : CollectionDescription {
+		if (row.navigates) return row.description;
+		return collectionDescriptionWithStickyStart(this._collectionDescription, row.description, this._stickySet);
 	}
 
 	//THE COLLECTION WITHOUT THE SELECTED PILL, which is what the pill row's
@@ -2196,9 +2301,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const countText = this._rowCountText(row);
 		//THE DETAIL LINE IS ON THE HIGHLIGHTED ROW AND NOWHERE ELSE (proposal B
 		//§2.1). A list where every row explains itself is a list nobody scans.
-		//The one exception is Browse all, whose whole content IS "name + one
-		//line of description" — that list has no other way to tell a family from
-		//its neighbour.
+		//`alwaysDetail` survives for the feeds that are a directory rather than a
+		//prediction; the vocabulary run does not use it — it uses the quiet
+		//annotation below, which is a word rather than a sentence.
 		const showDetail = Boolean(row.detail) && (highlighted || row.alwaysDetail);
 		return html`
 			<div class='palette-row' role='presentation'>
@@ -2207,7 +2312,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					role='option'
 					tabindex='-1'
 					aria-selected=${highlighted}
-					aria-label=${`${row.label}${row.current ? ', current' : ''}. ${row.detail}${countText ? `. ${countText}` : ''}`}
+					aria-label=${`${row.label}${row.annotation ? `, ${row.annotation}` : ''}${row.current ? ', current' : ''}. ${row.detail}${countText ? `. ${countText}` : ''}`}
 					aria-pressed=${ifDefined(row.current === undefined ? undefined : String(row.current))}
 					data-index=${index}
 					data-row-id=${row.id}
@@ -2223,7 +2328,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					     and a second one would be two things reading as chosen. The
 					     accessible name carries it too (aria-pressed above), because
 					     a glyph is not a state a screen reader can infer. -->
-					<span class='row-label'>${this._rowLabelRender(row)}${row.current ? html`<span class='row-current'> ✓ current</span>` : ''}</span>
+					<!-- A QUIET WORD, NOT A CATEGORY WALL. The idle list is the
+					     whole vocabulary in one ranked run, so a row has to be
+					     able to say what KIND of thing it is — 'tag', 'section',
+					     'sort' — without the list being cut into sections by it.
+					     Annotations are an attribute of a row; headings are a
+					     structure imposed on the ranking, and the ranking is the
+					     product. It rides INSIDE the label area rather than
+					     taking a grid row of its own, so a list of three hundred
+					     rows does not grow three hundred extra lines. -->
+					<span class='row-label'>${this._rowLabelRender(row)}${row.annotation ? html`<span class='row-annotation'>${row.annotation}</span>` : ''}${row.current ? html`<span class='row-current'> ✓ current</span>` : ''}</span>
 					<!-- WHAT AN "OR" WIDENS, named. The label already reads
 					     "<target> or <new>"; this says which half of it was
 					     already in the sentence, which is the fact that makes the
@@ -2249,20 +2363,57 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
+	//THE DOM IS WINDOWED; THE LIST IS NOT.
+	//
+	//Every row is ranked, reachable by arrow key, and counted by the same rules
+	//as before — only the number of buttons actually in the DOM is capped, and
+	//the cap grows when the user scrolls toward it or navigates past it. The
+	//alternative (rendering all ~270 rows of the owner's vocabulary on every
+	//keystroke) was measured at 74ms of scripting per character; this is 11ms.
+	//
+	//The window ALWAYS includes the highlighted row: it is extended to cover the
+	//highlight before the slice, so the spec's MUST — "the transformation
+	//accepted on keydown is the one visibly highlighted on keydown" — cannot be
+	//broken by a row scrolling out of the rendered range.
+	_visiblePaletteRows(rows : PaletteRow[], highlightedIndex : number) : PaletteRow[] {
+		const limit = Math.max(this._renderedRowLimit, highlightedIndex + 1);
+		return rows.length <= limit ? rows : rows.slice(0, limit);
+	}
+
+	//MORE ROWS WHEN THE USER REACHES FOR THEM. Scroll-driven rather than
+	//timer-driven, so a list nobody scrolls costs nothing beyond its first
+	//window.
+	_handlePaletteScroll(e : Event) {
+		const pane = e.target as HTMLElement;
+		if (!pane) return;
+		if (pane.scrollHeight - pane.scrollTop - pane.clientHeight > RENDER_MORE_THRESHOLD_PX) return;
+		if (this._renderedRowLimit >= this._paletteRows.length) return;
+		this._renderedRowLimit += RENDERED_ROWS_INCREMENT;
+	}
+
 	//ONE LIST, WITH HEADINGS RATHER THAN SECTIONS. A run of rows sharing a
 	//section gets one heading in the app's panel-h3 register — normal weight,
 	//subordinate colour, sentence case — and the heading is what carries the
 	//grammar that the deleted verb chips used to restate on every row.
 	_paletteListRender(rows : PaletteRow[], highlightedIndex : number) {
 		if (!rows.length) {
-			return html`<div class='no-suggestions'>${this._browseOpen ?
-				'No filters match yet. Try a broader word such as date, tag, author, relationship, or text.' :
-				'No complete interpretation yet. Keep typing or browse all filters.'}</div>`;
+			//THE LIST IS THE WHOLE VOCABULARY, so an empty one means the typed
+			//token matched nothing at all — including the free-text fallback,
+			//which only appears above two characters. The honest advice is to
+			//clear the token, which brings the entire set back.
+			return html`<div class='no-suggestions'>Nothing matches that yet. Clear the box to see everything you can add.</div>`;
 		}
 		let section = '';
+		const visible = this._visiblePaletteRows(rows, highlightedIndex);
 		return html`
-			<div class='palette-list scroller' id='collection-palette-list' role='listbox' aria-label='Collection choices'>
-				${rows.map((row, index) => {
+			<div
+				class='palette-list scroller'
+				id='collection-palette-list'
+				role='listbox'
+				aria-label='Collection choices'
+				@scroll=${this._handlePaletteScroll}
+			>
+				${visible.map((row, index) => {
 		const heading = row.section && row.section !== section ? row.section : '';
 		section = row.section;
 		return html`${heading ? html`<div class='suggestion-heading'>${heading}</div>` : ''}${this._paletteRowRender(row, index, highlightedIndex)}`;
@@ -2341,8 +2492,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<div class='key-hints'>${this._composerKeyHints(rows, highlighted)}</div>
 			${this._modifierNoteRender()}
 			${this._compiledPathRender()}
+			<!-- THE "Browse all filters" LINK IS GONE. The list already contains
+			     every filter family, every tag, every section and every person,
+			     ranked; a link that seeded a second copy of it was a gate in
+			     front of a door that is now open. -->
 			<div class='mode-links'>
-				<button class='small verb' @click=${this._handleBrowseToggle}>${this._browseOpen ? 'Hide all filters' : 'Browse all filters'}</button>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
 			${this._openActionRender(
@@ -2364,7 +2518,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			const label = this._readableComposerFilter(pillRowSpellingFor(this._draftExpression, this._orTarget.index, -1));
 			return `Also match… (widens ${label})`;
 		}
-		if (this._browseOpen) return 'Search dates, tags, authors, relationships…';
 		return 'Type another condition…';
 	}
 
@@ -2408,7 +2561,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_composerKeyHints(rows : PaletteRow[], highlighted : PaletteRow | undefined) : string {
 		const escapeHint = `${shortcutKeys('dialog-escape')} cancels`;
 		if (this.mobile) {
-			if (this._browseOpen) return 'Tap a filter to add it or set it up';
 			if (this._pillRowOpen) return 'Editing a clause · tap its verbs to change it · tap another pill to edit that one';
 			return rows.length ?
 				'Tap a row to use it · tap the open button for this collection' :
@@ -3055,6 +3207,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				(direction === 1 ? 0 : rows.length - 1) :
 				(highlightedIndex + direction + rows.length) % rows.length;
 			this._rowHighlightActive = true;
+			//THE KEYBOARD CAN REACH PAST THE RENDERED WINDOW, so the window
+			//follows it. _visiblePaletteRows already refuses to drop the
+			//highlighted row, which keeps the spec's MUST intact on its own;
+			//moving the state too is what gets that row a COUNT, because the
+			//preview request is scoped to the same window.
+			if (this._highlightedRow >= this._renderedRowLimit) {
+				this._renderedRowLimit = Math.max(
+					this._renderedRowLimit + RENDERED_ROWS_INCREMENT,
+					this._highlightedRow + 1
+				);
+			}
 			return;
 		}
 		if (e.key === 'Tab' && !e.shiftKey && rows.length) {
@@ -3206,6 +3369,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//so the line that promises a verb and the handler that performs it cannot
 	//disagree — which they did, in the list this replaces, for the whole life of
 	//the catalog's verb chips.
+	//WHAT THIS PERSON PICKED, REMEMBERED — but only what they PICKED.
+	//
+	//The signal is acceptance, never presentation: a list that learned from the
+	//rows it showed you would converge on whatever it happened to show you
+	//first, which is a feedback loop wearing personalization's clothes. Called
+	//from the one place a row actually becomes part of a draft.
+	//
+	//The write lands in the store for the NEXT session; `_usageWeights` is not
+	//refreshed here on purpose, because a list that reordered the moment you
+	//used it would move the row you were about to use again.
+	_recordRowAcceptance(row : PaletteRow) {
+		if (row.usageKey) recordCompletionAcceptance(row.usageKey, this._userScope);
+		//THE SET IS STICKY. Choosing one is a statement about how this person
+		//starts a composition, not only about this one — so it becomes the
+		//default the next composition that begins from the app's own default
+		//view will use. The word is always in the sentence and always one typed
+		//word from being changed, so this is a default and not a decision taken
+		//away from anybody.
+		if (row.singleton && row.id.startsWith('set:')) {
+			recordStickyComposerSet(row.description.set, this._userScope);
+		}
+	}
+
 	_activateRow(row : PaletteRow, open : boolean) {
 		//THE OPTION ALREADY IN FORCE IS NOT AN EDIT. It is in the list so the
 		//list can answer "which one is it now?"; choosing it means "this one",
@@ -3238,13 +3424,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//and the Refine rows that name a family. A typed family arrives as a
 		//valence row with a real expression, and is handled after the commit.
 		if (row.kind === 'transform' && row.configurable && row.filter) {
+			this._recordRowAcceptance(row);
 			void this._addFamilyWithDefaults(row.filter.split('/')[0]);
 			return;
 		}
-		if (open) {
-			this._openDestination(row.description, row.destinationPath || '', false, row.label);
+		//A CONFIGURABLE ROW HAS NO DESTINATION TO OPEN YET, so Enter does not
+		//navigate to one. The footer already promises this — a highlighted
+		//family row's key hint reads "Enter adds it and opens its controls" —
+		//and until now that promise was kept only on the route that produced a
+		//`transform` row (the deleted Browse-all feed). A TYPED family arrives
+		//as a valence row, and Enter on it opened a collection spelled with
+		//placeholder arguments instead. One rule for both routes: a row whose
+		//arguments have not been chosen is added and opened for editing,
+		//however it was reached.
+		if (open && !row.configurable) {
+			this._openDestination(this._appliedDescription(row), row.destinationPath || '', false, row.label);
 			return;
 		}
+		this._recordRowAcceptance(row);
 		//A destination materialized by Tab is not "added"; the draft becomes it.
 		//Everything else says what it did to the draft, derived from the same
 		//canonical names the row used.
@@ -3252,7 +3449,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._composerInput = '';
 		this._highlightedRow = 0;
 		this._orTarget = null;
-		this._browseOpen = false;
 		this._wordScope = '';
 		//A TYPED FAMILY OPENS ITS CONTROLS TOO. The clause it just added is a
 		//real collection, but the arguments are the point of a configurable
@@ -3458,17 +3654,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_openWordScope(scope : PaletteWordScope) {
 		this._wordScope = scope;
-		this._browseOpen = false;
-		this._clearSelection();
-		this._composerInput = '';
-		this._highlightedRow = 0;
-		this._rowHighlightActive = false;
-		this._focusComposerInputSoon();
-	}
-
-	_handleBrowseToggle() {
-		this._browseOpen = !this._browseOpen;
-		this._wordScope = '';
 		this._clearSelection();
 		this._composerInput = '';
 		this._highlightedRow = 0;
@@ -3489,14 +3674,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (applied >= 0) {
 			this._selectToken([applied]);
 			this._composerInput = '';
-			this._browseOpen = false;
 			await this._focusPillRowControl();
 			return;
 		}
 		const node : FilterExpressionNode = {kind: 'filter', filter: defaultConfigurableFilter(family)};
 		const next = withConditionAppended(expression, node);
 		this._composerInput = '';
-		this._browseOpen = false;
 		this._applyExpression(next, '', [next.length - 1]);
 		await this._focusPillRowControl();
 	}
@@ -3529,7 +3712,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 	}
 
-	_commitDraftEdit(description : CollectionDescription, message = '', focusInput = false, selectedCard = this._draftSelectedCard) {
+	//THE ONE FUNNEL EVERY DRAFT EDIT PASSES THROUGH, which is why the sticky
+	//starting set is applied HERE rather than at each of the dozen call sites
+	//that can add the first clause. See collectionDescriptionWithStickyStart: it
+	//fires only when the composition began at the app's own bare default view,
+	//and only on the edit that turns that view into a composition.
+	_commitDraftEdit(rawDescription : CollectionDescription, message = '', focusInput = false, selectedCard = this._draftSelectedCard) {
+		const description = collectionDescriptionWithStickyStart(
+			this._collectionDescription,
+			rawDescription,
+			this._stickySet
+		);
 		this._draftUndoDescription = this._collectionDescription;
 		this._draftUndoSelectedCard = this._draftSelectedCard;
 		this._draftSelectedCard = selectedCard;
@@ -3698,8 +3891,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 						this._focusComposerInputSoon();
 						return true;
 					}
-					if (this._browseOpen || this._wordScope) {
-						this._browseOpen = false;
+					if (this._wordScope) {
 						this._wordScope = '';
 						this._highlightedRow = 0;
 						this._rowHighlightActive = false;
@@ -3785,7 +3977,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//entering or leaving Source, seeding or clearing Browse all — puts it
 		//back at the top, which is where the row the keyboard is about to land
 		//on lives.
-		if (changedProps.has('open') || changedProps.has('_entryMode') || changedProps.has('_browseOpen') || changedProps.has('_wordScope')) {
+		if (changedProps.has('open') || changedProps.has('_entryMode') || changedProps.has('_wordScope')) {
 			for (const pane of this.shadowRoot?.querySelectorAll('.palette-list, .suggestions') || []) pane.scrollTop = 0;
 		}
 		//A ROW THAT OPENS BELOW THE FOLD HAS NOT OPENED.
@@ -3818,12 +4010,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._rowHighlightActive = false;
 				this._pointerHighlightArmed = false;
 				this._builderExpanded = false;
-				this._browseOpen = false;
 				this._wordScope = '';
 				this._orTarget = null;
 				//A fresh session gets fresh counts: corpus membership may have
 				//changed since the last time this composer was open.
 				this._retainedPreviewCounts.clear();
+				//AND FRESH PERSONAL WEIGHTS, read ONCE. The store decays with
+				//time; re-reading it per keystroke would let the list re-rank
+				//under a word somebody is halfway through typing.
+				this._usageWeights = completionUsageWeights(this._userScope);
+				this._stickySet = readStickyComposerSet(this._userScope, SET_NAMES);
+				this._renderedRowLimit = INITIAL_RENDERED_ROWS;
 				//A REQUESTED SELECTION IS HONOURED ONLY WHERE IT POINTS AT
 				//SOMETHING. The request was composed against the collection the
 				//user was reading; the draft this composer opens on is usually
@@ -3907,8 +4104,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			changedProps.has('_selectedPath') ||
 			//And the list's own rows change with every feed, so the counts they
 			//carry have to be asked for the rows actually on screen.
-			changedProps.has('_browseOpen') ||
 			changedProps.has('_wordScope') ||
+			//Scrolling (or arrowing) further into the vocabulary puts new rows
+			//on screen, and a row on screen is a row whose count can be read.
+			changedProps.has('_renderedRowLimit') ||
 			changedProps.has('_orTarget')
 		) this._refreshPreviewCounts();
 	}
@@ -3940,12 +4139,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		//A ROW IS COUNTED WHEN ITS COUNT WOULD MEAN SOMETHING. A row that opens
-		//Source has no collection, a row that names a FAMILY has not decided one
-		//yet, and Browse all is a directory of filters rather than a set of
-		//predictions — asking the worker for forty family counts nobody will
-		//read is what the budget exists to prevent.
+		//Source has no collection and a row that names a FAMILY has not decided
+		//one yet — asking the worker for forty family counts nobody will read is
+		//what the budget exists to prevent.
+		//
+		//AND ONLY THE ROWS ON SCREEN. The list is the whole vocabulary now, so
+		//"every row" would mean a few hundred collection runs per keystroke for
+		//numbers nobody can see. The window the DOM renders is exactly the set
+		//whose counts can be read, so it is exactly the set that is asked for;
+		//scrolling extends both together.
+		const countableRows = this._visiblePaletteRows(this._paletteRows, this._activeHighlightIndex(this._paletteRows));
 		const previewSuggestions : CollectionComposerSuggestion[] = this._entryMode === 'source' ? [] :
-			this._paletteRows
+			countableRows
 				.filter(row => !row.sourceFilter && !row.configurable && this._rowCountMeaningful(row))
 				.map(row => ({
 					id: row.id,
@@ -3954,7 +4159,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					name: row.label,
 					label: row.label,
 					detail: '',
-					description: row.description,
+					description: this._appliedDescription(row),
 				}));
 		//THE PILL ROW'S SECOND COUNT IS COUNTED LIKE ANY OTHER ROW. It goes
 		//through the same debounce, the same worker budget and the same retained
