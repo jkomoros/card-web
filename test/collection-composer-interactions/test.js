@@ -552,10 +552,9 @@ describe('Collection Composer interactions', () => {
 		//palette's own sentence uses — so it reads with quiet interpuncts rather
 		//than the capital AND the drawer's own plain-text summary says.
 		assert.match(rowText(highlightedRow()), /Main · Starred/);
-		//THE FOOTER MAKES NO PER-ROW CLAIM ANY MORE (D6): one contract, whichever
-		//row the keyboard is on, because every row does the same kind of thing.
-		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent,
-			/^Enter does the top thing · /);
+		//SUPERSEDED (owner, F4): this asserted the footer's one-contract line
+		//here too. There is no footer line — see 'renders no key-hints line, in
+		//any state'.
 		await pressComposer('Enter');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 		assert.strictEqual(store.getState().collection.snapshot.sortName, 'recent');
@@ -565,35 +564,111 @@ describe('Collection Composer interactions', () => {
 			'and the composer is still open, with the replaced draft in front of you');
 	});
 
-	//Counts rank the list when it is built. They may keep updating a row the user
-	//is pointing at, but they may not move it out from under them.
-	it('ranks empty rows down when the list is built, and never once it is focused', async () => {
-		const indexOf = (text) => suggestionLabels().findIndex((label) => label.includes(text));
-		assert.strictEqual(indexOf('Starred'), 0);
-		dialog._previewCounts = { 'current-draft-preview': 12, 'add:starred': 0, 'add:unread': 5 };
-		await dialog.updateComplete;
-		assert.ok(indexOf('Unread') < indexOf('Starred'),
-			'a row that yields no cards never sits above one that yields some');
-		assert.notStrictEqual(indexOf('Starred'), 0);
-		//The rows are compared by IDENTITY, not by their rendered text: the
-		//detail line appears only on the highlighted row, so text would report
-		//the highlight moving as the list reordering.
+	//THE LIST SETTLES ONCE, AT BUILD TIME (owner, F2).
+	//
+	//SUPERSEDED PIN: this was 'ranks empty rows down when the list is built, and
+	//never once it is focused'. It set counts on an already-built list, asserted
+	//that the zero-count row SANK immediately, and only then — with a row
+	//highlighted — asserted that further counts moved nothing. That freeze was
+	//real but narrow: it protected the KEYBOARD, and the owner was not using the
+	//keyboard. "When you hit enter and it's empty search, the tags at the bottom
+	//keep changing for a few seconds before settling."
+	//
+	//They were. Five rules read counts to decide the list, every count arrives on
+	//its own worker round trip, and each arrival re-ran all five. So the rule is
+	//now the frozen-order one whole: a list's order is fixed when it is BUILT,
+	//from the counts retained at that instant, and a count arriving afterwards
+	//fills in a NUMBER without moving anything. A re-rank waits for the next
+	//build — a keystroke, a draft edit, an open.
+	it('freezes the list’s order at build time, and lets late counts fill in numbers only', async () => {
 		const order = () => suggestionRows().map((button) => button.dataset.rowId);
-		const focusedOrder = order();
+		const indexOf = (text) => suggestionLabels().findIndex((label) => label.includes(text));
+		const countText = (rowID) => {
+			const row = suggestionRows().find((button) => button.dataset.rowId === rowID);
+			return row ? (row.querySelector('.row-count')?.textContent || '').trim() : null;
+		};
+		assert.strictEqual(indexOf('Starred'), 0);
+		const built = order();
+		assert.ok(built.includes('add:starred') && built.includes('add:unread'),
+			`the idle list offers both rows: ${built.slice(0, 6).join(' | ')}`);
+
+		//A COUNT ARRIVES — the exact event the owner watched — and it lands as a
+		//number without moving a row. Nothing here is focused, arrowed or
+		//hovered: this is the idle list, settling.
+		dialog._previewCounts = { 'current-draft-preview': 12, 'add:starred': 0, 'add:unread': 5 };
+		await settleRender(dialog);
+		assert.deepStrictEqual(order(), built,
+			'the idle list does not reshuffle as counts arrive');
+		assert.match(countText('add:unread') || '', /5 cards/,
+			'and the number the count carried is on the row, in place');
+		assert.match(countText('add:starred') || '', /0 cards/,
+			'including the honest zero, which is the warning and is not hidden');
+
+		//NOR DOES A SECOND WAVE, however it contradicts the first.
+		dialog._previewCounts = { ...dialog._previewCounts, 'add:unread': 0, 'add:starred': 9 };
+		await settleRender(dialog);
+		assert.deepStrictEqual(order(), built, 'nor does a second wave of them');
+
+		//AND THE FREEZE IS NOT A REFUSAL TO RANK. The zero-sink is unchanged; it
+		//simply reads the counts the build had. Retain them — by COLLECTION, the
+		//key the ranking rules ask in — then build, which is what any keystroke
+		//does, and the empty row goes down.
+		const rowFor = (id) => dialog._paletteRows.find((row) => row.id === id);
+		dialog._retainedPreviewCounts.set(dialog._previewCountKey(dialog._collectionDescription), 12);
+		dialog._retainedPreviewCounts.set(dialog._previewCountKey(rowFor('add:starred').description), 0);
+		dialog._retainedPreviewCounts.set(dialog._previewCountKey(rowFor('add:unread').description), 5);
+		await typeComposer('starr');
+		await typeComposer('');
+		const starred = indexOf('Starred');
+		assert.ok(indexOf('Unread') >= 0, 'the row that yields cards is still offered');
+		assert.notStrictEqual(starred, 0,
+			`a row that yields no cards must not lead, once the build knows: ${suggestionLabels().slice(0, 5).join(' | ')}`);
+		//Below the row that yields cards, or suppressed outright if it was an
+		//unsolicited contextual offer — the two count-driven rules, both now
+		//reading the build's own snapshot.
+		assert.ok(starred < 0 || starred > indexOf('Unread'),
+			`and it sits below one that does: ${suggestionLabels().slice(0, 5).join(' | ')}`);
+
+		//AND THE OLD KEYBOARD GUARANTEE IS STRICTLY INSIDE THE NEW ONE.
+		const rankedOrder = order();
 		await pressComposer('ArrowDown');
 		const highlighted = highlightedRow().dataset.rowId;
 		dialog._previewCounts = { ...dialog._previewCounts, 'add:unread': 0, 'add:starred': 9 };
-		await dialog.updateComplete;
-		assert.deepStrictEqual(
-			order(),
-			focusedOrder,
-			'the focused list does not reorder when late counts arrive'
-		);
-		assert.strictEqual(
-			highlightedRow().dataset.rowId,
-			highlighted,
-			'and the row the user is pointing at is still the same row'
-		);
+		await settleRender(dialog);
+		assert.deepStrictEqual(order(), rankedOrder,
+			'the focused list does not reorder when late counts arrive');
+		assert.strictEqual(highlightedRow().dataset.rowId, highlighted,
+			'and the row the user is pointing at is still the same row');
+	});
+
+	//THE BUILD KEY IS WHAT A BUILD IS (owner, F2). Stated directly, because the
+	//whole freeze rests on it: the things that change what the list is ASKED for
+	//are builds, and the things that change what it SAYS are not.
+	it('rebuilds on what was asked, and not on what came back', async () => {
+		const key = () => dialog._paletteBuildKey;
+		const opened = key();
+
+		//A count is not a build, however many arrive.
+		dialog._retainedPreviewCounts.set(dialog._previewCountKey(dialog._collectionDescription), 41);
+		dialog._previewCounts = { ...dialog._previewCounts, 'add:starred': 0 };
+		await settleRender(dialog);
+		assert.strictEqual(key(), opened, 'a count changes what a row says, not what the list was asked');
+
+		//Neither is scrolling further into the vocabulary, nor the highlight.
+		dialog._renderedRowLimit += 20;
+		await pressComposer('ArrowDown');
+		await settleRender(dialog);
+		assert.strictEqual(key(), opened, 'nor the render window, nor the highlight');
+
+		//The typed token is.
+		await typeComposer('star');
+		assert.notStrictEqual(key(), opened, 'the typed token is a build');
+		await typeComposer('');
+		assert.strictEqual(key(), opened, 'and clearing it is another');
+
+		//So is the draft.
+		await seedDraft('everything/starred/');
+		assert.notStrictEqual(key(), opened, 'and so is the draft');
 	});
 
 	it('opens the edited draft only from the explicit primary action', async () => {
@@ -1300,21 +1375,91 @@ describe('Collection Composer interactions', () => {
 		assert.match(styles, /\.composer-input\s*\{[^}]*width:\s*100%/);
 	});
 
-	//THE PALETTE IS A PALETTE, NOT A WORKSPACE. It held seven things and was
-	//pinned to 90% of the viewport for them; it holds four now, so it goes back
-	//to sizing to its content with a cap. The WIDTH stays pinned, for the reason
-	//it always was: .background centres .content, so a list changing under typing
-	//must not be able to move the field being typed into.
-	it('sizes itself as a light palette, with the width still pinned', () => {
+	//THE PALETTE IS A FIXED BOX (owner, F3).
+	//
+	//SUPERSEDED PIN: this was 'sizes itself as a light palette, with the width
+	//still pinned', and it asserted `max-height: 80vh` over the base rule's
+	//content-sizing — the palette holds four things rather than seven, so its
+	//height was handed back to its content with a cap.
+	//
+	//A cap is not a size. The owner: "the dialog changes height as things filter
+	//etc, which makes the part you're looking at jump around on screen
+	//constantly; it should be fixed size." Every keystroke that filtered the
+	//list, every pill row that opened and every count that dropped a row
+	//re-measured the box, and .background centres it, so half of each change came
+	//off the TOP and moved the sentence the user was reading. That is the width
+	//defect, on the other axis, and it takes the width's answer: one value on all
+	//three of height/min-height/max-height.
+	//
+	//JSDOM computes no layout, so what is pinned is the rule that makes the
+	//resize impossible. The measured rects are in the live verification.
+	it('pins the palette’s box on both axes, so nothing it holds can resize it', () => {
 		const styles = composerStyles();
 		const content = styles.match(/\.content\s*\{[^}]*--composer-width[^}]*\}/)[0];
 		assert.match(content, /--composer-width:\s*min\(44em, 92vw\)/, 'the palette’s own measure');
-		assert.match(content, /max-height:\s*80vh/, 'content-height, with a cap');
+		assert.match(content, /--composer-height:\s*min\(40em, 80vh\)/,
+			'and its own window: ten rows of list at rest, capped so a short viewport still fits it');
 		assert.ok(!/\bheight:\s*90%/.test(content), 'the pinned workspace height is gone');
 		for (const property of ['width', 'min-width', 'max-width']) {
-			assert.match(content, new RegExp(`${property}:\\s*var\\(--composer-width\\)`),
+			assert.match(content, new RegExp(`[;{]\\s*${property}:\\s*var\\(--composer-width\\)`),
 				`${property} is pinned so the base rule’s percentages cannot re-enter`);
 		}
+		for (const property of ['height', 'min-height', 'max-height']) {
+			assert.match(content, new RegExp(`[;{]\\s*${property}:\\s*var\\(--composer-height\\)`),
+				`${property} is pinned, or the box sizes to its content again and the sentence moves`);
+		}
+		//A CAP ALONE IS THE DEFECT, so the composer's own rule may not leave one
+		//standing. (DialogElement's base .content rule is in the same
+		//concatenated sheet and keeps its own 90% cap for every other dialog;
+		//this is anchored on the custom property, like the width pin below.)
+		assert.ok(!/max-height:\s*(80vh|90%)/.test(content),
+			'no bare cap may survive on the composer’s own .content rule');
+		//AND THE MOBILE FULL-SCREEN LAYOUT IS UNCHANGED: DialogElement's
+		//`.mobile .content` is height:100%, and it only wins if our own MINIMA
+		//get out of its way.
+		//Anchored on min-width, because DialogElement's own `.mobile .content`
+		//rule is in the same concatenated sheet and comes first.
+		const mobile = styles.match(/\.mobile \.content\s*\{[^}]*min-width:\s*0[^}]*\}/)[0];
+		assert.match(mobile, /min-height:\s*0/, 'a 40em floor must not outlive a phone screen shorter than that');
+
+		//THE LIST IS WHAT FLEXES INSIDE IT. With the box definite, the 40vh cap
+		//on the list is not merely unnecessary — it would hold the list short of
+		//the region and park the difference as a dead band above the footer.
+		const list = styles.match(/\.palette-list,\s*\n\s*\.suggestions\s*\{[^}]*\}/)[0];
+		assert.match(list, /flex:\s*1 1 auto/, 'the list is the one payer and the one recipient');
+		assert.ok(!/max-height/.test(list), 'and it is no longer capped, because the box cannot grow');
+		assert.ok(!/\.mobile \.palette-list,\s*\n\s*\.mobile \.suggestions\s*\{[^}]*max-height:\s*none/.test(styles),
+			'so the full-screen exception that used to undo the cap is gone too');
+	});
+
+	//AND THE PILL ROW TAKES ITS ROOM FROM THE LIST, NOT FROM THE BOX (owner, F3).
+	//
+	//It sits between the sentence and the input, so if it could grow the dialog
+	//the sentence above it would move — which is the exact jump the fixed height
+	//is for. The mechanism is the flex column: every child of the composer's
+	//column is `flex: 0 0 auto` except the list, which is `flex: 1 1 auto`, so a
+	//new fixed-size sibling is paid for out of the list's height and out of
+	//nothing else.
+	it('pays for the pill row out of the list, so the box and the sentence stay put', async () => {
+		const styles = composerStyles();
+		const reserved = styles.match(/\.sentence,[^{]*\{\s*flex:\s*0 0 auto;\s*\}/)[0];
+		for (const part of ['.sentence', '.pill-row', '.composer-input', '.mode-links', '.preview-titles']) {
+			assert.ok(reserved.includes(part + ',') || reserved.includes(part + ' '),
+				`${part} must reserve its own room: ${reserved}`);
+		}
+		assert.match(styles, /\.buttons\.composer-actions\s*\{[^}]*flex:\s*0 0 auto/,
+			'and so must the footer, or a growing pill row takes the commit button’s pixels');
+		//The pill row really does open above the input, which is why this matters.
+		await seedDraft('everything/starred/');
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		assert.ok(pillRow(), 'the row is open');
+		const order = Array.from(dialog.shadowRoot.querySelectorAll('.sentence, .pill-row, .composer-input, .palette-list'))
+			.map((node) => node.classList.contains('sentence') ? 'sentence' :
+				node.classList.contains('pill-row') ? 'pill-row' :
+					node.classList.contains('composer-input') ? 'input' : 'list');
+		assert.deepStrictEqual(order, ['sentence', 'pill-row', 'input', 'list'],
+			'the row is between the sentence and the input, and the list is below both');
 	});
 
 	//SUPERSEDED PIN (round 3, D1). This was 'gives the draft receipt a container
@@ -1394,7 +1539,7 @@ describe('Collection Composer interactions', () => {
 		assert.match(pillRowText(), /Starred/, 'and it names its scope');
 		//A pill with no arguments still has real contents, so a dead Edit
 		//affordance is structurally impossible.
-		for (const verb of ['Or…', 'Flip', 'Remove']) {
+		for (const verb of ['Also match…', 'Flip', 'Remove']) {
 			assert.ok(pillRowVerb(verb), `every pill offers ${verb}`);
 		}
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
@@ -2466,8 +2611,11 @@ describe('Collection Composer interactions', () => {
 			'and so is its rule');
 		//AND THE SCOPE STATES ITS OWN CONTRACT, as the or-scoped input does: a
 		//footer describing the keys of a mode you are not in is a footer lying.
-		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /what to start from/,
-			`the word scope names its own contract: ${dialog.shadowRoot.querySelector('.key-hints').textContent}`);
+		//SUPERSEDED (owner, F4): the word scope used to state its own key
+		//contract on the footer line. The line is deleted in every state, this
+		//one included; what says the scope is in force is the list itself, whose
+		//rows are the alternatives for that word.
+		assert.strictEqual(dialog.shadowRoot.querySelector('.key-hints'), null);
 		suggestionRows().find((button) => rowText(button).startsWith('Main')).click();
 		await settleRender(dialog);
 		assert.strictEqual(store.getState().collection.snapshot.setName, 'main');
@@ -3222,8 +3370,9 @@ describe('Collection Composer interactions', () => {
 		await pressComposer('-');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
 			'flipping is an involution');
-		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /- flips/,
-			'the footer names the key the row performs');
+		//SUPERSEDED (owner, F4): the footer used to name '-' from
+		//PILL_ROW_KEY_HINTS. The key still flips — which is what the two
+		//assertions above just proved — but nothing narrates it.
 	});
 
 	//AND THE OTHER HALF OF THE KEYBOARD GRAMMAR: `+` asks for an alternative,
@@ -3238,10 +3387,10 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		assert.match(input.getAttribute('placeholder'), /Also match/,
 			'and it says which question it is asking');
-		//SUPERSEDED PIN (round 3, D1): the scoped line said 'Tab widens the
-		//clause', because Tab was the add key and Enter navigated. Enter executes
-		//the top action everywhere now, and this layer says so in its own words.
-		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Enter widens the clause/);
+		//SUPERSEDED PIN (round 3, D1 → owner, F4). It said 'Tab widens the
+		//clause', then 'Enter widens the clause'; now it says nothing, because
+		//the or-scoped layer has no footer line either. The placeholder asserted
+		//just above is what tells the user which question is being asked.
 		await typeComposer('unread');
 		const rows = suggestionRows();
 		assert.ok(rows.length, 'the alternatives are the list');
@@ -4023,9 +4172,9 @@ describe('Collection Composer interactions', () => {
 		assert.deepStrictEqual([...dialog._selectedPath], [1], 'the last clause is selected');
 		assert.strictEqual(highlightedRow(), null,
 			'and the list gives up its highlight, so Enter is unambiguous');
-		//The footer names the key before it is pressed, from the module that
-		//performs it.
-		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Enter edits/);
+		//SUPERSEDED (owner, F4): the footer used to name this key before it was
+		//pressed. What the key does is asserted below, which is the pin that
+		//matters.
 
 		await pressComposer('Enter');
 		await settleRender(dialog, pillRow());
@@ -4128,50 +4277,89 @@ describe('Collection Composer interactions', () => {
 		}
 	});
 
-	//THE FOOTER STATES ONE CONTRACT, AND IT DOES NOT MOVE (round 3, D6).
+	//THE COMPOSER RENDERS NO KEY-HINTS LINE, IN ANY STATE (owner, F4).
 	//
-	//SUPERSEDED PIN: this was 'states the key contract the highlighted row
-	//actually has'. It walked four states — nothing highlighted, a destination
-	//('Click or Enter opens · Tab copies it into the draft'), a configurable
-	//family, a refinement ('Click or Tab adds · Enter adds and opens') — and
-	//asserted that each named that row's own verbs. Every one of those was true
-	//of a list whose rows did different KINDS of thing.
+	//SUPERSEDED PINS — THREE OF THEM, AND THIS ONE REPLACES ALL THREE:
 	//
-	//The owner's constitution makes every row an action on the draft and reserves
-	//navigation for Cmd-Enter, so there is one contract left and the footer states
-	//it in the same words wherever the keyboard is: 'Enter does the top thing ·
-	//Cmd-Enter opens · Escape discards'. A contract you must re-read on every
-	//arrow-down is not a contract.
+	//  1. 'states one contract, in the same words on every row'. It pinned the
+	//     line /^Enter does the top thing · (Cmd|Ctrl)-Enter opens · Escape
+	//     discards$/ across a destination, a refinement and a configurable
+	//     family, and pinned that it said nothing else. (That pin had itself
+	//     superseded a four-state one, from a list whose rows did different
+	//     KINDS of thing.)
+	//  2. 'states a contract the reader’s own input can actually keep'. It
+	//     pinned the touch copy ('Tap a row to use it · tap the open button for
+	//     this collection') behind a (hover: none) matchMedia stub, and pinned
+	//     that a merely SMALL window kept the keyboard copy.
+	//  3. 'names the pill row’s own keys, from the module that performs them'. It
+	//     pinned '←→ choose clause' plus every entry of PILL_ROW_KEY_HINTS plus
+	//     'closes the row', so the line that taught the keys and the row that
+	//     performed them could not drift.
 	//
-	//THE KEYS COME FROM THE CANONICAL COMBO TABLE, which is why the modifier is
-	//matched as (Cmd|Ctrl): the round-3 wording spells '⌘Enter', and a Mac-only
-	//string hand-synced against a handler testing metaKey is precisely the drift
-	//shortcuts-data exists to prevent.
-	it('states one contract, in the same words on every row', async () => {
-		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
+	//The owner, of the line all three were about: "this text … is unnecessary."
+	//So the element is gone in every state the composer has — idle, typed,
+	//word-scoped, or-scoped, pill-row-open, armed Backspace, touch — and what is
+	//pinned is its ABSENCE, because deleting only the main-state copy would leave
+	//a line that appeared the moment you touched a pill.
+	//
+	//THE CONTRACT ITSELF IS STILL PUBLISHED. Both keys the line named are
+	//declareShortcut entries — 'commit-collection-composer' in this dialog's own
+	//module and 'dialog-escape' in dialog-element — so the shortcut sheet renders
+	//them, with the same platform-correct spelling, for every dialog in the app.
+	//That is asserted here too: the sheet is the survivor, and if it stopped
+	//carrying them the deletion would have cost the user something.
+	it('renders no key-hints line, in any state', async () => {
+		const line = () => dialog.shadowRoot.querySelector('.key-hints');
 		await seedRecents([['main/starred/sort/recent/', 2]]);
-		const CONTRACT = /^Enter does the top thing · (Cmd|Ctrl)-Enter opens · Escape discards$/;
+		assert.strictEqual(line(), null, 'idle');
 
-		assert.strictEqual(highlightedRow(), null);
-		assert.match(hints().trim(), CONTRACT);
+		await pressComposer('ArrowDown');
+		assert.ok(highlightedRow(), 'a row is highlighted');
+		assert.strictEqual(line(), null, 'with a row highlighted');
 
-		//A DESTINATION, a refinement and a configurable family used to get three
-		//different lines. They get the same one.
-		const arrowTo = async (label) => {
-			for (let step = 0; step < 12; step++) {
-				await pressComposer('ArrowDown');
-				if (label.test(rowText(highlightedRow()))) return;
-			}
-			assert.fail(`never reached a row matching ${label}: ${suggestionLabels().join(' | ')}`);
-		};
-		await arrowTo(/Main · Starred/);
-		assert.match(hints().trim(), CONTRACT, 'a destination gets the same line');
-		await arrowTo(/^Unread/);
-		assert.match(hints().trim(), CONTRACT, 'and so does a refinement');
+		await typeComposer('star');
+		assert.strictEqual(line(), null, 'while typing');
+		await typeComposer('');
 
-		//AND NOTHING ELSE. The footer states the contract and stops.
-		for (const cut of ['Click', 'copies it into the draft', 'adds and opens', 'opens Source', 'cancels']) {
-			assert.ok(!hints().includes(cut), `the footer must not say “${cut}”: ${hints()}`);
+		//THE PILL ROW, and the armed Backspace that opens it: the two states that
+		//used to grow their own line.
+		const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
+		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/')));
+		await settleRender(dialog);
+		await pressComposer('Backspace');
+		assert.deepStrictEqual([...dialog._selectedPath], [0], 'a clause is selected');
+		assert.ok(pillRow(), 'and its row is open');
+		assert.strictEqual(line(), null, 'with the pill row open, and with Backspace armed');
+
+		//THE OR SCOPE.
+		await pressComposer('+');
+		assert.ok(dialog._orTarget, 'the input is scoped to that condition');
+		assert.strictEqual(line(), null, 'in the or scope');
+		dialog._orTarget = null;
+		await settleRender(dialog);
+
+		//THE WORD SCOPE.
+		dialog._wordScope = 'set';
+		await settleRender(dialog);
+		assert.strictEqual(line(), null, 'in the word scope');
+		dialog._wordScope = '';
+		await settleRender(dialog);
+
+		//AND NO TOUCH VARIANT EITHER, because there is no line to have variants
+		//of. Both the function that spelled the copy and the pointer read that
+		//chose between its two versions are DELETED, not merely unrendered — an
+		//unrendered string is a thing the next change can put back by accident.
+		assert.strictEqual(typeof dialog._composerKeyHints, 'undefined',
+			'the function that spelled the line is gone');
+		assert.strictEqual(typeof dialog._touchInput, 'undefined',
+			'and so is the pointer read that existed only to choose its copy');
+
+		//THE KEYS ARE STILL PUBLISHED WHERE THE APP PUBLISHES KEYS.
+		const { describeShortcuts } = await import('../../lib/src/shortcuts.js');
+		const catalogued = describeShortcuts().map((entry) => entry.id);
+		for (const id of ['commit-collection-composer', 'dialog-escape']) {
+			assert.ok(catalogued.includes(id),
+				`${id} must stay in the shortcut sheet: ${catalogued.join(', ')}`);
 		}
 	});
 
@@ -4324,53 +4512,8 @@ describe('Collection Composer interactions', () => {
 			'and it may wrap here rather than being cut off');
 	});
 
-	//A FOOTER MUST NOT NAME CONTROLS THE DEVICE DOES NOT HAVE — AND "THE DEVICE"
-	//IS A QUESTION ABOUT THE POINTER, NOT ABOUT THE WINDOW.
-	//
-	//On a touch layout the contract line read "↑↓ or Tab choose · Click edits…" —
-	//four inputs a phone has none of. SUPERSEDED (round-3 tightness, minor): the
-	//fix keyed on `mobile`, which is the app's SIZE flag, so a desktop browser
-	//somebody had made short got the tap copy. Measured live at 900x420, where
-	//`(hover: none)` and `(pointer: coarse)` were both false and the footer said
-	//'Tap a row to use it' to a machine with a keyboard and a mouse. The copy
-	//keys off the input the reader actually has; the LAYOUT (44px targets, the
-	//wrapped grid) still keys off the size, which really is about room.
-	it('states a contract the reader’s own input can actually keep', async () => {
-		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
-		await seedRecents([['main/starred/sort/recent/', 2]]);
-		assert.match(hints(), /Enter/, 'the desktop line names the keys');
-
-		//A SMALL WINDOW IS NOT A FINGER. This is the case the pointer query
-		//exists for, and it is the common one: a narrow desktop browser.
-		dialog.mobile = true;
-		await dialog.updateComplete;
-		assert.match(hints(), /Enter/,
-			'a hover-capable pointer keeps the keyboard contract however small the window is');
-
-		const realMatchMedia = window.matchMedia;
-		window.matchMedia = (query) => ({
-			matches: query.includes('hover: none'),
-			media: query,
-			addEventListener: () => {},
-			removeEventListener: () => {},
-		});
-		try {
-			dialog.requestUpdate();
-			await dialog.updateComplete;
-			const touchHints = hints();
-			for (const keyboardOnly of ['↑↓', 'Tab', 'Enter', 'Escape', 'Esc', 'Cmd', 'Ctrl', 'Click']) {
-				assert.ok(!touchHints.includes(keyboardOnly),
-					`the touch contract must not name ${keyboardOnly}: ${touchHints}`);
-			}
-			assert.match(touchHints, /Tap a row to use it/);
-			assert.match(touchHints, /tap the open button for this collection/);
-		} finally {
-			window.matchMedia = realMatchMedia;
-			dialog.mobile = false;
-			dialog.requestUpdate();
-			await dialog.updateComplete;
-		}
-	});
+	//(The touch-copy pin that stood here is superseded by 'renders no key-hints
+	//line, in any state' — owner, F4.)
 
 	it('keeps the collection sentence out of the card scroller', async () => {
 		//The sentence is the spec's persistent anchor and the composer's only
@@ -4926,6 +5069,14 @@ describe('Collection Composer interactions', () => {
 		dialog._retainedPreviewCounts.set(dialog._previewCountKey(addRow.description), 0);
 		dialog.requestUpdate();
 		await settleRender(dialog);
+		//AMENDED (owner, F2): the counts now decide the list at BUILD time, so a
+		//count landing into an open list neither sinks nor suppresses anything —
+		//that was the reshuffle. A keystroke is a build, and this round trip is
+		//the cheapest one; the rule below is otherwise unchanged.
+		assert.ok(dialog._paletteRows.some(row => row.id === addRow.id),
+			'the row does not move or vanish while the reader is looking at it');
+		await typeComposer('x');
+		await typeComposer('');
 		const rows = dialog._paletteRows;
 		const zeroIndex = rows.findIndex(row => row.id === addRow.id);
 		if (zeroIndex >= 0) {
@@ -5019,16 +5170,31 @@ describe('Collection Composer interactions', () => {
 					'wearing the removal treatment');
 			}
 
-			//THE COUNTS ARE ASKED FOR, AND THEY ORDER THE SECTION (M4). The
-			//question is "which of these emptied it?", so the removal that brings
-			//back the most cards is the first row rather than whichever clause
-			//happens to be leftmost in the sentence.
+			//THE COUNTS ARE ASKED FOR, AND THEY ORDER THE SECTION (M4) — AT THE
+			//NEXT BUILD (owner, F2).
+			//
+			//SUPERSEDED PIN: this set the two removals' counts and asserted the
+			//re-ordering on the very next render, which is a re-rank under a
+			//reader's eyes. The section's own rule is unchanged — "which of these
+			//emptied it?" is answered by the removal that brings back the most —
+			//but it is applied when the list is BUILT, from the counts the build
+			//had. On the first build (the one this count created) the removals
+			//have no counts yet, so the section is in the sentence's own order,
+			//which is a defensible order for a list of the user's own clauses.
+			//The rank lands on the next build, which any keystroke is.
 			const byFilter = (filters) => recovery.find(row =>
 				row.description.filters.join('/') === filters);
 			dialog._retainedPreviewCounts.set(dialog._previewCountKey(byFilter('starred').description), 900);
 			dialog._retainedPreviewCounts.set(dialog._previewCountKey(byFilter('has-todo').description), 4);
 			dialog._refreshPreviewCounts();
 			await settleRender(dialog);
+			assert.deepStrictEqual(
+				dialog._paletteRows.filter(row => row.section === 'Try removing').map(row => row.id),
+				recovery.map(row => row.id),
+				'a count arriving into the open section does not re-sort it');
+			//The next build applies it.
+			await typeComposer('x');
+			await typeComposer('');
 			const ordered = dialog._paletteRows.filter(row => row.section === 'Try removing');
 			assert.deepStrictEqual(ordered.map(row => row.description.filters.join('/')), ['starred', 'has-todo'],
 				'the removal that recovers the most leads');
@@ -5080,6 +5246,15 @@ describe('Collection Composer interactions', () => {
 			dialog._retainedPreviewCounts.set(dialog._previewCountKey(add.description), 0);
 			dialog.requestUpdate();
 			await settleRender(dialog);
+			//AND IT IS SUPPRESSED AT THE NEXT BUILD, NOT MID-READ (owner, F2).
+			//SUPERSEDED: this asserted the suppression on the next render after
+			//the counts landed. A row LEAVING is the harshest of the count-driven
+			//movements — everything below it slides up — so it now waits for a
+			//build, exactly as the re-ranks do. The rule itself is untouched.
+			assert.ok(dialog._paletteRows.some(row => row.id === widen.id),
+				'the row a reader is looking at does not vanish under them');
+			await typeComposer('unrea');
+			await typeComposer('unread');
 			assert.ok(!dialog._paletteRows.some(row => row.id === widen.id),
 				'a widen that adds no cards is a row promising a consequence it does not deliver');
 			const rows = dialog._paletteRows;
@@ -5117,35 +5292,30 @@ describe('Collection Composer interactions', () => {
 		}
 	});
 
-	//THE FOOTER STATES THE CONTRACT THAT IS IN FORCE. '←→ choose clause' is true
-	//only while the composer INPUT has focus; once a clause editor is open,
-	//focus is inside it and ←→ move the caret in its own fields. Routing the
-	//keys away from the editor would break editing a date to keep a footer
-	//honest, so the footer says what this mode actually offers.
-	//THE FOOTER STATES THE CONTRACT THAT IS IN FORCE, and the contract changed
-	//shape with the editor. Selecting a pill and editing it are no longer two
-	//states — the row IS the selection — so the line names both the keys that
-	//move between clauses and the keys the row performs, and it names them from
-	//PILL_ROW_KEY_HINTS so the line that teaches them and the row that performs
-	//them cannot drift apart.
-	it('names the pill row’s own keys, from the module that performs them', async () => {
-		const { PILL_ROW_KEY_HINTS } = await import('../../lib/src/components/collection-pill-row.js');
+	//SUPERSEDED (owner, F4). This was 'names the pill row’s own keys, from the
+	//module that performs them' — the line, plus every entry of
+	//PILL_ROW_KEY_HINTS, plus 'closes the row'. Both the line and the table are
+	//deleted; see 'renders no key-hints line, in any state'. What the keys DO is
+	//still pinned, in the tests that press them: '-' flips a clause to the app's
+	//inverse word, '+' scopes the input to an or, Enter edits the selected pill,
+	//and Escape peels the row before the dialog.
+	it('walks between clauses with the arrow keys, and says so to a screen reader', async () => {
 		const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
 		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/unread/')));
 		await settleRender(dialog);
-		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent.trim();
-		assert.ok(!/←→/.test(hints()), 'with no pill selected the line makes no claim about them');
 
-		sentencePills()[0].click();
-		await settleRender(dialog);
-		assert.ok(pillRow(), 'the row is open');
-		assert.match(hints(), /←→ choose clause/);
-		for (const hint of PILL_ROW_KEY_HINTS) {
-			assert.ok(hints().includes(`${hint.key} ${hint.means}`),
-				`the footer must name ${hint.key}: ${hints()}`);
-		}
-		//And it names the way out that is actually registered for this layer.
-		assert.match(hints(), /closes the row/);
+		await pressComposer('Backspace');
+		assert.deepStrictEqual([...dialog._selectedPath], [1], 'the last clause is selected');
+		assert.ok(pillRow(), 'and the row is open on it — which is the visible half');
+		await pressComposer('ArrowLeft');
+		assert.deepStrictEqual([...dialog._selectedPath], [0],
+			'←→ walk the sentence while the caret stays in the input');
+		//The audible half. Focus never leaves the input, so this live region is
+		//the only thing that tells a screen-reader user the selection moved — and
+		//it is what the deleted line used to duplicate.
+		const status = dialog.shadowRoot.querySelector('[role="status"].visually-hidden, .visually-hidden[role="status"]');
+		assert.ok(status && /selected/.test(status.textContent),
+			`the selection is announced: ${status ? status.textContent : 'no status region'}`);
 	});
 
 	//A LIST OPENS AT ITS TOP.

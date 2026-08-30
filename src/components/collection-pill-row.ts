@@ -7,7 +7,7 @@
 //literally the line below:
 //
 //    updated after [2026-01-01] [–– no end ––]   · draft now matches 184
-//    [Or…] [Flip] [Remove]                       · without this pill: 1,842
+//    [Also match…] [Flip] [Remove]               · without this pill: 1,842
 //
 //A one-row editor cannot squash, and every pill has real contents — polarity,
 //or, remove at minimum — so a dead Edit affordance is structurally impossible.
@@ -80,17 +80,26 @@ import {
 	Uid,
 } from '../types.js';
 
-//THE KEYS THE FOOTER TEACHES, in one place, because the footer that teaches them
-//and the row that performs them must not disagree. `+` and `-` are deliberately
-//the URL's own spellings for union and exclusion: the shortcut a user learns
-//here is the character they will one day read in source mode, so the ladder
-//teaches downward. The palette renders these; this row implements them.
-export const PILL_ROW_KEY_HINTS : readonly {key : string, means : string}[] = [
-	{key: '+', means: 'adds an or'},
-	{key: '-', means: 'flips'},
-	{key: 'Enter', means: 'edits'},
-	{key: 'Delete', means: 'removes'},
-];
+//THE WIDENING VERB SAYS WHAT THE NEXT SCREEN ASKS.
+//
+//It used to read 'Or…', which is the URL's operator with an ellipsis after it:
+//a person who has not read the source grammar cannot tell whether it means "or
+//what?", "or else", or a menu. The owner's complaint was that the three verbs
+//"are kind of confusing", and this is the one carrying the confusion.
+//
+//'Also match…' is the phrase the palette ALREADY uses for the question this
+//button opens — the or-scoped input's placeholder is `Also match… (widens
+//<clause>)` — so the button names the next screen in the next screen's own
+//words, and no concept is added: 'alternative' stays an implementation word,
+//and the operator stays in source mode where it is spelled `+`.
+export const OR_VERB_LABEL = 'Also match…';
+
+//THE KEY HINTS ARE DELETED WITH THE LINE THAT RENDERED THEM (owner, F4: "this
+//text … is unnecessary"). This table existed for exactly one consumer — the
+//composer's footer — and a table whose only job was to keep that line honest
+//has nothing left to be honest about. The KEYS are untouched: `+`, `-`, Enter
+//and Delete are still performed by this row and by the palette's keydown
+//handler, and the app's shortcut sheet is where a contract now lives.
 
 //THE TWO CONTROL TYPES THIS ROW REFUSES, stated as a refusal rather than as an
 //allow-list so that a family which grows a new argument type gets the plain
@@ -239,22 +248,53 @@ class CollectionPillRow extends LitElement {
 				min-height: 44px;
 			}
 
+			/* The verbs are a GROUP, and they are separated from the argument
+			   controls to their left by a rule rather than by whitespace alone:
+			   in a row that wraps, three words floating after a date field read
+			   as more of the sentence. 0.4em between them so three adjacent
+			   boxes do not read as one segmented control. */
 			.verbs {
+				border-left: 1px solid var(--app-divider-color);
 				display: flex;
-				gap: 0.25em;
+				gap: 0.4em;
+				padding-left: 0.6em;
 			}
 
-			/* button.small is the sanctioned transparent variant (§4.2); here it
-			   carries a verb rather than a glyph, and takes the 44px target that
-			   variant does not carry on its own. */
+			/* THESE HAVE TO READ AS PRESSABLE (owner: "the Or… Flip Remove don't
+			   read as buttons and are kind of confusing").
+
+			   button.small is the sanctioned transparent variant (§4.2) and it
+			   carries a verb here rather than a glyph, which is the composer's
+			   own .verb extension — but transparent purple text with a hover
+			   underline is the app's LINK treatment, and three of them in a row
+			   read as prose. What they get is the outlined chip the composer
+			   already uses for exactly this class of thing: the palette's
+			   .suggestion-action[data-consequence='transform'] — 1px
+			   --app-primary-color border, transparent fill, purple label — which
+			   marks a control that REWRITES THE DRAFT rather than one that
+			   leaves. These three are the same species, so they take the same
+			   treatment rather than a fourth invented one.
+
+			   NOT button.text: §4.2's named text variant is the FILLED purple
+			   block for banners and gates, and it is the treatment of THE one
+			   committing action. These are three peers — none of them commits,
+			   and none of them outranks the other two — so filling one would be
+			   a claim about the pill that is not true.
+
+			   Square (§4.4), and 44px tall (§4.2's floor, which .small does not
+			   carry on its own). */
 			button.verb {
+				border: 1px solid var(--app-primary-color);
 				color: var(--app-primary-color);
 				min-height: 44px;
-				padding: 0 0.4em;
+				padding: 0 0.7em;
 			}
 
+			/* The fill the palette's own rows take on hover, so a pointer over a
+			   verb gets the same answer it gets over a row. The border is
+			   already there, so nothing moves. */
 			button.verb:hover {
-				text-decoration: underline;
+				background: var(--app-primary-color-light-very-transparent);
 			}
 		`
 	];
@@ -481,7 +521,7 @@ class CollectionPillRow extends LitElement {
 				${this._argumentControls()}
 				${this.draftCount === undefined ? '' : html`<span class='count'>· draft now matches ${formatCollectionCardCount(this.draftCount)}</span>`}
 				<span class='verbs'>
-					<button class='small verb' title='Widen this to also match something else' @click=${this._handleOr}>Or…</button>
+					<button class='small verb' title='Widen this to also match something else' @click=${this._handleOr}>${OR_VERB_LABEL}</button>
 					<button class='small verb' title=${this._flipTitle} @click=${this._handleFlip}>Flip</button>
 					<button class='small verb' title=${this.memberIndex < 0 ? 'Remove this from the collection' : 'Remove this alternative'} @click=${this._handleRemove}>Remove</button>
 				</span>

@@ -11,8 +11,14 @@
 //  - Remove on one alternative DISSOLVES the group it leaves behind with a
 //    single member, because the sentence must never draw a group container
 //    around one pill.
-//  - "Or…" is a request, not an edit: this row knows which token an alternative
-//    would join and not what the alternative is.
+//  - The widening verb is a request, not an edit: this row knows which token an
+//    alternative would join and not what the alternative is. It is LABELLED
+//    'Also match…' (owner, F1): 'Or…' was the URL's operator with an ellipsis
+//    after it, and the phrase that replaces it is the one the scoped input it
+//    opens already uses.
+//  - And all three read as BUTTONS (owner, F1: they "don't read as buttons and
+//    are kind of confusing"), which here means the composer's outlined
+//    transform-chip treatment rather than purple link text.
 //
 //And the counts are properties. A row that invented one would be making a
 //promise about a collection nobody computed.
@@ -29,7 +35,7 @@ for (const name of [
 	'navigator', 'getComputedStyle', 'MutationObserver', 'requestAnimationFrame',
 ]) globalThis[name] = name === 'window' ? dom.window : name === 'document' ? dom.window.document : dom.window[name];
 
-const { PILL_ROW_KEY_HINTS } = await import('../../lib/src/components/collection-pill-row.js');
+const { OR_VERB_LABEL } = await import('../../lib/src/components/collection-pill-row.js');
 const { serializeCollectionExpression } = await import('../../lib/src/collection-expression.js');
 
 const filter = (name) => ({ kind: 'filter', filter: name });
@@ -162,7 +168,7 @@ describe('the pill row', () => {
 			element.addEventListener('pill-or-requested', (e) => { requested = e.detail; });
 			element.addEventListener('expression-modified', () => { edited++; });
 
-			verb(element, 'Or…').click();
+			verb(element, OR_VERB_LABEL).click();
 
 			assert.deepStrictEqual(requested, { index: 0, memberIndex: 1 },
 				'the row knows which token an alternative would join');
@@ -200,7 +206,56 @@ describe('the pill row', () => {
 			const element = await mount({ expression: [filter('starred')], index: 0 });
 			assert.deepStrictEqual(
 				Array.from(element.shadowRoot.querySelectorAll('button.verb')).map(button => button.textContent.trim()),
-				['Or…', 'Flip', 'Remove']);
+				[OR_VERB_LABEL, 'Flip', 'Remove']);
+		});
+
+		//SUPERSEDED PIN (owner, F1). The widening verb used to be pinned as the
+		//literal string 'Or…'. The owner: the three verbs "are kind of
+		//confusing" — and that one carried most of it, being the URL's `+`
+		//operator spelled as a word with nothing after it to say what it wants.
+		//What replaces it is not a new concept: it is the exact phrase the
+		//or-scoped input's own placeholder already asks the question in.
+		it('asks for the widening in the words the scoped input asks it in', async () => {
+			assert.strictEqual(OR_VERB_LABEL, 'Also match…');
+			const element = await mount({ expression: [filter('starred')], index: 0 });
+			assert.ok(verb(element, OR_VERB_LABEL), 'the button wears the label');
+			assert.ok(!verb(element, 'Or…'), 'and the operator-with-an-ellipsis is gone');
+			assert.match(verb(element, OR_VERB_LABEL).getAttribute('title'),
+				/Widen this to also match something else/,
+				'with the title still saying what widening means');
+		});
+
+		//THE THREE VERBS MUST READ AS PRESSABLE (owner, F1).
+		//
+		//They were `button.small.verb` with a hover underline: transparent, no
+		//boundary, purple — which is this app's LINK treatment, so three of them
+		//in a row read as prose rather than as controls. What they take is the
+		//treatment the composer already uses for a control that REWRITES THE
+		//DRAFT (.suggestion-action[data-consequence='transform']): an outlined
+		//chip. Not button.text — §4.2's filled variant is for THE committing
+		//action, and these are three peers, none of which commits.
+		//
+		//JSDOM computes no layout, so what is pinned is the rule.
+		it('gives the verbs a visible boundary, so they read as pressable', async () => {
+			const element = await mount({ expression: [filter('starred')], index: 0 });
+			const styles = element.constructor.styles.map(style => String(style.cssText || style)).join('\n');
+			const rule = styles.match(/button\.verb\s*\{[^}]*\}/)[0];
+			assert.match(rule, /border:\s*1px solid var\(--app-primary-color\)/,
+				'a boundary, from a token — this is what makes it read as a button');
+			assert.match(rule, /min-height:\s*44px/, '§4.2 hit target');
+			assert.ok(!/border-radius/.test(rule), 'square, per §4.4');
+			assert.match(styles, /button\.verb:hover\s*\{[^}]*background:\s*var\(--app-primary-color-light-very-transparent\)/,
+				'and the hover is the palette rows own fill, not a link underline');
+			assert.ok(!/button\.verb:hover\s*\{[^}]*text-decoration/.test(styles),
+				'the link treatment is gone with the confusion it caused');
+			//And the group is separated from the argument controls beside it.
+			assert.match(styles, /\.verbs\s*\{[^}]*border-left:\s*1px solid var\(--app-divider-color\)/);
+			//§4.2 has no outline BUTTON variant, and this does not invent one: it
+			//is the same base variant the composer already extends.
+			for (const button of element.shadowRoot.querySelectorAll('button.verb')) {
+				assert.ok(button.classList.contains('small'),
+					'built on button.small, not on a fourth button system');
+			}
 		});
 
 		it('says nothing about counts until somebody computes them', async () => {
@@ -221,14 +276,21 @@ describe('the pill row', () => {
 			assert.strictEqual(element.shadowRoot.querySelector('.row'), null);
 		});
 
-		it('documents the keys the footer teaches, in the module that performs them', () => {
-			const keys = Object.fromEntries(PILL_ROW_KEY_HINTS.map(hint => [hint.key, hint.means]));
-			//`+` and `-` are the URL's own spellings on purpose: the shortcut
-			//learned here is the character read later in source mode.
-			assert.strictEqual(keys['+'], 'adds an or');
-			assert.strictEqual(keys['-'], 'flips');
-			assert.strictEqual(keys['Enter'], 'edits');
-			assert.strictEqual(keys['Delete'], 'removes');
+		//SUPERSEDED PIN (owner, F4). This was 'documents the keys the footer
+		//teaches, in the module that performs them' — it asserted the four
+		//entries of PILL_ROW_KEY_HINTS ('+' adds an or, '-' flips, Enter edits,
+		//Delete removes), so that the composer's footer line and the row that
+		//performs those keys could not drift apart.
+		//
+		//The footer line is deleted (owner: "this text … is unnecessary"), and a
+		//table that existed only to spell it has no second consumer. The KEYS are
+		//untouched and are pinned where they are performed — see the composer's
+		//own interaction suite, which presses '+' and '-' and asserts what the
+		//draft becomes. What is pinned here is the absence of the table.
+		it('publishes no key table, now that nothing renders one', async () => {
+			const module = await import('../../lib/src/components/collection-pill-row.js');
+			assert.strictEqual(module.PILL_ROW_KEY_HINTS, undefined,
+				'the footer that was its only reader is gone');
 		});
 	});
 

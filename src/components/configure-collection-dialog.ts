@@ -206,7 +206,6 @@ import {
 } from './collection-sentence.js';
 
 import {
-	PILL_ROW_KEY_HINTS,
 	pillRowSpellingFor,
 } from './collection-pill-row.js';
 
@@ -821,15 +820,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	//Whether the FIRST Backspace has selected a clause and the second one would
 	//remove it. The two-step is the whole reason Backspace is safe on an empty
-	//input, and a contract nobody can see is not a contract — see
-	//_backspaceArmedMessage, which the key-hints line renders while this is set.
+	//input, and what makes the armed state VISIBLE is the sentence: the pill it
+	//selected is drawn as selected, and its pill row is open under it. (The
+	//key-hints line that also printed _backspaceArmedMessage is deleted — owner,
+	//F4 — and that string is still announced, below.)
 	@state()
 		_backspaceArmed = false;
 
-	//The order the list was last ranked in, keyed by the identity of the rows it
-	//ranked. Deliberately not @state: it is a memo of a render, not an input to
-	//one.
+	//The order the list was last ranked in, keyed by the BUILD it was ranked in
+	//and the identity of the rows it ranked. Deliberately not @state: it is a
+	//memo of a render, not an input to one.
 	_paletteOrder : {key : string, order : string[]} | null = null;
+
+	//THE COUNTS THE CURRENT LIST WAS BUILT FROM — see _paletteBuildKey.
+	//
+	//Two shapes because the two consumers are keyed differently: `counts` by the
+	//COLLECTION a row produces (what _countForDescription answers) and `rowCounts`
+	//by row id (what rankedComposerSuggestions takes). Both are snapshots taken
+	//at the same instant, so a build cannot rank half of its list against one
+	//generation of counts and half against another. `rowCounts` is deliberately a
+	//stable object for the life of the build: rankedComposerSuggestions is
+	//memoized on its arguments' identity, and handing it a fresh object per
+	//render would defeat that cache on every frame.
+	//
+	//Not @state, for the same reason _paletteOrder is not: it is the memo of a
+	//build, and it is written by the build itself.
+	_paletteBuild : {key : string, counts : Map<string, number>, rowCounts : {[suggestionID : string]: number}} | null = null;
 
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
@@ -852,38 +868,64 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//DialogElement #inner.
 		ScrollingSharedStyles,
 		css`
-			/* A LIGHT PALETTE, NOT A WORKSPACE.
+			/* A LIGHT PALETTE, NOT A WORKSPACE — AND A BOX THAT DOES NOT MOVE.
 			   The composer used to be pinned to 90% of the viewport's height
 			   and 64em wide because it contained seven things — a setup strip,
 			   a catalog wall, two editor panels, two lists and a footer — and
 			   every one of them was competing for the same column. It contains
 			   four now: the sentence, the input, ONE list and the footer
-			   (03-proposal-c-grow-it-native.md §2b). A box that tall around
-			   that little content is a room with the furniture pushed to the
-			   walls, so the height goes back to the base .content's own
-			   content-sizing, with a cap so a long list scrolls rather than
-			   growing the dialog off the screen.
+			   (03-proposal-c-grow-it-native.md §2b).
 
-			   THE WIDTH IS STILL PINNED, and for the reason it always was: the
-			   base rule sizes .content to its content between 40% and 70%, and
-			   .background centres it, so a list changing under typing moved the
-			   left edge of the field being typed into. All three of
-			   width/min-width/max-width take the same value so the percentages
-			   cannot re-enter. 44em is the palette's own measure — wide enough
-			   for a sentence of pills and a right-aligned count, narrow enough
-			   that a one-line row reads as a line rather than as a table. */
+			   THE HEIGHT IS PINNED, LIKE THE WIDTH ALREADY WAS. SUPERSEDED: it
+			   was max-height:80vh over the base rule's content-sizing, which
+			   is a CAP and not a size — so the box was as tall as whatever the
+			   list happened to hold. The owner: "the dialog changes height as
+			   things filter etc, which makes the part you're looking at jump
+			   around on screen constantly; it should be fixed size." Every
+			   keystroke that filtered the list, every pill row that opened, and
+			   every count that removed a row re-measured the box; .background
+			   centres it, so half of each change came off the TOP and the
+			   sentence the user was reading moved under them. That is exactly
+			   the defect the width pin was written for, on the other axis, and
+			   it takes the same answer: one value on all three of
+			   height/min-height/max-height so neither the base rule's own min-height
+			   percentage nor the content can re-enter.
+
+			   40em is the window, not a guess: the fixed furniture above and
+			   below the list — title, sentence, input, the mode link, the footer
+			   and its preview line — is a little under 19em of it, so the list
+			   region holds ten rows at rest, which is a page of vocabulary
+			   rather than a peephole. (It is ~1.2em more than it was before the
+			   key-hints line was deleted; the room that line held goes to the
+			   list rather than off the box.) The 80vh arm is the same cap that
+			   was there before, for the same reason: a short viewport must not
+			   get a dialog taller than itself.
+
+			   THE WIDTH IS PINNED FOR THE REASON IT ALWAYS WAS: the base rule
+			   sizes .content to its content between 40% and 70%, and .background
+			   centres it, so a list changing under typing moved the left edge of
+			   the field being typed into. 44em is the palette's own measure —
+			   wide enough for a sentence of pills and a right-aligned count,
+			   narrow enough that a one-line row reads as a line rather than as a
+			   table. */
 			.content {
 				--composer-width: min(44em, 92vw);
-				max-height: 80vh;
+				--composer-height: min(40em, 80vh);
+				height: var(--composer-height);
+				min-height: var(--composer-height);
+				max-height: var(--composer-height);
 				width: var(--composer-width);
 				min-width: var(--composer-width);
 				max-width: var(--composer-width);
 			}
 
 			/* Mobile is full-screen (.mobile .content in DialogElement wins on
-			   specificity for width/height/max-width); min-width is the one
-			   the base rule leaves for us to clear. */
+			   specificity for width/height/max-width); the two MINIMA are what
+			   the base rule leaves for us to clear — an unclamped min-height
+			   would make a 40em box out of a phone screen shorter than that and
+			   push the footer off the bottom. */
 			.mobile .content {
+				min-height: 0;
 				min-width: 0;
 			}
 
@@ -1044,10 +1086,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			/* ONE LIST, AND IT IS THE PART OF THE COLUMN THAT GIVES AND TAKES
 			   (round-3 tightness, C3).
-			   It is content-sized up to 40vh — the dialog is no longer pinned to
-			   90% of the viewport, so a flex-basis-0 list would collapse to
-			   nothing, and the max-height is what makes a long list scroll
-			   instead of growing the palette off the screen.
 			   WHAT CHANGED IS THE FLEX. It was 0-1-auto in a column whose other
 			   children were also shrinkable, so a deficit was shared out — the
 			   list, the biggest item, absorbing most of it, down to a SINGLE
@@ -1057,27 +1095,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   up their room first (rule below) so it is also the one payer of
 			   any deficit. min-height is the floor that deficit stops at;
 			   below it #inner, the dialog's own scroll container, takes over.
-			   A list is the only thing in this column a user can be short of. */
+			   A list is the only thing in this column a user can be short of.
+
+			   THE 40vh CAP IS DELETED WITH THE CONTENT-SIZED BOX (F3). It existed
+			   for one reason — "a long list must scroll rather than grow the
+			   palette off the screen" — and the palette cannot grow any more: the
+			   box is a fixed height, so the list's own height is decided by
+			   subtraction. Keeping the cap under a fixed box would have been
+			   strictly harmful: it would have held the list at 40vh inside a 40em
+			   dialog and parked the difference as a dead band above the footer,
+			   which is the exact defect the .mobile exception below used to exist
+			   to undo. Now that the box is definite in BOTH layouts, the
+			   exception is unnecessary too, and both are gone. A list SHORTER
+			   than its region simply leaves stable empty space at the bottom of
+			   the region — which is the point: the box does not shrink to meet
+			   it. */
 			.palette-list,
 			.suggestions {
 				flex: 1 1 auto;
 				list-style: none;
 				margin: 0.25em 0 0;
-				max-height: 40vh;
 				min-height: 5em;
 				overscroll-behavior: contain;
 				padding: 0;
-			}
-
-			/* AND ON THE FULL-SCREEN LAYOUT THERE IS NO CAP AT ALL. .mobile
-			   .content is height:100%, so the column has a DEFINITE height and
-			   a real surplus to give away; a 40vh cap on the one element that
-			   can take it is what left ~130px of nothing between Edit source
-			   and the footer. The cap exists to stop a long list growing the
-			   palette off the screen, and a full-screen palette cannot grow. */
-			.mobile .palette-list,
-			.mobile .suggestions {
-				max-height: none;
 			}
 
 			/* And the blocks around it do not shrink, so the surplus and the
@@ -1089,6 +1129,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.pill-row,
 			.composer-input,
 			.key-hints,
+			.modifier-note,
 			.mode-links,
 			.preview-titles {
 				flex: 0 0 auto;
@@ -1271,9 +1312,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   same slot, at the same weight — so a word-scope row has exactly
 			   the anatomy every other row has. */
 
+			/* .key-hints is SOURCE MODE'S now. The composer's own key-hints line
+			   is deleted (owner, F4); what is left on this class is the source
+			   editor's canonicalization notes, its parse notices and its own
+			   completion contract, which are statements about a URL rather than
+			   a running commentary on the keyboard. .modifier-note is the
+			   one-shot status note that used to borrow the class. */
 			.row-detail,
 			.suggestion-detail,
 			.key-hints,
+			.modifier-note,
 			.no-suggestions {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.78em;
@@ -1366,9 +1414,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   row it modifies. Kept for the legacy builder path, which still
 			   renders its own selects. */
 
-			/* The key-hints line sits below the list and outside it, so the
-			   list's last row was clipped underneath it on a narrow screen. */
-			.mobile .palette-list,
+			/* Source mode's key-hints line sits below its list and outside it, so
+			   the list's last row was clipped underneath it on a narrow screen.
+			   The palette's own copy of this reservation went with the line it
+			   was reserving room for (owner, F4). */
 			.mobile .suggestions {
 				padding-bottom: 2.75em;
 			}
@@ -2188,8 +2237,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//whichever clause happens to be leftmost in the sentence. A removal nobody
 	//has counted yet sorts last rather than first: an unknown is not evidence,
 	//and promoting one would make the section's order flicker as numbers land.
-	//The list is frozen under a live highlight by _paletteRows, as every other
-	//count-driven re-rank is.
+	//AND IT IS ORDERED FROM THE COUNTS THE BUILD HAD (F2). The section is created
+	//by the draft's own count arriving as zero, so on that first build the
+	//removals' counts are usually not back yet and the section is in the
+	//sentence's own order — which is a defensible order for a list of the user's
+	//own clauses. The moment anything rebuilds the list the counts are retained
+	//and the "recovers the most" rule applies. What no longer happens is the three
+	//rows re-sorting themselves under the reader as each number lands.
 	_recoveryRows() : PaletteRow[] {
 		if (this._wordScope || this._orTarget) return [];
 		if (!this._draftResolvesEmpty) return [];
@@ -2202,7 +2256,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._composerCardNames
 		);
 		const recovered = (row : PaletteRow) : number => {
-			const count = this._countForDescription(this._appliedDescription(row));
+			const count = this._builtCountForDescription(this._appliedDescription(row));
 			return count === undefined ? -1 : count;
 		};
 		return rows
@@ -2227,10 +2281,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//
 	//Only `or`. A zero-count ADD is never suppressed: the count is the honest
 	//warning, and hiding the filter somebody just named is the worse defect.
+	//AND IT SUPPRESSES ON THE COUNTS THE BUILD HAD (F2). A suppression is a row
+	//LEAVING, which is a harder jolt than a row moving: the rows beneath it all
+	//slide up. Deciding it from the build's own snapshot means the list a user is
+	//reading cannot lose a row while they read it — the widen is dropped on the
+	//next build instead, which is the same keystroke that would have produced it.
 	_withoutNoOpWidenRows(rows : PaletteRow[]) : PaletteRow[] {
-		const draftCount = this._countForDescription(this._collectionDescription);
+		const draftCount = this._builtCountForDescription(this._collectionDescription);
 		if (draftCount === undefined) return rows;
-		return rows.filter(row => row.valenceKind !== 'or' || this._countForDescription(this._appliedDescription(row)) !== draftCount);
+		return rows.filter(row => row.valenceKind !== 'or' || this._builtCountForDescription(this._appliedDescription(row)) !== draftCount);
 	}
 
 	//ZERO SINKS, AND IT SINKS RATHER THAN DISAPPEARING.
@@ -2276,7 +2335,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//select nothing go last.
 	_rankedTypedRows(rows : PaletteRow[]) : PaletteRow[] {
 		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
-			this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
+			this._builtCountForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
 			.map((row, index) => ({row, index, rank: paletteTypedRank(row)}))
 			.sort((left, right) =>
@@ -2302,11 +2361,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//second 'Recent' heading further down the list. The section's own first
 	//appearance is therefore the primary key, which reorders inside each run and
 	//nothing across them.
+	//AND IT SINKS ON THE COUNTS THE BUILD HAD (F2). This rule is the owner's
+	//reshuffle in its purest form: on the idle list every one of ~275 rows is
+	//asked for a count, and each answer that came back zero moved its row to the
+	//end of its run. The rule is unchanged; what changed is which counts it may
+	//read — the ones already retained when this list was built.
 	_rankedIdleRows(rows : PaletteRow[]) : PaletteRow[] {
 		const sectionOrder = new Map<string, number>();
 		for (const row of rows) if (!sectionOrder.has(row.section)) sectionOrder.set(row.section, sectionOrder.size);
 		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
-			this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
+			this._builtCountForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
 			.map((row, index) => ({row, index}))
 			.sort((left, right) =>
@@ -2334,7 +2398,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const idle = idleRowsFor(description, context);
 		const ranked = rankedSuggestionsFor(
 			this._withoutContradictoryRefinements([...idle.recents, ...idle.contextual]),
-			this._previewCounts
+			//THE BUILD'S OWN ROW COUNTS (F2), not the live map: this is the third
+			//zero-sink, and it re-ranked the top of the idle list — the recents and
+			//the three contextual rows, which are the rows a user actually looks at
+			//— every time one of their numbers landed.
+			this._paletteBuild ? this._paletteBuild.rowCounts : this._previewCounts
 		);
 		const vocabulary = paletteTypingRows(
 			completionCandidatesFor('', this._draftExpression, description, context, VOCABULARY_CANDIDATE_LIMIT),
@@ -2348,15 +2416,88 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		));
 	}
 
+	//WHAT COUNTS AS A BUILD (owner, F2).
+	//
+	//The owner: "when you hit enter and it's empty search, the tags at the bottom
+	//keep changing for a few seconds before settling." They do — or did. Every
+	//count in this dialog arrives asynchronously, one worker run at a time, and
+	//five separate rules read those counts to decide the list: the zero-sink in
+	//each of the two ranked feeds, the recovery section's "which removal recovers
+	//most", the no-op widen suppression and the contradictory-refinement
+	//suppression. So each arriving number re-ranked — and sometimes re-membered —
+	//the list under a user who had not touched anything. Rows visibly jumped for
+	//as long as the corpus took to answer.
+	//
+	//THE RULE IS NOW THE FROZEN-ORDER ONE, WHOLE: the order of a rendered list is
+	//fixed when the list is BUILT, from whatever counts are retained at that
+	//instant; counts arriving afterwards fill in NUMBERS in place and never move
+	//a row. A re-rank happens on the next build and only then.
+	//
+	//A BUILD IS A CHANGE TO WHAT THE LIST IS ASKED FOR — opening the dialog, the
+	//typed token, the draft, the card the draft is anchored to, and the three feed
+	//switches (word scope, or scope, and the zero-state that creates the recovery
+	//section). Deliberately NOT in this key: every count, the render window, the
+	//highlight, and the selection. Those change what the list SAYS, not what it
+	//was asked.
+	//
+	//_draftResolvesEmpty is the one member of the key that a count can flip, and
+	//it earns its place by creating rows rather than ordering them: at a resolved
+	//zero the recovery section comes into existence, and a section that appears is
+	//a different list, not a re-ranking of this one. It flips once per emptying.
+	get _paletteBuildKey() : string {
+		return [
+			this.open ? 'open' : 'closed',
+			this._entryMode,
+			this._composerInput,
+			this._collectionDescription ? this._collectionDescription.serialize() : '',
+			this._draftSelectedCard,
+			this._wordScope,
+			this._orTarget ? `or:${this._orTarget.index}:${this._orTarget.memberIndex}` : '',
+			this._draftResolvesEmpty ? 'empty' : 'nonempty',
+		].join('\n');
+	}
+
+	//The counts a ROW-RANKING rule may consult: the ones the current build was
+	//started with. Every rule that decides ORDER or MEMBERSHIP from a number goes
+	//through here; every rule that merely DISPLAYS a number reads the live map
+	//instead, which is why a late count still lands on screen.
+	_builtCountForDescription(description : CollectionDescription) : number | undefined {
+		const build = this._paletteBuild;
+		if (!build) return this._countForDescription(description);
+		return build.counts.get(this._previewCountKey(description));
+	}
+
 	get _paletteRows() : PaletteRow[] {
 		if (!this._collectionDescription) return [];
+		//THE SNAPSHOT IS TAKEN BEFORE THE ROWS ARE MADE, because the rows are made
+		//out of it. Copying the retained map is cheap (it is bounded by
+		//RETAINED_PREVIEW_COUNT_LIMIT) and it happens once per build, not once per
+		//render.
+		const buildKey = this._paletteBuildKey;
+		if (!this._paletteBuild || this._paletteBuild.key !== buildKey) {
+			this._paletteBuild = {
+				key: buildKey,
+				counts: new Map(this._retainedPreviewCounts),
+				rowCounts: {...this._previewCounts},
+			};
+		}
 		const rows = this._rawPaletteRows();
-		//THE LIST DOES NOT MOVE UNDER THE KEYBOARD. The identity of the row set
-		//is the "was this list rebuilt?" test: a new input or draft produces
-		//different rows, and only then may counts reorder them. While a row is
-		//highlighted the order is frozen outright, so the transformation
-		//accepted on keydown is the one that was visible on keydown.
-		const key = paletteOrderKey(rows);
+		//AND THE ORDER IS FROZEN FOR THE LIFE OF THE BUILD. The snapshot above
+		//makes the ranking rules stop moving; this makes the RESULT stop moving,
+		//which also covers the inputs a snapshot cannot freeze — the tag infos,
+		//the candidate set and the card titles all arrive asynchronously too, and
+		//any of them can re-rank a list nobody asked to re-rank.
+		//
+		//SUPERSEDED: this used to freeze only `&& this._rowHighlightActive`, on
+		//the narrower rule that the list must not move under the KEYBOARD. That
+		//left the idle list — the one the owner was looking at — free to reshuffle
+		//for as long as the counts took to arrive.
+		//
+		//The key is the build AND the row set: within one build the set is
+		//constant, so a set that changed anyway (a candidate arriving late) is a
+		//genuinely different list and gets a genuinely fresh order rather than
+		//being sorted into a stale one.
+		const key = `${buildKey}\n${paletteOrderKey(rows)}`;
 		const memo = this._paletteOrder;
 		//A REBUILT LIST GETS A FRESH WINDOW. The window is a scroll position in
 		//disguise, and the pane's scrollTop is reset on every feed change; a
@@ -2365,14 +2506,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (memo && memo.key !== key && this._renderedRowLimit !== INITIAL_RENDERED_ROWS) {
 			this._renderedRowLimit = INITIAL_RENDERED_ROWS;
 		}
-		if (memo && memo.key === key && this._rowHighlightActive) return frozenPaletteOrder(rows, memo.order);
-		const order = rows.map(row => row.id);
-		//Only when the order actually moved: reassigning an identical memo would
-		//hand the frozen-order path a new array every render and defeat its
-		//cache, which is the whole reason the list is stable to begin with.
-		if (!memo || memo.key !== key || memo.order.length !== order.length || memo.order.some((id, index) => id !== order[index])) {
-			this._paletteOrder = {key, order};
-		}
+		if (memo && memo.key === key) return frozenPaletteOrder(rows, memo.order);
+		this._paletteOrder = {key, order: rows.map(row => row.id)};
 		return rows;
 	}
 
@@ -2689,7 +2824,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			` : ''}
 			${this._paletteListRender(rows, highlightedIndex)}
-			<div class='key-hints'>${this._composerKeyHints()}</div>
 			${this._modifierNoteRender()}
 			<!-- A MODE SWITCH, NOT A CONTROL ON THE DRAFT. The tightness pass
 			     (D6) enumerates the parts of the composing flow; an EXIT from it
@@ -2726,82 +2860,38 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return 'Type another condition…';
 	}
 
-	//THE FOOTER STATES THE CONTRACT, AND STATES NOTHING ELSE (round 3, D6).
+	//THE COMPOSER'S KEY-HINTS LINE IS DELETED (owner, F4).
 	//
-	//    Enter does the top thing · Cmd-Enter opens · Escape discards
+	//The owner, of `Enter does the top thing · Cmd-Enter opens · Escape
+	//discards`: "this text … is unnecessary." So it is gone, and so are the four
+	//other lines the same element rendered — the or-scoped line, the word-scoped
+	//line, the pill row's key table, and the touch-layout tap copy. Deleting only
+	//the main-state copy would have left a line that appeared the moment you
+	//selected a pill, which is the opposite of what was asked for: the composer
+	//renders NO key-hints element in ANY state.
 	//
-	//Three keys, one line, unchanging. The line it replaces had SEVEN states — one
-	//per highlighted row species, each naming that row's own verbs ('Enter adds
-	//and opens', 'Tab copies it into the draft', 'Click, Tab, or Enter opens
-	//Source'). Those states were honest about a list whose rows did different
-	//KINDS of thing, and that list is gone: every row is an action on the draft
-	//now, so a footer that still varied per row would be teaching a distinction
-	//the product no longer makes. A contract you have to re-read on every
-	//arrow-down is not a contract.
+	//THE CONTRACT ITSELF IS UNTOUCHED, and it is still discoverable where the app
+	//publishes every other contract: `commit-collection-composer` and
+	//`dialog-escape` are both declareShortcut entries, so they appear in the
+	//shortcut sheet with the same platform-correct spelling this line used to
+	//render. The keys still work; only the running commentary is gone.
 	//
-	//THE KEYS ARE SPELLED FROM THE CANONICAL COMBO TABLE, not by hand. The
-	//round-3 wording is '⌘Enter', which is Mac-only and hand-synced — the two
-	//properties shortcuts-data exists to eliminate, and its header documents a
-	//tooltip that lied for weeks because of exactly that. `shortcutKeys` renders
-	//'Cmd-Enter' on a Mac and 'Ctrl-Enter' everywhere else, from the same entry
-	//the handler's contract is written against.
-	//
-	//TWO LAYERS KEEP A LINE OF THEIR OWN, because a layer with a different
-	//contract in force has to say so or the footer is lying: the or-scoped input
-	//(where every row is an alternative to one named clause) and the pill row
-	//(whose keys come from PILL_ROW_KEY_HINTS, the module that performs them).
-	//Both are peeled by the same Escape the main line names.
-	//
-	//AND A TOUCH LAYOUT HAS NO KEYBOARD TO STATE A CONTRACT FOR. On a phone this
-	//line named keys the device does not have, which is the same defect one level
-	//up: a footer describing controls the user cannot reach.
-	//
-	//WHICH IS A QUESTION ABOUT THE POINTER, NOT ABOUT THE WINDOW (round-3
-	//tightness, minor). `mobile` is the app's SIZE flag, and it is true of a
-	//desktop browser someone has made short — measured live at 900x420, where
-	//`(hover: none)` and `(pointer: coarse)` were both false and the footer said
-	//'Tap a row to use it' to a machine with a keyboard and a mouse. So the copy
-	//keys off the input the reader actually has, and the layout keys off the size
-	//it always did. Both are needed: `mobile` still decides the 44px targets and
-	//the wrapped grid, which really are about room.
-	_composerKeyHints() : string {
-		if (this._touchInput) {
-			if (this._pillRowOpen) return 'Editing a clause · tap its verbs to change it · tap another pill to edit that one';
-			return 'Tap a row to use it · tap the open button for this collection';
-		}
-		if (this._orTarget) return `Type an alternative · Enter widens the clause · ${shortcutKeys('dialog-escape')} goes back to the pill`;
-		//A WORD-SCOPED LIST HAS ITS OWN CONTRACT IN FORCE, so it says so — the
-		//same reason the or-scoped line above exists. Every row here REPLACES one
-		//word of the sentence, and Escape gives the word back rather than
-		//discarding the draft.
-		if (this._wordScope) return `Choose ${this._wordScope === 'set' ? 'what to start from' : 'the order and view'} · Enter uses the top one · ${shortcutKeys('dialog-escape')} goes back to the sentence`;
-		//THE ARMED BACKSPACE LEADS THE LINE. The first Backspace on an empty input
-		//SELECTS rather than removing, and a contract nobody can see is not one.
-		if (this._pillRowOpen) {
-			const keys = PILL_ROW_KEY_HINTS.map(hint => `${hint.key} ${hint.means}`).join(' · ');
-			const armed = this._backspaceArmed ? `${this._backspaceArmedMessage} · ` : '';
-			return `${armed}←→ choose clause · ${keys} · ${shortcutKeys('dialog-escape')} closes the row`;
-		}
-		return `Enter does the top thing · ${shortcutKeys('commit-collection-composer')} opens · ${shortcutKeys('dialog-escape')} discards`;
-	}
+	//WITH IT GO ITS TWO DEPENDENTS. `_touchInput` existed to choose between the
+	//keyboard copy and the tap copy — it decided nothing else, and a media query
+	//read for a string nobody renders is dead weight. PILL_ROW_KEY_HINTS was the
+	//table the pill-row line was spelled from, and it is deleted in its own
+	//module for the same reason. What is NOT deleted is `_backspaceArmed`: the
+	//two-step Backspace is a real state, and the sentence's own selected pill is
+	//what shows it.
 
-	//WHETHER THIS READER'S POINTER IS A FINGER. Read from the media query rather
-	//than from the viewport, and only for COPY — see _composerKeyHints. Defaults
-	//to false where matchMedia is absent (a jsdom test, an old engine), because a
-	//keyboard contract stated to somebody who has no keyboard is a smaller defect
-	//than a tap contract stated to somebody who does: the keys are still there
-	//either way, and the taps may not be.
-	get _touchInput() : boolean {
-		if (typeof window === 'undefined' || !window.matchMedia) return false;
-		return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-	}
-
-	//BOTH modes explain an inert modifier the same way, in the same place: on
-	//the key-hints line, which is where the composer already states its key
-	//contract.
+	//AN INERT MODIFIER STILL EXPLAINS ITSELF. This is not the key-hints line and
+	//never was one: it is a role=status note that fires once, when the user
+	//presses a modifier the composer deliberately does nothing with. It kept its
+	//typography by borrowing `.key-hints`; with that class gone from this mode it
+	//takes a rule of its own, in the same subordinate register.
 	_modifierNoteRender() {
 		if (!this._modifierNote) return '';
-		return html`<div class='key-hints modifier-note' role='status'>${this._modifierNote}</div>`;
+		return html`<div class='modifier-note' role='status'>${this._modifierNote}</div>`;
 	}
 
 	//BOTH modes commit through the same control, so it is described once.
@@ -2922,12 +3012,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//_previewCounts, which is keyed by row id and rebuilt from the visible list:
 	//suppressing a row on a count that then stops being requested because the
 	//row is gone is an oscillation, not a suppression.
+	//
+	//AND FROM THE BUILD'S SNAPSHOT OF IT (F2). This suppression removes rows from
+	//the head of the idle list, so under live counts the three most prominent rows
+	//in the composer could vanish a second or two after it opened, sliding
+	//everything below them up. The offer is suppressed on the next build instead.
 	_withoutContradictoryRefinements(suggestions : CollectionComposerSuggestion[]) : CollectionComposerSuggestion[] {
 		if (this._composerInput.trim()) return suggestions;
-		const draftCount = this._countForDescription(this._collectionDescription);
+		const draftCount = this._builtCountForDescription(this._collectionDescription);
 		if (draftCount === undefined || draftCount === 0) return suggestions;
 		const filtered = suggestions.filter(suggestion =>
-			suggestion.action !== 'add' || this._countForDescription(suggestion.description) !== 0);
+			suggestion.action !== 'add' || this._builtCountForDescription(suggestion.description) !== 0);
 		return filtered.length === suggestions.length ? suggestions : filtered;
 	}
 
@@ -3583,9 +3678,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			this._removeSelectedToken();
 			return true;
 		case 'Enter':
-			//ENTER EDITS THE SELECTED PILL, which is what the footer's own key
-			//table (PILL_ROW_KEY_HINTS) promises. The row is already open, so
-			//"edit" means putting the caret in its first control.
+			//ENTER EDITS THE SELECTED PILL. The row is already open, so "edit"
+			//means putting the caret in its first control. (The footer that used
+			//to promise this key is deleted — owner, F4 — but the key is not:
+			//the row it lands in is the visible answer.)
 			if (!path.length) return false;
 			e.preventDefault();
 			e.stopPropagation();
@@ -3902,9 +3998,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			withMemberRemoved(this._draftExpression, path[0], memberIndex));
 	}
 
-	//ONE SENTENCE, TWO AUDIENCES. The live region announces it and the key-hints
-	//line prints it, from one string, so the promise a screen reader hears and
-	//the promise the screen makes are the same promise.
+	//WHAT THE SECOND BACKSPACE WOULD DO, ANNOUNCED. It is read into
+	//_clauseSelectionMessage's live region; the visible half of the same fact is
+	//the selected pill and its open row.
 	get _backspaceArmedMessage() : string {
 		return `${this._selectedTokenLabel} selected · Backspace again to remove`;
 	}
