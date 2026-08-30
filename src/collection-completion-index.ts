@@ -539,13 +539,27 @@ export const completionValences = (
 const SORT_NAMES : readonly string[] = Object.keys(SORTS);
 const VIEW_MODES : readonly string[] = Object.keys(LEGAL_VIEW_MODES);
 
+//A DATE FAMILY'S OWN DEFAULT ASKS FOR AN EDIT; A ROLLING WINDOW ANSWERS A
+//QUESTION. `updated` defaults to `before/<today>`, which selects very nearly the
+//whole corpus and means nothing until somebody changes it — a clause that has to
+//be edited before it does anything is the pending-add gate in another form.
+//"Updated in the last week" is what a person reaching for a date filter almost
+//always means, and it is a real collection the moment it lands.
+const ROLLING_DATE_FAMILIES : ReadonlySet<string> = new Set(['created', 'updated', 'last-tweeted']);
+
 //A configurable family is offered by its FAMILY name, because its values do not
-//exist yet — the palette drills into the argument editor next. Its node is the
-//family spelled with its own defaults, which is the clause the engine would run
-//if the user stopped there.
-const defaultConfigurableFilter = (family : string) : string => {
+//exist yet — the palette opens its pill row next. Its node is the family spelled
+//with the default below, which is the clause the engine would run if the user
+//stopped there.
+//
+//EXPORTED because the palette adds the same family the same way when it is
+//chosen from Browse all rather than typed. Two spellings of "the default clause
+//for this family" is how one route ends up producing a different draft from the
+//other for the same gesture.
+export const defaultConfigurableFilter = (family : string) : string => {
 	const configurable = CONFIGURABLE_FILTER_INFO[family];
 	if (!configurable) return family;
+	if (ROLLING_DATE_FAMILIES.has(family)) return `${family}/after/7-days-ago`;
 	return family + '/' + configurable.arguments.map(argument => argument.default).join('/');
 };
 
@@ -572,6 +586,21 @@ const filterNode = (filter : string) : FilterExpressionNode => ({kind: 'filter',
 //"Browse all" list and source mode's completions — the two places where the
 //words are the honest name for the thing.
 const STRUCTURAL_FILTER_FAMILIES : ReadonlySet<string> = new Set(['combine', 'exclude', 'expand']);
+
+//The free-text reading of a token. Two characters is where a search stops being
+//a search — `query/a` matches most of a corpus — and the same threshold the
+//fuzzy tier already uses would have been too generous here, because this
+//candidate is offered for EVERY token rather than only for ones that match
+//something.
+const QUERY_FILTER_FAMILY = 'query';
+const FREE_TEXT_MINIMUM_LENGTH = 2;
+
+//SAY THAT IT MATCHES PARTIALLY. The pill reads `Text contains “systems
+//thinking”`, which sounds like a promise that both words appear together; the
+//row is where the user decides, so it is where the qualification belongs. Same
+//sentence the suggestion module's own query row uses, so the two readings of one
+//clause cannot drift.
+const FREE_TEXT_DETAIL = 'Keeps cards whose text matches this query, including cards matching only some of its words';
 
 export type CollectionCompletionOptions = {
 	//What the user typed, verbatim. Negation prefixes are stripped here, not by
@@ -708,6 +737,32 @@ export const collectionCompletionCandidates = (
 			label,
 			detail,
 			match
+		);
+	}
+
+	//WHATEVER ELSE THEY MEANT, THEY MEANT THE WORDS THEY TYPED.
+	//
+	//Every other candidate here is a NAME the user might have been reaching for.
+	//A free-text query is the interpretation that is always available and always
+	//literal — proposal B §2.2 puts `+ text contains "sys"` in its own mock — and
+	//it is the only row that can answer a token no name matches at all. Without
+	//it, typing a phrase that is not a filter's name produces an empty list, and
+	//the typed-token spine the whole design rests on has a hole in it.
+	//
+	//It is scored in the FUZZY tier so it sits under every real name match: a
+	//user who typed 'star' meant the Starred filter, and the literal reading is
+	//the fallback rather than the answer. The token used is the RAW one, with any
+	//negation prefix stripped, because that is the text the clause will search
+	//for.
+	if (token.length >= FREE_TEXT_MINIMUM_LENGTH) {
+		const filter = `${QUERY_FILTER_FAMILY}/${token}`;
+		clauseCandidate(
+			`filter:${filter}`,
+			'filter',
+			filter,
+			collectionFilterDisplayName(filter, labels),
+			FREE_TEXT_DETAIL,
+			{tier: 'fuzzy', matchedOn: token}
 		);
 	}
 

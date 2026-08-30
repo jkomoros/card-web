@@ -37,6 +37,7 @@
 
 import {
 	CollectionDescription,
+	collectionDescriptionWithFilterAppended,
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSort,
 	collectionDescriptionWithSortReversed,
@@ -93,6 +94,10 @@ export type PaletteRowKind =
 
 //The heading a run of rows sits under. Sentence case, panel-h3 register — the
 //section carries the grammar that the deleted verb chips used to restate.
+//What a view mode's extra means when nobody has named a card: the collection's
+//own first card. The app's own spelling, from collection_description.
+const VIEW_MODE_FIRST_CARD = '_';
+
 export const RECENT_SECTION = 'Recent';
 export const REFINE_SECTION = 'Refine';
 
@@ -147,12 +152,19 @@ const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : s
 	id: suggestion.id,
 	kind: suggestion.kind === 'recent' ? 'destination' : 'transform',
 	section,
-	//A DESTINATION IS NAMED BY WHAT IT IS. The suggestion's `label` carries the
-	//verb ('Open Everything · starred'), and the verbs are deleted — the section
-	//heading and the navigate glyph say what a recent row does. `name` is the
+	//A ROW IS NAMED BY WHAT IT IS, NOT BY WHAT IT DOES TO YOU.
+	//
+	//The suggestion module's `label` carries a verb in front of the name ('Add
+	//Starred', 'Open Everything · starred'), which is the verb-chip vocabulary
+	//one level down in the string. The section heading says the grammar now, so
+	//a destination and an added clause both read as themselves — `name` is the
 	//same module's verb-free name, so the row and the receipt that follows it
 	//still cannot disagree.
-	label: suggestion.kind === 'recent' ? suggestion.name : suggestion.label,
+	//
+	//A row that PIVOTS ('Start from Everything') keeps its label, because there
+	//the verb is not a restatement: the name alone would be the set, and the row
+	//does not merely add it.
+	label: suggestion.action === 'add' || suggestion.kind === 'recent' ? suggestion.name : suggestion.label,
 	detail: suggestion.detail,
 	navigates: suggestion.action === 'open',
 	description: suggestion.description,
@@ -172,7 +184,13 @@ export const paletteIdleRows = (
 	contextual : readonly CollectionComposerSuggestion[]
 ) : PaletteRow[] => [
 	...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION)),
-	...contextual.map(suggestion => rowForSuggestion(suggestion, REFINE_SECTION)),
+	//"REMOVE X" ROWS ARE DELETED, and the design says where their question went:
+	//`without this pill: N` in the pill row answers it, beside the clause it is
+	//about, instead of in a list of offers to undo things the user chose. A
+	//clause exists in exactly one place — the sentence — and its removal belongs
+	//there too.
+	...contextual.filter(suggestion => suggestion.action !== 'remove')
+		.map(suggestion => rowForSuggestion(suggestion, REFINE_SECTION)),
 ];
 
 //--- Valences (the typing feed) --------------------------------------------
@@ -249,6 +267,14 @@ export const paletteTypingRows = (
 				id: valence.id,
 				kind: 'valence',
 				section,
+				//A FAMILY ROW OPENS ITS OWN CONTROLS AFTER IT LANDS. The clause
+				//is spelled with the family's default, which is a real collection
+				//— but the arguments are the point of a configurable family, so
+				//the palette selects the pill it just added and the row appears
+				//under it. The flag rides on the row rather than being
+				//re-derived from the filter name at the call site.
+				configurable: candidate.kind === 'filter-family',
+				filter: candidate.filter,
 				label: valence.label,
 				detail: candidate.detail,
 				navigates: false,
@@ -302,6 +328,13 @@ export const paletteBrowseRows = (
 	for (const category of collectionFilterCatalogCategories) {
 		for (const item of items) {
 			if (item.category !== category) continue;
+			//A FAMILY HAS NO COLLECTION YET; A PLAIN FILTER DOES. The first keeps
+			//the draft's own description, because its arguments have not been
+			//chosen and any count beside it would be a number for a clause that
+			//does not exist. The second is a whole clause already, so its row
+			//carries the collection it would produce — which is what makes
+			//choosing it an ordinary add rather than a special case.
+			const guidedClause = item.guided && !item.configurable;
 			rows.push({
 				id: `browse:${item.filter}`,
 				kind: 'transform',
@@ -309,10 +342,7 @@ export const paletteBrowseRows = (
 				label: item.label,
 				detail: item.detail,
 				navigates: false,
-				//A browse row is a family, not a collection: its count would be a
-				//number for a clause whose arguments nobody has chosen. The
-				//description is the draft's own, so nothing promises otherwise.
-				description,
+				description: guidedClause ? collectionDescriptionWithFilterAppended(description, item.filter) : description,
 				//A clause this layer cannot compose opens in Source instead of
 				//pretending to a guided editor.
 				sourceFilter: item.guided ? undefined : item.filter,
@@ -386,7 +416,12 @@ export const paletteWordRows = (
 			label: collectionOptionDisplayName(mode),
 			detail: `Shows this collection as ${collectionOptionDisplayName(mode)}.`,
 			navigates: false,
-			description: collectionDescriptionWithViewMode(description, mode as ViewMode, description.viewModeExtra),
+			//A view that takes a focus card gets the app's own "whichever card
+			//the collection opens on" rather than an empty argument. The old
+			//setup strip seeded it from the active card and offered a picker
+			//beside it; the strip is deleted, and `_` is the honest default —
+			//naming a specific card is Source's job now.
+			description: collectionDescriptionWithViewMode(description, mode as ViewMode, description.viewModeExtra || VIEW_MODE_FIRST_CARD),
 			viewerDependent: false,
 		});
 	}
@@ -409,6 +444,11 @@ export const frozenPaletteOrder = (rows : readonly PaletteRow[], order : readonl
 		.map(({row}) => row);
 };
 
-//The identity of a rendered list, for asking "was this list rebuilt?". Same test
-//the composer already made on its suggestion ids.
-export const paletteOrderKey = (rows : readonly PaletteRow[]) : string => rows.map(row => row.id).join('\n');
+//THE IDENTITY OF A LIST IS ITS SET OF ROWS, NOT THEIR ORDER — which is the
+//whole point of asking. The question the freeze needs answered is "was this list
+//REBUILT?", and a count arriving late re-ranks the same rows without rebuilding
+//anything. Keying on the rendered order would make every re-rank look like a new
+//list and unfreeze exactly the case the freeze exists for, so the ids are sorted
+//before they are joined.
+export const paletteOrderKey = (rows : readonly PaletteRow[]) : string =>
+	rows.map(row => row.id).sort().join('\n');

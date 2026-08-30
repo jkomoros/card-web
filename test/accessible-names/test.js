@@ -269,16 +269,21 @@ describe('accessible names on icon-only controls (HS-2.5)', () => {
 		}
 	});
 
-	//The composer commits through `_openActionRender` and
-	//`_commitPendingCatalogFilter` rather than `_handleDoneClicked`, so the loop
-	//above cannot see it. Its committing actions are icon-only, which is exactly
-	//the population this file exists for: an icon needs BOTH names (HS-2.5), and
-	//a wrapper title supplies neither.
-	it('names the collection composer’s committing actions', () => {
+	//The composer commits through `_openActionRender` rather than
+	//`_handleDoneClicked`, so the loop above cannot see it. Its committing action
+	//is icon-only, which is exactly the population this file exists for: an icon
+	//needs BOTH names (HS-2.5), and a wrapper title supplies neither.
+	//
+	//ONE now, not two. The pending-filter panel had a second round primary — its
+	//own Add — because a filter chosen from the catalog was not in the draft
+	//until it was confirmed. That panel and its gate are deleted: a family lands
+	//in the draft with its own defaults and is edited in place, so the dialog has
+	//exactly one committing action again.
+	it('names the collection composer’s committing action', () => {
 		const source = stripComments(readFileSync(new URL('configure-collection-dialog.ts', COMPONENTS), 'utf8'));
 		const tags = [...source.matchAll(/<button class='round primary'[^>]*>/g)].map(match => match[0]);
-		assert.strictEqual(tags.length, 2,
-			'the composer has two round primaries: the shared Open control and the pending filter’s Add');
+		assert.strictEqual(tags.length, 1,
+			'the composer has one round primary: the shared Open control');
 		for (const tag of tags) {
 			assert.match(tag, /aria-label='[^']+'/, `unnamed to assistive tech: ${tag}`);
 			assert.match(tag, /title='[^']+'/, `nothing on hover: ${tag}`);

@@ -106,18 +106,91 @@ describe('Collection Composer interactions', () => {
 	//the frame before the answer arrived.
 	const settleRender = async (...elements) => {
 		for (let round = 0; round < 3; round++) {
-			for (const element of elements) await element.updateComplete;
+			for (const element of elements) if (element) await element.updateComplete;
 		}
 	};
 
 	const suggestionRows = () =>
 		Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
 
-	const suggestionLabels = () =>
-		suggestionRows().map((button) => button.textContent.replace(/\s+/g, ' ').trim());
+	//A ROW'S VISIBLE TEXT NOW CROSSES A SHADOW BOUNDARY. A recent renders as a
+	//miniature <collection-sentence> and a completion renders as the pill it
+	//would become, both of which put their words in their OWN shadow root — so
+	//`button.textContent` sees an empty row. Descending is what the reader's eye
+	//does; this is the same descent the accessible-name walk already makes.
+	const deepText = (node) => {
+		if (!node) return '';
+		//A shadow root's own <style> is not text the reader sees.
+		if (node.nodeType === 1 && node.localName === 'style') return '';
+		let text = '';
+		for (const child of node.childNodes || []) {
+			if (child.nodeType === 3) text += child.textContent;
+			else text += deepText(child);
+		}
+		if (node.shadowRoot) text += deepText(node.shadowRoot);
+		return text;
+	};
+
+	const rowText = (button) => deepText(button).replace(/\s+/g, ' ').trim();
+
+	const suggestionLabels = () => suggestionRows().map(rowText);
 
 	const highlightedRow = () =>
 		dialog.shadowRoot.querySelector('[role="option"][data-highlighted]');
+
+	//The palette's own sentence, read the same way.
+	const sentenceText = () =>
+		deepText(dialog.shadowRoot.querySelector('.sentence')).replace(/\s+/g, ' ').trim();
+
+	//The pills of the draft sentence, as the chips they are.
+	const sentencePills = () => {
+		const sentence = dialog.shadowRoot.querySelector('collection-sentence');
+		if (!sentence) return [];
+		return Array.from(sentence.shadowRoot.querySelectorAll('tag-chip'));
+	};
+
+	const pillLabels = () => sentencePills().map((chip) => deepText(chip).replace(/\s+/g, ' ').trim());
+
+	//The idle Refine list names its rows by the clause they would become, so
+	//adding one is "click the row that says Starred".
+	const addRefineRow = async (label) => {
+		const row = suggestionRows().find((button) => rowText(button).includes(label));
+		assert.ok(row, `no row labelled ${label}`);
+		row.click();
+		await settleRender(dialog);
+	};
+
+	//The link toggles its own label, so match either half of the pair: a test
+	//that closed the feed by clicking "Browse all filters" would be looking for
+	//a button that says "Hide all filters" by then.
+	const browseAll = () => Array.from(dialog.shadowRoot.querySelectorAll('.mode-links button'))
+		.find((button) => /(Browse|Hide) all filters/.test(button.textContent));
+
+	const pillRow = () => dialog.shadowRoot.querySelector('collection-pill-row');
+
+	const pillRowText = () => deepText(pillRow()).replace(/\s+/g, ' ').trim();
+
+	const pillRowVerb = (label) => {
+		const row = pillRow();
+		if (!row) return null;
+		return Array.from(row.shadowRoot.querySelectorAll('button.verb'))
+			.find((button) => button.textContent.trim() === label) || null;
+	};
+
+	//Type into the composer input the way a user does: the element's value
+	//changes and an input event carries it into the component.
+	const typeComposer = async (value) => {
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.value = value;
+		input.dispatchEvent(new window.InputEvent('input', { bubbles: true, composed: true }));
+		await settleRender(dialog);
+	};
+
+	const pressComposer = async (key, extra = {}) => {
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		input.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true, ...extra }));
+		await settleRender(dialog);
+	};
 
 	//JSDOM computes no layout, so every geometry property this suite cares
 	//about is pinned against the real registered component's own stylesheet.
@@ -308,18 +381,21 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(dialog.shadowRoot.activeElement, input);
 	});
 
-	it('clicking an Add suggestion updates only the draft', async () => {
-		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-		const starred = buttons.find((button) => button.textContent.includes('Add Starred'));
+	//A REFINE ROW IS NAMED BY THE CLAUSE IT WOULD BECOME, not by a verb in front
+	//of it: the section heading carries the grammar now, and the verb chips are
+	//deleted. Choosing it still only touches the draft.
+	it('clicking a Refine row updates only the draft', async () => {
+		const starred = suggestionRows().find((button) => rowText(button).includes('Starred'));
 		assert.ok(starred);
+		assert.ok(!rowText(starred).startsWith('Add '), 'no verb in front of the clause');
 		const beforePath = window.location.pathname;
 		starred.click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		const state = store.getState();
 		assert.deepStrictEqual(state.collection.snapshot.filterNames, ['starred']);
 		assert.deepStrictEqual(state.collection.active.filterNames, []);
 		assert.strictEqual(window.location.pathname, beforePath);
-		assert.match(dialog.shadowRoot.querySelector('.expression').textContent, /Starred/);
+		assert.match(sentenceText(), /Starred/, 'and the clause appears in the sentence');
 		assert.strictEqual(dialog.open, true);
 	});
 
@@ -334,19 +410,18 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'tag inductively';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Tagged “Inductively Knowable”'));
+		await settleRender(dialog);
+		const suggestion = suggestionRows().find((button) => rowText(button).includes('Inductively Knowable'));
 		assert.ok(suggestion);
 		//This used to assert the raw URL spelling was VISIBLE in the row, as proof
 		//the suggestion carried the exact filter. That is the HS-1.4 violation
 		//itself; the assertion below — that clicking it applies exactly
 		//"inductively-knowable" — proves the same thing without a raw key on
 		//screen, so the row is now checked for its ABSENCE.
-		assert.ok(!suggestion.textContent.includes('inductively-knowable'),
+		assert.ok(!rowText(suggestion).includes('inductively-knowable'),
 			'a filter\'s URL spelling must not reach the user');
 		suggestion.click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['inductively-knowable']);
 	});
 
@@ -365,30 +440,33 @@ describe('Collection Composer interactions', () => {
 			collaborators: [],
 		};
 		await dialog.updateComplete;
-		const labels = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.slice(0, 3)
-			.map((button) => button.textContent);
-		//One clause, one name: the row says exactly what the chip it produces will
-		//say, with the action grammar's verb in front of it. The active-card
-		//destination leads, because it is the one row about where the user is.
-		assert.match(labels[0], /Add This card and directly connected cards/);
-		assert.match(labels[1], /Add Tagged Systems/);
-		assert.match(labels[2], /Add Section Half Baked/);
+		const labels = suggestionRows().slice(0, 3).map(rowText);
+		//One clause, one name: the row says exactly what the pill it produces
+		//will say, and nothing else — no verb chip and no verb in the string.
+		//The active-card row leads, because it is the one row about where the
+		//user is.
+		assert.match(labels[0], /This card and directly connected cards/);
+		assert.match(labels[1], /Tagged Systems/);
+		assert.match(labels[2], /Section Half Baked/);
+		assert.ok(labels.every((label) => !/^(Add|Open|Remove|Replace) /.test(label)),
+			'the verbs live in the section heading, not on every row');
 	});
 
-	it('explains preview counts as consequences without changing row order', async () => {
-		const before = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.map((button) => button.id);
+	//A ROW COUNT IS A PREDICTION, AND IT IS WRITTEN AS THE TRANSITION IT
+	//PREDICTS: `current → would-be`. The delta phrasing it replaces said the
+	//same thing in words a reader had to do the arithmetic backwards from.
+	it('explains preview counts as current → would-be, without changing row order', async () => {
+		const before = suggestionRows().map((button) => button.id);
 		dialog._previewCounts = {
 			'current-draft-preview': 12,
 			'add:starred': 5,
 			'add:unread': 19,
 		};
 		await dialog.updateComplete;
-		const after = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
+		const after = suggestionRows();
 		assert.deepStrictEqual(after.map((button) => button.id), before);
-		assert.match(after.find((button) => button.textContent.includes('Add Starred')).textContent, /5 cards · 7 fewer/);
-		assert.match(after.find((button) => button.textContent.includes('Add Unread')).textContent, /19 cards · 7 more/);
+		assert.match(rowText(after.find((button) => rowText(button).includes('Starred'))), /12 cards → 5 cards/);
+		assert.match(rowText(after.find((button) => rowText(button).includes('Unread'))), /12 cards → 19 cards/);
 		//The draft's own count is a readout BESIDE the primary now, not inside
 		//its label: HS-3.3 makes that button a round glyph, so it has no label
 		//to put a number in. The primary is asserted separately, and what it
@@ -401,7 +479,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'star';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		await dialog.updateComplete;
 		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(), '');
 	});
@@ -411,17 +489,13 @@ describe('Collection Composer interactions', () => {
 	//first typing something to make them go away.
 	it('Tab reaches the empty-state list, then materializes the row it landed on', async () => {
 		assert.strictEqual(highlightedRow(), null);
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-0',
+		await pressComposer('Tab');
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-0',
 			'the first Tab makes the list keyboard-enterable without typing');
-		assert.match(highlightedRow().textContent, /Add Starred/);
+		assert.match(rowText(highlightedRow()), /Starred/);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [],
 			'and changes nothing on its own');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		await dialog.updateComplete;
+		await pressComposer('Tab');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
 			'the second Tab materializes that row into the draft');
 		assert.strictEqual(window.location.pathname, '/c/main/');
@@ -433,17 +507,20 @@ describe('Collection Composer interactions', () => {
 	//instead of leaving for it.
 	it('Tab on a destination copies its expression into the draft, and says so', async () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.match(highlightedRow().textContent, /Main AND Starred/);
+		await pressComposer('Tab');
+		//A RECENT IS A MINIATURE SENTENCE, rendered by the same component the
+		//palette's own sentence uses — so it reads with quiet interpuncts rather
+		//than the capital AND the drawer used to say.
+		assert.match(rowText(highlightedRow()), /Main · Starred/);
 		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Tab copies it into the draft/);
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		await dialog.updateComplete;
+		await pressComposer('Tab');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 		assert.strictEqual(store.getState().collection.snapshot.sortName, 'recent');
 		assert.strictEqual(window.location.pathname, '/c/main/', 'Tab does not navigate');
+		//THE RECEIPT KEEPS THE READABLE VOCABULARY. The row renders a miniature
+		//sentence with quiet interpuncts; the receipt (and the row's accessible
+		//name) uses readableCollectionExpression, which is the app's one spoken
+		//form for a collection and is deliberately unchanged.
 		assert.match(dialog.shadowRoot.querySelector('.draft-receipt').textContent,
 			/Replaced the draft with Main AND Starred/);
 	});
@@ -452,36 +529,36 @@ describe('Collection Composer interactions', () => {
 	//is pointing at, but they may not move it out from under them.
 	it('ranks empty rows down when the list is built, and never once it is focused', async () => {
 		const indexOf = (text) => suggestionLabels().findIndex((label) => label.includes(text));
-		assert.strictEqual(indexOf('Add Starred'), 0);
+		assert.strictEqual(indexOf('Starred'), 0);
 		dialog._previewCounts = { 'current-draft-preview': 12, 'add:starred': 0, 'add:unread': 5 };
 		await dialog.updateComplete;
-		assert.ok(indexOf('Add Unread') < indexOf('Add Starred'),
+		assert.ok(indexOf('Unread') < indexOf('Starred'),
 			'a row that yields no cards never sits above one that yields some');
-		assert.notStrictEqual(indexOf('Add Starred'), 0);
-		const withoutCounts = () => suggestionLabels().map((label) => label.replace(/\d+ (cards?|fewer|more)/g, ''));
-		const focusedOrder = withoutCounts();
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		const highlighted = highlightedRow().textContent;
+		assert.notStrictEqual(indexOf('Starred'), 0);
+		//The rows are compared by IDENTITY, not by their rendered text: the
+		//detail line appears only on the highlighted row, so text would report
+		//the highlight moving as the list reordering.
+		const order = () => suggestionRows().map((button) => button.dataset.rowId);
+		const focusedOrder = order();
+		await pressComposer('ArrowDown');
+		const highlighted = highlightedRow().dataset.rowId;
 		dialog._previewCounts = { ...dialog._previewCounts, 'add:unread': 0, 'add:starred': 9 };
 		await dialog.updateComplete;
 		assert.deepStrictEqual(
-			withoutCounts(),
+			order(),
 			focusedOrder,
 			'the focused list does not reorder when late counts arrive'
 		);
 		assert.strictEqual(
-			highlightedRow().textContent.replace(/\d+ (cards?|fewer|more)/g, ''),
-			highlighted.replace(/\d+ (cards?|fewer|more)/g, ''),
+			highlightedRow().dataset.rowId,
+			highlighted,
 			'and the row the user is pointing at is still the same row'
 		);
 	});
 
 	it('opens the edited draft only from the explicit primary action', async () => {
-		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-		buttons.find((button) => button.textContent.includes('Add Starred')).click();
-		await dialog.updateComplete;
+		suggestionRows().find((button) => rowText(button).includes('Starred')).click();
+		await settleRender(dialog);
 		const primary = dialog.shadowRoot.querySelector('.composer-actions button[aria-label="Open this collection"]');
 		primary.click();
 		await dialog.updateComplete;
@@ -492,18 +569,11 @@ describe('Collection Composer interactions', () => {
 
 	it('keeps the selected card when Enter adds and opens a suggestion', async () => {
 		dialog._draftSelectedCard = 'card-123';
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'star';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const highlighted = dialog.shadowRoot.querySelector('[role="option"][data-highlighted]');
-		assert.match(highlighted.textContent, /Starred/);
-		input.dispatchEvent(new KeyboardEvent('keydown', {
-			key: 'Enter',
-			bubbles: true,
-			cancelable: true,
-		}));
-		await dialog.updateComplete;
+		await typeComposer('star');
+		//A COMPLETION RENDERS AS THE PILL IT WOULD BECOME, so its words live in
+		//the sentence renderer's own shadow root one level down.
+		assert.match(rowText(highlightedRow()), /Starred/);
+		await pressComposer('Enter');
 		assert.strictEqual(window.location.pathname, '/c/starred/card-123');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
@@ -516,22 +586,21 @@ describe('Collection Composer interactions', () => {
 		await seedRecents([['main/', 9], ['main/starred/sort/recent/', 2]]);
 		assert.strictEqual(highlightedRow(), null,
 			'nothing is highlighted before the user points at a row, so no row looks primary');
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'star';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		assert.match(highlightedRow().textContent, /Starred/,
+		await typeComposer('star');
+		//RECENTS ARE FIRST-CLASS MATCHES, and rank first among equals: a
+		//collection the user has actually been in is stronger evidence than a
+		//filter whose name merely also matches. So the top row here is the
+		//remembered starred collection, not the bare clause.
+		assert.match(rowText(highlightedRow()), /Starred/,
 			'typing makes the list interpretations of what was typed, and the top one is highlighted');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		await dialog.updateComplete;
+		await pressComposer('Tab');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
+		assert.strictEqual(store.getState().collection.snapshot.sortName, 'recent');
 		assert.strictEqual(highlightedRow(), null,
 			'Tab rebuilt the list, and nothing in the new list is what the user was pointing at');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(window.location.pathname, '/c/starred/',
-			'Enter with no highlighted suggestion opens the draft the user just composed');
+		await pressComposer('Enter');
+		assert.strictEqual(window.location.pathname, '/c/starred/sort/recent/',
+			'Enter with no highlighted row opens the draft the user just composed');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
 
@@ -564,7 +633,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'star';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await dialog.updateComplete;
@@ -610,7 +679,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'star';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await dialog.updateComplete;
@@ -681,23 +750,19 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(store.getState().collection.snapshot, null);
 	});
 
-	it('only an explicit Arrow key makes a suggestion the Enter target', async () => {
+	it('only an explicit Arrow key makes a row the Enter target', async () => {
 		await seedRecents([['main/starred/', 4]]);
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
+		await pressComposer('ArrowDown');
 		//Arrowing into a list with nothing highlighted lands on the first row
 		//rather than skipping one.
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-0');
-		//The seeded recent (Main AND Starred) and the "Add Starred" refinement
-		//resolve to the identical collection, so only one row offers it — the
-		//refinement, which teaches the transformation. Either way Enter lands on
-		//the same collection.
-		assert.match(highlightedRow().textContent, /Add Starred/);
-		assert.ok(!suggestionLabels().some((label) => label.includes('Main AND Starred')),
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-0');
+		//The seeded recent and the Starred refinement resolve to the identical
+		//collection, so only one row offers it — the refinement, which teaches
+		//the transformation. Either way Enter lands on the same collection.
+		assert.match(rowText(highlightedRow()), /Starred/);
+		assert.ok(!suggestionLabels().some((label) => label.includes('Main · Starred')),
 			'the recent that duplicates a refinement\'s destination is not offered twice');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
+		await pressComposer('Enter');
 		assert.strictEqual(window.location.pathname, '/c/starred/');
 	});
 
@@ -705,42 +770,43 @@ describe('Collection Composer interactions', () => {
 	//not one: opening it throws the draft away and changes nothing.
 	it('never offers the collection already on screen as a recent destination', async () => {
 		await seedRecents([['main/', 9], ['main/starred/sort/recent/', 2]]);
-		//This one IS the collection visited before the active one, which is the
-		//only recent allowed to claim a direction.
-		assert.ok(suggestionLabels().some((label) => label.includes('Back to Main AND Starred')),
+		//A recent renders as the miniature sentence it is, so it reads with the
+		//quiet interpunct rather than a verb in front of it.
+		const recentRows = () => suggestionLabels();
+		assert.ok(recentRows().some((label) => label.includes('Main · Starred')),
 			'an unrelated recent is still offered');
-		assert.ok(!suggestionLabels().some((label) => /(Open|Back to) Main(?! AND)/.test(label)),
+		assert.ok(!recentRows().some((label) => /^Main$/.test(label)),
 			'the active collection is not offered even before the draft diverges');
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'star';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		await dialog.updateComplete;
-		//Now the draft is Main AND Starred, so deduping against the draft alone
-		//would let "Back to Main" — the collection on screen — reappear.
+		await typeComposer('star');
+		await pressComposer('Tab');
+		//Now the draft is Main · Starred, so deduping against the draft alone
+		//would let the collection on screen reappear.
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		assert.ok(!suggestionLabels().some((label) => /(Open|Back to) Main(?! AND)/.test(label)),
+		assert.ok(!recentRows().some((label) => /^Main$/.test(label)),
 			'the active collection stays suppressed once the draft diverges from it');
-		assert.ok(suggestionLabels().some((label) => label.includes('Back to Main AND Starred')),
-			'and the recent that is genuinely a different collection survives');
 	});
 
+	//THE "REMOVE X" ROW IS DELETED — `without this pill: N` in the pill row
+	//answers its question, beside the clause it is about. So the destination that
+	//is already open is reached the way a user actually reaches one: through a
+	//recent that names it.
 	it('says so, in the dialog, when a chosen destination is already open', async () => {
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'star';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		await dialog.updateComplete;
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		//"Remove Starred" rebuilds exactly the collection already on screen.
-		assert.match(highlightedRow().textContent, /Remove Starred/);
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
+		await seedRecents([['main/', 9]]);
+		await typeComposer('star');
+		await pressComposer('Tab');
+		//The draft is now Main · Starred while the route is still /c/main/, so
+		//the remembered bare Main is a destination that navigates nowhere.
+		//A recent that names the collection on screen is normally suppressed by
+		//the suggestion path itself. The guard under test is the BACKSTOP for
+		//when it is not: the suppression reads the composer's own copy of the
+		//active collection, and the guard asks the router, so they can drift.
+		//Dropping the composer's copy is exactly that drift, staged.
+		dialog._activeCollectionDescription = null;
+		await typeComposer('main');
+		const already = suggestionRows().find((button) => (button.dataset.rowId || '').startsWith('recent:'));
+		assert.ok(already, 'the collection on screen is reachable as a typed recent');
+		already.click();
+		await settleRender(dialog);
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
 			'the composer stays open rather than vanishing with no explanation');
 		assert.match(dialog.shadowRoot.querySelector('.activation-message').textContent,
@@ -754,29 +820,27 @@ describe('Collection Composer interactions', () => {
 	//used to hand whatever row landed under the pointer the power to decide what
 	//Enter does.
 	it('a re-render under a resting cursor does not take the highlight', async () => {
-		await seedRecents([['main/starred/', 4]]);
+		await seedRecents([['everything/', 5], ['main/sort/recent/', 4], ['reading-list/', 3]]);
 		const rows = suggestionRows();
-		assert.ok(rows.length > 3);
+		assert.ok(rows.length > 3, `the list needs four rows to point at, got ${rows.length}`);
 		rows[3].dispatchEvent(new MouseEvent('mouseenter'));
 		await dialog.updateComplete;
 		assert.strictEqual(highlightedRow(), null,
 			'mouseenter without a mousemove is not evidence the pointer moved');
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-0');
+		await pressComposer('ArrowDown');
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-0');
 		suggestionRows()[3].dispatchEvent(new MouseEvent('mouseenter'));
 		await dialog.updateComplete;
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-0',
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-0',
 			'the keyboard keeps the highlight across a re-render the user did not point at');
 		//Genuine hovering still works.
 		suggestionRows()[3].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
 		await dialog.updateComplete;
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-3');
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-3');
 		//And once the pointer has proven it moves, mouseenter is honored again.
 		suggestionRows()[1].dispatchEvent(new MouseEvent('mouseenter'));
 		await dialog.updateComplete;
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-1');
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-1');
 	});
 
 	//HOVER AND KEYBOARD SELECTION MUST NOT BOTH READ AS SELECTED.
@@ -791,57 +855,51 @@ describe('Collection Composer interactions', () => {
 	//is gated on is driven for real.
 	it('paints a hover fill only while the pointer owns the highlight', async () => {
 		const styles = composerStyles();
-		const hover = styles.match(/[^}]*\.suggestion button:hover\s*\{[^}]*\}/g) || [];
+		const hover = styles.match(/[^}]*\.palette-row button:hover[^{]*\{[^}]*\}/g) || [];
 		assert.ok(hover.length, 'there must be a hover rule to check');
 		for (const rule of hover) {
-			assert.match(rule, /:host\(\[data-pointer-armed\]\)\s*\.suggestion button:hover/,
+			assert.match(rule, /:host\(\[data-pointer-armed\]\)\s*\.palette-row button:hover/,
 				'every hover rule for a row must be gated on the pointer owning the highlight');
 		}
-		//And the keyboard-owned row gets more than a bar: the fill, the bar,
-		//and its action chip filled rather than outlined.
-		assert.match(styles, /\.suggestion button\[data-highlighted\]\s*\{[^}]*border-left-color:\s*var\(--app-primary-color\)/);
-		assert.match(styles, /\.suggestion button\[data-highlighted\] \.suggestion-action\s*\{[^}]*background:\s*var\(--app-primary-color\)/,
-			'the chip on the accepted row is filled, which no hovered row ever is');
+		//And the keyboard-owned row gets more than a hover tint: the fill and
+		//the bar together.
+		assert.match(styles, /\.palette-row button\[data-highlighted\][^{]*\{[^}]*border-left-color:\s*var\(--app-primary-color\)/);
 
-		await seedRecents([['main/starred/', 4]]);
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
+		await seedRecents([['everything/', 5], ['main/sort/recent/', 4], ['reading-list/', 3]]);
+		await pressComposer('ArrowDown');
 		assert.ok(!dialog.hasAttribute('data-pointer-armed'),
 			'a keystroke hands the highlight back to the keyboard, and hover stops painting');
 		suggestionRows()[2].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
 		await dialog.updateComplete;
 		assert.ok(dialog.hasAttribute('data-pointer-armed'),
 			'a real mousemove hands it to the pointer, and hover paints again');
-		assert.strictEqual(highlightedRow().id, 'collection-suggestion-2',
+		assert.strictEqual(highlightedRow().id, 'collection-palette-row-2',
 			'and the row under the cursor is the highlighted one, so there is still only one');
 	});
 
-	//The catalog is painted by the same .suggestion rules, so it needs the same
-	//rule: the row under a moving cursor becomes the highlighted row, rather
-	//than hover fill landing on one row while the keyboard index sits on
-	//another. Its Enter acts on _catalogHighlightedIndex.
-	it('moves the catalog highlight to the row a moving pointer is over', async () => {
-		dialog.shadowRoot.querySelector('.builder-toggle button').click();
+	//BROWSE ALL IS THE SAME LIST, so it is the same pointer rule — which is the
+	//whole point of there being one list. The catalog used to be a second
+	//surface with a second highlight index, and keeping those two in step is
+	//exactly the kind of duplication the rebuild removed.
+	it('moves the browse highlight to the row a moving pointer is over', async () => {
+		browseAll().click();
 		await settleRender(dialog);
-		const rows = Array.from(dialog.shadowRoot.querySelectorAll('.catalog-list [role="option"]'));
-		assert.ok(rows.length > 2, 'the catalog must have rows to check');
-		assert.strictEqual(dialog._catalogHighlightedIndex, 0);
+		const rows = suggestionRows();
+		assert.ok(rows.length > 2, 'browse all must have rows to check');
+		assert.strictEqual(highlightedRow(), null);
 		rows[2].dispatchEvent(new MouseEvent('mouseenter'));
 		await dialog.updateComplete;
-		assert.strictEqual(dialog._catalogHighlightedIndex, 0,
+		assert.strictEqual(highlightedRow(), null,
 			'mouseenter without a mousemove is not evidence the pointer moved, here either');
 		rows[2].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
 		await dialog.updateComplete;
-		assert.strictEqual(dialog._catalogHighlightedIndex, 2);
-		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-list [role="option"][data-highlighted]'), rows[2],
+		assert.strictEqual(highlightedRow(), suggestionRows()[2],
 			'and it is the visibly highlighted one, which is what Enter takes');
 	});
 
 	it('Escape cancels the draft without changing the active collection', async () => {
-		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-		buttons.find((button) => button.textContent.includes('Add Starred')).click();
-		await dialog.updateComplete;
+		suggestionRows().find((button) => rowText(button).includes('Starred')).click();
+		await settleRender(dialog);
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
 		await dialog.updateComplete;
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
@@ -858,47 +916,46 @@ describe('Collection Composer interactions', () => {
 	//on screen. The binding declines while any other dialog is open now.
 	it('lets Escape close only the card picker, leaving the composer and its draft', async () => {
 		dialog._cardTagInfos = { 'card-1': { id: 'card-1', title: 'Inductively Knowable' } };
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'similar';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		//The catalog is gone; the road to a card-valued clause is Browse all →
+		//the family, which lands the clause in the draft with its own defaults
+		//and opens its pill row on it.
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('similar');
 		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
-		await dialog.updateComplete;
-		assert.strictEqual(dialog._catalogOpen, true);
-		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/key-card-id');
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['similar/key-card-id']);
+		assert.deepStrictEqual([...dialog._selectedPath], [0], 'the pill row opens on the clause that just landed');
 
-		const keyCard = dialog.shadowRoot
-			.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot
-			.querySelector('configure-collection-key-card');
+		const keyCard = pillRow().shadowRoot.querySelector('configure-collection-key-card');
 		await keyCard.updateComplete;
 		keyCard.shadowRoot.querySelector('#choose-card').click();
 		await keyCard.updateComplete;
 		assert.strictEqual(store.getState().find.open, true);
 
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
-		await dialog.updateComplete;
-		await findDialog.updateComplete;
+		await settleRender(dialog, findDialog);
 		assert.strictEqual(store.getState().find.open, false, 'Escape closes the picker');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
 			'and only the picker — the composer is still open');
-		assert.strictEqual(dialog._catalogOpen, true, 'with the layer the user was in intact');
-		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/key-card-id',
-			'and the filter being configured not thrown away');
+		assert.deepStrictEqual([...dialog._selectedPath], [0], 'with the layer the user was in intact');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['similar/key-card-id'],
+			'and the clause being configured not thrown away');
 
 		//The picker still works after the detour, and the value still lands.
-		keyCard.shadowRoot.querySelector('#choose-card').click();
-		await keyCard.updateComplete;
+		pillRow().shadowRoot.querySelector('configure-collection-key-card')
+			.shadowRoot.querySelector('#choose-card').click();
+		await settleRender(dialog, findDialog);
 		findDialog._handleThumbnailTapped({ detail: { card: 'card-1' } });
-		await dialog.updateComplete;
-		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/card-1');
+		await settleRender(dialog);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['similar/card-1']);
 
-		//And with the picker gone, Escape peels the composer's own layers again.
+		//And with the picker gone, Escape peels the composer's own layers again:
+		//the pill row first, then the dialog.
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(dialog._pendingCatalogFilter, '');
+		await settleRender(dialog);
+		assert.deepStrictEqual([...dialog._selectedPath], []);
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
 	});
 
@@ -911,18 +968,13 @@ describe('Collection Composer interactions', () => {
 			'card-1': { id: 'card-1', title: 'Inductively Knowable' },
 			'card-2': { id: 'card-2', title: 'Mechanistically Knowable' },
 		};
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'similar';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('similar');
 		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
-		await dialog.updateComplete;
-		const keyCard = dialog.shadowRoot
-			.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot
-			.querySelector('configure-collection-key-card');
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		const keyCard = pillRow().shadowRoot.querySelector('configure-collection-key-card');
 		await keyCard.updateComplete;
 		const invoker = keyCard.shadowRoot.querySelector('#choose-card');
 		invoker.focus();
@@ -970,7 +1022,7 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		await findDialog.updateComplete;
 		assert.strictEqual(store.getState().find.open, false, 'Enter picks and closes');
-		assert.strictEqual(dialog._pendingCatalogFilter, `similar/${ids[0]}`, 'and the value lands');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [`similar/${ids[0]}`], 'and the value lands');
 		//Enter and a click are the same act, so they go through one path.
 		assert.strictEqual(typeof findDialog._pickCard, 'function');
 	});
@@ -986,9 +1038,8 @@ describe('Collection Composer interactions', () => {
 	});
 
 	it('keeps the draft open and explains when editing blocks navigation', async () => {
-		const buttons = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'));
-		buttons.find((button) => button.textContent.includes('Add Starred')).click();
-		await dialog.updateComplete;
+		suggestionRows().find((button) => rowText(button).includes('Starred')).click();
+		await settleRender(dialog);
 		store.dispatch({ type: 'TEST_SET_EDITING', value: true });
 		const primary = dialog.shadowRoot.querySelector('.composer-actions button[aria-label="Open this collection"]');
 		primary.click();
@@ -999,88 +1050,94 @@ describe('Collection Composer interactions', () => {
 		assert.match(dialog.shadowRoot.querySelector('.activation-message').textContent, /Finish or cancel/);
 	});
 
-	it('renders accepted clauses with explicit edit, remove, and Undo controls', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
-		const clause = dialog.shadowRoot.querySelector('.expression-clause');
-		assert.match(clause.textContent, /Starred/);
-		assert.strictEqual(clause.querySelector('.expression-clause-label').getAttribute('aria-label'), 'Edit Starred filter');
-		clause.querySelector('.expression-clause-remove').click();
-		await dialog.updateComplete;
+	//A CLAUSE IS THE APP'S OWN CHIP NOW, and the chip's ✕ is the remove control —
+	//"the most guessable gesture in software", which is why the design reached
+	//for it. The boxed clause-cell with its internal divider and its separate
+	//Edit button is deleted; selecting the pill is what edits it, and the
+	//receipt and its Undo are unchanged.
+	it('renders accepted clauses as removable pills, with Undo', async () => {
+		suggestionRows().find((button) => rowText(button).includes('Starred')).click();
+		await settleRender(dialog);
+		const chip = sentencePills()[0];
+		assert.ok(chip, 'the clause is a pill in the sentence');
+		assert.match(deepText(chip), /Starred/);
+		assert.strictEqual(chip.getAttribute('aria-label'), 'Starred');
+		chip.shadowRoot.querySelector('a.delete').click();
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
 		assert.match(dialog.shadowRoot.querySelector('.draft-receipt').textContent, /Removed Starred/);
 		Array.from(dialog.shadowRoot.querySelectorAll('button'))
 			.find((button) => button.textContent.includes('Undo')).click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 	});
 
-	//THE DRAFT READS AS A SENTENCE, NOT AS A FORM.
+	//THE DRAFT READS AS A SENTENCE, AND THE SENTENCE IS THE APP'S OWN CHIPS.
 	//
-	//Four separate ways it did not. The remove control was a literal × where
-	//CANCEL_ICON exists, which §4.2 forbids outright. The set name — the one
-	//term that is NOT interactive — was bold purple 700, the loudest token in
-	//the dialog, while every editable clause sat in a quiet grey box. The chip
-	//itself was a bordered white box with a second rule down its middle, which
-	//is the anatomy of a table cell. And AND was a sibling of the chip it
-	//introduces in a wrapping row, so a line could end on a dangling operator
-	//with its clause on the line below.
-	it('renders the draft as a sentence rather than a row of form fields', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
+	//What the boxed clause-cell was replaced BY, pinned: the draft is rendered by
+	//collection-sentence — the same component the drawer header uses — so a
+	//clause cannot look like a chip in one place and a table cell in another. The
+	//remove control is tag-chip's own ✕, the set name is a word at the sentence's
+	//weight, and the help badge is a footnote at the end rather than the first
+	//thing the sentence says.
+	it('renders the draft as a sentence of the app’s own chips', async () => {
+		await addRefineRow('Starred');
 
-		const remove = dialog.shadowRoot.querySelector('.expression-clause-remove');
+		const sentence = dialog.shadowRoot.querySelector('collection-sentence');
+		assert.ok(sentence, 'one renderer, shared with the drawer');
+		assert.strictEqual(sentence.interactive, true, 'the palette’s copy is editable');
+		assert.match(sentenceText(), /Main/, 'the set is the sentence’s first word');
+		assert.match(pillLabels().join(' '), /Starred/);
+
+		//The remove control is the chip's own, and it is an icon rather than a
+		//text glyph (§4.2's MUST).
+		const remove = sentencePills()[0].shadowRoot.querySelector('a.delete');
+		assert.ok(remove, 'every pill offers the ✕');
 		assert.ok(remove.querySelector('svg'), 'the remove control is an icon, not a text glyph');
 		assert.ok(!remove.textContent.includes('×'), 'the literal × is gone');
-		assert.strictEqual(remove.getAttribute('aria-label'), 'Remove Starred filter');
-
-		//The operator and the clause it introduces are ONE inline group, so they
-		//cannot be split across a wrap.
-		const term = dialog.shadowRoot.querySelector('.expression-term');
-		assert.ok(term, 'each clause is bound to its operator');
-		assert.match(term.querySelector('.expression-operator').textContent, /AND/);
-		assert.ok(term.querySelector('.expression-clause'), 'the chip lives inside that group');
 
 		//The help badge defines a word; it is a footnote to the sentence, not
 		//its first element.
-		const expressionChildren = Array.from(dialog.shadowRoot.querySelector('.expression').children);
-		assert.ok(!expressionChildren[0].classList.contains('help'),
+		const sentenceChildren = Array.from(dialog.shadowRoot.querySelector('.sentence').children);
+		assert.ok(!sentenceChildren[0].classList.contains('help'),
 			'the badge must not open the sentence');
-		assert.ok(expressionChildren[expressionChildren.length - 1].classList.contains('help'),
-			'it follows the expression instead');
+		assert.ok(sentenceChildren[sentenceChildren.length - 1].classList.contains('help'),
+			'it follows the sentence instead');
 
+		//And the old chip-row CSS is gone with the markup: none of the boxed
+		//clause-cell rules may survive into the palette's stylesheet.
 		const styles = composerStyles();
-		//The non-interactive set name reads at the sentence's own weight; purple
-		//is the brand/link/committing colour (§4.5) and this is none of those.
-		assert.match(styles, /\.expression-set\s*\{[^}]*color:\s*var\(--app-dark-text-color\)/);
-		assert.match(styles, /\.expression-set\s*\{[^}]*font-weight:\s*400/);
-		//The chip carries the presence instead, as a wash rather than a cell.
-		assert.match(styles, /\.expression-clause\s*\{[^}]*background:\s*var\(--app-primary-color-light-very-transparent\)/);
-		assert.ok(!/\.expression-clause-remove\s*\{[^}]*border-left/.test(styles),
-			'the internal vertical rule that made the chip read as a table cell is gone');
-		//And the removal stays quiet until it is hovered or focused, with no
-		//warning colour: removing a draft clause loses nothing (§3.7 Tier 2).
-		assert.match(styles, /\.expression-clause-remove svg\s*\{[^}]*fill:\s*var\(--app-dark-text-color-light\)/);
-		assert.ok(!/expression-clause-remove[^}]*--app-warning-color/.test(styles));
-		//The input continues the sentence: its flex basis is what decides
-		//whether it fits beside the last chip, so it must be a typing minimum
-		//rather than a full field width.
-		assert.match(styles, /\.composer-input\s*\{[^}]*flex:\s*1 1 8em/);
+		for (const dead of ['.expression-clause', '.expression-term', '.expression-set', '.catalog-list', '.anchored-editor', '.pending-filter-editor']) {
+			assert.ok(!styles.includes(dead + ' '), `${dead} is deleted, and so is its CSS`);
+		}
+		//The input is find-dialog's #query treatment: borderless with a bottom
+		//rule, full width, continuing the sentence above it.
+		assert.match(styles, /\.composer-input\s*\{[^}]*border-bottom:\s*1px solid/);
+		assert.match(styles, /\.composer-input\s*\{[^}]*width:\s*100%/);
+	});
+
+	//THE PALETTE IS A PALETTE, NOT A WORKSPACE. It held seven things and was
+	//pinned to 90% of the viewport for them; it holds four now, so it goes back
+	//to sizing to its content with a cap. The WIDTH stays pinned, for the reason
+	//it always was: .background centres .content, so a list changing under typing
+	//must not be able to move the field being typed into.
+	it('sizes itself as a light palette, with the width still pinned', () => {
+		const styles = composerStyles();
+		const content = styles.match(/\.content\s*\{[^}]*--composer-width[^}]*\}/)[0];
+		assert.match(content, /--composer-width:\s*min\(44em, 92vw\)/, 'the palette’s own measure');
+		assert.match(content, /max-height:\s*80vh/, 'content-height, with a cap');
+		assert.ok(!/\bheight:\s*90%/.test(content), 'the pinned workspace height is gone');
+		for (const property of ['width', 'min-width', 'max-width']) {
+			assert.match(content, new RegExp(`${property}:\\s*var\\(--composer-width\\)`),
+				`${property} is pinned so the base rule’s percentages cannot re-enter`);
+		}
 	});
 
 	//A RECEIPT IS A THING, SO IT NEEDS AN EDGE. This strip floated between the
-	//input and the suggestion list with no container of its own, in a grey
-	//(#AAA, ~2.3:1) that this file has already rejected once for text that has
-	//to be read — and it sat hard against the list's clipping fade.
+	//input and the list with no container of its own, in a grey (#AAA, ~2.3:1)
+	//that this file has already rejected once for text that has to be read.
 	it('gives the draft receipt a container of its own', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
+		await addRefineRow('Starred');
 		assert.ok(dialog.shadowRoot.querySelector('.draft-receipt'));
 		const styles = composerStyles();
 		assert.match(styles, /\.draft-receipt\s*\{[^}]*background:\s*var\(--app-primary-color-light-very-transparent\)/);
@@ -1088,26 +1145,22 @@ describe('Collection Composer interactions', () => {
 		assert.match(styles, /\.draft-receipt\s*\{[^}]*color:\s*var\(--app-dark-text-color-darker\)/);
 	});
 
+	//THE TWO-STEP BACKSPACE SURVIVES THE REBUILD, now expressed against the
+	//sentence: the first press SELECTS the last condition — which is what opens
+	//its pill row — and only the second removes it.
 	it('uses two-step Backspace to select and then remove the last clause', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.ok(dialog.shadowRoot.querySelector('.expression-clause').hasAttribute('data-selected'));
+		await addRefineRow('Starred');
+		await pressComposer('Backspace');
+		assert.deepStrictEqual([...dialog._selectedPath], [0], 'the last condition is selected');
+		assert.ok(pillRow(), 'and its pill row is what shows the selection');
+		assert.ok(sentencePills()[0].hasAttribute('data-selected'), 'the pill says so too');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
+		await pressComposer('Backspace');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
 	});
 
 	it('does not interpret composing keystrokes as clause commands', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
+		await addRefineRow('Starred');
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.dispatchEvent(new KeyboardEvent('keydown', {
 			key: 'Backspace',
@@ -1121,143 +1174,127 @@ describe('Collection Composer interactions', () => {
 			bubbles: true,
 			cancelable: true,
 		}));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		assert.strictEqual(dialog.shadowRoot.querySelector('.expression-clause').hasAttribute('data-selected'), false);
+		assert.deepStrictEqual([...dialog._selectedPath], []);
 	});
 
 	it('preserves draft Undo while keyboard-selecting a clause', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
+		await addRefineRow('Starred');
+		await pressComposer('Backspace');
 		const undo = Array.from(dialog.shadowRoot.querySelectorAll('button'))
 			.find((button) => button.textContent.includes('Undo'));
 		assert.ok(undo);
 		undo.click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
 	});
 
-	it('zooms from a clause into its builder control and Escape returns', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
-		await dialog.updateComplete;
-		const filter = dialog.shadowRoot.querySelector('configure-collection-filter');
-		//Focus now waits for the editor's own render before deciding whether it
-		//found a control, so the assertion has to wait for the same road.
-		await settleRender(dialog, filter);
-		assert.strictEqual(filter.shadowRoot.querySelector('select'), null);
-		assert.strictEqual(dialog.shadowRoot.activeElement?.textContent, 'Done editing');
+	//CLICKING A PILL OPENS ITS ROW, AND ESCAPE PEELS THE ROW BEFORE THE DIALOG.
+	//This replaces the "zoom into the builder control" flow: there is no panel to
+	//zoom into any more, and no Done editing button to focus — the row is one
+	//line under the sentence and Escape closes it.
+	it('opens a pill row from the pill, and Escape peels it before the dialog', async () => {
+		await addRefineRow('Starred');
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		assert.ok(pillRow(), 'the row opens at the place the clause is');
+		assert.match(pillRowText(), /Starred/, 'and it names its scope');
+		//A pill with no arguments still has real contents, so a dead Edit
+		//affordance is structurally impossible.
+		for (const verb of ['Or…', 'Flip', 'Remove']) {
+			assert.ok(pillRowVerb(verb), `every pill offers ${verb}`);
+		}
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
-		assert.strictEqual(dialog.shadowRoot.querySelector('configure-collection-filter'), null);
+		assert.strictEqual(pillRow(), null, 'the row is peeled first');
 		assert.strictEqual(dialog.shadowRoot.activeElement?.id, 'collection-composer-input');
-
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		assert.ok(dialog.shadowRoot.querySelector('.expression-clause').hasAttribute('data-selected'));
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false,
+			'and the next Escape closes the dialog');
 	});
 
-	it('focuses a configurable clause value and saves direct edits', async () => {
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'inductively knowable';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const querySuggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Text contains “inductively knowable”'));
+	//THE PILL ROW'S TWO COUNT ROLES, LIVE. "Draft now matches" is the fact the
+	//footer also states; "without this pill" is a prediction about a different
+	//collection, and it is what replaced the deleted "Remove X" rows.
+	it('wires both of the pill row’s counts to the preview machinery', async () => {
+		await addRefineRow('Starred');
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		dialog._previewCounts = {
+			'current-draft-preview': 184,
+			'without-pill-preview': 1842,
+		};
+		await settleRender(dialog, pillRow());
+		assert.match(pillRowText(), /draft now matches 184 cards/);
+		assert.match(pillRowText(), /without this pill: 1842 cards/);
+	});
+
+	//A CLAUSE WITH ARGUMENTS EDITS THEM IN THE ROW, and the edit lands in the
+	//draft immediately — the contract the anchored panel used to state in a
+	//sentence and now simply keeps.
+	it('edits a configurable clause’s value in the pill row', async () => {
+		await typeComposer('inductively knowable');
+		const querySuggestion = suggestionRows()
+			.find((button) => rowText(button).includes('Text contains “inductively knowable”'));
 		assert.ok(querySuggestion);
 		querySuggestion.click();
-		await dialog.updateComplete;
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
-		await dialog.updateComplete;
-		const filter = dialog.shadowRoot.querySelector('configure-collection-filter');
-		await settleRender(dialog, filter);
-		const queryInput = filter.shadowRoot.querySelector('.pieces input');
-		assert.strictEqual(filter.shadowRoot.activeElement, queryInput);
+		await settleRender(dialog);
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		const queryInput = pillRow().shadowRoot.querySelector('.argument input');
+		assert.ok(queryInput, 'the argument control is reparented into the row');
 		queryInput.value = 'mechanistically knowable';
 		queryInput.dispatchEvent(new Event('change', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/mechanistically knowable']);
+		assert.ok(pillRow(), 'and the row stays open on the clause that was just edited');
 	});
 
-	it('manual builder collapse disarms the edited clause', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
-		await dialog.updateComplete;
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Done editing')).click();
-		await dialog.updateComplete;
-		assert.strictEqual(dialog.shadowRoot.querySelector('configure-collection-filter'), null);
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		assert.strictEqual(dialog.shadowRoot.activeElement, input);
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		assert.ok(dialog.shadowRoot.querySelector('.expression-clause').hasAttribute('data-selected'));
-	});
-
-	//Removing the clause the editor is open on used to leave the panel expanded
-	//with nothing in it: _selectedClauseIndex went to -1 while _builderExpanded
-	//stayed true, so '' rendered into a still-visible .builder container.
-	it('collapses the clause editor when the clause being edited is removed', async () => {
-		const add = (label) => {
-			const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-				.find((button) => button.textContent.includes(label));
-			assert.ok(suggestion, `no suggestion labeled ${label}`);
-			suggestion.click();
-			return dialog.updateComplete;
-		};
-		await add('Add Starred');
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
-		await dialog.updateComplete;
-		assert.ok(dialog.shadowRoot.querySelector('.clause-editor'));
-		dialog.shadowRoot.querySelector('.expression-clause-remove').click();
-		await dialog.updateComplete;
+	//Removing the clause the row is open on used to leave an empty grey panel.
+	//The row simply has nothing to be about, so it is not rendered.
+	it('closes the pill row when the clause it is about is removed', async () => {
+		await addRefineRow('Starred');
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		assert.ok(pillRow());
+		pillRowVerb('Remove').click();
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
-		assert.strictEqual(dialog.shadowRoot.querySelector('.clause-editor'), null);
-		assert.strictEqual(dialog.shadowRoot.querySelector('.builder'), null,
-			'an empty builder container must not stay on screen');
+		assert.strictEqual(pillRow(), null, 'an empty editor must not stay on screen');
 	});
 
-	it('keeps editing the same clause when a different one is removed', async () => {
-		const add = (label) => {
-			const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-				.find((button) => button.textContent.includes(label));
-			assert.ok(suggestion, `no suggestion labeled ${label}`);
-			suggestion.click();
-			return dialog.updateComplete;
-		};
-		await add('Add Starred');
-		await add('Add Unread');
+	it('keeps the row on the same clause when a different one is removed', async () => {
+		await addRefineRow('Starred');
+		await addRefineRow('Unread');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred', 'unread']);
-		const clauses = () => Array.from(dialog.shadowRoot.querySelectorAll('.expression-clause'));
-		//Edit the second clause, then remove the first: the editor must follow the
-		//clause, which has just been renumbered from index 1 to index 0.
-		clauses()[1].querySelector('.expression-clause-label').click();
-		await dialog.updateComplete;
-		assert.ok(dialog.shadowRoot.querySelector('.clause-editor'));
-		clauses()[0].querySelector('.expression-clause-remove').click();
-		await dialog.updateComplete;
+		//Open the row on the second clause, then remove the first: the address
+		//the row holds has just been renumbered underneath it.
+		sentencePills()[1].click();
+		await settleRender(dialog);
+		assert.match(pillRowText(), /Unread/);
+		sentencePills()[0].shadowRoot.querySelector('a.delete').click();
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unread']);
-		const editor = dialog.shadowRoot.querySelector('.clause-editor');
-		assert.ok(editor, 'the editor must stay open on the clause it was editing');
-		assert.match(editor.textContent, /Unread/);
+		//A REMOVAL CHANGES THE SHAPE, so the address means something else now and
+		//the row closes rather than silently repointing at a clause nobody chose.
+		assert.strictEqual(pillRow(), null,
+			'a removal ends the selection rather than re-aiming it');
+		assert.match(pillLabels().join(' '), /Unread/);
 	});
 
-	it('browses a categorized catalog and adds an ordinary filter without opening', async () => {
+	//BROWSE ALL IS A FEED OF THE ONE LIST, NOT A PLACE.
+	//
+	//The catalog mode is deleted — the setup dropdown strip, the category walls
+	//with per-row examples, the Not toggles, the "Show N more" caps, the
+	//"Already in this collection" line and the second highlight index that went
+	//with them. What survives is the wall's one virtue: a name and one line of
+	//description per family, grouped under the same headings, seeded into the
+	//same list by one quiet link.
+	it('seeds the one list with every family, grouped, and adds one without opening', async () => {
 		dialog._composerCandidates = [{
 			filter: 'inductively-knowable',
 			category: 'tag',
@@ -1265,203 +1302,165 @@ describe('Collection Composer interactions', () => {
 			detail: 'Keeps cards tagged Inductively Knowable',
 			aliases: ['tag', 'inductively knowable'],
 		}];
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
+		browseAll().click();
+		await settleRender(dialog);
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		assert.strictEqual(input.getAttribute('aria-controls'), 'collection-filter-catalog');
-		assert.match(dialog.shadowRoot.textContent, /Dates/);
-		assert.match(dialog.shadowRoot.textContent, /Tags and sections/);
-		assert.ok(dialog.shadowRoot.querySelector('[aria-label=\'Starting collection set\']'));
-		assert.ok(dialog.shadowRoot.querySelector('[aria-label=\'Card order\']'));
-		assert.ok(dialog.shadowRoot.querySelector('[aria-label=\'Collection view\']'));
-		const starred = Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-			.find((button) => button.textContent.includes('Starred'));
+		assert.strictEqual(input.getAttribute('aria-controls'), 'collection-palette-list',
+			'browse all is the SAME list, so the combobox still points at it');
+		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
+			.map((heading) => heading.textContent.trim());
+		assert.ok(headings.includes('Dates'), 'the families keep their headings');
+		assert.ok(headings.includes('Tags and sections'));
+		//The setup strip is gone: set, sort and view are words in the sentence.
+		for (const label of ['Starting collection set', 'Card order', 'Collection view']) {
+			assert.strictEqual(dialog.shadowRoot.querySelector(`[aria-label='${label}']`), null,
+				`the ${label} dropdown is deleted`);
+		}
+		//No verb chips, no example lines, no polarity toggles.
+		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-example'), null);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-polarity'), null);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.catalog-more'), null);
+		//A browse row is a name and a gray description — the one place the
+		//detail line shows without the row being highlighted, because it is the
+		//only way to tell one family from its neighbour.
+		const starred = suggestionRows().find((button) => button.dataset.filter === 'starred');
 		assert.ok(starred);
+		assert.ok(starred.querySelector('.row-detail'), 'a browse row explains itself');
+		assert.strictEqual(starred.querySelector('.suggestion-action'), null, 'and carries no verb chip');
 		starred.click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		assert.strictEqual(window.location.pathname, '/c/main/');
-		assert.match(dialog.shadowRoot.querySelector('#collection-filter-catalog').textContent, /Already in this collection/);
+		assert.strictEqual(window.location.pathname, '/c/main/', 'adding does not navigate');
+		assert.strictEqual(dialog._browseOpen, false, 'and choosing a row leaves the feed');
 	});
 
-	it('makes capped catalog categories explicit and expandable', async () => {
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const catalog = dialog.shadowRoot.querySelector('#collection-filter-catalog');
-		const before = catalog.querySelectorAll('[data-filter]').length;
-		//The visible label is a grammatical fragment for every category; the
-		//category lives in the accessible name, where it can be a phrase.
-		const more = Array.from(catalog.querySelectorAll('.catalog-more'))
-			.find((button) => button.getAttribute('aria-label').includes('filters in card properties'));
-		assert.ok(more);
-		assert.match(more.textContent, /^\s*Show \d+ more\s*$/);
-		assert.match(more.getAttribute('aria-label'), /^Show \d+ more filters in card properties$/);
-		more.click();
-		await dialog.updateComplete;
-		const after = dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [data-filter]').length;
-		assert.ok(after > before);
-		const fewer = Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog .catalog-more'))
-			.find((button) => button.getAttribute('aria-label') === 'Show fewer filters in card properties');
-		assert.ok(fewer);
-		assert.match(fewer.textContent, /^\s*Show fewer\s*$/);
-	});
-
-	it('searches catalog aliases and configures a filter before committing it', async () => {
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'text';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const query = Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-			.find((button) => button.textContent.includes('Query'));
-		assert.ok(query);
-		assert.match(query.textContent, /configure/i);
+	//THE EXPLICIT-CONFIRM GATE IS DELETED WITH THE PANEL IT GATED. A family
+	//chosen by name lands in the draft with its own defaults and opens its pill
+	//row on it, so the count beside the sentence is already the count of what was
+	//chosen and Undo is one click away. The gate existed because the panel was a
+	//six-control wall the draft could not show; a one-line row needs none.
+	it('adds a configurable family with its defaults and opens its pill row', async () => {
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('text');
+		const query = suggestionRows().find((button) => button.dataset.filter === 'query');
+		assert.ok(query, 'Browse all still searches by alias');
 		query.click();
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
-		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-		assert.ok(pending);
-		assert.strictEqual(pending.shadowRoot.querySelector('select'), null);
-		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
-		assert.strictEqual(add.disabled, true);
-		const queryInput = pending.shadowRoot.querySelector('.pieces input');
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/foo']);
+		assert.ok(pillRow(), 'and its controls open at the place the clause now is');
+		const queryInput = pillRow().shadowRoot.querySelector('.argument input');
+		assert.ok(queryInput, 'the argument control is in the row');
 		queryInput.value = 'inductively knowable';
 		queryInput.dispatchEvent(new Event('change', { bubbles: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(add.disabled, false);
-		add.click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/inductively knowable']);
-		assert.match(dialog.shadowRoot.textContent, /Added Text contains “inductively knowable”/);
 	});
 
-	it('lands focus inside the editor a Configure row just opened', async () => {
-		//Opening an editor and leaving focus in the search field behind it puts
-		//the field the user asked for a dozen Tabs away. focusPrimaryControl was
-		//always wired here; what it lacked was anything to find, because it ran
-		//before the editor it queries had rendered.
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const catalogInput = dialog.shadowRoot.querySelector('#collection-composer-input');
-		catalogInput.value = 'text';
-		catalogInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-			.find((button) => button.textContent.includes('Query')).click();
-		await dialog.updateComplete;
-		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-		await settleRender(dialog, pending);
+	it('lands focus inside the pill row a family row just opened', async () => {
+		//Opening an editor and leaving focus in the field behind it puts the
+		//control the user asked for a dozen Tabs away. focusPrimaryControl was
+		//always wired; what it lacked was anything to find, because it ran before
+		//the row it queries had rendered.
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('text');
+		suggestionRows().find((button) => button.dataset.filter === 'query').click();
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
 		assert.notStrictEqual(dialog.shadowRoot.activeElement?.id, 'collection-composer-input',
-			'focus must not stay in the search field behind the editor');
-		assert.strictEqual(dialog.shadowRoot.activeElement, pending);
-		assert.strictEqual(pending.shadowRoot.activeElement, pending.shadowRoot.querySelector('.pieces input'));
+			'focus must not stay in the field behind the row');
+		assert.strictEqual(dialog.shadowRoot.activeElement, pillRow());
+		assert.strictEqual(pillRow().shadowRoot.activeElement, pillRow().shadowRoot.querySelector('.argument input'));
 		//And Escape still peels this layer rather than closing the composer.
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
-		assert.strictEqual(dialog.shadowRoot.querySelector('.pending-filter-editor'), null);
+		assert.strictEqual(pillRow(), null);
 	});
 
-	it('routes typed configurable families through guided controls before changing the draft', async () => {
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'updated';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role=option]'))
-			.find((button) => button.textContent.includes('Configure Updated'));
-		assert.ok(suggestion);
-		assert.match(suggestion.textContent, /configure/i);
-		suggestion.click();
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
-		assert.ok(dialog.shadowRoot.querySelector('.pending-filter-editor'));
-		assert.strictEqual(dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter').value, 'updated/after/7-days-ago');
+	it('routes a typed configurable family through its own controls', async () => {
+		await typeComposer('updated');
+		const row = suggestionRows().find((button) => rowText(button).includes('Updated'));
+		assert.ok(row);
+		row.click();
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		//The rolling default answers a question rather than asking for an edit
+		//before it means anything.
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
+		assert.ok(pillRow(), 'and its date control is open on it');
+		assert.ok(pillRow().shadowRoot.querySelector('configure-collection-date'));
 	});
 
 	it('routes nested collection expressions to discoverable Source mode without changing the draft', async () => {
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'exclude';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role=option]'))
-			.find((button) => button.textContent.includes('Edit Exclude in Source'));
-		assert.ok(suggestion);
-		assert.match(suggestion.textContent, /source/i);
-		//Sentence case, and in the DOM rather than only on the screen. The chip
-		//used to be lowercase text painted ALL-CAPS by text-transform, so the
-		//accessible name said "edit" while the screen said "EDIT" — and HS-2.1
-		//asks for sentence case on an action label, which is neither of those.
-		assert.strictEqual(suggestion.querySelector('.suggestion-action').textContent, 'Edit');
-		//Opening a nested expression in Source does not LEAVE the composer, so
-		//the chip carries the quiet transform treatment rather than Open's
-		//filled one.
-		assert.strictEqual(suggestion.querySelector('.suggestion-action').getAttribute('data-consequence'), 'transform');
-		suggestion.click();
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('exclude');
+		const row = suggestionRows().find((button) => button.dataset.filter === 'exclude');
+		assert.ok(row, 'a clause this layer cannot compose is still findable');
+		row.click();
+		await settleRender(dialog);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [],
+			'and opening it in Source does not touch the draft');
 		assert.strictEqual(dialog._entryMode, 'source');
 		//`/c/main/exclude/`, not `/c/exclude/`: every collection path the composer
-		//writes now comes from collectionURLPath, whose whole point is that the
-		//bare Main collection is never spelled as nothing. Both texts parse to
-		//the same description — Main is the default set — so this is the same
-		//source said unambiguously.
+		//writes comes from collectionURLPath, whose whole point is that the bare
+		//Main collection is never spelled as nothing.
 		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-input').value, '/c/main/exclude/');
 		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /needs 1 more value/);
 		assert.match(dialog.shadowRoot.querySelector('#collection-source-completions').textContent, /Working Notes/);
 		const source = dialog.shadowRoot.querySelector('#collection-source-input');
 		source.value = '/c/exclude/working-n/';
 		source.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.match(dialog.shadowRoot.querySelector('#collection-source-completions').textContent, /Working Notes/);
 	});
 
-	it('supports keyboard catalog search and lets Escape back out one layer', async () => {
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'query';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-		await dialog.updateComplete;
-		assert.ok(dialog.shadowRoot.querySelector('.pending-filter-editor'));
-		const pendingInput = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot.querySelector('input');
-		pendingInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(dialog.shadowRoot.querySelector('.pending-filter-editor'), null);
-		assert.ok(dialog.shadowRoot.querySelector('#collection-filter-catalog'));
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-filter-catalog'), null);
+	//THE LAYERS PEEL IN THE ORDER THEY WERE OPENED. Browse all is one layer and
+	//the pill row it opens is another, so Escape from inside the row returns to
+	//the sentence and Escape again closes the dialog — the same shape the catalog
+	//and its Configure panel had, over the surfaces that replaced them.
+	it('supports keyboard browse search and lets Escape back out one layer', async () => {
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('query');
+		await pressComposer('ArrowDown');
+		await pressComposer('Enter');
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		assert.ok(pillRow(), 'Enter on the highlighted family row opens its controls');
+		assert.strictEqual(dialog._browseOpen, false);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(pillRow(), null, 'the first Escape peels the row');
 		assert.strictEqual(dialog.open, true);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false,
+			'and the next one closes the dialog');
 	});
 
+	//ONE DEFAULT, IN ONE PLACE. A date family's own argument default is
+	//`before/<today>`, which selects most of a corpus and means nothing until
+	//somebody edits it — a clause that has to be edited before it does anything
+	//is the deleted pending-add gate in another form. The rolling window is what
+	//both routes into a date family now produce, because they call the same
+	//function.
 	it('offers a safe rolling date default without requiring a meaningless edit', async () => {
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const updated = Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-			.find((button) => button.textContent.includes('Updated'));
+		browseAll().click();
+		await settleRender(dialog);
+		const updated = suggestionRows().find((button) => button.dataset.filter === 'updated');
 		assert.ok(updated);
 		updated.click();
-		await dialog.updateComplete;
-		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
-		assert.strictEqual(add.disabled, false);
-		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-		assert.strictEqual(pending.value, 'updated/after/7-days-ago');
-		const dateControl = pending.shadowRoot.querySelector('configure-collection-date');
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
+		const dateControl = pillRow().shadowRoot.querySelector('configure-collection-date');
 		await dateControl.updateComplete;
 		assert.match(dateControl.shadowRoot.textContent, /Rolling date/);
 		assert.match(dateControl.shadowRoot.textContent, /A time ago/);
-		add.click();
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
 	});
 
 	//A readback test: assert what the control DISPLAYS, not what confirming it
@@ -1469,15 +1468,13 @@ describe('Collection Composer interactions', () => {
 	//while the seeded filter said "after", and a 41-test suite that only ever
 	//asserted the committed value never saw it.
 	it('displays the comparison the seeded date filter actually names', async () => {
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-			.find((button) => button.textContent.includes('Updated')).click();
-		await dialog.updateComplete;
-		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-		assert.strictEqual(pending.value, 'updated/after/7-days-ago');
-		const dateControl = pending.shadowRoot.querySelector('configure-collection-date');
+		browseAll().click();
+		await settleRender(dialog);
+		suggestionRows().find((button) => button.dataset.filter === 'updated').click();
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
+		const dateControl = pillRow().shadowRoot.querySelector('configure-collection-date');
 		await dateControl.updateComplete;
 		const comparison = dateControl.shadowRoot.querySelector('[aria-label="Date comparison"]');
 		assert.strictEqual(comparison.value, 'after');
@@ -1487,15 +1484,15 @@ describe('Collection Composer interactions', () => {
 			Array.from(comparison.options).filter((option) => option.selected).map((option) => option.value),
 			['after']
 		);
-		//And the same control, reopened on an applied clause, still reads back what
-		//the clause says rather than the first option.
-		dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]').click();
-		await dialog.updateComplete;
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
-		await dialog.updateComplete;
-		const appliedDate = dialog.shadowRoot
-			.querySelector('configure-collection-filter').shadowRoot
-			.querySelector('configure-collection-date');
+		//And the same control, reopened from the pill rather than from the row
+		//that added it, still reads back what the clause says.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(pillRow(), null);
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		const appliedDate = pillRow().shadowRoot.querySelector('configure-collection-date');
 		await appliedDate.updateComplete;
 		assert.strictEqual(
 			appliedDate.shadowRoot.querySelector('[aria-label="Date comparison"]').value,
@@ -1580,17 +1577,13 @@ describe('Collection Composer interactions', () => {
 			'card-1': { id: 'card-1', title: 'Inductively Knowable' },
 			'card-2': { id: 'card-2', title: 'Mechanistic Magic' },
 		};
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'similar';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('similar');
 		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
-		await dialog.updateComplete;
-		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-		const keyCard = pending.shadowRoot.querySelector('configure-collection-key-card');
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		const keyCard = pillRow().shadowRoot.querySelector('configure-collection-key-card');
 		await keyCard.updateComplete;
 		//HS-5: picking a card is find-dialog's job. The <select> this replaced
 		//could only offer the cards the app happened to have loaded, in load
@@ -1613,8 +1606,8 @@ describe('Collection Composer interactions', () => {
 		//The pick travels the same road every other find mode's does: a tapped
 		//thumbnail, reported through the mode's own action.
 		findDialog._handleThumbnailTapped({ detail: { card: 'card-1' } });
-		await settleRender(dialog, pending, keyCard);
-		assert.strictEqual(pending.value, 'similar/card-1');
+		await settleRender(dialog, pillRow(), keyCard);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['similar/card-1']);
 		assert.strictEqual(store.getState().find.open, false, 'picking closes the picker');
 		//stateChanged recomputes _cardTagInfos from the (empty) corpus on every
 		//dispatch, so the fake has to be restated once they have all landed.
@@ -1623,50 +1616,45 @@ describe('Collection Composer interactions', () => {
 			'card-1': { id: 'card-1', title: 'Inductively Knowable' },
 			'card-2': { id: 'card-2', title: 'Mechanistic Magic' },
 		};
-		await settleRender(dialog, pending, keyCard);
+		await settleRender(dialog, pillRow(), keyCard);
 		//The chosen card is shown by title, through the shared tag primitive.
-		const shown = keyCard.shadowRoot.querySelector('tag-list');
+		const shown = pillRow().shadowRoot.querySelector('configure-collection-key-card')
+			.shadowRoot.querySelector('tag-list');
 		assert.deepStrictEqual(shown.tags, ['card-1']);
 		assert.strictEqual(shown.tagInfos['card-1'].title, 'Inductively Knowable');
-
-		const add = dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]');
-		assert.strictEqual(add.disabled, false);
 	});
 
-	//Two key-card controls can be on screen at once, and the picker is one
-	//dialog. Without an addressed answer, a pick made for the clause editor
-	//would also land in the web-focus-card control beside it.
+	//ONE EDITOR AT A TIME IS STRUCTURAL NOW, so two key-card controls can no
+	//longer be on screen together inside the composer: the setup strip that held
+	//the second one is deleted, and the pill row is about exactly one clause. The
+	//addressed-answer machinery it needed is still real, and still worth pinning —
+	//at the level where it lives, which is the control itself.
 	it('delivers a picked card only to the control that asked for it', async () => {
-		dialog._cardTagInfos = { 'card-2': { id: 'card-2', title: 'Mechanistic Magic' } };
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const view = dialog.shadowRoot.querySelector('[aria-label=\'Collection view\']');
-		view.value = 'web';
-		view.dispatchEvent(new Event('change', { bubbles: true }));
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'similar';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		dialog.shadowRoot.querySelector('[data-filter=\'similar\']').click();
-		await dialog.updateComplete;
+		const asking = document.createElement('configure-collection-key-card');
+		const bystander = document.createElement('configure-collection-key-card');
+		asking.value = 'key-card-id';
+		bystander.value = 'key-card-id';
+		document.body.append(asking, bystander);
+		try {
+			await settleRender(asking, bystander);
+			let askingValue = '';
+			let bystanderValue = '';
+			asking.addEventListener('filter-modified-complex', (event) => { askingValue = event.detail.value; });
+			bystander.addEventListener('filter-modified-complex', (event) => { bystanderValue = event.detail.value; });
 
-		const focusCard = dialog.shadowRoot.querySelector('.catalog-setup configure-collection-key-card');
-		const clauseCard = dialog.shadowRoot
-			.querySelector('.pending-filter-editor configure-collection-filter').shadowRoot
-			.querySelector('configure-collection-key-card');
-		await focusCard.updateComplete;
-		await clauseCard.updateComplete;
-		assert.ok(focusCard && clauseCard && focusCard !== clauseCard, 'both controls are live at once');
+			asking.shadowRoot.querySelector('#choose-card').click();
+			await settleRender(asking, bystander, findDialog);
+			assert.strictEqual(store.getState().find.configuring, true);
+			assert.ok(store.getState().find.configureRequestID, 'the picker is told which control asked');
 
-		clauseCard.shadowRoot.querySelector('#choose-card').click();
-		await clauseCard.updateComplete;
-		findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
-		await settleRender(dialog, focusCard, clauseCard);
-		assert.strictEqual(dialog._pendingCatalogFilter, 'similar/card-2');
-		assert.notStrictEqual(store.getState().collection.snapshot.viewModeExtra, 'card-2',
-			'the control that did not ask must not take the answer');
+			findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
+			await settleRender(asking, bystander, findDialog);
+			assert.strictEqual(askingValue, 'card-2');
+			assert.strictEqual(bystanderValue, '', 'the control that did not ask must not take the answer');
+		} finally {
+			asking.remove();
+			bystander.remove();
+		}
 	});
 
 	it('shows contributor names while preserving durable author IDs', async () => {
@@ -1675,82 +1663,89 @@ describe('Collection Composer interactions', () => {
 			'alex-uid': { id: 'alex-uid', title: 'Alex Komoroske' },
 			'sam-uid': { id: 'sam-uid', title: 'Sam Example' },
 		};
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'author';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('author');
 		dialog.shadowRoot.querySelector('[data-filter=\'author\']').click();
-		await dialog.updateComplete;
-		const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-		const authorSelect = pending.shadowRoot.querySelector('.pieces select');
+		await settleRender(dialog);
+		//stateChanged recomputes the contributor lists from the (empty) corpus on
+		//every dispatch, so this suite's standing fiction has to be restated once
+		//they have all landed.
+		dialog._userIDs = ['alex-uid', 'sam-uid'];
+		dialog._userInfos = {
+			'alex-uid': { id: 'alex-uid', title: 'Alex Komoroske' },
+			'sam-uid': { id: 'sam-uid', title: 'Sam Example' },
+		};
+		await settleRender(dialog, pillRow());
+		const authorSelect = pillRow().shadowRoot.querySelector('.argument select');
+		assert.ok(authorSelect, 'the contributor control is reparented into the row');
 		assert.match(authorSelect.textContent, /Me/);
 		assert.match(authorSelect.textContent, /Alex Komoroske/);
 		assert.match(authorSelect.textContent, /Sam Example/);
 		authorSelect.value = 'sam-uid';
 		authorSelect.dispatchEvent(new Event('change', { bubbles: true }));
-		await dialog.updateComplete;
-		assert.strictEqual(pending.value, 'author/sam-uid');
+		await settleRender(dialog);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['author/sam-uid']);
 	});
 
-	it('edits setup and applied catalog items through the same visual surface', async () => {
-		const starred = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		starred.click();
-		await dialog.updateComplete;
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const view = dialog.shadowRoot.querySelector('[aria-label=\'Collection view\']');
-		view.value = 'web';
-		view.dispatchEvent(new Event('change', { bubbles: true }));
-		await dialog.updateComplete;
+	//SET, SORT AND VIEW ARE WORDS IN THE SENTENCE. The four-select setup strip is
+	//deleted; clicking a word fills the ONE list with its alternatives, which is
+	//the same list every other choice is made in and the same rows a typed set or
+	//sort name reaches through the completion index.
+	it('edits the sentence’s words from the same list, not from a setup strip', async () => {
+		await addRefineRow('Starred');
+		const sentence = dialog.shadowRoot.querySelector('collection-sentence');
+
+		//The set is the sentence's first word, and it is a control.
+		const setWord = sentence.shadowRoot.querySelector('button.word.set');
+		assert.ok(setWord, 'the set is a word you can click');
+		setWord.click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._wordScope, 'set');
+		const setRows = suggestionLabels();
+		assert.ok(setRows.includes('Everything'), `the alternatives are the sets: ${setRows.join(', ')}`);
+		suggestionRows().find((button) => rowText(button) === 'Everything').click();
+		await settleRender(dialog);
+		assert.strictEqual(store.getState().collection.snapshot.setName, 'everything');
+		assert.strictEqual(dialog._wordScope, '', 'and choosing one leaves the feed');
+
+		//And the sort tail, once there is one, opens the order alternatives —
+		//reverse and the view modes with them, because they are all the same
+		//kind of word.
+		await pressComposer('ArrowDown');
+		const sortRow = suggestionRows().find((button) => button.dataset.rowId === 'sort:recent');
+		assert.ok(!sortRow, 'sorts are not offered until the word is reached for');
+		dialog._openWordScope('sort');
+		await settleRender(dialog);
+		const sortLabels = suggestionLabels();
+		assert.ok(sortLabels.includes('Recent'), `the alternatives are the orders: ${sortLabels.join(', ')}`);
+		assert.ok(sortLabels.includes('Reverse order'), 'reversing lives with the order it reverses');
+		assert.ok(suggestionRows().some((button) => button.dataset.rowId === 'view:web'),
+			'and the views are words too');
+		suggestionRows().find((button) => button.dataset.rowId === 'view:web').click();
+		await settleRender(dialog);
 		assert.strictEqual(store.getState().collection.snapshot.viewMode, 'web');
-		assert.ok(store.getState().collection.snapshot.viewModeExtra);
-		dialog._cardTagInfos = { 'card-2': { id: 'card-2', title: 'Mechanistic Magic' } };
-		await dialog.updateComplete;
-		const focusCard = dialog.shadowRoot.querySelector('.catalog-setup configure-collection-key-card');
-		await focusCard.updateComplete;
-		assert.strictEqual(focusCard.shadowRoot.querySelector('select'), null);
-		assert.match(focusCard.shadowRoot.textContent, /The first card in the collection/);
-		focusCard.shadowRoot.querySelector('#choose-card').click();
-		await focusCard.updateComplete;
-		findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
-		await settleRender(dialog, focusCard);
-		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, 'card-2');
-		//stateChanged recomputes _cardTagInfos from the (empty) corpus on every
-		//dispatch, so the fake has to be restated once they have all landed.
-		dialog._cardTagInfos = { 'card-2': { id: 'card-2', title: 'Mechanistic Magic' } };
-		await settleRender(dialog, focusCard);
-		assert.deepStrictEqual(focusCard.shadowRoot.querySelector('tag-list').tags, ['card-2']);
-		//The <select> also carried the way BACK to "whichever card the collection
-		//opens on". A card picker cannot offer that, so it is its own control now
-		//rather than something that quietly disappeared with the dropdown.
-		focusCard.shadowRoot.querySelector('.discard').click();
-		await settleRender(dialog, focusCard);
-		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, '_');
-		assert.match(focusCard.shadowRoot.textContent, /The first card in the collection/);
-		focusCard.shadowRoot.querySelector('#choose-card').click();
-		await focusCard.updateComplete;
-		findDialog._handleThumbnailTapped({ detail: { card: 'card-2' } });
-		await dialog.updateComplete;
-		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, 'card-2');
-		const appliedStarred = Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-			.find((button) => button.textContent.includes('Starred'));
-		appliedStarred.click();
-		await dialog.updateComplete;
-		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-filter-catalog'), null);
-		const editor = dialog.shadowRoot.querySelector('configure-collection-filter');
-		assert.ok(editor);
-		assert.strictEqual(editor.shadowRoot.querySelector('select'), null);
-		assert.match(editor.shadowRoot.textContent, /Remove filter/);
-		assert.match(dialog.shadowRoot.textContent, /Done editing/);
-		editor.shadowRoot.querySelector('.remove-filter').click();
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
-		assert.strictEqual(dialog.shadowRoot.querySelector('configure-collection-filter'), null);
+		assert.strictEqual(store.getState().collection.snapshot.viewModeExtra, '_',
+			'a view that takes a focus card gets the collection’s own first card');
+	});
+
+	//A COUNT ANSWERS "HOW MANY CARDS", so a row that only reorders has none —
+	//"1,842 cards → 1,842 cards" is a prediction that takes a column to say
+	//nothing, and the same rule keeps it from being asked of the worker.
+	it('shows no count on a row that cannot change one', async () => {
+		dialog._previewCounts = { 'current-draft-preview': 12 };
+		dialog._openWordScope('sort');
+		await settleRender(dialog);
+		for (const button of suggestionRows()) {
+			assert.strictEqual(button.querySelector('.row-count'), null,
+				`${rowText(button)} reorders the same cards, so it promises no number`);
+		}
+		browseAll().click();
+		await settleRender(dialog);
+		for (const button of suggestionRows()) {
+			assert.strictEqual(button.querySelector('.row-count'), null,
+				'and a directory of families is not a list of predictions');
+		}
 	});
 
 	//THE SOURCE PANE'S TONES WERE INVERTED.
@@ -1841,14 +1836,14 @@ describe('Collection Composer interactions', () => {
 		const open = () => dialog.shadowRoot.querySelector('.composer-actions .primary');
 		input.value = 'updated/before/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(input.value, 'updated/before/');
 		assert.strictEqual(open().disabled, true);
 		assert.strictEqual(window.location.pathname, '/c/main/');
 
 		input.value = '/c/everything/starred/card-9';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(open().disabled, false);
 		open().click();
 		await dialog.updateComplete;
@@ -1882,7 +1877,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = 'updated/before/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.match(dialog.shadowRoot.textContent, /today/);
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
@@ -1898,7 +1893,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = '';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(input.getAttribute('role'), 'combobox');
 		assert.strictEqual(input.getAttribute('aria-expanded'), 'true');
 		assert.ok(input.getAttribute('aria-activedescendant'));
@@ -1906,7 +1901,7 @@ describe('Collection Composer interactions', () => {
 
 		input.value = 'sta/unread/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		input.setSelectionRange(3, 3);
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
@@ -1938,7 +1933,7 @@ describe('Collection Composer interactions', () => {
 
 		input.value = 'starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(input.getAttribute('aria-expanded'), 'true');
 		assert.match(dialog.shadowRoot.textContent, /Add another filter or modifier/);
 		assert.match(dialog.shadowRoot.textContent, /Choose an order/);
@@ -1947,7 +1942,7 @@ describe('Collection Composer interactions', () => {
 
 		input.value = 'starred/induct';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		const tag = Array.from(dialog.shadowRoot.querySelectorAll('#collection-source-completions [role=option]'))
 			.find((button) => button.textContent.includes('Tagged “Inductively Knowable”'));
 		assert.ok(tag);
@@ -1966,7 +1961,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = 'starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(input.getAttribute('aria-expanded'), 'true');
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
@@ -1997,7 +1992,7 @@ describe('Collection Composer interactions', () => {
 		let input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = 'updated/before/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		Array.from(dialog.shadowRoot.querySelectorAll('button'))
 			.find((button) => button.textContent.includes('Edit visually')).click();
 		await dialog.updateComplete;
@@ -2026,7 +2021,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = 'updated/before/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-destination'), null,
 			'no heading claims a destination while there is none');
 		assert.doesNotMatch(dialog.shadowRoot.textContent, /Will open as/);
@@ -2034,14 +2029,14 @@ describe('Collection Composer interactions', () => {
 
 		input.value = '/c/main/starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.match(dialog.shadowRoot.querySelector('#collection-source-destination').textContent, /\/c\/starred\/$/);
 		assert.match(dialog.shadowRoot.textContent, /Will open as/);
 		assert.match(dialog.shadowRoot.textContent, /Same collection, written in this app’s canonical form/);
 
 		input.value = '/c/starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.doesNotMatch(dialog.shadowRoot.textContent, /Will open as/);
 		assert.doesNotMatch(dialog.shadowRoot.textContent, /canonical form/);
 		assert.match(dialog.shadowRoot.textContent, /Link/);
@@ -2063,7 +2058,7 @@ describe('Collection Composer interactions', () => {
 		//The configured site_domain, which is not the origin this client runs on.
 		input.value = 'https://thecompendium.cards/c/main/starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /Ready to open/,
 			'the deployment’s own public address is still accepted');
 		assert.match(dialog.shadowRoot.textContent, /From thecompendium\.cards, opened in this app/);
@@ -2072,10 +2067,10 @@ describe('Collection Composer interactions', () => {
 		//A same-origin route keeps the copy it had.
 		input.value = '';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		input.value = '/c/main/starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.match(dialog.shadowRoot.textContent, /Same collection, written in this app’s canonical form/);
 		assert.doesNotMatch(dialog.shadowRoot.textContent, /opened in this app/);
 	});
@@ -2095,7 +2090,7 @@ describe('Collection Composer interactions', () => {
 		const headerFor = async (value) => {
 			input.value = '';
 			input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-			await dialog.updateComplete;
+			await settleRender(dialog);
 			input.value = value;
 			input.dispatchEvent(new InputEvent('input', { bubbles: true }));
 			await dialog.updateComplete;
@@ -2167,7 +2162,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = '/c/main/starred/card-7';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		dialog._previewCounts = { [dialog._draftPreviewID]: 4 };
 		await dialog.updateComplete;
 		assert.match(dialog.shadowRoot.textContent, /Opens on/);
@@ -2185,7 +2180,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = '/c/everything/starred/card-42';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		Array.from(dialog.shadowRoot.querySelectorAll('button'))
 			.find((button) => button.textContent.includes('Edit visually')).click();
 		await dialog.updateComplete;
@@ -2203,7 +2198,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = '/c/everything/starred/card-42';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		Array.from(dialog.shadowRoot.querySelectorAll('button'))
 			.find((button) => button.textContent.includes('Edit visually')).click();
 		await dialog.updateComplete;
@@ -2231,7 +2226,7 @@ describe('Collection Composer interactions', () => {
 		const input = dialog.shadowRoot.querySelector('#collection-source-input');
 		input.value = 'starred/';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		dialog.shadowRoot.querySelector('.composer-actions .primary').click();
 		await dialog.updateComplete;
 		assert.strictEqual(window.location.pathname, '/c/starred/_');
@@ -2249,19 +2244,28 @@ describe('Collection Composer interactions', () => {
 		const parsed = dialog._parsedSource;
 		assert.strictEqual(dialog._parsedSource, parsed);
 
-		const catalog = dialog._catalogItems;
-		assert.strictEqual(dialog._catalogItems, catalog);
+		//The completion index's world is assembled once per render rather than
+		//once per call, and its identity is the memo key for both of the calls
+		//that consume it.
+		const context = dialog._completionContext;
+		assert.strictEqual(dialog._completionContext, context);
 
-		const suggestions = dialog._composerSuggestions;
-		assert.strictEqual(dialog._composerSuggestions, suggestions);
+		//The draft's expression is a VIEW of the description, memoized on the
+		//description's identity — so the sentence, the pill row and the index are
+		//handed the same array and Lit's dirty check can do its job.
+		const expression = dialog._draftExpression;
+		assert.strictEqual(dialog._draftExpression, expression);
 
-		//And they still recompute when something they depend on actually moves.
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		input.value = 'star';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		assert.notStrictEqual(dialog._catalogItems, catalog);
-		assert.notStrictEqual(dialog._composerSuggestions, suggestions);
+		//A KEYSTROKE DOES NOT REBUILD THE WORLD. The context is derived from
+		//STATE — the corpus's candidates, the recents, the tag prose — none of
+		//which a keypress changes; only the token does, and the token is passed
+		//separately. That is what keeps a per-character index affordable.
+		const rowsBefore = dialog._paletteRows;
+		await typeComposer('star');
+		assert.strictEqual(dialog._completionContext, context,
+			'typing does not rebuild the index’s whole world');
+		assert.notStrictEqual(dialog._paletteRows, rowsBefore,
+			'but the list it produces is a different list');
 	});
 
 	//Every keystroke used to blank every count and re-enqueue, so each character
@@ -2284,7 +2288,7 @@ describe('Collection Composer interactions', () => {
 			const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 			input.value = 'sta';
 			input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-			await dialog.updateComplete;
+			await settleRender(dialog);
 			assert.strictEqual(dialog._previewCounts[dialog._draftPreviewID], 1307,
 				'typing must not blank the count of a collection that did not change');
 			assert.strictEqual(dialog._draftCountPending, false);
@@ -2293,9 +2297,10 @@ describe('Collection Composer interactions', () => {
 
 			//Changing the DRAFT is a different collection, so the count is genuinely
 			//unknown — and says so, rather than silently reading as "no data".
-			Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-				.find((button) => button.textContent.includes('Add Starred')).click();
-			await dialog.updateComplete;
+			const starredRow = suggestionRows().find((button) => rowText(button).includes('Starred'));
+			assert.ok(starredRow, `no Starred row: ${suggestionLabels().join(' | ')}`);
+			starredRow.click();
+			await settleRender(dialog);
 			assert.strictEqual(dialog._previewCounts[dialog._draftPreviewID], undefined);
 			assert.strictEqual(dialog._draftCountPending, true);
 			//Counts are recomputed in updated(), so the DOM catches up one frame later.
@@ -2334,17 +2339,20 @@ describe('Collection Composer interactions', () => {
 
 	it('keeps every option owned by its listbox', async () => {
 		await seedRecents([['everything/starred/', 3]]);
-		const suggestions = dialog.shadowRoot.querySelector('#collection-composer-suggestions');
-		assert.ok(suggestions);
-		assert.ok(suggestions.querySelectorAll('[role="option"]').length);
-		assertListboxOwnership(suggestions);
+		const list = dialog.shadowRoot.querySelector('#collection-palette-list');
+		assert.ok(list);
+		assert.ok(list.querySelectorAll('[role="option"]').length);
+		//THE HEADINGS ARE THE THING THIS RULE HAD TO SURVIVE. A run of rows under
+		//one heading used to be wrapped in a role=group; the palette emits the
+		//heading as a sibling instead, so nothing sits between the listbox and
+		//its options at all.
+		assertListboxOwnership(list);
 
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const catalog = dialog.shadowRoot.querySelector('#collection-filter-catalog');
-		assert.ok(catalog.querySelectorAll('[role="option"]').length);
-		assertListboxOwnership(catalog);
+		browseAll().click();
+		await settleRender(dialog);
+		const browse = dialog.shadowRoot.querySelector('#collection-palette-list');
+		assert.ok(browse.querySelectorAll('[role="option"]').length);
+		assertListboxOwnership(browse);
 	});
 
 	//aria-controls naming an element that is not in the document is a dangling
@@ -2356,60 +2364,71 @@ describe('Collection Composer interactions', () => {
 		assert.ok(controls && dialog.shadowRoot.querySelector(`#${controls}`),
 			`aria-controls names a missing #${controls}`);
 
-		//The empty-suggestion branch renders a plain line instead of a listbox.
-		//Real corpus state always produces at least a text-query interpretation, so
-		//the branch is driven directly rather than reached by typing something the
+		//The empty branch renders a plain line instead of a listbox. Real corpus
+		//state always produces at least the literal reading of the token, so the
+		//branch is driven directly rather than reached by typing something the
 		//composer refuses to interpret.
-		Object.defineProperty(dialog, '_composerSuggestions', { get: () => [], configurable: true });
+		Object.defineProperty(dialog, '_paletteRows', { get: () => [], configurable: true });
 		dialog.requestUpdate();
 		await dialog.updateComplete;
-		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-composer-suggestions'), null);
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-palette-list'), null);
 		assert.strictEqual(input.getAttribute('aria-controls'), null);
-		delete dialog._composerSuggestions;
+		delete dialog._paletteRows;
 	});
 
-	//One row stands for the whole x / not-x pair. Flipping its polarity and
-	//choosing it must add the OTHER filter, not the one the row started on.
-	it('adds the inverse filter when a catalog row\'s polarity is flipped', async () => {
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const rowFor = (filterName) => {
-			const option = dialog.shadowRoot.querySelector(`#collection-filter-catalog [data-filter="${filterName}"]`);
-			return option ? option.closest('.suggestion') : null;
-		};
-		const starred = rowFor('starred');
-		assert.ok(starred, 'the starred row must be in the catalog');
-		assert.strictEqual(rowFor('unstarred'), null, 'unstarred is the same row, not a second one');
-		const polarity = starred.querySelector('.catalog-polarity');
-		assert.ok(polarity, 'a merged row must offer a polarity affordance');
-		assert.strictEqual(polarity.getAttribute('aria-pressed'), 'false');
-		polarity.click();
-		await dialog.updateComplete;
-		const flipped = rowFor('unstarred');
-		assert.ok(flipped, 'flipping polarity must offer the inverse filter');
-		assert.strictEqual(flipped.querySelector('.catalog-polarity').getAttribute('aria-pressed'), 'true');
+	//NEGATION IS LANGUAGE, NOT A TOGGLE ON A ROW.
+	//
+	//The catalog's Not toggle is deleted with the catalog. What replaced it is
+	//the pill's own Flip verb, and the app's own inverse NAMES: flipping
+	//`starred` produces the filter `unstarred` — a word — rather than an
+	//operator wrapped around the clause. The `-` key does the same thing from
+	//the input, and it is deliberately the URL's own spelling for exclusion.
+	it('flips a clause to the app’s own inverse word, from the row and from the key', async () => {
+		await addRefineRow('Starred');
+		sentencePills()[0].click();
+		await settleRender(dialog);
+		const flip = pillRowVerb('Flip');
+		assert.ok(flip, 'every pill offers the flip');
+		assert.match(flip.getAttribute('title'), /Unstarred/,
+			'and it promises which word the pill will read, before it is pressed');
+		flip.click();
+		await settleRender(dialog);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred'],
+			'the app’s own inverse name, not exclude/starred');
+		assert.match(pillLabels().join(' '), /Unstarred/);
 
-		//AND THE ON STATE MUST PAINT. aria-pressed=true and aria-pressed=false
-		//rendered identical pixels: ButtonSharedStyles gives a toggle its on
-		//state through `button.selected`, and `button.small`'s transparent
-		//background has the same specificity and comes after it, so the shared
-		//rule never reached the screen. The class is the pairing HS-4.2
-		//requires; the local rule is what makes it visible.
-		assert.ok(flipped.querySelector('.catalog-polarity').classList.contains('selected'),
-			'HS-4.2 pairs aria-pressed with .selected');
-		const styles = composerStyles();
-		const onState = styles.match(/button\.catalog-polarity\.selected\s*\{[^}]*\}/);
-		assert.ok(onState,
-			'the toggle needs an on-state rule the local .suggestion/.small rules cannot shadow');
-		assert.match(onState[0], /background:\s*var\(--app-secondary-color-light\)/,
-			'HS-4.5: teal is a toggle that is on');
-		assert.match(onState[0], /color:\s*var\(--app-dark-text-color-darker\)/,
-			'and the label darkens with it — the purple .verb sets is unreadable on teal');
+		//And back again, from the key the footer teaches.
+		await pressComposer('-');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
+			'flipping is an involution');
+		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /- flips/,
+			'the footer names the key the row performs');
+	});
 
-		flipped.querySelector('[role="option"]').click();
-		await dialog.updateComplete;
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred']);
+	//AND THE OTHER HALF OF THE KEYBOARD GRAMMAR: `+` asks for an alternative,
+	//which scopes the input to one condition, and an accepted candidate fuses
+	//into the group rather than being ANDed alongside it.
+	it('widens a clause with an or, from the + key and through a scoped input', async () => {
+		await addRefineRow('Starred');
+		await pressComposer('Backspace');
+		assert.deepStrictEqual([...dialog._selectedPath], [0]);
+		await pressComposer('+');
+		assert.ok(dialog._orTarget, 'the input is now scoped to that condition');
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		assert.match(input.getAttribute('placeholder'), /Also match/,
+			'and it says which question it is asking');
+		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Tab widens the clause/);
+		await typeComposer('unread');
+		const rows = suggestionRows();
+		assert.ok(rows.length, 'the alternatives are the list');
+		assert.ok(rows.every((button) => (button.dataset.rowId || '').includes(':or:')),
+			'every row is an alternative joining that condition');
+		assert.ok(rowText(rows[0]).includes('widens'), 'and each says what it widens');
+		rows.find((button) => rowText(button).includes('Unread')).click();
+		await settleRender(dialog);
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred+unread'],
+			'the two fuse into one condition rather than ANDing');
+		assert.strictEqual(dialog._orTarget, null, 'and the scope is spent');
 	});
 
 	//SOURCE MODE'S ENTER — the one keystroke the live review caught spending
@@ -2447,7 +2466,7 @@ describe('Collection Composer interactions', () => {
 	const typeInto = async (input, value) => {
 		input.value = '';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		input.value = value;
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
 		await dialog.updateComplete;
@@ -2732,11 +2751,11 @@ describe('Collection Composer interactions', () => {
 		const composerInput = dialog.shadowRoot.querySelector('#collection-composer-input');
 		composerInput.value = 'starred';
 		composerInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		const row = suggestionRows().find((button) => button.textContent.includes('Add Starred'));
+		await settleRender(dialog);
+		const row = suggestionRows().find((button) => rowText(button).includes('Starred'));
 		assert.ok(row, 'the Starred row is what this test navigates with');
 		row.click();
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		await countingPushes(async (pushed) => {
 			dialog.shadowRoot.querySelector('.composer-actions .primary').click();
 			await dialog.updateComplete;
@@ -2826,7 +2845,8 @@ describe('Collection Composer interactions', () => {
 	it('leaves the draft alone on Shift+Tab', async () => {
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		await typeInto(input, 'star');
-		assert.match(highlightedRow().textContent, /Starred/);
+		await settleRender(dialog);
+		assert.match(rowText(highlightedRow()), /Starred/);
 		const before = store.getState().collection.snapshot;
 		const shiftTab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
 		input.dispatchEvent(shiftTab);
@@ -2898,150 +2918,100 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(window.location.pathname, '/c/main/');
 	});
 
-	//THE CLAUSE EDITOR IS ANCHORED TO THE SENTENCE, AND BOUNDED THERE.
+	//THE PILL ROW IS ATTACHED TO THE SENTENCE, AND IT CANNOT SQUASH.
 	//
-	//REWRITTEN, not deleted. The property this test defends is unchanged — the
+	//REWRITTEN, not deleted. The property this test defended is unchanged — the
 	//'Editing Updated between…' panel measured 262px inside a 720px dialog and
 	//ran past its bottom, .composer-actions hit-tested ABOVE both date inputs,
-	//and 'Done editing' and 'Remove filter' rendered where nothing paints — but
-	//the structure that defends it has moved. The editor used to be the last
-	//flex child of #inner in a `.builder.builder-clause.scroller` wrapper, and
-	//the old assertions named that wrapper. It now renders in the anchored slot
-	//directly under the draft sentence, where being on screen is a property of
-	//its POSITION rather than of a scroll into it, and the bounding moved one
-	//level in: the slot caps its height and the editor's own body scrolls.
+	//and its own action row rendered where nothing paints — but the structure
+	//that defends it has changed shape entirely. A one-line row has no height to
+	//budget, no inner scroller to keep its action row out of, and no floor to
+	//take from the list; it is one line under the sentence, and the whole class
+	//of defect the anchored slot's cap existed for is gone with the panel.
 	//
-	//So the same three facts are pinned against the new shape: the editor sits
-	//between the sentence and everything else, its scrolling part is inside it,
-	//and the footer is neither inside it nor able to give up its own room.
-	//JSDOM computes no layout, so geometry is still pinned through the
-	//component's own stylesheet.
-	it('anchors the clause editor under the sentence, bounded, with the footer out of its flow', async () => {
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		await typeInto(input, 'star');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-		await settleRender(dialog);
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
+	//What still has to be true: the row renders directly under the sentence, the
+	//footer is outside it and after it, and every verb the row offers is inside
+	//the dialog.
+	it('anchors the pill row under the sentence, with the footer out of its flow', async () => {
+		await typeComposer('star');
+		await pressComposer('Tab');
+		sentencePills()[0].click();
 		await settleRender(dialog);
 
-		const editor = dialog.shadowRoot.querySelector('.clause-editor');
-		assert.ok(editor, 'the clause editor must be on screen');
-		const pane = editor.closest('.anchored-editor');
-		assert.ok(pane, 'the editor lives in the anchored slot');
+		const row = dialog.shadowRoot.querySelector('.pill-row');
+		assert.ok(row, 'the pill row must be on screen');
 
-		//ATTACHED TO THE SENTENCE: the slot's immediately preceding sibling is
-		//the expression row itself, so no list, heading or message can come
-		//between a chip and the editor it opened.
-		const expression = dialog.shadowRoot.querySelector('.expression');
-		assert.ok(expression);
-		assert.strictEqual(pane.previousElementSibling, expression,
-			'the editor must render directly under the row whose chip opened it');
-
-		//Its BODY is the scroller, so the action row is a sibling of the
-		//scrolling part rather than the last thing inside it.
-		const body = editor.querySelector('.clause-editor-body');
-		assert.ok(body, 'the editor has its own body');
-		assert.ok(body.classList.contains('scroller'),
-			'a filter whose controls overflow scrolls inside the editor, not the dialog');
-		assert.ok(editor.querySelector('configure-collection-filter').closest('.clause-editor-body'),
-			'the controls are what scrolls');
-		const actions = editor.querySelector('.clause-editor-actions');
-		assert.ok(actions, 'the action row exists');
-		assert.strictEqual(actions.closest('.clause-editor-body'), null,
-			'and it is outside the scroller, so it cannot fall off the bottom of it');
+		//ATTACHED TO THE SENTENCE: its immediately preceding sibling is the
+		//sentence itself, so no list, heading or message can come between a pill
+		//and the row it opened.
+		const sentence = dialog.shadowRoot.querySelector('.sentence');
+		assert.ok(sentence);
+		assert.strictEqual(row.previousElementSibling, sentence,
+			'the row must render directly under the pill that opened it');
 
 		const footer = dialog.shadowRoot.querySelector('.buttons.composer-actions');
 		assert.ok(footer);
-		assert.strictEqual(footer.closest('.anchored-editor'), null,
-			'the footer must be outside the editor pane, never a sibling it can paint over');
-		assert.ok(footer.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_PRECEDING,
+		assert.strictEqual(footer.closest('.pill-row'), null,
+			'the footer must be outside the row, never a sibling it can paint over');
+		assert.ok(footer.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_PRECEDING,
 			'and it must come after it, so its room is reserved rather than borrowed');
-		//Both controls the review found unreachable are inside the bounded pane.
-		assert.match(pane.textContent, /Done editing/);
-		assert.match(editor.querySelector('configure-collection-filter').shadowRoot.textContent, /Remove filter/);
 
 		const styles = composerStyles();
-		//The cap is what keeps the panel from taking the whole scroll port, and
-		//it is viewport-relative rather than a percentage of a flex-resolved
-		//parent, so it resolves whatever the dialog body ends up measuring.
-		assert.match(styles, /\.anchored-editor\s*\{[^}]*max-height:\s*min\(22em,\s*40vh\)/,
-			'the anchored slot budgets its height rather than growing without bound');
-		assert.match(styles, /\.anchored-editor\s*\{[^}]*min-height:\s*0/,
-			'and it may shrink, so its body scrolls before the dialog does');
-		assert.match(styles, /\.pending-filter-body,\s*\.clause-editor-body\s*\{[^}]*flex:\s*1 1 auto/,
-			'only the body takes the room, so the action row keeps its own');
-		assert.match(styles, /\.buttons\.pending-filter-actions,\s*\.clause-editor-actions,\s*\.pending-filter-heading,\s*\.clause-editor-heading\s*\{[^}]*flex:\s*0 0 auto/,
-			'and neither panel’s fixed ends — heading or action row — shrink');
-		//THE HEADING IS OUTSIDE THE SCROLLER TOO. Focus lands in the first
-		//control as the panel opens, and the browser scrolls the nearest
-		//scrollable ancestor to reveal it — verified live: with the heading
-		//inside the scroller, 'Editing Updated between 2023-01-01 and
-		//2023-12-31' and the contract sentence under it were scrolled off on
-		//the frame the panel appeared.
-		const heading = editor.querySelector('.clause-editor-heading');
-		assert.ok(heading, 'the panel states what it is editing');
-		assert.match(heading.textContent, /Editing /);
-		assert.match(heading.textContent, /Changes update the draft immediately/,
-			'and the contract it keeps');
-		assert.strictEqual(heading.closest('.clause-editor-body'), null,
-			'the heading must not scroll away when focus lands in a control');
 		assert.match(styles, /\.buttons\.composer-actions\s*\{[^}]*flex:\s*0 0 auto/,
 			'the footer never shrinks to make room for an editor');
-		assert.match(styles, /\.builder-catalog\s*\{[^}]*overflow:\s*hidden/,
-			'a shrunken flex item must clip rather than paint over what follows it');
-		//AND THE LISTS YIELD FIRST. The slot is bounded, but a list with a 7em
-		//or 8em floor would still push it: while an editor is open both drop to
-		//two rows and the heading, which is also what keeps the 0-card
-		//diagnostics on screen beside an open editor.
-		assert.match(styles, /:host\(\[data-editor-open\]\) \.suggestions,\s*:host\(\[data-editor-open\]\) \.catalog-list\s*\{[^}]*min-height:\s*4em/,
-			'the lists give up their floor to the anchored editor');
-		assert.ok(dialog.hasAttribute('data-editor-open'),
-			'and the attribute the rule keys off is actually set while an editor is open');
+		//THE BOUNDING MACHINERY IS GONE WITH THE PANELS IT BOUNDED. A one-row
+		//editor cannot squash, so nothing has to negotiate a height with it.
+		for (const dead of ['data-editor-open', 'clause-editor-body', 'pending-filter-body', 'builder-catalog']) {
+			assert.ok(!styles.includes(dead), `${dead} is deleted, and so is its CSS`);
+		}
+		assert.ok(!dialog.hasAttribute('data-editor-open'),
+			'and the attribute the deleted rules keyed off is not set either');
 	});
 
-	//Seeds a draft without going through the suggestion list, for the tests
-	//below whose subject is the editor rather than how the clause got there.
+	//Seeds a draft without going through the list, for the tests below whose
+	//subject is the row rather than how the clause got there.
 	const seedDraft = async (source) => {
 		const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
 		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize(source)));
 		await settleRender(dialog);
 	};
 
-	const openClauseEditor = async (index = 0) => {
-		const clauses = Array.from(dialog.shadowRoot.querySelectorAll('.expression-clause-label'));
-		assert.ok(clauses[index], `there is a clause ${index} to edit`);
-		clauses[index].click();
+	const openPillRow = async (index = 0) => {
+		const pills = sentencePills();
+		assert.ok(pills[index], `there is a pill ${index} to edit`);
+		pills[index].click();
 		await settleRender(dialog);
-		const editor = dialog.shadowRoot.querySelector('.clause-editor');
-		assert.ok(editor, 'the editor opened');
-		return editor;
+		const row = pillRow();
+		assert.ok(row, 'the row opened');
+		await settleRender(dialog, row);
+		return row;
 	};
 
-	//The real date control, three shadow roots down, settled.
-	const editorDateControl = async () => {
-		const filter = dialog.shadowRoot.querySelector('.clause-editor configure-collection-filter');
-		assert.ok(filter, 'the editor holds a filter control');
-		await settleRender(dialog, filter);
-		const date = filter.shadowRoot.querySelector('configure-collection-date');
-		assert.ok(date, 'the filter holds a date control');
-		await settleRender(dialog, filter, date);
+	//The real date control, two shadow roots down, settled.
+	const rowDateControl = async () => {
+		const row = pillRow();
+		assert.ok(row, 'the row holds the clause’s controls');
+		await settleRender(dialog, row);
+		const date = row.shadowRoot.querySelector('configure-collection-date');
+		assert.ok(date, 'the row holds a date control');
+		await settleRender(dialog, row, date);
 		return date;
 	};
 
 	//ONE EDIT PER OPENING WAS THE WHOLE COST.
 	//
-	//_commitDraftEdit clears _selectedClauseIndex, because for every other way
-	//the draft changes the selected clause is no longer what the user is
-	//pointing at. A clause edit is the one change that comes FROM the selected
-	//clause, so it closed the editor on the field that had just been changed:
-	//the audited session set the start of a date window, watched the panel
-	//vanish, and had to re-open it from the chip to set the end.
-	it('keeps the clause editor open across field edits', async () => {
+	//_commitDraftEdit clears the selection, because for every other way the draft
+	//changes the selected clause is no longer what the user is pointing at. A
+	//clause edit is the one change that comes FROM the selected clause, so it
+	//closed the editor on the field that had just been changed: the audited
+	//session set the start of a date window, watched the panel vanish, and had to
+	//re-open it to set the end.
+	it('keeps the pill row open across field edits', async () => {
 		await seedDraft('everything/updated/between/2026-01-01/2026-02-01/');
-		await openClauseEditor();
+		await openPillRow();
 
 		const setDate = async (label, value) => {
-			const date = await editorDateControl();
+			const date = await rowDateControl();
 			const input = date.shadowRoot.querySelector(`[aria-label="${label}"]`);
 			assert.ok(input, `the ${label} field is on screen`);
 			input.value = value;
@@ -3050,50 +3020,41 @@ describe('Collection Composer interactions', () => {
 		};
 
 		await setDate('First fixed date', '2026-01-15');
-		assert.ok(dialog.shadowRoot.querySelector('.clause-editor'),
-			'changing one date must not close the editor');
+		assert.ok(pillRow(), 'changing one date must not close the row');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
 			['updated/between/2026-01-15/2026-02-01'],
 			'and the change reaches the draft immediately');
-		assert.ok(dialog._builderExpanded);
-		assert.strictEqual(dialog._selectedClauseIndex, 0,
-			'the editor is still on the clause it was editing');
+		assert.deepStrictEqual([...dialog._selectedPath], [0],
+			'the row is still on the clause it was editing');
 
 		//THE SECOND FIELD, without re-opening anything. This is the step the
 		//audited session could not take.
 		await setDate('Second fixed date', '2026-03-01');
-		assert.ok(dialog.shadowRoot.querySelector('.clause-editor'), 'still open');
+		assert.ok(pillRow(), 'still open');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
 			['updated/between/2026-01-15/2026-03-01'],
 			'both edits are in the draft');
 
-		//The refinement list is still on screen beside the open editor — the
-		//0-card 'Remove …' diagnostics live in it, and they must not be hidden
-		//behind an editor the user has to close to see them.
-		assert.ok(dialog.shadowRoot.querySelector('.suggestions [role="option"]'),
-			'the suggestion list stays readable while an editor is open');
+		//The list is still on screen beside the open row — a one-line editor
+		//takes nothing from it.
+		assert.ok(dialog.shadowRoot.querySelector('.palette-list [role="option"]'),
+			'the list stays readable while a row is open');
 
 		//And it closes when the user says so, not before.
-		Array.from(dialog.shadowRoot.querySelectorAll('.clause-editor button'))
-			.find((button) => button.textContent.includes('Done editing')).click();
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
 		await settleRender(dialog);
-		assert.strictEqual(dialog.shadowRoot.querySelector('.clause-editor'), null,
-			'Done editing closes it');
-		assert.strictEqual(dialog.shadowRoot.querySelector('.anchored-editor'), null,
-			'and takes the anchored slot with it, rather than leaving an empty box');
-		//The chip says what the clause now is.
-		assert.match(dialog.shadowRoot.querySelector('.expression-clause').textContent, /2026-01-15/);
-		assert.match(dialog.shadowRoot.querySelector('.expression-clause').textContent, /2026-03-01/);
+		assert.strictEqual(pillRow(), null, 'Escape closes it');
+		//The pill says what the clause now is.
+		assert.match(pillLabels().join(' '), /2026-01-15/);
+		assert.match(pillLabels().join(' '), /2026-03-01/);
 	});
 
 	//TEACH THROUGH CONSEQUENCE, AT THE MOMENT OF CHOICE (spec §8, §Count
 	//preview). Choosing values with no idea what they yield is an act of faith;
-	//the count that answers it belongs inside the editor, next to the values,
-	//and it has to move when they do. Driven through the component's own
-	//retained-count cache, the way the keystroke-retention test above drives it:
-	//that is the layer the count is read from, and it makes the assertion about
-	//WHAT IS DISPLAYED rather than about worker timing.
-	it('runs a live count inside the clause editor as its values change', async () => {
+	//the count that answers it belongs in the row, next to the values, and it has
+	//to move when they do. Driven through the component's own retained-count
+	//cache, the way the keystroke-retention test above drives it.
+	it('runs a live count inside the pill row as its values change', async () => {
 		window.localStorage.setItem('collection-composer-preview', 'on');
 		try {
 			await seedDraft('everything/updated/between/2026-01-01/2026-02-01/');
@@ -3102,108 +3063,63 @@ describe('Collection Composer interactions', () => {
 				dialog._refreshPreviewCounts();
 			};
 			known(57);
-			await openClauseEditor();
-			const readout = () => dialog.shadowRoot.querySelector('.clause-editor .editor-count');
-			const text = () => readout().textContent.replace(/\s+/g, ' ').trim();
-			assert.ok(readout(), 'the open editor states what the draft matches');
-			//'now', because a clause edit is already in the draft — the panel's
-			//own contract sentence one line above says so.
-			assert.match(text(), /The draft now matches 57 cards/);
+			await openPillRow();
+			//'now', because a clause edit is already in the draft — there is no
+			//pending state to be conditional about.
+			assert.match(pillRowText(), /draft now matches 57 cards/);
 
 			//Changing a value makes it a different collection, so the number is
-			//genuinely unknown — and says so through the shared loading
-			//primitive rather than blanking or lying.
-			const date = await editorDateControl();
+			//genuinely unknown — and the row omits it rather than showing a stale
+			//one or a zero.
+			const date = await rowDateControl();
 			const input = date.shadowRoot.querySelector('[aria-label="First fixed date"]');
 			input.value = '2026-01-15';
 			input.dispatchEvent(new Event('change', { bubbles: true }));
 			await settleRender(dialog);
-			assert.ok(dialog.shadowRoot.querySelector('.clause-editor'), 'the editor is still open');
-			const placeholder = readout().querySelector('loading-placeholder');
-			assert.ok(placeholder, 'a count still arriving must say it is still arriving');
-			assert.strictEqual(placeholder.noun, 'the card count');
+			assert.ok(pillRow(), 'the row is still open');
+			assert.doesNotMatch(pillRowText(), /draft now matches/,
+				'a number in this row is a promise about a collection, and there is nothing honest to say yet');
 
 			//And the answer for the new values lands in the same place.
 			known(12);
-			await settleRender(dialog);
-			assert.match(text(), /The draft now matches 12 cards/);
+			await settleRender(dialog, pillRow());
+			assert.match(pillRowText(), /draft now matches 12 cards/);
 		} finally {
 			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
 		}
 	});
 
-	//THE PENDING-ADD PANEL PREVIEWS WHAT CONFIRMING WOULD PRODUCE. Nothing is
-	//added until the user confirms — that contract is unchanged — so the count
-	//is explicitly conditional ('Would match'), and it is a count of the draft
-	//PLUS the filter as currently valued, which is a different collection from
-	//the draft's own.
-	it('previews what a pending Configure would match, from the anchored panel', async () => {
+	//THE SECOND COUNT ROLE, AND WHAT IT REPLACED. "Remove X" was a whole class of
+	//suggestion row whose only job was to answer "what would this collection be
+	//without that clause?" — asked in a list, about a clause the user had to find
+	//again. It is answered here, beside the pill, and it is a real preview of a
+	//real different collection rather than a row that undoes a choice.
+	it('previews the collection without the selected pill, from the row itself', async () => {
 		window.localStorage.setItem('collection-composer-preview', 'on');
 		try {
-			Array.from(dialog.shadowRoot.querySelectorAll('button'))
-				.find((button) => button.textContent.includes('Browse all filters')).click();
-			await settleRender(dialog);
-			Array.from(dialog.shadowRoot.querySelectorAll('#collection-filter-catalog [role=option]'))
-				.find((button) => button.textContent.includes('Updated')).click();
-			await settleRender(dialog);
+			await seedDraft('everything/starred/updated/after/7-days-ago/');
+			await openPillRow(1);
+			const { collectionDescriptionWithFilterRemoved } = await import('../../lib/src/collection_description.js');
+			const without = collectionDescriptionWithFilterRemoved(dialog._collectionDescription, 1);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(dialog._collectionDescription), 57);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(without), 1842);
+			dialog._refreshPreviewCounts();
+			await settleRender(dialog, pillRow());
+			assert.match(pillRowText(), /draft now matches 57 cards/, 'the fact');
+			assert.match(pillRowText(), /without this pill: 1842 cards/, 'and the prediction');
+			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+				['starred', 'updated/after/7-days-ago'],
+				'and asking the question has changed nothing');
 
-			const panel = dialog.shadowRoot.querySelector('.pending-filter-editor');
-			assert.ok(panel, 'the Configure panel is on screen');
-			//ANCHORED IN THE SAME SLOT AS THE CLAUSE EDITOR, under the sentence —
-			//not at the bottom of the catalog's scrolling column.
-			const slot = panel.closest('.anchored-editor');
-			assert.ok(slot, 'the Configure panel renders in the anchored slot');
-			assert.strictEqual(slot.previousElementSibling,
-				dialog.shadowRoot.querySelector('.expression'),
-				'directly under the draft sentence');
-			assert.strictEqual(panel.closest('.builder-catalog'), null,
-				'and no longer inside the catalog list’s own column');
-			assert.ok(dialog.shadowRoot.querySelector('#collection-filter-catalog'),
-				'the catalog is still browsable underneath it');
-
-			const readout = () => dialog.shadowRoot.querySelector('.pending-filter-editor .editor-count');
-			const text = () => readout().textContent.replace(/\s+/g, ' ').trim();
-			//Unknown at first, and honest about it.
-			assert.ok(readout()?.querySelector('loading-placeholder'),
-				'an unresolved count says it is still arriving');
-
-			//The collection it counts is the DRAFT PLUS the configured filter.
-			const { collectionDescriptionWithFilterAppended } = await import('../../lib/src/collection_description.js');
-			const withPending = () => collectionDescriptionWithFilterAppended(
-				dialog._collectionDescription, dialog._pendingCatalogFilter);
-			const known = (count) => {
-				dialog._retainedPreviewCounts.set(dialog._previewCountKey(withPending()), count);
-				dialog._refreshPreviewCounts();
-			};
-			known(57);
-			await settleRender(dialog);
-			assert.match(text(), /Would match 57 cards/);
-			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [],
-				'and previewing a pending filter has still added nothing');
-
-			//Change a value: the panel stays open, and the count follows it.
-			const pending = dialog.shadowRoot.querySelector('.pending-filter-editor configure-collection-filter');
-			pending.dispatchEvent(new CustomEvent('filter-modified', {
-				composed: true,
-				detail: { value: 'updated/after/30-days-ago', index: -1 },
-			}));
-			await settleRender(dialog);
-			assert.ok(dialog.shadowRoot.querySelector('.pending-filter-editor'),
-				'a value change must not close the Configure panel');
-			assert.strictEqual(dialog._pendingCatalogFilter, 'updated/after/30-days-ago');
-			assert.ok(readout().querySelector('loading-placeholder'),
-				'the count for the new values is not the old one');
-			known(4);
-			await settleRender(dialog);
-			assert.match(text(), /Would match 4 cards/);
-
-			//And the explicit confirm still is the only thing that adds it.
-			dialog.shadowRoot.querySelector('.pending-filter-actions button[aria-label="Add this filter to the draft"]').click();
-			await settleRender(dialog);
-			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/30-days-ago']);
-			assert.strictEqual(dialog.shadowRoot.querySelector('.anchored-editor'), null,
-				'the panel closes once its filter is in the draft');
+			//Moving the selection asks a different question, about a different
+			//collection.
+			await openPillRow(0);
+			const withoutFirst = collectionDescriptionWithFilterRemoved(dialog._collectionDescription, 0);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(withoutFirst), 96);
+			dialog._refreshPreviewCounts();
+			await settleRender(dialog, pillRow());
+			assert.match(pillRowText(), /without this pill: 96 cards/);
 		} finally {
 			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
@@ -3213,44 +3129,39 @@ describe('Collection Composer interactions', () => {
 	//THE KEYBOARD CLAUSE-SELECTION FLOW COULD NOT REACH WHAT IT SELECTED.
 	//
 	//Backspace selects the last clause and ←→ move between them, but Enter fell
-	//through to the generic commit below — with no suggestion highlighted that
-	//opens the current draft, and selecting a clause does not change the draft,
-	//so the draft was equivalent to the collection already on screen and 'open'
+	//through to the generic commit — with nothing highlighted that opens the
+	//current draft, and selecting a clause does not change the draft, so 'open'
 	//meant 'close the composer'. The one obvious key threw the session away.
-	it('opens the editor when Enter activates a selected clause', async () => {
+	it('opens the pill row’s controls when Enter activates a selected clause', async () => {
 		await seedDraft('everything/starred/updated/between/2026-01-01/2026-02-01/');
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.focus();
-		//Arrow into the suggestion list first: selecting a clause has to take
-		//the highlight back from it, or two things read as selected and only
-		//one is what Enter takes.
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-		await settleRender(dialog);
-		assert.ok(highlightedRow(), 'a suggestion row is highlighted');
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-		await settleRender(dialog);
-		assert.strictEqual(dialog._selectedClauseIndex, 1, 'the last clause is selected');
+		//Arrow into the list first: selecting a clause has to take the highlight
+		//back from it, or two things read as selected and only one is what Enter
+		//takes.
+		await pressComposer('ArrowDown');
+		assert.ok(highlightedRow(), 'a row is highlighted');
+		await pressComposer('Backspace');
+		assert.deepStrictEqual([...dialog._selectedPath], [1], 'the last clause is selected');
 		assert.strictEqual(highlightedRow(), null,
 			'and the list gives up its highlight, so Enter is unambiguous');
-		assert.ok(!dialog._builderExpanded, 'selecting is not yet editing');
-		//The footer names the key before it is pressed.
-		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Enter edits it/);
+		//The footer names the key before it is pressed, from the module that
+		//performs it.
+		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /Enter edits/);
 
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-		await settleRender(dialog);
+		await pressComposer('Enter');
+		await settleRender(dialog, pillRow());
 		assert.strictEqual(dialog.open, true,
 			'Enter on a selected clause must not close the composer');
 		assert.strictEqual(window.location.pathname, '/c/main/', 'and must not navigate');
-		const editor = dialog.shadowRoot.querySelector('.clause-editor');
-		assert.ok(editor, 'it opens the editor for the clause it had selected');
-		assert.match(editor.textContent, /Editing Updated/);
+		assert.match(pillRowText(), /Updated/, 'the row is about the clause it had selected');
 
-		//FOCUS LANDS ON THE FIRST CONTROL, the same way a click does — the
-		//existing focusPrimaryControl path, reached from the keyboard.
-		const filter = dialog.shadowRoot.querySelector('.clause-editor configure-collection-filter');
-		assert.strictEqual(dialog.shadowRoot.activeElement, filter,
-			'focus is inside the editor that just opened');
-		assert.ok(filter.shadowRoot.activeElement?.closest('configure-collection-date'),
+		//FOCUS LANDS ON THE FIRST CONTROL, the same way it does when a family is
+		//chosen by name — the same focusPrimaryControl path, reached from the
+		//keyboard.
+		assert.strictEqual(dialog.shadowRoot.activeElement, pillRow(),
+			'focus is inside the row that just opened');
+		assert.ok(pillRow().shadowRoot.activeElement?.closest('configure-collection-date'),
 			'and specifically in the clause’s own first control');
 	});
 
@@ -3260,22 +3171,20 @@ describe('Collection Composer interactions', () => {
 	//on three consecutive characters of one session: .content sizes to its
 	//content horizontally between min-width:40% and max-width:70%, and
 	//.background centres it, so every re-measure moved the left edge of the
-	//input the user was typing into. The height was already pinned for exactly
-	//this reason; the width was the half nobody had done. JSDOM computes no
-	//layout, so what is pinned is the rule that makes the resize impossible.
-	it('pins the composer dialog to one box, so typing cannot move it', async () => {
+	//input the user was typing into. The HEIGHT pin is gone with the workspace
+	//it was for (see 'sizes itself as a light palette'); the width pin is not,
+	//because the defect it prevents is unchanged. JSDOM computes no layout, so
+	//what is pinned is the rule that makes the resize impossible.
+	it('pins the composer dialog’s width, so typing cannot move it', async () => {
 		const styles = composerStyles();
 		//Anchored on the custom property, because DialogElement's own .content
 		//rule is in the same concatenated sheet and comes first.
 		const content = styles.match(/\.content\s*\{[^}]*--composer-width[^}]*\}/);
 		assert.ok(content, 'the composer must have its own .content rule');
-		assert.match(content[0], /--composer-width:\s*min\(64em,\s*92vw\)/,
-			'one expression names the box, so the three properties below cannot drift apart');
 		for (const property of ['width', 'min-width', 'max-width']) {
 			assert.match(content[0], new RegExp(`[;{]\\s*${property}:\\s*var\\(--composer-width\\)`),
 				`${property} must take the pinned width, or the base rule's percentages re-enter and the box sizes to content again`);
 		}
-		assert.match(content[0], /height:\s*90%/, 'the height pin wave 1 added stays');
 		//And nothing in the composer's own sheet may size the box to content.
 		assert.ok(!/\.content\s*\{[^}]*width:\s*(auto|fit-content|max-content)/.test(styles),
 			'no rule may hand the width back to the content');
@@ -3311,7 +3220,7 @@ describe('Collection Composer interactions', () => {
 		//not this component's to gate.
 		const sheets = dialog.constructor.styles;
 		const styles = String(sheets[sheets.length - 1].cssText || '');
-		assert.match(styles, /\.expression-clause/, 'the last sheet must be the composer\'s own');
+		assert.match(styles, /\.palette-row/, 'the last sheet must be the composer\'s own');
 		//Every rule that moves anything is inside the gate, so reduced motion
 		//gets the end state rather than a shortened version of the movement.
 		const gate = styles.match(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*\n\t{3}\}/);
@@ -3328,12 +3237,11 @@ describe('Collection Composer interactions', () => {
 		//The moments the spec names: the surface arriving, the highlight
 		//moving, and a layer being revealed.
 		assert.match(gate[0], /\.container\.open \.content\s*\{[^}]*animation:\s*composer-settle/);
-		assert.match(gate[0], /\.suggestion button,\s*\.suggestion-action\s*\{[^}]*transition:/);
-		//The revealed layer is now the ANCHORED SLOT rather than the Configure
-		//panel by name: both editors render into that one slot, so animating it
-		//covers the pair the old selector had to list. Same moment, same
-		//keyframes, one fewer place to forget.
-		assert.match(gate[0], /\.builder,\s*\.anchored-editor\s*\{[^}]*animation:/);
+		assert.match(gate[0], /\.palette-row button,[\s\S]*?\{[^}]*transition:/);
+		//The revealed layer is the PILL ROW: the anchored slot and both panels
+		//that rendered into it are deleted, and the one-line row is what appears
+		//in their place. Same moment, same keyframes.
+		assert.match(gate[0], /\.builder,\s*\.pill-row\s*\{[^}]*animation:/);
 		//And nothing animated is a layout property — the box and the row
 		//columns were pinned precisely so nothing moves under a keystroke.
 		for (const property of ['width', 'height', 'margin', 'padding', 'grid-template', 'flex']) {
@@ -3351,14 +3259,12 @@ describe('Collection Composer interactions', () => {
 	it('states the key contract the highlighted row actually has', async () => {
 		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
 		await seedRecents([['main/starred/sort/recent/', 2]]);
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		const arrowTo = async (label) => {
 			for (let step = 0; step < 12; step++) {
-				input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-				await dialog.updateComplete;
-				if (label.test(highlightedRow().textContent)) return;
+				await pressComposer('ArrowDown');
+				if (label.test(rowText(highlightedRow()))) return;
 			}
-			assert.fail(`never reached a row matching ${label}`);
+			assert.fail(`never reached a row matching ${label}: ${suggestionLabels().join(' | ')}`);
 		};
 
 		//THE MAIN STATE: nothing highlighted, a list on screen.
@@ -3369,14 +3275,14 @@ describe('Collection Composer interactions', () => {
 		assert.match(hints(), /Escape cancels/,
 			'the spec\'s example contract ends with Escape, and it is the only way out that does not navigate');
 
-		//AN OPEN ROW: clicking it navigates, so the footer says so.
-		await arrowTo(/Main AND Starred/);
+		//A DESTINATION: clicking it navigates, so the footer says so.
+		await arrowTo(/Main · Starred/);
 		assert.match(hints(), /Click or Enter opens/,
 			'a destination is opened by a click, not edited by one');
 		assert.match(hints(), /Tab copies it into the draft/);
 
-		//AN ADD ROW: clicking it changes the draft.
-		await arrowTo(/Add Starred/);
+		//A REFINEMENT: clicking it changes the draft.
+		await arrowTo(/^Unread/);
 		assert.match(hints(), /Click or Tab adds · Enter adds and opens/);
 	});
 
@@ -3402,23 +3308,28 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(actions().querySelector('.no-cards-note'), null);
 	});
 
-	//MOBILE READING ORDER: what it is, what it costs, what it does, why.
+	//MOBILE READING ORDER: what it is, what it costs, why.
+	//
 	//The verb had a full-width row of its own between the label and the
 	//description, so a row read "Add Starred / 18 cards / ADD / Adds Starred to
 	//this collection" — the consequence interrupting the thing it is a
-	//consequence of.
-	it('keeps a mobile row’s verb beside its count instead of between label and description', () => {
+	//consequence of. The verb is deleted outright now, which retires the defect;
+	//what is left to keep in order is the label, its count, and the detail
+	//after both. On a 375px screen an 11em count column would leave the label
+	//nothing, so the count drops to its own row under the label rather than
+	//being cut off.
+	it('keeps a mobile row’s count under its label, with the detail after both', () => {
 		const styles = composerStyles();
-		const mobileGrid = /\.mobile \.suggestion button\s*\{([^}]*)\}/.exec(styles);
+		const mobileGrid = /\.mobile \.palette-row button\s*\{([^}]*)\}/.exec(styles);
 		assert.ok(mobileGrid, 'the mobile row grid must exist');
 		const areas = mobileGrid[1].replace(/\s+/g, ' ');
-		assert.match(areas, /'label\s+count'\s*'label\s+action'/,
-			`the verb must share the count's column, under it: ${areas}`);
-		assert.ok(!/'action\s+action'/.test(areas),
-			'the verb must not take a full-width row of its own');
-		//And detail stays after both, unbroken.
-		assert.ok(areas.indexOf('detail') > areas.indexOf('action'));
-		assert.match(styles, /\.mobile \.suggestion-action\s*\{[^}]*justify-self:\s*end/);
+		assert.match(areas, /'label\s+glyph'/, 'the label leads, with the one glyph beside it');
+		assert.match(areas, /'count\s+count'/, 'and the count takes its own row rather than a narrow column');
+		assert.ok(!/action/.test(areas), 'there is no verb chip to place');
+		assert.ok(areas.indexOf('detail') > areas.indexOf('count'),
+			'the detail stays after both, unbroken');
+		assert.match(styles, /\.mobile \.row-count\s*\{[^}]*white-space:\s*normal/,
+			'and it may wrap here rather than being cut off');
 	});
 
 	//A FOOTER MUST NOT NAME CONTROLS THE DEVICE DOES NOT HAVE.
@@ -3471,15 +3382,12 @@ describe('Collection Composer interactions', () => {
 		drawer.remove();
 	});
 
-	it('brings a closed draft back, chips typed text and all, on the same collection', async () => {
-		const suggestion = Array.from(dialog.shadowRoot.querySelectorAll('[role="option"]'))
-			.find((button) => button.textContent.includes('Add Starred'));
-		suggestion.click();
-		await dialog.updateComplete;
+	it('brings a closed draft back, pills typed text and all, on the same collection', async () => {
+		await addRefineRow('Starred');
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'work in progress';
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 
 		//Escape. Source mode has always kept its text through this; the quick
@@ -3491,9 +3399,10 @@ describe('Collection Composer interactions', () => {
 		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
 		await dialog.updateComplete;
 		await dialog.updateComplete;
+		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
-			'the chips come back');
-		assert.strictEqual(dialog.shadowRoot.querySelector('.expression-clause-label').textContent.trim(), 'Starred');
+			'the pills come back');
+		assert.match(pillLabels().join(' '), /Starred/);
 		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-composer-input').value, 'work in progress',
 			'and so does the half-typed text');
 		assert.match(dialog.shadowRoot.querySelector('.draft-receipt').textContent,
@@ -3501,62 +3410,76 @@ describe('Collection Composer interactions', () => {
 			'chips reappearing with no explanation is its own small mystery');
 	});
 
-	it('names the catalog row Enter would act on, not every action the catalog has', async () => {
-		//'Enter opens Source, configures, or adds' is three claims of which
-		//exactly one is in force, with nothing saying which. The suggestion list
-		//one branch over already lets the highlighted row decide the sentence.
+	//THE FOOTER NAMES THE HIGHLIGHTED ROW'S ACTION, not the union of every action
+	//the list contains. 'Enter opens Source, configures, or adds' is three claims
+	//of which exactly one is in force, with nothing saying which. Browse all is
+	//the same list as every other feed now, so it is the same rule rather than
+	//an enumeration written a second time.
+	it('names the row Enter would act on, not every action the list has', async () => {
 		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
-		Array.from(dialog.shadowRoot.querySelectorAll('button'))
-			.find((button) => button.textContent.includes('Browse all filters')).click();
-		await dialog.updateComplete;
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		browseAll().click();
+		await settleRender(dialog);
+		const highlight = async (filterName) => {
+			const row = suggestionRows().find((button) => button.dataset.filter === filterName);
+			assert.ok(row, `no row for ${filterName}`);
+			row.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+			await settleRender(dialog);
+		};
 
-		input.value = 'text';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		assert.match(hints(), /Enter configures it before adding/, hints());
+		await typeComposer('text');
+		await highlight('query');
+		assert.match(hints(), /Enter adds it and opens its controls/, hints());
 		assert.ok(!hints().includes('opens Source, configures, or adds'), hints());
 
-		input.value = 'starred';
-		input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await dialog.updateComplete;
-		assert.match(hints(), /Enter adds it to the draft/, hints());
+		await typeComposer('starred');
+		await highlight('starred');
+		assert.match(hints(), /Click or Tab adds · Enter adds and opens/, hints());
 
-		//And the row's own verb chip agrees with the footer, because both come
-		//from the one decision _handleCatalogItem makes.
-		const row = dialog.shadowRoot.querySelector('#collection-filter-catalog [role=option]');
-		assert.strictEqual(row.querySelector('.suggestion-action').textContent.trim(), 'Add');
+		await typeComposer('exclude');
+		await highlight('exclude');
+		assert.match(hints(), /opens Source/, hints());
 	});
 
-	//SENTENCE CASE, AND A VISIBLE CONSEQUENCE CLASS.
+	//THE VERB CHIPS ARE DELETED, AND ONE GLYPH REPLACED THEM.
 	//
-	//The row verbs were lowercase text painted ALL-CAPS by text-transform: a
-	//register §2.1 reserves for nothing, and one the DOM never agreed with, so
-	//a screen reader said "add" while the screen said "ADD". Sentence case makes
-	//them quieter, so the one verb that LEAVES — Open commits a navigation and
-	//closes the composer — has to be told apart from the ones that rewrite the
-	//draft by treatment as well as by the word.
-	it('writes its row verbs in sentence case and marks the one that navigates', async () => {
+	//Seven verbs in one register — Open / Add / Remove / Replace / Configure /
+	//Edit / Source — restated on every row what the section heading and the row
+	//itself already said. What genuinely differs between rows is one bit: Open is
+	//the only verb that LEAVES. So under a typing list, where the rows are edits,
+	//a destination carries the app's own OPEN_IN_BROWSER glyph and nothing else
+	//does; in the idle list the "Recent" heading has already said it.
+	it('carries no verb chips, and marks the one row that navigates with a glyph', async () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
-		const chips = () => Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-action'));
-		assert.ok(chips().length, 'there are rows to check');
-		for (const chip of chips()) {
-			const word = chip.textContent.trim();
-			assert.notStrictEqual(word, word.toLowerCase(), `a verb chip is still lowercase: ${word}`);
-			assert.notStrictEqual(word, word.toUpperCase(), `a verb chip is still ALL CAPS: ${word}`);
-			assert.strictEqual(chip.getAttribute('data-consequence'),
-				word === 'Open' ? 'navigate' : 'transform', `wrong consequence class for ${word}`);
-		}
-		assert.ok(chips().some((chip) => chip.textContent.trim() === 'Open'), 'a recents row opens');
-		assert.ok(chips().some((chip) => chip.textContent.trim() === 'Add'), 'a refinement row adds');
+		assert.ok(suggestionRows().length, 'there are rows to check');
+		assert.strictEqual(dialog.shadowRoot.querySelector('.palette-list .suggestion-action'), null,
+			'no row in the palette carries a verb chip');
+		//In the idle list the heading carries the grammar, so even a destination
+		//needs no glyph.
+		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
+			.map((element) => element.textContent.trim());
+		assert.ok(headings.includes('Recent'));
+		assert.strictEqual(dialog.shadowRoot.querySelector('.palette-list .row-navigate'), null,
+			'under a heading that says Recent, a second marker is a restatement');
 
+		//Typing mixes edits and destinations in one list, and that is where the
+		//one bit has to be visible.
+		await typeComposer('star');
+		const navigating = suggestionRows().filter((button) => button.querySelector('.row-navigate'));
+		assert.ok(navigating.length, 'a destination under a typing list says it leaves');
+		for (const button of navigating) {
+			assert.ok((button.dataset.rowId || '').startsWith('recent:'),
+				'and only a destination does');
+			assert.ok(button.querySelector('.row-navigate svg'),
+				'§4.2: an icon where one exists, never a text glyph');
+		}
+		//The chip treatment survives only for Source mode's completion list,
+		//whose two modes ('add' and 'complete') genuinely are not
+		//distinguishable from the token itself.
 		const styles = composerStyles();
-		assert.ok(!/\.suggestion-action\s*\{[^}]*text-transform/.test(styles),
-			'the chip must not be painted ALL CAPS by CSS either');
-		assert.match(styles, /\.suggestion-action\[data-consequence='navigate'\]\s*\{[^}]*background:\s*var\(--app-primary-color\)/,
-			'the navigational verb is filled');
-		assert.match(styles, /\.suggestion-action\[data-consequence='transform'\]\s*\{[^}]*border-color:\s*var\(--app-primary-color\)/,
-			'the draft-transforming verbs are outlined');
+		for (const rule of (styles.match(/[^}\n][^}]*\.suggestion-action[^{]*\{[^}]*\}/g) || [])) {
+			assert.ok(!/\.palette-row[^,{]*\.suggestion-action/.test(rule),
+				`the chip treatment must not reach the palette's own rows: ${rule.split('{')[0].trim()}`);
+		}
 	});
 
 	//§4.6's heading register is h3-weight-normal in the subordinate colour, and
@@ -3568,7 +3491,11 @@ describe('Collection Composer interactions', () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
 		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
 			.map((element) => element.textContent.trim());
-		assert.ok(headings.includes('Continue'), `expected a Continue heading: ${headings.join(' | ')}`);
+		//TWO SECTIONS AND NOTHING ELSE, in the words the design names: recents
+		//are "the first content of the first gesture", and the refinements under
+		//them are capped at three.
+		assert.deepStrictEqual(headings, ['Recent', 'Refine'],
+			`the idle list is recents then a short Refine: ${headings.join(' | ')}`);
 		for (const heading of headings) {
 			assert.notStrictEqual(heading, heading.toUpperCase(), `heading is ALL CAPS: ${heading}`);
 		}
@@ -3612,7 +3539,7 @@ describe('Collection Composer interactions', () => {
 	//edge only when there is more of it than fits.
 	it('bounds its scrolling lists and lands scrolled rows whole', async () => {
 		const styles = composerStyles();
-		const pane = styles.match(/\.suggestions,\s*\.catalog-list\s*\{[^}]*\}/);
+		const pane = styles.match(/\.palette-list,\s*\.suggestions\s*\{[^}]*mask-image[^}]*\}/);
 		assert.ok(pane, 'both scroll panes must take one boundary rule');
 		assert.match(pane[0], /mask-image:\s*linear-gradient\(to bottom,[^)]*currentColor[^}]*transparent 100%\)/,
 			'a bottom fade is the affordance that says there is more below');
@@ -3622,12 +3549,12 @@ describe('Collection Composer interactions', () => {
 			'the top value keeps the group heading on screen; the bottom value is the fade, so a row never lands under it');
 		//And the reservation lives in ONE place: the row's own scroll-margin
 		//would add to the container's padding rather than replace it.
-		assert.ok(!/\.suggestion button\s*\{[^}]*scroll-margin/.test(styles),
+		assert.ok(!/\.palette-row button\s*\{[^}]*scroll-margin/.test(styles),
 			'the row must not carry a second, additive reservation');
 		//The heading really is above row 0 inside the same scroller, which is
 		//what the top value exists for.
 		await seedRecents([['everything/starred/', 3]]);
-		const list = dialog.shadowRoot.querySelector('#collection-composer-suggestions');
+		const list = dialog.shadowRoot.querySelector('#collection-palette-list');
 		assert.ok(list.querySelector('.suggestion-heading'), 'the heading scrolls with its rows');
 		assert.ok(list.classList.contains('scroller'), 'the pane keeps the app-wide scroller idiom');
 	});
@@ -3649,34 +3576,31 @@ describe('Collection Composer interactions', () => {
 	//EVERY ROW SHARES ONE COLUMN GRID.
 	//
 	//A CSS grid is scoped to its own container, so a per-row `auto` track is
-	//measured per row: the live review found adjacent count columns starting
-	//at 634px and 739px, and ADD / REPLACE chips at a different x on every
-	//line. Three lists share the .suggestion markup, so fixing the tracks
-	//fixes all three at once. Again, JSDOM computes no layout — the rule is
-	//what is pinned, plus the DOM fact that all three lists really do use it.
-	it('gives every row in every list the same column grid', async () => {
+	//measured per row: the live review found adjacent count columns starting at
+	//634px and 739px. There is ONE list to keep honest now instead of three,
+	//and one fewer column in it — the verb chips are deleted — but the rule is
+	//the same: the count track is FIXED so its left edge cannot wander between
+	//rows. JSDOM computes no layout, so the rule is what is pinned, plus the DOM
+	//fact that every option really does use it.
+	it('gives every row in the list the same column grid', async () => {
 		const styles = composerStyles();
-		const row = styles.match(/\.suggestion button\s*\{[^}]*\}/);
+		const row = styles.match(/\.palette-row button\s*\{[^}]*\}/);
 		assert.ok(row, 'the row button carries the grid');
-		assert.match(row[0], /grid-template-columns:\s*minmax\(0, 1fr\) 14em 5\.5em/,
-			'label flexes; count and action are FIXED, so their left edges cannot wander between rows');
-		assert.ok(!/grid-template-columns:\s*minmax\(0, 1fr\) auto/.test(row[0]),
-			'a content-sized track is the defect itself');
-		assert.match(styles, /\.suggestion-count\s*\{[^}]*text-align:\s*right/,
+		assert.match(row[0], /grid-template-columns:\s*minmax\(0, 1fr\) 11em auto/,
+			'label flexes; the count is FIXED, so its left edge cannot wander between rows');
+		assert.ok(!/grid-template-columns:\s*minmax\(0, 1fr\) auto\s*;/.test(row[0]),
+			'a content-sized count track is the defect itself');
+		assert.match(styles, /\.row-count\s*\{[^}]*text-align:\s*right/,
 			'the numbers line up with each other, not with the words after them');
-		assert.match(styles, /\.suggestion-action\s*\{[^}]*justify-self:\s*start/,
-			'the chip starts at the left edge of its fixed track, which is the same x on every row');
-		assert.match(styles, /\.catalog-list \.suggestion\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 3\.25em/,
-			'the polarity column is reserved on every catalog row, so a row with a Not toggle is no narrower than one without');
 
 		//The count cell's width is reserved by the track, so it exists before
 		//any count arrives — which is what stops the reflow when one lands.
 		await seedRecents([['everything/starred/', 6], ['main/updated/after/3-days-ago/', 3]]);
 		const rows = suggestionRows();
 		assert.ok(rows.length >= 2, 'the list must actually have rows to check');
-		assert.ok(rows.every((button) => button.closest('.suggestion')),
-			'every option is a .suggestion row, so every option takes the shared grid');
-		assert.ok(rows.some((button) => !button.querySelector('.suggestion-count')),
+		assert.ok(rows.every((button) => button.closest('.palette-row')),
+			'every option is a .palette-row, so every option takes the shared grid');
+		assert.ok(rows.some((button) => !button.querySelector('.row-count')),
 			'rows render before their counts arrive — the track, not the span, is what reserves the room');
 	});
 
@@ -3691,10 +3615,10 @@ describe('Collection Composer interactions', () => {
 		dialog._collectionDescription = CollectionDescription.deserialize('main/none/');
 		dialog.requestUpdate();
 		await settleRender(dialog);
-		const chip = dialog.shadowRoot.querySelector('.expression-clause-label');
+		const chip = sentencePills()[0];
 		assert.ok(chip);
-		assert.strictEqual(chip.textContent.trim(), 'Nothing (placeholder)');
-		assert.notStrictEqual(chip.textContent.trim(), 'None');
+		assert.strictEqual(deepText(chip).replace(/\s+/g, ' ').trim(), 'Nothing (placeholder)');
+		assert.notStrictEqual(deepText(chip).trim(), 'None');
 		const explanation = dialog.shadowRoot.querySelector('.unsupported-clause');
 		assert.ok(explanation, 'a clause the composer cannot edit has to say why it is there');
 		assert.match(explanation.textContent, /matches no cards/i);
@@ -3972,29 +3896,32 @@ describe('Collection Composer interactions', () => {
 	//narrowing clause whose RESOLVED count is zero, offered under the heading
 	//"Refine this collection", proposes a refinement that refines the collection
 	//out of existence.
-	it('keeps a contradictory refinement out of the Refine list, and in the catalog', async () => {
+	it('keeps a contradictory refinement out of the Refine list, and in Browse all', async () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
-		//A resolved, non-zero draft, and a resolved zero for one add row.
+		//A resolved, non-zero draft, and a resolved zero for one Refine row.
 		const draftKey = dialog._previewCountKey(dialog._collectionDescription);
 		dialog._retainedPreviewCounts.set(draftKey, 42);
-		const addRow = dialog._composerSuggestions.find(suggestion => suggestion.action === 'add');
-		assert.ok(addRow, 'there is an add row to suppress');
+		const addRow = dialog._paletteRows.find(row => row.section === 'Refine' && !row.navigates);
+		assert.ok(addRow, 'there is a refinement to suppress');
+		const addedFilter = addRow.description.filters.slice(-1)[0];
 		dialog._retainedPreviewCounts.set(dialog._previewCountKey(addRow.description), 0);
 		dialog.requestUpdate();
 		await settleRender(dialog);
-		assert.ok(!dialog._composerSuggestions.some(suggestion => suggestion.id === addRow.id),
+		assert.ok(!dialog._paletteRows.some(row => row.id === addRow.id),
 			'a clause that resolves to nothing is not a refinement');
-		//Still findable: the catalog is a different surface and is untouched.
-		assert.ok(dialog._catalogItems.some(item => addRow.description.filters.includes(item.filter)),
-			'the filter itself is still in the catalog');
+		//Still findable: Browse all is the whole index and is untouched.
+		browseAll().click();
+		await settleRender(dialog);
+		assert.ok(suggestionRows().some(button => button.dataset.filter === addedFilter),
+			`the filter itself is still in Browse all: ${addedFilter}`);
+		browseAll().click();
+		await settleRender(dialog);
 		//And once the user NAMES it, it comes back — the rows are then
 		//interpretations of what they typed, not unsolicited offers.
-		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
-		await typeInto(input, dialog._composerFilterLabels[addRow.description.filters.slice(-1)[0]] ||
-			addRow.description.filters.slice(-1)[0]);
-		assert.ok(dialog._composerSuggestions.some(suggestion => suggestion.description.serialize() === addRow.description.serialize()),
+		await typeComposer(dialog._composerFilterLabels[addedFilter] || addedFilter);
+		assert.ok(dialog._paletteRows.some(row => row.description.serialize() === addRow.description.serialize()),
 			'a filter the user asked for by name is never hidden from them');
-		await typeInto(input, '');
+		await typeComposer('');
 	});
 
 	//THE FOOTER STATES THE CONTRACT THAT IS IN FORCE. '←→ choose clause' is true
@@ -4002,24 +3929,30 @@ describe('Collection Composer interactions', () => {
 	//focus is inside it and ←→ move the caret in its own fields. Routing the
 	//keys away from the editor would break editing a date to keep a footer
 	//honest, so the footer says what this mode actually offers.
-	it('stops promising ←→ once a clause editor owns the arrow keys', async () => {
+	//THE FOOTER STATES THE CONTRACT THAT IS IN FORCE, and the contract changed
+	//shape with the editor. Selecting a pill and editing it are no longer two
+	//states — the row IS the selection — so the line names both the keys that
+	//move between clauses and the keys the row performs, and it names them from
+	//PILL_ROW_KEY_HINTS so the line that teaches them and the row that performs
+	//them cannot drift apart.
+	it('names the pill row’s own keys, from the module that performs them', async () => {
+		const { PILL_ROW_KEY_HINTS } = await import('../../lib/src/components/collection-pill-row.js');
 		const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
 		store.dispatch(updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/unread/')));
 		await settleRender(dialog);
 		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent.trim();
-		//Selecting a clause without opening its editor: the keys really are the
-		//composer input's, and the line is unchanged.
-		dialog._selectedClauseIndex = 0;
+		assert.ok(!/←→/.test(hints()), 'with no pill selected the line makes no claim about them');
+
+		sentencePills()[0].click();
 		await settleRender(dialog);
+		assert.ok(pillRow(), 'the row is open');
 		assert.match(hints(), /←→ choose clause/);
-		//Opening the editor moves focus into it.
-		dialog.shadowRoot.querySelector('.expression-clause-label').click();
-		await settleRender(dialog);
-		assert.ok(dialog._builderExpanded, 'the editor is open');
-		assert.ok(!/←→/.test(hints()), `the footer must not promise a key the editor owns: ${hints()}`);
-		assert.match(hints(), /Editing a clause/);
+		for (const hint of PILL_ROW_KEY_HINTS) {
+			assert.ok(hints().includes(`${hint.key} ${hint.means}`),
+				`the footer must name ${hint.key}: ${hints()}`);
+		}
 		//And it names the way out that is actually registered for this layer.
-		assert.match(hints(), /closes the editor/);
+		assert.match(hints(), /closes the row/);
 	});
 
 	//A LIST OPENS AT ITS TOP.
@@ -4030,8 +3963,8 @@ describe('Collection Composer interactions', () => {
 	//0-card Remove diagnostics scrolled away and no sign anything was above.
 	it('reopens its lists at the top, and starts every transition there', async () => {
 		await seedRecents([['main/starred/sort/recent/', 2], ['everything/unread/', 3]]);
-		const pane = () => dialog.shadowRoot.querySelector('.suggestions');
-		assert.ok(pane(), 'there is a suggestion pane to scroll');
+		const pane = () => dialog.shadowRoot.querySelector('.palette-list');
+		assert.ok(pane(), 'there is a list to scroll');
 		pane().scrollTop = 120;
 		//Close and reopen, the way a user does.
 		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
@@ -4039,114 +3972,86 @@ describe('Collection Composer interactions', () => {
 		store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
 		await settleRender(dialog);
 		assert.strictEqual(pane().scrollTop, 0, 'a reopened list starts at its top');
-		//And so does every transition that replaces what the pane holds.
+		//And so does every transition that REPLACES what the pane holds — which
+		//is now a change of feed inside one list rather than a second surface.
 		pane().scrollTop = 90;
-		dialog._catalogOpen = true;
+		browseAll().click();
 		await settleRender(dialog);
-		const catalog = dialog.shadowRoot.querySelector('.catalog-list');
-		assert.ok(catalog, 'the catalog is on screen');
-		catalog.scrollTop = 140;
-		dialog._catalogOpen = false;
+		assert.strictEqual(pane().scrollTop, 0, 'seeding Browse all starts at the top');
+		pane().scrollTop = 140;
+		browseAll().click();
 		await settleRender(dialog);
-		assert.strictEqual(pane().scrollTop, 0, 'closing the catalog returns to the top of the list');
+		assert.strictEqual(pane().scrollTop, 0, 'and so does leaving it');
 	});
 
-	//AN EDITOR THAT OPENS BELOW THE FOLD HAS NOT OPENED. The anchored slot is
-	//the second child of #inner, so this is now a backstop rather than the whole
-	//defence — a session scrolled down to the catalog before clicking a chip
-	//would still open the editor above its scroll position. REWRITTEN for the
-	//element that is actually scrolled: '.builder-clause' no longer exists.
-	it('scrolls a clause editor into view when it opens', async () => {
+	//A ROW THAT OPENS BELOW THE FOLD HAS NOT OPENED. The pill row is the second
+	//element of the column, so this is a backstop rather than the whole defence
+	//— but #inner is still a scroll container, and a session scrolled down
+	//inside Browse all that chooses a family would open the row above its
+	//scroll position.
+	it('scrolls the pill row into view when it opens', async () => {
 		const scrolled = [];
 		const original = Element.prototype.scrollIntoView;
 		Element.prototype.scrollIntoView = function (options) {
 			scrolled.push({ element: this, options });
 		};
 		try {
-			store.dispatch(await (async () => {
-				const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
-				return updateCollectionConfigurationSnapshot(CollectionDescription.deserialize('everything/starred/unread/'));
-			})());
+			const { updateCollectionConfigurationSnapshot } = await import('../../lib/src/actions/collection.js');
+			store.dispatch(updateCollectionConfigurationSnapshot(
+				CollectionDescription.deserialize('everything/starred/updated/between/2026-01-01/2026-02-01/')));
 			await settleRender(dialog);
 			scrolled.length = 0;
-			const clause = dialog.shadowRoot.querySelector('.expression-clause-label');
-			assert.ok(clause, 'there is a clause to edit');
-			clause.click();
+			sentencePills()[1].click();
 			await settleRender(dialog);
-			assert.ok(dialog.shadowRoot.querySelector('.anchored-editor'), 'the editor is rendered');
-			const editorScroll = scrolled.find(entry => entry.element.classList?.contains('anchored-editor'));
-			assert.ok(editorScroll, 'the editor that just opened must be scrolled into view');
-			//'nearest' scrolls the least that makes it visible, so an editor
-			//already on screen does not jump.
-			assert.deepStrictEqual(editorScroll.options, { block: 'nearest' });
+			assert.ok(pillRow(), 'the row is rendered');
+			const rowScroll = scrolled.find(entry => entry.element.classList?.contains('pill-row'));
+			assert.ok(rowScroll, 'the row that just opened must be scrolled into view');
+			//'nearest' scrolls the least that makes it visible, so a row already
+			//on screen does not jump.
+			assert.deepStrictEqual(rowScroll.options, { block: 'nearest' });
 
-			//AND IT DOES NOT SCROLL AGAIN ON EVERY FIELD EDIT. _selectedClauseIndex
-			//now leaves and re-enters its own value on each edit (that is what
-			//keeps the editor open), which Lit reports as a change; scrolling on
-			//that would yank the port under someone typing a date.
+			//AND IT DOES NOT SCROLL AGAIN ON EVERY FIELD EDIT. The selected path
+			//leaves and re-enters its own value on each edit (that is what keeps
+			//the row open), which Lit reports as a change; scrolling on that
+			//would yank the port under someone typing a date. The ADDRESS is what
+			//has to move.
 			scrolled.length = 0;
-			const filter = dialog.shadowRoot.querySelector('.clause-editor configure-collection-filter');
-			filter.dispatchEvent(new CustomEvent('filter-modified', {
-				composed: true,
-				bubbles: true,
-				detail: { value: 'unread', index: dialog._selectedClauseIndex },
-			}));
+			await settleRender(dialog, pillRow());
+			const date = pillRow().shadowRoot.querySelector('configure-collection-date');
+			await settleRender(dialog, pillRow(), date);
+			const input = date.shadowRoot.querySelector('[aria-label="First fixed date"]');
+			input.value = '2026-01-15';
+			input.dispatchEvent(new Event('change', { bubbles: true }));
 			await settleRender(dialog);
-			assert.ok(!scrolled.some(entry => entry.element.classList?.contains('anchored-editor')),
-				'an edit inside the open editor must not re-scroll the dialog');
+			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
+				['starred', 'updated/between/2026-01-15/2026-02-01'], 'the edit landed');
+			assert.ok(!scrolled.some(entry => entry.element.classList?.contains('pill-row')),
+				'an edit inside the open row must not re-scroll the dialog');
 		} finally {
 			Element.prototype.scrollIntoView = original;
 		}
 	});
 
-	//AND ITS ACTION ROW STAYS INSIDE THE DIALOG. Live: a tall Configure Direct
-	//References panel pushed Cancel and Add past .builder-catalog's clipped
-	//bottom edge — the buttons painted, and a real click at y=644 in a dialog
-	//ending at y=636 did nothing.
-	it('bounds the configure panel so its own action row stays clickable', async () => {
+	//THE FOOTER'S ROOM IS RESERVED, NOT BORROWED. The bounded-panel machinery
+	//this replaces — .anchored-editor's cap, the two panels' inner scrollers,
+	//the lists' [data-editor-open] floor — is deleted with the panels it
+	//existed for: a one-line row cannot squash, so nothing has to negotiate a
+	//height with it. What survives is the one property that was never about the
+	//panels: the footer is the last thing in a scrolling column, so its room has
+	//to be reserved out of the port rather than taken from it.
+	it('keeps the footer reachable at the bottom of a scrolling column', async () => {
 		const styles = composerStyles();
-		const rule = (selector) => {
-			const match = new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(styles);
-			assert.ok(match, `${selector} must have a rule`);
-			return match[1];
-		};
-		//Shrinkable, and scrolling inside its own box rather than out of the
-		//pane that clips it. REWRITTEN as the shared rule: the Configure panel
-		//and the clause editor now render in the same anchored slot and are
-		//bounded by one rule apiece rather than two copies, so the selectors
-		//name both. The properties, and the reason for them, are unchanged.
-		const editor = rule('\\.pending-filter-editor,\\s*\\.clause-editor');
-		assert.match(editor, /flex:\s*0 1 auto/);
-		assert.match(editor, /min-height:\s*0/);
-		//Only the BODY scrolls: the action row is a sibling of the scroller and
-		//reserves its room out of it, so 'Cancel' and 'Add' are on screen
-		//whatever height the panel gets. Left inside the scroller they were the
-		//first things to fall off the bottom of it.
-		const body = rule('\\.pending-filter-body,\\s*\\.clause-editor-body');
-		assert.match(body, /flex:\s*1 1 auto/);
-		assert.match(body, /min-height:\s*0/);
-		assert.match(rule('\\.buttons\\.pending-filter-actions,\\s*\\.clause-editor-actions,\\s*\\.pending-filter-heading,\\s*\\.clause-editor-heading'), /flex:\s*0 0 auto/);
+		assert.match(styles, /\.buttons\.composer-actions\s*\{[^}]*flex:\s*0 0 auto/,
+			'the footer never shrinks to make room for anything above it');
+		assert.match(styles, /#inner\s*\{[^}]*scroll-padding-block-end/,
+			'and scrolling the list to the port’s bottom edge cannot push it out of view');
 		//The scroller idiom is declared in markup, per #759 — the module owns
 		//`overflow: auto` and no component restates it.
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/configure-collection-dialog.ts'), 'utf8');
-		assert.match(source, /class='pending-filter-body scroller'/,
-			'the configure panel body is a deliberate inner pane');
-		//And its heading — which carries the 'nothing changes until you
-		//confirm' contract — is outside that pane, so opening the panel cannot
-		//scroll the contract off screen.
-		assert.match(source, /class='pending-filter-heading'/,
-			'the configure panel states its contract outside its scroller');
-		//And the lists give up their floor first, so the panel keeps a usable
-		//size before anything has to scroll. This used to key off
-		//`data-configuring` on .builder-catalog, which only existed while the
-		//panel was INSIDE the catalog; the panel is anchored under the sentence
-		//now, so the flag is reflected on the host and covers both lists and
-		//both editors.
-		assert.match(styles, /:host\(\[data-editor-open\]\) \.suggestions,\s*:host\(\[data-editor-open\]\) \.catalog-list\s*\{[^}]*min-height:\s*4em/);
-		assert.match(source, /toggleAttribute\('data-editor-open'/,
-			'the attribute has to be set for the rule to fire');
-		//The footer is the last flex child of the scroll port, so scrolling an
-		//editor to its bottom edge would push Open and Cancel out of view.
-		assert.match(styles, /#inner\s*\{[^}]*scroll-padding-block-end/);
+		assert.match(source, /class='palette-list scroller'/,
+			'the one list is a deliberate inner pane');
+		assert.ok(!/scroller/.test(styles.match(/\.pill-row\s*\{[^}]*\}/)?.[0] || ''),
+			'the pill row is one line and needs no scroller of its own');
 	});
+
 });

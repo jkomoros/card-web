@@ -76,7 +76,6 @@ import {
 	SET_INFOS,
 	SORTS,
 	ALL_FILTER_NAME,
-	CONFIGURABLE_FILTER_INFO,
 	LEGAL_VIEW_MODES,
 	filterNamesAreViewerDependent,
 } from '../filters.js';
@@ -222,6 +221,7 @@ import {
 	collectionCompletionCandidates,
 	collectionCompletionIdleRows,
 	CompletionCandidate,
+	defaultConfigurableFilter,
 } from '../collection-completion-index.js';
 
 import {
@@ -501,22 +501,6 @@ const sentenceCase = (value : string) : string => value ? value.charAt(0).toUppe
 //'complete' are not distinguishable from the token itself — and source mode is
 //kept as it was.
 const rowConsequence = (verb : string) : 'navigate' | 'transform' => verb === 'open' ? 'navigate' : 'transform';
-
-//The default a configurable family is ADDED with when the user chooses it by
-//name — from Browse all, or from a Refine row that names a family rather than a
-//clause. Nothing is pending any more: the clause lands in the draft with these
-//values and its pill row opens on it, so the count beside the sentence is
-//already the count of what they chose, and Undo is one click away. The dates
-//get a rolling window rather than the family's own placeholder, which is the
-//difference between a default that answers a question and one that asks for an
-//edit before it means anything.
-const ROLLING_DATE_FAMILIES : ReadonlySet<string> = new Set(['created', 'updated', 'last-tweeted']);
-
-const defaultFilterForFamily = (family : string) : string => {
-	if (ROLLING_DATE_FAMILIES.has(family)) return `${family}/after/7-days-ago`;
-	const info = CONFIGURABLE_FILTER_INFO[family];
-	return info ? `${family}/${info.arguments.map(argument => argument.default).join('/')}` : family;
-};
 
 //The spec's own words for a draft that resolves to nothing. A sentence-case
 //fragment with no terminal period (HS-2.6): it states what is absent, and the
@@ -2088,6 +2072,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					aria-label=${`${row.label}. ${row.detail}${countText ? `. ${countText}` : ''}${row.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`}
 					data-index=${index}
 					data-row-id=${row.id}
+					data-filter=${ifDefined(row.filter)}
 					?disabled=${this._activationPending}
 					?data-highlighted=${highlighted}
 					@mousemove=${() => this._handleRowPointerMove('palette', index)}
@@ -3066,7 +3051,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//explicit-confirm gate existed because the panel it gated was a
 		//six-control wall the draft could not show; a one-line row under the
 		//sentence needs no gate.
-		if (row.configurable && row.filter) {
+		//This branch is for a feed that has no expression to apply — Browse all
+		//and the Refine rows that name a family. A typed family arrives as a
+		//valence row with a real expression, and is handled after the commit.
+		if (row.kind === 'transform' && row.configurable && row.filter) {
 			void this._addFamilyWithDefaults(row.filter.split('/')[0]);
 			return;
 		}
@@ -3083,6 +3071,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._orTarget = null;
 		this._browseOpen = false;
 		this._wordScope = '';
+		//A TYPED FAMILY OPENS ITS CONTROLS TOO. The clause it just added is a
+		//real collection, but the arguments are the point of a configurable
+		//family — so the pill it produced is selected and its row appears under
+		//the sentence, exactly as it does when the family is chosen by name.
+		//Only an `add`: an `or` fuses into a group and a `not` is a flip, and
+		//neither of those is the gesture "set this up".
+		if (row.configurable && row.valenceKind === 'add') {
+			const expression = this._draftExpression;
+			if (expression.length) {
+				this._selectToken([expression.length - 1]);
+				void this._focusPillRowControl();
+			}
+		}
 	}
 
 	//THE ONE COMMIT PATH, AND EVERY GUARD IT EVER GREW. Ported whole: the
@@ -3289,7 +3290,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			await this._focusPillRowControl();
 			return;
 		}
-		const node : FilterExpressionNode = {kind: 'filter', filter: defaultFilterForFamily(family)};
+		const node : FilterExpressionNode = {kind: 'filter', filter: defaultConfigurableFilter(family)};
 		const next = withConditionAppended(expression, node);
 		this._composerInput = '';
 		this._browseOpen = false;
@@ -3572,6 +3573,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//on lives.
 		if (changedProps.has('open') || changedProps.has('_entryMode') || changedProps.has('_browseOpen') || changedProps.has('_wordScope')) {
 			for (const pane of this.shadowRoot?.querySelectorAll('.palette-list, .suggestions') || []) pane.scrollTop = 0;
+		}
+		//A ROW THAT OPENS BELOW THE FOLD HAS NOT OPENED.
+		//
+		//The pill row is the second element of the column, so it is on screen by
+		//construction in nearly every case — but #inner is still a scroll
+		//container, and a session scrolled down inside Browse all that chooses a
+		//family would open the row above its scroll position. block:'nearest'
+		//scrolls the least that makes it visible, so a row already in view does
+		//not jump.
+		//
+		//ONLY WHEN THE SELECTION ACTUALLY MOVES. The path leaves and re-enters
+		//its own value on every argument edit (that is what keeps the row open),
+		//and Lit reports each new array as a change — scrolling on that would
+		//yank the port under someone in the middle of typing a date. The ADDRESS
+		//is what has to have changed, not the array holding it.
+		const previousPath = changedProps.get('_selectedPath');
+		const selectionMoved = changedProps.has('_selectedPath') &&
+			(previousPath || []).join(',') !== this._selectedPath.join(',');
+		if (this.open && selectionMoved && this._selectedPath.length) {
+			this.updateComplete.then(() => this.shadowRoot?.querySelector('.pill-row')?.scrollIntoView?.({block: 'nearest'}));
 		}
 		if (changedProps.has('open')) {
 			this._activationPending = false;

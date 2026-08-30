@@ -111,6 +111,11 @@ describe('Collection completion index', () => {
 		({ CARD_FILTER_DESCRIPTIONS } = await import('../../lib/src/filters.js'));
 	});
 
+	//THE FREE-TEXT READING IS ALWAYS AVAILABLE, so the tier tests below exclude
+	//it: it is not a NAME match and it is deliberately in the fuzzy tier, under
+	//every real one. It has its own pins further down.
+	const isFreeText = (candidate) => Boolean(candidate.filter && candidate.filter.startsWith('query/'));
+
 	describe('matching tiers', () => {
 		//THE TIER ORDER, asserted on one token against four candidates built to
 		//match at exactly one tier each. Anything that reorders the tiers reorders
@@ -138,7 +143,7 @@ describe('Collection completion index', () => {
 				limit: 20,
 			});
 			assert.deepStrictEqual(
-				result.map(candidate => [candidate.filter, candidate.tier]),
+				result.filter(candidate => !isFreeText(candidate)).map(candidate => [candidate.filter, candidate.tier]),
 				[
 					['zebra', 'name-exact'],
 					['aardvark', 'alias'],
@@ -160,7 +165,10 @@ describe('Collection completion index', () => {
 				context: { candidates: world, filterDescriptions: {} },
 				limit: 20,
 			});
-			assert.deepStrictEqual(result.map(candidate => candidate.filter), ['leading', 'inner']);
+			assert.deepStrictEqual(
+				result.filter(candidate => !isFreeText(candidate)).map(candidate => candidate.filter),
+				['leading', 'inner']
+			);
 		});
 
 		it('matches description prose only at a word boundary', () => {
@@ -181,14 +189,48 @@ describe('Collection completion index', () => {
 				context: { candidates: world, filterDescriptions: {} },
 				limit: 20,
 			});
-			assert.deepStrictEqual(result.filter(candidate => candidate.filter).map(candidate => candidate.filter), []);
+			assert.deepStrictEqual(
+				result.filter(candidate => candidate.filter && !isFreeText(candidate)).map(candidate => candidate.filter),
+				[]
+			);
 			//The rows that DO come back are sentence words whose own names begin
 			//with the token — 'Original Order', 'Tweet Order'. Those are name
 			//matches, not prose matches, which is exactly the distinction this
 			//test exists to keep: 'or' reaches a thing called Order and does not
 			//reach a thing merely described as 'authored and colored'.
-			assert.ok(result.every(candidate => candidate.kind === 'sort'),
+			assert.ok(result.every(candidate => candidate.kind === 'sort' || isFreeText(candidate)),
 				`prose matched something it should not have: ${result.map(candidate => candidate.id).join(', ')}`);
+		});
+
+		//WHATEVER ELSE THEY MEANT, THEY MEANT THE WORDS THEY TYPED. Without this
+		//row a token that matches no name at all produces an empty list, and the
+		//typed-token spine the whole design rests on has a hole in it.
+		it('always offers the literal reading of the token, under every name match', () => {
+			const world = [{ filter: 'starred', category: 'tag', label: 'Starred', detail: '' }];
+			const named = collectionCompletionCandidates({
+				token: 'star',
+				expression: [],
+				description: draft(),
+				context: { candidates: world, filterDescriptions: {} },
+				limit: 20,
+			});
+			const freeText = named.find(isFreeText);
+			assert.ok(freeText, 'the literal reading is offered');
+			assert.strictEqual(freeText.filter, 'query/star');
+			assert.ok(named.indexOf(freeText) > named.findIndex(candidate => candidate.filter === 'starred'),
+				'a user who typed "star" meant Starred; the literal reading is the fallback');
+			assert.ok(freeText.valences.some(valence => valence.kind === 'add'),
+				'and it is a clause like any other, with its own valences');
+
+			//A token no name matches still produces a row.
+			const unmatched = collectionCompletionCandidates({
+				token: 'quixotic phrasing',
+				expression: [],
+				description: draft(),
+				context: { candidates: world, filterDescriptions: {} },
+				limit: 20,
+			});
+			assert.deepStrictEqual(unmatched.map(candidate => candidate.filter), ['query/quixotic phrasing']);
 		});
 
 		it('finds a tag by its own authored description', () => {
