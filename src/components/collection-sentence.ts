@@ -65,6 +65,7 @@ import {
 import {
 	collectionFilterDescription,
 	collectionOptionDisplayName,
+	collectionOrderPhrases,
 } from '../collection-composer-suggestions.js';
 
 import {
@@ -178,6 +179,23 @@ class CollectionSentence extends LitElement {
 	//not.
 	@property({ type : Boolean })
 		subtle = false;
+
+	//TOUCH, WHICH IS NOT A SMALLER MOUSE.
+	//
+	//Two things break on a phone and neither is cosmetic. A pill is ~20px tall,
+	//which is under half §4.2's 44px floor, so tapping one is a coin flip; and
+	//the browser's own default is to treat a tap-and-hold on text as a text
+	//SELECTION, so the gesture that should open a pill row instead selected the
+	//word inside the label and the row never opened at all. The group's edge is
+	//worse still — its whole affordance was a 1px border, which is not a target
+	//on any device and is not visible on this one.
+	//
+	//The flag is a property rather than a `pointer: coarse` media query for the
+	//reason the rest of this app is: `mobileMode` is a piece of app state every
+	//host already has and every test can set, and a layout that can only be
+	//reached by owning a phone is a layout nobody checks.
+	@property({ type : Boolean, reflect : true })
+		mobile = false;
 
 	//THE VERDICTS, WHEN A HOST HAS A CARD TO JUDGE THE SENTENCE AGAINST.
 	//
@@ -298,14 +316,64 @@ class CollectionSentence extends LitElement {
 				text-decoration: line-through;
 			}
 
-			/* The group's own "or", and the quiet "not" in front of a negated
-			   group. Lowercase and subordinate: the user is not being taught an
+			/* The group's own "or", and the quiet "not" INSIDE a negated group.
+			   Lowercase and subordinate: the user is not being taught an
 			   operator, they are reading a sentence. */
 			.member-operator,
 			.group-negation {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.85em;
 				padding: 0 0.15em;
+			}
+
+			/* A NEGATED GROUP'S "not" IS THE LOUDEST WORD IN IT, because it is
+			   the only word that changes what the container means. It sits
+			   inside the group's boundary (see _group) so it cannot be read as
+			   belonging to the first member. */
+			.group-negation {
+				color: var(--app-dark-text-color-darker);
+				font-weight: bold;
+			}
+
+			/* A PILL IS A CONTROL, NOT A PASSAGE OF TEXT.
+			   Without this a tap-and-hold — which is what a tap IS on a touch
+			   screen, for the ~100ms before it resolves — starts a text
+			   selection inside the label, and the tap that should have opened
+			   the pill row is spent selecting the word "Tagged". Applied to the
+			   whole sentence rather than to the chips, because the interpuncts
+			   and the "or" between them are equally not prose to be quoted. */
+			.sentence {
+				-webkit-user-select: none;
+				user-select: none;
+			}
+
+			/* §4.2's 44px floor, on the element the tap actually lands on. The
+			   chip paints itself at ~20px inside its own shadow root; the HOST
+			   is what carries the listener, so the host is what has to be big
+			   enough to hit. The sentence's own line-height grows with it, or
+			   two rows of 44px targets would overlap and the top half of one
+			   pill would belong to the pill above it. */
+			:host([mobile]) .sentence {
+				line-height: 3;
+			}
+
+			:host([mobile]) tag-chip,
+			:host([mobile]) tag-chip-group {
+				align-items: center;
+				display: inline-flex;
+				min-height: 44px;
+			}
+
+			/* THE GROUP EDGE IS A TARGET, NOT A BORDER. Scoping to a group means
+			   tapping the container rather than one of its members, and on a
+			   phone the container's only unclaimed surface was a 1px line — a
+			   gesture the design offers and the device cannot perform. Quiet
+			   padding is the affordance: it costs nothing to read and it leaves
+			   a real strip on every side of the members to land on. Set from
+			   here, where the mobile flag lives; it beats tag-chip-group's own
+			   :host rule because an outer-tree rule on the host element does. */
+			:host([mobile]) tag-chip-group {
+				padding: 0.5em 0.75em;
 			}
 		`
 	];
@@ -326,17 +394,14 @@ class CollectionSentence extends LitElement {
 	//sorted-by and viewed-as are the sentence's last words, and they exist only
 	//when they are not the default: a sentence that says "sorted by default" is
 	//telling the user about a field rather than about their collection.
+	//COMPOSED BY THE MODULE THAT COMPOSES IT EVERYWHERE ELSE. This tail and
+	//collectionExpressionParts' modifiers were two spellings of one phrase, and
+	//only one of them could be fixed at a time — which is how the screen came to
+	//read "sorted by Updated", a lowercase phrase with a title-cased option name
+	//dropped into the middle of it, reading as a proper noun the user was
+	//supposed to already know.
 	get _tailPhrases() : string[] {
-		const phrases : string[] = [];
-		if (this.sort !== 'default' || this.sortReversed) {
-			phrases.push(`sorted by ${this.sortReversed ? 'reverse ' : ''}${collectionOptionDisplayName(this.sort)}`);
-		}
-		if (this.viewMode !== 'list') {
-			let view = `viewed as ${collectionOptionDisplayName(this.viewMode)}`;
-			if (this.viewModeExtra) view += ` (${collectionOptionDisplayName(this.viewModeExtra)})`;
-			phrases.push(view);
-		}
-		return phrases;
+		return collectionOrderPhrases(this.sort, this.sortReversed, this.viewMode, this.viewModeExtra);
 	}
 
 	_tail() : TemplateResult {
@@ -386,15 +451,29 @@ class CollectionSentence extends LitElement {
 		//half a filter cannot say — the group's accessible name, and a host or a
 		//test asking the sentence what it decided about the whole clause.
 		const groupFails = this._verdictFor([index]) === false;
-		return html`${description.negated ? html`<span class='group-negation' aria-hidden='true'>not </span>` : ''}<tag-chip-group
+		//A FLIPPED GROUP INVERTS AS A UNIT, and the "not" lives INSIDE the
+		//boundary it applies to.
+		//
+		//It used to be a floating word beside a container of solid pills, which
+		//reads left to right as `(not tag-1) or tag-2` — a different collection
+		//from the one it names, and exactly the precedence the group's border
+		//exists to settle. Two changes, and they are the same change: the word
+		//moves inside the container, so there is nothing for it to attach to
+		//except the whole group; and the container takes the outlined treatment
+		//tag-chip already uses for a negated pill, so the fill inversion mirrors
+		//the meaning inversion at the level the negation actually applies to.
+		//The members keep their own colours, for tag-chip's own reason —
+		//negation does not change which tags a clause is about.
+		return html`<tag-chip-group
 			role='group'
+			?negated=${description.negated}
 			data-fails=${ifDefined(groupFails ? '' : undefined)}
 			aria-label=${this._verdictLabel(description.label, [index])}
 			tabindex=${ifDefined(this.interactive ? String(this._tabIndexFor([index])) : undefined)}
 			data-selected=${ifDefined(selected ? '' : undefined)}
 			data-sentence-focus=${ifDefined(this._tabIndexFor([index]) === 0 ? '' : undefined)}
 			@click=${(e : MouseEvent) => this._handleGroupEdgeClicked(e, index)}
-		>${memberTokens}</tag-chip-group>`;
+		>${description.negated ? html`<span class='group-negation' aria-hidden='true'>not</span>` : ''}${memberTokens}</tag-chip-group>`;
 	}
 
 	//ONE PILL, whatever depth it is at. A member of a group and a top-level
@@ -451,6 +530,24 @@ class CollectionSentence extends LitElement {
 	//title, and either the real colour it already has in the app or the one
 	//neutral. suppressLink because a clause is not a place — the containing
 	//surface owns the gesture.
+	//A VALUE PILL IS DECIDED BY THE LOOKUP, AND ONLY ITS COLOUR IS DECIDED BY THE
+	//CORPUS.
+	//
+	//The first cut wrote `color: real?.color || NEUTRAL_PILL_COLOR`, which
+	//collapses two different questions into one. "Is this clause a value?" is
+	//answered by whether its spelling is a key in tagInfos. "What colour is that
+	//value?" is answered by tag-chip's own pipeline, which falls back to its
+	//default colour for a tag whose corpus has authored none — and that default
+	//is what the SAME tag wears in the card-info panel, in the editor's tag list
+	//and everywhere else in the app.
+	//
+	//Folding the second question into the first meant every value whose tag had
+	//no authored colour — which, in a corpus that has never set one, is all of
+	//them — came out charcoal here and red two panels away: one tag, two
+	//colours, and the spine's whole "colour appears where it already means
+	//something" rule silently inverted into "nothing is coloured". So a value
+	//pill now passes `color` through UNSET when the corpus has none, and only a
+	//clause that is not a value at all is pinned to the neutral.
 	_chipInfos(spelling : string, label : string, note : string) : TagInfos {
 		const real = this.tagInfos[spelling];
 		return {
@@ -458,7 +555,10 @@ class CollectionSentence extends LitElement {
 				id: spelling,
 				title: label,
 				description: note,
-				color: real?.color || NEUTRAL_PILL_COLOR,
+				//`real && real.color` -> the authored colour; `real` with no
+				//colour -> undefined, and tag-chip supplies the value default;
+				//no entry at all -> the one neutral for property clauses.
+				color: real ? real.color : NEUTRAL_PILL_COLOR,
 				previewCard: real?.previewCard,
 				iconName: real?.iconName,
 				suppressLink: true,

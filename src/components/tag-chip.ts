@@ -176,6 +176,27 @@ class TagChip  extends LitElement {
 				font-weight: normal;
 			}
 
+			/* A TOKEN IS A CONTROL, NOT A PASSAGE OF TEXT. On a touch screen a
+			   tap begins life as a press-and-hold, and the browser's default
+			   answer to a press-and-hold on text is to select the word under
+			   it — so tapping a pill in the collection sentence selected the
+			   word "Tagged" and the tap never reached the pill. Only in
+			   tokenized mode: an editor's tag-list is prose the user may well
+			   want to select. */
+			span.tokenized {
+				-webkit-user-select: none;
+				user-select: none;
+			}
+
+			/* The negation is a word, and a word needs a space after it. It was
+			   written as the literal 'not ' inside its own element, where the
+			   trailing space sits at an inline element's edge and is collapsed
+			   away in exactly the cases that matter. A margin cannot be
+			   collapsed. */
+			.not {
+				margin-right: 0.25em;
+			}
+
 			/* A TOKEN'S REMOVE CONTROL IS QUIET UNTIL REACHED FOR. opacity, not
 			   display, because the space stays reserved: a sentence that grew a
 			   glyph under the cursor would shove the pills after it sideways at
@@ -252,7 +273,7 @@ class TagChip  extends LitElement {
 	//quiet and lowercase, because the reader is not being taught an operator.
 	get _negationPrefix() : TemplateResult {
 		if (!this.negated) return html``;
-		return html`<span class='not'>not </span>`;
+		return html`<span class='not'>not</span>`;
 	}
 
 	get _icon() : TemplateResult {

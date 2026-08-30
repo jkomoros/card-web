@@ -282,7 +282,7 @@ describe('Collection Composer suggestions', () => {
 					{},
 					42
 				),
-				'Copied a link to Everything AND Working Notes AND Has any TODO · 42 cards · Works for anyone.'
+				'Copied a link to Everything · Working Notes · Has any TODO — 42 cards — Works for anyone.'
 			);
 		});
 
@@ -293,14 +293,14 @@ describe('Collection Composer suggestions', () => {
 					{},
 					7
 				),
-				'Copied a link to Everything AND Unread · 7 cards · Results depend on who views it.'
+				'Copied a link to Everything · Unread — 7 cards — Results depend on who views it.'
 			);
 		});
 
 		it('drops the count rather than claiming zero when none has resolved', () => {
 			assert.strictEqual(
 				collectionLinkCopiedMessage(CollectionDescription.deserialize('everything/has-todo/')),
-				'Copied a link to Everything AND Has any TODO · Works for anyone.'
+				'Copied a link to Everything · Has any TODO — Works for anyone.'
 			);
 		});
 
@@ -310,10 +310,10 @@ describe('Collection Composer suggestions', () => {
 				{},
 				3
 			);
-			const expression = message.slice('Copied a link to '.length, message.indexOf(' · 3 cards'));
+			const expression = message.slice('Copied a link to '.length, message.indexOf(' — 3 cards'));
 			assert.ok(expression.length <= 60, `expression was ${expression.length} chars: ${expression}`);
 			assert.ok(expression.endsWith('…'), expression);
-			assert.ok(message.endsWith('· 3 cards · Works for anyone.'), message);
+			assert.ok(message.endsWith('— 3 cards — Works for anyone.'), message);
 		});
 
 		it('uses the labels the composer names clauses with', () => {
@@ -323,7 +323,7 @@ describe('Collection Composer suggestions', () => {
 					{ 'author/visibleperson': 'Contributed By Casey' },
 					2
 				),
-				'Copied a link to Everything AND Contributed By Casey · 2 cards · Works for anyone.'
+				'Copied a link to Everything · Contributed By Casey — 2 cards — Works for anyone.'
 			);
 		});
 
@@ -405,7 +405,7 @@ describe('Collection Composer suggestions', () => {
 		//and it is spent only on the collection history can prove you came from.
 		assert.strictEqual(
 			suggestions[0].label,
-			'Open Main AND Starred · sorted by Recent'
+			'Open Main · Starred · sorted by recent'
 		);
 		assert.strictEqual(suggestions[0].action, 'open');
 		assert.match(suggestions[0].detail, /Uses Main instead of Everything/);
@@ -669,6 +669,18 @@ describe('Collection Composer suggestions', () => {
 		assert.strictEqual(receipt('main/unpublished/', 'main/published/'),
 			'Flipped Unpublished to Published');
 
+		//A FLIPPED GROUP IS NOT A FLIPPED PILL, and it cannot be narrated as one.
+		//"Flipped Tag 1 or Tag 2 to not Tag 1 or Tag 2" is the same words twice
+		//with a negation buried in the middle, and read left to right it says
+		//(not Tag 1) or Tag 2 — a different collection from the one it names, and
+		//the exact precedence the group's border exists to settle on screen. The
+		//group is named ONCE, and the change is stated as what the collection now
+		//keeps.
+		assert.strictEqual(receipt('main/tag-1+tag-2/', 'main/exclude/tag-1+tag-2/'),
+			'Flipped Tag 1 or Tag 2 to keep only cards matching none of it');
+		assert.strictEqual(receipt('main/exclude/tag-1+tag-2/', 'main/tag-1+tag-2/'),
+			'Flipped Tag 1 or Tag 2 to keep cards matching any of it');
+
 		//NARROWING NAMES WHAT THE CLAUSE IS NOW, not what left it: the reader
 		//should not have to do the subtraction. Both the group that survives and
 		//the group that dissolves into a single pill are the same edit.
@@ -820,7 +832,7 @@ describe('Collection Composer suggestions', () => {
 			readableCollectionExpression(suggestions[0].description, {
 				'author/visibleperson': 'Cards Casey authored or collaborated on',
 			}),
-			'Everything AND Cards Casey authored or collaborated on'
+			'Everything · Cards Casey authored or collaborated on'
 		);
 
 		const duplicateNames = selectCollectionComposerCandidates({
@@ -868,7 +880,7 @@ describe('Collection Composer suggestions', () => {
 		//says so.
 		assert.strictEqual(
 			readableCollectionExpression(suggestions[0].description, collectionFilterLabels(candidates)),
-			'Everything AND This card and cards it links to'
+			'Everything · This card and cards it links to'
 		);
 		//Without them, nothing here knows card-123 is the card on screen, so the
 		//clause is named by the card it anchors rather than by a guess. This used
@@ -876,12 +888,12 @@ describe('Collection Composer suggestions', () => {
 		//two clauses anchored to different cards indistinguishable.
 		assert.strictEqual(
 			readableCollectionExpression(suggestions[0].description),
-			'Everything AND Cards card-123 links to'
+			'Everything · Cards card-123 links to'
 		);
 		//And with a title loaded, the card is named the way a person would.
 		assert.strictEqual(
 			readableCollectionExpression(suggestions[0].description, {}, {'card-123': 'Perf card 12'}),
-			'Everything AND Cards “Perf card 12” links to'
+			'Everything · Cards “Perf card 12” links to'
 		);
 		const byFamilyName = collectionComposerSuggestions(
 			CollectionDescription.deserialize('everything/'),
@@ -962,7 +974,7 @@ describe('Collection Composer suggestions', () => {
 				CollectionDescription.deserialize('everything/inductively-knowable/'),
 				Object.fromEntries(contextual.map(candidate => [candidate.filter, candidate.clauseLabel]))
 			),
-			'Everything AND Tagged Inductively Knowable'
+			'Everything · Tagged Inductively Knowable'
 		);
 
 		const combined = [...contextual, ...activeCardRelationshipCandidates('card-123')];
@@ -1087,24 +1099,24 @@ describe('Collection Composer suggestions', () => {
 		);
 		assert.strictEqual(
 			readableCollectionExpression(description),
-			'Everything AND Starred AND Working Notes · sorted by reverse Updated'
+			'Everything · Starred · Working Notes · sorted by reverse updated'
 		);
 		const query = CollectionDescription.deserialize(
 			'everything/query/inductively+knowable/'
 		);
 		assert.strictEqual(
 			readableCollectionExpression(query),
-			'Everything AND Text contains “inductively knowable”'
+			'Everything · Text contains “inductively knowable”'
 		);
 		const web = CollectionDescription.deserialize('everything/view/web/graph/');
 		assert.strictEqual(
 			readableCollectionExpression(web),
-			'Everything · viewed as Web (Graph)'
+			'Everything · viewed as web (Graph)'
 		);
 		const union = CollectionDescription.deserialize('everything/starred+unread/');
 		assert.strictEqual(
 			readableCollectionExpression(union),
-			'Everything AND (Starred OR Unread)'
+			'Everything · Starred or Unread'
 		);
 	});
 
@@ -1115,10 +1127,10 @@ describe('Collection Composer suggestions', () => {
 		const parts = collectionExpressionParts(description);
 		assert.deepStrictEqual(parts.set, { raw: 'everything', label: 'Everything' });
 		assert.deepStrictEqual(parts.filters.map(({ raw, label, index }) => ({ raw, label, index })), [
-			{ raw: 'starred+unread', label: '(Starred OR Unread)', index: 0 },
+			{ raw: 'starred+unread', label: 'Starred or Unread', index: 0 },
 			{ raw: 'query/inductively+knowable', label: 'Text contains “inductively knowable”', index: 1 },
 		]);
-		assert.deepStrictEqual(parts.modifiers, ['sorted by reverse Recent', 'viewed as Web (Graph)']);
+		assert.deepStrictEqual(parts.modifiers, ['sorted by reverse recent', 'viewed as web (Graph)']);
 	});
 
 	//THE LABEL DESCRIBES THE WINDOW THAT ACTUALLY FILTERS.
@@ -1133,21 +1145,21 @@ describe('Collection Composer suggestions', () => {
 		const reversed = CollectionDescription.deserialize('everything/updated/between/2026-08-19/2020-01-01/');
 		assert.strictEqual(
 			readableCollectionExpression(reversed),
-			'Everything AND Updated between 2020-01-01 and 2026-08-19'
+			'Everything · Updated between 2020-01-01 and 2026-08-19'
 		);
 		//An already-ordered range is untouched, and so is the URL either way:
 		//only the sentence changes.
 		const ordered = CollectionDescription.deserialize('everything/updated/between/2020-01-01/2026-08-19/');
 		assert.strictEqual(
 			readableCollectionExpression(ordered),
-			'Everything AND Updated between 2020-01-01 and 2026-08-19'
+			'Everything · Updated between 2020-01-01 and 2026-08-19'
 		);
 		assert.strictEqual(reversed.filters[0], 'updated/between/2026-08-19/2020-01-01');
 		//A relative bound resolves through the engine's own resolver, so a mixed
 		//pair still orders: 3 days ago is later than a fixed 2020 date.
 		assert.strictEqual(
 			readableCollectionExpression(CollectionDescription.deserialize('everything/updated/between/3-days-ago/2020-01-01/')),
-			'Everything AND Updated between 2020-01-01 and 3 days ago'
+			'Everything · Updated between 2020-01-01 and 3 days ago'
 		);
 	});
 

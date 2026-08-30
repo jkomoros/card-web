@@ -120,6 +120,13 @@ export type ResolvedCardSelector = {
 	//False when the URL's card is already in the collection on screen, so the
 	//active collection is deliberately left alone.
 	updatesCollection : boolean,
+	//TRUE WHEN THE ROUTER INVENTED THE CLAUSES. A `/c/<cardid>` URL names a
+	//card and no collection at all, so the rules below substitute one — the
+	//card's section, the everything-set for an orphan, or the `none`
+	//placeholder. That substitution is a fallback, not a destination the user
+	//chose, and callers that RECORD where the user has been have to be able to
+	//tell the two apart.
+	substitutedCollection : boolean,
 };
 
 //Exported so that a caller who is about to push a path can ask what that path
@@ -192,6 +199,10 @@ export const resolveCardSelector = (state : State, cardSelector : string) : Reso
 		description: new CollectionDescription(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra),
 		cardIdOrSlug,
 		updatesCollection: doUpdateCollection,
+		//The URL carried no clauses and this function supplied some: whatever
+		//comes back is the router's answer to "where does this card live", not
+		//the user's answer to "which collection do I want".
+		substitutedCollection: description.filters.length == 0 && filters.length > 0,
 	};
 };
 
@@ -208,7 +219,7 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 		}
 	}
 
-	const {description: resolvedDescription, cardIdOrSlug, updatesCollection} = resolveCardSelector(getState(), cardSelector);
+	const {description: resolvedDescription, cardIdOrSlug, updatesCollection, substitutedCollection} = resolveCardSelector(getState(), cardSelector);
 	const doUpdateCollection = updatesCollection || forceUpdateCollection;
 
 	const descriptionActuallyVisited = collectionDescriptionActuallyVisited(
@@ -216,9 +227,15 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 		selectActiveCollectionDescription(getState()),
 		doUpdateCollection
 	);
+	//A SUBSTITUTED COLLECTION IS NOT A PLACE THE USER WENT — and the guard that
+	//says so lives with the other poison guards, in the history module, so every
+	//future caller inherits it. Only when the substitution is what would be
+	//recorded: a card already inside the collection on screen leaves that
+	//collection active, and THAT is a real destination.
 	if (collectionComposerEnabled()) recordRecentCollection(descriptionActuallyVisited, selectUid(getState()), Date.now(), {
 		rawURL: cardSelector,
 		knownFilterNames: selectKnownCollectionFilterNames(getState()),
+		substituted: substitutedCollection && doUpdateCollection,
 	});
 	if (doUpdateCollection) dispatch(updateCollection(resolvedDescription.set, resolvedDescription.filters, resolvedDescription.sort, resolvedDescription.sortReversed, resolvedDescription.viewMode, resolvedDescription.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));

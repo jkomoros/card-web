@@ -62,10 +62,22 @@ class ConfigureCollectionDate extends LitElement {
 				min-width: 0;
 				padding: 0;
 			}
+			/* READABLE, BECAUSE IT HAS TO BE READ. This legend used to be 0.75em
+			   of a host that was already 0.75em of a dialog — nine pixels for
+			   the word that says which end of a range a field is. Subordinate is
+			   a matter of colour here; the size is the app's ordinary small
+			   text, and the colour is the darker token because -light is ~2.3:1
+			   on white (§4.1). */
 			.date-boundary legend {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.75em;
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.85em;
 				padding: 0;
+			}
+
+			/* Same size floor for the two radio labels, which name the choice
+			   between a date that stays put and one that moves with today. */
+			.mode-selector label {
+				font-size: 0.85em;
 			}
 			.mode-selector {
 				display: flex;
@@ -115,10 +127,10 @@ class ConfigureCollectionDate extends LitElement {
 				</select>
 
 				<!-- First date input -->
-				${this._renderDateBoundary(true, firstDateStr, dateOne, typeRequiresSecondDate ? 'Start' : 'Date')}
+				${this._renderDateBoundary(true, firstDateStr, dateOne, typeRequiresSecondDate ? 'From' : 'Date')}
 
 				<!-- Second date input (if needed) -->
-				${typeRequiresSecondDate ? this._renderDateBoundary(false, secondDateStr, dateTwo, 'End') : ''}
+				${typeRequiresSecondDate ? this._renderDateBoundary(false, secondDateStr, dateTwo, 'Until') : ''}
 			</div>
 		`;
 	}
@@ -138,7 +150,7 @@ class ConfigureCollectionDate extends LitElement {
 							?checked=${!relativeMode}
 							@change=${this._handleModeChanged}
 						>
-						Fixed date
+						A set date
 					</label>
 					<label>
 						<input
@@ -149,7 +161,7 @@ class ConfigureCollectionDate extends LitElement {
 							?checked=${relativeMode}
 							@change=${this._handleModeChanged}
 						>
-						Rolling date
+						Counted from today
 					</label>
 				</div>
 				${relativeMode ? this._renderRelativeDateInput(isFirst, dateStr) : this._renderAbsoluteDateInput(isFirst, dateStr, dateObj)}

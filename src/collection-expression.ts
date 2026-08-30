@@ -43,14 +43,15 @@ import {
 	COMBINE_FILTER_NAME,
 	EXCLUDE_FILTER_NAME,
 	EXPAND_FILTER_NAME,
-	INVERSE_FILTER_NAMES,
 	UNION_FILTER_DELIMITER,
 	excludeFilter,
 } from './filters.js';
 
 import {
-	SET_NAMES,
-} from '../shared/collection_description_base.js';
+	combineMemberSpellingIsSafe,
+	namedInverseFilterName,
+	splitCombineMembers,
+} from './collection-boolean-spelling.js';
 
 import {
 	collectionFilterDisplayName,
@@ -102,23 +103,11 @@ export type FilterExpressionNode =
 //same conjunction the URL's path segments already are.
 export type CollectionExpression = FilterExpressionNode[];
 
-//THE INVERSE MAP RUNS BOTH WAYS, and only INVERSE_FILTER_NAMES knows either
-//direction. It is keyed by the NEGATIVE name ('unpublished' -> 'published'), so
-//negating a positive filter needs the reverse index. Both directions are
-//derived from the same source of truth so a filter family that grows a named
-//inverse gets it in the composer for free.
-const POSITIVE_TO_INVERSE_FILTER_NAMES : Record<string, string> = Object.fromEntries(
-	Object.entries(INVERSE_FILTER_NAMES).map(([negative, positive]) => [positive, negative])
-);
-
-//The name that means "not this filter", when the app already has a word for it.
-//`published` -> `unpublished`, and `unpublished` -> `published`. Returns ''
-//when there is no such word, which is the caller's cue to reach for `exclude/`.
-export const namedInverseFilterName = (filter : FilterName) : string => {
-	const towardsPositive = INVERSE_FILTER_NAMES[filter];
-	if (towardsPositive) return towardsPositive;
-	return POSITIVE_TO_INVERSE_FILTER_NAMES[filter] || '';
-};
+//The inverse map, and the `combine/` splitter, now live one layer down in
+//collection-boolean-spelling: the NAMER needs both too (a snackbar has to read
+//`exclude/tag-1+tag-2` as words), and it cannot import this file. Re-exported
+//here so every existing consumer of the draft layer keeps its import.
+export { namedInverseFilterName };
 
 //Whether flipping this condition produces a WORD rather than an operator. The
 //sentence renderer asks so it can promise "this pill will read 'unpublished'"
@@ -152,40 +141,6 @@ export const negatedExpressionNode = (node : FilterExpressionNode) : FilterExpre
 	}
 	if (node.kind === 'not') return node.child;
 	return {kind: 'not', child: node};
-};
-
-const SET_NAME_TOKENS : ReadonlySet<string> = new Set<string>(SET_NAMES);
-
-//COMBINE IS BINARY, AND ITS TWO HALVES ARE FOUND BY RE-PARSING.
-//
-//Verified against the engine (filters.ts makeCombineConfigurableFilter ->
-//extractSubFilters): `combine` claims 2 URL parts in
-//CONFIGURABLE_FILTER_URL_PARTS, and at run time it hands everything after
-//`combine/` back to `CollectionDescription.deserialize(rest + '/')` and takes
-//`filters[0]` and `filters[1]`. Anything past the second sub-filter is
-//DISCARDED, and fewer than two makes the whole clause a silent no-op ("Expected
-//two sub-filters for combine but didn't get it"). So n-ary OR has to be
-//chained, and this function is the exact inverse of that split — it calls the
-//same parser the engine calls, so the two cannot disagree about where the first
-//sub-filter ends.
-const splitCombineMembers = (rest : string) : [string, string] | null => {
-	//A SET NAME IN THE FIRST POSITION EATS A MEMBER.
-	//
-	//`deserialize` shifts a leading `main` / `reading-list` / `everything` off
-	//as the SET, so `combine/everything/starred` reaches the factory as one
-	//sub-filter and no-ops the whole clause. Filter names are open (every tag
-	//becomes one), so a tag literally named `everything` really can produce
-	//this. We refuse to model such a segment rather than re-spell it into
-	//something that runs differently, and the compiler below never PRODUCES one.
-	if (SET_NAME_TOKENS.has(rest.split('/')[0])) return null;
-	const filters = CollectionDescription.deserialize(rest + '/').filters;
-	if (filters.length !== 2) return null;
-	//Paranoia with teeth: the URL parser DROPS a multi-part group whose head is
-	//not a filter (the #757 orphan-head path). If the two halves do not rejoin
-	//into exactly what we handed it, a part went missing and this segment is
-	//not ours to rewrite.
-	if (filters.join('/') !== rest) return null;
-	return [filters[0], filters[1]];
 };
 
 //An OR flattens: `combine/a/combine/b/c` and `a+b+c` are the same three-way
@@ -258,8 +213,8 @@ const isPlainUnionToken = (spelling : string) : boolean =>
 //whose first URL token is a set name past the front — is enough to make the
 //set-name hazard above unreachable from anything this compiler emits.
 const orderedCombineMembers = (spellings : string[]) : string[] => {
-	if (!SET_NAME_TOKENS.has(spellings[0].split('/')[0])) return spellings;
-	const safeIndex = spellings.findIndex(spelling => !SET_NAME_TOKENS.has(spelling.split('/')[0]));
+	if (combineMemberSpellingIsSafe(spellings[0])) return spellings;
+	const safeIndex = spellings.findIndex(combineMemberSpellingIsSafe);
 	//Every member starts with a set name: there is no legal chaining, so leave
 	//the order alone rather than pretend a rotation fixed it. Such an
 	//expression cannot be built by parsing (splitCombineMembers refuses it) —
@@ -443,7 +398,19 @@ export const describeExpressionNode = (
 		const child = describeExpressionNode(node.child, labels, cardNames);
 		return {
 			kind: 'not',
-			label: 'not ' + child.label,
+			//A NEGATED ALTERNATION NEEDS ITS BRACKETS BACK.
+			//
+			//"not Tagged tag-1 or Tagged tag-2" has two readings and only one of
+			//them is the collection: read left to right it says (not tag-1) or
+			//tag-2. On screen the group's border settles that; in a STRING —
+			//an aria-label, a pill row's scope, a snackbar — there is no border,
+			//so the string has to say it. Brackets are not one of the words the
+			//design refuses (that list is exclude/combine/invert); they are
+			//ordinary punctuation for exactly this, and they appear only where
+			//the ambiguity is real.
+			label: child.kind === 'or' && (child.members || []).length > 1 ?
+				`not (${child.label})` :
+				'not ' + child.label,
 			negated: true,
 			child,
 		};

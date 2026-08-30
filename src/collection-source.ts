@@ -82,10 +82,27 @@ export type ParsedCollectionSource = {
 //collectionFilterDisplayName and collectionOptionDisplayName are built on top
 //of this, and a copy in each direction is exactly the divergence §5 warns
 //about.
+//AN ACRONYM IS ALREADY CASED, so title-casing it is a second spelling of one
+//word. The filter table's own display name for the combined family is
+//'Has any TODO'; every one of the ~90 generated per-TODO filters humanized to
+//'No Todo' / 'Needs Todo' beside it, in the same list, for the same concept.
+const ALREADY_CASED_WORDS : Readonly<Record<string, string>> = {
+	todo: 'TODO',
+	todos: 'TODOs',
+	url: 'URL',
+	urls: 'URLs',
+	ai: 'AI',
+};
+
 export const humanizeCollectionToken = (value : string) : string =>
 	value
 		.split(/[- ]/)
-		.map(word => (word ? word[0].toUpperCase() + word.slice(1) : ''))
+		.map(word => {
+			if (!word) return '';
+			const cased = ALREADY_CASED_WORDS[word.toLowerCase()];
+			if (cased) return cased;
+			return word[0].toUpperCase() + word.slice(1);
+		})
 		.join(' ');
 
 const STATUS_PRIORITY : Record<CollectionSourceStatus, number> = {

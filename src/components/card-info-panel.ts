@@ -30,6 +30,7 @@ import {
 import {
 	selectActiveCard,
 	selectTags,
+	selectCollectionClauseTagInfos,
 	getAuthorForId,
 	selectCollaboratorInfosForActiveCard,
 	selectActiveCardTweets,
@@ -167,6 +168,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	@state()
 		_tagInfos: TagInfos;
+
+	//The value clauses' own colours, keyed by URL spelling — a different map
+	//from the card's own tag-list, which is keyed by tag id alone.
+	@state()
+		_clauseTagInfos: TagInfos = {};
 
 	@state()
 		_referenceBlocks: ExpandedReferenceBlocks;
@@ -415,7 +421,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			.expression=${this._whyHereExpression}
 			.set=${this._collectionSet}
 			.membership=${membership}
-			.tagInfos=${this._tagInfos}
+			.tagInfos=${this._clauseTagInfos}
 			.labels=${this._collectionFilterLabels}
 			.filterDescriptions=${this._filterDescriptions}
 			@condition-activated=${this._handleWhyHereConditionActivated}
@@ -465,6 +471,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._author = getAuthorForId(state, this._card?.author || '');
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
+		this._clauseTagInfos = selectCollectionClauseTagInfos(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		this._editingSimilarityPending = selectEditingSimilarityPending(state);

@@ -69,6 +69,16 @@ const alternativesOf = (node : FilterExpressionNode) : FilterExpressionNode[] =>
 	return [node];
 };
 
+//The OR-group inside a condition, whichever side of a negation it is on, or
+//null for a condition that is not a group at all. A flipped group and a flipped
+//pill are the same edit to the draft layer and two different sentences to a
+//reader, and this is the one question that tells them apart.
+const groupNode = (node : FilterExpressionNode) : FilterExpressionNode | null => {
+	if (node.kind === 'or') return node;
+	if (node.kind === 'not' && node.child.kind === 'or') return node.child;
+	return null;
+};
+
 //Whether `subset`'s spellings all appear in `superset`, and which spelling is
 //left over when exactly one is. Spellings rather than nodes because the compiler
 //is what decides when two nodes are the same clause, and it already answers that
@@ -108,6 +118,23 @@ const structuralReceipt = (
 	//FLIP FIRST, because negation is an involution on every node kind and a
 	//flipped group would otherwise read as a narrowing of nothing.
 	if (serializeFilterNode(negatedExpressionNode(before)) === serializeFilterNode(after)) {
+		//A FLIPPED GROUP CANNOT BE NAMED THE WAY A FLIPPED PILL IS.
+		//
+		//"Flipped Tagged tag-1 or Tagged tag-2 to not Tagged tag-1 or Tagged
+		//tag-2" is the same eleven words twice with one negation buried in the
+		//middle of them, and it has the precedence ambiguity the group's own
+		//border exists to resolve on screen: read left to right it says (not
+		//tag-1) or tag-2, which is a different collection. So the group is named
+		//ONCE and the change is stated as what the collection now keeps — which
+		//is the fact the user needs, and the only one this sentence can carry
+		//unambiguously.
+		const group = groupNode(before) || groupNode(after);
+		if (group) {
+			const negating = Boolean(groupNode(after) && after.kind === 'not');
+			return negating ?
+				`Flipped ${name(group)} to keep only cards matching none of it` :
+				`Flipped ${name(group)} to keep cards matching any of it`;
+		}
 		return `Flipped ${name(before)} to ${name(after)}`;
 	}
 	const beforeMembers = alternativesOf(before);

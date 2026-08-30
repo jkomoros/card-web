@@ -463,7 +463,11 @@ const CURATION_COPY : Record<string, string> = {
 //the give user ID" is a typo wrapped around a raw argument name — and it is
 //the reason the internal-identifier sweep exists as a test.
 const CONFIGURABLE_COPY : Record<string, string> = {
-	'updated': 'Cards changed inside a date window you choose — recently updated, or, flipped, gone stale since a date.',
+	//ONE CLAUSE, ONE COMMA. This read "…— recently updated, or, flipped, gone
+	//stale since a date": three commas parked around the one word carrying the
+	//meaning, so a reader has to run the sentence twice to find out what
+	//"flipped" applies to.
+	'updated': 'Cards changed inside a date window you choose. Flip it to find the cards that have gone stale instead.',
 	'created': 'Cards first written inside a date window you choose.',
 	'last-tweeted': 'Cards the bot tweeted inside a date window you choose.',
 	'author': 'Cards a particular person wrote or collaborated on. Choose yourself and a shared link follows whoever opens it; choose a name and it stays that person.',

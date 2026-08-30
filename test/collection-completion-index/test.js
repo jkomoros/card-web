@@ -45,6 +45,11 @@ let IDLE_CONTEXTUAL_ROW_LIMIT;
 let parseCollectionExpression;
 let serializeCollectionExpression;
 let CARD_FILTER_DESCRIPTIONS;
+let collectionFilterDescription;
+let paletteTypingRows;
+let paletteBrowseRows;
+let buildCollectionFilterCatalog;
+let paletteWordRows;
 
 //A small closed world. Two tags, one section, so a tag/tag OR and a tag/section
 //OR are both expressible and can be told apart.
@@ -109,6 +114,9 @@ describe('Collection completion index', () => {
 		} = await import('../../lib/src/collection-completion-index.js'));
 		({ parseCollectionExpression, serializeCollectionExpression } = await import('../../lib/src/collection-expression.js'));
 		({ CARD_FILTER_DESCRIPTIONS } = await import('../../lib/src/filters.js'));
+		({ collectionFilterDescription } = await import('../../lib/src/collection-composer-suggestions.js'));
+		({ paletteTypingRows, paletteBrowseRows, paletteWordRows } = await import('../../lib/src/collection-palette-rows.js'));
+		({ buildCollectionFilterCatalog } = await import('../../lib/src/collection-filter-catalog.js'));
 	});
 
 	//THE FREE-TEXT READING IS ALWAYS AVAILABLE, so the tier tests below exclude
@@ -255,10 +263,15 @@ describe('Collection completion index', () => {
 			const result = complete('stale');
 			const row = result.find(candidate => candidate.filter.split('/')[0] === 'updated');
 			assert.ok(row, `typing “stale” must reach the updated family: ${result.map(item => item.filter).join(', ')}`);
-			//And the row it reaches carries a `not` valence, which is the half of
-			//the family the word actually means.
-			assert.ok(row.valences.some(valence => valence.kind === 'not'),
-				'the stale row must be able to become a negation');
+			assert.ok(row.valences.some(valence => valence.kind === 'add'),
+				'the family must be addable from the word that found it');
+			//THE NEGATION IS NOT ISSUED UNASKED (see the valence tests below): a
+			//bare token gets the clause, and the flip is one gesture away on the
+			//pill it produces. Typed AS a negation, the row is the negation.
+			const negated = complete('not stale')
+				.find(candidate => candidate.filter.split('/')[0] === 'updated');
+			assert.ok(negated.valences.some(valence => valence.kind === 'not'),
+				'a typed negation must be able to become one');
 		});
 
 		it('finds published by typing “pub”', () => {
@@ -324,7 +337,7 @@ describe('Collection completion index', () => {
 				assert.deepStrictEqual(rows.map(row => row.id), [], `typing “${token}” offered the plumbing`);
 			}
 			//They are still reachable as what they actually are: the valences.
-			const published = complete('published').find(candidate => candidate.filter === 'published');
+			const published = complete('not published').find(candidate => candidate.filter === 'published');
 			assert.ok(published.valences.some(valence => valence.kind === 'not'));
 		});
 
@@ -344,9 +357,60 @@ describe('Collection completion index', () => {
 	describe('valence generation', () => {
 		const node = filter => ({ kind: 'filter', filter });
 
-		it('offers add and not against an empty sentence, and no or', () => {
+		//THE NOT-ROW IS ASKED FOR, NOT ISSUED WITH EVERY CANDIDATE.
+		//
+		//It used to spawn unconditionally, which doubled every typed list — four
+		//rows for two collections when a filter and its named inverse both
+		//matched the token. The design's own rule is narrower: proposal B §3.1
+		//ranks `–` below "unless the token starts with not/-", and the
+		//meta-proposal's Graft 1 scopes the valence graft to "when a typed token
+		//is family-compatible with an existing pill". Everywhere else the flip is
+		//one gesture away on the pill the `add` produces.
+		it('offers only add against an empty sentence — no or, and no unasked not', () => {
 			const valences = completionValences(node('tag-b'), [], { idPrefix: 'x', candidates: candidates() });
-			assert.deepStrictEqual(valences.map(valence => valence.kind), ['add', 'not']);
+			assert.deepStrictEqual(valences.map(valence => valence.kind), ['add']);
+		});
+
+		it('offers not when the typed token led with a negation', () => {
+			const valences = completionValences(node('tag-b'), [], { idPrefix: 'x', negated: true, candidates: candidates() });
+			assert.deepStrictEqual(valences.map(valence => valence.kind), ['not', 'add'],
+				'a typed negation leads with the negation');
+		});
+
+		it('offers not when the sentence already has a clause of the same family', () => {
+			//"…but not this one" is a sentence somebody is plausibly in the middle
+			//of writing only once there is a same-family clause to say it about.
+			const sameFamily = parseCollectionExpression(['tag-c']);
+			assert.ok(completionValences(node('tag-b'), sameFamily, { idPrefix: 'x', candidates: candidates() })
+				.some(valence => valence.kind === 'not'));
+			const otherFamily = parseCollectionExpression(['notes-section']);
+			assert.ok(!completionValences(node('tag-b'), otherFamily, { idPrefix: 'x', candidates: candidates() })
+				.some(valence => valence.kind === 'not'));
+		});
+
+		//THE NEGATED ROW DESCRIBES THE NEGATED COLLECTION. Every valence used to
+		//inherit the candidate's one description, so the flipped row read
+		//"Unpublished — Keeps cards you have published": a row whose name and
+		//whose explanation say opposite things.
+		it('gives the not row its own description', () => {
+			const valences = completionValences(node('published'), parseCollectionExpression(['unread']), {
+				idPrefix: 'x',
+				negated: true,
+				filterDescriptions: CARD_FILTER_DESCRIPTIONS,
+			});
+			const not = valences.find(valence => valence.kind === 'not');
+			assert.ok(not.detail, 'a negation must say what IT keeps');
+			assert.notStrictEqual(not.detail, collectionFilterDescription('published', CARD_FILTER_DESCRIPTIONS),
+				'and it must not be the positive clause’s sentence');
+			//A filter with no named inverse gets the derived negative rather than
+			//nothing at all.
+			const derived = completionValences(node('tag-b'), [], {
+				idPrefix: 'y',
+				negated: true,
+				labels: { 'tag-b': 'Tagged Systems' },
+				candidates: candidates(),
+			}).find(valence => valence.kind === 'not');
+			assert.strictEqual(derived.detail, 'Cards not matching Tagged Systems');
 		});
 
 		it('offers or only against a condition, labeled with what it widens', () => {
@@ -369,12 +433,15 @@ describe('Collection completion index', () => {
 		it('ranks an incompatible or below not rather than refusing it', () => {
 			//The engine unions ANY two conditions, so this row is legal and is
 			//offered. It is just not what somebody usually meant, so it sinks.
+			//Typed as a negation so the `not` row this is ranked against exists
+			//at all — see the not-is-asked-for tests above.
 			const expression = parseCollectionExpression(['notes-section']);
 			const valences = completionValences(node('tag-b'), expression, {
 				idPrefix: 'x',
+				negated: true,
 				candidates: candidates(),
 			});
-			assert.deepStrictEqual(valences.map(valence => valence.kind), ['add', 'not', 'or']);
+			assert.deepStrictEqual(valences.map(valence => valence.kind), ['not', 'add', 'or']);
 			const or = valences.find(valence => valence.kind === 'or');
 			assert.strictEqual(or.compatible, false);
 			//And it still WORKS — an available row that produced a broken
@@ -410,8 +477,8 @@ describe('Collection completion index', () => {
 			//mean rewriting a spelling it said it did not understand.
 			const expression = parseCollectionExpression(['expand/starred/link']);
 			assert.strictEqual(expression[0].kind, 'manual');
-			const valences = completionValences(node('tag-b'), expression, { idPrefix: 'x' });
-			assert.deepStrictEqual(valences.map(valence => valence.kind), ['add', 'not']);
+			const valences = completionValences(node('tag-b'), expression, { idPrefix: 'x', negated: true });
+			assert.deepStrictEqual(valences.map(valence => valence.kind), ['not', 'add']);
 		});
 
 		it('offers no row that would change nothing', () => {
@@ -456,7 +523,7 @@ describe('Collection completion index', () => {
 		});
 
 		it('names the flip with the app’s own word when it has one', () => {
-			const valences = completionValences(node('published'), [], { idPrefix: 'x' });
+			const valences = completionValences(node('published'), [], { idPrefix: 'x', negated: true });
 			const not = valences.find(valence => valence.kind === 'not');
 			//Convergence 2: the pill reads `unpublished`, not `not published`.
 			assert.strictEqual(not.label, 'Unpublished');
@@ -475,6 +542,11 @@ describe('Collection completion index', () => {
 				const take = (filter, kind) => {
 					const valences = completionValences({ kind: 'filter', filter }, expression, {
 						idPrefix: filter,
+						//A `not` row exists when the user asked for one, so the
+						//keyboard flow this pins types the negation as a negation
+						//— which is exactly what proposal B §3.1's own "unless the
+						//token starts with not/-" describes.
+						negated: kind === 'not',
 						candidates: candidates(),
 					});
 					const valence = valences.find(entry => entry.kind === kind);
@@ -499,7 +571,7 @@ describe('Collection completion index', () => {
 
 			it('spells a flip as the app’s inverse name when there is one', () => {
 				let expression = parseCollectionExpression(['tag-b']);
-				const valences = completionValences({ kind: 'filter', filter: 'published' }, expression, { idPrefix: 'p' });
+				const valences = completionValences({ kind: 'filter', filter: 'published' }, expression, { idPrefix: 'p', negated: true });
 				expression = valences.find(valence => valence.kind === 'not').expression;
 				assert.deepStrictEqual(serializeCollectionExpression(expression), ['tag-b', 'unpublished']);
 			});
@@ -534,6 +606,107 @@ describe('Collection completion index', () => {
 				second.valences.map(valence => valence.id),
 				'a valence id must survive a keystroke, or its preview count cannot be cached'
 			);
+		});
+	});
+
+	//THE RANKING TRAPS THE LIVE CRITIQUE WALKED INTO. Each of these is a row
+	//that led the list while being the wrong answer to what was typed.
+	describe('ranking', () => {
+
+		it('caps weak-match recents to one, and never caps a name match', () => {
+			//A generic token matches every recent whose DETAIL line happens to
+			//contain the word. Three destinations then sat above the first actual
+			//interpretation of what was typed — the critique found some of them
+			//zero-card junk. A name-tier match is evidence; a description match
+			//is not.
+			const weak = complete('visited', 'everything/', {
+				recentCollections: [
+					{ description: draft('everything/tag-b/'), visits: 3 },
+					{ description: draft('everything/tag-c/'), visits: 2 },
+					{ description: draft('everything/starred/'), visits: 5 },
+				],
+			});
+			assert.strictEqual(weak.filter(candidate => candidate.kind === 'recent').length, 1,
+				`a weak token may lead with one recent: ${weak.map(item => item.id).join(', ')}`);
+
+			//The same three recents, reached by a word that is in their NAMES.
+			const named = complete('tagged', 'everything/', {
+				recentCollections: [
+					{ description: draft('everything/tag-b/'), visits: 3 },
+					{ description: draft('everything/tag-c/'), visits: 2 },
+				],
+			});
+			assert.ok(named.filter(candidate => candidate.kind === 'recent').length >= 2,
+				'a name match is evidence, and every one of those is offered');
+		});
+
+		it('reads a pasted collection path as the collection it names', () => {
+			//A URL is a feature of this product — every collection IS one — and
+			//pasting the composer's own compiled path came back as
+			//`Text contains "/c/main/starred/"`.
+			const rows = complete('/c/everything/starred/');
+			assert.strictEqual(rows[0].kind, 'source',
+				`a parsed source outranks every guess: ${rows.map(item => `${item.kind}:${item.id}`).join(', ')}`);
+			assert.strictEqual(rows[0].description.serialize(), draft('everything/starred/').serialize());
+			assert.ok(rows[0].destinationPath, 'and it carries the path it opens');
+			assert.deepStrictEqual(rows[0].valences, [], 'a destination is not an edit');
+			//Text that is not a collection is still read literally.
+			assert.ok(!complete('systems thinking').some(candidate => candidate.kind === 'source'));
+		});
+	});
+
+	//WHAT THE PALETTE ACTUALLY RENDERS. The rows are where two candidates that
+	//mean the same edit become one row, and where the browse feed's ranking
+	//either survives its regrouping or does not.
+	describe('the palette rows', () => {
+
+		const typedRows = (token, serialized = 'everything/') => paletteTypingRows(
+			complete(token, serialized),
+			draft(serialized)
+		);
+
+		it('offers one row per RESULTING EDIT, not one per candidate', () => {
+			//`published` and `unpublished` are both real filters, both match the
+			//token, and each can be added or flipped: four rows naming two
+			//collections, with the twins carrying contradictory descriptions.
+			const rows = typedRows('published', 'everything/unread/');
+			const edits = rows.filter(row => row.kind === 'valence').map(row => row.description.serialize());
+			assert.strictEqual(new Set(edits).size, edits.length,
+				`two rows make the same edit: ${edits.join(' | ')}`);
+		});
+
+		it('carries the negated row’s own description onto the row', () => {
+			const rows = typedRows('not published', 'everything/unread/');
+			const not = rows.find(row => row.valenceKind === 'not');
+			assert.ok(not, 'a typed negation produces a negated row');
+			assert.notStrictEqual(not.detail, collectionFilterDescription('published', CARD_FILTER_DESCRIPTIONS),
+				'the negated row must not explain itself with the positive clause’s sentence');
+		});
+
+		it('lets an exact match outrank a seeded contextual row in Browse all', () => {
+			//The catalog sorts by relevance FIRST; regrouping by a fixed category
+			//order threw that away, so "Suggested for this card" led whatever the
+			//user had typed — and Tab, which takes the top row, added it.
+			const world = candidates().map(candidate =>
+				candidate.filter === 'notes-section' ? {...candidate, spotlight: true} : candidate);
+			const description = draft('everything/');
+			const items = buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, world, description, 'starred');
+			const rows = paletteBrowseRows(items, description);
+			assert.ok(rows.length, 'something must match');
+			assert.strictEqual(rows[0].filter, 'starred',
+				`an exact name match must lead: ${rows.slice(0, 4).map(row => `${row.section}/${row.filter}`).join(', ')}`);
+			//And with no query the wall keeps its authored category order.
+			const idle = paletteBrowseRows(buildCollectionFilterCatalog(CARD_FILTER_DESCRIPTIONS, world, description, ''), description);
+			assert.strictEqual(idle[0].section, 'Suggested for this card');
+		});
+
+		it('marks the sort and view already in force rather than deleting them', () => {
+			const rows = paletteWordRows(draft('everything/sort/recent/'), 'sort');
+			const current = rows.find(row => row.current);
+			assert.ok(current, 'a list of alternatives has to say which one you are in');
+			assert.strictEqual(current.id, 'sort:recent');
+			assert.strictEqual(rows.filter(row => row.current).length, 2,
+				'one current sort and one current view');
 		});
 	});
 

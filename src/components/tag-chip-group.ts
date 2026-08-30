@@ -17,28 +17,62 @@
 //decision about what is inside it.
 
 import { LitElement, html, css } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 
 @customElement('tag-chip-group')
 class TagChipGroup extends LitElement {
+
+	//THE GROUP IS FLIPPED, NOT ONE OF ITS MEMBERS.
+	//
+	//tag-chip's rule is that fill inversion mirrors meaning inversion. A group
+	//is where that rule matters most and where it was not applied: the negation
+	//rendered as a floating "not" beside a row of solid pills, which reads as
+	//`(not tag-1) or tag-2` — a different collection from the one it named. So
+	//the container takes the inversion, as a unit, and the word that says so
+	//lives inside its boundary (the sentence renderer slots it there).
+	@property({ type : Boolean, reflect : true })
+		negated = false;
 
 	static override styles = [
 		css`
 			/* 0.3em, the same radius tag-chip rounds at, because the group IS a
 			   pill and a pill in this app is 0.3em round (proposal A §2d says so
-			   explicitly). The hairline is the app's divider, at 1px: the border
-			   has to be quiet enough that the members' own colours stay the
-			   loudest thing inside it. */
+			   explicitly).
+
+			   THE HAIRLINE WAS INVISIBLE. --app-divider-color is #eee, drawn 1px
+			   wide, on a white dialog: the one mark that says "these two pills
+			   are one condition" could not be seen at all, and the thing it was
+			   quiet enough not to compete with was itself. It takes the
+			   subordinate TEXT colour instead — the same token the sentence's own
+			   operators use, so the border is exactly as loud as the "or" it
+			   contains — over a very transparent wash that gives the container a
+			   surface as well as an edge. The padding grows with it: a boundary
+			   the members are pressed against does not read as containment. */
 			:host {
 				align-items: center;
-				border: 1px solid var(--app-divider-color);
+				background: var(--app-primary-color-light-very-transparent);
+				border: 1px solid var(--app-dark-text-color-light);
 				border-radius: 0.3em;
 				display: inline-flex;
 				flex-wrap: wrap;
 				gap: 0.1em;
 				margin: 0 0.1em;
-				padding: 0.1em 0.2em;
+				padding: 0.15em 0.35em;
 				vertical-align: middle;
+			}
+
+			/* THE NEGATED GROUP, INVERTED AS ONE THING. tag-chip's negated pill
+			   trades its fill for its outline; a negated group does the same at
+			   container scale — the wash goes, and the edge doubles and darkens
+			   to the weight of a border that means something rather than one
+			   that merely encloses. The members keep their own colours, for
+			   tag-chip's own reason: negation does not change which tags a
+			   clause is about. */
+			:host([negated]) {
+				background: var(--app-light-text-color);
+				border-color: var(--app-dark-text-color-darker);
+				border-width: 2px;
+				padding: calc(0.15em - 1px) calc(0.35em - 1px);
 			}
 
 			/* SAME RING AS A CHIP, for the same reason: the group is one token in

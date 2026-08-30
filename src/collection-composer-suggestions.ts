@@ -12,7 +12,9 @@ import {
 
 import {
 	CARD_FILTER_DESCRIPTIONS,
+	COMBINE_FILTER_NAME,
 	CONFIGURABLE_FILTER_INFO,
+	EXCLUDE_FILTER_NAME,
 	INVERSE_FILTER_NAMES,
 	NONE_FILTER_NAME,
 	SELECTED_FILTER_NAME,
@@ -23,6 +25,11 @@ import {
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
 import { curatedFilterDescription, filterSynonyms } from './collection-filter-synonyms.js';
+import {
+	namedInverseFilterName,
+	splitCombineMembers,
+	unionSpellingMembers,
+} from './collection-boolean-spelling.js';
 
 export type CollectionComposerSuggestionKind =
   | 'add'
@@ -376,6 +383,46 @@ const anchoredClauseName = (
 	return parts.join(' · ');
 };
 
+//A boolean segment read as words, or '' when this segment is not one. Split by
+//the one splitter the draft layer uses, so a `combine/` that the compiler would
+//model as a group and a `combine/` that this function names cannot disagree
+//about where the first member ends. A segment the splitter refuses is left to
+//the generic path, exactly as the draft layer leaves it as a manual pill.
+const booleanSpellingName = (
+	filter: string,
+	labels: Record<string, string>,
+	cardNames: Record<string, string>
+): string => {
+	const name = (part: string) => collectionFilterDisplayName(part, labels, cardNames);
+	const union = unionSpellingMembers(filter);
+	if (union) return union.map(name).join(' or ');
+	const slash = filter.indexOf('/');
+	if (slash < 0) return '';
+	const head = filter.slice(0, slash);
+	const rest = filter.slice(slash + 1);
+	if (!rest) return '';
+	if (head === EXCLUDE_FILTER_NAME) {
+		//The app's own word first — `exclude/published` IS `unpublished`, and the
+		//draft layer normalizes the two into one node for exactly that reason.
+		const named = namedInverseFilterName(rest);
+		if (named) return name(named);
+		//A negated ALTERNATION is bracketed, for the reason describeExpressionNode
+		//states: "not A or B" read left to right is (not A) or B, which is a
+		//different collection. The two functions have to agree, because they name
+		//the same clause on different surfaces.
+		const inner = name(rest);
+		return unionSpellingMembers(rest) || splitCombineMembers(rest) ?
+			`not (${inner})` :
+			`not ${inner}`;
+	}
+	if (head === COMBINE_FILTER_NAME) {
+		const halves = splitCombineMembers(rest);
+		if (!halves) return '';
+		return halves.map(name).join(' or ');
+	}
+	return '';
+};
+
 //("14 days ago") as well-named as the seeded one it replaced.
 export const collectionFilterDisplayName = (
 	filter: string,
@@ -384,6 +431,23 @@ export const collectionFilterDisplayName = (
 ): string => {
 	const known = labels[filter];
 	if (known) return known;
+	//THE THREE BOOLEAN SPELLINGS ARE READ, NOT SHOWN (proposal C §3: "never
+	//exclude, combine, not, or invert as UI nouns").
+	//
+	//Before this branch the generic path below named `tag-2+tag-1` by splitting
+	//the FAMILY on '+' and humanizing each half — "(Tag 2 OR Tag 1)", ignoring
+	//`labels` entirely, so the same clause was "Tagged tag-2 or Tagged tag-1" as
+	//a pill and "(Tag 2 OR Tag 1)" in the snackbar that followed choosing it.
+	//`exclude/tag-1+tag-2` was worse: `exclude` fell through as an ordinary
+	//family name and the flip receipt read "Added Exclude Tag 1 Tag 2".
+	//
+	//Naming a boolean segment is naming its PARTS, so this recurses through
+	//itself — which is what makes the names inside a group the same names the
+	//group's members carry as pills, `labels` and all. The words are the draft
+	//layer's own: lowercase 'or' between alternatives, the app's inverse WORD
+	//for a negation that has one, and 'not X' when it does not.
+	const boolean = booleanSpellingName(filter, labels, cardNames);
+	if (boolean) return boolean;
 	const [family, ...rawValues] = filter.split('/');
 	//AN ANCHORED CLAUSE IS NAMED BY THE CARD IT ANCHORS.
 	//
@@ -412,7 +476,10 @@ export const collectionFilterDisplayName = (
 		const alternatives = decoded(value)
 			.split('+')
 			.map(alternative => FILTER_DISPLAY_NAME_OVERRIDES[alternative] || humanize(alternative));
-		return alternatives.length > 1 ? `(${alternatives.join(' OR ')})` : alternatives[0];
+		//Lowercase 'or', like every other alternation in the app's prose. A
+		//RAW '+' is handled one level up by booleanSpellingName; this arm only
+		//catches a percent-encoded one, and it must not spell it differently.
+		return alternatives.length > 1 ? alternatives.join(' or ') : alternatives[0];
 	};
 	const readableValue = (value: string) => humanize(decoded(value).split('+').join(' '));
 	const values = rawValues.map(decoded);
@@ -471,6 +538,39 @@ export const collectionFilterDescription = (
 //raw in either place.
 export const collectionOptionDisplayName = (value: string): string => humanize(value);
 
+//THE SENTENCE'S TAIL, WRITTEN ONCE.
+//
+//"sorted by Updated" put a title-cased option name in the middle of a lowercase
+//phrase, so the sort read as a proper noun the user was supposed to already
+//know. The tail is prose about the collection, so its words are prose. Two
+//surfaces composed this phrase independently — the sentence renderer's own tail
+//and collectionExpressionParts — which is why one of them could be fixed and
+//the other could not; there is one now.
+const lowercaseOption = (value: string): string => {
+	const name = collectionOptionDisplayName(value);
+	//Only the leading capital humanize() added. A name that is genuinely
+	//upper-case past its first letter (TODO) keeps it.
+	return name.charAt(0).toLowerCase() + name.slice(1);
+};
+
+export const collectionOrderPhrases = (
+	sort: string,
+	sortReversed: boolean,
+	viewMode: string,
+	viewModeExtra: string
+): string[] => {
+	const phrases: string[] = [];
+	if (sort !== 'default' || sortReversed) {
+		phrases.push(`sorted by ${sortReversed ? 'reverse ' : ''}${lowercaseOption(sort)}`);
+	}
+	if (viewMode !== 'list') {
+		let view = `viewed as ${lowercaseOption(viewMode)}`;
+		if (viewModeExtra) view += ` (${collectionOptionDisplayName(viewModeExtra)})`;
+		phrases.push(view);
+	}
+	return phrases;
+};
+
 //The names the live corpus knows for its own filters. One place decides that a
 //candidate's clause label wins over its longer, search-oriented label.
 export const collectionFilterLabels = (
@@ -509,6 +609,16 @@ const ACTION_VERBS: Record<CollectionComposerSuggestion['action'], string> = {
 
 const verbLabel = (action: CollectionComposerSuggestion['action'], name: string): string =>
 	`${ACTION_VERBS[action]} ${name}`;
+
+//EXPORTED for the palette's zero-card recovery. A draft that matches nothing
+//needs the per-clause removals back — with their counts — and re-deriving
+//"remove clause N, named" beside the generator that already does it is how the
+//recovery list and the Refine list would come to name the same clause two ways.
+export const collectionComposerRemovalSuggestions = (
+	current: CollectionDescription,
+	filterLabels: Record<string, string> = {},
+	cardNames: Record<string, string> = {}
+): CollectionComposerSuggestion[] => removalSuggestions(current, filterLabels, cardNames);
 
 const removalSuggestions = (
 	current: CollectionDescription,
@@ -982,6 +1092,23 @@ export const collectionComposerSuggestions = (
 	return dedupedByDestination(result, current).slice(0, 8);
 };
 
+//THE COLLECTION, AS ONE LINE OF PROSE — and it is the SAME line the sentence
+//renderer draws on screen, word for word.
+//
+//The clauses used to be joined with ' AND ', which is the one register the
+//composer promises never to use outside Source: the drawer's own sentence says
+//"Main · Tagged tag-1", the commit snackbar said "Main AND (Tag 2 OR Tag 1)",
+//and a user comparing the two had no way to know they named the same
+//collection. The interpunct is what the sentence already uses for the same
+//conjunction, and it cannot be confused with the lowercase 'or' inside a group
+//the way a second English conjunction would be ("Main and Tagged tag-2 or
+//Tagged tag-1" has two readings; "Main · Tagged tag-2 or Tagged tag-1" has
+//one).
+//
+//The clause NAMES come from collectionFilterDisplayName, which now reads the
+//boolean spellings too, so every surface that renders an expression as text —
+//this, the receipts, the snackbar, the zero-card empty state, the aria strings
+//— gets one spelling of one clause.
 export const readableCollectionExpression = (
 	description: CollectionDescription,
 	filterLabels: Record<string, string> = {},
@@ -990,9 +1117,7 @@ export const readableCollectionExpression = (
 	const parts = collectionExpressionParts(description, filterLabels, cardNames);
 	const clauses = [parts.set.label];
 	clauses.push(...parts.filters.map(filter => filter.label));
-	let result = clauses.join(' AND ');
-	if (parts.modifiers.length) result += ` · ${parts.modifiers.join(' · ')}`;
-	return result;
+	return [...clauses, ...parts.modifiers].join(' · ');
 };
 
 export type CollectionExpressionParts = {
@@ -1015,15 +1140,12 @@ export const collectionExpressionParts = (
 	filterLabels: Record<string, string> = {},
 	cardNames: Record<string, string> = {}
 ): CollectionExpressionParts => {
-	const modifiers: string[] = [];
-	if (description.sort !== 'default' || description.sortReversed) {
-		modifiers.push(`sorted by ${description.sortReversed ? 'reverse ' : ''}${collectionOptionDisplayName(description.sort)}`);
-	}
-	if (description.viewMode !== 'list') {
-		let view = `viewed as ${collectionOptionDisplayName(description.viewMode)}`;
-		if (description.viewModeExtra) view += ` (${collectionOptionDisplayName(description.viewModeExtra)})`;
-		modifiers.push(view);
-	}
+	const modifiers = collectionOrderPhrases(
+		description.sort,
+		description.sortReversed,
+		description.viewMode,
+		description.viewModeExtra
+	);
 	return {
 		set: {raw: description.set, label: collectionOptionDisplayName(description.set)},
 		filters: description.filters.map((raw, index) => ({raw, index, label: collectionFilterDisplayName(raw, filterLabels, cardNames), explanation: collectionFilterExplanation(raw), viewerDependent: filterNameIsViewerDependent(raw)})),

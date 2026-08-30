@@ -340,6 +340,25 @@ describe('Collection expression boolean draft layer', () => {
 			assert.strictEqual(described.child.label, 'Text contains “zebra”');
 		});
 
+		//A NEGATED ALTERNATION NEEDS ITS BRACKETS BACK. On screen the group's own
+		//border settles the precedence; in a STRING — an aria-label, the pill
+		//row's scope, a snackbar — there is no border, and "not A or B" read left
+		//to right says (not A) or B, which is a different collection.
+		it('brackets a negated group so the string has only one reading', () => {
+			const described = expression.describeExpressionNode(
+				{kind: 'not', child: {kind: 'or', members: [
+					{kind: 'filter', filter: 'tag-1'},
+					{kind: 'filter', filter: 'tag-2'},
+				]}},
+				{'tag-1': 'Tagged tag-1', 'tag-2': 'Tagged tag-2'}
+			);
+			assert.strictEqual(described.label, 'not (Tagged tag-1 or Tagged tag-2)');
+			//A negated single clause needs no brackets, and does not get them.
+			assert.strictEqual(
+				expression.describeExpressionNode({kind: 'not', child: {kind: 'filter', filter: 'tag-1'}}, {'tag-1': 'Tagged tag-1'}).label,
+				'not Tagged tag-1');
+		});
+
 		it('does NOT mark a named inverse as negated — it is a word, not an operator', () => {
 			const described = expression.describeExpressionNode(
 				{kind: 'filter', filter: 'unpublished'},

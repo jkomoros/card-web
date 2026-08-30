@@ -59,6 +59,7 @@ import {
 	collectionFilterDisplayName,
 	collectionFilterLabels,
 	collectionOptionDisplayName,
+	readableCollectionExpression,
 } from './collection-composer-suggestions.js';
 
 import {
@@ -66,9 +67,15 @@ import {
 } from './collection-filter-synonyms.js';
 
 import {
+	parseCollectionSource,
+} from './collection-source.js';
+
+import {
+	CARD_FILTER_DESCRIPTIONS,
 	CONFIGURABLE_FILTER_INFO,
 	SORTS,
 	filterNameIsViewerDependent,
+	filterNamesAreViewerDependent,
 } from './filters.js';
 
 import {
@@ -96,6 +103,12 @@ export type CompletionCandidateKind =
 	| 'filter-family'
 	| 'value'
 	| 'recent'
+	//A COLLECTION URL OR PATH THE PARSER ACCEPTED. A URL is a feature of this
+	//product — every collection is one — so pasting one into the composer and
+	//being told `Text contains “http://…”` is the palette failing at the one
+	//interpretation it should be surest about. The parser is already imported
+	//here for nothing else; this is it answering.
+	| 'source'
 	| 'set'
 	| 'sort'
 	| 'view';
@@ -136,6 +149,10 @@ const TIER_SCORES : Record<CompletionMatchTier, number> = {
 const KIND_STEP = 20;
 
 const KIND_RANK : Record<CompletionCandidateKind, number> = {
+	//A pasted source is not a guess about what the user meant: they handed the
+	//app a collection, spelled the way the app spells collections. Nothing
+	//outranks it.
+	'source': 0,
 	'recent': 0,
 	'value': 1,
 	'filter': 2,
@@ -144,6 +161,18 @@ const KIND_RANK : Record<CompletionCandidateKind, number> = {
 	'sort': 5,
 	'view': 6,
 };
+
+//HOW MANY RECENTS A TYPED LIST MAY LEAD WITH WHEN THE MATCH IS WEAK.
+//
+//Recents rank first among equals, which is right for a token that genuinely
+//names one. It is wrong for a generic token: 'a' or 'tag' matches every recent
+//whose detail happens to contain the word, and three destinations — some of
+//them zero-card junk — then sit above the first actual interpretation of what
+//was typed. A name-tier match is evidence the user meant that collection; an
+//alias, description or fuzzy match is not, and one such row is the whole budget.
+const WEAK_MATCH_RECENT_LIMIT = 1;
+
+const NAME_TIERS : ReadonlySet<CompletionMatchTier> = new Set<CompletionMatchTier>(['name-exact', 'name-prefix']);
 
 export type CompletionValenceKind = 'add' | 'or' | 'not';
 
@@ -157,6 +186,17 @@ export type CompletionValence = {
 	kind : CompletionValenceKind;
 	//The row's own sentence, in the composer's voice.
 	label : string;
+	//WHAT THIS ROW KEEPS, when that is not what the CANDIDATE keeps.
+	//
+	//Every valence used to inherit the candidate's one description, so the
+	//negated row read "not Tagged tag-2 — Keeps cards tagged tag-2": a row whose
+	//name and whose explanation say opposite things, on the surface whose whole
+	//job is to teach what a clause does. A negation describes a different
+	//collection, so it gets a different sentence — the app's own authored one
+	//when the flipped clause has a name of its own, and an honest derived
+	//negative when it does not. '' means "the candidate's own line is right for
+	//this row", which is true of `add` and of `or`.
+	detail? : string;
 	//The expression this row would produce, whole.
 	expression : CollectionExpression;
 	//For 'or' only: WHICH condition it widens. Proposal B §3.1 requires the row
@@ -192,11 +232,14 @@ export type CompletionCandidate = {
 	filter? : string;
 	//Present for the clause kinds: the node the valences build on.
 	node? : FilterExpressionNode;
-	//Present for the destination kinds ('recent') and the sentence-word kinds
-	//('set'/'sort'/'view'): the description this candidate would produce. These
-	//are not expression edits — a set is not a condition — so they carry a
+	//Present for the destination kinds ('recent'/'source') and the sentence-word
+	//kinds ('set'/'sort'/'view'): the description this candidate would produce.
+	//These are not expression edits — a set is not a condition — so they carry a
 	//description instead of valences.
 	description? : CollectionDescription;
+	//A destination that carries its own path, because the path says more than
+	//the description does: a pasted source may name a selected card.
+	destinationPath? : string;
 	//Empty for the non-clause kinds.
 	valences : CompletionValence[];
 	//True when this clause's membership is computed from the signed-in account.
@@ -441,6 +484,30 @@ const valenceRank = (kind : CompletionValenceKind, compatible : boolean, negated
 	return compatible ? VALENCE_RANKS.orCompatible : VALENCE_RANKS.orIncompatible;
 };
 
+//WHAT A NEGATED CLAUSE KEEPS, said as a negation.
+//
+//The honest authored sentence comes first: `unpublished` has one of its own in
+//the synonyms module ("Cards you have not published yet…"), and a filter family
+//that grows a named inverse gets its curated negative here for free. Only a
+//negation the app has no word for falls through to the derived sentence, which
+//is deliberately the same phrasing collectionFilterDescription already
+//synthesizes for the excluding half of a named pair — one spelling of "the
+//other half of this", not a second one invented here.
+const negatedClauseDescription = (
+	negatedNode : FilterExpressionNode,
+	positiveName : string,
+	filterDescriptions : Readonly<Record<string, string>>,
+	labels : Record<string, string>,
+	cardNames : Record<string, string>
+) : string => {
+	if (negatedNode.kind === 'filter') {
+		const authored = collectionFilterDescription(negatedNode.filter, filterDescriptions, labels);
+		if (authored) return authored;
+	}
+	void cardNames;
+	return `Cards not matching ${positiveName}`;
+};
+
 //completionValences is D2 whole: given the clause a candidate would insert and
 //the sentence as it stands, the rows that clause could become.
 //
@@ -458,11 +525,13 @@ export const completionValences = (
 		labels? : Record<string, string>,
 		cardNames? : Record<string, string>,
 		candidates? : readonly CollectionComposerCandidate[],
+		filterDescriptions? : Readonly<Record<string, string>>,
 	}
 ) : CompletionValence[] => {
 	const labels = options.labels || {};
 	const cardNames = options.cardNames || {};
 	const candidates = options.candidates || [];
+	const filterDescriptions = options.filterDescriptions || {};
 	const negated = Boolean(options.negated);
 	const name = describeExpressionNode(node, labels, cardNames).label;
 	const nodeFamily = valueFamilyForNode(node, candidates);
@@ -492,18 +561,43 @@ export const completionValences = (
 		});
 	}
 
-	const negatedNode = negatedExpressionNode(node);
-	valences.push({
-		id: `${options.idPrefix}:not`,
-		kind: 'not',
-		//The app's own word when it has one — flipping `published` produces a
-		//pill that reads `unpublished`, not `not published` (meta-proposal
-		//convergence 2). describeExpressionNode already knows the difference, so
-		//the row promises exactly the pill the flip will make.
-		label: describeExpressionNode(negatedNode, labels, cardNames).label,
-		expression: withConditionAppended(expression, negatedNode),
-		rank: valenceRank('not', true, negated),
+	//THE NOT-ROW IS ASKED FOR, NOT ISSUED WITH EVERY CANDIDATE.
+	//
+	//It used to be unconditional, which doubled the list for every token: typing
+	//'published' produced Published, Unpublished, Unpublished and Published,
+	//four rows for two collections, with the two negative ones carrying the
+	//positive one's description. The design's own rule (proposal B §3.1) is
+	//narrower and was never implemented: "`–` ranked below unless the token
+	//starts with not/-", and the meta-proposal's Graft 1 scopes the whole
+	//valence graft to "when a typed token is family-compatible with an existing
+	//pill".
+	//
+	//So the negation appears when it has been ASKED for — the typed token led
+	//with a negation prefix — or when the sentence already contains a clause of
+	//the same family, which is the state where "…but not this one" is a sentence
+	//somebody is plausibly in the middle of writing. Everywhere else negation is
+	//still one gesture away: add the clause and press Flip (the pill row's own
+	//verb, which promises the resulting word before you commit), or reach it by
+	//name in Browse all.
+	const familyCompatibleConditionPresent = expression.some(condition => {
+		const family = valueFamilyForNode(condition, candidates);
+		return family !== 'mixed' && family !== 'manual' && family === nodeFamily;
 	});
+	if (negated || familyCompatibleConditionPresent) {
+		const negatedNode = negatedExpressionNode(node);
+		valences.push({
+			id: `${options.idPrefix}:not`,
+			kind: 'not',
+			//The app's own word when it has one — flipping `published` produces a
+			//pill that reads `unpublished`, not `not published` (meta-proposal
+			//convergence 2). describeExpressionNode already knows the difference, so
+			//the row promises exactly the pill the flip will make.
+			label: describeExpressionNode(negatedNode, labels, cardNames).label,
+			detail: negatedClauseDescription(negatedNode, name, filterDescriptions, labels, cardNames),
+			expression: withConditionAppended(expression, negatedNode),
+			rank: valenceRank('not', true, negated),
+		});
+	}
 
 	for (const [index, condition] of expression.entries()) {
 		//A manual condition is text this layer refused to model. Growing an OR
@@ -531,7 +625,19 @@ export const completionValences = (
 		});
 	}
 
-	return valences.sort((left, right) => left.rank - right.rank || left.id.localeCompare(right.id));
+	//THE NO-OP GUARD, EXTENDED FROM ONE NODE TO THE WHOLE EXPRESSION.
+	//
+	//The guards above are node-level: they refuse an `add` of a condition
+	//already present and an `or` with a member the group already has. Both are
+	//special cases of the same rule — a row whose result is the collection you
+	//are already composing is a promise with nothing behind it — and stating the
+	//rule on the RESULT catches the cases the special cases do not, including
+	//the normalizations the compiler performs on the way out (a group that
+	//re-spells to what it already was, a double negation that cancels).
+	const before = serializeCollectionExpression(expression).join('\n');
+	return valences
+		.filter(valence => serializeCollectionExpression(valence.expression).join('\n') !== before)
+		.sort((left, right) => left.rank - right.rank || left.id.localeCompare(right.id));
 };
 
 //--- The entry point -------------------------------------------------------
@@ -602,6 +708,52 @@ const FREE_TEXT_MINIMUM_LENGTH = 2;
 //clause cannot drift.
 const FREE_TEXT_DETAIL = 'Keeps cards whose text matches this query, including cards matching only some of its words';
 
+//A URL IS A FEATURE OF THIS PRODUCT, so pasting one is a first-class gesture.
+//
+//Every collection in this app IS a URL; the composer's own footer prints the
+//one the draft would open. A user who copies that line out of one window and
+//pastes it into another was given `Text contains “/c/main/starred/”` — the
+//literal reading, offered because nothing else claimed the token. The parser
+//that would have recognized it is already a dependency of this module's own
+//suggestion path, so this is not new machinery, only a call.
+//
+//ONE row, not a list of interpretations: a source either parses into a
+//collection or it does not, and when it does there is exactly one collection it
+//names. A source the parser calls incomplete or invalid produces nothing at
+//all, and the free-text reading below is then the honest answer.
+const SOURCE_SHAPED = /\/|^https?:/i;
+
+const pastedCollectionSource = (
+	rawToken : string,
+	context : CollectionCompletionContext,
+	filterDescriptions : Readonly<Record<string, string>>
+) : CompletionCandidate | null => {
+	const query = rawToken.trim();
+	if (!query || !SOURCE_SHAPED.test(query)) return null;
+	const parsed = parseCollectionSource(query, {
+		ordinaryFilters: new Set([...Object.keys(CARD_FILTER_DESCRIPTIONS), ...Object.keys(filterDescriptions)]),
+		preservedSelectedCard: context.preservedSelectedCard,
+		allowedOrigins: context.sourceAllowedOrigins,
+	});
+	if (!parsed.description || !parsed.canonicalPath) return null;
+	const labels = collectionFilterLabels(context.candidates || []);
+	const cardNames = context.cardNames || {};
+	return {
+		id: `source:${parsed.description.serialize()}`,
+		kind: 'source',
+		label: readableCollectionExpression(parsed.description, labels, cardNames),
+		detail: 'Opens the collection this link names',
+		tier: 'name-exact',
+		score: TIER_SCORES['name-exact'] + KIND_RANK['source'] * KIND_STEP,
+		matchedOn: query,
+		description: parsed.description,
+		destinationPath: parsed.canonicalPath,
+		//A destination, not an edit — the same rule a recent follows.
+		valences: [],
+		viewerDependent: filterNamesAreViewerDependent(parsed.description.filters),
+	};
+};
+
 export type CollectionCompletionOptions = {
 	//What the user typed, verbatim. Negation prefixes are stripped here, not by
 	//the caller, so every consumer strips them the same way.
@@ -661,17 +813,40 @@ export const collectionCompletionCandidates = (
 				labels,
 				cardNames,
 				candidates,
+				filterDescriptions,
 			}),
 			viewerDependent: filterNameIsViewerDependent(filter),
 		});
 	};
 
+	//A PASTED COLLECTION IS AN ANSWER, NOT A GUESS. Offered first because it is
+	//the only interpretation the app can be certain of: the user handed it a
+	//collection written in the app's own URL grammar, and the parser accepted
+	//it. Without this the palette read a pasted link as free text and offered
+	//`Text contains “http://…”`.
+	const pastedSource = pastedCollectionSource(options.token, context, filterDescriptions);
+	if (pastedSource && !seen.has(pastedSource.id)) {
+		seen.add(pastedSource.id);
+		results.push(pastedSource);
+	}
+
 	//RECENTS FIRST, as content rather than as a section. They are built by the
 	//existing recents generator, so a recent row here and a recent row in the
 	//idle list are the same row with the same id, name and dedupe.
+	//
+	//WEAK MATCHES ARE CAPPED. See WEAK_MATCH_RECENT_LIMIT: a name-tier match is
+	//evidence the user meant that collection and every one of those is offered;
+	//a generic token that merely appears in three recents' detail lines is not,
+	//and it must not push the first real interpretation of what was typed below
+	//the fold.
+	let weakRecents = 0;
 	for (const recent of collectionComposerRecentSuggestions(options.description, context)) {
 		const match = matchTier(token, recent.name, [], [recent.detail]);
 		if (!match) continue;
+		if (!NAME_TIERS.has(match.tier)) {
+			if (weakRecents >= WEAK_MATCH_RECENT_LIMIT) continue;
+			weakRecents++;
+		}
 		if (seen.has(recent.id)) continue;
 		seen.add(recent.id);
 		results.push({

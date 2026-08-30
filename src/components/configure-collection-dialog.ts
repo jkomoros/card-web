@@ -30,7 +30,7 @@ import {
 	selectTagInfosForCards,
 	selectSnapshotCollectionDescription,
 	selectActiveCollectionDescription,
-	selectTags,
+	selectCollectionClauseTagInfos,
 	selectCardsSelected,
 	selectUid,
 	selectActiveCardID,
@@ -146,6 +146,7 @@ import {
 	CollectionComposerCandidate,
 	activeCardMetadataCandidates,
 	activeCardRelationshipCandidates,
+	collectionComposerRemovalSuggestions,
 	collectionExpressionParts,
 	collectionFilterDisplayName,
 	collectionFilterLabels,
@@ -233,6 +234,7 @@ import {
 	paletteIdleRows,
 	paletteOrScopedRows,
 	paletteOrderKey,
+	paletteRecoveryRows,
 	paletteTypingRows,
 	paletteWordRows,
 	PaletteWordScope,
@@ -708,6 +710,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_clauseSelectionMessage = '';
 
+	//Whether the FIRST Backspace has selected a clause and the second one would
+	//remove it. The two-step is the whole reason Backspace is safe on an empty
+	//input, and a contract nobody can see is not a contract — see
+	//_backspaceArmedMessage, which the key-hints line renders while this is set.
+	@state()
+		_backspaceArmed = false;
+
 	//The order the list was last ranked in, keyed by the identity of the rows it
 	//ranked. Deliberately not @state: it is a memo of a render, not an input to
 	//one.
@@ -904,10 +913,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				border-left: 3px solid var(--app-divider-color);
 				color: var(--app-dark-text-color-darker);
 				display: flex;
+				/* THE UNDO MUST SURVIVE A LONG RECEIPT. A structural receipt
+				   names a whole clause ("Flipped Tagged tag-1 or Tagged tag-2 to
+				   keep only cards matching none of it"), and on a narrow screen
+				   the flex row squeezed the button that undoes it down to
+				   "Und" — a control clipped at exactly the moment it is most
+				   wanted. The row wraps, and the button keeps its own width. */
+				flex-wrap: wrap;
 				font-size: 0.82em;
 				gap: 0.5em;
 				margin: 0.4em 0;
 				padding: 0.3em 0.6em;
+			}
+
+			.draft-receipt span {
+				flex: 1 1 12em;
+				min-width: 0;
+			}
+
+			.draft-receipt button {
+				flex: 0 0 auto;
 			}
 
 			/* THE COMPOSER'S TEXT VERB — one rule, replacing three near-identical
@@ -1101,6 +1126,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.75em;
 				grid-area: widens;
+			}
+
+			/* The mark on the option already in force. Subordinate, like every
+			   other annotation on a row: it says which one you are in, it does
+			   not compete with the names of the ones you could move to. */
+			.row-current {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.82em;
 			}
 
 			.row-detail,
@@ -1812,6 +1845,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					.cardNames=${this._composerCardNames}
 					.filterDescriptions=${this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS}
 					.interactive=${true}
+					.mobile=${this.mobile}
 					.selectedPath=${this._selectedPath}
 					@condition-selected=${this._handleTokenSelected}
 					@member-selected=${this._handleTokenSelected}
@@ -1946,12 +1980,87 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			description
 		);
 		if (this._composerInput.trim()) {
-			return paletteTypingRows(
+			//THE CAP RUNS BEFORE THE COUNT-RANKING, so a row that merely SANK
+			//cannot fall off the end. The cap belongs to the engine's own
+			//ranking — it drops what the engine ranked last — and the
+			//count-ranking only reorders what is already on screen. The other way
+			//round, sinking a zero-count row and then slicing deleted it, which
+			//is precisely the "do NOT hide; the count is the honest warning" the
+			//rule exists to keep.
+			const typed = this._rankedTypedRows(this._withoutNoOpWidenRows(paletteTypingRows(
 				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
 				description
-			).slice(0, TYPING_ROW_LIMIT);
+			)).slice(0, TYPING_ROW_LIMIT));
+			return [...typed, ...this._recoveryRows()];
 		}
-		return this._idleRows(description, context);
+		return [...this._idleRows(description, context), ...this._recoveryRows()];
+	}
+
+	//A DRAFT THAT MATCHES NOTHING IS OFFERED ITS CLAUSES BACK.
+	//
+	//An empty draft is valid, and the footer says so — but a note is not a
+	//recovery. The question the user has is "which of these emptied it?", and it
+	//is answered by the per-clause removals with their counts beside them: the
+	//one whose removal brings the collection back is visible at a glance. The
+	//rows come from the same generator the Refine list uses (removals are
+	//filtered OUT of that list, because "undo the thing you just chose" is not a
+	//refinement), so a removal row here and pressing Remove on the pill compile
+	//the same edit.
+	//
+	//Only at a RESOLVED zero. `undefined` means the count has not arrived, which
+	//is a different fact, and a recovery section for a collection nobody has
+	//counted yet would flicker in on every keystroke.
+	_recoveryRows() : PaletteRow[] {
+		if (this._browseOpen || this._wordScope || this._orTarget) return [];
+		if (!this._collectionDescription || !this._collectionDescription.filters.length) return [];
+		if (this._countForDescription(this._collectionDescription) !== 0) return [];
+		return paletteRecoveryRows(collectionComposerRemovalSuggestions(
+			this._collectionDescription,
+			this._composerFilterLabels,
+			this._composerCardNames
+		));
+	}
+
+	//A WIDENING THAT WIDENS NOTHING IS NOT A WIDENING.
+	//
+	//The completion index already refuses the STRUCTURAL no-ops — an `or` with a
+	//member the group already has, and any edit whose expression compiles back
+	//to what it started as. It cannot see the other kind: `…or tag-10 ·
+	//158 → 158` is a row whose alternative happens to be a subset of what the
+	//group already keeps, which only the corpus knows. Offered, it is a
+	//consequence row promising a consequence it does not deliver.
+	//
+	//Counts come from the retained map, keyed by COLLECTION, exactly as the idle
+	//list's own contradictory-refinement suppression does — suppressing a row on
+	//a count that then stops being requested BECAUSE the row is gone is an
+	//oscillation, not a suppression.
+	//
+	//Only `or`. A zero-count ADD is never suppressed: the count is the honest
+	//warning, and hiding the filter somebody just named is the worse defect.
+	_withoutNoOpWidenRows(rows : PaletteRow[]) : PaletteRow[] {
+		const draftCount = this._countForDescription(this._collectionDescription);
+		if (draftCount === undefined) return rows;
+		return rows.filter(row => row.valenceKind !== 'or' || this._countForDescription(row.description) !== draftCount);
+	}
+
+	//ZERO SINKS, AND IT SINKS RATHER THAN DISAPPEARING.
+	//
+	//A typed list is interpretations of what the user wrote, so none of them may
+	//be hidden — a row reading `→ 0 cards` is the honest warning that the clause
+	//they named selects nothing, and it is more useful than its absence. What it
+	//must not do is LEAD: with a generic token the first rows were recents that
+	//resolve to nothing, sitting above the first real reading of the token.
+	//
+	//Stable within each group, so the engine's own ranking survives intact for
+	//every row whose count is unknown or non-zero. The idle list has had this
+	//rule since the old build (rankedComposerSuggestions); this is the same rule
+	//for the list that replaced it.
+	_rankedTypedRows(rows : PaletteRow[]) : PaletteRow[] {
+		const empty = (row : PaletteRow) => this._countForDescription(row.description) === 0 ? 1 : 0;
+		return rows
+			.map((row, index) => ({row, index}))
+			.sort((left, right) => empty(left.row) - empty(right.row) || left.index - right.index)
+			.map(({row}) => row);
 	}
 
 	//RECENTS AND AT MOST THREE, and the cap is the completion index's own — the
@@ -2098,7 +2207,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					role='option'
 					tabindex='-1'
 					aria-selected=${highlighted}
-					aria-label=${`${row.label}. ${row.detail}${countText ? `. ${countText}` : ''}`}
+					aria-label=${`${row.label}${row.current ? ', current' : ''}. ${row.detail}${countText ? `. ${countText}` : ''}`}
+					aria-pressed=${ifDefined(row.current === undefined ? undefined : String(row.current))}
 					data-index=${index}
 					data-row-id=${row.id}
 					data-filter=${ifDefined(row.filter)}
@@ -2108,7 +2218,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@mouseenter=${() => this._handleRowPointerEnter('palette', index)}
 					@click=${() => this._activateRow(row, row.navigates)}
 				>
-					<span class='row-label'>${this._rowLabelRender(row)}</span>
+					<!-- THE OPTION ALREADY IN FORCE SAYS SO. A check and the word,
+					     not a colour: the highlight is already the list's only fill
+					     and a second one would be two things reading as chosen. The
+					     accessible name carries it too (aria-pressed above), because
+					     a glyph is not a state a screen reader can infer. -->
+					<span class='row-label'>${this._rowLabelRender(row)}${row.current ? html`<span class='row-current'> ✓ current</span>` : ''}</span>
 					<!-- WHAT AN "OR" WIDENS, named. The label already reads
 					     "<target> or <new>"; this says which half of it was
 					     already in the sentence, which is the fact that makes the
@@ -2305,9 +2420,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (this._orTarget) return `Type an alternative · Tab widens the clause · ${shortcutKeys('dialog-escape')} goes back to the pill`;
 		//THE PILL ROW OWNS THE PILL'S KEYS while a pill is selected, and the
 		//line names them from the module that performs them.
+		//
+		//THE ARMED BACKSPACE LEADS THE LINE. The first Backspace on an empty
+		//input SELECTS rather than removing, and the sentence promising that used
+		//to exist only inside the visually-hidden live region — stated to screen
+		//readers and to nobody else, while the sighted user got a pill row
+		//opening under the sentence and no word about the keystroke now armed.
+		//It is prepended rather than substituted because the row's other keys are
+		//still live and the footer's job is to state the contract in force, all
+		//of it.
 		if (this._pillRowOpen) {
 			const keys = PILL_ROW_KEY_HINTS.map(hint => `${hint.key} ${hint.means}`).join(' · ');
-			return `←→ choose clause · ${keys} · ${shortcutKeys('dialog-escape')} closes the row`;
+			const armed = this._backspaceArmed ? `${this._backspaceArmedMessage} · ` : '';
+			return `${armed}←→ choose clause · ${keys} · ${shortcutKeys('dialog-escape')} closes the row`;
 		}
 		if (!highlighted) {
 			return rows.length ?
@@ -2884,6 +3009,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//under it, survive.
 		if (!this._orTarget) {
 			this._selectedPath = [];
+			this._backspaceArmed = false;
 			this._clauseSelectionMessage = '';
 			this._wordScope = '';
 		}
@@ -2974,6 +3100,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const expression = this._draftExpression;
 		const path = this._selectedPath;
 		const memberIndex = this._selectedMemberIndex;
+		//The latch survives exactly one keystroke: the Backspace that armed it.
+		//Anything else — an arrow, a flip, a character — is the user doing
+		//something other than confirming, and the promise stops being in force.
+		if (e.key !== 'Backspace') this._backspaceArmed = false;
 		switch (e.key) {
 		case 'Backspace':
 			e.preventDefault();
@@ -2984,7 +3114,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			//unrecoverable edit out of a key people press without looking.
 			if (!path.length) {
 				this._selectToken([expression.length - 1]);
-				this._clauseSelectionMessage = `${this._selectedTokenLabel} selected · Backspace again to remove`;
+				//THE PROMISE IS MADE WHERE IT CAN BE READ. This sentence used to
+				//exist only inside the visually-hidden live region, so a sighted
+				//user got a pill row opening under the sentence and no word about
+				//the second keystroke that was now armed — the contract was stated
+				//to screen readers and to nobody else. The latch below puts the
+				//same sentence on the key-hints line, which is where this dialog
+				//states every other contract that is in force.
+				this._backspaceArmed = true;
+				this._clauseSelectionMessage = this._backspaceArmedMessage;
 				return true;
 			}
 			this._removeSelectedToken();
@@ -3069,6 +3207,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//disagree — which they did, in the list this replaces, for the whole life of
 	//the catalog's verb chips.
 	_activateRow(row : PaletteRow, open : boolean) {
+		//THE OPTION ALREADY IN FORCE IS NOT AN EDIT. It is in the list so the
+		//list can answer "which one is it now?"; choosing it means "this one",
+		//which is where the draft already is. Committing it would push an
+		//identical description through the draft history and leave a receipt
+		//saying something changed.
+		if (row.current) {
+			this._wordScope = '';
+			this._composerInput = '';
+			this._highlightedRow = 0;
+			this._rowHighlightActive = false;
+			this._focusComposerInputSoon();
+			return;
+		}
 		//A clause this layer will not compose. Source is the honest offer, and
 		//the family is spliced into the text so the user lands where the clause
 		//would go rather than at the end of a path.
@@ -3237,6 +3388,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			withMemberRemoved(this._draftExpression, path[0], memberIndex));
 	}
 
+	//ONE SENTENCE, TWO AUDIENCES. The live region announces it and the key-hints
+	//line prints it, from one string, so the promise a screen reader hears and
+	//the promise the screen makes are the same promise.
+	get _backspaceArmedMessage() : string {
+		return `${this._selectedTokenLabel} selected · Backspace again to remove`;
+	}
+
 	get _selectedTokenLabel() : string {
 		if (!this._selectedPath.length) return '';
 		return this._readableComposerFilter(pillRowSpellingFor(this._draftExpression, this._selectedPath[0], this._selectedMemberIndex));
@@ -3252,6 +3410,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._selectedPath = path;
 		this._orTarget = null;
 		this._rowHighlightActive = false;
+		this._backspaceArmed = false;
 		this._clauseSelectionMessage = path.length ? `${this._selectedTokenLabel} selected` : '';
 	}
 
@@ -3269,6 +3428,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_clearSelection() {
 		this._selectedPath = [];
 		this._orTarget = null;
+		this._backspaceArmed = false;
 		this._clauseSelectionMessage = '';
 	}
 
@@ -3380,6 +3540,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//Enter commits the draft they just composed.
 		this._rowHighlightActive = false;
 		this._pointerHighlightArmed = false;
+		this._backspaceArmed = false;
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
 		if (focusInput) this._focusComposerInputSoon();
@@ -3519,6 +3680,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					//Escapes they have pressed.
 					if (this._orTarget) {
 						this._orTarget = null;
+						//THE TYPED TEXT WAS SCOPED TO THE OR, so it leaves with the
+						//scope. Kept, the same characters silently change meaning:
+						//"tag-2" was an ALTERNATIVE to the clause the row named, and
+						//the moment the scope closes the list re-reads it as a new
+						//AND condition — a different collection, offered under text
+						//the user typed to mean something else. Escape peels a layer;
+						//it must not leave a changed reading behind.
+						this._composerInput = '';
+						this._highlightedRow = 0;
+						this._rowHighlightActive = false;
 						this._focusComposerInputSoon();
 						return true;
 					}
@@ -3661,6 +3832,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//that now has one condition would open the pill row on nothing —
 				//or worse, on some other clause that happens to sit there.
 				this._selectedPath = this._validRequestedSelection;
+				this._backspaceArmed = false;
 				this._draftReceiptMessage = '';
 				//The announcement follows the selection, including when there is
 				//none: focus lands in the input either way, so the only thing
@@ -3857,7 +4029,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
 		this._userInfos = selectAuthorsForTagList(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
-		this._tagInfos = selectTags(state);
+		this._tagInfos = selectCollectionClauseTagInfos(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._userScope = selectUid(state);
 		this._activeCardID = selectActiveCardID(state);

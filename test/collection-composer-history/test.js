@@ -305,6 +305,38 @@ describe('Collection Composer history', () => {
 		);
 	});
 
+	//THE SECOND POISONING, AND IT SURVIVES THE FIRST GUARD.
+	//
+	//`/c/<cardid>` names a card and NO collection, so the router substitutes one
+	//— the card's own section. That collection is a fallback the user never
+	//named, and where a section id collides with a set name it is not even
+	//reachable: `main/main/` reads back as "Main · Main", resolves to nothing,
+	//and passes every existing guard (it is not the `none` placeholder, `main`
+	//is a perfectly known filter name, and the arrival raises no diagnostics).
+	//The live critique hit it by removing an or-member in the drawer: the card
+	//was stranded, the router self-navigated to `/c/<cardid>`, and the 0-card
+	//substitute was recorded and later ranked at the top of the recents list.
+	it('never records a collection the router substituted for a bare card URL', () => {
+		const real = CollectionDescription.deserialize('everything/starred/');
+		recordRecentCollection(real, 'alex', 100);
+		//The shape resolveCardSelector produces for `/c/<cardid>` where the card
+		//sits in a section that happens to be called `main`.
+		recordRecentCollection(CollectionDescription.deserialize('main/main/'), 'alex', 200, {substituted: true});
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			[real.serialize()],
+			'a collection nobody named is not a place anybody can be sent back to'
+		);
+		//And the SAME collection, reached by a URL that actually named it, is a
+		//real destination. The guard is about how the description was arrived at,
+		//not about what it says.
+		recordRecentCollection(CollectionDescription.deserialize('main/main/'), 'alex', 300);
+		assert.deepStrictEqual(
+			readRecentCollections('alex').map((entry) => entry.canonical),
+			['main/main/', real.serialize()]
+		);
+	});
+
 	//The guard lives on the module rather than on the one call site, so every
 	//future caller inherits it — and it runs on READ as well, so a list poisoned
 	//before it existed heals the next time it is opened.

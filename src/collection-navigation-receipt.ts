@@ -83,7 +83,10 @@ export const showCollectionNavigationReceipt = (returnPath : string, expression 
 	recordCollectionNavigationReceipt(returnPath);
 	//Hoisted rather than inlined: the copy-quality scanner reads the message
 	//literal, and a nested template ends its parse early.
-	const countSuffix = count === undefined ? '' : ` · ${formatCollectionCardCount(count)}`;
+	//An em dash, not an interpunct: the interpunct is what joins the CLAUSES
+	//inside `expression` now, and "Now showing Main · Tagged tag-1 · 158 cards"
+	//offers the count as a fourth clause of the collection.
+	const countSuffix = count === undefined ? '' : ` — ${formatCollectionCardCount(count)}`;
 	store.dispatch(showSnackbar(
 		`Now showing ${expression}${countSuffix}.`,
 		{

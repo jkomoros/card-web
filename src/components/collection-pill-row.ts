@@ -103,6 +103,28 @@ export const PILL_ROW_KEY_HINTS : readonly {key : string, means : string}[] = [
 //affordance, one level down.
 const REFUSED_CONTROL_TYPES : ReadonlySet<string> = new Set(['sub-filter', 'expand-filter']);
 
+//THE ARGUMENT'S NAME, IN THE COMPOSER'S VOICE.
+//
+//A configurable filter's `description` was written for the filter registry, and
+//it shows: 'Date Range' is Title Case engine vocabulary, and beside a pill that
+//reads "Updated since 7 days ago" it labels the control with a noun rather than
+//with the question the control answers. These are the ones the palette actually
+//puts on screen; anything not listed keeps the registry's own word, so a family
+//that grows an argument gets a real label rather than a blank one.
+const ARGUMENT_LABEL_COPY : Readonly<Record<string, string>> = {
+	'Date Range': 'When',
+	'The key card': 'Which card',
+	'Key Card': 'Which card',
+	'Ply': 'How many steps',
+	'Reference Type': 'Kind of link',
+	'User ID': 'Whose cards',
+	'Query': 'Words to look for',
+	'Cards': 'Which cards',
+	'Count': 'How many',
+};
+
+const argumentLabel = (description : string) : string => ARGUMENT_LABEL_COPY[description] || description;
+
 @customElement('collection-pill-row')
 class CollectionPillRow extends LitElement {
 
@@ -196,9 +218,17 @@ class CollectionPillRow extends LitElement {
 				min-width: 0;
 			}
 
+			/* 0.85em, not 0.75em. This row sits inside a dialog that has already
+			   stepped down once, and the date control below it steps down again
+			   for its own legends — three compounding reductions put the words
+			   'Date Range', 'Fixed' and 'Rolling' on screen at nine pixels, which
+			   is not a size anything a user has to READ may be rendered at. The
+			   label is subordinate by COLOUR; it does not also have to be small.
+			   --app-dark-text-color-darker for the same reason the receipt takes
+			   it: -light is ~2.3:1 on white and this is text, not decoration. */
 			.argument-label {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.75em;
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.85em;
 			}
 
 			/* §4.2's 44px floor: the reparented controls brought their own
@@ -293,7 +323,7 @@ class CollectionPillRow extends LitElement {
 	//with no question attached.
 	_argumentControl(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {
 		if (REFUSED_CONTROL_TYPES.has(piece.controlType)) return html``;
-		return html`<label class='argument'><span class='argument-label'>${piece.description}</span>${this._argumentControlPart(piece, subIndex)}</label>`;
+		return html`<label class='argument'><span class='argument-label'>${argumentLabel(piece.description)}</span>${this._argumentControlPart(piece, subIndex)}</label>`;
 	}
 
 	_argumentControlPart(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {

@@ -62,7 +62,13 @@ export const collectionLinkCopiedMessage = (
 	];
 	if (count !== undefined) segments.push(formatCollectionCardCount(count));
 	segments.push(durabilityNote(description));
-	return `${segments.join(' · ')}.`;
+	//AN EM DASH BETWEEN THE LEVELS, because the interpunct now belongs to the
+	//level below. A collection reads "Everything · Working Notes · Has any
+	//TODO" — the same words the sentence puts on screen — and joining THIS
+	//sentence's own segments with the same mark would have produced one flat run
+	//of five interpuncts in which the collection's clauses and the facts about
+	//the link are indistinguishable.
+	return `${segments.join(' — ')}.`;
 };
 
 //§2.4's four parts: what happened, what it means, and the next step. The

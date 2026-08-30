@@ -312,6 +312,15 @@ export type CollectionArrival = {
 	//Every filter name resolvable right now; empty or absent means "cannot
 	//tell yet", and nothing is judged on that basis.
 	knownFilterNames? : ReadonlySet<string>,
+	//TRUE WHEN THE ROUTER INVENTED THE COLLECTION. A `/c/<cardid>` URL names a
+	//card and no collection at all, so resolveCardSelector substitutes one — the
+	//card's own section, the everything-set for an orphan, or the `none`
+	//placeholder. That is the right place to LAND and the wrong thing to
+	//remember: the user never named it. In a corpus where a section id collides
+	//with a set name it is not even reachable — `main/main/` reads back as
+	//"Main · Main" and resolves to nothing — and recorded, it came back as a
+	//confident 0-card destination at the top of the recents list.
+	substituted? : boolean,
 };
 
 export const recordRecentCollection = (
@@ -322,6 +331,10 @@ export const recordRecentCollection = (
 ): void => {
 	if (typeof window === 'undefined') return;
 	if (collectionDescriptionIsPlaceholder(description)) return;
+	//The same rule the placeholder guard states, one case wider: what is
+	//recorded is a place the user can be sent BACK to, and a collection the
+	//router substituted because the URL named none is not one.
+	if (arrival.substituted) return;
 	//Spec §Activation failure: "Recent is recorded only after successful
 	//activation." An arrival that raised diagnostics did not activate as the
 	//URL described it — a clause was dropped and the count is of something

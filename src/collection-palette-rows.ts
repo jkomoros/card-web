@@ -49,6 +49,7 @@ import {
 	FilterExpressionNode,
 	collectionDescriptionWithExpression,
 	negatedExpressionNode,
+	serializeCollectionExpression,
 } from './collection-expression.js';
 
 import {
@@ -141,7 +142,24 @@ export type PaletteRow = {
 	viewerDependent : boolean;
 	//A destination that carries its own path — a recent with a selected card.
 	destinationPath? : string;
+	//This row names the option ALREADY in force. It is not an edit and choosing
+	//it changes nothing; it is here so a list of alternatives says which one you
+	//are looking at.
+	current? : boolean;
 };
+
+//THE RECOVERY SECTION, and it exists only when there is something to recover
+//from. A draft that matches nothing is a valid draft, and the honest offer is
+//not a note saying so — it is the clauses, each with the count the collection
+//would have without it, so the user can see which one emptied the collection
+//and take it out. The rows come from the same removal generator the old build
+//used, so a removal row and pressing Remove on the pill cannot disagree.
+export const RECOVER_SECTION = 'Nothing matches — try removing';
+
+export const paletteRecoveryRows = (
+	removals : readonly CollectionComposerSuggestion[]
+) : PaletteRow[] =>
+	removals.map(suggestion => rowForSuggestion(suggestion, RECOVER_SECTION));
 
 //--- Destinations and refinements (the idle feed) --------------------------
 
@@ -227,8 +245,19 @@ export const paletteTypingRows = (
 	section = ''
 ) : PaletteRow[] => {
 	const rows : PaletteRow[] = [];
+	//TWO ROWS THAT MAKE THE SAME EDIT ARE ONE ROW.
+	//
+	//`published` and `unpublished` are both real filters and both match the
+	//token 'published', and each of them can be added or flipped — so four rows
+	//came back naming two collections, with the twins carrying contradictory
+	//descriptions ("Unpublished — Keeps cards you have published"). Dedupe on
+	//the thing a row IS, which is the expression it produces: the same edit,
+	//however it was reached, is one row. First wins, and first is best, because
+	//the engine already ranked candidates by score and valences by rank before
+	//this flattening ran.
+	const seenEdits = new Set<string>();
 	for (const candidate of candidates) {
-		if (candidate.kind === 'recent') {
+		if (candidate.kind === 'recent' || candidate.kind === 'source') {
 			rows.push({
 				id: candidate.id,
 				kind: 'destination',
@@ -240,6 +269,7 @@ export const paletteTypingRows = (
 				//somebody's whole saved collection onto the draft.
 				navigates: true,
 				description: candidate.description || description,
+				destinationPath: candidate.destinationPath,
 				viewerDependent: candidate.viewerDependent,
 			});
 			continue;
@@ -263,6 +293,9 @@ export const paletteTypingRows = (
 		const node = candidate.node;
 		if (!node) continue;
 		for (const valence of candidate.valences) {
+			const edit = serializeCollectionExpression(valence.expression).join('\n');
+			if (seenEdits.has(edit)) continue;
+			seenEdits.add(edit);
 			rows.push({
 				id: valence.id,
 				kind: 'valence',
@@ -276,7 +309,11 @@ export const paletteTypingRows = (
 				configurable: candidate.kind === 'filter-family',
 				filter: candidate.filter,
 				label: valence.label,
-				detail: candidate.detail,
+				//A VALENCE'S OWN SENTENCE WHERE IT HAS ONE. A negation keeps a
+				//different collection from the clause it negates, so it does not
+				//inherit that clause's description — which is how the palette came
+				//to print "not Tagged tag-2 — Keeps cards tagged tag-2".
+				detail: valence.detail || candidate.detail,
 				navigates: false,
 				description: collectionDescriptionWithExpression(description, valence.expression),
 				expression: valence.expression,
@@ -320,12 +357,36 @@ export const paletteOrScopedRows = (
 //
 //The DATA is the catalog module's, unchanged and still tested on its own terms.
 //Only the surface died.
+//THE CATALOG'S RANKING SURVIVES ITS REGROUPING.
+//
+//The catalog already sorts by match relevance FIRST and by category second, so
+//an exact name match is its first item whatever category it is in. Regrouping
+//by a fixed category order threw that away: 'Suggested for this card' is the
+//first heading, so a seeded contextual row outranked the exact match for what
+//the user had actually typed — and Tab, which takes the top row, added the
+//wrong filter. (Observed: Browse-all open, an exact filter name typed, Tab.)
+//
+//Categories are therefore ordered by WHERE THEIR BEST ITEM RANKS, and the items
+//inside one keep the catalog's own order. With no query every item ranks
+//equally and the catalog's second sort key is the category order itself, so the
+//idle Browse list is unchanged; with a query the first row is the catalog's
+//best match, by construction.
+const categoriesByBestMatch = (items : readonly CollectionFilterCatalogItem[]) : string[] => {
+	const best = new Map<string, number>();
+	for (const [index, item] of items.entries()) {
+		if (!best.has(item.category)) best.set(item.category, index);
+	}
+	return [...collectionFilterCatalogCategories]
+		.filter(category => best.has(category))
+		.sort((left, right) => (best.get(left) ?? 0) - (best.get(right) ?? 0));
+};
+
 export const paletteBrowseRows = (
 	items : readonly CollectionFilterCatalogItem[],
 	description : CollectionDescription
 ) : PaletteRow[] => {
 	const rows : PaletteRow[] = [];
-	for (const category of collectionFilterCatalogCategories) {
+	for (const category of categoriesByBestMatch(items)) {
 		for (const item of items) {
 			if (item.category !== category) continue;
 			//A FAMILY HAS NO COLLECTION YET; A PLAIN FILTER DOES. The first keeps
@@ -369,9 +430,16 @@ export const paletteWordRows = (
 	description : CollectionDescription,
 	scope : PaletteWordScope
 ) : PaletteRow[] => {
+	//THE LIST SAYS WHICH ONE YOU ARE ALREADY IN.
+	//
+	//A list of alternatives with the current option silently deleted from it
+	//is a list that cannot answer "what is it now?" — the sentence declines to
+	//print a default sort or a list view (rightly: "sorted by default" is a
+	//fact about a field), so with the option missing from its own list too
+	//there was nowhere left to read it. The option stays, marked; choosing it
+	//is not an edit and the palette simply closes the scope.
 	if (scope === 'set') {
 		return Object.entries(SET_INFOS)
-			.filter(entry => entry[0] !== description.set)
 			.map(([name, info]) => ({
 				id: `set:${name}`,
 				kind: 'transform' as const,
@@ -381,10 +449,10 @@ export const paletteWordRows = (
 				navigates: false,
 				description: collectionDescriptionWithSet(description, name as SetName),
 				viewerDependent: false,
+				current: name === description.set,
 			}));
 	}
 	const rows : PaletteRow[] = Object.entries(SORTS)
-		.filter(entry => entry[0] !== description.sort)
 		.map(([name, info]) => ({
 			id: `sort:${name}`,
 			kind: 'transform' as const,
@@ -394,6 +462,7 @@ export const paletteWordRows = (
 			navigates: false,
 			description: collectionDescriptionWithSort(description, name as SortName),
 			viewerDependent: false,
+			current: name === description.sort,
 		}));
 	//Reversing is a property of the order, so it belongs in the order's own
 	//list rather than in a fifth control the strip used to carry.
@@ -408,7 +477,6 @@ export const paletteWordRows = (
 		viewerDependent: false,
 	});
 	for (const mode of Object.keys(LEGAL_VIEW_MODES)) {
-		if (mode === description.viewMode) continue;
 		rows.push({
 			id: `view:${mode}`,
 			kind: 'transform',
@@ -416,6 +484,7 @@ export const paletteWordRows = (
 			label: collectionOptionDisplayName(mode),
 			detail: `Shows this collection as ${collectionOptionDisplayName(mode)}.`,
 			navigates: false,
+			current: mode === description.viewMode,
 			//A view that takes a focus card gets the app's own "whichever card
 			//the collection opens on" rather than an empty argument. The old
 			//setup strip seeded it from the active card and offered a picker

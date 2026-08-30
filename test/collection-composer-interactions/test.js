@@ -323,7 +323,7 @@ describe('Collection Composer interactions', () => {
 		const name = source.slice(nameStart, source.indexOf('\n\t}', nameStart));
 		assert.match(name, /`Refine collection: \$\{expression\}`/,
 			'and it is still the complete expression in the command form');
-		assert.match(name, /readableCollectionExpression\(this\._collection\.description\)/);
+		assert.match(name, /readableCollectionExpression\(this\._collection\.description, this\._collectionFilterLabels\)/);
 		//:focus-within, not :focus-visible — the focus now lands on a pill or on
 		//the Refine control INSIDE this block, never on the block itself.
 		assert.match(source, /\.collection-summary-main:focus-within \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,
@@ -522,7 +522,7 @@ describe('Collection Composer interactions', () => {
 		//name) uses readableCollectionExpression, which is the app's one spoken
 		//form for a collection and is deliberately unchanged.
 		assert.match(dialog.shadowRoot.querySelector('.draft-receipt').textContent,
-			/Replaced the draft with Main AND Starred/);
+			/Replaced the draft with Main · Starred/);
 	});
 
 	//Counts rank the list when it is built. They may keep updating a row the user
@@ -1567,7 +1567,7 @@ describe('Collection Composer interactions', () => {
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['updated/after/7-days-ago']);
 		const dateControl = pillRow().shadowRoot.querySelector('configure-collection-date');
 		await dateControl.updateComplete;
-		assert.match(dateControl.shadowRoot.textContent, /Rolling date/);
+		assert.match(dateControl.shadowRoot.textContent, /Counted from today/);
 		assert.match(dateControl.shadowRoot.textContent, /A time ago/);
 	});
 
@@ -1866,7 +1866,7 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(orderWord(), null, 'the palette yields its stand-in back');
 		const tail = sentence().shadowRoot.querySelector('button.word.tail');
 		assert.ok(tail, 'the sentence’s own word is the control now');
-		assert.match(tail.textContent, /sorted by Recent/);
+		assert.match(tail.textContent, /sorted by recent/);
 		tail.click();
 		await settleRender(dialog);
 		assert.strictEqual(dialog._wordScope, 'sort', 'and it opens the same list');
@@ -2580,11 +2580,12 @@ describe('Collection Composer interactions', () => {
 	//rot silently. The placeholder has to name the TARGET, not just announce a
 	//mode: "Also match…" alone describes an edit to a sentence with one clause
 	//exactly as well as it describes an edit to a sentence with six, which is to
-	//say not at all. And Escape peels the scope rather than abandoning the
-	//typing: the layer the user is leaving is the SCOPE, and taking their words
-	//with it would make backing out of a widening cost more than committing to
-	//one.
-	it('names what an or would widen, and gives the scope back on Escape without eating the typing', async () => {
+	//say not at all. And Escape peels the scope TOGETHER WITH the text that was
+	//scoped to it: those characters were typed to mean "an alternative to this
+	//clause", and a scope that closes while they stay makes the list re-read
+	//them as a new AND condition — the same words, a different collection, and
+	//nothing on screen to say so.
+	it('names what an or would widen, and gives the scope back on Escape without re-reading the typing', async () => {
 		await addRefineRow('Starred');
 		await pressComposer('Backspace');
 		await pressComposer('+');
@@ -2596,7 +2597,12 @@ describe('Collection Composer interactions', () => {
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
 		await settleRender(dialog);
 		assert.strictEqual(dialog._orTarget, null, 'Escape peels the scope');
-		assert.strictEqual(dialog._composerInput, 'unre', 'and leaves what was typed alone');
+		//AND THE TYPED TEXT LEAVES WITH THE SCOPE. It was typed to mean "an
+		//alternative to Starred"; kept, the very next render re-reads the same
+		//four characters as a new AND condition — a different collection, offered
+		//under words the user chose to mean something else. Escape peels a layer;
+		//it must not silently re-interpret what is left behind.
+		assert.strictEqual(dialog._composerInput, '', 'and the text scoped to the or leaves with it');
 		assert.strictEqual(input().getAttribute('placeholder'), 'Type another condition…',
 			'the input is back to continuing the sentence');
 		assert.deepStrictEqual([...dialog._selectedPath], [0],
@@ -2691,7 +2697,7 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 		const snackbars = store.getState().app.snackbars;
 		assert.strictEqual(snackbars.length, 1);
-		assert.match(snackbars[0].message, /Now showing Everything AND Starred/,
+		assert.match(snackbars[0].message, /Now showing Everything · Starred/,
 			'the receipt names the destination Source opened, not a suggestion row');
 		window.history.replaceState({}, '', '/c/main/');
 	});
@@ -2757,9 +2763,9 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		const snackbars = store.getState().app.snackbars;
 		assert.strictEqual(snackbars.length, 1);
-		assert.ok(!/Everything AND Starred/.test(snackbars[0].message),
+		assert.ok(!/Everything · Starred/.test(snackbars[0].message),
 			'a landing the user did not ask for must not be reported as the one they did');
-		assert.match(snackbars[0].message, /^Now showing Main AND Has any TODO\./,
+		assert.match(snackbars[0].message, /^Now showing Main · Has any TODO\./,
 			'the receipt names what the router resolved the committed path to');
 		delete dialog._pathWithLiveSelectedCard;
 		window.history.replaceState({}, '', '/c/main/');
@@ -3979,6 +3985,73 @@ describe('Collection Composer interactions', () => {
 				'a one-member OR is just the member — the group must not survive as a container of one');
 		});
 
+		//REMOVING AN OR-MEMBER NARROWS, AND A NARROWING CAN STRAND THE READER.
+		//
+		//"Removing a clause widens a collection" is true of a CONDITION and false
+		//of one alternative inside a group: taking tag-1 out of (tag-1 or tag-2)
+		//leaves only the tag-2 cards. This handler kept the card suffix
+		//unconditionally on that assumption, so the URL went on naming a card the
+		//new collection does not contain — the stage rendered it over a
+		//collection it is not in, the drawer highlighted nothing, and the arrow
+		//keys (which step by the card's index within the collection) had nowhere
+		//to step. The router's own recovery then self-navigated to
+		//`/c/<cardid>`, a URL that names no collection at all.
+		//
+		//The composer's commit path already asks the right question, and this now
+		//asks the same one through the same helper: does the destination contain
+		//the card? The suffix survives a widening and is dropped by a narrowing
+		//that loses it, leaving the trailing slash that already means "the
+		//default item in this collection".
+		it('drops the card suffix when removing an or-member loses the card', () => {
+			const view = drawerAt('main/tag-3+tag-7/');
+			view._card = { id: 'card-only-in-tag-7' };
+			view._destinationContainsCard = () => false;
+
+			view._handleSummaryConditionRemoved({ detail: { index: 0, memberIndex: 1 } });
+
+			assert.strictEqual(window.location.pathname, '/c/tag-3/',
+				'a card the destination does not contain must not be carried into it');
+		});
+
+		it('keeps the card the user is reading when the removal widens', () => {
+			const view = drawerAt('main/starred/has-todo/');
+			view._card = { id: 'card-still-here' };
+			view._destinationContainsCard = () => true;
+
+			view._handleSummaryConditionRemoved({ detail: { index: 1, memberIndex: -1 } });
+
+			assert.strictEqual(window.location.pathname, '/c/starred/card-still-here',
+				'removing a condition widens, and the card comes along');
+		});
+
+		//AND THE OTHER HALF OF THE SAME DEFECT. When a card IS lost, the router
+		//falls back to `/c/<cardid>` — a URL that names a card and no collection
+		//at all — and substitutes one. resolveCardSelector has to SAY that it
+		//substituted, or the recents recorder cannot tell an invented collection
+		//from a chosen one, and the 0-card fallback is remembered as somewhere
+		//the user went.
+		it('reports a substituted collection as substituted', async () => {
+			//A source pin, like the other card-view facts in this suite: driving
+			//resolveCardSelector for real needs a fully-built collection over a
+			//fully-shaped card, and what is at stake here is one boolean and
+			//where it is read.
+			//
+			//The rule: the URL carried no clauses and the router supplied some,
+			//so whatever comes back is its answer to "where does this card live"
+			//and not the user's answer to "which collection do I want". The
+			//recents recorder is handed that fact and refuses to remember it —
+			//which is what stops `/c/<cardid>` from writing a 0-card
+			//"Main · Main" into the recents list, as it did in the live review.
+			const source = await readFile(path.join(REPO_ROOT, 'src/actions/collection.ts'), 'utf8');
+			assert.match(source, /substitutedCollection: description\.filters\.length == 0 && filters\.length > 0/,
+				'the router must say when it invented the clauses');
+			assert.match(source, /substituted: substitutedCollection && doUpdateCollection/,
+				'and the recents recorder must be told');
+			const history = await readFile(path.join(REPO_ROOT, 'src/collection-composer-history.ts'), 'utf8');
+			assert.match(history, /if \(arrival\.substituted\) return;/,
+				'the guard lives with the other poison guards, so every caller inherits it');
+		});
+
 		//§3.5: a refusal is never silent. An open card edit blocks navigation,
 		//and it is the only refusal this path can produce.
 		it('says why nothing happened when a card edit blocks the navigation', () => {
@@ -4094,6 +4167,79 @@ describe('Collection Composer interactions', () => {
 		assert.ok(dialog._paletteRows.some(row => row.description.serialize() === addRow.description.serialize()),
 			'a filter the user asked for by name is never hidden from them');
 		await typeComposer('');
+	});
+
+	//A NOTE IS NOT A RECOVERY.
+	//
+	//"No cards currently match" states the fact and offers nothing. The question
+	//the user actually has is "which of these clauses emptied it?", and it is
+	//answered by the per-clause removals with their counts beside them — the one
+	//whose removal brings the collection back is visible at a glance. The rows
+	//come from the same generator the Refine list uses, so a recovery row and
+	//pressing Remove on the pill compile the same edit.
+	it('offers the per-clause removals when the draft matches nothing', async () => {
+		await seedDraft('everything/starred/has-todo/');
+		try {
+			//No recovery while the count is unknown: `undefined` is "not in yet",
+			//which is a different fact from zero.
+			assert.ok(!dialog._paletteRows.some(row => row.section.startsWith('Nothing matches')),
+				'a collection nobody has counted yet is not a collection to recover from');
+
+			const draftKey = dialog._previewCountKey(dialog._collectionDescription);
+			dialog._retainedPreviewCounts.set(draftKey, 0);
+			dialog.requestUpdate();
+			await settleRender(dialog);
+			const recovery = dialog._paletteRows.filter(row => row.section.startsWith('Nothing matches'));
+			assert.strictEqual(recovery.length, 2, 'one row per clause the draft has');
+			assert.deepStrictEqual(
+				recovery.map(row => row.description.filters),
+				[['has-todo'], ['starred']],
+				'each row is the collection without exactly one clause, which is what its count counts'
+			);
+			//And a non-empty draft has nothing to recover from.
+			dialog._retainedPreviewCounts.set(draftKey, 9);
+			dialog.requestUpdate();
+			await settleRender(dialog);
+			assert.ok(!dialog._paletteRows.some(row => row.section.startsWith('Nothing matches')));
+		} finally {
+			dialog._retainedPreviewCounts.clear();
+		}
+	});
+
+	//A WIDENING THAT WIDENS NOTHING, AND A ZERO THAT LEADS.
+	//
+	//Two count-driven ranking rules, and they are deliberately different: a
+	//widen whose result is the collection it started from is a consequence row
+	//with no consequence and is SUPPRESSED, while a clause the user named that
+	//resolves to nothing is the honest warning and is only RANKED DOWN. Hiding
+	//the filter somebody just typed is the worse defect.
+	it('suppresses a no-op widen and sinks a zero-count row without hiding it', async () => {
+		await seedDraft('everything/starred/');
+		try {
+			const draftKey = dialog._previewCountKey(dialog._collectionDescription);
+			dialog._retainedPreviewCounts.set(draftKey, 158);
+			await typeComposer('unread');
+			await settleRender(dialog);
+			const widen = dialog._paletteRows.find(row => row.valenceKind === 'or');
+			const add = dialog._paletteRows.find(row => row.valenceKind === 'add');
+			assert.ok(widen && add, 'the typed token produces both a widen and an add');
+
+			//The widen resolves to exactly what the draft already was.
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(widen.description), 158);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(add.description), 0);
+			dialog.requestUpdate();
+			await settleRender(dialog);
+			assert.ok(!dialog._paletteRows.some(row => row.id === widen.id),
+				'a widen that adds no cards is a row promising a consequence it does not deliver');
+			const rows = dialog._paletteRows;
+			const zeroIndex = rows.findIndex(row => row.description.serialize() === add.description.serialize());
+			assert.ok(zeroIndex >= 0, 'the zero-count row is still offered — the count is the warning');
+			assert.ok(rows.slice(0, zeroIndex).some(row => dialog._countForDescription(row.description) !== 0),
+				'and it no longer leads the list');
+		} finally {
+			await typeComposer('');
+			dialog._retainedPreviewCounts.clear();
+		}
 	});
 
 	//THE FOOTER STATES THE CONTRACT THAT IS IN FORCE. '←→ choose clause' is true

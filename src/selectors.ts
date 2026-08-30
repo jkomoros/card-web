@@ -231,7 +231,9 @@ import {
 	ReferenceType,
 	SortExtra,
 	CardDiff,
-	Filters
+	Filters,
+	TagInfos,
+	CSSColorString
 } from './types.js';
 
 import {
@@ -920,6 +922,45 @@ export const selectUserMayModifyReadingList = createSelector(
 export const selectAuthorsForTagList = createSelector(
 	selectAuthors,
 	(authors) => authors ? Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName || entry[0]}])) : {}
+);
+
+//EVERY VALUE CLAUSE THE CORPUS KNOWS, IN ONE tagInfos, KEYED BY ITS URL
+//SPELLING.
+//
+//The spine's colour rule is a LOOKUP, not a taste call per filter family: a
+//clause whose spelling names something the corpus has (a tag, a section, a
+//person) is a value pill and wears that thing's own colour; everything else is
+//the one neutral. The composer, the drawer sentence and the why-here panel were
+//each handed `selectTags` alone, so a section pill and a contributor pill could
+//never be value pills at all — there was nothing to look them up in — and the
+//neutral was the only answer the renderer could give.
+//
+//Keyed by the spelling the clause actually carries: a tag and a section are bare
+//tokens in the URL, and a contributor is `author/<uid>`, which is the string the
+//pill is asked about. Sections come first so a tag and a section that share an
+//id resolve to the tag, matching the filter machinery's own precedence.
+export const selectCollectionClauseTagInfos = createSelector(
+	selectSections,
+	selectTags,
+	selectAuthorsForTagList,
+	(sections, tags, authors) : TagInfos => {
+		const result : TagInfos = {};
+		//`subtitle` is the authored prose a section or tag carries, and it is what
+		//the completion index means by a tag's own description — the half of
+		//description matching the filter registry cannot supply. Handed
+		//`selectTags` alone the index was reading `.description`, which a Section
+		//does not have, so that whole tier was inert for every tag in the corpus.
+		for (const [id, section] of Object.entries(sections || {})) {
+			result[id] = {id, title: section.title || id, description: section.subtitle, color: (section as {color? : CSSColorString}).color};
+		}
+		for (const [id, tag] of Object.entries(tags || {})) {
+			result[id] = {id, title: tag.title || id, description: tag.subtitle, color: (tag as {color? : CSSColorString}).color};
+		}
+		for (const [uid, info] of Object.entries(authors || {})) {
+			result[`author/${uid.toLowerCase()}`] = {id: `author/${uid.toLowerCase()}`, title: info.title};
+		}
+		return result;
+	}
 );
 
 export const selectCollaboratorInfosForActiveCard = createSelector(

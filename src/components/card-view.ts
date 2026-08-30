@@ -64,6 +64,8 @@ import {
 	selectWorkerActiveCollectionReady,
 	selectActiveCollectionFailureMessage,
 	selectActiveCollectionURLDiagnostics,
+	selectCards,
+	selectCollectionClauseTagInfos,
 	selectPage,
 } from '../selectors.js';
 
@@ -160,6 +162,10 @@ import {
 import {
 	showCollectionNavigationReceipt,
 } from '../collection-navigation-receipt.js';
+
+import {
+	commitPathDroppingLostCard,
+} from '../collection-navigation.js';
 
 import {
 	CollectionConditionEvent,
@@ -523,6 +529,13 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_tagInfos: TagInfos;
+
+	//THE VALUE CLAUSES' OWN COLOURS, which is a different map from the one the
+	//card's tag-list wants: this one is keyed by URL spelling and covers
+	//sections and contributors too, because a section pill in the sentence is
+	//as much a value pill as a tag is.
+	@state()
+		_clauseTagInfos: TagInfos = {};
 
 	//The corpus's own names for its filters — sections, tags, people — so a
 	//clause in the drawer sentence is called what the composer calls it. The
@@ -910,7 +923,10 @@ class CardView extends connect(store)(PageViewElement) {
 	//decoration alone reach nobody using a screen reader.
 	get _collectionSummaryName() : string {
 		if (!this._collection) return '';
-		const expression = readableCollectionExpression(this._collection.description);
+		//The corpus's own names, like every other reading of this expression. Left
+		//out, the accessible name said "Tag 30" where the pill beside it said
+		//"Tagged tag-30" — the same clause, twice, in two vocabularies.
+		const expression = readableCollectionExpression(this._collection.description, this._collectionFilterLabels);
 		const unresolved = this._unresolvedClauses;
 		const struck = this._collection.description.filters.filter(filter => unresolved.has(filter));
 		if (!struck.length) return `Refine collection: ${expression}`;
@@ -1014,11 +1030,12 @@ class CardView extends connect(store)(PageViewElement) {
 								.sortReversed=${this._collection.description.sortReversed}
 								.viewMode=${this._collection.description.viewMode}
 								.viewModeExtra=${this._collection.description.viewModeExtra}
-								.tagInfos=${this._tagInfos}
+								.tagInfos=${this._clauseTagInfos}
 								.labels=${this._collectionFilterLabels}
 								.filterDescriptions=${this._filterDescriptions}
 								.unresolvedFilters=${this._unresolvedFilterList}
 								.interactive=${true}
+								.mobile=${this._mobileMode}
 								.subtle=${true}
 								.selectedPath=${this._summarySelectedPath}
 								@condition-selected=${this._handleSummaryTokenSelected}
@@ -1115,7 +1132,7 @@ class CardView extends connect(store)(PageViewElement) {
 			${this._showCollectionEmptyState ? html`
 				<div class='collection-empty' role='status'>
 					<span class='collection-empty-message'>No cards match this collection</span>
-					<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description) : ''}</span>
+					<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description, this._collectionFilterLabels) : ''}</span>
 					<!-- A text button, not a glyph: this is a gate, and the verb
 					     is clearer than an icon (HS-4.2). button.text is the
 					     NAMED variant for that case, and taking it fixes a real
@@ -1290,6 +1307,21 @@ class CardView extends connect(store)(PageViewElement) {
 	//filters array, so removing one alternative from an OR-group dissolves the
 	//group when a single member is left, exactly as it does in the composer.
 	//Nothing here composes a `+` or an `exclude/` by hand.
+	//Whether the card the user is reading survives into the collection a removal
+	//would produce. Asked once, at commit, over the real collection — the same
+	//question the composer's own commit path asks, in the same words, so the two
+	//routes into a navigation cannot disagree about when a card is lost.
+	//
+	//A card this app has never heard of is not evidence that the destination
+	//excludes it — it may simply not be loaded — so it is kept.
+	_destinationContainsCard(description : CollectionDescription, cardID : string) : boolean {
+		if (!cardID) return true;
+		const state = store.getState() as State;
+		if (!selectCards(state)[cardID]) return true;
+		const collection = description.collection(selectCollectionConstructorArguments(state));
+		return collection.finalSortedCards.some(card => card.id === cardID);
+	}
+
 	_handleSummaryConditionRemoved(e : CollectionConditionEvent) {
 		if (!this._collection) return;
 		const description = this._collection.description;
@@ -1299,16 +1331,30 @@ class CardView extends connect(store)(PageViewElement) {
 			withMemberRemoved(expression, e.detail.index, e.detail.memberIndex);
 		if (next === expression) return;
 		const destination = collectionDescriptionWithExpression(description, next);
-		//THE CARD ON SCREEN COMES ALONG. Removing a clause WIDENS a collection,
-		//so the card the user is reading is almost always still in it, and
-		//dropping it from the URL would answer "show me fewer conditions" by
-		//also navigating away from what they were reading. If the card is not in
-		//the new collection the router falls back the same way it does for any
-		//other arrival naming a card it cannot show.
-		const destinationPath = collectionURLPath(destination, {
-			selectedCard: this._card ? this._card.id : '',
-			originalOrder: true,
-		});
+		//THE CARD ON SCREEN COMES ALONG — WHEN IT SURVIVES.
+		//
+		//"Removing a clause widens a collection" is true of a condition and FALSE
+		//of one alternative inside an or-group: taking tag-1 out of
+		//(tag-1 or tag-2) leaves the cards that are tagged tag-2, which is 88
+		//where the group was 158. This handler assumed the widening case and kept
+		//the card suffix unconditionally, and the router's fallback is not the
+		//graceful thing the old note claimed: it renders the stranded card over a
+		//collection that does not contain it, then self-navigates to
+		///c/<cardid>, where the URL names no collection at all and the router
+		//substitutes the card's own section — reached, in this corpus, as a
+		//0-card "Main · Main" that was then recorded as somewhere the user had
+		//been.
+		//
+		//The composer's commit path already solved this, and it is the same
+		//question with the same answer: ask whether the destination contains the
+		//card, and drop the suffix when it does not, leaving the trailing slash
+		//that already means "the default item in this collection".
+		const selectedCard = this._card ? this._card.id : '';
+		const destinationPath = commitPathDroppingLostCard(
+			collectionURLPath(destination, {selectedCard, originalOrder: true}),
+			selectedCard,
+			this._destinationContainsCard(destination, selectedCard)
+		);
 		//Captured before the push, because that is what Undo returns to.
 		const returnPath = window.location.pathname;
 		const result = store.dispatch(navigatePathToResult(destinationPath));
@@ -1709,6 +1755,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
+		this._clauseTagInfos = selectCollectionClauseTagInfos(state);
 		//The same candidate labels the composer names its clauses with, so the
 		//drawer sentence and the palette sentence cannot call one clause two
 		//things. Both selectors are memoized on sections/tags/authors, so this

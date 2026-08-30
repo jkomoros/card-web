@@ -124,7 +124,11 @@ describe('the collection sentence', () => {
 			});
 			//The set leads, the clauses follow, the sort trails. The operators are
 			//interpuncts, never the word AND: structure is punctuation here.
-			assert.match(sentenceText(element), /^Everything · Systems · Has any TODO · sorted by Recent$/);
+			//The tail is PROSE about the collection, so the option name inside it
+			//is lowercase: "sorted by Recent" reads as a proper noun the user is
+			//supposed to already know, which is the register the whole sentence
+			//is written to avoid.
+			assert.match(sentenceText(element), /^Everything · Systems · Has any TODO · sorted by recent$/);
 			assert.ok(!/ AND /.test(sentenceText(element)), 'AND is not a word in this sentence');
 			assert.strictEqual(chips(element).length, 2, 'one pill per condition');
 		});
@@ -138,7 +142,7 @@ describe('the collection sentence', () => {
 
 		it('names a non-default view mode as the sentence\'s last words', async () => {
 			const element = await mount({ expression: [], viewMode: 'web' });
-			assert.match(sentenceText(element), /viewed as Web/);
+			assert.match(sentenceText(element), /viewed as web/);
 		});
 
 		it('offers a count slot at the end rather than a count of its own', async () => {
@@ -159,6 +163,30 @@ describe('the collection sentence', () => {
 			const [value, property] = chips(element);
 			assert.strictEqual(chipFill(value), '#aa3377', 'a tag keeps the colour it has everywhere else');
 			assert.strictEqual(chipFill(property), NEUTRAL, 'a property clause has no colour of its own');
+		});
+
+		//THE LOOKUP DECIDES WHETHER IT IS A VALUE; THE CORPUS DECIDES WHAT COLOUR.
+		//
+		//Folding those two questions into one (`real?.color || NEUTRAL`) meant a
+		//value whose corpus has authored no colour came out neutral here and
+		//tag-chip's own default two panels away: one tag, two colours, and in a
+		//corpus that has never set a tag colour — which is most of them — the
+		//spine's "colour where it already means something" rule inverted into
+		//"nothing is coloured at all". A known value with no authored colour
+		//passes `color` through UNSET, so tag-chip supplies the same default it
+		//supplies for that tag everywhere else.
+		it('leaves a colourless value to tag-chip\'s own default rather than neutralising it', async () => {
+			const element = await mount({
+				expression: [filter('tag-9'), filter('has-todo')],
+				tagInfos: { ...TAG_INFOS, 'tag-9': { id: 'tag-9', title: 'Uncoloured' } },
+			});
+			const [value, property] = chips(element);
+			assert.strictEqual(chipFill(value), undefined,
+				'a value the corpus gave no colour must not be pinned to the property neutral');
+			assert.strictEqual(value.shadowRoot.querySelector('span').style.backgroundColor,
+				'rgb(205, 92, 92)',
+				'tag-chip paints it the same default it paints that tag with everywhere else');
+			assert.strictEqual(chipFill(property), NEUTRAL, 'and a clause that is not a value still is');
 		});
 
 		it('uses no third fill, whatever the expression contains', async () => {
@@ -209,7 +237,12 @@ describe('the collection sentence', () => {
 			const element = await mount({ expression: [{ kind: 'not', child: filter('tag-3') }] });
 			const [chip] = chips(element);
 			assert.strictEqual(chip.negated, true);
-			assert.strictEqual(chipText(chip), 'not Systems', 'the negation is a word inside the pill');
+			//The space after 'not' is a MARGIN, not a trailing space inside the
+			//element: a trailing space at an inline element's edge is collapsed
+			//away in exactly the cases that matter, which is how the pill came to
+			//read "notSystems". textContent therefore has no space in it and the
+			//rendering does.
+			assert.strictEqual(chipText(chip), 'notSystems', 'the negation is a word inside the pill');
 			assert.strictEqual(chip.shadowRoot.querySelector('span').style.color, 'rgb(170, 51, 119)',
 				'fill inversion keeps the colour the tag already has, as the text and border');
 			assert.strictEqual(chipFill(chip), '#aa3377',
@@ -247,13 +280,70 @@ describe('the collection sentence', () => {
 			assert.strictEqual(group.getAttribute('aria-label'), 'Systems or Reading list');
 		});
 
-		it('puts the not in front of a negated group, not inside one member', async () => {
+		//A FLIPPED GROUP INVERTS AS A UNIT.
+		//
+		//The negation used to render as a floating word BESIDE a container of
+		//solid pills, which reads left to right as `(not Systems) or Reading
+		//list` — a different collection from the one it names, and exactly the
+		//precedence the group's border exists to settle. Two facts fix it and
+		//both are pinned: the word lives inside the boundary it applies to, so
+		//there is nothing for it to attach to except the whole group; and the
+		//CONTAINER takes the fill inversion, which is the rule tag-chip already
+		//states for a negated pill, applied at the level the negation applies at.
+		it('puts the not INSIDE a negated group, and inverts the group as one thing', async () => {
 			const element = await mount({
 				expression: [{ kind: 'not', child: { kind: 'or', members: [filter('tag-3'), filter('reading-list')] } }],
 			});
 			assert.match(sentenceText(element), /not\s*Systems\s*or\s*Reading list/);
+			const group = element.shadowRoot.querySelector('tag-chip-group');
+			assert.ok(group.hasAttribute('negated'), 'the container is what is flipped');
+			const negation = group.querySelector('.group-negation');
+			assert.ok(negation, 'and the word that says so is one of its children');
+			assert.strictEqual(negation.textContent.trim(), 'not');
 			assert.deepStrictEqual(chips(element).map(chip => chip.negated), [false, false],
 				'the negation applies to all the alternatives, so no single member wears it');
+			//The container's inversion is the same trade tag-chip makes: the fill
+			//goes and the edge arrives.
+			const groupStyles = customElements.get('tag-chip-group').styles
+				.map(sheet => String(sheet.cssText || '')).join('\n');
+			assert.match(groupStyles, /:host\(\[negated\]\)\s*\{[^}]*background:\s*var\(--app-light-text-color\)/);
+			assert.match(groupStyles, /:host\(\[negated\]\)\s*\{[^}]*border-width:\s*2px/);
+		});
+	});
+
+	//TOUCH IS NOT A SMALLER MOUSE, and on a phone the sentence was unusable:
+	//tapping a pill selected the word inside its label instead of opening the
+	//pill row, the pills were ~20px against §4.2's 44px floor, and the group's
+	//only edge affordance was a 1px border.
+	describe('the touch layout', () => {
+
+		const sentenceStyles = () => customElements.get('collection-sentence').styles
+			.map(sheet => String(sheet.cssText || '')).join('\n');
+
+		it('refuses to let a tap become a text selection', () => {
+			//A tap IS a press-and-hold for the ~100ms before it resolves, and the
+			//browser's default answer to a press-and-hold on text is to select
+			//the word under it. Pinned on both sides of the shadow boundary: the
+			//sentence declares it (user-select inherits) and the tokenized chip
+			//declares it for itself.
+			assert.match(sentenceStyles(), /\.sentence\s*\{[^}]*user-select:\s*none/);
+			const chipStyles = customElements.get('tag-chip').styles
+				.map(sheet => String(sheet.cssText || '')).join('\n');
+			assert.match(chipStyles, /span\.tokenized\s*\{[^}]*user-select:\s*none/);
+		});
+
+		it('gives every token the 44px floor, and the group edge something to tap', () => {
+			const styles = sentenceStyles();
+			assert.match(styles, /:host\(\[mobile\]\)[^{]*tag-chip[^{]*\{[^}]*min-height:\s*44px/);
+			assert.match(styles, /:host\(\[mobile\]\)\s*tag-chip-group\s*\{[^}]*padding/,
+				'a 1px border is not a target on any device');
+			assert.match(styles, /:host\(\[mobile\]\)\s*\.sentence\s*\{[^}]*line-height/,
+				'or two rows of 44px targets overlap and the top of one pill belongs to the pill above it');
+		});
+
+		it('reflects the flag so the layout is reachable from CSS at all', async () => {
+			const element = await mount({ mobile: true, expression: [filter('tag-3')] });
+			assert.ok(element.hasAttribute('mobile'));
 		});
 	});
 
@@ -502,8 +592,10 @@ describe('the pill vocabulary', () => {
 		//jsdom drops a var() from an inline style, so the white fill itself is
 		//pinned where it is decided rather than where it is painted.
 		assert.match(String(customElements.get('tag-chip').prototype.render), /var\(--app-light-text-color\)/);
-		assert.match(chip.shadowRoot.querySelector('.not').textContent, /^not\s$/,
+		assert.strictEqual(chip.shadowRoot.querySelector('.not').textContent, 'not',
 			'the negation is a quiet lowercase word in the label, not a badge');
+		//And the space after it is a margin, so it cannot be collapsed away.
+		assert.match(chipStyles(), /\.not\s*\{[^}]*margin-right/);
 	});
 
 	it('pays for the outline out of the padding, so flipping a pill moves nothing', () => {
@@ -542,7 +634,11 @@ describe('the pill vocabulary', () => {
 	it('draws the OR-group as one hairline pill around its members', () => {
 		const styles = customElements.get('tag-chip-group').styles
 			.map(sheet => String(sheet.cssText || '')).join('\n');
-		assert.match(styles, /border:\s*1px solid var\(--app-divider-color\)/);
+		//THE BORDER HAS TO BE VISIBLE TO BE A BORDER. --app-divider-color is
+		//#eee on a white dialog: the one mark that says "these two pills are one
+		//condition" could not be seen. It takes the subordinate TEXT colour, the
+		//same token the sentence's own operators use.
+		assert.match(styles, /border:\s*1px solid var\(--app-dark-text-color-light\)/);
 		assert.match(styles, /border-radius:\s*0\.3em/, 'the same radius tag-chip rounds at — a group IS a pill');
 	});
 });
