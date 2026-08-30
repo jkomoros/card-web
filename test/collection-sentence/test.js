@@ -15,7 +15,7 @@
 //    inverse-less filters get the outlined "not" pill);
 //  - the OR-group as ONE token containing alternatives;
 //  - the traversal grammar, including entering and leaving a group;
-//  - removal, which is the drawer's whole down-payment;
+//  - removal, which is what the palette's editable draft is built on;
 //  - and the unresolved treatment, which is the one place the sentence and the
 //    card count are allowed to disagree — visibly.
 
@@ -210,7 +210,7 @@ describe('the collection sentence', () => {
 		it('names a value pill with the title the app already uses for it', async () => {
 			const element = await mount({ expression: [filter('tag-3')] });
 			assert.strictEqual(chipText(chips(element)[0]), 'Systems',
-				'the drawer chip and the card chip are the same tag; they must be the same word');
+				'the sentence chip and the card chip are the same tag; they must be the same word');
 		});
 
 		it('lets an explicit label win over the tag\'s own title', async () => {
@@ -521,9 +521,9 @@ describe('the collection sentence', () => {
 			assert.deepStrictEqual(seen.at(-1), { name: 'group-edge-selected', detail: { index: 0, memberIndex: -1 } });
 		});
 
-		//THE DOWN-PAYMENT. The ✕ on a drawer pill removes that clause; a host
-		//turns that into a navigation. It must not ALSO read as "open the
-		//composer", which is what the rest of the sentence means.
+		//THE ✕ ON A PILL removes that clause; a host turns that into an edit of
+		//its draft. It must not ALSO read as a selection of the pill, which is
+		//what a click anywhere else on it means.
 		it('reports a removal and stops it being read as a selection too', async () => {
 			const element = await mount({ interactive: true, expression: [filter('tag-3'), filter('has-todo')] });
 			const seen = listen(element);

@@ -288,6 +288,23 @@ class CardDrawer extends LitElement {
 				margin: 0 0.4em 0.15em;
 			}
 
+			/* THE DRAWER'S ACTIONS ARE NOT PART OF THAT SENTENCE.
+			   text-align is inherited, and #count is the whole header — count,
+			   diagnostics, AND both slotted panels — so the rule above, meant
+			   only to line the count up with the sentence beneath it, also
+			   reached the actions in those panels: word cloud, Configure
+			   collection, bulk import/export, Clear selection, Randomize. They
+			   have been centred in this column for as long as the drawer has
+			   existed (#count's own text-align, which .grouped overrode), and
+			   they went flush left with no one asking them to.
+			   The alignment belongs to the count line, not to everything that
+			   happens to share its box. The sentence keeps its left edge because
+			   it declares one itself — card-view's .collection-summary — rather
+			   than borrowing this one. */
+			#count.grouped .info-panel {
+				text-align: center;
+			}
+
 			/* A qualifier on the count, not a state of its own. Subordinate
 			   tone (§4.5) for the same reason .diagnostic takes it: nothing
 			   went wrong, the app is telling the user something true about
