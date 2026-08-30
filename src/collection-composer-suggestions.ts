@@ -645,13 +645,30 @@ const removalSuggestions = (
 		};
 	});
 
-const collectionDifference = (
+//WHAT ARRIVING AT THIS COLLECTION WOULD DO TO THE DRAFT, as one line.
+//
+//A recent (or a pivot) is a COMBINATORIAL action in the round-3 model: executing
+//it replaces the draft with several changes at once. Every other row can show
+//what it does as the pill it produces; this one cannot, because it produces half
+//a dozen. So it shows the same three things every row shows — what it does, the
+//count, one quiet annotation — and this sentence is the annotation. Same shape,
+//bigger payload (D3).
+//
+//EXPORTED so the palette's annotation and the row's own detail line are one
+//derivation rather than two that can disagree.
+export const collectionComposerDestinationDiff = (
 	current: CollectionDescription,
 	destination: CollectionDescription,
-	visits: number,
+	filterLabels: Record<string, string> = {},
+	cardNames: Record<string, string> = {}
+): string => collectionDifferenceChanges(current, destination, filterLabels, cardNames).join(' · ');
+
+const collectionDifferenceChanges = (
+	current: CollectionDescription,
+	destination: CollectionDescription,
 	filterLabels: Record<string, string>,
 	cardNames: Record<string, string> = {}
-): string => {
+): string[] => {
 	const changes: string[] = [];
 	if (current.set !== destination.set) {
 		changes.push(
@@ -680,9 +697,19 @@ const collectionDifference = (
 			)}`
 		);
 	}
-	changes.push(visits > 1 ? `Visited ${visits} times` : 'Recently visited');
-	return changes.join(' · ');
+	return changes;
 };
+
+const collectionDifference = (
+	current: CollectionDescription,
+	destination: CollectionDescription,
+	visits: number,
+	filterLabels: Record<string, string>,
+	cardNames: Record<string, string> = {}
+): string => [
+	...collectionDifferenceChanges(current, destination, filterLabels, cardNames),
+	visits > 1 ? `Visited ${visits} times` : 'Recently visited',
+].join(' · ');
 
 //A URL note that is true. The default promise — "copied links keep it" — is a
 //claim about durability, and it is false for a clause whose membership is

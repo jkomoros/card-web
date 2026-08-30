@@ -45,7 +45,9 @@ import {
 	serializeCollectionExpression,
 	serializeFilterNode,
 	withConditionAppended,
+	withConditionRemoved,
 	withMemberAddedToOr,
+	withMemberRemoved,
 	describeExpressionNode,
 } from './collection-expression.js';
 
@@ -258,7 +260,21 @@ const WEAK_MATCH_RECENT_LIMIT = 1;
 
 const NAME_TIERS : ReadonlySet<CompletionMatchTier> = new Set<CompletionMatchTier>(['parsed', 'name-exact', 'name-prefix']);
 
-export type CompletionValenceKind = 'add' | 'or' | 'not';
+//EVERY ROW IS AN ACTION ON THE DRAFT (the owner's round-3 constitution: "the top
+//action can be 'change the sort' or 'change the set' or 'add a filter' or
+//'remove a filter' or 'change a filter's configuration'"). Two of those five were
+//missing from this list, and their absence is what made typing the name of a
+//clause the draft ALREADY HAS produce an offer to add it a second time and an
+//offer to fuse it with its own negation.
+//
+//  remove — the clause is in the sentence; this takes it out. Reachable by
+//           typing its name, in either valence: typing 'common-tools' when the
+//           sentence says `not common-tools` offers `Remove not common-tools`.
+//  edit   — the clause is in the sentence and has arguments; this opens its pill
+//           row. It is the one valence that does not change the expression, and
+//           it is exempt from the no-op guard for exactly that reason: the action
+//           is "show me this clause's controls", not "rewrite the draft".
+export type CompletionValenceKind = 'add' | 'or' | 'not' | 'remove' | 'edit';
 
 //A VALENCE CARRIES ITS OWN AFTER-EXPRESSION. The palette shows `41 → 118` by
 //running this expression; nothing between the row and the count re-derives what
@@ -283,11 +299,22 @@ export type CompletionValence = {
 	detail? : string;
 	//The expression this row would produce, whole.
 	expression : CollectionExpression;
-	//For 'or' only: WHICH condition it widens. Proposal B §3.1 requires the row
+	//For 'or': WHICH condition it widens. Proposal B §3.1 requires the row
 	//to be "labeled with what it widens", so the palette is handed both the
 	//index (to highlight the pill) and the name (to say it).
+	//
+	//For 'remove' and 'edit': WHICH condition the action is about, so the palette
+	//can open the pill row on it without re-finding it by name.
 	targetIndex? : number;
 	targetLabel? : string;
+	//For 'remove' and 'edit' inside an or-group: which alternative. -1 (or
+	//absent) means the whole condition.
+	targetMemberIndex? : number;
+	//For 'remove' and 'edit': the clause in the sentence this row is about, so
+	//the palette can render it as the pill it already is rather than re-finding
+	//it. The row's anatomy is the same as every other row's — it shows the pill —
+	//and this is the pill.
+	targetNode? : FilterExpressionNode;
 	//For 'or': whether the target is in the same value family. The engine allows
 	//a union of ANY two conditions, so this is a RANKING fact, not a legality
 	//one — see valenceRank.
@@ -666,7 +693,14 @@ export const valueFamilyForNode = (
 //unless the token starts with not/-" — plus the one refinement the engine's
 //honesty forces: an INCOMPATIBLE or is offered, below `not`, rather than
 //suppressed.
+//
+//REMOVE AND EDIT OUTRANK EVERYTHING (round 3, D2). When the typed token names a
+//clause the sentence ALREADY HAS, the thing the user is reaching for is that
+//clause — not a second copy of it. So the two actions that are about the clause
+//they already have lead, and the ones that would add another sit under them.
 const VALENCE_RANKS = {
+	remove: -2,
+	edit: -1,
 	add: 0,
 	orCompatible: 1,
 	not: 2,
@@ -712,9 +746,51 @@ export const strippedNegationPrefix = (raw : string) : StrippedToken => {
 };
 
 const valenceRank = (kind : CompletionValenceKind, compatible : boolean, negated : boolean) : number => {
+	if (kind === 'remove') return VALENCE_RANKS.remove;
+	if (kind === 'edit') return VALENCE_RANKS.edit;
 	if (kind === 'add') return negated ? VALENCE_RANKS.not + 0.5 : VALENCE_RANKS.add;
-	if (kind === 'not') return negated ? -1 : VALENCE_RANKS.not;
+	//A negation the user ASKED for still leads the rows that would ADD something;
+	//it does not outrank an action about a clause that already exists.
+	if (kind === 'not') return negated ? VALENCE_RANKS.add - 0.5 : VALENCE_RANKS.not;
 	return compatible ? VALENCE_RANKS.orCompatible : VALENCE_RANKS.orIncompatible;
+};
+
+//WHERE THIS CLAUSE ALREADY IS IN THE SENTENCE, in EITHER valence, or null.
+//
+//"Either valence" is the whole point: typing 'common-tools' when the sentence
+//says `not common-tools` is somebody reaching for the clause they can see, and a
+//search that only matched the positive spelling answered them with an offer to
+//add its opposite alongside it. Negation is an involution on every node kind, so
+//one comparison against the negated spelling covers both directions.
+//Whether this condition's family takes arguments — the question 'is there
+//anything to edit here?'. A negation is transparent to it: `not updated/…` is
+//still a date clause with a date in it.
+const nodeIsConfigurable = (node : FilterExpressionNode) : boolean => {
+	if (node.kind === 'not') return nodeIsConfigurable(node.child);
+	if (node.kind !== 'filter') return false;
+	return Boolean(CONFIGURABLE_FILTER_INFO[node.filter.split('/')[0]]);
+};
+
+const existingClauseSite = (
+	expression : CollectionExpression,
+	spelling : string,
+	negatedSpelling : string
+) : {index : number, memberIndex : number, node : FilterExpressionNode} | null => {
+	for (const [index, condition] of expression.entries()) {
+		if (condition.kind === 'or') {
+			const memberIndex = condition.members.findIndex(member => {
+				const member_spelling = serializeFilterNode(member);
+				return member_spelling === spelling || member_spelling === negatedSpelling;
+			});
+			if (memberIndex >= 0) return {index, memberIndex, node: condition.members[memberIndex]};
+			continue;
+		}
+		const conditionSpelling = serializeFilterNode(condition);
+		if (conditionSpelling === spelling || conditionSpelling === negatedSpelling) {
+			return {index, memberIndex: -1, node: condition};
+		}
+	}
+	return null;
 };
 
 //WHAT A NEGATED CLAUSE KEEPS, said as a negation.
@@ -790,7 +866,60 @@ export const completionValences = (
 	//`a AND NOT a` really is a different (empty) collection, and the preview
 	//count says so honestly.
 	const spelling = serializeFilterNode(node);
+	const negatedSpelling = serializeFilterNode(negatedExpressionNode(node));
 	const alreadyPresent = expression.map(serializeFilterNode);
+
+	//TYPING THE NAME OF A CLAUSE YOU ALREADY HAVE IS A REQUEST ABOUT THAT CLAUSE.
+	//
+	//The two actions the constitution names for an existing clause — remove it,
+	//change its configuration — are generated here, ahead of everything that
+	//would add a second one, and they are found by the same search in either
+	//valence. `only: 'add'` skips them for the same reason it skips the rest: the
+	//idle list is a list of things you could ADD, and a few hundred rows each
+	//carrying their own removals is the vocabulary buried inside its own
+	//valences.
+	const existing = options.only === 'add' ? null : existingClauseSite(expression, spelling, negatedSpelling);
+	if (existing) {
+		const existingName = describeExpressionNode(existing.node, labels, cardNames).label;
+		valences.push({
+			id: `${options.idPrefix}:remove:${existing.index}:${existing.memberIndex}`,
+			kind: 'remove',
+			label: existingName,
+			detail: `Takes ${existingName} back out of this collection.`,
+			expression: existing.memberIndex < 0 ?
+				withConditionRemoved(expression, existing.index) :
+				withMemberRemoved(expression, existing.index, existing.memberIndex),
+			targetIndex: existing.index,
+			targetMemberIndex: existing.memberIndex,
+			targetNode: existing.node,
+			rank: valenceRank('remove', true, negated),
+		});
+		//WHETHER THE CLAUSE IN THE SENTENCE HAS ARGUMENTS, asked of THAT clause
+		//rather than of the candidate that found it. 'Edit Starred' would open a
+		//pill row with nothing in it; 'Edit Updated since 7 days ago' opens the
+		//date controls — and the second of those is reached by typing a date
+		//PHRASE, whose candidate is a plain filter and whose clause is
+		//configurable, so a test on the candidate's own kind would have missed
+		//exactly the family this row is most useful for.
+		if (nodeIsConfigurable(existing.node)) {
+			valences.push({
+				id: `${options.idPrefix}:edit:${existing.index}:${existing.memberIndex}`,
+				kind: 'edit',
+				label: existingName,
+				detail: `Opens ${existingName}’s own controls, so you can change what it matches.`,
+				//THE ONE VALENCE THAT DOES NOT REWRITE THE DRAFT. Its expression is
+				//the draft unchanged, which is honest: the action is "show me this
+				//clause's controls". The no-op filter at the bottom exempts it by
+				//kind rather than by a fake edit, so nothing downstream has to
+				//pretend a change happened.
+				expression,
+				targetIndex: existing.index,
+				targetMemberIndex: existing.memberIndex,
+				targetNode: existing.node,
+				rank: valenceRank('edit', true, negated),
+			});
+		}
+	}
 
 	if (!alreadyPresent.includes(spelling)) {
 		valences.push({
@@ -851,8 +980,19 @@ export const completionValences = (
 		if (condition.kind === 'manual') continue;
 		//Widening a condition with a member it already contains is the same
 		//no-op as above, one level down.
-		if (condition.kind === 'or' && condition.members.map(serializeFilterNode).includes(spelling)) continue;
-		if (condition.kind !== 'or' && serializeFilterNode(condition) === spelling) continue;
+		//
+		//AND A CLAUSE MAY NEVER BE OR'D WITH ITS OWN NEGATION (round 3, D2). `(not
+		//common-tools OR common-tools)` is every card in the corpus — a row that
+		//promises a refinement and delivers the universe — and it was the TOP
+		//offer whenever somebody typed the name of a clause they had already
+		//excluded. The guard is the same no-op rule the line above states, with
+		//the negated spelling added to what counts as "already there": a clause
+		//and its negation are the same clause as far as widening is concerned,
+		//because their union is a tautology and their intersection is empty.
+		const memberSpellings = condition.kind === 'or' ?
+			condition.members.map(serializeFilterNode) :
+			[serializeFilterNode(condition)];
+		if (memberSpellings.includes(spelling) || memberSpellings.includes(negatedSpelling)) continue;
 		const targetLabel = describeExpressionNode(condition, labels, cardNames).label;
 		const conditionFamily = valueFamilyForNode(condition, candidates);
 		const compatible = conditionFamily !== 'mixed' && conditionFamily !== 'manual' && conditionFamily === nodeFamily;
@@ -880,9 +1020,13 @@ export const completionValences = (
 	//rule on the RESULT catches the cases the special cases do not, including
 	//the normalizations the compiler performs on the way out (a group that
 	//re-spells to what it already was, a double negation that cancels).
+	//
+	//`edit` IS EXEMPT, BY KIND. It is the one action here that is not an edit to
+	//the expression at all — it opens a clause's controls — so "its result is the
+	//collection you already have" is not a broken promise, it is the promise.
 	const before = serializeCollectionExpression(expression).join('\n');
 	return valences
-		.filter(valence => serializeCollectionExpression(valence.expression).join('\n') !== before)
+		.filter(valence => valence.kind === 'edit' || serializeCollectionExpression(valence.expression).join('\n') !== before)
 		.sort((left, right) => left.rank - right.rank || left.id.localeCompare(right.id));
 };
 

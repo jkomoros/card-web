@@ -301,6 +301,13 @@ describe('Collection completion model', () => {
 
 		//THE FIXTURE TABLE. Left: what somebody types. Right: the clause tail it
 		//compiles to, and the families it offers.
+		//
+		//ROUND 3, D4: "NUMBERS AND UNITS ARE ALWAYS BOUND FROM THE INPUT, never
+		//defaulted". The rows marked below are the ones that used to REFUSE —
+		//'created since 5 days ago' had its 5 written down in the input and no
+		//production that could read it, so the phrase fell all the way to `Text
+		//contains "since 5 days ago"`, a search of card prose for the word
+		//'days'. MOMENT now carries `COUNT UNIT ago?` outright.
 		const table = [
 			['last 7 days', 'after/7-days-ago', ['updated', 'created']],
 			['in the last 7 days', 'after/7-days-ago', ['updated', 'created']],
@@ -309,6 +316,8 @@ describe('Collection completion model', () => {
 			['last 2 weeks', 'after/14-days-ago', ['updated', 'created']],
 			['last 3 months', 'after/3-months-ago', ['updated', 'created']],
 			['past year', 'after/1-year-ago', ['updated', 'created']],
+			['last fortnight', 'after/14-days-ago', ['updated', 'created']],
+			['this week', 'after/2026-8-30', ['updated', 'created']],
 			['this month', 'after/2026-8-1', ['updated', 'created']],
 			['this year', 'after/2026-1-1', ['updated', 'created']],
 			['today', 'after/today', ['updated', 'created']],
@@ -316,15 +325,34 @@ describe('Collection completion model', () => {
 			//everything touched today too, which is not what the word means.
 			['yesterday', 'between/yesterday/today', ['updated', 'created']],
 			['since 2024', 'after/2024-1-1', ['updated', 'created']],
+			['since 2024 01 15', 'after/2024-1-15', ['updated', 'created']],
 			['before 2024', 'before/2024-1-1', ['updated', 'created']],
 			['until 2020', 'before/2020-1-1', ['updated', 'created']],
+			['prior to 2020', 'before/2020-1-1', ['updated', 'created']],
 			['since last week', 'after/7-days-ago', ['updated', 'created']],
+			['since today', 'after/today', ['updated', 'created']],
+			['before yesterday', 'before/yesterday', ['updated', 'created']],
+			['after 2024', 'after/2024-1-1', ['updated', 'created']],
+			//THE COUNT COMES OUT OF THE INPUT. Every one of these used to refuse.
+			['since 5 days ago', 'after/5-days-ago', ['updated', 'created']],
+			['since 12 days ago', 'after/12-days-ago', ['updated', 'created']],
+			['since 3 weeks ago', 'after/21-days-ago', ['updated', 'created']],
+			['before 2 months ago', 'before/2-months-ago', ['updated', 'created']],
+			['until 6 months ago', 'before/6-months-ago', ['updated', 'created']],
+			['since two years ago', 'after/2-years-ago', ['updated', 'created']],
+			['5 days ago', 'after/5-days-ago', ['updated', 'created']],
+			['created since 5 days ago', 'after/5-days-ago', ['created']],
+			['updated in the past 3 weeks', 'after/21-days-ago', ['updated']],
+			['created in the last 9 days', 'after/9-days-ago', ['created']],
 			//WHEN THE PHRASE NAMES THE FIELD, ONLY THAT FIELD.
 			['updated last week', 'after/7-days-ago', ['updated']],
 			['created this month', 'after/2026-8-1', ['created']],
+			['created this week', 'after/2026-8-30', ['created']],
 			['modified in the last 30 days', 'after/30-days-ago', ['updated']],
 			['cards added since 2024', 'after/2024-1-1', ['created']],
 			['30 days', 'after/30-days-ago', ['updated', 'created']],
+			['3 months', 'after/3-months-ago', ['updated', 'created']],
+			['few days', 'after/3-days-ago', ['updated', 'created']],
 		];
 
 		it('compiles the phrases people type into the clauses they mean', () => {
@@ -340,6 +368,11 @@ describe('Collection completion model', () => {
 		//everything is a parser that ranks noise at the top of the list, which is
 		//the one place this one is allowed to put things.
 		it('declines everything that is not a date phrase', () => {
+			//THE REFUSALS ARE THE OTHER HALF OF D4's "total over the documented
+			//grammar and refuses honestly outside it". Note especially the two
+			//counted ones: a count the parser cannot USE is a refusal, never a
+			//clamp — 'last 9999 days' compiled to a 999-day window would be a
+			//phrase silently rewritten into one the user did not type.
 			for (const phrase of [
 				'',
 				'starred',
@@ -347,12 +380,21 @@ describe('Collection completion model', () => {
 				'week',
 				'last',
 				'this',
-				'this week',
+				'this decade',
 				'created',
 				'updated',
+				'ago',
+				'days ago',
+				'since days ago',
+				'since week',
 				'last 9999 days',
+				'0 days',
+				'2024',
+				'since 2024 13 40',
 				'created updated last week',
 				'since',
+				'before',
+				'prior to',
 			]) {
 				assert.strictEqual(parseCollectionDatePhrase(phrase, NOW), null, `“${phrase}” is not a date phrase`);
 			}
@@ -562,6 +604,13 @@ describe('Collection completion model', () => {
 				['last 7 days', isFilter('updated/after/7-days-ago'), 'the rolling week'],
 				['this month', isFamily('updated'), 'this calendar month'],
 				['created this month', isFamily('created'), 'this calendar month, created'],
+				//ROUND 3, D4: the count bound out of the input. 'created since 5
+				//days ago' has to reach the FIVE-day pill, not a five-word text
+				//search, and it has to reach it at the top.
+				['created since 5 days ago', isFilter('created/after/5-days-ago'), 'the 5-day pill, created'],
+				['since 12 days ago', isFilter('updated/after/12-days-ago'), 'the 12-day pill'],
+				['updated in the past 3 weeks', isFilter('updated/after/21-days-ago'), 'the 3-week pill'],
+				['this week', isFamily('updated'), 'this calendar week'],
 				//SINGLETONS — set, sort and view, by name and by alias.
 				['reading list', (row) => row.id === 'set:reading-list', 'the Reading List set'],
 				['sort by stars', (row) => row.id === 'sort:stars', 'the Stars sort'],

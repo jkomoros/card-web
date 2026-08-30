@@ -797,13 +797,6 @@ export type CollectionState = {
 	//active collection can be very expensive, and would make the configure
 	//collection dialog feel very unresponsive.
 	snapshot : CollectionConfiguration | null,
-	//A draft that was closed without being committed, kept so that reopening
-	//the composer resumes it rather than throwing it away. `base` is the
-	//serialization of the collection it was derived FROM: the draft is only
-	//resumed while that is still the collection on screen, because §"Begin from
-	//where the user is" means the draft belongs to a place, and a draft rebuilt
-	//against a collection the user has since left is not where they are.
-	preservedSnapshot : {configuration : CollectionConfiguration, base : string} | null,
 	//These are the actual values of the filters in current use, reflecting all
 	//of the changes. If you want the filter set that goes along with the
 	//cardSnapshot (and doesn't update until

@@ -2566,7 +2566,6 @@ export const INITIAL_STATE : CollectionState = {
 		viewModeExtra: ''
 	},
 	snapshot: null,
-	preservedSnapshot: null,
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,
 	requestedCard: '',

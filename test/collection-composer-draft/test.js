@@ -50,46 +50,38 @@ describe('Collection Composer draft lifecycle', () => {
 		assert.strictEqual(cancelled.snapshot, null);
 	});
 
-	it('resumes an un-committed draft when reopened on the same collection', () => {
-		//Source mode already keeps its text across a close; the quick composer
-		//threw a multi-clause draft away in silence on the same Escape.
+	//SUPERSEDED PINS (round 3, D1). Three tests stood here — 'resumes an
+	//un-committed draft when reopened on the same collection', 're-derives from
+	//the collection the user is now looking at', and 'preserves nothing when the
+	//draft never diverged'. They pinned `preservedSnapshot`: a draft that survived
+	//an Escape and came back on the next open, resumed only while the collection
+	//it was derived from was still on screen.
+	//
+	//The owner's constitution retires the whole mechanism: "if you make a mistake,
+	//esc/X resets to the previous state". Preservation made Escape mean DEFER
+	//rather than reset — the mistake reappeared on the next Ctrl-K, on a surface
+	//that had silently reopened on it, and the second Escape was spent undoing the
+	//first one's failure to undo. The field is deleted from CollectionState, and
+	//with it the composer's `_preservedComposerInput` / `_preservedDraftBase` and
+	//the 'Restored the draft you were composing' receipt.
+	//
+	//What replaces them is one pin, below: every composition begins from the
+	//collection on screen.
+	it('begins every composition from the collection on screen', () => {
 		const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
 		const changed = reducer(opened, {
 			type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 			collection: draft,
 		});
 		const cancelled = reducer(changed, { type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
-		assert.deepStrictEqual(cancelled.preservedSnapshot.configuration, draft);
+		assert.strictEqual(cancelled.snapshot, null, 'the draft is discarded, whole');
 		const reopened = reducer(cancelled, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-		assert.deepStrictEqual(reopened.snapshot, draft, 'the chips come back');
-		assert.strictEqual(reopened.preservedSnapshot, null, 'and are not resumed twice');
-	});
-
-	it('re-derives from the collection the user is now looking at', () => {
-		const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-		const changed = reducer(opened, {
-			type: UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
-			collection: draft,
-		});
-		const cancelled = reducer(changed, { type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
-		//The user navigates. A draft is an adjustment to a place, so an
-		//adjustment to a place they have left is not where they are.
-		const elsewhere = {
-			...cancelled,
-			active: { ...initialState.active, filterNames: ['has-todo'] },
-		};
-		const reopened = reducer(elsewhere, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-		assert.deepStrictEqual(reopened.snapshot, elsewhere.active, 'begins from where the user is');
-		assert.strictEqual(reopened.preservedSnapshot, null, 'and the stale draft is dropped');
-	});
-
-	it('preserves nothing when the draft never diverged', () => {
-		const opened = reducer(initialState, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
-		const cancelled = reducer(opened, { type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
-		//Opening and closing without composing anything is not work, and
-		//"Restored the draft you were composing" over an untouched draft would
-		//be a claim about something that never happened.
-		assert.strictEqual(cancelled.preservedSnapshot, null);
+		assert.deepStrictEqual(reopened.snapshot, initialState.active,
+			'and the next composition starts from the active collection, not from it');
+		//And nothing anywhere in the state is keeping it: the reset is the undo,
+		//so a second Escape has nothing left to undo.
+		assert.ok(!('preservedSnapshot' in reopened),
+			'the preserved-draft slot is gone from the state, not merely left empty');
 	});
 
 	it('leaves nothing to resume after a committed draft', () => {
@@ -99,7 +91,6 @@ describe('Collection Composer draft lifecycle', () => {
 			collection: draft,
 		});
 		const committed = reducer(changed, { type: CLOSE_CONFIGURE_COLLECTION_DIALOG });
-		assert.strictEqual(committed.preservedSnapshot, null);
 		const reopened = reducer(committed, { type: OPEN_CONFIGURE_COLLECTION_DIALOG });
 		assert.deepStrictEqual(reopened.snapshot, draft, 'which is now simply the active collection');
 	});

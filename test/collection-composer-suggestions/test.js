@@ -25,7 +25,7 @@ let readableCollectionExpression;
 let collectionExpressionParts;
 let collectionFilterDisplayName;
 let collectionFilterLabels;
-let collectionDraftReceipt;
+let collectionComposerDestinationDiff;
 let selectCollectionComposerCandidates;
 let activeCardRelationshipCandidates;
 let activeCardMetadataCandidates;
@@ -53,16 +53,13 @@ describe('Collection Composer suggestions', () => {
 			rankedComposerSuggestions,
 			collectionDescriptionFromComposerSource,
 			readableCollectionExpression,
+			collectionComposerDestinationDiff,
 			collectionExpressionParts,
 			collectionFilterDisplayName,
 			collectionFilterLabels,
 			activeCardRelationshipCandidates,
 			activeCardMetadataCandidates,
 		} = await import('../../lib/src/collection-composer-suggestions.js'));
-		//The receipt moved to its own module: naming a clause and knowing that
-		//two clauses are the same clause widened are different jobs, and the
-		//namer cannot import the draft layer that knows the second one.
-		({ collectionDraftReceipt } = await import('../../lib/src/collection-draft-receipt.js'));
 		({ selectCollectionComposerCandidates } = await import('../../lib/src/selectors.js'));
 		({
 			makeConfigurableFilter,
@@ -258,16 +255,22 @@ describe('Collection Composer suggestions', () => {
 		});
 
 		it('says which card an anchor changed from and to', () => {
-			//This receipt read 'Changed This card and directly connected cards to
-			//This card and directly connected cards' — both sides named by a
-			//function that never looked at the card.
-			const receipt = collectionDraftReceipt(
+			//SUPERSEDED PIN (round 3, D1/D3). This used to run through
+			//collectionDraftReceipt, the in-dialog narration of a draft edit —
+			//deleted with the receipt strip, because the owner's constitution
+			//makes the draft a preview that has changed nothing real and Escape
+			//the undo. The naming defect it was filed against ('Changed This card
+			//and directly connected cards to This card and directly connected
+			//cards' — both sides named by a function that never looked at the
+			//card) belongs to the diff namer that SURVIVED: the one-line
+			//annotation a combinatorial row carries (D3).
+			const diff = collectionComposerDestinationDiff(
 				CollectionDescription.deserialize('everything/direct-connections/+perf-card-12/'),
 				CollectionDescription.deserialize('everything/direct-connections/+perf-card-42/'),
 				{},
 				names
 			);
-			assert.strictEqual(receipt, 'Changed Connected to “Perf card 12” to Connected to “Perf card 42”');
+			assert.strictEqual(diff, 'Removes Connected to “Perf card 12” · Adds Connected to “Perf card 42”');
 		});
 	});
 
@@ -594,9 +597,9 @@ describe('Collection Composer suggestions', () => {
 			assert.strictEqual(broaden.label, `Remove ${name}`, `broaden row: ${filter}`);
 			assert.strictEqual(broaden.name, name, `broaden name: ${filter}`);
 			assert.strictEqual(
-				collectionDraftReceipt(applied, CollectionDescription.deserialize('everything/'), labels),
-				`Removed ${name}`,
-				`receipt: ${filter}`
+				collectionComposerDestinationDiff(applied, CollectionDescription.deserialize('everything/'), labels),
+				`Removes ${name}`,
+				`diff: ${filter}`
 			);
 			if (!typed) continue;
 			const add = collectionComposerSuggestions(
@@ -609,99 +612,52 @@ describe('Collection Composer suggestions', () => {
 		}
 	});
 
-	//Receipts are sentences composed from the canonical name, not the row label
-	//with its verb glued on a second time.
-	it('composes receipts as sentences rather than restating the row', () => {
-		const base = CollectionDescription.deserialize('main/');
-		assert.strictEqual(
-			collectionDraftReceipt(base, CollectionDescription.deserialize('main/starred/')),
-			'Added Starred'
-		);
-		assert.strictEqual(
-			collectionDraftReceipt(
-				CollectionDescription.deserialize('main/updated/after/7-days-ago/'),
-				CollectionDescription.deserialize('main/updated/after/14-days-ago/')
-			),
-			'Changed Updated since 7 days ago to Updated since 14 days ago'
-		);
-		assert.strictEqual(
-			collectionDraftReceipt(base, CollectionDescription.deserialize('everything/')),
-			//SUPERSEDED PIN (D4). The singleton receipts used to narrate the
-			//EDIT ('Changed the starting set to Everything'); they now name the
-			//STATE ('Starting from Everything'), which is the sentence the
-			//collection is actually in and the wording the round-2 feedback
-			//asked for. Same voice as the sentence above the receipt.
-			'Starting from Everything'
-		);
-		assert.strictEqual(
-			collectionDraftReceipt(base, CollectionDescription.deserialize('main/sort/recent/')),
-			'Sorted by Recent'
-		);
-		assert.strictEqual(
-			collectionDraftReceipt(base, CollectionDescription.deserialize('main/starred/unread/working-notes/')),
-			'Added Starred, Unread and 1 more'
-		);
-	});
-
-	//A STRUCTURAL EDIT IS ONE EVENT, AND THE RECEIPT HAS TO SAY WHICH ONE.
+	//THE PIN LEDGER FOR THE DELETED RECEIPT (round 3, D1).
 	//
-	//Read as a set difference, an or-fusion is two events — "Removed Tag 1 ·
-	//Added (Tag 1 OR Tag 2)" — and the alarming half, the removal, is the half
-	//that did not happen. The user widened a clause; nothing left the sentence.
-	//The same is true of a flip (which a set difference sees as two unrelated
-	//filters, because `published` and `unpublished` share no family) and of
-	//dropping one alternative from a group.
-	it('narrates a structural edit as the transformation it is', () => {
-		const labels = { 'tag-1': 'Tag 1', 'tag-2': 'Tag 2', 'tag-3': 'Tag 3' };
-		const receipt = (before, after) => collectionDraftReceipt(
+	//Two suites lived here: 'composes receipts as sentences rather than restating
+	//the row', and 'narrates a structural edit as the transformation it is' — the
+	//second of which pinned a genuinely careful piece of work (an or-fusion is ONE
+	//event, "Widened Tag 1 with Tag 2", not the set difference's two, whose
+	//alarming half is the half that did not happen).
+	//
+	//Both are superseded because the surface they described is gone. The owner's
+	//constitution: "Not live-changing the real collection until you commit with
+	//Cmd-Enter; before that it's just showing a preview; if you make a mistake,
+	//esc/X resets to the previous state." A receipt strip narrating each draft
+	//edit reports a change nobody has made yet, and its Undo button was a second,
+	//weaker undo standing beside the one Escape already was. collection-draft-
+	//receipt.ts is deleted with them.
+	//
+	//WHAT SURVIVED IS THE PREDICTION, NOT THE REPORT. A combinatorial row — a
+	//recent, a pivot — cannot show what it does as one pill, so it says it in a
+	//line: 'Removes Starred · Adds Tagged systems · Sorts by Recent' (D3, the
+	//annotation slot). That is the same sentence turned around from past tense to
+	//present, and it is pinned here in the tense the product now speaks.
+	it('names what a combinatorial row would do to the draft, in one line', () => {
+		const base = CollectionDescription.deserialize('main/');
+		const diff = (before, after, labels = {}) => collectionComposerDestinationDiff(
 			CollectionDescription.deserialize(before),
 			CollectionDescription.deserialize(after),
 			labels
 		);
-
-		assert.strictEqual(receipt('main/tag-1/', 'main/tag-1+tag-2/'),
-			'Widened Tag 1 with Tag 2');
-		assert.strictEqual(receipt('main/tag-1+tag-2/', 'main/tag-1+tag-2+tag-3/'),
-			'Widened Tag 1 or Tag 2 with Tag 3',
-			'widening an existing group names the group it widened');
-
-		//THE FLIP, in both directions, through the app's own inverse names —
-		//which is the whole reason this cannot be a string comparison: nothing
-		//about the text of `published` and `unpublished` says they are one
-		//clause and its opposite, and only the draft layer knows that they are.
-		assert.strictEqual(receipt('main/published/', 'main/unpublished/'),
-			'Flipped Published to Unpublished');
-		assert.strictEqual(receipt('main/unpublished/', 'main/published/'),
-			'Flipped Unpublished to Published');
-
-		//A FLIPPED GROUP IS NOT A FLIPPED PILL, and it cannot be narrated as one.
-		//"Flipped Tag 1 or Tag 2 to not Tag 1 or Tag 2" is the same words twice
-		//with a negation buried in the middle, and read left to right it says
-		//(not Tag 1) or Tag 2 — a different collection from the one it names, and
-		//the exact precedence the group's border exists to settle on screen. The
-		//group is named ONCE, and the change is stated as what the collection now
-		//keeps.
-		assert.strictEqual(receipt('main/tag-1+tag-2/', 'main/exclude/tag-1+tag-2/'),
-			'Flipped Tag 1 or Tag 2 to keep only cards matching none of it');
-		assert.strictEqual(receipt('main/exclude/tag-1+tag-2/', 'main/tag-1+tag-2/'),
-			'Flipped Tag 1 or Tag 2 to keep cards matching any of it');
-
-		//NARROWING NAMES WHAT THE CLAUSE IS NOW, not what left it: the reader
-		//should not have to do the subtraction. Both the group that survives and
-		//the group that dissolves into a single pill are the same edit.
-		assert.strictEqual(receipt('main/tag-1+tag-2/', 'main/tag-1/'),
-			'Narrowed Tag 1 or Tag 2 to Tag 1');
-		assert.strictEqual(receipt('main/tag-1+tag-2+tag-3/', 'main/tag-1+tag-3/'),
-			'Narrowed Tag 1 or Tag 2 or Tag 3 to Tag 1 or Tag 3');
-
-		//AND THE SHAPES IT MUST NOT CLAIM. An argument edit keeps its family and
-		//is not a structural change; two unrelated clauses swapping is not one
-		//edit at all.
 		assert.strictEqual(
-			receipt('main/updated/after/7-days-ago/', 'main/updated/after/14-days-ago/'),
-			'Changed Updated since 7 days ago to Updated since 14 days ago');
-		assert.strictEqual(receipt('main/starred/', 'main/unread/'),
-			'Removed Starred · Added Unread');
+			collectionComposerDestinationDiff(base, CollectionDescription.deserialize('main/starred/')),
+			'Adds Starred'
+		);
+		assert.strictEqual(diff('main/starred/', 'main/unread/'),
+			'Removes Starred · Adds Unread');
+		assert.strictEqual(diff('main/', 'everything/'),
+			'Uses Everything instead of Main');
+		assert.strictEqual(diff('main/', 'main/sort/recent/'),
+			'Sorts by Recent');
+		//THE WHOLE PAYLOAD IN ONE SLOT. This is the shape the row anatomy asks a
+		//combinatorial row for: several changes, one line, same place every other
+		//row puts its quiet annotation.
+		assert.strictEqual(diff('main/starred/', 'everything/unread/sort/recent/'),
+			'Uses Everything instead of Main · Removes Starred · Adds Unread · Sorts by Recent');
+		//AND NOTHING AT ALL when the row would change nothing, which is what lets
+		//the palette leave the annotation off rather than print an empty one.
+		assert.strictEqual(diff('main/starred/', 'main/starred/'), '');
 	});
 
 	it('shows ambiguous text as explicit interpretations', () => {

@@ -12,6 +12,7 @@ import { DialogElement } from './dialog-element.js';
 import { SITE_DOMAIN } from '../config.GENERATED.SECRET.js';
 
 import {
+	declareShortcut,
 	registerShortcut,
 	shortcutKeys,
 	DIALOG_SHORTCUT_PRIORITY,
@@ -189,13 +190,6 @@ import {
 } from '../collection-source.js';
 
 import {
-} from '../collection-filter-catalog.js';
-
-import {
-	collectionDraftReceipt,
-} from '../collection-draft-receipt.js';
-
-import {
 	CollectionExpression,
 	FilterExpressionNode,
 	collectionDescriptionWithExpression,
@@ -240,6 +234,7 @@ import {
 } from '../collection-composer-usage.js';
 
 import {
+	PaletteNaming,
 	PaletteRow,
 	VOCABULARY_SECTION,
 	frozenPaletteOrder,
@@ -250,7 +245,6 @@ import {
 	paletteTypingRows,
 	paletteWordRows,
 	PaletteWordScope,
-	RECENT_SECTION,
 } from '../collection-palette-rows.js';
 
 //The two lists that are painted by the .row rules. Naming them means the
@@ -262,7 +256,28 @@ const ALREADY_ACTIVE_MESSAGE = 'This collection is already open.';
 //Sentence case, honest about the reason, and it names what the key the user
 //actually has does instead (HS-2.3, §3.5: a refusal reports and offers the
 //next move). U+2019 apostrophe (§2.2).
-const NEW_TAB_UNSUPPORTED_NOTE = 'Opening in a new tab isn’t supported — Enter opens here.';
+//THE COMPOSER'S COMMIT IS CATALOGUED, NOT REGISTERED (round 3, D1).
+//
+//It is the one keystroke in this dialog that leaves, and the constitution puts
+//it at the end of every composition — so it belongs in the reference sheet like
+//every other combo the app answers to. It is DECLARED rather than registered
+//because the composer's input owns its own key grammar whole (Enter executes the
+//top action, Tab aliases it, Backspace selects then removes), and a registry
+//binding would be a second authority over one keystroke inside one field.
+//declareShortcut is the seam dialog-escape already uses for exactly this shape:
+//catalogued for the sheet, handled where it is actually performed.
+declareShortcut({
+	id: 'commit-collection-composer',
+	keys: SHORTCUT_COMBOS['commit-collection-composer'],
+	label: 'Open the collection you have composed',
+	group: 'dialogs',
+	focusPolicy: 'any-focus',
+	handler: () => false,
+});
+
+//It names the key that DOES open, which is the commit modifier now (round 3,
+//D1): plain Enter is spoken for by the top action.
+const NEW_TAB_UNSUPPORTED_NOTE = `Opening in a new tab isn’t supported — ${shortcutKeys('commit-collection-composer')} opens here.`;
 
 //A keystroke that has already been spent on a commit.
 //
@@ -290,6 +305,12 @@ const SOURCE_LINE_BREAKS = /[\r\n]+/g;
 //keystroke can name a few new ones; this is generous for a session and small
 //enough to be free.
 const RETAINED_PREVIEW_COUNT_LIMIT = 120;
+
+//HOW MANY CARDS THE PREVIEW LINE NAMES (round 3, D5). The owner: "before that
+//it's just showing you a preview of cards." Three titles and the remainder fit
+//on one line under the count, and one line is the whole design — this is a
+//preview of the collection, not a second collection view inside the composer.
+const PREVIEW_TITLE_LIMIT = 3;
 
 //Stable stand-ins for the not-yet-populated cases. A fresh `{}` or a fresh
 //CollectionDescription every render would give the memos below a new cache key
@@ -721,6 +742,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//open, where the alternative is measurably worse.
 	_retainedPreviewCounts = new Map<string, number>();
 
+	//THE FIRST FEW CARDS THE DRAFT ACTUALLY MATCHES, keyed by the collection they
+	//came out of — the same key the counts use, for the same reason: the names
+	//and the number beside them are two halves of one worker run, and keying them
+	//differently is how a title list could outlive the collection it described.
+	//
+	//BOUNDED AT THE HEAD OF THE LIST. Only a handful are ever rendered, so
+	//retaining an ordered id array per collection would be several hundred
+	//strings the composer has no use for.
+	_retainedPreviewIDs = new Map<string, readonly string[]>();
+
+	//Reactive, because the line renders from it: a Map mutation is invisible to
+	//Lit, so the render reads this counter's identity instead. Bumped whenever a
+	//run lands ids for a collection this session had none for.
+	@state()
+		_previewIDsVersion = 0;
+
 	@state()
 		_activeCardID = '';
 
@@ -747,14 +784,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_selectedPath : CollectionSentencePath = [];
 
-	@state()
-		_draftReceiptMessage = '';
-
-	//The typed text of a draft that was closed without being committed, and the
-	//collection it was an adjustment to. Not @state: nothing renders from them
-	//directly, and they are read once, on the next open.
-	_preservedComposerInput = '';
-	_preservedDraftBase = '';
+	//THE DRAFT RECEIPT STRIP IS DELETED, AND SO IS DRAFT PRESERVATION (round 3,
+	//D1). Both were answers to the same question — "what happened to my draft?"
+	//— and the owner's constitution answers it differently: the draft is a
+	//preview, nothing real has changed, and Escape resetting it is the undo. A
+	//narration of edits nobody had committed, with its own Undo button, was a
+	//second history competing with the one the user already had; and a draft
+	//that came back on the next open made the composer a place with memory,
+	//when the constitution says every composition begins from the collection
+	//you are looking at.
 
 	@state()
 		_clauseSelectionMessage = '';
@@ -771,8 +809,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//one.
 	_paletteOrder : {key : string, order : string[]} | null = null;
 
-	_draftUndoDescription : CollectionDescription | null = null;
-	_draftUndoSelectedCard : string | null = null;
 	_cancelPreviews : (() => void) | null = null;
 	readonly _draftPreviewID = 'current-draft-preview';
 	//THE SECOND OF THE PILL ROW'S TWO COUNT ROLES. "Draft now matches N" is the
@@ -944,46 +980,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				outline-offset: -2px;
 			}
 
-			/* A RECEIPT IS A THING, SO IT NEEDS AN EDGE.
-			   This strip floated between the input and the suggestion list with
-			   no container of its own, so "Added Starred · Undo" read as loose
-			   text that had come adrift — and it sat hard against the top of the
-			   list, where the fade clips the first row, so the two collided.
-			   A wash and a rule of its own space give it a boundary; the tokens
-			   are the same two the clause chips and the divider already use.
-			   The colour also steps up from --app-dark-text-color-light, which
-			   is ~2.3:1 on white and which this file has already rejected once
-			   for text that has to be read (see the loading-placeholder note
-			   below). A receipt is precisely that: it is the only record of what
-			   the last keystroke did to the draft. */
-			.draft-receipt {
-				align-items: center;
-				background: var(--app-primary-color-light-very-transparent);
-				border-left: 3px solid var(--app-divider-color);
-				color: var(--app-dark-text-color-darker);
-				display: flex;
-				/* THE UNDO MUST SURVIVE A LONG RECEIPT. A structural receipt
-				   names a whole clause ("Flipped Tagged tag-1 or Tagged tag-2 to
-				   keep only cards matching none of it"), and on a narrow screen
-				   the flex row squeezed the button that undoes it down to
-				   "Und" — a control clipped at exactly the moment it is most
-				   wanted. The row wraps, and the button keeps its own width. */
-				flex-wrap: wrap;
-				font-size: 0.82em;
-				gap: 0.5em;
-				margin: 0.4em 0;
-				padding: 0.3em 0.6em;
-			}
-
-			.draft-receipt span {
-				flex: 1 1 12em;
-				min-width: 0;
-			}
-
-			.draft-receipt button {
-				flex: 0 0 auto;
-			}
-
 			/* THE COMPOSER'S TEXT VERB — one rule, replacing three near-identical
 			   local repaints (.draft-receipt button, .builder-toggle
 			   button.small, .mode-actions button.small) and, more usefully,
@@ -1113,12 +1109,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				width: 100%;
 			}
 
+			/* ONE GRID, AND ONLY THE THREE THINGS A ROW MAY SAY (round 3, D3):
+			   what it does, the consequence count, and — on the highlighted row —
+			   its one line of explanation. The glyph track went with the
+			   navigating row (nothing in this list navigates any more) and the
+			   widens row went with the second label line: what an or widens is
+			   already in its own label, and a second restatement of it was a
+			   fourth thing exactly one species of row carried. */
 			.palette-row button {
-				grid-template-columns: minmax(0, 1fr) 11em auto;
+				grid-template-columns: minmax(0, 1fr) 11em;
 				grid-template-areas:
-					'label count glyph'
-					'widens count glyph'
-					'detail detail detail';
+					'label count'
+					'detail detail';
 			}
 
 			/* The source completion list keeps the columns it always had,
@@ -1167,25 +1169,37 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				overflow-wrap: anywhere;
 			}
 
-			/* WHAT AN "OR" ROW WIDENS, as the subordinate clause it is. Proposal
-			   B §3.1 requires the row to be labeled with its target; the label
-			   already reads "<target> or <new>", so this says which half of that
-			   sentence was already there. */
-			.row-widens {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.75em;
-				grid-area: widens;
-			}
-
-			/* WHAT KIND OF THING THIS ROW IS, in one quiet word. Deliberately
-			   the same subordinate register as .row-widens and .row-current:
-			   this is the category that used to be a heading, demoted to an
-			   attribute so the ranking can own the order of the list. */
+			/* THE ONE ANNOTATION SLOT, AND EVERY ROW USES THE SAME ONE.
+			   A quiet word for a clause row ('tag', 'section', 'sort'); the
+			   one-line diff for a combinatorial row ('Removes Starred · Adds
+			   Tagged systems · Sorts by recently updated'). Same shape, bigger
+			   payload — which is the whole of D3's requirement that no row have
+			   a visual grammar of its own. It wraps, because a diff is a
+			   sentence and a nowrap sentence is a horizontal scrollbar. */
 			.row-annotation {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.72em;
 				margin-left: 0.5em;
-				white-space: nowrap;
+			}
+
+			/* THE PILL THIS ROW WOULD TAKE OUT, in the outlined-not vocabulary
+			   one step further: the sentence draws an excluded clause outlined,
+			   and a clause on its way out of the sentence is drawn outlined AND
+			   struck. Applied to the row's label rather than to the pill's own
+			   expression, because the pill names a clause that really is in the
+			   draft — inventing a negated node to draw it with would make the
+			   row lie about which clause it is offering to remove. */
+			.row-removes {
+				opacity: 0.7;
+				text-decoration: line-through;
+			}
+
+			/* The annotation is not part of what is being struck out: it says
+			   what KIND of clause is leaving, and a struck annotation would read
+			   as a second thing being removed. */
+			.row-removes .row-annotation {
+				opacity: 1;
+				text-decoration: none;
 			}
 
 			/* The mark on the option already in force. Subordinate, like every
@@ -1225,20 +1239,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				white-space: nowrap;
 			}
 
-			/* THE ONE GLYPH THAT SURVIVED THE VERB CHIPS. A destination under a
-			   typing list is the only row whose consequence differs from its
-			   neighbours', so it is the only row that has to say so — and it
-			   says it the way find-dialog already does. */
-			.row-navigate {
-				align-self: center;
-				grid-area: glyph;
-			}
-
-			.row-navigate svg {
-				fill: var(--app-dark-text-color-light);
-				height: 1em;
-				width: 1em;
-			}
+			/* THE NAVIGATION GLYPH IS GONE WITH THE THING IT MARKED. A recent
+			   used to be the one row in the list whose consequence differed
+			   from its neighbours' — it LEFT — so it wore a glyph none of them
+			   had. In the round-3 model nothing in the list leaves: executing a
+			   recent replaces the draft with it, which is an action on the draft
+			   like every other row's, so there is no longer a difference for a
+			   glyph to mark. */
 
 			/* A recent renders as the sentence it is, in miniature. The
 			   renderer is the same component the palette's own sentence is, so
@@ -1309,12 +1316,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   leave the label nothing, so the count takes its own row under the
 			   label and is allowed to wrap. */
 			.mobile .palette-row button {
-				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-columns: minmax(0, 1fr);
 				grid-template-areas:
-					'label glyph'
-					'widens glyph'
-					'count count'
-					'detail detail';
+					'label'
+					'count'
+					'detail';
 			}
 
 			.mobile .row-count {
@@ -1360,19 +1366,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-height: 0;
 			}
 
-			/* THE URL THE DRAFT WOULD OPEN, under the list, while composing.
-			   The plus and minus keys in the sentence's own keyboard grammar
-			   are literally the URL's spellings for union and exclusion, and
-			   this line is where a user first sees what they produce — the
-			   ladder teaching downward, one quiet line at a time (proposal C
-			   §4.6). Subordinate colour and monospace: it is a path, not a
-			   sentence. */
-			.compiled-path {
+			/* THE PREVIEW LINE (D5). One line, subordinate, clipped rather than
+			   wrapped: the draft's own count sits directly above it and this is
+			   the evidence for that number, not a second reading surface. It
+			   follows the count's right-aligned column by sitting under the whole
+			   footer row rather than inside it, so a long title cannot push the
+			   commit button anywhere. */
+			.preview-titles {
 				color: var(--app-dark-text-color-light);
-				font-family: monospace;
-				font-size: 0.75em;
-				margin-top: 0.5em;
-				overflow-wrap: anywhere;
+				font-size: 0.78em;
+				overflow: hidden;
+				text-align: right;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.mobile .preview-titles {
+				text-align: left;
 			}
 
 			/* The footer is the last child of #inner, so scrolling the list to
@@ -2011,6 +2021,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		);
 	}
 
+	//WHAT THE COMBINATORIAL ROWS NEED TO NAME THEIR OWN DIFF. Memoized only by
+	//Lit's own render cadence — the three values are selector results and memo
+	//outputs, so the object is cheap and the diff namer it feeds is called once
+	//per destination row rather than once per render of the list.
+	get _paletteNaming() : PaletteNaming {
+		return {
+			draft: this._collectionDescription,
+			labels: this._composerFilterLabels,
+			cardNames: this._composerCardNames,
+		};
+	}
+
 	//THE FOUR FEEDS, IN THE ORDER THEY OUTRANK EACH OTHER.
 	//
 	//An or-scoped input is the narrowest question the palette can be asking, so
@@ -2023,6 +2045,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const description = this._collectionDescription;
 		const expression = this._draftExpression;
 		const context = this._completionContext;
+		//WHAT A COMBINATORIAL ROW NEEDS TO SAY WHAT IT DOES. Assembled once per
+		//feed rather than per row, and from the same label maps the sentence and
+		//the pill row name clauses with.
+		const naming = this._paletteNaming;
 		if (this._orTarget) {
 			return paletteOrScopedRows(
 				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
@@ -2041,7 +2067,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			//rule exists to keep.
 			const typed = this._rankedTypedRows(this._withoutNoOpWidenRows(paletteTypingRows(
 				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
-				description
+				description,
+				'',
+				naming
 			)).slice(0, TYPING_ROW_LIMIT));
 			return [...typed, ...this._recoveryRows()];
 		}
@@ -2118,8 +2146,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//every row whose count is unknown or non-zero. The idle list has had this
 	//rule since the old build (rankedComposerSuggestions); this is the same rule
 	//for the list that replaced it.
+	//
+	//A ROW THAT SHOWS NO COUNT IS NOT SUNK BY ONE (round 3, D2/D3). The rule
+	//exists because a row reading `→ 0 cards` must not LEAD; a row that never
+	//renders a number is not that row, and sinking it on a figure the user cannot
+	//see is the silent-suppression defect the rule was written against, one door
+	//over. Caught in live verification: with the draft resolving to zero, `Edit
+	//Created since 5 days ago` — whose collection IS the draft, by definition —
+	//fell from second place to tenth, under eight rows that would ADD a second
+	//date clause to a collection that already matched nothing.
 	_rankedTypedRows(rows : PaletteRow[]) : PaletteRow[] {
-		const empty = (row : PaletteRow) => this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
+		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
+			this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
 			.map((row, index) => ({row, index}))
 			.sort((left, right) => empty(left.row) - empty(right.row) || left.index - right.index)
@@ -2149,12 +2187,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const vocabulary = paletteTypingRows(
 			completionCandidatesFor('', this._draftExpression, description, context, VOCABULARY_CANDIDATE_LIMIT),
 			description,
-			VOCABULARY_SECTION
+			VOCABULARY_SECTION,
+			this._paletteNaming
 		);
 		return paletteIdleRows(
 			ranked.filter(suggestion => suggestion.kind === 'recent'),
 			ranked.filter(suggestion => suggestion.kind !== 'recent'),
-			vocabulary
+			vocabulary,
+			this._paletteNaming
 		);
 	}
 
@@ -2223,10 +2263,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//answer to "what does this row do".
 	//
 	//A DESTINATION IS EXEMPT. A recent is a whole other collection the user has
-	//already been in, not an edit to this one, and rewriting its set would open
-	//somewhere they never went.
+	//already been in, not an edit to this one, and rewriting its set would make
+	//the draft a collection they never went to.
 	_appliedDescription(row : PaletteRow) : CollectionDescription {
-		if (row.navigates) return row.description;
+		if (row.kind === 'destination') return row.description;
 		return collectionDescriptionWithStickyStart(this._collectionDescription, row.description, this._stickySet);
 	}
 
@@ -2296,15 +2336,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return html`${row.label}`;
 	}
 
+	//ONE ROW ANATOMY, AND NO ROW MAY HAVE A SECOND (round 3, D3):
+	//
+	//    [what it does — as the pill(s) or word it produces or removes]
+	//    [right-aligned consequence count, `current → after`, where meaningful]
+	//    [one quiet annotation — kind, or a combinatorial row's whole diff]
+	//
+	//and, on the highlighted row and only there, its one line of explanation.
+	//That last is a property of the HIGHLIGHT rather than of the row: every row
+	//behaves identically under it, which is what `alwaysDetail` — a pin held
+	//open by exactly one species — did not.
 	_paletteRowRender(row : PaletteRow, index : number, highlightedIndex : number) {
 		const highlighted = index === highlightedIndex;
 		const countText = this._rowCountText(row);
-		//THE DETAIL LINE IS ON THE HIGHLIGHTED ROW AND NOWHERE ELSE (proposal B
-		//§2.1). A list where every row explains itself is a list nobody scans.
-		//`alwaysDetail` survives for the feeds that are a directory rather than a
-		//prediction; the vocabulary run does not use it — it uses the quiet
-		//annotation below, which is a word rather than a sentence.
-		const showDetail = Boolean(row.detail) && (highlighted || row.alwaysDetail);
+		const showDetail = Boolean(row.detail) && highlighted;
 		return html`
 			<div class='palette-row' role='presentation'>
 				<button
@@ -2312,7 +2357,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					role='option'
 					tabindex='-1'
 					aria-selected=${highlighted}
-					aria-label=${`${row.label}${row.annotation ? `, ${row.annotation}` : ''}${row.current ? ', current' : ''}. ${row.detail}${countText ? `. ${countText}` : ''}`}
+					aria-label=${`${row.removes ? 'Remove ' : ''}${row.edits ? 'Edit ' : ''}${row.label}${row.annotation ? `, ${row.annotation}` : ''}${row.current ? ', current' : ''}. ${row.detail}${countText ? `. ${countText}` : ''}`}
 					aria-pressed=${ifDefined(row.current === undefined ? undefined : String(row.current))}
 					data-index=${index}
 					data-row-id=${row.id}
@@ -2321,7 +2366,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					?data-highlighted=${highlighted}
 					@mousemove=${() => this._handleRowPointerMove('palette', index)}
 					@mouseenter=${() => this._handleRowPointerEnter('palette', index)}
-					@click=${() => this._activateRow(row, row.navigates)}
+					@click=${() => this._activateRow(row)}
 				>
 					<!-- THE OPTION ALREADY IN FORCE SAYS SO. A check and the word,
 					     not a colour: the highlight is already the list's only fill
@@ -2337,18 +2382,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					     product. It rides INSIDE the label area rather than
 					     taking a grid row of its own, so a list of three hundred
 					     rows does not grow three hundred extra lines. -->
-					<span class='row-label'>${this._rowLabelRender(row)}${row.annotation ? html`<span class='row-annotation'>${row.annotation}</span>` : ''}${row.current ? html`<span class='row-current'> ✓ current</span>` : ''}</span>
-					<!-- WHAT AN "OR" WIDENS, named. The label already reads
-					     "<target> or <new>"; this says which half of it was
-					     already in the sentence, which is the fact that makes the
-					     row causal rather than arbitrary. -->
-					${row.targetLabel ? html`<span class='row-widens'>widens ${row.targetLabel}</span>` : ''}
+					<!-- A ROW THAT TAKES A PILL OUT SHOWS THAT PILL, STRUCK.
+					     Same slot, same component, same clause — the difference
+					     between putting one in and taking one out is a treatment
+					     on the thing, not a different kind of row. -->
+					<span class=${row.removes ? 'row-label row-removes' : 'row-label'}>${this._rowLabelRender(row)}${row.annotation ? html`<span class='row-annotation'>${row.annotation}</span>` : ''}${row.current ? html`<span class='row-current'> ✓ current</span>` : ''}</span>
 					${countText ? html`<span class='row-count'>${countText}</span>` : ''}
-					<!-- THE ONE GLYPH THAT SURVIVED THE VERB CHIPS. Under a
-					     typing list the rows are edits and a recent is not, so
-					     the one row whose consequence differs says so. In the
-					     idle list the "Recent" heading has already said it. -->
-					${row.navigates && row.section !== RECENT_SECTION ? html`<span class='row-navigate' aria-hidden='true'>${OPEN_IN_BROWSER_ICON}</span>` : ''}
 					<!-- "ONLY FOR YOU" DIES IN COMPOSITION (meta-proposal
 					     convergence 6). The note rode every personal row and
 					     every personal chip, which is a caution repeated in the
@@ -2422,18 +2461,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`;
 	}
 
-	//THE URL THE DRAFT WOULD OPEN, one quiet line under the list.
-	//
-	//Nothing depends on it and it asks for nothing — which is exactly why it
-	//teaches. The keyboard grammar's `+` and `-` are the URL's own spellings for
-	//union and exclusion, so a user who has been pressing them has already been
-	//authoring this string; this is where they first see it, and the step from
-	//here into Source is a step they have already taken without noticing.
-	_compiledPathRender() {
-		const path = collectionURLPath(this._collectionDescription, {selectedCard: this._draftSelectedCard, originalOrder: true});
-		if (!path) return '';
-		return html`<div class='compiled-path' aria-hidden='true'>${path}</div>`;
-	}
+	//THE COMPILED-PATH LINE IS CUT (round 3, D6). It printed the URL the draft
+	//would open, one quiet line under the list, on the argument that it taught
+	//the `+`/`-` grammar by showing it. Nothing depended on it, nothing asked for
+	//it, and the tightness pass's rule is exactly that: the composer is the
+	//sentence, the input, the one list, the footer's count and commit, and the
+	//pill row on a selection. A URL is none of those. Source mode — which is
+	//where a user who wants to author the path goes — still shows it, editable,
+	//which is a better teacher than a line you cannot touch.
 
 	_composerRender() {
 		if (!this._collectionDescription) return html``;
@@ -2471,12 +2506,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				@input=${this._handleComposerInput}
 				@keydown=${this._handleComposerKeyDown}
 			>
-			${this._draftReceiptMessage ? html`
-				<div class='draft-receipt' role='status'>
-					<span>${this._draftReceiptMessage}</span>
-					${this._draftUndoDescription ? html`<button class='small verb' @click=${this._undoDraftEdit}>Undo</button>` : ''}
-				</div>
-			` : ''}
 			<!-- ANNOUNCED, NOT SHOWN. The pill row under the sentence is the
 			     visible answer to "which clause is selected", and it says so in
 			     more detail than a status line could. A screen reader still has
@@ -2489,13 +2518,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</div>
 			` : ''}
 			${this._paletteListRender(rows, highlightedIndex)}
-			<div class='key-hints'>${this._composerKeyHints(rows, highlighted)}</div>
+			<div class='key-hints'>${this._composerKeyHints()}</div>
 			${this._modifierNoteRender()}
-			${this._compiledPathRender()}
-			<!-- THE "Browse all filters" LINK IS GONE. The list already contains
-			     every filter family, every tag, every section and every person,
-			     ranked; a link that seeded a second copy of it was a gate in
-			     front of a door that is now open. -->
+			<!-- A MODE SWITCH, NOT A CONTROL ON THE DRAFT. The tightness pass
+			     (D6) enumerates the parts of the composing flow; an EXIT from it
+			     is not one of them, and neither are the two other exits (Escape,
+			     and the commit button below). This is the composer's only visible
+			     door to its other surface, and Source is where the path the
+			     compiled-path line used to print now lives. -->
 			<div class='mode-links'>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
@@ -2506,6 +2536,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._handleOpenCurrentDraft,
 		Boolean(highlighted)
 	)}
+			<!-- WHAT THE DRAFT MATCHES, BENEATH THE COUNT (D5). Not a grid, not a
+			     list: one quiet line of names, so the number above it is about
+			     something the user can see. -->
+			${this._previewTitlesRender(draftCount)}
 		`;
 	}
 
@@ -2521,82 +2555,49 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return 'Type another condition…';
 	}
 
-	//THE FOOTER STATES THE CONTRACT THAT IS ACTUALLY IN FORCE.
+	//THE FOOTER STATES THE CONTRACT, AND STATES NOTHING ELSE (round 3, D6).
 	//
-	//Spec: "A persistent, context-sensitive footer states the active contract,
-	//for example Tab Add · Enter Open · Esc Cancel." Two of the states this
-	//line stated were not true.
+	//    Enter does the top thing · Cmd-Enter opens · Escape discards
 	//
-	//'Click edits' was printed whenever a list was on screen with nothing
-	//highlighted — including when every row in it was a destination that
-	//clicking OPENS, which is the one verb a footer must never get wrong. With
-	//nothing highlighted the rows differ from each other, so the honest line
-	//makes no claim about them at all and describes only the keys that mean the
-	//same thing whichever row the user is looking at. Each highlighted state
-	//then names that row's own verbs.
+	//Three keys, one line, unchanging. The line it replaces had SEVEN states — one
+	//per highlighted row species, each naming that row's own verbs ('Enter adds
+	//and opens', 'Tab copies it into the draft', 'Click, Tab, or Enter opens
+	//Source'). Those states were honest about a list whose rows did different
+	//KINDS of thing, and that list is gone: every row is an action on the draft
+	//now, so a footer that still varied per row would be teaching a distinction
+	//the product no longer makes. A contract you have to re-read on every
+	//arrow-down is not a contract.
 	//
-	//And the main state never named Escape, though the spec's own example
-	//contract ends with it and it is the only way out that does not navigate.
-	//The word comes from the canonical combo table, like every other key this
-	//dialog names, rather than being spelled a second way here.
+	//THE KEYS ARE SPELLED FROM THE CANONICAL COMBO TABLE, not by hand. The
+	//round-3 wording is '⌘Enter', which is Mac-only and hand-synced — the two
+	//properties shortcuts-data exists to eliminate, and its header documents a
+	//tooltip that lied for weeks because of exactly that. `shortcutKeys` renders
+	//'Cmd-Enter' on a Mac and 'Ctrl-Enter' everywhere else, from the same entry
+	//the handler's contract is written against.
 	//
-	//The branches are ordered the way _activateRow already orders them — source,
-	//then set-up-and-add, then the plain action — so the footer cannot promise a
-	//verb the click would not perform.
+	//TWO LAYERS KEEP A LINE OF THEIR OWN, because a layer with a different
+	//contract in force has to say so or the footer is lying: the or-scoped input
+	//(where every row is an alternative to one named clause) and the pill row
+	//(whose keys come from PILL_ROW_KEY_HINTS, the module that performs them).
+	//Both are peeled by the same Escape the main line names.
 	//
 	//AND A TOUCH LAYOUT HAS NO KEYBOARD TO STATE A CONTRACT FOR. On a phone this
-	//line named ↑↓, Tab, Click and Escape — four inputs the device does not
-	//have — which is the same defect as the wrong verb, one level up: a footer
-	//that describes controls the user cannot reach. The touch line points at the
-	//affordances that ARE there rather than restating a keyboard grammar, and it
-	//makes no per-row claim, for the same reason the nothing-highlighted desktop
-	//branch makes none.
-	//
-	//THE PILL ROW'S OWN KEYS COME FROM THE MODULE THAT PERFORMS THEM
-	//(PILL_ROW_KEY_HINTS), so the line that teaches `+ adds an or` and the row
-	//that implements it cannot drift apart. `+` and `-` are deliberately the
-	//URL's own spellings for union and exclusion: the shortcut a user learns
-	//here is the character they will one day read in the compiled-path line
-	//under the list, and then in Source.
-	_composerKeyHints(rows : PaletteRow[], highlighted : PaletteRow | undefined) : string {
-		const escapeHint = `${shortcutKeys('dialog-escape')} cancels`;
+	//line named keys the device does not have, which is the same defect one level
+	//up: a footer describing controls the user cannot reach.
+	_composerKeyHints() : string {
 		if (this.mobile) {
 			if (this._pillRowOpen) return 'Editing a clause · tap its verbs to change it · tap another pill to edit that one';
-			return rows.length ?
-				'Tap a row to use it · tap the open button for this collection' :
-				'Type to compose · tap the open button for this collection';
+			return 'Tap a row to use it · tap the open button for this collection';
 		}
-		//A SCOPED INPUT STATES ITS OWN SCOPE. Every row is an alternative
-		//joining one named condition, so the generic line would be describing a
-		//different list.
-		if (this._orTarget) return `Type an alternative · Tab widens the clause · ${shortcutKeys('dialog-escape')} goes back to the pill`;
-		//THE PILL ROW OWNS THE PILL'S KEYS while a pill is selected, and the
-		//line names them from the module that performs them.
-		//
-		//THE ARMED BACKSPACE LEADS THE LINE. The first Backspace on an empty
-		//input SELECTS rather than removing, and the sentence promising that used
-		//to exist only inside the visually-hidden live region — stated to screen
-		//readers and to nobody else, while the sighted user got a pill row
-		//opening under the sentence and no word about the keystroke now armed.
-		//It is prepended rather than substituted because the row's other keys are
-		//still live and the footer's job is to state the contract in force, all
-		//of it.
+		if (this._orTarget) return `Type an alternative · Enter widens the clause · ${shortcutKeys('dialog-escape')} goes back to the pill`;
+		//THE ARMED BACKSPACE LEADS THE LINE. The first Backspace on an empty input
+		//SELECTS rather than removing, and a contract nobody can see is not one.
 		if (this._pillRowOpen) {
 			const keys = PILL_ROW_KEY_HINTS.map(hint => `${hint.key} ${hint.means}`).join(' · ');
 			const armed = this._backspaceArmed ? `${this._backspaceArmedMessage} · ` : '';
 			return `${armed}←→ choose clause · ${keys} · ${shortcutKeys('dialog-escape')} closes the row`;
 		}
-		if (!highlighted) {
-			return rows.length ?
-				`↑↓ or Tab choose · Enter opens this collection · ${escapeHint}` :
-				`Type to compose · Enter opens this collection · ${escapeHint}`;
-		}
-		if (highlighted.sourceFilter) return '↑↓ choose · Click, Tab, or Enter opens Source';
-		if (highlighted.configurable && highlighted.filter) return '↑↓ choose · Click, Tab, or Enter adds it and opens its controls';
-		//A destination: clicking it and Enter do the same thing, and Tab is the
-		//spec's labeled secondary action.
-		if (highlighted.navigates) return '↑↓ choose · Click or Enter opens · Tab copies it into the draft';
-		return '↑↓ choose · Click or Tab adds · Enter adds and opens';
+		return `Enter does the top thing · ${shortcutKeys('commit-collection-composer')} opens · ${shortcutKeys('dialog-escape')} discards`;
 	}
 
 	//BOTH modes explain an inert modifier the same way, in the same place: on
@@ -2631,6 +2632,33 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//draft's number recedes, and the two numbers on screen stop competing to be
 	//"what Enter will do". The key-hints line directly above says which one it
 	//is, and the reserved width means nothing moves either way.
+	//WHAT THE DRAFT ACTUALLY MATCHES, NAMED (round 3, D5).
+	//
+	//The owner's constitution calls the un-committed draft "just showing a
+	//preview of cards", and a number alone is not one: '118 cards' is the same
+	//sentence for every collection of that size. Three titles say WHICH cards,
+	//and they cost nothing new — the worker run that produced the count already
+	//returned the ordered ids, and this reads titles for them out of the map the
+	//composer already holds for naming card-valued clauses.
+	//
+	//ABSENT, NOT EMPTY, WHILE PENDING. A line that appears blank and then fills
+	//is a layout shift on every keystroke; "we do not know yet" and "there is
+	//nothing to say" are different facts and only the second of them is worth a
+	//line. A card whose record has not loaded is skipped rather than named by its
+	//id — an internal identifier never reaches a user (HS-1.4) — so on a corpus
+	//that is still loading the line is simply shorter, or absent.
+	_previewTitlesRender(count : number | undefined) {
+		if (!count) return '';
+		void this._previewIDsVersion;
+		const ids = this._retainedPreviewIDs.get(this._previewCountKey(this._collectionDescription));
+		if (!ids || !ids.length) return '';
+		const titles = ids.map(id => this._cardTagInfos?.[id]?.title || '').filter(Boolean);
+		if (!titles.length) return '';
+		const remaining = count - titles.length;
+		const line = remaining > 0 ? `${titles.join(' · ')} · and ${remaining} more` : titles.join(' · ');
+		return html`<div class='preview-titles'>${line}</div>`;
+	}
+
 	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false) {
 		return html`
 			<div class='buttons composer-actions' ?data-deemphasized=${deemphasized}>
@@ -2982,7 +3010,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleBackToCompose() {
 		const parsed = this._parsedSource;
 		if (parsed.status === 'valid' && parsed.description) {
-			this._commitDraftEdit(parsed.description, 'Applied source to the visual draft', false, parsed.selectedCardRaw);
+			this._commitDraftEdit(parsed.description, false, parsed.selectedCardRaw);
 			this._sourceDirty = false;
 		} else {
 			this._sourceReturnWarning = true;
@@ -2995,7 +3023,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_returnToLastValidSource() {
 		if (this._lastValidSource?.description) {
-			this._commitDraftEdit(this._lastValidSource.description, 'Returned to the last valid source', false, this._lastValidSource.selectedCardRaw);
+			this._commitDraftEdit(this._lastValidSource.description, false, this._lastValidSource.selectedCardRaw);
 			this._sourceInput = this._lastValidSource.canonicalPath || this._sourceInput;
 			this._sourceDirty = false;
 		}
@@ -3223,28 +3251,47 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		if (e.key === 'Tab' && !e.shiftKey && rows.length) {
 			e.preventDefault();
 			e.stopPropagation();
-			//Tab is how the keyboard reaches the list without typing first.
-			//With nothing highlighted it highlights the first row — the list
-			//becomes enterable — and with a row highlighted it MATERIALIZES
-			//that row: the valence's own expression becomes the draft, the
-			//input clears, and focus stays where it was. A destination
-			//materializes as its expression rather than opening, which is the
-			//labeled secondary action the spec allows for an Open row.
+			//TAB IS AN ALIAS FOR ENTER'S EXECUTE, kept for the muscle memory the
+			//previous contract built (round 3, D1: "Keep Tab as an alias for the
+			//same execute"). With nothing highlighted it still REACHES the list
+			//— that gesture has no other key, and Enter on an empty input is
+			//spoken for by the commit — and with a row highlighted it executes
+			//exactly what Enter would.
 			if (!highlighted) {
 				this._highlightedRow = 0;
 				this._rowHighlightActive = true;
 				return;
 			}
-			this._activateRow(highlighted, false);
+			this._activateRow(highlighted);
 			return;
 		}
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			e.stopPropagation();
 			committedKeystrokes.add(e);
-			//Spec: Enter opens the highlighted destination including its visible
-			//preview, or the current draft when no row is highlighted.
-			if (highlighted) this._activateRow(highlighted, true);
+			//THE KEY CONTRACT, WHOLE (round 3, D1 — the owner's constitution:
+			//"ENTER EXECUTES THE TOP ACTION … not live-changing the real
+			//collection until you commit with Cmd-Enter").
+			//
+			//  ⌘Enter / Ctrl-Enter  commit: open the draft and close.
+			//  Enter with a row     execute that row against the DRAFT. Typing
+			//                       makes the top row the highlighted one, so
+			//                       "the top action" and "the highlighted one if
+			//                       the user arrowed" are one branch and not two.
+			//  Enter with no row    commit. This is the state an EMPTY input
+			//                       leaves the list in, which makes "type, enter,
+			//                       type, enter, enter" end in a commit — the
+			//                       natural end of the flow, pinned deliberately.
+			//
+			//The old split — Tab adds, Enter opens the highlighted row — is
+			//superseded outright. It made the list two kinds of thing (rows you
+			//add and rows you go to) and it put a navigation on the key the user
+			//presses after every single token.
+			if (e.metaKey || e.ctrlKey) {
+				this._handleOpenCurrentDraft();
+				return;
+			}
+			if (highlighted) this._activateRow(highlighted);
 			else this._handleOpenCurrentDraft();
 		}
 	}
@@ -3260,6 +3307,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//Returns whether the key was spent here, so the list's own keys are reached
 	//only by a keystroke the sentence did not want.
 	_handleSentenceKeyDown(e : KeyboardEvent) : boolean {
+		//THE COMMIT MODIFIER OUTRANKS EVERY LAYER. ⌘Enter means "open this
+		//collection" wherever the user is in the composer, including with a pill
+		//selected — otherwise the one key the constitution reserves for
+		//committing would silently mean "focus a date field" on the exact
+		//keystroke somebody finished composing on.
+		if (e.metaKey || e.ctrlKey) return false;
 		const expression = this._draftExpression;
 		const path = this._selectedPath;
 		const memberIndex = this._selectedMemberIndex;
@@ -3307,9 +3360,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			void this._focusPillRowControl();
 			return true;
 		case '+':
-			//THE URL'S OWN SPELLING FOR UNION, as the shortcut for adding one.
-			//The compiled-path line under the list is where the user sees the
-			//character they just pressed appear in a path (proposal C §4.6).
+			//THE URL'S OWN SPELLING FOR UNION, as the shortcut for adding one:
+			//the character a user presses here is the one they will read in a
+			//path in Source (proposal C §4.6).
 			if (!path.length) return false;
 			e.preventDefault();
 			e.stopPropagation();
@@ -3324,7 +3377,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			e.stopPropagation();
 			this._applyExpression(memberIndex < 0 ?
 				withNegationToggled(expression, path[0]) :
-				withMemberNegationToggled(expression, path[0], memberIndex), '', path);
+				withMemberNegationToggled(expression, path[0], memberIndex), path);
 			return true;
 		case 'ArrowLeft':
 		case 'ArrowRight': {
@@ -3392,12 +3445,36 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		}
 	}
 
-	_activateRow(row : PaletteRow, open : boolean) {
+	//EXECUTING A ROW. There is exactly one verb now (round 3, D1): every row is an
+	//action on the DRAFT, and none of them navigates. What differs between rows is
+	//WHICH action — add a clause, remove one, open one's controls, change the set,
+	//change the sort, or replace the whole draft with a collection you have been
+	//in before — which is precisely the list the owner's constitution enumerates.
+	//
+	//The `open` parameter is gone with the split it served. Nothing here can leave
+	//the composer, so there is no second mode for a caller to select.
+	_activateRow(row : PaletteRow) {
+		//AN EDIT ROW OPENS A CLAUSE'S CONTROLS AND CHANGES NOTHING ELSE. It is the
+		//one action in the list whose consequence is a surface rather than a
+		//collection: the pill row appears under the sentence, on the clause the row
+		//named, with the caret in its first control.
+		if (row.edits && row.targetIndex !== undefined) {
+			this._recordRowAcceptance(row);
+			this._composerInput = '';
+			this._highlightedRow = 0;
+			this._rowHighlightActive = false;
+			this._orTarget = null;
+			this._wordScope = '';
+			this._selectToken(row.targetMemberIndex !== undefined && row.targetMemberIndex >= 0 ?
+				[row.targetIndex, row.targetMemberIndex] :
+				[row.targetIndex]);
+			void this._focusPillRowControl();
+			return;
+		}
 		//THE OPTION ALREADY IN FORCE IS NOT AN EDIT. It is in the list so the
 		//list can answer "which one is it now?"; choosing it means "this one",
 		//which is where the draft already is. Committing it would push an
-		//identical description through the draft history and leave a receipt
-		//saying something changed.
+		//identical description through the draft history.
 		if (row.current) {
 			this._wordScope = '';
 			this._composerInput = '';
@@ -3416,36 +3493,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//A row that names a FAMILY rather than a clause. Nothing is pending any
 		//more: the clause lands in the draft with the family's own defaults and
 		//its pill row opens on it, so the count beside the sentence is already
-		//the count of what was chosen and Undo is one click away. The old
-		//explicit-confirm gate existed because the panel it gated was a
-		//six-control wall the draft could not show; a one-line row under the
-		//sentence needs no gate.
-		//This branch is for a feed that has no expression to apply — Browse all
-		//and the Refine rows that name a family. A typed family arrives as a
-		//valence row with a real expression, and is handled after the commit.
+		//the count of what was chosen. The old explicit-confirm gate existed
+		//because the panel it gated was a six-control wall the draft could not
+		//show; a one-line row under the sentence needs no gate.
+		//This branch is for a feed that has no expression to apply — the Refine
+		//rows that name a family. A typed family arrives as a valence row with a
+		//real expression, and is handled after the commit.
 		if (row.kind === 'transform' && row.configurable && row.filter) {
 			this._recordRowAcceptance(row);
 			void this._addFamilyWithDefaults(row.filter.split('/')[0]);
 			return;
 		}
-		//A CONFIGURABLE ROW HAS NO DESTINATION TO OPEN YET, so Enter does not
-		//navigate to one. The footer already promises this — a highlighted
-		//family row's key hint reads "Enter adds it and opens its controls" —
-		//and until now that promise was kept only on the route that produced a
-		//`transform` row (the deleted Browse-all feed). A TYPED family arrives
-		//as a valence row, and Enter on it opened a collection spelled with
-		//placeholder arguments instead. One rule for both routes: a row whose
-		//arguments have not been chosen is added and opened for editing,
-		//however it was reached.
-		if (open && !row.configurable) {
-			this._openDestination(this._appliedDescription(row), row.destinationPath || '', false, row.label);
-			return;
-		}
 		this._recordRowAcceptance(row);
-		//A destination materialized by Tab is not "added"; the draft becomes it.
-		//Everything else says what it did to the draft, derived from the same
-		//canonical names the row used.
-		this._commitDraftEdit(row.description, row.navigates ? `Replaced the draft with ${row.label}` : '', true);
+		//A DESTINATION REPLACES THE DRAFT; IT DOES NOT NAVIGATE (round 3, D1).
+		//That is the combinatorial action the constitution names — several
+		//changes at once, applied to the draft you are still composing — and it
+		//is what unifies the row species: with the last navigating row gone,
+		//every row in this list does the same KIND of thing.
+		//
+		//A ROW THAT CARRIES A PATH CARRIES ITS CARD TOO. A recent visited on one
+		//card, and a pasted collection URL with a card suffix, both name a
+		//selected card as part of what they ARE — and while a destination row
+		//navigated, that card travelled with the navigation. Now that the row
+		//replaces the draft instead, the card has to travel into the draft or the
+		//eventual commit would open the collection somewhere the row never said.
+		//Every other row leaves the selected card exactly where it is.
+		this._commitDraftEdit(row.description, true, this._rowSelectedCard(row));
 		this._composerInput = '';
 		this._highlightedRow = 0;
 		this._orTarget = null;
@@ -3463,6 +3536,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				void this._focusPillRowControl();
 			}
 		}
+	}
+
+	//THE CARD A DESTINATION ROW NAMES, or the draft's own. Read from the row's
+	//path through the app's own parser rather than from a second field, so the
+	//card the row would have navigated to and the card the draft ends up on are
+	//the same card. The placeholder never becomes a real selection — it is the
+	//router's spelling for "no card in the URL" (HS-1.4).
+	_rowSelectedCard(row : PaletteRow) : string {
+		if (row.kind !== 'destination' || !row.destinationPath) return this._draftSelectedCard;
+		if (!row.destinationPath.startsWith(COLLECTION_URL_PREFIX)) return this._draftSelectedCard;
+		const [, selectedCard] = CollectionDescription.deserializeWithExtra(row.destinationPath.slice(COLLECTION_URL_PREFIX.length));
+		if (!selectedCard || cardIDIsPlaceholder(selectedCard)) return '';
+		return selectedCard;
 	}
 
 	//THE ONE COMMIT PATH, AND EVERY GUARD IT EVER GREW. Ported whole: the
@@ -3527,11 +3613,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	//THE DRAFT IS A DESCRIPTION AND THE EXPRESSION IS A VIEW OF IT, so every
 	//tree edit lands through the one seam and then through the one commit. That
-	//is what keeps undo, draft preservation and the source round-trip working
-	//on a boolean edit without any of them learning what a FilterExpressionNode
-	//is.
-	_applyExpression(expression : CollectionExpression, message = '', selectPath : CollectionSentencePath | null = null) {
-		this._commitDraftEdit(collectionDescriptionWithExpression(this._collectionDescription, expression), message);
+	//is what keeps the source round-trip working on a boolean edit without it
+	//learning what a FilterExpressionNode is.
+	_applyExpression(expression : CollectionExpression, selectPath : CollectionSentencePath | null = null) {
+		this._commitDraftEdit(collectionDescriptionWithExpression(this._collectionDescription, expression));
 		if (selectPath && selectPath.length) this._selectToken(selectPath);
 	}
 
@@ -3559,7 +3644,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const previous = this._draftExpression;
 		const survives = this._selectionSurvives(previous, e.detail.expression);
 		const path = this._selectedPath;
-		this._applyExpression(e.detail.expression, '', survives ? path : null);
+		this._applyExpression(e.detail.expression, survives ? path : null);
 		if (!survives) this._focusComposerInputSoon();
 	}
 
@@ -3680,7 +3765,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const node : FilterExpressionNode = {kind: 'filter', filter: defaultConfigurableFilter(family)};
 		const next = withConditionAppended(expression, node);
 		this._composerInput = '';
-		this._applyExpression(next, '', [next.length - 1]);
+		this._applyExpression(next, [next.length - 1]);
 		await this._focusPillRowControl();
 	}
 
@@ -3717,16 +3802,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//that can add the first clause. See collectionDescriptionWithStickyStart: it
 	//fires only when the composition began at the app's own bare default view,
 	//and only on the edit that turns that view into a composition.
-	_commitDraftEdit(rawDescription : CollectionDescription, message = '', focusInput = false, selectedCard = this._draftSelectedCard) {
+	//
+	//THE IN-DIALOG RECEIPT AND ITS UNDO ARE GONE (round 3, D1). The owner's
+	//constitution: "if you make a mistake, esc/X resets to the previous state" —
+	//the draft is a preview that has changed nothing real, and Escape discarding
+	//it IS the undo. A receipt strip narrating each draft edit was a report about
+	//a change nobody had made yet, and an Undo button beside it was a second,
+	//weaker undo competing with the one the dialog already had. The receipt that
+	//survives is the one that reports a real navigation, and it lives outside this
+	//dialog, after the commit.
+	//
+	_commitDraftEdit(rawDescription : CollectionDescription, focusInput = false, selectedCard = this._draftSelectedCard) {
 		const description = collectionDescriptionWithStickyStart(
 			this._collectionDescription,
 			rawDescription,
 			this._stickySet
 		);
-		this._draftUndoDescription = this._collectionDescription;
-		this._draftUndoSelectedCard = this._draftSelectedCard;
 		this._draftSelectedCard = selectedCard;
-		this._draftReceiptMessage = message || collectionDraftReceipt(this._collectionDescription, description, this._composerFilterLabels, this._composerCardNames);
 		this._selectedPath = [];
 		//The draft just changed, so the list is about to be rebuilt around it.
 		//Nothing in the new list is what the user was pointing at, so the next
@@ -3737,23 +3829,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
 		if (focusInput) this._focusComposerInputSoon();
-	}
-
-	_undoDraftEdit() {
-		if (!this._draftUndoDescription) return;
-		const description = this._draftUndoDescription;
-		const selectedCard = this._draftUndoSelectedCard;
-		this._draftUndoDescription = null;
-		this._draftUndoSelectedCard = null;
-		if (selectedCard !== null) this._draftSelectedCard = selectedCard;
-		this._draftReceiptMessage = 'Restored previous draft';
-		this._selectedPath = [];
-		this._orTarget = null;
-		this._rowHighlightActive = false;
-		this._pointerHighlightArmed = false;
-		this._clauseSelectionMessage = '';
-		store.dispatch(updateCollectionConfigurationSnapshot(description));
-		this._focusComposerInputSoon();
 	}
 
 	_handleCatalogDirectionChanged(e : Event) {
@@ -3938,19 +4013,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		store.dispatch(closeConfigureCollectionDialog());
 	}
 
+	//ESCAPE DISCARDS, AND THE DISCARD IS TOTAL (round 3, D1). Nothing about the
+	//draft survives the close — not the description, not the typed text. The
+	//owner's constitution makes that the composer's undo: "if you make a mistake,
+	//esc/X resets to the previous state". A draft that came back on the next open
+	//meant Escape did not reset anything; it deferred, and the user had to press
+	//Escape a second time on a surface that had silently reopened on their
+	//mistake.
 	override _shouldClose() {
 		//Override base class.
 		if (collectionComposerEnabled()) {
-			//The half-typed text belongs to the same un-committed draft the
-			//reducer is about to preserve, so it is kept under the same
-			//condition: only when the draft actually diverged from the
-			//collection on screen, and keyed to that collection. The two
-			//conditions are the same comparison of the same two values —
-			//serialize() on the snapshot and on the active collection.
-			const base = this._activeCollectionDescription?.serialize() || '';
-			const diverged = Boolean(base) && this._collectionDescription?.serialize() !== base;
-			this._preservedComposerInput = diverged ? this._composerInput : '';
-			this._preservedDraftBase = diverged ? base : '';
 			store.dispatch(cancelConfigureCollectionDialog());
 		} else {
 			store.dispatch(closeConfigureCollectionDialog());
@@ -4015,6 +4087,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//A fresh session gets fresh counts: corpus membership may have
 				//changed since the last time this composer was open.
 				this._retainedPreviewCounts.clear();
+				this._retainedPreviewIDs.clear();
 				//AND FRESH PERSONAL WEIGHTS, read ONCE. The store decays with
 				//time; re-reading it per keystroke would let the list re-rank
 				//under a word somebody is halfway through typing.
@@ -4024,13 +4097,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//A REQUESTED SELECTION IS HONOURED ONLY WHERE IT POINTS AT
 				//SOMETHING. The request was composed against the collection the
 				//user was reading; the draft this composer opens on is usually
-				//that same collection, but it can be a resumed draft with a
-				//different set of clauses, and selecting index 2 of a sentence
+				//that same collection, but a request can also outlive the
+				//collection it was composed against — selecting index 2 of a
+				//sentence
 				//that now has one condition would open the pill row on nothing —
 				//or worse, on some other clause that happens to sit there.
 				this._selectedPath = this._validRequestedSelection;
 				this._backspaceArmed = false;
-				this._draftReceiptMessage = '';
 				//The announcement follows the selection, including when there is
 				//none: focus lands in the input either way, so the only thing
 				//that tells a screen-reader user the composer opened ON a clause
@@ -4040,8 +4113,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//who comes back a week later has earned the explanation again.
 				this._modifierNote = '';
 				this._newTabNoteShown = false;
-				this._draftUndoDescription = null;
-				this._draftUndoSelectedCard = null;
 				this._sourceDirty = false;
 				this._sourceAutoDelimitedSegment = false;
 				this._draftSelectedCard = this._requestedCard;
@@ -4049,24 +4120,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				const parsed = this._entryMode === 'source' ? this._parsedSource : null;
 				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
 				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
-				//The reducer has already decided whether to resume the chips, on
-				//the same comparison this makes: is the collection this draft was
-				//an adjustment to still the one on screen? If it is, the typed
-				//text comes back with them, and the receipt says so — chips
-				//reappearing with no explanation is its own small mystery.
-				//
-				//No Undo on this receipt. Undo means "put the draft back the way
-				//it was before that edit", and there was no edit here; wiring the
-				//existing single-level undo to mean "discard the thing you just
-				//got back" would give one button two meanings. The Refine list's
-				//own "Start from Everything" is the discard path.
-				const resumed = Boolean(this._preservedDraftBase) && this._preservedDraftBase === (this._activeCollectionDescription?.serialize() || '');
-				if (resumed) {
-					this._composerInput = this._preservedComposerInput;
-					this._draftReceiptMessage = 'Restored the draft you were composing';
-				}
-				this._preservedComposerInput = '';
-				this._preservedDraftBase = '';
 			}
 		}
 		//Ctrl-K on an already-open composer: put the caret back in the input the
@@ -4117,6 +4170,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//count here for the same reason they share one worker run there.
 	_previewCountKey(description : CollectionDescription) : string {
 		return `${this._activeCardID}\n${description.serialize()}`;
+	}
+
+	//How many of the draft's own cards the preview line names, and how many ids
+	//are retained per collection to name them from. Three titles is a line; a
+	//fourth is a paragraph, and the count beside them already says how many there
+	//are in total.
+	_rememberPreviewIDs(key : string, ids : readonly string[]) {
+		if (this._retainedPreviewIDs.size >= RETAINED_PREVIEW_COUNT_LIMIT) {
+			const oldest = this._retainedPreviewIDs.keys().next().value;
+			if (oldest !== undefined) this._retainedPreviewIDs.delete(oldest);
+		}
+		this._retainedPreviewIDs.set(key, ids.slice(0, PREVIEW_TITLE_LIMIT));
+		this._previewIDsVersion++;
 	}
 
 	_rememberPreviewCount(key : string, count : number) {
@@ -4204,10 +4270,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			missing,
 			this._activeCardID,
 			corpusWorkerRunCollection,
-			(suggestionID, count) => {
+			(suggestionID, count, ids) => {
 				if (!this.open) return;
 				const key = keyBySuggestionID.get(suggestionID);
 				if (key) this._rememberPreviewCount(key, count);
+				//ONLY THE DRAFT'S OWN NAMES ARE KEPT. Every row in the list is
+				//counted; naming the cards behind three hundred of them would be
+				//a title list nobody can read for a collection nobody has chosen.
+				if (key && suggestionID === this._draftPreviewID) this._rememberPreviewIDs(key, ids);
 				if (suggestionID === this._draftPreviewID) this._draftCountPending = false;
 				this._previewCounts = {...this._previewCounts, [suggestionID]: count};
 			}

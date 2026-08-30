@@ -520,9 +520,17 @@ describe('Collection completion index', () => {
 				idPrefix: 'x',
 				candidates: candidates(),
 			});
-			//The negation survives: `a AND NOT a` really is a different collection,
-			//and its preview count says so honestly.
-			assert.deepStrictEqual(valences.map(valence => valence.kind), ['not']);
+			//SUPERSEDED PIN (round 3, D2). This used to assert `['not']` — the add
+			//and the self-or suppressed, the negation surviving. `remove` now leads
+			//it, because the owner's constitution makes every row an action on the
+			//draft and enumerates removal among them: "the top action can be
+			//'change the sort' or 'change the set' or 'add a filter' or 'remove a
+			//filter'". Typing the name of a clause you already have is a request
+			//ABOUT that clause, and the top offer is to take it out.
+			//
+			//The negation still survives underneath: `a AND NOT a` really is a
+			//different (empty) collection, and its preview count says so honestly.
+			assert.deepStrictEqual(valences.map(valence => valence.kind), ['remove', 'not']);
 
 			//Same rule, one level down, but ONLY for the or: widening
 			//`(tag-b or tag-c)` with `tag-c` changes only the spelling. Appending
@@ -533,7 +541,11 @@ describe('Collection completion index', () => {
 				idPrefix: 'y',
 				candidates: candidates(),
 			});
-			assert.deepStrictEqual(inGroup.map(valence => valence.kind), ['add', 'not']);
+			//And the removal here is a removal of the ALTERNATIVE, not of the whole
+			//group: the clause the user named is one member of it.
+			assert.deepStrictEqual(inGroup.map(valence => valence.kind), ['remove', 'add', 'not']);
+			assert.strictEqual(inGroup[0].targetIndex, 0);
+			assert.strictEqual(inGroup[0].targetMemberIndex, 1);
 
 			//And a genuinely new member still widens the group.
 			const fresh = completionValences(node('notes-section'), group, {

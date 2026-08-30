@@ -22,13 +22,9 @@
 //    preview-count cache key. A count that changed identity every character
 //    would blank on every keystroke, which is the defect the retained-count map
 //    exists to prevent.
-//  - `description` is what the row's count COUNTS and what a navigating row
-//    opens. One field, so the number beside a row and the collection it lands on
-//    cannot come from two derivations.
-//  - `navigates` is the one consequence distinction the design keeps: "Open is
-//    the only verb that LEAVES". It is a boolean rather than a verb chip,
-//    because the chips are deleted — the section heading carries the grammar and
-//    a navigating row under a typing list gets the one glyph.
+//  - `description` is what the row's count COUNTS and what executing the row
+//    makes of the draft. One field, so the number beside a row and the
+//    collection it produces cannot come from two derivations.
 //  - `pillExpression` is proposal A's token discipline made literal:
 //    "completions render as the pill they would become". The row hands the
 //    sentence renderer a one-condition expression, so the pill in the row and
@@ -59,6 +55,7 @@ import {
 
 import {
 	CollectionComposerSuggestion,
+	collectionComposerDestinationDiff,
 	collectionOptionDisplayName,
 } from './collection-composer-suggestions.js';
 
@@ -79,7 +76,9 @@ import {
 //valence as the pill it would become, and the three flat kinds as one line of
 //text; those are three renderings, so there are three kinds and not seven.
 export type PaletteRowKind =
-	//A collection to go to. Renders as a miniature sentence with its count.
+	//A WHOLE COLLECTION, made the draft in one action. Renders as a miniature
+	//sentence — the same component the draft's own sentence uses — with its count
+	//and a one-line diff in the annotation slot.
 	| 'destination'
 	//An edit to the sentence, carrying the pill it would become.
 	| 'valence'
@@ -96,6 +95,19 @@ const VIEW_MODE_FIRST_CARD = '_';
 export const RECENT_SECTION = 'Recent';
 export const REFINE_SECTION = 'Refine';
 
+//WHAT A COMBINATORIAL ROW NEEDS TO NAME ITS OWN DIFF. Threaded in rather than
+//looked up, because the labels and card titles live in Redux selectors the
+//palette layer must not import — and because deriving the sentence twice is how
+//a row's annotation and its detail line would come to disagree.
+export type PaletteNaming = {
+	draft : CollectionDescription;
+	labels? : Record<string, string>;
+	cardNames? : Record<string, string>;
+};
+
+const destinationDiff = (naming : PaletteNaming | undefined, destination : CollectionDescription) : string =>
+	naming ? collectionComposerDestinationDiff(naming.draft, destination, naming.labels || {}, naming.cardNames || {}) : '';
+
 export type PaletteRow = {
 	//Stable for the same thing across keystrokes: the preview-count cache key.
 	id : string;
@@ -103,11 +115,14 @@ export type PaletteRow = {
 	section : string;
 	label : string;
 	detail : string;
-	//True when choosing this row LEAVES — it commits a navigation and closes the
-	//palette. Everything else rewrites the draft and hands the user back to
-	//composing.
-	navigates : boolean;
-	//What this row's count counts, and what a navigating row opens.
+	//What this row's count counts, and what executing it makes of the draft.
+	//
+	//THERE IS NO `navigates` ANY MORE (round 3, D1). It was the one consequence
+	//distinction the previous design kept — "Open is the only verb that LEAVES" —
+	//and the owner's constitution removes the thing it distinguished: nothing in
+	//this list leaves. Navigation is Cmd-Enter and the primary button, and both
+	//of those act on the DRAFT, which is the only collection the composer ever
+	//opens.
 	description : CollectionDescription;
 	//Present when this row edits the sentence: the whole next expression, so the
 	//palette never re-derives the edit from the row.
@@ -123,16 +138,23 @@ export type PaletteRow = {
 	//A row whose clause needs its arguments chosen before it means anything: the
 	//palette adds it with the family's own defaults and opens its pill row.
 	configurable? : boolean;
+	//THIS ROW TAKES ITS PILL OUT rather than putting one in. The anatomy is
+	//identical — the pill, the count, the annotation — and the pill wears the
+	//removal treatment, which is the same outlined-not vocabulary the sentence
+	//uses for a negated clause, one step further: outlined AND struck.
+	removes? : boolean;
+	//THIS ROW OPENS AN EXISTING CLAUSE'S CONTROLS. It changes nothing on its
+	//own, so it carries no count; its consequence is the pill row appearing under
+	//the sentence, on the clause it names.
+	edits? : boolean;
+	//For a remove or an edit: which clause of the draft, in the sentence's own
+	//address. memberIndex is -1 for a whole condition.
+	targetMemberIndex? : number;
 	//The clause this row would add, when the row names one. Present for the
 	//Browse-all feed and for a refinement row that names a family.
 	filter? : string;
 	//A clause this layer will not compose. Source is the honest offer.
 	sourceFilter? : string;
-	//THE ONE EXCEPTION TO DETAIL-ON-HIGHLIGHT. Browse all is a list whose whole
-	//content is "name + one line of description"; without the line there is no
-	//way to tell one family from its neighbour, which is the wall's one virtue
-	//and the only part of it worth keeping.
-	alwaysDetail? : boolean;
 	viewerDependent : boolean;
 	//A destination that carries its own path — a recent with a selected card.
 	destinationPath? : string;
@@ -159,19 +181,40 @@ export type PaletteRow = {
 //would have without it, so the user can see which one emptied the collection
 //and take it out. The rows come from the same removal generator the old build
 //used, so a removal row and pressing Remove on the pill cannot disagree.
-export const RECOVER_SECTION = 'Nothing matches — try removing';
+//
+//THE HEADING IS A RANK ANNOTATION, NOT A ZONE (round 3, D3). It read 'Nothing
+//matches — try removing': a sentence, in the place where every other heading is
+//a two-word label, which made the run under it look like a different KIND of
+//list rather than the same list ranked differently. The fact it was carrying —
+//that the draft resolves to nothing — is stated once, beside the commit control,
+//where it always was.
+export const RECOVER_SECTION = 'Try removing';
 
 export const paletteRecoveryRows = (
 	removals : readonly CollectionComposerSuggestion[]
 ) : PaletteRow[] =>
-	removals.map(suggestion => rowForSuggestion(suggestion, RECOVER_SECTION));
+	removals.map(suggestion => ({...rowForSuggestion(suggestion, RECOVER_SECTION), removes: true}));
 
 //--- Destinations and refinements (the idle feed) --------------------------
 
 //A SUGGESTION IS ALREADY A ROW; what it is missing is the section it sits in
-//and the one consequence bit. `action === 'open'` is the existing module's own
-//answer to "does this leave?", so it is read rather than re-decided.
-const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : string) : PaletteRow => ({
+//and the one consequence bit.
+//
+//`navigates` IS FALSE FOR EVERY ROW NOW (round 3, D1/D3). The owner's
+//constitution has exactly one navigation — Cmd-Enter, which commits the draft —
+//and every row in the list is an ACTION ON THE DRAFT. A recent used to be the
+//exception, and it was the exception that made the list two kinds of thing: a
+//row that leaves cannot be compared to a row that edits, so the destination rows
+//grew their own glyph, their own footer branch and their own verb. Executing one
+//now REPLACES the draft with that collection — the combinatorial action the
+//constitution names — and the user is still in the composer with a preview in
+//front of them.
+//
+//`diff` is what the collection this row would replace the draft with does to the
+//draft, already named. It is passed in rather than derived because the naming
+//needs the filter labels and card titles the dialog holds, and a row that had to
+//reach for those would be a second derivation of the same sentence.
+const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : string, diff = '') : PaletteRow => ({
 	id: suggestion.id,
 	kind: suggestion.kind === 'recent' ? 'destination' : 'transform',
 	section,
@@ -189,13 +232,15 @@ const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : s
 	//does not merely add it.
 	label: suggestion.action === 'add' || suggestion.kind === 'recent' ? suggestion.name : suggestion.label,
 	detail: suggestion.detail,
-	navigates: suggestion.action === 'open',
 	description: suggestion.description,
 	sourceFilter: suggestion.sourceFilter,
 	configurable: Boolean(suggestion.configureFilter),
 	filter: suggestion.configureFilter,
 	viewerDependent: Boolean(suggestion.viewerDependent),
 	destinationPath: suggestion.destinationPath,
+	//THE COMBINATORIAL ROW'S ANNOTATION IS ITS DIFF (D3). One row, one slot, and
+	//in that slot the several things this action does at once.
+	annotation: diff || undefined,
 });
 
 //THE IDLE CONTRACT, IN THREE RUNS: recents, the pre-configured suggestions, and
@@ -225,10 +270,11 @@ export const VOCABULARY_SECTION = 'Everything you can add';
 export const paletteIdleRows = (
 	recents : readonly CollectionComposerSuggestion[],
 	contextual : readonly CollectionComposerSuggestion[],
-	vocabulary : readonly PaletteRow[] = []
+	vocabulary : readonly PaletteRow[] = [],
+	naming? : PaletteNaming
 ) : PaletteRow[] => {
 	const rows = [
-		...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION)),
+		...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION, destinationDiff(naming, suggestion.description))),
 		//"REMOVE X" ROWS ARE DELETED, and the design says where their question
 		//went: `without this pill: N` in the pill row answers it, beside the
 		//clause it is about, instead of in a list of offers to undo things the
@@ -262,13 +308,29 @@ export const paletteIdleRows = (
 
 //--- Valences (the typing feed) --------------------------------------------
 
+//The verb for the two actions that are ABOUT a clause the sentence already has.
+//Lowercase and quiet, in the annotation slot every other row uses for the word
+//'tag' or 'date' — the same shape, saying the thing this row actually needs to
+//say.
+const EXISTING_CLAUSE_ANNOTATIONS : Partial<Record<CompletionValenceKind, string>> = {
+	remove: 'remove',
+	edit: 'edit',
+};
+
 //THE ONE CONDITION A VALENCE ROW IS ABOUT, so the row can render it as the pill
 //it would become. An `add` shows the clause; a `not` shows the flipped clause,
 //which — through the draft layer — is the app's own inverse WORD when it has
 //one; an `or` shows the FUSED group, because that is the single pill the
 //sentence will contain afterwards, and showing only the new alternative would
 //promise a pill the edit does not make.
+//
+//A `remove` and an `edit` show the pill the sentence ALREADY HAS — the one they
+//are about — which the engine hands over as `targetNode` for exactly this. The
+//removal treatment goes on the row, not on the pill's own expression: a struck
+//pill is a rendering, and inventing a negated node to draw it with would be the
+//row lying about which clause it names.
 const pillExpressionForValence = (valence : CompletionValence, node : FilterExpressionNode) : CollectionExpression => {
+	if (valence.targetNode && (valence.kind === 'remove' || valence.kind === 'edit')) return [valence.targetNode];
 	if (valence.kind === 'or' && valence.targetIndex !== undefined) {
 		const fused = valence.expression[valence.targetIndex];
 		if (fused) return [fused];
@@ -291,7 +353,8 @@ const pillExpressionForValence = (valence : CompletionValence, node : FilterExpr
 export const paletteTypingRows = (
 	candidates : readonly CompletionCandidate[],
 	description : CollectionDescription,
-	section = ''
+	section = '',
+	naming? : PaletteNaming
 ) : PaletteRow[] => {
 	const rows : PaletteRow[] = [];
 	//TWO ROWS THAT MAKE THE SAME EDIT ARE ONE ROW.
@@ -313,12 +376,14 @@ export const paletteTypingRows = (
 				section,
 				label: candidate.label,
 				detail: candidate.detail,
-				//A RECENT NAVIGATES; IT DOES NOT EDIT. The completion index's own
-				//note says so — offering valences would mean offering to AND
-				//somebody's whole saved collection onto the draft.
-				navigates: true,
+				//A RECENT REPLACES THE DRAFT; IT DOES NOT AND IT ONTO IT. The
+				//completion index's own note says so — offering valences would mean
+				//offering to AND somebody's whole saved collection onto the draft —
+				//and the round-3 model gives that replacement its name: a
+				//combinatorial action, several changes at once, said in one line.
 				description: candidate.description || description,
 				destinationPath: candidate.destinationPath,
+				annotation: destinationDiff(naming, candidate.description || description) || undefined,
 				viewerDependent: candidate.viewerDependent,
 			});
 			continue;
@@ -334,14 +399,14 @@ export const paletteTypingRows = (
 				section,
 				label: candidate.label,
 				detail: candidate.detail,
-				navigates: false,
 				description,
 				sourceFilter: candidate.sourceFilter,
 				filter: candidate.filter,
-				//This row's whole content is "name + what it is for"; without
-				//the line there is no way to tell what opening Source would even
-				//be for.
-				alwaysDetail: true,
+				//IT USED TO PIN ITS DETAIL LINE OPEN (`alwaysDetail`), which is a
+				//visual grammar exactly one species of row had — the thing D3
+				//forbids. Its annotation ('source') already says what kind of row it
+				//is, and its explanation appears on highlight like every other
+				//row's.
 				annotation: candidate.annotation,
 				usageKey: candidate.usageKey,
 				viewerDependent: candidate.viewerDependent,
@@ -358,7 +423,6 @@ export const paletteTypingRows = (
 				section,
 				label: candidate.label,
 				detail: candidate.detail,
-				navigates: false,
 				description: candidate.description,
 				viewerDependent: candidate.viewerDependent,
 				annotation: candidate.annotation,
@@ -373,9 +437,15 @@ export const paletteTypingRows = (
 		const node = candidate.node;
 		if (!node) continue;
 		for (const valence of candidate.valences) {
+			//AN `edit` IS NOT AN EDIT, so it is not deduped as one. Its expression
+			//is the draft unchanged, which every other row in this list would have
+			//been rejected for; here it is the honest description of an action
+			//whose consequence is a pill row opening, not a new collection.
 			const edit = serializeCollectionExpression(valence.expression).join('\n');
-			if (seenEdits.has(edit)) continue;
-			seenEdits.add(edit);
+			if (valence.kind !== 'edit') {
+				if (seenEdits.has(edit)) continue;
+				seenEdits.add(edit);
+			}
 			rows.push({
 				id: valence.id,
 				kind: 'valence',
@@ -386,7 +456,14 @@ export const paletteTypingRows = (
 				//the palette selects the pill it just added and the row appears
 				//under it. The flag rides on the row rather than being
 				//re-derived from the filter name at the call site.
-				configurable: candidate.kind === 'filter-family',
+				//
+				//A `remove` or an `edit` is about a clause the sentence ALREADY has,
+				//so neither of them adds one and neither wants the add-then-open
+				//treatment: `configurable` is a fact about what a row would ADD.
+				configurable: candidate.kind === 'filter-family' && valence.kind !== 'remove' && valence.kind !== 'edit',
+				removes: valence.kind === 'remove',
+				edits: valence.kind === 'edit',
+				targetMemberIndex: valence.targetMemberIndex,
 				filter: candidate.filter,
 				label: valence.label,
 				//A VALENCE'S OWN SENTENCE WHERE IT HAS ONE. A negation keeps a
@@ -394,7 +471,6 @@ export const paletteTypingRows = (
 				//inherit that clause's description — which is how the palette came
 				//to print "not Tagged tag-2 — Keeps cards tagged tag-2".
 				detail: valence.detail || candidate.detail,
-				navigates: false,
 				description: collectionDescriptionWithExpression(description, valence.expression),
 				expression: valence.expression,
 				pillExpression: pillExpressionForValence(valence, node),
@@ -402,7 +478,17 @@ export const paletteTypingRows = (
 				targetLabel: valence.targetLabel,
 				targetIndex: valence.targetIndex,
 				viewerDependent: candidate.viewerDependent,
-				annotation: candidate.annotation,
+				//THE TWO ROWS ABOUT A CLAUSE YOU ALREADY HAVE SAY SO IN THE
+				//ANNOTATION SLOT, and the strike is the echo rather than the whole
+				//message. Found by looking at it on the real corpus: `Remove
+				//Created since 5 days ago` and `Edit Created since 5 days ago` sat
+				//one above the other showing the SAME pill, and the only thing
+				//telling them apart was a line through the first — which left the
+				//second reading as the add grammar every other row uses. What a
+				//user needs from these two is not what KIND of clause it is (it is
+				//in the sentence above; they can see) but which of the two things
+				//this row would do to it.
+				annotation: EXISTING_CLAUSE_ANNOTATIONS[valence.kind] || candidate.annotation,
 				usageKey: candidate.usageKey,
 			});
 		}
@@ -478,7 +564,6 @@ export const paletteWordRows = (
 				section: 'Start from',
 				label: collectionOptionDisplayName(name),
 				detail: info.description,
-				navigates: false,
 				description: collectionDescriptionWithSet(description, name as SetName),
 				viewerDependent: false,
 				current: name === description.set,
@@ -491,7 +576,6 @@ export const paletteWordRows = (
 			section: 'Order by',
 			label: collectionOptionDisplayName(name),
 			detail: info.description,
-			navigates: false,
 			description: collectionDescriptionWithSort(description, name as SortName),
 			viewerDependent: false,
 			current: name === description.sort,
@@ -504,7 +588,6 @@ export const paletteWordRows = (
 		section: 'Order by',
 		label: description.sortReversed ? 'Normal order' : 'Reverse order',
 		detail: description.sortReversed ? 'Puts the order back the way round it usually runs.' : 'Runs the same order backwards.',
-		navigates: false,
 		description: collectionDescriptionWithSortReversed(description, !description.sortReversed),
 		viewerDependent: false,
 	});
@@ -515,7 +598,6 @@ export const paletteWordRows = (
 			section: 'Show as',
 			label: collectionOptionDisplayName(mode),
 			detail: `Shows this collection as ${collectionOptionDisplayName(mode)}.`,
-			navigates: false,
 			current: mode === description.viewMode,
 			//A view that takes a focus card gets the app's own "whichever card
 			//the collection opens on" rather than an empty argument. The old

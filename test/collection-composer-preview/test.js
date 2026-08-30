@@ -46,6 +46,43 @@ describe('Collection Composer preview coordinator', () => {
 		description: CollectionDescription.deserialize(source),
 	});
 
+	//THE NAMES COME BACK WITH THE NUMBER (round 3, D5).
+	//
+	//The owner's constitution calls the un-committed draft "just showing you a
+	//preview of cards", and the worker run has always returned the ordered ids
+	//alongside numCards — the reference-block runner consumes exactly that field.
+	//So the coordinator hands them through to the same callback the count uses,
+	//which is what makes it impossible for the number and the names beneath it to
+	//describe two different collections.
+	it('hands the matching card ids through with the count', async () => {
+		const observed = [];
+		startCollectionComposerPreviews(
+			[suggestion('starred', 'everything/starred/')],
+			'active-card',
+			() => Promise.resolve({ numCards: 3, ids: ['card-a', 'card-b', 'card-c'] }),
+			(id, count, ids) => observed.push([id, count, [...ids]]),
+			{ debounceMS: 0 }
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.deepStrictEqual(observed, [['starred', 3, ['card-a', 'card-b', 'card-c']]]);
+	});
+
+	//A runner that answers with a count alone is still a valid runner — the
+	//preview is progressive enhancement — so the ids arrive as an empty list
+	//rather than as undefined, and no caller has to guard.
+	it('reports no ids rather than undefined when the runner returns none', async () => {
+		const observed = [];
+		startCollectionComposerPreviews(
+			[suggestion('starred', 'everything/starred/')],
+			'active-card',
+			() => Promise.resolve({ numCards: 3 }),
+			(id, count, ids) => observed.push([id, count, ids]),
+			{ debounceMS: 0 }
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.deepStrictEqual(observed, [['starred', 3, []]]);
+	});
+
 	it('keys asynchronous counts to stable suggestion identity', async () => {
 		const resolvers = {};
 		const observed = [];

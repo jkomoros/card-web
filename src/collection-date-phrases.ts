@@ -24,17 +24,38 @@
 //              | 'created' | 'added' | 'made'                       -> created
 //    NOISE    := 'in' | 'the' | 'from' | 'within' | 'over'
 //              | 'during' | 'on' | 'at' | 'card' | 'cards'
-//    WINDOW   := ('last'|'past') COUNT UNIT      -> after/<count><unit>-ago
-//              | ('last'|'past') UNIT            -> after/1<unit>-ago
-//              | 'this' ('month'|'year')         -> after/<start of period>
-//              | 'today'                         -> after/today
-//              | 'yesterday'                     -> between/yesterday/today
-//              | 'since' MOMENT                  -> after/MOMENT
-//              | ('before'|'until') MOMENT       -> before/MOMENT
-//    UNIT     := 'day' | 'week' | 'month' | 'year' (plural accepted)
-//    MOMENT   := YEAR (4 digits)                 -> <year>-1-1
-//              | ('last'|'past') COUNT? UNIT     -> the same relative token
+//    WINDOW   := ('since'|'after') MOMENT              -> after/MOMENT
+//              | ('before'|'until'|'prior to') MOMENT  -> before/MOMENT
+//              | ('last'|'past') MOMENT-TAIL           -> after/MOMENT-TAIL
+//              | COUNT UNIT 'ago'?                     -> after/<count><unit>-ago
+//              | 'this' ('week'|'month'|'year')        -> after/<start of period>
+//              | 'today'                               -> after/today
+//              | 'yesterday'                           -> between/yesterday/today
+//    MOMENT   := COUNT UNIT 'ago'?                     -> <count><unit>-ago
+//              | ('last'|'past') COUNT? UNIT           -> the same relative token
+//              | DATE                                  -> the absolute date
 //              | 'today' | 'yesterday'
+//    DATE     := YEAR (4 digits)                       -> <year>-1-1
+//              | YEAR MONTH DAY                        -> <year>-<month>-<day>
+//    UNIT     := 'day' | 'week' | 'fortnight' | 'month' | 'year' (plural accepted)
+//    COUNT    := 1..999, in digits or in the number words below
+//
+//NUMBERS AND UNITS ARE BOUND FROM THE INPUT, NEVER DEFAULTED (round 3, D4).
+//
+//The one cut this parser used to make wrong: `since` and `before` accepted only
+//the shapes a MOMENT could take when it was written — a bare year, an absolute
+//date, or a `last …` phrase — so 'created since 5 days ago' and 'since 12 days
+//ago' were not date phrases at all and fell to `Text contains "since 5 days
+//ago"`. The count was written down in the input and the grammar had no
+//production that read it. MOMENT now carries `COUNT UNIT ago?` outright, which
+//is the shape every one of those phrases is actually in, and the count comes out
+//of the input in every branch that has one.
+//
+//THE ONE PLACE A COUNT IS NOT WRITTEN DOWN is 'last week' / 'past month': the
+//determiner and a SINGULAR unit bind it to one between them, which is what the
+//English means, and there is no number in the phrase for the parser to be
+//ignoring. Any phrase that DOES contain a number binds that number or refuses:
+//no production may read a count and then use a different one.
 //
 //WEEKS ARE NORMALIZED TO DAYS. '1-week-ago' and '7-days-ago' resolve to the
 //identical instant in the app's own relative-date resolver, so spelling weeks as
@@ -135,8 +156,26 @@ const countAt = (word : string) : number => {
 	return NaN;
 };
 
-//A MOMENT: the right-hand side of 'since' or 'before'. Returns the date token
-//the filter grammar wants, or '' when the words are not a moment.
+//COUNT UNIT 'ago'?, the one production every other relative shape is written in
+//terms of. Returns the relative token, or '' when the words are not that shape.
+//
+//The count is read from `words[0]` and USED; a count outside the bounds refuses
+//rather than clamping, because a clamped count is a phrase silently compiled to
+//a window the user did not type.
+const countedRelativeToken = (words : readonly string[]) : string => {
+	if (words.length < 2 || words.length > 3) return '';
+	if (words.length === 3 && words[2] !== 'ago') return '';
+	const count = countAt(words[0]);
+	if (Number.isNaN(count)) return '';
+	const unit = UNIT_WORDS[words[1]];
+	if (!unit) return '';
+	if (count < 1 || count > MAXIMUM_WINDOW_COUNT) return '';
+	return relativeToken(count, unit);
+};
+
+//A MOMENT: the right-hand side of 'since', 'after', 'before', 'until' and
+//'prior to', and a window in its own right. Returns the date token the filter
+//grammar wants, or '' when the words are not a moment.
 const momentToken = (words : readonly string[], now : Date) : string => {
 	if (!words.length) return '';
 	if (words.length === 1) {
@@ -153,14 +192,20 @@ const momentToken = (words : readonly string[], now : Date) : string => {
 	if (words[0] === 'last' || words[0] === 'past') {
 		const rest = words.slice(1);
 		const explicit = countAt(rest[0]);
-		const unitWord = Number.isNaN(explicit) ? rest[0] : rest[1];
-		const unit = UNIT_WORDS[unitWord];
+		//THE COUNT IS BOUND WHEREVER THERE IS ONE TO BIND. 'last 5 days' reads
+		//the 5; 'last week' has no number in it and the singular unit binds the
+		//count to one. There is no third case where a number is present and
+		//something else is used.
+		if (!Number.isNaN(explicit)) return countedRelativeToken(rest);
+		if (rest.length !== 1) return '';
+		const unit = UNIT_WORDS[rest[0]];
 		if (!unit) return '';
-		if (rest.length > (Number.isNaN(explicit) ? 1 : 2)) return '';
-		const count = Number.isNaN(explicit) ? 1 : explicit;
-		if (count < 1 || count > MAXIMUM_WINDOW_COUNT) return '';
-		return relativeToken(count, unit);
+		return relativeToken(1, unit);
 	}
+	//COUNT UNIT ago — 'since 5 days ago', 'before 3 weeks ago'. The bare form
+	//without 'ago' is the same moment said more tersely, and people type both.
+	const counted = countedRelativeToken(words);
+	if (counted) return counted;
 	//'2024 01 15' — an absolute date the user spelled out. Accepted because the
 	//app's own compiled paths contain exactly this shape, so somebody who has
 	//looked at one will type it.
@@ -172,6 +217,17 @@ const momentToken = (words : readonly string[], now : Date) : string => {
 	}
 	void now;
 	return '';
+};
+
+//THE FIRST DAY OF THE WEEK THIS DATE IS IN. The week starts on Sunday, which is
+//JavaScript's own day zero and the convention of the corpus this composer runs
+//against; there is no locale setting in this app to consult and a silent
+//disagreement about which day 'this week' starts on would be worse than a
+//documented choice.
+const startOfWeek = (now : Date) : Date => {
+	const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	start.setDate(start.getDate() - start.getDay());
+	return start;
 };
 
 //THE WINDOW PRODUCTIONS, tried in order. Each returns the clause tail and the
@@ -186,8 +242,12 @@ const parseWindow = (words : readonly string[], now : Date) : {rule : string, cl
 		return null;
 	}
 
-	//'this' ('month'|'year')
+	//'this' ('week'|'month'|'year')
 	if (words[0] === 'this' && words.length === 2) {
+		if (words[1] === 'week') {
+			const start = startOfWeek(now);
+			return {rule: 'this-week', clause: `after/${absoluteDate(start.getFullYear(), start.getMonth() + 1, start.getDate())}`};
+		}
 		if (words[1] === 'month') {
 			return {rule: 'this-month', clause: `after/${absoluteDate(now.getFullYear(), now.getMonth() + 1, 1)}`};
 		}
@@ -216,16 +276,11 @@ const parseWindow = (words : readonly string[], now : Date) : {rule : string, cl
 		return null;
 	}
 
-	//A BARE WINDOW: 'week', '7 days'. Only with an explicit count, because a
-	//bare unit word is far more likely to be a tag or a section than a date
+	//A BARE WINDOW: '7 days', '5 days ago'. Only with an explicit count, because
+	//a bare unit word is far more likely to be a tag or a section than a date
 	//phrase, and this parser ranks at the TOP of the list when it fires.
-	const explicit = countAt(words[0]);
-	if (!Number.isNaN(explicit) && words.length === 2) {
-		const unit = UNIT_WORDS[words[1]];
-		if (unit && explicit >= 1 && explicit <= MAXIMUM_WINDOW_COUNT) {
-			return {rule: 'bare-window', clause: `after/${relativeToken(explicit, unit)}`};
-		}
-	}
+	const bare = countedRelativeToken(words);
+	if (bare) return {rule: 'bare-window', clause: `after/${bare}`};
 
 	return null;
 };

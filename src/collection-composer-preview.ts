@@ -1,7 +1,18 @@
 import { CollectionComposerSuggestion } from './collection-composer-suggestions.js';
 import { compactCardCount } from './corpus-status-glyph.js';
 
-type PreviewResult = { numCards: number };
+//WHAT A PREVIEW RUN COMES BACK WITH.
+//
+//`ids` is the round-3 addition (D5). The owner: "before that it's just showing
+//you a preview of cards" — so the composer names a few of them, and the worker
+//has been handing back the ordered id list all along (the reference-block runner
+//consumes exactly this field). Nothing new is computed and nothing extra is
+//asked of the worker; the count and the names come out of one run, which is why
+//they can never disagree about which collection they describe.
+//
+//Optional because a runner is injected and a caller may supply one that answers
+//with a count alone; a preview line is progressive enhancement either way.
+type PreviewResult = { numCards: number, ids?: readonly string[] };
 type PreviewRunner = (
 	description: string,
 	keyCardID: string
@@ -35,7 +46,7 @@ type PreviewOwner = {
 	active: boolean;
 	running: number;
 	maxConcurrent: number;
-	onCount: (suggestionID: string, count: number) => void;
+	onCount: (suggestionID: string, count: number, ids: readonly string[]) => void;
 };
 
 type PreviewJob = {
@@ -59,7 +70,7 @@ const observePreview = (job: PreviewJob, pending: Promise<PreviewResult | null>)
 	pending
 		.then((result) => {
 			if (!job.owner.active || !result) return;
-			for (const suggestionID of job.suggestionIDs) job.owner.onCount(suggestionID, result.numCards);
+			for (const suggestionID of job.suggestionIDs) job.owner.onCount(suggestionID, result.numCards, result.ids || []);
 		})
 		.catch(() => {
 			//Previews are progressive enhancement. Worker failures leave the
@@ -114,7 +125,7 @@ export const startCollectionComposerPreviews = (
 	suggestions: CollectionComposerSuggestion[],
 	keyCardID: string,
 	run: PreviewRunner,
-	onCount: (suggestionID: string, count: number) => void,
+	onCount: (suggestionID: string, count: number, ids: readonly string[]) => void,
 	options: PreviewOptions = {}
 ): (() => void) => {
 	const owner: PreviewOwner = {

@@ -74,6 +74,15 @@ export const SHORTCUT_COMBOS = {
 	//dialog from the shared gate — so the registry's applicability guards keep
 	//them disjoint.
 	'open-collection-composer': [{key: 'k', mod: true}],
+	//THE COMPOSER'S COMMIT (#498, round 3). Data-only: the composer owns the
+	//whole key grammar of its own input — Enter executes the top action, Tab
+	//aliases it, Backspace selects and then removes — and a registry binding
+	//would be a second authority over one keystroke inside one field. It is
+	//declared HERE anyway because the footer states this contract in words, and
+	//a hand-spelled '⌘Enter' beside a handler that tests metaKey is exactly the
+	//drift this table exists to prevent — and it would be Mac-only, on a line
+	//every user of the composer reads.
+	'commit-collection-composer': [{key: 'Enter', mod: true}],
 } as const satisfies {[id : string] : readonly ShortcutCombo[]};
 
 export type ShortcutID = keyof typeof SHORTCUT_COMBOS;
