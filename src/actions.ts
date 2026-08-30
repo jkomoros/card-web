@@ -368,7 +368,10 @@ type ActionCloseCardsDrawerPanel = {
 
 type ActionOpenConfigureCollectionDialog = {
 	type: typeof OPEN_CONFIGURE_COLLECTION_DIALOG,
-	mode?: 'compose' | 'source'
+	mode?: 'compose' | 'source',
+	//The clause the opener wants selected, in the sentence's own address.
+	//Omitted means "no opinion", which is every opener but the why-here panel.
+	selection?: readonly number[]
 };
 
 type ActionCloseConfigureCollectionDialog = {

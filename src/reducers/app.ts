@@ -36,6 +36,10 @@ import {
 	AppState,
 } from '../types.js';
 
+//One frozen empty array for "the opener had no opinion about which clause to
+//select", so a no-opinion open does not churn the dialog's property identity.
+const EMPTY_DIALOG_SELECTION : readonly number[] = Object.freeze([]);
+
 const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE = true;
 const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
@@ -54,6 +58,7 @@ const INITIAL_STATE : AppState = {
 	configureCollectionDialogOpen: false,
 	configureCollectionDialogMode: 'compose',
 	configureCollectionDialogFocusRequest: 0,
+	configureCollectionDialogSelection: EMPTY_DIALOG_SELECTION,
 	presentationMode: false,
 	mobileMode: false,
 	hoverX: 0,
@@ -143,6 +148,11 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			configureCollectionDialogOpen: true,
 			configureCollectionDialogMode: action.mode || 'compose',
 			configureCollectionDialogFocusRequest: state.configureCollectionDialogFocusRequest + 1,
+			//Carried on the same action as the focus bump, and for the same
+			//reason: an open request that repeats has to be observable, and a
+			//selection that survived the PREVIOUS open would select a clause
+			//nobody pointed at this time.
+			configureCollectionDialogSelection: action.selection || EMPTY_DIALOG_SELECTION,
 		};
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
 	case CANCEL_CONFIGURE_COLLECTION_DIALOG:

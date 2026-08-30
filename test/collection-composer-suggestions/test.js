@@ -56,10 +56,13 @@ describe('Collection Composer suggestions', () => {
 			collectionExpressionParts,
 			collectionFilterDisplayName,
 			collectionFilterLabels,
-			collectionDraftReceipt,
 			activeCardRelationshipCandidates,
 			activeCardMetadataCandidates,
 		} = await import('../../lib/src/collection-composer-suggestions.js'));
+		//The receipt moved to its own module: naming a clause and knowing that
+		//two clauses are the same clause widened are different jobs, and the
+		//namer cannot import the draft layer that knows the second one.
+		({ collectionDraftReceipt } = await import('../../lib/src/collection-draft-receipt.js'));
 		({ selectCollectionComposerCandidates } = await import('../../lib/src/selectors.js'));
 		({
 			makeConfigurableFilter,
@@ -633,6 +636,55 @@ describe('Collection Composer suggestions', () => {
 			collectionDraftReceipt(base, CollectionDescription.deserialize('main/starred/unread/working-notes/')),
 			'Added Starred, Unread and 1 more'
 		);
+	});
+
+	//A STRUCTURAL EDIT IS ONE EVENT, AND THE RECEIPT HAS TO SAY WHICH ONE.
+	//
+	//Read as a set difference, an or-fusion is two events — "Removed Tag 1 ·
+	//Added (Tag 1 OR Tag 2)" — and the alarming half, the removal, is the half
+	//that did not happen. The user widened a clause; nothing left the sentence.
+	//The same is true of a flip (which a set difference sees as two unrelated
+	//filters, because `published` and `unpublished` share no family) and of
+	//dropping one alternative from a group.
+	it('narrates a structural edit as the transformation it is', () => {
+		const labels = { 'tag-1': 'Tag 1', 'tag-2': 'Tag 2', 'tag-3': 'Tag 3' };
+		const receipt = (before, after) => collectionDraftReceipt(
+			CollectionDescription.deserialize(before),
+			CollectionDescription.deserialize(after),
+			labels
+		);
+
+		assert.strictEqual(receipt('main/tag-1/', 'main/tag-1+tag-2/'),
+			'Widened Tag 1 with Tag 2');
+		assert.strictEqual(receipt('main/tag-1+tag-2/', 'main/tag-1+tag-2+tag-3/'),
+			'Widened Tag 1 or Tag 2 with Tag 3',
+			'widening an existing group names the group it widened');
+
+		//THE FLIP, in both directions, through the app's own inverse names —
+		//which is the whole reason this cannot be a string comparison: nothing
+		//about the text of `published` and `unpublished` says they are one
+		//clause and its opposite, and only the draft layer knows that they are.
+		assert.strictEqual(receipt('main/published/', 'main/unpublished/'),
+			'Flipped Published to Unpublished');
+		assert.strictEqual(receipt('main/unpublished/', 'main/published/'),
+			'Flipped Unpublished to Published');
+
+		//NARROWING NAMES WHAT THE CLAUSE IS NOW, not what left it: the reader
+		//should not have to do the subtraction. Both the group that survives and
+		//the group that dissolves into a single pill are the same edit.
+		assert.strictEqual(receipt('main/tag-1+tag-2/', 'main/tag-1/'),
+			'Narrowed Tag 1 or Tag 2 to Tag 1');
+		assert.strictEqual(receipt('main/tag-1+tag-2+tag-3/', 'main/tag-1+tag-3/'),
+			'Narrowed Tag 1 or Tag 2 or Tag 3 to Tag 1 or Tag 3');
+
+		//AND THE SHAPES IT MUST NOT CLAIM. An argument edit keeps its family and
+		//is not a structural change; two unrelated clauses swapping is not one
+		//edit at all.
+		assert.strictEqual(
+			receipt('main/updated/after/7-days-ago/', 'main/updated/after/14-days-ago/'),
+			'Changed Updated since 7 days ago to Updated since 14 days ago');
+		assert.strictEqual(receipt('main/starred/', 'main/unread/'),
+			'Removed Starred · Added Unread');
 	});
 
 	it('shows ambiguous text as explicit interpretations', () => {

@@ -2574,6 +2574,35 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(dialog._orTarget, null, 'and the scope is spent');
 	});
 
+	//THE SCOPED INPUT SAYS WHAT IT IS DOING, AND ESCAPE COSTS NOTHING.
+	//
+	//Two facts a scoped input has to keep, pinned because both are the kind that
+	//rot silently. The placeholder has to name the TARGET, not just announce a
+	//mode: "Also match…" alone describes an edit to a sentence with one clause
+	//exactly as well as it describes an edit to a sentence with six, which is to
+	//say not at all. And Escape peels the scope rather than abandoning the
+	//typing: the layer the user is leaving is the SCOPE, and taking their words
+	//with it would make backing out of a widening cost more than committing to
+	//one.
+	it('names what an or would widen, and gives the scope back on Escape without eating the typing', async () => {
+		await addRefineRow('Starred');
+		await pressComposer('Backspace');
+		await pressComposer('+');
+		const input = () => dialog.shadowRoot.querySelector('#collection-composer-input');
+		assert.strictEqual(input().getAttribute('placeholder'), 'Also match… (widens Starred)',
+			'the placeholder names the clause the alternative would join');
+
+		await typeComposer('unre');
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await settleRender(dialog);
+		assert.strictEqual(dialog._orTarget, null, 'Escape peels the scope');
+		assert.strictEqual(dialog._composerInput, 'unre', 'and leaves what was typed alone');
+		assert.strictEqual(input().getAttribute('placeholder'), 'Type another condition…',
+			'the input is back to continuing the sentence');
+		assert.deepStrictEqual([...dialog._selectedPath], [0],
+			'and the pill it was opened from is still the selected one');
+	});
+
 	//SOURCE MODE'S ENTER — the one keystroke the live review caught spending
 	//itself twice.
 	//

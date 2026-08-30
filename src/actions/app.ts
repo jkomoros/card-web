@@ -684,10 +684,16 @@ export const closeCardsDrawerPanel = () : SomeAction => {
 	};
 };
 
-export const openConfigureCollectionDialog = (mode : 'compose' | 'source' = 'compose') : SomeAction => {
+//`selection` names the clause the opener wants the composer to open ON, in the
+//sentence's own address ([index], or [] for no opinion). The why-here panel is
+//the only caller that has one: it is the surface where a user points at a
+//specific condition, and arriving in a composer that had forgotten which one
+//would make the tap-through a navigation rather than an answer.
+export const openConfigureCollectionDialog = (mode : 'compose' | 'source' = 'compose', selection : readonly number[] = []) : SomeAction => {
 	return {
 		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
 		mode,
+		selection,
 	};
 };
 

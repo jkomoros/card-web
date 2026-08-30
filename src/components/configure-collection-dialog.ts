@@ -22,6 +22,7 @@ import {
 	selectConfigureCollectionDialogOpen,
 	selectConfigureCollectionDialogMode,
 	selectConfigureCollectionDialogFocusRequest,
+	selectConfigureCollectionDialogSelection,
 	selectFilterDescriptions,
 	selectCollectionComposerCandidates,
 	selectAuthorAndCollaboratorUserIDs,
@@ -145,7 +146,6 @@ import {
 	CollectionComposerCandidate,
 	activeCardMetadataCandidates,
 	activeCardRelationshipCandidates,
-	collectionDraftReceipt,
 	collectionExpressionParts,
 	collectionFilterDisplayName,
 	collectionFilterLabels,
@@ -191,6 +191,10 @@ import {
 	buildCollectionFilterCatalog,
 	CollectionFilterCatalogItem,
 } from '../collection-filter-catalog.js';
+
+import {
+	collectionDraftReceipt,
+} from '../collection-draft-receipt.js';
 
 import {
 	CollectionExpression,
@@ -559,6 +563,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//the state, so this is what makes "focus the input again" observable.
 	@state()
 		_focusRequest = 0;
+
+	//WHICH CLAUSE THE OPENER POINTED AT, if any. The why-here panel's tap-through
+	//is the one gesture that arrives here already knowing which condition the
+	//user is asking about; every other opener leaves this empty.
+	@state()
+		_requestedSelection : readonly number[] = [];
 
 	@state()
 		_sourceInput = '';
@@ -3245,6 +3255,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._clauseSelectionMessage = path.length ? `${this._selectedTokenLabel} selected` : '';
 	}
 
+	//The opener's requested clause, kept only if it addresses a real condition of
+	//the draft about to be shown. A group's own edge and a plain condition are
+	//both [index], which is exactly what the why-here panel sends: its rows scope
+	//to conditions, never to one alternative inside a group.
+	get _validRequestedSelection() : CollectionSentencePath {
+		const requested = this._requestedSelection;
+		if (requested.length !== 1) return [];
+		const index = requested[0];
+		return index >= 0 && index < this._draftExpression.length ? [index] : [];
+	}
+
 	_clearSelection() {
 		this._selectedPath = [];
 		this._orTarget = null;
@@ -3632,9 +3653,20 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//A fresh session gets fresh counts: corpus membership may have
 				//changed since the last time this composer was open.
 				this._retainedPreviewCounts.clear();
-				this._selectedPath = [];
+				//A REQUESTED SELECTION IS HONOURED ONLY WHERE IT POINTS AT
+				//SOMETHING. The request was composed against the collection the
+				//user was reading; the draft this composer opens on is usually
+				//that same collection, but it can be a resumed draft with a
+				//different set of clauses, and selecting index 2 of a sentence
+				//that now has one condition would open the pill row on nothing —
+				//or worse, on some other clause that happens to sit there.
+				this._selectedPath = this._validRequestedSelection;
 				this._draftReceiptMessage = '';
-				this._clauseSelectionMessage = '';
+				//The announcement follows the selection, including when there is
+				//none: focus lands in the input either way, so the only thing
+				//that tells a screen-reader user the composer opened ON a clause
+				//is this line.
+				this._clauseSelectionMessage = this._selectedPath.length ? `${this._selectedTokenLabel} selected` : '';
 				//Once per composer session, not once per app lifetime: a user
 				//who comes back a week later has earned the explanation again.
 				this._modifierNote = '';
@@ -3845,6 +3877,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._activeCard = selectActiveCard(state);
 		this._entryMode = selectConfigureCollectionDialogMode(state);
 		this._focusRequest = selectConfigureCollectionDialogFocusRequest(state);
+		this._requestedSelection = selectConfigureCollectionDialogSelection(state);
 		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
 	}
 

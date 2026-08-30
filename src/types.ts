@@ -769,6 +769,13 @@ export type AppState = {
 	//Bumped every time the composer is asked to open, including while it is
 	//already open, so "focus the input again" is observable by the dialog.
 	configureCollectionDialogFocusRequest: number,
+	//WHICH CLAUSE THE OPENER WANTED, in the sentence's own address: [] for "no
+	//opinion", [index] for a condition or a whole group. The card info panel's
+	//tap-through sets it so the composer opens on the clause the user just
+	//pointed at, rather than opening on nothing and making them find it again.
+	//A REQUEST, not a selection: the dialog owns its own selection and honours
+	//this only when it addresses a real clause of the draft it is about to show.
+	configureCollectionDialogSelection: readonly number[],
 	presentationMode: boolean,
 	mobileMode: boolean,
 	hoverX: number,

@@ -1,5 +1,6 @@
 import { createSelector } from 'reselect';
 import type { CollectionComposerCandidate } from './collection-composer-suggestions.js';
+import { collectionFilterLabels } from './collection-composer-suggestions.js';
 
 import {
 	perfCount,
@@ -84,6 +85,16 @@ import {
 	descriptionRequiresFullCollectionCount,
 	defaultCollectionConfiguration
 } from './collection_description.js';
+
+import {
+	CollectionExpression,
+	collectionExpressionForDescription
+} from './collection-expression.js';
+
+import {
+	CollectionMembership,
+	collectionMembershipForCard
+} from './collection-membership.js';
 
 import {
 	corpusWorkerOwnsCardIngestion,
@@ -257,6 +268,10 @@ export const selectCardsDrawerInfoExpanded = (state : State) => state.app.cardsD
 export const selectConfigureCollectionDialogOpen = (state : State) => state.app ? state.app.configureCollectionDialogOpen : false;
 export const selectConfigureCollectionDialogMode = (state : State) => state.app ? state.app.configureCollectionDialogMode : 'compose';
 export const selectConfigureCollectionDialogFocusRequest = (state : State) => state.app ? state.app.configureCollectionDialogFocusRequest : 0;
+//One frozen empty array, so a state with no app slice does not hand the dialog
+//a fresh property value on every read.
+const NO_DIALOG_SELECTION : readonly number[] = Object.freeze([]);
+export const selectConfigureCollectionDialogSelection = (state : State) : readonly number[] => state.app ? state.app.configureCollectionDialogSelection : NO_DIALOG_SELECTION;
 export const selectCollectionWordCloudVersion = (state : State) => state.collection ? state.collection.collectionWordCloudVersion : 0;
 export const selectSuggestMissingConceptsEnabled = (state : State) => state.app.suggestMissingConceptsEnabled;
 
@@ -1468,6 +1483,16 @@ export const selectKnownCollectionFilterNames = createSelector(
 		loaded ? new Set([...Object.keys(descriptions), ...Object.keys(INVERSE_FILTER_NAMES)]) : new Set<string>()
 );
 
+//THE LIVE CORPUS'S OWN NAMES FOR ITS FILTERS, memoized on the candidates the
+//names are derived FROM. Every host that renders a clause needs this map, and
+//rebuilding it per host per state change would both cost the whole candidate
+//list each time and hand the sentence a new object identity on every unrelated
+//update — which is precisely what its own label memo is keyed on.
+export const selectCollectionFilterLabels = createSelector(
+	(state : State) => selectCollectionComposerCandidates(state),
+	(candidates) : Record<string, string> => collectionFilterLabels(candidates)
+);
+
 export const selectCollectionComposerCandidates = createSelector(
 	selectSections,
 	selectTags,
@@ -2104,6 +2129,47 @@ export const selectActiveCollection = createSelector(
 	}
 );
 
+
+//WHY THE ACTIVE CARD IS IN THE ACTIVE COLLECTION, clause by clause — the input
+//to the card info panel's "In this collection" section.
+//
+//Null wherever there is no honest account to give, and the reasons are worth
+//naming because each was a tempting place to guess:
+//
+//  - no active card, or a collection with no conditions: there is no question.
+//  - the collection's own filtering inputs do not know this card. In cutover
+//    mode the worker owns ingestion, and a card can be on screen before the main
+//    thread's FILTERING snapshot has it; every clause would then come back
+//    "does not match" and the panel would confidently say a card is not in the
+//    collection it is being read in.
+//  - the account and the artifact disagree (Collection.matchedCard). The
+//    per-clause verdicts and the collection's own membership come from the same
+//    function over the same extras and so cannot differ by construction — but in
+//    cutover mode the artifact on screen was computed in the WORKER from its own
+//    copy of the corpus, so the construction argument is CHECKED rather than
+//    asserted, and a contradiction withdraws the explanation instead of
+//    publishing it.
+//
+//Deliberately not cheap enough to run on every keystroke: a configurable clause
+//materializes by scanning the corpus. The info panel calls this from inside its
+//existing expensive-properties debounce, where the reference blocks and word
+//cloud already live, and stamps the answer with the card it was computed for.
+export const selectWhyHereForActiveCard = createSelector(
+	selectActiveCollection,
+	selectActiveCardID,
+	(collection, cardID) : {expression : CollectionExpression, membership : CollectionMembership} | null => {
+		if (!collection || !cardID) return null;
+		const description = collection.description;
+		if (!description.filters.length) return null;
+		const extras = collection.filterExtras;
+		if (!extras.cards[cardID]) return null;
+		const expression = collectionExpressionForDescription(description);
+		const membership = collectionMembershipForCard(expression, description.set, cardID, extras);
+		const matched = collection.matchedCard(cardID);
+		if (matched !== null && matched !== membership.passes) return null;
+		return {expression, membership};
+	}
+);
 
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in
 //which reordering is legal. Note: this means that even if it is legal in

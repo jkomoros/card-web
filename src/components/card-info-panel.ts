@@ -43,12 +43,36 @@ import {
 	selectActiveCardEnriched,
 	selectCollectionConstructorArguments,
 	selectCardIDsUserMayEdit,
-	selectEditingSimilarityPending
+	selectEditingSimilarityPending,
+	selectWhyHereForActiveCard,
+	selectActiveCollectionDescription,
+	selectCollectionFilterLabels,
+	selectFilterDescriptions
 } from '../selectors.js';
 
 import {
 	emptyWordCloud
 } from '../nlp.js';
+
+import {
+	CollectionExpression
+} from '../collection-expression.js';
+
+import {
+	CollectionMembership
+} from '../collection-membership.js';
+
+import {
+	openConfigureCollectionDialog
+} from '../actions/app.js';
+
+import {
+	CollectionConditionEvent
+} from '../events.js';
+
+import {
+	SetName
+} from '../../shared/types.js';
 
 import {
 	PageViewElement
@@ -67,6 +91,7 @@ import {
 
 import './author-chip.js';
 import './card-link.js';
+import './collection-why-here.js';
 import './tag-list.js';
 import './word-cloud.js';
 import './reference-block.js';
@@ -120,6 +145,7 @@ const EXPENSIVE_PROPERTIES_MAX_WAIT_MS = 1000;
 //churn property identity on the child components for no reason.
 const EMPTY_REFERENCE_BLOCKS : ExpandedReferenceBlocks = [];
 const EMPTY_WORD_CLOUD = emptyWordCloud();
+const EMPTY_EXPRESSION : CollectionExpression = [];
 
 @customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
@@ -176,6 +202,35 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	@state()
 		_wordCloudForCardID = '';
+
+	//WHY THIS CARD IS HERE, committed like the other expensive sections.
+	//
+	//A configurable clause materializes by scanning the whole corpus, so the
+	//verdicts are computed inside the same debounce that already guards the
+	//reference blocks and the word cloud, and stamped with the card they were
+	//computed for so a previous card's account never renders undimmed against a
+	//new card's pills. Null means "no honest answer" — see
+	//selectWhyHereForActiveCard for the four reasons — and renders nothing.
+	@state()
+		_whyHereExpression : CollectionExpression = EMPTY_EXPRESSION;
+
+	@state()
+		_whyHereMembership : CollectionMembership | null = null;
+
+	@state()
+		_whyHereForCardID = '';
+
+	//The words the pills are named with. Cheap and synchronous, unlike the
+	//verdicts: they come straight off the same selectors the drawer's own
+	//sentence uses, so a clause is called the same thing in both places.
+	@state()
+		_collectionSet : SetName = 'main';
+
+	@state()
+		_collectionFilterLabels : Record<string, string> = {};
+
+	@state()
+		_filterDescriptions : Record<string, string> = {};
 
 	static override styles = [
 		ScrollingSharedStyles,
@@ -262,12 +317,21 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		const activeCardID = this._card?.id || '';
 		const blocks = sectionRender({forCardID: this._referenceBlocksForCardID, value: this._referenceBlocks}, activeCardID, EMPTY_REFERENCE_BLOCKS);
 		const wordCloud = sectionRender({forCardID: this._wordCloudForCardID, value: this._wordCloud}, activeCardID, EMPTY_WORD_CLOUD);
+		//The why-here verdicts are derived the same expensive way and held the
+		//same way: a previous card's account keeps rendering, dimmed, until the
+		//first account for THIS card commits. An empty flash would be worse here
+		//than anywhere else in the rail — a section that blinks out and comes
+		//back reads as "this card is in no collection" for a frame.
+		const whyHere = sectionRender({forCardID: this._whyHereForCardID, value: this._whyHereMembership}, activeCardID, null);
 		return html`
 			<limit-warning></limit-warning>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
 				<div class='blocks ${blocks.stale ? 'loading' : ''}'>
 					${blocks.value.map(item => html`<reference-block class=${!blocks.stale && item.showPreview && similarContentLags(item.collection.preview, this._editingSimilarityPending) ? 'loading' : ''} .block=${item}></reference-block>`)}
+				</div>
+				<div class='${whyHere.stale ? 'loading' : ''}'>
+					${this._whyHereRender(whyHere.value)}
 				</div>
 				<div>
 					<h4>Notes${help('Notes are notes left by the author of the card.')}</h4>
@@ -341,6 +405,30 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._wordCloud = emptyWordCloud();
 	}
 
+	//THE SECTION IS ABSENT, NOT EMPTY, WHEN THERE IS NOTHING TO SAY. An
+	//unfiltered collection poses no question, and a collection the app cannot
+	//honestly judge this card against must not be given a heading with a shrug
+	//under it.
+	_whyHereRender(membership : CollectionMembership | null) {
+		if (!membership) return html``;
+		return html`<collection-why-here
+			.expression=${this._whyHereExpression}
+			.set=${this._collectionSet}
+			.membership=${membership}
+			.tagInfos=${this._tagInfos}
+			.labels=${this._collectionFilterLabels}
+			.filterDescriptions=${this._filterDescriptions}
+			@condition-activated=${this._handleWhyHereConditionActivated}
+		></collection-why-here>`;
+	}
+
+	//TAPPING A CLAUSE OPENS THE COMPOSER ON THAT CLAUSE. The panel is what knows
+	//the gesture means "let me change this", so the panel is what dispatches;
+	//the section itself has no store, exactly like the sentence and the pill row.
+	_handleWhyHereConditionActivated(e : CollectionConditionEvent) {
+		store.dispatch(openConfigureCollectionDialog('compose', [e.detail.index]));
+	}
+
 	_tweet(tweet : TweetInfo) {
 		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${FAVORITE_ICON} ${tweet.favorite_count} ${REPEAT_ICON} ${tweet.retweet_count}</li>`;
 	}
@@ -363,6 +451,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			this._referenceBlocksForCardID = '';
 			this._wordCloud = emptyWordCloud();
 			this._wordCloudForCardID = '';
+			this._whyHereExpression = EMPTY_EXPRESSION;
+			this._whyHereMembership = null;
+			this._whyHereForCardID = '';
 			this._editingSimilarityPending = false;
 			window.clearTimeout(this._expensivePropertiesTimeout);
 			return;
@@ -377,6 +468,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		this._editingSimilarityPending = selectEditingSimilarityPending(state);
+		//The naming inputs are cheap and belong with every other synchronous
+		//field; only the VERDICTS wait for the debounce.
+		this._collectionSet = selectActiveCollectionDescription(state)?.set || 'main';
+		this._collectionFilterLabels = selectCollectionFilterLabels(state);
+		this._filterDescriptions = selectFilterDescriptions(state);
 
 		//Espeiclaly when a card has been saved for editing, the state is
 		//changing quickly. There might be a pending expensie properties timeout
@@ -422,6 +518,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				this._referenceBlocksForCardID = '';
 				this._wordCloud = emptyWordCloud();
 				this._wordCloudForCardID = '';
+				this._whyHereExpression = EMPTY_EXPRESSION;
+				this._whyHereMembership = null;
+				this._whyHereForCardID = '';
 				return;
 			}
 			//The word cloud computes synchronously from fresh state, so its
@@ -432,6 +531,17 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			if (freshCardID) {
 				this._wordCloud = selectWordCloudForActiveCard(freshState);
 				this._wordCloudForCardID = freshCardID;
+				//Same synchronous-from-fresh-state rule, same coherent pair: the
+				//expression and the verdicts about it commit together with the
+				//id they were computed for, so a render can never pair one
+				//card's verdicts with another card's clauses. A null answer is
+				//committed too — "we cannot honestly say" is a real answer for
+				//this card, and holding the previous card's account instead
+				//would be the wrong-card render this stamping exists to prevent.
+				const whyHere = selectWhyHereForActiveCard(freshState);
+				this._whyHereExpression = whyHere ? whyHere.expression : EMPTY_EXPRESSION;
+				this._whyHereMembership = whyHere ? whyHere.membership : null;
+				this._whyHereForCardID = freshCardID;
 			}
 			//Prefer computing the blocks in the corpus worker (off the UI
 			//thread) when it holds the corpus.

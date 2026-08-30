@@ -59,6 +59,10 @@ import {
 } from '../collection-expression.js';
 
 import {
+	ConditionVerdict,
+} from '../collection-membership.js';
+
+import {
 	collectionFilterDescription,
 	collectionOptionDisplayName,
 } from '../collection-composer-suggestions.js';
@@ -174,6 +178,26 @@ class CollectionSentence extends LitElement {
 	//not.
 	@property({ type : Boolean })
 		subtle = false;
+
+	//THE VERDICTS, WHEN A HOST HAS A CARD TO JUDGE THE SENTENCE AGAINST.
+	//
+	//Null — the default, and what the drawer and the palette pass — means this
+	//sentence makes no claim about any card, and every pill renders at full
+	//treatment. The why-here panel passes one verdict per condition and the
+	//pills dim to say which clauses this card fails.
+	//
+	//DIMMING IS tag-chip's OWN `subtle`, not a new state: grayscale(80%)
+	//opacity(40%) already means "this is here for reference, not for you" every
+	//other place the app uses it, and step 2's report identified it as the
+	//does-not-pass rendering. That is also why the sentence's own `subtle`
+	//property deliberately does NOT set it (see that property's note): scale is
+	//the drawer's difference, and this is meaning.
+	//
+	//Clutter conservation, stated as a rule the meta-proposal already made:
+	//pass-marks only with an active card. A sentence with no verdicts must not
+	//grow a single pixel of verdict machinery.
+	@property({ type : Array })
+		verdicts : readonly ConditionVerdict[] | null = null;
 
 	//ONE CONDITION, WITHOUT THE SENTENCE AROUND IT.
 	//
@@ -354,9 +378,18 @@ class CollectionSentence extends LitElement {
 		const description = describeExpressionNode(condition, this._effectiveLabels, this.cardNames);
 		const selected = this._pathIs([index]);
 		const memberTokens = members.map((member, memberIndex) => html`${memberIndex ? html`<span class='member-operator' aria-hidden='true'>or</span>` : ''}${this._pill(member, [index, memberIndex])}`);
+		//THE GROUP'S OWN VERDICT SITS ON THE GROUP, and the members keep theirs.
+		//It carries no dim of its own, deliberately: "or" means a group fails
+		//only when every member does, so a failing group is already a container
+		//of dim pills, and a second filter over them would darken the one shape
+		//that has to stay readable as one condition. What the flag is for is the
+		//half a filter cannot say — the group's accessible name, and a host or a
+		//test asking the sentence what it decided about the whole clause.
+		const groupFails = this._verdictFor([index]) === false;
 		return html`${description.negated ? html`<span class='group-negation' aria-hidden='true'>not </span>` : ''}<tag-chip-group
 			role='group'
-			aria-label=${description.label}
+			data-fails=${ifDefined(groupFails ? '' : undefined)}
+			aria-label=${this._verdictLabel(description.label, [index])}
 			tabindex=${ifDefined(this.interactive ? String(this._tabIndexFor([index])) : undefined)}
 			data-selected=${ifDefined(selected ? '' : undefined)}
 			data-sentence-focus=${ifDefined(this._tabIndexFor([index]) === 0 ? '' : undefined)}
@@ -380,6 +413,12 @@ class CollectionSentence extends LitElement {
 		const label = node.kind === 'not' ? describeExpressionNode(node.child, this._effectiveLabels, this.cardNames).label : description.label;
 		const note = unresolved ? UNRESOLVED_CLAUSE_NOTE :
 			(node.kind === 'manual' ? MANUAL_CLAUSE_NOTE : this._filterNote(spelling, description.label));
+		//A FAILING PILL IS A SUBTLE PILL. tag-chip already paints that state —
+		//grayscale(80%) opacity(40%) — and it already means "not for you here",
+		//so the does-not-pass reading costs one property rather than one CSS
+		//state. `=== false` and not `!verdict`: no verdicts at all is not a
+		//verdict of "fails".
+		const fails = this._verdictFor(path) === false;
 		return html`<tag-chip
 			.tagName=${spelling}
 			.tagInfos=${this._chipInfos(spelling, label, note)}
@@ -387,8 +426,10 @@ class CollectionSentence extends LitElement {
 			.tokenized=${true}
 			.editing=${this.interactive}
 			.tapEvents=${true}
+			.subtle=${fails}
+			data-fails=${ifDefined(fails ? '' : undefined)}
 			role=${ifDefined(this.interactive ? 'button' : undefined)}
-			aria-label=${ifDefined(this.interactive ? this._ariaLabel(description.label, unresolved) : undefined)}
+			aria-label=${ifDefined(this.interactive || this.verdicts ? this._verdictLabel(this._ariaLabel(description.label, unresolved), path) : undefined)}
 			aria-current=${ifDefined(selected ? 'true' : undefined)}
 			aria-keyshortcuts=${ifDefined(this.interactive ? 'Delete Enter' : undefined)}
 			tabindex=${ifDefined(this.interactive ? String(tabIndex) : undefined)}
@@ -433,6 +474,30 @@ class CollectionSentence extends LitElement {
 	//name has to say that a clause was not applied.
 	_ariaLabel(label : string, unresolved : boolean) : string {
 		return unresolved ? `${label} — ${UNRESOLVED_CLAUSE_NOTE}` : label;
+	}
+
+	//--- Verdicts ------------------------------------------------------------
+
+	//The verdict at one token's address, or null where this sentence is not
+	//judging anything. A path this host gave no verdict for is null rather than
+	//false: silence is not a failing grade.
+	_verdictFor(path : readonly number[]) : boolean | null {
+		if (!this.verdicts) return null;
+		const condition = this.verdicts[path[0]];
+		if (!condition) return null;
+		if (path.length === 1) return condition.passes;
+		const member = condition.members[path[1]];
+		return member === undefined ? null : member;
+	}
+
+	//A DIM PILL IS INVISIBLE TO A SCREEN READER, so the verdict has to be a
+	//word. Only where there IS one: a sentence with no verdicts says nothing
+	//extra, which is what keeps the drawer's and the palette's pills named
+	//exactly as they were.
+	_verdictLabel(label : string, path : readonly number[]) : string {
+		const verdict = this._verdictFor(path);
+		if (verdict === null) return label;
+		return `${label} — ${verdict ? 'this card matches' : 'this card does not match'}`;
 	}
 
 	//A TAG'S OWN TITLE IS ALREADY A NAME THE APP DECIDED, so a clause spelled

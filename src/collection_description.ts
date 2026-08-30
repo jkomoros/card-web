@@ -33,7 +33,8 @@ import {
 
 import {
 	reportURLDiagnostic,
-	retractURLDiagnostic
+	retractURLDiagnostic,
+	withURLDiagnosticsSuppressed
 } from '../shared/url-diagnostics.js';
 
 import {
@@ -986,6 +987,32 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 	return [{}, true, null, null, false];
 };
 
+//WHETHER ONE CARD PASSES ONE CLAUSE, DECIDED BY THE MACHINERY THAT DECIDED THE
+//COLLECTION.
+//
+//The why-here panel needs a per-clause answer, and the tempting way to get one
+//is to re-derive it: look the tag up on the card, compare the dates, check the
+//published flag. Every such re-derivation is a SECOND implementation of the
+//engine, and the day the two disagree the panel is lying about the very thing it
+//exists to explain.
+//
+//So there is no second implementation here. This is `filterSetForFilterDefinitionItem`
+//— the exact function `combinedFilterForFilterDefinition` calls for every
+//segment — followed by `makeCombinedFilter`'s exact membership rule: an
+//un-reversed set must CONTAIN the card, a reversed set must NOT. Same function,
+//same extras, same rule; the conjunction of these verdicts over a description's
+//segments is `combinedFilter(cardID)` by construction, not by agreement.
+//
+//It is deliberately a free function over `FilterExtras` rather than a method, so
+//it can answer for a sub-filter that is not a segment of anything: an OR group's
+//members are evaluated by the engine through this same function (filters.ts's
+//combine factory calls it on each half), so a member's verdict is the engine's
+//member verdict too.
+export const cardPassesFilterSegment = (segment : FilterName, cardID : CardID, extras : FilterExtras) : boolean => {
+	const [filterSet, reverse] = withURLDiagnosticsSuppressed(() => filterSetForFilterDefinitionItem(segment, extras));
+	return reverse ? !filterSet[cardID] : Boolean(filterSet[cardID]);
+};
+
 //makeExtrasForFilterFunc makes a new extras object containing the extra
 //information passed to the configurable filter funcs. Many filter funcs only
 //need some subset of the information, and information that ANY func needs must
@@ -1333,6 +1360,18 @@ export class Collection {
 		return this._cachedFilterExtras;
 	}
 
+	//THE INPUTS THIS COLLECTION FILTERED WITH, for a caller that needs to ask the
+	//engine a question ABOUT this collection — today, only "does this card pass
+	//this clause of it" (see cardPassesFilterSegment). Exposing the memoized
+	//extras rather than the ingredients is the whole point: a caller that
+	//rebuilt them from selectors could assemble a DIFFERENT snapshot (the
+	//filtering path deliberately uses cardsSnapshot and filtersSnapshot, not the
+	//live maps) and get a defensible answer about a collection nobody is
+	//looking at.
+	get filterExtras() : FilterExtras {
+		return this._filterExtras;
+	}
+
 	//This will return true if any card in any filter used to make this collection returned preview:true
 	get preview() : boolean {
 		this._ensureFilteredCards();
@@ -1406,6 +1445,32 @@ export class Collection {
 		//set collectionIsFallback correctly;
 		this._ensureFilteredCards();
 		return this._collectionIsFallback;
+	}
+
+	//THE ENGINE'S OWN ANSWER TO "IS THIS CARD ONE OF THE CARDS I MATCHED", or
+	//null where this collection has no honest answer to give.
+	//
+	//This exists to CHECK an explanation, not to produce one: the why-here panel
+	//assembles a per-clause account out of the engine's per-clause machinery, and
+	//the conjunction of those clauses has to come out equal to this. Same
+	//function and same extras make that true by construction — but "by
+	//construction" is an argument, and in cutover mode the result on screen was
+	//computed in the WORKER from its own copy of the corpus while the panel
+	//reasons from the main thread's. So the argument is checked against the
+	//artifact, every time, and an explanation that would contradict what the user
+	//is looking at is not shown at all.
+	//
+	//The three nulls are the cases where the card list is not a membership
+	//answer: a transitional placeholder's ids are guesses (#762), a fallback
+	//collection's cards are what it showed INSTEAD of its matches, and a limited
+	//or offset collection has truncated its matches, so absence there means
+	//nothing.
+	matchedCard(cardID : CardID) : boolean | null {
+		if (this._transitional) return null;
+		if (this._description.limit || this._description.offset) return null;
+		this._ensureFilteredCards();
+		if (this._collectionIsFallback) return null;
+		return this._preLimitFilteredCards.some(card => card.id === cardID);
 	}
 
 	//True while this collection is the cutover-mode placeholder awaiting the
