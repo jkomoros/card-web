@@ -802,6 +802,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				width: 1em;
 			}
 
+			/* The word the sentence declines to say at its defaults. Subordinate
+			   in colour and size, like the tail it stands in for, and built on
+			   button.small rather than a fourth button system. */
+			.order-word-operator {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.85em;
+			}
+
+			button.small.verb.order-word {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.85em;
+				min-height: 0;
+				vertical-align: baseline;
+			}
+
+			button.small.verb.order-word:hover {
+				text-decoration: underline;
+			}
+
+			/* §4.2's 44px floor on a touch layout, where a row is the target. */
+			.mobile .palette-row button {
+				min-height: 44px;
+			}
+
+			.mobile .order-word {
+				min-height: 44px;
+			}
+
 			/* THE PILL ROW IS ATTACHED TO THE SENTENCE, always directly under
 			   it, because the whole argument for a one-line editor is that
 			   everything you can do to a clause appears at the place you see it
@@ -1782,9 +1810,29 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@condition-removed=${this._handleTokenRemoved}
 					@set-clicked=${this._handleSetWordClicked}
 					@sort-clicked=${this._handleSortWordClicked}
-				></collection-sentence>${help(COLLECTION_HELP)}
+				></collection-sentence>${this._orderWordRender()}${help(COLLECTION_HELP)}
 			</div>
 		`;
+	}
+
+	//THE ORDER IS A WORD IN THE SENTENCE — WHEN THE SENTENCE HAS ONE TO SHOW.
+	//
+	//collection-sentence deliberately omits its tail at the defaults: "sorted by
+	//default" tells the user about a FIELD rather than about their collection,
+	//and that refusal is right. But it leaves the palette with no word to click
+	//at exactly the moment most users arrive, and the four-select setup strip
+	//that used to carry sort and view is deleted. Typing 'recent' reaches the
+	//same rows, and would have been the only route.
+	//
+	//So the palette supplies the missing word itself, at the sentence's own
+	//subordinate scale, and only when the sentence has not supplied one. It says
+	//what it opens rather than what the collection currently is, which is the one
+	//phrasing that is honest at a default.
+	_orderWordRender() {
+		const description = this._collectionDescription;
+		const hasTail = description.sort !== 'default' || description.sortReversed || description.viewMode !== 'list';
+		if (hasTail) return '';
+		return html`<span class='order-word-operator'> · </span><button class='small verb order-word' @click=${this._handleSortWordClicked}>order and view</button>`;
 	}
 
 	//--- The pill row ---------------------------------------------------------

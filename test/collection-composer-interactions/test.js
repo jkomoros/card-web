@@ -1837,6 +1837,41 @@ describe('Collection Composer interactions', () => {
 			'a view that takes a focus card gets the collection’s own first card');
 	});
 
+	//THE SENTENCE HAS NO WORD FOR ITS DEFAULTS, and the palette needs one.
+	//
+	//collection-sentence deliberately omits "sorted by default": that tells the
+	//user about a field rather than about their collection, and the refusal is
+	//right. But the four-select setup strip that used to carry sort and view is
+	//deleted, so at the defaults — where most sessions start — there would be no
+	//word to click and typing 'recent' would be the only route. The palette
+	//supplies the missing word itself, and yields it back the moment the sentence
+	//has a real tail of its own, so there is never two of them.
+	it('offers an order word only while the sentence declines to say one', async () => {
+		const orderWord = () => dialog.shadowRoot.querySelector('.order-word');
+		const sentence = () => dialog.shadowRoot.querySelector('collection-sentence');
+		assert.ok(orderWord(), 'at the defaults the palette supplies the word');
+		assert.strictEqual(orderWord().textContent.trim(), 'order and view',
+			'and it says what it opens rather than claiming the collection is "sorted by default"');
+		assert.strictEqual(sentence().shadowRoot.querySelector('button.word.tail'), null,
+			'because the sentence itself has no tail to offer');
+
+		orderWord().click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._wordScope, 'sort');
+		suggestionRows().find((button) => button.dataset.rowId === 'sort:recent').click();
+		await settleRender(dialog);
+		assert.strictEqual(store.getState().collection.snapshot.sortName, 'recent');
+
+		//Now the sentence has a real tail, and it is the one control.
+		assert.strictEqual(orderWord(), null, 'the palette yields its stand-in back');
+		const tail = sentence().shadowRoot.querySelector('button.word.tail');
+		assert.ok(tail, 'the sentence’s own word is the control now');
+		assert.match(tail.textContent, /sorted by Recent/);
+		tail.click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._wordScope, 'sort', 'and it opens the same list');
+	});
+
 	//A COUNT ANSWERS "HOW MANY CARDS", so a row that only reorders has none —
 	//"1,842 cards → 1,842 cards" is a prediction that takes a column to say
 	//nothing, and the same rule keeps it from being asked of the worker.
@@ -3428,7 +3463,7 @@ describe('Collection Composer interactions', () => {
 	//being cut off.
 	it('keeps a mobile row’s count under its label, with the detail after both', () => {
 		const styles = composerStyles();
-		const mobileGrid = /\.mobile \.palette-row button\s*\{([^}]*)\}/.exec(styles);
+		const mobileGrid = /\.mobile \.palette-row button\s*\{([^}]*grid-template-areas[^}]*)\}/.exec(styles);
 		assert.ok(mobileGrid, 'the mobile row grid must exist');
 		const areas = mobileGrid[1].replace(/\s+/g, ' ');
 		assert.match(areas, /'label\s+glyph'/, 'the label leads, with the one glyph beside it');
@@ -3692,7 +3727,7 @@ describe('Collection Composer interactions', () => {
 	//fact that every option really does use it.
 	it('gives every row in the list the same column grid', async () => {
 		const styles = composerStyles();
-		const row = styles.match(/\.palette-row button\s*\{[^}]*\}/);
+		const row = styles.match(/\.palette-row button\s*\{[^}]*grid-template-columns[^}]*\}/);
 		assert.ok(row, 'the row button carries the grid');
 		assert.match(row[0], /grid-template-columns:\s*minmax\(0, 1fr\) 11em auto/,
 			'label flexes; the count is FIXED, so its left edge cannot wander between rows');
