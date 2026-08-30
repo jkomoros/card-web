@@ -1380,6 +1380,114 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(pillRow(), null);
 	});
 
+	//THIS LIST IS WHERE BOOLEANS ARE BORN (proposal B §3.1). One typed token
+	//becomes as many rows as it has MEANINGS, each a plain sentence with a
+	//number on it — and the user authors `a AND (b OR c) AND NOT d` by choosing
+	//between English sentences rather than by meeting the words exclude and
+	//combine.
+	it('offers a typed token’s meanings as rows, ranked and counted', async () => {
+		await addRefineRow('Starred');
+		await typeComposer('unread');
+		const ids = suggestionRows().map((button) => button.dataset.rowId)
+			.filter((id) => id.startsWith('filter:unread'));
+		assert.deepStrictEqual(ids, ['filter:unread:add', 'filter:unread:or:0', 'filter:unread:not'],
+			'add leads; the or is offered above the not because it widens a compatible clause');
+
+		const row = (id) => suggestionRows().find((button) => button.dataset.rowId === id);
+		//EACH ROW RENDERS AS THE PILL IT WOULD BECOME, through the same renderer
+		//the sentence uses — and the `not` row shows the app's own inverse WORD
+		//rather than an operator, because that is the pill the flip will make.
+		assert.match(rowText(row('filter:unread:add')), /Unread/);
+		assert.match(rowText(row('filter:unread:not')), /Read/);
+		assert.ok(!rowText(row('filter:unread:not')).includes('exclude'),
+			'the engine’s boolean plumbing never reaches the user');
+		//And the or row is labelled with what it widens.
+		assert.match(rowText(row('filter:unread:or:0')), /Starred or Unread/);
+		assert.match(row('filter:unread:or:0').querySelector('.row-widens').textContent, /widens Starred/);
+
+		//A ROW COUNT IS A PREDICTION, written as the transition it predicts.
+		dialog._previewCounts = {
+			'current-draft-preview': 41,
+			'filter:unread:add': 12,
+			'filter:unread:or:0': 118,
+			'filter:unread:not': 29,
+		};
+		await settleRender(dialog);
+		assert.match(rowText(row('filter:unread:add')), /41 cards → 12 cards/);
+		assert.match(rowText(row('filter:unread:or:0')), /41 cards → 118 cards/);
+		assert.match(rowText(row('filter:unread:not')), /41 cards → 29 cards/);
+	});
+
+	//TAB MATERIALIZES THE VALENCE ITSELF, not a re-derivation of it: the row
+	//carries the whole after-expression, so the edit the count described and the
+	//edit that lands are the same object.
+	it('Tab applies the highlighted valence, and only that valence', async () => {
+		await addRefineRow('Starred');
+		await typeComposer('unread');
+		//The add row leads and is highlighted by the typing itself.
+		assert.strictEqual(highlightedRow().dataset.rowId, 'filter:unread:add');
+		await pressComposer('Tab');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred', 'unread'],
+			'the add ANDs a second condition');
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-composer-input').value, '',
+			'the input clears');
+		assert.strictEqual(highlightedRow(), null, 'and the rebuilt list is pointed at by nobody');
+		assert.strictEqual(dialog.shadowRoot.activeElement?.id, 'collection-composer-input',
+			'focus stays where the user is typing');
+
+		//The OR valence of the same token fuses instead, into one pill.
+		await pressComposer('Backspace');
+		await pressComposer('Backspace');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
+		await typeComposer('unread');
+		await pressComposer('ArrowDown');
+		assert.strictEqual(highlightedRow().dataset.rowId, 'filter:unread:or:0');
+		await pressComposer('Tab');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred+unread'],
+			'the or fuses two pills into one condition');
+		assert.strictEqual(sentencePills().length, 2, 'which the sentence draws as one group of two');
+		assert.ok(dialog.shadowRoot.querySelector('collection-sentence').shadowRoot.querySelector('tag-chip-group'));
+	});
+
+	//THE URL THE DRAFT WOULD OPEN, one quiet line under the list. Nothing depends
+	//on it and it asks for nothing — which is exactly why it teaches: the `+` the
+	//keyboard grammar uses for an or is the character that appears here, and the
+	//step from here into Source is one the user has already taken without
+	//noticing.
+	it('shows the compiled path the draft would open, under the list', async () => {
+		const path = () => dialog.shadowRoot.querySelector('.compiled-path');
+		assert.ok(path(), 'the line is there before anything has been composed');
+		assert.strictEqual(path().textContent.trim(), '/c/main/');
+		await addRefineRow('Starred');
+		assert.strictEqual(path().textContent.trim(), '/c/starred/');
+		//And it is under the LIST, where it teaches rather than competing with
+		//the sentence above.
+		const list = dialog.shadowRoot.querySelector('.palette-list');
+		assert.ok(list.compareDocumentPosition(path()) & Node.DOCUMENT_POSITION_FOLLOWING);
+		//It is a readout, not a control, and it is not announced twice.
+		assert.strictEqual(path().getAttribute('aria-hidden'), 'true');
+		assert.strictEqual(path().querySelector('button'), null);
+	});
+
+	//"ONLY FOR YOU" DIES IN COMPOSITION (meta-proposal convergence 6). The note
+	//rode every personal chip and every personal row — a caution repeated in the
+	//one place where nothing is at stake, since nobody has shared anything yet.
+	//Viewer-dependence speaks ONCE, where the consequence lands.
+	it('says nothing about viewer-dependence while composing, and everything at the link', async () => {
+		await addRefineRow('Starred');
+		assert.ok(!/only for you/i.test(deepText(dialog.shadowRoot)),
+			'no chip note and no row note anywhere in the composer');
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/configure-collection-dialog.ts'), 'utf8');
+		assert.ok(!source.includes('VIEWER_DEPENDENT_CHIP_NOTE'),
+			'and the composer does not import the note it no longer shows');
+		//The two surfaces that DO say it are untouched.
+		assert.match(source, /this link’s results depend on who views it/,
+			'Source’s status still says so about the link it is showing');
+		const copy = await readFile(path.join(REPO_ROOT, 'src/collection-link-copy.ts'), 'utf8');
+		assert.match(copy, /Results depend on who views it/,
+			'and so does the copy-link confirmation');
+	});
+
 	it('routes a typed configurable family through its own controls', async () => {
 		await typeComposer('updated');
 		const row = suggestionRows().find((button) => rowText(button).includes('Updated'));

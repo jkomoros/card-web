@@ -152,8 +152,6 @@ import {
 	collectionOptionDisplayName,
 	rankedComposerSuggestions,
 	readableCollectionExpression,
-	VIEWER_DEPENDENT_CHIP_NOTE,
-	VIEWER_DEPENDENT_CHIP_EXPLANATION,
 } from '../collection-composer-suggestions.js';
 
 import {
@@ -816,21 +814,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding-left: 0.6em;
 			}
 
-			/* WHOSE CARDS THIS IS ABOUT. Subordinate tone and nothing else: a
-			   personal clause is not a problem, and §4.5 gives that case
-			   --app-dark-text-color-light. It survives only where it still has
-			   a job — on a LIST row, where the consequence of choosing a
-			   personal clause is not yet visible anywhere else. The chip note
-			   inside the sentence is deleted: "only for you" dies in
-			   composition (meta-proposal convergence 6), and viewer-dependence
-			   speaks once, at copy-link and in Source's status, which is where
-			   somebody is actually about to share the thing. */
-			.viewer-dependent {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.7em;
-				white-space: nowrap;
-			}
-
 			/* THE INPUT IS FIND-DIALOG'S #query, IN THIS DIALOG.
 			   Borderless with a bottom rule, full width, and the placeholder
 			   continuing the sentence above it. It is a block of its own rather
@@ -1023,8 +1006,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				grid-template-areas:
 					'label count glyph'
 					'widens count glyph'
-					'detail detail detail'
-					'personal personal personal';
+					'detail detail detail';
 			}
 
 			/* The source completion list keeps the columns it always had,
@@ -1099,16 +1081,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 			.suggestion-detail {
 				grid-area: detail;
-			}
-
-			/* Its own row rather than a tail on the detail sentence: the detail
-			   is the line a scanning reader skips, and personal scope is the one
-			   property of a row whose consequence shows up somewhere the row
-			   cannot follow it to. Rows without it lose no height — an empty
-			   grid area collapses. */
-			.palette-row .viewer-dependent {
-				font-size: 0.72em;
-				grid-area: personal;
 			}
 
 			/* RIGHT-ALIGNED, so the numbers line up with each other rather than
@@ -1211,8 +1183,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					'label glyph'
 					'widens glyph'
 					'count count'
-					'detail detail'
-					'personal personal';
+					'detail detail';
 			}
 
 			.mobile .row-count {
@@ -2069,7 +2040,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					role='option'
 					tabindex='-1'
 					aria-selected=${highlighted}
-					aria-label=${`${row.label}. ${row.detail}${countText ? `. ${countText}` : ''}${row.viewerDependent ? `. ${VIEWER_DEPENDENT_CHIP_EXPLANATION}` : ''}`}
+					aria-label=${`${row.label}. ${row.detail}${countText ? `. ${countText}` : ''}`}
 					data-index=${index}
 					data-row-id=${row.id}
 					data-filter=${ifDefined(row.filter)}
@@ -2091,11 +2062,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					     the one row whose consequence differs says so. In the
 					     idle list the "Recent" heading has already said it. -->
 					${row.navigates && row.section !== RECENT_SECTION ? html`<span class='row-navigate' aria-hidden='true'>${OPEN_IN_BROWSER_ICON}</span>` : ''}
-					<!-- The caution is IN the row, not only in its detail
-					     sentence: personal scope is the one property of a row
-					     whose consequence appears somewhere else entirely — in a
-					     link, after it has been sent. -->
-					${row.viewerDependent ? html`<span class='viewer-dependent'>${VIEWER_DEPENDENT_CHIP_NOTE}</span>` : ''}
+					<!-- "ONLY FOR YOU" DIES IN COMPOSITION (meta-proposal
+					     convergence 6). The note rode every personal row and
+					     every personal chip, which is a caution repeated in the
+					     one place where nothing is at stake yet — nobody has
+					     shared anything. Viewer-dependence speaks ONCE, where the
+					     consequence actually lands: in the copy-link
+					     confirmation, and in Source's own status line. Both are
+					     untouched. -->
 					${showDetail ? html`<span class='row-detail'>${row.detail}</span>` : ''}
 				</button>
 			</div>
