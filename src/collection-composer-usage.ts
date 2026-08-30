@@ -210,8 +210,8 @@ export const readStickyComposerSet = (scope = '', legalSets : readonly string[] 
 	}
 };
 
-//WHERE A COMPOSITION STARTS FROM, decided once, at the moment it becomes a
-//composition.
+//WHERE A COMPOSITION STARTS FROM, decided once, at the moment the composer
+//opens.
 //
 //The spec's principle 1 — refining an existing collection begins from where the
 //user is — is preserved exactly: this fires ONLY when the draft is the app's own
@@ -222,10 +222,6 @@ export const readStickyComposerSet = (scope = '', legalSets : readonly string[] 
 //published sections before the user had typed anything, and the count they got
 //was smaller than the corpus for a reason nothing on screen explained.
 //
-//THE MOMENT IS THE FIRST CONDITION, not the moment the dialog opens: a composer
-//opened and closed without an edit should leave the draft exactly as it found
-//it, and switching the set of a collection nobody has started composing is a
-//change with no author.
 //"BARE MAIN, NO FILTERS" — and deliberately NOT "…and the URL did not say
 //'main'". The app's own default view spells its set in the path (`/c/main/`), so
 //an explicitly-set flag would make this fire nowhere at all; and a user standing
@@ -236,20 +232,25 @@ export const collectionDescriptionStartsFromAppDefault = (description : Collecti
 	description.set === APP_DEFAULT_SET &&
 	!description.filters.length;
 
+//SUPERSEDED SIGNATURE (round-3 tightness, M6). This took (before, after,
+//stickySet) and answered "what should this EDIT become", because the rewrite was
+//deferred to the first condition — a composer opened and closed without an edit
+//was meant to leave the draft exactly as it found it.
+//
+//The cost of that deferral was two values for one fact: the sentence rendered the
+//set the draft still had (`Main`) while the first edit committed the set it was
+//about to get (`everything`), and every count in between belonged to whichever of
+//the two its caller happened to reach for. So the question is asked once, of the
+//draft alone, at the moment the composer opens: from then on the description IS
+//the answer and nothing downstream has to re-derive it. Escape still discards the
+//whole draft, which is what "leaves it as it found it" was protecting.
 export const collectionDescriptionWithStickyStart = (
-	before : CollectionDescription,
-	after : CollectionDescription,
+	description : CollectionDescription,
 	stickySet : string
 ) : CollectionDescription => {
-	if (!collectionDescriptionStartsFromAppDefault(before)) return after;
-	//The edit has to be the one that STARTS the composition — the first
-	//condition — and it must not itself be a choice of set: somebody whose first
-	//gesture was to type 'reading list' has already said where to start.
-	if (!after.filters.length) return after;
-	//Somebody whose gesture WAS a choice of set has already said where to start.
-	if (after.set !== before.set) return after;
-	if (!stickySet || stickySet === after.set) return after;
-	return collectionDescriptionWithSet(after, stickySet as SetName);
+	if (!collectionDescriptionStartsFromAppDefault(description)) return description;
+	if (!stickySet || stickySet === description.set) return description;
+	return collectionDescriptionWithSet(description, stickySet as SetName);
 };
 
 export const recordStickyComposerSet = (setName : string, scope = '') : void => {

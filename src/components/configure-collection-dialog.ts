@@ -147,7 +147,6 @@ import {
 	CollectionComposerCandidate,
 	activeCardMetadataCandidates,
 	activeCardRelationshipCandidates,
-	collectionComposerRemovalSuggestions,
 	collectionExpressionParts,
 	collectionFilterDisplayName,
 	collectionFilterLabels,
@@ -226,6 +225,7 @@ import {
 import {
 	CompletionUsageWeights,
 	DEFAULT_STICKY_SET,
+	collectionDescriptionStartsFromAppDefault,
 	collectionDescriptionWithStickyStart,
 	completionUsageWeights,
 	readStickyComposerSet,
@@ -234,14 +234,15 @@ import {
 } from '../collection-composer-usage.js';
 
 import {
-	PaletteNaming,
 	PaletteRow,
+	TYPED_RANK_LITERAL,
 	VOCABULARY_SECTION,
 	frozenPaletteOrder,
 	paletteIdleRows,
 	paletteOrScopedRows,
 	paletteOrderKey,
 	paletteRecoveryRows,
+	paletteTypedRank,
 	paletteTypingRows,
 	paletteWordRows,
 	PaletteWordScope,
@@ -647,15 +648,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_highlightedRow = 0;
 
-	//Whether _highlightedRow currently means anything. The spec draws a
-	//hard line between "Enter with a highlighted suggestion" (open that
-	//destination) and "Enter with no highlighted suggestion" (open the current
-	//draft). A row is highlighted only once the user has pointed at one: by
-	//typing (the list is then interpretations of what they typed), by arrowing,
-	//or by genuinely moving the mouse over a row. Rebuilding the list — after a
-	//Tab materialization, a clause edit, or an undo — leaves nothing
-	//highlighted, so the next Enter commits the draft the user just composed
-	//rather than whatever happens to sit in row 0.
+	//Whether _highlightedRow currently means anything. A row is highlighted only
+	//once the user has pointed at one: by typing (the list is then
+	//interpretations of what they typed), by arrowing, or by genuinely moving the
+	//mouse over a row. Rebuilding the list — after a Tab materialization, a
+	//clause edit, or an undo — leaves nothing highlighted.
+	//
+	//WITH NOTHING HIGHLIGHTED, ENTER DOES NOTHING (round-3 tightness, B1). This
+	//used to be the state that made Enter a COMMIT, which put a navigation on the
+	//key somebody presses after every clause — see _handleComposerKeyDown. The
+	//distinction the flag draws survives whole; only what the empty side of it
+	//means has changed, and the footer already said the new answer.
 	@state()
 		_rowHighlightActive = false;
 
@@ -692,8 +695,27 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//WHERE A COMPOSITION STARTS FROM, read once per session for the same reason
 	//the usage weights are: a value that could change mid-keystroke would move
 	//the collection a row promises out from under the row.
+	//
+	//IT IS APPLIED TO THE DRAFT AT OPEN, NOT AT THE FIRST EDIT (round-3
+	//tightness, M6). See _seedDraftStartingSet.
 	@state()
 		_stickySet : string = DEFAULT_STICKY_SET;
+
+	//WHETHER THE DRAFT IS KNOWN TO MATCH NOTHING — not "has no count yet", which
+	//is a different fact and the reason this is a tri-state collapsed to a bool
+	//set in exactly one place (the draft's own preview callback).
+	//
+	//REACTIVE, BECAUSE IT CREATES ROWS. The recovery section exists only at a
+	//resolved zero, so those rows come into existence when a COUNT ARRIVES — and
+	//a count arriving is not one of the things that used to re-ask the worker for
+	//the list's numbers. So the section that is entirely about counts rendered
+	//with none of them: three clauses, no answer to "which one emptied it", which
+	//is the only question the section exists to answer. Naming the fact as state
+	//puts it in updated()'s trigger list, where one more request is made for the
+	//rows the fact just brought into being; it settles immediately, because the
+	//second pass changes nothing that changes the row set again.
+	@state()
+		_draftResolvesEmpty = false;
 
 	//HOW MANY ROWS ARE ACTUALLY IN THE DOM. The list is the whole vocabulary
 	//now — several hundred rows on a real corpus — and rendering all of it costs
@@ -898,13 +920,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0.75em 0 0.5em;
 			}
 
-			/* HelpStyles sizes the badge at 1.3em of whatever it sits in, which
-			   suits a 0.75em form label. The sentence runs at 1.05em, where
-			   that would make the badge the largest glyph in the dialog. */
-			.sentence .help svg {
-				height: 1em;
-				width: 1em;
-			}
+			/* THE SENTENCE'S OWN BADGE RULE IS DELETED WITH THE BADGE (round-3
+			   tightness, C1). It existed to shrink HelpStyles' 1.3em glyph to
+			   something that did not dominate a 1.05em sentence; the sentence
+			   carries no glyph now, and the definition it defined lives on the
+			   dialog title. HelpStyles stays because Source mode's and the
+			   legacy builder's own form labels still use it. */
 
 			/* The word the sentence declines to say at its defaults. Subordinate
 			   in colour and size, like the tail it stands in for, and built on
@@ -1021,19 +1042,56 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				margin-top: 1.2em;
 			}
 
-			/* ONE LIST, and it is content-sized until it runs out of room. The
-			   dialog is no longer pinned to 90% of the viewport, so a
-			   flex-basis-0 list would collapse to nothing; a max-height is what
-			   makes a long list scroll instead of growing the palette off the
-			   screen, and it is the only bound the list needs now that there is
-			   no catalog or editor panel to negotiate with. */
+			/* ONE LIST, AND IT IS THE PART OF THE COLUMN THAT GIVES AND TAKES
+			   (round-3 tightness, C3).
+			   It is content-sized up to 40vh — the dialog is no longer pinned to
+			   90% of the viewport, so a flex-basis-0 list would collapse to
+			   nothing, and the max-height is what makes a long list scroll
+			   instead of growing the palette off the screen.
+			   WHAT CHANGED IS THE FLEX. It was 0-1-auto in a column whose other
+			   children were also shrinkable, so a deficit was shared out — the
+			   list, the biggest item, absorbing most of it, down to a SINGLE
+			   visible row — while a surplus nobody claimed sat as a dead band
+			   between Edit source and the footer. flex-grow:1 makes the list
+			   the one recipient of any surplus, and the blocks around it give
+			   up their room first (rule below) so it is also the one payer of
+			   any deficit. min-height is the floor that deficit stops at;
+			   below it #inner, the dialog's own scroll container, takes over.
+			   A list is the only thing in this column a user can be short of. */
 			.palette-list,
 			.suggestions {
+				flex: 1 1 auto;
 				list-style: none;
 				margin: 0.25em 0 0;
 				max-height: 40vh;
+				min-height: 5em;
 				overscroll-behavior: contain;
 				padding: 0;
+			}
+
+			/* AND ON THE FULL-SCREEN LAYOUT THERE IS NO CAP AT ALL. .mobile
+			   .content is height:100%, so the column has a DEFINITE height and
+			   a real surplus to give away; a 40vh cap on the one element that
+			   can take it is what left ~130px of nothing between Edit source
+			   and the footer. The cap exists to stop a long list growing the
+			   palette off the screen, and a full-screen palette cannot grow. */
+			.mobile .palette-list,
+			.mobile .suggestions {
+				max-height: none;
+			}
+
+			/* And the blocks around it do not shrink, so the surplus and the
+			   deficit both land in one place. Stated on the composer's own
+			   children rather than as an "#inner > *" blanket, so Source mode's
+			   column — which has its own editor pane to negotiate with — is
+			   untouched. */
+			.sentence,
+			.pill-row,
+			.composer-input,
+			.key-hints,
+			.mode-links,
+			.preview-titles {
+				flex: 0 0 auto;
 			}
 
 			/* A SCROLL PANE HAS TO LOOK LIKE ONE, AND LAND ON WHOLE ROWS.
@@ -1169,17 +1227,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				overflow-wrap: anywhere;
 			}
 
-			/* THE ONE ANNOTATION SLOT, AND EVERY ROW USES THE SAME ONE.
-			   A quiet word for a clause row ('tag', 'section', 'sort'); the
-			   one-line diff for a combinatorial row ('Removes Starred · Adds
-			   Tagged systems · Sorts by recently updated'). Same shape, bigger
-			   payload — which is the whole of D3's requirement that no row have
-			   a visual grammar of its own. It wraps, because a diff is a
-			   sentence and a nowrap sentence is a horizontal scrollbar. */
+			/* THE ONE ANNOTATION SLOT, AND EVERY ROW USES THE SAME ONE — for one
+			   quiet word, and only for that (round-3 tightness, S1).
+			   It used to hold a combinatorial row's whole diff ('Uses Main
+			   instead of Everything · Removes Tagged Ecosystems, Tagged
+			   Platforms, Created since 7 days ago · Adds Section About'), which
+			   wrapped to three lines and made one species of row twice the
+			   height of every other. nowrap is the rule that keeps it honest:
+			   anything that would need to wrap does not belong in this slot,
+			   and the diff is on the highlighted row's detail line where it
+			   always also was. */
 			.row-annotation {
 				color: var(--app-dark-text-color-light);
 				font-size: 0.72em;
 				margin-left: 0.5em;
+				white-space: nowrap;
 			}
 
 			/* THE PILL THIS ROW WOULD TAKE OUT, in the outlined-not vocabulary
@@ -1202,13 +1264,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				text-decoration: none;
 			}
 
-			/* The mark on the option already in force. Subordinate, like every
-			   other annotation on a row: it says which one you are in, it does
-			   not compete with the names of the ones you could move to. */
-			.row-current {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.82em;
-			}
+			/* THE MARK ON THE OPTION ALREADY IN FORCE HAS NO RULE OF ITS OWN
+			   (round-3 tightness, S4). It was a fourth element beside the
+			   annotation slot, in a fourth size, on the one feed that carried no
+			   annotation at all. It IS the annotation now — '✓ current' in the
+			   same slot, at the same weight — so a word-scope row has exactly
+			   the anatomy every other row has. */
 
 			.row-detail,
 			.suggestion-detail,
@@ -1417,6 +1478,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				gap: 0.5em;
 				margin-top: 0.75em;
 				padding: 0.5em 0 max(0.25em, env(safe-area-inset-bottom));
+			}
+
+			/* AND IT IS REACHABLE AT EVERY HEIGHT (round-3 tightness, C3).
+			   Reserving the footer's room out of the list's works only while
+			   the column FITS. Once the list has been squeezed to its floor and
+			   #inner starts to scroll, the last child of a scroller is exactly
+			   the thing that goes below the fold — and it is the commit
+			   control. Sticky rather than shorter: the list keeps the room the
+			   flex rule just gave it, and the one action this dialog exists to
+			   perform stays on screen while the rows above it scroll under it.
+			   The fill is the dialog's own surface (DialogElement paints
+			   .content white), so a row scrolling behind the footer disappears
+			   under it rather than through it. */
+			.buttons.composer-actions {
+				background: var(--app-light-text-color);
+				bottom: 0;
+				position: sticky;
 			}
 
 			/* While a suggestion is highlighted there were two numbers on
@@ -1897,9 +1975,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//drawer navigates on a gesture and this dialog edits a draft, and that is
 	//the only difference between them.
 	//
-	//The help badge rides at the END of the sentence rather than in front of it:
-	//it defines the word "collection" (HS-1.3's MUST, debt item D1), which is a
-	//footnote to the sentence and not its subject.
+	//THE '?' BADGE IS CUT (round-3 tightness, C1).
+	//
+	//It rode at the end of the sentence and defined the word "collection"
+	//(HS-1.3's MUST, debt item D1). The obligation is kept and the GLYPH is gone:
+	//the same sentence is now the dialog title's own title/aria-description, so
+	//hovering 'Compose a Collection' or reading the heading gives the definition,
+	//and the composer's first line is the user's sentence and nothing else. A
+	//visible help affordance is a concept on a surface whose argument is that it
+	//has four of them.
 	_sentenceRender() {
 		return html`
 			<div class='sentence'>
@@ -1924,7 +2008,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					@condition-removed=${this._handleTokenRemoved}
 					@set-clicked=${this._handleSetWordClicked}
 					@sort-clicked=${this._handleSortWordClicked}
-				></collection-sentence>${this._orderWordRender()}${help(COLLECTION_HELP)}
+				></collection-sentence>${this._orderWordRender()}
 			</div>
 		`;
 	}
@@ -1964,10 +2048,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return this._selectedPath.length === 2 ? this._selectedPath[1] : -1;
 	}
 
-	//THE TWO COUNT ROLES, WIRED LIVE. "Draft now matches N" is the fact — the
-	//same number the footer states, asked once through the same debounced
-	//preview machinery and the same retained cache — and "without this pill: N"
-	//is a prediction about a different collection, so it is a different preview.
+	//THE ROW STATES THE COUNT ONLY IT CAN ANSWER (round-3 tightness, minor).
+	//
+	//It used to state two: "draft now matches N", which is the number the footer
+	//is already stating beside the control that would open it, and "without this
+	//pill: N", which nothing else on screen can say. Two live readouts of one
+	//number, three inches apart, moving together — on a surface whose other pair
+	//of numbers (the highlighted row's and the draft's) is deliberately told
+	//apart by weight because two numbers competing to be "what happens next" was
+	//itself a defect. The footer's is the one that survives: it sits beside the
+	//button that acts on it.
+	//
 	//`without this pill` is what replaced the old "Remove X" suggestion rows
 	//entirely: the question they answered is answered here, beside the clause
 	//they were about.
@@ -1984,7 +2075,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
 					.userInfos=${this._userInfos}
-					.draftCount=${this._previewCounts[this._draftPreviewID]}
 					.withoutCount=${this._previewCounts[this._withoutPreviewID]}
 					@expression-modified=${this._handleExpressionModified}
 					@pill-or-requested=${this._handlePillOrRequested}
@@ -2021,17 +2111,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		);
 	}
 
-	//WHAT THE COMBINATORIAL ROWS NEED TO NAME THEIR OWN DIFF. Memoized only by
-	//Lit's own render cadence — the three values are selector results and memo
-	//outputs, so the object is cheap and the diff namer it feeds is called once
-	//per destination row rather than once per render of the list.
-	get _paletteNaming() : PaletteNaming {
-		return {
-			draft: this._collectionDescription,
-			labels: this._composerFilterLabels,
-			cardNames: this._composerCardNames,
-		};
-	}
+	//THE NAMING BUNDLE IS DELETED WITH THE THING IT NAMED (round-3 tightness,
+	//S1). It threaded the draft, the filter labels and the card titles into the
+	//palette layer for one purpose: deriving a combinatorial row's diff into the
+	//annotation slot. The slot holds one quiet word now, and the diff is on the
+	//row's own detail line, which the suggestion module had already written — so
+	//the second derivation, and the plumbing that fed it, are both gone.
 
 	//THE FOUR FEEDS, IN THE ORDER THEY OUTRANK EACH OTHER.
 	//
@@ -2045,10 +2130,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const description = this._collectionDescription;
 		const expression = this._draftExpression;
 		const context = this._completionContext;
-		//WHAT A COMBINATORIAL ROW NEEDS TO SAY WHAT IT DOES. Assembled once per
-		//feed rather than per row, and from the same label maps the sentence and
-		//the pill row name clauses with.
-		const naming = this._paletteNaming;
 		if (this._orTarget) {
 			return paletteOrScopedRows(
 				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
@@ -2068,8 +2149,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			const typed = this._rankedTypedRows(this._withoutNoOpWidenRows(paletteTypingRows(
 				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
 				description,
-				'',
-				naming
+				''
 			)).slice(0, TYPING_ROW_LIMIT));
 			return [...typed, ...this._recoveryRows()];
 		}
@@ -2101,15 +2181,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//Only at a RESOLVED zero. `undefined` means the count has not arrived, which
 	//is a different fact, and a recovery section for a collection nobody has
 	//counted yet would flicker in on every keystroke.
+	//
+	//THE ROWS ARE ORDERED BY WHAT THEY RECOVER (round-3 tightness, M4). The
+	//question is "which of these emptied it?", and the answer is the removal that
+	//brings back the most cards — so that removal is the first row rather than
+	//whichever clause happens to be leftmost in the sentence. A removal nobody
+	//has counted yet sorts last rather than first: an unknown is not evidence,
+	//and promoting one would make the section's order flicker as numbers land.
+	//The list is frozen under a live highlight by _paletteRows, as every other
+	//count-driven re-rank is.
 	_recoveryRows() : PaletteRow[] {
 		if (this._wordScope || this._orTarget) return [];
-		if (!this._collectionDescription || !this._collectionDescription.filters.length) return [];
-		if (this._countForDescription(this._collectionDescription) !== 0) return [];
-		return paletteRecoveryRows(collectionComposerRemovalSuggestions(
+		if (!this._draftResolvesEmpty) return [];
+		const expression = this._draftExpression;
+		if (!expression.length) return [];
+		const rows = paletteRecoveryRows(
+			expression,
 			this._collectionDescription,
 			this._composerFilterLabels,
 			this._composerCardNames
-		));
+		);
+		const recovered = (row : PaletteRow) : number => {
+			const count = this._countForDescription(this._appliedDescription(row));
+			return count === undefined ? -1 : count;
+		};
+		return rows
+			.map((row, index) => ({row, index}))
+			.sort((left, right) => recovered(right.row) - recovered(left.row) || left.index - right.index)
+			.map(({row}) => row);
 	}
 
 	//A WIDENING THAT WIDENS NOTHING IS NOT A WIDENING.
@@ -2155,12 +2254,65 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//Created since 5 days ago` — whose collection IS the draft, by definition —
 	//fell from second place to tenth, under eight rows that would ADD a second
 	//date clause to a collection that already matched nothing.
+	//
+	//AND IT SINKS ONLY WITHIN ITS CLASS (round-3 tightness, B2/M5).
+	//
+	//The typed list has one rule above every count-driven one: the row that IS
+	//the typed thing leads it. paletteTypedRank states that rule whole —
+	//literal, then weaker readings, then grafts of the literal row, then pivots
+	//away from the draft — and it is applied FIRST, so:
+	//
+	//  B2  a zero on the literal row is a fact about the user's own sentence, and
+	//      the recovery section is the design's answer to it. Sinking it put
+	//      `Created since 5 days ago · 3 → 0` seventh, under two or-grafts
+	//      containing that very clause and three readings of the raw words.
+	//  M5  a destination is a whole other collection, and no token is a request
+	//      to leave the one being composed. Typing a date phrase against a
+	//      one-clause draft put `Main · Section About` on top.
+	//
+	//Both are the same guard, written once. Within a class the engine's order
+	//survives intact, and the zero-sink still runs there — which is where it was
+	//always useful: among several readings of an ambiguous token, the ones that
+	//select nothing go last.
 	_rankedTypedRows(rows : PaletteRow[]) : PaletteRow[] {
 		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
 			this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
+			.map((row, index) => ({row, index, rank: paletteTypedRank(row)}))
+			.sort((left, right) =>
+				left.rank - right.rank ||
+				(left.rank === TYPED_RANK_LITERAL ? 0 : empty(left.row) - empty(right.row)) ||
+				left.index - right.index)
+			.map(({row}) => row);
+	}
+
+	//THE ZERO-SINK IS NOT A TYPED-LIST RULE (round-3 tightness, minor).
+	//
+	//The idle list had its own, narrower version of it —
+	//_withoutContradictoryRefinements, which SUPPRESSES a zero-count refinement —
+	//and it reached only the three contextual suggestions. The vocabulary run
+	//beneath them was never covered, so the idle list opened, signed out, on
+	//`Starred → 0`: a row leading the list with a promise to empty the
+	//collection. Same rule, same reason, now over every idle row: a zero goes
+	//last in its run rather than first, and it is still THERE, because the count
+	//is the honest warning and hiding the filter is the worse defect.
+	//
+	//WITHIN EACH HEADING'S RUN. The headings are drawn from consecutive rows
+	//sharing a section, so a sort that moved a row between runs would grow a
+	//second 'Recent' heading further down the list. The section's own first
+	//appearance is therefore the primary key, which reorders inside each run and
+	//nothing across them.
+	_rankedIdleRows(rows : PaletteRow[]) : PaletteRow[] {
+		const sectionOrder = new Map<string, number>();
+		for (const row of rows) if (!sectionOrder.has(row.section)) sectionOrder.set(row.section, sectionOrder.size);
+		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
+			this._countForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
+		return rows
 			.map((row, index) => ({row, index}))
-			.sort((left, right) => empty(left.row) - empty(right.row) || left.index - right.index)
+			.sort((left, right) =>
+				(sectionOrder.get(left.row.section) || 0) - (sectionOrder.get(right.row.section) || 0) ||
+				empty(left.row) - empty(right.row) ||
+				left.index - right.index)
 			.map(({row}) => row);
 	}
 
@@ -2187,15 +2339,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const vocabulary = paletteTypingRows(
 			completionCandidatesFor('', this._draftExpression, description, context, VOCABULARY_CANDIDATE_LIMIT),
 			description,
-			VOCABULARY_SECTION,
-			this._paletteNaming
+			VOCABULARY_SECTION
 		);
-		return paletteIdleRows(
+		return this._rankedIdleRows(paletteIdleRows(
 			ranked.filter(suggestion => suggestion.kind === 'recent'),
 			ranked.filter(suggestion => suggestion.kind !== 'recent'),
-			vocabulary,
-			this._paletteNaming
-		);
+			vocabulary
+		));
 	}
 
 	get _paletteRows() : PaletteRow[] {
@@ -2232,42 +2382,44 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//
 	//A count answers "how many cards", so a row that changes only the ORDER or
 	//the VIEW has no answer to give: it would render "1,842 cards → 1,842 cards"
-	//and take a column to say nothing. A row that names a FAMILY has not decided
-	//a collection yet. And Browse all is a directory of filters rather than a
-	//list of predictions — the design's own line for it is "one line per family:
-	//name + gray description", with no number in it.
+	//and take a column to say nothing.
+	//
+	//A FAMILY ROW HAS AN ANSWER NOW (round-3 tightness, S3). SUPERSEDED: this
+	//used to refuse a count to any configurable family, on the argument that a
+	//family "has not decided a collection yet". It has: the row carries the
+	//family's own default clause (defaultConfigurableFilter), that clause is a
+	//real collection, and executing the row really does land it — which is
+	//exactly why the default was changed to a rolling window in the first place.
+	//So `Created since 7 days ago` sat in a list of numbers with no number, the
+	//one species that could not be compared with its neighbours, and the user had
+	//to add it to find out it was empty. The cost is the count itself, and it is
+	//bounded by the same window every other row's is: only rows in the DOM are
+	//asked for.
 	//
 	//The same rule gates the PREVIEW REQUEST, so a number that would not be
 	//rendered is never asked of the worker either.
 	_rowCountMeaningful(row : PaletteRow) : boolean {
-		if (row.configurable && row.filter) return false;
 		const draft = this._collectionDescription;
 		const other = this._appliedDescription(row);
 		if (other.set !== draft.set) return true;
 		return other.filters.join('/') !== draft.filters.join('/');
 	}
 
-	//THE COLLECTION A ROW ACTUALLY PRODUCES, which is not always the one it was
-	//built with.
+	//THE COLLECTION A ROW ACTUALLY PRODUCES.
 	//
-	//A composition that starts at the app's bare default view begins from the
-	//user's sticky set the moment the first clause lands (see
-	//collectionDescriptionWithStickyStart). That rewrite lives in
-	//_commitDraftEdit, which every draft edit funnels through — but a row is
-	//also COUNTED and can be OPENED, and if those two read `row.description`
-	//directly they would promise `Main · Starred` and deliver `Everything ·
-	//Starred`: a number beside a row that is a number for a different
-	//collection, which is the one thing a count may never be.
+	//IT IS NOW SIMPLY THE ROW'S OWN (round-3 tightness, M6). This used to re-apply
+	//collectionDescriptionWithStickyStart, because the sticky starting set was
+	//applied at the first EDIT and a row's count therefore had to predict a
+	//rewrite that had not happened yet. The rewrite happens at OPEN now — see
+	//_seedDraftStartingSet — so by the time any row is built the draft already
+	//carries the set it will use, every row descends from it, and there is exactly
+	//one derivation of "what does this row do" instead of two that had to be kept
+	//agreeing.
 	//
-	//So everything observable about a row goes through here, and there is one
-	//answer to "what does this row do".
-	//
-	//A DESTINATION IS EXEMPT. A recent is a whole other collection the user has
-	//already been in, not an edit to this one, and rewriting its set would make
-	//the draft a collection they never went to.
+	//The seam stays, because everything observable about a row still goes through
+	//it: the count, the commit, and the preview all ask this one question.
 	_appliedDescription(row : PaletteRow) : CollectionDescription {
-		if (row.kind === 'destination') return row.description;
-		return collectionDescriptionWithStickyStart(this._collectionDescription, row.description, this._stickySet);
+		return row.description;
 	}
 
 	//THE COLLECTION WITHOUT THE SELECTED PILL, which is what the pill row's
@@ -2346,6 +2498,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//That last is a property of the HIGHLIGHT rather than of the row: every row
 	//behaves identically under it, which is what `alwaysDetail` — a pin held
 	//open by exactly one species — did not.
+	//ONE SLOT, ONE QUIET WORD (round-3 tightness, S1/S4).
+	//
+	//The slot said three different kinds of thing: a kind word on most rows, a
+	//three-clause diff on a destination — which wrapped, and made that species
+	//twice as tall as its neighbours — and nothing at all on a word-scope row,
+	//which instead grew a FOURTH element beside it to say '✓ current'.
+	//
+	//It says exactly one thing now: what kind of row this is, in one word from a
+	//closed vocabulary (tag/section/date/sort/set/view/remove/edit/change/
+	//source/recent) — except on the option already in force, where the more
+	//useful answer to "what is this row" is that it is the one you are in. The
+	//diff a destination used to carry is on that row's own detail line, which is
+	//where every other row's explanation lives and where this one already was.
+	_rowAnnotation(row : PaletteRow) : string {
+		if (row.current) return '✓ current';
+		return row.annotation || '';
+	}
+
 	_paletteRowRender(row : PaletteRow, index : number, highlightedIndex : number) {
 		const highlighted = index === highlightedIndex;
 		const countText = this._rowCountText(row);
@@ -2358,6 +2528,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					tabindex='-1'
 					aria-selected=${highlighted}
 					aria-label=${`${row.removes ? 'Remove ' : ''}${row.edits ? 'Edit ' : ''}${row.label}${row.annotation ? `, ${row.annotation}` : ''}${row.current ? ', current' : ''}. ${row.detail}${countText ? `. ${countText}` : ''}`}
+					data-annotation=${ifDefined(this._rowAnnotation(row) || undefined)}
 					aria-pressed=${ifDefined(row.current === undefined ? undefined : String(row.current))}
 					data-index=${index}
 					data-row-id=${row.id}
@@ -2386,7 +2557,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					     Same slot, same component, same clause — the difference
 					     between putting one in and taking one out is a treatment
 					     on the thing, not a different kind of row. -->
-					<span class=${row.removes ? 'row-label row-removes' : 'row-label'}>${this._rowLabelRender(row)}${row.annotation ? html`<span class='row-annotation'>${row.annotation}</span>` : ''}${row.current ? html`<span class='row-current'> ✓ current</span>` : ''}</span>
+					<span class=${row.removes ? 'row-label row-removes' : 'row-label'}>${this._rowLabelRender(row)}${this._rowAnnotation(row) ? html`<span class='row-annotation'>${this._rowAnnotation(row)}</span>` : ''}</span>
 					${countText ? html`<span class='row-count'>${countText}</span>` : ''}
 					<!-- "ONLY FOR YOU" DIES IN COMPOSITION (meta-proposal
 					     convergence 6). The note rode every personal row and
@@ -2584,12 +2755,26 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//AND A TOUCH LAYOUT HAS NO KEYBOARD TO STATE A CONTRACT FOR. On a phone this
 	//line named keys the device does not have, which is the same defect one level
 	//up: a footer describing controls the user cannot reach.
+	//
+	//WHICH IS A QUESTION ABOUT THE POINTER, NOT ABOUT THE WINDOW (round-3
+	//tightness, minor). `mobile` is the app's SIZE flag, and it is true of a
+	//desktop browser someone has made short — measured live at 900x420, where
+	//`(hover: none)` and `(pointer: coarse)` were both false and the footer said
+	//'Tap a row to use it' to a machine with a keyboard and a mouse. So the copy
+	//keys off the input the reader actually has, and the layout keys off the size
+	//it always did. Both are needed: `mobile` still decides the 44px targets and
+	//the wrapped grid, which really are about room.
 	_composerKeyHints() : string {
-		if (this.mobile) {
+		if (this._touchInput) {
 			if (this._pillRowOpen) return 'Editing a clause · tap its verbs to change it · tap another pill to edit that one';
 			return 'Tap a row to use it · tap the open button for this collection';
 		}
 		if (this._orTarget) return `Type an alternative · Enter widens the clause · ${shortcutKeys('dialog-escape')} goes back to the pill`;
+		//A WORD-SCOPED LIST HAS ITS OWN CONTRACT IN FORCE, so it says so — the
+		//same reason the or-scoped line above exists. Every row here REPLACES one
+		//word of the sentence, and Escape gives the word back rather than
+		//discarding the draft.
+		if (this._wordScope) return `Choose ${this._wordScope === 'set' ? 'what to start from' : 'the order and view'} · Enter uses the top one · ${shortcutKeys('dialog-escape')} goes back to the sentence`;
 		//THE ARMED BACKSPACE LEADS THE LINE. The first Backspace on an empty input
 		//SELECTS rather than removing, and a contract nobody can see is not one.
 		if (this._pillRowOpen) {
@@ -2598,6 +2783,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return `${armed}←→ choose clause · ${keys} · ${shortcutKeys('dialog-escape')} closes the row`;
 		}
 		return `Enter does the top thing · ${shortcutKeys('commit-collection-composer')} opens · ${shortcutKeys('dialog-escape')} discards`;
+	}
+
+	//WHETHER THIS READER'S POINTER IS A FINGER. Read from the media query rather
+	//than from the viewport, and only for COPY — see _composerKeyHints. Defaults
+	//to false where matchMedia is absent (a jsdom test, an old engine), because a
+	//keyboard contract stated to somebody who has no keyboard is a smaller defect
+	//than a tap contract stated to somebody who does: the keys are still there
+	//either way, and the taps may not be.
+	get _touchInput() : boolean {
+		if (typeof window === 'undefined' || !window.matchMedia) return false;
+		return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 	}
 
 	//BOTH modes explain an inert modifier the same way, in the same place: on
@@ -2647,14 +2843,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//line. A card whose record has not loaded is skipped rather than named by its
 	//id — an internal identifier never reaches a user (HS-1.4) — so on a corpus
 	//that is still loading the line is simply shorter, or absent.
+	//AND IT NAMES CARDS ONLY WHEN IT CAN TELL THEM APART (round-3 tightness, C2).
+	//
+	//A corpus has repeated titles in it — this one opens on three cards all
+	//called 'What is this?' — so the strip read `What is this? · What is this? ·
+	//What is this? · and 1,236 more`: three names for one name, in a line whose
+	//entire job is to say WHICH cards. Consecutive repeats collapse to one, and a
+	//strip that would then show fewer than two DISTINCT titles is not a preview at
+	//all — one name and a remainder is the count again, spelled longer — so it is
+	//dropped rather than shown saying nothing.
+	//
+	//NOT deduped across the whole line: the ids are the collection's own leading
+	//order, and two runs of one title with something between them is a real fact
+	//about the collection that the strip is allowed to show. The remainder still
+	//counts the cards, not the surviving names, so it stays true.
+	//
+	//THE CRITIC'S VOTE WAS TO CUT THE STRIP OUTRIGHT. It survives because the
+	//owner asked for it; this is the information-content fix, not the verdict.
 	_previewTitlesRender(count : number | undefined) {
 		if (!count) return '';
 		void this._previewIDsVersion;
 		const ids = this._retainedPreviewIDs.get(this._previewCountKey(this._collectionDescription));
 		if (!ids || !ids.length) return '';
-		const titles = ids.map(id => this._cardTagInfos?.[id]?.title || '').filter(Boolean);
-		if (!titles.length) return '';
-		const remaining = count - titles.length;
+		const named = ids.map(id => this._cardTagInfos?.[id]?.title || '').filter(Boolean);
+		const titles = named.filter((title, index) => title !== named[index - 1]);
+		if (new Set(titles).size < 2) return '';
+		const remaining = count - named.length;
 		const line = remaining > 0 ? `${titles.join(' · ')} · and ${remaining} more` : titles.join(' · ');
 		return html`<div class='preview-titles'>${line}</div>`;
 	}
@@ -2824,6 +3038,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
+		//HS-1.3's definition obligation, kept without a visible concept: the '?'
+		//badge is cut and the sentence it carried lives on the heading. See
+		//_sentenceRender.
+		this.titleHint = COLLECTION_HELP;
 	}
 
 	_handleSourceInput(e : InputEvent) {
@@ -3278,21 +3496,36 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			//                       makes the top row the highlighted one, so
 			//                       "the top action" and "the highlighted one if
 			//                       the user arrowed" are one branch and not two.
-			//  Enter with no row    commit. This is the state an EMPTY input
-			//                       leaves the list in, which makes "type, enter,
-			//                       type, enter, enter" end in a commit — the
-			//                       natural end of the flow, pinned deliberately.
+			//  Enter with no row    NOTHING. See below.
 			//
 			//The old split — Tab adds, Enter opens the highlighted row — is
 			//superseded outright. It made the list two kinds of thing (rows you
 			//add and rows you go to) and it put a navigation on the key the user
 			//presses after every single token.
+			//
+			//ENTER NEVER COMMITS (round-3 tightness, B1). SUPERSEDED: the branch
+			//below used to read `else this._handleOpenCurrentDraft()`, on the
+			//argument that "type, enter, type, enter, enter" ends naturally in a
+			//commit. It ends in a NAVIGATION, and the constitution gives navigation
+			//exactly two gestures — Cmd-Enter and the primary — for the reason the
+			//critique found by pressing it: an Enter that adds a clause CLEARS the
+			//input and leaves nothing highlighted, so the very next Enter, the one
+			//somebody presses to add the next thing before they have typed it, was
+			//a commit. One key meant "act on the draft" and "leave" a keystroke
+			//apart, and which one you got depended on a highlight you could not see
+			//because there was nothing in the box.
+			//
+			//So it is a NO-OP, and deliberately not a re-arm of row 0 either: an
+			//empty input's list is the idle list, whose top row is whatever the
+			//ranking put there, and arming a highlight the user cannot have aimed
+			//at makes the NEXT Enter execute a row nobody chose. Focus stays where
+			//it is, the footer already says what the three keys do, and the arrow
+			//keys reach the list the moment the user actually wants it.
 			if (e.metaKey || e.ctrlKey) {
 				this._handleOpenCurrentDraft();
 				return;
 			}
 			if (highlighted) this._activateRow(highlighted);
-			else this._handleOpenCurrentDraft();
 		}
 	}
 
@@ -3797,11 +4030,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('#collection-composer-input')?.focus());
 	}
 
-	//THE ONE FUNNEL EVERY DRAFT EDIT PASSES THROUGH, which is why the sticky
-	//starting set is applied HERE rather than at each of the dozen call sites
-	//that can add the first clause. See collectionDescriptionWithStickyStart: it
-	//fires only when the composition began at the app's own bare default view,
-	//and only on the edit that turns that view into a composition.
+	//THE ONE FUNNEL EVERY DRAFT EDIT PASSES THROUGH.
+	//
+	//THE STICKY STARTING SET IS NO LONGER APPLIED HERE (round-3 tightness, M6).
+	//It was, and that is exactly what made the composer say one thing and do
+	//another: the sentence rendered `_collectionDescription.set` — `Main`, the set
+	//the draft still had — while this funnel rewrote the FIRST edit to
+	//`everything`. Two values for one fact, one of them on screen and the other
+	//in the commit. It is seeded once, at open, by _seedDraftStartingSet, so the
+	//draft this funnel receives and the draft the sentence renders are the same
+	//object and cannot disagree.
 	//
 	//THE IN-DIALOG RECEIPT AND ITS UNDO ARE GONE (round 3, D1). The owner's
 	//constitution: "if you make a mistake, esc/X resets to the previous state" —
@@ -3812,12 +4050,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//survives is the one that reports a real navigation, and it lives outside this
 	//dialog, after the commit.
 	//
-	_commitDraftEdit(rawDescription : CollectionDescription, focusInput = false, selectedCard = this._draftSelectedCard) {
-		const description = collectionDescriptionWithStickyStart(
-			this._collectionDescription,
-			rawDescription,
-			this._stickySet
-		);
+	_commitDraftEdit(description : CollectionDescription, focusInput = false, selectedCard = this._draftSelectedCard) {
 		this._draftSelectedCard = selectedCard;
 		this._selectedPath = [];
 		//The draft just changed, so the list is about to be rebuilt around it.
@@ -3829,6 +4062,49 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._clauseSelectionMessage = '';
 		store.dispatch(updateCollectionConfigurationSnapshot(description));
 		if (focusInput) this._focusComposerInputSoon();
+	}
+
+	//WHERE A COMPOSITION STARTS FROM, DECIDED ONCE, AT THE MOMENT IT OPENS
+	//(round-3 tightness, M6).
+	//
+	//THE DEFECT. Standing on the app's bare default view, the composer showed the
+	//word `Main` in its sentence — the set the snapshot really had — and then
+	//committed `everything/`, because the sticky rewrite was deferred to the first
+	//draft edit. Observed as a non-determinism (it depends on whether the draft
+	//happens to be bare `main`, which it is on the first open after a reload and
+	//is not after any prior edit), but it is not a race: it is two derivations of
+	//one fact, one of them rendered and the other committed. Everything downstream
+	//inherited the split — the primary's count counted `main/`, the row counts had
+	//to re-apply the rewrite by hand to avoid promising numbers for a collection
+	//they would not open, and the URL under Edit source named the wrong set.
+	//
+	//THE FIX IS TO REMOVE THE SECOND DERIVATION, not to teach the sentence about
+	//the first. The set is written into the DRAFT here, once, on the open
+	//transition; from then on `_collectionDescription` IS the set the composer
+	//displays, counts, and commits, and every other reader of it is correct
+	//without knowing this rule exists.
+	//
+	//IT SEEDS FROM THE ACTIVE COLLECTION, which also closes the stale-snapshot
+	//door the reducer leaves open: OPEN_CONFIGURE_COLLECTION_DIALOG is idempotent
+	//(`if (state.snapshot) return state`), so a snapshot that outlived its dialog
+	//— a reload while open, a tab-lease reclaim — is what the next open would have
+	//composed from, silently, with a set word from a session that had ended. The
+	//draft this composer opens on is the collection on screen, always, which is
+	//the spec's principle 1 stated as an assignment rather than as a hope.
+	//
+	//WHAT DOES NOT CHANGE: the rewrite still fires only from the app's own bare
+	//default view (collectionDescriptionStartsFromAppDefault) — refining a
+	//collection the user is actually in begins from where they are. What DOES
+	//change, and is worth stating for the owner: opening the composer on bare
+	//`/c/main/` and committing without an edit now opens `/c/everything/` rather
+	//than closing on the collection already open. That is the honest reading of a
+	//sentence that has said `Everything` since it appeared.
+	_seedDraftStartingSet() {
+		const active = this._activeCollectionDescription;
+		if (!active) return;
+		const seeded = collectionDescriptionWithStickyStart(active, this._stickySet);
+		if (seeded.serialize() === this._collectionDescription?.serialize()) return;
+		store.dispatch(updateCollectionConfigurationSnapshot(seeded));
 	}
 
 	_handleCatalogDirectionChanged(e : Event) {
@@ -4093,6 +4369,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//under a word somebody is halfway through typing.
 				this._usageWeights = completionUsageWeights(this._userScope);
 				this._stickySet = readStickyComposerSet(this._userScope, SET_NAMES);
+				//AND THE DRAFT IS SEEDED WITH IT, HERE, BEFORE ANYTHING RENDERS
+				//IT. One value, written into the one place the composer reads its
+				//draft from. See _seedDraftStartingSet.
+				this._seedDraftStartingSet();
+				this._draftResolvesEmpty = false;
 				this._renderedRowLimit = INITIAL_RENDERED_ROWS;
 				//A REQUESTED SELECTION IS HONOURED ONLY WHERE IT POINTS AT
 				//SOMETHING. The request was composed against the collection the
@@ -4121,6 +4402,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
 				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
 			}
+		}
+		//THE SCOPE CAN ARRIVE AFTER THE DIALOG DOES (round-3 tightness, M6).
+		//
+		//Both personal stores are keyed by uid, and `_userScope` is a selector
+		//result: on the first open after a reload — the exact condition the
+		//critique observed the flip under — auth may not have resolved when the
+		//composer opened, so both reads answered for the signed-out scope and the
+		//user's own sticky set arrived a moment later. Re-read once when the scope
+		//actually changes, and only while the draft is still the bare default,
+		//which is the only state the sticky set can still change: nothing has been
+		//composed there, so nothing moves under anybody. Deliberately NOT a general
+		//re-read — the once-per-session rule is what keeps the list from re-ranking
+		//mid-keystroke.
+		if (this.open && changedProps.has('_userScope') && !changedProps.has('open') &&
+			this._collectionDescription && collectionDescriptionStartsFromAppDefault(this._collectionDescription)) {
+			this._usageWeights = completionUsageWeights(this._userScope);
+			this._stickySet = readStickyComposerSet(this._userScope, SET_NAMES);
+			this._seedDraftStartingSet();
 		}
 		//Ctrl-K on an already-open composer: put the caret back in the input the
 		//user is composing with, whichever mode they are in. Skipped on the
@@ -4161,6 +4460,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			//Scrolling (or arrowing) further into the vocabulary puts new rows
 			//on screen, and a row on screen is a row whose count can be read.
 			changedProps.has('_renderedRowLimit') ||
+			//A COUNT CAN CREATE ROWS, AND ROWS THAT DID NOT EXIST WERE NEVER
+			//ASKED FOR. The recovery section appears exactly when the draft's own
+			//count arrives and is zero, so the rows it adds were not in the list
+			//when the request that produced that count was assembled. One more
+			//pass, and it settles: the second request changes nothing that
+			//changes the row set again.
+			changedProps.has('_draftResolvesEmpty') ||
 			changedProps.has('_orTarget')
 		) this._refreshPreviewCounts();
 	}
@@ -4199,15 +4505,21 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._cancelPreviews = null;
 		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
 		const previewDescription = sourceDescription || this._collectionDescription;
+		//THE ONE FACT THAT CHANGES WHICH ROWS EXIST, derived where every other
+		//count is derived and BEFORE any early return — a composer with previews
+		//turned off still has a retained map, and the recovery section is not a
+		//feature of the preview worker. Naming it as state is what puts it in
+		//updated()'s trigger list; see _draftResolvesEmpty for why that matters.
+		this._draftResolvesEmpty = this._countForDescription(previewDescription) === 0;
 		if (!this.open || !collectionComposerPreviewEnabled()) {
 			this._previewCounts = {};
 			this._draftCountPending = false;
 			return;
 		}
 		//A ROW IS COUNTED WHEN ITS COUNT WOULD MEAN SOMETHING. A row that opens
-		//Source has no collection and a row that names a FAMILY has not decided
-		//one yet — asking the worker for forty family counts nobody will read is
-		//what the budget exists to prevent.
+		//Source has no collection to count; a configurable family DOES have one
+		//now (S3), spelled with its own default, and the window below is what
+		//keeps that affordable.
 		//
 		//AND ONLY THE ROWS ON SCREEN. The list is the whole vocabulary now, so
 		//"every row" would mean a few hundred collection runs per keystroke for
@@ -4217,7 +4529,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const countableRows = this._visiblePaletteRows(this._paletteRows, this._activeHighlightIndex(this._paletteRows));
 		const previewSuggestions : CollectionComposerSuggestion[] = this._entryMode === 'source' ? [] :
 			countableRows
-				.filter(row => !row.sourceFilter && !row.configurable && this._rowCountMeaningful(row))
+				.filter(row => !row.sourceFilter && this._rowCountMeaningful(row))
 				.map(row => ({
 					id: row.id,
 					kind: 'source' as const,
@@ -4274,6 +4586,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				if (!this.open) return;
 				const key = keyBySuggestionID.get(suggestionID);
 				if (key) this._rememberPreviewCount(key, count);
+				if (suggestionID === this._draftPreviewID) this._draftResolvesEmpty = count === 0;
 				//ONLY THE DRAFT'S OWN NAMES ARE KEPT. Every row in the list is
 				//counted; naming the cards behind three hundred of them would be
 				//a title list nobody can read for a collection nobody has chosen.

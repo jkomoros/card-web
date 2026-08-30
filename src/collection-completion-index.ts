@@ -48,6 +48,7 @@ import {
 	withConditionRemoved,
 	withMemberAddedToOr,
 	withMemberRemoved,
+	withNodeReplaced,
 	describeExpressionNode,
 } from './collection-expression.js';
 
@@ -260,6 +261,32 @@ const WEAK_MATCH_RECENT_LIMIT = 1;
 
 const NAME_TIERS : ReadonlySet<CompletionMatchTier> = new Set<CompletionMatchTier>(['parsed', 'name-exact', 'name-prefix']);
 
+//THE TIERS AT WHICH A CANDIDATE IS THE THING THAT WAS TYPED.
+//
+//A parse, a name, a curated synonym, a misspelled name: in every one of those
+//the user named this candidate, and the row that plainly applies it IS their
+//sentence. Below the line the match is a READING — prose that happens to
+//mention the token, or a subsequence of it — which is still worth offering and
+//is not worth treating as what they said.
+//
+//Two rules key off this line, and they are the same rule seen from two sides:
+//the palette's literal rank (a typed thing outranks every graft and pivot of
+//it), and the negation gate below (a `not` row nobody asked for is noise when
+//the match itself was a guess).
+export const LITERAL_MATCH_TIERS : ReadonlySet<CompletionMatchTier> =
+	new Set<CompletionMatchTier>(['parsed', 'name-exact', 'name-prefix', 'alias', 'typo']);
+
+//HOW MANY SUBSEQUENCE HITS MAY STAND BETWEEN A TOKEN AND ITS HONEST FLOOR.
+//
+//`structural` is the last thing that is still a match — the token's characters
+//appear in order, somewhere, close together — and on a real vocabulary a
+//four-letter token has a dozen of them. Uncapped they filled the visible list
+//and pushed `Text contains "grid"` to the eighth row, behind eight rows nobody
+//typed anything to reach. The floor has to be REACHABLE: it is the one reading
+//that is always literally true, and a user who sees nothing they meant needs it
+//within a glance rather than a scroll.
+const STRUCTURAL_MATCH_LIMIT = 3;
+
 //EVERY ROW IS AN ACTION ON THE DRAFT (the owner's round-3 constitution: "the top
 //action can be 'change the sort' or 'change the set' or 'add a filter' or
 //'remove a filter' or 'change a filter's configuration'"). Two of those five were
@@ -274,7 +301,13 @@ const NAME_TIERS : ReadonlySet<CompletionMatchTier> = new Set<CompletionMatchTie
 //           row. It is the one valence that does not change the expression, and
 //           it is exempt from the no-op guard for exactly that reason: the action
 //           is "show me this clause's controls", not "rewrite the draft".
-export type CompletionValenceKind = 'add' | 'or' | 'not' | 'remove' | 'edit';
+//  change — the fifth one, and the one the round-3 list was still missing: the
+//           sentence has a clause of this FAMILY and the user has just typed a
+//           different value for it. 'Created since 7 days ago' plus a typed
+//           'created since 5 days ago' is one collection with its window moved,
+//           not two date clauses AND-ed into an empty one. It is expressed as a
+//           node replacement, so the clause keeps its place in the sentence.
+export type CompletionValenceKind = 'add' | 'or' | 'not' | 'remove' | 'edit' | 'change';
 
 //A VALENCE CARRIES ITS OWN AFTER-EXPRESSION. The palette shows `41 → 118` by
 //running this expression; nothing between the row and the count re-derives what
@@ -319,6 +352,12 @@ export type CompletionValence = {
 	//a union of ANY two conditions, so this is a RANKING fact, not a legality
 	//one — see valenceRank.
 	compatible? : boolean;
+	//For 'not': whether the TOKEN asked for it — 'not published', '-starred'.
+	//A requested negation is the literal reading of what was typed; an offered
+	//one is a graft, and the palette ranks the two differently. Stated as a fact
+	//rather than inferred from the rank, so a rank tweak cannot silently promote
+	//every negation into somebody's sentence.
+	requested? : boolean;
 	//Lower sorts first, within one candidate's valences.
 	rank : number;
 };
@@ -698,9 +737,15 @@ export const valueFamilyForNode = (
 //clause the sentence ALREADY HAS, the thing the user is reaching for is that
 //clause — not a second copy of it. So the two actions that are about the clause
 //they already have lead, and the ones that would add another sit under them.
+//A CHANGE OUTRANKS AN ADD FOR THE SAME REASON REMOVE AND EDIT DO: it is about
+//the clause the sentence already has. Somebody who types a second date window
+//while a date window is in force is moving that window; AND-ing the two is a
+//collection that matches the overlap, which for two rolling windows is the
+//narrower of them and for two fixed ranges is very often nothing at all.
 const VALENCE_RANKS = {
 	remove: -2,
 	edit: -1,
+	change: -0.5,
 	add: 0,
 	orCompatible: 1,
 	not: 2,
@@ -748,10 +793,13 @@ export const strippedNegationPrefix = (raw : string) : StrippedToken => {
 const valenceRank = (kind : CompletionValenceKind, compatible : boolean, negated : boolean) : number => {
 	if (kind === 'remove') return VALENCE_RANKS.remove;
 	if (kind === 'edit') return VALENCE_RANKS.edit;
+	if (kind === 'change') return VALENCE_RANKS.change;
 	if (kind === 'add') return negated ? VALENCE_RANKS.not + 0.5 : VALENCE_RANKS.add;
-	//A negation the user ASKED for still leads the rows that would ADD something;
-	//it does not outrank an action about a clause that already exists.
-	if (kind === 'not') return negated ? VALENCE_RANKS.add - 0.5 : VALENCE_RANKS.not;
+	//A negation the user ASKED for still leads the rows that would ADD something
+	//— and now also the change, because somebody who typed a negation prefix has
+	//said outright that they want the clause excluded rather than moved. It does
+	//not outrank an action about a clause that already exists.
+	if (kind === 'not') return negated ? VALENCE_RANKS.change - 0.25 : VALENCE_RANKS.not;
 	return compatible ? VALENCE_RANKS.orCompatible : VALENCE_RANKS.orIncompatible;
 };
 
@@ -769,6 +817,39 @@ const nodeIsConfigurable = (node : FilterExpressionNode) : boolean => {
 	if (node.kind === 'not') return nodeIsConfigurable(node.child);
 	if (node.kind !== 'filter') return false;
 	return Boolean(CONFIGURABLE_FILTER_INFO[node.filter.split('/')[0]]);
+};
+
+//A NODE'S CONFIGURABLE FAMILY, or '' when it has none. Deliberately NOT
+//transparent to negation: `not created/…` and `created/…` are different clauses,
+//and quietly replacing one with the other would drop a negation the user wrote.
+const configurableFamilyForNode = (node : FilterExpressionNode) : string =>
+	node.kind === 'filter' ? configurableFamily(node.filter) : '';
+
+//WHERE A CLAUSE OF THE SAME CONFIGURABLE FAMILY ALREADY SITS, spelled
+//DIFFERENTLY. This is the site a `change` replaces, and the search is the same
+//shape as existingClauseSite's — whole conditions and or-members alike — because
+//the sentence addresses both the same way.
+//
+//The identical spelling is excluded on purpose: that is existingClauseSite's
+//case, and it produces remove/edit rather than a change to what it already is.
+const configurableFamilySite = (
+	expression : CollectionExpression,
+	node : FilterExpressionNode,
+	spelling : string
+) : {index : number, memberIndex : number, node : FilterExpressionNode} | null => {
+	const family = configurableFamilyForNode(node);
+	if (!family) return null;
+	const matches = (candidate : FilterExpressionNode) : boolean =>
+		configurableFamilyForNode(candidate) === family && serializeFilterNode(candidate) !== spelling;
+	for (const [index, condition] of expression.entries()) {
+		if (condition.kind === 'or') {
+			const memberIndex = condition.members.findIndex(matches);
+			if (memberIndex >= 0) return {index, memberIndex, node: condition.members[memberIndex]};
+			continue;
+		}
+		if (matches(condition)) return {index, memberIndex: -1, node: condition};
+	}
+	return null;
 };
 
 const existingClauseSite = (
@@ -843,6 +924,21 @@ export const completionValences = (
 		//The other valences are one typed character away, which is where the
 		//design has always put them.
 		only? : 'add',
+		//HOW WELL THE TOKEN ACTUALLY NAMED THIS CANDIDATE. Only the negation gate
+		//reads it: an unrequested `not` row is a reasonable offer beside a clause
+		//the user named and pure noise beside one a subsequence found.
+		tier? : CompletionMatchTier,
+		//WHETHER THE VALUE IN THIS NODE CAME OUT OF WHAT WAS TYPED.
+		//
+		//`created/after/5-days-ago` parsed from 'created since 5 days ago' is
+		//configured; `created/after/7-days-ago` handed over as the `created`
+		//FAMILY's default is not — the user typed a family name, and the default is
+		//this layer's suggestion rather than their value. The distinction decides
+		//what happens when a clause of the same family is already in the sentence:
+		//a configured value CHANGES it, and a family default OPENS it, because
+		//replacing somebody's five-day window with our seven-day default when all
+		//they typed was the word 'created' is an edit they did not ask for.
+		configured? : boolean,
 	}
 ) : CompletionValence[] => {
 	const labels = options.labels || {};
@@ -921,7 +1017,70 @@ export const completionValences = (
 		}
 	}
 
-	if (!alreadyPresent.includes(spelling)) {
+	//A SECOND VALUE FOR A FAMILY THE SENTENCE ALREADY HAS IS A CHANGE, NOT AN AND.
+	//
+	//'Created since 7 days ago' in the sentence and 'created since 5 days ago'
+	//typed into the box is one collection whose window moved. AND-ing the two
+	//produces the intersection — for two rolling windows that is silently the
+	//narrower one, and for two fixed ranges it is very often nothing at all — and
+	//it was the top offer, so the composer's answer to "make it five days" was a
+	//draft matching zero cards with two date pills in it.
+	//
+	//THE SEAM IS A NODE PAIR, deliberately. This reads (existing node, new node)
+	//and compiles the replacement through withNodeReplaced — the same editor the
+	//pill row's own argument edits go through — so nothing here is about dates.
+	//Any family whose clause carries arguments generalizes for free the day its
+	//values become typeable.
+	const changeSite = options.only === 'add' || existing || options.configured === false ?
+		null :
+		configurableFamilySite(expression, node, spelling);
+	if (changeSite) {
+		const changedName = describeExpressionNode(changeSite.node, labels, cardNames).label;
+		valences.push({
+			id: `${options.idPrefix}:change:${changeSite.index}:${changeSite.memberIndex}`,
+			kind: 'change',
+			//THE ROW IS THE PILL IT WOULD BECOME, as every other row is: the clause
+			//with its NEW value in it. What it replaces is said in the detail line
+			//and shown by the count, which is the transition itself.
+			label: name,
+			detail: `Changes ${changedName} to ${name}, in place.`,
+			expression: withNodeReplaced(expression, changeSite.index, changeSite.memberIndex, node),
+			targetIndex: changeSite.index,
+			targetMemberIndex: changeSite.memberIndex,
+			targetNode: changeSite.node,
+			rank: valenceRank('change', true, negated),
+		});
+	}
+
+	//AND A FAMILY NAME TYPED AGAINST A CLAUSE OF THAT FAMILY OPENS IT.
+	//
+	//The other half of the `configured` distinction. Typing 'created' with a
+	//created clause already in the sentence used to offer to append the family's
+	//own seven-day default beside it — the "second copy of a clause you already
+	//have" defect, one level up from the exact-spelling case existingClauseSite
+	//handles. The action the user is reaching for is that clause's controls.
+	const familyEditSite = options.only === 'add' || existing || options.configured !== false ?
+		null :
+		configurableFamilySite(expression, node, spelling);
+	if (familyEditSite) {
+		const familyName = describeExpressionNode(familyEditSite.node, labels, cardNames).label;
+		valences.push({
+			id: `${options.idPrefix}:edit:${familyEditSite.index}:${familyEditSite.memberIndex}`,
+			kind: 'edit',
+			label: familyName,
+			detail: `Opens ${familyName}’s own controls, so you can change what it matches.`,
+			expression,
+			targetIndex: familyEditSite.index,
+			targetMemberIndex: familyEditSite.memberIndex,
+			targetNode: familyEditSite.node,
+			rank: valenceRank('edit', true, negated),
+		});
+	}
+
+	//A CHANGE AND AN ADD ARE THE SAME GESTURE READ TWO WAYS, so only one of them
+	//is offered: with the family already in the sentence, appending a second value
+	//for it is the reading the round-3 model retires.
+	if (!alreadyPresent.includes(spelling) && !changeSite && !familyEditSite) {
 		valences.push({
 			id: `${options.idPrefix}:add`,
 			kind: 'add',
@@ -954,11 +1113,23 @@ export const completionValences = (
 	//still one gesture away: add the clause and press Flip (the pill row's own
 	//verb, which promises the resulting word before you commit), or reach it by
 	//name in Browse all.
+	//AND THE FAMILY-COMPATIBLE HALF OF THAT RULE NEEDS THE TOKEN TO HAVE NAMED
+	//SOMETHING (round-3 tightness, fuzzy noise).
+	//
+	//"…but not this one" is a sentence somebody is plausibly writing about a
+	//clause they NAMED. It is not a sentence anybody is writing about a candidate
+	//a subsequence found: with one tag in the draft, typing 'grid' led the list
+	//with `not Tagged Growth Mindset` — a negation of a tag the user had not
+	//asked for, of a match they had not made, above the honest readings of the
+	//four letters they typed. So below the literal tiers the negation appears only
+	//when the token asked for it outright with a prefix, which is the half of the
+	//rule that was never in question.
 	const familyCompatibleConditionPresent = expression.some(condition => {
 		const family = valueFamilyForNode(condition, candidates);
 		return family !== 'mixed' && family !== 'manual' && family === nodeFamily;
 	});
-	if (negated || familyCompatibleConditionPresent) {
+	const namedMatch = !options.tier || LITERAL_MATCH_TIERS.has(options.tier);
+	if (negated || (familyCompatibleConditionPresent && namedMatch)) {
 		const negatedNode = negatedExpressionNode(node);
 		valences.push({
 			id: `${options.idPrefix}:not`,
@@ -970,6 +1141,7 @@ export const completionValences = (
 			label: describeExpressionNode(negatedNode, labels, cardNames).label,
 			detail: negatedClauseDescription(negatedNode, name, filterDescriptions, labels, cardNames),
 			expression: withConditionAppended(expression, negatedNode),
+			requested: negated,
 			rank: valenceRank('not', true, negated),
 		});
 	}
@@ -1350,7 +1522,7 @@ export const collectionCompletionCandidates = (
 		label : string,
 		detail : string,
 		match : Match,
-		extra : {usageKey? : string, annotation? : string, corpusCount? : number} = {}
+		extra : {usageKey? : string, annotation? : string, corpusCount? : number, configured? : boolean} = {}
 	) => {
 		if (seen.has(id)) return;
 		seen.add(id);
@@ -1387,6 +1559,8 @@ export const collectionCompletionCandidates = (
 				candidates,
 				filterDescriptions,
 				only: browsing ? 'add' : undefined,
+				tier: match.tier,
+				configured: extra.configured,
 			}),
 			viewerDependent: filterNameIsViewerDependent(filter),
 		});
@@ -1592,7 +1766,15 @@ export const collectionCompletionCandidates = (
 			label,
 			detail,
 			match,
-			{usageKey: id, annotation: configurable ? 'family' : 'filter'}
+			{
+				usageKey: id,
+				annotation: configurable ? 'family' : 'filter',
+				//THE ONE PLACE A NODE'S VALUE IS THIS LAYER'S RATHER THAN THE
+				//USER'S. A family is offered spelled with its own default, so a
+				//family whose clause is already in the sentence gets that clause's
+				//controls rather than a second copy carrying our default.
+				configured: !configurable,
+			}
 		);
 	}
 
@@ -1727,9 +1909,28 @@ export const collectionCompletionCandidates = (
 		);
 	}
 
-	return results
-		.sort((left, right) => left.score - right.score || left.label.localeCompare(right.label) || left.id.localeCompare(right.id))
-		.slice(0, options.limit === undefined ? DEFAULT_CANDIDATE_LIMIT : options.limit);
+	//THE SUBSEQUENCE TIER IS CAPPED, AND THE FLOOR IS WHY.
+	//
+	//`structural` fires whenever the token's characters appear in order and close
+	//together, which on a real vocabulary is a dozen candidates for a four-letter
+	//word. Every one of them is a match nobody made deliberately, and together
+	//they filled the visible list: `Text contains "grid"` — the one reading that
+	//is always literally true — sat eighth, behind eight rows the user had typed
+	//nothing to reach. Three is enough to be a fallback and few enough that the
+	//honest floor is on screen with them.
+	//
+	//The cap runs on the ENGINE'S OWN ORDER, after scoring and before the limit,
+	//so the three that survive are the three best subsequence hits rather than
+	//the three that happened to be enumerated first.
+	const ordered = results
+		.sort((left, right) => left.score - right.score || left.label.localeCompare(right.label) || left.id.localeCompare(right.id));
+	let structural = 0;
+	const capped = ordered.filter(candidate => {
+		if (candidate.tier !== 'structural') return true;
+		structural++;
+		return structural <= STRUCTURAL_MATCH_LIMIT;
+	});
+	return capped.slice(0, options.limit === undefined ? DEFAULT_CANDIDATE_LIMIT : options.limit);
 };
 
 //--- The idle contract -----------------------------------------------------

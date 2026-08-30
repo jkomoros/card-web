@@ -1,5 +1,6 @@
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 
 import {
 	declareShortcut,
@@ -56,6 +57,18 @@ export class DialogElement extends LitElement {
 
 	@property({ type : String })
 	override title: string;
+
+	//ONE SENTENCE ABOUT WHAT THIS DIALOG IS FOR, on the title itself.
+	//
+	//HS-1.3 obliges a surface to define the noun it is about, and the composer's
+	//was a '?' badge at the end of its sentence — a visible CONCEPT, in a design
+	//whose whole argument is that the composer contains four things and no
+	//fifth, sitting in the one place the eye lands first. The obligation is not
+	//the badge: it is that the definition be reachable. On the title it is
+	//reachable by hover and by every screen reader (aria-description is read
+	//with the heading it is on), and it costs the surface nothing.
+	@property({ type : String })
+		titleHint = '';
 
 	@property({ type : Boolean })
 		mobile: boolean;
@@ -207,7 +220,7 @@ export class DialogElement extends LitElement {
 					<span class='focus-sentinel' tabindex='0' @focus=${this._handleSentinelStartFocused}></span>
 					<div class='content' role=${this.dialogRole} aria-modal='true' aria-labelledby='dialog-title' tabindex='-1'>
 						<button class='small' id='close' title='Close dialog' aria-label='Close dialog' @click=${this.cancel}>${CANCEL_ICON}</button>
-						<h2 id='dialog-title'>${this.title || ''}</h2>
+						<h2 id='dialog-title' title=${ifDefined(this.titleHint || undefined)} aria-description=${ifDefined(this.titleHint || undefined)}>${this.title || ''}</h2>
 						<div id='inner'>
 						${this.innerRender()}
 						</div>

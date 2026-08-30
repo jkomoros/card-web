@@ -43,19 +43,23 @@ import {
 	CollectionExpression,
 	FilterExpressionNode,
 	collectionDescriptionWithExpression,
+	describeExpressionNode,
 	negatedExpressionNode,
 	serializeCollectionExpression,
+	serializeFilterNode,
+	withConditionRemoved,
 } from './collection-expression.js';
 
 import {
 	CompletionCandidate,
+	CompletionMatchTier,
 	CompletionValence,
 	CompletionValenceKind,
+	LITERAL_MATCH_TIERS,
 } from './collection-completion-index.js';
 
 import {
 	CollectionComposerSuggestion,
-	collectionComposerDestinationDiff,
 	collectionOptionDisplayName,
 } from './collection-composer-suggestions.js';
 
@@ -93,20 +97,16 @@ export type PaletteRowKind =
 const VIEW_MODE_FIRST_CARD = '_';
 
 export const RECENT_SECTION = 'Recent';
-export const REFINE_SECTION = 'Refine';
 
-//WHAT A COMBINATORIAL ROW NEEDS TO NAME ITS OWN DIFF. Threaded in rather than
-//looked up, because the labels and card titles live in Redux selectors the
-//palette layer must not import — and because deriving the sentence twice is how
-//a row's annotation and its detail line would come to disagree.
-export type PaletteNaming = {
-	draft : CollectionDescription;
-	labels? : Record<string, string>;
-	cardNames? : Record<string, string>;
-};
-
-const destinationDiff = (naming : PaletteNaming | undefined, destination : CollectionDescription) : string =>
-	naming ? collectionComposerDestinationDiff(naming.draft, destination, naming.labels || {}, naming.cardNames || {}) : '';
+//THE 'REFINE' HEADING IS DELETED (round-3 tightness, S2).
+//
+//It was the second of three runs in the idle list, and the rows under it were
+//the same species as the rows under the third: a pill, a count, one quiet word.
+//A heading between two runs of one species is a wall that says nothing except
+//"the ranking stops here and starts again", and the constitution's whole model
+//is ONE ranked list. So the contextual rows keep their rank — they still lead,
+//because they are still scored first — and lose the label that made them look
+//like a different kind of offer.
 
 export type PaletteRow = {
 	//Stable for the same thing across keystrokes: the preview-count cache key.
@@ -173,14 +173,80 @@ export type PaletteRow = {
 	//This row REPLACES a word in the sentence rather than appending a clause:
 	//the set, the sort, the view. The palette must never stack these.
 	singleton? : boolean;
+	//HOW WELL THE TYPED TOKEN NAMED THIS ROW'S CANDIDATE, carried up from the
+	//engine because the palette's ranking rule is stated in tiers: the row that
+	//IS the typed thing outranks every graft of it and every pivot away from it,
+	//and "is the typed thing" is a question about the tier the match was made at.
+	//Absent on the feeds that answer no token.
+	tier? : CompletionMatchTier;
+	//For a `not` row: whether the TYPED TOKEN asked for the negation. See
+	//paletteTypedRank — a requested negation is literal, an offered one is a
+	//graft.
+	negationRequested? : boolean;
+};
+
+//--- The one ranking rule a typed list has ----------------------------------
+
+//WHAT A ROW IS, TO A USER WHO JUST TYPED SOMETHING. Three classes, in the hard
+//order the constitution implies, and every typed feed is sorted by them first.
+//
+//  LITERAL  the row that IS the typed thing: the parsed phrase's own pill, the
+//           exact/prefix/alias/typo match's plain add, the change or removal of
+//           the clause it names, the sentence word it spells, the collection a
+//           pasted link parses to. Whatever else the list offers, this is what
+//           the user wrote, and Enter is aimed at it.
+//  READING  a weaker interpretation of the same token: a description or
+//           subsequence hit, and the free-text guess — the honest floor.
+//  GRAFT    the typed thing FUSED with something already in the sentence: an
+//           or, or a negation nobody asked for. It contains the literal row and
+//           is not it.
+//  PIVOT    a whole other collection replacing the draft. The combinatorial
+//           action, which may lead the IDLE list — that is what an idle list is
+//           for — and may never be the answer to a token.
+//
+//WHY THIS EXISTS AS A CLASS RATHER THAN AS SCORE. The count-driven rules — sink
+//a zero, suppress a no-op widen — arrive asynchronously and re-rank the list
+//after the engine has finished with it, and they were sinking the literal row:
+//with two tags in the draft, typing a fresh date phrase put `Created since 5
+//days ago · 3 → 0` seventh, under two or-grafts OF ITSELF and three readings of
+//the raw words. The honest zero on the literal row is the design's own answer to
+//"that clause selects nothing", together with the recovery section; demoting the
+//row that says it is the list refusing to show the user their own sentence.
+export const TYPED_RANK_LITERAL = 0;
+export const TYPED_RANK_READING = 1;
+export const TYPED_RANK_GRAFT = 2;
+export const TYPED_RANK_PIVOT = 3;
+
+//The valences that are ABOUT the clause the token names, rather than about
+//fusing it with a neighbour. A `not` is here only when the token asked for one,
+//which the engine has already decided by ranking it above the plain add.
+const LITERAL_VALENCE_KINDS : ReadonlySet<CompletionValenceKind> =
+	new Set<CompletionValenceKind>(['add', 'change', 'remove', 'edit']);
+
+export const paletteTypedRank = (row : PaletteRow) : number => {
+	//A tier-less row in a typed feed is one this module built without an engine
+	//match behind it; treat it as a reading rather than promoting it.
+	const named = Boolean(row.tier) && LITERAL_MATCH_TIERS.has(row.tier as CompletionMatchTier);
+	if (row.kind === 'destination') {
+		//A PASTED COLLECTION IS NOT A PIVOT. The parser accepted a collection
+		//written in the app's own URL grammar; there is no interpretation left to
+		//rank, and it is exactly as literal as a name match is.
+		return row.tier === 'parsed' ? TYPED_RANK_LITERAL : TYPED_RANK_PIVOT;
+	}
+	if (row.valenceKind && !LITERAL_VALENCE_KINDS.has(row.valenceKind)) {
+		//A requested negation is the literal reading of a negated token — the
+		//engine says so by ranking it first among that candidate's valences, and
+		//paletteTypingRows preserves that order, so first-and-not is the test.
+		if (row.valenceKind !== 'not' || !row.negationRequested) return TYPED_RANK_GRAFT;
+	}
+	return named ? TYPED_RANK_LITERAL : TYPED_RANK_READING;
 };
 
 //THE RECOVERY SECTION, and it exists only when there is something to recover
 //from. A draft that matches nothing is a valid draft, and the honest offer is
 //not a note saying so — it is the clauses, each with the count the collection
 //would have without it, so the user can see which one emptied the collection
-//and take it out. The rows come from the same removal generator the old build
-//used, so a removal row and pressing Remove on the pill cannot disagree.
+//and take it out.
 //
 //THE HEADING IS A RANK ANNOTATION, NOT A ZONE (round 3, D3). It read 'Nothing
 //matches — try removing': a sentence, in the place where every other heading is
@@ -190,10 +256,49 @@ export type PaletteRow = {
 //where it always was.
 export const RECOVER_SECTION = 'Try removing';
 
+//IT IS BUILT FROM THE SENTENCE, NOT FROM A SECOND ENUMERATION OF THE DRAFT
+//(round-3 tightness, M4).
+//
+//These rows used to come through the suggestion module's removal generator and
+//then through rowForSuggestion, which gave them a verb-label ('Remove Tagged
+//Ecosystems') and no pill — the one species in the list wearing the vocabulary
+//the redesign deleted, in the one place a user is already confused. A removal is
+//a removal: the typed `remove` row shows the pill it takes out, struck, with the
+//word `remove` in the annotation slot, and so does this one now, because both
+//are built here out of the SAME expression the sentence is rendering.
+//
+//ONE ROW PER CONDITION, by construction. parseCollectionExpression is 1:1 with
+//the description's filters, so walking the expression cannot omit a clause the
+//sentence shows — which is what it is for: the clause that emptied the
+//collection is precisely the one the user needs offered back.
 export const paletteRecoveryRows = (
-	removals : readonly CollectionComposerSuggestion[]
+	expression : CollectionExpression,
+	description : CollectionDescription,
+	labels : Record<string, string> = {},
+	cardNames : Record<string, string> = {}
 ) : PaletteRow[] =>
-	removals.map(suggestion => ({...rowForSuggestion(suggestion, RECOVER_SECTION), removes: true}));
+	expression.map((condition, index) => {
+		const label = describeExpressionNode(condition, labels, cardNames).label;
+		const next = withConditionRemoved(expression, index);
+		return {
+			//Stable across keystrokes for the same clause — it is a preview-count
+			//cache key — and distinct per clause even when two spell alike.
+			id: `recover:${index}:${serializeFilterNode(condition)}`,
+			kind: 'valence' as const,
+			section: RECOVER_SECTION,
+			label,
+			detail: `Takes ${label} back out of this collection.`,
+			description: collectionDescriptionWithExpression(description, next),
+			expression: next,
+			pillExpression: [condition],
+			valenceKind: 'remove' as const,
+			removes: true,
+			targetIndex: index,
+			targetMemberIndex: -1,
+			annotation: EXISTING_CLAUSE_ANNOTATIONS.remove,
+			viewerDependent: false,
+		};
+	});
 
 //--- Destinations and refinements (the idle feed) --------------------------
 
@@ -210,11 +315,20 @@ export const paletteRecoveryRows = (
 //constitution names — and the user is still in the composer with a preview in
 //front of them.
 //
-//`diff` is what the collection this row would replace the draft with does to the
-//draft, already named. It is passed in rather than derived because the naming
-//needs the filter labels and card titles the dialog holds, and a row that had to
-//reach for those would be a second derivation of the same sentence.
-const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : string, diff = '') : PaletteRow => ({
+//THE ANNOTATION SLOT CARRIES ONE QUIET WORD, AND THE DIFF IS NOT ONE (round-3
+//tightness, S1).
+//
+//A combinatorial row's whole diff used to live here — 'Uses Main instead of
+//Everything · Removes Tagged Ecosystems, Tagged Platforms, Created since 7 days
+//ago · Adds Section About' — a three-clause sentence in the slot where every
+//other row says 'tag'. It wrapped to three lines, it made one species of row
+//twice the height of the rest, and it was ALREADY on screen: the row's own
+//detail line is that same sentence, shown on the highlighted row like every
+//other row's explanation. So the slot says what kind of thing this row is, and
+//the diff stays where the reader can ask for it.
+const DESTINATION_ANNOTATION = 'recent';
+
+const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : string) : PaletteRow => ({
 	id: suggestion.id,
 	kind: suggestion.kind === 'recent' ? 'destination' : 'transform',
 	section,
@@ -238,13 +352,12 @@ const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : s
 	filter: suggestion.configureFilter,
 	viewerDependent: Boolean(suggestion.viewerDependent),
 	destinationPath: suggestion.destinationPath,
-	//THE COMBINATORIAL ROW'S ANNOTATION IS ITS DIFF (D3). One row, one slot, and
-	//in that slot the several things this action does at once.
-	annotation: diff || undefined,
+	annotation: suggestion.kind === 'recent' ? DESTINATION_ANNOTATION : undefined,
 });
 
-//THE IDLE CONTRACT, IN THREE RUNS: recents, the pre-configured suggestions, and
-//then THE ENTIRE VOCABULARY.
+//THE IDLE CONTRACT, IN TWO RUNS: recents, and then ONE RANKED LIST of
+//everything you can do to the draft — the contextual suggestions first, because
+//they are scored first, and the entire vocabulary behind them.
 //
 //This is the owner's round-2 correction, and it reverses a decision the previous
 //build made deliberately. The old contract was "recents + 3 contextual rows and
@@ -255,33 +368,37 @@ const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : s
 //product look smaller than it is, and it makes typing feel like a search against
 //an unknown index rather than a filter over a visible one.
 //
-//The cap on the SECOND run is unchanged (IDLE_CONTEXTUAL_ROW_LIMIT); those are
-//still the deterministic contextual rows, and complaint #6 was about THEM being
-//arbitrary, not about the vocabulary being absent.
+//The cap on the contextual rows is unchanged (IDLE_CONTEXTUAL_ROW_LIMIT); those
+//are still the deterministic contextual rows, and complaint #6 was about THEM
+//being arbitrary, not about the vocabulary being absent.
 //
-//THE THIRD RUN IS ONE SECTION, NOT A WALL. It is ranked purely by personal
-//likelihood — usage, corpus fit, description context — and every row carries a
-//quiet annotation saying what kind of thing it is. Grouping it by category would
-//rebuild the catalog inside the list it replaced, and the categories would then
-//outrank the ranking, which is precisely the defect that made 'Suggested for
-//this card' beat an exact name match under the old Browse-all feed.
+//THE SECOND RUN IS ONE SECTION, NOT A WALL — and, since the round-3 tightness
+//pass, it is one section for the contextual rows too. It is ranked purely by
+//personal likelihood — usage, corpus fit, description context — and every row
+//carries a quiet annotation saying what kind of thing it is. Grouping it by
+//category would rebuild the catalog inside the list it replaced, and the
+//categories would then outrank the ranking, which is precisely the defect that
+//made 'Suggested for this card' beat an exact name match under the old
+//Browse-all feed. A 'Refine' heading over the first three rows of that one run
+//was the same defect at three rows instead of thirty: the rows under it are the
+//same species, doing the same thing, in the same order they would be in without
+//it.
 export const VOCABULARY_SECTION = 'Everything you can add';
 
 export const paletteIdleRows = (
 	recents : readonly CollectionComposerSuggestion[],
 	contextual : readonly CollectionComposerSuggestion[],
-	vocabulary : readonly PaletteRow[] = [],
-	naming? : PaletteNaming
+	vocabulary : readonly PaletteRow[] = []
 ) : PaletteRow[] => {
 	const rows = [
-		...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION, destinationDiff(naming, suggestion.description))),
+		...recents.map(suggestion => rowForSuggestion(suggestion, RECENT_SECTION)),
 		//"REMOVE X" ROWS ARE DELETED, and the design says where their question
 		//went: `without this pill: N` in the pill row answers it, beside the
 		//clause it is about, instead of in a list of offers to undo things the
 		//user chose. A clause exists in exactly one place — the sentence — and
 		//its removal belongs there too.
 		...contextual.filter(suggestion => suggestion.action !== 'remove')
-			.map(suggestion => rowForSuggestion(suggestion, REFINE_SECTION)),
+			.map(suggestion => rowForSuggestion(suggestion, VOCABULARY_SECTION)),
 	];
 	//A ROW THAT IS ALREADY ABOVE IS NOT SHOWN AGAIN. The suggestion feed and the
 	//vocabulary feed are two views of one world, so they overlap by design; the
@@ -315,6 +432,9 @@ export const paletteIdleRows = (
 const EXISTING_CLAUSE_ANNOTATIONS : Partial<Record<CompletionValenceKind, string>> = {
 	remove: 'remove',
 	edit: 'edit',
+	//The third one, in the same register: this row moves a clause you have to a
+	//value you just typed.
+	change: 'change',
 };
 
 //THE ONE CONDITION A VALENCE ROW IS ABOUT, so the row can render it as the pill
@@ -329,6 +449,10 @@ const EXISTING_CLAUSE_ANNOTATIONS : Partial<Record<CompletionValenceKind, string
 //removal treatment goes on the row, not on the pill's own expression: a struck
 //pill is a rendering, and inventing a negated node to draw it with would be the
 //row lying about which clause it names.
+//A `change` shows the clause WITH ITS NEW VALUE — one pill, the one the sentence
+//will contain a keystroke later — which is the plain `[node]` at the bottom.
+//What it replaces is said by the count (`current → after`) and by the detail
+//line, rather than by a second pill in a row that produces one.
 const pillExpressionForValence = (valence : CompletionValence, node : FilterExpressionNode) : CollectionExpression => {
 	if (valence.targetNode && (valence.kind === 'remove' || valence.kind === 'edit')) return [valence.targetNode];
 	if (valence.kind === 'or' && valence.targetIndex !== undefined) {
@@ -353,8 +477,7 @@ const pillExpressionForValence = (valence : CompletionValence, node : FilterExpr
 export const paletteTypingRows = (
 	candidates : readonly CompletionCandidate[],
 	description : CollectionDescription,
-	section = '',
-	naming? : PaletteNaming
+	section = ''
 ) : PaletteRow[] => {
 	const rows : PaletteRow[] = [];
 	//TWO ROWS THAT MAKE THE SAME EDIT ARE ONE ROW.
@@ -383,7 +506,12 @@ export const paletteTypingRows = (
 				//combinatorial action, several changes at once, said in one line.
 				description: candidate.description || description,
 				destinationPath: candidate.destinationPath,
-				annotation: destinationDiff(naming, candidate.description || description) || undefined,
+				//ONE QUIET WORD (S1). A pasted link is a collection SOURCE the
+				//parser accepted; a remembered collection is a recent. Both say what
+				//they are; neither says what it would do to the draft, which is the
+				//detail line's job.
+				annotation: candidate.kind === 'source' ? 'source' : DESTINATION_ANNOTATION,
+				tier: candidate.tier,
 				viewerDependent: candidate.viewerDependent,
 			});
 			continue;
@@ -409,6 +537,7 @@ export const paletteTypingRows = (
 				//row's.
 				annotation: candidate.annotation,
 				usageKey: candidate.usageKey,
+				tier: candidate.tier,
 				viewerDependent: candidate.viewerDependent,
 			});
 			continue;
@@ -431,6 +560,7 @@ export const paletteTypingRows = (
 				//rides the row so the palette can refuse to treat accepting one
 				//as an append, wherever the row came from.
 				singleton: candidate.singleton,
+				tier: candidate.tier,
 			});
 			continue;
 		}
@@ -460,7 +590,11 @@ export const paletteTypingRows = (
 				//A `remove` or an `edit` is about a clause the sentence ALREADY has,
 				//so neither of them adds one and neither wants the add-then-open
 				//treatment: `configurable` is a fact about what a row would ADD.
-				configurable: candidate.kind === 'filter-family' && valence.kind !== 'remove' && valence.kind !== 'edit',
+				//A `change` does not want it either: it REPLACES a configured
+				//clause with the value the user just typed, so opening the family's
+				//controls on top of the value they named would ask them for it
+				//twice.
+				configurable: candidate.kind === 'filter-family' && valence.kind === 'add',
 				removes: valence.kind === 'remove',
 				edits: valence.kind === 'edit',
 				targetMemberIndex: valence.targetMemberIndex,
@@ -490,6 +624,8 @@ export const paletteTypingRows = (
 				//this row would do to it.
 				annotation: EXISTING_CLAUSE_ANNOTATIONS[valence.kind] || candidate.annotation,
 				usageKey: candidate.usageKey,
+				tier: candidate.tier,
+				negationRequested: valence.kind === 'not' ? Boolean(valence.requested) : undefined,
 			});
 		}
 	}
@@ -542,6 +678,14 @@ export const paletteOrScopedRows = (
 //strip is deleted; these rows are what replaced it, and they are the same rows
 //the completion index produces for a typed set or sort name — the same edit,
 //reachable two ways.
+//
+//AND THEY WEAR THE SAME ANATOMY AS EVERY OTHER ROW (round-3 tightness, S4).
+//This feed used to be the one that carried no annotation at all: three runs of
+//bare labels, in a list where every other row says what kind of thing it is. The
+//word goes in the same slot ('set', 'sort', 'view'), and the option already in
+//force takes '✓ current' IN THAT SLOT rather than in a fourth element of its own
+//— it is the same fact the slot always carries, answered more usefully for the
+//one row where "which one am I in" is the question being asked.
 export type PaletteWordScope = 'set' | 'sort';
 
 export const paletteWordRows = (
@@ -567,6 +711,7 @@ export const paletteWordRows = (
 				description: collectionDescriptionWithSet(description, name as SetName),
 				viewerDependent: false,
 				current: name === description.set,
+				annotation: 'set',
 			}));
 	}
 	const rows : PaletteRow[] = Object.entries(SORTS)
@@ -579,6 +724,7 @@ export const paletteWordRows = (
 			description: collectionDescriptionWithSort(description, name as SortName),
 			viewerDependent: false,
 			current: name === description.sort,
+			annotation: 'sort',
 		}));
 	//Reversing is a property of the order, so it belongs in the order's own
 	//list rather than in a fifth control the strip used to carry.
@@ -590,6 +736,7 @@ export const paletteWordRows = (
 		detail: description.sortReversed ? 'Puts the order back the way round it usually runs.' : 'Runs the same order backwards.',
 		description: collectionDescriptionWithSortReversed(description, !description.sortReversed),
 		viewerDependent: false,
+		annotation: 'sort',
 	});
 	for (const mode of Object.keys(LEGAL_VIEW_MODES)) {
 		rows.push({
@@ -599,6 +746,7 @@ export const paletteWordRows = (
 			label: collectionOptionDisplayName(mode),
 			detail: `Shows this collection as ${collectionOptionDisplayName(mode)}.`,
 			current: mode === description.viewMode,
+			annotation: 'view',
 			//A view that takes a focus card gets the app's own "whichever card
 			//the collection opens on" rather than an empty argument. The old
 			//setup strip seeded it from the active card and offered a picker

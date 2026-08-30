@@ -98,6 +98,11 @@ const candidates = () => [
 
 const draft = (serialized = 'everything/') => CollectionDescription.deserialize(serialized);
 
+//The tiers at which a token genuinely NAMED a candidate. Spelled here rather
+//than imported so the test states the boundary in its own words: if the engine
+//moves the line, this file has to be edited on purpose.
+const NAME_ISH = new Set(['parsed', 'name-exact', 'name-prefix', 'alias', 'typo']);
+
 const complete = (token, serialized = 'everything/', extra = {}) => collectionCompletionCandidates({
 	token,
 	expression: parseCollectionExpression(draft(serialized).filters),
@@ -520,37 +525,40 @@ describe('Collection completion model', () => {
 
 		//PRINCIPLE 1 IS PRESERVED. This fires only from the app's own bare
 		//default view, which is the one state with no "where the user is".
-		it('applies only when the composition starts at the app’s default view', () => {
-			const bare = draft('main/');
-			const firstClause = draft('main/starred/');
+		//
+		//SUPERSEDED PIN (round-3 tightness, M6). It used to take (before, after,
+		//stickySet) and pin the rewrite to the FIRST EDIT: a bare `main/` draft
+		//plus an added `starred` came back as `everything/starred/`, and a bare
+		//`main/` with no edit came back untouched. That deferral is exactly the
+		//defect the tightness critique found — the sentence rendered the set the
+		//draft still had while the commit used the set it was about to get, so
+		//the composer said `Main` and opened `everything/`. The question is asked
+		//once now, of the DRAFT, at the moment the composer opens, and the two
+		//assertions that survive are the two that were ever about behaviour: it
+		//fires from the app's bare default, and it does not fire anywhere else.
+		it('answers where a composition starts from, once, from the draft alone', () => {
 			assert.strictEqual(
-				collectionDescriptionWithStickyStart(bare, firstClause, 'everything').set,
+				collectionDescriptionWithStickyStart(draft('main/'), 'everything').set,
 				'everything',
-				'a composition begun from the bare default starts from the sticky set'
+				'a composition begun from the app’s bare default starts from the sticky set'
 			);
-			assert.deepStrictEqual(
-				collectionDescriptionWithStickyStart(bare, firstClause, 'everything').filters,
-				['starred'],
-				'and the clause the user just added is untouched'
-			);
-			//A collection the user was already IN is refined from where they are.
-			const refining = draft('main/unread/');
+			//A collection the user was already IN is composed from where they are.
 			assert.strictEqual(
-				collectionDescriptionWithStickyStart(refining, draft('main/unread/starred/'), 'everything').set,
-				'main'
+				collectionDescriptionWithStickyStart(draft('main/unread/'), 'everything').set,
+				'main',
+				'a draft with conditions on it is where the user is, and is left alone'
 			);
-			//AND NOT BEFORE THERE IS A COMPOSITION. Opening and closing the
-			//composer without an edit must leave the draft as it found it.
+			//And so is a set they chose themselves.
 			assert.strictEqual(
-				collectionDescriptionWithStickyStart(bare, draft('main/'), 'everything').set,
-				'main'
-			);
-			//Somebody whose first gesture was to choose a set has already said
-			//where to start.
-			assert.strictEqual(
-				collectionDescriptionWithStickyStart(bare, draft('reading-list/starred/'), 'everything').set,
+				collectionDescriptionWithStickyStart(draft('reading-list/'), 'everything').set,
 				'reading-list'
 			);
+			//A sticky set that IS the draft's set changes nothing, including the
+			//identity of the object — the seeding path compares serializations to
+			//decide whether to dispatch at all.
+			const bare = draft('main/');
+			assert.strictEqual(collectionDescriptionWithStickyStart(bare, 'main'), bare);
+			assert.strictEqual(collectionDescriptionWithStickyStart(bare, ''), bare);
 		});
 	});
 
@@ -563,10 +571,10 @@ describe('Collection completion model', () => {
 	//arrow-down), and the failure message prints the list that beat it.
 	describe('expected arrow-downs', () => {
 
-		const arrivals = (token, extra) => complete(token, 'everything/', extra);
+		const arrivals = (token, extra, serialized = 'everything/') => complete(token, serialized, extra);
 
-		const assertReachable = (token, predicate, why, extra) => {
-			const rows = arrivals(token, extra);
+		const assertReachable = (token, predicate, why, extra, serialized) => {
+			const rows = arrivals(token, extra, serialized);
 			const index = rows.findIndex(predicate);
 			assert.ok(index >= 0, `“${token}” never reached ${why}: ${rows.slice(0, 5).map(row => row.id).join(', ')}`);
 			assert.ok(index <= 1,
@@ -626,6 +634,119 @@ describe('Collection completion model', () => {
 			for (const [token, predicate, why, extra] of battery) {
 				assertReachable(token, predicate, why, extra);
 			}
+		});
+
+		//THE BATTERY AGAINST A DRAFT THAT ALREADY HAS SOMETHING IN IT (round-3
+		//tightness). Every row above runs against an EMPTY draft, which is the
+		//easy half: a token can only mean "add this". The friction the critique
+		//measured was all on the other half — the same tokens typed at a draft
+		//with two tags and a date clause in it, where the same candidate now has
+		//four or five valences and the count-driven rules have something to sink.
+		it('reaches the same candidate against a draft that already has clauses', () => {
+			const NOW = new Date(2026, 7, 30, 13, 45);
+			const withTags = 'everything/tag-systems/notes-section/';
+			const battery = [
+				//B2's own repro, one layer down: the parsed phrase's candidate has
+				//to be the FIRST candidate, not a reading of the raw words and not
+				//a recent that happens to mention them.
+				['created since 5 days ago', isFilter('created/after/5-days-ago'), 'the 5-day pill against a two-tag draft', {now: NOW}, withTags],
+				//And the ordinary tokens keep working when the draft is not empty.
+				['starred', isFilter('starred'), 'Starred against a two-tag draft', undefined, withTags],
+				['systems', isFilter('tag-systems'), 'the Systems tag it already has', undefined, withTags],
+			];
+			for (const [token, predicate, why, extra, serialized] of battery) {
+				assertReachable(token, predicate, why, extra, serialized);
+			}
+		});
+
+		//M3: A TYPED VALUE FOR A FAMILY THE SENTENCE HAS IS A CHANGE.
+		//
+		//'created since 5 days ago' against a draft holding `created/after/
+		//7-days-ago` used to produce an ADD — two date clauses AND-ed into their
+		//intersection, which for two rolling windows is silently the narrower one
+		//— and the add led the candidate's valences. It is one collection whose
+		//window moved, expressed as a node replacement in place.
+		it('changes a configured clause in place rather than AND-ing a second one', () => {
+			const NOW = new Date(2026, 7, 30, 13, 45);
+			const rows = complete('created since 5 days ago', 'everything/created/after/7-days-ago/', {now: NOW});
+			const row = rows.find(candidate => candidate.filter === 'created/after/5-days-ago');
+			assert.ok(row, `the 5-day pill is offered: ${rows.slice(0, 4).map(candidate => candidate.id).join(', ')}`);
+			assert.strictEqual(rows.indexOf(row), 0, 'and it is the first candidate — zero arrow-downs');
+			const change = row.valences[0];
+			assert.strictEqual(change.kind, 'change',
+				`the top valence is the change: ${row.valences.map(valence => valence.kind).join(', ')}`);
+			//ONE CLAUSE OUT, ONE CLAUSE IN, IN PLACE.
+			assert.deepStrictEqual(
+				change.expression.map(node => node.filter),
+				['created/after/5-days-ago'],
+				'the sentence keeps one date clause, at the value that was typed');
+			assert.strictEqual(change.targetIndex, 0);
+			assert.strictEqual(change.targetMemberIndex, -1);
+			assert.strictEqual(change.targetNode.filter, 'created/after/7-days-ago',
+				'and it names the clause it replaces, so the row can say what it changes');
+			//THE ADD IS NOT ALSO OFFERED: a change and an add are one gesture read
+			//two ways, and the reading that empties the collection is retired.
+			assert.ok(!row.valences.some(valence => valence.kind === 'add'),
+				`no second date clause is offered: ${row.valences.map(valence => valence.kind).join(', ')}`);
+		});
+
+		//AND THE OTHER HALF OF THE SAME DISTINCTION: a FAMILY name typed against a
+		//clause of that family opens its controls rather than appending this
+		//layer's own default beside the user's value.
+		it('opens a family already in the sentence instead of adding its default', () => {
+			const rows = complete('created', 'everything/created/after/5-days-ago/');
+			const row = rows.find(candidate => candidate.id === 'family:created');
+			assert.ok(row, 'the family is still reachable by name');
+			const kinds = row.valences.map(valence => valence.kind);
+			assert.ok(kinds.includes('edit'), `it offers the clause's own controls: ${kinds.join(', ')}`);
+			assert.ok(!kinds.includes('add'),
+				`and not a seven-day default beside a five-day window: ${kinds.join(', ')}`);
+			assert.ok(!kinds.includes('change'),
+				'a family default is not a value the user typed, so it does not silently replace one');
+		});
+
+		//THE FUZZY TIERS DO NOT INVENT NEGATIONS (round-3 tightness, minor).
+		//
+		//With a tag in the draft, every subsequence hit was family-compatible with
+		//it, so `not Tagged Growth Mindset` — a negation of a tag nobody named, of
+		//a match nobody made — led the list for the token 'grid'. A negation is
+		//offered beside a clause the user NAMED, or when the token asked for one
+		//outright; below that line it is noise wearing a sentence's shape.
+		it('offers an unrequested negation only for a token that named something', () => {
+			const structural = complete('sysms', 'everything/tag-complexity/')
+				.find(candidate => candidate.filter === 'tag-systems');
+			if (structural && !NAME_ISH.has(structural.tier)) {
+				assert.ok(!structural.valences.some(valence => valence.kind === 'not'),
+					`a ${structural.tier} match carries no unrequested negation: ${structural.valences.map(valence => valence.kind).join(', ')}`);
+			}
+			//A NAMED match beside a clause of its own family still gets one — that
+			//is the state where "…but not this one" is a sentence being written.
+			const named = complete('systems', 'everything/tag-complexity/')
+				.find(candidate => candidate.filter === 'tag-systems');
+			assert.ok(named, 'the named tag is found');
+			assert.ok(named.valences.some(valence => valence.kind === 'not'),
+				`and it keeps its flip: ${named.valences.map(valence => valence.kind).join(', ')}`);
+			//And a negated token gets one at ANY tier, because it was asked for.
+			const requested = complete('not sysms', 'everything/')
+				.find(candidate => candidate.filter === 'tag-systems');
+			if (requested) {
+				const not = requested.valences.find(valence => valence.kind === 'not');
+				assert.ok(not, 'a negation prefix is honoured at every tier');
+				assert.strictEqual(not.requested, true);
+			}
+		});
+
+		//THE HONEST FLOOR IS REACHABLE (round-3 tightness, minor). `Text contains
+		//X` is the one reading that is always literally true, and a dozen
+		//uncapped subsequence hits pushed it to the eighth row.
+		it('keeps the free-text floor within a glance when nothing better matches', () => {
+			const rows = complete('grid', 'everything/tag-systems/');
+			const guess = rows.findIndex(row => row.tier === 'guess');
+			assert.ok(guess >= 0, 'the floor is never deleted');
+			assert.ok(guess <= 4,
+				`the floor is reachable: ${rows.slice(0, guess + 1).map(row => `${row.tier}:${row.id}`).join(' | ')}`);
+			assert.ok(rows.filter(row => row.tier === 'structural').length <= 3,
+				'and the subsequence tier is capped rather than allowed to fill the list');
 		});
 
 		//THE NEGATION PREFIXES, ALL FIVE OF THE FORMS THE TASK NAMES, plus the

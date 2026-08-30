@@ -650,12 +650,19 @@ const removalSuggestions = (
 //A recent (or a pivot) is a COMBINATORIAL action in the round-3 model: executing
 //it replaces the draft with several changes at once. Every other row can show
 //what it does as the pill it produces; this one cannot, because it produces half
-//a dozen. So it shows the same three things every row shows — what it does, the
-//count, one quiet annotation — and this sentence is the annotation. Same shape,
-//bigger payload (D3).
+//a dozen.
 //
-//EXPORTED so the palette's annotation and the row's own detail line are one
-//derivation rather than two that can disagree.
+//IT IS NOT THE ANNOTATION ANY MORE (round-3 tightness, S1). It was, on the
+//argument "same shape, bigger payload"; on a real corpus the payload was a
+//three-clause sentence in the slot where every other row says 'tag', it wrapped
+//to three lines, and it made one species of row twice the height of the rest.
+//That is the one-species rule broken by the mechanism meant to keep it. The slot
+//says `recent`; this sentence is the row's DETAIL line, which is where every
+//other row's explanation lives and where — since collectionDifference has always
+//been built out of it — this one already was.
+//
+//STILL EXPORTED, because the receipt and the tests name a destination's diff the
+//same way and a second derivation of one sentence is how they would drift.
 export const collectionComposerDestinationDiff = (
 	current: CollectionDescription,
 	destination: CollectionDescription,

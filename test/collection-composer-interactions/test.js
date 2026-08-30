@@ -636,15 +636,42 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
 
-	//"TYPE, ENTER, TYPE, ENTER, ENTER" — the natural end of the flow, pinned
-	//deliberately (D1). With an empty input nothing is highlighted, so there is
-	//no top action for Enter to execute, and the honest reading of the keystroke
-	//is the commit the user was reaching for.
-	it('commits on an Enter with an empty input and nothing highlighted', async () => {
+	//ENTER NEVER COMMITS (round-3 tightness, B1).
+	//
+	//SUPERSEDED PIN. This was 'commits on an Enter with an empty input and
+	//nothing highlighted', and it pinned "type, enter, type, enter, enter" as a
+	//flow that ends naturally in a commit. The tightness critique pressed exactly
+	//that sequence and found what it costs: an Enter that adds a clause CLEARS
+	//the input and leaves nothing highlighted, so the DOUBLE-ENTER anybody types
+	//when they mean "add that, now let me type the next one" was a navigation out
+	//of the composer. One key meant both "act on the draft" and "leave", a
+	//keystroke apart, and which one you got depended on a highlight that is
+	//invisible when the box is empty.
+	//
+	//The constitution gives navigation two gestures and neither of them is Enter.
+	//So the second Enter is a NO-OP that keeps focus, and the commit is the
+	//modifier the footer has been naming all along.
+	it('does nothing on an Enter with an empty input, and never commits', async () => {
 		await typeComposer('star');
 		await pressComposer('Enter');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 		await pressComposer('Enter');
+		assert.strictEqual(window.location.pathname, '/c/main/',
+			'the second Enter changed nothing real');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
+			'and it did not leave the composer');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
+			'and it did not touch the draft either');
+		assert.strictEqual(
+			dialog.shadowRoot.activeElement && dialog.shadowRoot.activeElement.id,
+			'collection-composer-input',
+			'focus stays in the input, where the next character goes');
+		//NOTHING IS RE-ARMED. An empty input's list is the idle list, whose top
+		//row is whatever the ranking put there; arming it would make the NEXT
+		//Enter execute a row the user never aimed at.
+		assert.strictEqual(dialog._rowHighlightActive, false);
+		//And the commit is still one modifier away.
+		await pressComposer('Enter', { metaKey: true });
 		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
@@ -653,33 +680,45 @@ describe('Collection Composer interactions', () => {
 	//"star" first, so the row that happens to be highlighted is also the row the
 	//user wanted; that coincidence hid a flow where Ctrl-K → type → Tab → Enter
 	//closed the dialog, left the URL alone, and discarded the clause in silence.
-	it('commits the composed draft when Enter follows Tab, with recents on offer', async () => {
+	//
+	//TWO SUPERSESSIONS, both from the round-3 tightness pass:
+	//
+	//  M5. The top row after typing 'star' used to be the REMEMBERED starred
+	//      collection — "recents rank first among equals". A recent is a whole
+	//      other collection replacing the draft, and no token is a request to
+	//      leave the one being composed, so a destination may not lead a typed
+	//      list. The clause the user typed leads; the recent is still offered,
+	//      below every literal reading of the token.
+	//  B1. The Enter at the end used to commit. It does nothing now, and the
+	//      commit modifier is what opens.
+	it('executes the typed clause on Tab, and commits only on the modifier', async () => {
 		await seedRecents([['main/', 9], ['main/starred/sort/recent/', 2]]);
 		assert.strictEqual(highlightedRow(), null,
 			'nothing is highlighted before the user points at a row, so no row looks primary');
 		await typeComposer('star');
-		//RECENTS ARE FIRST-CLASS MATCHES, and rank first among equals: a
-		//collection the user has actually been in is stronger evidence than a
-		//filter whose name merely also matches. So the top row here is the
-		//remembered starred collection, not the bare clause.
 		assert.match(rowText(highlightedRow()), /Starred/,
 			'typing makes the list interpretations of what was typed, and the top one is highlighted');
+		assert.strictEqual(dialog._paletteRows[0].kind !== 'destination', true,
+			`a destination may not be the top action for a typed token: ${dialog._paletteRows.slice(0, 3).map(row => `${row.kind}/${row.id}`).join(' | ')}`);
 		await pressComposer('Tab');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
-		assert.strictEqual(store.getState().collection.snapshot.sortName, 'recent');
+		assert.strictEqual(store.getState().collection.snapshot.sortName, 'default',
+			'the clause landed on the draft; the recent that would have replaced it whole did not');
 		assert.strictEqual(highlightedRow(), null,
 			'Tab rebuilt the list, and nothing in the new list is what the user was pointing at');
 		await pressComposer('Enter');
-		//THE STICKY STARTING SET (D4). A composition that begins at the app's own
-		//bare default view (`/c/main/`, no conditions) starts from the user's
-		//sticky set the moment the first clause lands, and the shipped default
+		assert.strictEqual(window.location.pathname, '/c/main/',
+			'an Enter with nothing highlighted is not a commit');
+		//THE STICKY STARTING SET (D4, and M6's single-sourcing of it). A
+		//composition that begins at the app's own bare default view (`/c/main/`,
+		//no conditions) starts from the user's sticky set, and the shipped default
 		//for that is Everything — composing from `main` silently narrowed every
 		//subsequent clause to the published sections before anybody had typed
-		//anything, and the count they got was smaller than the corpus for a
-		//reason nothing on screen explained. Refining a collection the user is
-		//already in is untouched (spec principle 1).
-		assert.strictEqual(window.location.pathname, '/c/everything/starred/sort/recent/',
-			'Enter with no highlighted row opens the draft the user just composed');
+		//anything. It is applied when the composer OPENS now, so the sentence has
+		//said `Everything` from the first frame and this path is what it promised.
+		await pressComposer('Enter', { metaKey: true });
+		assert.strictEqual(window.location.pathname, '/c/everything/starred/',
+			'the commit opens the draft the user composed');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
 
@@ -716,7 +755,8 @@ describe('Collection Composer interactions', () => {
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await dialog.updateComplete;
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+		//THE COMMIT IS THE MODIFIER (round-3 tightness, B1).
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
 
@@ -762,7 +802,10 @@ describe('Collection Composer interactions', () => {
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await dialog.updateComplete;
-		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+		//THE COMMIT IS THE MODIFIER (round-3 tightness, B1). This used to be a
+		//plain Enter, on the contract that an Enter with nothing highlighted
+		//commits. It does nothing now; navigation is Cmd-Enter and the primary.
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		await bar.updateComplete;
 		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
@@ -819,12 +862,25 @@ describe('Collection Composer interactions', () => {
 		window.history.replaceState({}, '', '/c/main/');
 	});
 
-	it('Enter on an untouched draft closes the composer without navigating', async () => {
+	//SUPERSEDED PIN (round-3 tightness, B1). This was 'Enter on an untouched draft
+	//closes the composer without navigating' — an Enter into an empty composer
+	//committed a draft equivalent to the collection on screen, which closed the
+	//dialog and went nowhere. Enter never commits now. The property worth keeping
+	//is the one underneath: the FIRST keystroke into a composer nobody has typed
+	//into changes nothing at all, in the URL or in the draft.
+	it('Enter on an untouched draft leaves the composer exactly as it found it', async () => {
 		await seedRecents([['main/starred/', 4]]);
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 		await dialog.updateComplete;
 		assert.strictEqual(window.location.pathname, '/c/main/');
+		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true,
+			'nothing was aimed at, so nothing happened');
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
+		//And the modifier still closes it, on the collection the sentence has been
+		//showing since it opened (M6's seeded starting set).
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+		await dialog.updateComplete;
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 		assert.strictEqual(store.getState().collection.snapshot, null);
 	});
@@ -835,12 +891,26 @@ describe('Collection Composer interactions', () => {
 		//Arrowing into a list with nothing highlighted lands on the first row
 		//rather than skipping one.
 		assert.strictEqual(highlightedRow().id, 'collection-palette-row-0');
-		//The seeded recent and the Starred refinement resolve to the identical
-		//collection, so only one row offers it — the refinement, which teaches
-		//the transformation. Either way Enter lands on the same collection.
+		//SUPERSEDED PIN (round-3 tightness, M6). The seeded recent (`main/starred/`)
+		//and the Starred refinement used to resolve to the IDENTICAL collection,
+		//so the idle list's edit-keyed dedupe kept one of them. The draft is
+		//seeded from the sticky starting set when the composer opens now, so the
+		//refinement produces `everything/starred/` and the recent is genuinely a
+		//different collection — two rows for two collections, which is what the
+		//dedupe was always for. The property it protected is unchanged and is
+		//asserted directly: no collection is offered twice.
 		assert.match(rowText(highlightedRow()), /Starred/);
-		assert.ok(!suggestionLabels().some((label) => label.includes('Main · Starred')),
-			'the recent that duplicates a refinement\'s destination is not offered twice');
+		//The two rows name two different collections now, which is why both are
+		//offered; the dedupe still fires when they name one.
+		assert.deepStrictEqual(
+			dialog._paletteRows.filter((row) => row.description.serialize() === 'everything/starred/').length,
+			1,
+			'and the collection the refinement produces is still offered exactly once');
+		//A DESTINATION MAY LEAD THE IDLE LIST — that is what an idle list is for
+		//(M5 forbids it only as the answer to a typed token). So row 0 here is the
+		//remembered collection, and Enter replaces the draft with it whole.
+		const arrowed = dialog._paletteRows[0];
+		assert.strictEqual(arrowed.kind, 'destination');
 		await pressComposer('Enter');
 		//SUPERSEDED PIN (round 3, D1). Enter on the arrowed row used to NAVIGATE
 		//to it; it now executes it against the draft, and the commit modifier is
@@ -848,9 +918,12 @@ describe('Collection Composer interactions', () => {
 		//reason it survives: only an explicit Arrow (or typing) makes a row the
 		//Enter target at all.
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
+		assert.strictEqual(store.getState().collection.snapshot.setName, 'main',
+			'the recent replaced the draft whole, its own set included');
 		assert.strictEqual(window.location.pathname, '/c/main/');
 		await pressComposer('Enter', { ctrlKey: true });
-		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
+		assert.strictEqual(window.location.pathname, '/c/starred/',
+			'and the commit opens exactly the collection the row promised');
 	});
 
 	//Recents are destinations, and the collection you are already standing in is
@@ -1199,13 +1272,21 @@ describe('Collection Composer interactions', () => {
 		assert.ok(remove.querySelector('svg'), 'the remove control is an icon, not a text glyph');
 		assert.ok(!remove.textContent.includes('×'), 'the literal × is gone');
 
-		//The help badge defines a word; it is a footnote to the sentence, not
-		//its first element.
-		const sentenceChildren = Array.from(dialog.shadowRoot.querySelector('.sentence').children);
-		assert.ok(!sentenceChildren[0].classList.contains('help'),
-			'the badge must not open the sentence');
-		assert.ok(sentenceChildren[sentenceChildren.length - 1].classList.contains('help'),
-			'it follows the sentence instead');
+		//THE '?' BADGE IS CUT (round-3 tightness, C1). SUPERSEDED: this used to
+		//pin the badge to the END of the sentence — a footnote rather than a
+		//first element. The obligation it discharged (HOUSE-STYLE §1.3: define
+		//the noun) is kept and moved off the surface entirely, onto the dialog
+		//title, where hover and every screen reader reach it and nothing on
+		//screen has to say it. A visible help affordance is a CONCEPT, on a
+		//surface whose whole argument is that it has four of them.
+		assert.strictEqual(dialog.shadowRoot.querySelector('.sentence .help'), null,
+			'no help glyph rides the sentence');
+		const heading = dialog.shadowRoot.querySelector('#dialog-title');
+		assert.ok(heading, 'the dialog has its heading');
+		assert.match(heading.getAttribute('title') || '', /A collection is a set of cards you can link to\./,
+			'the definition is on the title, reachable by hover');
+		assert.strictEqual(heading.getAttribute('aria-description'), heading.getAttribute('title'),
+			'and read with the heading, so the obligation is kept for a screen reader too');
 
 		//And the old chip-row CSS is gone with the markup: none of the boxed
 		//clause-cell rules may survive into the palette's stylesheet.
@@ -1327,10 +1408,14 @@ describe('Collection Composer interactions', () => {
 			'and the next Escape closes the dialog');
 	});
 
-	//THE PILL ROW'S TWO COUNT ROLES, LIVE. "Draft now matches" is the fact the
-	//footer also states; "without this pill" is a prediction about a different
-	//collection, and it is what replaced the deleted "Remove X" rows.
-	it('wires both of the pill row’s counts to the preview machinery', async () => {
+	//THE PILL ROW STATES THE COUNT ONLY IT CAN ANSWER (round-3 tightness, minor).
+	//
+	//SUPERSEDED PIN: it used to state two — "draft now matches N", which the
+	//footer is already stating beside the control that would open it, and
+	//"without this pill: N", which nothing else on screen can say. Two live
+	//readouts of one number, three inches apart, moving together. The footer's is
+	//the one that survives, because it sits beside the button that acts on it.
+	it('wires the pill row’s own count to the preview machinery, and only that one', async () => {
 		await addRefineRow('Starred');
 		sentencePills()[0].click();
 		await settleRender(dialog);
@@ -1339,7 +1424,10 @@ describe('Collection Composer interactions', () => {
 			'without-pill-preview': 1842,
 		};
 		await settleRender(dialog, pillRow());
-		assert.match(pillRowText(), /draft now matches 184 cards/);
+		assert.doesNotMatch(pillRowText(), /draft now matches/,
+			'the draft’s own count is stated once, in the footer');
+		assert.match(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent, /184 cards/,
+			'and that is where it is');
 		assert.match(pillRowText(), /without this pill: 1842 cards/);
 	});
 
@@ -1597,23 +1685,25 @@ describe('Collection Composer interactions', () => {
 		//every step, because Tab added and Enter navigated. The owner's
 		//constitution collapses that: "ENTER EXECUTES THE TOP ACTION", and the
 		//whole composition is now literally type-enter-type-enter-…-CmdEnter.
-		const acceptTop = async (expectedRowID, key = 'Enter') => {
-			assert.strictEqual(dialog._paletteRows[0]?.id, expectedRowID,
-				`the top row must be ${expectedRowID}, not ${dialog._paletteRows.slice(0, 3).map((row) => row.id).join(' | ')}`);
-			await pressComposer(key);
-		};
+		//(The acceptTop helper went with step 1, whose set is now seeded at open;
+		//every surviving step asserts its own top row inline, which is the same
+		//check written where its reason is.)
 
-		//1. THE SET, as a typed word. It REPLACES; it never stacks.
-		await typeComposer('everything');
-		await acceptTop('set:everything');
+		//1. THE SET IS ALREADY THERE (round-3 tightness, M6). SUPERSEDED: this
+		//step used to type 'everything' and accept `set:everything`, because the
+		//composer opened on bare `main/` and the sticky starting set was applied
+		//at the first EDIT. It is applied when the composer OPENS now, so the
+		//draft already starts from Everything and the set is not offered as a
+		//change at all — choosing the set you are in is a no-op with a count
+		//beside it. What the step was pinning is unchanged and is asserted here:
+		//the sentence names where the draft starts, continuously, and the set is a
+		//word in it rather than a control beside it.
 		assert.strictEqual(store.getState().collection.snapshot.setName, 'everything');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
-		//SUPERSEDED PIN (round 3, D1): the receipt strip that named the new state
-		//('Starting from Everything') is deleted with the whole receipt concept.
-		//The sentence above the input is what says where the draft starts, and it
-		//says it continuously rather than once per edit.
 		assert.match(sentenceText(), /Everything/,
 			'the sentence names the state; nothing narrates the act of changing it');
+		assert.ok(!dialog._paletteRows.some((row) => row.id === 'set:everything'),
+			'and the set already in force is not offered as a change');
 
 		//2. A SYNONYM that reaches a family with no name of its own. 'stale' is
 		//the design's own worked example for why curated metadata was worth
@@ -1668,15 +1758,29 @@ describe('Collection Composer interactions', () => {
 			['updated/after/7-days-ago', 'combine/exclude/tag-complexity/tag-systems'],
 			'the two tags fuse into ONE union clause rather than becoming a second condition');
 
-		//5. A DATE PHRASE, parsed rather than guessed at. It leads the list.
+		//5. A DATE PHRASE, parsed rather than guessed at. It leads the list — and
+		//because the sentence ALREADY has an `updated` clause (step 2's rolling
+		//week), the top action is the CHANGE (round-3 tightness, M3), not a
+		//second date clause AND-ed onto the first.
+		//
+		//SUPERSEDED PIN: this used to expect three conditions, with
+		//`updated/after/30-days-ago` appended beside `updated/after/7-days-ago`.
+		//Their intersection is the narrower of the two windows, so the composer's
+		//answer to "make it thirty days" was a draft that still matched seven —
+		//silently, with two date pills to explain it. One clause, moved.
 		seedTags();
 		await settleRender(dialog);
 		await typeComposer('last 30 days');
 		assert.strictEqual(dialog._paletteRows[0].filter, 'updated/after/30-days-ago',
 			`a parsed phrase leads: ${dialog._paletteRows.slice(0, 3).map((row) => row.id).join(' | ')}`);
+		assert.strictEqual(dialog._paletteRows[0].valenceKind, 'change',
+			`and its top action is the change: ${dialog._paletteRows.slice(0, 3).map((row) => `${row.id}:${row.valenceKind}`).join(' | ')}`);
+		assert.strictEqual(dialog._paletteRows[0].annotation, 'change',
+			'said in the one annotation slot, in one quiet word');
 		await pressComposer('Enter');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
-			['updated/after/7-days-ago', 'combine/exclude/tag-complexity/tag-systems', 'updated/after/30-days-ago']);
+			['updated/after/30-days-ago', 'combine/exclude/tag-complexity/tag-systems'],
+			'the date clause KEPT ITS PLACE in the sentence and changed its value');
 		await closePillRow();
 
 		//6. THE SORT, by alias, and it replaces the word rather than adding a
@@ -1692,8 +1796,11 @@ describe('Collection Composer interactions', () => {
 		//THE WHOLE DESCRIPTION, assembled without a single pointer event.
 		const snapshot = store.getState().collection.snapshot;
 		assert.strictEqual(snapshot.setName, 'everything');
+		//TWO CONDITIONS, not three (round-3 tightness, M3): step 5's date phrase
+		//MOVED the date clause step 2 put in the sentence rather than AND-ing a
+		//second one beside it.
 		assert.deepStrictEqual(snapshot.filterNames,
-			['updated/after/7-days-ago', 'combine/exclude/tag-complexity/tag-systems', 'updated/after/30-days-ago']);
+			['updated/after/30-days-ago', 'combine/exclude/tag-complexity/tag-systems']);
 		assert.strictEqual(snapshot.sortName, 'stars');
 
 		//7. AND THE COMMIT, which is the ONLY keystroke in the run that navigates.
@@ -1704,7 +1811,7 @@ describe('Collection Composer interactions', () => {
 		await pressComposer('Enter', { metaKey: true });
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 		assert.strictEqual(window.location.pathname,
-			'/c/everything/updated/after/7-days-ago/combine/exclude/tag-complexity/tag-systems/updated/after/30-days-ago/sort/stars/');
+			'/c/everything/updated/after/30-days-ago/combine/exclude/tag-complexity/tag-systems/sort/stars/');
 		assert.strictEqual(mouseEvents, 0, 'the whole composition used no pointer at all');
 
 		for (const type of ['click', 'mousedown', 'mouseup', 'mousemove', 'mouseenter']) {
@@ -1907,16 +2014,33 @@ describe('Collection Composer interactions', () => {
 		assert.match(composerStyles(), /\.row-removes\s*\{[^}]*text-decoration:\s*line-through/,
 			'which is the outlined-not vocabulary one step further: struck');
 
-		//THE COMBINATORIAL ROW'S DIFF RIDES IN THE ANNOTATION SLOT — the same
-		//element a vocabulary row puts the word 'tag' in.
+		//SUPERSEDED PIN (round-3 tightness, S1). The combinatorial row's whole
+		//DIFF used to ride in the annotation slot — 'Removes Starred · Adds
+		//Unread · Sorts by Recent', a three-clause sentence in the element a
+		//vocabulary row puts the word 'tag' in. It was defended as "same shape,
+		//bigger payload"; on a real corpus the payload wrapped to three lines and
+		//made one species of row twice the height of every other, which is the
+		//same-KIND-of-thing rule broken by the mechanism meant to keep it. And it
+		//was ALREADY on screen: the row's own detail line is that sentence.
+		//
+		//The slot carries one quiet word now, from a closed vocabulary, and the
+		//diff stays where every other row's explanation lives.
 		await typeComposer('unread');
 		const recent = suggestionRows().find((button) => (button.dataset.rowId || '').startsWith('recent:'));
 		assert.ok(recent, 'the recent is reachable by typing');
 		const annotation = recent.querySelector('.row-label .row-annotation');
 		assert.ok(annotation, 'it uses the annotation slot, not a slot of its own');
-		assert.match(annotation.textContent, /Removes Starred/);
-		assert.match(annotation.textContent, /Adds Unread/);
-		assert.match(annotation.textContent, /Sorts by Recent/);
+		assert.strictEqual(annotation.textContent.trim(), 'recent',
+			'and puts ONE quiet word in it');
+		assert.ok(!annotation.textContent.includes(' · '),
+			'no row states a sentence in the annotation slot');
+		assert.match(composerStyles(), /\.row-annotation\s*\{[^}]*white-space:\s*nowrap/,
+			'and the rule enforces it: anything that would wrap does not belong there');
+		//THE DIFF IS ON THE ROW'S OWN DETAIL LINE, where the reader can ask for it.
+		const recentRow = dialog._paletteRows.find((row) => row.id.startsWith('recent:'));
+		assert.match(recentRow.detail, /Removes Starred/);
+		assert.match(recentRow.detail, /Adds Unread/);
+		assert.match(recentRow.detail, /Sorts by Recent/);
 	});
 
 	//TAB MATERIALIZES THE VALENCE ITSELF, not a re-derivation of it: the row
@@ -1941,7 +2065,15 @@ describe('Collection Composer interactions', () => {
 		await pressComposer('Backspace');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred']);
 		await typeComposer('unread');
-		await pressComposer('ArrowDown');
+		//AN OR IS A GRAFT, SO IT IS NO LONGER THE SECOND ROW (round-3 tightness,
+		//B2/M5): every literal reading of the token comes first, and the widening
+		//of an existing clause sits under them. It is still reachable, and still
+		//by arrow key — which is what this test is about. Arrow down until the
+		//keyboard is on it, exactly as a user would.
+		for (let step = 0; step < dialog._paletteRows.length; step++) {
+			if (highlightedRow() && highlightedRow().dataset.rowId === 'filter:unread:or:0') break;
+			await pressComposer('ArrowDown');
+		}
 		assert.strictEqual(highlightedRow().dataset.rowId, 'filter:unread:or:0');
 		await pressComposer('Tab');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred+unread'],
@@ -2010,10 +2142,14 @@ describe('Collection Composer interactions', () => {
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, [],
 			'and opening it in Source does not touch the draft');
 		assert.strictEqual(dialog._entryMode, 'source');
-		//`/c/main/exclude/`, not `/c/exclude/`: every collection path the composer
-		//writes comes from collectionURLPath, whose whole point is that the bare
-		//Main collection is never spelled as nothing.
-		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-input').value, '/c/main/exclude/');
+		//`/c/everything/exclude/`, not `/c/exclude/`: every collection path the
+		//composer writes comes from collectionURLPath, whose whole point is that a
+		//bare collection is never spelled as nothing. The set is `everything`
+		//because the composer seeds the sticky starting set when it OPENS now
+		//(round-3 tightness, M6) — this line used to read `/c/main/`, which was
+		//the set the draft still had while the sentence above it was about to
+		//commit a different one.
+		assert.strictEqual(dialog.shadowRoot.querySelector('#collection-source-input').value, '/c/everything/exclude/');
 		assert.match(dialog.shadowRoot.querySelector('.source-status').textContent, /needs 1 more value/);
 		assert.match(dialog.shadowRoot.querySelector('#collection-source-completions').textContent, /Working Notes/);
 		const source = dialog.shadowRoot.querySelector('#collection-source-input');
@@ -2307,13 +2443,32 @@ describe('Collection Composer interactions', () => {
 		await settleRender(dialog);
 		assert.strictEqual(dialog._wordScope, 'set');
 		const setRows = suggestionLabels();
-		assert.ok(setRows.includes('Main'), `the alternatives are the sets: ${setRows.join(', ')}`);
+		assert.ok(setRows.some((label) => label.startsWith('Main')), `the alternatives are the sets: ${setRows.join(', ')}`);
 		//The draft already starts from Everything (the sticky default), so the
 		//CHANGE this pins is the one back to Main — the list marks the one in
 		//force rather than deleting it, which is what makes it answerable.
 		assert.ok(setRows.some((label) => label.includes('Everything') && label.includes('current')),
 			`the list says which set you are in: ${setRows.join(', ')}`);
-		suggestionRows().find((button) => rowText(button) === 'Main').click();
+		//A WORD-SCOPE ROW WEARS THE STANDARD ANATOMY (round-3 tightness, S4).
+		//This feed used to be the one carrying no annotation at all — bare
+		//labels, in a list where every other row says what kind of thing it is —
+		//and the option in force wore a FOURTH element, '✓ current', in a size of
+		//its own beside the slot that was empty. One slot, one word; and on the
+		//row you are already in, the more useful word.
+		const setButtons = suggestionRows();
+		const mainRow = setButtons.find((button) => rowText(button).startsWith('Main'));
+		assert.strictEqual(mainRow.querySelector('.row-label .row-annotation').textContent.trim(), 'set');
+		const currentRow = setButtons.find((button) => rowText(button).includes('Everything'));
+		assert.strictEqual(currentRow.querySelector('.row-label .row-annotation').textContent.trim(), '✓ current');
+		assert.strictEqual(dialog.shadowRoot.querySelector('.row-current'), null,
+			'the fourth element is deleted');
+		assert.doesNotMatch(composerStyles(), /\.row-current\s*\{/,
+			'and so is its rule');
+		//AND THE SCOPE STATES ITS OWN CONTRACT, as the or-scoped input does: a
+		//footer describing the keys of a mode you are not in is a footer lying.
+		assert.match(dialog.shadowRoot.querySelector('.key-hints').textContent, /what to start from/,
+			`the word scope names its own contract: ${dialog.shadowRoot.querySelector('.key-hints').textContent}`);
+		suggestionRows().find((button) => rowText(button).startsWith('Main')).click();
 		await settleRender(dialog);
 		assert.strictEqual(store.getState().collection.snapshot.setName, 'main');
 		assert.strictEqual(dialog._wordScope, '', 'and choosing one leaves the feed');
@@ -2327,8 +2482,12 @@ describe('Collection Composer interactions', () => {
 		dialog._openWordScope('sort');
 		await settleRender(dialog);
 		const sortLabels = suggestionLabels();
-		assert.ok(sortLabels.includes('Recent'), `the alternatives are the orders: ${sortLabels.join(', ')}`);
-		assert.ok(sortLabels.includes('Reverse order'), 'reversing lives with the order it reverses');
+		//Each label carries its own quiet annotation now (S4), so these read
+		//'Recentsort' when the text is run together.
+		assert.ok(sortLabels.some((label) => label.startsWith('Recent')), `the alternatives are the orders: ${sortLabels.join(', ')}`);
+		assert.ok(sortLabels.some((label) => label.startsWith('Reverse order')), 'reversing lives with the order it reverses');
+		assert.ok(sortLabels.some((label) => label.includes('current')),
+			`and the order in force says so, in the same slot: ${sortLabels.join(', ')}`);
 		assert.ok(suggestionRows().some((button) => button.dataset.rowId === 'view:web'),
 			'and the views are words too');
 		suggestionRows().find((button) => button.dataset.rowId === 'view:web').click();
@@ -2463,11 +2622,12 @@ describe('Collection Composer interactions', () => {
 		input.setSelectionRange(input.value.length, input.value.length);
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'upd' }));
 		await dialog.updateComplete;
-		//Source now OPENS at '/c/main/', because '/c/' names no collection at
-		//all — the old text handed the router an empty collection portion. The
-		//add-next position is still the end of that text, which is the property
-		//this test is about.
-		assert.strictEqual(input.value, '/c/main/upd/');
+		//Source now OPENS at the composer's own draft path, because '/c/' names no
+		//collection at all — the old text handed the router an empty collection
+		//portion. The set is `everything` because the sticky starting set is
+		//seeded when the composer opens (M6). The add-next position is still the
+		//end of that text, which is the property this test is about.
+		assert.strictEqual(input.value, '/c/everything/upd/');
 		assert.match(dialog.shadowRoot.textContent, /Updated/);
 	});
 
@@ -2866,13 +3026,15 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 		dialog.shadowRoot.querySelector('.composer-actions .primary').click();
 		await dialog.updateComplete;
-		//Undo restored both halves, so the draft is the collection already on
-		//screen and, per the spec, opening it just closes the composer instead of
-		//adding a duplicate history entry. (This used to assert "/c/", the same
-		//collection spelled differently, which is the duplicate entry the spec
-		//forbids.) A half-undo -- description restored but card-42 still attached
-		//-- would show up here as a navigation to /c/card-42.
-		assert.strictEqual(window.location.pathname, '/c/main/');
+		//Undo restored both halves, so the draft is the bare default view — which
+		//the composer seeds from the sticky starting set when it opens (round-3
+		//tightness, M6), so the primary opens what the sentence has been saying
+		//since the first frame. (This used to assert '/c/main/', on the old
+		//contract where the rewrite waited for the first edit; before that it
+		//asserted '/c/', the same collection spelled differently.) A half-undo --
+		//description restored but card-42 still attached -- would still show up
+		//here, as a navigation carrying /card-42.
+		assert.strictEqual(window.location.pathname, '/c/everything/');
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, false);
 	});
 
@@ -3769,11 +3931,17 @@ describe('Collection Composer interactions', () => {
 				dialog._retainedPreviewCounts.set(dialog._previewCountKey(dialog._collectionDescription), count);
 				dialog._refreshPreviewCounts();
 			};
+			const footerCount = () => dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent;
 			known(57);
 			await openPillRow();
-			//'now', because a clause edit is already in the draft — there is no
-			//pending state to be conditional about.
-			assert.match(pillRowText(), /draft now matches 57 cards/);
+			//THE DRAFT'S COUNT IS STATED ONCE, IN THE FOOTER (round-3 tightness,
+			//minor). SUPERSEDED: the row used to repeat it — 'draft now matches 57
+			//cards' — three inches above the same number beside the commit button.
+			//What this test is about is unchanged: the count is LIVE, it moves
+			//when the values do, and it comes through the component's own retained
+			//cache. It is read where the design now states it.
+			assert.match(footerCount(), /57 cards/);
+			assert.doesNotMatch(pillRowText(), /draft now matches/);
 
 			//Changing a value makes it a different collection, so the number is
 			//genuinely unknown — and the row omits it rather than showing a stale
@@ -3790,7 +3958,7 @@ describe('Collection Composer interactions', () => {
 			//And the answer for the new values lands in the same place.
 			known(12);
 			await settleRender(dialog, pillRow());
-			assert.match(pillRowText(), /draft now matches 12 cards/);
+			assert.match(footerCount(), /12 cards/);
 		} finally {
 			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
@@ -3813,7 +3981,10 @@ describe('Collection Composer interactions', () => {
 			dialog._retainedPreviewCounts.set(dialog._previewCountKey(without), 1842);
 			dialog._refreshPreviewCounts();
 			await settleRender(dialog, pillRow());
-			assert.match(pillRowText(), /draft now matches 57 cards/, 'the fact');
+			//The fact is in the footer, once (round-3 tightness, minor); the
+			//prediction is here, because nothing else on screen can say it.
+			assert.match(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent, /57 cards/, 'the fact');
+			assert.doesNotMatch(pillRowText(), /draft now matches/, 'and it is not said twice');
 			assert.match(pillRowText(), /without this pill: 1842 cards/, 'and the prediction');
 			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
 				['starred', 'updated/after/7-days-ago'],
@@ -4033,15 +4204,62 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(line().textContent.trim(),
 			'Perf card 12 · What is this? · Third one · and 118 more');
 
+		//AND IT SAYS WHICH CARDS ONLY WHEN IT CAN (round-3 tightness, C2). A real
+		//corpus repeats titles — this one opens on three cards all called 'What
+		//is this?' — and the strip read that name three times in a line whose
+		//whole job is to tell cards apart. Consecutive repeats collapse.
+		dialog._cardTagInfos = {
+			'card-a': { id: 'card-a', title: 'What is this?' },
+			'card-b': { id: 'card-b', title: 'What is this?' },
+			'card-c': { id: 'card-c', title: 'Third one' },
+		};
+		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c']);
+		await settleRender(dialog);
+		assert.strictEqual(line().textContent.trim(), 'What is this? · Third one · and 118 more',
+			'a repeated title is said once, and the remainder still counts CARDS');
+
+		//AND A STRIP THAT WOULD NAME FEWER THAN TWO DISTINCT CARDS IS NOT A
+		//PREVIEW: one name and a remainder is the count again, spelled longer.
+		dialog._cardTagInfos = {
+			'card-a': { id: 'card-a', title: 'What is this?' },
+			'card-b': { id: 'card-b', title: 'What is this?' },
+			'card-c': { id: 'card-c', title: 'What is this?' },
+		};
+		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c']);
+		await settleRender(dialog);
+		assert.strictEqual(line(), null,
+			'a line that distinguishes nothing is dropped rather than shown');
+
+		//Back to the distinguishable fixture for the assertions below.
+		dialog._cardTagInfos = {
+			'card-a': { id: 'card-a', title: 'Perf card 12' },
+			'card-b': { id: 'card-b', title: 'What is this?' },
+			'card-c': { id: 'card-c', title: 'Third one' },
+		};
+		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c', 'card-d']);
+		await settleRender(dialog);
+		assert.ok(line(), 'the names are back');
+
 		//IT IS BENEATH THE FOOTER COUNT, which is the number it is evidence for.
 		const actions = dialog.shadowRoot.querySelector('.buttons.composer-actions');
 		assert.ok(actions.compareDocumentPosition(line()) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 		//A CARD WHOSE RECORD HAS NOT LOADED IS SKIPPED, never named by its id:
 		//an internal identifier never reaches a user (HS-1.4).
+		dialog._cardTagInfos = {
+			'card-b': { id: 'card-b', title: 'What is this?' },
+			'card-c': { id: 'card-c', title: 'Third one' },
+		};
+		await settleRender(dialog);
+		assert.strictEqual(line().textContent.trim(), 'What is this? · Third one · and 119 more',
+			'the unloaded card is skipped, and the remainder still counts it');
+		//SUPERSEDED PIN (round-3 tightness, C2): with ONE card loaded this used to
+		//read 'What is this? · and 120 more'. One name plus a remainder is the
+		//count again, spelled longer — a strip whose job is to say WHICH cards
+		//and which cannot tell two apart is dropped rather than shown.
 		dialog._cardTagInfos = { 'card-b': { id: 'card-b', title: 'What is this?' } };
 		await settleRender(dialog);
-		assert.strictEqual(line().textContent.trim(), 'What is this? · and 120 more');
+		assert.strictEqual(line(), null, 'one name is not a preview of a collection');
 		dialog._cardTagInfos = {};
 		await settleRender(dialog);
 		assert.strictEqual(line(), null, 'and with none of them loaded there is no line at all');
@@ -4106,28 +4324,52 @@ describe('Collection Composer interactions', () => {
 			'and it may wrap here rather than being cut off');
 	});
 
-	//A FOOTER MUST NOT NAME CONTROLS THE DEVICE DOES NOT HAVE.
+	//A FOOTER MUST NOT NAME CONTROLS THE DEVICE DOES NOT HAVE — AND "THE DEVICE"
+	//IS A QUESTION ABOUT THE POINTER, NOT ABOUT THE WINDOW.
 	//
-	//On a touch layout the contract line still read "↑↓ or Tab choose · Click
-	//edits…" — four inputs a phone has none of. Same class of defect as naming
-	//the wrong verb, one level up. Each row now carries its own visible verb
-	//chip, so the touch line points at that.
-	it('states a contract a touch layout can actually keep', async () => {
+	//On a touch layout the contract line read "↑↓ or Tab choose · Click edits…" —
+	//four inputs a phone has none of. SUPERSEDED (round-3 tightness, minor): the
+	//fix keyed on `mobile`, which is the app's SIZE flag, so a desktop browser
+	//somebody had made short got the tap copy. Measured live at 900x420, where
+	//`(hover: none)` and `(pointer: coarse)` were both false and the footer said
+	//'Tap a row to use it' to a machine with a keyboard and a mouse. The copy
+	//keys off the input the reader actually has; the LAYOUT (44px targets, the
+	//wrapped grid) still keys off the size, which really is about room.
+	it('states a contract the reader’s own input can actually keep', async () => {
 		const hints = () => dialog.shadowRoot.querySelector('.key-hints').textContent;
 		await seedRecents([['main/starred/sort/recent/', 2]]);
 		assert.match(hints(), /Enter/, 'the desktop line names the keys');
 
+		//A SMALL WINDOW IS NOT A FINGER. This is the case the pointer query
+		//exists for, and it is the common one: a narrow desktop browser.
 		dialog.mobile = true;
 		await dialog.updateComplete;
-		const mobileHints = hints();
-		for (const keyboardOnly of ['↑↓', 'Tab', 'Enter', 'Escape', 'Esc', 'Cmd', 'Ctrl', 'Click']) {
-			assert.ok(!mobileHints.includes(keyboardOnly),
-				`the touch contract must not name ${keyboardOnly}: ${mobileHints}`);
+		assert.match(hints(), /Enter/,
+			'a hover-capable pointer keeps the keyboard contract however small the window is');
+
+		const realMatchMedia = window.matchMedia;
+		window.matchMedia = (query) => ({
+			matches: query.includes('hover: none'),
+			media: query,
+			addEventListener: () => {},
+			removeEventListener: () => {},
+		});
+		try {
+			dialog.requestUpdate();
+			await dialog.updateComplete;
+			const touchHints = hints();
+			for (const keyboardOnly of ['↑↓', 'Tab', 'Enter', 'Escape', 'Esc', 'Cmd', 'Ctrl', 'Click']) {
+				assert.ok(!touchHints.includes(keyboardOnly),
+					`the touch contract must not name ${keyboardOnly}: ${touchHints}`);
+			}
+			assert.match(touchHints, /Tap a row to use it/);
+			assert.match(touchHints, /tap the open button for this collection/);
+		} finally {
+			window.matchMedia = realMatchMedia;
+			dialog.mobile = false;
+			dialog.requestUpdate();
+			await dialog.updateComplete;
 		}
-		assert.match(mobileHints, /Tap a row to use it/);
-		assert.match(mobileHints, /tap the open button for this collection/);
-		dialog.mobile = false;
-		await dialog.updateComplete;
 	});
 
 	it('keeps the collection sentence out of the card scroller', async () => {
@@ -4275,22 +4517,21 @@ describe('Collection Composer interactions', () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
 		const headings = Array.from(dialog.shadowRoot.querySelectorAll('.suggestion-heading'))
 			.map((element) => element.textContent.trim());
-		//THREE RUNS, in the words the design names — and the third is the
-		//round-2 correction. Recents are "the first content of the first
-		//gesture"; the refinements under them are still capped at three; and
-		//under THOSE is the entire vocabulary, which used to sit behind a
-		//`Browse all filters` link. The owner's model: "the list should show
-		//some pre-configured items (recents/suggestions) but also just filter
-		//the WHOLE set (don't hide the full set of filters — it shows the
-		//power)."
+		//TWO RUNS (round-3 tightness, S2). SUPERSEDED: there were three, and the
+		//middle one was headed 'Refine'. The rows under it are the same species
+		//as the rows under the third — a pill, a count, one quiet word — doing
+		//the same thing, in the order the ranking already put them in. A heading
+		//between two runs of one species is a wall that says only "the ranking
+		//stops here and starts again", and the constitution's model is ONE ranked
+		//list. The contextual rows keep their rank and lose the label.
 		//
-		//It is ONE heading for the whole vocabulary, not one per category. The
-		//category is an annotation on each row instead, because a wall of
-		//headings would outrank the ranking — which is exactly the defect that
-		//made 'Suggested for this card' beat an exact name match in the feed
+		//It is ONE heading for everything you can do to the draft, not one per
+		//category. The category is an annotation on each row instead, because a
+		//wall of headings would outrank the ranking — which is exactly the defect
+		//that made 'Suggested for this card' beat an exact name match in the feed
 		//this replaced.
-		assert.deepStrictEqual(headings, ['Recent', 'Refine', 'Everything you can add'],
-			`the idle list is recents, a short Refine, then the vocabulary: ${headings.join(' | ')}`);
+		assert.deepStrictEqual(headings, ['Recent', 'Everything you can add'],
+			`the idle list is recents, then one ranked run: ${headings.join(' | ')}`);
 		for (const heading of headings) {
 			assert.notStrictEqual(heading, heading.toUpperCase(), `heading is ALL CAPS: ${heading}`);
 		}
@@ -4664,31 +4905,37 @@ describe('Collection Composer interactions', () => {
 		assert.match(drawer, /Didn’t understand/, 'the notice is still shown');
 	});
 
-	//SPEC §Narrow: suggestions are suppressed when they are contradictory. A
-	//narrowing clause whose RESOLVED count is zero, offered under the heading
-	//"Refine this collection", proposes a refinement that refines the collection
-	//out of existence.
-	it('keeps a contradictory refinement out of the Refine list, and in Browse all', async () => {
+	//SPEC §Narrow: an unsolicited clause whose RESOLVED count is zero proposes a
+	//refinement that refines the collection out of existence.
+	//
+	//AND THE RULE REACHES THE WHOLE IDLE LIST NOW (round-3 tightness, minor).
+	//The suppression covered only the three contextual rows, so the vocabulary
+	//run beneath them was never touched: signed out, the idle list opened with
+	//`Starred → 0` in the first screenful — a row leading with a promise to empty
+	//the collection, which is the defect the rule exists to prevent, one run
+	//down. Zero SINKS across the whole idle list; a contradictory contextual row
+	//is still suppressed outright, because it was an offer nobody asked for.
+	it('keeps a contradictory refinement from leading the idle list, and never hides it', async () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
-		//A resolved, non-zero draft, and a resolved zero for one Refine row.
+		//A resolved, non-zero draft, and a resolved zero for one contextual row.
 		const draftKey = dialog._previewCountKey(dialog._collectionDescription);
 		dialog._retainedPreviewCounts.set(draftKey, 42);
-		const addRow = dialog._paletteRows.find(row => row.section === 'Refine' && !row.navigates);
+		const addRow = dialog._paletteRows.find(row => row.kind !== 'destination' && row.description.filters.length);
 		assert.ok(addRow, 'there is a refinement to suppress');
 		const addedFilter = addRow.description.filters.slice(-1)[0];
 		dialog._retainedPreviewCounts.set(dialog._previewCountKey(addRow.description), 0);
 		dialog.requestUpdate();
 		await settleRender(dialog);
-		assert.ok(!dialog._paletteRows.some(row => row.id === addRow.id),
-			'a clause that resolves to nothing is not a refinement');
-		//Still findable: Browse all is the whole index and is untouched.
-		browseAll().click();
-		await settleRender(dialog);
-		assert.ok(suggestionRows().some(button => button.dataset.filter === addedFilter),
-			`the filter itself is still in Browse all: ${addedFilter}`);
-		browseAll().click();
-		await settleRender(dialog);
-		//And once the user NAMES it, it comes back — the rows are then
+		const rows = dialog._paletteRows;
+		const zeroIndex = rows.findIndex(row => row.id === addRow.id);
+		if (zeroIndex >= 0) {
+			//It survived as a vocabulary row: then it must not LEAD its run.
+			const run = rows.filter(row => row.section === rows[zeroIndex].section);
+			assert.ok(run.slice(0, run.indexOf(rows[zeroIndex])).some(row =>
+				dialog._countForDescription(dialog._appliedDescription(row)) !== 0),
+			'a zero-count row sinks within its run rather than leading it');
+		}
+		//And once the user NAMES it, it comes back at the top — the rows are then
 		//interpretations of what they typed, not unsolicited offers.
 		await typeComposer(dialog._composerFilterLabels[addedFilter] || addedFilter);
 		assert.ok(dialog._paletteRows.some(row => row.description.serialize() === addRow.description.serialize()),
@@ -4702,9 +4949,14 @@ describe('Collection Composer interactions', () => {
 	//the user actually has is "which of these clauses emptied it?", and it is
 	//answered by the per-clause removals with their counts beside them — the one
 	//whose removal brings the collection back is visible at a glance. The rows
-	//come from the same generator the Refine list uses, so a recovery row and
-	//pressing Remove on the pill compile the same edit.
+	//come from the SAME expression the sentence renders, so a recovery row and
+	//pressing Remove on the pill compile the same edit and neither can omit a
+	//clause the other shows.
 	it('offers the per-clause removals when the draft matches nothing', async () => {
+		//Previews ON, because the point of this section is its NUMBERS: the rows
+		//come into existence when the draft's own count arrives, and the defect
+		//M4 fixed was that nothing then asked for theirs.
+		window.localStorage.setItem('collection-composer-preview', 'on');
 		await seedDraft('everything/starred/has-todo/');
 		try {
 			//SUPERSEDED PIN (round 3, D3). The section was headed 'Nothing
@@ -4720,8 +4972,14 @@ describe('Collection Composer interactions', () => {
 				'a collection nobody has counted yet is not a collection to recover from');
 
 			const draftKey = dialog._previewCountKey(dialog._collectionDescription);
+			const withoutStarred = 'starred-removed';
+			const withoutTodo = 'todo-removed';
+			void withoutStarred; void withoutTodo;
 			dialog._retainedPreviewCounts.set(draftKey, 0);
-			dialog.requestUpdate();
+			//THE ROWS COME INTO EXISTENCE BECAUSE A COUNT ARRIVED, so the request
+			//for THEIR counts has to be re-made — which is the M4 root cause and
+			//is why this drives the refresh rather than a bare requestUpdate.
+			dialog._refreshPreviewCounts();
 			await settleRender(dialog);
 			const recovery = dialog._paletteRows.filter(row => row.section === 'Try removing');
 			assert.strictEqual(recovery.length, 2, 'one row per clause the draft has');
@@ -4734,16 +4992,67 @@ describe('Collection Composer interactions', () => {
 			assert.deepStrictEqual(dialog._paletteRows.slice(0, 2).map(row => row.id), recovery.map(row => row.id),
 				`recovery leads the idle list: ${dialog._paletteRows.slice(0, 4).map(row => `${row.section}/${row.id}`).join(' | ')}`);
 			assert.deepStrictEqual(
-				recovery.map(row => row.description.filters),
-				[['has-todo'], ['starred']],
+				recovery.map(row => row.description.filters).sort(),
+				[['has-todo'], ['starred']].sort(),
 				'each row is the collection without exactly one clause, which is what its count counts'
 			);
+
+			//SAME SPECIES AS A TYPED REMOVE ROW (round-3 tightness, M4).
+			//SUPERSEDED: these came through the suggestion module's removal
+			//generator and wore its verb label — 'Remove Tagged Ecosystems' — with
+			//no pill, in the one place a user is already confused. Every removal
+			//in this product is a struck pill plus the word `remove`.
+			await settleRender(dialog);
+			for (const row of recovery) {
+				assert.strictEqual(row.removes, true);
+				assert.strictEqual(row.valenceKind, 'remove');
+				assert.strictEqual(row.annotation, 'remove', 'one quiet word, the same one a typed remove uses');
+				assert.ok(row.pillExpression && row.pillExpression.length === 1,
+					'and it shows the pill it takes out');
+				assert.ok(!/^Remove /.test(row.label), `no verb label: ${row.label}`);
+			}
+			const rendered = suggestionRows().slice(0, 2);
+			for (const button of rendered) {
+				assert.ok(button.querySelector('.row-label collection-sentence'),
+					'rendered through the sentence renderer, like every other pill row');
+				assert.ok(button.querySelector('.row-label').classList.contains('row-removes'),
+					'wearing the removal treatment');
+			}
+
+			//THE COUNTS ARE ASKED FOR, AND THEY ORDER THE SECTION (M4). The
+			//question is "which of these emptied it?", so the removal that brings
+			//back the most cards is the first row rather than whichever clause
+			//happens to be leftmost in the sentence.
+			const byFilter = (filters) => recovery.find(row =>
+				row.description.filters.join('/') === filters);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(byFilter('starred').description), 900);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(byFilter('has-todo').description), 4);
+			dialog._refreshPreviewCounts();
+			await settleRender(dialog);
+			const ordered = dialog._paletteRows.filter(row => row.section === 'Try removing');
+			assert.deepStrictEqual(ordered.map(row => row.description.filters.join('/')), ['starred', 'has-todo'],
+				'the removal that recovers the most leads');
+			//AND THEIR COUNTS WERE ACTUALLY ASKED FOR. This is M4's root cause
+			//pinned directly: the recovery rows exist only because a count
+			//arrived, and a count arriving did not used to re-ask for the rows it
+			//had just created — so the section whose entire job is to answer
+			//"which of these emptied it?" rendered with no numbers in it at all.
+			for (const row of ordered) {
+				assert.ok(dialog._rowCountMeaningful(row), 'a removal has a count to state');
+				assert.ok(row.id in dialog._previewCounts,
+					`the row's count was requested and delivered: ${Object.keys(dialog._previewCounts).join(', ')}`);
+			}
+			assert.strictEqual(dialog._rowCountText(ordered[0]), '0 cards → 900 cards',
+				'and every row states what it would recover, honestly');
+			assert.strictEqual(dialog._rowCountText(ordered[1]), '0 cards → 4 cards');
+
 			//And a non-empty draft has nothing to recover from.
 			dialog._retainedPreviewCounts.set(draftKey, 9);
-			dialog.requestUpdate();
+			dialog._refreshPreviewCounts();
 			await settleRender(dialog);
 			assert.ok(!dialog._paletteRows.some(row => row.section === 'Try removing'));
 		} finally {
+			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
 		}
 	});
@@ -4776,8 +5085,32 @@ describe('Collection Composer interactions', () => {
 			const rows = dialog._paletteRows;
 			const zeroIndex = rows.findIndex(row => row.description.serialize() === add.description.serialize());
 			assert.ok(zeroIndex >= 0, 'the zero-count row is still offered — the count is the warning');
-			assert.ok(rows.slice(0, zeroIndex).some(row => dialog._countForDescription(row.description) !== 0),
-				'and it no longer leads the list');
+			//SUPERSEDED PIN (round-3 tightness, B2). It used to assert that the
+			//zero-count row 'no longer leads the list'. That is right for a row
+			//nobody named and wrong for THIS one: 'unread' is exactly what the
+			//user typed, and the row is the plain add of it. The critique's own
+			//repro — a fresh date phrase against a two-tag draft — put the parsed
+			//phrase's own pill SEVENTH, under two or-grafts containing it and
+			//three readings of the raw words, because its count had come back
+			//zero. The honest zero on the literal row, plus the recovery section
+			//it triggers, IS the design's answer to "that selects nothing".
+			//
+			//The zero-sink survives WITHIN the secondary rows, which is where it
+			//was always useful: among several readings of an ambiguous token, the
+			//ones that select nothing go last.
+			assert.strictEqual(zeroIndex, 0,
+				`the row that IS the typed thing leads, zero or not: ${rows.slice(0, 4).map(row => `${row.id}:${dialog._countForDescription(dialog._appliedDescription(row))}`).join(' | ')}`);
+			const secondary = rows.slice(1);
+			const firstZero = secondary.findIndex(row => dialog._rowCountMeaningful(row) &&
+				dialog._countForDescription(dialog._appliedDescription(row)) === 0);
+			const lastKnown = secondary.map(row => dialog._rowCountMeaningful(row) &&
+				dialog._countForDescription(dialog._appliedDescription(row))).lastIndexOf(0);
+			void lastKnown;
+			if (firstZero >= 0) {
+				assert.ok(secondary.slice(0, firstZero).every(row =>
+					dialog._countForDescription(dialog._appliedDescription(row)) !== 0),
+				'and among the secondary rows a zero still goes last');
+			}
 		} finally {
 			await typeComposer('');
 			dialog._retainedPreviewCounts.clear();
