@@ -3,12 +3,14 @@
 //THE PILL ROW, the one-line editor that replaces the anchored editor panels.
 //
 //Behavioral, over the real registered component. What is worth pinning is what
-//the design promises about the three verbs:
+//the design promises about the three actions:
 //
-//  - Flip prefers the app's own INVERSE WORD. `published` must become
+//  - Invert prefers the app's own INVERSE WORD. `published` must become
 //    `unpublished` and not `exclude/published`, and the row must say which of
-//    those two the user is about to get before they press it.
-//  - Remove on one alternative DISSOLVES the group it leaves behind with a
+//    those two the user is about to get before they press it. The verb is
+//    spelled INVERT (owner, F2): 'Flip' named the gesture, and the title under
+//    it was already promising the resulting WORD.
+//  - Removal on one alternative DISSOLVES the group it leaves behind with a
 //    single member, because the sentence must never draw a group container
 //    around one pill.
 //  - The widening verb is a request, not an edit: this row knows which token an
@@ -16,9 +18,13 @@
 //    'Also match…' (owner, F1): 'Or…' was the URL's operator with an ellipsis
 //    after it, and the phrase that replaces it is the one the scoped input it
 //    opens already uses.
-//  - And all three read as BUTTONS (owner, F1: they "don't read as buttons and
-//    are kind of confusing"), which here means the composer's outlined
-//    transform-chip treatment rather than purple link text.
+//  - The two REWRITING verbs read as BUTTONS (owner, F1: they "don't read as
+//    buttons and are kind of confusing"), which here means the composer's
+//    outlined transform-chip treatment rather than purple link text. Removal is
+//    not one of them: it is the app's ✕ (owner, F1), the same glyph tag-chip and
+//    the sentence pill already use, in the same trailing place.
+//  - And every label/control pair in the row shares ONE alignment rule (owner,
+//    F3), so a label cannot sit at a different height from the control it names.
 //
 //And the counts are properties. A row that invented one would be making a
 //promise about a collection nobody computed.
@@ -35,7 +41,7 @@ for (const name of [
 	'navigator', 'getComputedStyle', 'MutationObserver', 'requestAnimationFrame',
 ]) globalThis[name] = name === 'window' ? dom.window : name === 'document' ? dom.window.document : dom.window[name];
 
-const { OR_VERB_LABEL } = await import('../../lib/src/components/collection-pill-row.js');
+const { OR_VERB_LABEL, INVERT_VERB_LABEL } = await import('../../lib/src/components/collection-pill-row.js');
 const { serializeCollectionExpression } = await import('../../lib/src/collection-expression.js');
 
 const filter = (name) => ({ kind: 'filter', filter: name });
@@ -51,29 +57,39 @@ const mount = async (properties) => {
 const verb = (element, label) => Array.from(element.shadowRoot.querySelectorAll('button.verb'))
 	.find(button => button.textContent.trim() === label);
 
+//REMOVAL IS NO LONGER FOUND BY ITS WORDS, because it no longer has any: it is
+//the ✕ (owner, F1). Its NAME is asserted separately, below — an icon-only
+//control is exactly the kind that can lose one silently, so finding it and
+//naming it are two different questions and get two different lines.
+const removeControl = (element) => element.shadowRoot.querySelector('button.remove');
+
 const rowText = (element) => element.shadowRoot.querySelector('.row').textContent.replace(/\s+/g, ' ').trim();
 
-//The one thing a host is handed when a verb is pressed: the whole next tree.
-const nextExpression = async (element, label) => {
+//The one thing a host is handed when an action is pressed: the whole next tree.
+const nextExpressionFrom = async (element, control) => {
 	let result = null;
 	element.addEventListener('expression-modified', (e) => { result = e.detail.expression; });
-	verb(element, label).click();
+	control.click();
 	await element.updateComplete;
 	return result;
 };
 
+const nextExpression = async (element, label) => nextExpressionFrom(element, verb(element, label));
+
+const nextExpressionAfterRemove = async (element) => nextExpressionFrom(element, removeControl(element));
+
 describe('the pill row', () => {
 
-	describe('flip', () => {
+	describe('invert', () => {
 
-		//NEGATION IS LANGUAGE, and the app already owns the words. Flipping
+		//NEGATION IS LANGUAGE, and the app already owns the words. Inverting
 		//`published` must produce the FILTER `unpublished`, not a not-node that
 		//would compile to exclude/published — the composer would otherwise be
 		//able to re-spell one into the other and call it an edit.
 		it('prefers the app\'s own inverse word over an operator', async () => {
 			const element = await mount({ expression: [filter('published')], index: 0 });
 
-			const next = await nextExpression(element, 'Flip');
+			const next = await nextExpression(element, INVERT_VERB_LABEL);
 
 			assert.deepStrictEqual(next, [filter('unpublished')]);
 			assert.deepStrictEqual(serializeCollectionExpression(next), ['unpublished'],
@@ -82,35 +98,35 @@ describe('the pill row', () => {
 
 		it('promises which word the pill will read, before it is pressed', async () => {
 			const element = await mount({ expression: [filter('published')], index: 0 });
-			assert.match(verb(element, 'Flip').getAttribute('title'), /Unpublished/,
+			assert.match(verb(element, INVERT_VERB_LABEL).getAttribute('title'), /Unpublished/,
 				'the user is told what they are about to get');
-			assert.ok(!/outlined/.test(verb(element, 'Flip').getAttribute('title')),
+			assert.ok(!/outlined/.test(verb(element, INVERT_VERB_LABEL).getAttribute('title')),
 				'a named inverse is a plain word on a plain pill');
 		});
 
 		it('says so differently when there is no word and the pill will be outlined', async () => {
 			const element = await mount({ expression: [filter('tag-3')], index: 0 });
-			assert.match(verb(element, 'Flip').getAttribute('title'), /outlined pill/);
+			assert.match(verb(element, INVERT_VERB_LABEL).getAttribute('title'), /outlined pill/);
 		});
 
-		it('flips one alternative inside a group without touching the others', async () => {
+		it('inverts one alternative inside a group without touching the others', async () => {
 			const element = await mount({
 				expression: [{ kind: 'or', members: [filter('published'), filter('tag-3')] }],
 				index: 0,
 				memberIndex: 0,
 			});
 
-			const next = await nextExpression(element, 'Flip');
+			const next = await nextExpression(element, INVERT_VERB_LABEL);
 
 			assert.deepStrictEqual(next, [{ kind: 'or', members: [filter('unpublished'), filter('tag-3')] }]);
 		});
 
 		it('is an involution: pressing it twice is the identity', async () => {
 			const element = await mount({ expression: [filter('tag-3')], index: 0 });
-			const once = await nextExpression(element, 'Flip');
+			const once = await nextExpression(element, INVERT_VERB_LABEL);
 			element.expression = once;
 			await element.updateComplete;
-			const twice = await nextExpression(element, 'Flip');
+			const twice = await nextExpression(element, INVERT_VERB_LABEL);
 			assert.deepStrictEqual(twice, [filter('tag-3')]);
 		});
 	});
@@ -120,7 +136,7 @@ describe('the pill row', () => {
 		it('removes a whole condition', async () => {
 			const element = await mount({ expression: [filter('tag-3'), filter('starred')], index: 0 });
 
-			const next = await nextExpression(element, 'Remove');
+			const next = await nextExpressionAfterRemove(element);
 
 			assert.deepStrictEqual(next, [filter('starred')]);
 		});
@@ -135,7 +151,7 @@ describe('the pill row', () => {
 				memberIndex: 1,
 			});
 
-			const next = await nextExpression(element, 'Remove');
+			const next = await nextExpressionAfterRemove(element);
 
 			assert.deepStrictEqual(next, [filter('tag-3')]);
 			assert.deepStrictEqual(serializeCollectionExpression(next), ['tag-3'],
@@ -149,7 +165,7 @@ describe('the pill row', () => {
 				memberIndex: 1,
 			});
 
-			const next = await nextExpression(element, 'Remove');
+			const next = await nextExpressionAfterRemove(element);
 
 			assert.deepStrictEqual(next, [{ kind: 'or', members: [filter('a'), filter('c')] }]);
 		});
@@ -202,11 +218,75 @@ describe('the pill row', () => {
 			assert.ok(!/one alternative/.test(rowText(element)));
 		});
 
-		it('offers all three verbs on every pill, so a dead affordance is impossible', async () => {
+		//SUPERSEDED PIN (owner, F1, F2). It listed three verb LABELS —
+		//[OR_VERB_LABEL, 'Flip', 'Remove'] — and that list is now wrong twice
+		//over: the polarity verb says Invert, and removal has no label at all.
+		//What the pin is actually for survives unchanged: every pill offers all
+		//three actions, so a dead affordance is structurally impossible.
+		it('offers all three actions on every pill, so a dead affordance is impossible', async () => {
 			const element = await mount({ expression: [filter('starred')], index: 0 });
 			assert.deepStrictEqual(
 				Array.from(element.shadowRoot.querySelectorAll('button.verb')).map(button => button.textContent.trim()),
-				[OR_VERB_LABEL, 'Flip', 'Remove']);
+				[OR_VERB_LABEL, INVERT_VERB_LABEL],
+				'the two verbs that REWRITE the clause wear words');
+			assert.ok(removeControl(element), 'and removal is there too, as the ✕');
+			const labels = Array.from(element.shadowRoot.querySelectorAll('button'))
+				.map(button => button.textContent.trim());
+			assert.ok(!labels.includes('Flip'),
+				'the gesture word is gone; the button names the result now');
+		});
+
+		//THE VERB NAMES THE RESULT (owner, F2: the word is Invert).
+		//
+		//'Flip' said that something turns over. It did not say what into what —
+		//which the title beneath it was already saying, and saying in exactly
+		//these terms ("This becomes “Unpublished”"). The label and its title now
+		//use one word for one idea.
+		it('spells the polarity verb as the result, not as the gesture', async () => {
+			assert.strictEqual(INVERT_VERB_LABEL, 'Invert');
+			const element = await mount({ expression: [filter('published')], index: 0 });
+			assert.ok(verb(element, 'Invert'), 'the button wears the label');
+			assert.ok(!verb(element, 'Flip'), 'and the gesture word is gone');
+		});
+
+		//REMOVAL IS THE ✕ (owner, F1), which is the glyph this app already uses
+		//for removing a clause — tag-chip's trailing delete, and therefore the
+		//sentence pill's own remove control. A bordered word sitting beside the
+		//two bordered rewriting verbs claimed to be a third rewrite.
+		it('removes with the app\'s ✕, named twice because it is icon-only', async () => {
+			const element = await mount({ expression: [filter('starred')], index: 0 });
+			const remove = removeControl(element);
+			assert.ok(remove, 'the control exists');
+			assert.strictEqual(remove.textContent.trim(), '', 'and it carries no word');
+			assert.ok(remove.querySelector('svg'), 'it is the icon');
+			//HS §2.5: an icon-only control needs BOTH. A title alone is silent to
+			//a screen reader; an aria-label alone is silent on hover.
+			assert.strictEqual(remove.getAttribute('title'), 'Remove this filter');
+			assert.strictEqual(remove.getAttribute('aria-label'), 'Remove this filter');
+			assert.ok(remove.classList.contains('small'),
+				'built on button.small, the app\'s icon treatment — not on the outlined verb chip');
+			assert.ok(!remove.classList.contains('verb'),
+				'removal does not rewrite the clause, so it does not wear the rewrite treatment');
+
+			//And on one alternative it still says WHICH thing goes.
+			const member = await mount({
+				expression: [{ kind: 'or', members: [filter('tag-3'), filter('tag-7')] }],
+				index: 0,
+				memberIndex: 1,
+			});
+			assert.strictEqual(removeControl(member).getAttribute('aria-label'), 'Remove this alternative');
+			assert.strictEqual(removeControl(member).getAttribute('title'), 'Remove this alternative');
+		});
+
+		//THE ✕ IS A 44px TARGET IN BOTH DIRECTIONS. button.small carries no
+		//floor of its own — it is defined by REMOVING the base treatment — and an
+		//18px glyph is what you get if nobody says otherwise (§4.2).
+		it('gives the ✕ a real hit target', async () => {
+			const element = await mount({ expression: [filter('starred')], index: 0 });
+			const styles = element.constructor.styles.map(style => String(style.cssText || style)).join('\n');
+			const rule = styles.match(/button\.remove\s*\{[^}]*\}/)[0];
+			assert.match(rule, /min-height:\s*44px/);
+			assert.match(rule, /min-width:\s*44px/, 'a glyph is narrow; the target must not be');
 		});
 
 		//SUPERSEDED PIN (owner, F1). The widening verb used to be pinned as the
@@ -225,15 +305,18 @@ describe('the pill row', () => {
 				'with the title still saying what widening means');
 		});
 
-		//THE THREE VERBS MUST READ AS PRESSABLE (owner, F1).
+		//THE REWRITING VERBS MUST READ AS PRESSABLE (owner, F1).
 		//
 		//They were `button.small.verb` with a hover underline: transparent, no
-		//boundary, purple — which is this app's LINK treatment, so three of them
-		//in a row read as prose rather than as controls. What they take is the
-		//treatment the composer already uses for a control that REWRITES THE
-		//DRAFT (.suggestion-action[data-consequence='transform']): an outlined
-		//chip. Not button.text — §4.2's filled variant is for THE committing
-		//action, and these are three peers, none of which commits.
+		//boundary, purple — which is this app's LINK treatment, so a row of them
+		//read as prose rather than as controls. What they take is the treatment
+		//the composer already uses for a control that REWRITES THE DRAFT
+		//(.suggestion-action[data-consequence='transform']): an outlined chip.
+		//Not button.text — §4.2's filled variant is for THE committing action,
+		//and these are peers, neither of which commits.
+		//
+		//It is TWO of them now, not three: removal left this treatment for the ✕
+		//(owner, F1), pinned just above.
 		//
 		//JSDOM computes no layout, so what is pinned is the rule.
 		it('gives the verbs a visible boundary, so they read as pressable', async () => {
@@ -258,6 +341,46 @@ describe('the pill row', () => {
 			}
 		});
 
+		//ONE ALIGNMENT RULE FOR EVERY LABEL/CONTROL PAIR (owner, F3: "the labels
+		//on some configurable filter controls (for example created after 7 days)
+		//are not consistent vertically").
+		//
+		//The cause was that the rule was only ever half a rule. `.row` centres
+		//its items, but `.argument` was a COLUMN — so a tall argument hung its
+		//label at the top of a 90px block and a short one hung its label 30px
+		//lower, and the date editor's own boundary label landed at a third
+		//height again. Measured live before the fix, on 'Created since 7 days
+		//ago': 'When' at y=150, 'Date' at y=167, the radios at y=193, the fields
+		//at y=216.
+		//
+		//What is pinned is the rule, not the pixels — JSDOM computes no layout,
+		//and a pixel assertion would be a lie about what this suite can see. The
+		//pixels were checked in the live app and are in the commit message.
+		it('puts every label on its control\'s centerline, with one rule', async () => {
+			const element = await mount({ expression: [filter('starred')], index: 0 });
+			const styles = element.constructor.styles.map(style => String(style.cssText || style)).join('\n');
+			const rule = styles.match(/\.argument\s*\{[^}]*\}/)[0];
+			assert.match(rule, /align-items:\s*center/,
+				'the label sits on its control\'s centerline whatever that control\'s height is');
+			assert.match(rule, /flex-direction:\s*row/,
+				'beside the control, not above it — above is what put them at four heights');
+			assert.ok(!/flex-direction:\s*column/.test(rule));
+			//THE HALF THAT IS NOT WRITTEN IN THIS FILE. ButtonSharedStyles gives
+			//every <label> margin-top: 1em, and an .argument is a <label> — and a
+			//centred flex row centres the MARGIN box, so the control lands half
+			//that margin below the line. align-items alone does not fix this;
+			//that is why the pin asserts both.
+			assert.match(rule, /margin:\s*0/,
+				'the shared stacked-form label margin is cancelled, or centring is a lie');
+			//And the row that hosts the pairs centres them too, so the pairs
+			//share one centerline with each other and with the verbs.
+			assert.match(styles.match(/\.row\s*\{[^}]*\}/)[0], /align-items:\s*center/);
+			assert.match(styles.match(/\.verbs\s*\{[^}]*\}/)[0], /align-items:\s*center/);
+			//A label that wraps re-centres against its control and breaks the
+			//line this whole rule exists to hold.
+			assert.match(styles.match(/\.argument-label\s*\{[^}]*\}/)[0], /white-space:\s*nowrap/);
+		});
+
 		it('says nothing about counts until somebody computes them', async () => {
 			const element = await mount({ expression: [filter('starred')], index: 0 });
 			assert.ok(!/draft now matches/.test(rowText(element)),
@@ -278,7 +401,7 @@ describe('the pill row', () => {
 
 		//SUPERSEDED PIN (owner, F4). This was 'documents the keys the footer
 		//teaches, in the module that performs them' — it asserted the four
-		//entries of PILL_ROW_KEY_HINTS ('+' adds an or, '-' flips, Enter edits,
+		//entries of PILL_ROW_KEY_HINTS ('+' adds an or, '-' inverts, Enter edits,
 		//Delete removes), so that the composer's footer line and the row that
 		//performs those keys could not drift apart.
 		//

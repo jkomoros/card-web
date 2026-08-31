@@ -91,6 +91,11 @@ class ConfigureCollectionKeyCard extends connect(store)(LitElement) {
 				flex-direction: row;
 				align-items: center;
 				gap: 0.4em;
+				/* ButtonSharedStyles' generic <label> carries margin-top: 1em for
+				   the stacked form it was written for; a centred flex row centres
+				   the margin box, so it would drop this pair off the pill row's
+				   one centerline (owner, F3). */
+				margin: 0;
 			}
 			div {
 				flex-wrap: wrap;

@@ -1110,7 +1110,7 @@ export const completionValences = (
 	//with a negation prefix — or when the sentence already contains a clause of
 	//the same family, which is the state where "…but not this one" is a sentence
 	//somebody is plausibly in the middle of writing. Everywhere else negation is
-	//still one gesture away: add the clause and press Flip (the pill row's own
+	//still one gesture away: add the clause and press Invert (the pill row's own
 	//verb, which promises the resulting word before you commit), or reach it by
 	//name in Browse all.
 	//AND THE FAMILY-COMPATIBLE HALF OF THAT RULE NEEDS THE TOKEN TO HAVE NAMED

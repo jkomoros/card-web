@@ -42,7 +42,12 @@ class ConfigureCollectionMultipleCards extends LitElement {
 			:host {
 				display:inline-block;
 			}
+			/* Centred, so that when this control is hosted in the composer's pill
+			   row its tag list sits on the same centerline as the label beside
+			   it — the one alignment rule every argument editor there follows
+			   (owner, F3). */
 			div {
+				align-items: center;
 				display:flex;
 				flex-direction: row;
 			}

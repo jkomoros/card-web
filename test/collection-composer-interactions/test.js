@@ -209,6 +209,9 @@ describe('Collection Composer interactions', () => {
 			.find((button) => button.textContent.trim() === label) || null;
 	};
 
+	//Removal is the ✕ now (owner, F1), so it has no label to be found by.
+	const pillRowRemove = () => pillRow()?.shadowRoot.querySelector('button.remove') || null;
+
 	//Type into the composer input the way a user does: the element's value
 	//changes and an input event carries it into the component.
 	const typeComposer = async (value) => {
@@ -1539,9 +1542,10 @@ describe('Collection Composer interactions', () => {
 		assert.match(pillRowText(), /Starred/, 'and it names its scope');
 		//A pill with no arguments still has real contents, so a dead Edit
 		//affordance is structurally impossible.
-		for (const verb of ['Also match…', 'Flip', 'Remove']) {
+		for (const verb of ['Also match…', 'Invert']) {
 			assert.ok(pillRowVerb(verb), `every pill offers ${verb}`);
 		}
+		assert.ok(pillRowRemove(), 'and removal, which is the ✕ rather than a word (owner, F1)');
 		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
 		await settleRender(dialog);
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
@@ -1605,7 +1609,7 @@ describe('Collection Composer interactions', () => {
 		sentencePills()[0].click();
 		await settleRender(dialog);
 		assert.ok(pillRow());
-		pillRowVerb('Remove').click();
+		pillRowRemove().click();
 		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, []);
 		assert.strictEqual(pillRow(), null, 'an empty editor must not stay on screen');
@@ -1975,7 +1979,7 @@ describe('Collection Composer interactions', () => {
 		const row = (id) => suggestionRows().find((button) => button.dataset.rowId === id);
 		//EACH ROW RENDERS AS THE PILL IT WOULD BECOME, through the same renderer
 		//the sentence uses — and the `not` row shows the app's own inverse WORD
-		//rather than an operator, because that is the pill the flip will make.
+		//rather than an operator, because that is the pill the inversion will make.
 		assert.match(rowText(row('filter:unread:add')), /Unread/);
 		assert.match(rowText(row('filter:unread:not')), /Read/);
 		assert.ok(!rowText(row('filter:unread:not')).includes('exclude'),
@@ -2432,6 +2436,47 @@ describe('Collection Composer interactions', () => {
 				dateControl.shadowRoot.querySelector('[aria-label="First rolling date amount"]').value,
 				'3'
 			);
+		} finally {
+			dateControl.remove();
+		}
+	});
+
+	//ONE CENTERLINE INSIDE THE DATE EDITOR TOO (owner, F3).
+	//
+	//Each boundary used to be a <fieldset> stacking its <legend> above two
+	//radios above a field, hosted in a container that bottom-aligned its items —
+	//which is how 'When', 'Date', the radios and the fields ended up at four
+	//different heights in one pill row.
+	//
+	//The legend had to GO, and for a layout reason rather than a taste one: the
+	//HTML rendering rules place a fieldset's rendered legend above the anonymous
+	//content box, so it can never be a flex item beside the controls no matter
+	//what display the fieldset takes. What replaces it is a span inside a
+	//role='group' carrying the same word as its aria-label — which is what the
+	//fieldset and legend were buying in the accessibility tree, kept.
+	it('labels each date boundary beside its controls, and still groups them', async () => {
+		const dateControl = document.createElement('configure-collection-date');
+		dateControl.value = 'between/2026-08-01/yesterday';
+		document.body.append(dateControl);
+		try {
+			await dateControl.updateComplete;
+			const boundaries = Array.from(dateControl.shadowRoot.querySelectorAll('.date-boundary'));
+			assert.deepStrictEqual(
+				boundaries.map((boundary) => boundary.getAttribute('aria-label')),
+				['From', 'Until'],
+				'the group still says which end of the range it is');
+			assert.deepStrictEqual(boundaries.map((boundary) => boundary.getAttribute('role')), ['group', 'group']);
+			assert.deepStrictEqual(
+				boundaries.map((boundary) => boundary.querySelector('.boundary-label').textContent.trim()),
+				['From', 'Until'],
+				'and it is visible, not only announced');
+			assert.strictEqual(dateControl.shadowRoot.querySelector('legend'), null,
+				'a legend cannot sit beside its controls, which is the whole defect');
+			const styles = dateControl.constructor.styles.map((style) => String(style.cssText || style)).join('\n');
+			assert.match(styles.match(/\.date-boundary\s*\{[^}]*\}/)[0], /align-items:\s*center/);
+			assert.match(styles.match(/\.date-boundary\s*\{[^}]*\}/)[0], /flex-direction:\s*row/);
+			assert.match(styles.match(/\.container\s*\{[^}]*\}/)[0], /align-items:\s*center/,
+				'and the container centres them rather than bottom-aligning them');
 		} finally {
 			dateControl.remove();
 		}
@@ -3348,19 +3393,23 @@ describe('Collection Composer interactions', () => {
 	//NEGATION IS LANGUAGE, NOT A TOGGLE ON A ROW.
 	//
 	//The catalog's Not toggle is deleted with the catalog. What replaced it is
-	//the pill's own Flip verb, and the app's own inverse NAMES: flipping
+	//the pill's own Invert verb, and the app's own inverse NAMES: inverting
 	//`starred` produces the filter `unstarred` — a word — rather than an
 	//operator wrapped around the clause. The `-` key does the same thing from
 	//the input, and it is deliberately the URL's own spelling for exclusion.
-	it('flips a clause to the app’s own inverse word, from the row and from the key', async () => {
+	//
+	//The verb says INVERT (owner, F2). It said 'Flip', which named the gesture;
+	//the title beside it was already naming the result, and now they agree.
+	it('inverts a clause to the app’s own inverse word, from the row and from the key', async () => {
 		await addRefineRow('Starred');
 		sentencePills()[0].click();
 		await settleRender(dialog);
-		const flip = pillRowVerb('Flip');
-		assert.ok(flip, 'every pill offers the flip');
-		assert.match(flip.getAttribute('title'), /Unstarred/,
+		const invert = pillRowVerb('Invert');
+		assert.ok(invert, 'every pill offers the inversion');
+		assert.ok(!pillRowVerb('Flip'), 'and the gesture word is gone');
+		assert.match(invert.getAttribute('title'), /Unstarred/,
 			'and it promises which word the pill will read, before it is pressed');
-		flip.click();
+		invert.click();
 		await settleRender(dialog);
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['unstarred'],
 			'the app’s own inverse name, not exclude/starred');
@@ -3369,9 +3418,9 @@ describe('Collection Composer interactions', () => {
 		//And back again, from the key the footer teaches.
 		await pressComposer('-');
 		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['starred'],
-			'flipping is an involution');
+			'inverting is an involution');
 		//SUPERSEDED (owner, F4): the footer used to name '-' from
-		//PILL_ROW_KEY_HINTS. The key still flips — which is what the two
+		//PILL_ROW_KEY_HINTS. The key still inverts — which is what the two
 		//assertions above just proved — but nothing narrates it.
 	});
 
@@ -5296,7 +5345,7 @@ describe('Collection Composer interactions', () => {
 	//module that performs them' — the line, plus every entry of
 	//PILL_ROW_KEY_HINTS, plus 'closes the row'. Both the line and the table are
 	//deleted; see 'renders no key-hints line, in any state'. What the keys DO is
-	//still pinned, in the tests that press them: '-' flips a clause to the app's
+	//still pinned, in the tests that press them: '-' inverts a clause to the app's
 	//inverse word, '+' scopes the input to an or, Enter edits the selected pill,
 	//and Escape peels the row before the dialog.
 	it('walks between clauses with the arrow keys, and says so to a screen reader', async () => {

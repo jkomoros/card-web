@@ -46,32 +46,51 @@ class ConfigureCollectionDate extends LitElement {
 			:host {
 				display:inline-block;
 			}
+			/* ONE CENTERLINE, THE SAME ONE THE PILL ROW USES (owner, F3).
+			   flex-end used to bottom-align a 19px <select> against a 90px
+			   stacked boundary, which is how 'Since' ended up level with the
+			   date field while the words naming that field sat 50px higher. */
 			.container {
+				align-items: center;
 				display: flex;
 				flex-direction: row;
-				align-items: flex-end;
-				gap: 8px;
 				flex-wrap: wrap;
+				gap: 8px;
 			}
+			/* A BOUNDARY IS ITS LABEL BESIDE ITS CONTROLS, not above them. It was
+			   a column, and its label was therefore at a THIRD height: below the
+			   pill row's own 'When' and above the radios and the field. A row
+			   with align-items: center is the rule every label/control pair in
+			   this row now follows, so 'From' and 'Until' land on the same line
+			   as everything they label. It wraps, because two boundaries with
+			   two radios each do not fit one line of a dialog. */
 			.date-boundary {
-				border: 0;
+				align-items: center;
 				display: flex;
-				flex-direction: column;
-				gap: 4px;
-				margin: 0;
+				flex-direction: row;
+				flex-wrap: wrap;
+				gap: 8px;
 				min-width: 0;
-				padding: 0;
 			}
-			/* READABLE, BECAUSE IT HAS TO BE READ. This legend used to be 0.75em
-			   of a host that was already 0.75em of a dialog — nine pixels for
-			   the word that says which end of a range a field is. Subordinate is
-			   a matter of colour here; the size is the app's ordinary small
-			   text, and the colour is the darker token because -light is ~2.3:1
-			   on white (§4.1). */
-			.date-boundary legend {
+			/* NOT A <legend> ANY MORE, and the reason is layout, not taste: a
+			   fieldset's rendered legend is placed above the fieldset's anonymous
+			   content box by the HTML rendering rules, so it can never be a flex
+			   item beside the controls no matter what the fieldset's own
+			   display is. What replaces it is a plain span inside a
+			   role='group' whose aria-label is the same word, which is what the
+			   fieldset+legend was buying in the accessibility tree.
+
+			   READABLE, BECAUSE IT HAS TO BE READ. This used to be 0.75em of a
+			   host that was already 0.75em of a dialog — nine pixels for the
+			   word that says which end of a range a field is. Subordinate is a
+			   matter of colour here; the size is the app's ordinary small text,
+			   and the colour is the darker token because -light is ~2.3:1 on
+			   white (§4.1). nowrap for the same reason the pill row's own labels
+			   take it: a label that wraps re-centres and breaks the line. */
+			.date-boundary .boundary-label {
 				color: var(--app-dark-text-color-darker);
 				font-size: 0.85em;
-				padding: 0;
+				white-space: nowrap;
 			}
 
 			/* Same size floor for the two radio labels, which name the choice
@@ -90,6 +109,11 @@ class ConfigureCollectionDate extends LitElement {
 				align-items: center;
 				gap: 4px;
 				cursor: pointer;
+				/* ButtonSharedStyles' generic <label> carries margin-top: 1em for
+				   the stacked form it was written for, and a centred flex row
+				   centres the MARGIN box — which is what left these two radios
+				   5px below the words and fields they sit between. */
+				margin: 0;
 				white-space: nowrap;
 			}
 			.relative-date-controls {
@@ -138,8 +162,8 @@ class ConfigureCollectionDate extends LitElement {
 	_renderDateBoundary(isFirst: boolean, dateStr: string, dateObj: Date, label: string) {
 		const relativeMode = isRelativeDate(dateStr);
 		return html`
-			<fieldset class="date-boundary">
-				<legend>${label}</legend>
+			<div class="date-boundary" role="group" aria-label=${label}>
+				<span class="boundary-label">${label}</span>
 				<div class="mode-selector">
 					<label>
 						<input
@@ -165,7 +189,7 @@ class ConfigureCollectionDate extends LitElement {
 					</label>
 				</div>
 				${relativeMode ? this._renderRelativeDateInput(isFirst, dateStr) : this._renderAbsoluteDateInput(isFirst, dateStr, dateObj)}
-			</fieldset>
+			</div>
 		`;
 	}
 

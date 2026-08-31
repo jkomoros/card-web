@@ -466,8 +466,10 @@ const CONFIGURABLE_COPY : Record<string, string> = {
 	//ONE CLAUSE, ONE COMMA. This read "…— recently updated, or, flipped, gone
 	//stale since a date": three commas parked around the one word carrying the
 	//meaning, so a reader has to run the sentence twice to find out what
-	//"flipped" applies to.
-	'updated': 'Cards changed inside a date window you choose. Flip it to find the cards that have gone stale instead.',
+	//"flipped" applies to. The verb it names is the pill row's, and that button
+	//says Invert (owner, F2) — a description that teaches a word the UI does not
+	//use is worse than one that says nothing.
+	'updated': 'Cards changed inside a date window you choose. Invert it to find the cards that have gone stale instead.',
 	'created': 'Cards first written inside a date window you choose.',
 	'last-tweeted': 'Cards the bot tweeted inside a date window you choose.',
 	'author': 'Cards a particular person wrote or collaborated on. Choose yourself and a shared link follows whoever opens it; choose a name and it stays that person.',
@@ -482,7 +484,7 @@ const CONFIGURABLE_COPY : Record<string, string> = {
 	'similar-cutoff': 'Cards that read like a card you pick, but only those above a closeness you set.',
 	'same-type': 'Cards of the same kind as a card you pick.',
 	'different-type': 'Cards of a different kind from a card you pick.',
-	'exclude': 'Everything a nested condition does not keep. The palette spells this as flipping a condition; you only meet the word in source.',
+	'exclude': 'Everything a nested condition does not keep. The palette spells this as inverting a condition; you only meet the word in source.',
 	'combine': 'Everything either of two nested conditions keeps. The palette spells this as an “or” inside one condition.',
 	'expand': 'Starts from a nested condition and then grows the result along a kind of connection you choose.',
 };

@@ -182,6 +182,23 @@ const survey = () => {
 };
 
 //Measured, not inherited from an audit. Lower them; never raise them.
+//
+//RECOUNTED when the composer pill row's Remove verb became the ✕ (owner, F1).
+//That is exactly the kind of change this file exists to catch — a control
+//losing its words — so it was measured both ways rather than assumed:
+//
+//  survey            HEAD tree    new tree
+//  buttons                 125         125   (nothing added or deleted)
+//  icon-only                90          91   (+1: Remove, reclassified)
+//  no accessible name        0           0
+//  no hover name             0           0
+//  unclassifiable            5           5
+//  empty-bodied              0           0
+//
+//So one button moved from the text population into the population these two
+//zero budgets police, and it arrived already carrying both a title and an
+//aria-label. Nothing to raise, and the +1 is a reclassification rather than the
+//survey getting sharper or the app getting worse.
 const NO_ACCESSIBLE_NAME_BUDGET = 0;
 const NO_HOVER_NAME_BUDGET = 0;
 //Measured: 6 today, all of them text buttons whose label is interpolated and

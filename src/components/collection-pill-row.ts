@@ -7,7 +7,7 @@
 //literally the line below:
 //
 //    updated after [2026-01-01] [–– no end ––]   · draft now matches 184
-//    [Also match…] [Flip] [Remove]               · without this pill: 1,842
+//    [Also match…] [Invert] ✕                    · without this pill: 1,842
 //
 //A one-row editor cannot squash, and every pill has real contents — polarity,
 //or, remove at minimum — so a dead Edit affordance is structurally impossible.
@@ -25,7 +25,7 @@
 //The counts stay PROPERTIES: this component never asks what a draft would match,
 //because the thing that knows is the palette's preview machinery.
 //
-//NO STORE, LIKE THE SENTENCE. Flip and remove produce a whole new expression and
+//NO STORE, LIKE THE SENTENCE. Invert and remove produce a whole new expression and
 //hand it over; "or…" is a REQUEST, because this row knows which token an
 //alternative would join but not what the alternative is.
 
@@ -69,6 +69,10 @@ import {
 } from '../../shared/card_fields.js';
 
 import {
+	CANCEL_ICON,
+} from '../../shared/icons.js';
+
+import {
 	FilterModifiedEvent,
 	makeExpressionModifiedEvent,
 	makePillOrRequestedEvent,
@@ -93,6 +97,20 @@ import {
 //words, and no concept is added: 'alternative' stays an implementation word,
 //and the operator stays in source mode where it is spelled `+`.
 export const OR_VERB_LABEL = 'Also match…';
+
+//THE POLARITY VERB NAMES THE RESULT, NOT THE GESTURE (owner, F2).
+//
+//It read 'Flip' — a word about the motion of the control rather than about the
+//clause. What the button actually does is replace a condition with its
+//opposite, and the title under it was ALREADY promising that in those terms
+//("This becomes “Unpublished”"). 'Invert' is the word for that, and it is now
+//the app's one user-facing word for the operation: the filter descriptions that
+//spelled it 'flip' say 'invert' too.
+//
+//Only the LABEL changes. The expression layer's negatedExpressionNode /
+//withNegationToggled keep their names, because they name an operation on a
+//tree, and nobody but a reader of this file meets them.
+export const INVERT_VERB_LABEL = 'Invert';
 
 //THE KEY HINTS ARE DELETED WITH THE LINE THAT RENDERED THEM (owner, F4: "this
 //text … is unnecessary"). This table existed for exactly one consumer — the
@@ -216,14 +234,39 @@ class CollectionPillRow extends LitElement {
 				font-size: 0.85em;
 			}
 
-			/* AN ARGUMENT IS A LABELLED CONTROL, INLINE. The label rides above
-			   its field at the app's subordinate size rather than beside it, so
-			   a two-boundary date range still reads as two questions when the
-			   row wraps. */
+			/* AN ARGUMENT IS A LABELLED CONTROL ON ONE CENTERLINE (owner, F3:
+			   "the labels on some configurable filter controls … are not
+			   consistent vertically").
+
+			   The label used to ride ABOVE its field, and that is what produced
+			   the inconsistency, because it was only ever half a rule. A row of
+			   arguments centres its items, so a tall argument (the date, which
+			   stacks a legend over two radios over a field) hangs its label at
+			   the TOP of a 90px block while a short one (a ply, a limit) hangs
+			   its label 30px lower — and the date control's own boundary legend
+			   landed at a third height again. Measured on the live app before
+			   this change: 'When' at y=150, 'Date' at y=167, the radios at
+			   y=193, the fields at y=216. Four lines for one question.
+
+			   ONE RULE INSTEAD: every label/control pair is a flex ROW with
+			   align-items: center, here and inside each reparented editor, so
+			   the label sits on its control's centerline whatever that control's
+			   height is — and every pair therefore sits on the row's own
+			   centerline too. It costs horizontal space, which is what
+			   flex-wrap on .row is for. */
 			.argument {
+				align-items: center;
 				display: inline-flex;
-				flex-direction: column;
-				gap: 0.15em;
+				flex-direction: row;
+				gap: 0.4em;
+				/* AND THE OTHER HALF OF THE CAUSE, which is easy to miss because
+				   it is not written here: ButtonSharedStyles gives every <label> a
+				   margin-top of 1em, for the stacked form it was written for. An
+				   .argument IS a <label>, so it arrived with 12px of margin on
+				   top — and a flex row centres the MARGIN box, which parks the
+				   control 6px below the line everything else is on. Zeroed
+				   explicitly rather than by luck. */
+				margin: 0;
 				min-width: 0;
 			}
 
@@ -238,6 +281,10 @@ class CollectionPillRow extends LitElement {
 			.argument-label {
 				color: var(--app-dark-text-color-darker);
 				font-size: 0.85em;
+				/* A label that wraps to two lines re-centres itself against its
+				   control and breaks the very centerline this rule exists to
+				   hold. These are two or three words each. */
+				white-space: nowrap;
 			}
 
 			/* §4.2's 44px floor: the reparented controls brought their own
@@ -250,10 +297,12 @@ class CollectionPillRow extends LitElement {
 
 			/* The verbs are a GROUP, and they are separated from the argument
 			   controls to their left by a rule rather than by whitespace alone:
-			   in a row that wraps, three words floating after a date field read
-			   as more of the sentence. 0.4em between them so three adjacent
-			   boxes do not read as one segmented control. */
+			   in a row that wraps, loose words floating after a date field read
+			   as more of the sentence. 0.4em between them so adjacent boxes do
+			   not read as one segmented control. Centred, so the ✕ sits on the
+			   same line as the two boxes beside it. */
 			.verbs {
+				align-items: center;
 				border-left: 1px solid var(--app-divider-color);
 				display: flex;
 				gap: 0.4em;
@@ -261,25 +310,32 @@ class CollectionPillRow extends LitElement {
 			}
 
 			/* THESE HAVE TO READ AS PRESSABLE (owner: "the Or… Flip Remove don't
-			   read as buttons and are kind of confusing").
+			   read as buttons and are kind of confusing" — the labels in that
+			   quote are the ones they wore at the time).
 
 			   button.small is the sanctioned transparent variant (§4.2) and it
 			   carries a verb here rather than a glyph, which is the composer's
 			   own .verb extension — but transparent purple text with a hover
-			   underline is the app's LINK treatment, and three of them in a row
-			   read as prose. What they get is the outlined chip the composer
-			   already uses for exactly this class of thing: the palette's
+			   underline is the app's LINK treatment, and a row of them reads as
+			   prose. What they get is the outlined chip the composer already
+			   uses for exactly this class of thing: the palette's
 			   .suggestion-action[data-consequence='transform'] — 1px
 			   --app-primary-color border, transparent fill, purple label — which
 			   marks a control that REWRITES THE DRAFT rather than one that
-			   leaves. These three are the same species, so they take the same
-			   treatment rather than a fourth invented one.
+			   leaves.
+
+			   TWO of them now wear it, not three. Widening and inverting rewrite
+			   the clause and leave it on screen; removal deletes it, which is a
+			   different species and takes the app's ✕ instead (see button.remove
+			   below). Dropping it out of this treatment is the point: an
+			   outlined Remove sat in the same box as the two rewrites and
+			   claimed to be one of them.
 
 			   NOT button.text: §4.2's named text variant is the FILLED purple
 			   block for banners and gates, and it is the treatment of THE one
-			   committing action. These are three peers — none of them commits,
-			   and none of them outranks the other two — so filling one would be
-			   a claim about the pill that is not true.
+			   committing action. These are peers — neither commits, and neither
+			   outranks the other — so filling one would be a claim about the
+			   pill that is not true.
 
 			   Square (§4.4), and 44px tall (§4.2's floor, which .small does not
 			   carry on its own). */
@@ -295,6 +351,29 @@ class CollectionPillRow extends LitElement {
 			   already there, so nothing moves. */
 			button.verb:hover {
 				background: var(--app-primary-color-light-very-transparent);
+			}
+
+			/* REMOVAL IS THE ✕, NOT A WORD (owner, F1). Every other removal in
+			   this app is the same glyph in the same place: the sentence pill's
+			   own control is tag-chip's trailing ✕, and the composer's design
+			   note calls it "the most guessable gesture in the UI". A third
+			   bordered word beside two bordered words made removal look like a
+			   third way to REWRITE the clause, which the other two are and this
+			   one is not.
+
+			   So it does NOT take button.verb: it is the plain transparent
+			   button.small icon treatment (§4.2), which is what the app's other
+			   ✕ controls wear. It keeps the trailing position tag-chip and the
+			   sentence pill put theirs in. Icon-only, so it carries BOTH a title
+			   and an aria-label (HS §2.5) — a title alone leaves it nameless on
+			   touch, and an aria-label alone leaves it silent on hover. 44px in
+			   both directions, since .small carries no floor of its own. */
+			button.remove {
+				align-items: center;
+				display: inline-flex;
+				justify-content: center;
+				min-height: 44px;
+				min-width: 44px;
 			}
 		`
 	];
@@ -459,21 +538,27 @@ class CollectionPillRow extends LitElement {
 
 	//--- The verbs -----------------------------------------------------------
 
-	//FLIP PROMISES WHAT THE PILL WILL READ. The app's own inverse names come
-	//first, so flipping `published` yields a pill that simply says
+	//INVERT PROMISES WHAT THE PILL WILL READ. The app's own inverse names come
+	//first, so inverting `published` yields a pill that simply says
 	//"unpublished" — plain language, no operator — and the title says so BEFORE
 	//the user commits to it. Only an inverse-less filter becomes an outlined
 	//not-pill, and the title says that instead.
-	get _flipTitle() : string {
+	//
+	//The verb is INVERT, not Flip (owner, F2). "Flip" is a gesture word — it
+	//says something turns over without saying what turns into what — and the
+	//title beneath it was already promising a WORD. Invert is the word for the
+	//result. The expression layer's own function names (withNegationToggled)
+	//are untouched: they name the operation on a tree, not the button.
+	get _invertTitle() : string {
 		const node = this._node;
 		if (!node) return '';
-		const flipped = this._labelFor(negatedExpressionNode(node));
+		const inverted = this._labelFor(negatedExpressionNode(node));
 		return conditionCanUseNamedInverse(node) ?
-			`This becomes “${flipped}”` :
-			`This becomes “${flipped}”, shown as an outlined pill`;
+			`This becomes “${inverted}”` :
+			`This becomes “${inverted}”, shown as an outlined pill`;
 	}
 
-	_handleFlip() {
+	_handleInvert() {
 		if (!this._node) return;
 		this._emit(this.memberIndex < 0 ?
 			withNegationToggled(this.expression, this.index) :
@@ -514,6 +599,10 @@ class CollectionPillRow extends LitElement {
 		if (!node) return html``;
 		const label = this._labelFor(node);
 		const note = this._scopeNote;
+		//The ✕ is icon-only, so this string is both its hover name and its
+		//accessible name (HS §2.5), and it still says WHICH thing goes: on a
+		//group's member, removing the alternative is not removing the filter.
+		const removeTitle = this.memberIndex < 0 ? 'Remove this filter' : 'Remove this alternative';
 		return html`
 			<div class='row' role='group' aria-label=${`Editing ${label}`}>
 				<span class='scope'>${label}</span>
@@ -522,8 +611,8 @@ class CollectionPillRow extends LitElement {
 				${this.draftCount === undefined ? '' : html`<span class='count'>· draft now matches ${formatCollectionCardCount(this.draftCount)}</span>`}
 				<span class='verbs'>
 					<button class='small verb' title='Widen this to also match something else' @click=${this._handleOr}>${OR_VERB_LABEL}</button>
-					<button class='small verb' title=${this._flipTitle} @click=${this._handleFlip}>Flip</button>
-					<button class='small verb' title=${this.memberIndex < 0 ? 'Remove this from the collection' : 'Remove this alternative'} @click=${this._handleRemove}>Remove</button>
+					<button class='small verb' title=${this._invertTitle} @click=${this._handleInvert}>${INVERT_VERB_LABEL}</button>
+					<button class='small remove' title=${removeTitle} aria-label=${removeTitle} @click=${this._handleRemove}>${CANCEL_ICON}</button>
 				</span>
 				${this.withoutCount === undefined ? '' : html`<span class='count'>· without this pill: ${formatCollectionCardCount(this.withoutCount)}</span>`}
 			</div>
