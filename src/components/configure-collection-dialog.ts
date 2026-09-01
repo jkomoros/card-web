@@ -955,10 +955,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   not a form row. collection-sentence renders inline so its pills
 			   wrap like words; this block is only the space around it and the
 			   help badge that rides at its end. */
+			/* BODY SIZE AND THE APP'S OWN PROSE LEADING (owner, F4). 1.05em
+			   and a 1.8 line-height were both values this app uses nowhere
+			   else — a step invented for one surface, and a leading nearly
+			   half again the widest one shipped. 1em is the body default
+			   (card-editor, card-renderer, chat-view all state it), and 1.4 is
+			   the leading card-renderer gives running prose, which is what a
+			   sentence of wrapping pills is. */
 			.sentence {
 				color: var(--app-dark-text-color);
-				font-size: 1.05em;
-				line-height: 1.8;
+				font-size: 1em;
+				line-height: 1.4;
 				overflow-wrap: anywhere;
 				padding: 0.75em 0 0.5em;
 			}
@@ -1122,8 +1129,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   to open up small caps and is noise without them. */
 			.suggestion-heading {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.78em;
-				font-weight: 400;
+				/* 0.75em, not 0.78em (owner, F4): §4.3's subordinate-label size,
+				   which is what ButtonSharedStyles' own label rule takes. 0.78
+				   was a step this app has nowhere else.
+				   'normal', not 400: the same weight, spelled the way the other
+				   19 declarations in this app spell it. */
+				font-size: 0.75em;
+				font-weight: normal;
 				margin-top: 1.2em;
 			}
 
@@ -1391,7 +1403,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.modifier-note,
 			.no-suggestions {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.78em;
+				/* §4.3's subordinate-label size (owner, F4); 0.78em existed only
+				   here and in three sibling rules. */
+				font-size: 0.75em;
 				margin-top: 0.2em;
 				overflow-wrap: anywhere;
 			}
@@ -1409,7 +1423,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   while empty so a number landing 150ms late moves nothing. */
 			.row-count {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.82em;
+				/* 0.8em (owner, F4). 0.82em's only companion in the app was
+				   card-view's drawer summary, which F3 deletes; 0.8em is the
+				   step six shipped components already take. */
+				font-size: 0.8em;
 				grid-area: count;
 				text-align: right;
 				white-space: nowrap;
@@ -1468,7 +1485,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.suggestion-action[data-consequence='navigate'] {
 				background: var(--app-primary-color);
 				color: var(--app-light-text-color);
-				font-weight: 700;
+				/* 'bold', not 700 — the same weight in the app's own spelling
+				   (owner, F4). */
+				font-weight: bold;
 			}
 
 			.suggestion-action[data-consequence='transform'] {
@@ -1551,7 +1570,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   commit button anywhere. */
 			.preview-titles {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.78em;
+				font-size: 0.75em;
 				overflow: hidden;
 				text-align: right;
 				text-overflow: ellipsis;
@@ -1668,15 +1687,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.source-interpretation-label {
 				color: var(--app-dark-text-color-light);
 				display: block;
-				font-size: 0.78em;
-				font-weight: 400;
+				font-size: 0.75em;
+				font-weight: normal;
 				margin: 0.8em 0 0.35em;
 			}
 
+			/* TWO FAMILIES, BOTH FROM TOKENS (§4.3, owner F4). This field was
+			   the app's only monospace — a third family, for one textarea. A
+			   form control that names no family falls back to the UA's, which
+			   is the defect ButtonSharedStyles' own note describes, so it takes
+			   font: inherit — the same rule .composer-input above it takes,
+			   ten lines away. The leading follows card-renderer's prose 1.4;
+			   1.45 was a value this app has nowhere else. */
 			.source-input {
 				box-sizing: border-box;
-				font-family: monospace;
-				line-height: 1.45;
+				font: inherit;
+				line-height: 1.4;
 				min-height: 5.5em;
 				overflow-wrap: anywhere;
 				padding: 0.65em;
@@ -1723,8 +1749,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				color: var(--app-warning-color);
 			}
 
+			/* Inherits the body family, for the reason above. */
 			.source-link {
-				font-family: monospace;
 				overflow-wrap: anywhere;
 			}
 
@@ -1979,7 +2005,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 								<span class='source-suggestion-category'>${presentation.category}</span>
 								<span class='suggestion-label'>${presentation.label}</span>
 								<span class='suggestion-action' data-consequence=${rowConsequence(completionMode)}>${sentenceCase(completionMode)}</span>
-								<span class='suggestion-detail'>${presentation.detail} · <code>${completion}</code></span>
+								<span class='suggestion-detail'>${presentation.detail} · ${completion}</span>
 							</button>
 						</div>
 					`;

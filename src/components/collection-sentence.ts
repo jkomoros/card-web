@@ -306,9 +306,14 @@ class CollectionSentence extends LitElement {
 				display: inline;
 			}
 
+			/* 0.8em and 1.3 (owner, F4). 0.82em's only companion in the app
+			   was card-view's drawer summary, which is deleted; 0.8em is the
+			   step six shipped components take, and 1.3 is limit-warning's
+			   leading. Neither of the values they replace existed anywhere
+			   else in this app. */
 			.subtle {
-				font-size: 0.82em;
-				line-height: 1.25;
+				font-size: 0.8em;
+				line-height: 1.3;
 			}
 
 			/* THE SET AND SORT ARE WORDS, NOT CONTROLS THAT LOOK LIKE WORDS.
@@ -407,7 +412,13 @@ class CollectionSentence extends LitElement {
 			   two rows of 44px targets would overlap and the top half of one
 			   pill would belong to the pill above it. */
 			:host([mobile]) .sentence {
-				line-height: 3;
+				/* 44px, not a multiplier of 3 (owner, F4). It is the SAME number
+				   the rule below gives the chips, said once in the units §4.2
+				   states the floor in, rather than a ratio that happens to
+				   produce it at one root size — and a px line-height for a row
+				   of fixed-height targets is what main-view and shared-styles
+				   already do. */
+				line-height: 44px;
 			}
 
 			:host([mobile]) tag-chip,

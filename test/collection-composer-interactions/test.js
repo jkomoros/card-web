@@ -2,7 +2,7 @@
 
 import { JSDOM } from 'jsdom';
 import assert from 'assert';
-import { readFile } from 'fs/promises';
+import { readFile, readdir } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -328,36 +328,45 @@ describe('Collection Composer interactions', () => {
 		assert.match(block, /aria-label=/, 'the affordance needs an accessible name (HS-2.5)');
 	});
 
-	//The summary is ~133px wide with a two-line clamp, so a draft of more than
-	//two clauses is visibly truncated. The spec requires the complete expression
-	//to be reachable from it.
+	//SUPERSEDED PIN (owner, F3). It was 'exposes the whole collection expression
+	//from the truncated summary', and it asserted the drawer summary's tooltip,
+	//its accessible name and the focus-unfold that made a two-line clamp
+	//readable. There is no summary: the owner asked for the whole always-visible
+	//block to go ("the configure collection visible always at the top of the
+	//card drawer is weird / bad styling and I want to remove it"), so there is
+	//nothing truncated and nothing to unfold.
 	//
-	//REVERTED with the drawer. The summary block is one <button> again — the
-	//owner asked for the quiet Configure Collection presentation back — so the
-	//tooltip and the accessible name are both on the thing that is activated,
-	//and keyboard focus lands on the block itself.
-	it('exposes the whole collection expression from the truncated summary', async () => {
+	//What replaces it is the pin for the ABSENCE, and for the two entry points
+	//that survive it, which is the shape the owner named: Ctrl-K, and the
+	//Configure collection item in the drawer's collapsible info panel.
+	it('offers the composer from the zippy menu and the shortcut, and nowhere else in the drawer', async () => {
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		const start = source.indexOf('class=\'collection-summary-main\'');
-		assert.ok(start >= 0);
-		const block = source.slice(start, source.indexOf('</button>', start));
-		//The tooltip still carries the whole expression, but as a COMMAND rather
-		//than a bare state readout (HS-2.5) — same shape as the aria-label below.
-		//Both now read one getter rather than two copies of one template: the
-		//name also has to say when a clause was struck (see the unresolved-clause
-		//test below), and two literals would have drifted the first time it did.
-		assert.match(block, /title=\$\{this\._collectionSummaryName\}/,
-			'hover must reveal the complete expression, in the command form');
-		assert.match(block, /aria-label=\$\{this\._collectionSummaryName\}/,
-			'assistive tech must hear the complete expression');
-		const nameStart = source.indexOf('get _collectionSummaryName()');
-		assert.ok(nameStart >= 0, 'card-view must compose the summary\'s name in one place');
-		const name = source.slice(nameStart, source.indexOf('\n\t}', nameStart));
-		assert.match(name, /`Refine collection: \$\{expression\}`/,
-			'and it is still the complete expression in the command form');
-		assert.match(name, /readableCollectionExpression\(this\._collection\.description\)/);
-		assert.match(source, /\.collection-summary-main:focus-visible \.collection-summary-expression\s*\{[^}]*line-clamp: unset/,
-			'keyboard focus, which gets neither a tooltip nor a label readout, must unfold it');
+
+		//THE BLOCK IS GONE, not merely hidden.
+		assert.ok(!/collection-summary/.test(source),
+			'no summary block, no summary styles, nothing left to grow back');
+		assert.ok(!/copy-collection-link|COPY_ALL_ICON|_handleCopyCollectionLink/.test(source),
+			'and its copy-link glyph goes with it — the drawer had none before #498');
+
+		//THE ORIGINAL ENTRY POINT, in the original place. Verbatim what
+		//752722bd:src/components/card-view.ts renders inside slot='info'.
+		assert.match(source, /<div slot='info'>/,
+			'the collapsible info panel is still where the drawer keeps its actions');
+		assert.match(
+			source,
+			/<button id='configure-collection' class='small' title='Configure collection' @click=\$\{this\._handleConfigureCollectionClicked\}>\$\{RULE_ICON\}<\/button><label for='configure-collection'>Configure collection<\/label>/,
+			'Configure collection is the zippy item it has always been');
+		const info = source.slice(source.indexOf('<div slot=\'info\'>'), source.indexOf('<div slot=\'visible-info\'>'));
+		assert.match(info, /word-cloud/, 'alongside the word cloud, as before');
+
+		//AND THE SHORTCUT IS UNTOUCHED.
+		assert.match(source, /open-collection-composer/,
+			'Ctrl-K still opens the composer from this view');
+
+		//The centre empty state is a DIFFERENT surface and stays: it is the only
+		//offer left when the drawer has collapsed to nothing.
+		assert.match(source, /No cards match this collection/);
+		assert.match(source, /class='text collection-empty-refine'/);
 	});
 
 	//A deployment's own domain is configuration, not a literal (HS-1.4 for
@@ -4686,11 +4695,20 @@ describe('Collection Composer interactions', () => {
 	//(The touch-copy pin that stood here is superseded by 'renders no key-hints
 	//line, in any state' — owner, F4.)
 
-	it('keeps the collection sentence out of the card scroller', async () => {
-		//The sentence is the spec's persistent anchor and the composer's only
-		//mouse entry point, and it was the first child of the scrolling card
-		//list — so a few arrow-key steps down the list scrolled it off the top.
-		//Nothing that says "persistent" can be an item in a scrolling region.
+	//SUPERSEDED PIN (owner, F3). It was 'keeps the collection sentence out of
+	//the card scroller': the drawer's header had been lifted out of the
+	//scrolling card list so the always-visible collection summary could not be
+	//scrolled off the top — "nothing that says persistent can be an item in a
+	//scrolling region".
+	//
+	//The summary is deleted, so there is nothing persistent left up there to
+	//protect, and the arrangement had become actively harmful: the expanded info
+	//panel is a word cloud plus a dozen actions, and pinned outside the scroller
+	//it pushes the card list off the bottom of the drawer the moment the zippy is
+	//opened — which is precisely the entry point the owner asked to go back to.
+	//So the header is inside the scroller again, exactly as at 752722bd, and
+	//what is pinned is that arrangement.
+	it('keeps the drawer header inside the scroller, the way it was before the summary', async () => {
 		const drawer = document.createElement('card-drawer');
 		drawer.showing = true;
 		document.body.append(drawer);
@@ -4698,17 +4716,22 @@ describe('Collection Composer interactions', () => {
 		const scroller = drawer.shadowRoot.querySelector('.scrolling.scroller');
 		const count = drawer.shadowRoot.querySelector('#count');
 		assert.ok(scroller, 'the card list still scrolls');
-		assert.ok(count, 'the summary block still exists');
-		assert.ok(!scroller.contains(count), 'the summary must not live inside the scroller');
-		assert.strictEqual(count.parentElement, scroller.parentElement, 'it is the scroller’s sibling');
-		assert.ok(count.compareDocumentPosition(scroller) & Node.DOCUMENT_POSITION_FOLLOWING,
-			'and it comes above the list, not below it');
-		//Both slots travel with it, so the sentence card-view supplies through
-		//visible-info is anchored too — it is the half a user actually reads.
-		assert.ok(count.querySelector('slot[name="visible-info"]'), 'the sentence slot moved with the count');
-		assert.ok(count.querySelector('slot[name="info"]'), 'and so did the details slot');
-		//The list itself is still the scroller's business, drag targets and all.
-		assert.ok(scroller.querySelector('card-thumbnail-list'), 'the thumbnails stayed in the scroller');
+		assert.ok(count, 'the count line still exists');
+		assert.ok(scroller.contains(count),
+			'the header scrolls with the list again, so an opened zippy cannot squeeze it');
+		assert.strictEqual(scroller.firstElementChild, count,
+			'and it is the first thing in it, as it was before #498');
+		//Both slots are still its children — the info zippy is where Configure
+		//collection lives, and it must travel with the header.
+		assert.ok(count.querySelector('slot[name="info"]'), 'the details slot');
+		assert.ok(count.querySelector('slot[name="visible-info"]'), 'and the always-visible one');
+		assert.ok(scroller.querySelector('card-thumbnail-list'), 'the thumbnails are still there too');
+		//And the props that only existed to hold a sibling header in place are
+		//gone with it, rather than left behind as inert rules.
+		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-drawer.ts'), 'utf8');
+		assert.ok(!/#count\s*\{[^}]*flex:\s*0 0 auto/.test(source));
+		assert.ok(!/grouped/.test(source),
+			'and so are the grouped-count rules that lined it up with the summary');
 		drawer.remove();
 	});
 
@@ -4852,7 +4875,11 @@ describe('Collection Composer interactions', () => {
 		const styles = composerStyles();
 		assert.ok(!/\.suggestion-heading\s*\{[^}]*text-transform/.test(styles));
 		assert.ok(!/\.source-interpretation-label\s*\{[^}]*text-transform/.test(styles));
-		assert.match(styles, /\.suggestion-heading\s*\{[^}]*font-weight:\s*400/);
+		//'normal', not 400 (owner, F4): the same weight, in the spelling the
+		//other nineteen font-weight declarations in this app use.
+		assert.match(styles, /\.suggestion-heading\s*\{[^}]*font-weight:\s*normal/);
+		assert.ok(!/\.suggestion-heading\s*\{[^}]*font-weight:\s*400/.test(styles),
+			'400 is a spelling this app uses nowhere else');
 		assert.match(styles, /\.suggestion-heading\s*\{[^}]*color:\s*var\(--app-dark-text-color-light\)/);
 	});
 
@@ -5048,111 +5075,65 @@ describe('Collection Composer interactions', () => {
 		window.history.replaceState({}, '', '/c/main/');
 	});
 
-	//THE PERSISTENT COLLECTION SENTENCE, in the drawer.
+	//THREE SUPERSEDED PINS, ONE REPLACEMENT (owner, F3).
 	//
-	//card-view cannot be mounted in this harness, so these are source pins, the
-	//same idiom the card-stage toolbar test above uses.
+	//They were 'renders the drawer collection sentence with quiet operators,
+	//beside its count', 'offers no live pills and no removal from the drawer
+	//summary', and 'leaves the drawer's actions centred while the count follows
+	//the sentence'. All three described the shape of the always-visible drawer
+	//summary — its quiet operators, its plain-text (rather than live-pill)
+	//rendering, and the alignment it shared with the card count.
 	//
-	//The whole sentence rendered as one flat interpolation, so AND and
-	//"sorted by" carried the same weight as the clause names they join — the
-	//spec makes operators quiet textual structure, and the composer's own draft
-	//has said so since the last wave. The copy-link glyph was centred against a
-	//block that is one line for Everything and three for anything else, so it
-	//floated in the middle of a wrapped paragraph. And the card count sat in a
-	//centred row above a left-aligned sentence, reading as unrelated to the
-	//sentence whose cards it is counting.
-	it('renders the drawer collection sentence with quiet operators, beside its count', async () => {
+	//The owner: "the configure collection visible always at the top of the card
+	//drawer is weird / bad styling and I want to remove it. The two ways to get
+	//this: Ctrl-K, and clicking Configure Collection in the zipped-up menu in
+	//card-drawer, exactly as before." A summary with no shape has no shape to
+	//pin, so the ABSENCE is what is pinned — which is also what the middle one
+	//of the three was already for, one revert earlier. The absence-of-live-pills
+	//pin becomes the absence-of-the-summary pin.
+	it('renders no collection summary in the drawer at all', async () => {
 		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		assert.match(source, /collectionExpressionParts/,
-			'the sentence is built from parts, so operators can be styled apart from clauses');
-		assert.match(source, /class='collection-summary-operator'/);
-		assert.match(source, /\.collection-summary-operator\s*\{[^}]*color:\s*var\(--app-dark-text-color-light\)/,
-			'the operators step down to the subordinate colour');
-		assert.match(source, /\.collection-summary\s*\{[^}]*align-items:\s*start/,
-			'the copy-link glyph sits on the sentence’s first line, not centred over a wrapped block');
 
+		//The whole block: the sentence text, the Refine line, the copy-link
+		//glyph, and every style that painted them.
+		for (const trace of [
+			'collection-summary',
+			'collection-summary-main',
+			'collection-summary-expression',
+			'collection-summary-operator',
+			'collection-summary-clause',
+			'collection-summary-action',
+			'copy-collection-link',
+			'collectionExpressionParts',
+			'_collectionSummaryName',
+			'_unresolvedClauses',
+			'UNRESOLVED_CLAUSE_NOTE',
+		]) {
+			assert.ok(!source.includes(trace), `${trace} is a trace of the deleted summary`);
+		}
+		//The renderer never came back either — that was the earlier revert's pin,
+		//and it still holds one level further out.
+		assert.ok(!/<collection-sentence|collection-sentence\.js/.test(source),
+			'and card-view is not a host of the sentence renderer');
+
+		//The visible-info slot survives, because the drawer's own actions live in
+		//it (Clear selection, Show only selected, Randomize). It simply no longer
+		//opens with a block about the collection.
+		assert.match(source, /<div slot='visible-info'>/);
+		assert.match(source, /id='clear-selection'/);
+
+		//And the drawer's count is the centred 12em line it has always been.
 		const drawer = await readFile(path.join(REPO_ROOT, 'src/components/card-drawer.ts'), 'utf8');
-		assert.match(drawer, /#count\.grouped\s*\{[^}]*text-align:\s*left/,
-			'the count shares the sentence’s alignment');
-		assert.match(drawer, /collectionComposerEnabled\(\) \? 'grouped' : ''/,
-			'and only where the sentence exists — the legacy drawer keeps its centred count');
-	});
+		assert.match(drawer, /#count\s*\{[^}]*text-align:\s*center/,
+			'the drawer column centres its contents, as it did before #498');
+		assert.ok(!/grouped/.test(drawer),
+			'nothing groups the count with a sentence that no longer exists');
 
-	//THE DRAWER IS QUIET AGAIN — AND THIS PIN IS FOR ITS ABSENCE.
-	//
-	//The step-2 wave made the drawer summary a live host of collection-sentence:
-	//real pills in the tag's own colour, a hover-✕ on each one, and a removal
-	//that navigated on the spot. The owner asked for the previous Configure
-	//Collection presentation back ("forget I said to make it more discoverable"),
-	//so the summary is plain text again and the drawer offers no removal at all.
-	//
-	//A revert with no pin is a revert that grows back. These assertions are the
-	//ones the live-drawer tests used to make, inverted: the renderer is not
-	//mounted here, nothing is interactive here, and the removal seam — handler,
-	//event wiring, and the lost-card guard it needed — is gone from card-view.
-	//
-	//THIS IS A HOST REVERT, NOT A COMPONENT ONE. collection-sentence itself, its
-	//pills and its ✕, are untouched and still pinned by their own suites for the
-	//palette, the recents rows and the why-here panel; only card-view stopped
-	//being one of its hosts.
-	it('offers no live pills and no removal from the drawer summary', async () => {
-		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		assert.ok(!/<collection-sentence/.test(source),
-			'the drawer summary is quiet text, not a mounted sentence renderer');
-		assert.ok(!/collection-sentence\.js/.test(source),
-			'and card-view does not even pull the renderer in');
-		assert.ok(!/\.interactive=\$\{true\}/.test(source),
-			'nothing in the drawer is a live pill');
-		assert.ok(!/condition-removed/.test(source),
-			'so there is no ✕ to listen to');
-		assert.ok(!/_handleSummaryConditionRemoved|_summarySelectedPath/.test(source),
-			'and the removal seam and its selection state are gone, not merely unwired');
-		assert.ok(!/commitPathDroppingLostCard/.test(source),
-			'including the lost-card guard that only the removal needed here');
-		assert.ok(!/tag-chip|tagInfos=\$/.test(source.slice(source.indexOf('class=\'collection-summary\''), source.indexOf('id=\'copy-collection-link\''))),
-			'and no tag chips are rendered in the summary');
-
-		//The shared helper itself stays: the composer's own commit path is its
+		//The shared lost-card helper stays: the composer's own commit path is its
 		//other caller, and that path is not being reverted.
 		const dialog = await readFile(path.join(REPO_ROOT, 'src/components/configure-collection-dialog.ts'), 'utf8');
 		assert.match(dialog, /commitPathDroppingLostCard/,
 			'the composer keeps its copy of the lost-card question');
-
-		//THE RESTORED SHAPE, positively: the four things the quiet summary is.
-		const start = source.indexOf('class=\'collection-summary\'');
-		assert.ok(start >= 0);
-		const block = source.slice(start, source.indexOf('${this._cardsSelected ?', start));
-		assert.match(block, /<button\s*\n\s*class='collection-summary-main'/,
-			'the whole summary is one button that opens the composer');
-		assert.match(block, /@click=\$\{this\._handleConfigureCollectionClicked\}/);
-		assert.match(block, /class='collection-summary-expression'/, 'the readable sentence, as text');
-		assert.match(block, /Refine · \$\{shortcutKeys\('open-collection-composer'\)\}/,
-			'the Refine · ⌘K affordance');
-		assert.match(block, /id='copy-collection-link'/, 'and the copy-link button beside it');
-	});
-
-	//THE DRAWER'S ACTIONS ARE NOT PART OF THE SENTENCE.
-	//
-	//#count.grouped's text-align exists to line the card count up with the
-	//sentence beneath it. text-align is INHERITED and #count is the whole
-	//header — count, diagnostics, and both slotted panels — so the rule also
-	//reached the drawer's actions (word cloud, Configure collection, bulk
-	//import/export, Clear selection, Randomize), which have been centred in this
-	//column since before the composer existed. They went flush left with nobody
-	//asking them to, which is what the owner reported.
-	it('leaves the drawer’s actions centred while the count follows the sentence', async () => {
-		const drawer = await readFile(path.join(REPO_ROOT, 'src/components/card-drawer.ts'), 'utf8');
-		assert.match(drawer, /#count\s*\{[^}]*text-align:\s*center/,
-			'the drawer column has always centred its contents');
-		assert.match(drawer, /#count\.grouped\s*\{[^}]*text-align:\s*left/,
-			'the count line follows the sentence');
-		assert.match(drawer, /#count\.grouped \.info-panel\s*\{[^}]*text-align:\s*center/,
-			'but the slotted action panels keep the centring the grouped rule took from them');
-		//And the sentence does not depend on the inherited value: it declares its
-		//own left edge, so it is unaffected by the rule above.
-		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		assert.match(source, /\.collection-summary\s*\{[^}]*text-align:\s*left/,
-			'the summary owns its alignment rather than borrowing the header’s');
 	});
 
 	//EMPTY-STATE HIERARCHY. The three elements arrived in inverse order of
@@ -5183,40 +5164,136 @@ describe('Collection Composer interactions', () => {
 		assert.match(source, /class='text collection-empty-refine'/);
 	});
 
-	//THE SENTENCE AND THE COUNT HAVE TO AGREE.
+	//SUPERSEDED PIN (owner, F3). It was 'marks a clause the URL parser could not
+	//resolve in the collection sentence', over card-view's drawer summary: an
+	//unresolvable clause was struck there so the sentence and the count could not
+	//contradict each other.
 	//
-	//When "Didn't understand 'tag-33x' in this URL" fires, the collection is
-	//computed WITHOUT that clause — but the sentence went on listing it in the
-	//same weight as every real clause, two lines above the notice contradicting
-	//it. The clause stays visible (the user asked for it, and §Unavailable
-	//filter says preserve and explain) and reads as what it is: named, not
-	//applied.
-	//REVERTED with the drawer: the strike is card-view's business again, drawn
-	//over the parts it assembles itself. The rule is unchanged — a struck clause
-	//is named, not applied — only which file draws it.
-	it('marks a clause the URL parser could not resolve in the collection sentence', async () => {
-		const source = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
-		const start = source.indexOf('class=\'collection-summary-expression\'');
-		assert.ok(start >= 0, 'the summary must render the expression');
-		//To the NEXT element of the summary, not to the first '</span>': the
-		//expression's own template closes several spans of its own.
-		const block = source.slice(start, source.indexOf('collection-summary-action', start));
-		assert.match(block, /\?data-unresolved=\$\{unresolved\.has\(filter\.raw\)\}/,
-			'each clause is marked against the arrival\'s own diagnostics');
-		//The STRIKE is the signal, not the colour — colour alone would carry it
-		//to nobody who cannot see it (§4.1).
-		assert.match(source, /\.collection-summary-clause\[data-unresolved\]\s*\{[^}]*text-decoration:\s*line-through/);
-		assert.ok(!/\.collection-summary-clause\[data-unresolved\]\s*\{[^}]*var\(--app-warning-color\)/.test(source),
-			'nothing went wrong here, so it does not take the amber state colour');
-		//And assistive tech, which gets neither the strike nor the tooltip,
-		//hears it in the button's name.
-		const nameStart = source.indexOf('get _collectionSummaryName()');
-		const name = source.slice(nameStart, source.indexOf('\n\t}', nameStart));
-		assert.match(name, /not understood and/, 'the accessible name says which clauses were struck');
-		//The diagnostic itself stays where it was — this marks the sentence, it
-		//does not replace the notice.
+	//The summary is deleted, so card-view draws no sentence to strike. THE RULE
+	//IS NOT REPEALED — it moved back to its one owner. collection-sentence still
+	//strikes [data-unresolved] and still says so in its accessible name (its own
+	//suite pins both), and the drawer still shows the notice that explains what
+	//the app did instead. What is pinned here is that the notice survived the
+	//deletion and that the strike still exists where the sentence now is.
+	it('keeps the unresolved-clause notice and the strike where the sentence still lives', async () => {
+		const view = await readFile(path.join(REPO_ROOT, 'src/components/card-view.ts'), 'utf8');
+		assert.ok(!/data-unresolved/.test(view),
+			'card-view draws no sentence, so it draws no strike');
+		//The notice itself is untouched, in the drawer, where it always was.
 		const drawer = await readFile(path.join(REPO_ROOT, 'src/components/card-drawer.ts'), 'utf8');
 		assert.match(drawer, /Didn’t understand/, 'the notice is still shown');
+		assert.match(drawer, /this\.urlDiagnostics && this\.urlDiagnostics\.length/,
+			'off the same arrivals it always read');
+		assert.match(view, /\.urlDiagnostics=\$\{this\._urlDiagnostics\}/,
+			'and card-view still supplies them');
+		//And the STRIKE is still the signal, not a colour (§4.1), in the renderer
+		//that now owns every sentence in the app.
+		const sentence = await readFile(path.join(REPO_ROOT, 'src/components/collection-sentence.ts'), 'utf8');
+		assert.match(sentence, /\[data-unresolved\]\s*\{[^}]*text-decoration:\s*line-through/);
+	});
+
+	//THE NO-NEW-STYLES SWEEP (owner, F4: "do one more scrub and make sure we're
+	//not making new styles (font, font-size, etc.) for the dialog — only
+	//idiomatic styles defined somewhere else in the UI as much as possible").
+	//
+	//A style auditor diffing the composer against the rest of the app must find
+	//no typographic value that lacks a shipped precedent. This is that auditor,
+	//and it is written against the REAL FILES on both sides — the composer's
+	//components, and every other component in the app — rather than against a
+	//list of blessed values, so it cannot go stale by agreeing with itself: if a
+	//value's only precedent is later deleted (which is exactly what happened to
+	//0.82em when F3 deleted the drawer summary), this fails.
+	//
+	//font-size, font-weight and font-family, which is the set the owner named.
+	//line-height is audited in the report rather than pinned here: one value —
+	//the mobile sentence's 44px — is §4.2's hit-target floor expressed in the
+	//units the floor is stated in, and is deliberately a number about touch
+	//targets rather than about type.
+	it('introduces no font value the rest of the app does not already use', async () => {
+		const COMPOSER = [
+			'configure-collection-dialog.ts',
+			'collection-sentence.ts',
+			'collection-pill-row.ts',
+			'collection-why-here.ts',
+			'tag-chip-group.ts',
+			'tag-chip.ts',
+		];
+		const PROPERTIES = ['font-size', 'font-weight', 'font-family'];
+
+		const dir = path.join(REPO_ROOT, 'src/components');
+		const files = (await readdir(dir)).filter(name => name.endsWith('.ts'));
+		assert.ok(files.length > 40, 'the sweep must be reading the real component directory');
+		for (const name of COMPOSER) {
+			assert.ok(files.includes(name), `${name} must exist for this sweep to mean anything`);
+		}
+
+		//Declarations only: one per line, terminated, and with block comments
+		//stripped first so prose that happens to say "font-size:" is not data.
+		const declarations = (source, property) => {
+			const stripped = source.replace(/\/\*[\s\S]*?\*\//g, '');
+			return Array.from(stripped.matchAll(new RegExp(`${property}\\s*:\\s*([^;}\\n]+);`, 'g')))
+				.map(match => match[1].trim());
+		};
+
+		const composer = {};
+		const elsewhere = {};
+		for (const property of PROPERTIES) {
+			composer[property] = new Map();
+			elsewhere[property] = new Map();
+		}
+		for (const name of files) {
+			const source = await readFile(path.join(dir, name), 'utf8');
+			const bucket = COMPOSER.includes(name) ? composer : elsewhere;
+			for (const property of PROPERTIES) {
+				for (const value of declarations(source, property)) {
+					if (!bucket[property].has(value)) bucket[property].set(value, []);
+					bucket[property].get(value).push(name);
+				}
+			}
+		}
+
+		//Sanity: the sweep must actually be seeing values on both sides, or a
+		//broken regex would make it pass by finding nothing.
+		assert.ok(composer['font-size'].size >= 5, 'the composer sets several sizes');
+		assert.ok(elsewhere['font-size'].size >= 15, 'and the rest of the app sets many');
+
+		const novel = [];
+		for (const property of PROPERTIES) {
+			for (const [value, where] of composer[property]) {
+				if (elsewhere[property].has(value)) continue;
+				novel.push(`${property}: ${value} (only in ${[...new Set(where)].join(', ')})`);
+			}
+		}
+		assert.deepStrictEqual(novel, [],
+			`the composer invents typographic values the app uses nowhere else:\n  ${novel.join('\n  ')}`);
+
+		//AND NO ELEMENT SMUGGLES IN A FAMILY THE STYLESHEET NEVER NAMES.
+		//The sweep above reads CSS declarations, and a <code> (or <pre>, <kbd>,
+		//<tt>) gets monospace from the UA stylesheet with no declaration to
+		//find. Source mode's completion rows had one, printing the raw filter
+		//spelling — the app's only monospace on screen, in a component that had
+		//just had its two `font-family: monospace` rules removed for the same
+		//reason. It is a plain span now.
+		for (const name of COMPOSER) {
+			const source = await readFile(path.join(dir, name), 'utf8');
+			for (const tag of ['code', 'pre', 'kbd', 'tt', 'samp']) {
+				assert.ok(!new RegExp(`<${tag}[ >]`).test(source),
+					`${name} renders <${tag}>, whose UA default is a family §4.3 does not name`);
+			}
+		}
+
+		//AND THE ITALIC IS NOT A NOVEL REGISTER EITHER. The row annotation grew
+		//one in round 6; the owner asked whether italics exist anywhere else in
+		//the app's UI. They do — nine other components — so it stays.
+		const dialog = await readFile(path.join(dir, 'configure-collection-dialog.ts'), 'utf8');
+		assert.match(dialog, /\.row-annotation\s*\{[^}]*font-style:\s*italic/);
+		const italicElsewhere = files.filter(name => !COMPOSER.includes(name))
+			.length && (await Promise.all(files
+			.filter(name => !COMPOSER.includes(name))
+			.map(async name => declarations(await readFile(path.join(dir, name), 'utf8'), 'font-style'))))
+			.flat().filter(value => value === 'italic');
+		assert.ok(italicElsewhere.length >= 5,
+			'italic is an established metadata treatment here, not something the composer invented');
 	});
 
 	//SPEC §Narrow: an unsolicited clause whose RESOLVED count is zero proposes a

@@ -1,5 +1,4 @@
 import { html, css, PropertyValues } from 'lit';
-import { ifDefined } from 'lit/directives/if-defined.js';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -119,14 +118,7 @@ import {
 	openConfigureCollectionDialog,
 	navigateToCollectionWithSelected,
 	askForPathToNavigateTo,
-	showSnackbar,
-	urlForCollection,
 } from '../actions/app.js';
-
-import {
-	collectionLinkCopiedMessage,
-	COLLECTION_LINK_COPY_FAILED_MESSAGE,
-} from '../collection-link-copy.js';
 
 import {
 	deepActiveElement
@@ -137,7 +129,6 @@ import {
 } from '../collection-composer-mode.js';
 
 import {
-	collectionExpressionParts,
 	readableCollectionExpression,
 } from '../collection-composer-suggestions.js';
 
@@ -209,7 +200,6 @@ import {
 	FILTER_ALT_ICON,
 	SAVE_ICON,
 	REPEAT_ICON,
-	COPY_ALL_ICON,
 } from '../../shared/icons.js';
 
 import {
@@ -316,14 +306,6 @@ const REFERENCE_BLOCKS_MAX_WAIT_MS = 1000;
 const COLLECTION_UPDATING_GRACE_MS = 200;
 
 
-
-//A stable empty set, so the summary's memo-free getter does not hand Lit a new
-//object on every render when there is nothing to mark.
-const EMPTY_UNRESOLVED_CLAUSES : ReadonlySet<string> = new Set<string>();
-
-//One sentence for a mouse; the drawer's own notice carries the full
-//explanation of what the app did instead. U+2019 apostrophe (§2.2).
-const UNRESOLVED_CLAUSE_NOTE = 'This app didn’t understand this clause, so it isn’t part of the collection or its count';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -611,91 +593,6 @@ class CardView extends connect(store)(PageViewElement) {
 				vertical-align: middle;
 			}
 
-			/* align-items: start, not center. The copy-link glyph is a 44px
-			   square beside a block that is one line when the collection is
-			   Everything and three when it is not, so centring floated it in
-			   the middle of a wrapped paragraph with nothing beside it. Aligned
-			   to the top it sits on the sentence's FIRST line, which is where
-			   the thing it copies begins.
-			   The top margin is gone: the card count directly above is part of
-			   the same block now (card-drawer groups them), and a gap there was
-			   what made the count read as an unrelated row. */
-			.collection-summary {
-				display: grid;
-				grid-template-columns: minmax(0, 1fr) 44px;
-				align-items: start;
-				gap: 0.15em;
-				margin: 0 0.4em 0.65em;
-				text-align: left;
-			}
-
-			.collection-summary-main {
-				background: transparent;
-				box-shadow: none;
-				color: var(--app-dark-text-color);
-				margin: 0;
-				min-width: 0;
-				padding: 0.4em;
-				text-align: left;
-			}
-
-			.collection-summary-main:hover {
-				background: var(--app-primary-color-light-very-transparent);
-				box-shadow: none;
-			}
-
-			.collection-summary-expression {
-				display: -webkit-box;
-				-webkit-box-orient: vertical;
-				-webkit-line-clamp: 2;
-				overflow: hidden;
-				font-size: 0.82em;
-				line-height: 1.25;
-			}
-
-			/* The operators are structure, not content: they take the same
-			   subordinate step down the composer's own .expression-operator
-			   takes, so the clause names are what the eye lands on. */
-			.collection-summary-operator {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.85em;
-			}
-
-			/* The summary is ~133px wide, so anything past two clauses is
-			   clamped away. The clamp's own ellipsis says more exists; the
-			   title and aria-label carry the whole expression for hover and
-			   assistive tech; and keyboard focus — which gets neither — unfolds
-			   it in place. */
-			.collection-summary-main:focus-visible .collection-summary-expression {
-				display: block;
-				-webkit-line-clamp: unset;
-			}
-
-			/* A CLAUSE THE APP COULD NOT RESOLVE IS NOT PART OF THE COUNT.
-			   The sentence went on listing a phantom clause in the same weight
-			   as every real one, over a card count computed WITHOUT it — the
-			   drawer said "Didn't understand 'tag-33x' in this URL" two lines
-			   below, and the sentence contradicted it. Struck through, the
-			   clause is still visible (the user asked for it, and the spec's
-			   "Unavailable filter" says preserve it and explain) while reading
-			   as what it is: named, not applied.
-			   The strike is the signal, not the colour — colour alone would
-			   fail §4.1 — and the colour steps down to the same body-text grey
-			   card-drawer's own notice uses, because nothing went wrong here.
-			   The title says what happened for a mouse, and the button's
-			   aria-label says it for assistive tech. */
-			.collection-summary-clause[data-unresolved] {
-				color: var(--app-dark-text-color-light);
-				text-decoration: line-through;
-			}
-
-			.collection-summary-action {
-				color: var(--app-primary-color);
-				display: block;
-				font-size: 0.7em;
-				margin-top: 0.25em;
-			}
-
 			.collection-empty {
 				align-items: center;
 				display: flex;
@@ -738,13 +635,6 @@ class CardView extends connect(store)(PageViewElement) {
 				font-size: 0.85em;
 				margin-top: 0.35em;
 				min-height: 44px;
-			}
-
-			#copy-collection-link {
-				height: 44px;
-				width: 44px;
-				display: grid;
-				place-items: center;
 			}
 
 			card-drawer.showing {
@@ -821,27 +711,6 @@ class CardView extends connect(store)(PageViewElement) {
 		return this._collection.finalSortedCards.length === 0;
 	}
 
-	//What a struck clause means, in one sentence, for a mouse. The drawer's own
-	//notice carries the full explanation of what the app did instead.
-	get _unresolvedClauses() : ReadonlySet<string> {
-		if (!this._urlDiagnostics || !this._urlDiagnostics.length) return EMPTY_UNRESOLVED_CLAUSES;
-		return new Set(this._urlDiagnostics.map(diagnostic => diagnostic.part));
-	}
-
-	//THE SENTENCE AND THE COUNT HAVE TO AGREE. A clause the parser could not
-	//resolve is not in the collection the count describes, so the accessible
-	//name says so too — the strike below carries it on screen, and colour and
-	//decoration alone reach nobody using a screen reader.
-	get _collectionSummaryName() : string {
-		if (!this._collection) return '';
-		const expression = readableCollectionExpression(this._collection.description);
-		const unresolved = this._unresolvedClauses;
-		const struck = this._collection.description.filters.filter(filter => unresolved.has(filter));
-		if (!struck.length) return `Refine collection: ${expression}`;
-		const named = struck.map(filter => `“${filter}”`).join(', ');
-		return `Refine collection: ${expression} — ${named} ${struck.length === 1 ? 'was' : 'were'} not understood and ${struck.length === 1 ? 'is' : 'are'} not part of this collection`;
-	}
-
 	override render() {
 		return html`
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
@@ -911,50 +780,29 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			<div slot='visible-info'>
-				${collectionComposerEnabled() && this._collection ? html`
-					<div class='collection-summary'>
-						<!-- A tooltip is a COMMAND, not a state readout (§2.5): the
-						     expression is already this button's visible text, so
-						     repeating it on hover said what this IS rather than what
-						     clicking it does. Same command form as the aria-label. -->
-						<button
-							class='collection-summary-main'
-							title=${this._collectionSummaryName}
-							aria-label=${this._collectionSummaryName}
-							@click=${this._handleConfigureCollectionClicked}
-						>
-							<!-- STRUCTURE, NOT ONE FLAT STRING. The whole sentence
-							     rendered at one weight, so "AND" and "sorted by"
-							     read as loudly as the clause names they join —
-							     the operators are quiet textual structure, per
-							     the spec's expression rules, and the composer's
-							     own draft has said so since the last wave. Same
-							     parts function it uses, so the two surfaces
-							     cannot drift into two readings of one
-							     collection. -->
-							<span class='collection-summary-expression'>${(() => {
-		const parts = collectionExpressionParts(this._collection.description);
-		const unresolved = this._unresolvedClauses;
-		return html`<span class='collection-summary-clause'>${parts.set.label}</span>${parts.filters.map(filter => html`<span class='collection-summary-operator'> AND </span><span class='collection-summary-clause' ?data-unresolved=${unresolved.has(filter.raw)} title=${ifDefined(unresolved.has(filter.raw) ? UNRESOLVED_CLAUSE_NOTE : undefined)}>${filter.label}</span>`)}${parts.modifiers.length ? html`<span class='collection-summary-operator'> · ${parts.modifiers.join(' · ')}</span>` : ''}`;
-	})()}</span>
-							<span class='collection-summary-action'>${
-	this._collection.description.filters.length ||
-								this._collection.description.set !== 'main' ||
-								this._collection.description.sort !== 'default' ||
-								this._collection.description.sortReversed ||
-								this._collection.description.viewMode !== 'list' ?
-		`Refine · ${shortcutKeys('open-collection-composer')}` : `Show cards matching… · ${shortcutKeys('open-collection-composer')}`
-}</span>
-						</button>
-						<button
-							id='copy-collection-link'
-							class='small'
-							title='Copy link to this collection'
-							aria-label='Copy link to this collection'
-							@click=${this._handleCopyCollectionLink}
-						>${COPY_ALL_ICON}</button>
-					</div>
-				` : ''}
+				<!-- THE ALWAYS-VISIBLE COLLECTION SUMMARY IS DELETED (owner, F3:
+				     "the configure collection visible always at the top of the
+				     card drawer is weird / bad styling and I want to remove it.
+				     The two ways to get this: the keyboard shortcut, and clicking
+				     Configure Collection in the zipped-up menu in card-drawer,
+				     exactly as before.")
+
+				     What stood here was the sentence text, a Refine line naming
+				     that shortcut, and a copy-link glyph, in a block that occupied
+				     the top of the drawer on every screen. The composer's two
+				     entry points are the ones the app had before #498: the
+				     open-collection-composer binding, untouched, and the
+				     Configure collection item in the
+				     collapsible info panel above (the info slot), which is
+				     exactly where it has always been. The centre empty state
+				     keeps its own Refine button — that is a different surface, on
+				     the card stage, and it is the only offer left when the drawer
+				     has collapsed to nothing.
+
+				     Copy-link goes with it: no such affordance existed here
+				     before #498 (checked against 752722bd), and Source mode's own
+				     Copy link button is still the way to get one.
+				     (No backticks in here: tagged template.) -->
 				${this._cardsSelected ? 
 		html`<button
 				id='clear-selection'
@@ -1178,26 +1026,6 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleConfigureCollectionClicked() {
 		store.dispatch(openConfigureCollectionDialog());
-	}
-
-	async _handleCopyCollectionLink() {
-		if (!this._collection) return;
-		const url = new URL(urlForCollection(this._collection.description), window.location.origin).toString();
-		try {
-			//'info': a clipboard write is not a write to a server, so none of
-			//the outcome words in snackbar-copy.ts apply to it.
-			await navigator.clipboard.writeText(url);
-			//DESCRIBE THE LINKED VIEW, which is what the spec asks Copy link to
-			//do. 'Collection link copied.' confirmed that something was copied;
-			//with two collections open and one clipboard, that is not enough to
-			//tell which. numCards is already computed for the count this button
-			//sits beside, so naming it costs nothing.
-			store.dispatch(showSnackbar(collectionLinkCopiedMessage(this._collection.description, {}, this._collection.numCards)));
-		} catch {
-			//'refused' is the kind for "this did not happen, and no data is at
-			//stake" — the browser declined clipboard access.
-			store.dispatch(showSnackbar(COLLECTION_LINK_COPY_FAILED_MESSAGE, {kind: 'refused'}));
-		}
 	}
 
 	_handleAIAssistantSummaryClicked() {

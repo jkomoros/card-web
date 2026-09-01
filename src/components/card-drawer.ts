@@ -36,10 +36,6 @@ import {
 } from '../shortcuts-data.js';
 
 import {
-	collectionComposerEnabled,
-} from '../collection-composer-mode.js';
-
-import {
 	CardID,
 	CardType,
 } from '../types.js';
@@ -168,19 +164,6 @@ class CardDrawer extends LitElement {
 			.scrolling {
 				max-height:100%;
 				flex-grow:1;
-				/* A flex item's default min-height is auto, i.e. "as tall as my
-				   content", which in a column means the scroller grows to fit
-				   the whole list and never scrolls — the page does instead. It
-				   got away with that while the scroller was the only child;
-				   with a header above it, min-height:0 is what lets it take
-				   the remaining space and overflow inside it. */
-				min-height: 0;
-			}
-
-			/* The header keeps its natural height and never gives it up, so a
-			   long list cannot squeeze the sentence the list is anchored to. */
-			#count {
-				flex: 0 0 auto;
 			}
 
 			.buttons {
@@ -235,16 +218,6 @@ class CardDrawer extends LitElement {
 				opacity: 1;
 			}
 
-			/* The header takes the same exemption for the same reason. On an
-			   initial load its own label already reads "loading…", so dimming
-			   it is a second, quieter word for the fact it is already
-			   stating. This rule exists because the header is now a sibling
-			   of the scroller rather than its first child, and so no longer
-			   inherits the exemption above. */
-			.container.updating.initial-load #count {
-				opacity: 1;
-			}
-
 			/* SUPERSEDED by loading-placeholder[partial], which was extracted
 			   from this rule. It stays only as the anchor for the pin's
 			   position; the pin itself renders in the element now, in a grey
@@ -267,45 +240,15 @@ class CardDrawer extends LitElement {
 				width: 12em;
 			}
 
-			/* THE COUNT AND THE COLLECTION SENTENCE ARE ONE BLOCK.
-			   The sentence arrives through the visible-info slot, so the two
-			   were rendered by different components and looked it: a centred
-			   12em count on one row, a left-aligned sentence on the next, with
-			   a gap between them — an "N cards" floating above something
-			   unrelated, when N is precisely the number of cards that sentence
-			   describes. Sharing an alignment and closing the gap is what makes
-			   them read as one statement.
-			   Scoped to the composer, because the sentence only exists there;
-			   the legacy drawer keeps the centred count it has always had. */
-			#count.grouped {
-				text-align: left;
-				width: auto;
-				max-width: 13em;
-			}
+/* THE GROUPED-COUNT RULES ARE DELETED WITH THE THING THEY GROUPED
+			   THE COUNT WITH (owner, F3). They existed to line the card count up
+			   with the always-visible collection summary in the visible-info
+			   slot, and to hand the slotted action panels back the centring that
+			   alignment had taken from them. The summary is gone, so the count is
+			   the centred 12em line it has always been and the panels never lose
+			   their centring in the first place. */
 
-			#count.grouped > span {
-				display: block;
-				margin: 0 0.4em 0.15em;
-			}
-
-			/* THE DRAWER'S ACTIONS ARE NOT PART OF THAT SENTENCE.
-			   text-align is inherited, and #count is the whole header — count,
-			   diagnostics, AND both slotted panels — so the rule above, meant
-			   only to line the count up with the sentence beneath it, also
-			   reached the actions in those panels: word cloud, Configure
-			   collection, bulk import/export, Clear selection, Randomize. They
-			   have been centred in this column for as long as the drawer has
-			   existed (#count's own text-align, which .grouped overrode), and
-			   they went flush left with no one asking them to.
-			   The alignment belongs to the count line, not to everything that
-			   happens to share its box. The sentence keeps its left edge because
-			   it declares one itself — card-view's .collection-summary — rather
-			   than borrowing this one. */
-			#count.grouped .info-panel {
-				text-align: center;
-			}
-
-			/* A qualifier on the count, not a state of its own. Subordinate
+						/* A qualifier on the count, not a state of its own. Subordinate
 			   tone (§4.5) for the same reason .diagnostic takes it: nothing
 			   went wrong, the app is telling the user something true about
 			   the results it did produce. */
@@ -367,17 +310,18 @@ class CardDrawer extends LitElement {
 		return html`
 			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating && !this.failureMessage ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount && !this.failureMessage ? 'initial-load' : ''}'>
 				${this.updating && !this.failureMessage ? html`<loading-placeholder class='loading-pin' partial noun='cards'></loading-placeholder>` : ''}
-				<!-- A NON-SCROLLING HEADER, not the first thing in the scroller.
-				     The collection sentence is the spec's persistent anchor — the
-				     surface that "persistently shows a readable collection
-				     sentence" and the composer's only mouse entry point — and it
-				     lived INSIDE the card scroller, so about four arrow-key steps
-				     down the list scrolled the thing the whole feature is
-				     anchored to off the top of the screen. Nothing that says
-				     "persistent" can be the first item of a scrolling region.
-				     The dim still covers it: while the cards below are stale the
-				     count above them is stale too, and §3.6 wants that said. -->
-				<div class='label ${collectionComposerEnabled() ? 'grouped' : ''} ${this.updating && !this.failureMessage ? 'loading-dim' : ''}' id='count'>
+				<!-- BACK INSIDE THE SCROLLER, where it was before #498 (owner,
+				     F3). It was lifted out to keep the always-visible collection
+				     summary from scrolling away — "nothing that says persistent
+				     can be the first item of a scrolling region" — and that
+				     summary is deleted. What is left in this header is the count,
+				     the URL diagnostics and the two slotted info panels, and the
+				     expanded panel is a word cloud plus a dozen actions: pinned
+				     outside the scroller it would push the card list off the
+				     bottom of the drawer the moment the zippy is opened, which is
+				     the entry point the owner asked to go back to. -->
+				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
+					<div class='label' id='count'>
 						<span>
 							${this.infoCanBeExpanded ? html`<button class='small' title=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-label=${this.infoExpanded ? 'Hide the details' : 'Show the details'} aria-expanded=${this.infoExpanded ? 'true' : 'false'} @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }
 							${this.failureMessage
@@ -417,8 +361,7 @@ class CardDrawer extends LitElement {
 						<div class='info-panel'>
 							<slot name='visible-info'></slot>
 						</div>
-				</div>
-				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
+					</div>
 					${this.collection && this.collection.description.viewMode == 'web' ?
 		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
 		html`<card-thumbnail-list

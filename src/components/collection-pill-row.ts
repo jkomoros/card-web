@@ -6,8 +6,11 @@
 //panel that hosts a whole filter-family editor. The shape it specifies is
 //literally the line below:
 //
-//    updated after [2026-01-01] [–– no end ––]   · draft now matches 184
-//    [Also match…] [Invert] ✕                    · without this pill: 1,842
+//    updated after [2026-01-01] [–– no end ––]                          ✕
+//    Also match…  Invert          · removing this: 184 cards → 1,842 cards
+//
+//with the ✕ pinned to the section's upper right, where this app dismisses
+//things (DialogElement's #close), rather than sitting in the verb row.
 //
 //A one-row editor cannot squash, and every pill has real contents — polarity,
 //or, remove at minimum — so a dead Edit affordance is structurally impossible.
@@ -229,13 +232,22 @@ class CollectionPillRow extends LitElement {
 			/* ONE ROW THAT WRAPS, not a grid: the argument controls for a date
 			   are several controls wide and the verbs must stay beside them on a
 			   wide screen and fall under them on a narrow one, which is what
-			   wrap does and what a fixed layout would have to be told twice. */
+			   wrap does and what a fixed layout would have to be told twice.
+
+			   IT IS ALSO THE SURFACE THE ✕ IS PINNED TO (owner, F1), so it is
+			   positioned, and it reserves the ✕'s column on the right. The
+			   reservation is unconditional and full-height rather than clever:
+			   this row wraps, so anything that fitted "beside" the glyph on one
+			   viewport would slide under it on another, and the whole
+			   requirement is that the ✕ never overlaps a control or a label at
+			   any editor size. 44px is the glyph's own target (§4.2). */
 			.row {
 				align-items: center;
 				display: flex;
 				flex-wrap: wrap;
 				gap: 0.5em;
-				padding: 0.35em 0;
+				padding: 0.35em 44px 0.35em 0;
+				position: relative;
 			}
 
 			/* THE ROW ALWAYS NAMES ITS SCOPE. On a group, clicking a segment and
@@ -317,9 +329,8 @@ class CollectionPillRow extends LitElement {
 			/* The verbs are a GROUP, and they are separated from the argument
 			   controls to their left by a rule rather than by whitespace alone:
 			   in a row that wraps, loose words floating after a date field read
-			   as more of the sentence. 0.4em between them so adjacent boxes do
-			   not read as one segmented control. Centred, so the ✕ sits on the
-			   same line as the two boxes beside it. */
+			   as more of the sentence. 0.4em between them so adjacent verbs do
+			   not read as one segmented control. */
 			.verbs {
 				align-items: center;
 				border-left: 1px solid var(--app-divider-color);
@@ -328,71 +339,62 @@ class CollectionPillRow extends LitElement {
 				padding-left: 0.6em;
 			}
 
-			/* THESE HAVE TO READ AS PRESSABLE (owner: "the Or… Flip Remove don't
-			   read as buttons and are kind of confusing" — the labels in that
-			   quote are the ones they wore at the time).
+			/* THE VERBS WEAR THE TEXT-VERB TREATMENT THIS DIALOG ALREADY SHIPS
+			   (owner, F2), copied rule for rule rather than approximated.
 
-			   button.small is the sanctioned transparent variant (§4.2) and it
-			   carries a verb here rather than a glyph, which is the composer's
-			   own .verb extension — but transparent purple text with a hover
-			   underline is the app's LINK treatment, and a row of them reads as
-			   prose. What they get is the outlined chip the composer already
-			   uses for exactly this class of thing: the palette's
-			   .suggestion-action[data-consequence='transform'] — 1px
-			   --app-primary-color border, transparent fill, purple label — which
-			   marks a control that REWRITES THE DRAFT rather than one that
-			   leaves.
+			   SUPERSEDED: the previous wave gave them a 1px --app-primary-color
+			   outline, borrowed from the palette's
+			   .suggestion-action[data-consequence='transform'] CHIP — which is a
+			   label painted on a row, not a button anyone presses. As a button
+			   treatment it existed nowhere else in the app, and the owner's
+			   verdict on it is the reversal: it is alien.
 
-			   TWO of them now wear it, not three. Widening and inverting rewrite
-			   the clause and leave it on screen; removal deletes it, which is a
-			   different species and takes the app's ✕ instead (see button.remove
-			   below). Dropping it out of this treatment is the point: an
-			   outlined Remove sat in the same box as the two rewrites and
-			   claimed to be one of them.
+			   The inventory of what the app actually ships is in the report; the
+			   one idiom for two PEER TEXT VERBS INSIDE A DIALOG SURFACE is
+			   configure-collection-dialog's own button.small.verb — transparent,
+			   --app-primary-color label, margin 0, a 44px floor — which is worn by
+			   "Copy link", "Edit source", "Edit visually", "order and view", and
+			   most exactly by the pair "Keep editing" / "Return to last valid
+			   collection": two peer text verbs, side by side, in this same dialog,
+			   neither of which commits. These three declarations ARE that rule.
 
-			   NOT button.text: §4.2's named text variant is the FILLED purple
-			   block for banners and gates, and it is the treatment of THE one
-			   committing action. These are peers — neither commits, and neither
-			   outranks the other — so filling one would be a claim about the
-			   pill that is not true.
-
-			   Square (§4.4), and 44px tall (§4.2's floor, which .small does not
-			   carry on its own). */
-			button.verb {
-				border: 1px solid var(--app-primary-color);
+			   Not button.text (§4.2's filled purple block is THE committing
+			   action, and these are peers that commit nothing), and not
+			   button.discard (the low-emphasis companion to a text button, for
+			   dismissing — which is what the ✕ below is now for). */
+			button.small.verb {
 				color: var(--app-primary-color);
+				margin: 0;
+				/* §4.2's 44px minimum; .small is 18x18 with padding: 0. */
 				min-height: 44px;
-				padding: 0 0.7em;
 			}
 
-			/* The fill the palette's own rows take on hover, so a pointer over a
-			   verb gets the same answer it gets over a row. The border is
-			   already there, so nothing moves. */
-			button.verb:hover {
-				background: var(--app-primary-color-light-very-transparent);
-			}
+			/* REMOVAL IS THE ✕, IN THE UPPER RIGHT (owner, F1). It is the app's
+			   dismiss idiom, and the app states that idiom in exactly one place:
+			   DialogElement's own #close — button.small, absolutely positioned
+			   at the top right of the surface it dismisses. This is the same
+			   glyph (CANCEL_ICON), the same variant, and the same placement,
+			   against the configurable section instead of against a dialog.
 
-			/* REMOVAL IS THE ✕, NOT A WORD (owner, F1). Every other removal in
-			   this app is the same glyph in the same place: the sentence pill's
-			   own control is tag-chip's trailing ✕, and the composer's design
-			   note calls it "the most guessable gesture in the UI". A third
-			   bordered word beside two bordered words made removal look like a
-			   third way to REWRITE the clause, which the other two are and this
-			   one is not.
+			   It sat in the verb row before, which put a control that DELETES
+			   the clause on the same line as two that rewrite it. Its own
+			   species is dismissal, and dismissal in this app happens in the
+			   corner.
 
-			   So it does NOT take button.verb: it is the plain transparent
-			   button.small icon treatment (§4.2), which is what the app's other
-			   ✕ controls wear. It keeps the trailing position tag-chip and the
-			   sentence pill put theirs in. Icon-only, so it carries BOTH a title
-			   and an aria-label (HS §2.5) — a title alone leaves it nameless on
-			   touch, and an aria-label alone leaves it silent on hover. 44px in
-			   both directions, since .small carries no floor of its own. */
+			   Icon-only, so it carries BOTH a title and an aria-label (HS §2.5)
+			   — a title alone leaves it nameless on touch, and an aria-label
+			   alone leaves it silent on hover. 44px in both directions, since
+			   .small carries no floor of its own, and .row reserves that column
+			   so nothing can ever land under it. */
 			button.remove {
 				align-items: center;
 				display: inline-flex;
 				justify-content: center;
 				min-height: 44px;
 				min-width: 44px;
+				position: absolute;
+				right: 0;
+				top: 0;
 			}
 		`
 	];
@@ -651,9 +653,14 @@ class CollectionPillRow extends LitElement {
 				<span class='verbs'>
 					<button class='small verb' title='Widen this to also match something else' @click=${this._handleOr}>${OR_VERB_LABEL}</button>
 					<button class='small verb' title=${this._invertTitle} @click=${this._handleInvert}>${INVERT_VERB_LABEL}</button>
-					<button class='small remove' title=${removeTitle} aria-label=${removeTitle} @click=${this._handleRemove}>${CANCEL_ICON}</button>
 				</span>
 				${this._removalConsequence ? html`<span class='count'>· ${this._removalConsequence}</span>` : ''}
+				<!-- LAST IN THE SOURCE, TOP-RIGHT ON SCREEN (owner, F1). It stays
+				     inside the group so it keeps the "Editing <clause>" context
+				     its own name does not repeat, and it comes last so a keyboard
+				     walks the clause's own controls before reaching the one that
+				     deletes the clause. -->
+				<button class='small remove' title=${removeTitle} aria-label=${removeTitle} @click=${this._handleRemove}>${CANCEL_ICON}</button>
 			</div>
 		`;
 	}

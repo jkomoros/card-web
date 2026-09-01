@@ -429,10 +429,19 @@ The defining experience uses familiar search, filtering, preview, and undo
 patterns in a continuous loop between collection, expression, destination, and
 explanation:
 
-1. The ordinary card drawer/header persistently shows a readable collection
-   sentence, for example **Working notes · Has TODO · Recent · 43 cards**.
-2. Clicking the sentence or pressing Ctrl-K opens it for composition without
-   changing the active collection.
+1. ~~The ordinary card drawer/header persistently shows a readable collection
+   sentence, for example **Working notes · Has TODO · Recent · 43 cards**.~~
+   **SUPERSEDED by the owner (round 7, F3).** It was built, and the owner asked
+   for it to be removed: "the configure collection visible always at the top of
+   the card drawer is weird / bad styling and I want to remove it." The drawer
+   header shows the card count it has always shown, and nothing else. Every
+   later mention of "the persistent collection sentence" in this document is
+   superseded by this item; the readable sentence still exists, inside the
+   composer, where it is the surface being composed.
+2. ~~Clicking the sentence~~ or pressing Ctrl-K opens it for composition without
+   changing the active collection. The pointer entry point is **Configure
+   collection** in the card drawer's collapsible info panel — where it lived
+   before this project, and where the owner asked for it back.
 3. Before typing, the composer presents a few useful destinations expressed in
    the user's domain, not in filter-system taxonomy.
 4. Highlighting a destination previews the exact clause diff, count delta, and
@@ -768,8 +777,14 @@ This is explicit ambiguity without decision fatigue.
 The visual builder is available from:
 
 - an **Expand** action in the quick composer;
-- the visible collection summary near the card count;
-- the existing Configure Collection affordance;
+- ~~the visible collection summary near the card count~~ — **SUPERSEDED by the
+  owner (round 7, F3):** "the configure collection visible always at the top of
+  the card drawer is weird / bad styling and I want to remove it. The two ways
+  to get this: Ctrl-K, and clicking Configure Collection in the zipped-up menu
+  in card-drawer, exactly as before." There is no always-visible summary; the
+  two entry points are the shortcut and the item below;
+- the existing Configure Collection affordance, in the card drawer's
+  collapsible info panel, exactly where it lived before this project;
 - “Browse all filters.”
 
 It should be a roomy dialog or full-height panel, not a small form containing

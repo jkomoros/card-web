@@ -31,6 +31,11 @@
 
 import { JSDOM } from 'jsdom';
 import assert from 'assert';
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const dom = new JSDOM('', { url: 'https://example.com/c/main/' });
 for (const name of [
@@ -334,33 +339,52 @@ describe('the pill row', () => {
 				'with the title still saying what widening means');
 		});
 
-		//THE REWRITING VERBS MUST READ AS PRESSABLE (owner, F1).
+		//SUPERSEDED PIN, BY THE OWNER'S OWN REVERSAL (owner, F2).
 		//
-		//They were `button.small.verb` with a hover underline: transparent, no
-		//boundary, purple — which is this app's LINK treatment, so a row of them
-		//read as prose rather than as controls. What they take is the treatment
-		//the composer already uses for a control that REWRITES THE DRAFT
-		//(.suggestion-action[data-consequence='transform']): an outlined chip.
-		//Not button.text — §4.2's filled variant is for THE committing action,
-		//and these are peers, neither of which commits.
+		//It used to be 'gives the verbs a visible boundary, so they read as
+		//pressable', and it asserted a 1px --app-primary-color border plus a
+		//lavender hover fill. That treatment was borrowed from the palette's
+		//.suggestion-action[data-consequence='transform'] — which is a CHIP
+		//painted on a row, not a button anyone presses — and as a button
+		//rendering it existed nowhere else in this app. The owner's verdict:
+		//"The round-4 bordered-outline verb treatment exists nowhere else in the
+		//app and the owner finds it alien." So the boundary is deleted, and what
+		//is pinned instead is that these two wear an EXISTING idiom exactly.
 		//
-		//It is TWO of them now, not three: removal left this treatment for the ✕
-		//(owner, F1), pinned just above.
+		//The idiom is configure-collection-dialog's own `button.small.verb`:
+		//transparent, --app-primary-color label, margin 0, a 44px floor. Its
+		//nearest shipped instance is the pair "Keep editing" / "Return to last
+		//valid collection" — two peer text verbs, side by side, in that same
+		//dialog, neither of which commits, which is exactly what these are.
 		//
-		//JSDOM computes no layout, so what is pinned is the rule.
-		it('gives the verbs a visible boundary, so they read as pressable', async () => {
+		//The pin reads the DIALOG'S rule and requires the row's to match it
+		//declaration for declaration, so the two cannot drift into two
+		//treatments of one idea. JSDOM computes no layout, so what is pinned is
+		//the rule.
+		it('gives the verbs the dialog’s own text-verb treatment, and nothing of its own', async () => {
 			const element = await mount({ expression: [filter('starred')], index: 0 });
 			const styles = element.constructor.styles.map(style => String(style.cssText || style)).join('\n');
-			const rule = styles.match(/button\.verb\s*\{[^}]*\}/)[0];
-			assert.match(rule, /border:\s*1px solid var\(--app-primary-color\)/,
-				'a boundary, from a token — this is what makes it read as a button');
-			assert.match(rule, /min-height:\s*44px/, '§4.2 hit target');
-			assert.ok(!/border-radius/.test(rule), 'square, per §4.4');
-			assert.match(styles, /button\.verb:hover\s*\{[^}]*background:\s*var\(--app-primary-color-light-very-transparent\)/,
-				'and the hover is the palette rows own fill, not a link underline');
-			assert.ok(!/button\.verb:hover\s*\{[^}]*text-decoration/.test(styles),
-				'the link treatment is gone with the confusion it caused');
-			//And the group is separated from the argument controls beside it.
+			const rule = styles.match(/button\.small\.verb\s*\{[^}]*\}/)[0];
+
+			const declarations = (text) => text
+				.slice(text.indexOf('{') + 1, text.lastIndexOf('}'))
+				.replace(/\/\*[\s\S]*?\*\//g, '')
+				.split(';').map(part => part.replace(/\s+/g, ' ').trim()).filter(Boolean).sort();
+
+			//THE SHIPPED RULE ITSELF, read out of the file that ships it.
+			const dialogSource = await readFile(
+				path.join(REPO_ROOT, 'src/components/configure-collection-dialog.ts'), 'utf8');
+			const shipped = dialogSource.match(/\n\t\t\tbutton\.small\.verb \{[^}]*\}/)[0];
+			assert.deepStrictEqual(declarations(rule), declarations(shipped),
+				'the row wears the dialog\'s text-verb rule verbatim, not an approximation of it');
+
+			//And the bespoke treatment is gone, not merely outranked.
+			assert.ok(!/border:\s*1px solid var\(--app-primary-color\)/.test(styles),
+				'the bordered-outline chip treatment is deleted from this component');
+			assert.ok(!/button\.verb:hover/.test(styles),
+				'and so is the hover fill that only existed to sit inside that border');
+
+			//The group is still separated from the argument controls beside it.
 			assert.match(styles, /\.verbs\s*\{[^}]*border-left:\s*1px solid var\(--app-divider-color\)/);
 			//§4.2 has no outline BUTTON variant, and this does not invent one: it
 			//is the same base variant the composer already extends.
@@ -368,6 +392,44 @@ describe('the pill row', () => {
 				assert.ok(button.classList.contains('small'),
 					'built on button.small, not on a fourth button system');
 			}
+		});
+
+		//THE ✕ IS WHERE THIS APP DISMISSES THINGS (owner, F1).
+		//
+		//It sat in the verb row, on the same line as two controls that REWRITE
+		//the clause, and it is the one that deletes it. The app states its
+		//dismiss idiom in exactly one place — DialogElement's #close: a
+		//`button.small` absolutely positioned at the top right of the surface it
+		//dismisses — so that is what the configurable section's own removal
+		//takes, against the section instead of against a dialog.
+		it('pins the ✕ to the section’s upper right, the way a dialog pins its close', async () => {
+			const element = await mount({ expression: [filter('starred')], index: 0 });
+			const styles = element.constructor.styles.map(style => String(style.cssText || style)).join('\n');
+			const rule = styles.match(/button\.remove\s*\{[^}]*\}/)[0];
+			assert.match(rule, /position:\s*absolute/);
+			assert.match(rule, /top:\s*0/);
+			assert.match(rule, /right:\s*0/);
+			//The same three properties DialogElement's own close button uses,
+			//read out of the file that ships it rather than restated here.
+			const dialogElement = await readFile(
+				path.join(REPO_ROOT, 'src/components/dialog-element.ts'), 'utf8');
+			const close = dialogElement.match(/#close \{[^}]*\}/)[0];
+			assert.match(close, /position:\s*absolute/,
+				'the idiom this copies must still be the idiom');
+			assert.match(close, /right:/);
+
+			//AND IT CANNOT OVERLAP ANYTHING, AT ANY EDITOR SIZE: the row reserves
+			//its column outright rather than relying on where the flow happens to
+			//wrap on one viewport.
+			const row = styles.match(/\.row\s*\{[^}]*\}/)[0];
+			assert.match(row, /position:\s*relative/, 'the section is the positioning context');
+			assert.match(row, /padding:\s*0\.35em 44px 0\.35em 0/,
+				'44px of the right edge belongs to the ✕ and to nothing else');
+
+			//It also left the verb row, which is the point.
+			const verbs = element.shadowRoot.querySelector('.verbs');
+			assert.ok(!verbs.contains(removeControl(element)),
+				'removal is not a third verb');
 		});
 
 		//ONE ALIGNMENT RULE FOR EVERY LABEL/CONTROL PAIR (owner, F3: "the labels
