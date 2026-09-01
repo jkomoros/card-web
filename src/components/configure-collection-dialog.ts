@@ -83,6 +83,8 @@ import {
 } from '../filters.js';
 
 import {
+	ARROW_DOWN_ICON,
+	ARROW_RIGHT_ICON,
 	CANCEL_ICON,
 	LINK_ICON,
 	OPEN_IN_BROWSER_ICON,
@@ -91,6 +93,7 @@ import {
 
 import './configure-collection-filter.js';
 
+import './card-link.js';
 import './collection-sentence.js';
 import './collection-pill-row.js';
 
@@ -307,11 +310,20 @@ const SOURCE_LINE_BREAKS = /[\r\n]+/g;
 //enough to be free.
 const RETAINED_PREVIEW_COUNT_LIMIT = 120;
 
-//HOW MANY CARDS THE PREVIEW LINE NAMES (round 3, D5). The owner: "before that
-//it's just showing you a preview of cards." Three titles and the remainder fit
-//on one line under the count, and one line is the whole design — this is a
-//preview of the collection, not a second collection view inside the composer.
-const PREVIEW_TITLE_LIMIT = 3;
+//HOW MANY OF THE DRAFT'S CARDS THE PEEK CAN NAME (round 8).
+//
+//SUPERSEDES PREVIEW_TITLE_LIMIT = 3, which fed the `·`-joined titles strip
+//under the footer. The owner, round 8: "The preview of cards at the bottom is
+//confusing and not useful. I'd expect to see something like 'matches nn cards'
+//and then some way to expand it and see a list of the first 100 or so with
+//card-links so hovers work". A hundred is the owner's number.
+//
+//THE WORKER ALREADY SENDS THE WHOLE ORDERED LIST — corpus-worker's
+//runCollection reply carries result.ids untruncated, and the bridge passes it
+//through — so nothing upstream had to be raised; this is the only cap between
+//that reply and the screen. A hundred ids is what one retained entry costs, and
+//RETAINED_PREVIEW_COUNT_LIMIT of those is a few thousand short strings.
+const PREVIEW_MATCH_LIMIT = 100;
 
 //Stable stand-ins for the not-yet-populated cases. A fresh `{}` or a fresh
 //CollectionDescription every render would give the memos below a new cache key
@@ -764,17 +776,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//open, where the alternative is measurably worse.
 	_retainedPreviewCounts = new Map<string, number>();
 
-	//THE FIRST FEW CARDS THE DRAFT ACTUALLY MATCHES, keyed by the collection they
-	//came out of — the same key the counts use, for the same reason: the names
-	//and the number beside them are two halves of one worker run, and keying them
-	//differently is how a title list could outlive the collection it described.
+	//THE CARDS THE DRAFT ACTUALLY MATCHES, keyed by the collection they came out
+	//of — the same key the counts use, for the same reason: the ids and the
+	//number beside them are two halves of one worker run, and keying them
+	//differently is how a card list could outlive the collection it described.
 	//
-	//BOUNDED AT THE HEAD OF THE LIST. Only a handful are ever rendered, so
-	//retaining an ordered id array per collection would be several hundred
-	//strings the composer has no use for.
+	//BOUNDED AT THE HEAD OF THE LIST (PREVIEW_MATCH_LIMIT). A collection can have
+	//forty thousand members; the peek shows the first hundred of them.
 	_retainedPreviewIDs = new Map<string, readonly string[]>();
 
-	//Reactive, because the line renders from it: a Map mutation is invisible to
+	//IS THE PEEK OPEN? Collapsed on every open (see the `open` branch of
+	//`updated`) — the dialog's core is the ranked list, and the matches are
+	//something you ask for.
+	@state()
+		_matchesExpanded = false;
+
+	//Reactive, because the peek renders from it: a Map mutation is invisible to
 	//Lit, so the render reads this counter's identity instead. Bumped whenever a
 	//run lands ids for a collection this session had none for.
 	@state()
@@ -1185,8 +1202,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.composer-input,
 			.key-hints,
 			.modifier-note,
-			.mode-links,
-			.preview-titles {
+			.mode-links {
 				flex: 0 0 auto;
 			}
 
@@ -1562,24 +1578,73 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-height: 0;
 			}
 
-			/* THE PREVIEW LINE (D5). One line, subordinate, clipped rather than
-			   wrapped: the draft's own count sits directly above it and this is
-			   the evidence for that number, not a second reading surface. It
-			   follows the count's right-aligned column by sitting under the whole
-			   footer row rather than inside it, so a long title cannot push the
-			   commit button anywhere. */
-			.preview-titles {
-				color: var(--app-dark-text-color-light);
-				font-size: 0.75em;
-				overflow: hidden;
-				text-align: right;
-				text-overflow: ellipsis;
-				white-space: nowrap;
+			/* THE PEEK AT WHAT THE DRAFT MATCHES (round 8).
+			   THIS RULE SUPERSEDES the preview-titles strip, the one line of
+			   dot-joined names that used to sit under the footer. The owner: "The preview
+			   of cards at the bottom is confusing and not useful. I'd expect to
+			   see something like 'matches nn cards' and then some way to expand
+			   it and see a list of the first 100 or so with card-links so hovers
+			   work."
+
+			   IT GROWS UPWARD FROM THE FOOTER, INSIDE THE FIXED BOX. The dialog
+			   is a fixed size on all three height properties, so the peek's room
+			   has to come from somewhere inside it — and the column already has
+			   exactly one giver and taker, the ranked list (flex: 1 1 auto). So
+			   this is a RESERVATION with a cap, the same mechanism the pill row
+			   uses and the same one the pill row's pin describes: a new sibling is
+			   paid for out of the list's height and out of nothing else. The outer
+			   box does not move; the ranked list gets shorter while the peek is
+			   open.
+
+			   0 1 auto, NOT 0 0 auto, which is the one place this differs from
+			   every other reserved block in the column. The list pays first — it is
+			   far the largest item, and a flex deficit is shared out in proportion
+			   to what each item asked for — but the list has a 5em FLOOR, and a
+			   peek that could not shrink would push the remaining deficit onto
+			   #inner and start scrolling the input off the top of the dialog. Being
+			   shrinkable means the peek hands back whatever is left over instead:
+			   it is the last payer, after the list has paid everything it can.
+
+			   14em is about eight card-links at this measure — enough that the
+			   list reads as a list and scrolls, small enough that the ranked list
+			   above it keeps more room than it gives up. Below that the pane
+			   scrolls on its own, which is where the other ninety-two are — through
+			   the shared .scroller class, like both other panes in this dialog. A
+			   dialog subclass never declares its own overflow (#759). */
+			.match-list {
+				flex: 0 1 auto;
+				margin-top: 0.5em;
+				max-height: 14em;
+				min-height: 0;
+				overscroll-behavior: contain;
 			}
 
-			.mobile .preview-titles {
-				text-align: left;
+			.match-list ul {
+				list-style: none;
+				margin: 0;
+				padding: 0;
 			}
+
+			.match-list li {
+				padding: 0.25em 0;
+			}
+
+			/* THE LIST IS THE FIRST HUNDRED, AND IT SAYS SO. The count line
+			   directly under it is the truth about the whole collection; without
+			   this, a hundred rows under 'Matches 1,236 cards' would read as the
+			   collection being shorter than the number claims. Subordinate
+			   register, same as .suggestion-heading. */
+			.match-list-note {
+				color: var(--app-dark-text-color-light);
+				font-size: 0.75em;
+				font-weight: normal;
+			}
+
+			/* The zippy sits between the count it opens and the primary it must
+			   not be mistaken for. It is the app's own disclosure control —
+			   card-drawer's 'button.small' with the two arrow glyphs — and
+			   ButtonSharedStyles supplies every bit of its treatment, including
+			   the 18px glyph, so there is no rule for it here. */
 
 			/* The footer is the last child of #inner, so scrolling the list to
 			   the port's bottom edge would push Open out of view. Reserving its
@@ -2938,17 +3003,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<div class='mode-links'>
 				<button class='small verb' @click=${this._handleEditSource}>Edit source</button>
 			</div>
+			<!-- WHAT THE DRAFT MATCHES, ON REQUEST (round 8). Directly above the
+			     count line whose zippy discloses it, growing upward into room the
+			     ranked list gives up — the outer box never changes size. -->
+			${this._matchListRender(draftCount)}
 			${this._openActionRender(
 		draftCount,
 		this._activationPending,
 		this._activationPending ? 'Already opening this collection' : 'Open this collection',
 		this._handleOpenCurrentDraft,
-		Boolean(highlighted)
+		Boolean(highlighted),
+		true
 	)}
-			<!-- WHAT THE DRAFT MATCHES, BENEATH THE COUNT (D5). Not a grid, not a
-			     list: one quiet line of names, so the number above it is about
-			     something the user can see. -->
-			${this._previewTitlesRender(draftCount)}
 		`;
 	}
 
@@ -3094,52 +3160,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//draft's number recedes, and the two numbers on screen stop competing to be
 	//"what Enter will do". The key-hints line directly above says which one it
 	//is, and the reserved width means nothing moves either way.
-	//WHAT THE DRAFT ACTUALLY MATCHES, NAMED (round 3, D5).
-	//
-	//The owner's constitution calls the un-committed draft "just showing a
-	//preview of cards", and a number alone is not one: '118 cards' is the same
-	//sentence for every collection of that size. Three titles say WHICH cards,
-	//and they cost nothing new — the worker run that produced the count already
-	//returned the ordered ids, and this reads titles for them out of the map the
-	//composer already holds for naming card-valued clauses.
-	//
-	//ABSENT, NOT EMPTY, WHILE PENDING. A line that appears blank and then fills
-	//is a layout shift on every keystroke; "we do not know yet" and "there is
-	//nothing to say" are different facts and only the second of them is worth a
-	//line. A card whose record has not loaded is skipped rather than named by its
-	//id — an internal identifier never reaches a user (HS-1.4) — so on a corpus
-	//that is still loading the line is simply shorter, or absent.
-	//AND IT NAMES CARDS ONLY WHEN IT CAN TELL THEM APART (round-3 tightness, C2).
-	//
-	//A corpus has repeated titles in it — this one opens on three cards all
-	//called 'What is this?' — so the strip read `What is this? · What is this? ·
-	//What is this? · and 1,236 more`: three names for one name, in a line whose
-	//entire job is to say WHICH cards. Consecutive repeats collapse to one, and a
-	//strip that would then show fewer than two DISTINCT titles is not a preview at
-	//all — one name and a remainder is the count again, spelled longer — so it is
-	//dropped rather than shown saying nothing.
-	//
-	//NOT deduped across the whole line: the ids are the collection's own leading
-	//order, and two runs of one title with something between them is a real fact
-	//about the collection that the strip is allowed to show. The remainder still
-	//counts the cards, not the surviving names, so it stays true.
-	//
-	//THE CRITIC'S VOTE WAS TO CUT THE STRIP OUTRIGHT. It survives because the
-	//owner asked for it; this is the information-content fix, not the verdict.
-	_previewTitlesRender(count : number | undefined) {
-		if (!count) return '';
-		void this._previewIDsVersion;
-		const ids = this._retainedPreviewIDs.get(this._previewCountKey(this._collectionDescription));
-		if (!ids || !ids.length) return '';
-		const named = ids.map(id => this._cardTagInfos?.[id]?.title || '').filter(Boolean);
-		const titles = named.filter((title, index) => title !== named[index - 1]);
-		if (new Set(titles).size < 2) return '';
-		const remaining = count - named.length;
-		const line = remaining > 0 ? `${titles.join(' · ')} · and ${remaining} more` : titles.join(' · ');
-		return html`<div class='preview-titles'>${line}</div>`;
-	}
-
-	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false) {
+	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false, expandable = false) {
 		return html`
 			<div class='buttons composer-actions' ?data-deemphasized=${deemphasized}>
 				<!-- '0 cards' is a number, not a sentence, and the spec asks for
@@ -3155,9 +3176,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				     for, and it settles the colour question too — its header
 				     documents --app-dark-text-color-light as failing WCAG AA, and
 				     that is the token the hand-rolled '· counting…' used. -->
+				<!-- 'MATCHES 792 CARDS', not '792 cards' (owner, round 8: "I'd
+				     expect to see something like 'matches nn cards'"). The verb is
+				     the app's own — filters.ts spells the none filter 'Matches no
+				     cards' — and the number is still formatCollectionCardCount, so
+				     the compact threshold and the singular stay in one place. ONE
+				     count per surface: this line IS the footer count, not a second
+				     one added beside it. -->
 				<span class='action-count' role='status'>${count === undefined ?
 		(this._draftCountPending ? html`<loading-placeholder noun='the card count'></loading-placeholder>` : '') :
-		formatCollectionCardCount(count)}</span>
+		`Matches ${formatCollectionCardCount(count)}`}</span>
+				<!-- AND THE WAY TO SEE THEM, on the line that counts them. To the
+				     RIGHT of the number: the primary is pinned to the flex-end edge,
+				     so a control placed here cannot be moved by a count that grows
+				     under it, and the owner's "and then some way to expand it" puts
+				     the affordance after the words. -->
+				${expandable ? this._matchToggleRender(count) : ''}
 				<!-- The reason goes on the WRAPPER: Chrome and Safari suppress
 				     hover on a disabled control, so on the button it would be
 				     unreachable exactly when it is needed (§2.5). The button
@@ -3168,6 +3202,71 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				</span>
 			</div>
 		`;
+	}
+
+	//WHAT THE DRAFT ACTUALLY MATCHES, ON REQUEST (round 8).
+	//
+	//SUPERSEDES _previewTitlesRender, the `·`-joined strip of three titles that
+	//used to sit under the footer ('What is this? · How to consume this · and
+	//1,236 more'). The owner, round 8: "The preview of cards at the bottom is
+	//confusing and not useful. I'd expect to see something like 'matches nn
+	//cards' and then some way to expand it and see a list of the first 100 or so
+	//with card-links so hovers work". Round 3's own critic had voted to cut the
+	//strip outright; it survived only because the owner asked for it, and the
+	//owner has now asked for something else. Everything the strip was for — three
+	//titles, the consecutive-repeat collapse, the two-distinct-titles floor, the
+	//'and N more' remainder — goes with it.
+	//
+	//CARD-LINKS, NOT TITLE TEXT, because HOVER IS THE POINT. card-link fires the
+	//app's card-hover event, so the same preview popup that appears over any other
+	//link in the app appears over these; a title rendered as text is a name you
+	//cannot look inside. This is multi-edit-dialog's own in-dialog list, verbatim:
+	//`auto='title'` so card-link reads the title out of the store itself (and says
+	//nothing for a card that has not loaded — an id never reaches a user, HS-1.4),
+	//and `.noNavigate` because a click here would navigate out from under an
+	//uncommitted draft.
+	//
+	//ONLY WHILE OPEN. A hundred store-connected elements that nobody asked to see
+	//is a hundred subscriptions per keystroke; collapsed, this renders nothing at
+	//all.
+	//
+	//THE PENDING CASE KEEPS ITS ROOM. Executing a row while the peek is open
+	//changes the draft, and the new collection's ids are a worker round-trip away.
+	//Emptying the pane for those milliseconds would collapse the ranked list
+	//upward and drop it back — so the pane stays and says it is loading, which is
+	//also the honest reading of "we do not know yet" (§3.6).
+	_matchListRender(count : number | undefined) {
+		if (!this._matchesExpanded) return '';
+		void this._previewIDsVersion;
+		const ids = this._retainedPreviewIDs.get(this._previewCountKey(this._collectionDescription)) || [];
+		return html`
+			<div class='match-list scroller' id='collection-match-list' aria-label='Cards this collection matches'>
+				${count !== undefined && count > ids.length ? html`<div class='match-list-note'>The first ${ids.length}, in the order the collection puts them.</div>` : ''}
+				${ids.length ?
+		html`<ul>${ids.map(id => html`<li><card-link auto='title' card='${id}' .noNavigate=${true}></card-link></li>`)}</ul>` :
+		html`<loading-placeholder noun='the matching cards'></loading-placeholder>`}
+			</div>
+		`;
+	}
+
+	//THE ZIPPY IS THE APP'S ZIPPY (card-drawer's, HS-2.5). `button.small` with
+	//ARROW_RIGHT/ARROW_DOWN, aria-expanded, and both a title and an aria-label —
+	//a wrapper title names no button.
+	_matchToggleRender(count : number | undefined) {
+		if (!count) return '';
+		const label = this._matchesExpanded ? 'Hide the matching cards' : 'Show the matching cards';
+		return html`<button
+			class='small'
+			title=${label}
+			aria-label=${label}
+			aria-expanded=${this._matchesExpanded ? 'true' : 'false'}
+			aria-controls=${ifDefined(this._matchesExpanded ? 'collection-match-list' : undefined)}
+			@click=${this._handleMatchesToggle}
+		>${this._matchesExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>`;
+	}
+
+	_handleMatchesToggle() {
+		this._matchesExpanded = !this._matchesExpanded;
 	}
 
 	//SPEC §Narrow: "Suggestions should be suppressed when they are redundant,
@@ -3690,6 +3789,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._rowHighlightActive = Boolean(input.value.trim());
 		this._pointerHighlightArmed = false;
 		this._activationMessage = '';
+		//AND TYPING CLOSES THE PEEK. A keystroke is a new question asked of the
+		//ranked list, and the peek is being paid for out of that list's height —
+		//so the moment the user goes back to composing, the list gets its room
+		//back. Executing a row does NOT close it: that changes the draft, and
+		//watching the matches change is the reason to have it open.
+		this._matchesExpanded = false;
 	}
 
 	_handleComposerKeyDown(e : KeyboardEvent) {
@@ -4656,6 +4761,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._rowHighlightActive = false;
 				this._pointerHighlightArmed = false;
 				this._builderExpanded = false;
+				//COLLAPSED ON EVERY OPEN. The ranked list is what this dialog is for;
+				//the matches are a peek, and a peek that persisted across sessions
+				//would open the composer already spending half its list on cards
+				//nobody asked about this time.
+				this._matchesExpanded = false;
 				this._wordScope = '';
 				this._orTarget = null;
 				//A fresh session gets fresh counts: corpus membership may have
@@ -4776,16 +4886,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return `${this._activeCardID}\n${description.serialize()}`;
 	}
 
-	//How many of the draft's own cards the preview line names, and how many ids
-	//are retained per collection to name them from. Three titles is a line; a
-	//fourth is a paragraph, and the count beside them already says how many there
-	//are in total.
+	//How many of the draft's own cards the peek can list, and how many ids are
+	//retained per collection to list them from. The owner asked for "the first 100
+	//or so"; the worker's reply is the whole ordered set, so this slice is the only
+	//place that number is decided.
 	_rememberPreviewIDs(key : string, ids : readonly string[]) {
 		if (this._retainedPreviewIDs.size >= RETAINED_PREVIEW_COUNT_LIMIT) {
 			const oldest = this._retainedPreviewIDs.keys().next().value;
 			if (oldest !== undefined) this._retainedPreviewIDs.delete(oldest);
 		}
-		this._retainedPreviewIDs.set(key, ids.slice(0, PREVIEW_TITLE_LIMIT));
+		this._retainedPreviewIDs.set(key, ids.slice(0, PREVIEW_MATCH_LIMIT));
 		this._previewIDsVersion++;
 	}
 

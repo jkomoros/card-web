@@ -510,7 +510,9 @@ describe('Collection Composer interactions', () => {
 		//its label: HS-3.3 makes that button a round glyph, so it has no label
 		//to put a number in. The primary is asserted separately, and what it
 		//asserts is that it stayed a glyph with a stable name.
-		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(), '12 cards');
+		//'Matches 12 cards', not '12 cards' (owner, round 8: "I'd expect to see
+		//something like 'matches nn cards'"). Spelled once, in _openActionRender.
+		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(), 'Matches 12 cards');
 		const primary = dialog.shadowRoot.querySelector('.composer-actions .primary');
 		assert.ok(primary.classList.contains('round'), 'the committing action is a round primary (HS-3.3)');
 		assert.strictEqual(primary.getAttribute('aria-label'), 'Open this collection');
@@ -1511,7 +1513,10 @@ describe('Collection Composer interactions', () => {
 	it('pays for the pill row out of the list, so the box and the sentence stay put', async () => {
 		const styles = composerStyles();
 		const reserved = styles.match(/\.sentence,[^{]*\{\s*flex:\s*0 0 auto;\s*\}/)[0];
-		for (const part of ['.sentence', '.pill-row', '.composer-input', '.mode-links', '.preview-titles']) {
+		//('.preview-titles' was the fifth member until round 8 deleted the strip.
+		//Its replacement, the matches peek, is deliberately NOT in this rule —
+		//see the peek's own test for why it is 0 1 auto rather than 0 0 auto.)
+		for (const part of ['.sentence', '.pill-row', '.composer-input', '.mode-links']) {
 			assert.ok(reserved.includes(part + ',') || reserved.includes(part + ' '),
 				`${part} must reserve its own room: ${reserved}`);
 		}
@@ -3378,7 +3383,7 @@ describe('Collection Composer interactions', () => {
 				'typing must not blank the count of a collection that did not change');
 			assert.strictEqual(dialog._draftCountPending, false);
 			assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(),
-				'1307 cards');
+				'Matches 1307 cards');
 
 			//Changing the DRAFT is a different collection, so the count is genuinely
 			//unknown — and says so, rather than silently reading as "no data".
@@ -4543,101 +4548,232 @@ describe('Collection Composer interactions', () => {
 		}
 	});
 
-	//THE PREVIEW BEFORE THE COMMIT (round 3, D5).
+	//SUPERSEDED PIN (round 8). This was 'names the first few cards the draft
+	//matches, beneath the count' — the `·`-joined titles strip and the two
+	//refinements round 3 gave it (consecutive repeats collapse; a strip naming
+	//fewer than two distinct titles is dropped). The owner has now rejected the
+	//whole idea:
 	//
-	//The owner: "Not live-changing the real collection until you commit with
-	//Cmd-Enter; before that it's just showing you a preview of cards." A count
-	//alone is not one — '118 cards' is the same sentence for every collection
-	//that size — so beneath it the composer names the first few, from the ids the
-	//worker run that produced the count already returned.
-	it('names the first few cards the draft matches, beneath the count', async () => {
-		const line = () => dialog.shadowRoot.querySelector('.preview-titles');
+	//  "The preview of cards at the bottom is confusing and not useful. I'd
+	//   expect to see something like 'matches nn cards' and then some way to
+	//   expand it and see a list of the first 100 or so with card-links so
+	//   hovers work"
+	//
+	//Round 3's own critic had voted to cut the strip outright and was overruled
+	//by the owner asking for it; this is the owner asking for something else.
+	//The strip is DELETED, not merely unrendered — the renderer, the limit
+	//constant and the CSS class all go, so the next change cannot put it back by
+	//accident. What replaces it is pinned in the three tests below.
+	it('renders no titles strip, in any state', async () => {
+		const strip = () => dialog.shadowRoot.querySelector('.preview-titles');
 		const draftKey = dialog._previewCountKey(dialog._collectionDescription);
-
-		//ABSENT, NOT EMPTY, WHILE PENDING. "We do not know yet" and "there is
-		//nothing to say" are different facts, and a line that appears blank and
-		//then fills is a layout shift on every keystroke.
+		dialog._cardTagInfos = {
+			'card-a': { id: 'card-a', title: 'Perf card 12' },
+			'card-b': { id: 'card-b', title: 'What is this?' },
+			'card-c': { id: 'card-c', title: 'Third one' },
+		};
 		dialog._previewCounts = { [dialog._draftPreviewID]: 121 };
-		await dialog.updateComplete;
-		assert.strictEqual(line(), null, 'no line until the names arrive');
-
-		dialog._cardTagInfos = {
-			'card-a': { id: 'card-a', title: 'Perf card 12' },
-			'card-b': { id: 'card-b', title: 'What is this?' },
-			'card-c': { id: 'card-c', title: 'Third one' },
-		};
 		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c', 'card-d']);
 		await settleRender(dialog);
-		assert.ok(line(), 'the names land under the count');
-		assert.strictEqual(line().textContent.trim(),
-			'Perf card 12 · What is this? · Third one · and 118 more');
+		assert.strictEqual(strip(), null, 'with names, a count and loaded titles, there is still no strip');
+		assert.strictEqual(typeof dialog._previewTitlesRender, 'undefined',
+			'the renderer that spelled the line is gone');
+		const styles = composerStyles();
+		assert.ok(!/\.preview-titles/.test(styles), 'and so is its CSS');
+		dialog._retainedPreviewIDs.clear();
+	});
 
-		//AND IT SAYS WHICH CARDS ONLY WHEN IT CAN (round-3 tightness, C2). A real
-		//corpus repeats titles — this one opens on three cards all called 'What
-		//is this?' — and the strip read that name three times in a line whose
-		//whole job is to tell cards apart. Consecutive repeats collapse.
-		dialog._cardTagInfos = {
-			'card-a': { id: 'card-a', title: 'What is this?' },
-			'card-b': { id: 'card-b', title: 'What is this?' },
-			'card-c': { id: 'card-c', title: 'Third one' },
-		};
-		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c']);
+	//THE COUNT LINE SAYS WHAT IT COUNTS (owner, round 8: "something like
+	//'matches nn cards'").
+	//
+	//'Matches' is the app's own verb for this, not a phrasing invented here:
+	//filters.ts spells the none filter's description 'Matches no cards', and the
+	//number itself is still formatCollectionCardCount, so the compact threshold
+	//and the singular are decided in one place for the whole app.
+	//
+	//AND IT IS THE ONLY COUNT ON THE SURFACE. The footer readout BECAME this
+	//line; nothing was added beside it.
+	it('counts the draft’s matches in the app’s own words, once', async () => {
+		const count = () => dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim();
+		dialog._previewCounts = { [dialog._draftPreviewID]: 792 };
 		await settleRender(dialog);
-		assert.strictEqual(line().textContent.trim(), 'What is this? · Third one · and 118 more',
-			'a repeated title is said once, and the remainder still counts CARDS');
+		assert.strictEqual(count(), 'Matches 792 cards');
 
-		//AND A STRIP THAT WOULD NAME FEWER THAN TWO DISTINCT CARDS IS NOT A
-		//PREVIEW: one name and a remainder is the count again, spelled longer.
-		dialog._cardTagInfos = {
-			'card-a': { id: 'card-a', title: 'What is this?' },
-			'card-b': { id: 'card-b', title: 'What is this?' },
-			'card-c': { id: 'card-c', title: 'What is this?' },
-		};
-		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c']);
+		dialog._previewCounts = { [dialog._draftPreviewID]: 1 };
 		await settleRender(dialog);
-		assert.strictEqual(line(), null,
-			'a line that distinguishes nothing is dropped rather than shown');
+		assert.strictEqual(count(), 'Matches 1 card', 'the singular comes from the shared formatter');
 
-		//Back to the distinguishable fixture for the assertions below.
-		dialog._cardTagInfos = {
-			'card-a': { id: 'card-a', title: 'Perf card 12' },
-			'card-b': { id: 'card-b', title: 'What is this?' },
-			'card-c': { id: 'card-c', title: 'Third one' },
-		};
-		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c', 'card-d']);
-		await settleRender(dialog);
-		assert.ok(line(), 'the names are back');
+		//ONE COUNT PER SURFACE: exactly one readout in the footer, and no second
+		//number smuggled in beside it.
+		assert.strictEqual(dialog.shadowRoot.querySelectorAll('.composer-actions .action-count').length, 1);
 
-		//IT IS BENEATH THE FOOTER COUNT, which is the number it is evidence for.
-		const actions = dialog.shadowRoot.querySelector('.buttons.composer-actions');
-		assert.ok(actions.compareDocumentPosition(line()) & Node.DOCUMENT_POSITION_FOLLOWING);
-
-		//A CARD WHOSE RECORD HAS NOT LOADED IS SKIPPED, never named by its id:
-		//an internal identifier never reaches a user (HS-1.4).
-		dialog._cardTagInfos = {
-			'card-b': { id: 'card-b', title: 'What is this?' },
-			'card-c': { id: 'card-c', title: 'Third one' },
-		};
-		await settleRender(dialog);
-		assert.strictEqual(line().textContent.trim(), 'What is this? · Third one · and 119 more',
-			'the unloaded card is skipped, and the remainder still counts it');
-		//SUPERSEDED PIN (round-3 tightness, C2): with ONE card loaded this used to
-		//read 'What is this? · and 120 more'. One name plus a remainder is the
-		//count again, spelled longer — a strip whose job is to say WHICH cards
-		//and which cannot tell two apart is dropped rather than shown.
-		dialog._cardTagInfos = { 'card-b': { id: 'card-b', title: 'What is this?' } };
-		await settleRender(dialog);
-		assert.strictEqual(line(), null, 'one name is not a preview of a collection');
-		dialog._cardTagInfos = {};
-		await settleRender(dialog);
-		assert.strictEqual(line(), null, 'and with none of them loaded there is no line at all');
-
-		//AND NO LINE FOR A COLLECTION THAT MATCHES NOTHING: the note beside the
-		//button already says so, and a list of no names under it would be a
-		//second way of saying the same absence.
+		//AND THE UNRESOLVED CASES ARE UNCHANGED. 'Matches 0 cards' still carries
+		//the sentence beside it, and a count that has not arrived claims nothing.
 		dialog._previewCounts = { [dialog._draftPreviewID]: 0 };
 		await settleRender(dialog);
-		assert.strictEqual(line(), null);
+		assert.strictEqual(count(), 'Matches 0 cards');
+		assert.ok(dialog.shadowRoot.querySelector('.composer-actions .no-cards-note'));
+		dialog._previewCounts = {};
+		dialog._draftCountPending = false;
+		await settleRender(dialog);
+		assert.strictEqual(count(), '', 'a number that is not in yet is not a claim');
+	});
+
+	//THE ZIPPY IS THE APP'S ZIPPY (owner, round 8: "some way to expand it").
+	//
+	//card-drawer's disclosure, verbatim: a `button.small` carrying
+	//ARROW_RIGHT_ICON collapsed and ARROW_DOWN_ICON expanded, with aria-expanded
+	//and BOTH a title and an aria-label (HS-2.5 — a wrapper title names no
+	//button). Not a new control, and not a <details>.
+	it('offers the app’s own zippy on the count line, and flips both halves of it', async () => {
+		const toggle = () => dialog.shadowRoot.querySelector('.composer-actions button.small');
+		dialog._previewCounts = { [dialog._draftPreviewID]: 792 };
+		await settleRender(dialog);
+
+		assert.ok(toggle(), 'the count line carries a control');
+		assert.strictEqual(toggle().getAttribute('aria-expanded'), 'false', 'collapsed on open');
+		assert.strictEqual(dialog._matchesExpanded, false);
+		assert.strictEqual(toggle().getAttribute('title'), 'Show the matching cards');
+		assert.strictEqual(toggle().getAttribute('aria-label'), 'Show the matching cards');
+		//ARROW_RIGHT_ICON's path, so a swap to some other glyph fails here.
+		assert.ok(toggle().innerHTML.includes('M10 17l5-5-5-5v10z'), 'the collapsed glyph points right');
+
+		toggle().click();
+		await settleRender(dialog);
+		assert.strictEqual(toggle().getAttribute('aria-expanded'), 'true');
+		assert.strictEqual(toggle().getAttribute('title'), 'Hide the matching cards');
+		assert.strictEqual(toggle().getAttribute('aria-label'), 'Hide the matching cards');
+		assert.ok(toggle().innerHTML.includes('M7 10l5 5 5-5z'), 'and the expanded glyph points down');
+		assert.strictEqual(toggle().getAttribute('aria-controls'), 'collection-match-list');
+
+		toggle().click();
+		await settleRender(dialog);
+		assert.strictEqual(toggle().getAttribute('aria-expanded'), 'false');
+
+		//NOTHING TO EXPAND, NO CONTROL. A draft that matches nothing already says
+		//so beside the button; an arrow onto an empty list is an offer that lies.
+		dialog._previewCounts = { [dialog._draftPreviewID]: 0 };
+		await settleRender(dialog);
+		assert.strictEqual(toggle(), null);
+	});
+
+	//WHAT THE EXPANSION SHOWS (owner, round 8: "a list of the first 100 or so
+	//with card-links so hovers work").
+	//
+	//card-links, because HOVER IS THE POINT: card-link fires the app's card-hover
+	//event and main-view's card-preview paints above dialogs, so these get the
+	//same preview popup every other link in the app gets. multi-edit-dialog's
+	//in-dialog list is the shipped precedent and this is the same line of it:
+	//auto='title' (card-link reads the title from the store, and says nothing for
+	//a card that has not loaded — an id never reaches a user, HS-1.4) and
+	//.noNavigate, because a click must not navigate out from under an
+	//uncommitted draft.
+	//
+	//WHERE IT LIVES, AND WHY. It grows UPWARD from the footer, inside the fixed
+	//box: a `flex: 0 0 auto` reservation with its own scroll, paid for out of the
+	//ranked list exactly like the pill row. The alternative — taking over the
+	//list's region — would have left Enter and the arrow keys operating on a list
+	//nobody could see, which is the one thing the spec's highlight MUST forbids.
+	it('expands into a scrolling list of card-links, capped at a hundred', async () => {
+		const toggle = () => dialog.shadowRoot.querySelector('.composer-actions button.small');
+		const pane = () => dialog.shadowRoot.querySelector('.match-list');
+		const links = () => Array.from(dialog.shadowRoot.querySelectorAll('.match-list card-link'));
+		const draftKey = dialog._previewCountKey(dialog._collectionDescription);
+
+		dialog._previewCounts = { [dialog._draftPreviewID]: 1236 };
+		dialog._rememberPreviewIDs(draftKey, Array.from({ length: 250 }, (unused, index) => `card-${index}`));
+		await settleRender(dialog);
+
+		//COLLAPSED IS NOT MERELY HIDDEN. A hundred store-connected elements that
+		//nobody asked to see is a hundred subscriptions per keystroke.
+		assert.strictEqual(pane(), null, 'collapsed by default, and rendering nothing at all');
+		assert.strictEqual(links().length, 0);
+
+		toggle().click();
+		await settleRender(dialog);
+		assert.ok(pane(), 'the list appears');
+
+		//THE OWNER'S HUNDRED, decided in ONE place: the retention slice. The
+		//worker's own reply is the whole ordered set (corpus-worker sends
+		//result.ids untruncated), so nothing upstream caps it lower.
+		assert.strictEqual(dialog._retainedPreviewIDs.get(draftKey).length, 100,
+			'the retained head is a hundred, not two hundred and fifty');
+		assert.strictEqual(links().length, 100);
+		assert.deepStrictEqual(links().slice(0, 3).map((link) => link.getAttribute('card')),
+			['card-0', 'card-1', 'card-2'], 'in the collection’s own order');
+
+		//HOVER IS THE POINT, AND A CLICK IS NOT.
+		for (const link of links()) {
+			assert.strictEqual(link.getAttribute('auto'), 'title',
+				'card-link reads the title from the store, so an unloaded card is not named by its id');
+			assert.strictEqual(link.noNavigate, true,
+				'a click must not navigate out from under an uncommitted draft');
+		}
+
+		//THE COUNT STILL TELLS THE TRUTH ABOUT THE WHOLE COLLECTION, and the pane
+		//says which part of it this is.
+		//No separator under ten thousand: compactCardCount leaves anything a user
+		//can hold in their head exact and unabbreviated, and this line takes the
+		//app's formatter rather than spelling a number of its own.
+		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(),
+			'Matches 1236 cards');
+		assert.match(dialog.shadowRoot.querySelector('.match-list-note').textContent, /first 100/);
+
+		//A COLLECTION SHORTER THAN THE CAP IS SHOWN WHOLE, and says nothing about
+		//firsts.
+		dialog._previewCounts = { [dialog._draftPreviewID]: 3 };
+		dialog._rememberPreviewIDs(draftKey, ['card-a', 'card-b', 'card-c']);
+		await settleRender(dialog);
+		assert.strictEqual(links().length, 3);
+		assert.strictEqual(dialog.shadowRoot.querySelector('.match-list-note'), null);
+
+		//IT IS ABOVE THE FOOTER COUNT THAT DISCLOSES IT, growing upward into the
+		//room the ranked list gives up.
+		const actions = dialog.shadowRoot.querySelector('.buttons.composer-actions');
+		assert.ok(pane().compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING,
+			'the list is above the line that counts it');
+
+		//AND THE BOX DOES NOT GROW TO HOLD IT. JSDOM computes no layout, so this
+		//is pinned on the rule: a capped reservation that SHRINKS.
+		//
+		//0 1 auto, not the column's usual 0 0 auto. The ranked list pays first —
+		//a flex deficit goes in proportion to what each item asked for, and the
+		//list asks for far more than the peek — but the list has a 5em floor, and
+		//an unshrinkable peek would push whatever is left onto #inner and start
+		//scrolling the input off the top of the dialog. Measured live at 1280x720
+		//before this changed: #inner scrollHeight 553 against clientHeight 508.
+		const styles = composerStyles();
+		const bodies = [...styles.matchAll(/\.match-list\s*\{([^}]*)\}/g)].map((match) => match[1]);
+		const capped = bodies.find((body) => /max-height/.test(body));
+		assert.ok(capped, 'the peek is capped, so it cannot push the footer anywhere');
+		assert.match(capped, /flex:\s*0 1 auto/, 'and it gives room back rather than overflowing the box');
+		assert.match(capped, /min-height:\s*0/, 'which a flex item cannot do without this');
+		//And the hundred scroll inside it through the SHARED scroller (#759): a
+		//dialog subclass never declares its own overflow.
+		assert.ok(pane().classList.contains('scroller'), 'the peek scrolls through the shared idiom');
+
+		//THE RANKED LIST IS STILL RENDERED UNDERNEATH, which is what keeps Enter,
+		//Tab and the arrow keys operating on rows the user can see.
+		assert.ok(dialog.shadowRoot.querySelector('.palette-list'), 'the one list is still there');
+
+		//TYPING TAKES THE ROOM BACK. A keystroke is a new question asked of the
+		//ranked list, and the peek is being paid for out of that list's height.
+		await typeComposer('star');
+		assert.strictEqual(dialog._matchesExpanded, false, 'typing collapses the peek');
+		assert.strictEqual(pane(), null);
+		await typeComposer('');
+
+		//AND A FRESH SESSION OPENS COLLAPSED.
+		dialog._previewCounts = { [dialog._draftPreviewID]: 1236 };
+		await settleRender(dialog);
+		dialog.shadowRoot.querySelector('.composer-actions button.small').click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._matchesExpanded, true);
+		dialog.open = false;
+		await settleRender(dialog);
+		dialog.open = true;
+		await settleRender(dialog);
+		assert.strictEqual(dialog._matchesExpanded, false, 'collapsed on every open');
 		dialog._retainedPreviewIDs.clear();
 	});
 
