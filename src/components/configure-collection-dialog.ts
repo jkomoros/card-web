@@ -83,6 +83,7 @@ import {
 } from '../filters.js';
 
 import {
+	CANCEL_ICON,
 	LINK_ICON,
 	OPEN_IN_BROWSER_ICON,
 	PLUS_ICON
@@ -1016,6 +1017,48 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   is now a real sentence that wraps: an input that tried to sit on
 			   the same line as its last pill either got 8em of a wrapped line or
 			   pushed the pill off it. */
+			/* THE SCOPE INDICATOR SITS ON THE INPUT, not merely above it. It
+			   shares the field's left edge and its bottom rule is the field's
+			   own top edge, so the two read as one control in a narrowed state
+			   rather than as a notice that happens to be nearby — which is the
+			   whole claim it is making. Quiet fill (the palette's own hover
+			   wash) and no border of its own: it is a state, not a warning. */
+			.scope-indicator {
+				align-items: center;
+				background: var(--app-primary-color-light-very-transparent);
+				display: flex;
+				gap: 0.35em;
+				justify-content: space-between;
+				padding: 0.15em 0.2em 0.15em 0.4em;
+			}
+
+			.scope-indicator-label {
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.8em;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			/* §4.2's 44px floor on the one control that leaves the mode; .small
+			   carries none of its own. Its glyph takes the primary colour
+			   rather than the default dark, because this is the app's ✕ doing
+			   its ordinary job on an element the primary colour already
+			   washes. */
+			button.small.scope-dismiss {
+				align-items: center;
+				display: inline-flex;
+				flex-shrink: 0;
+				justify-content: center;
+				margin: 0;
+				min-height: 44px;
+				min-width: 44px;
+			}
+
+			button.small.scope-dismiss svg {
+				fill: var(--app-primary-color);
+			}
+
 			.composer-input {
 				border: 0;
 				border-bottom: 1px solid var(--app-dark-text-color);
@@ -1278,10 +1321,34 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   anything that would need to wrap does not belong in this slot,
 			   and the diff is on the highlighted row's detail line where it
 			   always also was. */
+			/* THE ANNOTATION IS A MARGINAL NOTE, NOT THE SENTENCE'S LAST WORDS
+			   (owner, F1b: "make the recency annotation visually distinct …
+			   verify it reads as metadata, not as part of the sentence").
+
+			   It did not. Measured against the miniature sentence beside it, the
+			   two were the same ink: both --app-dark-text-color-light, and
+			   0.72em here against a tail rendering at 0.85em inside a 0.82em
+			   .subtle — 0.70em. Same colour, same size, one space apart. So
+			   "Main · sorted by recent" and the word "recent" formed one visual
+			   run, and the row appeared to say 'recent' twice in one breath.
+
+			   Three changes, one register. ITALIC is the mark for a note ABOUT a
+			   text rather than a word IN it, and it is the only distinction here
+			   that survives the row being read at a glance — colour cannot go
+			   lighter (this is at --app-dark-text-color-light already) and must
+			   not go darker (that would outrank the clause names). 0.7em is
+			   §4.3's smallest-metadata size, which is what this is. And the gap
+			   widens to 0.75em so the note is not touching the phrase it annotates.
+
+			   NOT uppercase, and NOT letter-spaced: this dialog deliberately
+			   retired its ALL-CAPS register (see .suggestion-heading), and
+			   reintroducing it in a smaller slot would rebuild the fourth type
+			   register that one was deleted for. */
 			.row-annotation {
 				color: var(--app-dark-text-color-light);
-				font-size: 0.72em;
-				margin-left: 0.5em;
+				font-size: 0.7em;
+				font-style: italic;
+				margin-left: 0.75em;
 				white-space: nowrap;
 			}
 
@@ -2097,20 +2164,25 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		return this._selectedPath.length === 2 ? this._selectedPath[1] : -1;
 	}
 
-	//THE ROW STATES THE COUNT ONLY IT CAN ANSWER (round-3 tightness, minor).
+	//THE ROW STATES ONE CONSEQUENCE, AND A CONSEQUENCE HAS TWO SIDES (owner, F2).
 	//
-	//It used to state two: "draft now matches N", which is the number the footer
-	//is already stating beside the control that would open it, and "without this
-	//pill: N", which nothing else on screen can say. Two live readouts of one
-	//number, three inches apart, moving together — on a surface whose other pair
-	//of numbers (the highlighted row's and the draft's) is deliberately told
-	//apart by weight because two numbers competing to be "what happens next" was
-	//itself a defect. The footer's is the one that survives: it sits beside the
-	//button that acts on it.
+	//SUPERSEDES the round-3 tightness note that lived here. That pass removed the
+	//draft count from this row on the argument that the footer already prints it,
+	//leaving `· without this pill: 34.4k cards` — one number, with the value it
+	//is measured against three inches away and never named as its counterpart.
+	//The owner read it exactly as it is written: a number that appears to BE the
+	//collection. Two readouts of one number was the wrong diagnosis; what was
+	//wrong was that the row's line was not a sentence.
 	//
-	//`without this pill` is what replaced the old "Remove X" suggestion rows
-	//entirely: the question they answered is answered here, beside the clause
-	//they were about.
+	//It is one now, in the palette list's own `current → after` grammar (see
+	//_rowCountText, which spells every OTHER consequence in the composer). Both
+	//counts are already being previewed for other reasons — the draft's is what
+	//the footer prints, the without's is this row's own job — so nothing new is
+	//asked of the worker, and the WITH side here is by construction the same
+	//number the footer shows.
+	//
+	//`without this pill` also carried rendering vocabulary into a line about
+	//cards (owner, F3); the row spells the edit rather than the paint now.
 	_pillRowRender() {
 		if (!this._pillRowOpen) return '';
 		return html`
@@ -2124,6 +2196,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					.cardTagInfos=${this._cardTagInfos}
 					.userIDs=${this._userIDs}
 					.userInfos=${this._userInfos}
+					.draftCount=${this._previewCounts[this._draftPreviewID]}
 					.withoutCount=${this._previewCounts[this._withoutPreviewID]}
 					@expression-modified=${this._handleExpressionModified}
 					@pill-or-requested=${this._handlePillOrRequested}
@@ -2606,6 +2679,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				.cardNames=${this._composerCardNames}
 				.filterDescriptions=${this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS}
 				.subtle=${true}
+				.summary=${true}
 			></collection-sentence>`;
 		}
 		if (row.kind === 'valence' && row.pillExpression) {
@@ -2796,6 +2870,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			${expressionParts.filters.filter(filter => filter.explanation).map(filter => html`
 				<div class='row-detail unsupported-clause'>${filter.label}: ${filter.explanation}</div>
 			`)}
+			<!-- THE SCOPE, MADE VISIBLE AND MADE EXITABLE (owner, F5). Directly
+			     above the input it modifies, because the input is the thing whose
+			     meaning it changes. -->
+			${this._scopeIndicatorRender()}
 			<input
 				class='composer-input'
 				id='collection-composer-input'
@@ -2852,12 +2930,84 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//sentence; scoped by "or…" it is asking for an alternative to ONE named
 	//condition, and a placeholder that went on saying "type another condition"
 	//would be describing the wrong edit.
+	//
+	//IT IS NO LONGER THE ONLY THING THAT SAYS SO (owner, F5). A placeholder is
+	//visible for exactly as long as the box is empty, so the moment a scoped user
+	//typed one character every trace of the scope vanished — see
+	//_scopeIndicatorRender, which is the state made permanent and dismissible.
 	get _inputPlaceholder() : string {
-		if (this._orTarget) {
-			const label = this._readableComposerFilter(pillRowSpellingFor(this._draftExpression, this._orTarget.index, -1));
-			return `Also match… (widens ${label})`;
-		}
+		if (this._orTarget) return `Also match… (widens ${this._orScopeLabel})`;
 		return 'Type another condition…';
+	}
+
+	get _orScopeLabel() : string {
+		if (!this._orTarget) return '';
+		return this._readableComposerFilter(pillRowSpellingFor(this._draftExpression, this._orTarget.index, -1));
+	}
+
+	//A SCOPE YOU CAN SEE, AND A DOOR YOU CAN PRESS (owner, F5: "Once in or-scope
+	//there's no obvious route back to top-level search. Escape works but is
+	//invisible").
+	//
+	//A scope is a MODE: the list underneath is answering a narrower question than
+	//it usually does, and the same keystroke means something different in it. The
+	//app said so in exactly one place — the input's own placeholder — which is
+	//the one piece of text guaranteed to disappear the instant the user starts
+	//using the mode it describes. Type two characters into an or-scope and the
+	//composer looked identical to top level while behaving nothing like it. The
+	//word-scope had it barely better: a list heading ('Order by') that scrolls and
+	//never claims to be a state at all.
+	//
+	//So the state renders as a small dismissible context of its own, above the
+	//input and pinned there for as long as the scope lasts. It NAMES the scope in
+	//the words that opened it — 'Also matching with <clause>' is the pill row's
+	//own [Also match…] verb, completed — and it carries the app's ✕ in the app's
+	//trailing position, which is the same control tag-chip and the pill row use
+	//for "take this away". Pressing it runs the identical routine Escape runs;
+	//there is no second exit with its own opinion about the typed text.
+	//
+	//WORD-SCOPE TAKES THE SAME PATTERN, for the same reason and not merely for
+	//symmetry: it is equally a mode, equally invisible once the heading scrolls,
+	//and equally exited by a key nothing advertises.
+	get _scopeIndicatorCopy() : {label : string, dismiss : string} | null {
+		if (this._orTarget) {
+			return {
+				label: `Also matching with ${this._orScopeLabel}`,
+				dismiss: 'Stop widening this clause and go back to the whole sentence',
+			};
+		}
+		if (this._wordScope === 'set') {
+			return {
+				label: 'Choosing where this collection starts',
+				dismiss: 'Keep the current starting set and go back to the whole sentence',
+			};
+		}
+		if (this._wordScope === 'sort') {
+			return {
+				label: 'Choosing the order and view',
+				dismiss: 'Keep the current order and go back to the whole sentence',
+			};
+		}
+		return null;
+	}
+
+	_scopeIndicatorRender() {
+		const copy = this._scopeIndicatorCopy;
+		if (!copy) return '';
+		//role=status, not alert: entering a scope is something the user just did
+		//on purpose, so it is reported rather than announced over them. The ✕ is
+		//icon-only and so carries BOTH a title and an aria-label (HS §2.5).
+		return html`
+			<div class='scope-indicator' role='status'>
+				<span class='scope-indicator-label'>${copy.label}</span>
+				<button
+					class='small scope-dismiss'
+					title=${copy.dismiss}
+					aria-label=${copy.dismiss}
+					@click=${this._handleScopeDismissed}
+				>${CANCEL_ICON}</button>
+			</div>
+		`;
 	}
 
 	//THE COMPOSER'S KEY-HINTS LINE IS DELETED (owner, F4).
@@ -4075,6 +4225,43 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._focusComposerInputSoon();
 	}
 
+	//LEAVING A SCOPE IS ONE ROUTINE PER SCOPE, AND EVERY DOOR CALLS IT (owner,
+	//F5). Escape and the scope indicator's ✕ are the same act — "put me back at
+	//the top level" — and until now only Escape could perform it, in code written
+	//inline in the shortcut handler. Two doors onto two copies of that body is
+	//how the visible door and the invisible one come to disagree about whether
+	//the typed text goes with them; there is one body each now, and the shortcut
+	//handler calls it.
+	//
+	//THE TYPED TEXT LEAVES WITH AN OR-SCOPE AND STAYS WITH A WORD-SCOPE, exactly
+	//as Escape has always behaved. Or-scoped characters were typed to mean an
+	//ALTERNATIVE to a named clause, and at top level the same characters would be
+	//read as a new AND condition — a different collection under text the user
+	//typed to mean something else. A word-scope's characters are just a filter
+	//over a list of sorts, and mean the same thing outside it.
+	_closeOrScope() {
+		this._orTarget = null;
+		this._composerInput = '';
+		this._highlightedRow = 0;
+		this._rowHighlightActive = false;
+		this._focusComposerInputSoon();
+	}
+
+	_closeWordScope() {
+		this._wordScope = '';
+		this._highlightedRow = 0;
+		this._rowHighlightActive = false;
+		this._focusComposerInputSoon();
+	}
+
+	_handleScopeDismissed() {
+		if (this._orTarget) {
+			this._closeOrScope();
+			return;
+		}
+		if (this._wordScope) this._closeWordScope();
+	}
+
 	//A FAMILY CHOSEN BY NAME LANDS IN THE DRAFT AND OPENS ITS ROW. If the draft
 	//already has a clause from that family, the row opens on THAT clause instead
 	//of adding a second one — which is what the catalog's "Already in this
@@ -4318,19 +4505,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 					//returns to the sentence. Every step is one layer, and the
 					//user's place is never further away than the number of
 					//Escapes they have pressed.
+					//The two scope exits are _closeOrScope / _closeWordScope, which
+					//the scope indicator's ✕ presses too — see them for what each
+					//takes with it and why the typed text is treated differently.
 					if (this._orTarget) {
-						this._orTarget = null;
-						//THE TYPED TEXT WAS SCOPED TO THE OR, so it leaves with the
-						//scope. Kept, the same characters silently change meaning:
-						//"tag-2" was an ALTERNATIVE to the clause the row named, and
-						//the moment the scope closes the list re-reads it as a new
-						//AND condition — a different collection, offered under text
-						//the user typed to mean something else. Escape peels a layer;
-						//it must not leave a changed reading behind.
-						this._composerInput = '';
-						this._highlightedRow = 0;
-						this._rowHighlightActive = false;
-						this._focusComposerInputSoon();
+						this._closeOrScope();
 						return true;
 					}
 					if (this._selectedPath.length) {
@@ -4339,10 +4518,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 						return true;
 					}
 					if (this._wordScope) {
-						this._wordScope = '';
-						this._highlightedRow = 0;
-						this._rowHighlightActive = false;
-						this._focusComposerInputSoon();
+						this._closeWordScope();
 						return true;
 					}
 					//Source is a LAYER too, and Escape peels it exactly like the
@@ -4644,8 +4820,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				id: this._withoutPreviewID,
 				kind: 'source',
 				action: 'open',
-				name: 'Without this pill',
-				label: 'Without this pill',
+				name: 'Without this clause',
+				label: 'Without this clause',
 				detail: '',
 				description: collectionDescriptionWithExpression(previewDescription, this._expressionWithoutSelection),
 			});

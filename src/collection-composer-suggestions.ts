@@ -560,14 +560,55 @@ const lowercaseOption = (value: string): string => {
 	return name.charAt(0).toLowerCase() + name.slice(1);
 };
 
+//A FULL SPELLING SAYS EVERYTHING; A SUMMARY SAYS WHAT WAS CHOSEN (owner, F1).
+//
+//The composer's recents are DESTINATION SUMMARIES: a line naming somewhere you
+//could go, with the whole diff waiting on the row's detail line. Spelled in
+//'full' they print their order like the draft sentence does, and the owner's
+//corpus — where most collections carry `sort/recent` — read the result as
+//"… · sorted by recent   recent": the sort phrase and the row's own 'recent'
+//annotation, adjacent, in near-identical type, saying two unrelated things with
+//one word. The annotation means "you were here lately"; the tail means "newest
+//activity first". Nothing but the reader's patience separates them.
+//
+//A summary therefore drops an order NOBODY CHOSE, and keeps every order that IS
+//a choice — 'sorted by stars' is the whole point of the destination that carries
+//it and survives. Two orders count as unchosen:
+//
+//  `default` — the engine's no-op sort. Already dropped in every mode, for the
+//              older reason that "sorted by default" is a fact about a field.
+//  `recent`  — the app's OWN answer when a collection is asked for and no order
+//              is named: selectCollectionDescriptionForQuery picks exactly this
+//              for a generic find with nothing typed (selectors.ts). It is the
+//              only sort in the app that is ever selected on the user's behalf,
+//              which is precisely what makes it an assumption rather than a
+//              statement, and it is why so many stored collections wear it.
+//
+//A REVERSED order is always a choice, whichever sort it reverses: `sort/reverse/
+//recent` is oldest-first, which no default ever means.
+//
+//Nothing is hidden by this. The destination row's detail line — which is what
+//the highlight opens — already spells the whole diff, 'Sorts by Recent'
+//included, so the truth is one keystroke away and the summary line is a summary.
+export type CollectionOrderPhraseMode = 'full' | 'summary';
+
+const SUMMARY_ASSUMED_SORTS : ReadonlySet<string> = new Set(['recent']);
+
+const orderWasChosen = (sort: string, sortReversed: boolean, mode: CollectionOrderPhraseMode): boolean => {
+	if (sortReversed) return true;
+	if (sort === 'default') return false;
+	return !(mode === 'summary' && SUMMARY_ASSUMED_SORTS.has(sort));
+};
+
 export const collectionOrderPhrases = (
 	sort: string,
 	sortReversed: boolean,
 	viewMode: string,
-	viewModeExtra: string
+	viewModeExtra: string,
+	mode: CollectionOrderPhraseMode = 'full'
 ): string[] => {
 	const phrases: string[] = [];
-	if (sort !== 'default' || sortReversed) {
+	if (orderWasChosen(sort, sortReversed, mode)) {
 		phrases.push(`sorted by ${sortReversed ? 'reverse ' : ''}${lowercaseOption(sort)}`);
 	}
 	if (viewMode !== 'list') {

@@ -63,6 +63,10 @@ import {
 } from '../collection-membership.js';
 
 import {
+	collectionPillColorForFilter,
+} from '../collection-pill-palette.js';
+
+import {
 	collectionFilterDescription,
 	collectionOptionDisplayName,
 	collectionOrderPhrases,
@@ -101,21 +105,47 @@ export const UNRESOLVED_CLAUSE_NOTE = 'This app didn’t understand this clause,
 //that looks broken and one that looks deliberately untouched.
 export const MANUAL_CLAUSE_NOTE = 'This app can’t edit this clause here — open Source to change it';
 
-//TWO FILLS, AND THIS IS THE SECOND ONE.
+//TWO WAYS A PILL GETS ITS COLOUR, AND NEITHER OF THEM IS "ONE NEUTRAL" ANY MORE.
 //
-//The spec warns against turning every word into a colourful pill, so colour
-//appears only where it ALREADY means something: a value pill wears the real
-//colour its tag, section or person already has everywhere else in the app.
-//Everything else — every property clause, every configurable filter, every
-//manual clause — is this one neutral. The boundary is therefore not a taste
-//call the renderer makes per filter family; it is a lookup: a clause whose
-//spelling is a key in tagInfos has a colour of its own, and a clause that is not
-//does not.
+//This file used to argue for a single grey behind every clause that was not a
+//value pill, on the grounds that colour should appear only where it ALREADY
+//means something. The argument was coherent and the result was wrong, which is
+//worth recording rather than quietly deleting, because the same argument will
+//be made again.
 //
-//--app-dark-text-color-darker rather than the lighter greys because tag-chip
-//sets white text on its fill: #AAA would be 2.32:1 and #7f7f7f 4.00:1 under
-//0.7em bold text, and §4.1 does not have an exception for pills.
-const NEUTRAL_PILL_COLOR = 'var(--app-dark-text-color-darker)';
+//What it got right: the BOUNDARY must not be a taste call the renderer makes
+//per filter, or it drifts. What it got wrong: it concluded that the only
+//non-arbitrary boundary was "authored or not", and so painted `Card type:
+//Content`, `Updated since 7 days ago`, `By me` and `Starred` — four different
+//KINDS of claim about a set of cards — as four identical grey lozenges. At the
+//scale a collection is actually read at, that is not restraint; it is a
+//sentence with the nouns rubbed out. The owner's call: "Most tag types e.g.
+//Card-type:FOO are the same colour. Use colours for consistency and texture in
+//a principled way. It should be MORE colourful than not, so at a glance, if you
+//squint, you can tell what the collection has."
+//
+//THE REPLACEMENT RULE, WHICH IS STILL A LOOKUP AND STILL NOT A TASTE CALL:
+//
+//  A VALUE WEARS ITS OWN COLOUR. A CLAUSE WEARS ITS FAMILY'S.
+//
+//Both halves are answered by a table, so neither can drift. "Is this clause a
+//value?" is answered by whether its spelling is a key in tagInfos — a tag, a
+//section, a contributor: a specific THING the app already has a colour for
+//everywhere else, and it keeps that colour here so the sentence's chip and the
+//card's chip cannot disagree. "What colour is a clause that is not a value?" is
+//answered by collection-pill-palette, from the filter SPELLING alone, out of
+//the same taxonomy the composer's own catalog groups its list by. There are
+//eight families and there will never be a hue per filter, because the squint
+//test resolves five or six colours, not a hundred; within a family the label is
+//what tells two clauses apart.
+//
+//NEGATION NEEDS NOTHING HERE. A not-node is stripped to its child before the
+//colour is asked for (see _pill), and tag-chip renders a negated pill as its own
+//colour outlined rather than filled — so an excluding clause automatically
+//reads as the same family, inverted, which is exactly what it means.
+//
+//The palette's own header carries the mapping, the hue separations and the
+//contrast measurements; this file's job is only to ask it.
 
 //The path to the selected token: [] for nothing, [index] for a condition (or a
 //group's own edge), [index, memberIndex] for one alternative inside a group.
@@ -146,7 +176,8 @@ class CollectionSentence extends LitElement {
 
 	//The REAL colours: whatever map of tags, sections or people the host has.
 	//A clause whose spelling is a key here is a value pill and takes that
-	//colour; everything else is neutral. See NEUTRAL_PILL_COLOR.
+	//colour; every other clause takes its FAMILY's colour from the palette.
+	//See the two-ways-a-pill-gets-its-colour note at the top of this file.
 	@property({ type : Object })
 		tagInfos : TagInfos = {};
 
@@ -179,6 +210,28 @@ class CollectionSentence extends LitElement {
 	//not.
 	@property({ type : Boolean })
 		subtle = false;
+
+	//A SUMMARY OF SOMEWHERE ELSE, NOT A SPELLING OF THIS COLLECTION (owner, F1).
+	//
+	//The palette's recents render a whole other collection as a one-line
+	//miniature. That line is a DESTINATION SUMMARY: it exists to be recognised
+	//at a glance, in a list, beside a row annotation and a card count, and the
+	//complete diff is on the row's own detail line a highlight away. A full
+	//spelling in that slot competes with its own neighbours — most audibly when
+	//the tail says "sorted by recent" half an inch from an annotation that says
+	//"recent", which is what this flag was added to stop.
+	//
+	//It is separate from `subtle` on purpose. `subtle` is SIZE — the drawer's and
+	//the row's smaller scale. This is EDITORIAL: what the line is for, and
+	//therefore which words earn their place on it. A host can want either without
+	//the other, and folding them together would mean the drawer's small sentence
+	//silently started omitting words too.
+	//
+	//It changes exactly one thing today (the order tail's threshold, via
+	//collectionOrderPhrases' 'summary' mode); conditions, set word and pills are
+	//identical, because WHICH CARDS a destination holds is never summary detail.
+	@property({ type : Boolean })
+		summary = false;
 
 	//TOUCH, WHICH IS NOT A SMALLER MOUSE.
 	//
@@ -401,7 +454,7 @@ class CollectionSentence extends LitElement {
 	//dropped into the middle of it, reading as a proper noun the user was
 	//supposed to already know.
 	get _tailPhrases() : string[] {
-		return collectionOrderPhrases(this.sort, this.sortReversed, this.viewMode, this.viewModeExtra);
+		return collectionOrderPhrases(this.sort, this.sortReversed, this.viewMode, this.viewModeExtra, this.summary ? 'summary' : 'full');
 	}
 
 	_tail() : TemplateResult {
@@ -527,27 +580,33 @@ class CollectionSentence extends LitElement {
 	//tag-list's own comment already says the map may describe things that are
 	//not tags, and card-view already passes a hand-built one for todos. So a
 	//clause becomes a chip by being given an entry: its display name as the
-	//title, and either the real colour it already has in the app or the one
-	//neutral. suppressLink because a clause is not a place — the containing
-	//surface owns the gesture.
-	//A VALUE PILL IS DECIDED BY THE LOOKUP, AND ONLY ITS COLOUR IS DECIDED BY THE
-	//CORPUS.
+	//title, and one of the three colours below. suppressLink because a clause is
+	//not a place — the containing surface owns the gesture.
 	//
-	//The first cut wrote `color: real?.color || NEUTRAL_PILL_COLOR`, which
-	//collapses two different questions into one. "Is this clause a value?" is
-	//answered by whether its spelling is a key in tagInfos. "What colour is that
-	//value?" is answered by tag-chip's own pipeline, which falls back to its
-	//default colour for a tag whose corpus has authored none — and that default
-	//is what the SAME tag wears in the card-info panel, in the editor's tag list
-	//and everywhere else in the app.
+	//THREE CASES, AND THEY ARE THREE DIFFERENT QUESTIONS.
 	//
-	//Folding the second question into the first meant every value whose tag had
-	//no authored colour — which, in a corpus that has never set one, is all of
-	//them — came out charcoal here and red two panels away: one tag, two
-	//colours, and the spine's whole "colour appears where it already means
-	//something" rule silently inverted into "nothing is coloured". So a value
-	//pill now passes `color` through UNSET when the corpus has none, and only a
-	//clause that is not a value at all is pinned to the neutral.
+	//The first cut wrote `color: real?.color || NEUTRAL`, which collapsed the
+	//first two into one. "Is this clause a value?" is answered by whether its
+	//spelling is a key in tagInfos. "What colour is that value?" is answered by
+	//tag-chip's own pipeline, which falls back to its default colour for a tag
+	//whose corpus has authored none — and that default is what the SAME tag
+	//wears in the card-info panel, in the editor's tag list and everywhere else.
+	//Folding them together meant every value whose tag had no authored colour —
+	//which, in a corpus that has never set one, is all of them — came out
+	//charcoal here and red two panels away: one tag, two colours.
+	//
+	//  key present WITH a colour  -> that colour, untouched. A tag is the same
+	//                                tag here as on a card.
+	//  key present, NO colour     -> undefined, so tag-chip supplies the same
+	//                                default it supplies for that tag anywhere.
+	//  key ABSENT                 -> not a value at all: the palette's colour
+	//                                for the FAMILY this filter belongs to.
+	//
+	//The third case is the one that changed. It used to be a single neutral for
+	//everything; the palette makes it the clause's family hue, which is what
+	//lets a sentence be read at a squint. It is still one lookup with one
+	//answer per spelling — the palette is a pure function of the filter name —
+	//so this stays the ONE place a clause's colour is decided.
 	_chipInfos(spelling : string, label : string, note : string) : TagInfos {
 		const real = this.tagInfos[spelling];
 		return {
@@ -555,10 +614,7 @@ class CollectionSentence extends LitElement {
 				id: spelling,
 				title: label,
 				description: note,
-				//`real && real.color` -> the authored colour; `real` with no
-				//colour -> undefined, and tag-chip supplies the value default;
-				//no entry at all -> the one neutral for property clauses.
-				color: real ? real.color : NEUTRAL_PILL_COLOR,
+				color: real ? real.color : collectionPillColorForFilter(spelling),
 				previewCard: real?.previewCard,
 				iconName: real?.iconName,
 				suppressLink: true,

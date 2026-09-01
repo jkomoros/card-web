@@ -35,6 +35,7 @@ let filterNameIsViewerDependent;
 let filterNamesAreViewerDependent;
 let collectionLinkCopiedMessage;
 let COLLECTION_LINK_COPY_FAILED_MESSAGE;
+let collectionOrderPhrases;
 
 const descriptions = {
 	starred: 'Cards you have starred',
@@ -57,6 +58,7 @@ describe('Collection Composer suggestions', () => {
 			collectionExpressionParts,
 			collectionFilterDisplayName,
 			collectionFilterLabels,
+			collectionOrderPhrases,
 			activeCardRelationshipCandidates,
 			activeCardMetadataCandidates,
 		} = await import('../../lib/src/collection-composer-suggestions.js'));
@@ -1145,5 +1147,51 @@ describe('Collection Composer suggestions', () => {
 		//and it still names no identifier.
 		assert.strictEqual(row.detail, 'Cards you have never marked with a star.');
 		assert.ok(!/\bstarred\b/.test(row.detail), `detail leaked a raw filter id: ${row.detail}`);
+	});
+
+	//THE ORDER TAIL, IN TWO REGISTERS (owner, F1).
+	//
+	//'full' spells the collection; 'summary' names a DESTINATION, in a list,
+	//beside an annotation and a count, with the whole diff a highlight away. The
+	//difference between them is exactly one question: was this order CHOSEN?
+	//
+	//Two orders count as unchosen. `default` is the engine's no-op sort and was
+	//already omitted everywhere. `recent` is the app's own answer when a
+	//collection is asked for and nothing says how to order it —
+	//selectCollectionDescriptionForQuery picks it for a generic find with nothing
+	//typed, which is the only place in this app a sort is ever chosen ON the
+	//user's behalf. That is what makes it an assumption rather than a statement,
+	//and it is why so many stored collections wear it.
+	describe('the order tail', () => {
+
+		it('omits the no-op sort in both registers, as it always did', () => {
+			assert.deepStrictEqual(collectionOrderPhrases('default', false, 'list', ''), []);
+			assert.deepStrictEqual(collectionOrderPhrases('default', false, 'list', '', 'summary'), []);
+		});
+
+		it('spells an assumed order in full and omits it in a summary', () => {
+			assert.deepStrictEqual(collectionOrderPhrases('recent', false, 'list', ''), ['sorted by recent']);
+			assert.deepStrictEqual(collectionOrderPhrases('recent', false, 'list', '', 'summary'), []);
+		});
+
+		it('keeps an order that IS a choice, in both registers', () => {
+			for (const mode of ['full', 'summary']) {
+				assert.deepStrictEqual(collectionOrderPhrases('stars', false, 'list', '', mode), ['sorted by stars'], mode);
+			}
+		});
+
+		it('treats a REVERSED order as a choice, whichever sort it reverses', () => {
+			//`sort/reverse/recent` is oldest-first, which no default ever means.
+			assert.deepStrictEqual(collectionOrderPhrases('recent', true, 'list', '', 'summary'), ['sorted by reverse recent']);
+			assert.deepStrictEqual(collectionOrderPhrases('default', true, 'list', '', 'summary'), ['sorted by reverse default']);
+		});
+
+		it('never abbreviates the VIEW, which is not an order at all', () => {
+			assert.deepStrictEqual(collectionOrderPhrases('recent', false, 'web', '', 'summary'), ['viewed as web']);
+		});
+
+		it('defaults to the full register, so an unmarked caller loses nothing', () => {
+			assert.deepStrictEqual(collectionOrderPhrases('recent', false, 'list', ''), ['sorted by recent']);
+		});
 	});
 });

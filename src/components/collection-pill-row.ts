@@ -188,12 +188,31 @@ class CollectionPillRow extends LitElement {
 	@property({ type : Object })
 		userInfos : TagInfos = {};
 
-	//WHAT THE DRAFT WOULD MATCH, and what it would match WITHOUT this pill.
-	//Properties, not questions this row asks: the preview machinery that knows
-	//lives with the palette. Undefined means "not known yet", and an unknown
-	//count is omitted rather than rendered as a zero or a dash — a number in
-	//this row is a promise about a collection, and there is nothing honest to
-	//say before the answer arrives.
+	//THE TWO SIDES OF ONE CONSEQUENCE, and the row states both or neither
+	//(owner, F2).
+	//
+	//It used to render only the second: `· without this pill: 34.4k cards`, a
+	//number with no counterpart beside it. Read cold, that says a collection is
+	//34.4k cards — the opposite of what it means — because the value it is a
+	//comparison AGAINST was three inches away in the footer and never named as
+	//the other half of the same sentence. A consequence stated one-sided is not
+	//a consequence; it is a number.
+	//
+	//So the row now says the transition, in the SAME grammar every other
+	//consequence in the composer is written in: `current → after`, the palette
+	//list's own `_rowCountText` spelling, both sides formatted by the one
+	//`formatCollectionCardCount`. One consequence language everywhere, whether
+	//the consequence is a row you might press or the clause you have selected.
+	//
+	//`draftCount` is the WITH side and is REUSED, not re-measured: the palette
+	//already runs a preview for the draft (it is what the footer prints), so
+	//this is the same number arriving over the same wire, and no second worker
+	//run exists to disagree with it.
+	//
+	//Undefined means "not known yet". BOTH must be known before either is
+	//shown: half a transition is exactly the one-sided reading this fix exists
+	//to delete, so a row mid-flight prints nothing rather than a number that
+	//would be misread while it waits.
 	@property({ type : Number })
 		draftCount : number | undefined = undefined;
 
@@ -541,21 +560,31 @@ class CollectionPillRow extends LitElement {
 	//INVERT PROMISES WHAT THE PILL WILL READ. The app's own inverse names come
 	//first, so inverting `published` yields a pill that simply says
 	//"unpublished" — plain language, no operator — and the title says so BEFORE
-	//the user commits to it. Only an inverse-less filter becomes an outlined
-	//not-pill, and the title says that instead.
+	//the user commits to it.
 	//
-	//The verb is INVERT, not Flip (owner, F2). "Flip" is a gesture word — it
-	//says something turns over without saying what turns into what — and the
-	//title beneath it was already promising a WORD. Invert is the word for the
-	//result. The expression layer's own function names (withNegationToggled)
-	//are untouched: they name the operation on a tree, not the button.
+	//The verb is INVERT, not Flip (owner, F2 of the previous wave). "Flip" is a
+	//gesture word — it says something turns over without saying what turns into
+	//what — and the title beneath it was already promising a WORD. Invert is the
+	//word for the result. The expression layer's own function names
+	//(withNegationToggled) are untouched: they name the operation on a tree, not
+	//the button.
+	//
+	//NO RENDERING VOCABULARY IN THE PROMISE (owner, F3). The inverse-less branch
+	//used to end ", shown as an outlined pill" — which describes the PAINT this
+	//app happens to apply to a negated clause, in words ('outlined', 'pill')
+	//that name nothing the user has a concept for and that would be a lie the
+	//day the treatment changed. What the user needs to know is not how the
+	//clause will look but what collection it will name, so the tail says THAT:
+	//the promised word, then the meaning of the promised word. The
+	//resulting-word promise itself — the quoted label — is the good half and is
+	//untouched; only the paint is replaced by the meaning.
 	get _invertTitle() : string {
 		const node = this._node;
 		if (!node) return '';
 		const inverted = this._labelFor(negatedExpressionNode(node));
 		return conditionCanUseNamedInverse(node) ?
 			`This becomes “${inverted}”` :
-			`This becomes “${inverted}”, shown as an outlined pill`;
+			`This becomes “${inverted}” — everything except those cards`;
 	}
 
 	_handleInvert() {
@@ -594,6 +623,17 @@ class CollectionPillRow extends LitElement {
 		return `one alternative in ${this._labelFor(condition)}`;
 	}
 
+	//THE REMOVAL CONSEQUENCE, IN THE LIST'S OWN GRAMMAR. Empty when either side
+	//is unknown — see the properties above for why half of it is worse than none
+	//of it. 'Removing this' rather than 'without this pill': the row is already
+	//labelled with the clause it is about, so the phrase only has to name the
+	//EDIT, and 'pill' was a word about paint (owner, F3) in a line whose whole
+	//job is to be about cards.
+	get _removalConsequence() : string {
+		if (this.draftCount === undefined || this.withoutCount === undefined) return '';
+		return `removing this: ${formatCollectionCardCount(this.draftCount)} → ${formatCollectionCardCount(this.withoutCount)}`;
+	}
+
 	override render() {
 		const node = this._node;
 		if (!node) return html``;
@@ -608,13 +648,12 @@ class CollectionPillRow extends LitElement {
 				<span class='scope'>${label}</span>
 				${note ? html`<span class='scope-note'>${note}</span>` : ''}
 				${this._argumentControls()}
-				${this.draftCount === undefined ? '' : html`<span class='count'>· draft now matches ${formatCollectionCardCount(this.draftCount)}</span>`}
 				<span class='verbs'>
 					<button class='small verb' title='Widen this to also match something else' @click=${this._handleOr}>${OR_VERB_LABEL}</button>
 					<button class='small verb' title=${this._invertTitle} @click=${this._handleInvert}>${INVERT_VERB_LABEL}</button>
 					<button class='small remove' title=${removeTitle} aria-label=${removeTitle} @click=${this._handleRemove}>${CANCEL_ICON}</button>
 				</span>
-				${this.withoutCount === undefined ? '' : html`<span class='count'>· without this pill: ${formatCollectionCardCount(this.withoutCount)}</span>`}
+				${this._removalConsequence ? html`<span class='count'>· ${this._removalConsequence}</span>` : ''}
 			</div>
 		`;
 	}

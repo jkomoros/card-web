@@ -71,8 +71,18 @@ import {
 	SELECTED_FILTER_NAME,
 	INVERSE_FILTER_NAMES,
 	CONFIGURABLE_FILTER_NAMES,
+	SORTS,
 	UNION_FILTER_DELIMITER as FILTER_UNION_DELIMITER
 } from './filters.js';
+
+import {
+	SET_NAMES
+} from '../shared/collection_description_base.js';
+
+import {
+	QueryOperatorVocabulary,
+	parseQueryOperators
+} from './query-operators.js';
 
 import {
 	relativeDateCacheKey,
@@ -125,7 +135,6 @@ import {
 	Fingerprint,
 	FingerprintGenerator,
 	PENDING_IDF_MAP,
-	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
 	enrichCardWithConcepts,
@@ -417,7 +426,13 @@ export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state : State
 export const selectSlugIndex = (state : State) => state.data ? state.data.slugIndex : {};
 export const selectMessages = (state : State) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state : State) => state.comments ? state.comments.threads : null;
-export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : {};
+//`state.data ?`, like every sibling on these lines. It was the one selector in
+//the block that reached into `state.data` without checking the slice existed,
+//and nothing had noticed because nothing on a partial-state path had ever
+//depended on it — until selectQueryOperatorVocabulary pulled authors into the
+//find dialog's own selector graph, and test/reducers/sticky-search.test.js,
+//which constructs a state out of `find` and `collection` alone, threw on it.
+export const selectAuthors = (state : State) => state.data && state.data.authors ? state.data.authors : {};
 export const selectAllPermissions = (state : State) => state.permissions ? state.permissions.permissions : {};
 export const selectPermissionsPendingUid = (state : State) => state.permissions ? state.permissions.pendingUid : '';
 export const selectPermissionsPendingPermissionType = (state : State) => state.permissions ? state.permissions.pendingPermissionType : '';
@@ -2547,6 +2562,34 @@ export const validateStickySearchExpression = (expression : string, knownFilters
 	}
 };
 
+//THE VOCABULARY A TYPED OPERATOR IS CHECKED AGAINST (owner, F4).
+//
+//The find dialog's parser never had one: `tag:intrnal` became a filter named
+//`intrnal`, which matches no card and says nothing about why. With the live
+//corpus in hand the same string resolves to `internal`, because the operator
+//already told the resolver which drawer to look in — that scoping is the entire
+//benefit of typing `tag:` instead of `intrnal`.
+//
+//Each list is the family's own namespace and no wider. `filters` is the union of
+//the live filter memberships and the inverse names, which is the same pair
+//validateStickySearchExpression checks a sticky component against, so `filter:`
+//and a sticky expression cannot disagree about what a filter name is.
+export const selectQueryOperatorVocabulary = createSelector(
+	selectTags,
+	selectSections,
+	selectFilters,
+	selectAuthorsForTagList,
+	(tags, sections, knownFilters, authors) : QueryOperatorVocabulary => ({
+		tags: Object.keys(tags || {}),
+		sections: Object.keys(sections || {}),
+		cardTypes: Object.keys(CARD_TYPE_CONFIGURATION),
+		filters: [...Object.keys(knownFilters || {}), ...Object.keys(INVERSE_FILTER_NAMES)],
+		sorts: Object.keys(SORTS),
+		sets: [...SET_NAMES],
+		authors: Object.keys(authors || {}).map(uid => uid.toLowerCase()),
+	})
+);
+
 export const selectCollectionDescriptionForQuery = createSelector(
 	selectActiveQueryText,
 	selectFindCardTypeFilter,
@@ -2556,8 +2599,22 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectFindStickyFiltersEnabled,
 	selectFindStickyFiltersExpression,
 	selectFilters,
-	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters) => {
-		const wordsAndFilters = extractFiltersFromQuery(queryText);
+	selectQueryOperatorVocabulary,
+	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters, vocabulary) => {
+		//ONE PARSER, AND THIS SURFACE READS ALL OF IT (owner, F4). It used to
+		//call extractFiltersFromQuery, which returns only [text, filters]
+		//because that is all the old grammar could produce. The shared parser
+		//also reports a `sort:` and a `set:`, so a typed `sort:stars` now orders
+		//the results instead of being searched for as the literal word.
+		const parsed = parseQueryOperators(queryText, vocabulary);
+		//An operator whose value did not resolve is still applied as a filter —
+		//the find dialog has always trusted a typed filter name — but a SORT or a
+		//SET is a slot with exactly one legal vocabulary, so an unresolved one is
+		//dropped rather than handed to CollectionDescription to reject. Checked
+		//against the registries themselves, not against the vocabulary that was
+		//passed in, so a corpus that had not loaded yet cannot smuggle one past.
+		const typedSort : SortName | '' = parsed.sort && SORTS[parsed.sort as SortName] ? parsed.sort as SortName : '';
+		const typedSet : SetName | '' = parsed.set && SET_NAMES.includes(parsed.set as SetName) ? parsed.set as SetName : '';
 		const baseFilters = ['has-body'];
 		let sort : SortName = 'default';
 		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
@@ -2570,7 +2627,11 @@ export const selectCollectionDescriptionForQuery = createSelector(
 		//branch below, which is correct: that branch is "recent cards", and
 		//a default set should constrain it too.
 		if (generic) baseFilters.push(...stickySearchFilterComponents(stickyEnabled, stickyExpression, expression => validateStickySearchExpression(expression, knownFilters)));
-		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
+		//A TYPED sort: OR set: IS A QUERY. The empty branch below means "the user
+		//has asked for nothing", and it answers with similar-cards-and-a-limit —
+		//which would be the wrong answer to `sort:stars`, a string that asks for
+		//the whole corpus in a stated order.
+		if (!parsed.text && !parsed.filters.length && !typedSort && !typedSet) {
 			if (generic) {
 				//If it's a generic search, we don't want similar cards to
 				//current card (which might be a boring section title card), we
@@ -2585,8 +2646,16 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			//If there's no query, return the similar cards to the current card
 			return new CollectionDescription('everything', baseFilters, sort);
 		}
-		const query = queryFilter(wordsAndFilters[0]);
-		return new CollectionDescription('everything',[...baseFilters, query, ...wordsAndFilters[1]], sortByRecent ? 'recent' : 'default');
+		const query = queryFilter(parsed.text);
+		//A TYPED ORDER OUTRANKS THE 'sort by recent' CHECKBOX, and a typed set
+		//outranks the everything default: both are the user saying it in words,
+		//in this query, rather than a setting left over from an earlier one.
+		return new CollectionDescription(
+			typedSet || 'everything',
+			[...baseFilters, query, ...parsed.filters],
+			typedSort || (sortByRecent ? 'recent' : 'default'),
+			typedSort ? parsed.sortReversed : false
+		);
 	}
 );
 

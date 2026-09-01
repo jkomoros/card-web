@@ -30,6 +30,10 @@ import {
 } from './memoize.js';
 
 import {
+	parseQueryOperators
+} from './query-operators.js';
+
+import {
 	Card,
 	CardID,
 	Cards,
@@ -598,8 +602,29 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fa
 });
 
 //Returns the words and filters in the text.
+//
+//THE READING IS query-operators.ts's NOW, NOT THIS FILE'S (owner, F4). This
+//used to be two private functions here — rewriteQueryFilters, which turned
+//`is:`/`section:`/`tag:`/`has:` into a single `filter:` spelling, and
+//queryWordsAndFilters, which then split the string on that spelling — and it was
+//the app's ONLY operator parser. The composer needed the same grammar, and a
+//second implementation of "what does `tag:internal` mean" is how two surfaces
+//come to disagree about one string the user typed. So the grammar moved to a
+//module both consume, and this function is a thin adapter over it.
+//
+//IDENTICAL OUTPUT FOR EVERY STRING THE OLD CODE HANDLED. No vocabulary is
+//passed, which is exactly the "trust what was typed" behaviour this had: an
+//operator's value is used verbatim, an unknown filter name still becomes a
+//filter, and `has:`/`has:no-` keeps its asymmetry. What changes is only that
+//STRINGS WHICH USED TO BE PLAIN TEXT can now be operators — `sort:`, `set:`,
+//`query:`, `card-type:`, `author:` — which is the point.
+//
+//The signature stays a tuple because selectCollectionDescriptionForQuery and the
+//fingerprint suite both destructure it. A caller that wants the sort and the set
+//as well calls parseQueryOperators directly, as that selector now also does.
 export const extractFiltersFromQuery = (queryTextIncludingFilters : string) : [query : string, filters : string[]] => {
-	return queryWordsAndFilters(rewriteQueryFilters(queryTextIncludingFilters));
+	const parsed = parseQueryOperators(queryTextIncludingFilters);
+	return [parsed.text, parsed.filters];
 };
 
 type PreparedQueryConfigurationLeaf = [
@@ -657,32 +682,10 @@ export class PreparedQuery {
 	}
 }
 
-const SIMPLE_FILTER_REWRITES = ['is:', 'section:', 'tag:'];
-const HAS_FILTER_PREFIX = 'has:';
-
-//rewriteQueryFilters rewrites things like 'has:comments` to `filter:has-comments`
-const rewriteQueryFilters = (query : string) : string => {
-	const result = [];
-	for (let word of query.split(' ')) {
-		for (const prefix of SIMPLE_FILTER_REWRITES) {
-			if (word.toLowerCase().startsWith(prefix)) {
-				word = FILTER_PREFIX + word.slice(prefix.length);
-			}
-		}
-		//Replace 'has:'. Things like 'has:comments' expand to
-		//'filter:has-comments', whereas things like 'has:no-comments' expand to
-		//'filter:no-comments'.
-		if (word.toLowerCase().startsWith(HAS_FILTER_PREFIX)) {
-			let rest = word.slice(HAS_FILTER_PREFIX.length);
-			if (!rest.toLowerCase().startsWith('no-')) {
-				rest = 'has-' + rest;
-			}
-			word = FILTER_PREFIX + rest;
-		}
-		result.push(word);
-	}
-	return result.join(' ');
-};
+//rewriteQueryFilters and its SIMPLE_FILTER_REWRITES / HAS_FILTER_PREFIX tables
+//are DELETED, with queryWordsAndFilters and FILTER_PREFIX below. They were the
+//find dialog's private operator grammar; the grammar is query-operators.ts's now
+//and lives in one place — see extractFiltersFromQuery above.
 
 const textSubQueryForWords = (words : string) : PreparedQueryConfiguration => {
 	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight || 0)]));
@@ -738,29 +741,6 @@ const stringPropertyScoreForStringSubQuery = (propertyValue : string, preparedSu
 		}
 	}
 	return [result, fullMatch];
-};
-
-const FILTER_PREFIX = 'filter:';
-
-const filterForWord = (word : string) : string => {
-	if (word.indexOf(FILTER_PREFIX) < 0) return '';
-	return word.split(FILTER_PREFIX).join('');
-};
-
-//extracts the raw, non filter words from a query, then also the filters.
-const queryWordsAndFilters = (queryString : string) : [string, string[]] => {
-	const words = [];
-	const filters = [];
-	for (const word of lowercaseSplitWords(queryString)) {
-		if (!word) continue;
-		const filter = filterForWord(word);
-		if (filter) {
-			filters.push(filter);
-		} else {
-			words.push(word);
-		}
-	}
-	return [words.join(' '), filters];
 };
 
 //Re-export for existing consumers

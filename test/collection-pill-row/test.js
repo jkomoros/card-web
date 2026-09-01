@@ -104,9 +104,38 @@ describe('the pill row', () => {
 				'a named inverse is a plain word on a plain pill');
 		});
 
-		it('says so differently when there is no word and the pill will be outlined', async () => {
+		//SUPERSEDED PIN (owner, F3). This used to assert /outlined pill/ — the
+		//title told the user what the app would PAINT, in vocabulary ('outlined',
+		//'pill') that names nothing they have a concept for and that becomes a lie
+		//the day the treatment changes. The promise is about the collection now.
+		it('says what the clause will MEAN when there is no word for its inverse', async () => {
 			const element = await mount({ expression: [filter('tag-3')], index: 0 });
-			assert.match(verb(element, INVERT_VERB_LABEL).getAttribute('title'), /outlined pill/);
+			const title = verb(element, INVERT_VERB_LABEL).getAttribute('title');
+			assert.match(title, /This becomes/, 'the resulting-word promise survives — that part was good');
+			assert.match(title, /everything except those cards/, 'and the tail says the meaning');
+			assert.ok(!/outlined|pill|struck|dashed|chip|badge/i.test(title),
+				'no rendering vocabulary in a sentence about cards');
+		});
+
+		//THE SWEEP, NOT THE INSTANCE (owner, F3: "sweep ALL user-facing strings
+		//for rendering vocabulary"). One fixed title is one bug; the RULE is that
+		//this component never describes paint to a person. Attribute and text
+		//content only — the component's own comments discuss outlined chips at
+		//length, and they are written for readers of the source.
+		it('puts no rendering vocabulary in any string a user reads', async () => {
+			const element = await mount({ expression: [filter('tag-3')], index: 0, draftCount: 12, withoutCount: 40 });
+			const strings = [rowText(element)];
+			for (const node of element.shadowRoot.querySelectorAll('*')) {
+				for (const attribute of ['title', 'aria-label', 'placeholder']) {
+					const value = node.getAttribute(attribute);
+					if (value) strings.push(value);
+				}
+			}
+			assert.ok(strings.length > 3, 'the sweep actually found strings to sweep');
+			for (const value of strings) {
+				assert.ok(!/\b(outlined|struck|strikethrough|dashed|pill|chip|badge|lozenge)\b/i.test(value),
+					`"${value}" describes rendering rather than meaning`);
+			}
 		});
 
 		it('inverts one alternative inside a group without touching the others', async () => {
@@ -381,17 +410,31 @@ describe('the pill row', () => {
 			assert.match(styles.match(/\.argument-label\s*\{[^}]*\}/)[0], /white-space:\s*nowrap/);
 		});
 
-		it('says nothing about counts until somebody computes them', async () => {
+		//SUPERSEDED PIN (owner, F2). This used to assert two separate lines —
+		//'draft now matches 184 cards' and 'without this pill: 1842 cards' — and
+		//then, after the round-3 tightness pass, only the second of them. One side
+		//of a comparison, stated alone, reads as the size of the collection: the
+		//owner read `without this pill: 34.4k cards` exactly that way. The row
+		//states the transition now, in the palette list's own `current → after`
+		//grammar, so there is one consequence language on the whole surface.
+		it('states both sides of the removal, or neither', async () => {
 			const element = await mount({ expression: [filter('starred')], index: 0 });
-			assert.ok(!/draft now matches/.test(rowText(element)),
+			assert.ok(!/removing this/.test(rowText(element)),
 				'a number here is a promise about a collection; there is nothing honest to say before it arrives');
-			assert.ok(!/without this pill/.test(rowText(element)));
 
-			element.draftCount = 184;
+			//HALF A TRANSITION IS WORSE THAN NONE, which is the whole point: a
+			//lone number is the misreading this fix exists to delete, so a row
+			//that knows one side and not the other says nothing at all.
 			element.withoutCount = 1842;
 			await element.updateComplete;
-			assert.match(rowText(element), /draft now matches 184 cards/);
-			assert.match(rowText(element), /without this pill: 1842 cards/);
+			assert.ok(!/1842/.test(rowText(element)), 'one side alone is not a consequence');
+
+			element.draftCount = 184;
+			await element.updateComplete;
+			assert.match(rowText(element), /removing this: 184 cards → 1842 cards/,
+				'the WITH side, the arrow, and the WITHOUT side, in the list rows\' own grammar');
+			assert.ok(!/without this pill/.test(rowText(element)),
+				'and the old one-sided phrasing is gone with its jargon');
 		});
 
 		it('renders nothing at all for an address that names no token', async () => {

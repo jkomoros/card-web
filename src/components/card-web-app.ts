@@ -226,6 +226,35 @@ class CardWebApp extends connect(store)(LitElement) {
 				measured.) */
 				--app-pending-color: #b26a00;
 
+				/* THE COLLECTION SENTENCE'S CLAUSE HUES (src/collection-pill-palette.ts).
+				One hue per FAMILY of question a clause asks, so that squinting at a
+				sentence tells you what kind of collection it is; differentiation
+				within a family is the label's job, never a second hue. All eight sit
+				at 26-42% lightness so they read as one ramp, all carry white text at
+				>= 6.3:1 (tag-chip paints --app-light-text-color on the fill), and
+				every one is kept >= 15deg from the four reserved semantics of 4.5
+				(brand purple ~268, live teal 174, warning red 0, pending amber 33) so
+				a clause hue is never mistaken for a status. */
+				/* When a card CHANGED. */
+				--app-clause-date-color: hsl(132, 48%, 27%);
+				/* What a card IS: content, working notes, concept, quote, work. */
+				--app-clause-card-type-color: hsl(210, 62%, 33%);
+				/* How a card is LINKED to another: children, references, connections. */
+				--app-clause-relationship-color: hsl(252, 42%, 42%);
+				/* WHO wrote a card. */
+				--app-clause-person-color: hsl(300, 40%, 32%);
+				/* How a card RESEMBLES another: similar, same type, different type. */
+				--app-clause-similarity-color: hsl(340, 48%, 36%);
+				/* What a card SAYS: a query, a named card, a concept. */
+				--app-clause-text-color: hsl(18, 52%, 34%);
+				/* A FLAG on a card: starred, unread, published, has a TODO. */
+				--app-clause-property-color: hsl(68, 45%, 27%);
+				/* Scaffolding, not a subject: a starting set. Deliberately the one
+				DESATURATED value in the ramp rather than an eighth hue, because a set
+				is what the subjects hang on rather than something the collection is
+				about. */
+				--app-clause-structural-color: hsl(210, 12%, 38%);
+
 				/* note: this is also replicated in index.TEMPLATE.html */
 				--app-dark-text-color: #7f7f7f;
 				--app-light-text-color: white;

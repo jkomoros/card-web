@@ -94,6 +94,12 @@ import {
 } from './collection-date-phrases.js';
 
 import {
+	QueryOperatorMatchKind,
+	QueryOperatorVocabulary,
+	parseQueryOperatorToken,
+} from './query-operators.js';
+
+import {
 	CompletionUsageWeights,
 } from './collection-composer-usage.js';
 
@@ -1825,7 +1831,8 @@ export const collectionCompletionCandidates = (
 		label : string,
 		detail : string,
 		aliases : readonly string[],
-		description : CollectionDescription
+		description : CollectionDescription,
+		forced : Match | null = null
 	) => {
 		//A SENTENCE WORD IS NAMED, NOT DESCRIBED. There are three sets, two
 		//views, and a short list of sorts; a person types their names. Matching
@@ -1834,12 +1841,17 @@ export const collectionCompletionCandidates = (
 		//above whatever the user was actually reaching for. So these kinds match
 		//by name, by their URL token and by curated aliases, and stop there —
 		//the description closure below always answers zero.
-		const match = browsing ? browseMatch : matchTier(
+		//`forced` is how an OPERATOR PARSE gets a sentence word onto the list.
+		//`sort:stars` cannot match by name — the token has a colon in it and
+		//none of these names do — but it is the most certain reading in the
+		//whole engine, so the operator layer below resolves the name itself and
+		//hands the verdict in rather than hoping the name matcher agrees.
+		const match = forced || (browsing ? browseMatch : matchTier(
 			token,
 			label,
 			[name, ...aliases, ...phrasedAliases(kind, label)],
 			NO_DESCRIPTION_MATCH
-		);
+		));
 		//And a typo is a name mistake, so it stays; the tiers below a name are
 		//what this kind declines.
 		if (!match || match.tier === 'description' || match.tier === 'structural') return;
@@ -1907,6 +1919,139 @@ export const collectionCompletionCandidates = (
 			VIEW_ALIASES[name] || [],
 			collectionDescriptionWithViewMode(options.description, name as ViewMode)
 		);
+	}
+
+	//A TYPED OPERATOR IS A PARSE, NOT A GUESS (owner, F4).
+	//
+	//`tag:internal` used to reach this engine as a five-syllable nonsense word.
+	//No vocabulary contains a colon, so every name tier missed; the description
+	//tier scored it against prose that also does not contain colons; and what
+	//led the list was `Search card text for “tag:internal”` — the honest floor,
+	//offered as the answer to a string whose meaning is completely unambiguous.
+	//
+	//It is unambiguous because the user said which drawer to look in, and that
+	//is worth more than it looks: `intrn` alone is a coin flip between a tag, a
+	//section and a filter, but `tag:intrn` has exactly one candidate list to be
+	//typo-matched against. So the value side gets the same ladder the name side
+	//gets — exact, then prefix, then typo — SCOPED to the operator's family, and
+	//`tag:intrn` lands on `internal` where the bare token could not.
+	//
+	//IT RANKS AS A LITERAL. Tier `parsed` is the top of the arithmetic, above
+	//name-exact, and it is shared with the two other readings the engine can be
+	//certain of: a pasted collection URL, and a date phrase. All three have the
+	//same shape — a grammar accepted the whole token — and none of them is a
+	//guess about what the user might have meant.
+	//
+	//THE PARSER IS THE FIND DIALOG'S. Not a copy of it: query-operators.ts is
+	//the module both surfaces call, which is the requirement and not a tidiness
+	//preference — an operator that means one thing in the composer and another
+	//in find is worse than an operator that exists in only one of them.
+	//
+	//AN UNKNOWN PREFIX FALLS THROUGH, silently and completely. `ratio:3` parses
+	//to null and this whole block does nothing, so the ordinary tiers see the
+	//token exactly as they always did and a colon in plain text costs nothing.
+	const operatorVocabulary : QueryOperatorVocabulary = {
+		tags: candidates.filter(candidate => candidate.category === 'tag').map(candidate => candidate.filter),
+		sections: candidates.filter(candidate => candidate.category === 'section').map(candidate => candidate.filter),
+		cardTypes: candidates.filter(candidate => candidate.category === 'card type').map(candidate => candidate.filter),
+		//`filter:` addresses the whole bare-token namespace, which is the
+		//registry's own filters PLUS every corpus value, because `/c/main/foo/`
+		//is a legal path whether foo is a filter or a tag.
+		filters: [
+			...Object.keys(CARD_FILTER_DESCRIPTIONS),
+			...candidates.map(candidate => candidate.filter).filter(filter => !filter.includes('/')),
+		],
+		sorts: context.sortNames || SORT_NAMES,
+		sets: context.setNames || SET_NAMES,
+		authors: candidates
+			.filter(candidate => candidate.category === 'author')
+			.map(candidate => candidate.filter.split('/')[1] || '')
+			.filter(uid => Boolean(uid)),
+	};
+	//HOW SURE THE PARSE IS, WITHIN ITS OWN TIER. All four readings are `parsed`
+	//— the grammar accepted every one of them — but a value the user spelled
+	//exactly is a better answer than one recovered from a transposition, and
+	//when a token produces more than one clause the list should say so in its
+	//order rather than in an alphabetical tiebreak.
+	const OPERATOR_MATCH_QUALITY : Record<QueryOperatorMatchKind, number> = {
+		'exact': MATCH_QUALITY_MAXIMUM,
+		'prefix': MATCH_QUALITY_MAXIMUM - 2000,
+		'literal': MATCH_QUALITY_MAXIMUM - 2000,
+		'typo': MATCH_QUALITY_MAXIMUM - 4000,
+		//Still offered: the find dialog has always let a person name a filter the
+		//app does not know, and refusing here would make the composer the stricter
+		//of the two surfaces sharing one parser. It simply leads nothing.
+		'unresolved': MATCH_QUALITY_MAXIMUM - 8000,
+	};
+	const operator = browsing ? null : parseQueryOperatorToken(token, operatorVocabulary);
+	if (operator && operator.value) {
+		const operatorMatch : Match = {
+			tier: 'parsed',
+			matchedOn: operator.raw,
+			quality: OPERATOR_MATCH_QUALITY[operator.match],
+		};
+		if (operator.family === 'sort') {
+			const name = operator.value;
+			if (SORTS[name as SortName] && name !== options.description.sort) {
+				sentenceWord(
+					`sort:${name}`,
+					'sort',
+					name,
+					collectionOptionDisplayName(name),
+					SORTS[name as SortName]?.description || `Orders this collection by ${collectionOptionDisplayName(name)}.`,
+					[],
+					collectionDescriptionWithSort(options.description, name as SortName),
+					operatorMatch
+				);
+			}
+		} else if (operator.family === 'set') {
+			const name = operator.value;
+			if (SET_NAMES.includes(name as SetName) && name !== options.description.set) {
+				sentenceWord(
+					`set:${name}`,
+					'set',
+					name,
+					collectionOptionDisplayName(name),
+					`Starts this collection from the ${collectionOptionDisplayName(name)} set instead.`,
+					[],
+					collectionDescriptionWithSet(options.description, name as SetName),
+					operatorMatch
+				);
+			}
+		} else {
+			//`query:` is the one filter-shaped family whose canonical spelling the
+			//parser does not produce: the encoding is filters.js's, and
+			//query-operators.ts deliberately imports nothing from there so it can
+			//run in the worker. So it is spelled here, beside the free-text guess
+			//that spells it the same way — and it is a PARSE rather than that
+			//guess, because `query:stale` is the user asking for a text search in
+			//so many words rather than the engine falling back to one.
+			const filter = operator.family === 'query' ? `${QUERY_FILTER_FAMILY}/${operator.value}` : operator.filter;
+			if (filter) {
+				const family = filter.split('/')[0];
+				//The candidate this operator names, when the corpus has one, so a
+				//parsed tag carries the same annotation word ('tag', 'section',
+				//'card type') the same clause carries when it is reached by typing
+				//its bare name. A `filter:`/`has:` clause has no candidate and
+				//takes the same 'filter'/'family' word the ordinary loop gives it.
+				const named = candidates.find(candidate => candidate.filter === filter);
+				clauseCandidate(
+					`filter:${filter}`,
+					named ? 'value' : 'filter',
+					filter,
+					collectionFilterDisplayName(filter, labels),
+					collectionFilterDescription(family, filterDescriptions, labels) ||
+						collectionFilterDescription(filter, filterDescriptions, labels),
+					operatorMatch,
+					{
+						annotation: named ? named.category : (CONFIGURABLE_FILTER_INFO[family] ? 'family' : 'filter'),
+						//A free-text search reached by operator is as unlearnable a
+						//habit as one reached by fallback — see the guess above.
+						usageKey: operator.family === 'query' ? '' : undefined,
+					}
+				);
+			}
+		}
 	}
 
 	//THE SUBSEQUENCE TIER IS CAPPED, AND THE FLOOR IS WHY.

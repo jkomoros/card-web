@@ -10,7 +10,8 @@
 //the idiom the composer's interaction suite already uses for the same reason.
 //
 //What is worth pinning here is exactly what the design bets on:
-//  - the two-fill rule (real colour only where colour already means something);
+//  - the colour rule (a value wears its own colour, a clause wears its
+//    family's — see the palette's own suite for the palette itself);
 //  - negation as language, not as an operator (named inverses stay plain words,
 //    inverse-less filters get the outlined "not" pill);
 //  - the OR-group as ONE token containing alternatives;
@@ -35,13 +36,20 @@ const { UNRESOLVED_CLAUSE_NOTE } = await import('../../lib/src/components/collec
 await import('../../lib/src/components/tag-chip.js');
 
 //A tag the app already has a colour for, and a section. Everything else the
-//sentence meets is a property clause and must come out neutral.
+//sentence meets is a clause, and a clause takes the colour of its FAMILY.
 const TAG_INFOS = {
 	'tag-3': { id: 'tag-3', title: 'Systems', color: '#aa3377' },
 	'reading-list': { id: 'reading-list', title: 'Reading list', color: '#3377aa' },
 };
 
+//The clause palette's tokens, named here rather than imported, so that a
+//rename in the palette has to be an intentional edit to this file too — these
+//are the strings the chips are actually handed.
 const NEUTRAL = 'var(--app-dark-text-color-darker)';
+const PROPERTY = 'var(--app-clause-property-color)';
+const DATE = 'var(--app-clause-date-color)';
+const CARD_TYPE = 'var(--app-clause-card-type-color)';
+const SET_OR_SORT = 'var(--app-clause-structural-color)';
 
 const mount = async (properties = {}) => {
 	const element = document.createElement('collection-sentence');
@@ -152,17 +160,37 @@ describe('the collection sentence', () => {
 		});
 	});
 
-	describe('the two-fill rule', () => {
+	//THE COLOUR RULE, AND THE RULE IT REPLACED.
+	//
+	//This block used to pin a TWO-fill rule: a value pill wore the colour its
+	//tag already had, and every other clause — property, date, card type,
+	//manual — was one grey. The argument for it is recorded in the file it was
+	//deleted from, because it is a good argument and it will be made again:
+	//colour should appear where it ALREADY means something, and "authored or
+	//not" is a lookup rather than a taste call, so it cannot drift.
+	//
+	//What it missed is what the sentence is FOR. `Card type: Content`, `Updated
+	//since 7 days ago` and `Starred` are three different kinds of claim about a
+	//set of cards, and in one grey they are three identical lozenges — the
+	//owner's words: "Most tag types e.g. Card-type:FOO are the same colour. Use
+	//colours for consistency and texture in a principled way. It should be MORE
+	//colourful than not, so at a glance, if you squint, you can tell what the
+	//collection has."
+	//
+	//So the boundary moved, and it is still a lookup on both sides: a value
+	//wears its own colour, and a clause wears its FAMILY's, out of a table
+	//keyed on the filter spelling alone (collection-pill-palette, pinned in its
+	//own suite). What is asserted HERE is only the seam — that the sentence
+	//asks the right question of the right thing, and that the answers reach the
+	//chips distinct.
+	describe('the colour rule', () => {
 
-		//The spec's own warning is against a pill rainbow. The rule this
-		//implements is not a taste call per filter family — it is a lookup, so
-		//it cannot drift: a clause the app already has a colour for wears it,
-		//and everything else is the one neutral.
-		it('gives a value pill its real colour and a property pill the one neutral', async () => {
+		it('gives a value pill its real colour and a clause its family\'s', async () => {
 			const element = await mount({ expression: [filter('tag-3'), filter('has-todo')] });
 			const [value, property] = chips(element);
 			assert.strictEqual(chipFill(value), '#aa3377', 'a tag keeps the colour it has everywhere else');
-			assert.strictEqual(chipFill(property), NEUTRAL, 'a property clause has no colour of its own');
+			assert.strictEqual(chipFill(property), PROPERTY,
+				'a property clause has no colour of its own, so it takes the one its family carries');
 		});
 
 		//THE LOOKUP DECIDES WHETHER IT IS A VALUE; THE CORPUS DECIDES WHAT COLOUR.
@@ -186,25 +214,70 @@ describe('the collection sentence', () => {
 			assert.strictEqual(value.shadowRoot.querySelector('span').style.backgroundColor,
 				'rgb(205, 92, 92)',
 				'tag-chip paints it the same default it paints that tag with everywhere else');
-			assert.strictEqual(chipFill(property), NEUTRAL, 'and a clause that is not a value still is');
+			assert.strictEqual(chipFill(property), PROPERTY, 'and a clause that is not a value still takes its family\'s');
 		});
 
-		it('uses no third fill, whatever the expression contains', async () => {
+		//THE SQUINT TEST, MECHANIZED — and the pin that replaced "uses no third
+		//fill, whatever the expression contains".
+		//
+		//That assertion was correct about the code that existed and wrong about
+		//the design: it said an expression containing a tag, a date, a card
+		//type, a set and a property may show at most one non-value fill, which is
+		//exactly the sentence-with-the-nouns-rubbed-out this wave was asked to
+		//fix. The replacement asserts the opposite property, and it asserts it
+		//the way the owner stated it: not "every clause is coloured" but "two
+		//clauses of DIFFERENT KINDS do not look the same".
+		//
+		//Deliberately not a pin on WHICH hue each family gets — that belongs to
+		//the palette's own suite, where it can be argued about as a table. What
+		//this owns is the seam: the sentence asks the palette, per clause, and
+		//the answers arrive at the chips distinct.
+		it('paints clauses of different kinds differently, so a squint can tell them apart', async () => {
 			const element = await mount({
 				expression: [
 					filter('tag-3'),
 					filter('updated/after/2020-01-01'),
-					{ kind: 'or', members: [filter('reading-list'), filter('starred')] },
-					{ kind: 'not', child: filter('has-todo') },
+					filter('content'),
+					filter('has-todo'),
+					filter('in-reading-list'),
 					{ kind: 'manual', source: 'expand/similar' },
 				],
 			});
-			const fills = new Set(chips(element).map(chipFill));
-			//Two real colours for the two value pills, and the single neutral for
-			//every other clause — a negated pill keeps its own colour and merely
-			//stops being filled with it, so negation adds no third choice here.
-			const allowed = new Set([NEUTRAL, '#aa3377', '#3377aa']);
-			for (const fill of fills) assert.ok(allowed.has(fill), `unexpected pill fill ${fill}`);
+			const [tag, date, cardType, property, set, manual] = chips(element).map(chipFill);
+
+			//A value still wears its own colour — that half of the old rule is
+			//untouched, and it is the half that keeps the sentence's chip and the
+			//card's chip the same tag.
+			assert.strictEqual(tag, '#aa3377', 'an authored tag keeps the colour it has everywhere else');
+
+			assert.strictEqual(date, DATE, 'a date clause takes the date family\'s colour');
+			assert.strictEqual(cardType, CARD_TYPE, 'a card-type clause takes the card-type family\'s');
+			assert.strictEqual(property, PROPERTY, 'a property clause takes the property family\'s');
+			assert.strictEqual(set, SET_OR_SORT, 'a set is scaffolding and takes the one quiet treatment');
+
+			//THE ACTUAL SQUINT TEST: four different kinds of claim, four
+			//different fills. This is the assertion the old pin inverted.
+			assert.strictEqual(new Set([date, cardType, property, set]).size, 4,
+				'a date, a card type, a property and a set are four different claims and must not read as one');
+
+			//And a clause the app cannot model still says so by staying grey:
+			//"more colourful than not" is not "colour everything".
+			assert.strictEqual(manual, NEUTRAL,
+				'a manual clause has no family, and "no opinion" already has a colour in this app');
+		});
+
+		//NEGATION ADDS NO COLOUR OF ITS OWN, which is the one part of the old
+		//"no third fill" pin worth keeping: an excluding clause is the same
+		//claim as the including one, so it keeps its family's colour and merely
+		//stops being filled with it (tag-chip's own outline inversion).
+		it('keeps a negated clause on its family\'s colour rather than inventing one', async () => {
+			const element = await mount({
+				expression: [{ kind: 'not', child: filter('has-todo') }, filter('has-todo')],
+			});
+			const [negated, plain] = chips(element);
+			assert.strictEqual(negated.negated, true);
+			assert.strictEqual(chipFill(negated), chipFill(plain));
+			assert.strictEqual(chipFill(negated), PROPERTY);
 		});
 
 		it('names a value pill with the title the app already uses for it', async () => {

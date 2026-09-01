@@ -667,6 +667,7 @@ keeping: `0.75em` + `--app-dark-text-color-light` for a subordinate label,
 | `--app-pending-color` (amber) | Not yet on the server; a paused but recoverable operation |
 | `--app-dark-text-color` | Body text; a subtle icon |
 | `--app-dark-text-color-light` | Subordinate, or disabled |
+| `--app-clause-*-color` (the clause ramp) | Which FAMILY of question a collection clause asks — date, card type, relationship, person, similarity, text, card property, set. One hue per family, never per filter; assigned from the filter spelling by `src/collection-pill-palette.ts` and pinned by `test/collection-pill-palette`. Never a status: every clause hue is held at least 15° from all four of the reserved ones above |
 
 Status uses the five-tone ladder and its override precedence — see §3.6.2.
 

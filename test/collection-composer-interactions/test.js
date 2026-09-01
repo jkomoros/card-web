@@ -567,6 +567,62 @@ describe('Collection Composer interactions', () => {
 			'and the composer is still open, with the replaced draft in front of you');
 	});
 
+	//A RECENTS ROW STOPS SAYING 'recent' TWICE (owner, F1).
+	//
+	//The miniature sentence printed its order tail like the draft sentence does,
+	//and the row's annotation slot says what KIND of row it is — which for a
+	//remembered collection is the word 'recent'. Most of the owner's collections
+	//carry `sort/recent`, so the row read `Main · Starred · sorted by recent
+	//recent`: two unrelated meanings of one word, adjacent, in near-identical
+	//type. Both halves of the fix are pinned here because either alone leaves it
+	//half-broken.
+	//
+	//(a) A DESTINATION SUMMARY OMITS AN ORDER NOBODY CHOSE. Nothing is hidden —
+	//the row's detail line still spells the whole diff, 'Sorts by Recent'
+	//included — and an order that IS a choice survives, which is the second case
+	//below.
+	//(b) THE ANNOTATION READS AS METADATA. It was the same colour and, once the
+	//.subtle scale is applied, the same size as the tail beside it. It takes the
+	//smallest metadata size and an italic of its own now, so it reads as a note
+	//about the row rather than as the row's last words.
+	it('does not say “recent” twice on a recents row', async () => {
+		await seedRecents([['main/starred/sort/recent/', 2], ['main/starred/sort/stars/', 1]]);
+		await settleRender(dialog);
+		const recentRow = () => suggestionRows()
+			.find((button) => (button.dataset.rowId || '') === 'recent:main/starred/sort/recent/');
+		assert.ok(recentRow(), 'the seeded recent is on the list');
+		const sentence = recentRow().querySelector('collection-sentence');
+		const sentenceText = sentence.shadowRoot.textContent.replace(/\s+/g, ' ').trim();
+		assert.match(sentenceText, /Main/, 'the summary still names the collection');
+		assert.ok(!/sorted by recent/.test(sentenceText),
+			'and it does not restate an order nobody chose');
+		assert.strictEqual(recentRow().dataset.annotation, 'recent',
+			'the row still says what kind of row it is');
+		assert.match(recentRow().getAttribute('aria-label'), /Sorts by Recent/,
+			'and the whole truth is still on the detail line, which is where it always was');
+
+		//AN ORDER THAT IS A CHOICE SURVIVES. `sort/stars` is the point of the
+		//destination that carries it, so the summary says so.
+		const starsRow = suggestionRows()
+			.find((button) => (button.dataset.rowId || '') === 'recent:main/starred/sort/stars/');
+		assert.ok(starsRow, 'the second seeded recent is on the list');
+		assert.match(
+			starsRow.querySelector('collection-sentence').shadowRoot.textContent.replace(/\s+/g, ' '),
+			/sorted by stars/,
+			'a chosen order is not a default and is stated');
+
+		//(b), read off the stylesheet rather than off a computed style, because
+		//jsdom does not cascade a shadow stylesheet onto the light-DOM text.
+		const styles = Array.from(dialog.constructor.styles || [])
+			.map((sheet) => String(sheet.cssText || sheet)).join('\n');
+		const rule = styles.match(/\.row-annotation\s*\{[^}]*\}/)[0];
+		assert.match(rule, /font-style:\s*italic/,
+			'the annotation is a note about the row, not more of the sentence');
+		assert.match(rule, /font-size:\s*0\.7em/, '§4.3\'s smallest-metadata size');
+		assert.ok(!/text-transform/.test(rule),
+			'and NOT by reintroducing the ALL-CAPS register this dialog deleted');
+	});
+
 	//THE LIST SETTLES ONCE, AT BUILD TIME (owner, F2).
 	//
 	//SUPERSEDED PIN: this was 'ranks empty rows down when the list is built, and
@@ -1557,14 +1613,19 @@ describe('Collection Composer interactions', () => {
 			'and the next Escape closes the dialog');
 	});
 
-	//THE PILL ROW STATES THE COUNT ONLY IT CAN ANSWER (round-3 tightness, minor).
+	//THE PILL ROW STATES ONE CONSEQUENCE, WITH BOTH ITS SIDES (owner, F2).
 	//
-	//SUPERSEDED PIN: it used to state two — "draft now matches N", which the
-	//footer is already stating beside the control that would open it, and
-	//"without this pill: N", which nothing else on screen can say. Two live
-	//readouts of one number, three inches apart, moving together. The footer's is
-	//the one that survives, because it sits beside the button that acts on it.
-	it('wires the pill row’s own count to the preview machinery, and only that one', async () => {
+	//SUPERSEDED PIN, twice over. It first asserted two separate lines — "draft
+	//now matches N" and "without this pill: N" — and the round-3 tightness pass
+	//deleted the first on the grounds that the footer already says it. What was
+	//left was one number with nothing beside it, which is how the owner came to
+	//read `without this pill: 34.4k cards` as the SIZE of the collection rather
+	//than as a comparison against it. Both counts are wired to the same preview
+	//machinery now and the row spells the transition between them, in the palette
+	//list's own `current → after` grammar. The footer keeps its own copy of the
+	//draft count: that is not a duplicate readout but the same fact answering a
+	//different question, beside the button that acts on it.
+	it('wires both sides of the pill row’s consequence to the preview machinery', async () => {
 		await addRefineRow('Starred');
 		sentencePills()[0].click();
 		await settleRender(dialog);
@@ -1573,11 +1634,12 @@ describe('Collection Composer interactions', () => {
 			'without-pill-preview': 1842,
 		};
 		await settleRender(dialog, pillRow());
-		assert.doesNotMatch(pillRowText(), /draft now matches/,
-			'the draft’s own count is stated once, in the footer');
+		assert.match(pillRowText(), /removing this: 184 cards → 1842 cards/,
+			'one phrase, both sides, the list rows’ own grammar');
 		assert.match(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent, /184 cards/,
-			'and that is where it is');
-		assert.match(pillRowText(), /without this pill: 1842 cards/);
+			'and the footer still states the draft beside the button that opens it');
+		assert.doesNotMatch(pillRowText(), /without this pill/,
+			'the one-sided phrasing, and its rendering vocabulary, are gone');
 	});
 
 	//A CLAUSE WITH ARGUMENTS EDITS THEM IN THE ROW, and the edit lands in the
@@ -3490,6 +3552,65 @@ describe('Collection Composer interactions', () => {
 			'and the pill it was opened from is still the selected one');
 	});
 
+	//A SCOPE YOU CAN SEE, AND A DOOR YOU CAN PRESS (owner, F5).
+	//
+	//The placeholder pinned above was, until this fix, the ONLY thing on screen
+	//that said the input was scoped — and a placeholder is visible for exactly as
+	//long as the box is empty, which is to say until the moment the user starts
+	//using the mode it describes. Type two characters into an or-scope and the
+	//composer looked identical to top level while behaving nothing like it, with
+	//the only exit being a key nothing advertised.
+	//
+	//Three things are pinned, because each fails differently: the indicator is
+	//THERE, it SURVIVES typing (which is the whole defect), and its ✕ runs the
+	//same routine Escape runs — including taking the scoped text with it.
+	it('shows the or-scope as a dismissible context, and the ✕ is Escape', async () => {
+		await addRefineRow('Starred');
+		await pressComposer('Backspace');
+		await pressComposer('+');
+		const indicator = () => dialog.shadowRoot.querySelector('.scope-indicator');
+		assert.ok(indicator(), 'the scope is visible, not merely implied by a placeholder');
+		assert.match(indicator().textContent.replace(/\s+/g, ' '), /Also matching with Starred/,
+			'and it names the clause, in the words of the verb that opened it');
+
+		await typeComposer('unre');
+		assert.ok(indicator(), 'and it is still there once the placeholder is gone — the whole point');
+
+		const dismiss = dialog.shadowRoot.querySelector('.scope-dismiss');
+		assert.ok(dismiss.getAttribute('title'), 'icon-only, so it carries a title');
+		assert.ok(dismiss.getAttribute('aria-label'), 'and an accessible name (HS §2.5)');
+		dismiss.click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._orTarget, null, 'pressing it leaves the scope');
+		assert.strictEqual(dialog._composerInput, '',
+			'and takes the scoped text with it, exactly as Escape does');
+		assert.strictEqual(indicator(), null, 'and the context is gone with the scope');
+		assert.strictEqual(
+			dialog.shadowRoot.querySelector('#collection-composer-input').getAttribute('placeholder'),
+			'Type another condition…',
+			'and the input is back to continuing the sentence');
+	});
+
+	//THE WORD SCOPE TAKES THE SAME PATTERN, and for the same reason rather than
+	//for symmetry: it is equally a mode, its only marker was a list heading that
+	//scrolls, and it was equally exited by an invisible key. Its typed text
+	//STAYS, because a word scope's characters filter a list of sorts and mean the
+	//same thing outside it — which is exactly what Escape has always done, and
+	//the ✕ must not have its own opinion.
+	it('shows the word scope the same way, and its ✕ is Escape too', async () => {
+		dialog.shadowRoot.querySelector('button.order-word').click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._wordScope, 'sort');
+		const indicator = () => dialog.shadowRoot.querySelector('.scope-indicator');
+		assert.ok(indicator(), 'the word scope says it is a scope');
+		assert.match(indicator().textContent.replace(/\s+/g, ' '), /Choosing the order/);
+
+		dialog.shadowRoot.querySelector('.scope-dismiss').click();
+		await settleRender(dialog);
+		assert.strictEqual(dialog._wordScope, '', 'and the ✕ leaves it');
+		assert.strictEqual(indicator(), null);
+	});
+
 	//SOURCE MODE'S ENTER — the one keystroke the live review caught spending
 	//itself twice.
 	//
@@ -4132,25 +4253,26 @@ describe('Collection Composer interactions', () => {
 			const footerCount = () => dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent;
 			known(57);
 			await openPillRow();
-			//THE DRAFT'S COUNT IS STATED ONCE, IN THE FOOTER (round-3 tightness,
-			//minor). SUPERSEDED: the row used to repeat it — 'draft now matches 57
-			//cards' — three inches above the same number beside the commit button.
+			//THE FOOTER STATES THE DRAFT BESIDE THE BUTTON THAT OPENS IT, and the
+			//row states it as the WITH side of its own consequence (owner, F2 —
+			//this pin previously asserted the row said nothing about it at all).
 			//What this test is about is unchanged: the count is LIVE, it moves
 			//when the values do, and it comes through the component's own retained
-			//cache. It is read where the design now states it.
+			//cache.
 			assert.match(footerCount(), /57 cards/);
-			assert.doesNotMatch(pillRowText(), /draft now matches/);
+			assert.doesNotMatch(pillRowText(), /draft now matches/,
+				'and never in the superseded one-sided phrasing');
 
 			//Changing a value makes it a different collection, so the number is
-			//genuinely unknown — and the row omits it rather than showing a stale
-			//one or a zero.
+			//genuinely unknown — and the row omits the WHOLE consequence rather
+			//than showing a stale side, a zero, or half a transition.
 			const date = await rowDateControl();
 			const input = date.shadowRoot.querySelector('[aria-label="First fixed date"]');
 			input.value = '2026-01-15';
 			input.dispatchEvent(new Event('change', { bubbles: true }));
 			await settleRender(dialog);
 			assert.ok(pillRow(), 'the row is still open');
-			assert.doesNotMatch(pillRowText(), /draft now matches/,
+			assert.doesNotMatch(pillRowText(), /removing this/,
 				'a number in this row is a promise about a collection, and there is nothing honest to say yet');
 
 			//And the answer for the new values lands in the same place.
@@ -4179,11 +4301,11 @@ describe('Collection Composer interactions', () => {
 			dialog._retainedPreviewCounts.set(dialog._previewCountKey(without), 1842);
 			dialog._refreshPreviewCounts();
 			await settleRender(dialog, pillRow());
-			//The fact is in the footer, once (round-3 tightness, minor); the
-			//prediction is here, because nothing else on screen can say it.
+			//The fact is in the footer, beside the button that acts on it; the
+			//prediction is here, stated AGAINST that fact (owner, F2) because a
+			//prediction with nothing to compare it to is just a number.
 			assert.match(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent, /57 cards/, 'the fact');
-			assert.doesNotMatch(pillRowText(), /draft now matches/, 'and it is not said twice');
-			assert.match(pillRowText(), /without this pill: 1842 cards/, 'and the prediction');
+			assert.match(pillRowText(), /removing this: 57 cards → 1842 cards/, 'and the consequence, both sides');
 			assert.deepStrictEqual(store.getState().collection.snapshot.filterNames,
 				['starred', 'updated/after/7-days-ago'],
 				'and asking the question has changed nothing');
@@ -4195,7 +4317,7 @@ describe('Collection Composer interactions', () => {
 			dialog._retainedPreviewCounts.set(dialog._previewCountKey(withoutFirst), 96);
 			dialog._refreshPreviewCounts();
 			await settleRender(dialog, pillRow());
-			assert.match(pillRowText(), /without this pill: 96 cards/);
+			assert.match(pillRowText(), /removing this: 57 cards → 96 cards/);
 		} finally {
 			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
