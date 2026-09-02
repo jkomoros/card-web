@@ -81,7 +81,8 @@ import {
 
 import {
 	QueryOperatorVocabulary,
-	parseQueryOperators
+	parseQueryOperators,
+	parseQueryAsLiteralText
 } from './query-operators.js';
 
 import {
@@ -464,6 +465,9 @@ export const selectQuery = (state : State) => state.find ? state.find.query : ''
 export const selectFindRenderOffset = (state : State) => state.find ? state.find.renderOffset : 0;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQueryText = (state : State) => state.find ? state.find.activeQuery : '';
+//Whether activeQuery is text the APP seeded (the editor's selection under
+//Ctrl-L) rather than a query somebody typed. See FindState.queryIsLiteral.
+const selectFindQueryIsLiteral = (state : State) => state.find ? state.find.queryIsLiteral : false;
 export const selectFindSortByRecent = (state : State) => state.find ? state.find.sortByRecent : false;
 export const selectFindCardTypeFilter = (state : State) => state.find ? state.find.cardTypeFilter : '';
 export const selectFindCardTypeFilterLocked = (state : State) => state.find ? state.find.cardTypeFilterLocked : false;
@@ -2600,13 +2604,25 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectFindStickyFiltersExpression,
 	selectFilters,
 	selectQueryOperatorVocabulary,
-	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters, vocabulary) => {
+	selectFindQueryIsLiteral,
+	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters, vocabulary, queryIsLiteral) => {
 		//ONE PARSER, AND THIS SURFACE READS ALL OF IT (owner, F4). It used to
 		//call extractFiltersFromQuery, which returns only [text, filters]
 		//because that is all the old grammar could produce. The shared parser
 		//also reports a `sort:` and a `set:`, so a typed `sort:stars` now orders
 		//the results instead of being searched for as the literal word.
-		const parsed = parseQueryOperators(queryText, vocabulary);
+		//...UNLESS NOBODY TYPED IT. Ctrl-L seeds this box with the editor's text
+		//SELECTION, and prose read through the operator table loses words to
+		//heads it never meant — measured: 'Type: safety' searches for 'safety'
+		//and the word 'Type' is gone, 'the set: of all things' drops 'set:', and
+		//'type:content' becomes a card-type filter. So provenance decides: text
+		//the app put in the box is searched for literally, and the first edit
+		//makes it a typed query with the whole table (and the vocabulary's
+		//prefix/typo resolution) back in force. The flag describes activeQuery,
+		//so the two can never disagree about which reading is in effect.
+		const parsed = queryIsLiteral ?
+			parseQueryAsLiteralText(queryText) :
+			parseQueryOperators(queryText, vocabulary);
 		//An operator whose value did not resolve is still applied as a filter —
 		//the find dialog has always trusted a typed filter name — but a SORT or a
 		//SET is a slot with exactly one legal vocabulary, so an unresolved one is

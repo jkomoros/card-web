@@ -21,6 +21,20 @@ export const PAGE_PERMISSIONS = 'permissions';
 export const PAGE_CHAT = 'chat';
 export const PAGE_404 = 'view404';
 
+//THE PAGES THE ROUTER WILL ACTUALLY LOAD, as a set, so a surface that lets
+//somebody type a destination can tell an app path from a typo without keeping
+//its own copy of this list. PAGE_404 is deliberately absent: it is what the
+//router falls back TO, never a place to send anyone. PAGE_DEFAULT is absent for
+//the opposite reason — /c/ is the collection route, which every such surface
+//already understands in far more detail than a page name.
+export const APP_PAGE_NAMES : ReadonlySet<string> = new Set([
+	PAGE_BASIC_CARD,
+	PAGE_COMMENT,
+	PAGE_MAINTENANCE,
+	PAGE_PERMISSIONS,
+	PAGE_CHAT,
+]);
+
 import {
 	selectActiveCollectionCards,
 	selectCommentsAreFullyLoaded,

@@ -1199,6 +1199,14 @@ export type FindState = {
 	//update this every so often as query is updated, because it is expensive
 	//and drives expensive template updating, introducing lag.
 	activeQuery: string,
+	//WHETHER activeQuery IS TEXT THE APP SEEDED rather than a query somebody
+	//typed. True only while the dialog is still showing the text Ctrl-L took
+	//from the editor's selection; typed operators (`tag:internal`, `sort:stars`)
+	//are read out of that text only when this is false. It describes activeQuery
+	//specifically, so it is cleared in the same action that promotes an edited
+	//query — never earlier, or the seeded text would spend a debounce interval
+	//being read as grammar it is not.
+	queryIsLiteral: boolean,
 	renderOffset: number,
 	//For when the user is looking to link specific highlighted text to that card
 	linking: boolean,

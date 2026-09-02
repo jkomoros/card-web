@@ -30,6 +30,7 @@ const INITIAL_STATE : FindState = {
 	searchRecall: null,
 	query: '',
 	activeQuery: '',
+	queryIsLiteral: false,
 	renderOffset: 0,
 	linking: false,
 	permissions: false,
@@ -68,6 +69,10 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//The generic Search dialog is never seeded from card text: its
+			//starter query is the active collection's own query text, which is
+			//a query and is read as one.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: '',
@@ -80,6 +85,7 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			open: false,
 			query: '',
 			activeQuery: '',
+			queryIsLiteral: false,
 			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
@@ -93,6 +99,13 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 		return {
 			...state,
 			activeQuery: state.query,
+			//THE FLAG DESCRIBES activeQuery, so it is cleared HERE and not in
+			//FIND_UPDATE_QUERY. The moment a user edits a seeded query they are
+			//typing one, and typed operators come back — but activeQuery is
+			//still the seeded text until this action promotes the edit, and
+			//clearing the flag any earlier would spend a debounce interval
+			//reading the seeded prose as grammar.
+			queryIsLiteral: false,
 			renderOffset: 0,
 		};
 	case FIND_CARD_TO_LINK:
@@ -108,7 +121,12 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			renderOffset: 0,
 			cardTypeFilterLocked: false,
 			query: action.query,
-			activeQuery: action.query
+			activeQuery: action.query,
+			//Set by launchFind when the caller supplied the text — today, the
+			//editor's selection under Ctrl-L. A link search that fell back to
+			//the active collection's query text is not seeded and reads
+			//operators normally.
+			queryIsLiteral: Boolean(action.literal),
 		};
 	case FIND_CARD_TO_PERMISSION:
 		return {
@@ -120,6 +138,8 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//Seeded from the active collection's query text, which is a query.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: '',
@@ -135,6 +155,8 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//Seeded from the active collection's query text, which is a query.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: true,
 			cardTypeFilter: action.cardTypeFilter || '',
@@ -155,6 +177,8 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			configuredCardID: '',
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//Seeded from the active collection's query text, which is a query.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: '',

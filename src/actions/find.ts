@@ -143,11 +143,31 @@ export const findUpdateRenderOffset = (renderOffset : number) : SomeAction => {
 type LaunchableFindDialogType = Exclude<FindDialogType, typeof FIND_CARD_TO_CONFIGURE>;
 
 const launchFind = (typ : LaunchableFindDialogType, starterQuery? : string, lockedCardTypeFilter? : string) : ThunkSomeAction => (dispatch, getState) => {
+	//WHERE THE QUERY CAME FROM IS PART OF WHAT IT MEANS. A starterQuery is text
+	//the APP put in the box — today, the editor's current text selection — and
+	//prose read through the operator table loses words to heads it never meant
+	//(`Type: safety`) or acquires filters (`type:content`). The FALLBACK below
+	//is the opposite case: the active collection's own query text, which is a
+	//query and must keep being read as one. So the distinction is made here,
+	//before the fallback, and nowhere else.
+	const seeded = Boolean(starterQuery);
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
 	}
 	if (!lockedCardTypeFilter) lockedCardTypeFilter = '';
+	//Only FIND_CARD_TO_LINK can be seeded, so only its action shape carries the
+	//flag — the same reasoning findCardToConfigure records above about not
+	//widening three shapes for a field two of them have no use for.
+	if (typ === FIND_CARD_TO_LINK) {
+		dispatch({
+			type: typ,
+			query: starterQuery,
+			cardTypeFilter: lockedCardTypeFilter,
+			literal: seeded,
+		});
+		return;
+	}
 	dispatch({
 		type: typ,
 		query: starterQuery,

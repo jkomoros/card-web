@@ -47,6 +47,7 @@ import {
 } from '../selectors.js';
 
 import {
+	APP_PAGE_NAMES,
 	askForPathToNavigateTo,
 	cancelConfigureCollectionDialog,
 	closeConfigureCollectionDialog,
@@ -306,6 +307,12 @@ const NEW_TAB_UNSUPPORTED_NOTE = `Opening in a new tab isn’t supported — ${s
 //is this button".
 const OPEN_ACTION_NAME = `Open this collection (${shortcutKeys('commit-collection-composer')})`;
 
+//The same control, when what Source has typed is one of the app's own pages
+//rather than a collection. Same key, same glyph, different destination — so the
+//name says the true thing and the count line, which would be counting the cards
+//of a collection nobody named, is not drawn at all.
+const OPEN_PAGE_ACTION_NAME = `Open this page (${shortcutKeys('commit-collection-composer')})`;
+
 //A keystroke that has already been spent on a commit.
 //
 //The composer has two commit handlers — one per mode — and they are mutually
@@ -478,6 +485,9 @@ const parsedSourceFor = memoize((
 	filterSearchValues: Object.fromEntries(candidates.map(candidate => [candidate.filter, [candidate.label, candidate.category, ...(candidate.aliases || [])]])),
 	preservedSelectedCard,
 	allowedOrigins: COMPOSER_ALLOWED_ORIGINS,
+	//So Source mode can still reach the app's own pages, which is what the
+	//Ctrl-Shift-L it replaced was for.
+	appPages: APP_PAGE_NAMES,
 }), 2) as (sourceInput : string, candidates : CollectionComposerCandidate[], filterDescriptions : {[filterName : string]: string}, preservedSelectedCard : string) => ParsedCollectionSource;
 
 //THE DRAFT IS A DESCRIPTION; THE EXPRESSION IS A VIEW OF IT. Keeping the tree
@@ -2103,6 +2113,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//the sentence says that instead of implying the opposite.
 	_sourceStatus(parsed : ParsedCollectionSource, description : CollectionDescription) : {label : string, sentence : string} {
 		const diagnostic = parsed.diagnostics[0]?.message || '';
+		//An app page is openable but is not a collection, so neither of the two
+		//things the valid sentence says about a collection is true of it.
+		if (parsed.appPath) {
+			return {
+				label: 'Ready to open',
+				sentence: 'This is a page in this app, not a collection.',
+			};
+		}
 		if (parsed.status === 'valid') {
 			return {
 				label: 'Ready to open',
@@ -2195,12 +2213,22 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	})}
 				</div>
 			` : ''}
-			<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
-			<div class='source-steps' role='group' aria-label=${readableCollectionExpression(description, this._composerFilterLabels, this._composerCardNames)}>
-				<span class='source-step'>Start with ${expressionParts.set.label}</span>
-				${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
-				${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
-			</div>
+			<!-- An app path has no clauses to walk through, so the sentence
+			     that describes a collection would be describing the wrong
+			     thing. It says where it goes instead. -->
+			${parsed.appPath ? html`
+				<span class='source-interpretation-label'>This means</span>
+				<div class='source-steps' role='group' aria-label=${`Open the ${parsed.appPath} page in this app`}>
+					<span class='source-step'>Open ${parsed.appPath} in this app</span>
+				</div>
+			` : html`
+				<span class='source-interpretation-label'>${parsed.status === 'valid' ? 'This means' : 'Last valid collection'}</span>
+				<div class='source-steps' role='group' aria-label=${readableCollectionExpression(description, this._composerFilterLabels, this._composerCardNames)}>
+					<span class='source-step'>Start with ${expressionParts.set.label}</span>
+					${expressionParts.filters.map(filter => html`<span class='source-step'>Then ${filter.label}</span>`)}
+					${expressionParts.modifiers.map(modifier => html`<span class='source-step'>Finally ${modifier}</span>`)}
+				</div>
+			`}
 			<!-- A collection with no cards opens on nothing, so "Opens on: the
 			     first card in the collection" names a card that does not exist.
 			     Suppressed only at a RESOLVED zero: while the count is still
@@ -2229,12 +2257,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				<span class='key-hints'>${this._sourceKeyHints(completions.length > 0, completionMode, parsed.status === 'valid')}</span>
 			</div>
 			${this._openActionRender(
-		count,
+		parsed.appPath ? undefined : count,
 		parsed.status !== 'valid' || this._activationPending,
-		parsed.status === 'valid' ?
-			(this._activationPending ? 'Already opening this collection' : 'Open this collection') :
-			'This source does not describe a collection yet, so there is nothing to open',
-		this._handleOpenSource
+		parsed.appPath ?
+			(this._activationPending ? 'Already opening this page' : 'Open this page in this app') :
+			parsed.status === 'valid' ?
+				(this._activationPending ? 'Already opening this collection' : 'Open this collection') :
+				'This source does not describe a collection yet, so there is nothing to open',
+		this._handleOpenSource,
+		false,
+		false,
+		parsed.appPath ? OPEN_PAGE_ACTION_NAME : OPEN_ACTION_NAME,
+		!parsed.appPath
 	)}
 			${this._activationMessage ? html`<div class='activation-message' data-problem role='alert'>${this._activationMessage}</div>` : ''}
 		`;
@@ -3293,7 +3327,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//draft's number recedes, and the two numbers on screen stop competing to be
 	//"what Enter will do". The key-hints line directly above says which one it
 	//is, and the reserved width means nothing moves either way.
-	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false, expandable = false) {
+	_openActionRender(count : number | undefined, disabled : boolean, reason : string, handler : (e : Event) => void, deemphasized = false, expandable = false, actionName = OPEN_ACTION_NAME, countsCards = true) {
 		return html`
 			<div class='buttons composer-actions' ?data-deemphasized=${deemphasized}>
 				<!-- '0 cards' is a number, not a sentence, and the spec asks for
@@ -3328,7 +3362,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				     at a fixed offset from the button for any count that fits the
 				     reservation. -->
 				${expandable ? this._matchToggleRender(count) : ''}
-				<span class='action-count' role='status'>${count === undefined ?
+				<!-- countsCards is false for the one destination that has no
+				     cards to count: an app page. A '…counting' placeholder there
+				     would be waiting on a number that is not coming. -->
+				<span class='action-count' role='status'>${!countsCards ? '' : count === undefined ?
 		(this._draftCountPending ? html`<loading-placeholder noun='the card count'></loading-placeholder>` : '') :
 		`Matches ${formatCollectionCardCount(count)}`}</span>
 				<!-- The reason goes on the WRAPPER: Chrome and Safari suppress
@@ -3337,7 +3374,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				     keeps its own title and aria-label, which a wrapper title
 				     does not supply. -->
 				<span class='reason' title=${reason}>
-					<button class='round primary' title=${OPEN_ACTION_NAME} aria-label=${OPEN_ACTION_NAME} ?disabled=${disabled} @click=${handler}>${OPEN_IN_BROWSER_ICON}</button>
+					<button class='round primary' title=${actionName} aria-label=${actionName} ?disabled=${disabled} @click=${handler}>${OPEN_IN_BROWSER_ICON}</button>
 				</span>
 			</div>
 		`;
@@ -3625,7 +3662,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._sourceCompletionsDismissed = false;
 		this._sourceCompletionIndex = 0;
 		const parsed = this._parsedSource;
-		if (parsed.status === 'valid') this._lastValidSource = parsed;
+		//A COLLECTION, not merely a valid source: an app path is valid and has no
+		//description, and this slot's whole job is to hold a collection the user
+		//can be returned to.
+		if (parsed.status === 'valid' && parsed.description) this._lastValidSource = parsed;
 		if (rewrote || this._sourceAutoDelimitedSegment) this.updateComplete.then(() => {
 			const sourceInput = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
 			sourceInput?.setSelectionRange(nextCaret, nextCaret);
@@ -3708,7 +3748,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._sourceCompletionsDismissed = false;
 		this._sourceCompletionIndex = 0;
 		const parsed = this._parsedSource;
-		if (parsed.status === 'valid') this._lastValidSource = parsed;
+		//A COLLECTION, not merely a valid source: an app path is valid and has no
+		//description, and this slot's whole job is to hold a collection the user
+		//can be returned to.
+		if (parsed.status === 'valid' && parsed.description) this._lastValidSource = parsed;
 		this.updateComplete.then(() => {
 			const sourceInput = this.shadowRoot?.querySelector<HTMLTextAreaElement>('#collection-source-input');
 			sourceInput?.focus();
@@ -3876,7 +3919,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//Mode-exclusive: the Source commit belongs to Source mode only.
 		if (this._entryMode !== 'source') return;
 		const parsed = this._parsedSource;
-		if (parsed.status !== 'valid' || !parsed.description || !parsed.canonicalPath || this._activationPending) return;
+		if (this._activationPending) return;
+		//AN APP PAGE IS A DESTINATION, NOT A COLLECTION, and it takes the plain
+		//navigation Ctrl-Shift-L always used to give it. Nothing below applies:
+		//there is no description to compare against the active collection, no
+		//selected card to keep alive, and no collection for a receipt to name —
+		//an Undo offering to return to 'Main · 765 cards' from /maintenance
+		//would be naming a collection the user never left.
+		if (parsed.appPath) {
+			const result = store.dispatch(navigatePathToResult(parsed.appPath));
+			if (result.status === 'blocked-editing') {
+				this._activationMessage = 'Finish or cancel the current card edit before opening this page.';
+				return;
+			}
+			store.dispatch(cancelConfigureCollectionDialog());
+			return;
+		}
+		if (parsed.status !== 'valid' || !parsed.description || !parsed.canonicalPath) return;
 		//Spec ("Committing navigation"): a draft equivalent to the collection
 		//already open simply closes the composer — no push, no receipt. Source
 		//is a second spelling of the same draft and gets the same answer; it
@@ -4955,7 +5014,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._sourceCompletionIndex = 0;
 				const parsed = this._entryMode === 'source' ? this._parsedSource : null;
 				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
-				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
+				this._lastValidSource = parsed?.status === 'valid' && parsed.description ? parsed : null;
 			} else {
 				//AND A CLOSED COMPOSER HOLDS NOTHING. The retained maps are
 				//cleared on OPEN, which is what makes a fresh session honest — but

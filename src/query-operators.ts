@@ -321,6 +321,33 @@ export const parseQueryOperatorToken = (
 	};
 };
 
+//THE SAME NORMALIZATION, NONE OF THE READING.
+//
+//A query is not always TYPED. The find dialog is also SEEDED — Ctrl-L hands it
+//whatever text the cursor had selected in the card being edited — and that text
+//is prose, not grammar. Run through the table above, `Type: safety` loses the
+//word `Type` entirely (a head with an empty value is an operator mid-typed, so
+//it produces no filter and contributes no word), `type:content` becomes a
+//card-type filter, and `the set: of all things` quietly drops `set:`. Every one
+//of those is the parser working exactly as designed on a string nobody typed at
+//it.
+//
+//So provenance decides, not the string: text the app put in the box is searched
+//for literally, and the moment the user edits it they are typing a query and get
+//the whole table back. This is the literal half of that rule, and it lives here
+//rather than at the call site so both halves are read from one module. What it
+//returns is what parseQueryOperators returns for a string containing no
+//operators at all — lower-cased words, re-joined with single spaces — so a
+//consumer needs no second code path.
+export const parseQueryAsLiteralText = (text : string) : ParsedQuery => ({
+	text: text.toLowerCase().split(/\s+/).filter(token => token).join(' '),
+	filters: [],
+	sort: '',
+	sortReversed: false,
+	set: '',
+	operators: [],
+});
+
 //A WHOLE TYPED STRING, READ. Operators may appear anywhere and in any order,
 //which is the find dialog's own long-standing behavior and the only one that
 //survives contact with people typing.

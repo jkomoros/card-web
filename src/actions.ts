@@ -1054,7 +1054,15 @@ type ActionFindUpdateQuery = {
 
 type ActionFindCardToLink = {
 	type: typeof FIND_CARD_TO_LINK,
-	query: string
+	query: string,
+	//TRUE WHEN THE QUERY IS TEXT THE APP SEEDED, not a query the user typed.
+	//Ctrl-L in the editor hands the find dialog the current text SELECTION, and
+	//prose is not grammar: read through the operator table, `Type: safety` loses
+	//a word and `type:content` becomes a card-type filter. Only this mode
+	//carries the flag because only this mode is ever seeded from card text; the
+	//other launch modes fall back to the ACTIVE COLLECTION'S query text, which
+	//is a query and should be read as one.
+	literal?: boolean
 };
 
 type ActionFindUpdateRenderOffset = {

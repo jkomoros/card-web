@@ -60,6 +60,51 @@ describe('lossless collection source editor', () => {
 		assert.ok(result.notices.length);
 	});
 
+	//CTRL-SHIFT-L MUST STILL REACH THE APP'S OWN PAGES.
+	//
+	//That binding used to prompt for a path and hand it to navigatePathTo; with
+	//the composer on it opens Source mode instead. Source's grammar is the
+	///c/ collection grammar, so /maintenance, /permissions, /chat,
+	///basic-card/<id> and /comment/<id> became unreachable by keyboard — a
+	//replacement that reaches strictly fewer destinations than the thing it
+	//replaced. A path naming one of the pages the CALLER declares is reported as
+	//itself, with no description: those pages are not collections and must never
+	//be described as one.
+	it('recognizes the app’s own pages as destinations, not as collections', () => {
+		const appPages = new Set(['maintenance', 'permissions', 'chat', 'basic-card', 'comment']);
+		const withPages = (raw) => parseCollectionSource(raw, {
+			ordinaryFilters: new Set(Object.keys(CARD_FILTER_DESCRIPTIONS)),
+			preservedSelectedCard: 'active-card',
+			allowedOrigins: new Set(['https://thecompendium.cards']),
+			appPages,
+		});
+		for (const path of ['/maintenance', '/permissions', '/chat', '/chat/abc123', '/basic-card/card-7', '/comment/thread-9', '/maintenance/']) {
+			const result = withPages(path);
+			assert.strictEqual(result.status, 'valid', `${path} must be openable`);
+			assert.strictEqual(result.appPath, path);
+			//NOT a collection: an app page has no description, no canonical
+			//collection path, and no selected card to preserve.
+			assert.strictEqual(result.description, undefined, `${path} must not be described as a collection`);
+			assert.strictEqual(result.canonicalPath, undefined);
+			assert.strictEqual(result.selectedCardRaw, '');
+		}
+		//THE DIAGNOSTIC STILL STANDS FOR EVERYTHING ELSE. This is recognition of
+		//a small closed list, not a fallback for anything with a slash in it.
+		for (const path of ['/nonsense', '/maintenance?run=all', '/maintenance#x', '/chat/a b', '/']) {
+			const result = withPages(path);
+			assert.strictEqual(result.appPath, undefined, `${path} is not an app page`);
+			assert.notStrictEqual(result.status, 'valid', `${path} must still be refused`);
+		}
+		//And a caller that names no pages gets the behaviour this parser has
+		//always had, unchanged.
+		assert.strictEqual(parse('/maintenance').status, 'invalid');
+		assert.strictEqual(parse('/maintenance').appPath, undefined);
+		//A collection route is still read as a collection even though 'c' is not
+		//in the page list — that branch is checked first and is untouched.
+		assert.strictEqual(withPages('/c/starred/').status, 'valid');
+		assert.deepStrictEqual(withPages('/c/starred/').description.filters, ['starred']);
+	});
+
 	it('rejects foreign URL origins and accepts encoded reserved arguments', () => {
 		assert.strictEqual(parse('https://evil.example/c/everything/starred/card-7').status, 'invalid');
 		assert.strictEqual(parse('query/%73ort/').status, 'valid');

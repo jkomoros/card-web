@@ -49,6 +49,12 @@ export type CollectionSourceContext = {
 	filterSearchValues?: Readonly<Record<string, readonly string[]>>;
 	preservedSelectedCard?: string;
 	allowedOrigins?: ReadonlySet<string>;
+	//THE APP'S OWN NON-COLLECTION PAGES ('maintenance', 'permissions', 'chat',
+	//…). Supplied as data rather than imported, for the same reason the origins
+	//are: this module knows the collection grammar and nothing about the router.
+	//Absent (the default) means the parser does not know that any such page
+	//exists, and a non-/c/ app path stays the refusal it has always been.
+	appPages?: ReadonlySet<string>;
 };
 
 export type ParsedCollectionSource = {
@@ -69,6 +75,13 @@ export type ParsedCollectionSource = {
 	status: CollectionSourceStatus;
 	diagnostics: CollectionSourceDiagnostic[];
 	description?: CollectionDescription;
+	//A WELL-FORMED APP PATH THAT IS NOT A COLLECTION, verbatim — '/maintenance',
+	//'/permissions', '/chat/abc123'. Set instead of `description`, never beside
+	//it: those pages have no collection to describe. It exists because Source
+	//mode replaced Ctrl-Shift-L's "navigate to a path" prompt, and a replacement
+	//that can reach strictly fewer destinations than the thing it replaced is a
+	//regression rather than a redesign.
+	appPath?: string;
 	canonicalPath?: string;
 	nextExpected?: string[];
 	nextExpectedDetails?: Record<string, string>;
@@ -110,6 +123,29 @@ const STATUS_PRIORITY : Record<CollectionSourceStatus, number> = {
 	unsupported: 1,
 	incomplete: 2,
 	invalid: 3,
+};
+
+//What a segment of an app path may contain. Deliberately narrow: this is the
+//shape of a page name and of the ids the app's own pages take (a card id, a
+//comment id), and nothing here is percent-decoded, so anything else is refused
+//rather than handed to the router unexamined.
+const APP_PATH_SEGMENT = /^[a-z0-9][a-z0-9._~-]*$/i;
+
+//'/maintenance' or '/chat/abc123' -> itself; anything else -> ''. The first
+//segment must be a page the CALLER named; the rest must look like path
+//segments. A query or fragment disqualifies it — those decorate a collection
+//URL harmlessly, but on an app page they are arguments this parser cannot vouch
+//for.
+const appRoutePath = (raw : string, pages? : ReadonlySet<string>) : string => {
+	if (!pages || !pages.size) return '';
+	if (/[?#\s]/.test(raw)) return '';
+	const parts = raw.slice(1).split('/');
+	//One trailing slash is legal and leaves a single empty final part.
+	const segments = parts.at(-1) === '' ? parts.slice(0, -1) : parts;
+	if (!segments.length) return '';
+	if (!pages.has(segments[0].toLowerCase())) return '';
+	if (!segments.every(segment => APP_PATH_SEGMENT.test(segment))) return '';
+	return raw;
 };
 
 const strictDate = (value : string) : boolean => {
@@ -322,7 +358,38 @@ export const parseCollectionSource = (
 		kind = 'route';
 		collectionText = '';
 	} else if (raw.startsWith('/')) {
-		diagnose('invalid', 'wrong-route', 'App-relative routes must start with /c/.');
+		//THE ONE ANSWER THIS PARSER GIVES THAT IS NOT A COLLECTION.
+		//
+		//Source mode is what Ctrl-Shift-L opens now, and Ctrl-Shift-L used to be
+		//"navigate to a path in this app" — /maintenance, /permissions, /chat,
+		///basic-card/<id>, /comment/<id>. Refusing every one of those made the
+		//shortcut reach strictly less than it did before. So a path that names
+		//one of the app's own pages is reported as itself, and the diagnostic
+		//below still stands for everything else: this is not a fallback for
+		//garbage, it is recognition of a small closed list the caller supplies.
+		//
+		//Returned EARLY, and only from a clean parse. Falling through would run
+		//the collection grammar over an empty collectionText and answer that
+		//'/maintenance' means the Main collection.
+		const appRoute = diagnostics.length ? '' : appRoutePath(raw, context.appPages);
+		if (appRoute) {
+			return {
+				raw,
+				kind: 'route',
+				collectionText: '',
+				segments: [],
+				selectedCardRaw: '',
+				selectedCardSource: 'default',
+				query: '',
+				hash: '',
+				origin: '',
+				notices,
+				status: 'valid',
+				diagnostics,
+				appPath: appRoute,
+			};
+		}
+		diagnose('invalid', 'wrong-route', 'App-relative routes must start with /c/, or name one of this app’s own pages.');
 	}
 	if (query || hash) notices.push('URL query and fragment decorations are shown but are not part of the collection source.');
 
