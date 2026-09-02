@@ -303,14 +303,24 @@ describe('accessible names on icon-only controls (HS-2.5)', () => {
 	//until it was confirmed. That panel and its gate are deleted: a family lands
 	//in the draft with its own defaults and is edited in place, so the dialog has
 	//exactly one committing action again.
+	//A QUOTED LITERAL IS NO LONGER THE ONLY SHAPE A NAME COMES IN (round 9). The
+	//owner: "the commit buttons should have the keyboard shortcut printed in the
+	//title", and a combo must be DERIVED from SHORTCUT_COMBOS rather than spelled
+	//— so the name is now a bound `${IDENTIFIER}`, the same shape card-view's
+	//Edit/Find/Refine controls have carried since #740. What this file is for is
+	//unchanged: an icon-only button must have BOTH names and neither may be
+	//empty. So the pin accepts either shape and still refuses `title=''`,
+	//`aria-label=${''}` and a missing attribute.
 	it('names the collection composer’s committing action', () => {
 		const source = stripComments(readFileSync(new URL('configure-collection-dialog.ts', COMPONENTS), 'utf8'));
 		const tags = [...source.matchAll(/<button class='round primary'[^>]*>/g)].map(match => match[0]);
 		assert.strictEqual(tags.length, 1,
 			'the composer has one round primary: the shared Open control');
+		//Either a non-empty quoted literal or a non-empty template binding.
+		const named = (attribute) => new RegExp(`${attribute}=(?:'[^']+'|\\$\\{[^}]+\\})`);
 		for (const tag of tags) {
-			assert.match(tag, /aria-label='[^']+'/, `unnamed to assistive tech: ${tag}`);
-			assert.match(tag, /title='[^']+'/, `nothing on hover: ${tag}`);
+			assert.match(tag, named('aria-label'), `unnamed to assistive tech: ${tag}`);
+			assert.match(tag, named('title'), `nothing on hover: ${tag}`);
 		}
 	});
 

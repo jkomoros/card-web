@@ -283,6 +283,24 @@ declareShortcut({
 //D1): plain Enter is spoken for by the top action.
 const NEW_TAB_UNSUPPORTED_NOTE = `Opening in a new tab isn’t supported — ${shortcutKeys('commit-collection-composer')} opens here.`;
 
+//THE COMMITTING BUTTON PRINTS ITS KEY (owner, round 9: "the commit buttons
+//should have the keyboard shortcut printed in the title"). There is exactly one
+//such button — both modes commit through _openActionRender — so it is named
+//once, here, beside the note that names the same key.
+//
+//DERIVED, NEVER SPELLED. shortcutKeys reads SHORTCUT_COMBOS, the same table
+//`commit-collection-composer` is declared from a few lines up, so this tooltip
+//cannot advertise a chord the commit path stopped honoring (#740 — the UI said
+//"Edit card (E)" for weeks after the binding became Cmd-E), and it renders
+//'Ctrl-Enter' off a Mac instead of a Mac-only '⌘Enter' on a line every user of
+//the composer reads.
+//
+//TITLE AND ARIA-LABEL, both, which is card-view's own idiom for its icon-only
+//Edit/Find/Refine controls. A round glyph's accessible name is the only name it
+//has (HS-2.5); a name that omits what the tooltip shows is two answers to "what
+//is this button".
+const OPEN_ACTION_NAME = `Open this collection (${shortcutKeys('commit-collection-composer')})`;
+
 //A keystroke that has already been spent on a commit.
 //
 //The composer has two commit handlers — one per mode — and they are mutually
@@ -1625,9 +1643,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				padding: 0;
 			}
 
-			.match-list li {
-				padding: 0.25em 0;
-			}
+			/* AND THE ROWS ARE THE APP'S ROWS. Owner, round 9: "There's too much
+			   spacing between the card-links in teh expanded zippy." There was a
+			   'padding: 0.25em 0' rule here, which is where the extra 8px per row
+			   came from; it is deleted rather than reduced, because the shipped
+			   card-link lists this one is a copy of — reference-block's, in the
+			   card-info panel, and multi-edit-dialog's — style their rows not at
+			   all and let the line box set the pitch. Measured live in the panel:
+			   24px rows, and this pane now matches them exactly (it was 31.5px).
+			   The list reset above stays; that is theirs too. */
 
 			/* THE LIST IS THE FIRST HUNDRED, AND IT SAYS SO. The count line
 			   directly under it is the truth about the whole collection; without
@@ -1733,11 +1757,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   It arrives after the row is already on screen, so its width is
 			   reserved — this is the same reservation the button's label used to
 			   carry, moved to the element that now changes. Without it, the
-			   button slid left under the pointer the moment a number landed. */
+			   button slid left under the pointer the moment a number landed.
+
+			   The reservation stays; its right-alignment does not. It used to
+			   push the words against the button, which was the right end to hug
+			   while the reservation was the only thing to the count's left. The
+			   zippy is there now (owner, round 9), and right-aligned text opened
+			   a gap of up to 7em between the arrow and the words it discloses —
+			   an arrow and a count that no longer read as one line. Nothing
+			   replaces it: the dialog is already text-align: left. */
 			.composer-actions .action-count {
 				color: var(--app-dark-text-color);
 				min-width: 7em;
-				text-align: right;
 			}
 
 			/* 400, not 500 (§4.3 loads only 400 and 700). These are the same
@@ -3183,22 +3214,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				     the compact threshold and the singular stay in one place. ONE
 				     count per surface: this line IS the footer count, not a second
 				     one added beside it. -->
+				<!-- AND THE WAY TO SEE THEM, on the line that counts them, BEFORE the
+				     words. This REVERSES round 8, which put the arrow after the
+				     count — owner, round 9: "The zippy for the whole collection is
+				     on the rgith but should be omn the left the of the text." The
+				     shipped precedent agreed all along: card-drawer's own zippy is
+				     the FIRST child of its count line, so with this every
+				     disclosure arrow in the app opens the thing to its right.
+				     Nothing else moves: the primary is still pinned to the flex-end
+				     edge, and the count keeps its reserved width, so the arrow sits
+				     at a fixed offset from the button for any count that fits the
+				     reservation. -->
+				${expandable ? this._matchToggleRender(count) : ''}
 				<span class='action-count' role='status'>${count === undefined ?
 		(this._draftCountPending ? html`<loading-placeholder noun='the card count'></loading-placeholder>` : '') :
 		`Matches ${formatCollectionCardCount(count)}`}</span>
-				<!-- AND THE WAY TO SEE THEM, on the line that counts them. To the
-				     RIGHT of the number: the primary is pinned to the flex-end edge,
-				     so a control placed here cannot be moved by a count that grows
-				     under it, and the owner's "and then some way to expand it" puts
-				     the affordance after the words. -->
-				${expandable ? this._matchToggleRender(count) : ''}
 				<!-- The reason goes on the WRAPPER: Chrome and Safari suppress
 				     hover on a disabled control, so on the button it would be
 				     unreachable exactly when it is needed (§2.5). The button
 				     keeps its own title and aria-label, which a wrapper title
 				     does not supply. -->
 				<span class='reason' title=${reason}>
-					<button class='round primary' title='Open this collection' aria-label='Open this collection' ?disabled=${disabled} @click=${handler}>${OPEN_IN_BROWSER_ICON}</button>
+					<button class='round primary' title=${OPEN_ACTION_NAME} aria-label=${OPEN_ACTION_NAME} ?disabled=${disabled} @click=${handler}>${OPEN_IN_BROWSER_ICON}</button>
 				</span>
 			</div>
 		`;

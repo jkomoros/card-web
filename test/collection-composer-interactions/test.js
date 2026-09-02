@@ -42,9 +42,16 @@ describe('Collection Composer interactions', () => {
 	let OPEN_CONFIGURE_COLLECTION_DIALOG;
 	let CANCEL_CONFIGURE_COLLECTION_DIALOG;
 	let UPDATE_PAGE;
+	//The canonical combo table's own formatter (#740). The committing button's
+	//name is DERIVED from it (round 9), and these pins derive theirs the same
+	//way: a pin that spelled 'Cmd-Enter' by hand would be exactly the drift the
+	//table exists to abolish, and it would fail off a Mac.
+	let shortcutKeys;
+	const openActionName = () => `Open this collection (${shortcutKeys('commit-collection-composer')})`;
 
 	before(async () => {
 		({ store } = await import('../../lib/src/store.js'));
+		({ shortcutKeys } = await import('../../lib/src/shortcuts-data.js'));
 		const collection = (await import('../../lib/src/reducers/collection.js')).default;
 		const editor = (state = { editing: false }, action) =>
 			action.type === 'TEST_SET_EDITING' ? { ...state, editing: action.value } : state;
@@ -515,7 +522,15 @@ describe('Collection Composer interactions', () => {
 		assert.strictEqual(dialog.shadowRoot.querySelector('.composer-actions .action-count').textContent.trim(), 'Matches 12 cards');
 		const primary = dialog.shadowRoot.querySelector('.composer-actions .primary');
 		assert.ok(primary.classList.contains('round'), 'the committing action is a round primary (HS-3.3)');
-		assert.strictEqual(primary.getAttribute('aria-label'), 'Open this collection');
+		//SUPERSEDED (round 9). The name used to be the bare 'Open this
+		//collection'; the owner: "the commit buttons should have the keyboard
+		//shortcut printed in the title". Title AND aria-label, because a round
+		//glyph's accessible name is the only name it has, and both are derived
+		//from SHORTCUT_COMBOS rather than spelled.
+		assert.strictEqual(primary.getAttribute('aria-label'), openActionName());
+		assert.strictEqual(primary.getAttribute('title'), openActionName());
+		assert.match(primary.getAttribute('title'), /\((Cmd|Ctrl)-Enter\)$/,
+			'and the printed combo is the commit chord, in the table’s own notation');
 		assert.strictEqual(primary.textContent.trim(), '', 'a round primary carries a glyph, not a label');
 		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
 		input.value = 'star';
@@ -744,7 +759,7 @@ describe('Collection Composer interactions', () => {
 	it('opens the edited draft only from the explicit primary action', async () => {
 		suggestionRows().find((button) => rowText(button).includes('Starred')).click();
 		await settleRender(dialog);
-		const primary = dialog.shadowRoot.querySelector('.composer-actions button[aria-label="Open this collection"]');
+		const primary = dialog.shadowRoot.querySelector('.composer-actions button.round.primary');
 		primary.click();
 		await dialog.updateComplete;
 		assert.match(window.location.pathname, /starred/);
@@ -1352,7 +1367,7 @@ describe('Collection Composer interactions', () => {
 		suggestionRows().find((button) => rowText(button).includes('Starred')).click();
 		await settleRender(dialog);
 		store.dispatch({ type: 'TEST_SET_EDITING', value: true });
-		const primary = dialog.shadowRoot.querySelector('.composer-actions button[aria-label="Open this collection"]');
+		const primary = dialog.shadowRoot.querySelector('.composer-actions button.round.primary');
 		primary.click();
 		await dialog.updateComplete;
 		assert.strictEqual(store.getState().app.configureCollectionDialogOpen, true);
@@ -4625,12 +4640,30 @@ describe('Collection Composer interactions', () => {
 	//ARROW_RIGHT_ICON collapsed and ARROW_DOWN_ICON expanded, with aria-expanded
 	//and BOTH a title and an aria-label (HS-2.5 — a wrapper title names no
 	//button). Not a new control, and not a <details>.
+	//
+	//AND IT IS ON THE LEFT OF THE WORDS (round 9). Round 8 shipped it after the
+	//count and said so in a comment — "To the RIGHT of the number". The owner:
+	//"The zippy for the whole collection is on the rgith but should be omn the
+	//left the of the text." card-drawer, the precedent this control was copied
+	//from, had the arrow FIRST in its count line all along, so this is the copy
+	//being finished rather than a new arrangement. Pinned as DOM order, which is
+	//also the reading order for assistive tech.
 	it('offers the app’s own zippy on the count line, and flips both halves of it', async () => {
 		const toggle = () => dialog.shadowRoot.querySelector('.composer-actions button.small');
 		dialog._previewCounts = { [dialog._draftPreviewID]: 792 };
 		await settleRender(dialog);
 
 		assert.ok(toggle(), 'the count line carries a control');
+		const line = dialog.shadowRoot.querySelector('.composer-actions');
+		const order = [...line.children];
+		assert.ok(order.indexOf(toggle()) < order.indexOf(line.querySelector('.action-count')),
+			'the arrow comes before the words it discloses (owner, round 9)');
+		//And nothing has been left behind that pulls the words away from it: the
+		//reservation stays, its right-alignment does not.
+		assert.match(composerStyles(), /\.composer-actions \.action-count\s*\{[^}]*min-width:\s*7em/,
+			'the count still reserves its width, so the arrow does not jitter');
+		assert.ok(!/\.composer-actions \.action-count\s*\{[^}]*text-align/.test(composerStyles()),
+			'and it no longer pushes its words to the far side of that reservation');
 		assert.strictEqual(toggle().getAttribute('aria-expanded'), 'false', 'collapsed on open');
 		assert.strictEqual(dialog._matchesExpanded, false);
 		assert.strictEqual(toggle().getAttribute('title'), 'Show the matching cards');
@@ -4751,6 +4784,29 @@ describe('Collection Composer interactions', () => {
 		//And the hundred scroll inside it through the SHARED scroller (#759): a
 		//dialog subclass never declares its own overflow.
 		assert.ok(pane().classList.contains('scroller'), 'the peek scrolls through the shared idiom');
+
+		//AND THE ROWS ARE THE ROWS OF THE LIST THIS ONE COPIES (round 9). The
+		//owner: "There's too much spacing between the card-links in teh expanded
+		//zippy." Round 8 gave the `li` a `padding: 0.25em 0` — 8px per row on top
+		//of the line box — which neither shipped card-link list has. The fix is
+		//the DELETION, so this pins the absence: reference-block (card-info panel)
+		//and multi-edit-dialog both style their `li` not at all and let the line
+		//box set the pitch. Measured live: reference-block's rows are 24px, and
+		//this pane's were 31.5px before this and are 24px after. JSDOM computes no
+		//layout, so the pin is on the rule.
+		const liBodies = [...composerStyles().matchAll(/\.match-list li\s*\{([^}]*)\}/g)].map((match) => match[1]);
+		for (const body of liBodies) {
+			assert.ok(!/padding|margin|line-height/.test(body),
+				`.match-list li must not set its own row spacing; the shipped card-link lists set none: ${body}`);
+		}
+		//And the precedent is real on both sides, so this cannot pass by agreeing
+		//with itself if those lists ever grow a row rule of their own.
+		for (const name of ['reference-block.ts', 'multi-edit-dialog.ts']) {
+			const source = await readFile(path.join(REPO_ROOT, 'src/components', name), 'utf8');
+			assert.match(source, /<li><card-link auto='title'/, `${name} must still be a card-link list`);
+			assert.ok(!/\bli\s*\{[^}]*(padding|margin-top|margin-bottom|line-height)/.test(source),
+				`${name} sets no per-row spacing, which is why the composer's peek sets none either`);
+		}
 
 		//THE RANKED LIST IS STILL RENDERED UNDERNEATH, which is what keeps Enter,
 		//Tab and the arrow keys operating on rows the user can see.
