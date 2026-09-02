@@ -627,4 +627,48 @@ describe('the pill row', () => {
 			assert.strictEqual(element.shadowRoot.activeElement, element.shadowRoot.querySelector('.argument input'));
 		});
 	});
+
+	//A VERB HAS TO MEAN SOMETHING FOR THE CLAUSE IT IS OFFERED ON.
+	//
+	//Both verbs are claims ABOUT claims: 'Also match…' builds an OR of two
+	//predicates, and 'Invert' asks for the cards a predicate does NOT select. A
+	//structural clause is not a predicate — a limit matches every card and is
+	//applied after the sort — so widening one is a no-op and inverting one
+	//quietly empties the collection. They were offered on every clause alike.
+	describe('the verbs', () => {
+
+		const verbLabels = (element) => Array.from(element.shadowRoot.querySelectorAll('button.verb'))
+			.map((button) => button.textContent.trim());
+
+		for (const spelling of ['limit/10', 'offset/5']) {
+			it(`offers neither verb on ${spelling}`, async () => {
+				const element = await mount({ expression: [filter(spelling)], index: 0 });
+				assert.deepStrictEqual(verbLabels(element), [],
+					'a clause that makes no claim about cards has nothing to widen or invert');
+				//AND IT KEEPS WHAT IS REAL. Changing the number and removing the
+				//clause are both perfectly meaningful; only the two verbs are not.
+				assert.ok(element.shadowRoot.querySelector('.argument input'),
+					'the argument control stays');
+				assert.ok(element.shadowRoot.querySelector('button.remove'),
+					'and so does the ✕');
+			});
+		}
+
+		it('still offers both verbs on an ordinary clause', async () => {
+			const element = await mount({ expression: [filter('tag-3')], index: 0 });
+			assert.deepStrictEqual(verbLabels(element), [OR_VERB_LABEL, INVERT_VERB_LABEL]);
+		});
+
+		//THE INVOLUTION SURVIVES THE RULE. A negated ordinary clause SERIALIZES
+		//as `exclude/tag-3`, and `exclude` is a structural FAMILY — so a rule
+		//written against the spelling would refuse Invert to every clause that
+		//had just been inverted, and make the app's own involution one-way. The
+		//node here is the shape negatedExpressionNode actually produces, which
+		//is what the row is handed after the user presses Invert once.
+		it('still offers both verbs on an already-inverted clause', async () => {
+			const element = await mount({ expression: [{ kind: 'not', child: filter('tag-3') }], index: 0 });
+			assert.deepStrictEqual(verbLabels(element), [OR_VERB_LABEL, INVERT_VERB_LABEL],
+				'inverting a clause must not remove the button that un-inverts it');
+		});
+	});
 });

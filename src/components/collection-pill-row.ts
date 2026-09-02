@@ -61,6 +61,10 @@ import {
 } from '../collection-composer-preview.js';
 
 import {
+	collectionFilterIsStructural,
+} from '../collection-pill-palette.js';
+
+import {
 	CONFIGURABLE_FILTER_INFO,
 	ME_AUTHOR_ID,
 	piecesForConfigurableFilter,
@@ -580,6 +584,26 @@ class CollectionPillRow extends LitElement {
 	//the promised word, then the meaning of the promised word. The
 	//resulting-word promise itself — the quoted label — is the good half and is
 	//untouched; only the paint is replaced by the meaning.
+	//Whether this clause is one the two verbs can honestly be offered for — see
+	//the comment beside them in render(). Asked of the member rather than of the
+	//group when a member is selected, because that is the clause being edited.
+	//
+	//ASKED OF THE LEAF, NOT OF THE SERIALIZATION. A negated ordinary clause
+	//serializes as `exclude/tag-3`, and `exclude` is a structural FAMILY — so
+	//testing the spelling would have refused Invert to every already-inverted
+	//clause and made the app's own involution one-way. The question is what the
+	//clause is ABOUT, and negation does not change that.
+	get _verbsAllowed() : boolean {
+		const node = this._node;
+		if (!node) return false;
+		let leaf : FilterExpressionNode = node;
+		while (leaf.kind === 'not') leaf = leaf.child;
+		//An OR is a union of predicates by construction, and a manual node is
+		//already refused its controls elsewhere.
+		if (leaf.kind !== 'filter') return true;
+		return !collectionFilterIsStructural(leaf.filter);
+	}
+
 	get _invertTitle() : string {
 		const node = this._node;
 		if (!node) return '';
@@ -650,10 +674,17 @@ class CollectionPillRow extends LitElement {
 				<span class='scope'>${label}</span>
 				${note ? html`<span class='scope-note'>${note}</span>` : ''}
 				${this._argumentControls()}
-				<span class='verbs'>
+				<!-- THE VERBS ARE FOR CLAUSES THAT MAKE CLAIMS ABOUT CARDS. A
+				     structural clause does not — a limit matches everything and is
+				     applied after the sort — so widening it against another clause
+				     and inverting it are a no-op and a silent emptying
+				     respectively. See collectionFilterIsStructural. Its argument
+				     control and its ✕ stay: changing the limit and removing it are
+				     both real. -->
+				${this._verbsAllowed ? html`<span class='verbs'>
 					<button class='small verb' title='Widen this to also match something else' @click=${this._handleOr}>${OR_VERB_LABEL}</button>
 					<button class='small verb' title=${this._invertTitle} @click=${this._handleInvert}>${INVERT_VERB_LABEL}</button>
-				</span>
+				</span>` : ''}
 				${this._removalConsequence ? html`<span class='count'>· ${this._removalConsequence}</span>` : ''}
 				<!-- LAST IN THE SOURCE, TOP-RIGHT ON SCREEN (owner, F1). It stays
 				     inside the group so it keeps the "Editing <clause>" context

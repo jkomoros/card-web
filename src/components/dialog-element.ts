@@ -23,9 +23,26 @@ import {
 
 //document.activeElement stops at a shadow host, so a control inside another
 //component reads as that component. Walk down to the real one.
+//THE APP'S STACKING LADDER, IN ONE PLACE, because the layers are in four files
+//and only their numbers say how they relate:
+//
+//    1001 … 9999   dialogs, newest on top (this counter)
+//    10000         card-thumbnail-list's drag spacer
+//    10001         card-preview
+//    10002         corpus-ownership-gate — the one true blocking layer
+//
 //Rises by one per dialog open, so the newest-opened dialog stacks above its
-//siblings (see the .container z-index comment). card-preview sits at 10001;
-//reaching it would take ~9000 opens in one session.
+//siblings (see the .container z-index comment), and CLAMPED at the top of its
+//band. The clamp is not hypothetical bookkeeping: an unbounded counter breaks
+//the "card-preview paints above a dialog" invariant that the .container comment
+//asserts, and at the bottom of the band it already broke a worse one — the
+//gate used to sit at a flat 1000 and win on DOM order, so the very FIRST dialog
+//opened in a session (1001) painted its full-viewport scrim over the gate's
+//recovery buttons while the gate's own _setBackgroundInert made that dialog
+//dead. A blocking gate you cannot see and a dialog you cannot use is a
+//softlock; the gate is above everything now, and dialogs stay in their band.
+const MAXIMUM_DIALOG_Z = 9999;
+
 let nextDialogZ = 1000;
 
 const deepestActiveElement = () : HTMLElement | null => {
@@ -398,12 +415,16 @@ export class DialogElement extends LitElement {
 		//No dialog subclass overrides willUpdate.
 		if (!changedProps.has('open')) return;
 		this._syncEscapeShortcut();
-		//Stacking (see the .container comment): each open claims the next
-		//z-index, so a dialog opened from inside another paints above it
-		//regardless of where the two sit in their parent's template. The
-		//counter only ever rises within a session; it would take ~9000
-		//dialog opens to reach card-preview's 10001, and reload resets it.
-		if (this.open) this.style.setProperty('--dialog-z', String(++nextDialogZ));
+		//Stacking (see the ladder at the top of this file): each open claims the
+		//next z-index, so a dialog opened from inside another paints above it
+		//regardless of where the two sit in their parent's template. Clamped at
+		//the top of the dialog band — a session that somehow reached it loses
+		//only the ordering between two dialogs, which is the cheapest thing to
+		//lose and much cheaper than climbing past card-preview and the gate.
+		if (this.open) {
+			nextDialogZ = Math.min(nextDialogZ + 1, MAXIMUM_DIALOG_Z);
+			this.style.setProperty('--dialog-z', String(nextDialogZ));
+		}
 		//Focus is scheduled from HERE, via updateComplete, rather than from
 		//updated(). ai-dialog and find-dialog override updated() without
 		//calling super, so the old hook silently never ran for them — ai-dialog

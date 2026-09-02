@@ -1346,7 +1346,24 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(editingSelectTab(name));
 	}
 
+	//A MODIFIED ENTER IS NOT THIS STRIP'S KEY.
+	//
+	//These handlers matched on `e.key` alone, so Cmd-Enter — the app's save —
+	//looked exactly like the plain Enter that activates a tab: the strip
+	//re-selected the tab the user was already on and called killEvent, which is
+	//preventDefault. That was a cosmetic wart until the composer's work added
+	//`if (e.defaultPrevented) return false` to ShortcutRegistry.dispatch (a
+	//correct rule: a handler that cancelled the default has already decided what
+	//the keystroke meant). Together they dead-keyed the save: click a tab, press
+	//Cmd-Enter, and nothing happened, silently, in the editor.
+	//
+	//The strip's grammar is bare Enter and bare Space — there is no arrow
+	//handling here at all — so refusing the modified forms costs it nothing and
+	//lets commit-edit's deliberate any-focus binding do its job. Shift-Enter is
+	//left alone: `allowExtraShiftAlt` means Cmd-Shift-Enter still saves, and it
+	//still carries metaKey.
 	_handleTabKeyDown(e : KeyboardEvent) {
+		if (e.metaKey || e.ctrlKey || e.altKey) return;
 		if (e.key !== 'Enter' && e.key !== ' ') return;
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) return;
@@ -1364,7 +1381,9 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(editingSelectEditorTab(name));
 	}
 
+	//Same rule, same reason — see _handleTabKeyDown.
 	_handleEditorTabKeyDown(e : KeyboardEvent) {
+		if (e.metaKey || e.ctrlKey || e.altKey) return;
 		if (e.key !== 'Enter' && e.key !== ' ') return;
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) return;

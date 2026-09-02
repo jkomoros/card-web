@@ -31,7 +31,15 @@ class CorpusOwnershipGate extends connect(store)(LitElement) {
 			display: grid;
 			position: fixed;
 			inset: 0;
-			z-index: 1000;
+			/* ABOVE EVERYTHING, because this is the only layer in the app that
+			   blocks: it inerts every sibling (see _setBackgroundInert), so
+			   anything painting over it is a surface the user can see and
+			   cannot use, hiding the only controls that recover the session.
+			   It used to be a flat 1000 and won its tie with dialogs on DOM
+			   order alone — which stopped being true the moment dialogs
+			   started claiming a rising z-index per open. The ladder these
+			   numbers belong to is documented in dialog-element.ts. */
+			z-index: 10002;
 			place-items: center;
 			padding:
 				max(1.25rem, env(safe-area-inset-top))

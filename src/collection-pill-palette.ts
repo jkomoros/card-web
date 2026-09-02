@@ -142,6 +142,18 @@ export type CollectionPillFamily = 'card-type' | 'date' | 'person' | 'relationsh
 //exactly the same reason and in exactly the same position.
 const STRUCTURAL_FAMILIES : ReadonlySet<string> = new Set(['combine', 'exclude', 'expand', 'limit', 'offset']);
 
+//THE SAME FACT, ASKED BY THE EDITOR RATHER THAN BY THE PAINTER.
+//
+//A structural clause is not a claim about cards, and both verbs the pill row
+//offers are claims ABOUT claims: 'Also match…' builds an OR of two predicates,
+//and 'Invert' asks for the cards a predicate does not select. Neither means
+//anything for `limit/10`, which matches every card and is applied after the
+//sort — so `limit/10+limit/20` is not "either" of anything, and inverting it
+//empties the collection without saying so. One list decides the colour and the
+//verbs, because both are answering the same question about the same clause.
+export const collectionFilterIsStructural = (filter : string) : boolean =>
+	STRUCTURAL_FAMILIES.has(filter.split('/')[0]);
+
 //Likewise ahead of the argument-type tests: every similarity filter takes a
 //key-card, so untested-for they would all come out as relationships. "Cards
 //like this one" and "cards this one links to" are different questions and the
