@@ -311,7 +311,15 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			   No amber (§3.6.2 gives amber exactly one meaning, and this is not
 			   it), no red, no border, and deliberately NOT the 50% that now
 			   belongs to leaving. */
-			.thumbnail.partial-match h3 {
+			/* :not(.highlighted) because THE CURRENT CARD OUTRANKS THE TONE.
+			   The .thumbnail.highlighted h3 rule sets the primary colour and is
+			   declared above at the same specificity, so a card that is both
+			   current AND a partial match lost its highlight to this grey — the
+			   one thumbnail whose job is to be findable, wearing the colour
+			   that means 'less certain'. Subordinating this rule rather than
+			   reordering keeps the intent readable: partial-match is a note
+			   about evidence, and the highlight is about where you are. */
+			.thumbnail.partial-match:not(.highlighted) h3 {
 				color: var(--app-dark-text-color-light);
 				fill: var(--app-dark-text-color-light);
 			}

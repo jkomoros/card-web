@@ -5221,13 +5221,21 @@ describe('Collection Composer interactions', () => {
 		const CardStage = customElements.get('card-stage');
 		assert.ok(CardStage, 'card-stage must be registered');
 		const styles = CardStage.styles.map((sheet) => String(sheet.cssText || '')).join('\n');
-		const mobileToolbar = styles.match(/\.mobile \[name="actions"\]\s*\{[^}]*\}/);
-		assert.ok(mobileToolbar, 'the mobile toolbar needs a rule of its own');
+		//SCOPED AWAY FROM THE PRESENTATION RAIL. `.mobile [name="actions"]` and
+		//`.presenting [name="actions"]` land at equal specificity, and the
+		//mobile block is declared second — so on a phone in presentation mode
+		//the wrap and the max-width applied on top of a column rail that is
+		//absolutely positioned in the corner. The pin accepts the scoping and
+		//requires it, rather than matching the bare selector it used to.
+		const mobileToolbar = styles.match(/\.mobile:not\(\.presenting\) \[name="actions"\]\s*\{[^}]*\}/);
+		assert.ok(mobileToolbar, 'the mobile toolbar needs a rule of its own, scoped out of presentation mode');
+		assert.ok(!/(^|[^)])\.mobile \[name="actions"\]/.test(styles),
+			'an unscoped .mobile rule would reach into the presentation rail again');
 		assert.match(mobileToolbar[0], /flex-wrap:\s*wrap/,
 			'controls that do not fit must move to the next row, not off the screen');
 		assert.match(mobileToolbar[0], /max-width:\s*100%/,
 			'and the row must be bounded, or centring pushes its left edge negative');
-		assert.match(styles, /\.mobile \[name="actions"\]::slotted\(\*\)\s*\{[^}]*max-width:\s*100%/,
+		assert.match(styles, /\.mobile:not\(\.presenting\) \[name="actions"\]::slotted\(\*\)\s*\{[^}]*max-width:\s*100%/,
 			'each slotted group is bounded too, so a single wide group wraps inside itself');
 
 		//And the composer's own entry point is one of the controls in that row.
@@ -5238,7 +5246,7 @@ describe('Collection Composer interactions', () => {
 		assert.ok(start >= 0, 'the compose control must live in the actions toolbar');
 		assert.match(source.slice(start - 200, start), /slot='actions'/);
 		assert.match(source.slice(start, start + 400), /aria-label='Compose collection'/);
-		assert.match(styles, /\.mobile \[name="actions"\]::slotted\(\*\)\s*\{[^}]*font-size/,
+		assert.match(styles, /\.mobile:not\(\.presenting\) \[name="actions"\]::slotted\(\*\)\s*\{[^}]*font-size/,
 			'the existing mobile sizing survives the wrap');
 	});
 

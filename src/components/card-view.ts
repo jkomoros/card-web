@@ -857,40 +857,47 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>
 		</card-drawer>
         <div id='center'>
-			<!-- The composer's primary entry point is the collection summary,
-			     which lives in the card drawer's visible-info slot — and the
-			     drawer collapses to zero width when the collection is empty.
-			     So the one surface that mentions the composer disappeared
-			     exactly when refining the collection was the only useful thing
-			     left to do. This says what is absent and offers the same
-			     dialog. -->
-			${this._showCollectionEmptyState ? html`
-				<div class='collection-empty' role='status'>
-					<span class='collection-empty-message'>No cards match this collection</span>
-					<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description) : ''}</span>
-					<!-- A text button, not a glyph: this is a gate, and the verb
-					     is clearer than an icon (HS-4.2). button.text is the
-					     NAMED variant for that case, and taking it fixes a real
-					     bug — the local rule set only a purple colour, so the
-					     base button treatment underneath it painted a dark-grey
-					     background, leaving purple text on dark grey. -->
-					<button
-						class='text collection-empty-refine'
-						title=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
-						aria-label=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
-						@click=${this._handleConfigureCollectionClicked}
-					>Refine · ${shortcutKeys('open-collection-composer')}</button>
-				</div>
-			` : ''}
 			<!-- The loading property is what applies the uniform fade that
 			makes the boot placeholder read as pending rather than as real card
 			content; it was never set here, so the placeholder rendered at full
 			weight and opacity, visually identical to a loaded card. -->
-			<!-- When the empty state is showing, the stage would render the
-			     "No card by that name" fallback card right underneath it — two
-			     contradictory explanations of the same absence. One surface
-			     speaks at a time. -->
-			<card-stage ?hidden=${this._showCollectionEmptyState} .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<!-- THE EMPTY STATE HIDES THE CARD, NOT THE STAGE.
+			     When the empty state is showing, the stage would otherwise
+			     render the "No card by that name" fallback card right
+			     underneath it — two contradictory explanations of the same
+			     absence — so the card goes. The STAGE stays, because every
+			     action control below is slotted into it, and hiding the element
+			     took the whole toolbar with it: drawer toggle, star,
+			     reading list, edit, info, next/prev, and the composer's own
+			     mobile entry point, all gone in the one state where refining
+			     the collection is the only useful thing left to do. -->
+			<card-stage .cardHidden=${this._showCollectionEmptyState} .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+				<!-- Into the stage's no-card slot, so it stands exactly where
+				     the card would, with the action rail in its usual place
+				     under it. The composer's primary entry point is the
+				     collection summary in the card drawer's visible-info slot,
+				     and the drawer collapses to zero width when the collection
+				     is empty — so the one surface that mentions the composer
+				     disappears exactly when it is wanted. This says what is
+				     absent and offers the same dialog. -->
+				${this._showCollectionEmptyState ? html`
+					<div class='collection-empty' role='status' slot='no-card'>
+						<span class='collection-empty-message'>No cards match this collection</span>
+						<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description) : ''}</span>
+						<!-- A text button, not a glyph: this is a gate, and the verb
+						     is clearer than an icon (HS-4.2). button.text is the
+						     NAMED variant for that case, and taking it fixes a real
+						     bug — the local rule set only a purple colour, so the
+						     base button treatment underneath it painted a dark-grey
+						     background, leaving purple text on dark grey. -->
+						<button
+							class='text collection-empty-refine'
+							title=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
+							aria-label=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
+							@click=${this._handleConfigureCollectionClicked}
+						>Refine · ${shortcutKeys('open-collection-composer')}</button>
+					</div>
+				` : ''}
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' title='Present full screen' aria-label='Present full screen' aria-pressed=${this._presentationMode ? 'true' : 'false'} @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>

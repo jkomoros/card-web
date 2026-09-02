@@ -290,18 +290,38 @@ class CardDrawer extends LitElement {
 		`
 	];
 
+	//PER COLLECTION, NOT PER RENDER.
+	//
+	//Counted over exactly the cards `currentCount` counts — sortedCards is the
+	//windowed list, and numCards excludes start cards and honours offset/limit.
+	//Counting the whole partialMatches map instead would let a windowed
+	//collection claim more partial matches than it has rows, which is the sort
+	//of arithmetic the '-761 cards' bug above came from.
+	//
+	//But `sortedCards` is a GETTER that re-slices the sorted list on every
+	//access, so asking it inside render() copied the collection and walked it
+	//again on every render of this component — for a count that cannot change
+	//while the collection is the same object. A Collection is rebuilt whenever
+	//its description or its inputs change, so its identity is the exact key, and
+	//holding one number plus one reference retains nothing (the collection is
+	//already this component's own property).
+	_partialCountCollection : Collection | null = null;
+	_partialCountValue = 0;
+
+	_partialCount() : number {
+		const collection = this.collection;
+		if (!collection) return 0;
+		if (this._partialCountCollection === collection) return this._partialCountValue;
+		this._partialCountCollection = collection;
+		this._partialCountValue = collection.sortedCards.filter(card => collection.partialMatches[card.id]).length;
+		return this._partialCountValue;
+	}
+
 	override render() {
 
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
 		const currentCount = this.collection ? this.collection.numCards : 0;
-		//Counted over exactly the cards `currentCount` counts — sortedCards is
-		//the windowed list, and numCards excludes start cards and honours
-		//offset/limit. Counting the whole partialMatches map instead would let a
-		//windowed collection claim more partial matches than it has rows, which
-		//is the sort of arithmetic the '-761 cards' bug above came from.
-		const partialCount = this.collection ?
-			this.collection.sortedCards.filter(card => this.collection?.partialMatches[card.id]).length :
-			0;
+		const partialCount = this._partialCount();
 
 		//HIDE, don't destroy. Returning a fresh `<div hidden>` when not showing
 		//tore down card-thumbnail-list and rebuilt it on every drawer toggle —

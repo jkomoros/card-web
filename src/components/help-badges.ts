@@ -27,9 +27,26 @@ export const help = (message : string, isAlert? : boolean, isStrong? : boolean) 
 	return html`<span class=${classMap(classes)} tabindex='0' role='note' aria-label=${message} title="${message}">${isAlert ? WARNING_ICON : HELP_ICON}</span>`;
 };
 
+//`.help` IS OLDER AND WIDER THAN THIS BADGE.
+//
+//The class is also worn by two things `help()` does not produce, and both were
+//already relying on the margin and the svg sizing below: the "Navigate to this
+//collection" icon LINKS in reference-block and chat-view (`a.help`), and three
+//PROSE SENTENCES in card-editor's tab strip (`label.help` — "Content is what
+//shows up on the main body of the card").
+//
+//So the two rules added for the badge name the elements they are for. The
+//icon-bearing pair get `display: inline-flex`, which is what makes a wrapper
+//size to its glyph; a paragraph of prose does not want to be a flex container,
+//and giving one to a `<label>` inside card-editor's flex tab row was a silent
+//change to how those sentences lay out. `a.help` keeps the focus ring: it is a
+//real link, ButtonSharedStyles strips the UA ring app-wide, and it had none.
 export const HelpStyles =  css`
-	.help {
+	span.help, a.help {
 		display: inline-flex;
+	}
+
+	.help {
 		margin-left:0.4em;
 	}
 
@@ -37,7 +54,7 @@ export const HelpStyles =  css`
 	   now a tab stop — without a ring, tabbing onto it would look like focus
 	   vanishing. Same 2px primary outline the app's other keyboard-only
 	   affordances use. */
-	.help:focus-visible {
+	span.help:focus-visible, a.help:focus-visible {
 		outline: 2px solid var(--app-primary-color);
 		outline-offset: 1px;
 	}
