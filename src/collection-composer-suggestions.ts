@@ -25,6 +25,7 @@ import {
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
 import { curatedFilterDescription, filterSynonyms } from './collection-filter-synonyms.js';
+import { memoizeWeakFirstArg } from './memoize.js';
 import {
 	namedInverseFilterName,
 	splitCombineMembers,
@@ -621,10 +622,27 @@ export const collectionOrderPhrases = (
 
 //The names the live corpus knows for its own filters. One place decides that a
 //candidate's clause label wins over its longer, search-oriented label.
+//
+//MEMOIZED ON THE CANDIDATE LIST'S IDENTITY, because the RESULT'S identity is
+//load-bearing downstream. This built a fresh object on every call, and the
+//completion index's document memo keys on the labels object it was handed — so
+//the guard could never hit, the document list was rebuilt, and the IDF table
+//keyed on THAT list's identity was re-stemmed over the whole vocabulary on
+//every typed character. A pure function of the candidate list has no business
+//producing a new answer each time it is asked.
+//
+//Weak in the candidate list so a superseded corpus generation is not pinned by
+//this cache (#749); the empty case gets one shared array so the no-candidates
+//call is memoized too rather than allocating a fresh WeakMap key.
+const EMPTY_CANDIDATES : readonly CollectionComposerCandidate[] = [];
+
+const filterLabelsForCandidates = memoizeWeakFirstArg((candidates : object) : Record<string, string> =>
+	Object.fromEntries((candidates as readonly CollectionComposerCandidate[]).map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label])), 2);
+
 export const collectionFilterLabels = (
-	candidates: readonly CollectionComposerCandidate[] = []
+	candidates: readonly CollectionComposerCandidate[] = EMPTY_CANDIDATES
 ): Record<string, string> =>
-	Object.fromEntries(candidates.map(candidate => [candidate.filter, candidate.clauseLabel || candidate.label]));
+	filterLabelsForCandidates(candidates as unknown as object) as Record<string, string>;
 
 const defaultFilter = (name: string): string => {
 	const configurable = CONFIGURABLE_FILTER_INFO[name];

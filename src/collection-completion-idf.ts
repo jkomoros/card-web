@@ -47,6 +47,10 @@ import {
 	stemmedNormalizedWords,
 } from '../shared/nlp.js';
 
+import {
+	perfCount,
+} from './perf.js';
+
 //One candidate's searchable prose, as the table wants it.
 export type CompletionDocument = {
 	//The candidate id this document belongs to.
@@ -187,6 +191,10 @@ let indexMemo : {documents : readonly CompletionDocument[], index : CompletionID
 
 export const completionIDFIndexFor = (documents : readonly CompletionDocument[]) : CompletionIDFIndex => {
 	if (indexMemo && indexMemo.documents === documents) return indexMemo.index;
+	//The counter that makes "computed once per corpus, not per keystroke"
+	//CHECKABLE rather than merely promised. It was not true — see the document
+	//memo's key in collection-completion-index.ts — and nothing said so.
+	perfCount('completion-idf-index:build');
 	const index = buildCompletionIDFIndex(documents);
 	indexMemo = {documents, index};
 	return index;

@@ -5859,4 +5859,69 @@ describe('Collection Composer interactions', () => {
 			'the pill row is one line and needs no scroller of its own');
 	});
 
+	//A CLOSED DIALOG BUILDS NOTHING (perf blocker, round 10).
+	//
+	//DialogElement renders unconditionally — closed is a class, not an absence —
+	//so the composer's whole build ran behind display:none. And it ran OFTEN:
+	//_contextualComposerCandidates embeds the active card id, so every card the
+	//user arrowed to changed the candidate set's identity, missed the vocabulary
+	//and idle-row memos, and paid for a full completion pass plus a ~300-row
+	//ranked sort plus a Lit commit — on the app's hottest path, for a dialog
+	//nobody had opened.
+	//
+	//Driven through the component's own reactive property rather than through a
+	//store round-trip, because that is precisely the update the store would
+	//schedule, and the counter is the app's own perf instrumentation.
+	describe('a closed composer', () => {
+
+		const paletteBuilds = () => window.DEBUG_PERF.data().counters['composer-palette:build'] || 0;
+
+		const whileCounting = async (body) => {
+			window.DEBUG_PERF.reset();
+			window.DEBUG_PERF.enable();
+			try {
+				await body();
+				return paletteBuilds();
+			} finally {
+				window.DEBUG_PERF.disable();
+				window.DEBUG_PERF.reset();
+			}
+		};
+
+		it('builds no palette when the active card changes', async () => {
+			store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+			await settleRender(dialog);
+			assert.strictEqual(dialog.open, false, 'the dialog must actually be closed');
+			const builds = await whileCounting(async () => {
+				for (const id of ['card-one', 'card-two', 'card-three']) {
+					dialog._activeCardID = id;
+					await settleRender(dialog);
+				}
+			});
+			assert.strictEqual(builds, 0,
+				'navigating cards with the composer closed rebuilt the palette');
+		});
+
+		it('renders nothing into its own subtree', async () => {
+			store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+			await settleRender(dialog);
+			assert.strictEqual(dialog.shadowRoot.querySelector('#collection-palette-list'), null);
+			assert.strictEqual(dialog.shadowRoot.querySelector('#collection-composer-input'), null);
+		});
+
+		//THE GUARD MUST NOT COST THE FIRST OPEN ITS LIST. Everything the open
+		//cycle sets up happens in updated() on the `open` transition, which runs
+		//before the render that transition schedules — so the very first render
+		//after opening still has a correct, fully built list.
+		it('builds a complete list on the next open', async () => {
+			store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
+			await settleRender(dialog);
+			store.dispatch({ type: OPEN_CONFIGURE_COLLECTION_DIALOG });
+			await settleRender(dialog);
+			assert.ok(dialog.shadowRoot.querySelector('#collection-composer-input'),
+				'the composer input is back');
+			assert.ok(suggestionRows().length, 'and so is the one list');
+		});
+	});
+
 });

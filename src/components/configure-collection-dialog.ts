@@ -171,7 +171,12 @@ import {
 
 import {
 	memoize,
+	memoizeWeakFirstArg,
 } from '../memoize.js';
+
+import {
+	perfCount,
+} from '../perf.js';
 
 //The receipt and its Undo now live in collection-navigation-receipt.ts: the
 //drawer sentence's pills navigate too, and one navigation reported two ways by
@@ -400,6 +405,10 @@ const RENDER_MORE_THRESHOLD_PX = 240;
 
 const EMPTY_USAGE_WEIGHTS : CompletionUsageWeights = {};
 
+//ONE EMPTY MAP, SHARED. The disabled and closed paths both assign "no counts",
+//and a fresh `{}` each time is a new identity for the same fact.
+const EMPTY_PREVIEW_COUNTS : {[suggestionID : string]: number} = Object.freeze({});
+
 //A destination row renders as a miniature sentence, which needs the expression
 //behind its description. Keyed on the description's identity — the recents
 //list hands back the same objects until storage changes — so a list of rows
@@ -447,8 +456,15 @@ const composerFilterLabelsFor = memoize((candidates : CollectionComposerCandidat
 //Memoized on the map's identity, which is a selector result and so is stable
 //until a card's name or title actually changes — this runs once per render of
 //a list whose every row may ask for it.
-const composerCardNamesFor = memoize((cardTagInfos : TagInfos) : Record<string, string> =>
-	Object.fromEntries(Object.entries(cardTagInfos || {}).map(entry => [entry[0], entry[1].title])), 2) as (cardTagInfos : TagInfos) => Record<string, string>;
+//
+//WEAKLY, because both the argument and the answer are one entry per card
+//(#749). At module scope, `memoize(fn, 2)` held two superseded corpus
+//generations of each for the life of the tab — and, until the closed-dialog
+//guard in innerRender, it was populated for users who had never opened this
+//dialog at all. A WeakMap on the tag infos lets a replaced corpus take its
+//derived name map with it.
+const composerCardNamesFor = memoizeWeakFirstArg((cardTagInfos : object) : Record<string, string> =>
+	Object.fromEntries(Object.entries(cardTagInfos as TagInfos).map(entry => [entry[0], entry[1].title])), 2) as (cardTagInfos : TagInfos) => Record<string, string>;
 
 const parsedSourceFor = memoize((
 	sourceInput : string,
@@ -476,9 +492,17 @@ const draftExpressionFor = memoize((description : CollectionDescription) : Colle
 //Everything the completion index needs, assembled once per render rather than
 //once per call. Its identity is the memo key for both calls below, which is what
 //keeps a keystroke from rebuilding the index's whole world twice.
-const completionContextFor = memoize((
+//
+//KEYED WEAKLY ON THE TAG INFOS, AND NOT ON THE CARD NAMES AT ALL. The card
+//names are `composerCardNamesFor(cardTagInfos)` and nothing else, so naming
+//both in the key could only ever make the key stricter than the facts — and it
+//put a second corpus-sized record into a module-scope cache that holds its
+//arguments strongly (#749). The tag infos lead, so a superseded corpus
+//generation takes its whole cached context — candidates, names and all — with
+//it when it is collected.
+const completionContextFor = memoizeWeakFirstArg((
+	cardTagInfos : object,
 	candidates : CollectionComposerCandidate[],
-	cardNames : Record<string, string>,
 	filterDescriptions : {[filterName : string]: string},
 	tagInfos : TagInfos,
 	recentCollections : RecentComposerCollection[],
@@ -489,7 +513,7 @@ const completionContextFor = memoize((
 	usage : CompletionUsageWeights
 ) : CollectionCompletionContext => ({
 	candidates,
-	cardNames,
+	cardNames: composerCardNamesFor(cardTagInfos as TagInfos),
 	filterDescriptions,
 	tagInfos,
 	recentCollections,
@@ -500,8 +524,8 @@ const completionContextFor = memoize((
 	usage,
 	sourceAllowedOrigins: COMPOSER_ALLOWED_ORIGINS,
 }), 2) as (
+	cardTagInfos : TagInfos,
 	candidates : CollectionComposerCandidate[],
-	cardNames : Record<string, string>,
 	filterDescriptions : {[filterName : string]: string},
 	tagInfos : TagInfos,
 	recentCollections : RecentComposerCollection[],
@@ -511,6 +535,23 @@ const completionContextFor = memoize((
 	cardsSelected : boolean,
 	usage : CompletionUsageWeights
 ) => CollectionCompletionContext;
+
+//THE FLATTENING IS A DERIVATION LIKE ANY OTHER. It turns a ranked candidate
+//list into rows, and building a row means constructing a CollectionDescription
+//per row and serializing it — twice — so the idle feed paid for ~300 fresh
+//descriptions on every render of a list that had not changed. It is a pure
+//function of the candidates, the draft and the section heading, and the
+//candidate list on both call sites is already the identity-stable output of
+//`completionCandidatesFor`, so it can be keyed the same way.
+const paletteTypingRowsFor = memoizeWeakFirstArg((
+	candidates : object,
+	description : CollectionDescription,
+	section : string
+) : PaletteRow[] => paletteTypingRows(candidates as readonly CompletionCandidate[], description, section), 2) as (
+	candidates : readonly CompletionCandidate[],
+	description : CollectionDescription,
+	section : string
+) => PaletteRow[];
 
 const idleRowsFor = memoize((
 	description : CollectionDescription,
@@ -545,6 +586,16 @@ const recentCollectionsFor = memoize((remembered : RememberedCollectionEntry[]) 
 		frequent: entry.frequent,
 		relative: entry.relative,
 	})), 2) as (remembered : RememberedCollectionEntry[]) => RecentComposerCollection[];
+
+//THE TWO IDLE RUNS THAT GET RANKED, AS ONE ARRAY WITH A STABLE IDENTITY. The
+//concatenation was written inline at the call site, so the ranking memo below
+//was handed a brand-new array on every render and could never hit — a memo
+//that existed, cost a comparison, and answered no. `idle` is already the
+//identity-stable output of `idleRowsFor`, so the join can key on it.
+const idleSuggestionsFor = memoizeWeakFirstArg((idle : object) : CollectionComposerSuggestion[] => {
+	const rows = idle as ReturnType<typeof collectionCompletionIdleRows>;
+	return [...rows.recents, ...rows.contextual];
+}, 2) as (idle : ReturnType<typeof collectionCompletionIdleRows>) => CollectionComposerSuggestion[];
 
 //The ranking and the frozen-order reshuffle are the last two steps of the same
 //per-keystroke derivation, so they are memoized on the same terms the list
@@ -771,8 +822,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_userScope = '';
 
-	@state()
-		_previewCounts: {[suggestionID : string]: number} = {};
+	//EVERY COUNT THE CURRENT LIST HAS AN ANSWER FOR, by row id.
+	//
+	//Compared SHALLOWLY, not by identity. `_refreshPreviewCounts` assembles a
+	//fresh object on every trigger — and it is triggered by a dozen properties,
+	//including one that fires on every card navigation — so Lit's default
+	//`!==` saw a change every time and scheduled a second full update of the
+	//dialog for a map that was usually identical to the one it replaced. The
+	//counts are a small, flat record of numbers, so the comparison costs a
+	//key walk and saves a whole render pass.
+	@state({hasChanged: (value : {[suggestionID : string]: number}, old : {[suggestionID : string]: number}) => {
+		if (value === old) return false;
+		if (!value || !old) return true;
+		const keys = Object.keys(value);
+		if (keys.length !== Object.keys(old).length) return true;
+		return keys.some(key => value[key] !== old[key]);
+	}})
+		_previewCounts: {[suggestionID : string]: number} = EMPTY_PREVIEW_COUNTS;
 
 	//Whether the DRAFT's own count is still being computed. Every other count
 	//is decoration on a row; this one drives the primary button's label, and
@@ -1976,7 +2042,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`
 	];
 
+	//A CLOSED DIALOG BUILDS NOTHING.
+	//
+	//DialogElement renders unconditionally — `closed` is a class on the
+	//container, not an absence — which was harmless when this subclass's
+	//innerRender mapped a handful of filters. It stopped being harmless when the
+	//list became the whole vocabulary: `_composerRender` reaches
+	//`_paletteRows` with no gate anywhere in its path, and
+	//`_contextualComposerCandidates` embeds the ACTIVE CARD ID in the candidate
+	//set it builds. So every card navigation changed the identity of the
+	//candidates, missed both memos below (the 400-candidate vocabulary build and
+	//the idle rows), and ran a full completion pass plus a ~300-row ranked sort
+	//plus a Lit commit into a display:none subtree — for a dialog nobody had
+	//opened, on the app's hottest path, and for users who have never turned the
+	//composer on at all.
+	//
+	//Everything the open cycle needs is set up in updated() on the `open`
+	//transition, which happens BEFORE the render that transition schedules, so
+	//the first render after opening still builds a correct list: the seeded
+	//starting set, the reset window, and the frozen-order key (which names
+	//open/closed itself) are all in place by then.
 	override innerRender() {
+		if (!this.open) return html``;
 		if (collectionComposerEnabled()) return this._entryMode === 'source' ? this._sourceRender() : this._composerRender();
 		return this._builderRender();
 	}
@@ -2342,8 +2429,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//to"; anything further back is a destination, not a direction.
 		const previousCollection = remembered.slice(0, 2).find(entry => entry.canonical !== activeCanonical)?.canonical;
 		return completionContextFor(
+			this._cardTagInfos || EMPTY_TAG_INFOS,
 			this._contextualComposerCandidates,
-			this._composerCardNames,
 			this._filterDescriptions || EMPTY_FILTER_DESCRIPTIONS,
 			this._tagInfos || EMPTY_TAG_INFOS,
 			recentCollectionsFor(remembered),
@@ -2371,6 +2458,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//One `if` ladder rather than four booleans consulted in four places, because
 	//the list has exactly one content at a time and that is the whole design.
 	_rawPaletteRows() : PaletteRow[] {
+		//THE COUNTER THAT MAKES THE CLOSED-DIALOG GUARD CHECKABLE. This is the
+		//entry to the whole build — the vocabulary pass, the ranked sorts and the
+		//row flattening all hang off it — so a counter here is the honest answer
+		//to "did navigating a card rebuild the palette?". See innerRender.
+		perfCount('composer-palette:build');
 		const description = this._collectionDescription;
 		const expression = this._draftExpression;
 		const context = this._completionContext;
@@ -2390,7 +2482,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			//round, sinking a zero-count row and then slicing deleted it, which
 			//is precisely the "do NOT hide; the count is the honest warning" the
 			//rule exists to keep.
-			const typed = this._rankedTypedRows(this._withoutNoOpWidenRows(paletteTypingRows(
+			const typed = this._rankedTypedRows(this._withoutNoOpWidenRows(paletteTypingRowsFor(
 				completionCandidatesFor(this._composerInput, expression, description, context, TYPING_CANDIDATE_LIMIT),
 				description,
 				''
@@ -2528,16 +2620,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//survives intact, and the zero-sink still runs there — which is where it was
 	//always useful: among several readings of an ambiguous token, the ones that
 	//select nothing go last.
+	//THE SORT KEYS ARE COMPUTED ONCE PER ROW, NOT ONCE PER COMPARISON. Both
+	//`_rowCountMeaningful` (which joins two filter arrays into strings) and
+	//`_appliedDescription` (which builds a CollectionDescription) were being
+	//called from inside the comparator, so a three-hundred-row list paid for
+	//them O(n log n) times and allocated on every one. Decorating first makes it
+	//O(n), and the comparator becomes an integer subtraction — which is all the
+	//rule was ever saying.
 	_rankedTypedRows(rows : PaletteRow[]) : PaletteRow[] {
-		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
-			this._builtCountForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
-			.map((row, index) => ({row, index, rank: paletteTypedRank(row)}))
+			.map((row, index) => ({row, index, rank: paletteTypedRank(row), empty: this._rowSinksAsEmpty(row)}))
 			.sort((left, right) =>
 				left.rank - right.rank ||
-				(left.rank === TYPED_RANK_LITERAL ? 0 : empty(left.row) - empty(right.row)) ||
+				(left.rank === TYPED_RANK_LITERAL ? 0 : left.empty - right.empty) ||
 				left.index - right.index)
 			.map(({row}) => row);
+	}
+
+	//A ROW WHOSE COUNT THE BUILD ALREADY KNEW TO BE ZERO — the one fact both
+	//zero-sinks rank on, spelled once.
+	_rowSinksAsEmpty(row : PaletteRow) : number {
+		return this._rowCountMeaningful(row) &&
+			this._builtCountForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 	}
 
 	//THE ZERO-SINK IS NOT A TYPED-LIST RULE (round-3 tightness, minor).
@@ -2564,13 +2668,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_rankedIdleRows(rows : PaletteRow[]) : PaletteRow[] {
 		const sectionOrder = new Map<string, number>();
 		for (const row of rows) if (!sectionOrder.has(row.section)) sectionOrder.set(row.section, sectionOrder.size);
-		const empty = (row : PaletteRow) => this._rowCountMeaningful(row) &&
-			this._builtCountForDescription(this._appliedDescription(row)) === 0 ? 1 : 0;
 		return rows
-			.map((row, index) => ({row, index}))
+			.map((row, index) => ({row, index, section: sectionOrder.get(row.section) || 0, empty: this._rowSinksAsEmpty(row)}))
 			.sort((left, right) =>
-				(sectionOrder.get(left.row.section) || 0) - (sectionOrder.get(right.row.section) || 0) ||
-				empty(left.row) - empty(right.row) ||
+				left.section - right.section ||
+				left.empty - right.empty ||
 				left.index - right.index)
 			.map(({row}) => row);
 	}
@@ -2592,14 +2694,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_idleRows(description : CollectionDescription, context : CollectionCompletionContext) : PaletteRow[] {
 		const idle = idleRowsFor(description, context);
 		const ranked = rankedSuggestionsFor(
-			this._withoutContradictoryRefinements([...idle.recents, ...idle.contextual]),
+			this._withoutContradictoryRefinements(idleSuggestionsFor(idle)),
 			//THE BUILD'S OWN ROW COUNTS (F2), not the live map: this is the third
 			//zero-sink, and it re-ranked the top of the idle list — the recents and
 			//the three contextual rows, which are the rows a user actually looks at
 			//— every time one of their numbers landed.
 			this._paletteBuild ? this._paletteBuild.rowCounts : this._previewCounts
 		);
-		const vocabulary = paletteTypingRows(
+		const vocabulary = paletteTypingRowsFor(
 			completionCandidatesFor('', this._draftExpression, description, context, VOCABULARY_CANDIDATE_LIMIT),
 			description,
 			VOCABULARY_SECTION
@@ -3387,7 +3489,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//a card is called the same thing in the chip and in the control that
 	//chose it.
 	get _composerCardNames() : Record<string, string> {
-		return composerCardNamesFor(this._cardTagInfos);
+		return composerCardNamesFor(this._cardTagInfos || EMPTY_TAG_INFOS);
 	}
 
 	_readableComposerFilter(filter : string) : string {
@@ -4843,9 +4945,32 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				this._sourceAutoDelimitedSegment = false;
 				this._draftSelectedCard = this._requestedCard;
 				this._sourceInput = this._entryMode === 'source' ? window.location.pathname : '';
+				//THE SOURCE COMPLETION LIST IS PART OF THE SESSION TOO. Both were
+				//reset on every source EDIT but never on open, so a session that
+				//dismissed the list with Escape, closed the dialog and reopened it
+				//in Source mode came back with the list still dismissed and the
+				//highlight still on whichever row it had left — state from a
+				//composing session that is over.
+				this._sourceCompletionsDismissed = false;
+				this._sourceCompletionIndex = 0;
 				const parsed = this._entryMode === 'source' ? this._parsedSource : null;
 				if (parsed?.status === 'valid') this._draftSelectedCard = parsed.selectedCardRaw;
 				this._lastValidSource = parsed?.status === 'valid' ? parsed : null;
+			} else {
+				//AND A CLOSED COMPOSER HOLDS NOTHING. The retained maps are
+				//cleared on OPEN, which is what makes a fresh session honest — but
+				//between two sessions they were the composer's whole working set
+				//(a bounded map of counts, plus up to a hundred card ids per
+				//entry) held for as long as the tab lived. Clearing on close as
+				//well costs the next open nothing it was not already paying, since
+				//open cleared them anyway.
+				this._retainedPreviewCounts.clear();
+				this._retainedPreviewIDs.clear();
+				//And the palette's two memos are memos OF A RENDER that will not
+				//happen again until the dialog reopens; the build key names
+				//open/closed, so neither could be reused in any case.
+				this._paletteBuild = null;
+				this._paletteOrder = null;
 			}
 		}
 		//THE SCOPE CAN ARRIVE AFTER THE DIALOG DOES (round-3 tightness, M6).
@@ -4927,22 +5052,28 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//retained per collection to list them from. The owner asked for "the first 100
 	//or so"; the worker's reply is the whole ordered set, so this slice is the only
 	//place that number is decided.
-	_rememberPreviewIDs(key : string, ids : readonly string[]) {
-		if (this._retainedPreviewIDs.size >= RETAINED_PREVIEW_COUNT_LIMIT) {
-			const oldest = this._retainedPreviewIDs.keys().next().value;
-			if (oldest !== undefined) this._retainedPreviewIDs.delete(oldest);
+	//BOUNDED, AND EVICTED BY RECENCY RATHER THAN BY AGE. A Map iterates in
+	//insertion order and `set` on an existing key does NOT move it, so
+	//re-answering a collection the user keeps coming back to left it sitting at
+	//the front of the queue — first out, however often it was asked. Deleting
+	//before setting makes every write a genuine touch, which is what turns
+	//"oldest inserted" into "least recently used" for the price of one delete.
+	_touchRetained<T>(map : Map<string, T>, key : string, value : T) {
+		map.delete(key);
+		if (map.size >= RETAINED_PREVIEW_COUNT_LIMIT) {
+			const oldest = map.keys().next().value;
+			if (oldest !== undefined) map.delete(oldest);
 		}
-		this._retainedPreviewIDs.set(key, ids.slice(0, PREVIEW_MATCH_LIMIT));
+		map.set(key, value);
+	}
+
+	_rememberPreviewIDs(key : string, ids : readonly string[]) {
+		this._touchRetained(this._retainedPreviewIDs, key, ids.slice(0, PREVIEW_MATCH_LIMIT));
 		this._previewIDsVersion++;
 	}
 
 	_rememberPreviewCount(key : string, count : number) {
-		//Bounded: a long composing session must not grow a map forever.
-		if (this._retainedPreviewCounts.size >= RETAINED_PREVIEW_COUNT_LIMIT) {
-			const oldest = this._retainedPreviewCounts.keys().next().value;
-			if (oldest !== undefined) this._retainedPreviewCounts.delete(oldest);
-		}
-		this._retainedPreviewCounts.set(key, count);
+		this._touchRetained(this._retainedPreviewCounts, key, count);
 	}
 
 	_refreshPreviewCounts() {
@@ -4957,7 +5088,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//updated()'s trigger list; see _draftResolvesEmpty for why that matters.
 		this._draftResolvesEmpty = this._countForDescription(previewDescription) === 0;
 		if (!this.open || !collectionComposerPreviewEnabled()) {
-			this._previewCounts = {};
+			this._previewCounts = EMPTY_PREVIEW_COUNTS;
 			this._draftCountPending = false;
 			return;
 		}

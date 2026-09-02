@@ -14,7 +14,47 @@ const PREVIEW_SESSION_STORAGE_KEY = 'collection-composer-preview-session';
 
 export type CollectionComposerMode = 'off' | 'dogfood' | 'on';
 
-export const readCollectionComposerMode = (): CollectionComposerMode => {
+//THE ANSWER IS CACHED, BECAUSE THE QUESTION IS ASKED FROM RENDER PATHS.
+//
+//Every read here is two storage reads and a URLSearchParams parse of the URL
+//hash, and the callers are not occasional: card-view asks twice per render and
+//card-view re-renders on every store change, which puts three storage reads and
+//two hash parses on the app's hottest path — paid in full by the flag-OFF
+//default, who gets nothing for them. The composer dialog asks again from its
+//own render and from `stateChanged`.
+//
+//WHAT CAN CHANGE THE ANSWER, and therefore what clears the cache: this module's
+//own writers, a `storage` event (another tab flipping the flag), a
+//`hashchange`, and the window itself being replaced — which is not a browser
+//event but is exactly what a test harness does between cases, and getting it
+//wrong would make the cache lie to the suite that pins this module.
+//
+//Deliberately NOT invalidated on `history.replaceState`: the hash override
+//seeds session storage on its first read precisely because ordinary collection
+//navigation replaces the hash, so after that read the hash is no longer the
+//source of truth for it.
+let cachedWindow : unknown = null;
+let cachedMode : CollectionComposerMode | null = null;
+
+const forgetComposerMode = () : void => {
+	cachedMode = null;
+};
+
+//Clears the cache when the global `window` is not the one the cache was filled
+//against. Called before every read.
+const syncComposerModeCacheWindow = () : void => {
+	const current = typeof window === 'undefined' ? undefined : window;
+	if (cachedWindow === current) return;
+	cachedWindow = current;
+	forgetComposerMode();
+};
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+	window.addEventListener('storage', forgetComposerMode);
+	window.addEventListener('hashchange', forgetComposerMode);
+}
+
+const computeCollectionComposerMode = (): CollectionComposerMode => {
 	if (typeof window === 'undefined') return 'off';
 	try {
 		const value = window.localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -49,9 +89,17 @@ export const readCollectionComposerMode = (): CollectionComposerMode => {
 	return 'off';
 };
 
+export const readCollectionComposerMode = (): CollectionComposerMode => {
+	syncComposerModeCacheWindow();
+	if (cachedMode !== null) return cachedMode;
+	cachedMode = computeCollectionComposerMode();
+	return cachedMode;
+};
+
 export const writeCollectionComposerMode = (
 	mode: CollectionComposerMode
 ): void => {
+	forgetComposerMode();
 	if (typeof window === 'undefined') return;
 	try {
 		if (mode === 'off') {
@@ -78,6 +126,11 @@ export const collectionComposerPublicEnabled = (): boolean =>
 export const collectionComposerParserShadowEnabled = (): boolean =>
 	readCollectionComposerMode() === 'dogfood';
 
+//DELIBERATELY NOT CACHED, unlike the mode above. This one is read from
+//`_refreshPreviewCounts` — a debounced, once-per-list path inside a dialog that
+//is open — and never from a component's render, so the reads it saves are worth
+//less than the freshness it would give up. The mode is cached because card-view
+//asks it twice on every render of every card.
 export const collectionComposerPreviewEnabled = (): boolean => {
 	if (!collectionComposerEnabled() || typeof window === 'undefined')
 		return false;

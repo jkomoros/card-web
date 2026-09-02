@@ -46,6 +46,7 @@ let parseCollectionExpression;
 let serializeCollectionExpression;
 let CARD_FILTER_DESCRIPTIONS;
 let collectionFilterDescription;
+let collectionFilterLabels;
 let paletteTypingRows;
 let paletteIdleRows;
 let paletteWordRows;
@@ -114,7 +115,7 @@ describe('Collection completion index', () => {
 		} = await import('../../lib/src/collection-completion-index.js'));
 		({ parseCollectionExpression, serializeCollectionExpression } = await import('../../lib/src/collection-expression.js'));
 		({ CARD_FILTER_DESCRIPTIONS } = await import('../../lib/src/filters.js'));
-		({ collectionFilterDescription } = await import('../../lib/src/collection-composer-suggestions.js'));
+		({ collectionFilterDescription, collectionFilterLabels } = await import('../../lib/src/collection-composer-suggestions.js'));
 		({ paletteTypingRows, paletteIdleRows, paletteWordRows, VOCABULARY_SECTION } = await import('../../lib/src/collection-palette-rows.js'));
 	});
 
@@ -828,6 +829,80 @@ describe('Collection completion index', () => {
 				.map(row => row.description.serialize());
 			assert.strictEqual(new Set(destinations).size, destinations.length,
 				`two idle rows offer the same collection: ${destinations.join(' | ')}`);
+		});
+	});
+
+	//THE PROMISE IN THE MODULE HEADER, MADE CHECKABLE.
+	//
+	//collection-completion-idf's own header says the table is "COMPUTED ONCE PER
+	//CORPUS, NOT PER KEYSTROKE", and it was not: the document memo keyed on a
+	//`labels` object that collectionFilterLabels rebuilt on every call, so the
+	//identity guard never matched, the document list was rebuilt per character,
+	//and the IDF table keyed on THAT list's identity was re-stemmed over the
+	//whole vocabulary underneath it. Nothing said so, because nothing counted.
+	//
+	//The counters are the app's own debug instrumentation (src/perf.ts), the
+	//same ones the perf harness reads; they are no-ops unless enabled, so this
+	//suite turns them on for the duration and off again afterwards.
+	describe('the index is built once per corpus, not once per keystroke', () => {
+
+		const withCounters = (body) => {
+			window.DEBUG_PERF.reset();
+			window.DEBUG_PERF.enable();
+			try {
+				body();
+				return window.DEBUG_PERF.data().counters;
+			} finally {
+				window.DEBUG_PERF.disable();
+				window.DEBUG_PERF.reset();
+			}
+		};
+
+		//The dialog hands the index ONE context object per render — see
+		//completionContextFor — so the pin has to do the same, or it would be
+		//pinning the test's own object churn rather than the module's behaviour.
+		const stableContext = () => ({
+			candidates: candidates(),
+			filterDescriptions: CARD_FILTER_DESCRIPTIONS,
+		});
+
+		it('rebuilds neither the document set nor the IDF table while typing', () => {
+			const context = stableContext();
+			const description = draft('everything/');
+			const expression = parseCollectionExpression(description.filters);
+			const counters = withCounters(() => {
+				for (const token of ['s', 'sy', 'sys', 'syst', 'syste', 'system', 'c', 'co', 'com', 'comp']) {
+					collectionCompletionCandidates({token, expression, description, context, limit: 20});
+				}
+			});
+			assert.strictEqual(counters['completion-documents:build'], 1,
+				'ten keystrokes rebuilt the completion document set more than once');
+			assert.strictEqual(counters['completion-idf-index:build'], 1,
+				'ten keystrokes rebuilt the TF-IDF table more than once');
+		});
+
+		//The guard is an IDENTITY check, so what actually has to hold is that the
+		//labels a pure function derives from one candidate list are the SAME
+		//object each time. That is the specific defect, pinned directly: a fresh
+		//object here is what silently disabled everything above it.
+		it('derives one labels object per candidate list', () => {
+			const list = candidates();
+			assert.strictEqual(collectionFilterLabels(list), collectionFilterLabels(list),
+				'collectionFilterLabels rebuilt its answer for an unchanged candidate list');
+		});
+
+		//A GENUINELY NEW CORPUS STILL REBUILDS. A memo that never invalidates is
+		//the other way to make the counter above read 1.
+		it('rebuilds when the candidate list actually changes', () => {
+			const description = draft('everything/');
+			const expression = parseCollectionExpression(description.filters);
+			const counters = withCounters(() => {
+				for (const context of [stableContext(), stableContext()]) {
+					collectionCompletionCandidates({token: 'sys', expression, description, context, limit: 20});
+				}
+			});
+			assert.strictEqual(counters['completion-idf-index:build'], 2,
+				'a replaced candidate list must produce a fresh table');
 		});
 	});
 });

@@ -32,6 +32,10 @@
 //filter's NAME, DESCRIPTION and RECENTS, which must not fork.
 
 import {
+	perfCount,
+} from './perf.js';
+
+import {
 	CollectionDescription,
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSort,
@@ -520,18 +524,46 @@ type Match = {
 //Stemming is the app's own (shared/nlp, through the completion IDF module), so
 //'updating' typed against a candidate called 'Updated' is one comparison of two
 //identical stems rather than two edits apart.
+//
+//CACHED PER VALUE, because a name's own words do not depend on what was typed
+//AT it. The typo tier asks this of every candidate on every keystroke, so the
+//whole vocabulary was re-lowercased, re-split and re-STEMMED per character:
+//with the document memo repaired this was the largest remaining cost on the
+//path (shared/nlp's normalizedWords alone was a third of the profile). The key
+//is the individual string rather than the caller's array, which is freshly
+//built at the call site and could never be a key.
+//
+//Bounded, and cleared wholesale rather than evicted one at a time: the entries
+//are short strings drawn from the live vocabulary, the limit is well above a
+//realistic corpus's names and aliases, and a cache that only ever grows is the
+//retention defect memoize.ts's own #749 warning is about.
+const COMPARISON_TOKEN_CACHE_LIMIT = 20000;
+
+const comparisonTokenCache = new Map<string, readonly string[]>();
+
+const comparisonTokensForValue = (value : string) : readonly string[] => {
+	const known = comparisonTokenCache.get(value);
+	if (known) return known;
+	const tokens = new Set<string>();
+	const lowered = value.toLowerCase();
+	tokens.add(lowered);
+	for (const word of lowered.split(/[^a-z0-9]+/)) {
+		if (word.length >= STRUCTURAL_MINIMUM_TOKEN_LENGTH) tokens.add(word);
+	}
+	for (const stem of completionStems(value)) {
+		if (stem.length >= STRUCTURAL_MINIMUM_TOKEN_LENGTH) tokens.add(stem);
+	}
+	const result = [...tokens];
+	if (comparisonTokenCache.size >= COMPARISON_TOKEN_CACHE_LIMIT) comparisonTokenCache.clear();
+	comparisonTokenCache.set(value, result);
+	return result;
+};
+
 const comparisonTokens = (values : readonly string[]) : string[] => {
 	const result = new Set<string>();
 	for (const value of values) {
 		if (!value) continue;
-		const lowered = value.toLowerCase();
-		result.add(lowered);
-		for (const word of lowered.split(/[^a-z0-9]+/)) {
-			if (word.length >= STRUCTURAL_MINIMUM_TOKEN_LENGTH) result.add(word);
-		}
-		for (const stem of completionStems(value)) {
-			if (stem.length >= STRUCTURAL_MINIMUM_TOKEN_LENGTH) result.add(stem);
-		}
+		for (const token of comparisonTokensForValue(value)) result.add(token);
 	}
 	return [...result];
 };
@@ -1347,6 +1379,15 @@ export type CollectionCompletionOptions = {
 const DEFAULT_CANDIDATE_LIMIT = 8;
 
 const EMPTY_USAGE : CompletionUsageWeights = {};
+
+//THE SHARED "NOTHING WAS SUPPLIED" VALUES. See the defaults in
+//collectionCompletionCandidates: three of these are memo keys, so a fresh
+//literal per call is indistinguishable from a genuine change.
+const EMPTY_COMPLETION_CONTEXT : CollectionCompletionContext = {};
+const EMPTY_CANDIDATES : readonly CollectionComposerCandidate[] = [];
+const EMPTY_CARD_NAMES : Record<string, string> = {};
+const EMPTY_FILTER_DESCRIPTIONS : Readonly<Record<string, string>> = {};
+const EMPTY_TAG_INFOS : TagInfos = {};
 const EMPTY_IDF_INDEX : CompletionIDFIndex = {idf: {}, documents: {}, documentCount: 0};
 
 //THE SENTENCE WORDS DECLINE THE DESCRIPTION TIER, said once rather than by a
@@ -1409,11 +1450,20 @@ const phrasedAliases = (kind : CompletionCandidateKind, displayName : string) : 
 //IDENTITY is what the IDF module caches on, so this is memoized on the inputs
 //that can change it — the live corpus's candidates, the filter registry, the tag
 //metadata. A keystroke never rebuilds it.
+//DELIBERATELY NOT KEYED ON `labels` (or on `cardNames`). Both are pure
+//functions of things already in the key — labels of `candidates`, card names of
+//the tag infos the caller derives them from — so keying on them can only ever
+//make the guard STRICTER than the facts warrant. It did: `labels` arrived as a
+//freshly-built object on every call, the identity check therefore never
+//matched, the document list was rebuilt per keystroke, and the IDF table keyed
+//on THAT list's identity was re-stemmed over the whole vocabulary underneath
+//it. Measured at 500 candidates: 40.2ms per typed character, against 0.9ms once
+//the two memos hit. The header two comments up promised "a keystroke never
+//rebuilds it", and the key was the reason it was not true.
 let documentsMemo : {
 	candidates : readonly CollectionComposerCandidate[],
 	filterDescriptions : Readonly<Record<string, string>>,
 	tagInfos : TagInfos,
-	labels : Record<string, string>,
 	documents : CompletionDocument[],
 } | null = null;
 
@@ -1428,9 +1478,10 @@ const completionDocumentsFor = (
 		documentsMemo &&
 		documentsMemo.candidates === candidates &&
 		documentsMemo.filterDescriptions === filterDescriptions &&
-		documentsMemo.tagInfos === tagInfos &&
-		documentsMemo.labels === labels
+		documentsMemo.tagInfos === tagInfos
 	) return documentsMemo.documents;
+	perfCount('completion-documents:build');
+	const candidateFilters = new Set(candidates.map(candidate => candidate.filter));
 	const documents : CompletionDocument[] = [];
 	for (const candidate of candidates) {
 		const label = collectionFilterDisplayName(candidate.filter, labels, cardNames);
@@ -1446,7 +1497,7 @@ const completionDocumentsFor = (
 		});
 	}
 	for (const name of Object.keys(filterDescriptions)) {
-		if (candidates.some(candidate => candidate.filter === name)) continue;
+		if (candidateFilters.has(name)) continue;
 		if (STRUCTURAL_FILTER_FAMILIES.has(name)) continue;
 		const configurable = Boolean(CONFIGURABLE_FILTER_INFO[name]);
 		const filter = configurable ? defaultConfigurableFilter(name) : name;
@@ -1459,7 +1510,7 @@ const completionDocumentsFor = (
 			].filter(Boolean).join(' '),
 		});
 	}
-	documentsMemo = {candidates, filterDescriptions, tagInfos, labels, documents};
+	documentsMemo = {candidates, filterDescriptions, tagInfos, documents};
 	return documents;
 };
 
@@ -1467,13 +1518,20 @@ const completionDocumentsFor = (
 export const collectionCompletionCandidates = (
 	options : CollectionCompletionOptions
 ) : CompletionCandidate[] => {
-	const context = options.context || {};
+	const context = options.context || EMPTY_COMPLETION_CONTEXT;
 	const {token, negated} = strippedNegationPrefix(options.token);
-	const candidates = context.candidates || [];
+	//THE DEFAULTS ARE SHARED CONSTANTS, NOT FRESH LITERALS. Three of these four
+	//are memo keys one function down (completionDocumentsFor), and `|| {}`
+	//builds a new object on every call — so a caller that simply omitted a field
+	//defeated the identity guard exactly as thoroughly as a caller that rebuilt
+	//it, and the whole vocabulary was re-stemmed per keystroke. A default is a
+	//statement that nothing was supplied; saying it with a new object each time
+	//makes "nothing" look like a change.
+	const candidates = context.candidates || EMPTY_CANDIDATES;
 	const labels = collectionFilterLabels(candidates);
-	const cardNames = context.cardNames || {};
-	const filterDescriptions = context.filterDescriptions || {};
-	const tagInfos = context.tagInfos || {};
+	const cardNames = context.cardNames || EMPTY_CARD_NAMES;
+	const filterDescriptions = context.filterDescriptions || EMPTY_FILTER_DESCRIPTIONS;
+	const tagInfos = context.tagInfos || EMPTY_TAG_INFOS;
 	const expression = options.expression;
 	const usage = context.usage || EMPTY_USAGE;
 	//THE IDLE LIST IS THE SAME LIST WITH NOTHING TYPED YET.
@@ -1498,6 +1556,9 @@ export const collectionCompletionCandidates = (
 
 	const results : CompletionCandidate[] = [];
 	const seen = new Set<string>();
+	//Which names the live corpus already offers as VALUES, asked once rather
+	//than re-scanned inside the registry loop below.
+	const candidateFilters = new Set(candidates.map(candidate => candidate.filter));
 
 	//WHAT IS ALREADY IN THE SENTENCE, as families, so a candidate that continues
 	//the thought the user is already having ranks above one that starts a new
@@ -1714,8 +1775,11 @@ export const collectionCompletionCandidates = (
 	//with none it is the browsable vocabulary itself.
 	for (const name of Object.keys(filterDescriptions)) {
 		//A name the live corpus already offered as a value is that value, not a
-		//second row for the same clause.
-		if (candidates.some(candidate => candidate.filter === name)) continue;
+		//second row for the same clause. Asked as a SET, not a scan: this loop
+		//runs once per filter in the registry and the scan it replaced was over
+		//the whole candidate list, so the pair was quadratic in the two things
+		//that grow with the corpus.
+		if (candidateFilters.has(name)) continue;
 		//THE ENGINE'S BOOLEAN PLUMBING IS REACHABLE, AS SOURCE.
 		//
 		//`exclude`, `combine` and `expand` still may not be offered as CLAUSES —
