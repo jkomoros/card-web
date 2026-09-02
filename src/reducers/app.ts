@@ -25,6 +25,7 @@ import {
 	OPEN_CARDS_DRAWER_INFO,
 	CLOSE_CARDS_DRAWER_INFO,
 	TURN_SUGGEST_MISSING_CONCEPTS,
+	EMPTY_DIALOG_SELECTION,
 	SomeAction
 } from '../actions.js';
 
@@ -35,10 +36,6 @@ import {
 import {
 	AppState,
 } from '../types.js';
-
-//One frozen empty array for "the opener had no opinion about which clause to
-//select", so a no-opinion open does not churn the dialog's property identity.
-const EMPTY_DIALOG_SELECTION : readonly number[] = Object.freeze([]);
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE = true;

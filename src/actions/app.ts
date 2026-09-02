@@ -135,6 +135,7 @@ import {
 } from '../navigation-commit.js';
 
 import {
+	EMPTY_DIALOG_SELECTION,
 	CARD_BEING_FETCHED,
 	CLOSE_CARDS_DRAWER_INFO,
 	CLOSE_CARDS_DRAWER_PANEL,
@@ -703,7 +704,12 @@ export const closeCardsDrawerPanel = () : SomeAction => {
 //the only caller that has one: it is the surface where a user points at a
 //specific condition, and arriving in a composer that had forgotten which one
 //would make the tap-through a navigation rather than an answer.
-export const openConfigureCollectionDialog = (mode : 'compose' | 'source' = 'compose', selection : readonly number[] = []) : SomeAction => {
+//
+//The default is the SHARED constant, not a fresh `[]`. A fresh one is truthy,
+//so the reducer's `action.selection || EMPTY_DIALOG_SELECTION` never reached
+//its fallback and every no-opinion open handed the dialog a new array
+//identity — exactly the churn that constant was written to prevent.
+export const openConfigureCollectionDialog = (mode : 'compose' | 'source' = 'compose', selection : readonly number[] = EMPTY_DIALOG_SELECTION) : SomeAction => {
 	return {
 		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
 		mode,

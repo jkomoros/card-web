@@ -98,6 +98,14 @@ export const CLOSE_COMMENTS_AND_INFO_PANEL = 'CLOSE_COMMENTS_AND_INFO_PANEL';
 export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
 export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
 export const OPEN_CONFIGURE_COLLECTION_DIALOG = 'OPEN_CONFIGURE_COLLECTION_DIALOG';
+//ONE frozen empty array for "the opener had no opinion about which clause to
+//select". It lives HERE, beside the action that carries it, because both ends
+//have to agree on the same object: the reducer stored this constant so a
+//no-opinion open would not churn the dialog's property identity, and the action
+//creator defaulted to a FRESH `[]` — which is truthy, so `action.selection ||
+//EMPTY_DIALOG_SELECTION` took the fresh one every time and the churn the
+//constant exists to prevent happened anyway.
+export const EMPTY_DIALOG_SELECTION : readonly number[] = Object.freeze([]);
 export const CLOSE_CONFIGURE_COLLECTION_DIALOG = 'CLOSE_CONFIGURE_COLLECTION_DIALOG';
 export const CANCEL_CONFIGURE_COLLECTION_DIALOG = 'CANCEL_CONFIGURE_COLLECTION_DIALOG';
 export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';

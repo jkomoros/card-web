@@ -2202,7 +2202,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const presentation = this._sourceCompletionPresentation(completion, completionDetails[completion], completionKind);
 		return html`
 						<div class='suggestion' role='presentation'>
-							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @mousemove=${() => this._handleRowPointerMove('source-completion', index)} @mouseenter=${() => this._handleRowPointerEnter('source-completion', index)} @click=${() => this._acceptSourceCompletion(completion)}>
+							<button id=${`collection-source-completion-${index}`} role='option' tabindex='-1' aria-label=${`${presentation.category}: ${presentation.label}. ${sentenceCase(completionMode)}. ${presentation.detail}`} aria-selected=${index === this._sourceCompletionIndex} ?data-highlighted=${index === this._sourceCompletionIndex} @mousemove=${() => this._handleRowPointerMove('source-completion', index)} @mouseenter=${() => this._handleRowPointerEnter('source-completion', index)} @click=${() => this._acceptSourceCompletion(completion)}>
 								<span class='source-suggestion-category'>${presentation.category}</span>
 								<span class='suggestion-label'>${presentation.label}</span>
 								<span class='suggestion-action' data-consequence=${rowConsequence(completionMode)}>${sentenceCase(completionMode)}</span>

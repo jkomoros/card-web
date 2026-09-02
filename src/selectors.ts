@@ -1,5 +1,19 @@
 import { createSelector } from 'reselect';
 import type { CollectionComposerCandidate } from './collection-composer-suggestions.js';
+//A VALUE IMPORT OF THE COMPOSER'S VOCABULARY MODULE, and it is not the reason
+//that module is eager. Review flagged this line as putting ~1,250 lines (plus
+//collection-source, the synonym table and the boolean speller behind them) into
+//the app-wide eager graph for one function, and proposed moving that function to
+//a leaf. Measured: moving it changes nothing, because the import below —
+//readableCollectionExpression, which several always-on surfaces need — reaches
+//collection-expression.ts, and THAT imports collectionFilterDisplayName from the
+//same module. Same 102 modules either way.
+//
+//Cutting it for real means relocating the whole filter-NAMING layer
+//(collectionFilterDisplayName, booleanSpellingName, curatedFilterDescription and
+//the option speller), which is a refactor with its own risk and not a close-out
+//edit. Recorded here rather than half-done, so the next person measures before
+//moving one function and believing it helped.
 import { collectionFilterLabels } from './collection-composer-suggestions.js';
 
 import {

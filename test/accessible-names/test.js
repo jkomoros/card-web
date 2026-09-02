@@ -195,43 +195,53 @@ const survey = () => {
 //  unclassifiable            5           5
 //  empty-bodied              0           0
 //
+//(The unclassifiable column is 4 today; see the budget below for why it fell
+//after that measurement was taken.)
+//
 //So one button moved from the text population into the population these two
 //zero budgets police, and it arrived already carrying both a title and an
 //aria-label. Nothing to raise, and the +1 is a reclassification rather than the
 //survey getting sharper or the app getting worse.
 const NO_ACCESSIBLE_NAME_BUDGET = 0;
 const NO_HOVER_NAME_BUDGET = 0;
-//Measured: 6 today, all of them text buttons whose label is interpolated and
-//which carry no name in the tag — the original four (card-web-app error
-//action, corpus-ownership-gate reset, maintenance-view task, snack-bar
-//action) plus two from the collection composer, both human-verified to render
-//text: the source-completion listbox row (label spans) and the
-//'Browse all filters'/'Hide filter catalog' toggle, whose body is a ternary
-//between two sentences.
+//BACK TO WHAT IT WAS BEFORE THIS BRANCH: 4.
 //
-//This was 10. Four of those ten now carry an explicit aria-label — the
-//composer's two 'Open …' primaries, which gained one in this pass, and the
-//suggestion listbox row and expression clause-label button, which always had
-//one — and the survey no longer counts a button it can see a name on. Checked
-//the way this file requires: the OLD survey against the NEW tree still reports
-//10, so nothing was classified away.
+//This line spent the branch at 10, then 6, then 5, and the accumulated
+//narrative is deleted with the raises it explained. What matters is where it
+//landed and why, because "lower them; never raise them" is only a rule if the
+//number ends up where it started or below.
 //
-//It STAYED 6 when the composer's three committing actions became round icon
-//primaries (HS-3.3, HS-4.2), and the reason is worth writing down because the
-//change was expected to lower it. Those three were never in this set: the two
-//'Open …' primaries already carried an aria-label, and 'Add configured filter'
-//was literal text, so all three were classifiable before and are classifiable
-//now. What changed is which population they belong to — they are icon-only
-//today, which the two ZERO budgets above cover, and both are still zero.
-//Measured, not assumed: the old survey run against the new tree reports 6.
+//Measured on the tree this comment ships with:
 //
-//It FELL TO 5 when the composer's 'Browse all filters' link was deleted (the
-//palette's one list now contains the whole vocabulary, so there is nothing to
-//browse to). That button's body was a bare interpolation — a ternary over two
-//literal strings — so it was in this population and is now gone. A budget that
-//falls is a ratchet doing its job: it is lowered here so that re-adding a
-//button the survey cannot classify has to be a deliberate edit to this line.
-const UNCLASSIFIABLE_BUDGET = 5;
+//  survey                                    master   HEAD before   HEAD now
+//  unclassifiable, OLD classifier                 4            11         11
+//  unclassifiable, WITH the `!named` term         —             5          4
+//
+//The OLD number rose from 4 to 11 because the composer added seven more
+//buttons whose whole body is an interpolation — seven listbox rows, sentence
+//words and pill verbs. SIX of those seven were already named in the tag, and
+//the seventh is now: the source-completion listbox row gained the same composed
+//aria-label its sibling collection-palette-row has always carried, which is a
+//real fix for a role='option' whose only content is four spans of interpolated
+//text. That is what "if the budget rise covered a real nameless control, name
+//the control and lower the budget back" looks like when you do it.
+//
+//So the four that remain are exactly master's four, unchanged and unrelated to
+//this branch: card-web-app's error action, corpus-ownership-gate's reset,
+//maintenance-view's task button and snack-bar's action. Each is a text button
+//whose label is interpolated and which carries no name in the tag; each is
+//human-verified to render text, so widening the icon test to catch them would
+//manufacture four false positives. They are the survey's honest blind spot and
+//they stay pinned as a count.
+//
+//THE `!named` TERM IS A SHARPENING, NOT A LOOSENING, and the file's own rule
+//for telling those apart was applied: the OLD survey against the NEW tree still
+//reports 11, so nothing was classified away — six named buttons stopped being
+//counted as "we cannot tell whether this needs a name", which is correct,
+//because a button that already has one is not in that hole whichever way its
+//body resolves. The two ZERO budgets above are what police whether an icon-only
+//button is named, and both are still zero.
+const UNCLASSIFIABLE_BUDGET = 4;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
 
