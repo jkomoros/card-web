@@ -47,6 +47,9 @@ describe('Collection Composer interactions', () => {
 	//way: a pin that spelled 'Cmd-Enter' by hand would be exactly the drift the
 	//table exists to abolish, and it would fail off a Mac.
 	let shortcutKeys;
+	//The action that sets the ACTIVE collection, so afterEach can put it back.
+	//See the note there.
+	let updateCollection;
 	const openActionName = () => `Open this collection (${shortcutKeys('commit-collection-composer')})`;
 
 	before(async () => {
@@ -81,6 +84,10 @@ describe('Collection Composer interactions', () => {
 		//lazily on the first navigation anyway; doing it here makes the binding's
 		//presence a fact of the suite rather than a side effect of test order.
 		await import('../../lib/src/components/card-view.js');
+		//AFTER the components, not before them: actions/collection reaches tabs.js
+		//through a cycle that is only safe once the component graph has been
+		//evaluated, and pulling it in early throws a TDZ error out of tabs.js.
+		({ updateCollection } = await import('../../lib/src/actions/collection.js'));
 		//LAST, for the same reason: whoever registers `editor` last wins.
 		store.addReducers({ collection, editor });
 	});
@@ -258,6 +265,21 @@ describe('Collection Composer interactions', () => {
 		//previous state" — so the second dispatch has nothing to do.
 		store.dispatch({ type: CANCEL_CONFIGURE_COLLECTION_DIALOG });
 		store.dispatch({ type: 'FIND_DIALOG_CLOSE' });
+		//AND THE ACTIVE COLLECTION GOES BACK TO THE FIXTURE.
+		//
+		//CANCEL clears the DRAFT and does not touch `collection.active`, while
+		//CLOSE — the committing action — copies the snapshot into it
+		//(reducers/collection.ts). Two tests here assert
+		//`collection.active.filterNames` is `[]`, and five others commit, so the
+		//obvious reading is that those two survive on test order.
+		//
+		//MEASURED, THEY DO NOT: the commit path clears the snapshot before CLOSE
+		//sees it, so `active` is still `[]` immediately after a commit. The
+		//assertions hold today by construction. This reset is here so they keep
+		//holding for a reason a reader can see — bare Main, no clauses, the state
+		//beforeEach's `/c/main/` claims the app is in — rather than depending on
+		//an interaction between two reducers and mocha's file order.
+		store.dispatch(updateCollection('main', [], 'default', false, 'list', ''));
 		dialog.remove();
 		findDialog.remove();
 		window.localStorage.removeItem(HISTORY_KEY);
@@ -1875,6 +1897,10 @@ describe('Collection Composer interactions', () => {
 		familyRow('query').click();
 		await settleRender(dialog);
 		await settleRender(dialog, pillRow());
+		//REDUNDANT ON PURPOSE. The strictEqual below implies this one; what this
+		//line adds is the FAILURE MESSAGE, which names the actual defect. Kept so
+		//a reader of a red run is told what went wrong rather than being handed
+		//two element references to compare by eye.
 		assert.notStrictEqual(dialog.shadowRoot.activeElement?.id, 'collection-composer-input',
 			'focus must not stay in the field behind the row');
 		assert.strictEqual(dialog.shadowRoot.activeElement, pillRow());
@@ -5578,9 +5604,20 @@ describe('Collection Composer interactions', () => {
 	//run beneath them was never touched: signed out, the idle list opened with
 	//`Starred → 0` in the first screenful — a row leading with a promise to empty
 	//the collection, which is the defect the rule exists to prevent, one run
-	//down. Zero SINKS across the whole idle list; a contradictory contextual row
-	//is still suppressed outright, because it was an offer nobody asked for.
-	it('keeps a contradictory refinement from leading the idle list, and never hides it', async () => {
+	//down.
+	//
+	//CORRECTED PIN. The note here used to say the rule reached the vocabulary run
+	//as a SINK — zero ranked down rather than removed — and the assertion that
+	//would have caught the difference sat behind `if (zeroIndex >= 0)`, so it
+	//never ran. What ships is the suppression, applied everywhere: an unsolicited
+	//refinement resolving to zero is not offered at all, in the vocabulary run
+	//exactly as among the contextual rows. That is the §Narrow rule above taken
+	//at its word, and it is asserted here rather than described.
+	//
+	//The half that makes the suppression safe is the last assertion: a clause the
+	//user NAMES comes back, zero or not. Hiding what somebody just typed would be
+	//the worse defect, and that is the line the suppression must never cross.
+	it('suppresses a contradictory refinement in the idle list, and never hides one the user named', async () => {
 		await seedRecents([['main/starred/sort/recent/', 2]]);
 		//A resolved, non-zero draft, and a resolved zero for one contextual row.
 		const draftKey = dialog._previewCountKey(dialog._collectionDescription);
@@ -5599,21 +5636,25 @@ describe('Collection Composer interactions', () => {
 			'the row does not move or vanish while the reader is looking at it');
 		await typeComposer('x');
 		await typeComposer('');
-		const rows = dialog._paletteRows;
-		const zeroIndex = rows.findIndex(row => row.id === addRow.id);
-		if (zeroIndex >= 0) {
-			//It survived as a vocabulary row: then it must not LEAD its run.
-			const run = rows.filter(row => row.section === rows[zeroIndex].section);
-			assert.ok(run.slice(0, run.indexOf(rows[zeroIndex])).some(row =>
-				dialog._countForDescription(dialog._appliedDescription(row)) !== 0),
-			'a zero-count row sinks within its run rather than leading it');
-		}
+		assert.strictEqual(dialog._paletteRows.findIndex(row => row.id === addRow.id), -1,
+			'a refinement nobody asked for that would empty the collection is not offered at all');
 		//And once the user NAMES it, it comes back at the top — the rows are then
-		//interpretations of what they typed, not unsolicited offers.
+		//interpretations of what they typed, not unsolicited offers. Its count is
+		//still zero here, which is the point: the suppression turns on whether the
+		//row was ASKED FOR, never on hiding an answer somebody would not like.
 		await typeComposer(dialog._composerFilterLabels[addedFilter] || addedFilter);
 		assert.ok(dialog._paletteRows.some(row => row.description.serialize() === addRow.description.serialize()),
 			'a filter the user asked for by name is never hidden from them');
 		await typeComposer('');
+		//AND THE SUPPRESSION IS THE COUNT'S DOING, not the round trip's. Same row,
+		//same two keystrokes, a count with cards behind it — and it is back. The
+		//assertion above would otherwise also pass for a row that had simply
+		//stopped being generated.
+		dialog._retainedPreviewCounts.set(dialog._previewCountKey(addRow.description), 7);
+		await typeComposer('x');
+		await typeComposer('');
+		assert.ok(dialog._paletteRows.some(row => row.id === addRow.id),
+			'the same refinement, with cards behind it, is offered');
 	});
 
 	//A NOTE IS NOT A RECOVERY.
@@ -5629,9 +5670,15 @@ describe('Collection Composer interactions', () => {
 		//Previews ON, because the point of this section is its NUMBERS: the rows
 		//come into existence when the draft's own count arrives, and the defect
 		//M4 fixed was that nothing then asked for theirs.
-		window.localStorage.setItem('collection-composer-preview', 'on');
-		await seedDraft('everything/starred/has-todo/');
+		//THE FLAG IS SET INSIDE THE try, like its three siblings. It used to sit
+		//outside it with an await in between, so a throw from seedDraft left
+		//`collection-composer-preview` switched on in localStorage for every
+		//test after this one — a suite-wide behavior change caused by one
+		//failure, which is the worst moment to also change what the rest of the
+		//suite is testing.
 		try {
+			window.localStorage.setItem('collection-composer-preview', 'on');
+			await seedDraft('everything/starred/has-todo/');
 			//SUPERSEDED PIN (round 3, D3). The section was headed 'Nothing
 			//matches — try removing': a sentence, where every other heading in
 			//the list is a two-word rank label, which made the run under it look
@@ -5645,9 +5692,6 @@ describe('Collection Composer interactions', () => {
 				'a collection nobody has counted yet is not a collection to recover from');
 
 			const draftKey = dialog._previewCountKey(dialog._collectionDescription);
-			const withoutStarred = 'starred-removed';
-			const withoutTodo = 'todo-removed';
-			void withoutStarred; void withoutTodo;
 			dialog._retainedPreviewCounts.set(draftKey, 0);
 			//THE ROWS COME INTO EXISTENCE BECAUSE A COUNT ARRIVED, so the request
 			//for THEIR counts has to be re-made — which is the M4 root cause and
@@ -5797,17 +5841,40 @@ describe('Collection Composer interactions', () => {
 			//ones that select nothing go last.
 			assert.strictEqual(zeroIndex, 0,
 				`the row that IS the typed thing leads, zero or not: ${rows.slice(0, 4).map(row => `${row.id}:${dialog._countForDescription(dialog._appliedDescription(row))}`).join(' | ')}`);
-			const secondary = rows.slice(1);
-			const firstZero = secondary.findIndex(row => dialog._rowCountMeaningful(row) &&
-				dialog._countForDescription(dialog._appliedDescription(row)) === 0);
-			const lastKnown = secondary.map(row => dialog._rowCountMeaningful(row) &&
-				dialog._countForDescription(dialog._appliedDescription(row))).lastIndexOf(0);
-			void lastKnown;
-			if (firstZero >= 0) {
-				assert.ok(secondary.slice(0, firstZero).every(row =>
-					dialog._countForDescription(dialog._appliedDescription(row)) !== 0),
-				'and among the secondary rows a zero still goes last');
-			}
+			//AND THE SECONDARY SINK IS GIVEN SOMETHING TO SINK.
+			//
+			//This claim used to sit behind `if (firstZero >= 0)`, and the fixture
+			//never produced a secondary zero: only the draft, the widen and the
+			//add had counts at all, every other reading's count was null, and the
+			//search for a zero among them returned -1 every time. The block never
+			//ran. (The `lastIndexOf(0)` beside it searched an array of
+			//booleans-and-numbers for the number 0 and could only ever return -1
+			//too; it was computed, voided, and never read.)
+			//
+			//So the state the rule is about is now built on purpose: two GRAFTS of
+			//the same token, the higher-ranked one resolving to nothing and the
+			//lower-ranked one to cards. The claim is that they swap.
+			//
+			//GRAFTS, specifically. _rankedTypedRows disables the sink inside the
+			//literal class outright — that is B2 above, and it covers every
+			//name/typo-tier add, not only the row at the top. The class where the
+			//sink actually operates is the one holding the or-grafts and the
+			//unrequested negations, so that is the class the fixture builds in.
+			const grafts = rows.filter(row =>
+				(row.valenceKind === 'or' || row.valenceKind === 'not') && dialog._rowCountMeaningful(row));
+			assert.ok(grafts.length >= 2, 'an ambiguous token produces several grafts to rank between');
+			const sinks = grafts[0];
+			const rises = grafts[1];
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(sinks.description), 0);
+			dialog._retainedPreviewCounts.set(dialog._previewCountKey(rises.description), 9);
+			await typeComposer('unrea');
+			await typeComposer('unread');
+			const after = dialog._paletteRows;
+			const sunkIndex = after.findIndex(row => row.id === sinks.id);
+			const risenIndex = after.findIndex(row => row.id === rises.id);
+			assert.ok(sunkIndex >= 0, 'a secondary zero is ranked down, not hidden');
+			assert.ok(risenIndex >= 0 && risenIndex < sunkIndex,
+				`among several readings of one token, the one that selects nothing goes last: ${after.slice(0, 6).map(row => `${row.id}:${dialog._countForDescription(dialog._appliedDescription(row))}`).join(' | ')}`);
 		} finally {
 			await typeComposer('');
 			dialog._retainedPreviewCounts.clear();

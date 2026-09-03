@@ -90,6 +90,19 @@ describe('Collection expression boolean draft layer', () => {
 
 	describe('the round-trip matrix', () => {
 
+		//THE FLOOR UNDER A MATRIX. Every case here is generated from one array,
+		//so an array that shrank would delete the matrix and leave a green run
+		//saying the round trip is lossless. The count is the one claim no fixture
+		//can make about itself — and it covers the CATEGORIES too, because a
+		//matrix that lost a whole category still parses.
+		it('is a matrix', () => {
+			assert.ok(ROUND_TRIP_FIXTURES.length >= 49,
+				`the round-trip matrix has shrunk to ${ROUND_TRIP_FIXTURES.length}`);
+			const categories = new Set(ROUND_TRIP_FIXTURES.map(fixture => fixture.category));
+			assert.ok(categories.size >= 4,
+				`the matrix has lost a whole category: ${[...categories].join(', ')}`);
+		});
+
 		for (const fixture of ROUND_TRIP_FIXTURES) {
 
 			it(`${fixture.category}: ${fixture.name}`, () => {
@@ -183,6 +196,11 @@ describe('Collection expression boolean draft layer', () => {
 	});
 
 	describe('engine-level equivalences the compiler relies on', () => {
+		//The same floor, for the same reason: these cases are the array.
+		it('has equivalences to check', () => {
+			assert.ok(ENGINE_EQUIVALENT_SPELLINGS.length >= 7,
+				`the equivalence list has shrunk to ${ENGINE_EQUIVALENT_SPELLINGS.length}`);
+		});
 		for (const pair of ENGINE_EQUIVALENT_SPELLINGS) {
 			it(pair.name, () => {
 				//Both must actually SELECT something, or "they agree" is a

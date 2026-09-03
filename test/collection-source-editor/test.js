@@ -27,6 +27,15 @@ describe('lossless collection source editor', () => {
 		allowedOrigins: new Set(['https://thecompendium.cards', 'https://example.com']),
 	});
 
+	//THE FLOOR UNDER A FIXTURE-DRIVEN SUITE: the classification cases below are
+	//generated from one shared array, and an array that shrank would take them
+	//with it silently. The count is the one thing no fixture asserts about
+	//itself.
+	it('has a catalog to classify', () => {
+		assert.ok(LEGACY_COLLECTION_SOURCE_FIXTURES.length >= 12,
+			`the shared source catalog has shrunk to ${LEGACY_COLLECTION_SOURCE_FIXTURES.length}`);
+	});
+
 	for (const fixture of LEGACY_COLLECTION_SOURCE_FIXTURES) {
 		it(`classifies ${fixture.name}`, () => {
 			const result = parse(fixture.source, ['inductively-knowable']);

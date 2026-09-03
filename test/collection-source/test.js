@@ -61,6 +61,15 @@ describe('collection source compatibility catalog', () => {
 		({ QueryEngine } = await import('../../lib/src/worker/query-engine.js'));
 	});
 
+	//THE FLOOR UNDER A FIXTURE-DRIVEN SUITE. Every assertion below is generated
+	//from one array, so emptying that array — or trimming it in a refactor —
+	//deletes this whole suite and leaves a green run behind. The count is the one
+	//thing no fixture can assert about itself.
+	it('has a catalog to record', () => {
+		assert.ok(LEGACY_COLLECTION_SOURCE_FIXTURES.length >= 12,
+			`the legacy catalog has shrunk to ${LEGACY_COLLECTION_SOURCE_FIXTURES.length}; a case was removed, not fixed`);
+	});
+
 	for (const fixture of LEGACY_COLLECTION_SOURCE_FIXTURES) {
 		it('records legacy behavior: ' + fixture.name, () => {
 			assert.ok(

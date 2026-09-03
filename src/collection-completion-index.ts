@@ -1303,9 +1303,12 @@ const FREE_TEXT_MINIMUM_LENGTH = 2;
 
 //SAY THAT IT MATCHES PARTIALLY. The pill reads `Text contains “systems
 //thinking”`, which sounds like a promise that both words appear together; the
-//row is where the user decides, so it is where the qualification belongs. Same
-//sentence the suggestion module's own query row uses, so the two readings of one
-//clause cannot drift.
+//row is where the user decides, so it is where the qualification belongs.
+//
+//It used to be the same sentence the suggestion module's own query row carried,
+//written twice so the two readings of one clause could not drift. That row is
+//gone with the rest of that module's typed branch, so there is one reading now
+//and this is it.
 const FREE_TEXT_DETAIL = 'Keeps cards whose text matches this query, including cards matching only some of its words';
 
 //A URL IS A FEATURE OF THIS PRODUCT, so pasting one is a first-class gesture.

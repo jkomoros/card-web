@@ -223,6 +223,11 @@ describe('Collection completion index', () => {
 			//matches, not prose matches, which is exactly the distinction this
 			//test exists to keep: 'or' reaches a thing called Order and does not
 			//reach a thing merely described as 'authored and colored'.
+			//AND THE POSITIVE HALF IS ASSERTED, so an empty result cannot satisfy
+			//an `every`. A day when 'or' stops reaching Original Order is a
+			//regression too, and it would turn both of these claims green.
+			assert.ok(result.some(candidate => candidate.kind === 'sort'),
+				'“or” must still reach the sorts whose own names begin with it');
 			assert.ok(result.every(candidate => candidate.kind === 'sort' || isFreeText(candidate)),
 				`prose matched something it should not have: ${result.map(candidate => candidate.id).join(', ')}`);
 		});

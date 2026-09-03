@@ -54,6 +54,69 @@ describe('CI covers everything the local suite does', () => {
 		}
 	});
 
+	//AND THE OTHER END OF THE SAME HOLE. Everything above compares two SCRIPTS
+	//to each other, which cannot see a suite that is in neither: a directory of
+	//tests nobody runs is invisible to `npm test`, to CI and to the badge, and it
+	//looks exactly like a directory of tests that pass.
+	//
+	//So the directories are compared to the scripts too. Every test/* directory
+	//holding a spec must be named by some suite `npm test` runs.
+	//
+	//harness-support is the one exemption and it is a real one: it holds no spec,
+	//only the app harness other suites mount and a memory probe they import. The
+	//test below keeps that true.
+	it('runs every directory of tests that exists', () => {
+		const HARNESS_ONLY = ['harness-support'];
+		const root = new URL('../', import.meta.url);
+		//TRANSITIVELY, because one suite delegates: test:security wraps
+		//test:security-impl in a firebase emulator, and only the inner script
+		//names the directory. Following `npm run` one hop at a time is what makes
+		//the sweep read the command that actually runs mocha.
+		const seen = new Set();
+		const expand = (script) => {
+			if (!script || seen.has(script)) return [];
+			seen.add(script);
+			const command = pkg.scripts[script] || '';
+			const nested = Array.from(command.matchAll(/npm run ([a-z0-9:-]+)/g)).map(match => match[1]);
+			return [command, ...nested.flatMap(expand)];
+		};
+		const commands = expand('test').join('\n');
+		const directories = fs.readdirSync(root, { withFileTypes: true })
+			.filter(entry => entry.isDirectory())
+			.map(entry => entry.name);
+		assert.ok(directories.length > 50, 'the sweep must be reading the real test directory');
+		const unrun = [];
+		for (const directory of directories) {
+			if (HARNESS_ONLY.includes(directory)) continue;
+			const files = fs.readdirSync(new URL('./' + directory + '/', root));
+			//A SPEC, not merely a file: a fixture or a helper is not a suite.
+			const specs = files.filter(name => /\.(js|mjs|cjs)$/.test(name) &&
+				/\bdescribe\s*\(/.test(fs.readFileSync(new URL('./' + directory + '/' + name, root), 'utf8')));
+			if (!specs.length) continue;
+			//The path as a script would spell it, with a boundary after it so
+			//`test/collection` is not satisfied by `test/collection-source`.
+			const spelled = new RegExp(`test/${directory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-zA-Z0-9_-])`);
+			if (spelled.test(commands)) continue;
+			unrun.push(directory);
+		}
+		assert.deepStrictEqual(unrun, [],
+			`these directories hold tests that no npm script runs, so nothing they assert is ever checked: ${unrun.join(', ')}`);
+	});
+
+	it('keeps its one directory exemption honest', () => {
+		//The exemption says "no spec of its own". The day that stops being true,
+		//the exemption is hiding a suite — which is the defect the sweep exists
+		//for, wearing the sweep's own permission slip.
+		const directory = new URL('../harness-support/', import.meta.url);
+		const files = fs.readdirSync(directory);
+		assert.ok(files.length, 'the exempted directory must still exist and hold something');
+		for (const name of files) {
+			if (!/\.(js|mjs|cjs)$/.test(name)) continue;
+			assert.ok(!/\bdescribe\s*\(/.test(fs.readFileSync(new URL('./' + name, directory), 'utf8')),
+				`harness-support/${name} declares a suite, but harness-support is exempted from being run`);
+		}
+	});
+
 	it('is wired to a workflow that actually runs test:ci', () => {
 		const workflow = fs.readFileSync(new URL('../../.github/workflows/test.yml', import.meta.url), 'utf8');
 		assert.ok(workflow.includes('npm run test:ci'), 'the workflow must run test:ci');

@@ -1,9 +1,7 @@
 import {
 	CollectionDescription,
 	collectionDescriptionWithFilterAppended,
-	collectionDescriptionWithConfigurableFilter,
 	collectionDescriptionWithFilterRemoved,
-	collectionDescriptionWithQuery,
 	collectionDescriptionWithSelected,
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSortReversed,
@@ -13,7 +11,6 @@ import {
 import {
 	CARD_FILTER_DESCRIPTIONS,
 	COMBINE_FILTER_NAME,
-	CONFIGURABLE_FILTER_INFO,
 	EXCLUDE_FILTER_NAME,
 	INVERSE_FILTER_NAMES,
 	NONE_FILTER_NAME,
@@ -24,7 +21,7 @@ import {
 	parseRelativeDateParts,
 } from './filters.js';
 import { humanizeCollectionToken, parseCollectionSource } from './collection-source.js';
-import { curatedFilterDescription, filterSynonyms } from './collection-filter-synonyms.js';
+import { curatedFilterDescription } from './collection-filter-synonyms.js';
 import { memoizeWeakFirstArg } from './memoize.js';
 import {
 	namedInverseFilterName,
@@ -106,8 +103,6 @@ export type CollectionComposerContext = {
   cardNames?: Record<string, string>;
 };
 
-const SOURCE_ONLY_CONFIGURABLE_FILTERS = new Set(['combine', 'exclude', 'expand']);
-
 export type ActiveCardMetadata = {
   section: string;
   tags: string[];
@@ -181,17 +176,6 @@ export const activeCardRelationshipCandidates = (activeCardID: string): Collecti
 		spotlight: true,
 	},
 ] : [];
-
-const candidateRelevance = (candidate: CollectionComposerCandidate, query: string): number => {
-	const values = candidate.searchValues || [candidate.label, candidate.filter, candidate.category, ...(candidate.aliases || [])]
-		.map(value => value.toLowerCase());
-	if (values.some(value => value === query)) return 0;
-	if (values.some(value => value.startsWith(query))) return 1;
-	const tokens = query.split(/\s+/).filter(Boolean);
-	if (tokens.length && tokens.every(token => values.some(value => value.includes(token)))) return 2;
-	if (values.some(value => value.includes(query))) return 3;
-	return Number.POSITIVE_INFINITY;
-};
 
 //The word-level humanizer lives in collection-source, which this file already
 //imports, so the parser's own diagnostics and these display names cannot drift
@@ -644,16 +628,6 @@ export const collectionFilterLabels = (
 ): Record<string, string> =>
 	filterLabelsForCandidates(candidates as unknown as object) as Record<string, string>;
 
-const defaultFilter = (name: string): string => {
-	const configurable = CONFIGURABLE_FILTER_INFO[name];
-	if (!configurable) return name;
-	return (
-		name +
-    '/' +
-    configurable.arguments.map((argument) => argument.default).join('/')
-	);
-};
-
 export const collectionDescriptionFromComposerSource = (
 	rawSource: string
 ): CollectionDescription | null => {
@@ -1031,166 +1005,46 @@ export const rankedComposerSuggestions = (
 		.map(({suggestion}) => suggestion);
 };
 
+//THE IDLE QUESTION, AND NOTHING ELSE — which is the whole of what this entry
+//point was ever asked.
+//
+//It used to answer two. With nothing typed it built the opening list; with a
+//query it built the TYPED one, and that half was about a hundred and fifty
+//lines: relevance-scoring the corpus candidates against the token, matching
+//filter families by name, description prose and curated synonym, parsing a
+//pasted path into a `source` row, routing a configurable family to Configure
+//and a boolean one to Source, capping the concrete values at six and the whole
+//list at seven, then appending a trailing `query:` row. THE TYPED HALF IS
+//DELETED, and none of it is coming back here.
+//
+//THE EMPIRICAL FACT, so nobody rebuilds it: the typed half had NO PRODUCTION
+//CALLER. The one call this function receives outside tests is
+//collectionCompletionIdleRows' (collection-completion-index), and it passes ''.
+//The palette's typed path is collectionCompletionCandidates in that same
+//module — one ranked run over the entire vocabulary that typing FILTERS,
+//scored in tiers with the free-text reading as its arithmetic floor — and the
+//composer dialog reaches parseCollectionSource directly for a pasted path, so
+//even the `source` row was a second spelling of a gesture the dialog already
+//handled. Every contract the typed half carried that is still enforced is
+//enforced over there.
+//
+//WHICH IS WHY THE SECOND RANKER HAD TO GO rather than being left as a dormant
+//branch. Two rankers over one vocabulary is precisely the disagreement the
+//redesign's convergence clauses were written to close: the same word finding a
+//family in one list and not the other is a synonym that works in half the app,
+//and a branch nothing runs is a branch nothing keeps honest.
+//
+//`_input` and `_filterDescriptions` are the shape the caller still passes and
+//are read by nothing. The name is kept, and so is the arity, because renaming
+//would edit a module this change has no business in; the underscore is the
+//function saying out loud that it ignores them rather than leaving a reader to
+//discover it.
 export const collectionComposerSuggestions = (
 	current: CollectionDescription,
-	input: string,
-	filterDescriptions: { [filterName: string]: string },
+	_input: string,
+	_filterDescriptions: { [filterName: string]: string },
 	context: CollectionComposerContext = {}
-): CollectionComposerSuggestion[] => {
-	const query = input.trim();
-	if (!query) return emptyStateSuggestions(current, context);
-
-	const filterLabels = collectionFilterLabels(context.candidates);
-	const result: CollectionComposerSuggestion[] = [];
-	const looksLikeSource = query.includes('/') || /^https?:\/\//i.test(query);
-	if (looksLikeSource) {
-		const parsedSource = parseCollectionSource(query, {
-			ordinaryFilters: new Set([...Object.keys(CARD_FILTER_DESCRIPTIONS), ...Object.keys(filterDescriptions)]),
-			preservedSelectedCard: context.preservedSelectedCard,
-			allowedOrigins: context.sourceAllowedOrigins,
-		});
-		const description = parsedSource.description;
-		if (description && parsedSource.canonicalPath) {
-			result.push({
-				id: `source:${description.serialize()}`,
-				kind: 'source',
-				action: 'open',
-				name: readableCollectionExpression(description, filterLabels),
-				label: 'Open this collection source',
-				detail: description.serializeShortOriginalOrder(),
-				description,
-				destinationPath: parsedSource.canonicalPath,
-			});
-		}
-	}
-
-	const normalizedQuery = query.toLowerCase();
-	const matchingCandidates = (context.candidates || [])
-		.map(candidate => ({candidate, relevance: candidateRelevance(candidate, normalizedQuery)}))
-		.filter(match => Number.isFinite(match.relevance))
-		.sort((left, right) => left.relevance - right.relevance || left.candidate.label.localeCompare(right.candidate.label));
-	//The honest description is computed BEFORE the match, not after it: a row
-	//that matched on the words 'Inverse of not-starred' and then displayed
-	//something else would be answering a query the user cannot see.
-	const matchingFilters = Object.keys(filterDescriptions)
-		//THE CURATED SYNONYMS ARE A RANKING INPUT HERE TOO, not only in the new
-		//completion index. Proposal C's flow ③ ("aliases catch 'pub'") and the
-		//meta-proposal's convergence 5 both describe the same behavior for the
-		//typed list this function already feeds, and a word that finds a family
-		//in the palette but not in this list would be a synonym that works in one
-		//half of the app.
-		.map(name => ({
-			name,
-			detail: collectionFilterDescription(name, filterDescriptions, filterLabels),
-			synonyms: filterSynonyms(name),
-		}))
-		.filter(({name, detail, synonyms}) =>
-			name.toLowerCase().includes(normalizedQuery) ||
-			detail.toLowerCase().includes(normalizedQuery) ||
-			synonyms.some(synonym => synonym.startsWith(normalizedQuery))
-		)
-		.map(({name, detail, synonyms}) => {
-			const relevance = (() => {
-				const normalizedName = name.toLowerCase();
-				if (normalizedName === normalizedQuery) return 0;
-				if (normalizedName.startsWith(normalizedQuery)) return 1;
-				if (normalizedName.includes(normalizedQuery)) return 2;
-				//A synonym match sits between the name and the description prose:
-				//it is a word somebody chose to mean this filter, which the
-				//description's incidental wording is not.
-				if (synonyms.some(synonym => synonym === normalizedQuery)) return 2;
-				if (synonyms.some(synonym => synonym.startsWith(normalizedQuery))) return 3;
-				if (detail.toLowerCase().startsWith(normalizedQuery)) return 4;
-				return 5;
-			})();
-			return {name, detail, relevance};
-		});
-	const interpretations = [
-		...matchingCandidates.map(match => ({type: 'candidate' as const, ...match})),
-		...matchingFilters.map(match => ({type: 'filter' as const, ...match})),
-	].sort((left, right) => left.relevance - right.relevance ||
-    (left.type === right.type ? 0 : left.type === 'candidate' ? -1 : 1) ||
-    (left.type === 'candidate' ? left.candidate.label : left.name).localeCompare(right.type === 'candidate' ? right.candidate.label : right.name));
-	const seenDestinations = new Set(result.map(suggestion => suggestion.description.serialize()));
-	let concreteCandidateCount = 0;
-	for (const interpretation of interpretations) {
-		let suggestion: CollectionComposerSuggestion;
-		if (interpretation.type === 'candidate') {
-			const candidate = interpretation.candidate;
-			if (current.filters.includes(candidate.filter) || concreteCandidateCount >= 6) continue;
-			const name = collectionFilterDisplayName(candidate.filter, filterLabels);
-			suggestion = {
-				id: `candidate:${candidate.category}:${candidate.filter}`,
-				kind: 'add',
-				action: 'add',
-				name,
-				label: verbLabel('add', name),
-				detail: `${candidate.detail} · ${candidateURLNote(candidate.filter, name, candidate.urlDetail)}`,
-				description: collectionDescriptionWithFilterAppended(current, candidate.filter),
-				viewerDependent: filterNameIsViewerDependent(candidate.filter),
-			};
-		} else {
-			const {name, detail} = interpretation;
-			const filter = defaultFilter(name);
-			const configurable = CONFIGURABLE_FILTER_INFO[name];
-			const sourceOnly = configurable && SOURCE_ONLY_CONFIGURABLE_FILTERS.has(name);
-			const existingConfigurable = configurable && current.filters.some(currentFilter => currentFilter.startsWith(name + '/'));
-			if (!configurable && current.filters.includes(filter)) continue;
-			//A configurable family is named by its family until its values exist; a
-			//plain filter is named by the one name that clause carries everywhere.
-			const displayName = configurable ?
-				collectionFilterDisplayName(name, filterLabels) :
-				collectionFilterDisplayName(filter, filterLabels);
-			suggestion = {
-				id: `filter:${filter}`,
-				kind: 'add',
-				action: existingConfigurable ? 'replace' : 'add',
-				name: displayName,
-				label: sourceOnly ? `Edit ${displayName} in Source` : configurable ? `${existingConfigurable ? 'Edit' : 'Configure'} ${displayName}` : verbLabel('add', displayName),
-				detail: sourceOnly ? `${detail} · nested expressions use lossless Source mode with completions` : configurable ? `${detail} · choose its values before changing the draft` : detail,
-				description: existingConfigurable ? collectionDescriptionWithConfigurableFilter(current, filter) : collectionDescriptionWithFilterAppended(current, filter),
-				configureFilter: configurable && !sourceOnly ? name : undefined,
-				sourceFilter: sourceOnly ? name : undefined,
-				//Ask the clause this row would actually produce, not the family the
-				//user typed: `author` defaults to `author/me`, and it is the `me`
-				//that makes the destination personal.
-				viewerDependent: filterNameIsViewerDependent(filter),
-			};
-		}
-		const destination = suggestion.description.serialize();
-		if (seenDestinations.has(destination)) continue;
-		seenDestinations.add(destination);
-		if (interpretation.type === 'candidate') concreteCandidateCount++;
-		result.push(suggestion);
-		if (result.length >= 7) break;
-	}
-
-	const queryDescription = collectionDescriptionWithQuery(current, query);
-	const queryAction = current.filters.some(filter => filter.startsWith('query/')) ? 'replace' : 'add';
-	const queryName = collectionFilterDisplayName(
-		queryDescription.filters.find(filter => filter.startsWith('query/')) || '',
-		filterLabels
-	);
-	result.push({
-		id: `query:${normalizedQuery}`,
-		kind: 'search',
-		action: queryAction,
-		name: queryName,
-		label: verbLabel(queryAction, queryName),
-		//SAY THAT IT MATCHES PARTIALLY. filters.ts's own description for this
-		//family — 'Selects cards that contain text that at least partially
-		//matches a provided query' — reaches the catalog, but this row overrode
-		//it with a sentence about the mechanism ('adds a text-query clause')
-		//that says nothing about what the clause will DO. Meanwhile the chip
-		//reads `Text contains “systems thinking”`, which sounds like a promise
-		//that both words appear together. The row is where the user decides, so
-		//it is where the qualification belongs.
-		detail: 'Keeps cards whose text matches this query, including cards matching only some of its words',
-		description: queryDescription,
-	});
-
-	return dedupedByDestination(result, current).slice(0, 8);
-};
+): CollectionComposerSuggestion[] => emptyStateSuggestions(current, context);
 
 //THE COLLECTION, AS ONE LINE OF PROSE — and it is the SAME line the sentence
 //renderer draws on screen, word for word.

@@ -24,8 +24,10 @@ let collectionDescriptionFromComposerSource;
 let readableCollectionExpression;
 let collectionExpressionParts;
 let collectionFilterDisplayName;
+let collectionFilterDescription;
 let collectionFilterLabels;
 let collectionComposerDestinationDiff;
+let collectionCompletionCandidates;
 let selectCollectionComposerCandidates;
 let activeCardRelationshipCandidates;
 let activeCardMetadataCandidates;
@@ -57,11 +59,16 @@ describe('Collection Composer suggestions', () => {
 			collectionComposerDestinationDiff,
 			collectionExpressionParts,
 			collectionFilterDisplayName,
+			collectionFilterDescription,
 			collectionFilterLabels,
 			collectionOrderPhrases,
 			activeCardRelationshipCandidates,
 			activeCardMetadataCandidates,
 		} = await import('../../lib/src/collection-composer-suggestions.js'));
+		//THE TYPED PATH LIVES NEXT DOOR. collectionComposerSuggestions answers
+		//only the idle question now, so the two pins below that are about what
+		//typing produces ask the module that actually produces it.
+		({ collectionCompletionCandidates } = await import('../../lib/src/collection-completion-index.js'));
 		({ selectCollectionComposerCandidates } = await import('../../lib/src/selectors.js'));
 		({
 			makeConfigurableFilter,
@@ -127,6 +134,10 @@ describe('Collection Composer suggestions', () => {
 			assert.ok(!starred.detail.includes('copied links keep'), starred.detail);
 		});
 
+		//RE-POINTED from the deleted typed list. The URL note is composed by one
+		//function for every row that carries one, and the rows still asking it for
+		//one are the opening list's spotlight candidates — so the promise, and the
+		//refusal above it, are pinned where they are still made.
 		it('keeps the durability promise for a clause that really is durable', () => {
 			const candidate = {
 				filter: 'working-notes',
@@ -137,12 +148,12 @@ describe('Collection Composer suggestions', () => {
 			};
 			const suggestions = collectionComposerSuggestions(
 				CollectionDescription.deserialize('everything/'),
-				'working',
+				'',
 				descriptions,
 				{ candidates: [candidate] }
 			);
 			const row = suggestions.find((suggestion) => suggestion.id.startsWith('candidate:'));
-			assert.ok(row, 'the typed path offers the candidate');
+			assert.ok(row, 'the opening list offers the spotlight candidate');
 			assert.ok(row.detail.includes('copied links keep it'), row.detail);
 			assert.ok(!row.viewerDependent);
 		});
@@ -154,12 +165,19 @@ describe('Collection Composer suggestions', () => {
 		//partialMatch when no field held the whole word set. The chip reads
 		//`Text contains “…”`, which sounds like a promise that the words appear
 		//together, so the row is where the qualification has to live.
-		const suggestions = collectionComposerSuggestions(
-			CollectionDescription.deserialize('everything/'),
-			'systems thinking',
-			descriptions
-		);
-		const query = suggestions.find((suggestion) => suggestion.kind === 'search');
+		//
+		//RE-POINTED. This used to ask this module's own typed list for its
+		//trailing `query:` row. That list is deleted; the row a user actually
+		//reads this sentence on is the completion index's free-text floor row,
+		//which carries the same sentence and is the only place that still does.
+		const rows = collectionCompletionCandidates({
+			token: 'systems thinking',
+			expression: [],
+			description: CollectionDescription.deserialize('everything/'),
+			context: { candidates: [], filterDescriptions: {} },
+			limit: 20,
+		});
+		const query = rows.find((row) => row.filter && row.filter.startsWith('query/'));
 		assert.ok(query, 'a text-query row is always offered');
 		assert.match(query.detail, /only some of its words/);
 	});
@@ -531,16 +549,6 @@ describe('Collection Composer suggestions', () => {
 		'a recent that differs by sort is a real destination and stays');
 	});
 
-	//The typed path can build an exact no-op too: re-typing the text you have
-	//already searched for produces the collection you are already composing.
-	it('does not offer a typed interpretation that would change nothing', () => {
-		const current = CollectionDescription.deserialize('everything/query/work/');
-		const suggestions = collectionComposerSuggestions(current, 'work', descriptions);
-		assert.ok(!suggestions.some((suggestion) =>
-			suggestion.description.serialize() === current.serialize()));
-		assert.ok(!suggestions.some((suggestion) => suggestion.kind === 'search'));
-	});
-
 	//Counts can only rank when they exist, and only when the list was rebuilt.
 	it('sinks rows that yield nothing below rows that yield something', () => {
 		const current = CollectionDescription.deserialize('main/');
@@ -569,9 +577,11 @@ describe('Collection Composer suggestions', () => {
 		assert.strictEqual(rankedWithRecent[0].kind, 'recent');
 	});
 
-	//A clause has one name. These are the three places the same clause shows up
-	//while it is being composed, plus the receipt that follows.
-	it('uses one name for a clause in the row, the chip, the broaden row, and the receipt', () => {
+	//A clause has one name. These are the places the same clause shows up while
+	//it is being composed, plus the receipt that follows. The typed ADD row was
+	//a fifth of them until the typed list was deleted; the four left are the
+	//four this module still draws.
+	it('uses one name for a clause in the namer, the chip, the broaden row, and the receipt', () => {
 		const candidates = [{
 			filter: 'inductively-knowable',
 			category: 'tag',
@@ -582,15 +592,15 @@ describe('Collection Composer suggestions', () => {
 		}];
 		const labels = collectionFilterLabels(candidates);
 		const cases = [
-			{ filter: 'starred', name: 'Starred', typed: 'starred' },
-			{ filter: 'inductively-knowable', name: 'Tagged Inductively Knowable', typed: 'inductively' },
+			{ filter: 'starred', name: 'Starred' },
+			{ filter: 'inductively-knowable', name: 'Tagged Inductively Knowable' },
 			//A configurable filter carrying a value nobody hardcoded. Its name has to
 			//be derived from its own URL parts, or editing 7 into 14 degrades
 			//"Updated since 7 days ago" into "Updated After · 14 Days Ago".
 			{ filter: 'updated/after/14-days-ago', name: 'Updated since 14 days ago' },
 			{ filter: 'created/between/3-days-ago/yesterday', name: 'Created between 3 days ago and yesterday' },
 		];
-		for (const { filter, name, typed } of cases) {
+		for (const { filter, name } of cases) {
 			assert.strictEqual(collectionFilterDisplayName(filter, labels), name, filter);
 			const applied = CollectionDescription.deserialize(`everything/${filter}/`);
 			assert.strictEqual(collectionExpressionParts(applied, labels).filters[0].label, name, `chip: ${filter}`);
@@ -603,14 +613,6 @@ describe('Collection Composer suggestions', () => {
 				`Removes ${name}`,
 				`diff: ${filter}`
 			);
-			if (!typed) continue;
-			const add = collectionComposerSuggestions(
-				CollectionDescription.deserialize('everything/'),
-				typed,
-				descriptions,
-				{ candidates }
-			).find((suggestion) => suggestion.description.filters.includes(filter));
-			assert.strictEqual(add.label, `Add ${name}`, `add row: ${filter}`);
 		}
 	});
 
@@ -662,31 +664,14 @@ describe('Collection Composer suggestions', () => {
 		assert.strictEqual(diff('main/starred/', 'main/starred/'), '');
 	});
 
-	it('shows ambiguous text as explicit interpretations', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const suggestions = collectionComposerSuggestions(
-			current,
-			'work',
-			descriptions
-		);
-		assert.strictEqual(suggestions[0].label, 'Add Working Notes');
-		assert.strictEqual(suggestions.at(-1).label, 'Add Text contains “work”');
-		assert.notStrictEqual(
-			suggestions[0].description.serialize(),
-			suggestions.at(-1).description.serialize()
-		);
-	});
-
-	it('ranks name matches ahead of incidental description matches', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const suggestions = collectionComposerSuggestions(current, 'working', {
-			'mined-for-content': 'Cards with working source material',
-			'working-notes': 'Working notes cards',
-		});
-		assert.strictEqual(suggestions[0].label, 'Add Working Notes');
-	});
-
-	it('discovers concrete values with deterministic, inspectable filters', () => {
+	//RE-POINTED AND NARROWED, from 'discovers concrete values with deterministic,
+	//inspectable filters'. The discovery half of that claim — a typed phrase
+	//finding this tag, and finding it ahead of the free-text reading — was the
+	//deleted typed list's ranking, and the completion index pins the same
+	//ordering over the same vocabulary. WHAT SURVIVES IS THE URL NOTE: it is
+	//composed by one function for every row that carries one, opening-list rows
+	//included, and the §1.4 rule it enforces has nothing to do with typing.
+	it('names a concrete value in its URL note, never by its URL spelling', () => {
 		const current = CollectionDescription.deserialize('everything/');
 		const candidates = [
 			{
@@ -695,42 +680,24 @@ describe('Collection Composer suggestions', () => {
 				label: 'Tagged “Inductively Knowable”',
 				detail: 'Keeps cards tagged Inductively Knowable',
 				aliases: ['inductively knowable', 'tag'],
-			},
-			{
-				filter: 'half-baked',
-				category: 'section',
-				label: 'In section “Half Baked”',
-				detail: 'Keeps cards in the Half Baked section',
-				aliases: ['half baked', 'section'],
+				spotlight: true,
 			},
 		];
 		const suggestions = collectionComposerSuggestions(
 			current,
-			'tag inductively',
+			'',
 			{ 'inductively-knowable': 'Matches cards in the Inductively Knowable tag' },
 			{ candidates }
 		);
-		assert.strictEqual(suggestions[0].label, 'Add Tagged “Inductively Knowable”');
-		assert.deepStrictEqual(suggestions[0].description.filters, ['inductively-knowable']);
+		const row = suggestions.find((suggestion) => suggestion.id.startsWith('candidate:'));
+		assert.ok(row, 'the opening list offers the spotlight candidate');
+		assert.strictEqual(row.label, 'Add Tagged “Inductively Knowable”');
+		assert.deepStrictEqual(row.description.filters, ['inductively-knowable']);
 		//The URL note names the clause the way every other surface names it, and
 		//never by its URL spelling (HS-1.4). The raw key must not appear at all.
-		assert.match(suggestions[0].detail, /Adds Tagged “Inductively Knowable” to the collection URL/);
-		assert.ok(!suggestions[0].detail.includes('inductively-knowable'),
+		assert.match(row.detail, /Adds Tagged “Inductively Knowable” to the collection URL/);
+		assert.ok(!row.detail.includes('inductively-knowable'),
 			'a filter\'s URL spelling is an internal identifier, not a name');
-		assert.strictEqual(suggestions.at(-1).label, 'Add Text contains “tag inductively”');
-	});
-
-	it('ranks exact built-ins over weaker concrete matches', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const suggestions = collectionComposerSuggestions(current, 'starred', descriptions, {
-			candidates: [{
-				filter: 'starred-ideas',
-				category: 'tag',
-				label: 'Tagged “Starred Ideas”',
-				detail: 'Keeps cards tagged Starred Ideas',
-			}],
-		});
-		assert.strictEqual(suggestions[0].label, 'Add Starred');
 	});
 
 	it('suppresses ambiguous and reserved section or tag IDs', () => {
@@ -780,19 +747,18 @@ describe('Collection Composer suggestions', () => {
 		assert.ok(!candidates.some(candidate => candidate.label.includes('Hidden')));
 		assert.ok(!casey.searchValues.some(value => value.includes('visibleperson')));
 
-		const suggestions = collectionComposerSuggestions(
-			CollectionDescription.deserialize('everything/'),
-			'casey',
-			{ author: 'Selects cards by contributor' },
-			{ candidates }
-		);
-		assert.strictEqual(suggestions[0].label, 'Add Contributed By Casey');
-		assert.deepStrictEqual(suggestions[0].description.filters, ['author/visibleperson']);
-		assert.doesNotMatch(suggestions[0].detail, /visibleperson/i);
+		//THE HONEST LABEL, asked of the namer rather than of a typed list. Typing
+		//'casey' and getting this candidate is the completion index's business
+		//now; that the clause it produces is NAMED by the person and never by the
+		//uid in its URL is this module's, and is the half that was ever at risk.
+		const labels = collectionFilterLabels(candidates);
+		assert.strictEqual(collectionFilterDisplayName('author/visibleperson', labels), 'Contributed By Casey');
+		assert.doesNotMatch(collectionFilterDisplayName('author/visibleperson', labels), /visibleperson/i);
+		const contributed = CollectionDescription.deserialize('everything/author/visibleperson/');
 		const [contributorFilter] = makeConfigurableFilter('author/visibleperson');
 		assert.strictEqual(contributorFilter({ author: 'Other', collaborators: ['VisiblePerson'] }, {}).matches, true);
 		assert.strictEqual(
-			readableCollectionExpression(suggestions[0].description, {
+			readableCollectionExpression(contributed, {
 				'author/visibleperson': 'Cards Casey authored or collaborated on',
 			}),
 			'Everything · Cards Casey authored or collaborated on'
@@ -810,39 +776,20 @@ describe('Collection Composer suggestions', () => {
 		assert.ok(duplicateNames.every(candidate => !/First|Second/.test(candidate.label)));
 	});
 
-	it('caps and deduplicates concrete values while retaining text search', () => {
-		const current = CollectionDescription.deserialize('everything/tag-0/');
-		const candidates = Array.from({ length: 9 }, (_, index) => ({
-			filter: `tag-${index}`,
-			category: 'tag',
-			label: `Tagged “Tag ${index}”`,
-			detail: `Keeps cards tagged Tag ${index}`,
-			aliases: ['tag'],
-		}));
-		const suggestions = collectionComposerSuggestions(current, 'tag', {}, { candidates });
-		assert.strictEqual(suggestions.filter(item => item.kind === 'add').length, 6);
-		assert.ok(!suggestions.some(item => item.description.filters.filter(filter => filter === 'tag-0').length > 1));
-		assert.strictEqual(suggestions.at(-1).kind, 'search');
-	});
-
 	it('offers explicit active-card relationship clauses only with context', () => {
 		assert.deepStrictEqual(activeCardRelationshipCandidates(''), []);
 		const candidates = activeCardRelationshipCandidates('card-123');
-		const suggestions = collectionComposerSuggestions(
-			CollectionDescription.deserialize('everything/'),
-			'links from this card',
-			descriptions,
-			{ candidates }
-		);
-		assert.strictEqual(suggestions[0].label, 'Add This card and cards it links to');
-		assert.deepStrictEqual(suggestions[0].description.filters, ['children/+card-123']);
-		assert.match(suggestions[0].detail, /copied links keep this anchor/);
-		assert.doesNotMatch(suggestions[0].description.serialize(), /key-card-id/);
-		assert.strictEqual(suggestions.at(-1).kind, 'search');
+		const children = candidates.find((candidate) => candidate.filter === 'children/+card-123');
+		assert.ok(children, 'the family anchors to the card that is actually open');
+		//The anchor is durable: the clause carries the card's own id, never the
+		//router's placeholder for "whatever card happens to be open".
+		assert.doesNotMatch(children.filter, /key-card-id/);
+		assert.match(children.detail, /copied links keep this anchor/);
+		const linksFrom = CollectionDescription.deserialize('everything/children/+card-123/');
 		//With the open card's labels in hand, the clause is the open card's, and
 		//says so.
 		assert.strictEqual(
-			readableCollectionExpression(suggestions[0].description, collectionFilterLabels(candidates)),
+			readableCollectionExpression(linksFrom, collectionFilterLabels(candidates)),
 			'Everything · This card and cards it links to'
 		);
 		//Without them, nothing here knows card-123 is the card on screen, so the
@@ -850,21 +797,14 @@ describe('Collection Composer suggestions', () => {
 		//to read 'This card and cards it links to' for every anchor, which made
 		//two clauses anchored to different cards indistinguishable.
 		assert.strictEqual(
-			readableCollectionExpression(suggestions[0].description),
+			readableCollectionExpression(linksFrom),
 			'Everything · Cards card-123 links to'
 		);
 		//And with a title loaded, the card is named the way a person would.
 		assert.strictEqual(
-			readableCollectionExpression(suggestions[0].description, {}, {'card-123': 'Perf card 12'}),
+			readableCollectionExpression(linksFrom, {}, {'card-123': 'Perf card 12'}),
 			'Everything · Cards “Perf card 12” links to'
 		);
-		const byFamilyName = collectionComposerSuggestions(
-			CollectionDescription.deserialize('everything/'),
-			'children',
-			descriptions,
-			{ candidates }
-		);
-		assert.strictEqual(byFamilyName[0].label, 'Add This card and cards it links to');
 
 		const withoutTyping = collectionComposerSuggestions(
 			CollectionDescription.deserialize('everything/'),
@@ -963,15 +903,18 @@ describe('Collection Composer suggestions', () => {
 		assert.strictEqual(filter({ updated_substantive: timestamp(recent) }).matches, true);
 		assert.strictEqual(filter({ updated_substantive: timestamp(old) }).matches, false);
 
+		//AND THE SEEDED CANDIDATE IS NAMED BY THE MEANING IT EXECUTES WITH. Which
+		//typed phrase surfaces it ('last 7 days') is the completion index's
+		//ranking; that the clause it seeds is spelled `updated/after/7-days-ago`
+		//and named 'Updated since 7 days ago' — the same window the filter above
+		//just ran — is the part that has to hold wherever the row appears.
 		const candidates = selectCollectionComposerCandidates({ data: { sections: {}, tags: {}, cards: {}, authors: {} } });
-		const suggestions = collectionComposerSuggestions(
-			CollectionDescription.deserialize('everything/'),
-			'last 7 days',
-			descriptions,
-			{ candidates }
+		const seeded = candidates.find((candidate) => candidate.filter === 'updated/after/7-days-ago');
+		assert.ok(seeded, 'the corpus seeds a durable relative-date candidate');
+		assert.strictEqual(
+			collectionFilterDisplayName(seeded.filter, collectionFilterLabels(candidates)),
+			'Updated since 7 days ago'
 		);
-		assert.strictEqual(suggestions[0].label, 'Add Updated since 7 days ago');
-		assert.deepStrictEqual(suggestions[0].description.filters, ['updated/after/7-days-ago']);
 
 		const beforeMidnight = new Date(2026, 6, 17, 23, 59);
 		const afterMidnight = new Date(2026, 6, 18, 0, 1);
@@ -983,32 +926,6 @@ describe('Collection Composer suggestions', () => {
 			configurableFilterCacheKey('updated/after/2026-7-17', beforeMidnight),
 			configurableFilterCacheKey('updated/after/2026-7-17', afterMidnight)
 		);
-	});
-
-	it('marks configurable families for guided editing before commitment', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const [suggestion] = collectionComposerSuggestions(
-			current,
-			'updated',
-			descriptions
-		);
-		assert.match(suggestion.description.filters[0], /^updated\//);
-		assert.strictEqual(suggestion.configureFilter, 'updated');
-		assert.strictEqual(suggestion.label, 'Configure Updated');
-		assert.match(suggestion.detail, /choose its values before changing the draft/);
-	});
-
-	it('routes nested collection expressions to lossless Source editing', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const [suggestion] = collectionComposerSuggestions(
-			current,
-			'exclude',
-			descriptions
-		);
-		assert.strictEqual(suggestion.sourceFilter, 'exclude');
-		assert.strictEqual(suggestion.configureFilter, undefined);
-		assert.strictEqual(suggestion.label, 'Edit Exclude in Source');
-		assert.match(suggestion.detail, /completions/);
 	});
 
 	it('accepts fragments, routes, and full URLs as collection source', () => {
@@ -1035,25 +952,6 @@ describe('Collection Composer suggestions', () => {
 			collectionDescriptionFromComposerSource('view/grid/'),
 			null
 		);
-	});
-
-	it('keeps text search available when slash-containing source is invalid', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const suggestions = collectionComposerSuggestions(current, 'view/grid/', descriptions);
-		assert.ok(suggestions.some((suggestion) => suggestion.label === 'Add Text contains “view/grid/”'));
-	});
-
-	it('keeps text search available beside a valid slash source', () => {
-		const current = CollectionDescription.deserialize('everything/');
-		const suggestions = collectionComposerSuggestions(current, 'starred/unread/', descriptions);
-		assert.strictEqual(suggestions[0].action, 'open');
-		assert.ok(suggestions.some((suggestion) => suggestion.label === 'Add Text contains “starred/unread/”'));
-	});
-
-	it('does not offer to append an already applied filter', () => {
-		const current = CollectionDescription.deserialize('everything/starred/');
-		const suggestions = collectionComposerSuggestions(current, 'starred', descriptions);
-		assert.ok(!suggestions.some((suggestion) => suggestion.label === 'Add Starred'));
 	});
 
 	it('renders a compact readable expression', () => {
@@ -1131,22 +1029,26 @@ describe('Collection Composer suggestions', () => {
 	//The catalog had already been taught not to show it; the suggestion list had
 	//not, so typing "unstarred" offered a row whose entire explanation was the
 	//app's own identifier for the other half of the pair.
+	//
+	//RE-POINTED to the namer itself. The row that leaked the sentence was in the
+	//deleted typed list, but the leak was never that list's: it is
+	//collectionFilterDescription that decides what an excluding filter says, and
+	//that function feeds the catalog, the completion index and every aria-label
+	//composed from either. Asking it directly pins the MUST at the one place it
+	//is answered rather than at one of the surfaces that repeat the answer.
 	it('never explains a filter with the app’s own identifier for another one', () => {
-		const suggestions = collectionComposerSuggestions(
-			CollectionDescription.deserialize('everything/'),
-			'unstarred',
-			{ unstarred: 'Inverse of starred', starred: 'Cards you have starred' }
-		);
-		const row = suggestions.find((suggestion) => suggestion.name === 'Unstarred');
-		assert.ok(row, 'typing the excluding half must still offer it');
-		assert.ok(!/Inverse of/.test(row.detail), `detail leaked the synthesized sentence: ${row.detail}`);
+		const synthesized = { unstarred: 'Inverse of starred', starred: 'Cards you have starred' };
+		assert.strictEqual(collectionFilterDisplayName('unstarred'), 'Unstarred',
+			'the excluding half is still a nameable clause');
+		const detail = collectionFilterDescription('unstarred', synthesized);
+		assert.ok(!/Inverse of/.test(detail), `detail leaked the synthesized sentence: ${detail}`);
 		//'Cards not matching Starred' is the DERIVED repair, and it is the
 		//fallback. Once collection-filter-synonyms curates a real sentence for
 		//this half of the pair, that sentence wins: an authored description is
 		//strictly better than one composed out of the other half's display name,
 		//and it still names no identifier.
-		assert.strictEqual(row.detail, 'Cards you have never marked with a star.');
-		assert.ok(!/\bstarred\b/.test(row.detail), `detail leaked a raw filter id: ${row.detail}`);
+		assert.strictEqual(detail, 'Cards you have never marked with a star.');
+		assert.ok(!/\bstarred\b/.test(detail), `detail leaked a raw filter id: ${detail}`);
 	});
 
 	//THE ORDER TAIL, IN TWO REGISTERS (owner, F1).

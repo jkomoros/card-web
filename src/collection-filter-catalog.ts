@@ -11,9 +11,25 @@
 //name in the filter registry through the composer's description path and fails
 //on any internal-identifier pattern (`Inverse of <filter-id>`, raw argument
 //names, "Whether the card…"). That sweep is the reason the description tier can
-//be trusted at all, and this module is the harness it runs through. It has no
-//other consumer today; if it acquires one, that consumer should be reading the
-//same descriptions the completion index does rather than a second copy.
+//be trusted at all, and this module is the harness it runs through.
+//
+//SO THIS IS A DELIBERATE TEST-ONLY REGISTRY GATE, and saying so is the point of
+//this paragraph. It has NO production importer, it is not waiting for one, and
+//it is not dead code: its consumers are test/collection-filter-catalog and
+//test/collection-filter-metadata, which hold the entire filter registry up
+//against the composer's own naming and description functions.
+//
+//IT LIVES UNDER src/ ON PURPOSE. The gate is only worth anything because it
+//walks the registry through the SHIPPING namers — collectionFilterDescription,
+//collectionFilterDisplayName, collectionExpressionParts — with the shipping
+//imports and the shipping types, which means tsc checks it on every build and a
+//registry change that breaks a name breaks the BUILD rather than waiting for
+//somebody to run the suite. A copy under test/ would be a second reading of the
+//registry that nothing typechecks against the first — the exact species of
+//drift this gate exists to catch.
+//
+//If it ever does acquire a production consumer, that consumer must read the
+//same descriptions the completion index reads rather than a second copy.
 
 import {
 	CONFIGURABLE_FILTER_ARGUMENTS,

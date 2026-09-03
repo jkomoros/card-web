@@ -83,6 +83,19 @@ const nextExpression = async (element, label) => nextExpressionFrom(element, ver
 
 const nextExpressionAfterRemove = async (element) => nextExpressionFrom(element, removeControl(element));
 
+//THE DOM IS A FIXTURE TOO, and nothing was putting it back.
+//
+//Every mount in this file appends to document.body and no test removed what it
+//appended, so a full run finished with dozens of live elements stacked in one
+//document — each with its own Lit update loop, its own listeners and its own
+//shadow root. Anything that queries past a shadow boundary, counts elements, or
+//reads document.activeElement is then reading the whole run's residue rather
+//than the case in front of it. Emptying the body between tests is what makes a
+//test's DOM the DOM that test built.
+afterEach(() => {
+	while (document.body.firstChild) document.body.firstChild.remove();
+});
+
 describe('the pill row', () => {
 
 	describe('invert', () => {

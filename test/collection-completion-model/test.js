@@ -713,12 +713,17 @@ describe('Collection completion model', () => {
 		//offered beside a clause the user NAMED, or when the token asked for one
 		//outright; below that line it is noise wearing a sentence's shape.
 		it('offers an unrequested negation only for a token that named something', () => {
+			//THE PRECONDITION IS ASSERTED, NOT ASSUMED. The claim is about a match
+			//BELOW the name tiers; guarded by `if`, a day when 'sysms' stopped
+			//reaching the tag at all — or started reaching it by name — would
+			//retire the assertion silently and leave a green test making no claim.
 			const structural = complete('sysms', 'everything/tag-complexity/')
 				.find(candidate => candidate.filter === 'tag-systems');
-			if (structural && !NAME_ISH.has(structural.tier)) {
-				assert.ok(!structural.valences.some(valence => valence.kind === 'not'),
-					`a ${structural.tier} match carries no unrequested negation: ${structural.valences.map(valence => valence.kind).join(', ')}`);
-			}
+			assert.ok(structural, '“sysms” must still reach the Systems tag, or this test is about nothing');
+			assert.ok(!NAME_ISH.has(structural.tier),
+				`and it must reach it below the name tiers: ${structural.tier}`);
+			assert.ok(!structural.valences.some(valence => valence.kind === 'not'),
+				`a ${structural.tier} match carries no unrequested negation: ${structural.valences.map(valence => valence.kind).join(', ')}`);
 			//A NAMED match beside a clause of its own family still gets one — that
 			//is the state where "…but not this one" is a sentence being written.
 			const named = complete('systems', 'everything/tag-complexity/')
@@ -727,13 +732,16 @@ describe('Collection completion model', () => {
 			assert.ok(named.valences.some(valence => valence.kind === 'not'),
 				`and it keeps its flip: ${named.valences.map(valence => valence.kind).join(', ')}`);
 			//And a negated token gets one at ANY tier, because it was asked for.
+			//THE `if` HERE GUARDED THE EXACT REGRESSION THE TEST EXISTS TO CATCH:
+			//if stripping the prefix ever stopped the remainder reaching the tag
+			//through the typo tier, `requested` would be undefined and the whole
+			//claim would evaporate into a passing test.
 			const requested = complete('not sysms', 'everything/')
 				.find(candidate => candidate.filter === 'tag-systems');
-			if (requested) {
-				const not = requested.valences.find(valence => valence.kind === 'not');
-				assert.ok(not, 'a negation prefix is honoured at every tier');
-				assert.strictEqual(not.requested, true);
-			}
+			assert.ok(requested, 'a negation prefix must not cost the token its typo-tier reach');
+			const not = requested.valences.find(valence => valence.kind === 'not');
+			assert.ok(not, 'a negation prefix is honoured at every tier');
+			assert.strictEqual(not.requested, true);
 		});
 
 		//THE HONEST FLOOR IS REACHABLE (round-3 tightness, minor). `Text contains
@@ -802,16 +810,22 @@ describe('Collection completion model', () => {
 		//what made the token 'or' hit every sort in the app: 'Orders this
 		//collection by …' begins with the letters somebody typed.
 		it('never reaches a sentence word through its prose', () => {
+			//A SWEEP WITH A `continue` IN IT PROVES NOTHING ABOUT AN EMPTY SET, so
+			//each sweep says first that it has something to sweep. Otherwise the
+			//day sentence words stop being offered for 'order' at all is the day
+			//this test starts passing for the wrong reason.
 			const rows = complete('order');
-			for (const row of rows) {
-				if (!['set', 'sort', 'view'].includes(row.kind)) continue;
+			const sentenceWords = rows.filter(row => ['set', 'sort', 'view'].includes(row.kind));
+			assert.ok(sentenceWords.length, '“order” must reach sentence words for this sweep to mean anything');
+			for (const row of sentenceWords) {
 				assert.ok(['name-exact', 'name-prefix', 'alias', 'typo'].includes(row.tier),
 					`${row.id} was reached at the ${row.tier} tier — a sentence word is named, not described`);
 			}
 			//'or' is two characters, so the typo tier cannot fire either. Only
 			//sorts whose own NAME begins with it may appear.
-			for (const row of complete('or')) {
-				if (row.kind !== 'sort') continue;
+			const orSorts = complete('or').filter(row => row.kind === 'sort');
+			assert.ok(orSorts.length, '“or” must still reach the sorts whose names contain it');
+			for (const row of orSorts) {
 				assert.ok(row.label.toLowerCase().includes('or'), `${row.id} matched “or” on prose`);
 			}
 		});
