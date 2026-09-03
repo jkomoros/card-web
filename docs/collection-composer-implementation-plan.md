@@ -9,6 +9,16 @@
 **Implementation base:** landed fast-corpus `master` at `ec1fdf08`; this base
 includes shift-range selection
 
+**PREDATES THE REDESIGN — read the code first.** This plan was written before
+the Native Sentence redesign
+([05-meta-proposal-native-sentence.md](./composer-redesign/05-meta-proposal-native-sentence.md))
+and the nine owner review rounds that followed it. Whole surfaces it sequences —
+the two-column builder, the categorized catalog, the Tab-adds/Enter-opens key
+split — were built and then superseded. It is kept as the record of how the work
+was staged, not as a description of what shipped. Where it conflicts with the
+code, **the code and 05's addendum win**; this file carries no per-section
+supersession notes, so assume any specific it states may have moved.
+
 ## Purpose
 
 This plan turns the product specification into a sequence of independently

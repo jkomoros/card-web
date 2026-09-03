@@ -588,6 +588,31 @@ Raw syntax may be shown as secondary help for users learning source mode.
 
 ### Keyboard behavior
 
+**SUPERSEDED (round 3, D1). The contract in this section is the inverse of the
+one that ships.** The owner's constitution replaced it: "ENTER EXECUTES THE TOP
+ACTION … not live-changing the real collection until you commit with Cmd-Enter."
+What ships: **Enter** executes the top action against the draft and clears the
+input — typing makes the top row the highlighted one, so "the top action" and
+"the highlighted row" are one branch, not two, and Enter with nothing
+highlighted does nothing at all; **Tab** survives only as an alias for that same
+execute, kept for muscle memory, not as the other half of an add-versus-open
+split; **Cmd/Ctrl-Enter** commits the draft, and with the primary button it is
+one of only two gestures that navigate; **Escape** discards, and is the undo
+composition has, because a draft is a preview and nothing real has changed.
+There is **no in-dialog undo** — the draft receipt strip and its Undo button are
+deleted, a second history competing with the one the user already had. There is
+**no footer hint line**: the composer renders no key-hints element in any state
+(owner, F4, of `Enter does the top thing · Cmd-Enter opens · Escape discards`:
+"this text … is unnecessary"), so the contract is published where every other
+one is — `commit-collection-composer` and `dialog-escape` are `declareShortcut`
+entries and appear in the shortcut sheet.
+
+This block supersedes the table below, the persistent-footer paragraph that
+follows it, acceptance criteria 6–7, and Decision 4. It does **not** supersede
+the post-navigation receipt in "Committing navigation" below: that receipt, and
+its Undo, still ship — as a snackbar after arrival, which is a different thing
+from an undo inside the composer.
+
 | Input                                | Behavior                                                                                                                                                      |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Ctrl-K                               | Open composer; if already open, focus input                                                                                                                   |
@@ -773,6 +798,25 @@ progressive alternatives:
 This is explicit ambiguity without decision fatigue.
 
 ## Expanded visual builder
+
+**SUPERSEDED IN WHOLE by the Native Sentence redesign
+(`docs/composer-redesign/05-meta-proposal-native-sentence.md`, rounds 2–7).
+Nothing in this section ships — not one bullet of it.** The single struck-through
+line below has been misleading precisely because it is the only one: it implies
+the rest is live. It is not. There is no two-column builder: the composer is one
+light dialog holding a sentence, an input, one ranked list and a footer, and the
+FROM/WHERE/AND/SORT/VIEW ladder drawn here was never built — set, sort and view
+are words in the sentence, and clicking one fills the same list with its
+alternatives. There is no second column and no categorized catalog: the catalog
+stopped being a place and became the searchable index behind typing, and the
+`Browse all filters` gate that used to guard it is deleted along with the feed
+behind it, on the owner's round-2 correction — "the list should show some
+pre-configured items (recents/suggestions) but also just filter the WHOLE set —
+don't hide the full set of filters, it shows the power."
+`collection-filter-catalog` survives as the metadata-quality gate it always also
+was; it feeds no surface. What does still hold, and is implemented elsewhere: AND/OR/NOT as the
+UI grammar, the argument editors below (now the pill row's, one line under the
+sentence), and the unsupported-source preservation contract.
 
 The visual builder is available from:
 
@@ -1274,8 +1318,21 @@ chips without turning every word into a colorful pill.
 - Operators such as AND, OR, NOT, SORTED BY, and FROM remain quiet textual
   structure.
 - Filter-family labels are plain language, not loud badges.
-- Color reinforces known Card Web semantics; it does not assign a decorative
-  rainbow to arbitrary filter categories.
+- ~~Color reinforces known Card Web semantics; it does not assign a decorative
+  rainbow to arbitrary filter categories.~~ — **SUPERSEDED by `docs/HOUSE-STYLE.md`
+  §4.5 Color semantics, the `--app-clause-*-color` (clause ramp) row, which now
+  MANDATES what this line forbids.** The owner's round-6 call: "Most tag types
+  e.g. Card-type:FOO are the same colour. Use colours for consistency and
+  texture in a principled way. It should be MORE colourful than not, so at a
+  glance, if you squint, you can tell what the collection has." The rule the
+  ramp answers with is not a rainbow and not a taste call: **a value wears its
+  own colour, a clause wears its family's** — eight families, one hue per
+  family, never a hue per filter, assigned from the filter spelling by
+  `src/collection-pill-palette.ts` and pinned by `test/collection-pill-palette`,
+  with every clause hue held at least 15° off all four reserved status colours.
+  Painting four different kinds of claim as four identical grey lozenges was, at
+  the scale a collection is actually read at, a sentence with the nouns rubbed
+  out.
 - Focused/editable clauses receive a clear outline or subtle primary wash using
   existing theme colors.
 
@@ -1355,8 +1412,16 @@ horizontally scrolling token strip.
 3. Quick, builder, and source modes visibly belong to one component family.
 4. AND, OR, NOT, clause values, counts, focus, and expensive/partial states are
    distinguishable without relying on decorative color.
-5. The interface adds no gratuitous panels, nested cards, shadows, gradients,
-   or category colors.
+5. ~~The interface adds no gratuitous panels, nested cards, shadows, gradients,
+   or category colors.~~ — **the "or category colors" clause is SUPERSEDED by
+   `docs/HOUSE-STYLE.md` §4.5 Color semantics, the `--app-clause-*-color` (clause
+   ramp) row**, on the owner's round-6 direction that colour be used "in a
+   consistent and principled way" and that the result "should be MORE colourful
+   than not." Family colour is now required, not gratuitous; see the
+   Expression-appearance note above. The rest of the criterion — no gratuitous
+   panels, nested cards, shadows or gradients — stands. Criterion 4's "without
+   relying on decorative color" also stands: the ramp is semantic, so nothing
+   below it may depend on hue alone.
 6. Existing components such as `dialog-element`, `tag-list`, card find/pickers,
    button styles, and shared icons are reused or deliberately evolved rather
    than visually reimplemented.
@@ -1753,6 +1818,14 @@ through the builder and explain the resulting collection.
 6. Every row visibly performs Open, Add, Remove, Replace, or Edit.
 7. Tab adds a clause while the combobox is active; Enter opens the visible
    preview; Escape cancels; the current key contract is always visible.
+
+   **Criteria 6–7 are SUPERSEDED (round 3, D1) — see the block at the head of
+   "Keyboard behavior."** Enter executes the top action against the draft, Tab
+   is its alias, Cmd/Ctrl-Enter commits, and no key contract is visible: the
+   key-hints line is deleted and the shortcut sheet carries it instead. Rows act
+   on the draft rather than offering Open, and the "Remove X" rows of criterion
+   6 are gone — a clause is removed where it lives, in the sentence.
+
 8. A compact deterministic set of useful Continue and Refine destinations
    appears without requiring typed input.
 9. Highlighting a signature suggestion reveals its exact clause diff, honest
@@ -1795,7 +1868,9 @@ through the builder and explain the resulting collection.
    and text-query meanings.
 4. **Tab composes; Enter opens the visible preview.** Tab is captured only while
    the suggestion combobox is active; otherwise it retains normal focus
-   traversal.
+   traversal. — **SUPERSEDED (round 3, D1); see the block at the head of
+   "Keyboard behavior."** The split is gone: Enter executes the top action, Tab
+   is an alias for the same execute, and Cmd/Ctrl-Enter is what opens.
 5. **Preview is staged.** URL and browser history change only on commit.
 6. **AND, OR, and NOT are the UI grammar.** Encoding details remain in source
    mode.
