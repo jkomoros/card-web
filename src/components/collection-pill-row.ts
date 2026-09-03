@@ -67,7 +67,11 @@ import {
 import {
 	CONFIGURABLE_FILTER_INFO,
 	ME_AUTHOR_ID,
+	QUERY_FILTER_NAME,
+	QUERY_STRICT_FILTER_NAME,
 	piecesForConfigurableFilter,
+	queryFilter,
+	queryTextFromQueryFilter,
 	splitCompoundFilter,
 } from '../filters.js';
 
@@ -136,6 +140,11 @@ export const INVERT_VERB_LABEL = 'Invert';
 //not sprout a control that says otherwise — that is complaint #8's dead
 //affordance, one level down.
 const REFUSED_CONTROL_TYPES : ReadonlySet<string> = new Set(['sub-filter', 'expand-filter']);
+
+//The two families whose one argument is free text rather than a name — the two
+//filters.js's queryFilter writes and queryTextFromQueryFilter reads.
+const queryFamily = (family : string) : boolean =>
+	family === QUERY_FILTER_NAME || family === QUERY_STRICT_FILTER_NAME;
 
 //THE ARGUMENT'S NAME, IN THE COMPOSER'S VOICE.
 //
@@ -445,7 +454,19 @@ class CollectionPillRow extends LitElement {
 		//for a filter that is not configurable, and every plain filter in the
 		//app would reach it.
 		if (!rest || !CONFIGURABLE_FILTER_INFO[family]) return [];
-		return piecesForConfigurableFilter(leaf.filter);
+		const pieces = piecesForConfigurableFilter(leaf.filter);
+		//THE QUERY FAMILIES' ARGUMENT IS PROSE, AND THE URL SPELLS IT ENCODED.
+		//
+		//piecesForConfigurableFilter hands back the raw path segment, which for
+		//every other family IS the value a person would type. For a query it is
+		//not: `query/systems+thinking` would put `systems+thinking` in a box
+		//labeled "Query text", and a search that ever contained a slash or a
+		//percent would read back as escapes. So this one family is decoded on
+		//the way in and re-spelled on the way out (see _applyArgumentValue) —
+		//the box holds the words, the URL holds the encoding, and neither can
+		//leak into the other.
+		if (!queryFamily(family)) return pieces;
+		return pieces.map(piece => ({...piece, value: queryTextFromQueryFilter(leaf.filter)}));
 	}
 
 	_argumentControls() : TemplateResult {
@@ -536,7 +557,17 @@ class CollectionPillRow extends LitElement {
 		const pieces = piecesForConfigurableFilter(leaf.filter);
 		if (!pieces[subIndex]) return;
 		pieces[subIndex].value = value;
-		const spelling = family + '/' + pieces.map(piece => piece.value).join('/');
+		//A QUERY IS SPELLED BY THE APP'S ONE SPELLER, not concatenated. Joining
+		//the raw box contents wrote user prose straight into a URL path: a query
+		//for `view/grid` produced `query/view/grid`, three segments where the
+		//family's parser takes one, so the collection read it as a search for
+		//'view' and two filters it had never heard of; a `%` made the query
+		//filter's own reader throw on a path this composer had just written.
+		//The query families take exactly one argument, so the speller's output
+		//is the whole clause.
+		const spelling = queryFamily(family) ?
+			queryFilter(value, family === QUERY_STRICT_FILTER_NAME) :
+			family + '/' + pieces.map(piece => piece.value).join('/');
 		const node = this._node;
 		//A negated clause keeps its negation across an argument edit. It has to
 		//go back through negatedExpressionNode rather than being re-wrapped by

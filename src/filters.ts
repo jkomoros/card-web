@@ -878,8 +878,14 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 	return [func, false];
 };
 
+//BOTH QUERY FAMILIES, because queryFilter WRITES both — its `strict` parameter
+//picks between them and encodes identically either way. A reader that knew only
+//the loose one meant `query-strict/systems+thinking` had no way back to the
+//words a person typed, so every surface that wanted them (the pill row's own
+//argument box, the find box seeded from a collection) had to either re-implement
+//the decode or show the URL spelling.
 const configurableFilterIsQuery = (filterName : string) : boolean => {
-	return filterName.startsWith(QUERY_FILTER_NAME + '/');
+	return filterName.startsWith(QUERY_FILTER_NAME + '/') || filterName.startsWith(QUERY_STRICT_FILTER_NAME + '/');
 };
 
 //decodeURIComponent THROWS on a malformed percent escape ('%', 'foo%zz'), and

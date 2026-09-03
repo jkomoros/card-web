@@ -45,6 +45,8 @@ let IDLE_CONTEXTUAL_ROW_LIMIT;
 let parseCollectionExpression;
 let serializeCollectionExpression;
 let CARD_FILTER_DESCRIPTIONS;
+let queryFilter;
+let queryTextFromQueryFilter;
 let collectionFilterDescription;
 let collectionFilterLabels;
 let paletteTypingRows;
@@ -114,7 +116,7 @@ describe('Collection completion index', () => {
 			IDLE_CONTEXTUAL_ROW_LIMIT,
 		} = await import('../../lib/src/collection-completion-index.js'));
 		({ parseCollectionExpression, serializeCollectionExpression } = await import('../../lib/src/collection-expression.js'));
-		({ CARD_FILTER_DESCRIPTIONS } = await import('../../lib/src/filters.js'));
+		({ CARD_FILTER_DESCRIPTIONS, queryFilter, queryTextFromQueryFilter } = await import('../../lib/src/filters.js'));
 		({ collectionFilterDescription, collectionFilterLabels } = await import('../../lib/src/collection-composer-suggestions.js'));
 		({ paletteTypingRows, paletteIdleRows, paletteWordRows, VOCABULARY_SECTION } = await import('../../lib/src/collection-palette-rows.js'));
 	});
@@ -253,7 +255,45 @@ describe('Collection completion index', () => {
 				context: { candidates: world, filterDescriptions: {} },
 				limit: 20,
 			});
-			assert.deepStrictEqual(unmatched.map(candidate => candidate.filter), ['query/quixotic phrasing']);
+			//AND IT IS SPELLED THE WAY THE APP SPELLS THIS FAMILY. The row writes
+			//user text into a URL path, so the token goes through filters.js's
+			//queryFilter: a space is a '+', not a literal space.
+			assert.deepStrictEqual(unmatched.map(candidate => candidate.filter), ['query/quixotic+phrasing']);
+		});
+
+		//THE FLOOR ROW IS THE ONE THAT WRITES USER TEXT INTO A URL, and it is the
+		//Enter target whenever nothing else matches — so the characters a path
+		//gives meaning to are the ones it must not hand over raw. `view/grid/`
+		//concatenated verbatim produced `query/view/grid/`: a query filter with
+		//arity 3 where its parser takes 1, which the collection reads as a search
+		//for 'view' plus two filters it does not know. A bare '%' made the query
+		//filter's own reader throw.
+		it('spells the free-text row through the app’s canonical query encoder', () => {
+			const spell = (token) => {
+				const rows = collectionCompletionCandidates({
+					token,
+					expression: [],
+					description: draft(),
+					context: { candidates: [], filterDescriptions: {} },
+					limit: 20,
+				});
+				const row = rows.find(isFreeText);
+				assert.ok(row, `the literal reading is offered for ${JSON.stringify(token)}`);
+				return row.filter;
+			};
+			for (const token of ['view/grid/', '50%', 'a#b', 'a?b', 'one two']) {
+				const filter = spell(token);
+				assert.strictEqual(filter, queryFilter(token),
+					`${JSON.stringify(token)} is spelled by filters.js, not concatenated`);
+				//ARITY 1, WHICH IS WHAT THE QUERY FAMILY'S PARSER TAKES. Every
+				//other character may be encoded; the slash count is the one thing
+				//the collection path itself reads.
+				assert.strictEqual(filter.split('/').length, 2,
+					`${JSON.stringify(token)} produced a filter with the wrong arity: ${filter}`);
+				//And it round-trips: what the reader gets back is what was typed.
+				assert.strictEqual(queryTextFromQueryFilter(filter), token,
+					`${JSON.stringify(token)} did not round-trip through the query filter's own reader`);
+			}
 		});
 
 		it('finds a tag by its own authored description', () => {

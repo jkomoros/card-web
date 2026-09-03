@@ -1689,7 +1689,8 @@ describe('Collection Composer interactions', () => {
 		queryInput.value = 'mechanistically knowable';
 		queryInput.dispatchEvent(new Event('change', { bubbles: true }));
 		await settleRender(dialog);
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/mechanistically knowable']);
+		//SPELLED BY filters.js: the URL carries the encoding, the box the words.
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/mechanistically+knowable']);
 		assert.ok(pillRow(), 'and the row stays open on the clause that was just edited');
 	});
 
@@ -1828,7 +1829,39 @@ describe('Collection Composer interactions', () => {
 		queryInput.value = 'inductively knowable';
 		queryInput.dispatchEvent(new Event('change', { bubbles: true }));
 		await settleRender(dialog);
-		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/inductively knowable']);
+		//SPELLED BY filters.js, NOT CONCATENATED: the box holds the words and the
+		//URL holds the encoding.
+		assert.deepStrictEqual(store.getState().collection.snapshot.filterNames, ['query/inductively+knowable']);
+		//AND THE BOX READS BACK THE WORDS. The argument control is the one place
+		//a query's text is edited; if it showed the URL spelling, a second edit
+		//would encode the escapes again.
+		await settleRender(dialog, pillRow());
+		assert.strictEqual(pillRow().shadowRoot.querySelector('.argument input').value, 'inductively knowable',
+			'the argument box shows prose, never the path spelling');
+	});
+
+	//THE CHARACTERS A COLLECTION PATH GIVES MEANING TO ARE THE ONES THIS BOX MUST
+	//NOT HAND OVER RAW. `view/grid` concatenated verbatim produced
+	//`query/view/grid` — a query filter with arity 3 where its parser takes 1,
+	//which the collection reads as a search for 'view' plus two filters it does
+	//not know, behind a "didn't understand" banner on the user's own draft.
+	it('encodes a query argument that contains path characters', async () => {
+		browseAll().click();
+		await settleRender(dialog);
+		await typeComposer('text');
+		familyRow('query').click();
+		await settleRender(dialog);
+		await settleRender(dialog, pillRow());
+		const queryInput = pillRow().shadowRoot.querySelector('.argument input');
+		queryInput.value = 'view/grid 50%';
+		queryInput.dispatchEvent(new Event('change', { bubbles: true }));
+		await settleRender(dialog);
+		const [spelling] = store.getState().collection.snapshot.filterNames;
+		assert.strictEqual(spelling.split('/').length, 2,
+			`the clause must stay one argument wide: ${spelling}`);
+		await settleRender(dialog, pillRow());
+		assert.strictEqual(pillRow().shadowRoot.querySelector('.argument input').value, 'view/grid 50%',
+			'and it round-trips back into the box unchanged');
 	});
 
 	it('lands focus inside the pill row a family row just opened', async () => {
@@ -4041,6 +4074,47 @@ describe('Collection Composer interactions', () => {
 		pressEnter(input, { ctrlKey: true });
 		await dialog.updateComplete;
 		assert.strictEqual(window.location.pathname, '/c/everything/starred/');
+		window.history.replaceState({}, '', '/c/main/');
+	});
+
+	//THE ONE COMMIT THAT WRITES *USER TEXT* INTO THE PATH.
+	//
+	//This suite asserts window.location.pathname after a commit fourteen times,
+	//and every one of them is `starred` — a clause whose spelling the app chose.
+	//The free-text row is the ranked FLOOR: the only row, and therefore Enter's
+	//target, whenever nothing else matches, and the only clause in the composer
+	//whose text a person typed. Concatenated raw it produced
+	//`/c/everything/query/view/grid stuff/` — a query filter with three
+	//arguments where its parser takes one, which the collection reads as a
+	//search for 'view' plus two filters it has never heard of, behind a "didn't
+	//understand" banner on the user's own creation.
+	it('commits a free-text clause to a path that reads back as what was typed', async () => {
+		const typed = 'view/grid stuff';
+		const input = dialog.shadowRoot.querySelector('#collection-composer-input');
+		await typeComposer(typed);
+		const freeText = suggestionRows()
+			.find((button) => (button.dataset.filter || '').startsWith('query/'));
+		assert.ok(freeText, 'the literal reading is the floor, and it is on screen');
+		freeText.click();
+		await settleRender(dialog);
+		pressEnter(input, { ctrlKey: true });
+		await settleRender(dialog);
+		const path = window.location.pathname;
+		assert.ok(!/[ %](?![0-9A-Fa-f]{2})/.test(path.slice(1)) && !path.includes(' '),
+			`a committed path must not carry raw text: ${path}`);
+		//READ BACK BY THE APP'S OWN PARSER, not by string comparison: the point
+		//is that the collection this path names is the collection that was built.
+		const parsed = CollectionDescription.deserialize(path.slice('/c/'.length));
+		assert.strictEqual(parsed.filters.length, 1,
+			`one clause, not three: ${path} parsed as ${JSON.stringify(parsed.filters)}`);
+		assert.ok(parsed.filters[0].startsWith('query/'), parsed.filters[0]);
+		//Decoded independently of the module under test, so a mistake in the
+		//encoder cannot agree with itself here.
+		assert.strictEqual(
+			decodeURIComponent(parsed.filters[0].slice('query/'.length)).split('+').join(' '),
+			typed,
+			'the path spells the words the user typed'
+		);
 		window.history.replaceState({}, '', '/c/main/');
 	});
 

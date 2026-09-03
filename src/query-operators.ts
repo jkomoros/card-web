@@ -241,14 +241,50 @@ const resolveValue = (
 //one namespace, and the operator's real job is to tell the RESOLVER which drawer
 //to look in — which is exactly why `tag:intrn` can find `internal` when bare
 //`intrn` cannot.
-const filterNameFor = (family : QueryOperatorFamily, operator : string, value : string) : string => {
+//
+//AN UNRESOLVED VALUE IS STILL USER TEXT, and these four families write it into a
+//URL PATH SEGMENT with no encoding anywhere downstream. `tag:a/b` produced the
+//filter `a/b` — two segments where the collection parser expects one, so the
+//path `/c/everything/a/b/` reads `a` as an unknown filter and `b` as another
+//one; `by:x/y` produced `author/x/y`, which is the author family with arity 2
+//when its parser takes 1. `#` and `?` are worse: they do not reach the parser
+//at all, because the browser truncates the path there.
+//
+//So an unresolved value that is not already a legal bare segment produces NO
+//filter. It cannot be encoded instead: these families are read back as literal
+//path tokens, never decoded, so an encoded value would name a tag whose id
+//contains a percent sign — a filter that matches nothing, spelled confidently.
+//Refusing leaves the operator in `operators` with its `unresolved` match and an
+//empty `filter`, which is the honest report: we read the word, and there is no
+//collection it can name.
+//
+//THE CHECK IS ONLY EVER APPLIED TO `unresolved`. A resolved value came out of
+//the corpus's own vocabulary and is a real name by construction, and a
+//`literal` one means no vocabulary was supplied at all — the find dialog's
+//trust-the-user path, which the module header promises stays byte-identical.
+//`filter:`/`is:` is deliberately exempt: it is the documented escape hatch for
+//naming a filter the app does not know, and a configurable filter's own
+//spelling (`updated/after/today`) legitimately contains slashes.
+const LEGAL_BARE_SEGMENT = /^[a-z0-9._~+-]*$/;
+
+const valueIsLegalBareSegment = (value : string) : boolean => LEGAL_BARE_SEGMENT.test(value);
+
+const filterNameFor = (
+	family : QueryOperatorFamily,
+	operator : string,
+	value : string,
+	match : QueryOperatorMatchKind
+) : string => {
+	const unsafe = match === 'unresolved' && !valueIsLegalBareSegment(value);
 	switch (family) {
 	case 'filter': return operator === 'has' ? hasFilterName(value) : value;
 	case 'tag':
 	case 'section':
 	case 'card-type':
-		return value;
-	case 'person': return value === 'me' ? 'author/me' : `author/${value}`;
+		return unsafe ? '' : value;
+	case 'person':
+		if (value === 'me') return 'author/me';
+		return unsafe ? '' : `author/${value}`;
 	//The query filter's own encoding lives in filters.ts (queryFilter), which
 	//this module deliberately does not import — see the header. The caller
 	//spells it; what this module reports is the TEXT.
@@ -317,7 +353,7 @@ export const parseQueryOperatorToken = (
 		rawValue,
 		value: resolved.value,
 		match: resolved.match,
-		filter: filterNameFor(row.family, operator, resolved.value),
+		filter: filterNameFor(row.family, operator, resolved.value, resolved.match),
 	};
 };
 

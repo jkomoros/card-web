@@ -134,6 +134,37 @@ describe('Query operators', () => {
 			assert.strictEqual(parsed.filter, 'nosuchtag');
 		});
 
+		//AN UNRESOLVED VALUE IS STILL USER TEXT, AND THESE FAMILIES SPELL IT AS A
+		//BARE PATH SEGMENT. `tag:a/b` produced the filter `a/b`, which the
+		//collection path reads as two filters; `by:x/y` produced `author/x/y`, a
+		//family with arity 2 whose parser takes 1. `#` and `?` never reach the
+		//parser at all — the browser truncates the path there. So the operator is
+		//still READ (a surface wants to know the drawer was opened) and it names
+		//no filter.
+		it('refuses to name a filter from an unresolved value a path cannot carry', () => {
+			for (const token of ['tag:a/b', 'section:a/b', 'type:a/b', 'by:x/y', 'tag:50%', 'tag:a#b', 'tag:a?b']) {
+				const parsed = parseQueryOperatorToken(token, VOCABULARY);
+				assert.strictEqual(parsed.match, 'unresolved', `${token} resolves to nothing`);
+				assert.strictEqual(parsed.filter, '', `${token} must name no filter, got ${parsed.filter}`);
+			}
+			//And a whole typed line drops it rather than carrying a broken clause.
+			assert.deepStrictEqual(parseQueryOperators('tag:a/b tag:internal', VOCABULARY).filters, ['internal']);
+		});
+
+		//THE REFUSAL IS SCOPED TO `unresolved`, WHICH IS THE ONLY KIND THAT CAN
+		//CARRY ARBITRARY TEXT. A resolved value came out of the corpus's own
+		//vocabulary and is a real name by construction; `filter:`/`is:` is the
+		//documented escape hatch for naming a filter the app does not know, and a
+		//configurable filter's own spelling legitimately contains slashes.
+		it('leaves the resolved values and the filter escape hatch alone', () => {
+			assert.strictEqual(parseQueryOperatorToken('tag:internal', VOCABULARY).filter, 'internal');
+			assert.strictEqual(parseQueryOperatorToken('by:me', VOCABULARY).filter, 'author/me');
+			assert.strictEqual(parseQueryOperatorToken('filter:updated/after/today', VOCABULARY).filter, 'updated/after/today');
+			//And with no vocabulary at all the find dialog's trust-the-user path
+			//is byte-identical, slashes included.
+			assert.strictEqual(parseQueryOperatorToken('tag:a/b').filter, 'a/b');
+		});
+
 		it('checks nothing when the caller offers no vocabulary', () => {
 			const parsed = parseQueryOperatorToken('tag:intrnal');
 			assert.strictEqual(parsed.match, 'literal');

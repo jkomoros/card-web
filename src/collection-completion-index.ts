@@ -113,6 +113,7 @@ import {
 	SORTS,
 	filterNameIsViewerDependent,
 	filterNamesAreViewerDependent,
+	queryFilter,
 } from './filters.js';
 
 import {
@@ -1298,7 +1299,6 @@ const STRUCTURAL_FILTER_FAMILIES : ReadonlySet<string> = new Set(['combine', 'ex
 //fuzzy tier already uses would have been too generous here, because this
 //candidate is offered for EVERY token rather than only for ones that match
 //something.
-const QUERY_FILTER_FAMILY = 'query';
 const FREE_TEXT_MINIMUM_LENGTH = 2;
 
 //SAY THAT IT MATCHES PARTIALLY. The pill reads `Text contains “systems
@@ -1863,8 +1863,19 @@ export const collectionCompletionCandidates = (
 	//literal reading is the fallback rather than the answer — it is labeled as
 	//the guess it is. The token used is the RAW one, with any negation prefix
 	//stripped, because that is the text the clause will search for.
+	//
+	//AND IT IS SPELLED BY THE APP'S ONE SPELLER. This row writes USER TEXT into a
+	//URL path, and it is the ranked floor — the only row, and therefore Enter's
+	//target, whenever nothing else matches. Concatenating the raw token was a
+	//quiet corruption of every path it produced: `view/grid/` became
+	//`/c/everything/query/view/grid/`, which parses as a search for "view" plus
+	//two filters the app does not know; `50%` made decodeURIComponent throw on
+	//the user's own creation; `#` and `?` truncated the path before it ever
+	//reached the parser. filters.js's queryFilter is the app's canonical
+	//spelling of this family and the only one whose output the query filter's
+	//own reader round-trips.
 	if (!browsing && token.length >= FREE_TEXT_MINIMUM_LENGTH) {
-		const filter = `${QUERY_FILTER_FAMILY}/${token}`;
+		const filter = queryFilter(token);
 		clauseCandidate(
 			`filter:${filter}`,
 			'filter',
@@ -2086,11 +2097,13 @@ export const collectionCompletionCandidates = (
 			//`query:` is the one filter-shaped family whose canonical spelling the
 			//parser does not produce: the encoding is filters.js's, and
 			//query-operators.ts deliberately imports nothing from there so it can
-			//run in the worker. So it is spelled here, beside the free-text guess
-			//that spells it the same way — and it is a PARSE rather than that
-			//guess, because `query:stale` is the user asking for a text search in
-			//so many words rather than the engine falling back to one.
-			const filter = operator.family === 'query' ? `${QUERY_FILTER_FAMILY}/${operator.value}` : operator.filter;
+			//run in the worker. So it is spelled here — through filters.js's own
+			//queryFilter, the same speller the free-text guess below uses, because
+			//`query:view/grid` is user text headed for a URL path exactly the way
+			//the guess's token is. It is a PARSE rather than that guess, because
+			//`query:stale` is the user asking for a text search in so many words
+			//rather than the engine falling back to one.
+			const filter = operator.family === 'query' ? queryFilter(operator.value) : operator.filter;
 			if (filter) {
 				const family = filter.split('/')[0];
 				//The candidate this operator names, when the corpus has one, so a
