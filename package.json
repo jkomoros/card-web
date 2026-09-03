@@ -171,7 +171,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@firebase/testing": "^0.19.6",
+    "@firebase/rules-unit-testing": "^3.0.4",
     "@polymer/test-fixture": "^4.0.2",
     "@rollup/plugin-commonjs": "^25.0.3",
     "@rollup/plugin-node-resolve": "^15.1.0",
@@ -212,5 +212,8 @@
     "typescript-json-schema": "^0.62.0",
     "wct-mocha": "^1.1.0",
     "workbox-cli": "^6.5.3"
+  },
+  "overrides": {
+    "@firebase/app": "0.10.1"
   }
 }
