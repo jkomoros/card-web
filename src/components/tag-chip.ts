@@ -2,6 +2,7 @@
 import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { StyleInfo, styleMap } from 'lit/directives/style-map.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 
 import {
 	urlForTag
@@ -25,6 +26,10 @@ import {
 } from '../../shared/card_fields.js';
 
 import * as icons from '../../shared/icons.js';
+
+import {
+	CANCEL_ICON
+} from '../../shared/icons.js';
 
 @customElement('tag-chip')
 class TagChip  extends LitElement {
@@ -50,6 +55,32 @@ class TagChip  extends LitElement {
 
 	@property({ type : Boolean })
 		subtle: boolean;
+
+	//THE OUTLINED NOT-STATE. Fill inversion mirrors meaning inversion: a
+	//negated clause keeps its colour but stops being filled with it, and gains a
+	//quiet lowercase "not " in front of its own name. This is the ONLY extension
+	//the composer's negation story needs, and it is deliberately not a toggle
+	//widget — the negation is a word inside the chip, where a reader meets it.
+	//
+	//A filter with a named inverse (`published` -> `unpublished`) must NOT come
+	//through here: it renders as its own word on a plain filled pill. The caller
+	//decides, via conditionCanUseNamedInverse.
+	@property({ type : Boolean })
+		negated: boolean;
+
+	//THIS CHIP IS A TOKEN INSIDE A FOCUS-MANAGED SURFACE.
+	//
+	//A chip in the collection sentence is one item of a toolbar whose roving
+	//tabindex lives on the HOST elements, so the chip's own internals must not
+	//be tab stops of their own: the label is not a link (there is nowhere to
+	//navigate — the containing surface owns the gesture) and the remove control
+	//is a pointer affordance whose keyboard equivalent is the surface's Delete
+	//key. The X also stops being permanently visible and becomes quiet until
+	//hover or focus, so a sentence of pills reads as a sentence rather than as a
+	//row of delete buttons — with the space still reserved, so nothing reflows
+	//under the cursor.
+	@property({ type : Boolean })
+		tokenized: boolean;
 
 	@property({ type : Boolean })
 		disabled: boolean;
@@ -115,17 +146,134 @@ class TagChip  extends LitElement {
 				margin-right: 0.3em;
 				fill: var(--app-light-text-color);
 			}
+
+			/* THE OUTLINED NOT-STATE. White fill, the chip's own colour as
+			   border and text — the inversion of the fill mirrors the inversion
+			   of the meaning, so nothing has to be learned to read it.
+			   The border is compensated in the padding rather than added to it,
+			   so a negated chip occupies exactly the same box as a plain one and
+			   flipping a pill does not reflow the sentence around it. The colour
+			   itself is not written here: it arrives per-chip through styleMap,
+			   from the same tagInfos pipeline the fill uses. */
+			span.negated {
+				border: 1px solid;
+				padding: calc(0.2em - 1px);
+			}
+
+			span.negated a.primary,
+			span.negated a.delete {
+				color: inherit;
+			}
+
+			span.negated svg {
+				fill: currentColor;
+			}
+
+			/* The negation is a word in the chip's own name, not a badge beside
+			   it: lowercase and at normal weight so the NAME stays what the eye
+			   lands on. */
+			.not {
+				font-weight: normal;
+			}
+
+			/* A TOKEN IS A CONTROL, NOT A PASSAGE OF TEXT. On a touch screen a
+			   tap begins life as a press-and-hold, and the browser's default
+			   answer to a press-and-hold on text is to select the word under
+			   it — so tapping a pill in the collection sentence selected the
+			   word "Tagged" and the tap never reached the pill. Only in
+			   tokenized mode: an editor's tag-list is prose the user may well
+			   want to select. */
+			span.tokenized {
+				-webkit-user-select: none;
+				user-select: none;
+			}
+
+			/* The negation is a word, and a word needs a space after it. It was
+			   written as the literal 'not ' inside its own element, where the
+			   trailing space sits at an inline element's edge and is collapsed
+			   away in exactly the cases that matter. A margin cannot be
+			   collapsed. */
+			.not {
+				margin-right: 0.25em;
+			}
+
+			/* A TOKEN'S REMOVE CONTROL IS QUIET UNTIL REACHED FOR. opacity, not
+			   display, because the space stays reserved: a sentence that grew a
+			   glyph under the cursor would shove the pills after it sideways at
+			   the exact moment one is being aimed at. */
+			span.tokenized.enabled.editing a.delete {
+				display: inline-flex;
+				align-items: center;
+				opacity: 0;
+				padding: 0 0.15em;
+				position: relative;
+				transition: opacity var(--transition-fade);
+			}
+
+			span.tokenized.enabled.editing:hover a.delete,
+			span.tokenized.enabled.editing:focus-within a.delete,
+			:host(:focus-visible) span.tokenized.enabled.editing a.delete,
+			:host([data-selected]) span.tokenized.enabled.editing a.delete {
+				opacity: 1;
+			}
+
+			/* §4.2's 44px minimum, bought with an overlay rather than with a
+			   44px glyph: the pill is ~1.4em tall and a control that actually
+			   measured 44px would be taller than the sentence it sits in. */
+			span.tokenized a.delete::after {
+				content: '';
+				height: 44px;
+				left: 50%;
+				position: absolute;
+				top: 50%;
+				transform: translate(-50%, -50%);
+				width: 44px;
+			}
+
+			span.tokenized a.delete svg {
+				height: 0.9em;
+				margin-right: 0;
+				width: 0.9em;
+			}
+
+			/* SELECTION AND FOCUS ARE THE SAME RING ON PURPOSE. The surface's
+			   roving tabindex means the selected token IS the focused one
+			   whenever the sentence has focus; the separate selected state
+			   exists for when it does not (a host selecting a pill
+			   programmatically), and it would be dishonest to draw those as two
+			   different things. */
+			:host(:focus-visible),
+			:host([data-selected]) {
+				outline: none;
+			}
+
+			:host(:focus-visible) span.tokenized,
+			:host([data-selected]) span.tokenized {
+				outline: 2px solid var(--app-primary-color);
+				outline-offset: 2px;
+			}
 		`
 	];
 
 	override render() {
-		const styles : StyleInfo = {
-			backgroundColor: this._color,
-		};
+		//THE NEGATED CHIP TRADES ITS FILL FOR ITS OUTLINE, and the swap happens
+		//here rather than in CSS because the colour is per-chip data, not a
+		//style: it comes from the same tagInfos pipeline the fill comes from, so
+		//the two states cannot disagree about what colour this tag is.
+		const styles : StyleInfo = this.negated ?
+			{backgroundColor: 'var(--app-light-text-color)', color: this._color} :
+			{backgroundColor: this._color};
 		if (this._filter) styles.filter = this._filter;
 		return html`
-			<span style=${styleMap(styles)} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._icon}${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span style=${styleMap(styles)} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this.negated ? 'negated' : ''} ${this.tokenized ? 'tokenized' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href=${ifDefined(this._url || undefined)} @click=${this._handleTagClicked}>${this._icon}${this._negationPrefix}${this._displayName}</a><a class='delete' href=${ifDefined(this.tokenized ? undefined : '#')} tabindex=${ifDefined(this.tokenized ? '-1' : undefined)} aria-hidden=${ifDefined(this.tokenized ? 'true' : undefined)} @click=${this._handleXClicked}>${this.tokenized ? CANCEL_ICON : 'X'}</a></span>
 			`;
+	}
+
+	//"not " is part of the name, so it lives inside the label's own element:
+	//quiet and lowercase, because the reader is not being taught an operator.
+	get _negationPrefix() : TemplateResult {
+		if (!this.negated) return html``;
+		return html`<span class='not'>not</span>`;
 	}
 
 	get _icon() : TemplateResult {
@@ -172,6 +320,13 @@ class TagChip  extends LitElement {
 	_handleXClicked(e : MouseEvent) {
 		if (this._disabled) return false;
 		e.preventDefault();
+		//A TOKEN'S ✕ IS NOT ALSO A TAP ON THE TOKEN. In a sentence the chip
+		//itself is a control — clicking it selects the clause, and in the drawer
+		//it opens the composer — so a removal whose click went on bubbling would
+		//give one gesture two answers: the clause disappears AND the composer
+		//opens over the collection it just left. Only in tokenized mode: an
+		//editor's tag-list has no second meaning for the same click.
+		if (this.tokenized) e.stopPropagation();
 		if (this.deletion) {
 			//In this (special) case, the user has removed us previously and so
 			//now clicking again should UN-delete us, by firing an tag-added.

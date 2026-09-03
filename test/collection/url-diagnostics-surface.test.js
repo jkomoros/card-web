@@ -52,6 +52,12 @@ const args = (cards, filters) => ({
 	cardSimilarity: {},
 });
 
+//A collection's filter run is LAZY, and the diagnostics these tests read are a
+//side effect of it. Touching the cards through a call rather than a bare
+//expression statement keeps the linter's no-unused-expressions rule happy about
+//a line whose whole purpose is its side effect.
+const materialize = (collection) => collection.finalSortedCards.length;
+
 describe('URL diagnostics surfacing (#757)', () => {
 	before(async () => {
 		({CollectionDescription} = await import('../../lib/src/collection_description.js'));
@@ -114,7 +120,7 @@ describe('URL diagnostics surfacing (#757)', () => {
 		diagnosticsModule.clearURLDiagnostics();
 		//The report is lazy: it fires when the sort config is consulted, as
 		//a collection run would.
-		CollectionDescription.deserialize('everything/sort/reverse/bogus-sort/').sortConfig;
+		assert.ok(CollectionDescription.deserialize('everything/sort/reverse/bogus-sort/').sortConfig);
 		assert.ok(diagnosticsModule.currentURLDiagnostics().some(d => d.part === 'bogus-sort'),
 			'the sort report must use the bare part');
 	});
@@ -136,14 +142,66 @@ describe('URL diagnostics surfacing (#757)', () => {
 		//Boot shape: the section filter names have not arrived yet, so the
 		//name is unknown and gets reported.
 		//Materialize: the filter run is lazy.
-		description.collection(args(cards, {})).finalSortedCards;
+		materialize(description.collection(args(cards, {})));
 		assert.ok(diagnosticsModule.currentURLDiagnostics().some(d => d.part === 'not-yet-loaded-section'),
 			'the unknown name must be reported');
 		//The names arrive; the same run now resolves the name — and the
 		//stale report must retract, or the notice would accuse a valid URL.
-		description.collection(args(cards, {'not-yet-loaded-section': {a: true}})).finalSortedCards;
+		materialize(description.collection(args(cards, {'not-yet-loaded-section': {a: true}})));
 		assert.ok(!diagnosticsModule.currentURLDiagnostics().some(d => d.part === 'not-yet-loaded-section'),
 			'a name that resolves must retract its diagnostic');
+	});
+
+	//AN UNKNOWN MEMBER OF A UNION IS AN UNKNOWN FILTER.
+	//
+	//Live repro: /c/published/tag-33x/ reported "Didn't understand" and dropped
+	//the clause (224 cards), while /c/published/tag-33x+tag-7/ loaded silently
+	//as 25 — a different collection than the URL described, with nothing said.
+	//Two divergences at once: no diagnostic, and the unknown member behaving as
+	//an empty set inside the OR rather than as a dropped clause.
+	it('reports an unknown union member, and drops it from the OR group', () => {
+		const cards = {a: card('a'), b: card('b')};
+		const filters = {'tag-7': {a: true}};
+		const description = new CollectionDescription('everything', ['tag-33x+tag-7']);
+		const collection = description.collection(args(cards, filters));
+		assert.deepStrictEqual(collection.finalSortedCards.map(item => item.id), ['a'],
+			'the known member still matches; the unknown one is simply not there');
+		const diagnostic = diagnosticsModule.currentURLDiagnostics().find(d => d.part === 'tag-33x+tag-7');
+		assert.ok(diagnostic, 'the union must report, the way a standalone unknown does');
+		assert.match(diagnostic.fallback, /tag-33x/, 'and name which member it dropped');
+		//The part must be the WHOLE segment, or the surfacing selector — which
+		//matches whole path segments against the raw URL — could never show it.
+		assert.deepStrictEqual(
+			urlDiagnosticsForRawURL(diagnosticsModule.currentURLDiagnostics(), 'everything/tag-33x+tag-7/').map(d => d.part),
+			['tag-33x+tag-7']);
+	});
+
+	it('treats a union with no known member as a standalone unknown does', () => {
+		const cards = {a: card('a'), b: card('b')};
+		const description = new CollectionDescription('everything', ['tag-33x+tag-9y']);
+		const collection = description.collection(args(cards, {}));
+		//A standalone unknown no-ops and excludes NOTHING. An all-unknown union
+		//used to be an empty set, which excludes EVERYTHING — the same URL
+		//shape answering two different ways.
+		assert.deepStrictEqual(collection.finalSortedCards.map(item => item.id), ['a', 'b']);
+		const standalone = new CollectionDescription('everything', ['tag-33x']);
+		assert.deepStrictEqual(
+			standalone.collection(args(cards, {})).finalSortedCards.map(item => item.id),
+			['a', 'b'],
+			'the two shapes must agree');
+		const diagnostic = diagnosticsModule.currentURLDiagnostics().find(d => d.part === 'tag-33x+tag-9y');
+		assert.ok(diagnostic, 'and it is still reported');
+		assert.match(diagnostic.fallback, /ignored the whole OR group/);
+	});
+
+	it('retracts a union diagnostic once every member resolves', () => {
+		const cards = {a: card('a')};
+		const description = new CollectionDescription('everything', ['not-yet-loaded-tag+tag-7']);
+		materialize(description.collection(args(cards, {'tag-7': {a: true}})));
+		assert.ok(diagnosticsModule.currentURLDiagnostics().some(d => d.part === 'not-yet-loaded-tag+tag-7'));
+		materialize(description.collection(args(cards, {'tag-7': {a: true}, 'not-yet-loaded-tag': {a: true}})));
+		assert.ok(!diagnosticsModule.currentURLDiagnostics().some(d => d.part === 'not-yet-loaded-tag+tag-7'),
+			'a union whose names all arrive must retract, like any other filter');
 	});
 
 	it('retraction is a no-op for unreported parts and notifies the listener', () => {

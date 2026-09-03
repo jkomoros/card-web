@@ -57,7 +57,16 @@
           "info-zippy-clicked",
           "add-card",
           "add-working-notes-card",
-          "load-more-cards"
+          "load-more-cards",
+          "condition-selected",
+          "member-selected",
+          "group-edge-selected",
+          "condition-activated",
+          "condition-removed",
+          "set-clicked",
+          "sort-clicked",
+          "expression-modified",
+          "pill-or-requested"
         ]
       }
     ]

@@ -35,7 +35,38 @@ const MAX_DIAGNOSTICS = 24;
 let diagnostics : URLDiagnostic[] = [];
 let listener : ((diagnostics : URLDiagnostic[]) => void) | null = null;
 
+//A RE-EVALUATION IS NOT A PARSE, AND ONLY A PARSE MAY COMPLAIN.
+//
+//The why-here panel re-runs the engine's own per-clause filter machinery to ask
+//"does THIS card pass THIS clause". That machinery reports and retracts
+//diagnostics as a side effect of deciding, which is right while it is deciding
+//what a URL meant and wrong while it is explaining an answer already decided:
+//the collection run itself has already said everything there is to say about
+//this URL. The one case that is not merely a duplicate is a bad member inside an
+//OR group — the engine reports the WHOLE segment there, on purpose, because "the
+//part reported is the whole segment, not the bare member: a report nobody can
+//see is not a report" — and a re-evaluation walking members one at a time would
+//file exactly the invisible report that rule refuses, against a 24-entry cap it
+//shares with the visible ones.
+//
+//So the EXPLAINING CALLER suppresses, rather than the machinery growing a second
+//mode it would have to thread through six call sites. Synchronous by contract:
+//the flag is restored in a finally, and nothing inside a filter evaluation
+//awaits.
+let suppressed = false;
+
+export const withURLDiagnosticsSuppressed = <T>(fn : () => T) : T => {
+	const previous = suppressed;
+	suppressed = true;
+	try {
+		return fn();
+	} finally {
+		suppressed = previous;
+	}
+};
+
 export const reportURLDiagnostic = (part : string, fallback : string) : void => {
+	if (suppressed) return;
 	//Collection runs repeat — the same bad URL is re-parsed on every recompute —
 	//so dedupe rather than reporting the same part dozens of times.
 	if (diagnostics.some(d => d.part === part)) return;
@@ -56,6 +87,7 @@ export const currentURLDiagnostics = () : URLDiagnostic[] => diagnostics;
 //reasons for no-clear are simplicity and that render-time scoping plus
 //retraction already deliver hide-on-navigate and show-on-revisit.)
 export const retractURLDiagnostic = (part : string) : void => {
+	if (suppressed) return;
 	if (!diagnostics.some(d => d.part === part)) return;
 	diagnostics = diagnostics.filter(d => d.part !== part);
 	if (listener) listener(diagnostics);

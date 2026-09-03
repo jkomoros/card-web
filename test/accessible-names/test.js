@@ -152,7 +152,14 @@ const survey = () => {
 			//Instead the COUNT is pinned. If it rises, a human looks at the new
 			//one and decides which kind it is. Silence about a known hole is how
 			//the first version of this file came to report 6 of 18.
-			if (!hasIcon && !hasText && /\$\{/.test(content)) unclassifiable.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
+			//...unless the tag NAMES it. The hole is "we cannot tell whether this
+			//needs a name"; a button that already has one is not in the hole,
+			//whichever way its body resolves. Adding `named` here narrows the
+			//set to exactly the buttons a human still has to look at, and the
+			//file's own rule for a survey change applies: run the OLD survey
+			//against the NEW tree first. It still reports 10, so this fall is
+			//the survey getting sharper, not four defects being deleted.
+			if (!hasIcon && !hasText && /\$\{/.test(content) && !named) unclassifiable.push(`${file}: ${tag.replace(/\s+/g, ' ').slice(0, 66)}`);
 			//A body that RENDERS NOTHING is nameless unless the tag names it.
 			//This used to test `!content.trim()` against a bare `/aria-label|title=/`
 			//substring match — a weaker standard than the one applied just above.
@@ -175,9 +182,65 @@ const survey = () => {
 };
 
 //Measured, not inherited from an audit. Lower them; never raise them.
+//
+//RECOUNTED when the composer pill row's Remove verb became the ✕ (owner, F1).
+//That is exactly the kind of change this file exists to catch — a control
+//losing its words — so it was measured both ways rather than assumed:
+//
+//  survey            HEAD tree    new tree
+//  buttons                 125         125   (nothing added or deleted)
+//  icon-only                90          91   (+1: Remove, reclassified)
+//  no accessible name        0           0
+//  no hover name             0           0
+//  unclassifiable            5           5
+//  empty-bodied              0           0
+//
+//(The unclassifiable column is 4 today; see the budget below for why it fell
+//after that measurement was taken.)
+//
+//So one button moved from the text population into the population these two
+//zero budgets police, and it arrived already carrying both a title and an
+//aria-label. Nothing to raise, and the +1 is a reclassification rather than the
+//survey getting sharper or the app getting worse.
 const NO_ACCESSIBLE_NAME_BUDGET = 0;
 const NO_HOVER_NAME_BUDGET = 0;
-//Measured: 4 today, all of them text buttons whose label is interpolated.
+//BACK TO WHAT IT WAS BEFORE THIS BRANCH: 4.
+//
+//This line spent the branch at 10, then 6, then 5, and the accumulated
+//narrative is deleted with the raises it explained. What matters is where it
+//landed and why, because "lower them; never raise them" is only a rule if the
+//number ends up where it started or below.
+//
+//Measured on the tree this comment ships with:
+//
+//  survey                                    master   HEAD before   HEAD now
+//  unclassifiable, OLD classifier                 4            11         11
+//  unclassifiable, WITH the `!named` term         —             5          4
+//
+//The OLD number rose from 4 to 11 because the composer added seven more
+//buttons whose whole body is an interpolation — seven listbox rows, sentence
+//words and pill verbs. SIX of those seven were already named in the tag, and
+//the seventh is now: the source-completion listbox row gained the same composed
+//aria-label its sibling collection-palette-row has always carried, which is a
+//real fix for a role='option' whose only content is four spans of interpolated
+//text. That is what "if the budget rise covered a real nameless control, name
+//the control and lower the budget back" looks like when you do it.
+//
+//So the four that remain are exactly master's four, unchanged and unrelated to
+//this branch: card-web-app's error action, corpus-ownership-gate's reset,
+//maintenance-view's task button and snack-bar's action. Each is a text button
+//whose label is interpolated and which carries no name in the tag; each is
+//human-verified to render text, so widening the icon test to catch them would
+//manufacture four false positives. They are the survey's honest blind spot and
+//they stay pinned as a count.
+//
+//THE `!named` TERM IS A SHARPENING, NOT A LOOSENING, and the file's own rule
+//for telling those apart was applied: the OLD survey against the NEW tree still
+//reports 11, so nothing was classified away — six named buttons stopped being
+//counted as "we cannot tell whether this needs a name", which is correct,
+//because a button that already has one is not in that hole whichever way its
+//body resolves. The two ZERO budgets above are what police whether an icon-only
+//button is named, and both are still zero.
 const UNCLASSIFIABLE_BUDGET = 4;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
@@ -237,6 +300,37 @@ describe('accessible names on icon-only controls (HS-2.5)', () => {
 			assert.ok(index > 0, `${file} should have a done handler`);
 			const tag = source.slice(source.lastIndexOf('<button', index), index);
 			assert.match(tag, /aria-label=/, `${file}'s primary action is unnamed`);
+		}
+	});
+
+	//The composer commits through `_openActionRender` rather than
+	//`_handleDoneClicked`, so the loop above cannot see it. Its committing action
+	//is icon-only, which is exactly the population this file exists for: an icon
+	//needs BOTH names (HS-2.5), and a wrapper title supplies neither.
+	//
+	//ONE now, not two. The pending-filter panel had a second round primary — its
+	//own Add — because a filter chosen from the catalog was not in the draft
+	//until it was confirmed. That panel and its gate are deleted: a family lands
+	//in the draft with its own defaults and is edited in place, so the dialog has
+	//exactly one committing action again.
+	//A QUOTED LITERAL IS NO LONGER THE ONLY SHAPE A NAME COMES IN (round 9). The
+	//owner: "the commit buttons should have the keyboard shortcut printed in the
+	//title", and a combo must be DERIVED from SHORTCUT_COMBOS rather than spelled
+	//— so the name is now a bound `${IDENTIFIER}`, the same shape card-view's
+	//Edit/Find/Refine controls have carried since #740. What this file is for is
+	//unchanged: an icon-only button must have BOTH names and neither may be
+	//empty. So the pin accepts either shape and still refuses `title=''`,
+	//`aria-label=${''}` and a missing attribute.
+	it('names the collection composer’s committing action', () => {
+		const source = stripComments(readFileSync(new URL('configure-collection-dialog.ts', COMPONENTS), 'utf8'));
+		const tags = [...source.matchAll(/<button class='round primary'[^>]*>/g)].map(match => match[0]);
+		assert.strictEqual(tags.length, 1,
+			'the composer has one round primary: the shared Open control');
+		//Either a non-empty quoted literal or a non-empty template binding.
+		const named = (attribute) => new RegExp(`${attribute}=(?:'[^']+'|\\$\\{[^}]+\\})`);
+		for (const tag of tags) {
+			assert.match(tag, named('aria-label'), `unnamed to assistive tech: ${tag}`);
+			assert.match(tag, named('title'), `nothing on hover: ${tag}`);
 		}
 	});
 

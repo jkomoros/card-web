@@ -1,0 +1,161 @@
+import { CollectionComposerSuggestion } from './collection-composer-suggestions.js';
+import { compactCardCount } from './corpus-status-glyph.js';
+
+//WHAT A PREVIEW RUN COMES BACK WITH.
+//
+//`ids` is the round-3 addition (D5). The owner: "before that it's just showing
+//you a preview of cards" — so the composer names a few of them, and the worker
+//has been handing back the ordered id list all along (the reference-block runner
+//consumes exactly this field). Nothing new is computed and nothing extra is
+//asked of the worker; the count and the names come out of one run, which is why
+//they can never disagree about which collection they describe.
+//
+//Optional because a runner is injected and a caller may supply one that answers
+//with a count alone; a preview line is progressive enhancement either way.
+type PreviewResult = { numCards: number, ids?: readonly string[] };
+type PreviewRunner = (
+	description: string,
+	keyCardID: string
+) => Promise<PreviewResult | null> | null;
+
+type PreviewOptions = {
+	debounceMS?: number;
+	maxConcurrent?: number;
+};
+
+//Counts are compact and honest (§3.6.3): '812 cards', '40.2k cards'. The
+//compact helper is corpus-status-glyph's, which is where the convention is
+//defined and tested — a second threshold here is how '40225 cards' and '40.2k'
+//end up on screen at the same time. It leaves anything under 10k exact, so the
+//numbers a user can actually hold in their head are never abbreviated.
+export const formatCollectionCardCount = (count: number) => `${compactCardCount(count)} ${count === 1 ? 'card' : 'cards'}`;
+
+export const formatCollectionCountDelta = (destinationCount: number, currentCount: number) => {
+	const delta = destinationCount - currentCount;
+	if (!delta) return 'same number of cards';
+	return `${Math.abs(delta)} ${delta > 0 ? 'more' : 'fewer'}`;
+};
+
+//A restarted composer generation can share work already in the corpus worker,
+//but completed results are not cached because corpus membership can change.
+const inFlight = new Map<string, Promise<PreviewResult | null>>();
+const GLOBAL_MAX_CONCURRENT = 2;
+let globallyRunning = 0;
+
+type PreviewOwner = {
+	active: boolean;
+	running: number;
+	maxConcurrent: number;
+	onCount: (suggestionID: string, count: number, ids: readonly string[]) => void;
+};
+
+type PreviewJob = {
+	owner: PreviewOwner;
+	key: string;
+	description: string;
+	keyCardID: string;
+	suggestionIDs: string[];
+	run: PreviewRunner;
+};
+
+const globalQueue: PreviewJob[] = [];
+
+const finishJob = (job: PreviewJob) => {
+	job.owner.running--;
+	pumpPreviewQueue();
+};
+
+const observePreview = (job: PreviewJob, pending: Promise<PreviewResult | null>) => {
+	job.owner.running++;
+	pending
+		.then((result) => {
+			if (!job.owner.active || !result) return;
+			for (const suggestionID of job.suggestionIDs) job.owner.onCount(suggestionID, result.numCards, result.ids || []);
+		})
+		.catch(() => {
+			//Previews are progressive enhancement. Worker failures leave the
+			//suggestion usable without a count.
+		})
+		.finally(() => finishJob(job));
+};
+
+function pumpPreviewQueue() {
+	for (let index = globalQueue.length - 1; index >= 0; index--) {
+		if (!globalQueue[index].owner.active) globalQueue.splice(index, 1);
+	}
+	for (;;) {
+		//Joining work that is already running consumes no additional worker slot,
+		//so attach those observers even while the global worker limit is full.
+		const sharedIndex = globalQueue.findIndex(job =>
+			job.owner.active &&
+			job.owner.running < job.owner.maxConcurrent &&
+			inFlight.has(job.key)
+		);
+		if (sharedIndex >= 0) {
+			const job = globalQueue.splice(sharedIndex, 1)[0];
+			observePreview(job, inFlight.get(job.key)!);
+			continue;
+		}
+		if (globallyRunning >= GLOBAL_MAX_CONCURRENT) return;
+		const index = globalQueue.findIndex(job => job.owner.active && job.owner.running < job.owner.maxConcurrent);
+		if (index < 0) return;
+		const job = globalQueue.splice(index, 1)[0];
+		let started : ReturnType<PreviewRunner>;
+		try {
+			started = job.run(job.description, job.keyCardID);
+		} catch {
+			//Treat a synchronous worker bridge failure the same as an unavailable
+			//or rejected progressive preview.
+			continue;
+		}
+		if (!started) continue;
+		const pending = Promise.resolve(started);
+		inFlight.set(job.key, pending);
+		globallyRunning++;
+		const release = () => {
+			if (inFlight.get(job.key) === pending) inFlight.delete(job.key);
+			globallyRunning--;
+		};
+		pending.then(release, release);
+		observePreview(job, pending);
+	}
+}
+
+export const startCollectionComposerPreviews = (
+	suggestions: CollectionComposerSuggestion[],
+	keyCardID: string,
+	run: PreviewRunner,
+	onCount: (suggestionID: string, count: number, ids: readonly string[]) => void,
+	options: PreviewOptions = {}
+): (() => void) => {
+	const owner: PreviewOwner = {
+		active: true,
+		running: 0,
+		maxConcurrent: Math.min(GLOBAL_MAX_CONCURRENT, Math.max(1, options.maxConcurrent ?? GLOBAL_MAX_CONCURRENT)),
+		onCount,
+	};
+	const grouped = new Map<string, {description: string, suggestionIDs: string[]}>();
+	for (const suggestion of suggestions) {
+		const description = suggestion.description.serialize();
+		const key = `${keyCardID}\n${description}`;
+		const existing = grouped.get(key);
+		if (existing) existing.suggestionIDs.push(suggestion.id);
+		else grouped.set(key, {description, suggestionIDs: [suggestion.id]});
+	}
+	const enqueue = () => {
+		for (const [key, work] of grouped.entries()) {
+			globalQueue.push({owner, key, description: work.description, keyCardID, suggestionIDs: work.suggestionIDs, run});
+		}
+		pumpPreviewQueue();
+	};
+
+	const debounceMS = Math.max(0, options.debounceMS ?? 150);
+	const timer = debounceMS ? window.setTimeout(enqueue, debounceMS) : null;
+	if (!timer) enqueue();
+
+	return () => {
+		owner.active = false;
+		if (timer) window.clearTimeout(timer);
+		pumpPreviewQueue();
+	};
+};

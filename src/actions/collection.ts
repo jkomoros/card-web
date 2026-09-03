@@ -49,7 +49,18 @@ import {
 	selectAlreadyCommittedModificationsWhenFullyLoaded,
 	selectCollectionConstructorArguments,
 	selectExplicitlySelectedCardIDs,
+	selectKnownCollectionFilterNames,
+	selectUid,
 } from '../selectors.js';
+
+import {
+	collectionDescriptionActuallyVisited,
+	recordRecentCollection,
+} from '../collection-composer-history.js';
+
+import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
@@ -98,20 +109,34 @@ export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
-export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (dispatch, getState) => {
+//What a card selector RESOLVES to, which is not the same thing as what it
+//says. A URL with no filters at all names no collection; the rules below are
+//how the router decides which one the user actually lands in.
+export type ResolvedCardSelector = {
+	//The collection that will become active.
+	description : CollectionDescription,
+	//The card the URL asked for, with '' already rewritten to the placeholder.
+	cardIdOrSlug : CardID,
+	//False when the URL's card is already in the collection on screen, so the
+	//active collection is deliberately left alone.
+	updatesCollection : boolean,
+	//TRUE WHEN THE ROUTER INVENTED THE CLAUSES. A `/c/<cardid>` URL names a
+	//card and no collection at all, so the rules below substitute one — the
+	//card's section, the everything-set for an orphan, or the `none`
+	//placeholder. That substitution is a fallback, not a destination the user
+	//chose, and callers that RECORD where the user has been have to be able to
+	//tell the two apart.
+	substitutedCollection : boolean,
+};
 
-	const queryParts = cardSelector.split('?');
+//Exported so that a caller who is about to push a path can ask what that path
+//will actually turn into — a receipt that names the REQUESTED collection while
+//the router quietly resolves a different one is the shape of bug this exists
+//to close. It is the same resolution updateCardSelector performs, so the two
+//cannot answer differently.
+export const resolveCardSelector = (state : State, cardSelector : string) : ResolvedCardSelector => {
 
-	let forceUpdateCollection = false;
-
-	if (queryParts.length > 1) {
-		const queryParams = queryParts[1].split('&');
-		for (const param of queryParams) {
-			if (param == FORCE_COLLECTION_URL_PARAM) forceUpdateCollection = true;
-		}
-	}
-
-	const path = queryParts[0].toLowerCase();
+	const path = cardSelector.split('?')[0].toLowerCase();
 	let [description, cardIdOrSlug] = CollectionDescription.deserializeWithExtra(path);
 
 	//If the requestedCard is actually "" we'll pretend throughout the pipeline
@@ -127,7 +152,6 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 	let set : SetName = description.set;
 
 	if (filters.length == 0) {
-		const state = getState();
 		const card = getCard(state, cardIdOrSlug);
 		if (card) {
 			//If we had a default filter URL and the card is a member of the set
@@ -171,7 +195,49 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 		}
 	}
 
-	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra));
+	return {
+		description: new CollectionDescription(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra),
+		cardIdOrSlug,
+		updatesCollection: doUpdateCollection,
+		//The URL carried no clauses and this function supplied some: whatever
+		//comes back is the router's answer to "where does this card live", not
+		//the user's answer to "which collection do I want".
+		substitutedCollection: description.filters.length == 0 && filters.length > 0,
+	};
+};
+
+export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (dispatch, getState) => {
+
+	const queryParts = cardSelector.split('?');
+
+	let forceUpdateCollection = false;
+
+	if (queryParts.length > 1) {
+		const queryParams = queryParts[1].split('&');
+		for (const param of queryParams) {
+			if (param == FORCE_COLLECTION_URL_PARAM) forceUpdateCollection = true;
+		}
+	}
+
+	const {description: resolvedDescription, cardIdOrSlug, updatesCollection, substitutedCollection} = resolveCardSelector(getState(), cardSelector);
+	const doUpdateCollection = updatesCollection || forceUpdateCollection;
+
+	const descriptionActuallyVisited = collectionDescriptionActuallyVisited(
+		resolvedDescription,
+		selectActiveCollectionDescription(getState()),
+		doUpdateCollection
+	);
+	//A SUBSTITUTED COLLECTION IS NOT A PLACE THE USER WENT — and the guard that
+	//says so lives with the other poison guards, in the history module, so every
+	//future caller inherits it. Only when the substitution is what would be
+	//recorded: a card already inside the collection on screen leaves that
+	//collection active, and THAT is a real destination.
+	if (collectionComposerEnabled()) recordRecentCollection(descriptionActuallyVisited, selectUid(getState()), Date.now(), {
+		rawURL: cardSelector,
+		knownFilterNames: selectKnownCollectionFilterNames(getState()),
+		substituted: substitutedCollection && doUpdateCollection,
+	});
+	if (doUpdateCollection) dispatch(updateCollection(resolvedDescription.set, resolvedDescription.filters, resolvedDescription.sort, resolvedDescription.sortReversed, resolvedDescription.viewMode, resolvedDescription.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));
 };
 

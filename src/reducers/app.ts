@@ -13,6 +13,7 @@ import {
 	CLOSE_CARDS_DRAWER_PANEL,
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	CANCEL_CONFIGURE_COLLECTION_DIALOG,
 	ENABLE_PRESENTATION_MODE,
 	DISABLE_PRESENTATION_MODE,
 	ENABLE_MOBILE_MODE,
@@ -24,6 +25,7 @@ import {
 	OPEN_CARDS_DRAWER_INFO,
 	CLOSE_CARDS_DRAWER_INFO,
 	TURN_SUGGEST_MISSING_CONCEPTS,
+	EMPTY_DIALOG_SELECTION,
 	SomeAction
 } from '../actions.js';
 
@@ -51,6 +53,9 @@ const INITIAL_STATE : AppState = {
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
 	cardsDrawerInfoExpanded: false,
 	configureCollectionDialogOpen: false,
+	configureCollectionDialogMode: 'compose',
+	configureCollectionDialogFocusRequest: 0,
+	configureCollectionDialogSelection: EMPTY_DIALOG_SELECTION,
 	presentationMode: false,
 	mobileMode: false,
 	hoverX: 0,
@@ -130,14 +135,28 @@ const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState =
 			cardsDrawerPanelOpen: false
 		};
 	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+		//Opening an already-open composer is not a no-op: the spec's keyboard
+		//table says Ctrl-K with the composer open focuses its input. Nothing
+		//else about the dialog changes, so the request is carried as a counter
+		//the dialog can observe -- otherwise a second open produces identical
+		//state and the component never hears about it.
 		return {
 			...state,
 			configureCollectionDialogOpen: true,
+			configureCollectionDialogMode: action.mode || 'compose',
+			configureCollectionDialogFocusRequest: state.configureCollectionDialogFocusRequest + 1,
+			//Carried on the same action as the focus bump, and for the same
+			//reason: an open request that repeats has to be observable, and a
+			//selection that survived the PREVIOUS open would select a clause
+			//nobody pointed at this time.
+			configureCollectionDialogSelection: action.selection || EMPTY_DIALOG_SELECTION,
 		};
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
+	case CANCEL_CONFIGURE_COLLECTION_DIALOG:
 		return {
 			...state,
 			configureCollectionDialogOpen: false,
+			configureCollectionDialogMode: 'compose',
 		};
 	case ENABLE_PRESENTATION_MODE:
 		return {

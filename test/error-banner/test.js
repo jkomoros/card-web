@@ -227,8 +227,40 @@ describe('the persistent error banner', () => {
 			const named = [...joined.matchAll(/actionID\s*:\s*([^,}\n]+)/g)]
 				.map(match => match[1])
 				.filter(raw => !/^(string|number|boolean)\b/.test(raw.trim()));
-			const registered = new Set([...joined.matchAll(/registerPersistentErrorAction\(\s*([^,]+),/g)]
+			//THE UNION IS NECESSARY, AND IT IS WHY THE COUNTS BELOW EXIST.
+			//
+			//The `actionID:` property shape is shared by both action registries —
+			//persistent-error banners AND snackbar messages (the collection
+			//composer's navigation receipts were the first snackbar actions in
+			//src/). The invariant is the same for both surfaces: a named action
+			//nothing registers is a dead button. Text-level scanning cannot tell
+			//which registry a given `actionID:` SITE belongs to — the property
+			//sits in an options object, not in the registering call — so this
+			//counts registrations in either.
+			//
+			//On its own that is a real weakening: a banner naming an id only the
+			//SNACKBAR registry holds would pass. So the mechanism gets a ratchet
+			//of its own rather than a wider net and a shrug. Pinning the exact
+			//count of each register variant is what makes a DELETED or renamed
+			//registration fail here instead of being absorbed by the other
+			//registry's names.
+			const persistentRegistrations = [...joined.matchAll(/registerPersistentErrorAction\(\s*([^,]+),/g)];
+			const snackbarRegistrations = [...joined.matchAll(/registerSnackbarAction\(\s*([^,]+),/g)];
+			const registered = new Set([...persistentRegistrations, ...snackbarRegistrations]
 				.map(match => resolve(match[1])).filter(id => id !== null));
+
+			//Measured, and a deliberate edit to change. One persistent-error
+			//action (the sign-in retry) and one snackbar action (undo a
+			//collection navigation). Adding either kind is fine and costs one
+			//line here; losing one silently is what this stops.
+			assert.strictEqual(persistentRegistrations.length, 1,
+				'the number of registerPersistentErrorAction calls changed — if that is deliberate, say so by editing this line');
+			assert.strictEqual(snackbarRegistrations.length, 1,
+				'the number of registerSnackbarAction calls changed — if that is deliberate, say so by editing this line');
+			//And every registration has to be statically resolvable, or the set
+			//above is short a name and the dead check below is lying.
+			assert.strictEqual(registered.size, persistentRegistrations.length + snackbarRegistrations.length,
+				'a registration\'s actionID is computed or duplicated, so this test cannot vouch for it');
 
 			assert.ok(named.length > 0, 'found no banner actions at all — this test has stopped seeing them');
 

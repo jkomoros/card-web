@@ -2,6 +2,7 @@
 import { LitElement, html, css, TemplateResult, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -26,7 +27,11 @@ import { cancelHoverTimeout } from '../actions/app.js';
 import {
 	selectBadgeMap,
 	selectCardsSelected
-} from '../selectors';
+	//Extension REQUIRED. rollup and web-dev-server both resolve the bare
+	//specifier, so the app builds and runs; plain Node ESM does not, and this
+	//one import made every module that reaches card-drawer — find-dialog most of
+	//all — unimportable from a test.
+} from '../selectors.js';
 
 import {
 	ARROW_UPWARD_ICON,
@@ -57,6 +62,21 @@ import {
 } from '../events.js';
 
 import { CardSelectionAnchor } from '../card_selection.js';
+
+//WHAT A PARTIAL MATCH ACTUALLY IS, said in the user's words rather than the
+//engine's. filters.ts's query filter admits a card when its score is above
+//zero and reports partialMatch when no single text field ever contained the
+//complete set of the query's words (nlp.ts: the whole-query and all-words
+//leaves are the ones flagged 'full'; individual words and bigrams are not).
+//So: it matched, on some of the words, not all of them together. Only a
+//multi-word non-strict `query/` can produce one — a single-word query has no
+//partial leaf to hit, and `query-strict/` requires a full match to admit the
+//card at all.
+//
+//Exported because the count line above the thumbnails and the thumbnails
+//themselves have to say the same thing about the same state.
+export const PARTIAL_MATCH_EXPLANATION = 'Matched some of your search words, but not all of them together.';
+export const PARTIAL_MATCH_COUNT_NOTE = 'match some search words';
 
 //How many cards to cap the rendering limit at (unless overriden by the parent
 //of this element). This should be set to a number of elements that can be
@@ -277,8 +297,38 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 				opacity:0.5;
 			}
 
+			/* .ghost now means ONE thing: this card is about to leave the
+			   collection when the pending filter commits. It used to mean that
+			   OR "this card only partly matched", at the same 50%, with nothing
+			   distinguishing them — two opposite claims wearing one face. */
 			.thumbnail.ghost {
 				opacity:0.5;
+			}
+
+			/* A PARTIAL MATCH IS A MEMBER, ON WEAKER EVIDENCE. The card really is
+			   in the collection; it matched some of the query's words rather than
+			   all of them together. So: §4.5's subordinate tone and nothing else.
+			   No amber (§3.6.2 gives amber exactly one meaning, and this is not
+			   it), no red, no border, and deliberately NOT the 50% that now
+			   belongs to leaving. */
+			/* :not(.highlighted) because THE CURRENT CARD OUTRANKS THE TONE.
+			   The .thumbnail.highlighted h3 rule sets the primary colour and is
+			   declared above at the same specificity, so a card that is both
+			   current AND a partial match lost its highlight to this grey — the
+			   one thumbnail whose job is to be findable, wearing the colour
+			   that means 'less certain'. Subordinating this rule rather than
+			   reordering keeps the intent readable: partial-match is a note
+			   about evidence, and the highlight is about where you are. */
+			.thumbnail.partial-match:not(.highlighted) h3 {
+				color: var(--app-dark-text-color-light);
+				fill: var(--app-dark-text-color-light);
+			}
+
+			/* On a dark card type the subordinate token is unreadable against the
+			   fill, so the same one step down is taken against the light text that
+			   type already uses. */
+			.thumbnail.dark.partial-match h3 {
+				opacity: 0.7;
 			}
 
 			div.thumbnail:hover h3 {
@@ -406,8 +456,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		const icon = cardTypeConfig.iconName ? icons[cardTypeConfig.iconName] : '';
 
+		const leaving = Boolean(this._collectionItemsToGhost[card.id]);
+		//A partial match is a real member on weaker evidence, so it says so in
+		//words as well as in tone: a thumbnail is not a place a legend fits, and
+		//the count line above carries the general explanation.
+		const partialMatch = !leaving && Boolean(this._collectionPartialMatches[card.id]);
+
 		return html`
-			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' title=${ifDefined(partialMatch ? PARTIAL_MATCH_EXPLANATION : undefined)} class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${leaving ? 'ghost' : ''} ${partialMatch ? 'partial-match' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${NO_REFERENCE_BLOCKS}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap, this.selectable ? this._handleSelectedClicked : undefined)}
 			</div>
@@ -590,13 +646,25 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._scrollHighlightedThumbnailIntoView(true);
 	}
 
+	//TWO DIFFERENT FACTS WERE WEARING ONE FACE. This map merged
+	//`partialMatches` — a card that matched the query, but only partly — with
+	//`cardsThatWillBeRemoved`, a card that is about to leave the collection
+	//entirely. Both rendered as `.ghost`, 50% opacity, with nothing anywhere
+	//saying which was which or what either meant. They are opposite claims: one
+	//says "this is a member, on weaker evidence", the other says "this is about
+	//to stop being a member". Keeping them apart is the whole fix; a card that
+	//is somehow both is shown as leaving, because that is the fact that is
+	//about to change what is on screen.
 	get _collectionItemsToGhost() {
 		if (!this.collection) return {};
 		if (!this._memoizedGhostItems) {
-			const itemsThatWillBeRemovedOnPendingFilterCommit = this.ghostCardsThatWillBeRemoved ? this.collection.cardsThatWillBeRemoved() : {};
-			this._memoizedGhostItems = {...this.collection.partialMatches, ...itemsThatWillBeRemovedOnPendingFilterCommit};
+			this._memoizedGhostItems = this.ghostCardsThatWillBeRemoved ? this.collection.cardsThatWillBeRemoved() : {};
 		}
 		return this._memoizedGhostItems;
+	}
+
+	get _collectionPartialMatches() : CardBooleanMap {
+		return this.collection ? this.collection.partialMatches : {};
 	}
 
 	override stateChanged(state : State) {

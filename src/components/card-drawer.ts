@@ -10,6 +10,7 @@ import {
 
 import './card-renderer.js';
 import './card-thumbnail-list.js';
+import { PARTIAL_MATCH_COUNT_NOTE } from './card-thumbnail-list.js';
 import './web-renderer.js';
 
 import {
@@ -239,6 +240,22 @@ class CardDrawer extends LitElement {
 				width: 12em;
 			}
 
+/* THE GROUPED-COUNT RULES ARE DELETED WITH THE THING THEY GROUPED
+			   THE COUNT WITH (owner, F3). They existed to line the card count up
+			   with the always-visible collection summary in the visible-info
+			   slot, and to hand the slotted action panels back the centring that
+			   alignment had taken from them. The summary is gone, so the count is
+			   the centred 12em line it has always been and the panels never lose
+			   their centring in the first place. */
+
+						/* A qualifier on the count, not a state of its own. Subordinate
+			   tone (§4.5) for the same reason .diagnostic takes it: nothing
+			   went wrong, the app is telling the user something true about
+			   the results it did produce. */
+			#count .partial-note {
+				color: var(--app-dark-text-color-light);
+			}
+
 			#count .failure {
 				/* A computation THREW: that is a problem, so it takes the
 				   problem colour. It used to be amber to signal "nothing was
@@ -273,10 +290,38 @@ class CardDrawer extends LitElement {
 		`
 	];
 
+	//PER COLLECTION, NOT PER RENDER.
+	//
+	//Counted over exactly the cards `currentCount` counts — sortedCards is the
+	//windowed list, and numCards excludes start cards and honours offset/limit.
+	//Counting the whole partialMatches map instead would let a windowed
+	//collection claim more partial matches than it has rows, which is the sort
+	//of arithmetic the '-761 cards' bug above came from.
+	//
+	//But `sortedCards` is a GETTER that re-slices the sorted list on every
+	//access, so asking it inside render() copied the collection and walked it
+	//again on every render of this component — for a count that cannot change
+	//while the collection is the same object. A Collection is rebuilt whenever
+	//its description or its inputs change, so its identity is the exact key, and
+	//holding one number plus one reference retains nothing (the collection is
+	//already this component's own property).
+	_partialCountCollection : Collection | null = null;
+	_partialCountValue = 0;
+
+	_partialCount() : number {
+		const collection = this.collection;
+		if (!collection) return 0;
+		if (this._partialCountCollection === collection) return this._partialCountValue;
+		this._partialCountCollection = collection;
+		this._partialCountValue = collection.sortedCards.filter(card => collection.partialMatches[card.id]).length;
+		return this._partialCountValue;
+	}
+
 	override render() {
 
 		const cardTypeToAddConfiguration = CARD_TYPE_CONFIGURATION[this.cardTypeToAdd];
 		const currentCount = this.collection ? this.collection.numCards : 0;
+		const partialCount = this._partialCount();
 
 		//HIDE, don't destroy. Returning a fresh `<div hidden>` when not showing
 		//tore down card-thumbnail-list and rebuilt it on every drawer toggle —
@@ -285,6 +330,16 @@ class CardDrawer extends LitElement {
 		return html`
 			<div ?hidden=${!this.showing} class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''} ${this.updating && !this.failureMessage ? 'updating' : ''} ${(this.updating || this.pending) && !currentCount && !this.failureMessage ? 'initial-load' : ''}'>
 				${this.updating && !this.failureMessage ? html`<loading-placeholder class='loading-pin' partial noun='cards'></loading-placeholder>` : ''}
+				<!-- BACK INSIDE THE SCROLLER, where it was before #498 (owner,
+				     F3). It was lifted out to keep the always-visible collection
+				     summary from scrolling away — "nothing that says persistent
+				     can be the first item of a scrolling region" — and that
+				     summary is deleted. What is left in this header is the count,
+				     the URL diagnostics and the two slotted info panels, and the
+				     expanded panel is a word cloud plus a dozen actions: pinned
+				     outside the scroller it would push the card list off the
+				     bottom of the drawer the moment the zippy is opened, which is
+				     the entry point the owner asked to go back to. -->
 				<div class='scrolling scroller ${this.updating && !this.failureMessage ? 'loading-dim' : ''}'>
 					<div class='label' id='count'>
 						<span>
@@ -302,7 +357,21 @@ class CardDrawer extends LitElement {
 		//reporting yet -- say that instead. Once there ARE cards, the count is
 		//real and the dim + pin correctly mean "these are stale, refreshing".
 			? html`<loading-placeholder noun='cards'></loading-placeholder>`
-			: html`<strong>${currentCount}</strong> cards`}
+			//THE COUNT INCLUDES THE PARTIAL MATCHES, so it says so. A
+			//partial match is a full member of the collection — it is
+			//counted, it is listed, it is navigable — that simply
+			//matched some of the query's words rather than all of them
+			//together. It was rendered at 50% opacity with no legend
+			//anywhere, so a user looking at '117 cards' over a list
+			//half of which was faded had no way to learn what the
+			//fading meant or whether those cards were in the 117. They
+			//are. The qualifier is a subordinate note (§4.5), not a
+			//warning: nothing failed.
+			//The separator is inside ONE interpolated string rather than
+			//written as markup, because a leading space at the start of
+			//an element's text is collapsed away and the count read
+			//'590 cards· 389 …'.
+			: html`<strong>${currentCount}</strong> cards${partialCount ? html`<span class='partial-note'>${` · ${partialCount === currentCount ? 'all' : partialCount} ${PARTIAL_MATCH_COUNT_NOTE}`}</span>` : ''}`}
 						</span>
 						${this.urlDiagnostics && this.urlDiagnostics.length ? this.urlDiagnostics.map(diagnostic => html`
 							<div class='diagnostic' title=${diagnostic.fallback}>Didn’t understand “${diagnostic.part}” in this URL</div>`) : ''}

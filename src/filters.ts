@@ -8,7 +8,8 @@ import {
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
 	QUERY_FILTER_NAME,
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	NONE_FILTER_NAME
 } from './filter-constants.js';
 
 // Re-export for external use
@@ -21,7 +22,8 @@ export {
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
 	QUERY_FILTER_NAME,
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	NONE_FILTER_NAME
 };
 
 import {
@@ -190,7 +192,12 @@ export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES
 const AUTHOR_FILTER_NAME = 'author';
 const CARDS_FILTER_NAME = 'cards';
 // (filter constants re-exported at top of file)
-const EXPAND_FILTER_NAME = 'expand';
+//Exported because the boolean draft layer (collection-expression.ts) has to
+//RECOGNIZE this head in order to refuse it: expand/ is a
+//sub-collection-plus-expansion rule, not a boolean operator, so the draft layer
+//preserves it verbatim instead of pretending it is one. A private copy of the
+//string over there is exactly the drift the URL vocabulary cannot afford.
+export const EXPAND_FILTER_NAME = 'expand';
 export const QUERY_STRICT_FILTER_NAME = 'query-strict';
 const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
@@ -231,7 +238,6 @@ export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, desc
 //If filter names have this character in them then they're actually a union of
 //the filters (re-exported from filter-constants.js at top of file)
 
-export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
@@ -872,8 +878,14 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 	return [func, false];
 };
 
+//BOTH QUERY FAMILIES, because queryFilter WRITES both — its `strict` parameter
+//picks between them and encodes identically either way. A reader that knew only
+//the loose one meant `query-strict/systems+thinking` had no way back to the
+//words a person typed, so every surface that wanted them (the pill row's own
+//argument box, the find box seeded from a collection) had to either re-implement
+//the decode or show the URL spelling.
 const configurableFilterIsQuery = (filterName : string) : boolean => {
-	return filterName.startsWith(QUERY_FILTER_NAME + '/');
+	return filterName.startsWith(QUERY_FILTER_NAME + '/') || filterName.startsWith(QUERY_STRICT_FILTER_NAME + '/');
 };
 
 //decodeURIComponent THROWS on a malformed percent escape ('%', 'foo%zz'), and
@@ -1185,14 +1197,22 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that are direct or indirectly referenced by a given card',
+		//Downstream, and said so. This and ANCESTORS were mirror sentences
+		//differing only in voice ('referenced by a given card' against
+		//'reference the given card'), which a reader has to parse twice to tell
+		//apart — and this one also said 'direct or indirectly'.
+		description: 'Selects everything downstream of the key card: what it links to, what those link to, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1211,14 +1231,18 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that directly or indirectly reference the given card',
+		description: 'Selects everything upstream of the key card: what links to it, what links to those, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1244,7 +1268,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: LINK_FILTER_BASE
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1263,7 +1291,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: referenceType('link'),
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1271,7 +1303,14 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that is referenced by other cards with a particular type of reference',
+		//UPSTREAM, and said so. This sentence and the outbound one below were
+		//BOTH the wrong way round: the engine walks the key card's INBOUND
+		//references for this filter (makeCardLinksConfigurableFilter's isInbound
+		//list names it), so the cards it selects are the ones that reference the
+		//key card — which is what ANCESTORS, the same traversal without a
+		//reference type, already says of itself. The old line said the opposite,
+		//in a voice ('cards that is referenced') that had never been read aloud.
+		description: 'Selects everything upstream of the key card through a particular type of reference: what references it that way, what references those, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
@@ -1282,7 +1321,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: referenceType('link'),
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1290,7 +1333,14 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
-		description: 'Selects cards that reference other cards with a particular type of reference',
+		//DOWNSTREAM, and said so. This was a verbatim copy of the sentence
+		//`direct-references-inbound` carries — the INBOUND one — so the filter
+		//catalog offered the outbound half of the pair under a description of
+		//the inbound half. The engine leaves this name out of
+		//makeCardLinksConfigurableFilter's isInbound list, so cardBFS walks the
+		//key card's own references: the selected cards are the ones it points
+		//at, which is DESCENDANTS restricted to one reference type.
+		description: 'Selects everything downstream of the key card through a particular type of reference: what it references that way, what those reference, and so on for a given number of steps',
 		arguments: [{
 			type: 'key-card',
 			description: 'The key card',
@@ -1301,7 +1351,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: referenceType('link'),
 		},{
 			type: 'int',
-			description: 'Ply',
+			//'Ply' is a graph-search word, and it was the visible label AND the
+			//control's accessible name. Spec §Opening state spells the same
+			//number 'within 2 steps'; this is that number's own label.
+			description: 'Degrees of separation',
+			help: 'How many reference hops to follow. 1 is direct links only; 2 also includes the cards those link to.',
 			default: '2',
 		}]
 	},
@@ -1519,9 +1573,37 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 //The configurable filters that are allowed to start a multi-part filter.
 export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], true]));
 
+// A deliberately data-only view of configurable filter arguments. Collection
+// source tooling can validate and explain the URL grammar without invoking a
+// filter factory (some factories assume a fully initialized corpus).
+export const CONFIGURABLE_FILTER_ARGUMENTS : Record<string, readonly {
+	type: string;
+	description: string;
+	default: string;
+}[]> = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(([name, info]) => [name,
+	info.arguments.map(argument => ({
+		type: argument.type,
+		description: argument.description,
+		default: String(argument.default),
+	}))
+]));
+
 const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).filter(entry => entry[1].factory == makeCardLinksConfigurableFilter).map(entry => [entry[0], true]));
 
 const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : ConfigurableFilterFuncFactoryResult} = {};
+
+//A day-scoped name for a configurable filter, exported for the collection
+//composer, which needs to reason about WHICH filter names are sensitive to
+//the current date when it explains and caches its suggestions. It is
+//deliberately NOT the key of the memo below any more: master's #743
+//mechanism evicts the whole by-name cache on a day change, which also
+//covers the wrapper filters (exclude/, combine/, expand/) that a per-name
+//key cannot reach.
+export const configurableFilterCacheKey = (name : ConfigurableFilterName, now = new Date()) : string => {
+	const hasRelativeDate = name.split('/').slice(1).some(part => isRelativeDate(part));
+	if (!hasRelativeDate) return name;
+	return `${name}\n${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+};
 
 //The local day this cache was built under. Constructed filters can close
 //over relative-date resolution ("today", "7-days-ago" resolve against local
@@ -1605,6 +1687,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
+				help: arg.help,
 				value: subPieces.join('/')
 			});
 			break;
@@ -1615,6 +1698,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
+				help: arg.help,
 				value: nextSubFilter,
 			});
 			pieceIndex += nextSubFilter.split('/').length;
@@ -1631,6 +1715,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			result.push({
 				controlType,
 				description: arg.description,
+				help: arg.help,
 				value: pieces[pieceIndex],
 			});
 			pieceIndex++;
@@ -2352,7 +2437,21 @@ const makeDoesNotNeedFunc = (baseFunc : CardTestFunc, overrideKeyName : AutoTODO
 	};
 };
 
-const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.autoApply).map(entry => [entry[1].filterNames[2], {func: makeDoesNotNeedFunc(entry[1].test, REVERSE_CARD_FILTER_CONFIG_MAP[entry[1].filterNames[2]]), description: 'Does not need ' + entry[1].description}]));
+//A DESCRIPTION IS NOT A FRAGMENT YOU CAN PUT A PREFIX ON.
+//
+//These descriptions reach the user: CARD_FILTER_DESCRIPTIONS feeds the
+//composer's suggestion details, the filter catalog's rows, and the aria-labels
+//built from them. The prefix form composed 'Does not need ' with a sentence that
+//already starts 'Whether the card has…', producing 'Does not need Whether the
+//card has citations that need to be formally represented' — a sentence no one
+//wrote and no one can read. HS-2.4's formula is about what happened in the
+//user's vocabulary, and a mechanical prefix cannot produce one.
+//
+//So the negative form is AUTHORED from the TODO's own display title (the same
+//toTitleCase(key) name TODO_ALL_INFOS shows in the editor's TODO list) rather
+//than derived from the positive sentence. It says the plain, honest thing this
+//filter does and stays grammatical for every member of the family.
+const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.autoApply).map(entry => [entry[1].filterNames[2], {func: makeDoesNotNeedFunc(entry[1].test, REVERSE_CARD_FILTER_CONFIG_MAP[entry[1].filterNames[2]]), description: `Cards marked as not needing the ${toTitleCase(entry[0].split('-').join(' '))} TODO`}]));
 
 const FREEFORM_TODO_FUNC = CARD_FILTER_FREEFORM_TODO_CONFIGS['freeform-todo'].test;
 
@@ -2394,6 +2493,59 @@ export const CARD_FILTER_DESCRIPTIONS = Object.assign(
 	CARD_NON_INVERTED_FILTER_DESCRIPTIONS,
 	Object.fromEntries(Object.entries(INVERSE_FILTER_NAMES).map(entry => [entry[0], 'Inverse of ' + entry[1]]))
 );
+
+//WHOSE cards these are. A filter is viewer-dependent when its membership is
+//computed from the signed-in account's own data rather than from the cards
+//themselves: two people opening the same URL get different collections, and
+//the person who copied the link is the only one who sees what they saw.
+//
+//This is metadata about a filter, so it lives beside the other derived filter
+//registries rather than in the composer. Every surface that has to be honest
+//about personal scope — the caution on a chip, Source's readiness sentence,
+//the durability note on a suggestion — asks this one predicate, so they cannot
+//drift into disagreeing about which filters are personal.
+//
+//Deliberately NOT included: `selected`/`not-selected`. Those depend on the
+//current session's selection, not on who is looking, and they already carry
+//their own honest detail explaining that. Widening this flag to cover them
+//would make "only for you" the answer to two different questions.
+const VIEWER_DEPENDENT_POSITIVE_FILTER_NAMES = [
+	//state.collection.filters.starred and .read, populated by UPDATE_STARS and
+	//UPDATE_READS out of this account's own documents.
+	'starred',
+	'read',
+	//A reading list is a per-user set, and its filter equivalent inherits that.
+	SET_INFOS['reading-list'].filterEquivalent,
+];
+
+export const VIEWER_DEPENDENT_FILTER_NAMES : ReadonlySet<string> = new Set([
+	...VIEWER_DEPENDENT_POSITIVE_FILTER_NAMES,
+	//Inverting a personal filter does not make it impersonal: `unread` is every
+	//bit as much about you as `read` is. Derived from the inverse map so a new
+	//per-user filter only has to be named once, above.
+	...Object.entries(INVERSE_FILTER_NAMES)
+		.filter(entry => VIEWER_DEPENDENT_POSITIVE_FILTER_NAMES.includes(entry[1]))
+		.map(entry => entry[0]),
+]);
+
+//The configurable author filter takes user ids, and ME_AUTHOR_ID is a
+//late-bound reference to whoever is looking: `author/me` is resolved against
+//extras.userID at evaluation time, so one URL names a different person for
+//every reader. A concrete uid is durable and is NOT viewer-dependent — that
+//distinction is the whole reason the composer's contributor candidates can
+//promise a copied link keeps the same person. The id list is split the way
+//makeAuthorConfigurableFilter splits it, so the two cannot disagree about
+//what counts as naming yourself.
+export const filterNameIsViewerDependent = (filter : string) : boolean => {
+	if (VIEWER_DEPENDENT_FILTER_NAMES.has(filter)) return true;
+	const [family, ...rest] = filter.split('/');
+	if (family !== AUTHOR_FILTER_NAME) return false;
+	return rest.join('/').split(INCLUDE_KEY_CARD_PREFIX).includes(ME_AUTHOR_ID);
+};
+
+//True when ANY clause makes the result depend on who is looking. One personal
+//clause is enough: the collection as a whole is then personal.
+export const filterNamesAreViewerDependent = (filters : readonly string[]) : boolean => filters.some(filterNameIsViewerDependent);
 
 //We pull this out because it has to be the same in filters and filtersSnapshot
 //and to avoid having to duplicate it.

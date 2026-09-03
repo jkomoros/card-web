@@ -165,4 +165,56 @@ describe('corpus retainers (#768)', () => {
 				'a replaced editable map must not stay pinned by the memo');
 		});
 	});
+
+	//THE COMPOSER'S NAME MEMOS, SAME RULE (#749, round 10).
+	//
+	//The completion index's document memo keys on the labels object a candidate
+	//list derives, and that derivation was rebuilt on every call — so the memo
+	//never hit and the whole vocabulary was re-stemmed per keystroke. Memoizing
+	//it fixes that, but a module-scope memo over a corpus-sized argument is
+	//exactly the retainer this file exists for: memoize(fn, n) holds its
+	//arguments STRONGLY, so a superseded candidate list would have been pinned
+	//for the life of the tab. It is weak-keyed on the list instead.
+	describe('collectionFilterLabels memo', () => {
+
+		let collectionFilterLabels;
+
+		before(async () => {
+			({collectionFilterLabels} = await import('../../lib/src/collection-composer-suggestions.js'));
+		});
+
+		const candidateList = (prefix, count) => {
+			const out = [];
+			for (let i = 0; i < count; i++) out.push({
+				filter: `${prefix}-${i}`,
+				category: 'tag',
+				label: `Tagged “${prefix} ${i}”`,
+				clauseLabel: `Tagged ${prefix} ${i}`,
+				detail: '',
+				aliases: [],
+			});
+			return out;
+		};
+
+		it('answers with one object per candidate list', () => {
+			const list = candidateList('stable', 4);
+			assert.strictEqual(collectionFilterLabels(list), collectionFilterLabels(list),
+				'the memo must hit — the document memo one layer up keys on this identity');
+		});
+
+		it('lets a superseded candidate list be collected', async function() {
+			this.timeout(20000);
+			let dead = candidateList('dead', 200);
+			const live = candidateList('live', 4);
+			collectionFilterLabels(dead);
+			collectionFilterLabels(live);
+			const deadRef = new WeakRef(dead);
+			const liveRef = new WeakRef(live);
+			dead = null;
+			await gcNow();
+			assert.strictEqual(deadRef.deref(), undefined,
+				'a replaced corpus generation must not be pinned by the label memo');
+			assert.notStrictEqual(liveRef.deref(), undefined, 'the live generation must survive');
+		});
+	});
 });

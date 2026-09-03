@@ -12,6 +12,7 @@ import {
 	queryTextFromQueryFilter,
 	SET_INFOS,
 	SELECTED_FILTER_NAME,
+	parseRelativeDate,
 } from './filters.js';
 
 import {
@@ -32,7 +33,8 @@ import {
 
 import {
 	reportURLDiagnostic,
-	retractURLDiagnostic
+	retractURLDiagnostic,
+	withURLDiagnosticsSuppressed
 } from '../shared/url-diagnostics.js';
 
 import {
@@ -187,9 +189,65 @@ export const collectionDescriptionWithSortReversed = (description : CollectionDe
 	return collectionDescriptionWithOverrides(description, {sortReversed});
 };
 
+export const collectionDescriptionWithViewMode = (description : CollectionDescription, viewMode : ViewMode, viewModeExtra = '') : CollectionDescription => {
+	return collectionDescriptionWithOverrides(description, {viewMode, viewModeExtra});
+};
+
 //collectionDescriptionWithQuery returns a new cloned collection description,
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
+//THE URL WAS THE LAST SURFACE STILL SHOWING THE TYPED ORDER.
+//
+//`between` DELIBERATELY accepts its bounds either way round — the filter's own
+//comparison is order-insensitive, and the composer's display already puts the
+//earlier bound first, because 'Updated between 2026-08-21 and 2023-12-31'
+//describes a window that runs backwards. Source, though, called such a source
+//"safe to open" with nothing to say about it and then opened a URL that kept
+//the reversed order — the one place where what executed, what was displayed,
+//and what was in the address bar could all disagree.
+//
+//Spec §Canonicalization: "Canonical ordering applies when producing the final
+//canonical URL." So the ordering lives with the path builder, where the source
+//editor's existing canonicalization notice picks it up for free.
+const DATE_RANGE_FAMILIES = ['created', 'updated', 'last-tweeted'];
+const DATE_RANGE_KEYWORD = 'between';
+
+const dateBoundaryMillis = (value : string) : number => {
+	const relative = parseRelativeDate(value);
+	if (relative) return relative.getTime();
+	return new Date(value).getTime();
+};
+
+//Exported because the display ordering and the URL ordering must be the same
+//rule; two copies is how they came to disagree in the first place.
+export const chronologicalDateBounds = (values : string[]) : string[] => {
+	if (values.length !== 2) return values;
+	const [first, second] = values.map(dateBoundaryMillis);
+	//An unparseable bound is not evidence of anything, so leave it as typed.
+	if (!Number.isFinite(first) || !Number.isFinite(second)) return values;
+	return first <= second ? values : [values[1], values[0]];
+};
+
+export const collectionDescriptionWithOrderedDateBounds = (description : CollectionDescription) : CollectionDescription => {
+	let changed = false;
+	const filters = description.filters.map(filter => {
+		const parts = filter.split('/');
+		//The keyword only means a date range after a date FAMILY: `query/between`
+		//is somebody searching for the word.
+		const at = parts.findIndex((part, index) => part === DATE_RANGE_KEYWORD && index > 0 && DATE_RANGE_FAMILIES.includes(parts[index - 1]));
+		if (at < 0 || parts.length < at + 3) return filter;
+		const ordered = chronologicalDateBounds([parts[at + 1], parts[at + 2]]);
+		if (ordered[0] === parts[at + 1]) return filter;
+		changed = true;
+		const next = [...parts];
+		next[at + 1] = ordered[0];
+		next[at + 2] = ordered[1];
+		return next.join('/');
+	});
+	if (!changed) return description;
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
 export const collectionDescriptionWithQuery = (description : CollectionDescription, queryText : string) : CollectionDescription => {
 	return collectionDescriptionWithConfigurableFilter(description, queryFilter(queryText));
 };
@@ -226,6 +284,15 @@ export const copyCollectionConfiguration = (config : CollectionConfiguration) : 
 		filterNames: [...config.filterNames]
 	};
 };
+
+//WHETHER TWO CONFIGURATIONS NAME THE SAME COLLECTION. serialize() is faithful
+//down to sort and view mode, which is exactly the comparison a preserved draft
+//needs: "is this still the collection that draft was an adjustment to?" It is
+//defined here, beside the copy helper, so the reducer can ask the question
+//without reimplementing a field-by-field comparison that would drift the first
+//time CollectionConfiguration grows a field.
+export const collectionConfigurationIdentity = (config : CollectionConfiguration) : string =>
+	CollectionDescription.withConfiguration(config).serialize();
 
 export class CollectionDescription {
 
@@ -509,6 +576,46 @@ export class CollectionDescription {
 		return [new CollectionDescription(setName,filters,sortName,sortReversed, viewMode, viewModeExtra), extra];
 	}
 }
+
+//The page every collection URL lives under. actions/app.ts's PAGE_DEFAULT is
+//the same 'c'; it cannot be imported here, because actions/app.ts sits above
+//this module in the import graph. The url test pins the two together so the
+//duplication cannot drift.
+export const COLLECTION_URL_PREFIX = '/c/';
+
+type CollectionURLPathOptions = {
+	//The card the path should select. '' means "the default item in the
+	//collection", which is what a bare trailing slash already says.
+	selectedCard? : string,
+	//Keep the clauses in the order the user wrote them rather than the
+	//canonical sorted order (spec §Canonicalization: authoring order is
+	//retained during the editing session).
+	originalOrder? : boolean,
+};
+
+//THE ONE PLACE A COLLECTION PATH IS BUILT.
+//
+//`serializeShort` elides the default set name, and for the bare Main
+//collection — no filters, default sort, list view — that leaves NOTHING at
+//all. Every caller that pasted `/c/${description.serializeShort()}` therefore
+//produced `/c/` for Main, which is not a spelling of Main: it is a route with
+//no collection in it, which the router resolves through its own
+//default-substitution path and lands somewhere the user never named. With a
+//selected card appended it was worse still — `/c/` + a card id is `/c/<id>`,
+//where the card id is read as the collection's first URL part.
+//
+//So: never an empty serialization (fall back to the full one, which always
+//names the set), and the card suffix is only ever appended after the trailing
+//slash the serialization already ends with.
+export const collectionURLPath = (description : CollectionDescription, options : CollectionURLPathOptions = {}) : string => {
+	const {selectedCard = '', originalOrder = false} = options;
+	const short = originalOrder ? description.serializeShortOriginalOrder() : description.serializeShort();
+	const serialized = short || (originalOrder ? description.serializeOriginalOrder() : description.serialize());
+	//Belt and braces: every serialization ends in '/' by construction, and the
+	//card suffix is only legal after one.
+	const collection = serialized.endsWith('/') ? serialized : serialized + '/';
+	return COLLECTION_URL_PREFIX + collection + selectedCard;
+};
 
 const filterNameIsUnionFilter = (filterName : FilterName) : boolean => {
 	//the + can be include in a configurable filter, e.g `children/+ab123`
@@ -821,6 +928,40 @@ const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]
 export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterName, extras : FilterExtras) : ConfigurableFilterResult => {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
+		//AN UNKNOWN MEMBER OF A UNION IS AN UNKNOWN FILTER.
+		//
+		//It used to be neither reported nor treated like one. `tag-33x` on its
+		//own reports "Didn't understand" and no-ops, so /c/published/tag-33x/
+		//showed 224 cards; inside a union the same name resolved to undefined,
+		//contributed the empty set, and /c/published/tag-33x+tag-7/ silently
+		//showed 25 — a DIFFERENT collection than the URL described, with
+		//nothing said about it. Ahead of Edit All Cards that silence is the
+		//dangerous half.
+		//
+		//So: the same diagnostic, and the same semantics. An unknown member is
+		//dropped from the OR group (which is what contributing the empty set
+		//already amounted to), and a union whose members are ALL unknown
+		//behaves exactly like a standalone unknown — a no-op that excludes
+		//nothing — rather than an empty set that excludes everything.
+		//
+		//The part reported is the WHOLE segment, not the bare member: the
+		//surfacing selector matches diagnostics against the raw URL by whole
+		//path segment, and `tag-33x` never appears as one in
+		//`/published/tag-33x+tag-7/`. A report nobody can see is not a report.
+		const subFilterNames = filterDefinitionItem.split(UNION_FILTER_DELIMITER);
+		const unknown = subFilterNames.filter(name => !filterSetMemberships[name] && !INVERSE_FILTER_NAMES[name]);
+		const quoted = unknown.map(name => '“' + name + '”').join(', ');
+		if (!unknown.length) {
+			//Same self-correction as the standalone path: section and tag
+			//filter names load async, so an early boot recompute can report
+			//against a URL that is perfectly valid a moment later (#757).
+			retractURLDiagnostic(filterDefinitionItem);
+		} else if (unknown.length === subFilterNames.length) {
+			reportURLDiagnostic(filterDefinitionItem, 'ignored the whole OR group, because ' + quoted + (unknown.length === 1 ? ' is' : ' are') + ' not a filter or set');
+			return [{}, true, null, null, false];
+		} else {
+			reportURLDiagnostic(filterDefinitionItem, 'dropped ' + quoted + ' from the OR group, because ' + (unknown.length === 1 ? 'it is' : 'they are') + ' not a filter or set');
+		}
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards, extras.cardsContentToken), false, null, null, false];
 	}
 	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
@@ -849,6 +990,32 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 	//card is not, so say what happened.
 	reportURLDiagnostic(filterDefinitionItem, 'ignored it, because it is not a filter or set — if you meant a card, the URL should not end in a slash');
 	return [{}, true, null, null, false];
+};
+
+//WHETHER ONE CARD PASSES ONE CLAUSE, DECIDED BY THE MACHINERY THAT DECIDED THE
+//COLLECTION.
+//
+//The why-here panel needs a per-clause answer, and the tempting way to get one
+//is to re-derive it: look the tag up on the card, compare the dates, check the
+//published flag. Every such re-derivation is a SECOND implementation of the
+//engine, and the day the two disagree the panel is lying about the very thing it
+//exists to explain.
+//
+//So there is no second implementation here. This is `filterSetForFilterDefinitionItem`
+//— the exact function `combinedFilterForFilterDefinition` calls for every
+//segment — followed by `makeCombinedFilter`'s exact membership rule: an
+//un-reversed set must CONTAIN the card, a reversed set must NOT. Same function,
+//same extras, same rule; the conjunction of these verdicts over a description's
+//segments is `combinedFilter(cardID)` by construction, not by agreement.
+//
+//It is deliberately a free function over `FilterExtras` rather than a method, so
+//it can answer for a sub-filter that is not a segment of anything: an OR group's
+//members are evaluated by the engine through this same function (filters.ts's
+//combine factory calls it on each half), so a member's verdict is the engine's
+//member verdict too.
+export const cardPassesFilterSegment = (segment : FilterName, cardID : CardID, extras : FilterExtras) : boolean => {
+	const [filterSet, reverse] = withURLDiagnosticsSuppressed(() => filterSetForFilterDefinitionItem(segment, extras));
+	return reverse ? !filterSet[cardID] : Boolean(filterSet[cardID]);
 };
 
 //makeExtrasForFilterFunc makes a new extras object containing the extra
@@ -939,7 +1106,13 @@ const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, 
 	const sortExtras : SortExtras = {};
 	let partialExtras : CardBooleanMap = {};
 	let hasPreview = false;
-	for (const name of filterDefinition) {
+	//CollectionDescription.serialize() canonicalizes filter order. Evaluate in
+	//that same order so descriptions with the same canonical serialization
+	//cannot diverge when configurable filters emit ranking metadata. Previously,
+	//the URL's authoring order accidentally decided which same-family metadata
+	//won and which configurable family supplied the default sort.
+	const canonicalFilterDefinition = [...filterDefinition].sort();
+	for (const name of canonicalFilterDefinition) {
 		const [filterSet, reverse, sortInfos, partialMatches, preview] = filterSetForFilterDefinitionItem(name, extras);
 		if (reverse) {
 			excludeSets.push(filterSet);
@@ -1192,6 +1365,18 @@ export class Collection {
 		return this._cachedFilterExtras;
 	}
 
+	//THE INPUTS THIS COLLECTION FILTERED WITH, for a caller that needs to ask the
+	//engine a question ABOUT this collection — today, only "does this card pass
+	//this clause of it" (see cardPassesFilterSegment). Exposing the memoized
+	//extras rather than the ingredients is the whole point: a caller that
+	//rebuilt them from selectors could assemble a DIFFERENT snapshot (the
+	//filtering path deliberately uses cardsSnapshot and filtersSnapshot, not the
+	//live maps) and get a defensible answer about a collection nobody is
+	//looking at.
+	get filterExtras() : FilterExtras {
+		return this._filterExtras;
+	}
+
 	//This will return true if any card in any filter used to make this collection returned preview:true
 	get preview() : boolean {
 		this._ensureFilteredCards();
@@ -1265,6 +1450,32 @@ export class Collection {
 		//set collectionIsFallback correctly;
 		this._ensureFilteredCards();
 		return this._collectionIsFallback;
+	}
+
+	//THE ENGINE'S OWN ANSWER TO "IS THIS CARD ONE OF THE CARDS I MATCHED", or
+	//null where this collection has no honest answer to give.
+	//
+	//This exists to CHECK an explanation, not to produce one: the why-here panel
+	//assembles a per-clause account out of the engine's per-clause machinery, and
+	//the conjunction of those clauses has to come out equal to this. Same
+	//function and same extras make that true by construction — but "by
+	//construction" is an argument, and in cutover mode the result on screen was
+	//computed in the WORKER from its own copy of the corpus while the panel
+	//reasons from the main thread's. So the argument is checked against the
+	//artifact, every time, and an explanation that would contradict what the user
+	//is looking at is not shown at all.
+	//
+	//The three nulls are the cases where the card list is not a membership
+	//answer: a transitional placeholder's ids are guesses (#762), a fallback
+	//collection's cards are what it showed INSTEAD of its matches, and a limited
+	//or offset collection has truncated its matches, so absence there means
+	//nothing.
+	matchedCard(cardID : CardID) : boolean | null {
+		if (this._transitional) return null;
+		if (this._description.limit || this._description.offset) return null;
+		this._ensureFilteredCards();
+		if (this._collectionIsFallback) return null;
+		return this._preLimitFilteredCards.some(card => card.id === cardID);
 	}
 
 	//True while this collection is the cutover-mode placeholder awaiting the

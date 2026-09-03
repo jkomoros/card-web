@@ -29,6 +29,8 @@ export const FIND_CARD_OPEN = 'FIND_CARD_OPEN';
 export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
 export const FIND_CARD_TO_REFERENCE = 'FIND_CARD_TO_REFERENCE';
 export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';
+//The collection composer picking the card a card-valued filter names.
+export const FIND_CARD_TO_CONFIGURE = 'FIND_CARD_TO_CONFIGURE';
 
 export const COLORS = {
 	INDIAN_RED: '#CD5C5C',

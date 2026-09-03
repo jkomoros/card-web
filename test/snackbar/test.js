@@ -304,6 +304,40 @@ describe('the snack bar queue (#758)', () => {
 			assert.ok(snackbars().some(entry => entry.kind === 'discarded'), 'a discarded write must not be evicted to make room');
 		});
 
+		//A REFUSAL MUST NOT LOOK LIKE A RUNNING COMMENTARY.
+		//
+		//The dot existed for 'queued' and 'discarded' only, so 'refused' — the
+		//app declining to do what was asked — rendered pixel-identical to
+		//'info'. The three dotted kinds are the three that are not routine;
+		//committed and info stay bare, because a dot for "it worked" is noise.
+		it('marks a refusal, and leaves routine outcomes unmarked', async () => {
+			const dotFor = async (kind) => {
+				clear();
+				store.dispatch(showSnackbar(`A ${kind} outcome.`, {kind}));
+				element.stateChanged(store.getState());
+				await element.updateComplete;
+				return element.shadowRoot.querySelector('.toast .dot');
+			};
+			assert.ok(await dotFor('refused'), 'a refusal is not routine and must be marked');
+			assert.ok(await dotFor('queued'));
+			assert.ok(await dotFor('discarded'));
+			assert.strictEqual(await dotFor('info'), null, 'a dot for "it worked" is noise');
+			assert.strictEqual(await dotFor('committed'), null);
+
+			//And the mark DIFFERS from the one 'discarded' carries: both are
+			//red, because in neither case did the user get what they asked for,
+			//but a refusal lost nothing, so it is hollow rather than filled.
+			//JSDOM computes no styles, so the rules are read directly.
+			const styles = element.constructor.styles.map(sheet => String(sheet.cssText || '')).join('\n');
+			const refused = styles.match(/\.toast\[data-kind='refused'\] \.dot \{[^}]*\}/);
+			assert.ok(refused, 'the refused kind needs a treatment of its own');
+			assert.match(refused[0], /var\(--app-warning-color\)/, 'what was asked for did not happen (HS-4.5)');
+			assert.ok(!/background:/.test(refused[0]),
+				'a filled dot is what "happened and did not survive" means; a refusal lost nothing');
+			assert.match(styles, /\.toast\[data-kind='discarded'\] \.dot \{[^}]*background:\s*var\(--app-warning-color\)/,
+				'and discarded keeps the filled one it had');
+		});
+
 		it('names its dismiss button for hover AND assistive tech', async () => {
 			store.dispatch(showSnackbar('a message'));
 			element.stateChanged(store.getState());
@@ -372,7 +406,51 @@ describe('the snack bar queue (#758)', () => {
 			//is no z-index — the second time on this branch that a source pin
 			//matched prose instead of code.
 			assert.ok(!/z-index:\s*\d/.test(source), 'z-index belongs to the container that owns the corner, not to a member of the stack');
-			assert.ok(/:host\(\.mobile\)/.test(source), 'the mobile rule must key off a CLASS; an attribute selector cannot match an unreflected property');
+
+			//ONE STACK, ONE LEFT EDGE. The host sits in a flex-end column, so
+			//it is sized to fit its content — and each toast then sized itself,
+			//leaving three messages of different lengths hanging off a shared
+			//right edge with three different left edges. That reads as three
+			//unrelated boxes rather than one stack. The host's own sizing is
+			//unchanged (the comment above it records why a fixed width was
+			//wrong); what is pinned is that every toast takes the full width
+			//the host settled on.
+			assert.ok(/\.toasts\s*\{[^}]*align-items:\s*stretch/.test(source), 'the stack must give its toasts one shared width');
+			assert.ok(/\.toast\s*\{[^}]*width:\s*100%/.test(source), 'and an explicit full width, so no shrink-to-fit path can ragged the left edge');
+			assert.ok(/\.toast\s*\{[^}]*box-sizing:\s*border-box/.test(source), 'the padded toast must not overflow the width it was given');
+		});
+
+		//THE MOBILE OFFSET MOVED, AND SO DOES ITS PIN.
+		//
+		//This used to assert `:host(.mobile)` in snack-bar's own source — and by
+		//the time it was written that rule had already been deleted in favour of
+		//the shared .banners stack, so the only thing left matching was the
+		//COMMENT that explains why the class idiom is used. The neighbouring
+		//comment above warns about exactly this failure twice; it happened a
+		//third time. The invariant is real and worth keeping, so it is pinned
+		//where the offset actually lives now.
+		//
+		//What it protects: on mobile the card stage's action row is the app's
+		//only navigation, it sits at the bottom of the stage, and this
+		//bottom-anchored column drew straight over it for a toast's whole life
+		//— including over the composer's own entry point, which is what
+		//produced the toast.
+		it('lifts the bottom stack clear of the mobile toolbar', async () => {
+			const {readFileSync} = await import('fs');
+			const source = readFileSync(new URL('../../src/components/card-web-app.ts', import.meta.url), 'utf8');
+
+			const mobileRule = /\.banners\.mobile\s*\{([^}]*)\}/.exec(source);
+			assert.ok(mobileRule, 'the banner column needs a mobile offset');
+			assert.ok(/bottom:\s*calc\(/.test(mobileRule[1]), 'the offset clears the toolbar');
+			assert.ok(/env\(safe-area-inset-bottom\)/.test(mobileRule[1]), 'and the device inset under it');
+			//It has to WIN over .editor-open, which sets a smaller bottom, so it
+			//must be stated after it.
+			assert.ok(source.search(/\.banners\.mobile\s*\{/) > source.search(/\.banners\.editor-open\s*\{/),
+				'the mobile offset must be stated after .editor-open so it wins when both apply');
+			//§4.6: the breakpoint is a property threaded down and set as a class,
+			//never a CSS media query.
+			assert.ok(/class='banners [\s\S]*?\$\{this\._mobileMode \? 'mobile' : ''\}'/.test(source),
+				'the mobile class comes from the app-level property, not a media query');
 		});
 
 		//The structural fix: a message waiting behind others has no clock at

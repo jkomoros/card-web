@@ -18,6 +18,7 @@ import {
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
+	FIND_CARD_TO_CONFIGURE,
 	FIND_CARD_OPEN
 } from '../shared/card_fields.js';
 
@@ -343,6 +344,9 @@ export type SortConfigurationMap = {
 export type ConfigurableFilterControlPiece = {
 	controlType : ConfigurableFilterFuncURLPart,
 	description : string,
+	//Carried through from the argument definition so the editor can explain the
+	//control it is rendering, rather than only labelling it.
+	help? : string,
 	value : string
 }
 
@@ -391,7 +395,13 @@ type ConfigurableFilterFuncURLPart = z.infer<typeof _configurableFilterFuncURLPa
 
 type ConfigurableFilterFuncArgument = {
 	type : ConfigurableFilterFuncURLPart,
+	//The argument's visible label, and the control's accessible name.
 	description : string,
+	//An optional sentence explaining what the argument MEANS, shown through the
+	//app's help badge beside the control. A label can name an argument; it
+	//cannot teach one, and 'Degrees of separation' next to a bare number
+	//spinner still leaves a first-time reader guessing what a step is.
+	help? : string,
 	default : number | string | boolean,
 };
 
@@ -737,7 +747,7 @@ export interface HTMLElementWithStashedSelectionOffset extends HTMLElement {
 	stashedSelectionOffset?: [number, number]
 }
 
-export type FindDialogType = typeof FIND_CARD_OPEN | typeof FIND_CARD_TO_LINK | typeof FIND_CARD_TO_PERMISSION | typeof FIND_CARD_TO_REFERENCE;
+export type FindDialogType = typeof FIND_CARD_OPEN | typeof FIND_CARD_TO_LINK | typeof FIND_CARD_TO_PERMISSION | typeof FIND_CARD_TO_REFERENCE | typeof FIND_CARD_TO_CONFIGURE;
 
 export type AppState = {
 	location: string,
@@ -755,6 +765,17 @@ export type AppState = {
 	cardsDrawerPanelOpen: boolean,
 	cardsDrawerInfoExpanded: boolean,
 	configureCollectionDialogOpen: boolean,
+	configureCollectionDialogMode: 'compose' | 'source',
+	//Bumped every time the composer is asked to open, including while it is
+	//already open, so "focus the input again" is observable by the dialog.
+	configureCollectionDialogFocusRequest: number,
+	//WHICH CLAUSE THE OPENER WANTED, in the sentence's own address: [] for "no
+	//opinion", [index] for a condition or a whole group. The card info panel's
+	//tap-through sets it so the composer opens on the clause the user just
+	//pointed at, rather than opening on nothing and making them find it again.
+	//A REQUEST, not a selection: the dialog owns its own selection and honours
+	//this only when it addresses a real clause of the draft it is about to show.
+	configureCollectionDialogSelection: readonly number[],
 	presentationMode: boolean,
 	mobileMode: boolean,
 	hoverX: number,
@@ -1178,6 +1199,14 @@ export type FindState = {
 	//update this every so often as query is updated, because it is expensive
 	//and drives expensive template updating, introducing lag.
 	activeQuery: string,
+	//WHETHER activeQuery IS TEXT THE APP SEEDED rather than a query somebody
+	//typed. True only while the dialog is still showing the text Ctrl-L took
+	//from the editor's selection; typed operators (`tag:internal`, `sort:stars`)
+	//are read out of that text only when this is false. It describes activeQuery
+	//specifically, so it is cleared in the same action that promotes an edited
+	//query — never earlier, or the seeded text would spend a debounce interval
+	//being read as grammar it is not.
+	queryIsLiteral: boolean,
 	renderOffset: number,
 	//For when the user is looking to link specific highlighted text to that card
 	linking: boolean,
@@ -1199,6 +1228,17 @@ export type FindState = {
 	cardTypeFilter: string,
 	//if true, the filter shouldn't be able to be changed
 	cardTypeFilterLocked: boolean,
+	//For when the collection composer wants the card a card-valued filter names.
+	configuring: boolean,
+	//WHICH key-card control asked. Several can be on screen at once, so the
+	//answer is addressed rather than broadcast. Deliberately NOT cleared by
+	//FIND_DIALOG_CLOSE: find-dialog closes itself BEFORE it reports the pick,
+	//exactly as the linking and permission modes do.
+	configureRequestID: string,
+	//The card that mode picked, '' until it does. Read once by the control
+	//whose requestID matches, which then forgets its own id so a later render
+	//cannot apply the same answer twice.
+	configuredCardID: CardID,
 }
 
 export type MaintenanceTaskMap = {

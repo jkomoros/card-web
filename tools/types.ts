@@ -17,7 +17,11 @@ export type ExpandedConfig = {
 export type ModeConfig = {
 	app_title : string;
 	app_description : string;
-	//The domain where this webapp resides. Currently not used very broadly.
+	//The domain where this webapp resides. Used by the cloud functions to build
+	//absolute links, and exported to the client as SITE_DOMAIN so it knows
+	//which origin, besides the one it is running on, a pasted collection URL
+	//may come from (the Collection Composer's Source mode). If unset, the
+	//client trusts only its own origin.
 	site_domain? : string;
 	seo : boolean;
 	google_analytics? : string;

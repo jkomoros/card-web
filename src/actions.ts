@@ -2,7 +2,8 @@ import {
 	FIND_CARD_OPEN as OPEN,
 	FIND_CARD_TO_LINK as LINK,
 	FIND_CARD_TO_PERMISSION as PERMISSION,
-	FIND_CARD_TO_REFERENCE as REFRENCE
+	FIND_CARD_TO_REFERENCE as REFRENCE,
+	FIND_CARD_TO_CONFIGURE as CONFIGURE
 } from '../shared/card_fields.js';
 
 import {
@@ -97,7 +98,16 @@ export const CLOSE_COMMENTS_AND_INFO_PANEL = 'CLOSE_COMMENTS_AND_INFO_PANEL';
 export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
 export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
 export const OPEN_CONFIGURE_COLLECTION_DIALOG = 'OPEN_CONFIGURE_COLLECTION_DIALOG';
+//ONE frozen empty array for "the opener had no opinion about which clause to
+//select". It lives HERE, beside the action that carries it, because both ends
+//have to agree on the same object: the reducer stored this constant so a
+//no-opinion open would not churn the dialog's property identity, and the action
+//creator defaulted to a FRESH `[]` — which is truthy, so `action.selection ||
+//EMPTY_DIALOG_SELECTION` took the fresh one every time and the churn the
+//constant exists to prevent happened anyway.
+export const EMPTY_DIALOG_SELECTION : readonly number[] = Object.freeze([]);
 export const CLOSE_CONFIGURE_COLLECTION_DIALOG = 'CLOSE_CONFIGURE_COLLECTION_DIALOG';
+export const CANCEL_CONFIGURE_COLLECTION_DIALOG = 'CANCEL_CONFIGURE_COLLECTION_DIALOG';
 export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
 export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
@@ -232,6 +242,8 @@ export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
 export const FIND_UPDATE_SEARCH_RECALL = 'FIND_UPDATE_SEARCH_RECALL';
 export const FIND_CARD_TO_PERMISSION = PERMISSION;
 export const FIND_CARD_TO_REFERENCE = REFRENCE;
+export const FIND_CARD_TO_CONFIGURE = CONFIGURE;
+export const FIND_CARD_CONFIGURED = 'FIND_CARD_CONFIGURED';
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
 export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
 export const FIND_UPDATE_STICKY_FILTERS = 'FIND_UPDATE_STICKY_FILTERS';
@@ -363,11 +375,19 @@ type ActionCloseCardsDrawerPanel = {
 };
 
 type ActionOpenConfigureCollectionDialog = {
-	type: typeof OPEN_CONFIGURE_COLLECTION_DIALOG
+	type: typeof OPEN_CONFIGURE_COLLECTION_DIALOG,
+	mode?: 'compose' | 'source',
+	//The clause the opener wants selected, in the sentence's own address.
+	//Omitted means "no opinion", which is every opener but the why-here panel.
+	selection?: readonly number[]
 };
 
 type ActionCloseConfigureCollectionDialog = {
 	type: typeof CLOSE_CONFIGURE_COLLECTION_DIALOG
+};
+
+type ActionCancelConfigureCollectionDialog = {
+	type: typeof CANCEL_CONFIGURE_COLLECTION_DIALOG
 };
 
 type ActionEnablePresentationMode = {
@@ -1042,7 +1062,15 @@ type ActionFindUpdateQuery = {
 
 type ActionFindCardToLink = {
 	type: typeof FIND_CARD_TO_LINK,
-	query: string
+	query: string,
+	//TRUE WHEN THE QUERY IS TEXT THE APP SEEDED, not a query the user typed.
+	//Ctrl-L in the editor hands the find dialog the current text SELECTION, and
+	//prose is not grammar: read through the operator table, `Type: safety` loses
+	//a word and `type:content` becomes a card-type filter. Only this mode
+	//carries the flag because only this mode is ever seeded from card text; the
+	//other launch modes fall back to the ACTIVE COLLECTION'S query text, which
+	//is a query and should be read as one.
+	literal?: boolean
 };
 
 type ActionFindUpdateRenderOffset = {
@@ -1071,6 +1099,20 @@ type ActionFindCardToReference = {
 	type: typeof FIND_CARD_TO_REFERENCE,
 	query: string,
 	cardTypeFilter: string
+};
+
+//requestID names WHICH key-card control asked. Several of them can be on
+//screen at once (the web-focus-card control and one per card-valued clause),
+//and only the one that opened the picker may take the answer.
+type ActionFindCardToConfigure = {
+	type: typeof FIND_CARD_TO_CONFIGURE,
+	query: string,
+	requestID: string
+};
+
+type ActionFindCardConfigured = {
+	type: typeof FIND_CARD_CONFIGURED,
+	cardID: CardID
 };
 
 type ActionFindUpdateCardTypeFilter = {
@@ -1353,6 +1395,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCloseCardsDrawerPanel
 	| ActionOpenConfigureCollectionDialog
 	| ActionCloseConfigureCollectionDialog
+	| ActionCancelConfigureCollectionDialog
 	| ActionEnablePresentationMode
 	| ActionDisablePresentationMode
 	| ActionEnableMobileMode
@@ -1479,6 +1522,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionFindUpdateSearchRecall
 	| ActionFindCardToPermission
 	| ActionFindCardToReference
+	| ActionFindCardToConfigure
+	| ActionFindCardConfigured
 	| ActionFindUpdateCardTypeFilter
 	| ActionFindUpdateSortByRecent
 	| ActionFindUpdateStickyFilters

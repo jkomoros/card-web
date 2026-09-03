@@ -8,6 +8,8 @@ import {
 	FIND_UPDATE_SEARCH_RECALL,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
+	FIND_CARD_TO_CONFIGURE,
+	FIND_CARD_CONFIGURED,
 	FIND_UPDATE_CARD_TYPE_FILTER,
 	FIND_UPDATE_SORT_BY_RECENT,
 	FIND_UPDATE_STICKY_FILTERS,
@@ -28,6 +30,7 @@ const INITIAL_STATE : FindState = {
 	searchRecall: null,
 	query: '',
 	activeQuery: '',
+	queryIsLiteral: false,
 	renderOffset: 0,
 	linking: false,
 	permissions: false,
@@ -35,6 +38,9 @@ const INITIAL_STATE : FindState = {
 	sortByRecent: false,
 	cardTypeFilter: '',
 	cardTypeFilterLocked: false,
+	configuring: false,
+	configureRequestID: '',
+	configuredCardID: '',
 	//Initialized from localStorage so the preference applies from the first
 	//search of the session (#745). NOT reset by dialog open/close.
 	stickyFiltersEnabled: readStickySearchEnabled(),
@@ -60,8 +66,13 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: false,
 			permissions: false,
 			referencing: false,
+			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//The generic Search dialog is never seeded from card text: its
+			//starter query is the active collection's own query text, which is
+			//a query and is read as one.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: '',
@@ -74,6 +85,7 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			open: false,
 			query: '',
 			activeQuery: '',
+			queryIsLiteral: false,
 			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
@@ -87,6 +99,13 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 		return {
 			...state,
 			activeQuery: state.query,
+			//THE FLAG DESCRIBES activeQuery, so it is cleared HERE and not in
+			//FIND_UPDATE_QUERY. The moment a user edits a seeded query they are
+			//typing one, and typed operators come back — but activeQuery is
+			//still the seeded text until this action promotes the edit, and
+			//clearing the flag any earlier would spend a debounce interval
+			//reading the seeded prose as grammar.
+			queryIsLiteral: false,
 			renderOffset: 0,
 		};
 	case FIND_CARD_TO_LINK:
@@ -96,12 +115,18 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: true,
 			permissions: false,
 			referencing: false,
+			configuring: false,
 			sortByRecent: false,
 			cardTypeFilter: '',
 			renderOffset: 0,
 			cardTypeFilterLocked: false,
 			query: action.query,
-			activeQuery: action.query
+			activeQuery: action.query,
+			//Set by launchFind when the caller supplied the text — today, the
+			//editor's selection under Ctrl-L. A link search that fell back to
+			//the active collection's query text is not seeded and reads
+			//operators normally.
+			queryIsLiteral: Boolean(action.literal),
 		};
 	case FIND_CARD_TO_PERMISSION:
 		return {
@@ -110,8 +135,11 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: false,
 			permissions: true,
 			referencing: false,
+			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//Seeded from the active collection's query text, which is a query.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: '',
@@ -124,12 +152,42 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			linking: false,
 			permissions: false,
 			referencing: true,
+			configuring: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			//Seeded from the active collection's query text, which is a query.
+			queryIsLiteral: false,
 			renderOffset: 0,
 			sortByRecent: true,
 			cardTypeFilter: action.cardTypeFilter || '',
 			cardTypeFilterLocked: !!action.cardTypeFilter,
+		};
+	case FIND_CARD_TO_CONFIGURE:
+		return {
+			...state,
+			open: true,
+			linking: false,
+			permissions: false,
+			referencing: false,
+			configuring: true,
+			//A fresh request ALWAYS clears the previous answer: without this a
+			//control whose id happened to be reused would read a stale pick the
+			//moment the picker opened, before the user chose anything.
+			configureRequestID: action.requestID,
+			configuredCardID: '',
+			query: action.query || '',
+			activeQuery: action.query || '',
+			//Seeded from the active collection's query text, which is a query.
+			queryIsLiteral: false,
+			renderOffset: 0,
+			sortByRecent: false,
+			cardTypeFilter: '',
+			cardTypeFilterLocked: false,
+		};
+	case FIND_CARD_CONFIGURED:
+		return {
+			...state,
+			configuredCardID: action.cardID,
 		};
 	case FIND_UPDATE_RENDER_OFFSET:
 		return {

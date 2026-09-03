@@ -1,4 +1,20 @@
 import { createSelector } from 'reselect';
+import type { CollectionComposerCandidate } from './collection-composer-suggestions.js';
+//A VALUE IMPORT OF THE COMPOSER'S VOCABULARY MODULE, and it is not the reason
+//that module is eager. Review flagged this line as putting ~1,250 lines (plus
+//collection-source, the synonym table and the boolean speller behind them) into
+//the app-wide eager graph for one function, and proposed moving that function to
+//a leaf. Measured: moving it changes nothing, because the import below —
+//readableCollectionExpression, which several always-on surfaces need — reaches
+//collection-expression.ts, and THAT imports collectionFilterDisplayName from the
+//same module. Same 102 modules either way.
+//
+//Cutting it for real means relocating the whole filter-NAMING layer
+//(collectionFilterDisplayName, booleanSpellingName, curatedFilterDescription and
+//the option speller), which is a refactor with its own risk and not a close-out
+//edit. Recorded here rather than half-done, so the next person measures before
+//moving one function and believing it helped.
+import { collectionFilterLabels } from './collection-composer-suggestions.js';
 
 import {
 	perfCount,
@@ -8,6 +24,10 @@ import {
 import {
 	URLDiagnostic
 } from '../shared/url-diagnostics.js';
+
+import {
+	urlDiagnosticsForRawURL
+} from './url-diagnostics-scope.js';
 
 import {
 	stickySearchFilterComponents
@@ -65,8 +85,19 @@ import {
 	SELECTED_FILTER_NAME,
 	INVERSE_FILTER_NAMES,
 	CONFIGURABLE_FILTER_NAMES,
+	SORTS,
 	UNION_FILTER_DELIMITER as FILTER_UNION_DELIMITER
 } from './filters.js';
+
+import {
+	SET_NAMES
+} from '../shared/collection_description_base.js';
+
+import {
+	QueryOperatorVocabulary,
+	parseQueryOperators,
+	parseQueryAsLiteralText
+} from './query-operators.js';
 
 import {
 	relativeDateCacheKey,
@@ -79,6 +110,16 @@ import {
 	descriptionRequiresFullCollectionCount,
 	defaultCollectionConfiguration
 } from './collection_description.js';
+
+import {
+	CollectionExpression,
+	collectionExpressionForDescription
+} from './collection-expression.js';
+
+import {
+	CollectionMembership,
+	collectionMembershipForCard
+} from './collection-membership.js';
 
 import {
 	corpusWorkerOwnsCardIngestion,
@@ -109,7 +150,6 @@ import {
 	Fingerprint,
 	FingerprintGenerator,
 	PENDING_IDF_MAP,
-	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
 	enrichCardWithConcepts,
@@ -149,6 +189,7 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
+	toTitleCase,
 } from './util.js';
 
 import {
@@ -214,7 +255,9 @@ import {
 	ReferenceType,
 	SortExtra,
 	CardDiff,
-	Filters
+	Filters,
+	TagInfos,
+	CSSColorString
 } from './types.js';
 
 import {
@@ -249,6 +292,12 @@ export const selectFetchedCard = (state : State) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state : State) => state.app.cardBeingFetched;
 export const selectCardsDrawerInfoExpanded = (state : State) => state.app.cardsDrawerInfoExpanded;
 export const selectConfigureCollectionDialogOpen = (state : State) => state.app ? state.app.configureCollectionDialogOpen : false;
+export const selectConfigureCollectionDialogMode = (state : State) => state.app ? state.app.configureCollectionDialogMode : 'compose';
+export const selectConfigureCollectionDialogFocusRequest = (state : State) => state.app ? state.app.configureCollectionDialogFocusRequest : 0;
+//One frozen empty array, so a state with no app slice does not hand the dialog
+//a fresh property value on every read.
+const NO_DIALOG_SELECTION : readonly number[] = Object.freeze([]);
+export const selectConfigureCollectionDialogSelection = (state : State) : readonly number[] => state.app ? state.app.configureCollectionDialogSelection : NO_DIALOG_SELECTION;
 export const selectCollectionWordCloudVersion = (state : State) => state.collection ? state.collection.collectionWordCloudVersion : 0;
 export const selectSuggestMissingConceptsEnabled = (state : State) => state.app.suggestMissingConceptsEnabled;
 
@@ -263,6 +312,9 @@ export const selectFindDialogOpen = (state : State) => state.find ? state.find.o
 export const selectFindReferencing = (state : State) => state.find ? state.find.referencing : false;
 export const selectFindLinking = (state : State) => state.find ? state.find.linking : false;
 export const selectFindPermissions = (state : State) => state.find ? state.find.permissions : false;
+export const selectFindConfiguring = (state : State) => state.find ? state.find.configuring : false;
+export const selectFindConfigureRequestID = (state : State) => state.find ? state.find.configureRequestID : '';
+export const selectFindConfiguredCardID = (state : State) => state.find ? state.find.configuredCardID : '';
 
 export const selectMultiEditDialogOpen = (state : State) => state.multiedit ? state.multiedit.open : false;
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
@@ -389,7 +441,13 @@ export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state : State
 export const selectSlugIndex = (state : State) => state.data ? state.data.slugIndex : {};
 export const selectMessages = (state : State) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state : State) => state.comments ? state.comments.threads : null;
-export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : {};
+//`state.data ?`, like every sibling on these lines. It was the one selector in
+//the block that reached into `state.data` without checking the slice existed,
+//and nothing had noticed because nothing on a partial-state path had ever
+//depended on it — until selectQueryOperatorVocabulary pulled authors into the
+//find dialog's own selector graph, and test/reducers/sticky-search.test.js,
+//which constructs a state out of `find` and `collection` alone, threw on it.
+export const selectAuthors = (state : State) => state.data && state.data.authors ? state.data.authors : {};
 export const selectAllPermissions = (state : State) => state.permissions ? state.permissions.permissions : {};
 export const selectPermissionsPendingUid = (state : State) => state.permissions ? state.permissions.pendingUid : '';
 export const selectPermissionsPendingPermissionType = (state : State) => state.permissions ? state.permissions.pendingPermissionType : '';
@@ -421,6 +479,9 @@ export const selectQuery = (state : State) => state.find ? state.find.query : ''
 export const selectFindRenderOffset = (state : State) => state.find ? state.find.renderOffset : 0;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQueryText = (state : State) => state.find ? state.find.activeQuery : '';
+//Whether activeQuery is text the APP seeded (the editor's selection under
+//Ctrl-L) rather than a query somebody typed. See FindState.queryIsLiteral.
+const selectFindQueryIsLiteral = (state : State) => state.find ? state.find.queryIsLiteral : false;
 export const selectFindSortByRecent = (state : State) => state.find ? state.find.sortByRecent : false;
 export const selectFindCardTypeFilter = (state : State) => state.find ? state.find.cardTypeFilter : '';
 export const selectFindCardTypeFilterLocked = (state : State) => state.find ? state.find.cardTypeFilterLocked : false;
@@ -556,29 +617,45 @@ export const selectCorpusGateBlocking = createSelector(
 //
 //The dialogs are grouped in their own selector rather than inlined: reselect
 //caps a selector at twelve inputs, and the modal seam was the thirteenth gate.
-const selectAnyDialogOpen = createSelector(
+//This group deliberately omits the collection composer's own dialog: the
+//composer's Ctrl-K is the one shortcut whose spec says what it does when its
+//own dialog is already open ("if already open, focus input"), so it must stay
+//reachable then — while still being refused behind Find, bulk edit, a parked
+//modal request and the corpus ownership overlay exactly like its siblings.
+//`inert` does not stop a global keydown, so this gate remains the load-bearing
+//one for every other modal.
+//Exported because the composer registers an Escape binding one notch ABOVE
+//dialog priority, to peel its own nested layers. That binding must DECLINE
+//while any of these is stacked on top of it, or the composer would peel a
+//layer instead of letting the dialog in front close (#498).
+export const selectAnyDialogOpenExceptCollectionComposer = createSelector(
 	selectFindDialogOpen,
 	selectComposeOpen,
 	selectMultiEditDialogOpen,
-	selectConfigureCollectionDialogOpen,
 	selectBulkImportDialogOpen,
 	selectAIDialogOpen,
 	selectImagePropertiesDialogOpen,
 	selectImageBrowserDialogOpen,
 	selectShortcutSheetOpen,
-	(find, compose, multiEdit, configureCollection, bulkImport, ai, imageProperties, imageBrowser, shortcutSheet) =>
-		find || compose || multiEdit || configureCollection || bulkImport || ai || imageProperties || imageBrowser || shortcutSheet
+	(find, compose, multiEdit, bulkImport, ai, imageProperties, imageBrowser, shortcutSheet) =>
+		find || compose || multiEdit || bulkImport || ai || imageProperties || imageBrowser || shortcutSheet
 );
 
-export const selectKeyboardNavigates = createSelector(
+export const selectKeyboardNavigatesIgnoringCollectionComposer = createSelector(
 	selectIsEditing,
-	selectAnyDialogOpen,
+	selectAnyDialogOpenExceptCollectionComposer,
 	selectModalOpen,
 	selectPage,
 	selectCorpusGateBlocking,
 	(editing, dialogOpen, modalOpen, page, gateBlocking) =>
 		!editing && !dialogOpen && !modalOpen && page == PAGE_DEFAULT &&
 		!gateBlocking
+);
+
+export const selectKeyboardNavigates = createSelector(
+	selectKeyboardNavigatesIgnoringCollectionComposer,
+	selectConfigureCollectionDialogOpen,
+	(navigates, configureCollection) => navigates && !configureCollection
 );
 
 export const selectFilters = createSelector(
@@ -878,6 +955,45 @@ export const selectUserMayModifyReadingList = createSelector(
 export const selectAuthorsForTagList = createSelector(
 	selectAuthors,
 	(authors) => authors ? Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName || entry[0]}])) : {}
+);
+
+//EVERY VALUE CLAUSE THE CORPUS KNOWS, IN ONE tagInfos, KEYED BY ITS URL
+//SPELLING.
+//
+//The spine's colour rule is a LOOKUP, not a taste call per filter family: a
+//clause whose spelling names something the corpus has (a tag, a section, a
+//person) is a value pill and wears that thing's own colour; everything else is
+//the one neutral. The composer, the drawer sentence and the why-here panel were
+//each handed `selectTags` alone, so a section pill and a contributor pill could
+//never be value pills at all — there was nothing to look them up in — and the
+//neutral was the only answer the renderer could give.
+//
+//Keyed by the spelling the clause actually carries: a tag and a section are bare
+//tokens in the URL, and a contributor is `author/<uid>`, which is the string the
+//pill is asked about. Sections come first so a tag and a section that share an
+//id resolve to the tag, matching the filter machinery's own precedence.
+export const selectCollectionClauseTagInfos = createSelector(
+	selectSections,
+	selectTags,
+	selectAuthorsForTagList,
+	(sections, tags, authors) : TagInfos => {
+		const result : TagInfos = {};
+		//`subtitle` is the authored prose a section or tag carries, and it is what
+		//the completion index means by a tag's own description — the half of
+		//description matching the filter registry cannot supply. Handed
+		//`selectTags` alone the index was reading `.description`, which a Section
+		//does not have, so that whole tier was inert for every tag in the corpus.
+		for (const [id, section] of Object.entries(sections || {})) {
+			result[id] = {id, title: section.title || id, description: section.subtitle, color: (section as {color? : CSSColorString}).color};
+		}
+		for (const [id, tag] of Object.entries(tags || {})) {
+			result[id] = {id, title: tag.title || id, description: tag.subtitle, color: (tag as {color? : CSSColorString}).color};
+		}
+		for (const [uid, info] of Object.entries(authors || {})) {
+			result[`author/${uid.toLowerCase()}`] = {id: `author/${uid.toLowerCase()}`, title: info.title};
+		}
+		return result;
+	}
 );
 
 export const selectCollaboratorInfosForActiveCard = createSelector(
@@ -1180,12 +1296,27 @@ export const selectAllCardsFilter = createSelector(
 
 //selectTagInfosForCards selects a tagInfos map based on all cards. Used for
 //example for showing missing link auto todos in card-editor.
+//
+//TagInfo.title is what tag-chip renders (tag-chip._displayName returns
+//info.title || the raw tag). This set it to card.name — which is a
+//CardIdentifier, i.e. the URL slug, or the raw Firestore id for a card with no
+//slug. So every card chip in the app rendered `perf-card-42`, and the
+//key-card control's careful branch between "a card by its title" and "a card
+//you can't see" resolved to the first arm with an identifier in it. HS-1.4:
+//a card id is an internal identifier and never reaches a user.
+//
+//card.title is the card's own display title, and it is what card-thumbnail-list
+//shows for the same card. The slug remains the fallback rather than being
+//dropped: a card genuinely without a title (a full-bleed card titled from its
+//body) has nothing better, and falling back to what was shown before cannot be
+//a regression. needsRecompute now watches title as well, or a rename would not
+//reach the chips.
 export const selectTagInfosForCards = createSelector(
 	selectRawCards,
 	createCardsDiffSelector({
 		name: 'tagInfosForCards',
-		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name),
-		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
+		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name || prev.title !== next.title),
+		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title: entry[1] ? (entry[1].title || entry[1].name) : '', previewCard: entry[0]}]))
 	})
 );
 
@@ -1411,6 +1542,134 @@ export const selectFilterDescriptions = createSelector(
 			...Object.fromEntries(Object.entries(sections).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' section'])),
 			...Object.fromEntries(Object.entries(tags).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' tag'])),
 		};
+	}
+);
+
+//Every filter name this app can resolve RIGHT NOW, as a set: the static
+//registry, its inverses, and the section/tag names that have loaded. Empty
+//until sections and tags are in, which is the honest answer — before then
+//"this name is unknown" cannot be distinguished from "this name has not
+//arrived yet", and callers treat an empty set as "do not judge".
+export const selectKnownCollectionFilterNames = createSelector(
+	selectFilterDescriptions,
+	selectSectionsAndTagsLoaded,
+	(descriptions, loaded) : ReadonlySet<string> =>
+		loaded ? new Set([...Object.keys(descriptions), ...Object.keys(INVERSE_FILTER_NAMES)]) : new Set<string>()
+);
+
+//THE LIVE CORPUS'S OWN NAMES FOR ITS FILTERS, memoized on the candidates the
+//names are derived FROM. Every host that renders a clause needs this map, and
+//rebuilding it per host per state change would both cost the whole candidate
+//list each time and hand the sentence a new object identity on every unrelated
+//update — which is precisely what its own label memo is keyed on.
+export const selectCollectionFilterLabels = createSelector(
+	(state : State) => selectCollectionComposerCandidates(state),
+	(candidates) : Record<string, string> => collectionFilterLabels(candidates)
+);
+
+export const selectCollectionComposerCandidates = createSelector(
+	selectSections,
+	selectTags,
+	selectAuthorAndCollaboratorUserIDs,
+	selectAuthors,
+	selectUid,
+	(sections, tags, visibleContributorIDs, authors, uid) => {
+		const reserved = new Set(Object.keys(CARD_FILTER_DESCRIPTIONS));
+		const sectionIDs = new Set(Object.keys(sections));
+		const tagIDs = new Set(Object.keys(tags));
+		const visibleContributors = visibleContributorIDs
+			.filter(contributorID => Boolean(contributorID && authors[contributorID]?.displayName))
+			.sort();
+		const contributorNameCounts : Record<string, number> = {};
+		for (const contributorID of visibleContributors) {
+			const name = authors[contributorID].displayName.toLowerCase();
+			contributorNameCounts[name] = (contributorNameCounts[name] || 0) + 1;
+		}
+		const contributorNameOrdinals : Record<string, number> = {};
+		const candidates : CollectionComposerCandidate[] = [
+			...Object.entries(sections).filter(([id]) => !reserved.has(id) && !tagIDs.has(id)).map(([id, section]) => ({
+				filter: id,
+				category: 'section' as const,
+				label: `In section “${section.title}”`,
+				detail: `Keeps cards in the ${section.title} section`,
+				aliases: [id, section.title, 'section'],
+				valueLabel: section.title,
+				clauseLabel: `Section ${section.title}`,
+				//THE CORPUS-FIT TERM IN THE COMPLETION RANKING: how much of the
+				//corpus this value actually covers. A section's own membership
+				//list is the cheapest honest answer and it is already in the
+				//store. Never displayed — a row's number comes from running the
+				//collection, which is a fresher and different fact.
+				corpusCount: (section.cards || []).length,
+			})),
+			...Object.entries(tags).filter(([id]) => !reserved.has(id) && !sectionIDs.has(id)).map(([id, tag]) => ({
+				filter: id,
+				category: 'tag' as const,
+				label: `Tagged “${tag.title}”`,
+				detail: `Keeps cards tagged ${tag.title}`,
+				aliases: [id, tag.title, 'tag', 'tagged'],
+				valueLabel: tag.title,
+				clauseLabel: `Tagged ${tag.title}`,
+				corpusCount: (tag.cards || []).length,
+			})),
+			...Object.entries(CARD_TYPE_CONFIGURATION).map(([id, configuration]) => ({
+				filter: id,
+				category: 'card type' as const,
+				label: `Card type: ${toTitleCase(id.split('-').join(' '))}`,
+				detail: configuration.description || `Keeps ${id} cards`,
+				aliases: [id, 'type', 'card type'],
+				valueLabel: toTitleCase(id.split('-').join(' ')),
+				clauseLabel: `Card Type ${toTitleCase(id.split('-').join(' '))}`,
+			})),
+			{
+				filter: TODO_COMBINED_FILTER_NAME,
+				category: 'todo' as const,
+				label: 'Has any TODO',
+				detail: 'Keeps cards with at least one unfinished TODO',
+				aliases: ['todo', 'todos', 'unfinished', 'needs work'],
+			},
+			...visibleContributors.map(contributorID => {
+				const displayName = authors[contributorID].displayName;
+				const isMe = contributorID === uid;
+				const normalizedName = displayName.toLowerCase();
+				const ordinal = (contributorNameOrdinals[normalizedName] || 0) + 1;
+				contributorNameOrdinals[normalizedName] = ordinal;
+				const disambiguatedName = contributorNameCounts[normalizedName] > 1 && !isMe ? `${displayName} (${ordinal})` : displayName;
+				return {
+					filter: `author/${contributorID.toLowerCase()}`,
+					category: 'author' as const,
+					label: isMe ? 'My cards' : `Cards ${disambiguatedName} authored or collaborated on`,
+					detail: isMe ? 'Keeps cards I authored or collaborated on' : `Keeps cards ${disambiguatedName} authored or collaborated on`,
+					aliases: isMe ? ['my cards', 'mine', 'author', 'collaborator', 'contributor'] : [displayName, 'author', 'collaborator', 'contributor'],
+					searchValues: [displayName, isMe ? 'my cards' : '', isMe ? 'mine' : '', 'author', 'collaborator', 'contributor'].filter(Boolean).map(value => value.toLowerCase()),
+					urlDetail: 'Adds a durable contributor clause; copied links keep the same person',
+					valueLabel: displayName,
+					//The clause label is the one name this filter carries — in the row,
+					//the chip, and the receipt — so your own cards are "My Cards"
+					//everywhere rather than "My cards" in one place and "Contributed
+					//By Jordan" in another.
+					clauseLabel: isMe ? 'My Cards' : `Contributed By ${disambiguatedName}`,
+				};
+			}),
+			{
+				filter: 'updated/after/today',
+				category: 'date' as const,
+				label: 'Updated today',
+				detail: 'Keeps cards substantively updated after local midnight today',
+				aliases: ['today', 'updated today', 'changed today', 'recent'],
+			},
+			{
+				filter: 'updated/after/7-days-ago',
+				category: 'date' as const,
+				label: 'Updated since 7 days ago',
+				detail: 'Keeps cards substantively updated after local midnight seven days ago',
+				aliases: ['week', 'weekly', 'last 7 days', 'since 7 days ago', 'recent'],
+			},
+		];
+		return candidates.map(candidate => ({
+			...candidate,
+			searchValues: candidate.searchValues || [candidate.label, candidate.filter, candidate.category, ...(candidate.aliases || [])].map(value => value.toLowerCase()),
+		}));
 	}
 );
 
@@ -1871,29 +2130,10 @@ const selectWorkerActiveCollectionError = (state : State) => state.collection ? 
 
 const selectURLDiagnosticsState = (state : State) => state.collection ? state.collection.urlDiagnostics : {main: [], worker: []};
 
-//The diagnostics that apply to a given URL: a diagnostic names the URL part
-//it could not understand, so it applies exactly when that part (as a whole
-//segment sequence) is present in the URL being looked at. This is what
-//makes the notice self-scoping (#757): navigating away hides it,
-//revisiting the same bad URL shows it again, and there is no clear/
-//re-report cycle to get wrong.
-//
-//Scope against the RAW URL, never against description.serialize(): the
-//canonical serialization by construction contains only the parts the
-//parser KEPT, and several report sites name parts the parser DROPPED — a
-//bogus view mode ('view/bogus') or a reversed bad sort ('sort/bogus'
-//against a serialized 'sort/reverse/bogus') — so those notices could never
-//match their own URL (#757 review, verified by execution).
-//
-//Known accepted limitation: matching is textual, so a stale un-retracted
-//part from URL A can match a coincidentally identical segment on URL B
-//where that text is valid in a different role (e.g. a former filter typo
-//'stars' on /sort/stars/). Bounded by retraction, the 24-entry cap, and
-//self-hiding on navigation. Pure and exported for tests.
-export const urlDiagnosticsForRawURL = (diagnostics : URLDiagnostic[], rawURL : string) : URLDiagnostic[] => {
-	const haystack = '/' + rawURL.replace(/^\/+|\/+$/g, '') + '/';
-	return diagnostics.filter(diagnostic => haystack.includes('/' + diagnostic.part.replace(/^\/+|\/+$/g, '') + '/'));
-};
+//Re-exported from its own leaf module: collection history asks the same
+//question and cannot import this file, which reaches firebase. See
+//url-diagnostics-scope.ts for the matching rule and its limitations.
+export { urlDiagnosticsForRawURL };
 
 //URL parts of the ACTIVE collection that the parser did not understand
 //(#757): the URL says one thing and the app is showing another, which is
@@ -1970,6 +2210,47 @@ export const selectActiveCollection = createSelector(
 	}
 );
 
+
+//WHY THE ACTIVE CARD IS IN THE ACTIVE COLLECTION, clause by clause — the input
+//to the card info panel's "In this collection" section.
+//
+//Null wherever there is no honest account to give, and the reasons are worth
+//naming because each was a tempting place to guess:
+//
+//  - no active card, or a collection with no conditions: there is no question.
+//  - the collection's own filtering inputs do not know this card. In cutover
+//    mode the worker owns ingestion, and a card can be on screen before the main
+//    thread's FILTERING snapshot has it; every clause would then come back
+//    "does not match" and the panel would confidently say a card is not in the
+//    collection it is being read in.
+//  - the account and the artifact disagree (Collection.matchedCard). The
+//    per-clause verdicts and the collection's own membership come from the same
+//    function over the same extras and so cannot differ by construction — but in
+//    cutover mode the artifact on screen was computed in the WORKER from its own
+//    copy of the corpus, so the construction argument is CHECKED rather than
+//    asserted, and a contradiction withdraws the explanation instead of
+//    publishing it.
+//
+//Deliberately not cheap enough to run on every keystroke: a configurable clause
+//materializes by scanning the corpus. The info panel calls this from inside its
+//existing expensive-properties debounce, where the reference blocks and word
+//cloud already live, and stamps the answer with the card it was computed for.
+export const selectWhyHereForActiveCard = createSelector(
+	selectActiveCollection,
+	selectActiveCardID,
+	(collection, cardID) : {expression : CollectionExpression, membership : CollectionMembership} | null => {
+		if (!collection || !cardID) return null;
+		const description = collection.description;
+		if (!description.filters.length) return null;
+		const extras = collection.filterExtras;
+		if (!extras.cards[cardID]) return null;
+		const expression = collectionExpressionForDescription(description);
+		const membership = collectionMembershipForCard(expression, description.set, cardID, extras);
+		const matched = collection.matchedCard(cardID);
+		if (matched !== null && matched !== membership.passes) return null;
+		return {expression, membership};
+	}
+);
 
 //Whether they're ALLOWED to edit cards, and whether they're in a collection in
 //which reordering is legal. Note: this means that even if it is legal in
@@ -2299,6 +2580,34 @@ export const validateStickySearchExpression = (expression : string, knownFilters
 	}
 };
 
+//THE VOCABULARY A TYPED OPERATOR IS CHECKED AGAINST (owner, F4).
+//
+//The find dialog's parser never had one: `tag:intrnal` became a filter named
+//`intrnal`, which matches no card and says nothing about why. With the live
+//corpus in hand the same string resolves to `internal`, because the operator
+//already told the resolver which drawer to look in — that scoping is the entire
+//benefit of typing `tag:` instead of `intrnal`.
+//
+//Each list is the family's own namespace and no wider. `filters` is the union of
+//the live filter memberships and the inverse names, which is the same pair
+//validateStickySearchExpression checks a sticky component against, so `filter:`
+//and a sticky expression cannot disagree about what a filter name is.
+export const selectQueryOperatorVocabulary = createSelector(
+	selectTags,
+	selectSections,
+	selectFilters,
+	selectAuthorsForTagList,
+	(tags, sections, knownFilters, authors) : QueryOperatorVocabulary => ({
+		tags: Object.keys(tags || {}),
+		sections: Object.keys(sections || {}),
+		cardTypes: Object.keys(CARD_TYPE_CONFIGURATION),
+		filters: [...Object.keys(knownFilters || {}), ...Object.keys(INVERSE_FILTER_NAMES)],
+		sorts: Object.keys(SORTS),
+		sets: [...SET_NAMES],
+		authors: Object.keys(authors || {}).map(uid => uid.toLowerCase()),
+	})
+);
+
 export const selectCollectionDescriptionForQuery = createSelector(
 	selectActiveQueryText,
 	selectFindCardTypeFilter,
@@ -2308,8 +2617,34 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectFindStickyFiltersEnabled,
 	selectFindStickyFiltersExpression,
 	selectFilters,
-	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters) => {
-		const wordsAndFilters = extractFiltersFromQuery(queryText);
+	selectQueryOperatorVocabulary,
+	selectFindQueryIsLiteral,
+	(queryText, cardTypeFilter, sortByRecent, cardID, generic, stickyEnabled, stickyExpression, knownFilters, vocabulary, queryIsLiteral) => {
+		//ONE PARSER, AND THIS SURFACE READS ALL OF IT (owner, F4). It used to
+		//call extractFiltersFromQuery, which returns only [text, filters]
+		//because that is all the old grammar could produce. The shared parser
+		//also reports a `sort:` and a `set:`, so a typed `sort:stars` now orders
+		//the results instead of being searched for as the literal word.
+		//...UNLESS NOBODY TYPED IT. Ctrl-L seeds this box with the editor's text
+		//SELECTION, and prose read through the operator table loses words to
+		//heads it never meant — measured: 'Type: safety' searches for 'safety'
+		//and the word 'Type' is gone, 'the set: of all things' drops 'set:', and
+		//'type:content' becomes a card-type filter. So provenance decides: text
+		//the app put in the box is searched for literally, and the first edit
+		//makes it a typed query with the whole table (and the vocabulary's
+		//prefix/typo resolution) back in force. The flag describes activeQuery,
+		//so the two can never disagree about which reading is in effect.
+		const parsed = queryIsLiteral ?
+			parseQueryAsLiteralText(queryText) :
+			parseQueryOperators(queryText, vocabulary);
+		//An operator whose value did not resolve is still applied as a filter —
+		//the find dialog has always trusted a typed filter name — but a SORT or a
+		//SET is a slot with exactly one legal vocabulary, so an unresolved one is
+		//dropped rather than handed to CollectionDescription to reject. Checked
+		//against the registries themselves, not against the vocabulary that was
+		//passed in, so a corpus that had not loaded yet cannot smuggle one past.
+		const typedSort : SortName | '' = parsed.sort && SORTS[parsed.sort as SortName] ? parsed.sort as SortName : '';
+		const typedSet : SetName | '' = parsed.set && SET_NAMES.includes(parsed.set as SetName) ? parsed.set as SetName : '';
 		const baseFilters = ['has-body'];
 		let sort : SortName = 'default';
 		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
@@ -2322,7 +2657,11 @@ export const selectCollectionDescriptionForQuery = createSelector(
 		//branch below, which is correct: that branch is "recent cards", and
 		//a default set should constrain it too.
 		if (generic) baseFilters.push(...stickySearchFilterComponents(stickyEnabled, stickyExpression, expression => validateStickySearchExpression(expression, knownFilters)));
-		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
+		//A TYPED sort: OR set: IS A QUERY. The empty branch below means "the user
+		//has asked for nothing", and it answers with similar-cards-and-a-limit —
+		//which would be the wrong answer to `sort:stars`, a string that asks for
+		//the whole corpus in a stated order.
+		if (!parsed.text && !parsed.filters.length && !typedSort && !typedSet) {
 			if (generic) {
 				//If it's a generic search, we don't want similar cards to
 				//current card (which might be a boring section title card), we
@@ -2337,8 +2676,16 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			//If there's no query, return the similar cards to the current card
 			return new CollectionDescription('everything', baseFilters, sort);
 		}
-		const query = queryFilter(wordsAndFilters[0]);
-		return new CollectionDescription('everything',[...baseFilters, query, ...wordsAndFilters[1]], sortByRecent ? 'recent' : 'default');
+		const query = queryFilter(parsed.text);
+		//A TYPED ORDER OUTRANKS THE 'sort by recent' CHECKBOX, and a typed set
+		//outranks the everything default: both are the user saying it in words,
+		//in this query, rather than a setting left over from an earlier one.
+		return new CollectionDescription(
+			typedSet || 'everything',
+			[...baseFilters, query, ...parsed.filters],
+			typedSort || (sortByRecent ? 'recent' : 'default'),
+			typedSort ? parsed.sortReversed : false
+		);
 	}
 );
 

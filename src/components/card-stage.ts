@@ -66,6 +66,22 @@ export class CardStage extends LitElement {
 	@property({ type : Boolean})
 		hideActions: boolean;
 
+	//THE CARD IS ABSENT, THE STAGE IS NOT.
+	//
+	//When a collection matches nothing there is no card to draw, and card-view
+	//used to answer that by hiding this whole element. But every action control
+	//in the app is SLOTTED INTO this element — the drawer toggle, star, reading
+	//list, edit, info, next/prev — and SharedStyles' `[hidden]{display:none
+	//!important}` took all of them with it. An empty collection is the state in
+	//which refining it is the only useful thing left to do, and it was the state
+	//with no controls.
+	//
+	//So the CARD hides and the stage stays, with whatever the host wants in the
+	//card's place going into the `no-card` slot below — in the same centred
+	//position, with the action rail in its usual place under it.
+	@property({ type : Boolean})
+		cardHidden: boolean;
+
 	@property({ type : Object })
 		card: ProcessedCard | Card | null;
 
@@ -125,8 +141,40 @@ export class CardStage extends LitElement {
 				transition: opacity var(--transition-fade);
 			}
 
-			.mobile [name="actions"]::slotted(*) {
+			/* THE MOBILE TOOLBAR MUST NOT LOSE CONTROLS.
+			   Ten round buttons in a nowrap row with overflow visible, inside a
+			   column that centres its children: at 375px the row measured far
+			   wider than the viewport and the centring pushed its LEFT edge off
+			   screen. The live review measured the first item — the composer's
+			   own 'Compose collection' button — at x=-107, unreachable by any
+			   gesture.
+
+			   WRAPPING, not horizontal scrolling. Wrapping is this app's own
+			   narrow-screen toolbar idiom (the composer's .row, .catalog-setup
+			   and .source-steps all wrap; so do configure-collection-filter's
+			   controls), and it needs no scroll affordance to discover: every
+			   control is simply on screen. max-width is what bounds the row
+			   against the centring, and the slotted groups wrap inside
+			   themselves because their round buttons are inline-block. */
+			/* :not(.presenting) — THE WRAP IS FOR THE NARROW TOOLBAR, NOT FOR
+			   THE PRESENTATION RAIL. These two rules land at equal specificity
+			   with the .presenting block above and are declared after it, so on
+			   a phone in presentation mode they applied on top of it: a column
+			   rail, absolutely positioned in the corner, acquiring flex-wrap
+			   and a max-width meant for a full-width row. Nothing visibly moved
+			   (the rail is height-unconstrained, so a column wrap has nowhere
+			   to wrap TO), which is exactly why it needed scoping rather than
+			   watching — the two states have different layouts and only one of
+			   them has the problem this fixes. */
+			.mobile:not(.presenting) [name="actions"] {
+				flex-wrap: wrap;
+				justify-content: center;
+				max-width: 100%;
+			}
+
+			.mobile:not(.presenting) [name="actions"]::slotted(*) {
 				font-size:0.8em;
+				max-width: 100%;
 			}
 
 			.presenting [name="actions"]:hover {
@@ -259,7 +307,7 @@ export class CardStage extends LitElement {
 				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>
 			</div>
-			<div id='card-container'>
+			<div id='card-container' ?hidden=${this.cardHidden}>
 				<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .cardModificationsPending=${this.cardModificationsPending} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks} .suggestedConcepts=${this.suggestedConcepts}></card-renderer>
 				${this.pendingSave ? html`
 					<!-- aria-hidden: the app-level save-status pill is the
@@ -270,6 +318,10 @@ export class CardStage extends LitElement {
 				` : ''}
 			</div>
 			<card-renderer id='sizing' style='position:absolute;visibility:hidden;z-index:-100;'></card-renderer>
+			<!-- What stands where the card would be when there is no card. Empty
+			     in every ordinary state, and a slot with nothing assigned takes
+			     no space. -->
+			<slot name='no-card'></slot>
 			<slot name='actions'></slot>
 			<slot name='tags'></slot>
 		</div>

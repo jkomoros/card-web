@@ -331,7 +331,7 @@ silently fail to suppress global shortcuts. Prefer fixing the enumeration.
 
 ### 3.4 Native browser modals — MUST NOT add new ones
 
-**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 51
+**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 48
 call sites today (`src/` + `shared/`). That number must not grow.
 
 The count is pinned and reviewers check it — see §6. Existing sites are migrated
@@ -667,6 +667,7 @@ keeping: `0.75em` + `--app-dark-text-color-light` for a subordinate label,
 | `--app-pending-color` (amber) | Not yet on the server; a paused but recoverable operation |
 | `--app-dark-text-color` | Body text; a subtle icon |
 | `--app-dark-text-color-light` | Subordinate, or disabled |
+| `--app-clause-*-color` (the clause ramp) | Which FAMILY of question a collection clause asks — date, card type, relationship, person, similarity, text, card property, set. One hue per family, never per filter; assigned from the filter spelling by `src/collection-pill-palette.ts` and pinned by `test/collection-pill-palette`. Never a status: every clause hue is held at least 15° from all four of the reserved ones above |
 
 Status uses the five-tone ladder and its override precedence — see §3.6.2.
 
@@ -712,7 +713,7 @@ Check this table before building. If the job is here, the primitive exists.
 |---|---|---|
 | Async modal layer (`confirmDestructive` / `askForInput`) | The seam that lets 31 straight-line call sites migrate once, not twice | #708 |
 | Destructive-confirm dialog | §3.7 Tier 1 | #708 |
-| Generic input dialog | The 14 migratable `prompt()` sites | #708 |
+| Generic input dialog | The 11 migratable `prompt()` sites | #708 |
 
 `alert()`/`confirm()` are **synchronous and re-entrant-safe** — the world cannot
 change while one is open. Their replacements are promises and can be raced. Every
@@ -742,7 +743,7 @@ replacement for any of them.
 
 **The native-modal ratchet.** The count of `alert(`/`confirm(`/`prompt(` call
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
-baseline is **51**.
+baseline is **48**.
 
 **`src/modal.ts` is the one exception, and it is the reason the rest can fall.**
 It is the async seam from #708, and its whole job is to be the single place that
@@ -759,16 +760,25 @@ grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --i
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
-The command prints **52**, not 51. Exactly one match is a false positive:
+The command prints **49**, not 48. Exactly one match is a false positive:
 `src/components/bulk-import-dialog.ts:173` is a continuation line inside a block
-comment that happens to begin with `alert()`. Live call sites: **51**.
+comment that happens to begin with `alert()`. Live call sites: **48**.
 
-**Where the remaining 51 are.** Fifty of them are blocking `confirm()`/`prompt()`
-calls, which are paused: they need the in-app dialogs from #708 and they need to
-move a whole function at a time, because a save that answers on two different
-surfaces in one pass is worse than one that answers modally twice. The fifty-first
-is `card_diff.ts:359`, a one-way `alert()` that is only still here because it sits
-in the middle of `confirmationsForCardDiff`, five blocking confirms in a row.
+**Where the remaining 48 are.** Forty-seven of them are blocking
+`confirm()`/`prompt()` calls, which are paused: they need the in-app dialogs from
+#708 and they need to move a whole function at a time, because a save that
+answers on two different surfaces in one pass is worse than one that answers
+modally twice. The forty-eighth is `card_diff.ts:359`, a one-way `alert()` that
+is only still here because it sits in the middle of `confirmationsForCardDiff`,
+five blocking confirms in a row.
+
+The pin fell from 51 with the Collection Composer branch, which replaced three
+`prompt('What is the ID of the card?')` card pickers — one in
+`configure-collection-key-card`, two in `configure-collection-multiple-cards` —
+with in-place `<select>` controls over the cards the app already knows. That is
+the §3.4 table's `prompt()`-to-pick-a-card row being spent, and it was
+opportunistic in exactly the way this section describes: those functions were
+being edited anyway.
 
 Every OTHER one-way `alert()` in the app is gone. That mattered more than the
 count: an `alert()` is modal, carries no action, and disappears on dismissal, so
@@ -807,7 +817,7 @@ rules.
 | # | Debt | Rule |
 |---|---|---|
 | D1 | "Collection" means four things and is never defined in the UI | §1.3 |
-| D2 | 51 native modals, all but one of them blocking `confirm()`/`prompt()`; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
+| D2 | 48 native modals, all but one of them blocking `confirm()`/`prompt()`; save can fire 7 sequential confirms; merge conflict is a `confirm()` loop, one per field | §3.4 |
 | D3 | ~~`alert(err)` on a raw `Error` is the default save-failure UI~~ — **done**: `modifyCardFailure` reports to the error banner | §2.4 |
 | D4 | **Closed.** Every icon-only control has an accessible name (was 32) and a hover name (was 14). Both budgets ratcheted at **0** by `test/accessible-names`, so this is now an invariant rather than a shrinking debt | §2.5 |
 | D5 | Destructive controls are visually identical to safe ones; the tiers are inverted in places | §3.7 |

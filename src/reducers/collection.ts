@@ -21,6 +21,7 @@ import {
 	INCREMENT_COLLECTION_WORD_CLOUD_VERSION,
 	OPEN_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	CANCEL_CONFIGURE_COLLECTION_DIALOG,
 	UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT,
 } from '../actions.js';
 
@@ -54,7 +55,7 @@ import {
 } from '../../shared/util.js';
 
 import {
-	copyCollectionConfiguration
+	copyCollectionConfiguration,
 } from '../collection_description.js';
 
 import {
@@ -200,15 +201,36 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			...state,
 			collectionWordCloudVersion: state.collectionWordCloudVersion + 1
 		};
-	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+	case OPEN_CONFIGURE_COLLECTION_DIALOG: {
+		//Opening is idempotent. In particular, a repeated Ctrl-K must not replace
+		//an in-progress draft with the active collection.
+		if (state.snapshot) return state;
+		//EVERY COMPOSITION BEGINS FROM THE COLLECTION ON SCREEN (round 3, D1).
+		//
+		//This used to resume a draft that a previous Escape had preserved, so
+		//that un-committed work survived a close. The owner's constitution
+		//retires the idea: the draft is a preview of a collection nobody has
+		//opened, and "if you make a mistake, esc/X resets to the previous state"
+		//— which is only true if the reset is total. Preservation made Escape
+		//mean "defer": the mistake came back on the next Ctrl-K, on a surface
+		//that had reopened on it silently, and the user's second Escape was
+		//spent undoing the first one's failure to undo.
 		return {
 			...state,
 			snapshot: copyCollectionConfiguration(state.active),
 		};
+	}
 	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
+		//Committed.
 		return {
 			...state,
 			active: state.snapshot ? copyCollectionConfiguration(state.snapshot) : state.active,
+			snapshot: null,
+		};
+	case CANCEL_CONFIGURE_COLLECTION_DIALOG:
+		//Discarded, whole. The draft was never real; there is nothing to keep.
+		return {
+			...state,
 			snapshot: null,
 		};
 	case UPDATE_COLLECTION_CONFIGURATION_SHAPSHOT:

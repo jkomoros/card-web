@@ -36,6 +36,7 @@ import {
 
 import {
 	selectKeyboardNavigates,
+	selectKeyboardNavigatesIgnoringCollectionComposer,
 	selectCorpusGateBlocking
 } from './selectors.js';
 
@@ -255,6 +256,13 @@ export class ShortcutRegistry {
 	dispatch(e : KeyboardEvent, state : State) : boolean {
 		//An IME composition keystroke is text entry, never a command.
 		if (e.isComposing) return false;
+		//Already consumed by a local handler. The module comment on the
+		//window listener notes that a component's own @keydown may
+		//stopPropagation to keep a key local; preventDefault is the other
+		//half of that same statement, and a handler that has cancelled the
+		//event's default has already decided what the keystroke means.
+		//(A dialog's own child controls do exactly this for Escape.)
+		if (e.defaultPrevented) return false;
 		//`inert` does not stop document-level keydown, so without this every
 		//global shortcut fired behind the corpus gate overlay — including in
 		//a tab whose store had been purged.
@@ -316,6 +324,13 @@ export const registerShortcuts = (bindings : ShortcutBinding[]) : (() => void) =
 //every modal by hand; bindings that want it opt in via `when` — but unlike
 //the legacy handlers, opting in is one reference, not a re-implementation.
 export const whenKeyboardNavigates = (state : State) : boolean => selectKeyboardNavigates(state);
+
+//The same gate minus the collection composer's own dialog, for the composer's
+//own shortcut — the one binding whose spec defines what it does when its
+//dialog is already open ("if already open, focus input"). Every other modal
+//still refuses it.
+export const whenKeyboardNavigatesIgnoringCollectionComposer = (state : State) : boolean =>
+	selectKeyboardNavigatesIgnoringCollectionComposer(state);
 
 //The one global listener, replacing five. Window + bubble phase, so a
 //component's own local @keydown handlers (a focus trap, a textarea's Enter

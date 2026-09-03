@@ -88,6 +88,7 @@ import {
 import {
 	registerShortcuts,
 	whenKeyboardNavigates,
+	whenKeyboardNavigatesIgnoringCollectionComposer,
 	shortcutKeys,
 	SHORTCUT_COMBOS
 } from '../shortcuts.js';
@@ -116,12 +117,20 @@ import {
 	toggleCardsDrawerInfo,
 	openConfigureCollectionDialog,
 	navigateToCollectionWithSelected,
-	askForPathToNavigateTo
+	askForPathToNavigateTo,
 } from '../actions/app.js';
 
 import {
 	deepActiveElement
 } from '../util.js';
+
+import {
+	collectionComposerEnabled,
+} from '../collection-composer-mode.js';
+
+import {
+	readableCollectionExpression,
+} from '../collection-composer-suggestions.js';
 
 import {
 	addStar,
@@ -190,7 +199,7 @@ import {
 	PLUS_ICON,
 	FILTER_ALT_ICON,
 	SAVE_ICON,
-	REPEAT_ICON
+	REPEAT_ICON,
 } from '../../shared/icons.js';
 
 import {
@@ -544,6 +553,14 @@ class CardView extends connect(store)(PageViewElement) {
 				display:none;
 			}
 
+			.collection-mobile {
+				display: none;
+			}
+
+			.mobile .collection-mobile {
+				display: block;
+			}
+
 			card-editor {
 				display:none;
 			}
@@ -574,6 +591,50 @@ class CardView extends connect(store)(PageViewElement) {
 			span.reason {
 				display: inline-flex;
 				vertical-align: middle;
+			}
+
+			.collection-empty {
+				align-items: center;
+				display: flex;
+				flex-direction: column;
+				gap: 0.35em;
+				padding: 1.5em 1em 0.5em;
+				text-align: center;
+			}
+
+			/* THE HEADING LEADS. The three elements of this state arrived in
+			   inverse order of importance: the filled purple Refine button
+			   out-shouted everything, the sentence that says WHAT is absent was
+			   at body size, and the expression — the thing the user would have
+			   to change — was the smallest text on the screen.
+			   The heading takes the display family §4.3 reserves for title
+			   moments, which is what this is: it is the only thing on an
+			   otherwise empty stage. */
+			.collection-empty-message {
+				color: var(--app-dark-text-color);
+				font-family: var(--app-header-font-family);
+				font-size: 1.3em;
+			}
+
+			/* Readable second, and readable at all: --app-dark-text-color-light
+			   is ~2.3:1 on white, and this line is the one a user has to read to
+			   know what to change. */
+			.collection-empty-expression {
+				color: var(--app-dark-text-color-darker);
+				font-size: 0.95em;
+				overflow-wrap: anywhere;
+			}
+
+			/* Colour, background and margin all come from button.text now; what
+			   is left is the 44px hit target (§4.2), which that variant does not
+			   carry, and a step down in scale. The variant is right — this is a
+			   gate, and §4.2 names the filled text button for exactly that — but
+			   a gate is an offer, not the headline, and at body scale a filled
+			   purple block was the loudest thing in the state. */
+			.collection-empty-refine {
+				font-size: 0.85em;
+				margin-top: 0.35em;
+				min-height: 44px;
 			}
 
 			card-drawer.showing {
@@ -633,6 +694,22 @@ class CardView extends connect(store)(PageViewElement) {
 			}
 		`
 	];
+
+	//An empty collection is only worth saying so about once the answer is
+	//final: not while the worker is still computing it, not while stale content
+	//is being held under an "updating" affordance, and not when the failure
+	//notice already explains why nothing is showing. isFallback must NOT gate
+	//this: the engine sets it precisely when the filter result is empty, so
+	//gating on it suppressed the empty state in exactly its target case. When
+	//fallback placeholder cards actually display, finalSortedCards is
+	//non-empty and the length check below already returns false.
+	get _showCollectionEmptyState() : boolean {
+		if (!collectionComposerEnabled()) return false;
+		if (!this._collection || !this._dataIsFullyLoaded) return false;
+		if (this._collectionPending || this._collectionUpdating) return false;
+		if (this._collectionFailureMessage) return false;
+		return this._collection.finalSortedCards.length === 0;
+	}
 
 	override render() {
 		return html`
@@ -703,6 +780,29 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			<div slot='visible-info'>
+				<!-- THE ALWAYS-VISIBLE COLLECTION SUMMARY IS DELETED (owner, F3:
+				     "the configure collection visible always at the top of the
+				     card drawer is weird / bad styling and I want to remove it.
+				     The two ways to get this: the keyboard shortcut, and clicking
+				     Configure Collection in the zipped-up menu in card-drawer,
+				     exactly as before.")
+
+				     What stood here was the sentence text, a Refine line naming
+				     that shortcut, and a copy-link glyph, in a block that occupied
+				     the top of the drawer on every screen. The composer's two
+				     entry points are the ones the app had before #498: the
+				     open-collection-composer binding, untouched, and the
+				     Configure collection item in the
+				     collapsible info panel above (the info slot), which is
+				     exactly where it has always been. The centre empty state
+				     keeps its own Refine button — that is a different surface, on
+				     the card stage, and it is the only offer left when the drawer
+				     has collapsed to nothing.
+
+				     Copy-link goes with it: no such affordance existed here
+				     before #498 (checked against 752722bd), and Source mode's own
+				     Copy link button is still the way to get one.
+				     (No backticks in here: tagged template.) -->
 				${this._cardsSelected ? 
 		html`<button
 				id='clear-selection'
@@ -761,7 +861,43 @@ class CardView extends connect(store)(PageViewElement) {
 			makes the boot placeholder read as pending rather than as real card
 			content; it was never set here, so the placeholder rendered at full
 			weight and opacity, visually identical to a loaded card. -->
-			<card-stage .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<!-- THE EMPTY STATE HIDES THE CARD, NOT THE STAGE.
+			     When the empty state is showing, the stage would otherwise
+			     render the "No card by that name" fallback card right
+			     underneath it — two contradictory explanations of the same
+			     absence — so the card goes. The STAGE stays, because every
+			     action control below is slotted into it, and hiding the element
+			     took the whole toolbar with it: drawer toggle, star,
+			     reading list, edit, info, next/prev, and the composer's own
+			     mobile entry point, all gone in the one state where refining
+			     the collection is the only useful thing left to do. -->
+			<card-stage .cardHidden=${this._showCollectionEmptyState} .loading=${!this._dataIsFullyLoaded} .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .cardModificationsPending=${this._cardModificationsPending} .editing=${this._editing} .pendingSave=${this._displayCardPendingSave} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+				<!-- Into the stage's no-card slot, so it stands exactly where
+				     the card would, with the action rail in its usual place
+				     under it. The composer's primary entry point is the
+				     collection summary in the card drawer's visible-info slot,
+				     and the drawer collapses to zero width when the collection
+				     is empty — so the one surface that mentions the composer
+				     disappears exactly when it is wanted. This says what is
+				     absent and offers the same dialog. -->
+				${this._showCollectionEmptyState ? html`
+					<div class='collection-empty' role='status' slot='no-card'>
+						<span class='collection-empty-message'>No cards match this collection</span>
+						<span class='collection-empty-expression'>${this._collection ? readableCollectionExpression(this._collection.description) : ''}</span>
+						<!-- A text button, not a glyph: this is a gate, and the verb
+						     is clearer than an icon (HS-4.2). button.text is the
+						     NAMED variant for that case, and taking it fixes a real
+						     bug — the local rule set only a purple colour, so the
+						     base button treatment underneath it painted a dark-grey
+						     background, leaving purple text on dark grey. -->
+						<button
+							class='text collection-empty-refine'
+							title=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
+							aria-label=${`Refine this collection (${shortcutKeys('open-collection-composer')})`}
+							@click=${this._handleConfigureCollectionClicked}
+						>Refine · ${shortcutKeys('open-collection-composer')}</button>
+					</div>
+				` : ''}
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' title='Present full screen' aria-label='Present full screen' aria-pressed=${this._presentationMode ? 'true' : 'false'} @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -770,6 +906,14 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
+				${collectionComposerEnabled() ? html`<div slot='actions' class='collection-mobile'>
+					<button
+						class='round'
+						title='Compose collection'
+						aria-label='Compose collection'
+						@click=${this._handleConfigureCollectionClicked}
+					>${RULE_ICON}</button>
+				</div>` : ''}
 				<div slot='actions' class='modify'>
 					<button class='round' title=${`Find a card (${shortcutKeys('find-card')})`} aria-label=${`Find a card (${shortcutKeys('find-card')})`} @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
 					<!-- Titles on wrappers, and a reason for the disabled state:
@@ -1431,13 +1575,40 @@ registerShortcuts([
 		},
 	},
 	{
+		//The Collection Composer's primary entry point (#498). Gated on the
+		//same shared keyboard gate as the rest of this family, which is what
+		//keeps it from firing behind Find, bulk edit, or the corpus
+		//ownership overlay — `inert` does not stop a global keydown, so the
+		//feature's own dialog-open check was never sufficient by itself.
+		//The one term it drops is the composer's OWN dialog: the spec's
+		//keyboard table says Ctrl-K with the composer already open focuses
+		//its input, and gating on the full selector made that unreachable —
+		//the second Ctrl-K was a no-op, so the reducer never saw it.
+		id: 'open-collection-composer',
+		keys: SHORTCUT_COMBOS['open-collection-composer'],
+		label: 'Compose a collection',
+		when: (state) => whenKeyboardNavigatesIgnoringCollectionComposer(state) && collectionComposerEnabled(),
+		handler: () => {
+			store.dispatch(openConfigureCollectionDialog());
+		},
+	},
+	{
 		id: 'navigate-to-path',
 		//Ctrl-Shift-L navigates to a URL in the web app without modifying
 		//the URL bar in the browser, which would lead to a full refresh.
+		//With the composer enabled it opens the composer in SOURCE mode
+		//instead — the same job (type a destination directly), said in the
+		//composer's vocabulary and with its validation.
 		keys: SHORTCUT_COMBOS['navigate-to-path'],
 		label: 'Navigate to a path',
 		when: whenKeyboardNavigates,
-		handler: () => store.dispatch(askForPathToNavigateTo()),
+		handler: () => {
+			if (collectionComposerEnabled()) {
+				store.dispatch(openConfigureCollectionDialog('source'));
+				return;
+			}
+			store.dispatch(askForPathToNavigateTo());
+		},
 	},
 	{
 		id: 'randomize-collection',

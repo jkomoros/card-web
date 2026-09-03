@@ -1,5 +1,6 @@
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 
 import {
 	declareShortcut,
@@ -22,6 +23,28 @@ import {
 
 //document.activeElement stops at a shadow host, so a control inside another
 //component reads as that component. Walk down to the real one.
+//THE APP'S STACKING LADDER, IN ONE PLACE, because the layers are in four files
+//and only their numbers say how they relate:
+//
+//    1001 … 9999   dialogs, newest on top (this counter)
+//    10000         card-thumbnail-list's drag spacer
+//    10001         card-preview
+//    10002         corpus-ownership-gate — the one true blocking layer
+//
+//Rises by one per dialog open, so the newest-opened dialog stacks above its
+//siblings (see the .container z-index comment), and CLAMPED at the top of its
+//band. The clamp is not hypothetical bookkeeping: an unbounded counter breaks
+//the "card-preview paints above a dialog" invariant that the .container comment
+//asserts, and at the bottom of the band it already broke a worse one — the
+//gate used to sit at a flat 1000 and win on DOM order, so the very FIRST dialog
+//opened in a session (1001) painted its full-viewport scrim over the gate's
+//recovery buttons while the gate's own _setBackgroundInert made that dialog
+//dead. A blocking gate you cannot see and a dialog you cannot use is a
+//softlock; the gate is above everything now, and dialogs stay in their band.
+const MAXIMUM_DIALOG_Z = 9999;
+
+let nextDialogZ = 1000;
+
 const deepestActiveElement = () : HTMLElement | null => {
 	let active = document.activeElement;
 	while (active && active.shadowRoot && active.shadowRoot.activeElement) {
@@ -52,6 +75,18 @@ export class DialogElement extends LitElement {
 	@property({ type : String })
 	override title: string;
 
+	//ONE SENTENCE ABOUT WHAT THIS DIALOG IS FOR, on the title itself.
+	//
+	//HS-1.3 obliges a surface to define the noun it is about, and the composer's
+	//was a '?' badge at the end of its sentence — a visible CONCEPT, in a design
+	//whose whole argument is that the composer contains four things and no
+	//fifth, sitting in the one place the eye lands first. The obligation is not
+	//the badge: it is that the definition be reachable. On the title it is
+	//reachable by hover and by every screen reader (aria-description is read
+	//with the heading it is on), and it costs the surface nothing.
+	@property({ type : String })
+		titleHint = '';
+
 	@property({ type : Boolean })
 		mobile: boolean;
 
@@ -66,6 +101,17 @@ export class DialogElement extends LitElement {
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
+			/* Dialogs are siblings sharing one base z-index, so DOM order —
+			   not opening order — decided who painted on top: the composer's
+			   key-card picker opened find-dialog UNDER the composer, because
+			   find-dialog happens to come first in main-view's template.
+			   willUpdate raises --dialog-z on each open so the most recently
+			   opened dialog stacks above the ones beneath it. Defined here,
+			   fallback-free, per HS-4.1. */
+			:host {
+				--dialog-z: 1000;
+			}
+
 			.container {
 				position: absolute;
 				height: 100%;
@@ -73,8 +119,8 @@ export class DialogElement extends LitElement {
 				top: 0;
 				left: 0;
 				/* Note that card-preview has a z-index higher than this to
-				show up above it */
-				z-index: 1000;
+				show up above it. */
+				z-index: var(--dialog-z);
 				display: none;
 			}
 
@@ -116,7 +162,14 @@ export class DialogElement extends LitElement {
 				max-width:none;
 			}
 
+			/* Raleway. §4.3 assigns --app-header-font-family to titles, and the
+			   composer spec asks for "a left-aligned Raleway heading
+			   consistent with current dialogs" — which no dialog was, because
+			   this rule never named a family and every dialog title inherited
+			   Source Sans Pro from the body. One line here fixes all nine of
+			   them rather than one. */
 			h2 {
+				font-family: var(--app-header-font-family);
 				font-weight: normal;
 				font-size:1.5em;
 				text-align:left;
@@ -184,7 +237,7 @@ export class DialogElement extends LitElement {
 					<span class='focus-sentinel' tabindex='0' @focus=${this._handleSentinelStartFocused}></span>
 					<div class='content' role=${this.dialogRole} aria-modal='true' aria-labelledby='dialog-title' tabindex='-1'>
 						<button class='small' id='close' title='Close dialog' aria-label='Close dialog' @click=${this.cancel}>${CANCEL_ICON}</button>
-						<h2 id='dialog-title'>${this.title || ''}</h2>
+						<h2 id='dialog-title' title=${ifDefined(this.titleHint || undefined)} aria-description=${ifDefined(this.titleHint || undefined)}>${this.title || ''}</h2>
 						<div id='inner'>
 						${this.innerRender()}
 						</div>
@@ -362,6 +415,16 @@ export class DialogElement extends LitElement {
 		//No dialog subclass overrides willUpdate.
 		if (!changedProps.has('open')) return;
 		this._syncEscapeShortcut();
+		//Stacking (see the ladder at the top of this file): each open claims the
+		//next z-index, so a dialog opened from inside another paints above it
+		//regardless of where the two sit in their parent's template. Clamped at
+		//the top of the dialog band — a session that somehow reached it loses
+		//only the ordering between two dialogs, which is the cheapest thing to
+		//lose and much cheaper than climbing past card-preview and the gate.
+		if (this.open) {
+			nextDialogZ = Math.min(nextDialogZ + 1, MAXIMUM_DIALOG_Z);
+			this.style.setProperty('--dialog-z', String(nextDialogZ));
+		}
 		//Focus is scheduled from HERE, via updateComplete, rather than from
 		//updated(). ai-dialog and find-dialog override updated() without
 		//calling super, so the old hook silently never ran for them — ai-dialog

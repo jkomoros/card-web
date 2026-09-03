@@ -21,6 +21,20 @@ export const PAGE_PERMISSIONS = 'permissions';
 export const PAGE_CHAT = 'chat';
 export const PAGE_404 = 'view404';
 
+//THE PAGES THE ROUTER WILL ACTUALLY LOAD, as a set, so a surface that lets
+//somebody type a destination can tell an app path from a typo without keeping
+//its own copy of this list. PAGE_404 is deliberately absent: it is what the
+//router falls back TO, never a place to send anyone. PAGE_DEFAULT is absent for
+//the opposite reason — /c/ is the collection route, which every such surface
+//already understands in far more detail than a page name.
+export const APP_PAGE_NAMES : ReadonlySet<string> = new Set([
+	PAGE_BASIC_CARD,
+	PAGE_COMMENT,
+	PAGE_MAINTENANCE,
+	PAGE_PERMISSIONS,
+	PAGE_CHAT,
+]);
+
 import {
 	selectActiveCollectionCards,
 	selectCommentsAreFullyLoaded,
@@ -80,7 +94,8 @@ import {
 	collectionDescriptionWithQuery,
 	collectionDescriptionWithConfigurableFilter,
 	CollectionDescription,
-	collectionDescriptionWithSelected
+	collectionDescriptionWithSelected,
+	collectionURLPath
 } from '../collection_description.js';
 
 import {
@@ -109,15 +124,24 @@ import {
 } from '../types.js';
 
 import {
-	ThunkSomeAction
+	ThunkSomeAction,
+	AppThunkDispatch,
+	AppGetState
 } from '../store.js';
 
 import {
+	NavigationCommitResult,
+	navigationCommitDecision,
+} from '../navigation-commit.js';
+
+import {
+	EMPTY_DIALOG_SELECTION,
 	CARD_BEING_FETCHED,
 	CLOSE_CARDS_DRAWER_INFO,
 	CLOSE_CARDS_DRAWER_PANEL,
 	CLOSE_COMMENTS_AND_INFO_PANEL,
 	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	CANCEL_CONFIGURE_COLLECTION_DIALOG,
 	CLOSE_HEADER_PANEL,
 	DISMISS_SNACKBAR,
 	DISABLE_MOBILE_MODE,
@@ -143,21 +167,47 @@ import {
 	UPDATE_PAGE
 } from '../actions.js';
 
+export const navigatePathToResult = (path : string, silent? : boolean) => (
+	dispatch : AppThunkDispatch,
+	getState : AppGetState
+) : NavigationCommitResult => {
+	const decision = navigationCommitDecision(
+		window.location.pathname,
+		path,
+		selectIsEditing(getState()),
+		silent
+	);
+	if (decision.status !== 'commit') return decision;
+	if (decision.history === 'replace') {
+		window.history.replaceState({}, '', decision.path);
+	} else {
+		window.history.pushState({}, '', decision.path);
+		dispatch(navigated(decision.path, location.search));
+	}
+	return {
+		status: 'committed',
+		requestedPath: decision.path,
+		committedPath: window.location.pathname,
+		history: decision.history,
+	};
+};
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeAction => (dispatch, getState) => {
-	const state = getState();
-	//If we're already pointed there, no need to navigate
-	if ('/' + path === window.location.pathname) return;
-	if (selectIsEditing(state)) {
-		console.log('Can\'t navigate while editing');
-		return;
-	}
-	if (silent) {
-		window.history.replaceState({}, '', path);
-		return;
-	}
-	window.history.pushState({}, '', path);
-	dispatch(navigated(path, location.search));
+//
+//The legacy void-returning shape, kept for the six callers that predate
+//navigatePathToResult. Those callers cannot act on a result, but throwing it
+//away silently is worse than the state before it existed: 'blocked-editing'
+//means a navigation the user asked for did not happen, and §3.5 says a refusal
+//is never silent. This is the minimum honest signal — one line, at the seam
+//every legacy caller already goes through — not the fix. The fix is those six
+//flows reporting to the user in their own vocabulary, which is a per-caller
+//decision about which of §3.5's three resolutions each one wants; a snackbar
+//bolted onto all six here would be the "eight competing sentences" shape
+//sync-copy exists to warn about. Follow-up.
+export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeAction => (dispatch) => {
+	const result = dispatch(navigatePathToResult(path, silent));
+	//'unchanged' is not a refusal — the user is already where they asked to be.
+	if (result.status !== 'committed' && result.status !== 'unchanged') console.warn('Navigation refused: ' + result.status);
 };
 
 export const navigateToNextCard = () : ThunkSomeAction => (dispatch, getState) => {
@@ -297,12 +347,17 @@ export const navigateToCollectionWithSelected = () : ThunkSomeAction => (dispatc
 };
 
 export const urlForCollection = (collection : CollectionDescription) : string => {
-	return '/' + PAGE_DEFAULT + '/' + collection.serializeShortOriginalOrder();
+	//Through the shared builder, so the bare Main collection is spelled
+	//`/c/main/` rather than the `/c/` this used to hand the router.
+	return collectionURLPath(collection, {originalOrder: true});
 };
 
 export const navigateToCollection = (collection : CollectionDescription) => {
 	return navigatePathTo(urlForCollection(collection));
 };
+
+export const navigateToCollectionWithResult = (collection : CollectionDescription) =>
+	navigatePathToResult(urlForCollection(collection));
 
 export const navigated = (path : string, query : string) : ThunkSomeAction => (dispatch) => {
 
@@ -644,9 +699,21 @@ export const closeCardsDrawerPanel = () : SomeAction => {
 	};
 };
 
-export const openConfigureCollectionDialog = () : SomeAction => {
+//`selection` names the clause the opener wants the composer to open ON, in the
+//sentence's own address ([index], or [] for no opinion). The why-here panel is
+//the only caller that has one: it is the surface where a user points at a
+//specific condition, and arriving in a composer that had forgotten which one
+//would make the tap-through a navigation rather than an answer.
+//
+//The default is the SHARED constant, not a fresh `[]`. A fresh one is truthy,
+//so the reducer's `action.selection || EMPTY_DIALOG_SELECTION` never reached
+//its fallback and every no-opinion open handed the dialog a new array
+//identity — exactly the churn that constant was written to prevent.
+export const openConfigureCollectionDialog = (mode : 'compose' | 'source' = 'compose', selection : readonly number[] = EMPTY_DIALOG_SELECTION) : SomeAction => {
 	return {
 		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
+		mode,
+		selection,
 	};
 };
 
@@ -655,6 +722,10 @@ export const closeConfigureCollectionDialog = () : SomeAction => {
 		type: CLOSE_CONFIGURE_COLLECTION_DIALOG
 	};
 };
+
+export const cancelConfigureCollectionDialog = () : SomeAction => ({
+	type: CANCEL_CONFIGURE_COLLECTION_DIALOG
+});
 
 
 export const enablePresentationMode = () : SomeAction => {
