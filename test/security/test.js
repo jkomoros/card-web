@@ -1,7 +1,20 @@
 
 //based on https://github.com/firebase/quickstart-nodejs/tree/master/firestore-emulator/javascript-quickstart
 /*eslint-env node*/
-import firebase from '@firebase/testing';
+//@firebase/testing was deprecated and never patched; it pinned firebase@7 and
+//request@2, which is where most of this repo's critical advisories came from.
+//@firebase/rules-unit-testing is its official successor. Its contexts hand back
+//a firebase/compat Firestore, so every `db.collection(...).doc(...)` call below
+//is the same API it always was — only the app/token plumbing changed.
+import {
+	initializeTestEnvironment,
+	assertSucceeds,
+	assertFails
+} from '@firebase/rules-unit-testing';
+//Needed only for the FieldValue/Timestamp sentinels the fixtures write; the
+//compat namespace is the one the compat Firestore instances understand.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import fs from 'fs';
 
 const projectId = 'compendium-tester';
@@ -72,17 +85,39 @@ const newMessageId = 'newMessage';
 const updateId = 'update';
 const newUpdateId = 'newUpdate';
 
+//Set in the root `before` hook, torn down in `after`.
+let testEnv = null;
+
+//The mock-token builder REJECTS a `uid` field outright — the user id is passed
+//as its own argument and echoed into `sub`/`user_id` — so uid is split off here
+//and every other claim the fixtures set is forwarded verbatim, including the
+//`firebase.sign_in_provider` block the anonymous-user rules read.
+function tokenOptionsFor(auth) {
+	const options = {...auth};
+	delete options.uid;
+	return options;
+}
+
 function authedApp(auth) {
-	return firebase.initializeTestApp({ projectId, auth }).firestore();
+	const context = auth ? testEnv.authenticatedContext(auth.uid, tokenOptionsFor(auth)) : testEnv.unauthenticatedContext();
+	return context.firestore();
 }
 
 function addPermissionForUser(uid, permissionToSet) {
-	const db = firebase.initializeAdminApp({projectId}).firestore();
-	return db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[permissionToSet]:true}, {merge:true});
+	return testEnv.withSecurityRulesDisabled(async (context) => {
+		const db = context.firestore();
+		await db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[permissionToSet]:true}, {merge:true});
+	});
 }
 
+//withSecurityRulesDisabled tears its context down the instant the callback
+//resolves, so the whole fixture write has to happen inside it — hence the
+//split, which leaves the fixture body itself untouched.
 async function setupDatabase() {
-	const db = firebase.initializeAdminApp({projectId}).firestore();
+	await testEnv.withSecurityRulesDisabled(context => seedFixtures(context.firestore()));
+}
+
+async function seedFixtures(db) {
 	await db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
 	await db.collection(PERMISSIONS_COLLECTION).doc(bobUid).set({viewUnpublished: true});
 	await db.collection(PERMISSIONS_COLLECTION).doc(jerryUid).set({edit: true});
@@ -272,16 +307,25 @@ async function setupDatabase() {
 
 beforeEach(async () => {
 	// Clear the database between tests
-	await firebase.clearFirestoreData({ projectId });
+	await testEnv.clearFirestore();
 	await setupDatabase();
 });
 
 before(async () => {
-	await firebase.loadFirestoreRules({ projectId, rules });
+	//The rules are uploaded for this projectId as part of standing the
+	//environment up, which is what loadFirestoreRules used to do on its own.
+	testEnv = await initializeTestEnvironment({
+		projectId,
+		firestore: {
+			rules,
+			host: 'localhost',
+			port
+		}
+	});
 });
 
 after(async () => {
-	await Promise.all(firebase.apps().map(app => app.delete()));
+	await testEnv.cleanup();
 	console.log(`View rule coverage information at ${coverageUrl}\n`);
 });
 
@@ -289,169 +333,169 @@ describe('Compendium Rules', () => {
 	it('allows a user to read and write only their own multi-edit chunk markers', async() => {
 		const bobDB = authedApp(bobAuth);
 		const own = bobDB.collection(USERS_COLLECTION).doc(bobUid).collection('multi_edit_chunks').doc('chunk');
-		await firebase.assertSucceeds(own.set({next_index: 10}));
-		await firebase.assertSucceeds(own.get());
+		await assertSucceeds(own.set({next_index: 10}));
+		await assertSucceeds(own.get());
 		const other = bobDB.collection(USERS_COLLECTION).doc(sallyUid).collection('multi_edit_chunks').doc('chunk');
-		await firebase.assertFails(other.set({next_index: 10}));
-		await firebase.assertFails(other.get());
+		await assertFails(other.set({next_index: 10}));
+		await assertFails(other.get());
 	});
 	it('allows anyone to read a published card', async () => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.get());
+		await assertSucceeds(card.get());
 	});
 
 	it('allows anyone to query for published card', async () => {
 		const db = authedApp(null);
 		const query = db.collection(CARDS_COLLECTION).where('published', '==', true);
-		await firebase.assertSucceeds(query.get());
+		await assertSucceeds(query.get());
 	});
 
 	it('disallows default user to query for cards that may include ones that aren\t published', async () => {
 		const db = authedApp(null);
 		const query = db.collection(CARDS_COLLECTION);
-		await firebase.assertFails(query.get());
+		await assertFails(query.get());
 	});
 
 	it('disallows normal users permission to view unpublished cards', async() => {
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
-		await firebase.assertFails(card.get());
+		await assertFails(card.get());
 	});
 
 	it ('allows users with viewUnpublished permission to view unpublished card', async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
-		await firebase.assertSucceeds(card.get());
+		await assertSucceeds(card.get());
 	});
 
 	it ('allows users with edit permission to view unpublished card', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
-		await firebase.assertSucceeds(card.get());
+		await assertSucceeds(card.get());
 	});
 
 	it ('allows users with editCard permission to view unpublished card', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editCard');
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
-		await firebase.assertSucceeds(card.get());
+		await assertSucceeds(card.get());
 	});
 
 	it ('allows users with admin permission to view unpublished card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
-		await firebase.assertSucceeds(card.get());
+		await assertSucceeds(card.get());
 	});
 
 	it ('allows users to view unpublished card they are an author of even without viewUnpublished permission', async() => {
 		const db = authedApp(sallyAuth);
 		const query = db.collection(CARDS_COLLECTION).where('published', '==', false).where('author', '==', sallyUid);
-		await firebase.assertSucceeds(query.get());
+		await assertSucceeds(query.get());
 	});
 
 	it ('allows users to view unpublished card they are listed as editor of even without viewUnpublished permission', async() => {
 		const db = authedApp(sallyAuth);
 		const query = db.collection(CARDS_COLLECTION).where('published', '==', false).where('permissions.editCard', 'array-contains', sallyUid);
-		await firebase.assertSucceeds(query.get());
+		await assertSucceeds(query.get());
 	});
 
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with edit permission to create a card', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with createCard permission to create a card', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'createCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('disallows admins to create a card they aren\'t author of', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:bobUid}));
+		await assertFails(card.set({tile:'foo', body:'foo', author:bobUid}));
 	});
 
 	it('disallows creating a card without bumping updated', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:adminUid}));
+		await assertFails(card.set({tile:'foo', body:'foo', author:adminUid}));
 	});
 
 	it('does not allow normal users to create a card', async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
+		await assertFails(card.set({tile:'foo', body:'foo'}));
 	});
 
 	it('does not allow unauthenticated users to create a card', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
+		await assertFails(card.set({tile:'foo', body:'foo'}));
 	});
 
 	it('allows any non-anon users to increment thread_count', async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({thread_count: cardThreadCount + 1}));
+		await assertSucceeds(card.update({thread_count: cardThreadCount + 1}));
 	});
 
 	it('disallows any anon users to increment thread_count', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1}));
+		await assertFails(card.update({thread_count: cardThreadCount + 1}));
 	});
 
 	//The next two tests exercise the increment/decrement behavior in general, effectively.
 	it('disallows any non-anon users to increment thread_count by more than 1', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount + 2}));
+		await assertFails(card.update({thread_count: cardThreadCount + 2}));
 	});
 
 	it('disallows any non-anon users to decrement thread_count', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1}));
+		await assertFails(card.update({thread_count: cardThreadCount - 1}));
 	});
 
 	it('disallows any non-anon users to modify another field while incremeting thread_count', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, body:'other'}));
+		await assertFails(card.update({thread_count: cardThreadCount + 1, body:'other'}));
 	});
 
 	it('allows any non-anon users to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
+		await assertSucceeds(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
 
 	it('disallows any anon users to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
+		await assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
 
 	it('disallows any non-anon users to increment thread_count by 1 and increment resolved_thread_count by 1', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, thread_resolved_count: cardThreadResolvedCount + 1}));
+		await assertFails(card.update({thread_count: cardThreadCount + 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
 
 	it('disallows any non-anon users to decrement thread_count by 1 and increment resolved_thread_count by 1 if they have other fields', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
+		await assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
 	});
 
 	//The star counters and the star document move together, in one batch, which
@@ -463,19 +507,19 @@ describe('Compendium Rules', () => {
 		const batch = db.batch();
 		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1});
 		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + starlessCardId), {owner: anonUid, card: starlessCardId});
-		await firebase.assertSucceeds(batch.commit());
+		await assertSucceeds(batch.commit());
 	});
 
 	it('disallows incrementing star_count without creating the corresponding star', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+		await assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows incrementing star_count again when the user already holds the star', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+		await assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows creating a star for one card while incrementing a different card', async() => {
@@ -483,7 +527,7 @@ describe('Compendium Rules', () => {
 		const batch = db.batch();
 		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1});
 		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId), {owner: anonUid, card: newStarCardId});
-		await firebase.assertFails(batch.commit());
+		await assertFails(batch.commit());
 	});
 
 	it('disallows moving the two star counters in opposite directions', async() => {
@@ -491,19 +535,19 @@ describe('Compendium Rules', () => {
 		const batch = db.batch();
 		batch.update(db.collection(CARDS_COLLECTION).doc(starlessCardId), {star_count: cardStarCount + 1, star_count_manual: cardStarCount - 1});
 		batch.set(db.collection(STARS_COLLECTION).doc(anonUid + '+' + starlessCardId), {owner: anonUid, card: starlessCardId});
-		await firebase.assertFails(batch.commit());
+		await assertFails(batch.commit());
 	});
 
 	it('disallows any nonauthenticated users to increment star_count by 1', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
+		await assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows any signed in users to increment star_count by 1 if they edit other fields', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(starlessCardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount + 1, thread_count: cardThreadCount + 1}));
+		await assertFails(card.update({star_count: cardStarCount + 1, thread_count: cardThreadCount + 1}));
 	});
 
 	it('allows a signed in user to decrement star_count by 1 alongside deleting their star', async() => {
@@ -511,508 +555,508 @@ describe('Compendium Rules', () => {
 		const batch = db.batch();
 		batch.update(db.collection(CARDS_COLLECTION).doc(cardId), {star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1});
 		batch.delete(db.collection(STARS_COLLECTION).doc(starId));
-		await firebase.assertSucceeds(batch.commit());
+		await assertSucceeds(batch.commit());
 	});
 
 	it('disallows decrementing star_count without deleting the corresponding star', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
+		await assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
 	});
 
 	it('disallows any nonauthenticated users to decrement star_count by 1', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
+		await assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
 	});
 
 	it('disallows any signed in users to decrement star_count by 1 if they edit other fields', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount - 1, thread_count: cardThreadCount + 1}));
+		await assertFails(card.update({star_count: cardStarCount - 1, thread_count: cardThreadCount + 1}));
 	});
 
 	it('allows any non-anon user to update the updated_message timestamp to now',async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now',async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({updated_message: new Date(2015,10,10)}));
+		await assertFails(card.update({updated_message: new Date(2015,10,10)}));
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now if they also change another field',async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), star_count: cardStarCount + 1}));
+		await assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), star_count: cardStarCount + 1}));
 	});
 
 	it('disallows any anon user to update the updated_message timestamp to now',async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows any non-anon user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
+		await assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
 	});
 
 	it('disallows any anon user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
+		await assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now if they decrement incrementing thread_count',async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount - 1}));
+		await assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount - 1}));
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now while incrementing thread_count if they also touch another field',async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
+		await assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
 	});
 
 	it('disallows any non-admin user to set arbitrary field on card', async () => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({foo:5}));
+		await assertFails(card.update({foo:5}));
 	});
 
 	it('disallows an editor from editing card content without bumping updated', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({foo:5}));
+		await assertFails(card.update({foo:5}));
 	});
 
 	it('disallows an editor from editing card content with a non-request-time updated', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({foo:5, updated: new Date(2015,10,10)}));
+		await assertFails(card.update({foo:5, updated: new Date(2015,10,10)}));
 	});
 
 	it('allows an admin to reset vestigial tweet counters without bumping updated', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
+		await assertSucceeds(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
 	});
 
 	it('disallows a non-admin editor from writing tweet counters', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
+		await assertFails(card.update({tweet_count: 0, last_tweeted: new Date(0)}));
 	});
 
 	it('allows users with edit permission to arbitrarily edit a card', async () => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users with editCard permission to arbitrarily edit a card', async () => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as author for that card to arbitrarily edit a card', async () => {
 		//bob is explictly the author
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as editors for that card to arbitrarily edit a card', async () => {
 		//Sally is explicitly listed as an editor on the card
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows users explicitly marked as editors to arbitrarily edit a card', async () => {
 		//jerry has blanket edit permission
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows admins to read card updates', async() => {
 		const db = authedApp(adminAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.get());
+		await assertSucceeds(update.get());
 	});
 
 	it('allows explicitly listed author for a card to read card updates', async() => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.get());
+		await assertSucceeds(update.get());
 	});
 
 	it('allows explicitly listed editors for a card to read card updates', async() => {
 		const db = authedApp(sallyAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.get());
+		await assertSucceeds(update.get());
 	});
 
 	it('allows explicitly listed editors to read card updates', async() => {
 		const db = authedApp(jerryAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.get());
+		await assertSucceeds(update.get());
 	});
 
 	it('allows admins to set card updates', async() => {
 		const db = authedApp(adminAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
-		await firebase.assertSucceeds(update.set({foo:4}));
+		await assertSucceeds(update.set({foo:4}));
 	});
 
 	it('allows explicitly listed editors for a card to set card updates', async() => {
 		const db = authedApp(sallyAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
-		await firebase.assertSucceeds(update.set({foo:4}));
+		await assertSucceeds(update.set({foo:4}));
 	});
 
 	it('allows explicitly listed editors to set card updates', async() => {
 		const db = authedApp(jerryAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
-		await firebase.assertSucceeds(update.set({foo:4}));
+		await assertSucceeds(update.set({foo:4}));
 	});
 
 	it('disallows users from reading card updates', async() => {
 		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertFails(update.get());
+		await assertFails(update.get());
 	});
 
 	it('disallows users from setting card updates', async() => {
 		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
-		await firebase.assertFails(update.set({foo:4}));
+		await assertFails(update.set({foo:4}));
 	});
 
 	it('allows everyone to read tags collection', async() => {
 		const db = authedApp(null);
 		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(tag.get());
+		await assertSucceeds(tag.get());
 	});
 
 	it('allows admins to set tags collection', async() => {
 		const db = authedApp(adminAuth);
 		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(tag.set({bar: 3}));
+		await assertSucceeds(tag.set({bar: 3}));
 	});
 
 	it('allows users with edit privileges to set tags collection', async() => {
 		const db = authedApp(jerryAuth);
 		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(tag.set({bar: 3}));
+		await assertSucceeds(tag.set({bar: 3}));
 	});
 
 	it('allows users with editTag privilegs to set tags collection', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editTag');
 		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(tag.set({bar: 3}));
+		await assertSucceeds(tag.set({bar: 3}));
 	});
 
 	it('disallows everyone to set tags collection', async() => {
 		const db = authedApp(bobAuth);
 		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
-		await firebase.assertFails(tag.set({bar: 3}));
+		await assertFails(tag.set({bar: 3}));
 	});
 
 	it('disallows everyone from reading tag updates collection', async() => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertFails(update.get());
+		await assertFails(update.get());
 	});
 
 	it('allows admin to set tag updates collection', async() => {
 		const db = authedApp(adminAuth);
 		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.set({bar: 3}));
+		await assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows users with edit privilege to set tag updates collection', async() => {
 		const db = authedApp(jerryAuth);
 		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.set({bar: 3}));
+		await assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows users with editTag privilege to set tag updates collection', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editTag');
 		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.set({bar: 3}));
+		await assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows everyone to read sections collection', async() => {
 		const db = authedApp(null);
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(section.get());
+		await assertSucceeds(section.get());
 	});
 
 	it('allows admins to set sections collection', async() => {
 		const db = authedApp(adminAuth);
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(section.set({bar: 3}));
+		await assertSucceeds(section.set({bar: 3}));
 	});
 
 	it('allows users with edit privileges to set sections collection', async() => {
 		const db = authedApp(jerryAuth);
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(section.set({bar: 3}));
+		await assertSucceeds(section.set({bar: 3}));
 	});
 
 	it('allows users with editSection privileges to set sections collection', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid,'editSection');
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(section.set({bar: 3}));
+		await assertSucceeds(section.set({bar: 3}));
 	});
 
 	it('disallows everyone to set sections collection', async() => {
 		const db = authedApp(bobAuth);
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
-		await firebase.assertFails(section.set({bar: 3}));
+		await assertFails(section.set({bar: 3}));
 	});
 
 	it('disallows everyone from reading section updates collection', async() => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertFails(update.get());
+		await assertFails(update.get());
 	});
 
 	it('allows admin to set section updates collection', async() => {
 		const db = authedApp(adminAuth);
 		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.set({bar: 3}));
+		await assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows users with edit privileges to set section updates collection', async() => {
 		const db = authedApp(jerryAuth);
 		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.set({bar: 3}));
+		await assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows users with editSection privileges to set section updates collection', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editSection');
 		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.set({bar: 3}));
+		await assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows admins to read maintenance tasks', async() => {
 		const db = authedApp(adminAuth);
 		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(task.get());
+		await assertSucceeds(task.get());
 	});
 
 	it('allows admins to set maintenance tasks', async() => {
 		const db = authedApp(adminAuth);
 		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(task.set({foo:4}));
+		await assertSucceeds(task.set({foo:4}));
 	});
 
 	it('disallows users from reading maintenance tasks', async() => {
 		const db = authedApp(bobAuth);
 		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
-		await firebase.assertFails(task.get());
+		await assertFails(task.get());
 	});
 
 	it('disallows users from setting maintenance tasks', async() => {
 		const db = authedApp(bobAuth);
 		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
-		await firebase.assertFails(task.set({foo:4}));
+		await assertFails(task.set({foo:4}));
 	});
 
 	it('allows users to read back their permissions object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).get());
+		await assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).get());
 	});
 
 	it('disallows users to read back other users permissions object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).get());
+		await assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).get());
 	});
 
 	it('disallows users to modify their permissions object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).update({admin:true}));
+		await assertFails(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).update({admin:true}));
 	});
 
 	it('allows admins to read back other users permissions object', async() => {
 		const db = authedApp(adminAuth);
-		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).get());
+		await assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).get());
 	});
 
 	it('allows admins to set other users permissions object that don\'t contain admin keys', async() => {
 		const db = authedApp(adminAuth);
-		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({edit: true, viewUnpublished: true}));
+		await assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({edit: true, viewUnpublished: true}));
 	});
 
 	it('disallows even admins to set other users permissions object that do contain admin keys', async() => {
 		const db = authedApp(adminAuth);
-		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({admin: true, viewUnpublished: true}));
+		await assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({admin: true, viewUnpublished: true}));
 	});
 
 	it('allows admins to delete users permissions object', async() => {
 		const db = authedApp(adminAuth);
 		await db.collection(PERMISSIONS_COLLECTION).doc(genericUid).set({foo:true});
-		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(genericUid).delete());
+		await assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(genericUid).delete());
 	});
 
 	it('anyone may read authors objects', async() => {
 		const db = authedApp(null);
-		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).get());
+		await assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).get());
 	});
 
 	it('users may modify their own author object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).set({bob:true}));
+		await assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).set({bob:true}));
 	});
 
 	it('users may not modify others author object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertFails(db.collection(AUTHORS_COLLECTION).doc(sallyUid).set({bob:true}));
+		await assertFails(db.collection(AUTHORS_COLLECTION).doc(sallyUid).set({bob:true}));
 	});
 
 	it('admins may modify others author object, but only if they don\'t set any keys', async() => {
 		const db = authedApp(adminAuth);
-		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc('newUid').set({}, {merge: true}));
+		await assertSucceeds(db.collection(AUTHORS_COLLECTION).doc('newUid').set({}, {merge: true}));
 	});
 
 	it('admins may not modify others author object if they set any keys', async() => {
 		const db = authedApp(adminAuth);
-		await firebase.assertFails(db.collection(AUTHORS_COLLECTION).doc('newUid').set({bob:true}, {merge: true}));
+		await assertFails(db.collection(AUTHORS_COLLECTION).doc('newUid').set({bob:true}, {merge: true}));
 	});
 
 	it('users may modify their own user object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).set({bob:true}));
+		await assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).set({bob:true}));
 	});
 
 	it('users may read their own user object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).get());
+		await assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).get());
 	});
 
 	it('users may not modify others user object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertFails(db.collection(USERS_COLLECTION).doc(sallyUid).set({bob:true}));
+		await assertFails(db.collection(USERS_COLLECTION).doc(sallyUid).set({bob:true}));
 	});
 
 	it('users may not read others user object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertFails(db.collection(USERS_COLLECTION).doc(sallyUid).get());
+		await assertFails(db.collection(USERS_COLLECTION).doc(sallyUid).get());
 	});
 
 	it('allows anyone to read messages', async() => {
 		const db = authedApp(null);
-		await firebase.assertSucceeds(db.collection(MESSAGES_COLLECTION).doc(messageId).get());
+		await assertSucceeds(db.collection(MESSAGES_COLLECTION).doc(messageId).get());
 	});
 
 	it('allows anyone to update messages they created', async() => {
 		const db = authedApp(bobAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(message.update({message: 'new message'}));
+		await assertSucceeds(message.update({message: 'new message'}));
 	});
 
 	it('allows admins to update any message', async() => {
 		const db = authedApp(adminAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(message.update({message: 'new message'}));
+		await assertSucceeds(message.update({message: 'new message'}));
 	});
 
 	it('disallows users who didn\'t create a message to update it', async() => {
 		const db = authedApp(sallyAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertFails(message.update({message: 'new message'}));
+		await assertFails(message.update({message: 'new message'}));
 	});
 
 	it('allows any non anonymous user to create a message if they are marked as author', async() => {
 		const db = authedApp(bobAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
-		await firebase.assertSucceeds(message.set({author: bobUid, message: 'new message'}));
+		await assertSucceeds(message.set({author: bobUid, message: 'new message'}));
 	});
 
 	it('disallows any non anonymous user to create a message if they are not marked as author', async() => {
 		const db = authedApp(sallyAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
-		await firebase.assertFails(message.set({author: bobUid, message: 'new message'}));
+		await assertFails(message.set({author: bobUid, message: 'new message'}));
 	});
 
 	it('disallows any anonymous user to create a message even if they are marked as author', async() => {
 		const db = authedApp(anonAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
-		await firebase.assertFails(message.set({author: anonUid, message: 'new message'}));
+		await assertFails(message.set({author: anonUid, message: 'new message'}));
 	});
 
 	it('allows anyone to read threads', async() => {
 		const db = authedApp(null);
-		await firebase.assertSucceeds(db.collection(THREADS_COLLECTION).doc(messageId).get());
+		await assertSucceeds(db.collection(THREADS_COLLECTION).doc(messageId).get());
 	});
 
 	it('allows anyone to update threads they created', async() => {
 		const db = authedApp(bobAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(thread.update({resolved: true}));
+		await assertSucceeds(thread.update({resolved: true}));
 	});
 
 	it('allows admins to update any thread', async() => {
 		const db = authedApp(adminAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(thread.update({resolved: true}));
+		await assertSucceeds(thread.update({resolved: true}));
 	});
 
 	it('disallows users who didn\'t create a thread to update it', async() => {
 		const db = authedApp(sallyAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
-		await firebase.assertFails(thread.update({resolved: true}));
+		await assertFails(thread.update({resolved: true}));
 	});
 
 	it('allows any non anonymous user to create a thread if they are marked as author', async() => {
 		const db = authedApp(bobAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
-		await firebase.assertSucceeds(thread.set({author: bobUid}));
+		await assertSucceeds(thread.set({author: bobUid}));
 	});
 
 	it('disallows any non anonymous user to create a thread if they are not marked as author', async() => {
 		const db = authedApp(sallyAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
-		await firebase.assertFails(thread.set({author: bobUid}));
+		await assertFails(thread.set({author: bobUid}));
 	});
 
 	it('disallows any anonymous user to create a thread even if they are marked as author', async() => {
 		const db = authedApp(anonAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
-		await firebase.assertFails(thread.set({author: anonUid}));
+		await assertFails(thread.set({author: anonUid}));
 	});
 
 	it('allows non-authors to update a thraed if they are not anonymous and it only adds a message', async() => {
 		const db = authedApp(sallyAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated:firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated:firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('disallows anonymous users to update a non-author thread even if it only adds message', async() => {
 		const db = authedApp(anonAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
-		await firebase.assertFails(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertFails(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 	it('allows any user to create a star they own', async() => {
 		const db = authedApp(anonAuth);
 		const star = db.collection(STARS_COLLECTION).doc(newStarId);
-		await firebase.assertSucceeds(star.set({owner:anonUid, card: newStarCardId}));
+		await assertSucceeds(star.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	//Regression: createIsOwner() validates the `owner` FIELD, never the document
@@ -1023,55 +1067,55 @@ describe('Compendium Rules', () => {
 	it('disallows creating a star at another user\'s canonical id (path squatting)', async() => {
 		const db = authedApp(sallyAuth);
 		const squatted = db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId);
-		await firebase.assertFails(squatted.set({owner: sallyUid, card: newStarCardId}));
+		await assertFails(squatted.set({owner: sallyUid, card: newStarCardId}));
 	});
 
 	it('disallows creating a star whose id does not match its own card field', async() => {
 		const db = authedApp(anonAuth);
 		const mismatched = db.collection(STARS_COLLECTION).doc(anonUid + '+' + newStarCardId);
-		await firebase.assertFails(mismatched.set({owner: anonUid, card: 'some-other-card'}));
+		await assertFails(mismatched.set({owner: anonUid, card: 'some-other-card'}));
 	});
 
 	it('disallows user to create a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(newStarId);
-		await firebase.assertFails(star.set({owner:anonUid, card: newStarCardId}));
+		await assertFails(star.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('allows any user to update a star they own', async() => {
 		const db = authedApp(anonAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(star.update({card: newMessageId}));
+		await assertSucceeds(star.update({card: newMessageId}));
 	});
 
 	it('disallows user to update a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertFails(star.update({card: newMessageId}));
+		await assertFails(star.update({card: newMessageId}));
 	});
 
 	it('allows any user to delete a star they own', async() => {
 		const db = authedApp(anonAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(star.delete());
+		await assertSucceeds(star.delete());
 	});
 
 	it('disallows user to delete a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertFails(star.delete());
+		await assertFails(star.delete());
 	});
 
 	it('allows any user to read a star they own', async() => {
 		const db = authedApp(anonAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(star.get());
+		await assertSucceeds(star.get());
 	});
 
 	it('disallows user to read a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertFails(star.get());
+		await assertFails(star.get());
 	});
 
 	//Regression: the offline star-replay preflight GETs a star that may not
@@ -1083,170 +1127,170 @@ describe('Compendium Rules', () => {
 	it('allows a user to read their OWN not-yet-existing star (replay preflight)', async() => {
 		const db = authedApp(anonAuth);
 		const missing = db.collection(STARS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-starred');
-		await firebase.assertSucceeds(missing.get());
+		await assertSucceeds(missing.get());
 	});
 
 	it('disallows reading a not-yet-existing star belonging to someone else', async() => {
 		const db = authedApp(sallyAuth);
 		const missing = db.collection(STARS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-starred');
-		await firebase.assertFails(missing.get());
+		await assertFails(missing.get());
 	});
 
 	it('allows a user to read their OWN not-yet-existing read (same hazard)', async() => {
 		const db = authedApp(anonAuth);
 		const missing = db.collection(READS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-read');
-		await firebase.assertSucceeds(missing.get());
+		await assertSucceeds(missing.get());
 	});
 
 	it('disallows reading a not-yet-existing read belonging to someone else', async() => {
 		const db = authedApp(sallyAuth);
 		const missing = db.collection(READS_COLLECTION).doc(anonUid + '+' + 'card-that-was-never-read');
-		await firebase.assertFails(missing.get());
+		await assertFails(missing.get());
 	});
 
 	it('allows any user to create a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);
-		await firebase.assertSucceeds(read.set({owner:anonUid, card: newStarCardId}));
+		await assertSucceeds(read.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('disallows user to create a read they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(newStarId);
-		await firebase.assertFails(read.set({owner:anonUid, card: newStarCardId}));
+		await assertFails(read.set({owner:anonUid, card: newStarCardId}));
 	});
 
 	it('allows any user to update a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(read.update({card: newMessageId}));
+		await assertSucceeds(read.update({card: newMessageId}));
 	});
 
 	it('disallows user to update a read they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertFails(read.update({card: newMessageId}));
+		await assertFails(read.update({card: newMessageId}));
 	});
 
 	it('allows any user to delete a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(read.delete());
+		await assertSucceeds(read.delete());
 	});
 
 	it('disallows user to delete a read they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertFails(read.delete());
+		await assertFails(read.delete());
 	});
 
 	it('allows any user to read a read they own', async() => {
 		const db = authedApp(anonAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(read.get());
+		await assertSucceeds(read.get());
 	});
 
 	it('disallows user to read a read they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertFails(read.get());
+		await assertFails(read.get());
 	});
 
 	it('allows anyone to read tweets info', async() => {
 		const db = authedApp(null);
 		const tweet = db.collection(TWEETS_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(tweet.get());
+		await assertSucceeds(tweet.get());
 	});
 
 	it('disallows users to set tweets info', async() => {
 		const db = authedApp(bobAuth);
 		const tweet = db.collection(TWEETS_COLLECTION).doc(messageId);
-		await firebase.assertFails(tweet.update({card: cardId + 'new'}));
+		await assertFails(tweet.update({card: cardId + 'new'}));
 	});
 
 	it('allows any user to create a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertSucceeds(list.set({owner:anonUid, cards: [cardId]}));
+		await assertSucceeds(list.set({owner:anonUid, cards: [cardId]}));
 	});
 
 	it('disallows user to create a reading-list they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertFails(list.set({owner:anonUid, cards: [cardId]}));
+		await assertFails(list.set({owner:anonUid, cards: [cardId]}));
 	});
 
 	it('allows any user to update a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertSucceeds(list.update({cards: firebase.firestore.FieldValue.arrayUnion(newMessageId)}));
+		await assertSucceeds(list.update({cards: firebase.firestore.FieldValue.arrayUnion(newMessageId)}));
 	});
 
 	it('disallows user to update a reading-list they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertFails(list.update({cards: firebase.firestore.FieldValue.arrayUnion(newMessageId)}));
+		await assertFails(list.update({cards: firebase.firestore.FieldValue.arrayUnion(newMessageId)}));
 	});
 
 	it('allows any user to delete a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertSucceeds(list.delete());
+		await assertSucceeds(list.delete());
 	});
 
 	it('disallows user to delete a reading-list they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertFails(list.delete());
+		await assertFails(list.delete());
 	});
 
 	it('allows any user to read a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertSucceeds(list.get());
+		await assertSucceeds(list.get());
 	});
 
 	it('disallows user to read a reading-list they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertFails(list.get());
+		await assertFails(list.get());
 	});
 
 	it('allows owner of reading-list to read updates for a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
 		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.get());
+		await assertSucceeds(update.get());
 	});
 
 	it('disallows user to read updates for a reading-list updates they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertFails(update.get());
+		await assertFails(update.get());
 	});
 
 	it('allows owner of reading-list to write updates for a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
 		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newUpdateId);
-		await firebase.assertSucceeds(update.set({foo:4}));
+		await assertSucceeds(update.set({foo:4}));
 	});
 
 	it('disallows user to set updates for a reading-list updates they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newUpdateId);
-		await firebase.assertFails(update.set({foo:4}));
+		await assertFails(update.set({foo:4}));
 	});
 
 	it('disallows users to delete a card they don\'t own', async() => {
 		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(update.delete());
+		await assertFails(update.delete());
 	});
 
 	it('disallows users to delete a card they own that is not orphaned', async() => {
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
-		await firebase.assertSucceeds(ref.set({
+		await assertSucceeds(ref.set({
 			body: 'this is the body',
 			title: 'this is the title',
 			author: jerryUid,
@@ -1255,14 +1299,14 @@ describe('Compendium Rules', () => {
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
-		await firebase.assertFails(ref.delete());
+		await assertFails(ref.delete());
 	});
 
 	it('disallows users to delete a card they own that has tags', async() => {
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
-		await firebase.assertSucceeds(ref.set({
+		await assertSucceeds(ref.set({
 			body: 'this is the body',
 			title: 'this is the title',
 			author: jerryUid,
@@ -1271,14 +1315,14 @@ describe('Compendium Rules', () => {
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
-		await firebase.assertFails(ref.delete());
+		await assertFails(ref.delete());
 	});
 
 	it('disallows users to delete a card they own that has inbound references', async() => {
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
-		await firebase.assertSucceeds(ref.set({
+		await assertSucceeds(ref.set({
 			body: 'this is the body',
 			title: 'this is the title',
 			author: jerryUid,
@@ -1289,14 +1333,14 @@ describe('Compendium Rules', () => {
 			},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
-		await firebase.assertFails(ref.delete());
+		await assertFails(ref.delete());
 	});
 
 	it('disallows deleting an orphaned owned card without its tombstone', async() => {
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
-		await firebase.assertSucceeds(ref.set({
+		await assertSucceeds(ref.set({
 			body: 'this is the body',
 			title: 'this is the title',
 			author: jerryUid,
@@ -1305,23 +1349,24 @@ describe('Compendium Rules', () => {
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
-		await firebase.assertFails(ref.delete());
+		await assertFails(ref.delete());
 	});
 
 	it('allows users with edit permission to delete an orphaned card only with its tombstone', async() => {
-		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
 		const db = authedApp(jerryAuth);
 		const testCardId = 'delete-test';
-		const adminDbRef = adminDb.collection(CARDS_COLLECTION).doc(testCardId);
 		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
-		await firebase.assertSucceeds(adminDbRef.set({
-			body: 'this is the body',
-			title: 'this is the title',
-			author: bobUid,
-			section: '',
-			tags: [],
-			references_inbound: {},
-		}));
+		await testEnv.withSecurityRulesDisabled(async (context) => {
+			const adminDbRef = context.firestore().collection(CARDS_COLLECTION).doc(testCardId);
+			await assertSucceeds(adminDbRef.set({
+				body: 'this is the body',
+				title: 'this is the title',
+				author: bobUid,
+				section: '',
+				tags: [],
+				references_inbound: {},
+			}));
+		});
 		const batch = db.batch();
 		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(testCardId), {
 			deleted: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1329,14 +1374,14 @@ describe('Compendium Rules', () => {
 			published: false,
 		});
 		batch.delete(ref);
-		await firebase.assertSucceeds(batch.commit());
+		await assertSucceeds(batch.commit());
 	});
 
 	it('disallows create-only users from forging a tombstone for a live card', async() => {
 		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const tombstone = db.collection(TOMBSTONES_COLLECTION).doc(cardId);
-		await firebase.assertFails(tombstone.set({
+		await assertFails(tombstone.set({
 			deleted: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
@@ -1344,7 +1389,7 @@ describe('Compendium Rules', () => {
 	it('disallows editors from writing a tombstone without deleting the card', async() => {
 		const db = authedApp(sallyAuth);
 		const tombstone = db.collection(TOMBSTONES_COLLECTION).doc(cardId);
-		await firebase.assertFails(tombstone.set({
+		await assertFails(tombstone.set({
 			deleted: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
 	});
@@ -1356,7 +1401,7 @@ describe('Compendium Rules', () => {
 		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
 			deleted: firebase.firestore.FieldValue.serverTimestamp(),
 		});
-		await firebase.assertSucceeds(batch.commit());
+		await assertSucceeds(batch.commit());
 	});
 
 	it('allows the REAL client tombstone shape ({deleted, by, published}) — the shape deleteCard actually writes', async() => {
@@ -1368,19 +1413,20 @@ describe('Compendium Rules', () => {
 			by: sallyAuth.uid,
 			published: false,
 		});
-		await firebase.assertSucceeds(batch.commit());
+		await assertSucceeds(batch.commit());
 	});
 
 	it('requires a fresh tombstone timestamp when deleting a card recreated under an old ID', async() => {
-		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
 		const db = authedApp(sallyAuth);
-		const tombstone = adminDb.collection(TOMBSTONES_COLLECTION).doc(cardId);
-		await tombstone.set({
-			deleted: firebase.firestore.Timestamp.fromMillis(1),
-			by: sallyAuth.uid,
-			published: false,
+		await testEnv.withSecurityRulesDisabled(async (context) => {
+			const tombstone = context.firestore().collection(TOMBSTONES_COLLECTION).doc(cardId);
+			await tombstone.set({
+				deleted: firebase.firestore.Timestamp.fromMillis(1),
+				by: sallyAuth.uid,
+				published: false,
+			});
 		});
-		await firebase.assertFails(db.collection(CARDS_COLLECTION).doc(cardId).delete());
+		await assertFails(db.collection(CARDS_COLLECTION).doc(cardId).delete());
 		const batch = db.batch();
 		batch.delete(db.collection(CARDS_COLLECTION).doc(cardId));
 		batch.set(db.collection(TOMBSTONES_COLLECTION).doc(cardId), {
@@ -1388,7 +1434,7 @@ describe('Compendium Rules', () => {
 			by: sallyAuth.uid,
 			published: false,
 		});
-		await firebase.assertSucceeds(batch.commit());
+		await assertSucceeds(batch.commit());
 	});
 
 	it('disallows a tombstone attributing the deletion to someone else', async() => {
@@ -1400,7 +1446,7 @@ describe('Compendium Rules', () => {
 			by: 'someone-else',
 			published: false,
 		});
-		await firebase.assertFails(batch.commit());
+		await assertFails(batch.commit());
 	});
 
 	it('disallows a tombstone with extra fields beyond the client shape', async() => {
@@ -1413,19 +1459,19 @@ describe('Compendium Rules', () => {
 			published: false,
 			junk: true,
 		});
-		await firebase.assertFails(batch.commit());
+		await assertFails(batch.commit());
 	});
 
 	it('disallows users to delete updates from a card they don\'t own', async() => {
 		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertFails(update.delete());
+		await assertFails(update.delete());
 	});
 
 	it('allows users to delete updates from a card they own', async() => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
-		await firebase.assertSucceeds(update.delete());
+		await assertSucceeds(update.delete());
 	});
 
 	it('allows users to update inbound links on a card they can see but cant edit', async() => {
@@ -1436,7 +1482,7 @@ describe('Compendium Rules', () => {
 		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({
+		await assertSucceeds(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1453,7 +1499,7 @@ describe('Compendium Rules', () => {
 		await addPermissionForUser(genericUid, 'createCard');
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 		}));
@@ -1462,7 +1508,7 @@ describe('Compendium Rules', () => {
 	it('disallows the no-updated inbound-link write for an admin client too', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 		}));
@@ -1471,7 +1517,7 @@ describe('Compendium Rules', () => {
 	it('disallows updating inbound links with a non-servertime updated', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			updated: new Date(),
@@ -1481,7 +1527,7 @@ describe('Compendium Rules', () => {
 	it('disallows users to update inbound links on a card they can see but cant edit if the update contains other edits', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			body: 'bam'
@@ -1497,7 +1543,7 @@ describe('Compendium Rules', () => {
 	it('disallows an UNAUTHENTICATED client from updating inbound links', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1507,7 +1553,7 @@ describe('Compendium Rules', () => {
 	it('disallows an UNAUTHENTICATED client from bumping updated via the inbound-link carve-out', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
 		}));
@@ -1516,7 +1562,7 @@ describe('Compendium Rules', () => {
 	it('disallows an anonymous user with no card permissions from updating inbound links', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + unpublishedCardId]: true,
 			['references_info_inbound.' + unpublishedCardId + '.link']: '',
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1530,7 +1576,7 @@ describe('Compendium Rules', () => {
 	it('disallows a signed-in user with no card permissions from wiping inbound references', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			references_inbound: {},
 			references_info_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1540,7 +1586,7 @@ describe('Compendium Rules', () => {
 	it('disallows users to update inbound links on a card they cannot see', async() => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
-		await firebase.assertFails(card.update({
+		await assertFails(card.update({
 			['references_inbound.' + cardId]: true,
 			['references_info_inbound.' + cardId + '.link']: '',
 		}));
@@ -1549,7 +1595,7 @@ describe('Compendium Rules', () => {
 	it('allows users to update inbound links on an unpublished card they can see but cant edit', async() => {
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyAuthor);
-		await firebase.assertSucceeds(card.update({
+		await assertSucceeds(card.update({
 			['references_inbound.' + cardId]: true,
 			['references_info_inbound.' + cardId + '.link']: '',
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1560,117 +1606,117 @@ describe('Compendium Rules', () => {
 	it('allows the owner to read their chat', async() => {
 		const db = authedApp(bobAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(chat.get());
+		await assertSucceeds(chat.get());
 	});
 
 	it('disallows non-owners from reading chats', async() => {
 		const db = authedApp(sallyAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.get());
+		await assertFails(chat.get());
 	});
 
 	it('disallows unauthenticated users from reading chats', async() => {
 		const db = authedApp(null);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.get());
+		await assertFails(chat.get());
 	});
 
 	it('disallows any user from writing to chats, even owners', async() => {
 		const db = authedApp(bobAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.update({ title: 'New Title' }));
+		await assertFails(chat.update({ title: 'New Title' }));
 	});
 
 	it('disallows admins from writing to chats', async() => {
 		const db = authedApp(adminAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.update({ title: 'New Title' }));
+		await assertFails(chat.update({ title: 'New Title' }));
 	});
 
 	// ChatMessage collection tests
 	it('allows the chat owner to read chat messages from their chat', async() => {
 		const db = authedApp(bobAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(chatMessage.get());
+		await assertSucceeds(chatMessage.get());
 	});
 
 	it('disallows non-owners from reading chat messages', async() => {
 		const db = authedApp(sallyAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertFails(chatMessage.get());
+		await assertFails(chatMessage.get());
 	});
 
 	it('disallows unauthenticated users from reading chat messages', async() => {
 		const db = authedApp(null);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertFails(chatMessage.get());
+		await assertFails(chatMessage.get());
 	});
 
 	it('disallows any user from writing to chat messages, even owners', async() => {
 		const db = authedApp(bobAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertFails(chatMessage.update({ content: 'New Content' }));
+		await assertFails(chatMessage.update({ content: 'New Content' }));
 	});
 
 	it('disallows admins from writing to chat messages', async() => {
 		const db = authedApp(adminAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc(messageId);
-		await firebase.assertFails(chatMessage.update({ content: 'New Content' }));
+		await assertFails(chatMessage.update({ content: 'New Content' }));
 	});
 
 	// Published chat tests
 	it('allows anyone to read a published chat', async() => {
 		const db = authedApp(null);
 		const chat = db.collection(CHATS_COLLECTION).doc('published-chat');
-		await firebase.assertSucceeds(chat.get());
+		await assertSucceeds(chat.get());
 	});
 
 	it('allows the owner to read chat messages from their published chat', async() => {
 		const db = authedApp(bobAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat');
-		await firebase.assertSucceeds(chatMessage.get());
+		await assertSucceeds(chatMessage.get());
 	});
 
 	it('allows any user to read chat messages from a published chat', async() => {
 		const db = authedApp(sallyAuth);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat');
-		await firebase.assertSucceeds(chatMessage.get());
+		await assertSucceeds(chatMessage.get());
 	});
 
 	it('allows unauthenticated users to read chat messages from a published chat', async() => {
 		const db = authedApp(null);
 		const chatMessage = db.collection(CHAT_MESSAGES_COLLECTION).doc('published-chat');
-		await firebase.assertSucceeds(chatMessage.get());
+		await assertSucceeds(chatMessage.get());
 	});
 
 	// Published status toggle tests
 	it('allows the owner to toggle a chat to published', async() => {
 		const db = authedApp(bobAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertSucceeds(chat.update({ published: true }));
+		await assertSucceeds(chat.update({ published: true }));
 	});
 
 	it('allows the owner to toggle a published chat to unpublished', async() => {
 		const db = authedApp(bobAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc('published-chat');
-		await firebase.assertSucceeds(chat.update({ published: false }));
+		await assertSucceeds(chat.update({ published: false }));
 	});
 
 	it('disallows non-owners from toggling published status', async() => {
 		const db = authedApp(sallyAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.update({ published: true }));
+		await assertFails(chat.update({ published: true }));
 	});
 
 	it('disallows owners from updating published along with other fields', async() => {
 		const db = authedApp(bobAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.update({ published: true, title: 'New Title' }));
+		await assertFails(chat.update({ published: true, title: 'New Title' }));
 	});
 
 	it('disallows admins from toggling published status of chats they don\'t own', async() => {
 		const db = authedApp(adminAuth);
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
-		await firebase.assertFails(chat.update({ published: true }));
+		await assertFails(chat.update({ published: true }));
 	});
 });
