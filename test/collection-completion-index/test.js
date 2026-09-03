@@ -870,7 +870,7 @@ describe('Collection completion index', () => {
 		it('offers no duplicate destination across the whole idle list', () => {
 			const rows = collectionCompletionIdleRows(draft('everything/starred/'), idleContext());
 			const destinations = [...rows.recents, ...rows.contextual]
-				.filter(row => !row.configureFilter && !row.sourceFilter)
+				.filter(row => !row.sourceFilter)
 				.map(row => row.description.serialize());
 			assert.strictEqual(new Set(destinations).size, destinations.length,
 				`two idle rows offer the same collection: ${destinations.join(' | ')}`);

@@ -50,7 +50,6 @@ export type CollectionComposerSuggestion = {
   detail: string;
   description: CollectionDescription;
   destinationPath?: string;
-  configureFilter?: string;
   sourceFilter?: string;
   //True when the clause this row adds — or, for a destination row, the
   //collection it opens — is computed from the signed-in account. The row says
@@ -650,16 +649,6 @@ const ACTION_VERBS: Record<CollectionComposerSuggestion['action'], string> = {
 const verbLabel = (action: CollectionComposerSuggestion['action'], name: string): string =>
 	`${ACTION_VERBS[action]} ${name}`;
 
-//EXPORTED for the palette's zero-card recovery. A draft that matches nothing
-//needs the per-clause removals back — with their counts — and re-deriving
-//"remove clause N, named" beside the generator that already does it is how the
-//recovery list and the Refine list would come to name the same clause two ways.
-export const collectionComposerRemovalSuggestions = (
-	current: CollectionDescription,
-	filterLabels: Record<string, string> = {},
-	cardNames: Record<string, string> = {}
-): CollectionComposerSuggestion[] => removalSuggestions(current, filterLabels, cardNames);
-
 const removalSuggestions = (
 	current: CollectionDescription,
 	filterLabels: Record<string, string>,
@@ -975,7 +964,7 @@ export const dedupedByDestination = (
 		//collection they are already composing. A row that opens an editor
 		//(Configure/Edit in Source) does not go anywhere at all, so its nominal
 		//destination is not what it offers.
-		const opensAnEditor = Boolean(suggestion.configureFilter || suggestion.sourceFilter);
+		const opensAnEditor = Boolean(suggestion.sourceFilter);
 		if (suggestion.kind !== 'source' && !opensAnEditor) {
 			if (destination === currentDestination) continue;
 			if (seen.has(destination)) continue;

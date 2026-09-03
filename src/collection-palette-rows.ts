@@ -348,8 +348,6 @@ const rowForSuggestion = (suggestion : CollectionComposerSuggestion, section : s
 	detail: suggestion.detail,
 	description: suggestion.description,
 	sourceFilter: suggestion.sourceFilter,
-	configurable: Boolean(suggestion.configureFilter),
-	filter: suggestion.configureFilter,
 	viewerDependent: Boolean(suggestion.viewerDependent),
 	destinationPath: suggestion.destinationPath,
 	annotation: suggestion.kind === 'recent' ? DESTINATION_ANNOTATION : undefined,
