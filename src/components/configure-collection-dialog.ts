@@ -1,6 +1,5 @@
 import { html, css, PropertyValues } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
-import { live } from 'lit/directives/live.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -48,7 +47,6 @@ import {
 
 import {
 	APP_PAGE_NAMES,
-	askForPathToNavigateTo,
 	cancelConfigureCollectionDialog,
 	closeConfigureCollectionDialog,
 	openConfigureCollectionDialog,
@@ -63,22 +61,14 @@ import {
 } from '../actions/collection.js';
 
 import {
-	collectionDescriptionWithSet,
-	collectionDescriptionWithSort,
 	collectionDescriptionWithSortReversed,
 	collectionDescriptionWithViewMode,
-	collectionDescriptionWithFilterRemoved,
-	collectionDescriptionWithFilterModified,
-	collectionDescriptionWithFilterAppended,
 	collectionURLPath,
 	COLLECTION_URL_PREFIX,
 	CollectionDescription
 } from '../collection_description.js';
 
 import {
-	SET_INFOS,
-	SORTS,
-	ALL_FILTER_NAME,
 	LEGAL_VIEW_MODES,
 	filterNamesAreViewerDependent,
 } from '../filters.js';
@@ -87,12 +77,8 @@ import {
 	ARROW_DOWN_ICON,
 	ARROW_RIGHT_ICON,
 	CANCEL_ICON,
-	LINK_ICON,
 	OPEN_IN_BROWSER_ICON,
-	PLUS_ICON
 } from '../../shared/icons.js';
-
-import './configure-collection-filter.js';
 
 import './card-link.js';
 import './collection-sentence.js';
@@ -110,8 +96,6 @@ import {
 import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
-	SetName,
-	SortName,
 	ViewMode,
 } from '../../shared/types.js';
 
@@ -127,11 +111,6 @@ import {
 	ExpressionModifiedEvent,
 	FilterModifiedEvent
 } from '../events.js';
-
-import {
-	collectionComposerEnabled,
-	collectionComposerPreviewEnabled,
-} from '../collection-composer-mode.js';
 
 import {
 	corpusWorkerRunCollection,
@@ -312,6 +291,12 @@ const OPEN_ACTION_NAME = `Open this collection (${shortcutKeys('commit-collectio
 //name says the true thing and the count line, which would be counting the cards
 //of a collection nobody named, is not drawn at all.
 const OPEN_PAGE_ACTION_NAME = `Open this page (${shortcutKeys('commit-collection-composer')})`;
+
+//ONE TITLE, because there is one dialog. It used to be chosen per-instance
+//against the rollout flag — 'Compose a Collection' with the composer on,
+//'Configure Collection' with the legacy builder — and the flag is gone (owner:
+//"default it to on, remove the flag"), so the second name names nothing.
+const COMPOSER_DIALOG_TITLE = 'Compose a Collection';
 
 //A keystroke that has already been spent on a commit.
 //
@@ -767,12 +752,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_pointerHighlightArmed = false;
 
-	//The legacy builder's own expansion, for the composer-off path only. The
-	//composer's clause editor is the pill row now, and it is opened by selecting
-	//a pill rather than by a toggle.
-	@state()
-		_builderExpanded = false;
-
 	//WHAT THIS PERSON HAS ACCEPTED BEFORE, read ONCE per composer session.
 	//
 	//The store decays with time, so re-reading it per keystroke would let the
@@ -1041,27 +1020,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-width: 0;
 			}
 
-			.row {
-				display: flex;
-				flex-direction: row;
-				justify-content: space-between;
-			}
-
-			.row > div {
-				display: flex;
-				flex-direction: column;
-			}
-
-			.mobile .row {
-				flex-wrap: wrap;
-				gap: 0.75em;
-			}
-
-			.mobile .row > div {
-				flex: 1 1 8em;
-				min-width: 0;
-			}
-
 			/* THE SENTENCE IS THE FIRST THING UNDER THE TITLE, and it is prose,
 			   not a form row. collection-sentence renders inline so its pills
 			   wrap like words; this block is only the space around it and the
@@ -1085,8 +1043,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   tightness, C1). It existed to shrink HelpStyles' 1.3em glyph to
 			   something that did not dominate a 1.05em sentence; the sentence
 			   carries no glyph now, and the definition it defined lives on the
-			   dialog title. HelpStyles stays because Source mode's and the
-			   legacy builder's own form labels still use it. */
+			   dialog title. HelpStyles stays because Source mode's own form
+			   label still uses it. */
 
 			/* The word the sentence declines to say at its defaults. Subordinate
 			   in colour and size, like the tail it stands in for, and built on
@@ -1604,12 +1562,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				border-color: var(--app-primary-color);
 			}
 
-			/* A genuine extension rather than a repaint: this is a toggle (it
-			   pairs with aria-pressed and takes .selected from
-			   ButtonSharedStyles), and it needs a square hit target beside the
-			   row it modifies. Kept for the legacy builder path, which still
-			   renders its own selects. */
-
 			/* Source mode's key-hints line sits below its list and outside it, so
 			   the list's last row was clipped underneath it on a narrow screen.
 			   The palette's own copy of this reservation went with the line it
@@ -2074,8 +2026,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//open/closed itself) are all in place by then.
 	override innerRender() {
 		if (!this.open) return html``;
-		if (collectionComposerEnabled()) return this._entryMode === 'source' ? this._sourceRender() : this._composerRender();
-		return this._builderRender();
+		return this._entryMode === 'source' ? this._sourceRender() : this._composerRender();
 	}
 
 	get _parsedSource() : ParsedCollectionSource {
@@ -2271,57 +2222,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		!parsed.appPath
 	)}
 			${this._activationMessage ? html`<div class='activation-message' data-problem role='alert'>${this._activationMessage}</div>` : ''}
-		`;
-	}
-
-	_builderRender() {
-		return html`
-			<label>Filters ${help(COLLECTION_HELP)}</label>
-			<ul>
-				${this._collectionDescription.filters.map((filterName, index) => html`
-					<configure-collection-filter
-						.value=${filterName}
-						.index=${index}
-						.mobile=${this.mobile}
-						.filterDescriptions=${this._filterDescriptions}
-						.cardTagInfos=${this._cardTagInfos}
-						.userIDs=${this._userIDs}
-						.userInfos=${this._userInfos}
-						@filter-modified=${this._handleFilterModified}
-						@filter-removed=${this._handleFilterRemoved}>
-					</configure-collection-filter>`)}
-				<li>
-					<button
-						class='small'
-						@click=${this._handleAddFilterClicked}
-						title='Add a new filter (ANDed with other filters)'
-					>
-						${PLUS_ICON}
-					</button>
-				</li>
-			</ul>
-			<div class='row'>
-				<div>
-					<label for='collection-set'>Set</label>
-					<select id='collection-set' @change=${this._handleSetSelectChanged}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${collectionOptionDisplayName(entry[0])}</option>`)}
-					</select>
-				</div>
-				<div>
-					<label for='collection-sort'>Sort</label>
-					<select id='collection-sort' @change=${this._handleSortSelectChanged}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${collectionOptionDisplayName(entry[0])}</option>`)}
-					</select>
-				</div>
-				<div>
-					<label for='reversed'>Sort Reversed</label>
-					<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}>
-				</div>
-				<div>
-					<label for='modify-path'>Manually modify path</label>
-					<button class='small' id='modify-path' @click=${this._handleModifyPath}>${LINK_ICON}</button>
-				</div>
-			</div>
 		`;
 	}
 
@@ -3583,7 +3483,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	constructor() {
 		super();
-		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
+		this.title = COMPOSER_DIALOG_TITLE;
 		//HS-1.3's definition obligation, kept without a visible concept: the '?'
 		//badge is cut and the sentence it carried lives on the heading. See
 		//_sentenceRender.
@@ -4748,47 +4648,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		);
 	}
 
-	_handleModifyPath() {
-		store.dispatch(askForPathToNavigateTo());
-	}
-
-	//THE LEGACY BUILDER'S OWN HANDLERS. They serve the composer-OFF path, where
-	//the dialog is still the original filter list; the composer's own clause
-	//editing goes through the sentence and the pill row, which never touch a
-	//filter index.
-	_handleFilterModified(e : FilterModifiedEvent) {
-		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value));
-	}
-
-	_handleFilterRemoved(e : FilterModifiedEvent) {
-		this._commitDraftEdit(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index));
-	}
-
-	_handleAddFilterClicked() {
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME));
-	}
-
-	_handleSetSelectChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const set = ele.value as SetName;
-		this._commitDraftEdit(collectionDescriptionWithSet(this._collectionDescription, set));
-	}
-
-	_handleSortSelectChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const sort = ele.value as SortName;
-		this._commitDraftEdit(collectionDescriptionWithSort(this._collectionDescription, sort));
-	}
-
-	_handleSortReversedCheckboxChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if(!(ele instanceof HTMLInputElement)) throw new Error('not input element');
-		const sortReversed = ele.checked;
-		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed));
-	}
-
 	_unregisterNestedEscapeShortcut : (() => void) | null = null;
 
 	//Escape peels the composer's NESTED layers (the filter catalog, then the
@@ -4898,12 +4757,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//Escape a second time on a surface that had silently reopened on their
 	//mistake.
 	override _shouldClose() {
-		//Override base class.
-		if (collectionComposerEnabled()) {
-			store.dispatch(cancelConfigureCollectionDialog());
-		} else {
-			store.dispatch(closeConfigureCollectionDialog());
-		}
+		//Override base class. CANCEL, not close: the discard is the composer's
+		//undo, and it is total. (The legacy builder's plain close, which kept
+		//the draft, went with the builder.)
+		store.dispatch(cancelConfigureCollectionDialog());
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
@@ -4958,7 +4815,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//Opening over a resting cursor must not decide what Enter does.
 				this._rowHighlightActive = false;
 				this._pointerHighlightArmed = false;
-				this._builderExpanded = false;
 				//COLLAPSED ON EVERY OPEN. The ranked list is what this dialog is for;
 				//the matches are a peek, and a peek that persisted across sessions
 				//would open the composer already spending half its list on cards
@@ -5141,12 +4997,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
 		const previewDescription = sourceDescription || this._collectionDescription;
 		//THE ONE FACT THAT CHANGES WHICH ROWS EXIST, derived where every other
-		//count is derived and BEFORE any early return — a composer with previews
-		//turned off still has a retained map, and the recovery section is not a
-		//feature of the preview worker. Naming it as state is what puts it in
-		//updated()'s trigger list; see _draftResolvesEmpty for why that matters.
+		//count is derived and BEFORE the early return below — the recovery
+		//section is not a feature of the preview worker. Naming it as state is
+		//what puts it in updated()'s trigger list; see _draftResolvesEmpty for
+		//why that matters.
 		this._draftResolvesEmpty = this._countForDescription(previewDescription) === 0;
-		if (!this.open || !collectionComposerPreviewEnabled()) {
+		//A CLOSED DIALOG COUNTS NOTHING. The subordinate `collection-composer-
+		//preview` flag that also stood here is gone with the rollout flag: live
+		//counts are what the owner accepted the composer WITH, so shipping them
+		//off would ship a different feature.
+		if (!this.open) {
 			this._previewCounts = EMPTY_PREVIEW_COUNTS;
 			this._draftCountPending = false;
 			return;
@@ -5273,7 +5133,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._entryMode = selectConfigureCollectionDialogMode(state);
 		this._focusRequest = selectConfigureCollectionDialogFocusRequest(state);
 		this._requestedSelection = selectConfigureCollectionDialogSelection(state);
-		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
+		this.title = COMPOSER_DIALOG_TITLE;
 	}
 
 }

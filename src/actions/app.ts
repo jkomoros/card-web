@@ -263,13 +263,11 @@ export const refreshCommentRedirect = () : ThunkSomeAction => (dispatch, getStat
 	dispatch(navigateToComment(pageExtra));
 };
 
-export const askForPathToNavigateTo = () : ThunkSomeAction => (dispatch) => {
-	const location = window.location.pathname;
-	const newLocation = prompt('Where do you want to navigate to?', location);
-	if (!newLocation) return;
-	if (newLocation == location) return;
-	dispatch(navigatePathTo(newLocation, false));
-};
+//askForPathToNavigateTo stood here: a window.prompt() for a path, dispatched
+//straight at navigatePathTo. Its two callers were Ctrl-Shift-L and the legacy
+//Configure Collection dialog's 'Manually modify path' button, and both are gone
+//— the composer's Source mode is that job with validation, a canonical form and
+//a link the user can read before committing to it.
 
 export const navigateToComment = (commentId : CommentMessageID | CommentThreadID) : ThunkSomeAction => (dispatch, getState) => {
 	//commentId is either a thread or message id.

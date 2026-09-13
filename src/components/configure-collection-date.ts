@@ -27,8 +27,9 @@ const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'satur
 @customElement('configure-collection-date')
 class ConfigureCollectionDate extends LitElement {
 
-	//Reports whether focus landed, so configure-collection-filter can pass a
-	//real answer up rather than assuming a nested control always succeeds.
+	//Reports whether focus landed, so the host that opened this control
+	//(collection-pill-row) can pass a real answer up rather than assuming a
+	//nested control always succeeds.
 	focusPrimaryControl() : boolean {
 		const control = this.shadowRoot?.querySelector<HTMLElement>(
 			'.container input[type="date"], .relative-date-controls input, .relative-date-controls select, .container select'

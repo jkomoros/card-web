@@ -59,10 +59,6 @@ import {
 } from '../collection-composer-history.js';
 
 import {
-	collectionComposerEnabled,
-} from '../collection-composer-mode.js';
-
-import {
 	CARD_TYPE_CONFIGURATION,
 } from '../../shared/card_fields.js';
 
@@ -232,7 +228,7 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 	//future caller inherits it. Only when the substitution is what would be
 	//recorded: a card already inside the collection on screen leaves that
 	//collection active, and THAT is a real destination.
-	if (collectionComposerEnabled()) recordRecentCollection(descriptionActuallyVisited, selectUid(getState()), Date.now(), {
+	recordRecentCollection(descriptionActuallyVisited, selectUid(getState()), Date.now(), {
 		rawURL: cardSelector,
 		knownFilterNames: selectKnownCollectionFilterNames(getState()),
 		substituted: substitutedCollection && doUpdateCollection,
